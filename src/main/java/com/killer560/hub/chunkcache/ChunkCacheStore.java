@@ -13,7 +13,7 @@ import java.util.List;
  * once, and keep them stored in memory").
  * <p>
  * Every chunk the server sends is remembered here by packed {@link net.minecraft.world.level.ChunkPos} key, so once
- * vanilla's fixed-size {@code ClientChunkCache.Storage} ring drops it (view centre moved, or a forget packet), the
+ * vanilla's fixed-size {@code ClientChunkCache.Storage} ring drops it (view center moved, or a forget packet), the
  * chunk object itself is still reachable and every world read (block states, block entities, heightmaps) keeps
  * working. The entry for a position is always the newest chunk object the server sent for it, so a live chunk is
  * never shadowed by a stale copy.

@@ -57,7 +57,7 @@ import java.util.stream.Collectors;
  * <b>Master Mode has no floor 0</b> - Hypixel's Master Mode starts at floor 1, so there is no {@code /m0}
  * (matches {@code PartyCommandsFeature}'s own "!m1".."!m7" range).
  * <p>
- * <b>Registration and the collision risk.</b> Modelled on {@code profileviewer.ProfileViewerFeature}'s
+ * <b>Registration and the collision risk.</b> Modeled on {@code profileviewer.ProfileViewerFeature}'s
  * {@code /pv} - a plain {@code ClientCommandRegistrationCallback} literal per alias, no gating inside a
  * shared command tree. Every alias here is a short, generic word ({@code f7}, {@code m7}, {@code basic},
  * {@code hot}, {@code burning}, {@code fiery}, {@code infernal}, {@code kuudra}) that ANOTHER mod (or a future
@@ -248,7 +248,7 @@ public final class CommandShortcutsFeature {
                 dispatcher.register(ClientCommands.literal(s.literal).executes(ctx -> exec(s)));
             }
             // "/kuudra <tier>" - the one multi-word form the brief also asked for. Registered while the
-            // master switch and at least one Kuudra tier are on; the per-tier toggle is still honoured inside
+            // master switch and at least one Kuudra tier are on; the per-tier toggle is still honored inside
             // exec() so turning off e.g. "Kuudra Infernal" also blocks "/kuudra infernal". With every tier off
             // the word is freed like the bare aliases (since the 2026-10-08 merge into Chat Keybinds, where a
             // migrated "Command Shortcuts: OFF" becomes every group off under the one switch).

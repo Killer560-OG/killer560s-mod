@@ -12,7 +12,7 @@ import java.util.List;
 
 /**
  * The mod menu's look ("Option A", killer560 2026-10-12): the palette and the drawing pieces every part of the menu shares -
- * bevelled panels (light top-left edge, dark bottom-right edge, black outline), recessed wells, drop shadows, the orange
+ * beveled panels (light top-left edge, dark bottom-right edge, black outline), recessed wells, drop shadows, the orange
  * glow, the switch, the value pill, the raised button and the slider track. Values come from the approved mockup
  * ({@code menu-option-a.html}, its "depth pass" block). Everything is plain fills and vertical gradients, batched through
  * {@link GuiRects} so a card or row is one render element (docs/LESSONS-GUI.md: every fill costs more than its pixels).
@@ -23,7 +23,7 @@ public final class MenuStyle {
     }
 
     // ---- palette ----------------------------------------------------------------------------------------------------
-    // Every colour the menu draws. Derived by use() from the active MenuTheme's five base colours; the initial values
+    // Every color the menu draws. Derived by use() from the active MenuTheme's five base colors; the initial values
     // are Amber's (the mockup's :root and depth pass). Mutable on purpose: ModScreen calls use() before it draws.
     public static int OR = 0xFFFF8A1F;
     public static int OR2 = 0xFFC76A14;
@@ -41,7 +41,7 @@ public final class MenuStyle {
     public static int RED = 0xFFE05555;
     public static int RED_TITLE = 0xFFFF5555;
     public static int RED_BAND = 0xFF3A1414;
-    /** The outline colour (black on dark themes, a mid grey on light ones). */
+    /** The outline color (black on dark themes, a mid gray on light ones). */
     public static int BLACK = 0xFF000000;
     public static int WELL = 0xFF0B0907;
     public static int WELL_DEEP = 0xFF070605;
@@ -109,19 +109,19 @@ public final class MenuStyle {
 
     private static int[] usedColours;
 
-    /** Forgets the derived colours so the next {@link #use} derives again (a theme changed its background). */
+    /** Forgets the derived colors so the next {@link #use} derives again (a theme changed its background). */
     static void invalidate() {
         usedColours = null;
     }
 
     /**
      * Derives the palette from the active theme (cheap when nothing changed). Call before drawing. While a
-     * {@link MenuThemedScreen} with its own Theme setting is open that screen's colours are used
+     * {@link MenuThemedScreen} with its own Theme setting is open that screen's colors are used
      * ({@link MenuTheme#forScreen}; "Theme Default" is the menu's), otherwise the menu's own.
      */
     public static void use() {
         int[] c = null;
-        if (!ModScreen.drawingClosed // a closed menu fading out over another screen keeps the menu's colours
+        if (!ModScreen.drawingClosed // a closed menu fading out over another screen keeps the menu's colors
                 && com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof MenuThemedScreen t
                 && t.themeId() != null) {
             c = MenuTheme.forScreen(t.themeId());
@@ -141,7 +141,7 @@ public final class MenuStyle {
         derive(c[0], c[1], c[2], c[3], c[4]);
     }
 
-    /** Derives the palette from five base colours given directly: the Bazaar and Auction House, whose reskins draw over
+    /** Derives the palette from five base colors given directly: the Bazaar and Auction House, whose reskins draw over
      *  a vanilla container (not a {@link MenuThemedScreen}), pass their own Theme's {@link MenuTheme#forScreen}. The next
      *  {@link #use()} re-derives the menu's (or its screen's) own. */
     public static void use(int[] c) {
@@ -153,8 +153,8 @@ public final class MenuStyle {
     }
 
     /**
-     * The palette five base colours give, as a snapshot, WITHOUT leaving {@link MenuStyle}'s statics changed (the menu or
-     * screen being drawn keeps its own colours): an overlay that is not itself a themed screen reads its colours from
+     * The palette five base colors give, as a snapshot, WITHOUT leaving {@link MenuStyle}'s statics changed (the menu or
+     * screen being drawn keeps its own colors): an overlay that is not itself a themed screen reads its colors from
      * this ({@link OverlayThemes}).
      */
     static OverlayPalette snapshot(int[] c) {
@@ -183,7 +183,7 @@ public final class MenuStyle {
         return (0.299f * ((c >> 16) & 0xFF) + 0.587f * ((c >> 8) & 0xFF) + 0.114f * (c & 0xFF)) / 255f;
     }
 
-    /** Every palette colour from the five base colours (accent, panel, card, text, on-switch). */
+    /** Every palette color from the five base colors (accent, panel, card, text, on-switch). */
     public static void derive(int accent, int panel, int card, int text, int switchOn) {
         accent |= 0xFF000000;
         panel |= 0xFF000000;
@@ -264,7 +264,7 @@ public final class MenuStyle {
         PANEL_BG = GreenTheme.background(accent, panel, card, text, switchOn);
     }
 
-    /** A shadow colour at {@code a} (0..255), scaled by the theme's shadow strength. */
+    /** A shadow color at {@code a} (0..255), scaled by the theme's shadow strength. */
     public static int shadow(int a) {
         return alpha(0xFF000000, Math.round(a * SHADOW));
     }
@@ -273,7 +273,7 @@ public final class MenuStyle {
         return Minecraft.getInstance().font;
     }
 
-    /** A colour with its alpha replaced. */
+    /** A color with its alpha replaced. */
     public static int alpha(int argb, int a) {
         return (Math.max(0, Math.min(255, a)) << 24) | (argb & 0x00FFFFFF);
     }
@@ -292,7 +292,7 @@ public final class MenuStyle {
         return t <= 0f ? a : t >= 1f ? b : mix(a, b, t);
     }
 
-    /** Linear mix of two colours, alpha included. */
+    /** Linear mix of two colors, alpha included. */
     public static int mix(int a, int b, float t) {
         int r = 0;
         for (int s = 0; s < 32; s += 8) {
@@ -305,7 +305,7 @@ public final class MenuStyle {
 
     // ---- shapes ---------------------------------------------------------------------------------------------------
 
-    /** A raised bevelled box: vertical gradient, black outline, light top-left inner edge, dark bottom-right inner edge. */
+    /** A raised beveled box: vertical gradient, black outline, light top-left inner edge, dark bottom-right inner edge. */
     public static void bevel(GuiRects r, int x, int y, int w, int h, int top, int bottom) {
         if (w <= 2 || h <= 2) {
             r.fill(x, y, x + w, y + h, top);
@@ -440,14 +440,14 @@ public final class MenuStyle {
     public static final int SWITCH_W = 20;
     public static final int SWITCH_H = 10;
 
-    /** The on/off switch: a recessed pill, orange gradient + glow when on, with a bevelled knob. */
+    /** The on/off switch: a recessed pill, orange gradient + glow when on, with a beveled knob. */
     public static void toggle(GuiRects r, int x, int y, boolean on, boolean hover) {
         toggle(r, x, y, on ? 1f : 0f, on ? 1f : 0f, hover ? 1f : 0f);
     }
 
     /**
      * The switch part way between off and on (gui/MenuAnim): {@code knob} places the knob (0 left .. 1 right),
-     * {@code colour} blends the track, glow and knob colours, {@code hover} the hover shade. At 0/1 it draws exactly
+     * {@code colour} blends the track, glow and knob colors, {@code hover} the hover shade. At 0/1 it draws exactly
      * the boolean switch's pixels.
      */
     public static void toggle(GuiRects r, int x, int y, float knob, float colour, float hover) {
@@ -546,7 +546,7 @@ public final class MenuStyle {
         hGradient(r, x, y + 1, x + w, y + h, c, alpha(c, 0), 12);
     }
 
-    /** Slider track (recessed) with the filled part orange and a bevelled white knob. */
+    /** Slider track (recessed) with the filled part orange and a beveled white knob. */
     public static void sliderTrack(GuiRects r, int x0, int x1, int cy, double t, boolean hover) {
         sliderTrack(r, x0, x1, cy, t, hover ? 1f : 0f);
     }
@@ -641,7 +641,7 @@ public final class MenuStyle {
             g.text(f, s, 1, 1, 0xFF000000, false);
         }
         int w = f.width(s);
-        // The whole text in the middle colour first: under a non-integer scale the band scissors round to whole pixels and
+        // The whole text in the middle color first: under a non-integer scale the band scissors round to whole pixels and
         // could leave a one-pixel row between two bands, showing the shadow through as a line across the name (killer560,
         // 2026-10-17, "there is a line through Full Toggle"). The bands are drawn over it, so a rounded seam shows text.
         g.text(f, s, 0, 0, mix(top, bottom, 0.5f), false);
@@ -655,7 +655,7 @@ public final class MenuStyle {
         g.pose().popMatrix();
     }
 
-    /** Legacy colour codes that wash out on a light panel swapped for their darker partners (white text becomes black). */
+    /** Legacy color codes that wash out on a light panel swapped for their darker partners (white text becomes black). */
     public static String lightReadable(String raw) {
         if (raw.indexOf('§') < 0) {
             return raw;

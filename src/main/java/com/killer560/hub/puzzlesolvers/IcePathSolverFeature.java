@@ -166,7 +166,7 @@ public final class IcePathSolverFeature {
                             + " silverfish is at rest", countWalls());
         }
 
-        // 20, not 16. The board is 17 cells across, so its far corners sit exactly 8 from this centre - the
+        // 20, not 16. The board is 17 cells across, so its far corners sit exactly 8 from this center - the
         // edge of a 16-wide box - and whether a silverfish standing there was found at all came down to its
         // own hitbox overlapping the boundary. A couple of blocks of slack costs nothing and removes a
         // find/no-find that depends on which corner the puzzle happened to start in.

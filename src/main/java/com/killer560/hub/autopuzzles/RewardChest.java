@@ -35,7 +35,7 @@ import java.util.Set;
  * is turned onto the chest the tick it becomes clickable (a landing, or in reach) and the click goes the next tick.
  *
  * <p>A click worked when the server's chest WINDOW arrives ({@link com.killer560.hub.util.ChestWindows}), whether or not
- * a screen shows: with Auto Close Chest on the packet is cancelled and answered with a close, so no screen opens and the
+ * a screen shows: with Auto Close Chest on the packet is canceled and answered with a close, so no screen opens and the
  * lid is open for a tick at most. Reading only the screen and the lid, Auto Ice Path took his claimed chest for an
  * unopened one, clicked twice more and then waited half a minute for a chest to "appear" (killer560, 2026-10-15, "it
  * gets stuck on ice fill after grabbing the chest"). A click with no answer is retried once the answer is overdue - his

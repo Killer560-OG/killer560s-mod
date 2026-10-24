@@ -12,7 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted "Themed Main Menu" toggle (2026-09-15). Default ON - killer560 explicitly asked for the
- *  black+orange title screen redesign; switching it off restores the vanilla panorama, grey buttons and
+ *  black+orange title screen redesign; switching it off restores the vanilla panorama, gray buttons and
  *  white/yellow text. Not gated by SkyblockGate: the title screen is never "in Skyblock". */
 public final class MainMenuThemeConfig {
 
@@ -69,7 +69,7 @@ public final class MainMenuThemeConfig {
             this.label = label;
         }
 
-        /** One of the Simple scenes (floating particles in the theme's colours). */
+        /** One of the Simple scenes (floating particles in the theme's colors). */
         public boolean simple() {
             return SimpleScenes.flavour(this) != null;
         }

@@ -80,7 +80,7 @@ final class WitherDoorScanner {
                 boolean colEven = gx % 2 == 0;
                 boolean rowEven = gz % 2 == 0;
                 if (colEven == rowEven) {
-                    continue; // room (both even) or 2x2 centre (both odd)
+                    continue; // room (both even) or 2x2 center (both odd)
                 }
                 int idx = gx + gz * GRID;
                 if (cells[idx] != null) {

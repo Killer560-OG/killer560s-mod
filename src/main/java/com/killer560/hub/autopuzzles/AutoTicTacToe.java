@@ -27,7 +27,7 @@ import com.killer560.hub.compat.McCompat;
  * open. Since 2026-10-15 only a RETRY of the same square waits those 500 ms: a new move goes the tick it is read.
  * <p>
  * killer560, 2026-09-27: "have it pathfind to the room, have it aura the first click for the puzzle, then walk
- * towards that chest and get close enough to aura it as an option as well. Same secret concept. Then have it walk
+ * toward that chest and get close enough to aura it as an option as well. Same secret concept. Then have it walk
  * back over and do the tictactoe again."
  * <ul>
  *   <li>"Pathfind to the room": on a fresh visit, walks (Interactive-Map-gated) to {@code AutoClearUtils}'s own
@@ -51,11 +51,11 @@ final class AutoTicTacToe {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-autopuzzles");
     private static final String ROOM = "Tic Tac Toe";
-    /** Measured block reach, squared - was 30.0 (5.48 blocks) to the centre. */
+    /** Measured block reach, squared - was 30.0 (5.48 blocks) to the center. */
     private static final double REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     private static final long CLICK_GAP_MS = 500L;
     private static final int MAX_ATTEMPTS = 3;
-    /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the centre. */
+    /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the center. */
     private static final double AURA_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     private static final long WALK_TIMEOUT_MS = 15_000L;
     private static final int MAX_AURA_ATTEMPTS = 3;
@@ -329,7 +329,7 @@ final class AutoTicTacToe {
         }
         if (!AutoPuzzleUtil.gateWorldClick(client, best)) {
             hold("the action gate held the click on " + AutoPuzzleUtil.fmt(best) + " (or the body turned to it first)");
-            return; // gate held this tick back (or the body was turned to it) - nothing burnt, gap untouched
+            return; // gate held this tick back (or the body was turned to it) - nothing burned, gap untouched
         }
         loggedHold = null;
         attempts++;
@@ -384,7 +384,7 @@ final class AutoTicTacToe {
     private static BlockPos approachFor = null;
     private static int approachTries = 0;
 
-    /** @return true while a walk towards {@code target} is running (the caller waits) */
+    /** @return true while a walk toward {@code target} is running (the caller waits) */
     private static boolean approach(Minecraft client, LocalPlayer player, BlockPos target) {
         if (!target.equals(approachFor)) {
             if (approaching) {

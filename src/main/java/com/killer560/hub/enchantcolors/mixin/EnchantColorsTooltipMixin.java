@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Recolours enchantment names in item lore - see {@link EnchantColorsFeature}.
+/** Recolors enchantment names in item lore - see {@link EnchantColorsFeature}.
  *  <p>
  *  Verified with javap against minecraft-merged-043a8b3edf-26.1.2.jar: {@code public static
  *  List&lt;Component&gt; getTooltipFromItem(Minecraft, ItemStack)} on {@code Screen}, whose body is a single

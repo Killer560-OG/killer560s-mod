@@ -127,7 +127,7 @@ public final class AhUi {
         layout.add("frame " + w + " " + h);
         g.fill(0, 0, w, h, t.backdrop());
         if (t.bevel()) {
-            // The menu's bevelled panel and a separator under the header (sweep-b, 2026-10-13).
+            // The menu's beveled panel and a separator under the header (sweep-b, 2026-10-13).
             ScreenChrome.frameTight(g, panelX, panelY, panelW, panelH);
             ScreenChrome.separator(g, panelX + 4, panelX + panelW - 4, toolbarY - 3);
         } else {
@@ -484,7 +484,7 @@ public final class AhUi {
     }
 
     /**
-     * A listing card: rarity edge, icon, name (the item's own colours), price line, and a sub line. Records a hotspot:
+     * A listing card: rarity edge, icon, name (the item's own colors), price line, and a sub line. Records a hotspot:
      * a slot click when {@code slot >= 0}, else {@code action}. Clipped rows record nothing (they are not on screen).
      */
     public void listingCard(int x, int y, int cw, int ch, ItemStack icon, Component name, String price, int priceColor,
@@ -550,7 +550,7 @@ public final class AhUi {
     }
 
     /**
-     * A menu button drawn as a card: icon, name, Hypixel's lore in its own colours (cut at the card; the tooltip has
+     * A menu button drawn as a card: icon, name, Hypixel's lore in its own colors (cut at the card; the tooltip has
      * all of it). {@code tone} tints the card for confirm (green) and cancel (red) buttons; 0 for none.
      */
     public void actionCard(int x, int y, int cw, int ch, ItemStack stack, int slot, int tone, String region) {

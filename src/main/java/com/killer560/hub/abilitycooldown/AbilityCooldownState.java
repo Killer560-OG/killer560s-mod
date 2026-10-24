@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
  *       one {@code ragaxe} reuses) rather than a second sound mixin.</li>
  *   <li><b>Action bar</b> - Hypixel writes {@code -N Mana (AbilityName)} into the action bar whenever a mana
  *       ability fires; SkyHanni's {@code abilityUsePattern} is {@code ".*-\d+ Mana \((?<type>.*)\).*"} with
- *       the colour codes spelled out. Only the abilities SkyHanni gives an {@code abilityName} to are matched
+ *       the color codes spelled out. Only the abilities SkyHanni gives an {@code abilityName} to are matched
  *       (the ones it notes "doesn't have a sound"), because those are the only real Hypixel ability names any
  *       reference mod actually confirms - nothing here invents one.</li>
  *   <li><b>Chat</b> - {@code Creeper Veil Activated!} for the Wither Cloak.</li>
@@ -50,7 +50,7 @@ import java.util.regex.Pattern;
  *
  * <p><b>Simplifications vs. SkyHanni, all deliberate:</b>
  * <ul>
- *   <li>SkyHanni draws two-phase timers over the hotbar item (a coloured "effect active" phase, then the
+ *   <li>SkyHanni draws two-phase timers over the hotbar item (a colored "effect active" phase, then the
  *       rest of the cooldown). This draws one countdown per ability in a movable HUD list, so the
  *       Wither Shield's 5 s shield phase and Tactical Insertion's 3 s placed phase are folded into the one
  *       10 s / 20 s number. The numbers themselves are unchanged.</li>
@@ -66,11 +66,11 @@ import java.util.regex.Pattern;
 public final class AbilityCooldownState {
 
     /** SkyHanni {@code abilityUsePattern}: {@code ".*§b-\d+ Mana \(§6(?<type>.*)§b\).*"}. Written here so the
-     *  colour codes are optional - this mod's own {@code PlayerStatsFeature} learned the hard way that a real
+     *  color codes are optional - this mod's own {@code PlayerStatsFeature} learned the hard way that a real
      *  action bar does not always carry the codes the reference mod's regex assumed. */
     private static final Pattern ABILITY_USE =
             Pattern.compile("-[\\d,]+ Mana \\((?:\u00A7.)*([^\u00A7()]+?)(?:\u00A7.)*\\)");
-    /** SkyHanni {@code onChat}: {@code "§dCreeper Veil §r§aActivated!"} (stripped of colour codes here). */
+    /** SkyHanni {@code onChat}: {@code "§dCreeper Veil §r§aActivated!"} (stripped of color codes here). */
     private static final Pattern CREEPER_VEIL_ON = Pattern.compile("^Creeper Veil Activated!$");
 
     private static final Map<ItemAbility, Long> ENDS_AT = new EnumMap<>(ItemAbility.class);
@@ -205,7 +205,7 @@ public final class AbilityCooldownState {
 
     // ------------------------------------------------------------------ action bar
 
-    /** Fed the raw (colour-coded) action bar text. */
+    /** Fed the raw (color-coded) action bar text. */
     static void onActionBar(String raw) {
         AbilityCooldownConfig cfg = AbilityCooldownConfig.getInstance();
         if (!cfg.isEnabled() || !cfg.isActionBarDetection() || raw == null) {
@@ -450,7 +450,7 @@ public final class AbilityCooldownState {
 
     /** The three scroll ids Wither Impact needs on one item. Kept as raw Skyblock ids, not {@link ItemAbility}
      *  constants - killer560, 2026-09-21, dropped the three scrolls as individually-timed abilities, but
-     *  Wither Impact (all three at once) still needs to recognise them on the item. Devonian reads exactly
+     *  Wither Impact (all three at once) still needs to recognize them on the item. Devonian reads exactly
      *  this list in {@code misc/WitherShieldTimer.kt} ({@code data.getList("ability_scroll")}). */
     private static final Set<String> WITHER_COMBO_SCROLL_IDS =
             Set.of("WITHER_SHIELD_SCROLL", "SHADOW_WARP_SCROLL", "IMPLOSION_SCROLL");

@@ -118,7 +118,7 @@ final class WalkTerrain {
 
     /**
      * Can a player walk (stepping, jumping no more than {@code jumpHeight}, dropping no more than {@link #MAX_DROP})
-     * in a straight line from feet {@code from} to {@code to}? Checks the centre line and both shoulders (0.3 either
+     * in a straight line from feet {@code from} to {@code to}? Checks the center line and both shoulders (0.3 either
      * side) at body height, so a corner the player's box would catch is not called clear. A ladder on the way is
      * trusted (the graph put the path up it).
      */
@@ -199,7 +199,7 @@ final class WalkTerrain {
     }
 
     /**
-     * The yaw that faces INTO a ladder (towards the wall it hangs on), or NaN for a climbable block with no facing
+     * The yaw that faces INTO a ladder (toward the wall it hangs on), or NaN for a climbable block with no facing
      * (vines, scaffolding) - then the caller faces the block itself.
      */
     static float ladderYaw(Level level, BlockPos pos) {

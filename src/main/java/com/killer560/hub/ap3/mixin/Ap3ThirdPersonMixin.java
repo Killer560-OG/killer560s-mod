@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * facing the way my actual crosshair is pointed when it should be at whatever angle is most optimal." While a held
  * walk has the yaw the server receives locked to the walk ({@link Ap3Executor#strafeServerYaw()}), the LOCAL
  * player's third-person model is drawn with body and head at that yaw instead of the camera yaw, so his own F5 view
- * shows what the server and everyone else are told. Afterwards the model glides back onto vanilla's body yaw
+ * shows what the server and everyone else are told. Afterward the model glides back onto vanilla's body yaw
  * ({@link Ap3Executor#thirdPersonModelYaw}), never pops.
  * <p>
  * Least invasive hook there is: {@code AvatarRenderer} is 26.1.2's player-model renderer ({@code SupportersScaleMixin}
@@ -53,7 +53,7 @@ public abstract class Ap3ThirdPersonMixin {
             return;
         }
         state.bodyRot = yaw;
-        // Locked: head AND body at the server-side yaw (that is the whole point). Gliding back afterwards: the head
+        // Locked: head AND body at the server-side yaw (that is the whole point). Gliding back afterward: the head
         // is already within half a degree of the camera, so it follows vanilla while the body catches up.
         state.yRot = Float.isNaN(Ap3Executor.strafeServerYaw()) ? Mth.wrapDegrees(headAbs - yaw) : 0f;
     }

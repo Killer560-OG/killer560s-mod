@@ -98,7 +98,7 @@ public final class MaxorCrystalsFeature {
 
     public static void register() {
         MaxorConfig.getInstance();
-        // ChatObserver (not Fabric CHAT/GAME) so a line another mod cancelled and re-added still arrives.
+        // ChatObserver (not Fabric CHAT/GAME) so a line another mod canceled and re-added still arrives.
         ChatObserver.subscribe(MaxorCrystalsFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MaxorCrystalsFeature.tick", MaxorCrystalsFeature::tick));
         ensureTickSubscribed();

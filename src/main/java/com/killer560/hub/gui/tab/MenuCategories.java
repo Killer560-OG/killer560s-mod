@@ -8,7 +8,7 @@ import java.util.Map;
 
 /**
  * The Option A menu's categories (2026-10-12; killer560 left the grouping to us): Home, then Dungeons, HUD, Chat, Items,
- * Social, Cosmetics, Misc, then Profiles - Favourites sits after Home in the sidebar but is not a category of its own.
+ * Social, Cosmetics, Misc, then Profiles - Favorites sits after Home in the sidebar but is not a category of its own.
  *
  * <p>The feature tabs themselves are still made by the old category folders ({@link DungeonTab}, {@link HudElementsTab},
  * {@link GeneralTab}, {@link DisplayTab}, {@link HelpersTab}, ...), which keep every {@code CHEAT_FEATURES_ENABLED} gate

@@ -13,7 +13,7 @@ import org.joml.Matrix3x2fStack;
  * three depths that thin out behind the button column and stay clear of the title. Each theme reskins it:
  * <ul>
  *   <li>{@link Flavour#EMBERS} (Amber, and Custom in its own accent): embers rising and flickering, the near ones with a
- *       hot centre and a soft halo, over a warm floor of light;</li>
+ *       hot center and a soft halo, over a warm floor of light;</li>
  *   <li>{@link Flavour#BUBBLES} (Ocean): bubbles rising and wobbling (a faint body, a bright rim, a highlight), with tiny
  *       motes drifting in the water, light from the surface above and a deep teal glow below;</li>
  *   <li>{@link Flavour#STARDUST} (Dark): a fine field of stars twinkling and drifting, dust rising slowly, a few soft near
@@ -54,7 +54,7 @@ public final class SimpleScenes {
     public static int lastParticles;
     public static Flavour lastFlavour;
 
-    /** The Simple flavour a background draws, or null when it is not a Simple scene. */
+    /** The Simple flavor a background draws, or null when it is not a Simple scene. */
     public static Flavour flavour(MainMenuThemeConfig.Scene scene) {
         if (scene == null) {
             return null;
@@ -72,12 +72,12 @@ public final class SimpleScenes {
 
     private static int baseTop;
     private static int baseBottom;
-    /** Two washes: colour, peak alpha 0..1, the row where it is 0 and the row where it is full. */
+    /** Two washes: color, peak alpha 0..1, the row where it is 0 and the row where it is full. */
     private static final int[] washCol = new int[2];
     private static final double[] washA = new double[2];
     private static final double[] washY0 = new double[2];
     private static final double[] washY1 = new double[2];
-    /** Three glows: colour, peak alpha 0..1, centre and radii. */
+    /** Three glows: color, peak alpha 0..1, center and radii. */
     private static final int[] glowCol = new int[3];
     private static final double[] glowA = new double[3];
     private static final double[] glowX = new double[3];
@@ -158,7 +158,7 @@ public final class SimpleScenes {
                 (int) Math.round(w * h / perArea * density)));
     }
 
-    /** Quieter behind the button column (Amber Simple's rule): 0.35 at its centre line, full beyond 16% of the width. */
+    /** Quieter behind the button column (Amber Simple's rule): 0.35 at its center line, full beyond 16% of the width. */
     private static double clearOfColumn(double x, int w) {
         double off = Math.abs(x - w * 0.5) / (w * 0.16);
         return off >= 1.0 ? 1.0 : 0.35 + 0.65 * off * off;

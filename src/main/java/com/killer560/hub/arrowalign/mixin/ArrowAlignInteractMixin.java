@@ -21,7 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * A blocked click returns {@code SUCCESS_SERVER} rather than FAIL: {@code Minecraft#startUseItem} only returns on a
  * {@code Success} (and only swings for SwingSource.CLIENT), whereas FAIL/PASS fall through to {@code useItem} with
  * the held item - so this cancels the whole right-click with no packet, no swing and no item use, the same effect
- * as Odin/NoammAddons cancelling their interact event.
+ * as Odin/NoammAddons canceling their interact event.
  */
 @Mixin(MultiPlayerGameMode.class)
 public abstract class ArrowAlignInteractMixin {

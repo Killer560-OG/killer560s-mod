@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  to being borderless... currently f11 still toggles true fullscreen when it shouldnt be able to"
  *  request (2026-09-09) - {@code Options.keyFullscreen} (real F11, confirmed via javap against the real
  *  26.1.2 jar) calls {@code Window.toggleFullScreen()} directly from {@code KeyboardHandler.keyPress},
- *  so cancelling that one method redirects every real path that can trigger true/exclusive fullscreen
+ *  so canceling that one method redirects every real path that can trigger true/exclusive fullscreen
  *  (just this one in practice) over to {@link WindowModeFeature#toggle()}'s own windowed/borderless
  *  cycle instead - true fullscreen becomes unreachable via F11 entirely, only still reachable through
  *  the vanilla Video Settings screen's own separate Fullscreen option if killer560 ever wants it. */

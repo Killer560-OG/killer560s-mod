@@ -49,7 +49,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * nothing is clicked through. The claim click on 22 is only sent while the result is still sitting in the anvil
  * (where QUOI always sends it). The cap is per enchantment ({@link AnvilBooks#canCombine}), not "not V". Books are
  * paired lowest level first, so with Combine Results Again on, four III books become two IV and then a V in one go.
- * Item Protect is honoured: a protected book or one in a locked slot is never put in.
+ * Item Protect is honored: a protected book or one in a locked slot is never put in.
  * <p>
  * <b>Same book, same tier</b> is {@link AnvilBooks.Book#sameBookAs}, read from the ExtraAttributes Hypixel sends as
  * {@code custom_data} ({@link #readBook}); a book with more than one enchantment, a recombobulated book, a stack of more

@@ -9,7 +9,7 @@ import org.joml.Matrix4f;
 
 /**
  * A reusable list of world-space boxes drawn in ONE {@link McRender#inCameraSpace} call per render type (FPS pass,
- * 2026-10-15). Callers that used to draw each box with its own call - a fill and an outline per mob - allocated a colour
+ * 2026-10-15). Callers that used to draw each box with its own call - a fill and an outline per mob - allocated a color
  * array, a lambda, an AABB and a couple of Vec3 per box per frame; this keeps the boxes in one growing float array that
  * lives as long as its owner. Render thread only.
  *

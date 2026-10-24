@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  own copy of every storage's contents, and {@link StorageOverlayFeature#renderInventoryPanel} draws
  *  a full replacement for the real inventory elsewhere on screen, so leaving vanilla's own copies
  *  visible in their original (fixed, unmovable - {@code Slot.x}/{@code y} are {@code final}) positions
- *  would just be redundant clutter. Only the DRAW call is cancelled here, never click handling (that
+ *  would just be redundant clutter. Only the DRAW call is canceled here, never click handling (that
  *  hit-tests a {@code Slot}'s own x/y directly, not what was drawn) - the real slots stay fully
  *  functional at their original position, just invisible; the relocated Inventory panel instead
  *  redirects clicks/hover to them by index (see {@code SlotClickInvoker}). */
@@ -58,7 +58,7 @@ public abstract class StorageOverlaySlotMixin {
         }
     }
 
-    /** Real bug found and fixed (2026-09-08), per killer560's screenshot showing real leftover grey
+    /** Real bug found and fixed (2026-09-08), per killer560's screenshot showing real leftover gray
      *  text (e.g. "Greater Backpack (Slot #9)") sitting right above our own grid panels - the vanilla
      *  title/"Inventory" labels are drawn by a separate method from the background/slots already
      *  hidden above, so they were never actually suppressed. Cancels both for any tracked screen. */

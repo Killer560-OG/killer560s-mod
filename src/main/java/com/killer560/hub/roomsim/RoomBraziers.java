@@ -6,7 +6,7 @@ import java.util.Map;
  * Relights the braziers a capture recorded unlit.
  *
  * <p>A Catacombs brazier is a hopper with fire standing on it. killer560 (2026-10-15), Deuces on Hypixel: the doorway
- * under the secret chest is flanked by two of them, both burning; the sim drew two cold grey bowls, because
+ * under the secret chest is flanked by two of them, both burning; the sim drew two cold gray bowls, because
  * {@code Dueces.json} holds air on top of all sixteen of its hoppers. It is not Deuces alone. Across the shipped
  * library 1,471 hoppers have air or fire above them: 372 fire and 1,099 air, in 68 rooms, and the two groups are the
  * same thing - wall-mounted and hanging 961 of the unlit against 285 of the lit, sitting 132 against 86 - with rooms
@@ -17,7 +17,7 @@ import java.util.Map;
  *
  * <p>So every hopper with AIR directly above it gets the fire back, in the state the lit ones were captured in. Only
  * air is replaced: an anvil, torch or second hopper on top is left alone (77 of them). Never in the room's perimeter
- * wall plane or outside it, where {@link RoomDoors} measures doorways and the seam belongs to the neighbour - no
+ * wall plane or outside it, where {@link RoomDoors} measures doorways and the seam belongs to the neighbor - no
  * brazier sits there, and fire in a wall plane would read as a blocked doorway.
  *
  * <p>Run once on the library at load ({@link RoomLibrary#load}), so the paste, the build audit and anything else

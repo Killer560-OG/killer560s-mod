@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
  * puzzle's fail never matched and the feature silently never fired for it. Fix: a fail line per puzzle that has its
  * own wording, same list-of-{@link Pattern} idiom {@link com.killer560.hub.puzzlesolvers.WeirdosSolverFeature}'s
  * SOLUTIONS/WRONG tables already use - the first one to match wins and its captured group is always the failer's
- * name (never hardcoded to any one player), so this generalises to every puzzle with a known fail line instead of
+ * name (never hardcoded to any one player), so this generalizes to every puzzle with a known fail line instead of
  * just one voiceline.
  * <p>
  * Click Message (legit): a local line whose click runs {@code /gfs architect_first_draft 1} - you still click it

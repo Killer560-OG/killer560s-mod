@@ -13,8 +13,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * Every button click is a {@code minecraft:ui.button.click} instance handed to {@code SoundManager.play}, and every Sound
  * Effect a game sound handed to it (or to {@code playDelayed}, a far sound with a distance delay). {@link ClickSounds#replace}
- * picks what plays: the same instance (nothing changes), another one (the game's is cancelled and that one is played
- * instead, through this same method, where replace hands it back untouched) or null (the game's is cancelled and nothing
+ * picks what plays: the same instance (nothing changes), another one (the game's is canceled and that one is played
+ * instead, through this same method, where replace hands it back untouched) or null (the game's is canceled and nothing
  * plays). The game's instance never reaches the sound engine once it has been replaced.
  */
 @Mixin(SoundManager.class)

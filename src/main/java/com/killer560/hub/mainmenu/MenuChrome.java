@@ -13,7 +13,7 @@ import net.minecraft.resources.Identifier;
  * MenuTextureMixin, MenuListMixin, MenuScrollbarMixin, MenuModMenuListMixin) decide when. Scope:
  * {@link MainMenuTheme#activeOnMenuBackground()} for the opaque background / tint (out of world only, so
  * in-game menus keep the blurred world), {@link MainMenuTheme#activeOnMenus()} for everything else. Every
- * caller wraps these in try/catch -> {@link MainMenuTheme#fail}. Pure chrome: no solver/state colours.
+ * caller wraps these in try/catch -> {@link MainMenuTheme#fail}. Pure chrome: no solver/state colors.
  */
 public final class MenuChrome {
 
@@ -29,7 +29,7 @@ public final class MenuChrome {
     /** Selected-row fills - opaque, because vanilla's extractSelection paints them over the border fill. */
     public static int SELECTION_FILL = 0xFF1A1108;
     public static int SELECTION_FILL_HOVER = 0xFF261A0D;
-    /** Opaque list / panel colours (killer560, 2026-10-15: lists must be readable, no animated background behind text). */
+    /** Opaque list / panel colors (killer560, 2026-10-15: lists must be readable, no animated background behind text). */
     public static int LIST_BG = 0xFF120C07;
     public static int HEADER_BG = 0xFF0D0906;
     public static int ROW_HOVER = 0x1ECC6600;
@@ -121,7 +121,7 @@ public final class MenuChrome {
         accentSpan(g, x, x + w, accentRow, 0xD8, 0x48);
     }
 
-    /** Horizontal 1px orange line over [x0, x1) whose alpha falls from {@code maxAlpha} at the screen centre
+    /** Horizontal 1px orange line over [x0, x1) whose alpha falls from {@code maxAlpha} at the screen center
      *  to {@code minAlpha} at the screen edges. ~24 flat quads for a full-width line. */
     public static void accentSpan(GuiGraphicsExtractor g, int x0, int x1, int y, int maxAlpha, int minAlpha) {
         MenuWidgets.sync();
@@ -154,7 +154,7 @@ public final class MenuChrome {
 
     /** Toned-down sibling of {@link MainMenuTheme#drawBackground} for every non-title out-of-world menu:
      *  same warm gradient, bottom glow, vignette and hairlines, but no logo glow and dimmer/fewer embers
-     *  (still honouring the particles toggle) so lists and text on top stay readable. */
+     *  (still honoring the particles toggle) so lists and text on top stay readable. */
     public static void drawMenuBackground(GuiGraphicsExtractor g, int w, int h) {
         MenuWidgets.sync();
         if (w <= 0 || h <= 0) {

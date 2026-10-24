@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  javap that the actual background image draw is a completely separate method,
  *  {@code ContainerScreen.extractBackground} (on the concrete chest-style screen class, not the
  *  {@code AbstractContainerScreen} base {@link TerminalSolverSlotMixin} already hooks) - hiding item
- *  icons/tooltips/labels there never touched this at all. Cancelling it here is the last piece needed
+ *  icons/tooltips/labels there never touched this at all. Canceling it here is the last piece needed
  *  for "the buttons i have to press are the only things I see in the gui".
  *  <p>
  *  Real bug found and fixed (2026-09-09, round 2), per killer560's report of a real, brief flash of the

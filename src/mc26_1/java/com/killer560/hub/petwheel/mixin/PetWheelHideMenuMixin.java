@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Pet Wheel's "Hide Pets Menu": never show the /pets screen a wheel summon opened (see
- *  {@link PetSummoner#interceptPetsScreen}). Cancelled at HEAD, before the mouse is released or the key mappings
+ *  {@link PetSummoner#interceptPetsScreen}). Canceled at HEAD, before the mouse is released or the key mappings
  *  are dropped, so nothing flickers. Target: {@code public void setScreen(Screen)} on {@code Minecraft} (javap, 26.1.2), called by
  *  {@code MenuScreens$ScreenConstructor.fromPacket} right after it assigns {@code player.containerMenu}.
  *  <p>

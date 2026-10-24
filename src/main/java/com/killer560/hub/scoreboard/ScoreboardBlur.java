@@ -23,10 +23,10 @@ import com.killer560.hub.compat.McRender;
  * <ol>
  * <li>While the HUD is extracted, {@link #submit} adds one {@link ColoredRectangleRenderState} per row of the rounded
  * box with the {@code killer560smod:pipeline/scoreboard_blur} pipeline. The blur radius (framebuffer pixels) rides in
- * the vertex colour's red channel, so the stock {@code DynamicTransforms}/{@code Projection} uniforms are all it
+ * the vertex color's red channel, so the stock {@code DynamicTransforms}/{@code Projection} uniforms are all it
  * uses. Those elements are added before the background fill, so {@code GuiRenderState}'s overlap layering keeps the
  * fill and text above them.</li>
- * <li>{@code CustomScoreboardBlurMixin} copies the main render target's colour texture (the world, before any GUI is
+ * <li>{@code CustomScoreboardBlurMixin} copies the main render target's color texture (the world, before any GUI is
  * drawn) into {@link #target} at the head of {@code GuiRenderer#draw}, before its first render pass opens - only on
  * frames that submitted a blur.</li>
  * <li>{@code shaders/core/scoreboard_blur.fsh} samples that copy around {@code gl_FragCoord} with a small gaussian

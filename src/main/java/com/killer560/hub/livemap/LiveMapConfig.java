@@ -60,11 +60,11 @@ public final class LiveMapConfig {
     private float peekScale = 2.0f;
 
     // ---- shared map appearance (HUD + interactive map) ----
-    // Defaults are the real dungeon map's own colours, decoded from Hypixel's MapColor bytes by NoammAddons'
-    // RoomType.kt / DoorType.kt - see MapPainter. killer560, 2026-09-17: ours drew every room the same grey.
+    // Defaults are the real dungeon map's own colors, decoded from Hypixel's MapColor bytes by NoammAddons'
+    // RoomType.kt / DoorType.kt - see MapPainter. killer560, 2026-09-17: ours drew every room the same gray.
     private boolean colourByType = true;
-    /** Undiscovered rooms are this much darker than their colour. killer560, 2026-10-19: 0.4 made them too dark to read.
-     *  Default 0 since the NoammAddons colours (2026-10-19): the grey "?" room is then exactly NoammAddons' 65,65,65 and a
+    /** Undiscovered rooms are this much darker than their color. killer560, 2026-10-19: 0.4 made them too dark to read.
+     *  Default 0 since the NoammAddons colors (2026-10-19): the gray "?" room is then exactly NoammAddons' 65,65,65 and a
      *  Funny Map room he has not opened exactly its {@code darker().darker()} (see {@link MapPainter#unexploredFill}). */
     public static final float DEFAULT_DARKEN_UNOPENED = 0f;
     private float darkenUnopened = DEFAULT_DARKEN_UNOPENED;
@@ -89,11 +89,11 @@ public final class LiveMapConfig {
     // there. In the normal map it cannot scan for mimic") ----
     private boolean funnyMap = false;
     private boolean showMimicRoom = true;
-    /** Blended over the mimic room's own colour at this colour's alpha; 0x33 = NoammAddons' 20% red. */
+    /** Blended over the mimic room's own color at this color's alpha; 0x33 = NoammAddons' 20% red. */
     private int mimicColor = 0x33FF0000;
 
     // ---- map themes (killer560, 2026-10-15, see MapThemes): Real Map, each menu preset, Match Menu Theme, Custom. The
-    // room colours are not settings of their own any more; they are the active theme's palette. Only Custom's are his,
+    // room colors are not settings of their own any more; they are the active theme's palette. Only Custom's are his,
     // as named schemes edited in MapSchemeEditorScreen. ----
     private MapThemes.Theme mapTheme = MapThemes.Theme.REAL;
     private final java.util.List<MapThemes.Scheme> schemes = new java.util.ArrayList<>();
@@ -204,7 +204,7 @@ public final class LiveMapConfig {
                 // Migration, once (2026-10-19): a file saved with an OLD default (0.4, then 0.15, then 0.05) never picks up
                 // the new one, because a saved key wins over the default - every instance he has still read 0.4, the value
                 // he called too dark to read. Exactly an old default is taken as never chosen; anything else he set stays.
-                // The second flag covers files saved while 0.05 was the default (before the NoammAddons colours).
+                // The second flag covers files saved while 0.05 was the default (before the NoammAddons colors).
                 boolean firstDone = ConfigJson.getBool(obj, "darkenUnopenedDefault1019", false);
                 if (!ConfigJson.getBool(obj, "darkenUnopenedNoamm1019", false)
                         && ((!firstDone && (Math.abs(cfg.darkenUnopened - 0.4f) < 1e-4f
@@ -248,7 +248,7 @@ public final class LiveMapConfig {
                 cfg.goSecretKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "goSecretKeyCode", -1));
                 cfg.faceDoorOnArrival = ConfigJson.getBool(obj, "faceDoorOnArrival", false);
                 // Migration: files saved before 2026-09-27 have an explicit "keepChunksLoaded" (usually false,
-                // the old default) - honour it. A file with no key at all (fresh install) now ships true.
+                // the old default) - honor it. A file with no key at all (fresh install) now ships true.
                 cfg.keepChunksLoaded = ConfigJson.getBool(obj, "keepChunksLoaded", true);
                 cfg.yawStep = clamp(ConfigJson.getFloat(obj, "yawStep", 6f), 2f, 10f);
                 cfg.pitchStep = clamp(ConfigJson.getFloat(obj, "pitchStep", 7f), 2f, 10f);
@@ -710,7 +710,7 @@ public final class LiveMapConfig {
         }
     }
 
-    /** Scheme {@code i}'s colours back to Hypixel's own. Caller saves. */
+    /** Scheme {@code i}'s colors back to Hypixel's own. Caller saves. */
     public void resetScheme(int i) {
         if (i >= 0 && i < schemes.size()) {
             System.arraycopy(MapThemes.REAL, 0, schemes.get(i).colors, 0, MapThemes.COUNT);
@@ -736,8 +736,8 @@ public final class LiveMapConfig {
 
     /**
      * Reads the theme and the saved schemes. A config from before 2026-10-15 has {@code mapTheme} 0 Real, 1 Amber or
-     * 2 Custom, the live colours as {@code colorNormal}... and the old Custom slot as {@code customColorNormal}...: a
-     * file whose theme was Custom, or whose live colours were hand-edited away from both stock presets, keeps them as
+     * 2 Custom, the live colors as {@code colorNormal}... and the old Custom slot as {@code customColorNormal}...: a
+     * file whose theme was Custom, or whose live colors were hand-edited away from both stock presets, keeps them as
      * "Scheme 1" (and a different saved Custom slot as "Saved Custom"), so nothing he picked is lost.
      */
     private static void loadThemes(LiveMapConfig cfg, JsonObject obj) {
@@ -754,7 +754,7 @@ public final class LiveMapConfig {
                         try {
                             cols[k] = a.get(k).getAsInt();
                         } catch (RuntimeException ignored) {
-                            // a hand-edited entry that is not a number keeps Hypixel's colour
+                            // a hand-edited entry that is not a number keeps Hypixel's color
                         }
                     }
                 }

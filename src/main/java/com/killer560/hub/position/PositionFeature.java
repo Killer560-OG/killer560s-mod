@@ -263,7 +263,7 @@ public final class PositionFeature {
                 return 90;
             }
             String[] lines = lines(PositionConfig.getInstance(), player);
-            // Measured once per new set of lines: each font.width of a formatted line builds a Style per colour code.
+            // Measured once per new set of lines: each font.width of a formatted line builds a Style per color code.
             if (lines == widthLines && font == widthFont) {
                 return widthValue;
             }

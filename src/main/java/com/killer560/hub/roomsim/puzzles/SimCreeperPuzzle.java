@@ -44,7 +44,7 @@ import java.util.Set;
  * only ever the lantern pair list, never the room around them. So here, right-clicking either lantern of a pair
  * connects that pair directly. That keeps the real detection convention {@code BeamsSolverFeature} already
  * uses - an unconnected lantern is {@code SEA_LANTERN}, a connected one has turned to {@code PRISMARINE} - and
- * lets the puzzle test recognising and locating real pairs, which is what the bundled data actually encodes;
+ * lets the puzzle test recognizing and locating real pairs, which is what the bundled data actually encodes;
  * it does not attempt to test the pane-rotation mechanic itself.
  *
  * <p>Gated on {@link SimState#canAct} throughout, same boundary as the rest of {@code roomsim}. The block writes
@@ -128,7 +128,7 @@ public final class SimCreeperPuzzle {
      * <p>The left click arrives through {@code SimItems}' own {@code AttackBlockCallback} rather than a second
      * one registered here, and that is deliberate: {@code SimItems} returns SUCCESS for every left click in the
      * sim in order to stop a stray swing mining a room, which consumes the event. A listener registered
-     * afterwards would never run - so the dispatch has to live at the gate that already owns left clicks, not
+     * afterward would never run - so the dispatch has to live at the gate that already owns left clicks, not
      * beside it.
      *
      * @return whether this was one of this puzzle's lanterns
@@ -147,8 +147,8 @@ public final class SimCreeperPuzzle {
         //
         // killer560 (2026-10-01): "make the delay between selecting a block and unslecting that same block 3
         // ticks", and in the same breath "it wouldnt let my shots render the thing as hit most of the time".
-        // They are one fault. A cancelled block break re-enters AttackBlockCallback every TICK rather than
-        // once per click (see CLAUDE.md), so a single held shot picked the lantern, cancelled it, picked it
+        // They are one fault. A canceled block break re-enters AttackBlockCallback every TICK rather than
+        // once per click (see CLAUDE.md), so a single held shot picked the lantern, canceled it, picked it
         // again - twenty times a second. From in front of it that is a lantern that mostly does not respond.
         //
         // And a HELD button is one click, however long it is held. The stamp is refreshed on every re-entry,
@@ -212,7 +212,7 @@ public final class SimCreeperPuzzle {
      * <p>Resolved as a ray on the CLIENT's level at the moment of the shot, along the aim, stopping at the first
      * block - so a pane or a wall in the way blocks it as an arrow would. Hitscan rather than waiting for an
      * arrow to land: an arrow drops and the outer two fly 8 degrees off, so a correctly aimed shot at the far
-     * end of the room could miss or, worse, burn a neighbouring lantern as a wrong pair. The same-lantern
+     * end of the room could miss or, worse, burn a neighboring lantern as a wrong pair. The same-lantern
      * three-tick guard in {@link #tryConnectAt} absorbs the case where this and a left click on a lantern in
      * reach arrive in the same tick.
      *
@@ -250,7 +250,7 @@ public final class SimCreeperPuzzle {
      * holds <b>35</b> lantern blocks and only <b>22</b> of them are in {@code creeper-beams-solutions.json}'s
      * eleven pairs. The other thirteen are the room's own sea lanterns, in the walls and floor, and they are
      * there on Hypixel too - so shooting one does nothing there either. What the sim can do that the real room
-     * cannot is say which it was, instead of a shot that silently achieves nothing. (The solver's coloured boxes
+     * cannot is say which it was, instead of a shot that silently achieves nothing. (The solver's colored boxes
      * mark the twenty-two while it is on; this is for when it is not.)
      */
     private static void sayNotAPairLantern(Minecraft client, BlockPos pos) {
@@ -259,7 +259,7 @@ public final class SimCreeperPuzzle {
         // tryConnectAt runs for EVERY left click anywhere in the sim (SimItems owns that callback), so without
         // the range test a decorative sea lantern in some other room would be told it is not part of a beam
         // pair - which is true and useless. And testing the block first keeps the set from churning on every
-        // ordinary block he hits: a cancelled break re-enters that callback every tick.
+        // ordinary block he hits: a canceled break re-enters that callback every tick.
         BlockPos origin = storedOrigin;
         if (lanternToPairIndex.isEmpty() || client.level == null || origin == null
                 || pos.distSqr(origin) > SAME_ROOM_RANGE_SQR) {
@@ -300,7 +300,7 @@ public final class SimCreeperPuzzle {
      * never moved on to the second.
      *
      * <p>Played at INTEGER coordinates on purpose. {@code AutoBeams.onSound} compares the packet's position to
-     * the lantern's {@code BlockPos} component by component, and a sound played at a block's centre would arrive
+     * the lantern's {@code BlockPos} component by component, and a sound played at a block's center would arrive
      * as {@code x + 0.5} and never match.
      */
     private static void hitSound(Minecraft client, BlockPos pos, float pitch) {

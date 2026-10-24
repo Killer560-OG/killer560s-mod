@@ -110,7 +110,7 @@ final class DungeonMapScanner {
         return mapItemPresent;
     }
 
-    /** The map's 128x128 colour bytes as last read, or null before a calibrated read. Never written by callers. */
+    /** The map's 128x128 color bytes as last read, or null before a calibrated read. Never written by callers. */
     static byte[] pixels() {
         return calibrated ? pixels : null;
     }
@@ -141,13 +141,13 @@ final class DungeonMapScanner {
         return calibrated && kinds[idx] == KIND_DOOR ? doorTiles[idx] : LiveMapFeature.Tile.UNKNOWN;
     }
 
-    /** The map's own colour id for a door cell (85 = a door to a room nobody has opened, 119 = wither, 18 = blood, 30 =
-     *  entrance, a room colour for an ordinary or opened door), or 0 when the cell is not a door on the map. */
+    /** The map's own color id for a door cell (85 = a door to a room nobody has opened, 119 = wither, 18 = blood, 30 =
+     *  entrance, a room color for an ordinary or opened door), or 0 when the cell is not a door on the map. */
     static int doorColorAt(int idx) {
         return calibrated && kinds[idx] == KIND_DOOR ? centerColors[idx] & 0xFF : 0;
     }
 
-    /** Interactive map: the map's room colour id for a room cell (NoammAddons {@code RoomType.fromMapColor}: 18 blood,
+    /** Interactive map: the map's room color id for a room cell (NoammAddons {@code RoomType.fromMapColor}: 18 blood,
      *  82 fairy, 34 rare, 74 champion, 66 puzzle, 62 trap, 63/85 normal, 30 entrance), or 0 when unknown. */
     static int roomColorAt(int idx) {
         return calibrated && kinds[idx] == KIND_ROOM ? sideColors[idx] & 0xFF : 0;
@@ -418,7 +418,7 @@ final class DungeonMapScanner {
         // Every floor's corner from a table, not just E-F3 (NoammAddons measures F4 and up from the entrance run).
         // His logs (26.1.2 Dungeons, 2026-10): F5/F6/F7/M5 calibrated at (5,5) 193 times and M4 at (5,16) 47 times, but
         // two M5 runs on 2026-10-08 measured (16,5) - a 5-wide grid on a 6x6 floor - and that reading is used for the
-        // whole run. A floor's corner is fixed (its grid is centred on the 128px map), so the table cannot be wrong
+        // whole run. A floor's corner is fixed (its grid is centered on the 128px map), so the table cannot be wrong
         // that way; the measurement is only used where the floor is unknown.
         int[] known = knownCorner(floorNumber());
         if (known != null) {
@@ -442,7 +442,7 @@ final class DungeonMapScanner {
 
     /** The map's start corner and room size {x, z, size} for a floor number (0 = Entrance), or null when the floor is
      *  unknown. E-F3 are NoammAddons' table (18px rooms); F4 (6x5) and F5-F7 (6x6) are the corners his own logs show
-     *  those floors at (16px rooms). Each is the floor's grid centred on the 128px map, rounded down. */
+     *  those floors at (16px rooms). Each is the floor's grid centered on the 128px map, rounded down. */
     static int[] knownCorner(int floor) {
         return switch (floor) {
             case 0 -> new int[]{22, 22, 18};

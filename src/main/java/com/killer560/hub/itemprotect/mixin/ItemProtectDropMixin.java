@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * {@code net.minecraft.client.player.LocalPlayer} declares {@code public boolean drop(boolean)} (the shared
  * {@code Player} class has no such method - only {@code drop(ItemStack, boolean)}), and that
  * {@code Minecraft#handleKeybinds} calls it exactly once, right after reading {@code Options.keyDrop}. So
- * cancelling here swallows the real drop key and nothing else; no server-driven item loss passes through.
+ * canceling here swallows the real drop key and nothing else; no server-driven item loss passes through.
  * <p>
  * Returning {@code false} is what vanilla itself returns when a drop doesn't happen, so no packet is sent
  * and no swing is played. The block is always announced in chat with a sound, and Confirm To Force lets a

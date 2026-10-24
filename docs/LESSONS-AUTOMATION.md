@@ -48,7 +48,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `TeleportUtils.getEtherwarpDirection`, as path hops do.
 - **A `ViewFreeze` lease taken per rotation is not a free camera.** It lapses 400 ms after the last hold, and a Blaze shot
   waits out the arrow's flight plus the cooldown, a reposition up to 2 s for the landing; each lapse showed the turned body
-  and the next hold re-captured it, and Auto Blaze's every-tick room-centre seed re-took every lapsed lease and threw his
+  and the next hold re-captured it, and Auto Blaze's every-tick room-center seed re-took every lapsed lease and threw his
   mouse-steered view back (2026-10-06, "snaps my camera around everywhere"). Every auto puzzle that turns him now holds an
   `autopuzzles/FreeCam` for the whole run (engage before the first aim, `keep` every tick, `release` turns the body under
   the view, shifting the hand sway by the same whole turns). 93-solve-*blaze's CameraWatch checks it every render frame.
@@ -58,7 +58,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `startUseItem`, every 4 ticks, javap 26.1.2 and 26.2) and `autoroutes/mixin/HeldUsePickMixin` re-picks along the body at
   the end of `pick` while it holds. Vanilla's held use with a sword on a floor sends `use_item_on`, `use_item`, `use_item_on`
   (both hands), which 62-argrim-crypt compares against a harness-held key.
-- **Dungeon key pickup range = Key Base Range + 5; the Magnetic Talisman does NOT apply to keys** (confirmed in game by killer560, 2026-10-06; the wiki x3 is for items only, keys are armour stands). Default 1.0 + 5 = 6 blocks. The talisman setting and the x3 were removed; an old `magneticTalisman` key in the config file is ignored.
+- **Dungeon key pickup range = Key Base Range + 5; the Magnetic Talisman does NOT apply to keys** (confirmed in game by killer560, 2026-10-06; the wiki x3 is for items only, keys are armor stands). Default 1.0 + 5 = 6 blocks. The talisman setting and the x3 were removed; an old `magneticTalisman` key in the config file is ignored.
 
 - **Hypixel's dungeon HAS a roof you can land on.** `TeleportUtils.underCover` and the floor graph's landing rule refused
   open-sky landings only in the sim, on the belief that a real floor is solid rock; on 2026-10-06 an F5 Interactive Map path
@@ -73,7 +73,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   only books the tick for later automation. Screen-driven picks belong in the screen's own `keyReleased`/`mouseReleased`, not a tick poll.
 
 - **An etherwarp node's recorded look is right from the node's own spot and nowhere else** (2026-10-07, his Museum #10 armed
-  0.6 off centre and 0.27 up mid-jump, fired the recorded look, landed a block wide of #11 and the route stood there). The
+  0.6 off center and 0.27 up mid-jump, fired the recorded look, landed a block wide of #11 and the route stood there). The
   ring is up to 0.8 wide either side, and only a height difference used to trigger the re-aim. `RouteExecutor.reaimIfMoved`
   now re-aims at the recorded landing block from wherever he is, by any axis, at set-up AND on the tick the use goes out
   (sent at the start of a tick, so the server has exactly the client's current position). Where no ray from his spot
@@ -168,9 +168,9 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   (5 ticks at 100 Attack Speed), but the testkit server saw them 4 and 6 ticks apart, alternating (186, 2026-10-15): each
   end acts on a packet only at its own tick, so one landing a tick late and the next on time is a 4. The mean was exactly
   5. Assert the cap on the client's own click ticks, and at the server only the mean and "never more than a tick under".
-- **QUOI's aura ranges are eye to block CENTRE; ours are eye to block BOX.** A centre distance is 0.5-0.87 longer than the box
+- **QUOI's aura ranges are eye to block CENTER; ours are eye to block BOX.** A center distance is 0.5-0.87 longer than the box
   distance, so QUOI's 4.7 skull range is 3.8-4.2 to the box and was TIGHTER than our 4.5-to-the-box skull cap, though the
-  number is bigger (2026-10-12). Compare in one measure. Skull Range now uses QUOI's centre measure (testkit 842: 4.8 not
+  number is bigger (2026-10-12). Compare in one measure. Skull Range now uses QUOI's center measure (testkit 842: 4.8 not
   clicked, 4.6 clicked); the 20-tick world-change pause QUOI's AuraManager adds was already ActionGate's WORLD_SETTLE_TICKS (841).
 - **A CPS schedule must count a turned click from its TURN tick.** With "schedule from the previous due tick" alone, a click
   that first needs `TurnFirst` goes out a tick after it was due and the next gap starts from there, so every turn tick was
@@ -274,7 +274,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   secret raised it, and levers never touch it. `autoroutes/AwaitEvents` counts only his own clicks/pickups/nearby bat
   spawns/mimic kill, from the previous node's finish. The sim still sends the bar (`roomsim/SimActionBar`) for the map.
 - A Superboom does not break the block it lands on: it blows the crypt or wall NEAR it. Auto Routes' boom node watched only
-  the hit block and its six neighbours, so a boom that opened a crypt a block over read as "superboom didn't break anything"
+  the hit block and its six neighbors, so a boom that opened a crypt a block over read as "superboom didn't break anything"
   and stopped the route (his Museum stack, 2026-10-06). It now watches a radius-3 cube, and a boom that changes nothing
   within a round trip completes (nothing left to blow) instead of stopping; 96-ar-museum plays his exact route.
 
@@ -367,12 +367,12 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - **A run-time etherwarp aim must HOLD, not just land** (killer560 2026-10-15: path nodes "still taking me to the wrong
   block"). The planner proves every saved hop within `EtherSearch.AIM_MARGIN`; the aims worked out while flying
   (`TeleportUtils.getEtherwarpDirection` for a hop fired 0.05 over its spot, `RightClick.reaimIfUnpairable`) only checked
-  the exact float look. From a block-centre stand, lines to face points on the tenths/half lattice often pass EXACTLY through
+  the exact float look. From a block-center stand, lines to face points on the tenths/half lattice often pass EXACTLY through
   a block's vertical edge, and the server, reading the running yaw a few bits off, takes the voxel tie the other way: his
   Mod Only Test 22:47:07 run re-aimed at -149, 261, -188 (eye -150.5, -191.5 to face point 0.3/0.7 crosses x -149, z -188
   at one t) and the sim's cast stopped in -149, 262, -189. Both now prefer a look that lands for +-AIM_MARGIN, over
   off-lattice points too. Also: "Etherwarp: landed" is any landing within 2 blocks of the planned feet, so a hop on the
-  neighbouring block counted as landed; every landing is now judged by its block ("landed OFF its planned block", WARN).
+  neighboring block counted as landed; every landing is now judged by its block ("landed OFF its planned block", WARN).
   Second shape, same 0.05: when no sample point lands from the landing-tick eye, `stepOntoWarpSpot` read "back on its spot
   (0.00 off) after 0 tick(s)" (horizontal check only) and fired the SAVED look - planned from the settled eye - 0.05 high
   (his 22:47:32 Diagonal #8 hop 1 did exactly this, and happened to land). In 1015-sim-pathland it landed 5.4 blocks off
@@ -455,7 +455,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `routeStartClock`/`routeFoundAtStart` for the NEXT room, and the wait then counted the room it was leaving from that
   room's found count: "every secret counted after 1 tick" with the room still 4/5 (147 on main, every floor). The wait keeps
   the leaving room's own (`leaveStartClock`/`leaveFoundAtStart`).
-- **With Auto Close Chest on, a clicked chest never looks opened**: its window packet is cancelled before any screen, and
+- **With Auto Close Chest on, a clicked chest never looks opened**: its window packet is canceled before any screen, and
   the lid can be shut again before a tick reads it. Secret Aura re-clicked every such chest after 1 s and Auto Secret's
   wait ran to its limit; `AutoCloseChestFeature.autoClose` now tells the aura (`noteWindowOpened`, network thread).
 - **Auto Three Weirdos never moved, and QUOI's reach is why it never had to** (killer560, 2026-10-15, sim: "it cannot reach
@@ -509,7 +509,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   all refused. The dropped use clears the server's stored click whatever happens, so when `barePairedUses()` rose on a
   warp both executors send it again after `RightClick.eatenRetryTicks()` (1.5x the measured round trip + 2 ticks, at least
   3; 300 ms before the first pong) with no landing, and ClearExecutor queues nothing behind it meanwhile. If the
-  judgement was wrong the landing arrives inside that and nothing is resent. Testkit 96-ar-1016-eaten (main: timed out;
+  judgment was wrong the landing arrives inside that and nothing is resent. Testkit 96-ar-1016-eaten (main: timed out;
   fixed: resent 4 ticks after, landed).
 - **One item use per tick.** `ClearExecutor.onTickStart` has two hop slots, the held hop's (`doInteract` first thing) and a
   precomputed/planned-ahead queue's `sendNow` slot after `handleQueue`. A first hop held behind an unpaired block click went
@@ -647,7 +647,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   this tick's push: at Skyblock 600 sprinting it read 0.92 while he moved 1.68 a tick. The walker's key choice plays each
   combination one move ahead from it (`pathfinding/WalkPhysics`); a tie between "too fast" and "too slow" must go to slow,
   or one 0.6-block push too many slid him onto the soul (rest 0.05 from it, aiming for 1.6).
-- **Standing on a soul puts his eye inside its stand's box** (a 1.975-tall armour stand, eye 1.62): `AABB.clip` from inside
+- **Standing on a soul puts his eye inside its stand's box** (a 1.975-tall armor stand, eye 1.62): `AABB.clip` from inside
   returns nothing, so the click never went (testkit 1017-fairy-overshoot at 600: 700 ticks, 0 clicks). Inside the box is a hit.
 - **The old walker's overshoot was the key rule, not the camera**: W was held at a carrot up to 8 blocks ahead whenever the
   body faced within 70 degrees of it, and released only when the runner said "in reach" (3.0). Measured on the L route
@@ -680,7 +680,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   nearest-next improved by moving single rooms) or Largest To Smallest (`RoomTour.byWeight`), and only those two; with every
   room left at 3 unfound or fewer it is Least Etherwarps whatever is set (`RoomTour.effectiveOrder`, one place for the choice
   now and the plan-ahead). The value-weighted `TourPlanner.plan` is Dungeon Autopilot's alone. The room on the near side of the blood door
-  (`AutoSecretFeature.preBloodRoom`: the door cell's two neighbours, the one that is not the blood room) is held out of
+  (`AutoSecretFeature.preBloodRoom`: the door cell's two neighbors, the one that is not the blood room) is held out of
   every order while any other room with secrets is left, open or behind a door; the endgame takes it just before it would
   wait on a teammate's door. Testkit 1018-logic-room-order, 1018-sim-autosecret-preblood.
 - **A use-on-block (block place) has no rotation of its own: GrimAC 2.3.74 lends it the NEXT movement packet's only when
@@ -689,15 +689,15 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   START_CLIENT_TICK and a slow tick opened the gap (63-ap3-block-*, 2026-10-18); its USE / BLOCK / BOOM now go out at the
   head of `sendPosition` (`Ap3Executor.beforeSendPosition`). Any snap-aimed place should go out there; testkit
   1018-ap3-block-slow-tick proves it (START-sent: flagged 2 of 2; sendPosition-sent: clean).
-- **A look aimed at a block's centre can pass a neighbour's corner by a hair and miss in floats** (Auto Creeper Beams
-  Melee, 2026-10-18). The exact eye-to-centre ray met the lantern, the turned body's float yaw/pitch met the next block,
+- **A look aimed at a block's center can pass a neighbor's corner by a hair and miss in floats** (Auto Creeper Beams
+  Melee, 2026-10-18). The exact eye-to-center ray met the lantern, the turned body's float yaw/pitch met the next block,
   and the auto turned every tick and never hit. `AutoBeams.visiblePoint` samples face points and keeps one only if looks
-  0.35 degrees either way meet the block too. Half the room's lanterns are set in walls, so centre-only sight hid most spots.
+  0.35 degrees either way meet the block too. Half the room's lanterns are set in walls, so center-only sight hid most spots.
 - **The testkit finds Auto Routes events by log substrings, so a new log line must not reuse their wording** (2026-10-18).
   The first `[AutoRoutes] trace` start line said "await secret 1", which is how 96-ar-crypt finds AwaitEvents' count line,
   and its order check failed on a logging-only change. The trace now writes "1 secret"; grep the testkit before wording a line.
 - **A fallback that hands over to another mode inherits that mode's preconditions** (Creeper Beams Melee, 2026-10-18). Melee
-  ran out of on-foot pairs and handed the room to Shoot mode, whose first step is an etherwarp onto the centre platform;
+  ran out of on-foot pairs and handed the room to Shoot mode, whose first step is an etherwarp onto the center platform;
   from deep in the room there was no line onto it, AutoReposition refused once, and the auto sat there until he moved
   (his Mod Only Test log, reproduced by 1018-beams-melee-after). Melee now reaches each lantern itself (spot, AOTV, shot).
 - **"Aimed" must mean the look the server HEARD, not the body's look this tick** (Auto Water, killer560 2026-10-18: "failed

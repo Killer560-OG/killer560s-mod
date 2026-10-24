@@ -104,12 +104,12 @@ public final class DragListWidget extends AbstractWidget implements WheelTarget 
         return innerTop() + index * ROW_H - state.scroll;
     }
 
-    /** Centre x of the drag handle (the three bars at the row's left). */
+    /** Center x of the drag handle (the three bars at the row's left). */
     public int handleX() {
         return getX() + 7;
     }
 
-    /** Centre x of the trash can. */
+    /** Center x of the trash can. */
     public int trashX() {
         return trashLeft() + TRASH_W / 2;
     }

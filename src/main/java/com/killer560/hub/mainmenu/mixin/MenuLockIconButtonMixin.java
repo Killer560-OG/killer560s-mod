@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * The difficulty lock button next to the Difficulty cycle button (in-world Options screen). Its sprites
- * ({@code widget/locked_button*} / {@code widget/unlocked_button*}) bake the grey button frame into the icon, so it
+ * ({@code widget/locked_button*} / {@code widget/unlocked_button*}) bake the gray button frame into the icon, so it
  * cannot be themed by drawing under it; instead the themed box and a small padlock glyph are drawn.
  * <p>
  * 26.1.2 (javap): {@code LockIconButton.extractContents(GuiGraphicsExtractor,int,int,float)} (public, overrides

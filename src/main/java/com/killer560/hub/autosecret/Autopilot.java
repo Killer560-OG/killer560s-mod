@@ -432,7 +432,7 @@ final class Autopilot {
         return new Order(Type.KEY, null, -1, k.blood(), false, false, why, k);
     }
 
-    /** Auto Secret went for a key and it is still lying there afterwards: twice, and that key is left alone. */
+    /** Auto Secret went for a key and it is still lying there afterward: twice, and that key is left alone. */
     static void keyNotTaken(int entityId) {
         if (keyTries.merge(entityId, 1, Integer::sum) >= 2) {
             keysGivenUp.add(entityId);
@@ -569,7 +569,7 @@ final class Autopilot {
         closeCurrent();
     }
 
-    /** Auto Secret is about to take a step of its own (the Quiz): the last action is over, logged and learnt from. */
+    /** Auto Secret is about to take a step of its own (the Quiz): the last action is over, logged and learned from. */
     static void closeAction() {
         closeCurrent();
     }

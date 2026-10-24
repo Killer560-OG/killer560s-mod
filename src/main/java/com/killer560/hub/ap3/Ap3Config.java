@@ -20,7 +20,7 @@ import java.util.Map;
 
 /**
  * Persisted AP3 settings ({@code killer560smod-ap3-settings.json}). Cheat build only; ships disabled. Kept SEPARATE
- * from the chains files ({@link Ap3Store}) so sharing your chains never hands over your keybinds and colours, and
+ * from the chains files ({@link Ap3Store}) so sharing your chains never hands over your keybinds and colors, and
  * someone else's chains file never overwrites your settings. Which chains file is in use IS a setting
  * ({@link #getChainsFile()}), so it survives a restart.
  * <p>
@@ -154,7 +154,7 @@ public final class Ap3Config {
     public static final float MAX_LABEL_SCALE = 4f;
     public static final float MIN_LABEL_HEIGHT = 0f;
     public static final float MAX_LABEL_HEIGHT = 5f;
-    /** White: readable over every node colour, and the colour the labels always had before it was a setting. */
+    /** White: readable over every node color, and the color the labels always had before it was a setting. */
     public static final int DEFAULT_LABEL_COLOR = 0xFFFFFFFF;
 
     private static Ap3Config instance;
@@ -217,7 +217,7 @@ public final class Ap3Config {
      *  nodes still fire. On by default. */
     private boolean showNodes = true;
     private boolean uniformColor = false;
-    /** The mod's own amber, so a uniform-coloured chain matches the menu. */
+    /** The mod's own amber, so a uniform-colored chain matches the menu. */
     public static final int DEFAULT_UNIFORM_COLOR = 0xFFFFA040;
     private int uniformColorArgb = DEFAULT_UNIFORM_COLOR;
     private int activeColorArgb = 0xFFFFFFFF;
@@ -234,7 +234,7 @@ public final class Ap3Config {
     private boolean showNodeNumbers = true;
     private boolean showNodeType = true;
     private boolean showNodeDetails = true;
-    /** "toggleable for color": ON = each label in its own node's colour (the number matches the box it sits on),
+    /** "toggleable for color": ON = each label in its own node's color (the number matches the box it sits on),
      *  OFF = every label in {@link #labelColorArgb}. ON is how labels were always drawn. */
     private boolean labelUseNodeColor = true;
     private int labelColorArgb = DEFAULT_LABEL_COLOR;
@@ -242,7 +242,7 @@ public final class Ap3Config {
      *  where it has always sat) - the same two knobs Posmsg's waypoints got. */
     private float labelScale = 1f;
     private float labelHeightOffset = 0f;
-    /** Route optimiser: may the plan use jumps? At Skyblock speed a jump is slower (the air's 0.026 input cannot
+    /** Route optimizer: may the plan use jumps? At Skyblock speed a jump is slower (the air's 0.026 input cannot
      *  sustain a 550-speed run), so the planner only uses them where they actually win - this is the off switch. */
     private boolean routeAllowJumps = true;
     /** How many states per tick layer the route search keeps: higher finds more, costs more planning time. */
@@ -292,7 +292,7 @@ public final class Ap3Config {
         }
     }
 
-    /** Orange theme for the GUI-ish types, meaningful colours only where they carry meaning (STOP red, RUN green). */
+    /** Orange theme for the GUI-ish types, meaningful colors only where they carry meaning (STOP red, RUN green). */
     public static int defaultNodeColor(Ap3Node.Type type) {
         return switch (type) {
             case ALIGN -> 0xFFFFA040;
@@ -318,7 +318,7 @@ public final class Ap3Config {
         };
     }
 
-    /** The pre-rework name a type's colour was saved under (2026-09-20: LINE -> ALIGN, AXIS_LINE -> AXIS_ALIGN,
+    /** The pre-rework name a type's color was saved under (2026-09-20: LINE -> ALIGN, AXIS_LINE -> AXIS_ALIGN,
      *  LEAP_DETECTOR -> LEAP_COUNTER); the type's own name when it was never renamed. */
     private static String legacyColorKey(Ap3Node.Type t) {
         return switch (t) {
@@ -371,7 +371,7 @@ public final class Ap3Config {
                 if (colors != null) {
                     for (Ap3Node.Type t : Ap3Node.Type.values()) {
                         // A settings file from before the rename still has the old keys; read those as a fallback
-                        // so a colour he picked for "Line" is the colour "Align" shows up in.
+                        // so a color he picked for "Line" is the color "Align" shows up in.
                         int fallback = ConfigJson.getInt(colors, legacyColorKey(t), cfg.nodeColors.get(t));
                         cfg.nodeColors.put(t, ConfigJson.getInt(colors, t.name(), fallback));
                     }
@@ -503,7 +503,7 @@ public final class Ap3Config {
 
     public boolean isChatFeedback() { return chatFeedback; }
 
-    // ---- route optimiser (Path nodes) ----
+    // ---- route optimizer (Path nodes) ----
     public boolean isRouteAllowJumps() { return routeAllowJumps; }
     public void setRouteAllowJumps(boolean v) { routeAllowJumps = v; }
     public int getRouteBeam() { return routeBeam; }
@@ -565,7 +565,7 @@ public final class Ap3Config {
     public void setStopwatchToParty(boolean v) { stopwatchToParty = v; }
     public void setStopwatchHud(boolean v) { stopwatchHud = v; }
 
-    // ------------------------------------------------------------------------------------------- colours
+    // ------------------------------------------------------------------------------------------- colors
 
     public boolean isUniformColor() { return uniformColor; }
     public void setUniformColor(boolean v) { uniformColor = v; }
@@ -587,7 +587,7 @@ public final class Ap3Config {
         }
     }
 
-    /** The colour a node should render with: its own override, else the uniform colour, else its type's. */
+    /** The color a node should render with: its own override, else the uniform color, else its type's. */
     public int colorFor(Ap3Node node) {
         if (node != null && node.colour != null) {
             return node.colour;
@@ -633,8 +633,8 @@ public final class Ap3Config {
     public int getLabelColorArgb() { return labelColorArgb; }
     public void setLabelColorArgb(int argb) { labelColorArgb = argb; }
 
-    /** The colour a node's label is drawn in: the node's own marker colour, or the one fixed label colour. Always
-     *  opaque - a translucent marker colour must not fade its number out. */
+    /** The color a node's label is drawn in: the node's own marker color, or the one fixed label color. Always
+     *  opaque - a translucent marker color must not fade its number out. */
     public int labelColorFor(Ap3Node node, int markerArgb) {
         return (labelUseNodeColor ? markerArgb : labelColorArgb) | 0xFF000000;
     }
@@ -681,7 +681,7 @@ public final class Ap3Config {
      *
      * <p>This used to return the constant and ignore the stored value, which made {@code /ap3 tolerance} a command
      * that printed a new number, saved it, and changed nothing - every align kept running at the default. The
-     * "keep them fixed" instruction it was honouring was about removing GUI SLIDERS; it is honoured by the default
+     * "keep them fixed" instruction it was honoring was about removing GUI SLIDERS; it is honored by the default
      * above being a fixed sensible value, not by making a typed command a no-op.
      */
     public double getAlignTolerance() { return alignTolerance; }

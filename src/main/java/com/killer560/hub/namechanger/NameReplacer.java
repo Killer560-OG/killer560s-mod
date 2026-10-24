@@ -321,7 +321,7 @@ public final class NameReplacer {
         private int index;
 
         /** True once the first visible glyph was a slash: the whole line is a command, which is never renamed (killer560,
-         *  2026-10-15: a name typed inside "/killer560" took the custom colour, partly black). */
+         *  2026-10-15: a name typed inside "/killer560" took the custom color, partly black). */
         private boolean commandLine;
         private boolean seenGlyph;
         /** Rank-tag tracking: 0 none, 1 inside "[...", 2 after "]", 3 after "] " (the next word may be the name). */
@@ -480,7 +480,7 @@ public final class NameReplacer {
                 String repl = replacementFor(m);
                 sb.append(repl);
                 if (repl.indexOf('§') >= 0) {
-                    // Restore whatever colour/format was active before the name so the rest of the line is unchanged.
+                    // Restore whatever color/format was active before the name so the rest of the line is unchanged.
                     sb.append("§r").append(active);
                 }
                 last = start + lens[m];

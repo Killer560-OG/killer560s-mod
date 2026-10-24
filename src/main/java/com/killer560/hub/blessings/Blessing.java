@@ -3,7 +3,7 @@ package com.killer560.hub.blessings;
 import java.util.regex.Pattern;
 
 /**
- * The five dungeon blessings, their tab-footer patterns and their display colours.
+ * The five dungeon blessings, their tab-footer patterns and their display colors.
  * <ul>
  * <li>Names + the fact that there are exactly five: NoammAddons
  * {@code utils/dungeons/enums/Blessing.kt} (POWER/LIFE/WISDOM/STONE/TIME) and Devonian
@@ -12,9 +12,9 @@ import java.util.regex.Pattern;
  * Devonian's generic per-footer-line regex {@code "^Blessing of (\\w+) ([IVX]+)$"}. This mod uses the generic
  * Roman-numeral group for every blessing (Noamm hardcodes {@code (V)} for TIME, which silently stops matching if
  * Hypixel ever raises Time's cap) - the same text, just a wider numeral group.</li>
- * <li>Display order and default colours: Devonian's {@code format()} - Power &4 (dark red), Time &6 (gold),
+ * <li>Display order and default colors: Devonian's {@code format()} - Power &4 (dark red), Time &6 (gold),
  * Wisdom &b (aqua), Stone &7 (gray), Life &2 (dark green). NoammAddons' {@code BlessingDisplay.kt} uses the same
- * idea with Time dark purple and Life red; Devonian's set was kept because it matches the in-game footer colours.</li>
+ * idea with Time dark purple and Life red; Devonian's set was kept because it matches the in-game footer colors.</li>
  * </ul>
  * <b>Not included:</b> no stat table. Neither source (nor anything else cited in this repo) maps a blessing level
  * to the stats it grants, so this feature shows LEVELS ONLY and never a derived stat value.

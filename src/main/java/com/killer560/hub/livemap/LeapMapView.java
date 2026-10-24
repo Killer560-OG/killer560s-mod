@@ -35,7 +35,7 @@ public final class LeapMapView {
 
     /**
      * Draws the map into the square {@code p} = {x0, y0, x1, y1} and every teammate in {@code targets} (names, case
-     * ignored) that the map has a position for. @return their faces, topmost last (so a hit test walks it backwards).
+     * ignored) that the map has a position for. @return their faces, topmost last (so a hit test walks it backward).
      */
     public static List<Head> draw(GuiGraphicsExtractor graphics, Font font, int[] p, Collection<String> targets,
                                   int mouseX, int mouseY) {
@@ -57,7 +57,7 @@ public final class LeapMapView {
             for (int gid = 0; gid < groups.size(); gid++) {
                 LiveMapFeature.RoomGroup group = groups.get(gid);
                 if (!MapPainter.isRevealed(group)) {
-                    continue; // the same map-item-only rule as the Dungeon Map: it drew every scanned room grey
+                    continue; // the same map-item-only rule as the Dungeon Map: it drew every scanned room gray
                 }
                 MapPainter.drawRoom(graphics, group, gid, MapPainter.roomColor(group, cfg), ox, oy, ppu);
             }

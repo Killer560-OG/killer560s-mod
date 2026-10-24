@@ -39,7 +39,7 @@ import com.killer560.hub.compat.McCompat;
  * to state instead: {@code /pets} goes out from {@link #request} itself (the frame the slice is picked), the menu
  * is accepted the first tick its items are present, the pet is clicked that same tick if
  * it is on the page, and only a "not on this page" verdict waits {@link #NOT_FOUND_SETTLE_TICKS} unchanged ticks
- * before turning the page (so a page still filling in is never judged empty). A page turn is recognised by the
+ * before turning the page (so a page still filling in is never judged empty). A page turn is recognized by the
  * new menu object Hypixel's re-sent open-screen packet creates, not by a timer. Each phase logs its duration.
  * <p>
  * <b>{@code /pets} is never held</b> (killer560, 2026-10-07: release over a pet and "that same in-game tick with 0
@@ -91,7 +91,7 @@ public final class PetSummoner {
     /** True for the summon in flight when the hide option was on at request time. */
     private static boolean hideRequested = false;
 
-    /** The headless Pets menu (hide mode) and its title, captured when its setScreen was cancelled. */
+    /** The headless Pets menu (hide mode) and its title, captured when its setScreen was canceled. */
     private static AbstractContainerMenu hiddenMenu = null;
     private static String hiddenTitle = null;
 

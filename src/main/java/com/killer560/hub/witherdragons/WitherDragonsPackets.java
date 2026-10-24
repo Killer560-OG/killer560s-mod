@@ -12,7 +12,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /** Public bridge from {@code WitherDragonsPacketMixin} (client thread) into the package. Every call is guarded so
- *  a feature bug can never break vanilla packet handling; Skyblock Only is honoured through each feature's
+ *  a feature bug can never break vanilla packet handling; Skyblock Only is honored through each feature's
  *  gated config getters.
  *  <p>The handlers are passed as non-capturing method references with their arguments, not as capturing lambdas: these
  *  run for every particle, sound, equipment and ping packet in every world, and a capturing lambda is an object per

@@ -78,7 +78,7 @@ public final class SimPrince {
      * sim's Superboom treated its slab ring as an ordinary crypt.
      *
      * <p>"A connected run of 2 to {@value #LID_MAX} full smooth stone blocks, air above every one, every horizontal
-     * neighbour either another lid block or a bottom smooth stone slab" picks out exactly one structure in all 135
+     * neighbor either another lid block or a bottom smooth stone slab" picks out exactly one structure in all 135
      * captures: this one (census 2026-10-11 over the shipped library). The lid and its slab ring are the prince's
      * blocks, so a Superboom aimed at any of them finds it.
      */
@@ -206,7 +206,7 @@ public final class SimPrince {
      * <p>killer560, 2026-10-09: "For princes make sure you get rid of the player head attached to the crypt and the
      * stair layer below that." Leaves' prince is a 3x3 of andesite round a sea lantern with a player head on its side
      * and a 3x3 of stone brick stairs under it; Big Red Flag's lid sits on a course of stairs and smooth stone. So: any
-     * player head touching a prince block (all 26 neighbours - a wall head sits beside the ring, a floor head on top),
+     * player head touching a prince block (all 26 neighbors - a wall head sits beside the ring, a floor head on top),
      * and every block directly under the prince's footprint at the layer below its lowest block, minus what a blast
      * never takes (air, block entities other than a head, bedrock, barriers, levers). Asked BEFORE anything is broken.
      * Not checked against Hypixel - his word, not the wiki's (the wiki's Prince page does not describe the tomb).

@@ -22,8 +22,8 @@ public final class LividSolverConfig {
     public static final float DEFAULT_TRACER_THICKNESS = 2f;
     public static final int DEFAULT_CUSTOM_COLOUR = 0xFFFFFFFF;
 
-    /** Where the highlight and the tracer get their colour (killer560, 2026-10-18): the Livid's own wool colour, or the
-     *  two colours set in the Custom settings. */
+    /** Where the highlight and the tracer get their color (killer560, 2026-10-18): the Livid's own wool color, or the
+     *  two colors set in the Custom settings. */
     public enum ColourMode {
         MATCH("Match Livid"), CUSTOM("Custom");
 

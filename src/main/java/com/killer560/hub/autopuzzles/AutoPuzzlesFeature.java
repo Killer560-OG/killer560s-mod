@@ -32,7 +32,7 @@ import com.killer560.hub.compat.McCompat;
  * <ul>
  *   <li>Quiz: once the correct option is known AND the answer holograms are up (an ArmorStand named with "ⓒ"
  *   within 20 blocks), no-rotate interact the correct option's block (the solver's option pos, the same pos
- *   QUOI clicks) when eye-to-centre distance² &lt;= 36. QUOI re-clicks every 500ms; this clicks ONCE per
+ *   QUOI clicks) when eye-to-center distance² &lt;= 36. QUOI re-clicks every 500ms; this clicks ONCE per
  *   question, re-armed only by Oruo's "answered Question #" line / the solver clearing the answer.</li>
  *   <li>Three Weirdos ({@link AutoWeirdos}): once the solver has the correct chest and both wrong chests (QUOI's
  *   {@code wrongPositions.size == 2} gate - all 3 NPCs have spoken), open the chest. Once per room. Optional (default
@@ -55,7 +55,7 @@ public final class AutoPuzzlesFeature {
     private static final String WEIRDOS_ROOM = "Three Weirdos";
 
     // QUOI Quiz: player.eyePosition.distanceToSqr(answerPos.vec3) > 36 -> skip.
-    /** Measured block reach, squared - was 36.0 (6.0 blocks) to the centre. */
+    /** Measured block reach, squared - was 36.0 (6.0 blocks) to the center. */
     private static final double QUIZ_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     // QUOI Quiz: getEntities<ArmorStand>(20.0) { "ⓒ" in name }.
     private static final double QUIZ_HOLOGRAM_RADIUS_SQ = 20.0 * 20.0;
@@ -347,7 +347,7 @@ public final class AutoPuzzlesFeature {
             blocker = "answer holograms (ⓒ stand) not up yet";
         } else if (com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), quizClick) > QUIZ_REACH_SQ) {
             // To the BOX of the block the click goes to (the button) - see the note in AutoWater. Pairing a
-            // box-measured limit with a centre-measured distance refuses blocks the server would accept.
+            // box-measured limit with a center-measured distance refuses blocks the server would accept.
             blocker = String.format(java.util.Locale.US, "out of reach (%.2f blocks)",
                     Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), quizClick)));
             moveIntoQuizReach(client, quizClick);

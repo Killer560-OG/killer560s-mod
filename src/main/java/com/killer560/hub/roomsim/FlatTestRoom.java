@@ -58,7 +58,7 @@ public final class FlatTestRoom {
         RoomLibrary.Room r = RoomLibrary.createTestRoom(NAME, SIZE, SIZE);
         // NO MARGIN. This room is exactly one tile wide and draws its own walls INSIDE that tile, so it has
         // no captured blocks outside it - unlike a real capture, which is TILE + 2 across because it shares a
-        // wall column with each neighbour.
+        // wall column with each neighbor.
         //
         // Room.margin defaults to WALL_MARGIN, and this room was written before that default existed and never
         // updated. RoomPlacer anchors at `origin - TILE / 2 - margin`, so the whole room was pasted one block

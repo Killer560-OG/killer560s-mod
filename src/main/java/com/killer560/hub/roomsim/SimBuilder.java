@@ -205,7 +205,7 @@ public final class SimBuilder {
                 String name = decoded.nameTable()[nameIndex];
                 RoomLibrary.Room room = RoomLibrary.get(name);
                 // usable(), not merely present: a room captured at an older footprint is a different SIZE from
-                // the one the layout planned for, so pasting it runs over its neighbour. Treated as missing,
+                // the one the layout planned for, so pasting it runs over its neighbor. Treated as missing,
                 // which is already handled and reported, rather than pasted wrongly and reported as fine.
                 if (room != null && !room.usable()) {
                     room = null;
@@ -241,7 +241,7 @@ public final class SimBuilder {
                 // Checked rather than assumed, because the two numbers come from different places: the
                 // footprint from the layout's flood fill over the map code, and the paste from the capture's
                 // own sizeX/sizeZ. A warning, not a refusal - a floor with one twisted room is still worth
-                // practising in, and refusing would turn an occasional fault into no floor at all.
+                // practicing in, and refusing would turn an occasional fault into no floor at all.
                 int rotation0 = decoded.cellRotation()[cell];
                 int tilesX = Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1));
                 int tilesZ = Math.max(1, (room.sizeZ - 1) / (RoomLibrary.TILE + 1));
@@ -276,7 +276,7 @@ public final class SimBuilder {
                     footprintCells[i] = footprint.get(i);
                 }
                 SimRoomIndex.add(room, gx, gz, rot, footprintCells);
-                // And so the build can read the blocks back afterwards and check they are this room's - see
+                // And so the build can read the blocks back afterward and check they are this room's - see
                 // SimBuildAudit, which is the only check here whose answer comes from the world.
                 SimBuildAudit.record(room, gx, gz, rot);
                 if (nameIndex >= 0 && nameIndex < clayByRoom.length) {
@@ -368,7 +368,7 @@ public final class SimBuilder {
             // Doorways this floor does not use, bricked up.
             //
             // A room's doorways are part of its captured blocks, so one that faces the edge of the map or a
-            // neighbour's blank wall is a hole into the void - about five of them on a floor. Worked out from
+            // neighbor's blank wall is a hole into the void - about five of them on a floor. Worked out from
             // the same measured door masks the layout was built from, so the seal and the layout can never
             // disagree about where a doorway is.
             final java.util.List<int[]> sealCells = new java.util.ArrayList<>();
@@ -418,7 +418,7 @@ public final class SimBuilder {
             // rotated masks the seal above uses, so the audit and the layout cannot disagree about where a
             // doorway is.
             //
-            // A warning, not a refusal: a floor with one awkward doorway is still worth practising in, and
+            // A warning, not a refusal: a floor with one awkward doorway is still worth practicing in, and
             // failing the build would turn an occasional annoyance into a dead feature.
             if (com.killer560.hub.BuildVariant.DEV_TOOLS) {
                 java.util.Map<Long, java.util.List<String>> backing = new java.util.HashMap<>();
@@ -459,7 +459,7 @@ public final class SimBuilder {
                     }
                     unbacked++;
                     // NAME both rooms, because the one that is missing its doorway is the one to look at, and
-                    // which of the two it is cannot be worked out from the cell number afterwards.
+                    // which of the two it is cannot be worked out from the cell number afterward.
                     int ax = (gx % 2 == 1) ? gx - 1 : gx;
                     int az = (gz % 2 == 1) ? gz - 1 : gz;
                     int bx = (gx % 2 == 1) ? gx + 1 : gx;
@@ -640,7 +640,7 @@ public final class SimBuilder {
      *
      * <p>The landing spot is FOUND rather than assumed. Rooms differ in floor height and the captured slice
      * spans y 60 to 140, so a fixed Y drops him inside the floor or a long way above it. This scans down the
-     * centre column for the first solid block with two blocks of air on top - the same test that decides
+     * center column for the first solid block with two blocks of air on top - the same test that decides
      * whether an etherwarp is legal, and for the same reason: it is what "somewhere you can stand" means.
      *
      * <p>Writing the position directly is correct here and only here: the integrated server is ours, and the
@@ -658,7 +658,7 @@ public final class SimBuilder {
      * block infront of the entrance on that level"; and "if i do goto creeperbeams or generate teh room as a
      * single dont make me spawn in the middle column ofset my position any horizontal amount by 4 blocks."
      *
-     * <p>{@code dx}/{@code dz} are blocks from the tile centre. {@code fromTop} flips the landing scan, which
+     * <p>{@code dx}/{@code dz} are blocks from the tile center. {@code fromTop} flips the landing scan, which
      * otherwise comes UP from the bottom of the world and finds the lowest floor - right for every room but
      * Higher Blaze, which is entered near its ceiling and whose "that level" is the top one.
      */
@@ -722,7 +722,7 @@ public final class SimBuilder {
         String name = room.name.toLowerCase(Locale.ROOT);
         com.killer560.hub.roomdatabase.RoomEntry dbEntry =
                 com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room.name);
-        // Boulder too (2026-10-04): its tile centre is a box cell, and the upward scan put him on the floor INSIDE
+        // Boulder too (2026-10-04): its tile center is a box cell, and the upward scan put him on the floor INSIDE
         // whatever ring of boxes the arrangement had there - one arrangement seals the middle cells in, so he spawned
         // walled in and no button was reachable (93-solve, "no walkable spot ... has it in reach"). On Hypixel he
         // walks in through the doorway onto the barrier roof over the grid, which is where this puts him.
@@ -730,7 +730,7 @@ public final class SimBuilder {
                 || SimFloorLayout.isTrap(room.name, dbEntry == null ? null : dbEntry.type)) {
             // ONE BLOCK IN FROM THE ENTRANCE DOORWAY, AT ITS FLOOR, FACING IN. killer560 (2026-10-04): "/goto trap
             // puts me 1 block inside of the entrance at that level. Same for teleport maze." A trap is a corridor
-            // with a way in and a way out, so "the entrance" is the doorway that leads back towards the green
+            // with a way in and a way out, so "the entrance" is the doorway that leads back toward the green
             // room on this floor (entranceSide); a single-room load has no floor and falls back to the room's
             // first measured doorway, like Ice Fill. 14 is the wall (15) stepped back in one, the blaze rooms'
             // number; the height is read in the doorway itself (15).
@@ -745,7 +745,7 @@ public final class SimBuilder {
                 }
             }
             if (side >= 0) {
-                // Facing back from the doorway towards the middle: direction (-DX, -DZ), and Minecraft's yaw for
+                // Facing back from the doorway toward the middle: direction (-DX, -DZ), and Minecraft's yaw for
                 // a direction (fx, fz) is atan2(-fx, fz) - the form Ap3Executor uses.
                 float yaw = (float) Math.toDegrees(Math.atan2(RoomDoors.DX[side], -RoomDoors.DZ[side]));
                 return new Spawn(RoomDoors.DX[side] * 14, RoomDoors.DZ[side] * 14, false,
@@ -756,7 +756,7 @@ public final class SimBuilder {
         if (name.equals("ice fill")) {
             // TWO BLOCKS IN FROM THE DOORWAY, AT THE DOORWAY'S OWN HEIGHT. killer560 (2026-10-01): "make it so
             // when I spawn into ice fill it is 2 blocks infront of the entrance on that same y level." 13 is the
-            // tile centre stepped out to the wall (15) and back in two.
+            // tile center stepped out to the wall (15) and back in two.
             RoomDoors.Mask mask = doorsAsPasted(room, gridX, gridZ);
             if (mask != null) {
                 for (int packed : mask.edges()) {
@@ -767,13 +767,13 @@ public final class SimBuilder {
             }
             return null;
         }
-        // Creeper Beams had its own "four blocks off the centre column" (2026-10-01) to keep him out of the puzzle's
+        // Creeper Beams had its own "four blocks off the center column" (2026-10-01) to keep him out of the puzzle's
         // middle; the doorway landing every ordinary room now gets (doorwaySpot, 2026-10-06) does that as well and
         // puts him on the floor he walks in on.
         if (name.equals("higher blaze") || name.equals("lower blaze")) {
             // ONE BLOCK IN FROM THE DOORWAY. A blaze room is a shaft; its middle is the chain, and the level
             // that matters is the one you walk in on. The side comes from the room's own measured doorway
-            // mask rather than a guess, and 14 is the tile centre (16 in capture-local) stepped out to the
+            // mask rather than a guess, and 14 is the tile center (16 in capture-local) stepped out to the
             // wall at 1 or 31 and back in one.
             RoomDoors.Mask mask = doorsAsPasted(room, gridX, gridZ);
             if (mask != null) {
@@ -870,7 +870,7 @@ public final class SimBuilder {
 
     /**
      * The landing height in one column: the first block with two of air on it that has something overhead, or
-     * {@code Integer.MIN_VALUE}. Upwards from the bottom of the world finds the floor; downwards (Higher Blaze)
+     * {@code Integer.MIN_VALUE}. Upward from the bottom of the world finds the floor; downward (Higher Blaze)
      * finds the top level. Either way the covered test is what rejects a ROOF, which has open sky over it.
      */
     private static int coveredStandable(ServerLevel level, int x, int z, boolean fromTop) {
@@ -891,7 +891,7 @@ public final class SimBuilder {
 
     /**
      * The nearest column to {@code (x, z)} with a covered landing, searched ring by ring out to 15 blocks - the
-     * tile's own wall, so it never leaves the room's tile for a neighbour. Writes {@code {x, z, y}} into
+     * tile's own wall, so it never leaves the room's tile for a neighbor. Writes {@code {x, z, y}} into
      * {@code out} and returns true, or returns false when the whole tile has nowhere covered to stand.
      */
     private static boolean nearestCovered(ServerLevel level, int x, int z, boolean fromTop, int[] out) {
@@ -955,7 +955,7 @@ public final class SimBuilder {
             int side = c[2];
             if (roomCells != null && !contains(roomCells, (gridZ + 2 * c[1]) * DungeonLayout.GRID + gridX + 2 * c[0])) {
                 // An edge of an L's missing quarter: the mask reads it off the capture's box, where that quarter
-                // is air or a neighbour, so it "has" doorways the room does not.
+                // is air or a neighbor, so it "has" doorways the room does not.
                 continue;
             }
             var centre = DungeonLayout.cellCenter((gridZ + 2 * c[1]) * DungeonLayout.GRID + gridX + 2 * c[0]);
@@ -1136,7 +1136,7 @@ public final class SimBuilder {
     static void snapPlayerTo(java.util.UUID uuid, ServerLevel level, int gridX, int gridZ,
                              RoomLibrary.Room room, float[] face, java.util.function.Consumer<float[]> landed) {
         var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
-        // An L whose missing quarter is its anchor tile: the anchor's centre is not in the room at all (Lava Ravine
+        // An L whose missing quarter is its anchor tile: the anchor's center is not in the room at all (Lava Ravine
         // as Hypixel captures it, 2026-10-13 - the scan then stood him in the void quarter, or on the ravine's lava
         // when the quarters were read the other way round). Scan from a tile the room does have.
         int[] roomCells = placedCells(room, gridX, gridZ);
@@ -1167,7 +1167,7 @@ public final class SimBuilder {
                 doorFallback = true;
             }
         }
-        // Upwards from the bottom. Scanning DOWN from the top finds the first standable surface from above,
+        // Upward from the bottom. Scanning DOWN from the top finds the first standable surface from above,
         // which for a room with a ceiling is the ROOF - killer560 (2026-09-28): "it put me ontop of the room
         // instead of insidde it." Coming up from the floor finds the floor.
         // "Not found" is a FLAG, not a negative y.
@@ -1188,7 +1188,7 @@ public final class SimBuilder {
         } else {
             // Coming DOWN, the first standable spot is the roof - killer560 (2026-10-01): "if i use /goto higher
             // blaze it puts me on the roof of the sim." Coming UP can end there too - killer560 (2026-10-04):
-            // "/goto museum puts me on the roof." Museum is a 2x2 whose tile centres are all inside solid
+            // "/goto museum puts me on the roof." Museum is a 2x2 whose tile centers are all inside solid
             // pillars (decoded from Museum.json: capture columns (16,16), (16,48), (48,16) and (48,48) are solid
             // from y58 to the roof at y119), so the first spot with two blocks of air on it WAS the roof. Both
             // directions now need cover overhead, and a column with none gives way to the nearest covered one in
@@ -1209,7 +1209,7 @@ public final class SimBuilder {
         }
         if (!found && !fromTop) {
             // No covered spot anywhere in the tile - a room captured without its roof. The old rule, uncovered:
-            // the first standable block coming up the centre column, which is that room's floor.
+            // the first standable block coming up the center column, which is that room's floor.
             for (int yy = SimAltitude.minWorldY(); yy <= SimAltitude.maxWorldY() - 3; yy++) {
                 if (!level.getBlockState(new net.minecraft.core.BlockPos(x, yy, z)).isAir()
                         && level.getBlockState(new net.minecraft.core.BlockPos(x, yy + 1, z)).isAir()
@@ -1231,7 +1231,7 @@ public final class SimBuilder {
             // THE ROOM'S MAIN FLOOR, BY A DOORWAY. killer560 (2026-10-06): "try to have me always spawn on the same
             // height as the entrances to the room are as that is the 'main floor' area; some rooms put me in really
             // random spots. You can put me really close to doors so the position is right. This should be used for
-            // all /goto as well." The scan above lands on the first covered floor in the tile's centre column,
+            // all /goto as well." The scan above lands on the first covered floor in the tile's center column,
             // which in a room with a pit, a basement or a raised middle is not the floor anyone walks in on. Only
             // for rooms with no rule of their own; the ones above (traps, Teleport Maze, Boulder, Ice Fill, the
             // blaze rooms) were each placed where he asked and keep it.
@@ -1280,7 +1280,7 @@ public final class SimBuilder {
      *
      * <p>killer560 (2026-10-01): <i>"can you make the very back of green room have a stone back wall intsead of
      * just air. and the window areas on the front."</i> The green room is the Entrance - the mod calls it that
-     * itself, and green is its colour on the dungeon map.
+     * itself, and green is its color on the dungeon map.
      *
      * <p>Its capture is complete (every one of its 1,089 columns is marked seen), so this is not a rescan: the
      * real room genuinely has nothing behind those faces, because on Hypixel what is behind them is the rest of
@@ -1294,7 +1294,7 @@ public final class SimBuilder {
      * own outermost layer is filled; everything inside it is the room and is left alone.
      *
      * <p>Called from {@code doorWork} BEFORE the doorways are carved, so the one real door is reopened
-     * afterwards. Running it after would brick up the way out of the run.
+     * afterward. Running it after would brick up the way out of the run.
      */
     private static void closeGreenRoomShell(ServerLevel level) {
         for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
@@ -1316,7 +1316,7 @@ public final class SimBuilder {
             net.minecraft.world.level.block.state.BlockState stone =
                     net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
             // UPDATE_CLIENTS so he sees it, SKIP_ALL_SIDEEFFECTS so a few thousand blocks do not each cascade
-            // into a neighbour update - the same trade RoomPlacer's own flags make, for the same reason.
+            // into a neighbor update - the same trade RoomPlacer's own flags make, for the same reason.
             int flags = net.minecraft.world.level.block.Block.UPDATE_CLIENTS
                     | net.minecraft.world.level.block.Block.UPDATE_SKIP_ALL_SIDEEFFECTS;
             int filled = 0;
@@ -1490,7 +1490,7 @@ public final class SimBuilder {
     }
 
     /**
-     * Removes every mob and armour stand left in the sim world.
+     * Removes every mob and armor stand left in the sim world.
      *
      * <p>Only dropped items were cleared before, so a build left the last floor's zombies, skeletons, star
      * name tags and Fel markers standing in the new one's rooms - and because a single-room build never goes
@@ -1534,7 +1534,7 @@ public final class SimBuilder {
      * <p>killer560 (2026-10-12, Bridges on an F7): "doors will generate with ground beneath you to walk on but not
      * blocking you from going outside of the map. Just add some blocks there to make it impossible to go outside the
      * map." A capture's outermost column is the seam it shares with the cell beyond it ({@code HALF_ROOM} from the tile
-     * centre), and the captures hold it as AIR at walking height - the one-wide gap between rooms where they were
+     * center), and the captures hold it as AIR at walking height - the one-wide gap between rooms where they were
      * captured. Pasted side by side, two rooms leave a one-wide slot along their whole shared edge, open to the sky and
      * with nothing under it, and a carved door's floor lays three blocks of ground across it - "ground beneath you".
      * Walked along or fallen down, the slot leaves the map (testkit 855: 2-7 ways out per generated floor before this).
@@ -1554,7 +1554,7 @@ public final class SimBuilder {
         int maxY = Math.min(level.getMaxY(), SimAltitude.maxWorldY());
         int placed = 0;
         // Each tile edge once: +X and +Z from every tile, and -X / -Z only where the tile is on the low edge of the
-        // grid or faces an empty cell (a neighbour room would own that edge as its own +X / +Z).
+        // grid or faces an empty cell (a neighbor room would own that edge as its own +X / +Z).
         int[][] sides = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
         for (int gz = 0; gz < grid; gz += 2) {
             for (int gx = 0; gx < grid; gx += 2) {
@@ -1751,7 +1751,7 @@ public final class SimBuilder {
      *
      * <p>{@code spawnMobsFor} used to put a mob at every position the recorder saw a star name at. Three
      * things were wrong with that and only the first is cheap to fix: the positions were never rotated, so a
-     * turned room put its mobs through the walls; they are armour-stand positions rather than mob positions,
+     * turned room put its mobs through the walls; they are armor-stand positions rather than mob positions,
      * so they are a tile-and-a-bit off vertically in places; and a one-health no-AI stand-in is not the mob a
      * route is timed against. The capture is still recorded in the room files, so nothing is lost and this
      * comes back when the mobs are done properly.
@@ -1932,7 +1932,7 @@ public final class SimBuilder {
             }
             // After the paste, so the ring it inspects is the room's real wall - before it, every column
             // would still be air and the whole perimeter would come out diamond.
-            // The room's REAL bounds, which are not centred on the origin for anything bigger than one tile.
+            // The room's REAL bounds, which are not centered on the origin for anything bigger than one tile.
             // This sealed origin +- size/2: a 65-wide room spans origin-16 to origin+48, so one diamond wall
             // stood 16 blocks west in the void and the other cut through the room's interior. Same corner the
             // paste uses, so the two cannot disagree.
@@ -2115,7 +2115,7 @@ public final class SimBuilder {
     /**
      * Drops the synthetic test room into the middle of the grid.
      *
-     * <p>What makes the sim testable before anything has been scanned. Placed at the centre cell so there is
+     * <p>What makes the sim testable before anything has been scanned. Placed at the center cell so there is
      * room around it, and reported with its coordinates so he can find it rather than hunt.
      */
     public static void buildFlatTest(Minecraft client) {

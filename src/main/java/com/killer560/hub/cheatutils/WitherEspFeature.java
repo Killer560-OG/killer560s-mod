@@ -15,7 +15,7 @@ import net.minecraft.world.entity.boss.wither.WitherBoss;
  * filter - the invisible/800-tick withers are Hypixel's fake display withers).
  * <li>Only in F7/M7 boss, never in P5 (Noamm {@code isValidLoc}): P5 starts at the first "[BOSS] Wither King:" line.
  * </ul>
- * Still ticked and fed chat by {@link CheatUtils} (registered on both builds - it holds no cheat behaviour).
+ * Still ticked and fed chat by {@link CheatUtils} (registered on both builds - it holds no cheat behavior).
  */
 public final class WitherEspFeature {
 

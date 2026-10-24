@@ -33,7 +33,7 @@ import java.util.function.Consumer;
  * as {@code MultiPlayerGameMode.continueDestroyBlock} does) reaches one. Nothing is predicted: the block counts as
  * broken only when the SERVER's block update makes it air on the client. A STOP the server acks while the block still
  * stands is a refusal, and the dig starts over the tick after, as a hand still holding the button would. Leaving reach,
- * the tool leaving the hand, or the owner cancelling sends the ABORT_DESTROY_BLOCK that letting go of the button sends.
+ * the tool leaving the hand, or the owner canceling sends the ABORT_DESTROY_BLOCK that letting go of the button sends.
  * No fixed wait anywhere: the dig ends on the server's answer. {@link #GIVE_UP_TICKS} only ends a dig the server never
  * answers at all, and says so.
  * <p>
@@ -252,7 +252,7 @@ public final class ObsidianDig {
         return Result.RUNNING;
     }
 
-    /** The owner cancelled the dig (route stopped, another node fired, the aura switched off...). Lets go of it. */
+    /** The owner canceled the dig (route stopped, another node fired, the aura switched off...). Lets go of it. */
     public void abandon(Minecraft client, String reason) {
         if (pos == null) {
             return;

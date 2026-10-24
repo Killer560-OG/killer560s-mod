@@ -41,14 +41,14 @@ public final class PlayerStatsConfig {
     // Classic Display (the one-line "HP / MP / DEF" element, HUD id "player_stats", and its five keys showHealth,
     // showMana, showDefense, showText, showBar) was removed on 2026-10-07 - killer560: "remove the classic display
     // option, that is not needed." Those keys are no longer read or written, except once by migrateClassic().
-    // --- 2026-10-04, killer560: "make custom health, intel, vitality, defence, true defence, and other such
+    // --- 2026-10-04, killer560: "make custom health, intel, vitality, defense, true defense, and other such
     // bars ... Also add an option to hide the text Hypixel has like 3000/3000 with the heart symbol ... Also
     // add an option to hide the enchanting bar and its level. But make options for custom text, custom bars
     // and whatnot all scalable." Each custom bar/text is its own HUD element (StatElements); its scale and
-    // position live in HudConfig like every other element, its on/off and colour live here. ---
-    /** Strips Hypixel's own stat segments (health, defence, mana, overflow mana, the extra n/n resource) from
+    // position live in HudConfig like every other element, its on/off and color live here. ---
+    /** Strips Hypixel's own stat segments (health, defense, mana, overflow mana, the extra n/n resource) from
      *  the action bar. Independent of {@link #enabled}. A file written before this key existed takes the old
-     *  behaviour, where the stat line was hidden exactly when Stat Bars was on - see {@link #load()}. */
+     *  behavior, where the stat line was hidden exactly when Stat Bars was on - see {@link #load()}. */
     private boolean hideHypixelStatText = false;
     /** Hides the vanilla experience bar and the level number above it. Independent of {@link #enabled}. */
     private boolean hideXpBar = false;
@@ -57,7 +57,7 @@ public final class PlayerStatsConfig {
     private HeldItemName heldItemName = HeldItemName.OVER_BARS;
     /** Per-element on/off, keyed by {@link StatElements.Readout#key}. Absent = off. */
     private final java.util.Map<String, Boolean> readoutOn = new java.util.HashMap<>();
-    /** Per-element ARGB colour, keyed by {@link StatElements.Readout#key}. Absent = the readout's default. */
+    /** Per-element ARGB color, keyed by {@link StatElements.Readout#key}. Absent = the readout's default. */
     private final java.util.Map<String, Integer> readoutColor = new java.util.HashMap<>();
     /** Per-bar length and thickness set by dragging the bar's edges in the HUD editor (2026-10-07, killer560: "make it
      *  so it is draggable to resize ... the same as a normal Chrome window"), keyed by {@link StatElements.Readout#key}.
@@ -74,9 +74,9 @@ public final class PlayerStatsConfig {
     public static final int DEFAULT_BAR_BACKGROUND = 0xAA000000;
     private int barWidth = 100;
     private int barHeight = 8;
-    /** Draws the number (e.g. "3,423/3,423") centred on each custom bar. */
+    /** Draws the number (e.g. "3,423/3,423") centered on each custom bar. */
     private boolean barShowValue = true;
-    /** Colour of the part of the health bar past max health (absorption / overflow health). */
+    /** Color of the part of the health bar past max health (absorption / overflow health). */
     private int absorptionColor = DEFAULT_ABSORPTION_COLOR;
     private int barBackground = DEFAULT_BAR_BACKGROUND;
     private boolean textShadow = true;
@@ -386,7 +386,7 @@ public final class PlayerStatsConfig {
 
     /**
      * When vanilla's held-item name (the item's name shown over the hotbar for a moment after switching slot) is drawn.
-     * The default, {@link #OVER_BARS}, keeps vanilla's behaviour except where the name would land on this mod's own Health
+     * The default, {@link #OVER_BARS}, keeps vanilla's behavior except where the name would land on this mod's own Health
      * and Mana Bars readouts - his screenshot of 2026-10-07 had "Heroic Hyperion" written across both bars, which sit in
      * that exact spot in the Predefined layout - so nobody without the bars there loses anything.
      */
@@ -488,7 +488,7 @@ public final class PlayerStatsConfig {
      * One-time move off Classic Display (removed 2026-10-07). It drew whenever Stat Bars was on and either of its Show
      * Text / Show Bar was (both defaulted on), so anyone who had Stat Bars on and none of the custom readouts would
      * otherwise update to an empty HUD. For exactly them, the readouts that draw what Classic Display drew are switched
-     * on - its bars as the Health / Mana Bar, its text as the Health / Mana / Defence Text - and placed where Classic
+     * on - its bars as the Health / Mana Bar, its text as the Health / Mana / Defense Text - and placed where Classic
      * Display was, at its scale, one under another. Anyone already using a custom readout keeps exactly what they had.
      * The file is saved straight after (by {@link #load()}), without the classic keys, so this runs once.
      *
@@ -610,7 +610,7 @@ public final class PlayerStatsConfig {
         }
     }
 
-    /** Where a bar's number goes: centred on the bar, or after its end (the bar is shortened to make room). */
+    /** Where a bar's number goes: centered on the bar, or after its end (the bar is shortened to make room). */
     public enum ValuePosition {
         INSIDE("inside", "Inside"),
         BESIDE("beside", "Beside");

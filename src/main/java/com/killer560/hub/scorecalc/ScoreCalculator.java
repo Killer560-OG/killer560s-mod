@@ -6,7 +6,7 @@ package com.killer560.hub.scorecalc;
  * Ported from, in order of precedence:
  * <ul>
  * <li><b>Odin</b> (odtheking/Odin, {@code utils/skyblock/dungeon/DungeonUtils.kt#updateScore} +
- * {@code DungeonEnums.kt#Floor.requiredPercentage}): room/skill/secret/bonus maths, the "+1 blood, +1 boss room
+ * {@code DungeonEnums.kt#Floor.requiredPercentage}): room/skill/secret/bonus math, the "+1 blood, +1 boss room
  * not yet counted" completed-room fudge, total-room estimate {@code floor(completed / (cleared% / 100) + 0.4)}
  * with a 36-room fallback, puzzle penalty {@code (puzzleCount - completed) * 10}, first-death spirit-pet
  * assumption {@code max(0, deaths * 2 - 1)}, bonus = crypts(max 5) + mimic 2 + prince 1 + bat 1 per player (max {@link #BAT_BONUS_CAP}) + Paul 10, and

@@ -150,7 +150,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
             // always false regardless of this Mode setting, so Auto Start always clicks aura-style and the
             // camera is never touched - see rotateActive's own doc comment there, which is itself killer560's
             // own explicit fix request from 2026-09-14: "when auto solve is off it shouldnt mess with my
-            // crosshair at all. Right now it pulls it towards the middle of the obsidian." Read literally these
+            // crosshair at all. Right now it pulls it toward the middle of the obsidian." Read literally these
             // two requests conflict (Auto Start rotating the camera with Auto Solve off is exactly what the
             // 09-14 request had fixed). Not resolving this here - layout only, per the implementation brief;
             // see the staging notes (impl-simonsaystab.md) for both quotes and the two possible readings.

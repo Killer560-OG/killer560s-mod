@@ -17,7 +17,7 @@ import com.killer560.hub.compat.McItems;
  * ({@code melodyButtonRow}/{@code melodyCurrentColumn}/{@code melodyCorrectColumn}) are private, only
  * populated while Auto Melody itself runs (cheat build, {@code isAutoMelodyEnabled()}), and folded into the
  * same method that also fires real clicks - there is no seam to call into without either changing Auto
- * Melody's own behaviour or reaching into its private state. {@link MelodyTrackerFeature} needs to work in
+ * Melody's own behavior or reaching into its private state. {@link MelodyTrackerFeature} needs to work in
  * BOTH builds (legit included) and must never click anything, so this package duplicates only the read math,
  * ported byte-for-byte from that class's own comments (which cite Odin's decompiled {@code MelodyMessage}):
  * <ul>
@@ -25,7 +25,7 @@ import com.killer560.hub.compat.McItems;
  * {@code limeSlot % 9 - 1} (real formulas confirmed via decompile, same ones {@code TerminalSolverFeature}
  * already ships).</li>
  * <li>The target marker pane can render as either {@code DyeColor.MAGENTA} or a purple close enough to read
- * as the same colour but is really a distinct DyeColor (see that class's {@code isMelodyEndpointColor}) -
+ * as the same color but is really a distinct DyeColor (see that class's {@code isMelodyEndpointColor}) -
  * both count here too. Its column is {@code targetSlot % 9 - 1}.</li>
  * <li>These two formulas already land in Odin's own {@code type=2}/{@code type=5} column range (0-4,
  * {@code BridgeTables.MELODY_MIN_COLUMN..MELODY_MAX_COLUMN}) - confirmed against

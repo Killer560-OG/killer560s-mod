@@ -100,7 +100,7 @@ public final class McCompat {
     }
 
     /**
-     * The sidebar slot a team's colour maps to, or null when the team has no colour.
+     * The sidebar slot a team's color maps to, or null when the team has no color.
      *
      * <p>26.2 reshapes this twice over: {@code PlayerTeam.getColor()} is now an {@code Optional<TeamColor>}
      * rather than a {@code ChatFormatting}, and the static {@code DisplaySlot.teamColorToSlot} is gone because

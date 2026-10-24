@@ -26,7 +26,7 @@ import java.util.List;
  * <p>
  * No Minecraft types: the offline harness ({@code wave/AlignSimDiscrete.java}) runs this exact code against an
  * independent copy of the vanilla step. Every physics constant is {@link Ap3AlignMath}'s (26.1.2 bytecode); the
- * trig functions are injected so the game uses its own {@code Mth} table. Timing facts modelled (javap): sneak's
+ * trig functions are injected so the game uses its own {@code Mth} table. Timing facts modeled (javap): sneak's
  * speed effect lags the key by ONE tick ({@code LocalPlayer.aiStep} computes {@code crouching} from
  * {@code isShiftKeyDown()} BEFORE {@code ClientInput.tick} installs the record); sprint continues only while the
  * record has a forward impulse and is never started here.

@@ -36,7 +36,7 @@ import java.util.UUID;
  * and two at offset angles - on a 0.5 second cooldown. Salvation arms after three hits land, and fires a beam
  * that penetrates up to FIVE enemies, always crits, and reaches 32 blocks.
  *
- * <p>That five-enemy limit is the interesting part and the reason Salvation is worth modelling at all: it is
+ * <p>That five-enemy limit is the interesting part and the reason Salvation is worth modeling at all: it is
  * the one thing in the sim that pierces, and the difference between lining a corridor up for it and not is a
  * real routing decision. The mage beam pierces nothing; this pierces five and then stops.
  *
@@ -75,7 +75,7 @@ public final class SimTerminator {
      *
      * <p>5, not 8: 5 is the angle QUOI's Auto Blaze (and this mod's port of it) checks the side arrows against,
      * written for Hypixel's Terminator. At 8 the sim's side arrows flew where the auto had not looked, so a shot
-     * it had cleared as safe could still kill a neighbouring blaze out of order (2026-10-04).
+     * it had cleared as safe could still kill a neighboring blaze out of order (2026-10-04).
      */
     private static final double SPREAD_DEGREES = 5.0;
 
@@ -143,7 +143,7 @@ public final class SimTerminator {
     private static volatile int shotSeq;
 
     /**
-     * Which arrow last damaged each mob ("shot #N centre/side, K ticks in flight, at x,y,z"), written by the
+     * Which arrow last damaged each mob ("shot #N center/side, K ticks in flight, at x,y,z"), written by the
      * damage hook on the server thread. Lets a puzzle say which shot killed what - an out-of-order blaze kill is
      * otherwise just "something died".
      */
@@ -286,7 +286,7 @@ public final class SimTerminator {
         com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
                 "Sim Terminator: shot #{} yaw {} pitch {} from {}", shot, String.format("%.1f", yaw),
                 String.format("%.1f", pitch), String.format("%.2f,%.2f,%.2f", eyeAt.x, eyeAt.y, eyeAt.z));
-        // The puzzle half of the shot: a lantern in Creeper Beams answers to the centre arrow's line, from any
+        // The puzzle half of the shot: a lantern in Creeper Beams answers to the center arrow's line, from any
         // distance. The arrows themselves hit nothing the puzzle listens to - see SimCreeperPuzzle.shotAlong.
         com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.shotAlong(client, SimAim.eye(client.player),
                 fromAngles(yaw, pitch), ARROW_RANGE);
@@ -444,7 +444,7 @@ public final class SimTerminator {
      *
      * <p>An arrow's own {@code getYRot()} is not that. {@code Projectile.shoot} sets it to {@code atan2(x, z)} of the
      * velocity (26.1.2 bytecode), the mirror of a look yaw's {@code atan2(-x, z)}; a shot fired straight down has
-     * next to no horizontal velocity, and {@link #fromAngles} at pitch 90 even points that sliver BACKWARDS
+     * next to no horizontal velocity, and {@link #fromAngles} at pitch 90 even points that sliver BACKWARD
      * ({@code cos} of the float pi/2 is -4.4e-8); and an arrow that hits something invulnerable is deflected with
      * {@code ProjectileDeflection.REVERSE}, which turns it about 180 degrees. Anything that needs "which way was
      * this shot aimed" - Ice Path's shove - reads this instead.
@@ -481,7 +481,7 @@ public final class SimTerminator {
         /** The yaw the shot was AIMED with, in an entity's look convention - see {@link #shotYaw(Entity)}. */
         private float shotYaw;
 
-        /** Which shot this arrow came from ({@link #shotSeq}) and its lane: -1 / 0 / +1 for yaw-5, centre, yaw+5. */
+        /** Which shot this arrow came from ({@link #shotSeq}) and its lane: -1 / 0 / +1 for yaw-5, center, yaw+5. */
         private int shot;
         private int lane;
 

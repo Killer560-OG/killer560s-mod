@@ -93,7 +93,7 @@ public final class DungeonState {
 
     public static void register() {
         // ChatObserver covers both Fabric channels (signed player-chat and system-message paths - an NPC/boss
-        // line can arrive through either) AND lines another mod (Odin/NoammAddons/Skyblocker) cancelled via
+        // line can arrive through either) AND lines another mod (Odin/NoammAddons/Skyblocker) canceled via
         // ALLOW_GAME and re-added straight to ChatComponent, which Fabric listeners never see. The boss-phase
         // trigger is Maxor's full, exact opening sentence, so this mod's own client-side messages (also
         // delivered by ChatObserver) can't start the boss phase. Overlay (action bar) lines are not delivered - none needed here.
@@ -107,7 +107,7 @@ public final class DungeonState {
             // Real bug found and fixed (2026-09-14): this used to auto-clear the override the instant
             // ANY real floor was detected, on the theory that real detection had "taken over" - but a
             // real p3sim.net test showed real floor detection succeeding within the same second the
-            // override was toggled on, self-cancelling it almost immediately even though the override
+            // override was toggled on, self-canceling it almost immediately even though the override
             // might still have been needed for something else (e.g. boss-phase state that hadn't
             // caught up yet). Floor detection alone isn't sufficient evidence the override is no longer
             // needed - only a real disconnect/world-unload (handled above) does that now. The override
@@ -140,7 +140,7 @@ public final class DungeonState {
      *
      * <p>Separate from {@link #simOverrideActive} on purpose, and the difference is the whole point. That one
      * forces floor, F7 and BOSS PHASE on together, so it shuts the gate on every feature that requires not being
-     * in the boss - which is most of the clear features, and exactly the ones the sim exists to practise with.
+     * in the boss - which is most of the clear features, and exactly the ones the sim exists to practice with.
      * This one says "in a dungeon, on F7, not in the boss", which is what a clear actually is.
      *
      * <p>killer560 asked that "configuring secret routes or auto routes and whatnot works in this sim". Those
@@ -169,7 +169,7 @@ public final class DungeonState {
         if (simOverrideActive) {
             return "F7";
         }
-        // M7 for the sim: the clear features he practises with are the M7 ones, and Auto Debuff is M7-only.
+        // M7 for the sim: the clear features he practices with are the M7 ones, and Auto Debuff is M7-only.
         return roomSimActive ? "M7" : cachedFloor;
     }
 
@@ -255,7 +255,7 @@ public final class DungeonState {
             return null;
         }
         for (String line : raw.split("\n")) {
-            // Stripped first: a colour code in front of "Room:" made this miss the line entirely.
+            // Stripped first: a color code in front of "Room:" made this miss the line entirely.
             String plain = com.killer560.hub.util.ChatObserver.stripCodes(line);
             String t = plain == null ? "" : plain.trim();
             if (t.startsWith("Room:")) {

@@ -16,12 +16,12 @@ import org.slf4j.Logger;
  * lease is 400 ms and nothing renewed it between rotations: a Blaze shot waits out the arrow's flight plus the shoot
  * cooldown (often longer), and an etherwarp reposition waits up to two seconds for the landing. Each time it lapsed the
  * camera dropped onto the body - already facing the last blaze - and the next hold re-captured THAT as the view; Auto
- * Blaze's room-centre seed then grabbed the lapsed lease every tick and threw his mouse-steered view back to the centre.
+ * Blaze's room-center seed then grabbed the lapsed lease every tick and threw his mouse-steered view back to the center.
  * The result was a camera that jumped to every target. The same lease-per-rotation pattern was in Auto Beams, Auto Ice
  * Path, Auto Ice Fill and Auto Water (whose only turns are reposition warps), so they all hold one of these now.
  * <p>
  * Use: {@link #engage} BEFORE the run's first rotation (so the held view is where he was looking), {@link #keep} on
- * every tick of the run whatever else that tick does, and {@link #release} when the run ends or is cancelled, which
+ * every tick of the run whatever else that tick does, and {@link #release} when the run ends or is canceled, which
  * turns the body back under the held view first so the hand-back is invisible - the same thing AP3's view freeze and
  * {@code util/BodyAim} do. A run that stops calling {@link #keep} (it threw, or the auto was switched off by a path
  * that skipped its reset) still loses the camera on its own when the lease lapses.

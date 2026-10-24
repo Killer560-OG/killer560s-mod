@@ -391,7 +391,7 @@ public final class AutoStatusHud {
         }
     }
 
-    /** Colour roles; the drawing maps them onto the menu theme's palette. */
+    /** Color roles; the drawing maps them onto the menu theme's palette. */
     static final int HEAD = 0;
     static final int HEAD_PAUSED = 1;
     static final int TEXT = 2;
@@ -566,7 +566,7 @@ public final class AutoStatusHud {
             return "Auto Clear Status";
         }
 
-        /** Top centre, away from the Dungeon Map (bottom left by default) and the left column of dungeon HUDs. */
+        /** Top center, away from the Dungeon Map (bottom left by default) and the left column of dungeon HUDs. */
         @Override
         public int defaultX() {
             return Math.max(0, Minecraft.getInstance().getWindow().getGuiScaledWidth() / 2

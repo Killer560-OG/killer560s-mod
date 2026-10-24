@@ -1,7 +1,7 @@
 package com.killer560.hub.chocolatefactory.egg;
 
 /**
- * Hoppity's Hunt calendar maths, pure (no Minecraft): when each meal's Chocolate Egg last spawned, when the next one
+ * Hoppity's Hunt calendar math, pure (no Minecraft): when each meal's Chocolate Egg last spawned, when the next one
  * spawns, and whether the hunt is on. Our own code; the facts it encodes are from the Skyblock wiki's Hoppity's Hunt
  * page (hypixelskyblock.minecraft.wiki, read 2026-10-19) and Skyblocker's EggFinder (LGPL-3.0, read for facts only):
  * <ul>

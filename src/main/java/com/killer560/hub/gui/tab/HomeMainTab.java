@@ -158,7 +158,7 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
         return widgets;
     }
 
-    /** An ON/OFF HudConfig switch. A snap target reads grey while Snapping is off: kept, but nothing snaps. */
+    /** An ON/OFF HudConfig switch. A snap target reads gray while Snapping is off: kept, but nothing snaps. */
     private static SettingsButtonWidget toggle(String label, java.util.function.BooleanSupplier get,
                                                java.util.function.Consumer<Boolean> set, int x, int y, int w,
                                                boolean snapTarget, Runnable rebuildOrNull) {
@@ -166,7 +166,7 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                     set.accept(!get.getAsBoolean());
                     HudConfig.getInstance().save();
                     if (rebuildOrNull != null) {
-                        rebuildOrNull.run(); // the snap targets' grey follows the master switch
+                        rebuildOrNull.run(); // the snap targets' gray follows the master switch
                         return;
                     }
                     btn.setMessage(toggleText(label, get.getAsBoolean(), snapTarget));

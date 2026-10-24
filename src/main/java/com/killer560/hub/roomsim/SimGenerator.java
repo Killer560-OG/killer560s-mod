@@ -14,7 +14,7 @@ import java.util.Random;
  * Builds a map out of the rooms that have actually been captured.
  *
  * <p>killer560 asked for "how many puzzles how many rooms to blood and if I want specific rooms". Those two
- * numbers are what make a generated floor worth practising: a route is mostly decided by how far the blood door
+ * numbers are what make a generated floor worth practicing: a route is mostly decided by how far the blood door
  * is and how many puzzles are in the way, so they are the knobs rather than a seed.
  *
  * <p><b>It only ever uses rooms in the library.</b> Generating a map that names rooms nobody has captured would
@@ -34,7 +34,7 @@ public final class SimGenerator {
     /**
      * Lays out a path of rooms from the entrance to the blood door, with puzzles spaced along it.
      *
-     * <p>A corridor rather than a tree: the thing being practised is the order rooms are cleared in and the
+     * <p>A corridor rather than a tree: the thing being practiced is the order rooms are cleared in and the
      * route between them, and a generated branch nobody walks adds nothing to that.
      */
     public static void generate(Minecraft client, int puzzles, int roomsToBlood) {
@@ -42,7 +42,7 @@ public final class SimGenerator {
         available.removeIf(n -> {
             RoomLibrary.Room r = RoomLibrary.get(n);
             // usable(), not complete(): an old-footprint room is a different size from the slot planned for
-            // it, so it pastes over its neighbour.
+            // it, so it pastes over its neighbor.
             return r == null || !r.usable();
         });
         if (available.isEmpty()) {

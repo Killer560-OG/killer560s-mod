@@ -40,7 +40,7 @@ public enum ProfitTracker {
     // MINING ("Mining Profit") and NUCLEUS ("Nucleus Runs") are shelved until after 2.0 with the rest of the mining
     // features - shelved/mining/README.md has both constants and their summary methods to put back.
 
-    /** One line under a card's name: the text, and the colour it is drawn in. */
+    /** One line under a card's name: the text, and the color it is drawn in. */
     public record Summary(String text, int color) {
     }
 

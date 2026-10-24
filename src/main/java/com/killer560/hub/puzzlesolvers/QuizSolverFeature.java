@@ -220,7 +220,7 @@ public final class QuizSolverFeature {
             LOGGER.info("[QuizSolver] question recognized: SkyBlock year -> answer \"Year {}\"", skyblockYear);
             return;
         }
-        // Oruo's question is a server line of its own - centring spaces and the question, nothing in front -
+        // Oruo's question is a server line of its own - centering spaces and the question, nothing in front -
         // which is why the year question above is compared on the trimmed line. A party/guild/all-chat/DM
         // line always starts with its channel, rank or "name: " prefix, so requiring the question at the very
         // start keeps anyone quoting a question from overwriting the answers. startsWith rather than equals:
@@ -283,7 +283,7 @@ public final class QuizSolverFeature {
      * the pillar's own height. Auto Quiz was clicking the pillar.
      *
      * @return the first button found on the correct pillar's four sides, or the pillar itself when the room
-     *         has none there (so a room that does not match this shape still gets the old behaviour rather
+     *         has none there (so a room that does not match this shape still gets the old behavior rather
      *         than nothing at all)
      */
     public static BlockPos getCorrectAnswerButton(net.minecraft.world.level.Level level) {

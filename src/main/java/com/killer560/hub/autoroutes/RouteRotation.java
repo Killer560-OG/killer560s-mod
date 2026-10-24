@@ -6,7 +6,7 @@ import net.minecraft.util.Mth;
 
 /**
  * Human-looking camera controller for Auto Routes - killer560: "Smooth rotations like the ones designed for Auto SS
- * (the slight jerk, human-looking)". Modelled on {@code simonsays/SimonSaysFeature}'s Rotate Mode (per-approach
+ * (the slight jerk, human-looking)". Modeled on {@code simonsays/SimonSaysFeature}'s Rotate Mode (per-approach
  * smoothing factor, a smoothly-decaying overshoot, an occasional decaying perpendicular curve, a rise-then-fade
  * feint toward the NEXT target, elapsed-tick easing, per-FRAME updates scaled by real elapsed time). SimonSays
  * itself is live-tested and deliberately not refactored; this is its equivalent as a standalone controller.

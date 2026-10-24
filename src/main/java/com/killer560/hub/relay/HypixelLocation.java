@@ -145,7 +145,7 @@ public final class HypixelLocation {
             return;
         }
         rewriterRegistered = true;
-        // /locraw's raw JSON is not for humans - hide it once recognised, the same "clean up the noise" habit
+        // /locraw's raw JSON is not for humans - hide it once recognized, the same "clean up the noise" habit
         // this mod already applies to other server lines. Only lines carrying BOTH keys /locraw always answers
         // with are touched, so an unrelated JSON-shaped chat line is left alone.
         ChatObserver.addRewriter((message, plain) -> {

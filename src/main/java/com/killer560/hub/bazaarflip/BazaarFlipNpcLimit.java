@@ -97,7 +97,7 @@ public final class BazaarFlipNpcLimit {
         return Math.max(0, DAILY_LIMIT - soldToday());
     }
 
-    /** A "You sold" line: its coins count towards today. */
+    /** A "You sold" line: its coins count toward today. */
     public static synchronized void onSold(double coins) {
         roll();
         soldToday += Math.max(0, coins);

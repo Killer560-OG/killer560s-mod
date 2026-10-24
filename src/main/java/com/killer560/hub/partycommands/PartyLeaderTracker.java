@@ -7,7 +7,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Who the party leader is, for OdinLegacy's {@code PartyUtils.isLeader()} check - Odin only honours a
+ * Who the party leader is, for OdinLegacy's {@code PartyUtils.isLeader()} check - Odin only honors a
  * party-mutating command ({@code !warp}, {@code !kick}, {@code !pt}, ...) while YOU are the leader, otherwise
  * Hypixel would just answer "You are not the leader" for every one of them.
  * <p>

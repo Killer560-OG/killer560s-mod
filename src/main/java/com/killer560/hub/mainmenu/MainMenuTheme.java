@@ -83,14 +83,14 @@ public final class MainMenuTheme {
         }
     }
 
-    // ---------------------------------------------------------------- colour helpers
+    // ---------------------------------------------------------------- color helpers
 
     /** rgb (0xRRGGBB) with an explicit 0..255 alpha. */
     public static int argb(int rgb, int alpha) {
         return (Math.max(0, Math.min(255, alpha)) << 24) | (rgb & 0xFFFFFF);
     }
 
-    /** Multiplies an ARGB colour's own alpha by {@code factor} (0..1). */
+    /** Multiplies an ARGB color's own alpha by {@code factor} (0..1). */
     public static int fade(int argb, float factor) {
         int a = (argb >>> 24) & 0xFF;
         return argb(argb, Math.round(a * Math.max(0f, Math.min(1f, factor))));
@@ -106,15 +106,15 @@ public final class MainMenuTheme {
         MainMenuChrome.drawButton(g, x, y, w, h, active, highlighted, alpha);
     }
 
-    /** Wraps a label so its un-coloured parts render in the theme colour; explicit colours inside the
-     *  component (another mod's coloured label, vanilla's grey inactive message) still win because
-     *  children only inherit the parent colour when they don't set their own. */
+    /** Wraps a label so its un-colored parts render in the theme color; explicit colors inside the
+     *  component (another mod's colored label, vanilla's gray inactive message) still win because
+     *  children only inherit the parent color when they don't set their own. */
     public static Component recolorLabel(Component message, boolean active, boolean highlighted) {
         if (message == null) {
             return null;
         }
         int rgb = MainMenuChrome.labelColour(active, highlighted);
-        // The same wrapper for the same message and colour (fps pass 2026-10-19): this runs per button per frame on
+        // The same wrapper for the same message and color (fps pass 2026-10-19): this runs per button per frame on
         // every themed screen, the pause menu over the world included, and a fresh Component each frame also threw
         // away its cached visual order, so every label went through Bidi again every frame. A widget's message is
         // replaced (setMessage), never edited, so its identity is the key. Render thread only.

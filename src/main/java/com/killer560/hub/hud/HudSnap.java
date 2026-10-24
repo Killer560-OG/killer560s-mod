@@ -12,12 +12,12 @@ import java.util.List;
  * nearest of these within {@link #DISTANCE} pixels, each switchable in {@link HudConfig}:
  * <ul>
  *   <li>element edges: its left/right (top/bottom) edge onto any other listed element's left or right edge;</li>
- *   <li>element centres: its centre line onto another element's centre line;</li>
- *   <li>screen edges and the screen's centre lines;</li>
- *   <li>equal spacing: in a row (column) of elements it overlaps, the gap two neighbours already have, either
- *       continuing it past the end of the row or centring the box between two of them.</li>
+ *   <li>element centers: its center line onto another element's center line;</li>
+ *   <li>screen edges and the screen's center lines;</li>
+ *   <li>equal spacing: in a row (column) of elements it overlaps, the gap two neighbors already have, either
+ *       continuing it past the end of the row or centering the box between two of them.</li>
  * </ul>
- * A resized edge snaps the same way, to edges, centres and the screen. Each snap leaves a {@link Guide} for the editor
+ * A resized edge snaps the same way, to edges, centers and the screen. Each snap leaves a {@link Guide} for the editor
  * to draw. Holding Alt turns it off for that drag (the editor decides that).
  */
 public final class HudSnap {
@@ -175,7 +175,7 @@ public final class HudSnap {
 
     /**
      * Equal spacing along one axis, among the elements that share the box's row (they overlap it on the other axis):
-     * repeat a gap two neighbours already have on either end of the row, or centre the box between two of them.
+     * repeat a gap two neighbors already have on either end of the row, or center the box between two of them.
      */
     private static void spacing(boolean xAxis, Box box, List<Box> others, Best b) {
         int cross0 = xAxis ? box.y0() : box.x0();
@@ -194,7 +194,7 @@ public final class HudSnap {
         row.sort((p, q) -> Integer.compare(lo(xAxis, p), lo(xAxis, q)));
         int lo = lo(xAxis, box);
         int size = hi(xAxis, box) - lo;
-        // The gap markers run just past the box's far side, so the edge and centre guides of the same snap (drawn
+        // The gap markers run just past the box's far side, so the edge and center guides of the same snap (drawn
         // through the box) do not cover them.
         double at = (xAxis ? box.y1() : box.x1()) + 3;
         for (int i = 0; i + 1 < row.size(); i++) {
@@ -212,7 +212,7 @@ public final class HudSnap {
             b.offer(before - lo, seg(xAxis, at, hi(xAxis, p), lo(xAxis, q)),
                     seg(xAxis, at, before + size, lo(xAxis, p)));
         }
-        // Centred between any two row members that leave room for it.
+        // Centered between any two row members that leave room for it.
         for (int i = 0; i < row.size(); i++) {
             for (int j = 0; j < row.size(); j++) {
                 Box p = row.get(i);

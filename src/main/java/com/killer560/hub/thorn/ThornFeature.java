@@ -53,7 +53,7 @@ public final class ThornFeature {
     public static void register() {
         ThornConfig.getInstance();
         ThornEspRenderer.init();
-        // ChatObserver (not Fabric CHAT/GAME) so a line Odin/NoammAddons/Skyblocker cancelled and re-added still arrives.
+        // ChatObserver (not Fabric CHAT/GAME) so a line Odin/NoammAddons/Skyblocker canceled and re-added still arrives.
         // Anchored server-format "[BOSS] Thorn: " prefix, so this mod's own client messages can't match.
         ChatObserver.subscribe(ThornFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ThornFeature.tick", ThornFeature::tick));

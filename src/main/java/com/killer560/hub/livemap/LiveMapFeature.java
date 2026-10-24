@@ -505,7 +505,7 @@ public final class LiveMapFeature {
                     groupsDirty = true;
                 } else {
                     // Connector between two tiles of one larger room (or a 2x2 room's center) - the filled
-                    // wall gap. Joins the neighbouring tiles into one room in rebuildGroups().
+                    // wall gap. Joins the neighboring tiles into one room in rebuildGroups().
                     grid[idx] = Tile.ROOM;
                     groupsDirty = true;
                 }
@@ -554,7 +554,7 @@ public final class LiveMapFeature {
     /** Port of NoammAddons' {@code UniqueRoom.findRotation}: Fairy has no marker (fixed corner, rotation 0);
      *  a complete non-L room checks the 4 corners of the bounding box around all its tiles; L-shaped rooms,
      *  incomplete rooms and rooms with no database match fall back to each tile's own 4 corners (the
-     *  pre-grouping behaviour). */
+     *  pre-grouping behavior). */
     private static void findRoomRotation(Minecraft client, RoomGroup group) {
         List<Integer> worldTiles = new ArrayList<>();
         for (int t : group.tiles) {
@@ -665,7 +665,7 @@ public final class LiveMapFeature {
         }
     }
 
-    /** Union-find over the 121 cells. Real sources, in order: (1) connector cells join their neighbours -
+    /** Union-find over the 121 cells. Real sources, in order: (1) connector cells join their neighbors -
      *  NoammAddons' {@code DungeonScanner.scanTile} "connection between large rooms"/"2x2 center" branches,
      *  plus {@code HotbarMapScanner.getConnected} for map-only cells; (2) tiles with the same database name
      *  join - {@code DungeonScanner.uniqueRooms} keyed by name. A union is refused when both sides have
@@ -715,7 +715,7 @@ public final class LiveMapFeature {
             }
             // A world-scanned connector only merges when something confirms it: the dungeon map shows a
             // room separator here, or an adjacent tile is identified (so the shape cap/name check apply).
-            // No map + no database = no merge = single tiles, exactly the pre-grouping behaviour. Never next
+            // No map + no database = no merge = single tiles, exactly the pre-grouping behavior. Never next
             // to the Entrance - NoammAddons turns that gap into an entrance door.
             boolean anchored = mapKind == DungeonMapScanner.KIND_SEPARATOR;
             boolean nearEntrance = false;
@@ -746,7 +746,7 @@ public final class LiveMapFeature {
             if (gz < GRID - 1 && roomish[idx + GRID] && !union(parent, tileCount, rootEntry, idx, idx + GRID)) refused++;
         }
         // Same name, joined through a connector the map allows: the room is one room even where the world scan
-        // missed the gap. Only neighbours count - two rooms of one name on opposite sides of the floor are two rooms.
+        // missed the gap. Only neighbors count - two rooms of one name on opposite sides of the floor are two rooms.
         for (int idx = 0; idx < n; idx++) {
             if (!isTile[idx] || roomEntryGrid[idx] == null || roomEntryGrid[idx].name == null) {
                 continue;
@@ -887,7 +887,7 @@ public final class LiveMapFeature {
     }
 
     /** Whether the dungeon map shows a room on every tile the gap {@code idx} lies between: left and right of a gap
-     *  between columns, above and below one between rows, all four diagonal tiles of a 2x2 room's centre. */
+     *  between columns, above and below one between rows, all four diagonal tiles of a 2x2 room's center. */
     private static boolean mapShowsRoomsAround(int idx) {
         int gx = idx % GRID;
         int gz = idx / GRID;
@@ -1027,7 +1027,7 @@ public final class LiveMapFeature {
     /** @return the player's current grid cell, clamped to the real 11x11 bounds - same transform as
      *  NoammAddons' own {@code ScanUtils.getRoomGraf}. */
     static int[] gridCellFor(Vec3 pos) {
-        // From the tile's centre BLOCK's middle (START + 0.5): a position in the one-block gap between two tiles goes
+        // From the tile's center BLOCK's middle (START + 0.5): a position in the one-block gap between two tiles goes
         // to the tile it is nearer, not always the +x / +z one (DungeonLayout.roomAtWorld, 2026-10-12).
         int roomIndexX = (int) Math.round((pos.x - 0.5 - START_X) / 32.0);
         int roomIndexZ = (int) Math.round((pos.z - 0.5 - START_Z) / 32.0);
@@ -1202,8 +1202,8 @@ public final class LiveMapFeature {
 
     /**
      * The type of the room he is standing in, as the map draws it ("BLOOD", "NORMAL", "PUZZLE", ...: the room database's
-     * type once identified, else the dungeon map item's colour), or null when the map does not know: no player, boss,
-     * outside the grid, not part of a known room, or neither identified nor coloured on the map item. Unlike the
+     * type once identified, else the dungeon map item's color), or null when the map does not know: no player, boss,
+     * outside the grid, not part of a known room, or neither identified nor colored on the map item. Unlike the
      * painter's {@code roomType} this never falls back to "NORMAL" as a guess. Blood Camp's room gate.
      */
     public static String currentRoomType() {
@@ -1319,7 +1319,7 @@ public final class LiveMapFeature {
      * (2026-10-12): "There are these gaps in rooms between where interactive map thinks tiles are" - the strip
      * between two tiles of one room (a connector cell) used to resolve to the room's MAIN tile, so hovering or
      * pressing the join inside Waterfall lit up and went to its far-left tile. Now a connector cell of a room is the
-     * room's tile nearest the point (centre to point, in map units), so the strip splits down its middle between the
+     * room's tile nearest the point (center to point, in map units), so the strip splits down its middle between the
      * tiles either side. Door cells between rooms and empty cells are returned as they are (a door is a target of its
      * own). -1 off the grid.
      */
@@ -1481,7 +1481,7 @@ public final class LiveMapFeature {
         /**
          * Pixels of background between the rooms and the map's edge on each side. NoammAddons' map is a 128px box with the
          * 116px room grid inside it ({@code MapRenderer.renderBackground}, start corner 5,5 in {@code MapUtils}); 6 a side
-         * gives the same 128px box, centred (2 until 2026-10-19, which left the rooms almost touching the border).
+         * gives the same 128px box, centered (2 until 2026-10-19, which left the rooms almost touching the border).
          */
         private static final int MAP_MARGIN = 6;
 
@@ -1506,7 +1506,7 @@ public final class LiveMapFeature {
          * at GUI scale 2 (two at GUI 4), so it stays sharp. It grows and shrinks with Room Size and the HUD scale like
          * the map itself. History: full size until 2026-10-07 ("Crypts 0/5  Deaths 0" filled the map's whole width),
          * then 0.75 in four rows ("The text under the map should also be smaller and fit better"), then half size in two
-         * rows the same evening ("Try to make it smaller and only take up 2 rows"); 2026-10-15 the rows are centred and
+         * rows the same evening ("Try to make it smaller and only take up 2 rows"); 2026-10-15 the rows are centered and
          * filled NoammAddons-style ("lots of space to be used and it is used poorly") at the same sharp half size.
          */
         private static final float EXTRA_TEXT_MAP = 256f; // 240 until the map grew to 128px (2026-10-19): still half size
@@ -1582,7 +1582,7 @@ public final class LiveMapFeature {
             int row = extraRow();
             int lineY = y + EXTRA_GAP + 1;
             for (String line : lines) {
-                // Each row is its own band, row units tall, centred under the map like NoammAddons' (2026-10-15).
+                // Each row is its own band, row units tall, centered under the map like NoammAddons' (2026-10-15).
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(x + w / 2f, lineY);
                 graphics.pose().scale(s, s);
@@ -1660,13 +1660,13 @@ public final class LiveMapFeature {
         }
 
         /** killer560, 2026-09-17: "the live map hud does not look like the real dungeon map". It used to paint all
-         *  121 cells as same-size grey squares with a 1px inset on every side, so rooms, corridors and gaps were
+         *  121 cells as same-size gray squares with a 1px inset on every side, so rooms, corridors and gaps were
          *  indistinguishable and nothing ever touched. It now shares the interactive map's painter
-         *  ({@link MapPainter}): 16-unit rooms, flush 4-unit connectors, real per-type colours and sprite
+         *  ({@link MapPainter}): 16-unit rooms, flush 4-unit connectors, real per-type colors and sprite
          *  checkmarks - the same geometry and palette as the held map itself. */
         private void renderMap(GuiGraphicsExtractor graphics, int x, int y, LiveMapConfig cfg, Minecraft client) {
             float ppu = cfg.getRoomPx() / 16f;
-            // The floor's whole grid, scaled to fill the fixed outline and centred in it - chosen from the
+            // The floor's whole grid, scaled to fill the fixed outline and centered in it - chosen from the
             // floor being played, never from what has been revealed, so nothing moves or shrinks during a run.
             // Applied by moving the origin and multiplying the pixels-per-unit, so every drawing call below is
             // untouched: doors, rooms, labels, teammates and the player arrow all scale together through ppu.
@@ -1792,7 +1792,7 @@ public final class LiveMapFeature {
             }
             boolean sim = com.killer560.hub.roomsim.SimState.isActive();
             // No teammate has reported a room's secrets (solo, or no interop): every lookup would say so, and each one
-            // normalised the name with a regex - one snapshot a tick instead.
+            // normalized the name with a regex - one snapshot a tick instead.
             teammateRooms = !com.killer560.hub.interop.PartyInteropState.roomSnapshot().isEmpty();
             for (RoomGroup group : groups) {
                 RoomEntry entry = group.entry;
@@ -1874,7 +1874,7 @@ public final class LiveMapFeature {
             MapPainter.drawReportedDoors(graphics, cfg, ox, oy, ppu);
 
             // killer560, 2026-09-20: "remove the current-room colour changer" - every revealed room just draws its
-            // real colour now, current room or not.
+            // real color now, current room or not.
             // All rooms as ONE render-state element (hud/GuiRects): rooms never overlap one another, and each separate
             // fill was placement-tested against everything already on the HUD (95-fps-bench JFR, 2026-10-07).
             com.killer560.hub.hud.GuiRects roomRects = com.killer560.hub.hud.GuiRects.begin(graphics);

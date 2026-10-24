@@ -23,12 +23,12 @@ import java.util.regex.Pattern;
  * before {@code getCurrentItemAttackStrengthDelay()} ticks does reduced damage.
  * <p>
  * Attack Speed is read from the tab list's Stats widget ("Attack Speed: ⚔45") when he shows it, otherwise summed from
- * the "Attack Speed: +N%" lines of the held item and the armour worn. That sum can only miss sources (pets, potions),
+ * the "Attack Speed: +N%" lines of the held item and the armor worn. That sum can only miss sources (pets, potions),
  * never invent them, so when it is wrong it is wrong on the slow, safe side. Capped at Hypixel's normal 100.
  */
 public final class AttackCooldown {
 
-    /** Hypixel's normal Attack Speed cap (Thermodynamic armour's 150 is not assumed). */
+    /** Hypixel's normal Attack Speed cap (Thermodynamic armor's 150 is not assumed). */
     public static final int MAX_ATTACK_SPEED = 100;
     private static final Pattern LORE = Pattern.compile("^Attack Speed: \\+(\\d{1,3})%?");
     private static final Pattern TAB = Pattern.compile("^\\s*Attack Speed: \\D{0,2}(\\d{1,3})\\s*$");

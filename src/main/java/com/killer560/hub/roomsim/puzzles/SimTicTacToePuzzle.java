@@ -24,7 +24,7 @@ import com.killer560.hub.compat.McBlocks;
  * <p>The win rule and the computer's move selection are NOT invented here - {@link #getScore}, {@link #alphaBeta}
  * and {@link #getBestMove} are ported line-for-line from
  * {@code com.killer560.hub.puzzlesolvers.TicTacToeSolverFeature} (itself ported from QUOI's Kotlin solver, which
- * the real puzzle's board colours were read against), including its move-order table and its choice of who moves
+ * the real puzzle's board colors were read against), including its move-order table and its choice of who moves
  * on an odd/even mark count. That class's own comment records killer560's request that the "safe prediction" it
  * shows only ever points at a cell that cannot lose - the working assumption here, since nothing in this codebase
  * states the real puzzle's win/loss criterion directly, is that the practice failure condition is exactly what
@@ -32,7 +32,7 @@ import com.killer560.hub.compat.McBlocks;
  * solving it. If Hypixel's real completion rule differs, this is the place to correct it.
  *
  * <p><b>What is NOT from the real puzzle:</b> the real board is 9 map item frames in fixed room-relative
- * coordinates (x=8, y 70-72, z 15-17) read as pixel colours, with separate physical buttons in front of some
+ * coordinates (x=8, y 70-72, z 15-17) read as pixel colors, with separate physical buttons in front of some
  * cells (see that class's {@code drawCell}). This sim has no captured room to anchor those coordinates to, so it
  * substitutes 9 directly-clickable concrete blocks (white = empty, lime = O/player, red = X/computer) built
  * relative to whatever origin {@link #build} is given. The board still sits on one fixed X plane with the grid in
@@ -48,7 +48,7 @@ public final class SimTicTacToePuzzle {
     private static final char PLAYER = 'O';
     private static final char COMPUTER = 'X';
 
-    /** Ported verbatim from TicTacToeSolverFeature: centre, then corners, then edges - alpha-beta prunes far
+    /** Ported verbatim from TicTacToeSolverFeature: center, then corners, then edges - alpha-beta prunes far
      *  better exploring the strong moves first. */
     private static final int[] MOVE_ORDER = {4, 0, 2, 6, 8, 1, 3, 5, 7};
     private static final int[] WIN_SETS = {
@@ -186,7 +186,7 @@ public final class SimTicTacToePuzzle {
         complete = false;
 
         // Computer opens on an empty board - identical call shape to TicTacToeSolverFeature.getBestMove(board,
-        // false) on a fresh board, which always returns MOVE_ORDER's first entry (the centre) since alphaBeta
+        // false) on a fresh board, which always returns MOVE_ORDER's first entry (the center) since alphaBeta
         // scores every empty-board reply as a draw.
         Integer opening = getBestMove(board, false);
         if (opening != null) {
@@ -207,7 +207,7 @@ public final class SimTicTacToePuzzle {
      * (0 of 9 at every other rotation), which is how the board is found; the ninth is missing because that
      * cell had already been played when the room was walked.
      *
-     * <p>The real MARKS are map item frames read by pixel colour. An item frame is an entity, so it can never
+     * <p>The real MARKS are map item frames read by pixel color. An item frame is an entity, so it can never
      * be in a capture and there is nothing to bind to - the concrete blocks {@link #build} uses stand in, and
      * they go ON the nine cells, replacing the buttons. That is the one write this bind makes, and it is the
      * board's state rather than a second arena: a real cell that has been played has no button either.
@@ -361,7 +361,7 @@ public final class SimTicTacToePuzzle {
      * Every block write that shows {@code mark} on cell {@code index}, as {position, state} pairs.
      *
      * <p>Bound room: the cell itself is the button while unplayed and AIR once played, and the wall behind it is
-     * the room's own wall while unplayed and the mark's colour once played. Standalone arena: the one cell block,
+     * the room's own wall while unplayed and the mark's color once played. Standalone arena: the one cell block,
      * as before.
      */
     private static java.util.List<Object[]> writesFor(int index, char mark) {
@@ -448,7 +448,7 @@ public final class SimTicTacToePuzzle {
     }
 
     /** Player clicked an empty cell: place O, then - unless that already ended the game - let the computer
-     *  reply once. Both block colour changes are painted in a single server tick. */
+     *  reply once. Both block color changes are painted in a single server tick. */
     private static void onPlayerClick(Minecraft client, int index) {
         board[index] = PLAYER;
         int score = getScore(board);
@@ -499,7 +499,7 @@ public final class SimTicTacToePuzzle {
         }
     }
 
-    /** The block a cell's colour is written to - the cell itself, which is also where its button is. */
+    /** The block a cell's color is written to - the cell itself, which is also where its button is. */
     private static BlockPos paintTarget(int index) {
         BlockPos[] walls = paintPos;
         if (walls != null && index >= 0 && index < walls.length && walls[index] != null) {
@@ -554,7 +554,7 @@ public final class SimTicTacToePuzzle {
 
     // ---------------------------------------------------------------------------------------------------------
     // Ported verbatim from com.killer560.hub.puzzlesolvers.TicTacToeSolverFeature - the real win rule and the
-    // real move-selection algorithm this puzzle has to honour. Not re-derived, not approximated.
+    // real move-selection algorithm this puzzle has to honor. Not re-derived, not approximated.
     // ---------------------------------------------------------------------------------------------------------
 
     private static Integer getBestMove(char[] b, boolean isPlayerTurn) {

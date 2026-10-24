@@ -8,8 +8,8 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.FormattedCharSequence;
 
 /**
- * The mod menu's look for the mod's other screens (Profile Viewer, Friends List, Swap Accounts, ...): the same bevelled
- * frame, header bar, recessed wells, cards, rows and raised buttons {@link ModScreen} draws, every colour taken from
+ * The mod menu's look for the mod's other screens (Profile Viewer, Friends List, Swap Accounts, ...): the same beveled
+ * frame, header bar, recessed wells, cards, rows and raised buttons {@link ModScreen} draws, every color taken from
  * {@link MenuStyle} so all five themes (Amber, Dark, Light, Ocean, Custom) reach them. Call {@link #backdrop} (which
  * derives the palette) first each frame. Text goes through {@link #text}, which keeps it readable on the Light theme.
  */
@@ -27,7 +27,7 @@ public final class ScreenChrome {
         g.fill(0, 0, w, h, MenuStyle.BACKDROP);
     }
 
-    /** The menu's outer panel: soft drop shadow, accent ring, bevelled panel gradient. */
+    /** The menu's outer panel: soft drop shadow, accent ring, beveled panel gradient. */
     public static void frame(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         MenuStyle.use();
         GuiRects r = GuiRects.begin(g);
@@ -41,7 +41,7 @@ public final class ScreenChrome {
         r.submit();
     }
 
-    /** The header bar across the top of a {@link #frame}: a bevelled strip with the title in the brand gradient. */
+    /** The header bar across the top of a {@link #frame}: a beveled strip with the title in the brand gradient. */
     public static void header(GuiGraphicsExtractor g, int panelX, int panelY, int panelW, String title) {
         int x = panelX + 4;
         int y = panelY + 4;
@@ -95,7 +95,7 @@ public final class ScreenChrome {
         r.fill(x + 2, y + h - 1, x + w - 2, y + h, MenuStyle.alpha(MenuStyle.BLACK, MenuStyle.LIGHT ? 0x40 : 0x80));
     }
 
-    /** A hand-drawn raised button (one that scrolls under a scissor, where a widget would not clip), label centred. */
+    /** A hand-drawn raised button (one that scrolls under a scissor, where a widget would not clip), label centered. */
     public static void button(GuiGraphicsExtractor g, int x, int y, int w, int h, String label, boolean hover,
                               boolean selected) {
         GuiRects r = GuiRects.begin(g);
@@ -131,7 +131,7 @@ public final class ScreenChrome {
     }
 
     /**
-     * A colour that stays readable on the panel: on a light theme a bright colour (white, a rarity's yellow or aqua, the
+     * A color that stays readable on the panel: on a light theme a bright color (white, a rarity's yellow or aqua, the
      * old fixed palette's green) is darkened to about a third of white's luminance, keeping its hue. Dark themes keep it.
      */
     public static int readable(int argb) {
@@ -145,7 +145,7 @@ public final class ScreenChrome {
         return MenuStyle.shade(argb, 0.36f / lum);
     }
 
-    /** Text in the theme: § colours swapped for readable partners and the base colour darkened on Light; shadow only on
+    /** Text in the theme: § colors swapped for readable partners and the base color darkened on Light; shadow only on
      *  dark themes. */
     public static void text(GuiGraphicsExtractor g, String s, int x, int y, int colour) {
         g.text(MenuStyle.font(), MenuStyle.LIGHT ? MenuStyle.lightReadable(s) : s, x, y, readable(colour),
@@ -156,7 +156,7 @@ public final class ScreenChrome {
         g.text(MenuStyle.font(), s, x, y, readable(colour), MenuStyle.TEXT_SHADOW);
     }
 
-    /** {@link #text} centred on {@code cx}. */
+    /** {@link #text} centered on {@code cx}. */
     public static void centered(GuiGraphicsExtractor g, String s, int cx, int y, int colour) {
         text(g, s, cx - MenuStyle.font().width(s) / 2, y, colour);
     }
@@ -213,7 +213,7 @@ public final class ScreenChrome {
         r.submit();
     }
 
-    /** A card's coloured stripe down its left edge (inside the outline). */
+    /** A card's colored stripe down its left edge (inside the outline). */
     public static void stripe(GuiGraphicsExtractor g, int x, int y, int h, int color) {
         g.fill(x + 1, y + 1, x + 3, y + h - 1, color);
     }
@@ -240,7 +240,7 @@ public final class ScreenChrome {
         return MenuStyle.LIGHT ? MenuStyle.lightReadable(raw) : raw;
     }
 
-    /** Styled text (an item name in Hypixel's colours) made readable on the panel. */
+    /** Styled text (an item name in Hypixel's colors) made readable on the panel. */
     public static FormattedCharSequence readable(Component c) {
         FormattedCharSequence s = c.getVisualOrderText();
         if (!MenuStyle.LIGHT) {
@@ -269,7 +269,7 @@ public final class ScreenChrome {
         }
     }
 
-    /** {@link #header}'s bar alone, for a screen that writes its own title (centred, two lines, or cheat red). */
+    /** {@link #header}'s bar alone, for a screen that writes its own title (centered, two lines, or cheat red). */
     public static void headerBar(GuiGraphicsExtractor g, int panelX, int panelY, int panelW) {
         GuiRects r = GuiRects.begin(g);
         MenuStyle.dropShadow(r, panelX + 4, panelY + 4, panelW - 8, HEADER_H, 2);
@@ -287,7 +287,7 @@ public final class ScreenChrome {
         MenuStyle.gradientText(g, s, x, y, 1f, MenuStyle.BRAND_TOP, MenuStyle.BRAND_BOTTOM);
     }
 
-    /** {@link #title} centred on {@code cx}. */
+    /** {@link #title} centered on {@code cx}. */
     public static void titleCentred(GuiGraphicsExtractor g, String s, int cx, int y, boolean cheat) {
         int w = cheat ? MenuStyle.font().width(net.minecraft.network.chat.Component.literal(s)
                 .withStyle(net.minecraft.ChatFormatting.BOLD)) : MenuStyle.font().width(s);

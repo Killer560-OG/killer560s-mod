@@ -21,7 +21,7 @@ import java.util.PriorityQueue;
  * again from the nearest node leaves him walking into the side of the pit he is in.
  * <p>
  * A* over feet blocks within {@link #RADIUS} horizontally. A cell is a place he can be: feet and head free of anything
- * he collides with, and something to stand on, water at the feet, or a ladder/vine. Moves: the eight walking neighbours
+ * he collides with, and something to stand on, water at the feet, or a ladder/vine. Moves: the eight walking neighbors
  * (a diagonal only when both sides are free); a step up of one block, or as many as his real jump clears (Jump Boost
  * included) with the headroom for it; a drop of up to {@link #MAX_FALL}; swimming up and down in water and out over a
  * one-block bank (vanilla's jump against a wall in water lifts him out); climbing a ladder. Lava is never entered, only
@@ -230,7 +230,7 @@ final class LocalPlanner {
         return level.getBlockState(p).getFluidState().is(FluidTags.LAVA);
     }
 
-    /** Feet points (block centre, feet height) for the walker. */
+    /** Feet points (block center, feet height) for the walker. */
     static List<Vec3> toPoints(List<BlockPos> cells) {
         List<Vec3> out = new ArrayList<>(cells.size());
         for (BlockPos c : cells) {

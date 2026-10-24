@@ -17,7 +17,7 @@ import java.util.List;
  *  named in that list, but it is the same kind of dungeon-secrets cheat feature as the rest of the new
  *  folder's contents (expanded hitboxes for secret chests/levers/buttons/essence) and having a second,
  *  separate "Secrets"-branded home for it would only recreate the naming collision this move is meant to
- *  fix - so it moved in alongside them rather than staying a lone top-level Dungeon tab. Behaviour is
+ *  fix - so it moved in alongside them rather than staying a lone top-level Dungeon tab. Behavior is
  *  unchanged: a master toggle on top, then an independent toggle for each covered block type's expanded
  *  interaction hitbox - killer560's explicit request (2026-09-09), "each should have their own toggle
  *  under a main secrets tab in dungeons." The master toggle is a later follow-up request so the whole
@@ -139,7 +139,7 @@ public class FullBlockTab extends BaseTab {
 
     private static SecretsConfig.Shape nextShape(int dir, SecretsConfig.Shape current, boolean hasFlat) {
         if (dir < 0) {
-            // The same ring backwards: FULL -> FLAT (or CUSTOM without Flat) -> CUSTOM -> FULL.
+            // The same ring backward: FULL -> FLAT (or CUSTOM without Flat) -> CUSTOM -> FULL.
             return switch (current) {
                 case FULL -> hasFlat ? SecretsConfig.Shape.FLAT : SecretsConfig.Shape.CUSTOM;
                 case FLAT -> SecretsConfig.Shape.CUSTOM;

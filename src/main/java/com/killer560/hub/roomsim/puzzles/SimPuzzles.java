@@ -20,7 +20,7 @@ import java.util.function.BiConsumer;
  * <p>Each puzzle owns its own rules and its own arena; this only knows their names. That split is deliberate -
  * adding a puzzle should mean writing one file and adding one line here, not touching a switch in five places.
  *
- * <p>{@code /simpuzzle <name>} builds one where the player is standing, which is how a puzzle gets practised in
+ * <p>{@code /simpuzzle <name>} builds one where the player is standing, which is how a puzzle gets practiced in
  * isolation before it ever appears in a generated map.
  */
 public final class SimPuzzles {

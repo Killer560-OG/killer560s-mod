@@ -18,10 +18,10 @@ import net.minecraft.network.chat.Component;
 import java.util.List;
 
 /**
- * The Menu Theme tab's Theme Extras section (killer560, 2026-10-21): what each theme brings besides its colours. "Extras
+ * The Menu Theme tab's Theme Extras section (killer560, 2026-10-21): what each theme brings besides its colors. "Extras
  * For" picks the theme being set up (it starts on the menu's own theme); every row below it acts on that theme. Built by
  * {@code MenuThemeTab}; every row reads {@link ThemeExtrasConfig#getInstance()} at press time, so a profile load that
- * replaced the config object is honoured.
+ * replaced the config object is honored.
  */
 public final class ThemeExtrasSettings {
 

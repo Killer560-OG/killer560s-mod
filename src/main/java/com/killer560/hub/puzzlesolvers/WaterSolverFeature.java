@@ -44,7 +44,7 @@ import com.killer560.hub.util.ChatColors;
  * to the moment the water lever is first flicked (that's the real puzzle-wide synchronized start signal).
  * Highlights the single soonest real next click with a tracer, and floats a real live countdown ("Xs" /
  * "CLICK ME!") above every remaining click. Never clicks anything - only tracks real clicks (via a
- * non-cancelling {@code useItemOn} TAIL injection, same technique as Boulder Solver) to know which times
+ * non-canceling {@code useItemOn} TAIL injection, same technique as Boulder Solver) to know which times
  * have already been consumed per lever.
  * <p>
  * Like Boulder/Quiz/Ice Fill Solver, the 7 real lever positions are bundled FIXED relative coordinates
@@ -55,9 +55,9 @@ import com.killer560.hub.util.ChatColors;
 public final class WaterSolverFeature {
 
     /**
-     * The five real wool colours, in the order their indices are written into the solution key.
+     * The five real wool colors, in the order their indices are written into the solution key.
      *
-     * <p>{@link #z} is the room-relative z of the colour's own column; the block that says whether it is
+     * <p>{@link #z} is the room-relative z of the color's own column; the block that says whether it is
      * pushed out is {@code (15, 56, z)} - see {@link #scan}. The wool itself sits one lower when retracted.
      */
     public enum WoolColor {
@@ -69,7 +69,7 @@ public final class WaterSolverFeature {
             this.z = z;
         }
 
-        /** Room-relative z of this colour's column, for the sim's practice copy of the board. */
+        /** Room-relative z of this color's column, for the sim's practice copy of the board. */
         public int relZ() {
             return z;
         }
@@ -331,7 +331,7 @@ public final class WaterSolverFeature {
      * numbers the solver is about to display or the two disagree on screen - including on
      * {@code optimizedPath}, which is his own setting and changes the whole sequence.
      *
-     * @param extendedSlots the indices into {@link WoolColor#values()} of the colours pushed out, in order,
+     * @param extendedSlots the indices into {@link WoolColor#values()} of the colors pushed out, in order,
      *                      as a string - the file's own key, e.g. {@code "012"}
      * @return the times per {@link LeverBlock#solutionKey()}, or null when that board is not in the file
      */
@@ -566,7 +566,7 @@ public final class WaterSolverFeature {
                 }
             }
             // killer560, 2026-09-27: "make it so the hitbox is yellow just like the timer text until it is
-            // actually time to click it then it turns green" - same §e/§a colours the floating countdown label
+            // actually time to click it then it turns green" - same §e/§a colors the floating countdown label
             // already uses (see labelFor/isReadyNow below), not a separately-picked yellow.
             int timeInTicks = Math.round(flat.get(0).getValue().floatValue() * 20f);
             float[] boxColor = isReadyNow(timeInTicks) ? textColor(ChatFormatting.GREEN) : textColor(ChatFormatting.YELLOW);
@@ -607,7 +607,7 @@ public final class WaterSolverFeature {
         return secondsLabel(remaining);
     }
 
-    // "§eN.Ns" per tick value, memoised (fps pass 2026-10-19): one String.format per pending click per frame before,
+    // "§eN.Ns" per tick value, memoized (fps pass 2026-10-19): one String.format per pending click per frame before,
     // though the value changes once a tick. Pure function of the tick count; small direct-mapped table.
     private static final int LABEL_SLOTS = 32;
     private static final long[] LABEL_TICKS = new long[LABEL_SLOTS];
@@ -626,7 +626,7 @@ public final class WaterSolverFeature {
     }
 
     /** Same "is it actually time to click this" check the countdown label uses, shared with the tracer box's
-     *  colour so both flip from waiting to ready at the exact same instant. */
+     *  color so both flip from waiting to ready at the exact same instant. */
     private static boolean isReadyNow(int timeInTicks) {
         if (openedWaterTick == -1) {
             return timeInTicks == 0;
@@ -635,8 +635,8 @@ public final class WaterSolverFeature {
         return remaining <= 0;
     }
 
-    /** The exact RGB a §-colour code renders text in, as 0..1 floats - so a world-space highlight can match a
-     *  chat/label colour exactly instead of a separately hand-picked one. */
+    /** The exact RGB a §-color code renders text in, as 0..1 floats - so a world-space highlight can match a
+     *  chat/label color exactly instead of a separately hand-picked one. */
     private static float[] textColor(ChatFormatting formatting) {
         Integer packed = ChatColors.color(formatting);
         int rgb = packed != null ? packed : 0xFFFFFF;

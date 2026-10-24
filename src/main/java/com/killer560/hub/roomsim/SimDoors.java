@@ -53,7 +53,7 @@ public final class SimDoors {
      * Hypixel): the door spans X (width) and Y (height), one block thick along Z, and {@code centre} is the
      * bottom-middle block of that slab - i.e. the door occupies x in [centre.x-1, centre.x+1], y in
      * [centre.y, centre.y+3], z == centre.z. A door built the other way (thick along X instead of Z) would
-     * be registered wrong by this class; whatever calls {@link #addDoor} is responsible for passing a centre
+     * be registered wrong by this class; whatever calls {@link #addDoor} is responsible for passing a center
      * consistent with this orientation, or this class needs extending first.
      */
     private static final int DOOR_WIDTH = 3;
@@ -82,7 +82,7 @@ public final class SimDoors {
     public static int KEPT_TRIM;
 
     /**
-     * Every position a doorway carve opened, so nothing gets put back into a doorway afterwards.
+     * Every position a doorway carve opened, so nothing gets put back into a doorway afterward.
      *
      * <p>The build deliberately carves doorways BEFORE placing secrets, because the reverse order had the
      * carve delete a secret chest that happened to sit in a doorway - about one chest on one floor in three.
@@ -142,7 +142,7 @@ public final class SimDoors {
      * other. The map data said there were doors between them and the world disagreed.
      *
      * <p>The opening is carved through BOTH walls and the seam between them, because a room's own wall and its
-     * neighbour's are two separate walls with a gap - punching through only one leaves a dead end that looks
+     * neighbor's are two separate walls with a gap - punching through only one leaves a dead end that looks
      * like a doorway.
      *
      * <p>A normal door is left open. Blood and entrance doors are filled with barriers and registered, so the
@@ -161,7 +161,7 @@ public final class SimDoors {
         //
         // killer560 (2026-09-29): "Once the start finishes it needs to remove the blocks for the gate. Those
         // infested chizzledd blocks." The green room's gate is infested chiseled stone brick - it is what
-        // DoorScanner and WitherDoorScanner both recognise an entrance door by on the real server - and a
+        // DoorScanner and WitherDoorScanner both recognize an entrance door by on the real server - and a
         // wither door is a slab of coal blocks. Filling all three kinds with an invisible barrier meant the
         // sim's doors were holes you could not walk through with nothing to see, so there was no gate to
         // watch disappear when the run started.
@@ -283,7 +283,7 @@ public final class SimDoors {
      * Bricks up a doorway that leads nowhere.
      *
      * <p>A captured room carries its own doorways in its blocks, so a room placed with a doorway facing the
-     * edge of the map - or facing a neighbour that has no doorway back - is a three-by-four hole into the
+     * edge of the map - or facing a neighbor that has no doorway back - is a three-by-four hole into the
      * void. The layout keeps those to about five a floor and cannot always avoid them, so they are filled in.
      *
      * <p>Stone brick, which is what the wall around it is made of, and only the wall plane itself: filling the
@@ -323,7 +323,7 @@ public final class SimDoors {
     }
 
     /**
-     * Registers a wither door centred on {@code centre}. See {@link #DOOR_WIDTH}/{@link #DOOR_HEIGHT} for
+     * Registers a wither door centered on {@code centre}. See {@link #DOOR_WIDTH}/{@link #DOOR_HEIGHT} for
      * the size assumption this bakes in.
      */
     public static void addDoor(BlockPos centre) {
@@ -609,7 +609,7 @@ public final class SimDoors {
     /**
      * Turns every plain door of the named room into a shut WITHER door - coal blocks in the world (the same carve a
      * built wither door gets, registered so a right-click with a Wither Key opens it) and a wither door on the map - so
-     * the room can only be reached by opening one. Client thread; the carve runs on the integrated server. For practising
+     * the room can only be reached by opening one. Client thread; the carve runs on the integrated server. For practicing
      * (and testing) a clear that has to open wither doors; generated floors still build none (no key drops).
      *
      * @return how many doors it turned, or -1 when the sim cannot act or the room is not on the map

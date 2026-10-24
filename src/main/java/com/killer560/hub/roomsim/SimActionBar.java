@@ -11,8 +11,8 @@ import net.minecraft.server.level.ServerPlayer;
  *
  * <p>Found 2026-10-05 writing the Auto Routes tests: the sim never sent this line, so everything that reads it saw
  * nothing - an Auto Routes {@code await:<n>} node waited forever in the sim (only secret bats counted), and the live
- * map never learnt a room's found count. Client features read it exactly as they do on Hypixel; nothing on the client
- * special-cases the sim. Only the Secrets part is sent (health and mana are not modelled), every ten server ticks,
+ * map never learned a room's found count. Client features read it exactly as they do on Hypixel; nothing on the client
+ * special-cases the sim. Only the Secrets part is sent (health and mana are not modeled), every ten server ticks,
  * and only in a room whose database entry has secrets.
  */
 public final class SimActionBar {

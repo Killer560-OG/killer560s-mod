@@ -8,8 +8,8 @@ import com.killer560.hub.gui.MenuTheme;
  * menu's theme and that theme's background; Separate Theme takes the main menu's own theme and ITS background; Custom
  * takes its own theme and every look setting. Cached until either config changes.
  *
- * @param colours  the five base colours (accent, panel, card, text, on-switch), as {@link MenuTheme#base()}
- * @param theme    the theme they came from (CUSTOM for the menu's Custom colours)
+ * @param colours  the five base colors (accent, panel, card, text, on-switch), as {@link MenuTheme#base()}
+ * @param theme    the theme they came from (CUSTOM for the menu's Custom colors)
  * @param scene    the background, never {@link MainMenuThemeConfig.Scene#AUTO}
  * @param density  particle amount, 0 for none
  * @param speed    animation speed, 1 = normal
@@ -98,7 +98,7 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
                 cfg.isParticles() ? 1f : 0f, 1f, true);
     }
 
-    /** A theme's five colours; CUSTOM is the mod menu's Custom set. */
+    /** A theme's five colors; CUSTOM is the mod menu's Custom set. */
     public static int[] coloursOf(MenuTheme theme, MenuConfig menu) {
         if (theme == MenuTheme.CUSTOM) {
             int[] out = new int[MenuTheme.Slot.values().length];
@@ -119,7 +119,7 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
      * Each theme's own background in the Main Menu Scene mode (killer560, 2026-10-16). Fancy: Amber's aurora picture, Ocean's
      * Cavern Falls, Dark's Milky Way, Light's Soft Light, Viridian's slime boss. Simple: each theme's floating particles
      * ({@link SimpleScenes}) - embers, bubbles, stardust, fireflies; Light keeps Soft Light ("Keep light as only the one
-     * option"). Custom shows the embers in its own colours in both.
+     * option"). Custom shows the embers in its own colors in both.
      */
     public static MainMenuThemeConfig.Scene sceneFor(MenuTheme theme, boolean simple) {
         if (theme == null) {
@@ -133,9 +133,9 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
             case GREEN -> simple ? MainMenuThemeConfig.Scene.SIMPLE_FIREFLIES : MainMenuThemeConfig.Scene.FIREFLIES;
             // killer560 (2026-10-16): "remove aurora from custom, we won't have a custom one", then "for custom on fancy or
             // plain have it do the colors of their custom theme" - Custom has no painted scene; in both modes it shows the
-            // Simple embers in its own colours.
+            // Simple embers in its own colors.
             case CUSTOM -> MainMenuThemeConfig.Scene.SIMPLE_EMBERS;
-            // A theme added later: a light one gets the soft light, a dark one embers in its own colours.
+            // A theme added later: a light one gets the soft light, a dark one embers in its own colors.
             default -> com.killer560.hub.gui.MenuStyle.luminance(theme.base()[1]) > 0.5f
                     ? MainMenuThemeConfig.Scene.SOFT_LIGHT
                     : simple ? MainMenuThemeConfig.Scene.SIMPLE_EMBERS : MainMenuThemeConfig.Scene.EMBERS;

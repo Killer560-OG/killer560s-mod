@@ -25,14 +25,14 @@ import java.util.Set;
  * doorway, and find a room and a rotation whose own doorway faces back through it.
  *
  * <p><b>Connectivity is by construction.</b> A room is only ever placed by attaching it to a doorway of a room
- * already placed, so there is no such thing as an unreachable wing and no pass afterwards to check for one.
+ * already placed, so there is no such thing as an unreachable wing and no pass afterward to check for one.
  * A one-door room takes a doorway and offers none, which is what makes puzzles and traps come out at the end
  * of a branch without anything having to say so.
  *
  * <p><b>What is chosen, and why.</b> At each step every legal (room, rotation, position) is scored: a doorway
- * that meets a neighbour's doorway is worth most (those are the loops a real floor has), a doorway onto a free
+ * that meets a neighbor's doorway is worth most (those are the loops a real floor has), a doorway onto a free
  * cell is worth something (that is where the floor grows next), and a doorway that would end up facing a
- * neighbour's blank wall costs, because it has to be bricked up afterwards. Size is traded against doorway
+ * neighbor's blank wall costs, because it has to be bricked up afterward. Size is traded against doorway
  * count - the first version preferred whichever room had the most doors, which is always a 2x2, and filled the
  * grid with six enormous rooms; preferring small rooms alone is worse still, because small rooms have few
  * doors and the floor stops after four of them.
@@ -135,7 +135,7 @@ public final class SimFloorLayout {
     }
 
     /**
-     * A floor laid out AROUND rooms he placed by hand, and what could not be honoured.
+     * A floor laid out AROUND rooms he placed by hand, and what could not be honored.
      *
      * <p>killer560 (2026-09-29): "test stuff like putting in a single room that I want personally in generating
      * a map around the room". Pressing Generate in the map designer used to throw the drawing away; this is the
@@ -222,7 +222,7 @@ public final class SimFloorLayout {
      *
      * <p>A pinned room is a fixed obstacle the growth has to happen to reach through a matching pair of
      * doorways, so an attempt fails for reasons no re-ordering inside the attempt can fix: the entrance seeded
-     * on the far edge, or a rotation that turned the pin's only doorways towards the grid edge. Retrying is the
+     * on the far edge, or a rotation that turned the pin's only doorways toward the grid edge. Retrying is the
      * cheap fix - measured at about 2 ms an attempt - and the loop still stops the moment one attempt has every
      * pin, a blood room, the room minimum and the whole cell target.
      */
@@ -494,7 +494,7 @@ public final class SimFloorLayout {
         // A PIN NO ATTEMPT COULD USE IS LAID OUT AGAIN WITHOUT IT, and that is not a detail.
         //
         // A pin the floor never reaches has still been sitting on its cells the whole way through - the growth
-        // counted them towards the cell target and then stopped - so pruning it at the end leaves a floor short
+        // counted them toward the cell target and then stopped - so pruning it at the end leaves a floor short
         // of its target with a hole where the pin was. Measured before this second pass went in: a single
         // unreachable pin dragged the median F7 from 36 cells to 34 and the worst case to 26. Once every one of
         // the {@link #PINNED_ATTEMPTS} attempts has failed on the same room, the honest thing is to lay the
@@ -706,7 +706,7 @@ public final class SimFloorLayout {
      *
      * <p>killer560 (2026-10-04): "I just generated a map that has one of the spots blank" and "the more maps I
      * generate the more it seems to not put rooms in." The growth is greedy and can strand a cell - every
-     * neighbour shows it a blank wall - or run out of stubs while a cell is still free. Measured offline with
+     * neighbor shows it a blank wall - or run out of stubs while a cell is still free. Measured offline with
      * {@code tools/layoutsim} over his own 106-room library: 15% of F7s had a hole with no recency at all, and
      * 63% with his saved recency and the 2026-10-04 weights. Three steps, repeated until nothing changes:
      *
@@ -714,12 +714,12 @@ public final class SimFloorLayout {
      *   <li><b>Strict.</b> An unused room (least recent first, ordinary before puzzle, never a given room or a
      *       second trap) at any rotation and position covering the cell, with a doorway meeting an open doorway
      *       of a room already on the floor - the both-sides rule the growth uses.</li>
-     *   <li><b>Rewire a neighbour.</b> A 1x1 ordinary neighbour nobody pinned is turned, or swapped for an unused
+     *   <li><b>Rewire a neighbor.</b> A 1x1 ordinary neighbor nobody pinned is turned, or swapped for an unused
      *       1x1, so that its doorways still cover every door it already has AND one faces the empty cell - the
      *       same test {@link #ensureTrap} uses - and step 1 then fills the cell. Every door stays a measured
      *       doorway in both rooms.</li>
-     *   <li><b>Carve.</b> Only when neither works: a 1x1 whose own doorway faces a neighbour, with the door cut
-     *       through the neighbour's wall (the carve lays its own floor). Never into blood; into the green room
+     *   <li><b>Carve.</b> Only when neither works: a 1x1 whose own doorway faces a neighbor, with the door cut
+     *       through the neighbor's wall (the carve lays its own floor). Never into blood; into the green room
      *       only when nothing else borders the cell.</li>
      * </ol>
      *
@@ -896,12 +896,12 @@ public final class SimFloorLayout {
             return false;
         }
 
-        /** Step 2: give a 1x1 neighbour of an empty cell a doorway facing it, keeping all its doors. */
+        /** Step 2: give a 1x1 neighbor of an empty cell a doorway facing it, keeping all its doors. */
         boolean rewireOnce() {
             return rewireOnce(false);
         }
 
-        /** @param puzzles whether a puzzle neighbour may be swapped out too - the last step, after the carve */
+        /** @param puzzles whether a puzzle neighbor may be swapped out too - the last step, after the carve */
         boolean rewireOnce(boolean puzzles) {
             for (int cell = 0; cell < GRID * GRID; cell++) {
                 if (occupied[cell] >= 0 || !insideCell(cell)) {
@@ -913,9 +913,9 @@ public final class SimFloorLayout {
                     int nx = cx + RoomDoors.DX[side];
                     int nz = cz + RoomDoors.DZ[side];
                     Placement nb = at(nx, nz);
-                    // A PUZZLE neighbour too: it cannot take a second door (isOneDoor), so it is swapped for an
+                    // A PUZZLE neighbor too: it cannot take a second door (isOneDoor), so it is swapped for an
                     // ordinary room that can, and owed again - the fill pass or ensurePuzzles puts it in a dead end.
-                    // Without this, an empty cell whose only neighbours were puzzles stayed empty: 2% of floors
+                    // Without this, an empty cell whose only neighbors were puzzles stayed empty: 2% of floors
                     // (F5/F7 sizes) once puzzles stopped taking extra doors.
                     boolean puzzleNb = puzzles && nb != null && isOneDoor(nb.type());
                     if (nb == null || nb.cellsX() != 1 || nb.cellsZ() != 1
@@ -975,7 +975,7 @@ public final class SimFloorLayout {
         }
 
         /**
-         * Step 3: a 1x1 whose own doorway faces a neighbour, the door carved through that neighbour's wall - only
+         * Step 3: a 1x1 whose own doorway faces a neighbor, the door carved through that neighbor's wall - only
          * where the cut lands on floor he can walk (RoomDoors.carvable), and of every such wall on the floor the one
          * with the least wall behind its plane ({@link RoomDoors#carveCost}). {@link #carveOnce(boolean)} with false is
          * the last resort that carves anyway, so the cell, trap and puzzle guarantees hold as they did. Never into a
@@ -1072,7 +1072,7 @@ public final class SimFloorLayout {
         }
 
         /**
-         * {@link RoomDoors#carveCost} of the cut from the empty cell {@code (cx, cz)} into its neighbour {@code nb} on
+         * {@link RoomDoors#carveCost} of the cut from the empty cell {@code (cx, cz)} into its neighbor {@code nb} on
          * {@code side}, at nb's placed rotation, on the wall facing the empty cell; -1 when it does not land somewhere
          * he can walk in and back out of, or nb cannot be measured.
          */
@@ -1343,7 +1343,7 @@ public final class SimFloorLayout {
     /**
      * Commits one fill-pass room: every doorway that meets an open doorway facing back becomes a link (and both
      * stop being open), the rest join the open list to be bricked up or met later. {@code forcedSide} >= 0 also
-     * links that side of a 1x1 to its neighbour though the neighbour has no doorway there.
+     * links that side of a 1x1 to its neighbor though the neighbor has no doorway there.
      */
     private static void place(Candidate c, int r, int ox, int oz, int[] occupied, List<Placement> rooms,
                               List<Link> links, List<int[]> open, int forcedSide) {
@@ -1409,7 +1409,7 @@ public final class SimFloorLayout {
      * were found. The RNG is NOT the cause - {@code SimFloorGen.RNG} is an unseeded {@code new Random()}, so it
      * differs every launch and every floor. The memory was: {@link #RECENT} lived only in memory, so every game
      * launch started with no recency at all and the first floors of each session fell back to the same
-     * favourites - and he restarts often. And the penalty was too weak to beat the deterministic part of
+     * favorites - and he restarts often. And the penalty was too weak to beat the deterministic part of
      * {@link #choose}'s ordering: doorways at 0.9 each and size at up to 2.2 against a 0..2.5 die meant the
      * many-doored big rooms still led the shortlist, and {@code choose} stops at the first placement that
      * scores "good enough", so the head of that list is what goes on the floor. Now the recency is persisted
@@ -1560,7 +1560,7 @@ public final class SimFloorLayout {
                 continue;
             }
             // NOT filtered for L shape, deliberately. A generated floor leaves the L rooms out because their
-            // captures hold a neighbour's geometry in the quarter they do not occupy, but he PUT this one here,
+            // captures hold a neighbor's geometry in the quarter they do not occupy, but he PUT this one here,
             // and the drawn-map path has never filtered what he drew either.
             Candidate c = candidateOf(name, usable.get(name));
             if (c == null) {
@@ -1863,7 +1863,7 @@ public final class SimFloorLayout {
             //
             // An L room is captured as its 2x2 bounding box, and the quarter it does not occupy is whatever
             // stood there on the day it was scanned. Checked across the eleven L rooms in his library: only
-            // Altar and Well have that quarter empty; the other nine are 45-65% full of a NEIGHBOURING room's
+            // Altar and Well have that quarter empty; the other nine are 45-65% full of a NEIGHBORING room's
             // geometry, which a paste drops into the middle of the floor. It also makes the dungeon map draw
             // them as two rooms, because the map refuses to merge more tiles than the room's shape has.
             //
@@ -1957,7 +1957,7 @@ public final class SimFloorLayout {
         // always a room in between - and this is the second half.
         java.util.Set<Long> fairyCells = new HashSet<>();
         // And the other way round. The guard above only stopped BLOOD landing next to the fairy; a fairy room
-        // placed afterwards could still end up against a blood cell, which happened on about 2% of floors
+        // placed afterward could still end up against a blood cell, which happened on about 2% of floors
         // before and after the cell target went in (measured over 800). No door was ever cut between the two -
         // blood's stubs are dropped the moment it is placed - so the blood-rush rule held, but the rule is
         // meant to be about the cells, so it is checked both ways now.
@@ -1978,7 +1978,7 @@ public final class SimFloorLayout {
         // Rooms that are ON the grid but that nothing has reached yet: every pin except a pinned entrance.
         //
         // Their doorways are registered as stubs from the start, so a room placed next to one scores the
-        // meeting as a MATCH and the growth is drawn towards them rather than away. What they may not do is be
+        // meeting as a MATCH and the growth is drawn toward them rather than away. What they may not do is be
         // grown FROM, because a wing hanging off a room the entrance cannot reach is exactly the unreachable
         // wing this class is built not to produce. They are woken by {@link #wakePins} the moment a real
         // doorway pair joins them to the rest of the floor, and only then can the floor grow through them.
@@ -2078,7 +2078,7 @@ public final class SimFloorLayout {
         // killer560 (2026-10-04): "I just generated a map where fairy was not on the path to blood and it had far
         // more than the 5 the slider had picked for it." Growing the floor and dropping blood in at the first
         // stub deep enough made the depth a lower bound, not a value (it went in at depth 11 on his 5), and the
-        // fairy rule could only bias towards it. Measured with tools/layoutsim over every floor x slider x
+        // fairy rule could only bias toward it. Measured with tools/layoutsim over every floor x slider x
         // puzzle combination: 85% of floors had the wrong number of rooms to blood and 64% had the fairy off
         // the path. Hypixel's floor has the fairy on the blood path always, so the path is planned as a whole
         // here - Entrance, the slider's rooms with the fairy among them (never next to the entrance or blood),
@@ -2207,7 +2207,7 @@ public final class SimFloorLayout {
                 // sufficient: the fairy went in on a coin flip somewhere, the growth carried on wherever the
                 // draw sent it, and by the time blood was due there was usually no stub left under the fairy
                 // at all - so the escape hatch fired on nearly every floor and the rule did nothing. Biasing
-                // the DRAW towards the fairy's own subtree is what makes the subtree exist to put blood in.
+                // the DRAW toward the fairy's own subtree is what makes the subtree exist to put blood in.
                 //
                 // A bias, not a restriction: when the fairy's side has nothing open the draw falls back to
                 // the whole list, so a floor is never lost to this.
@@ -2245,7 +2245,7 @@ public final class SimFloorLayout {
                 // always be on the path to blood."
                 //
                 // "On the path" is ancestry: blood may only grow out of a room the fairy is an ancestor of,
-                // so walking back from blood towards the entrance goes through the fairy. It cannot be every
+                // so walking back from blood toward the entrance goes through the fairy. It cannot be every
                 // route - the floor deliberately grows loops, and a second way round is exactly what a loop
                 // is - but it is the route the floor was built along, and it is the one Auto Blood Rush walks
                 // for want of a shorter one.
@@ -2440,7 +2440,7 @@ public final class SimFloorLayout {
      *
      * <p>A pin is reachable the moment one of ITS doorways faces a cell held by a room that is already part of
      * the floor AND that room has an unused doorway facing back. That is the same test the growth applies to
-     * every other pair of neighbours, so a door into a pinned room is a measured doorway in both rooms at the
+     * every other pair of neighbors, so a door into a pinned room is a measured doorway in both rooms at the
      * rotation each is placed at - there is no special case that would let a pin be connected through a wall.
      *
      * <p>It repeats until nothing more wakes, because waking one pin can make a second one reachable through
@@ -2570,7 +2570,7 @@ public final class SimFloorLayout {
                 // THIS is the doorway that reaches a room he pinned, most of the time. The loop used to open a
                 // real door into a dormant pin and consume its stub without recording that the pin was now part
                 // of the floor, so the pin was pruned at the end WITH the link still pointing at its cells.
-                // Measured: 63% of single pins honoured and 67 links to an empty cell over 200 floors, until
+                // Measured: 63% of single pins honored and 67 links to an empty cell over 200 floors, until
                 // this went in.
                 if (dormant.remove(neighbour)) {
                     bloodPlacedDepth = adopt(neighbour, depth + 1, placed, placedFrom, stubs,
@@ -2933,7 +2933,7 @@ public final class SimFloorLayout {
      * <p>killer560 (2026-09-29): "make sure one room must generate between green and fairy and fairy and blood
      * for any given blood rush path." Choosing WHERE to put the fairy room already respects that - it is only
      * ever attached to a stub at least one doorway from the entrance, and never next to a blood cell - but the
-     * extra-door pass afterwards does not choose anything: it opens a door wherever two placed rooms happen to
+     * extra-door pass afterward does not choose anything: it opens a door wherever two placed rooms happen to
      * have doorways facing each other, and it will happily put one between the fairy room and the entrance the
      * fairy was carefully kept a room away from. Rare - never once in 4,000 generated floors, once in 200 with
      * rooms pinned, because pinning lays out five times as many candidates and keeps the best - and a rule that
@@ -3129,7 +3129,7 @@ public final class SimFloorLayout {
         }
         int stranded = cellsLeft <= 0 ? 0 : stranded(mask, originX, originZ, occupied, stubs);
         // Credit for the cells a multi-tile room brings, but only while the floor is behind the cells-per-room
-        // a real one of this size has. A big room has more doorways and so more chances to face a neighbour's
+        // a real one of this size has. A big room has more doorways and so more chances to face a neighbor's
         // blank wall, and the seal cost of that was enough on its own to make the layout refuse every one of
         // them - it filled the grid with small rooms instead and needed five more rooms than a real floor.
         double bulk = preferBig
@@ -3142,7 +3142,7 @@ public final class SimFloorLayout {
     /**
      * Free cells this placement would leave with no way in, ever.
      *
-     * <p>A free cell can only be filled by attaching a room to a doorway pointing at it. Once every neighbour
+     * <p>A free cell can only be filled by attaching a room to a doorway pointing at it. Once every neighbor
      * of a free cell is a blank wall, that cell is dead: nothing can be put there for the rest of the floor and
      * it stays a hole in the map. That is the "single orphan cell" a generator aiming at a cell count has to
      * avoid, and it is invisible to a generator aiming at a room count because it never goes looking for the

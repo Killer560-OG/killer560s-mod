@@ -16,7 +16,7 @@ import com.killer560.hub.compat.McCompat;
 /**
  * Auto Ice Path - port of QUOI {@code IcePathSolver.kt}'s {@code auto(...)} on top of {@link IcePathSolverFeature}.
  * Standing on the silverfish's cell (x/z of the silverfish, the ice's y), it shoots straight down (pitch 90) with the
- * yaw of the board direction towards the next stop, so the arrow knocks the silverfish that way, paced by the Shoot
+ * yaw of the board direction toward the next stop, so the arrow knocks the silverfish that way, paced by the Shoot
  * cooldown. While the silverfish slides it waits. With "Etherwarp Reposition" on it also warps onto the silverfish's
  * cell (and, while it slides, onto the next stop) like QUOI; with it off you stand there yourself.
  * Safety addition: only fires while holding a shortbow (QUOI relied on its reposition having swapped to one).
@@ -211,10 +211,10 @@ final class AutoIcePath {
                     : "swapping to the shortbow");
             return; // fire on a later tick, once the swap has gone through
         }
-        // The yaw of the BOARD direction, cell centre to cell centre - exactly along a row or a column.
+        // The yaw of the BOARD direction, cell center to cell center - exactly along a row or a column.
         //
         // This was the yaw of `etherwarpDirection(nextSpot)`, the aim at whatever point on the next stop's block an
-        // etherwarp ray could reach. From on top of the board the top-face centre never matches (it is filed under
+        // etherwarp ray could reach. From on top of the board the top-face center never matches (it is filed under
         // the air above) and the point used is one 0.001 from an EDGE of the next block, so the yaw was off the
         // board axis by up to 45 degrees for a stop one cell away - a coin toss between two directions on Hypixel
         // too - and the shot was refused outright whenever no such point was visible. The direction of a shove is a
@@ -259,10 +259,10 @@ final class AutoIcePath {
      * <ol>
      *   <li>one etherwarp straight onto the cell;</li>
      *   <li>two: onto an open board cell he CAN see, from which the fish's cell can be seen - checked from that
-     *       cell's own sneaking eye, the way {@link AutoReposition} will aim from it. A neighbour of the fish's cell
+     *       cell's own sneaking eye, the way {@link AutoReposition} will aim from it. A neighbor of the fish's cell
      *       always qualifies when he can see it, because the aim from one cell away is steep enough to clear any
      *       pillar;</li>
-     *   <li>a walk, through the Interactive Map's pathing ({@link AutoPuzzleUtil#pathIfMapOn}, which honours the
+     *   <li>a walk, through the Interactive Map's pathing ({@link AutoPuzzleUtil#pathIfMapOn}, which honors the
      *       auto-puzzle pathing toggle), to the block above the cell.</li>
      * </ol>
      * Each refusal names itself once, so a stall says which of the three ran out.

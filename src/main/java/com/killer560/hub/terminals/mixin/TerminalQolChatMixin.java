@@ -14,10 +14,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Hide Completion, chat half. Hooks the same private funnel {@code ChatComponentMixin} already uses -
  *  {@code addMessage(Component, MessageSignature, GuiMessageSource, GuiMessageTag)}, javap-confirmed on the real
- *  26.1.2 jar as the single method all three public add paths call - so a completion line another mod cancelled
+ *  26.1.2 jar as the single method all three public add paths call - so a completion line another mod canceled
  *  via Fabric's {@code ALLOW_GAME} and re-added itself is caught here too.
  *  <p>
- *  {@link ChatObserver#onChatComponentAdd} is called explicitly before cancelling, and that is the load-bearing
+ *  {@link ChatObserver#onChatComponentAdd} is called explicitly before canceling, and that is the load-bearing
  *  part of this class: the mod's Device Times, Terminal Timers and Tick Timers all read these exact lines
  *  through {@code ChatObserver}, which normally sees them via {@code ChatComponentMixin}'s own
  *  {@code @ModifyVariable} on this same method. Two HEAD injections on one method have no guaranteed order, so

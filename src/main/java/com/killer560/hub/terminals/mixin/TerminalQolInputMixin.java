@@ -18,8 +18,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *  cheat-build-only feature) - these two are unrelated features with unrelated gates, and two
  *  {@code @Inject}s at the same HEAD compose fine: whichever runs first and cancels wins, and either
  *  outcome (blocked by the bot, blocked by protection) is "this click does not reach the terminal".
- *  <li><b>Melody Keys</b> - 1-4 click Melody's four row buttons. Cancelling is mandatory, not cosmetic:
- *  {@code AbstractContainerScreen.keyPressed} feeds 1-9 to {@code checkHotbarKeyPressed}, so an uncancelled
+ *  <li><b>Melody Keys</b> - 1-4 click Melody's four row buttons. Canceling is mandatory, not cosmetic:
+ *  {@code AbstractContainerScreen.keyPressed} feeds 1-9 to {@code checkHotbarKeyPressed}, so an uncanceled
  *  keypress would send a real SWAP click trying to move a hotbar item into the terminal.
  *  </ul>
  *  Targets verified with javap against the real 26.1.2 jar:

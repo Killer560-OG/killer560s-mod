@@ -20,7 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * {@code PacketUtils.ensureRunningOnSameThread} in {@code handleMovePlayer(ClientboundPlayerPositionPacket)}, which is
  * the first call on both 26.1.2 and 26.2 (javap, 2026-10-07) - client thread, before vanilla applies the packet, so the
  * player's position here is still the one being replaced. The target is computed the way vanilla does
- * ({@code PositionMoveRotation.calculateAbsolute}). Nothing is changed or cancelled, and a throw is swallowed: an
+ * ({@code PositionMoveRotation.calculateAbsolute}). Nothing is changed or canceled, and a throw is swallowed: an
  * exception out of a packet handler disconnects the client.
  */
 @Mixin(ClientPacketListener.class)

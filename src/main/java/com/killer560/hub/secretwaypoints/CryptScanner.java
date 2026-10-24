@@ -117,7 +117,7 @@ public final class CryptScanner {
      *
      * <p>Either way the crown is the tomb's open TOP: air directly above it. killer560, 2026-10-19: "these are not
      * princes in pirates". Pirate's three matches are 3x3 polished andesite tables with a sea lantern in the middle and
-     * a grey carpet ON it (capture x 22..24, y 64, z 25..37); Stairs has a fourth (light grey carpet, x 16..18, y 89,
+     * a gray carpet ON it (capture x 22..24, y 64, z 25..37); Stairs has a fourth (light gray carpet, x 16..18, y 89,
      * z 12..14), and Doors' gold has more gold on top of it. Every real crown in the 135 captures (Chambers, Leaves,
      * Market, Red Blue, Sloth) has air above. Census: crypts + princes equal the database's count in 118 rooms, up from
      * 116, and no room that matched before stops matching.
@@ -702,7 +702,7 @@ public final class CryptScanner {
 
     /**
      * Whether a slab run is a LEDGE hung on a wall rather than a tomb standing on a floor: beside every open side of the
-     * run (a horizontal neighbour with nothing to collide with), the nearest floor is {@value #LEDGE_DROP} or more blocks
+     * run (a horizontal neighbor with nothing to collide with), the nearest floor is {@value #LEDGE_DROP} or more blocks
      * below the slabs. killer560, 2026-10-19, of the two landings up Doors' wall stairs: "this is not a crypt in doors".
      * Both are 5x2 runs at capture y 73 (x 14..18, z 2..3 and z 29..30), four blocks over the room floor at y 69 with
      * nothing under their open side, and Doors then matches its database count of 7 (the seven lids at y 59). Over all
@@ -736,12 +736,12 @@ public final class CryptScanner {
 
     /**
      * Whether a slab run is a stretch of WALKWAY rather than a tomb's lid: a third or more of the cells round it (its
-     * horizontal neighbours on its own layer) are full blocks with air on top - floor flush with the slabs that leads on
+     * horizontal neighbors on its own layer) are full blocks with air on top - floor flush with the slabs that leads on
      * across them. A lid is the top of a tomb standing proud of the floor, so what touches it is air, its walls, or a wall
      * behind it with more wall above. killer560, 2026-10-19, of the slab platform between Flags' two lavafalls (screenshot
      * 14:50:27): this is not a crypt. It is a 3x5 of bottom slabs on a polished andesite pier (capture x 31..33, y 86,
      * z 53..57), and the polished andesite causeway at z 52 and z 58 runs straight on at its own height: 6 of its 16
-     * neighbours are such floor. Census over all 135 captures: the next most is 3 of 14 (Skull's slab run, which the
+     * neighbors are such floor. Census over all 135 captures: the next most is 3 of 14 (Skull's slab run, which the
      * database does not count either); no lid the database confirms has more than a fifth (Diagonal's 2 of 10). Dropping it makes Flags match
      * its count of 8 (seven crypts and the {@link #brazierPrince}), and no other room's count moves.
      */
@@ -782,7 +782,7 @@ public final class CryptScanner {
         return false;
     }
 
-    /** Connected groups: horizontal neighbours only for a slab lid (one layer), all six for a prince. */
+    /** Connected groups: horizontal neighbors only for a slab lid (one layer), all six for a prince. */
     private static List<List<BlockPos>> groups(Set<BlockPos> cells, boolean horizontalOnly) {
         List<List<BlockPos>> out = new ArrayList<>();
         Set<BlockPos> left = new HashSet<>(cells);

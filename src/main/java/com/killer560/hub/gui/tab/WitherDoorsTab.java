@@ -16,7 +16,7 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /** Wither Doors settings - see {@link com.killer560.hub.witherdoors.WitherDoorsFeature}'s class doc for
- *  how the closest-door search, the Wither/Blood distinction and the key-held colour switch all work. */
+ *  how the closest-door search, the Wither/Blood distinction and the key-held color switch all work. */
 public class WitherDoorsTab extends BaseTab {
 
     public WitherDoorsTab() {
@@ -120,7 +120,7 @@ public class WitherDoorsTab extends BaseTab {
         y += 22;
 
         // The Blood door is drawn in both builds since 2026-10-15 (killer560: "For some reason blood door isnt
-        // highlighting unless I have all doors on"), so its colours left the cheat section with it.
+        // highlighting unless I have all doors on"), so its colors left the cheat section with it.
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Blood Door Color", cfg.getBloodLockedColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Blood Door Color",

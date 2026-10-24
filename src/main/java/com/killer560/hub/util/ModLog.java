@@ -22,7 +22,7 @@ import java.util.Arrays;
  *   <li><b>dev and cheat builds</b> (the default, {@code DEV_TOOLS == true}) get the real SLF4J logger and log
  *       exactly as before - the diagnostic lines he uses to find real bugs are untouched;</li>
  *   <li><b>release builds</b> ({@code -Prelease=true}, {@code DEV_TOOLS == false}) get a logger that drops
- *       TRACE, DEBUG, INFO and WARN outright, and forwards only ERROR.</li>
+ *       TRACE, DEBUG, INFO and WARN outright, and forward only ERROR.</li>
  * </ul>
  *
  * <p>ERROR survives deliberately. Everything at that level in this mod is a caught exception that has just
@@ -192,7 +192,7 @@ public final class ModLog {
 
     /**
      * Drops everything below ERROR. {@link LegacyAbstractLogger} does the varargs/marker/throwable
-     * normalisation, so only one method has to decide anything.
+     * normalization, so only one method has to decide anything.
      */
     private static final class ReleaseLogger extends LegacyAbstractLogger {
 

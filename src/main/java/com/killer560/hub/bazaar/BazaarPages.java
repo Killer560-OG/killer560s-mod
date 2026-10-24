@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
  * <p>
  * A page is only reported when its title matches one of the formats below AND an item that page always carries is
  * there. Anything else is {@link Kind#UNKNOWN}, and {@code BazaarReskin} leaves that menu to Hypixel's own GUI: a menu
- * we cannot map is never drawn half-right. Sources (read 2026-10-07; all text colour-stripped):
+ * we cannot map is never drawn half-right. Sources (read 2026-10-07; all text color-stripped):
  * <ul>
  *   <li>SkyHanni {@code features/inventory/bazaar/BazaarApi.kt} (beta), repo patterns {@code inventory.bazaar}:
  *       titles {@code Bazaar ➜ .*}, {@code How many do you want?}, {@code How much do you want to pay?},
@@ -407,7 +407,7 @@ public final class BazaarPages {
     }
 
     /**
-     * Whether {@code title} (colour-stripped, trimmed) is the Instant Buy page of {@code productName}, allowing for
+     * Whether {@code title} (color-stripped, trimmed) is the Instant Buy page of {@code productName}, allowing for
      * Hypixel's cut: either the whole "&lt;name&gt; ➜ Instant Buy", or a start of it at least {@link #CUT_TITLE_MIN} long.
      * A cut product name is only ever accepted as the start of THIS product's title, so a page for another product
      * whose name shares the first characters still needs those characters to be followed by exactly what this one's

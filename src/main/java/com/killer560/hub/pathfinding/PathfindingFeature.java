@@ -29,7 +29,7 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * Pathfinding: "show me the fastest way there" navigation on Hypixel Skyblock islands, built on SkyHanni's public
- * island graph data (see {@link IslandGraph} and {@link GraphRepository} for the data source and licence).
+ * island graph data (see {@link IslandGraph} and {@link GraphRepository} for the data source and license).
  * <p>
  * Registers the tick/render hooks, the {@code /k560path} command and the HUD element. Everything is off by default.
  */

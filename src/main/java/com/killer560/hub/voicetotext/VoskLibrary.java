@@ -44,7 +44,7 @@ import java.util.function.Consumer;
  * back in and compile only to throw {@code NoClassDefFoundError} in game.
  * <p>
  * JNA stays bundled with the mod. The child loader's parent is this class's loader, so Vosk's {@code com.sun.jna}
- * references resolve to the bundled JNA; Vosk's own native loading ({@code LibVosk}'s static initialiser calls
+ * references resolve to the bundled JNA; Vosk's own native loading ({@code LibVosk}'s static initializer calls
  * {@code Native.extractFromResourcePath(..., LibVosk.class.getClassLoader())} and {@code Native.register}) reads
  * the native libraries as resources of the loader that defined {@code LibVosk}, which is the child loader over the
  * downloaded jar - so they are found exactly as they were inside the bundled one.
@@ -142,7 +142,7 @@ public final class VoskLibrary {
                 VoskLibrary.class.getClassLoader());
         try {
             VoskLibrary lib = new VoskLibrary(child);
-            // Runs LibVosk's static initialiser now - native extraction and JNA registration - so a native problem
+            // Runs LibVosk's static initializer now - native extraction and JNA registration - so a native problem
             // fails here, before the 40MB model download, rather than after it.
             Class.forName("org.vosk.LibVosk", true, child);
             loaded = lib;

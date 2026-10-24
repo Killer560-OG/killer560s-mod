@@ -144,7 +144,7 @@ final class WitherDoorsRenderer {
         }
     }
 
-    /** Render-thread cache for {@link #drawLabels}: the label each slot last showed, its metres and its text. */
+    /** Render-thread cache for {@link #drawLabels}: the label each slot last showed, its meters and its text. */
     private static WitherDoorsFeature.DoorLabel[] labelFor = new WitherDoorsFeature.DoorLabel[0];
     private static long[] labelMetres = new long[0];
     private static String[] labelText = new String[0];

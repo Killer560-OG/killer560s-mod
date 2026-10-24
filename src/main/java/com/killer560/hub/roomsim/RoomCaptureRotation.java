@@ -69,8 +69,8 @@ import com.killer560.hub.util.ModLog;
  * <p>A room is {@link #isUncertain uncertain} when there is no outright winner, when the winner rests on fewer
  * than two votes, when any source prefers a different rotation, or when the marker or the secrets point ONLY
  * at a rotation the shape veto forbids. That last one is not a tie to be broken: it is a capture laid along the
- * wrong axis or anchored a tile off, holding one tile of this room and a tile of its neighbour - the same fault
- * {@link RoomTileAudit} refuses when the neighbour happens to be captured too. No rotation is right for such a
+ * wrong axis or anchored a tile off, holding one tile of this room and a tile of its neighbor - the same fault
+ * {@link RoomTileAudit} refuses when the neighbor happens to be captured too. No rotation is right for such a
  * capture, and a route recorded in it cannot match Hypixel until it is captured again.
  *
  * <p>Live on Hypixel none of this runs: the live map reads the real roof, and this class is only consulted for a
@@ -411,7 +411,7 @@ public final class RoomCaptureRotation {
     /**
      * A diagnosis, never an answer: when no secret lands at any rotation, whether they land with the room moved
      * one tile in some direction - the signature of a capture box anchored a tile off, so that it holds one tile
-     * of the room and one of its neighbour. Balcony does exactly this (both chests land at 180 one tile west).
+     * of the room and one of its neighbor. Balcony does exactly this (both chests land at 180 one tile west).
      *
      * @return a sentence for the log, or null when no shift lands anything either
      */

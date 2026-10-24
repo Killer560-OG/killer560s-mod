@@ -60,7 +60,7 @@ public final class FlipAutopilot {
      * @param reserve              coins never spent: nothing new is opened that would take the purse under it
      * @param maxOpenOrders        Hypixel's per-player order cap (14 without upgrades - unverified, see the report)
      * @param maxOrdersPerSession  new orders and Insta Buys this session may place; relists do not count
-     * @param maxRelistsPerOrder   relists of one order before it is cancelled instead (price war guard)
+     * @param maxRelistsPerOrder   relists of one order before it is canceled instead (price war guard)
      * @param minRelistAgeMs       an order is left alone this long after it was placed or relisted
      * @param maxOrderUnits        units in one order or one Insta Buy
      * @param maxSpendFraction     share of the spendable purse (purse - reserve) one new buy order may take
@@ -128,7 +128,7 @@ public final class FlipAutopilot {
      *
      * @param products      the Bazaar snapshot
      * @param purse         coins in the purse now
-     * @param holdings      units the SESSION bought (or got back from a cancelled offer) and still carries, by product id.
+     * @param holdings      units the SESSION bought (or got back from a canceled offer) and still carries, by product id.
      *                      Never the player's own items: the bot only sells what it bought.
      * @param costBasis     what each held unit cost, by product id (absent: unknown)
      * @param orders        every open order Manage Orders last showed (the bot's and the player's own)

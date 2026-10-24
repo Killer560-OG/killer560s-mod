@@ -277,7 +277,7 @@ public final class TickTimersFeature {
     }
 
     /** Devonian GoldorFrenzyTimer's "Show Total" - an elapsed count that only ever grows, so (like Tick
-     *  Timers' own "Storm:" counter) it stays a neutral colour instead of the countdown ramp. */
+     *  Timers' own "Storm:" counter) it stays a neutral color instead of the countdown ramp. */
     private static String formatElapsed(long elapsedTicks, String prefix) {
         TickTimersConfig cfg = TickTimersConfig.getInstance();
         return (cfg.isShowPrefix() ? prefix + " " : "") + "§f" + value((int) Math.min(Integer.MAX_VALUE, elapsedTicks), cfg);

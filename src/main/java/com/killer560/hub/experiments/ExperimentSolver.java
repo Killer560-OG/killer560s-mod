@@ -1771,7 +1771,7 @@ final class ExperimentSolver {
      * never paired or a powerup's target while the board is being explored, then collected by
      * {@link #matchSkippedPair} once everything is unveiled if clicks are left ("if it reaches the end with clicks
      * left then it can collect those"). An unpaired reveal claims nothing, so revealing it while exploring is fine.
-     * By NAME, colour codes already stripped: "Grand Experience Bottle" (a Titanic is "Titanic Experience
+     * By NAME, color codes already stripped: "Grand Experience Bottle" (a Titanic is "Titanic Experience
      * Bottle", so it can't match), and any pet tile whose name holds "Guardian" (every rarity shares the name).
      */
     private static boolean isUserSkipped(Cell cell) {
@@ -1835,7 +1835,7 @@ final class ExperimentSolver {
 
     /**
      * A T7 drop (killer560, 2026-10-19): a book whose enchant is at its true max and that max is VII - the level Enchant
-     * Colours paints Perfect ({@code EnchantColorsDefaults.TIERS}, level >= maxLevel) - or the {@link #T7_DYE_NAME}.
+     * Colors paints Perfect ({@code EnchantColorsDefaults.TIERS}, level >= maxLevel) - or the {@link #T7_DYE_NAME}.
      * Max-V enchants (Life Steal V, Chance V, Drain V) are Perfect too but are not T7, so they are left out.
      */
     static boolean isT7Drop(Cell cell) {

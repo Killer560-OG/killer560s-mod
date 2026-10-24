@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The sim's dungeon keys, shaped like Hypixel's (hypixelskyblock.minecraft.wiki, Wither Key / Blood Key, 2026-10-06): a
- * dropped key is a named, invisible armour stand ("Wither Key" / "Blood Key" - what the client's {@code DoorKeysFeature}
+ * dropped key is a named, invisible armor stand ("Wither Key" / "Blood Key" - what the client's {@code DoorKeysFeature}
  * looks for) wearing the key's head ({@link #keyHead}: Hypixel's skins, a black orb and a red one),
  * it is picked up by being near it, and the key then belongs to the whole team ("usable by any person within the
  * dungeon, regardless of whether or not they are the player who obtained it"). A pickup says
@@ -54,7 +54,7 @@ public final class SimKeys {
     static void register() {
         ServerTickEvents.END_SERVER_TICK.register(SimKeys::tick);
         SimKeyRoom.register();
-        // A right click on a key's stand would take its head off (vanilla armour-stand swap). Refused on the server
+        // A right click on a key's stand would take its head off (vanilla armor-stand swap). Refused on the server
         // only, so the client sends exactly what it would send on Hypixel.
         net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register((player, level, hand, entity, hit) ->
                 !level.isClientSide() && entity != null && DROPPED.containsKey(entity.getUUID())

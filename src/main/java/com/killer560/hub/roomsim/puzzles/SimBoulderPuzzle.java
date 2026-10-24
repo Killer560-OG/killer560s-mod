@@ -59,12 +59,12 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * <h2>Geometry</h2>
  *
- * <p>The grid is {@code BoulderSolverFeature}'s own: cell centres at x 24..6 and z 24..9 in steps of 3, the
+ * <p>The grid is {@code BoulderSolverFeature}'s own: cell centers at x 24..6 and z 24..9 in steps of 3, the
  * arrangement sampled at y 66. Decoding {@code Boulder.json} at database rotation 270 shows each box is the full
- * 3x3 around its centre on y 64, 65 and 66, and each button is a wall button at y 65 on a face centre, one block
- * out into the neighbouring cell - which is exactly the {@code [renderX, renderZ, clickX, clickZ]} pair the
+ * 3x3 around its center on y 64, 65 and 66, and each button is a wall button at y 65 on a face center, one block
+ * out into the neighboring cell - which is exactly the {@code [renderX, renderZ, clickX, clickZ]} pair the
  * solver's data gives (render = the face, click = the button). The capture's 31 buttons are the faces whose
- * neighbouring cell is on the grid and empty, so that is the rule the buttons are placed by, and they are placed
+ * neighboring cell is on the grid and empty, so that is the rule the buttons are placed by, and they are placed
  * again after every move.
  *
  * <p>The old version wrote a one-block-wide column per cell (a box is three wide), always used the same pattern,
@@ -173,7 +173,7 @@ public final class SimBoulderPuzzle {
         // dealt that run, so another capture of the same room failed it outright: Mod Only Test's (turned a
         // quarter, a different arrangement, 15 buttons) scored "best 1 of 7" at every rotation and the room was
         // never armed (93-solve, 2026-10-04). Decoded, both captures agree on what does not move: the diorite
-        // squares under every other grid cell (a checkerboard - 21 of the 42 cell centres at y 63) and the far
+        // squares under every other grid cell (a checkerboard - 21 of the 42 cell centers at y 63) and the far
         // staircase under the reward alcove (stone brick stairs at (13..17, 64, 27), the barrier over it at
         // y 68). A wrong rotation puts stone under half the diorite and the stairs into a wall.
         List<int[]> fixed = new ArrayList<>();
@@ -315,7 +315,7 @@ public final class SimBoulderPuzzle {
     }
 
     /**
-     * A wall button on the middle of every box face whose neighbouring cell is on the grid and empty - the rule
+     * A wall button on the middle of every box face whose neighboring cell is on the grid and empty - the rule
      * the capture's own 31 buttons follow. Old buttons that no longer qualify are removed first.
      */
     private static void placeButtons(ServerLevel level) {

@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
  * either of the others.
  * <p>
  * Only ever REWRITES to a real ign this client already has cached, or CANCELS with a disambiguation prompt -
- * anything it doesn't specifically recognise (including a nickname it can't yet resolve) falls straight
+ * anything it doesn't specifically recognize (including a nickname it can't yet resolve) falls straight
  * through to vanilla, completely unchanged, exactly like today. Whatever it DOES send goes through {@link
  * ServerCommands#toServer} - never {@code ClientPacketListener.sendCommand} - since {@code /party}/{@code
  * /friend} are commands meant for Hypixel, not this mod (see that class's own doc for the recursion bug that

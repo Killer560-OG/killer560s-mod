@@ -373,7 +373,7 @@ public final class RouteRecorder {
     }
 
     /**
-     * Where a node goes: the centre of the block the player's feet are in (killer560, 2026-10-04: "Make it so nodes
+     * Where a node goes: the center of the block the player's feet are in (killer560, 2026-10-04: "Make it so nodes
      * need to snap to a whole block for the autoroutes" - it had been AP3's half-block grid), y kept at the feet to a
      * thousandth so a node on carpet or a slab sits on its top ({@code Ap3Node.snapY}). Snapped in WORLD space and then
      * made room-relative, so the grid it lands on is the world's; see {@link RouteNode#snapBlockCentre}.

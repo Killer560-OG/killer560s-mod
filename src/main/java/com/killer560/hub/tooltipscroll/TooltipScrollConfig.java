@@ -16,8 +16,8 @@ import java.nio.file.Path;
  *  Deliberately NOT gated on {@link com.killer560.hub.util.SkyblockGate}: a tooltip taller than the screen is
  *  a vanilla rendering limitation, not a Skyblock one (a shulker box full of named items, another mod's
  *  tooltip, a heavily-enchanted vanilla item all hit it too), and "Skyblock Only" exists to stop the mod
- *  ACTING outside Skyblock, not to un-fix a crop. Enchant Colours, which parses Hypixel lore text, IS gated.
- *  Raised as a judgement call for killer560 to confirm.
+ *  ACTING outside Skyblock, not to un-fix a crop. Enchant Colors, which parses Hypixel lore text, IS gated.
+ *  Raised as a judgment call for killer560 to confirm.
  *  <p>
  *  <b>2026-09-27 rework, killer560:</b> "remove hold a key to scroll." The modifier-key gate
  *  ({@code requireModifier}/{@code modifierKey}) is gone entirely - the wheel now always acts on a hovered

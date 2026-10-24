@@ -11,7 +11,7 @@ import java.util.List;
 /** Finding P3's "Inactive Terminal" marker entities, shared by {@link TerminalAuraFeature} (anything in
  *  range) and {@code TerminalTriggerbotFeature} (only what the crosshair is actually on).
  *  <p>
- *  These armour stands are what a real right-click interacts with, but they don't reliably show up in
+ *  These armor stands are what a real right-click interacts with, but they don't reliably show up in
  *  {@code Minecraft#hitResult} - a marker stand has no pickable hitbox - so the triggerbot ray-traces
  *  against their bounding boxes here rather than reading the client's own crosshair target. */
 public final class TerminalStands {
@@ -45,7 +45,7 @@ public final class TerminalStands {
                 stand.getZ());
     }
 
-    /** The centre of a stand's box - what both features aim their interact at. */
+    /** The center of a stand's box - what both features aim their interact at. */
     public static Vec3 center(ArmorStand stand) {
         return stand.position().add(0, stand.getBbHeight() / 2.0, 0);
     }

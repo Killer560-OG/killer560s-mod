@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * The Custom Color page (2026-10-18): the selected item in a large preview, with its look controls beside it - the
- * colour, the skin (armour), the Hypixel item skin, and the trim and pattern dropdowns. Every change saves at once and
+ * color, the skin (armor), the Hypixel item skin, and the trim and pattern dropdowns. Every change saves at once and
  * the preview redraws with it. Back returns to the main Custom Items page.
  */
 public final class CustomColorScreen extends Screen implements MenuThemedScreen {
@@ -72,7 +72,7 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
         applies.active = canSwitch;
         addRenderableWidget(applies);
 
-        // Row 1: colour, and its on/off.
+        // Row 1: color, and its on/off.
         SettingsButtonWidget colour = SettingsButtonWidget.builder(
                         ColorSwatch.label("Color", e == null ? 0xFFFFFFFF : e.color),
                         b -> {
@@ -90,7 +90,7 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
         use.active = has;
         addRenderableWidget(use);
 
-        // Row 2: armour skin (armour only), and the Hypixel item skin list.
+        // Row 2: armor skin (armor only), and the Hypixel item skin list.
         SettingsButtonWidget skin = SettingsButtonWidget.cycling(
                         Component.literal("Skin: " + (e == null ? "None" : e.skin.label)),
                         (b, dir) -> {
@@ -121,7 +121,7 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
         pattern.active = has && armour;
         addRenderableWidget(pattern);
 
-        // Row 4: every Hypixel dye (HypixelDyes, the hex each dye's lore prints); picking one sets the colour.
+        // Row 4: every Hypixel dye (HypixelDyes, the hex each dye's lore prints); picking one sets the color.
         SettingsButtonWidget dye = SettingsButtonWidget.builder(Component.literal("Dye..."),
                         b -> minecraft.setScreenAndShow(new DyePickerScreen(this, main::setColour)))
                 .bounds(controlX, row(4), controlW, 20).build();

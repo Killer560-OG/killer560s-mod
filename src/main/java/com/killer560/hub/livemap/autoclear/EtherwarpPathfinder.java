@@ -24,7 +24,7 @@ import java.util.List;
  * so no click that used to find a path stops finding one.
  *
  * <p><b>Single searches</b> ({@link #findPath}, the Etherwarp Hopper) are QUOI's {@code EtherwarpPathfinder} in
- * behaviour - A* whose moves are etherwarp rays from a fixed yaw/pitch fan, then {@code smoothPath} - over
+ * behavior - A* whose moves are etherwarp rays from a fixed yaw/pitch fan, then {@code smoothPath} - over
  * {@link EtherSearch} and a byte-per-block {@link LevelEtherGrid}.
  */
 public final class EtherwarpPathfinder {
@@ -238,7 +238,7 @@ public final class EtherwarpPathfinder {
         /** {@link #run()} stopped at {@code deadlineNanos} (then not {@link #proven}). */
         List<Node> run(long deadlineNanos);
 
-        /** After {@link #run}: whether the answer is proved (false only when cancelled). */
+        /** After {@link #run}: whether the answer is proved (false only when canceled). */
         boolean proven();
 
         /** After {@link #run}: no route has fewer warps than this. */
@@ -305,7 +305,7 @@ public final class EtherwarpPathfinder {
     }
 
     /**
-     * Test hook (docs/TESTING-HOOKS.md): every tile click also plans itself without the centre preference and logs
+     * Test hook (docs/TESTING-HOOKS.md): every tile click also plans itself without the center preference and logs
      * that plan's warps and landing, so the testkit can check the preference never costs a warp.
      */
     private static final String CHECK_FEWEST = "killer560.test.checkFewest";
@@ -313,7 +313,7 @@ public final class EtherwarpPathfinder {
     /** No path is longer than this. */
     private static final int MAX_WARPS = 48;
     /**
-     * Bucket width: one node per 2x2 columns and height (doorways and tile centre lines: every landing). 2026-10-05:
+     * Bucket width: one node per 2x2 columns and height (doorways and tile center lines: every landing). 2026-10-05:
      * 3 -> 2 with PARTIAL_FROM 0.6 -> 0.3 took tools/bench/FloorBench whole floors from 8.26 to 8.04 warps a click
      * (the every-landing reference: 7.81 on the same 180 clicks, where bucket 3 took 8.19 and bucket 2 takes 8.01),
      * for 1.9x the edges and warm-up rays - affordable once EtherSearch.aimPast cut a warm-up's rays by 44-71%.
@@ -479,7 +479,7 @@ public final class EtherwarpPathfinder {
         }
         if (path == null) {
             // The floor graph keeps one landing per 2x2 bucket, and its "no way" is a proof about THAT graph only: from
-            // a nook on Atlas's ledge (testkit 404-sim-planner-gaps) every chain of real warps to the room's centre passes
+            // a nook on Atlas's ledge (testkit 404-sim-planner-gaps) every chain of real warps to the room's center passes
             // a landing no bucket kept, so the graph proved no way and nothing else was asked. Ask every landing of the
             // rooms he and the goal are in before giving up.
             List<EtherSearch.Hop> fine = finePlan(level, view, layout, from, to, start, goal, t0);
@@ -532,7 +532,7 @@ public final class EtherwarpPathfinder {
         if (tile6 >= 0 && !graphs.usedExact && graph.lastDepth >= 0) {
             landing += "; landing " + graph.lastDepth + " block(s) from the tile center";
             if (Boolean.getBoolean(CHECK_FEWEST)) {
-                // The testkit's check that the centre preference never costs a warp: the same click on the same
+                // The testkit's check that the center preference never costs a warp: the same click on the same
                 // graph with the preference off, which lands where the search first reaches the tile.
                 WarpGraph.Goal plain = new WarpGraph.Goal();
                 plain.x = goal.x;
@@ -648,7 +648,7 @@ public final class EtherwarpPathfinder {
                 graphRule::ok, deadEnd, graphMinX, graphMaxX, graphMinZ, graphMaxZ, graphMinY, graphMaxY);
     }
 
-    /** The exact search's goal: the block, or (tile6 >= 0) the tile's click region, nearest its centre first. */
+    /** The exact search's goal: the block, or (tile6 >= 0) the tile's click region, nearest its center first. */
     private static ExactWarpSearch.Goal exactGoal(BlockPos to, int tile6) {
         FloorTiles tiles = graphTiles;
         ExactWarpSearch.Goal eg = new ExactWarpSearch.Goal();
@@ -905,7 +905,7 @@ public final class EtherwarpPathfinder {
             if (i < 0 || j < 0 || i > 5 || j > 5) {
                 return -1;
             }
-            // TeleportUtils.etherwarpableInTile: 14 either side of the centre, the centre's y (70) +- 2.
+            // TeleportUtils.etherwarpableInTile: 14 either side of the center, the center's y (70) +- 2.
             if (Math.abs(x - (x0 + 32 * i)) > 14 || Math.abs(z - (z0 + 32 * j)) > 14
                     || y < floorY + 1 - 2 || y > floorY + 1 + 2) {
                 return -1;
@@ -976,7 +976,7 @@ public final class EtherwarpPathfinder {
             made.setFine(EtherwarpPathfinder::doorwayColumn);
             made.partialFrom = PARTIAL_FROM;
             // The quick graph a click uses until the full one is warm (FloorGraphs): same landing rule and tiles,
-            // coarser, only the doorways' own centre lines kept whole, cheap aims.
+            // coarser, only the doorways' own center lines kept whole, cheap aims.
             WarpGraph quick = new WarpGraph(range, STAND_OFFSET, FloorGraphs.QUICK_BUCKET, rule, minY, maxY);
             quick.setTiles(tiles);
             quick.setFine(EtherwarpPathfinder::doorLineColumn);
@@ -995,8 +995,8 @@ public final class EtherwarpPathfinder {
 
     /**
      * Where the graph keeps every landing as its own node rather than one per 3x3: the doorway boxes between
-     * neighbouring tiles (3 wide along the seam, 7 deep across it - SimDoors' carve and the real doorways) and
-     * the tile centre lines every doorway's axis runs along. Every Catacombs door sits on a seam at a tile's centre
+     * neighboring tiles (3 wide along the seam, 7 deep across it - SimDoors' carve and the real doorways) and
+     * the tile center lines every doorway's axis runs along. Every Catacombs door sits on a seam at a tile's center
      * line, so the long sights from one room into the next pass through a doorway along that line, and whether
      * one passes is decided by a block either way. On tools/bench/FloorBench (small floors, against every
      * landing with the full aim) this took the extra warps over the reference from 12% to under 5%.
@@ -1005,7 +1005,7 @@ public final class EtherwarpPathfinder {
         BlockPos first = DungeonLayout.cellCenter(0);
         int wx = x - first.getX();
         int wz = z - first.getZ();
-        int offX = Math.floorMod(wx + 16, 32) - 16;   // from the nearest tile centre line
+        int offX = Math.floorMod(wx + 16, 32) - 16;   // from the nearest tile center line
         int offZ = Math.floorMod(wz + 16, 32) - 16;
         int seamX = Math.floorMod(wx, 32) - 16;       // from the nearest seam
         int seamZ = Math.floorMod(wz, 32) - 16;

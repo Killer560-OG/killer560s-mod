@@ -25,8 +25,8 @@ import java.util.List;
 /**
  * Hypixel dungeon "Tic Tac Toe" solver, ported from QUOI {@code puzzlesolvers/impl/TicTacToeSolver.kt} (itself
  * modified Skyblocker {@code TicTacToe.java}/{@code TicTacToeUtils.java}). The 3x3 board is the map item frames at
- * room-relative x=8, y 70..72, z 15..17; each map's pixel 8256 is colour 114 (X, the computer) or 33 (O, the player).
- * When an odd number of marks is on the board it is the player's turn and alpha-beta minimax (move order centre,
+ * room-relative x=8, y 70..72, z 15..17; each map's pixel 8256 is color 114 (X, the computer) or 33 (O, the player).
+ * When an odd number of marks is on the board it is the player's turn and alpha-beta minimax (move order center,
  * corners, edges) picks the best empty cell, outlined green. Optional "prediction" outlines (yellow), while it is the
  * computer's turn, the square HE clicks next - his best move after the computer's best reply ({@link #safePrediction}).
  * Never clicks - see AutoPuzzles for the auto. Prevent Misclicks fails his click on any other board square.

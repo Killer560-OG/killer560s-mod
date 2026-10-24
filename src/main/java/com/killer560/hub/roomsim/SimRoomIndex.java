@@ -88,7 +88,7 @@ public final class SimRoomIndex {
             return;
         }
         // Must match what SimSecrets actually did, or the waypoints point at where the secrets are not -
-        // and the waypoints are the thing being practised against.
+        // and the waypoints are the thing being practiced against.
         int dbRotation = Math.floorMod(rotation + RoomCaptureRotation.of(room), 360);
         int[] clay = SimSecrets.clayCorner(room, gridX, gridZ, rotation, dbRotation);
         int tilesX = (rotation == 90 || rotation == 270)

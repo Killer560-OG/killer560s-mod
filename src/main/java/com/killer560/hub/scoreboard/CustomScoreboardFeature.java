@@ -35,10 +35,10 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * Custom Scoreboard - a port of SkyHanni's Custom Scoreboard ({@code features/gui/customscoreboard/}), which SkyHanni
- * deprecated in 2026 in favour of the standalone "SkyBlock Custom Scoreboard" mod (meowdding/CustomScoreboard). Hides
+ * deprecated in 2026 in favor of the standalone "SkyBlock Custom Scoreboard" mod (meowdding/CustomScoreboard). Hides
  * the vanilla sidebar ({@code CustomScoreboardGuiMixin}) and draws a rebuilt one from the parsed sidebar, tab list,
  * action bar and {@link ScoreboardExtraData}: an ordered, toggleable list of {@link ScoreboardEntry} lines, with
- * {@link ScoreboardEvent}s inside the Events line. Sidebar lines no pattern recognises are shown unmodified by the
+ * {@link ScoreboardEvent}s inside the Events line. Sidebar lines no pattern recognizes are shown unmodified by the
  * "Unknown Lines" entry (SkyHanni's UnknownLinesHandler), so nothing silently disappears.
  * <p>
  * The full board is only active on Skyblock / p3sim ({@link SkyblockGate#isOnSkyblock()}). Elsewhere the vanilla
@@ -140,7 +140,7 @@ public final class CustomScoreboardFeature {
                 && !currentIsMinimal && !current.isEmpty();
     }
 
-    /** Sidebar lines no pattern recognised this update, unmodified. */
+    /** Sidebar lines no pattern recognized this update, unmodified. */
     static List<String> unknownLines() {
         return unknown;
     }
@@ -499,7 +499,7 @@ public final class CustomScoreboardFeature {
         int[] pos;
         float scale;
         try {
-            // The same anchored, clamped spot the HUD editor shows (Element#layoutPosition), memoised: no allocation
+            // The same anchored, clamped spot the HUD editor shows (Element#layoutPosition), memoized: no allocation
             // while nothing about the board, its scale or the window changed.
             pos = com.killer560.hub.hud.HudElementRegistry.resolvePosition(Element.INSTANCE);
             scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(Element.INSTANCE);
@@ -692,7 +692,7 @@ public final class CustomScoreboardFeature {
         storeAnchor(cfg, x, y, w, h, sw, sh);
     }
 
-    /** {@link Element#layoutPosition()}: memoised on the screen size, the drawn box size and the anchor, so a frame where
+    /** {@link Element#layoutPosition()}: memoized on the screen size, the drawn box size and the anchor, so a frame where
      *  none of them changed returns the same array without measuring or allocating. */
     private static int[] resolveAnchored() {
         Minecraft client = Minecraft.getInstance();
@@ -787,7 +787,7 @@ public final class CustomScoreboardFeature {
         return lines.isEmpty() ? 0 : lines.size() * font.lineHeight + (lines.size() - 1) * cfg.getLineSpacing();
     }
 
-    /** Text area width: the widest line, widened to honour "Min Width" (SkyBlock Custom Scoreboard). */
+    /** Text area width: the widest line, widened to honor "Min Width" (SkyBlock Custom Scoreboard). */
     private static int innerWidth(Font font, List<ScoreboardLine> lines, CustomScoreboardConfig cfg) {
         return Math.max(contentWidth(font, lines), cfg.getMinWidth() - 2 * (cfg.getPadding() + borderSize(cfg)));
     }
@@ -853,7 +853,7 @@ public final class CustomScoreboardFeature {
             ScoreboardBlur.submit(g, x, y, w, h, radius, cfg.getBlurStrength());
         }
         // Menu Theme (killer560, 2026-10-18): Default is the mod menu's theme, so the background, title band and border take
-        // its colours; a theme he picked overrides that. The Box's Background Color keeps only its alpha (how solid the box
+        // its colors; a theme he picked overrides that. The Box's Background Color keeps only its alpha (how solid the box
         // is), and the image background is his own Box setting, so it still shows on Default (never over a picked theme).
         com.killer560.hub.gui.OverlayPalette menu = menuPalette();
         if (cfg.isBackgroundEnabled()) {
@@ -976,8 +976,8 @@ public final class CustomScoreboardFeature {
         return com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.CUSTOM_SCOREBOARD) != null;
     }
 
-    /** Border colour for row {@code row} of an {@code h}-tall border: solid or top-to-bottom gradient. Chroma is
-     *  {@link #drawChromaBorder}, which colours by position along the row too. Border Style Default is the menu's accent
+    /** Border color for row {@code row} of an {@code h}-tall border: solid or top-to-bottom gradient. Chroma is
+     *  {@link #drawChromaBorder}, which colors by position along the row too. Border Style Default is the menu's accent
      *  (alpha from the Border Color, so a faded border stays faded); Custom uses the Border Color and Bottom Color. */
     private static int borderColor(CustomScoreboardConfig cfg, int row, int h, long now) {
         if (cfg.getBorderStyle() == CustomScoreboardConfig.BorderStyle.MENU) {
@@ -1010,13 +1010,13 @@ public final class CustomScoreboardFeature {
         int innerH = h - 2 * t;
         int innerR = Math.max(0, r - t);
         // Each row is one full-width span (top/bottom band) or a left and a right span (the sides), and consecutive
-        // rows with the same spans and colour are merged into one taller fill: the same pixels, but the straight
+        // rows with the same spans and color are merged into one taller fill: the same pixels, but the straight
         // sides of a solid border are now two fills instead of two per pixel row. Every fill is a GUI element with
         // its own matrix copy and intersection test, and this border was 6% of the render thread in a dungeon with
         // the HUD on (95-fps-bench JFR, 2026-10-05) - about 300 fills a frame for a default board.
         int runStart = -1;
         int runA = 0, runB = 0, runColor = 0;
-        // Only a gradient border changes colour from row to row; the others are one colour, looked up once (the menu
+        // Only a gradient border changes color from row to row; the others are one color, looked up once (the menu
         // palette lookup is synchronized and was repeated for every one of the border's rows, every frame).
         boolean rowColours = cfg.getBorderStyle() != CustomScoreboardConfig.BorderStyle.MENU && cfg.isBorderGradient();
         int flatColour = rowColours ? 0 : borderColor(cfg, 0, h, now);
@@ -1064,11 +1064,11 @@ public final class CustomScoreboardFeature {
 
     /**
      * The chroma border (killer560, 2026-10-13): the shared waterfall ({@link ChromaWave}), sampled at each piece's
-     * real GUI position, so the colour bands run diagonally across the board top-left to bottom-right instead of the
-     * whole border changing colour at once. The top/bottom bands are {@link #CHROMA_PIECE}-wide solid pieces, the sides
-     * {@link #CHROMA_SIDE_ROWS}-row vertical gradients with the waterfall's colour at each piece's top and bottom edge,
+     * real GUI position, so the color bands run diagonally across the board top-left to bottom-right instead of the
+     * whole border changing color at once. The top/bottom bands are {@link #CHROMA_PIECE}-wide solid pieces, the sides
+     * {@link #CHROMA_SIDE_ROWS}-row vertical gradients with the waterfall's color at each piece's top and bottom edge,
      * and everything is one {@link GuiRects} element: about 150 pieces for a default board, where the old per-row
-     * chroma colour broke every run into two fills per row (~300 elements).
+     * chroma color broke every run into two fills per row (~300 elements).
      */
     private static void drawChromaBorder(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int t,
                                          CustomScoreboardConfig cfg, float alphaMul) {

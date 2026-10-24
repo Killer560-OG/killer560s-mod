@@ -15,7 +15,7 @@ import java.util.WeakHashMap;
  * {@code SupportersTabListMixin} never matches a real player there. This finds a supporter's exact current IGN as a
  * whole name-shaped word in the row and splices the display text in, the rest of the row's styling untouched.
  * <p>
- * Case-sensitive on purpose (tab rows always show a name in its real capitalisation, and it keeps a supporter called
+ * Case-sensitive on purpose (tab rows always show a name in its real capitalization, and it keeps a supporter called
  * "Mage" off "(Mage 50)"). The row's display-name object is stable until Hypixel updates it, so the result is cached
  * per {@link PlayerInfo} against that object and the current index; the index itself is rebuilt at most once a second.
  * Render thread only.

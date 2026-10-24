@@ -26,13 +26,13 @@ import com.killer560.hub.compat.McCompat;
  * there should be a red section under it that is esp"; 2026-09-20: "for mob esp make wither esp its own section ...
  * also add a regular wither highlight that isn't esp"):
  * <ul>
- * <li><b>Starred Mob Hitboxes</b> (orange) - starred mobs + bats, colours, box style, line width. Starred mobs are never
+ * <li><b>Starred Mob Hitboxes</b> (orange) - starred mobs + bats, colors, box style, line width. Starred mobs are never
  *     range-limited (QUOI's starred ESP: drawn until they die); bats follow Room Scoped or the Range slider. Always depth-tested / line-of-sight.</li>
  * <li><b>Wither Boss Highlight</b> (orange) - the non-ESP F7/M7 wither highlight: Glow Hitbox or Hitbox Fill, never
  *     through walls, never range-limited, with an optional Tracer line to a wither you can see. Exists on both builds.</li>
  * <li><b>ESP</b> (red, cheat jar only) - ONE switch for everything ESP (2026-10-09): the starred mobs and bats above
  *     through walls, and the F7/M7 wither bosses through walls at any range. It uses the Wither Boss Highlight's
- *     colour and Tracer, the tracer then going to every wither through walls.</li>
+ *     color and Tracer, the tracer then going to every wither through walls.</li>
  * </ul>
  * The legit jar never constructs a single widget of the red sections (killer560: "If you are on the legit version it
  * shouldnt mention cheat things at all"), which is also why the tab itself is named "Starred Mob Hitboxes" there and
@@ -184,8 +184,8 @@ public class MobEspTab extends BaseTab {
         }
         // One switch for the whole section (killer560, 2026-10-09: "Make it so there is one toggle for ESP and that is
         // for all things in that section"): starred mobs and bats through walls, and the wither bosses through walls.
-        // The old Through Walls and Wither Bosses toggles are gone. The wither colour and the tracer are the Wither Boss
-        // Highlight's above (killer560, 2026-10-15), so the ESP has no colour or tracer of its own.
+        // The old Through Walls and Wither Bosses toggles are gone. The wither color and the tracer are the Wither Boss
+        // Highlight's above (killer560, 2026-10-15), so the ESP has no color or tracer of its own.
         y += 6;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("ESP", true), mc.font));
         y += 16;

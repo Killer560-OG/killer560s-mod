@@ -121,7 +121,7 @@ public final class ItemRarityFeature {
                 rects.submit();
             }
             default -> {
-                // Under the Inventory Theme the colour fills the slot's frame from line to line, with no grey ring between
+                // Under the Inventory Theme the color fills the slot's frame from line to line, with no gray ring between
                 // (killer560, 2026-10-12: "there shouldn't be that grey space around the outlines for the item rarity").
                 if (!themedInner(graphics, x, y, hotbar, color, 0)) {
                     graphics.fill(x, y, x + 16, y + 16, color);

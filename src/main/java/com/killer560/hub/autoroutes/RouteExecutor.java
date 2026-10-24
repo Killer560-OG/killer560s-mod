@@ -48,7 +48,7 @@ import com.killer560.hub.util.ModChat;
  * furthest recorded sample the player has reached, aims a little further along the path ("carrot") and presses
  * whichever of forward/back/left/right actually carries the player there relative to the live yaw, replaying the
  * recorded sneak/sprint and jumping where the recording jumped or the path climbs. The path SHAPE is the
- * recording's; the TIMING self-corrects, which is the whole lag defence: behind after a lag spike means "not there
+ * recording's; the TIMING self-corrects, which is the whole lag defense: behind after a lag spike means "not there
  * yet, keep going", rubber-banded back means "re-reach the same sample". Keys go through the
  * {@code mixin/AutoRoutesInputMixin} rewrite of the {@code Input} record (physical keys stay readable, so "the
  * player pressed WASD, stop" works), or the key mappings when the mixin config isn't loaded - exactly
@@ -98,7 +98,7 @@ public final class RouteExecutor {
     /**
      * How far round the block a superboom hit its confirmation watches for a change, as a cube. A Superboom does not
      * break the block it lands on: it blows the crypt or weak wall NEAR it ("anywhere close to a crypt", killer560,
-     * 2026-10-01), so the old check - the hit block and its six neighbours - read a boom that opened a crypt one block
+     * 2026-10-01), so the old check - the hit block and its six neighbors - read a boom that opened a crypt one block
      * over as "didn't break anything" and stopped the route (his Museum stack, 2026-10-06: the sim broke 30 blocks).
      */
     private static final int BOOM_WATCH_RADIUS = 3;
@@ -1031,7 +1031,7 @@ public final class RouteExecutor {
         }
         RouteNode node = activeNode;
         if (node != null && node.type == RouteNode.Type.PATH && trapWalk) {
-            // A walked trap-room pair has no teleport of its own: this is the server putting him back. Honoured, never
+            // A walked trap-room pair has no teleport of its own: this is the server putting him back. Honored, never
             // fought, never a stop - AP3's walk planner plans the walk again from where he now is. Checked BEFORE the
             // warp branches below, so a correction mid-walk can never re-fly a hop saved on the pair (killer560,
             // 2026-10-20: a trap-room re-plan only ever walks).
@@ -1041,7 +1041,7 @@ public final class RouteExecutor {
             return;
         }
         if (node != null && node.type == RouteNode.Type.ALIGN && trapWalk) {
-            // An align has no teleport of its own either: the server put him somewhere. Honoured, never fought, never a
+            // An align has no teleport of its own either: the server put him somewhere. Honored, never fought, never a
             // stop - AP3's align carries on from the corrected position (and walks back first if it left the reach).
             reportCorrection(String.format(Locale.US, "during align #%d - aligning on from here", route.indexOf(node) + 1));
             Ap3TrapWalk.onCorrection(client, player);
@@ -1687,7 +1687,7 @@ public final class RouteExecutor {
             noProgressTicks = 0;
             bestTargetDistance = Double.MAX_VALUE;
         } else if (path.get(cursor).distance(rel.x, rel.y, rel.z) > 1.0) {
-            // Rubber-banded backwards onto an earlier stretch of the path: resume from there instead of cutting
+            // Rubber-banded backward onto an earlier stretch of the path: resume from there instead of cutting
             // straight toward a carrot that may now be through a wall (the spec's "re-converges on the same sample").
             int back = path.nearest(Math.max(0, cursor - SEEK_WINDOW), cursor, rel.x, rel.y, rel.z);
             if (back < cursor && path.reached(back, rel.x, rel.y, rel.z, REACH_XZ + 0.2, REACH_Y)) {
@@ -2458,7 +2458,7 @@ public final class RouteExecutor {
     /**
      * An ALIGN node (killer560, 2026-10-20: "an align node that I can do W2 L2 on"): AP3's ALIGN, run by AP3's own code.
      * Walking into its W x L box fired it; {@code Ap3TrapWalk.beginAlign} then brings him to rest on the node's point (the
-     * block centre it was placed on) with Ap3Executor's camera-method align - the discrete planner's key combination each
+     * block center it was placed on) with Ap3Executor's camera-method align - the discrete planner's key combination each
      * tick, the body yaw turned at most ALIGN_YAW_STEP a tick, sprint off - and it is done when both axes are within the
      * AP3 Align Tolerance at rest, held the settle ticks. Nothing but that stop ends it (no fixed delay); AP3's Align
      * Timeout or standing past AP3's reach (4 + W/2 + L/2 from the point) refuses it, which stops the route and says why.
@@ -2632,7 +2632,7 @@ public final class RouteExecutor {
 
     /**
      * The {@code awaitEnabled} modifier's own PREP/CONFIRM cycle - "wait for {@link RouteNode#awaitAmount}
-     * secrets (or a delay) before this node fires", the old {@code AWAIT} node's behaviour, now gating
+     * secrets (or a delay) before this node fires", the old {@code AWAIT} node's behavior, now gating
      * whatever real action {@code node} is instead of being a node of its own (see {@link #tickAction}).
      * On success it clears {@link #awaitPhaseDone} and resets {@link #step}
      * so the node's own action starts fresh the very next tick, rather than finishing the node outright.
@@ -4590,7 +4590,7 @@ public final class RouteExecutor {
         if (mob.distanceTo(player) > CRYPT_SEEK_RANGE) {
             return null;
         }
-        // Reach and line of sight in the sceptre's own terms: the bat flown from his eye at the mob's centre explodes on
+        // Reach and line of sight in the sceptre's own terms: the bat flown from his eye at the mob's center explodes on
         // the first block or mob it meets, and the 6-block blast must take in the mob's box (com.killer560.hub.autoclear
         // .WeaponReach, the numbers Auto Clear plans with). A crypt mob behind a wall the blast cannot reach is skipped.
         // Blocks only: WeaponReach.batImpact also stops at any living entity on the line, and the node's own sceptre bat
@@ -4600,7 +4600,7 @@ public final class RouteExecutor {
     }
 
     /**
-     * Whether a Spirit Sceptre bat flown from his eye at {@code mob}'s centre takes it in: the bat explodes on the first
+     * Whether a Spirit Sceptre bat flown from his eye at {@code mob}'s center takes it in: the bat explodes on the first
      * block it meets (blocks only - see {@link #cryptMobOwed}) and its blast must reach the mob's box
      * ({@link com.killer560.hub.autoclear.WeaponReach}). Shared by the crypt node and Kill Mimic's aimed uses.
      */
@@ -4766,7 +4766,7 @@ public final class RouteExecutor {
      * A Spirit Sceptre BAT node past its {@link #BAT_DOWN_USES} downward uses: the sceptre is used AT the nearest secret
      * bat, one use per {@link #BAT_USE_GAP} ticks (the held key's pace), until the kill or Bat Attack Time. The key is
      * let go - a held use acts on the block along the look, and a look at a bat can have a chest or lever on it - and each use is
-     * a plain item use (no block) at the bat's centre: obvious mode turns the body as every route use does
+     * a plain item use (no block) at the bat's center: obvious mode turns the body as every route use does
      * ({@link #useHeldItem}), legit mode eases the camera and goes once it is within {@link #BAT_AIM_TOLERANCE}.
      * Returns false when no secret bat is there, and the node falls back to looking down.
      */
@@ -5131,7 +5131,7 @@ public final class RouteExecutor {
     /**
      * Where a boom goes from the eye he has now, and the look it goes along ({@link #boomAimYaw}/{@link #boomAimPitch}):
      * the recorded look when from here it still meets {@link #boomPlanned}; else a look from here onto that block (the
-     * recorded hit point, then its face's centre and corners); else, when nothing from here meets it, the dig still names
+     * recorded hit point, then its face's center and corners); else, when nothing from here meets it, the dig still names
      * that block with the recorded face (a dig is not judged by line of sight: testkit 54). With no planned block it is
      * the recorded look from here, as before.
      */
@@ -5376,7 +5376,7 @@ public final class RouteExecutor {
                     break;
                 }
                 breakerQueue.remove(0);
-                // To the BOX, not the centre. The constant above was tightened to the real 4.5 and this
+                // To the BOX, not the center. The constant above was tightened to the real 4.5 and this
                 // measure was left on distToCenterSqr, which reads up to sqrt(0.75) further - so the gate
                 // its own javadoc describes was still off by that much, refusing blocks well inside reach.
                 if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) > BREAKER_RANGE_SQ) {
@@ -5873,7 +5873,7 @@ public final class RouteExecutor {
         }
         lastDugAt.put(pos, client.level.getGameTime());
         // The face the eye actually sees (Breaker Aura's clip, BlockHits). It was always UP, which no dig from below
-        // a block's top can carry: GrimAC PositionBreakA flagged and cancelled every breaker block above the feet
+        // a block's top can carry: GrimAC PositionBreakA flagged and canceled every breaker block above the feet
         // (2026-10-05, 62-argrim), so those blocks never broke.
         Direction face = com.killer560.hub.util.BlockHits.surfaceOrCentre(client.level, pos, player.getEyePosition())
                 .getDirection();
@@ -6015,7 +6015,7 @@ public final class RouteExecutor {
         turnBody(player, yaw, pitch);
     }
 
-    /** {@link #turnBody} toward a point (the centre of a block a breaker or boom node acts on). */
+    /** {@link #turnBody} toward a point (the center of a block a breaker or boom node acts on). */
     private static void turnBodyToward(LocalPlayer player, Vec3 point) {
         TeleportUtils.Rotation r = TeleportUtils.getDirection(player.getEyePosition(), point);
         turnBody(player, player.getYRot() + Mth.wrapDegrees(r.yaw() - player.getYRot()), r.pitch());
@@ -6048,7 +6048,7 @@ public final class RouteExecutor {
      * without warping. So something must also show a teleport happened: the server's position packet since the use
      * (Hypixel and the sim both teleport with one, so a real warp of any length passes, including one onto the spot
      * he stands on), or - should that hook not have applied - having moved half a block, or the use having been sent
-     * from the landing itself (the old behaviour for a warp in place).
+     * from the landing itself (the old behavior for a warp in place).
      */
     private static boolean landed(LocalPlayer player, Vec3 landing) {
         Vec3 pos = player.position();

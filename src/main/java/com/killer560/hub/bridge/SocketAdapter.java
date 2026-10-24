@@ -475,7 +475,7 @@ abstract class SocketAdapter {
     }
 
     /** Worker: send a frame now, outside the rate bucket - only for protocol control frames (sign-in, party
-     *  announce, goodbye), never for data. Serialised: the JDK forbids overlapping sendText calls. */
+     *  announce, goodbye), never for data. Serialized: the JDK forbids overlapping sendText calls. */
     protected final void sendNow(String frame) {
         WebSocket ws = socket;
         if (ws != null && frame != null) {

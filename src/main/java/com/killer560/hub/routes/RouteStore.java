@@ -159,7 +159,7 @@ public final class RouteStore {
             }
             JsonObject root = new JsonObject();
             root.add("routes", arr);
-            WRITER.write(GSON.toJson(root)); // serialised here (a snapshot), written off the render thread
+            WRITER.write(GSON.toJson(root)); // serialized here (a snapshot), written off the render thread
         } catch (Exception e) {
             LOGGER.warn("[WaypointRoutes] Failed to save routes file", e);
         }

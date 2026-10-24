@@ -35,14 +35,14 @@ import com.killer560.hub.compat.McBlocks;
  * boss arena itself is a fixed, non-randomized room, so unlike every dungeon puzzle solver this mod has
  * ported this needs no room-rotation transform at all) the instant the fight starts, whose color maps to
  * one specific real Livid's real display name ("&lt;Color&gt; Livid"). That clue is re-read twice a
- * second, not once, and the highlight is drawn in the identified Livid's own colour, with an optional
+ * second, not once, and the highlight is drawn in the identified Livid's own color, with an optional
  * line to it (skipped while you have the real Blindness effect, since you can't see anything then
  * anyway); a real countdown shows Livid's opening invulnerability. Never attacks - only highlights.
  */
 public final class LividSolverFeature {
 
     private enum Livid {
-        // Box/line colour is the Livid's own wool colour, so "which one did it pick?" is answerable at a
+        // Box/line color is the Livid's own wool color, so "which one did it pick?" is answerable at a
         // glance - killer560, 2026-09-20: "the color changes at some point and ours stays red the whole time".
         VENDETTA("Vendetta", McBlocks.WHITE_WOOL, 1.00f, 1.00f, 1.00f),
         CROSSED("Crossed", McBlocks.MAGENTA_WOOL, 0.85f, 0.25f, 0.85f),
@@ -191,8 +191,8 @@ public final class LividSolverFeature {
         if (client.player != null && client.player.hasEffect(MobEffects.BLINDNESS)) {
             return;
         }
-        // Match Livid (killer560, 2026-10-18): the highlight and the tracer take the Livid's own colour. Custom: the two
-        // colours set in the menu, each on its own.
+        // Match Livid (killer560, 2026-10-18): the highlight and the tracer take the Livid's own color. Custom: the two
+        // colors set in the menu, each on its own.
         boolean match = cfg.getColourMode() == LividSolverConfig.ColourMode.MATCH;
         float[] hc = match ? currentLivid.color : WorldRenderUtils.argbToFloats(cfg.getHighlightColour());
         float[] tc = match ? currentLivid.color : WorldRenderUtils.argbToFloats(cfg.getTracerColour());

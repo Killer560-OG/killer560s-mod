@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Mod User Tag (killer560, 2026-10-19): a coloured diamond before the name of a player who shows as a mod user, when you chose
+ * Mod User Tag (killer560, 2026-10-19): a colored diamond before the name of a player who shows as a mod user, when you chose
  * to see them. Legit is green, cheat is red. Only the name tag changes; nothing else is drawn or sent.
  * {@code EntityRenderer.getNameTag(Entity)} is the same hook the supporter names use.
  */

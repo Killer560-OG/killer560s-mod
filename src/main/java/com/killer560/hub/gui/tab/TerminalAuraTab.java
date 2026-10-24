@@ -56,7 +56,7 @@ public class TerminalAuraTab extends BaseTab {
         //
         // The label turns red past TerminalAuraConfig.SAFE_RANGE, and that is not decoration: 3.0 is the largest
         // range his own GrimAC harness measured without drawing a Reach violation, because a terminal is an
-        // ARMOUR STAND and an entity gets a tighter limit than a block's 4.5. The warning lives on the control
+        // ARMOR STAND and an entity gets a tighter limit than a block's 4.5. The warning lives on the control
         // so it is in front of him while he sets it.
         widgets.add(rangeSlider(contentX, y, halfW, cfg));
         widgets.add(SettingsButtonWidget.cycling(delayText(cfg), (btn, dir) -> {
@@ -112,7 +112,7 @@ public class TerminalAuraTab extends BaseTab {
      *
      * <p>Stored in quarter-block steps so a handle position maps to a value he can actually hit again, and
      * rounded the same way {@code CosmeticsTab}'s scale slider rounds: through the arithmetic once, not twice.
-     * The normalised position is computed from the CLAMPED range, so the handle can never start off the track -
+     * The normalized position is computed from the CLAMPED range, so the handle can never start off the track -
      * which is the failure CLAUDE.md records for the Breaker Aura cooldown slider, where a start position
      * computed negative was the tell that the widget and the setter disagreed.
      */

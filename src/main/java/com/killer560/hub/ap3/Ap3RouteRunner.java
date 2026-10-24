@@ -18,7 +18,7 @@ import java.util.Locale;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Runs an optimised route through the chain's Path nodes - killer560 (2026-09-22): "a movement optimizer/pathfinder...
+ * Runs an optimized route through the chain's Path nodes - killer560 (2026-09-22): "a movement optimizer/pathfinder...
  * set the first node, a second node, a third node... find the most optimal movement to hit each node from the first to
  * the last without skipping one".
  * <p>
@@ -83,7 +83,7 @@ final class Ap3RouteRunner {
     /**
      * How far ABOVE the route's own level a surface may be and still be treated as this route's ground.
      * <p>
-     * Only above. A surface far BELOW is a pit floor, a lower storey, the bottom of a shaft - all real ground that
+     * Only above. A surface far BELOW is a pit floor, a lower story, the bottom of a shaft - all real ground that
      * a route may legitimately fall to or climb from, and the flood already knows it cannot climb back out. A
      * surface far above is a ceiling, and calling that the column's floor severs the field.
      * <p>
@@ -253,7 +253,7 @@ final class Ap3RouteRunner {
         // eleven blocks from its start node - a state nothing was saved for, so a ten-second search began. A
         // second later he aligned and stepped on the node properly, where a saved plan sat waiting from exactly
         // that spot, and he got none of it: the route had already begun, so nothing asked the cache again. He
-        // waited four seconds for an answer to a question about somewhere he had left. Afterwards, the very next
+        // waited four seconds for an answer to a question about somewhere he had left. Afterward, the very next
         // request hit the cache "0.00 blocks from where it was planned".
         //
         // Only while nothing is being driven yet - once a plan is running, the drift check owns re-planning, and
@@ -287,7 +287,7 @@ final class Ap3RouteRunner {
             // following client tick - so it routinely lands one tick after the step it was built for. Adopting it
             // as if it started now anchored `predicted` to a position killer560 had already left, and at 1.08
             // blocks a tick that is an instant drift bigger than DRIFT_LIMIT. Every re-plan after it was late the
-            // same way, so the route spiralled: a schedule meant for one place, driven from another, until it
+            // same way, so the route spiraled: a schedule meant for one place, driven from another, until it
             // turned round and ran off the staircase (2026-09-22, three runs in a row).
             // So: start the plan at the step that belongs to THIS tick, and measure drift from where he really is.
             int late = plan == null ? 0 : Math.max(0, stepIndex - pendingAt);
@@ -614,7 +614,7 @@ final class Ap3RouteRunner {
         // (3.38, 121.000, 83.96) standing on the node.
         //
         // Identified by WHICH NODE it is, never by measuring where he is now. Measuring was the first attempt and
-        // it failed the same evening: he stepped on that node standing at (1.50, 94.50) - a metre from its centre,
+        // it failed the same evening: he stepped on that node standing at (1.50, 94.50) - a meter from its center,
         // just outside a 1x1 box - so the gate was kept, and his log went straight back to "INCOMPLETE 5 ticks,
         // g1 1 blocks round". Where he is standing inside the node he triggered is not the question; that he
         // triggered it is.
@@ -1064,7 +1064,7 @@ final class Ap3RouteRunner {
         for (Ap3Node n : chain.nodes()) {
             // A No Go node is a GHOST BLOCK now, not a forbidden box - see Snap.addGhostBlocks. It goes into
             // the snapshot as solid geometry the search collides with, which is a stronger and more faithful
-            // statement than a Blocked zone: the route is stopped by it rather than merely penalised for
+            // statement than a Blocked zone: the route is stopped by it rather than merely penalized for
             // entering it. It is not somewhere to stand, because nothing is really there.
             if (n.type == Ap3Node.Type.NO_GO) {
                 continue;
@@ -1497,13 +1497,13 @@ final class Ap3RouteRunner {
          * slabs, stairs and carpets give their real height rather than their block's outline.
          */
         /**
-         * The surface this column reports, searched downwards from the top of the band.
+         * The surface this column reports, searched downward from the top of the band.
          * <p>
          * It must keep looking past a surface it cannot stand on. It used to give up at the first block top it
          * found: in a roofed room that is the CEILING, and a ceiling two blocks thick has no headroom, so the whole
          * column was marked an impassable wall and the floor underneath it was never seen. Every such cell reads
          * NaN, the heuristic field marks it blocked, the flood reaches nothing, and the search is left with
-         * straight-line distance - which is exactly the "it just runs straight at the node" behaviour, and why
+         * straight-line distance - which is exactly the "it just runs straight at the node" behavior, and why
          * killer560's ground profiles came back as row after row of X. A roof is not a wall; it is something with a
          * floor under it.
          */

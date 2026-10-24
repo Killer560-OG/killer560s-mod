@@ -98,7 +98,7 @@ public abstract class RangeSliderWidget extends AbstractWidget implements MenuAn
         int w = getWidth();
         int h = getHeight();
         if ((SettingsButtonWidget.inMenu() || SettingsButtonWidget.inThemedScreen())) {
-            // Option A menu: label and range above a recessed track, both knobs on it. The knobs sit at the centres of
+            // Option A menu: label and range above a recessed track, both knobs on it. The knobs sit at the centers of
             // the same handle boxes the mouse maps onto (handleX + HANDLE_WIDTH / 2), so a click lands where it looks.
             var font = Minecraft.getInstance().font;
             String plain = net.minecraft.ChatFormatting.stripFormatting(getMessage().getString());

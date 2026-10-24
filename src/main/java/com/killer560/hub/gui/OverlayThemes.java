@@ -15,7 +15,7 @@ import java.util.Map;
  * Each overlay has a setting stored in {@link ScreenThemes} under its id here: Default (its own look, exactly as before),
  * a menu preset, Custom, or any theme he saved ({@link ScreenThemes#overlayButton}; the list is read live, so a theme made
  * a second ago is in it). The overlay's drawing asks {@link #of} for its {@link OverlayPalette}: null means "draw as you
- * always did", anything else is the colours to use. Nothing else about an overlay changes.
+ * always did", anything else is the colors to use. Nothing else about an overlay changes.
  * <p>
  * {@link #ids} lists every overlay for the testkit, which walks them all.
  */
@@ -31,7 +31,7 @@ public final class OverlayThemes {
     public static final String LEAP_MENU = "leap_menu";
     public static final String ITEM_BROWSER = "item_browser";
     public static final String TERMINAL_SOLVER = "terminal_solver";
-    /** The Custom Scoreboard's board (background, title band and solid border; its text keeps its own colours). */
+    /** The Custom Scoreboard's board (background, title band and solid border; its text keeps its own colors). */
     public static final String CUSTOM_SCOREBOARD = "custom_scoreboard";
     /** The Croesus start button (its id is the Croesus section's: {@link ScreenThemes#section}). */
     public static final String START_BUTTONS = "start_buttons";
@@ -70,8 +70,8 @@ public final class OverlayThemes {
     private static final Map<String, Cached> CACHE = new HashMap<>();
 
     /**
-     * The colours the overlay should draw in, or null when its Menu Theme is Default (draw the overlay's own look).
-     * Re-derived whenever the choice, the menu's Custom colours or a saved theme changes.
+     * The colors the overlay should draw in, or null when its Menu Theme is Default (draw the overlay's own look).
+     * Re-derived whenever the choice, the menu's Custom colors or a saved theme changes.
      */
     public static synchronized OverlayPalette of(String id) {
         int[] c = ScreenThemes.overlayColours(id);

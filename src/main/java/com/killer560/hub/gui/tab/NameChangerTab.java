@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
-/** Name Changer settings - see {@link NameChangerFeature}'s class doc. Own display name (colour, fade, a colour per
+/** Name Changer settings - see {@link NameChangerFeature}'s class doc. Own display name (color, fade, a color per
  *  letter, and a reset), and an editable "real name -> display name" list (same add/edit/delete row pattern as
  *  {@link PosmsgTab}). Randomize Others moved to its own {@link NickhiderTab} (killer560,
  *  2026-10-04). Purely visual: nothing typed or sent to the server changes. */
@@ -70,8 +70,8 @@ public class NameChangerTab extends BaseTab {
         ownField.setMaxLength(64);
         ownField.setValue(cfg.getOwnDisplayName());
         ownField.setHint(Component.literal("§8My display name"));
-        // Preview (killer560, 2026-10-11, the fade fix): the name exactly as it is painted in game - colour, fade and
-        // letter colours - updated as you type. Built here so the responder can reach it; added below the fade row.
+        // Preview (killer560, 2026-10-11, the fade fix): the name exactly as it is painted in game - color, fade and
+        // letter colors - updated as you type. Built here so the responder can reach it; added below the fade row.
         StringWidget preview = new StringWidget(contentX, 0, contentWidth, 12, previewLine(), font);
         ownField.setResponder(text -> {
             cfg.setOwnDisplayName(text);
@@ -136,10 +136,10 @@ public class NameChangerTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
-        // "Fade Colour" (killer560, cosmetics tab: "also allow them to fade the colour") - a second colour
-        // endpoint that turns the flat single-colour name into a per-letter gradient (NameColor#buildFade).
-        // Only the local render sees the gradient - SupportersAutoShare only ever shares the FROM colour
-        // (My Name Color above), since the relay's own contract has no true-colour field to carry it.
+        // "Fade Color" (killer560, cosmetics tab: "also allow them to fade the colour") - a second color
+        // endpoint that turns the flat single-color name into a per-letter gradient (NameColor#buildFade).
+        // Only the local render sees the gradient - SupportersAutoShare only ever shares the FROM color
+        // (My Name Color above), since the relay's own contract has no true-color field to carry it.
         int fadeToggleW = cfg.isOwnColorFadeEnabled() ? Math.min(100, (contentWidth - gap) / 2) : contentWidth;
         widgets.add(SettingsButtonWidget.builder(onOff("Fade Color", cfg.isOwnColorFadeEnabled()), btn -> {
                     cfg.setOwnColorFadeEnabled(!cfg.isOwnColorFadeEnabled());
@@ -156,7 +156,7 @@ public class NameChangerTab extends BaseTab {
         y += 24;
 
         // "Name Animation" (killer560, 2026-10-13: "have it pulsate and kind of do a wave ... where the color shifts
-        // right"): only for a name with a fade or letter colours, the only kind that has colours to move. Shared with
+        // right"): only for a name with a fade or letter colors, the only kind that has colors to move. Shared with
         // the name by Share if Supporter, so other mod users see it too (NameAnimation).
         if (cfg.isOwnColorFadeEnabled() || cfg.hasOwnCharColors()) {
             int animW = (contentWidth - gap) / 2;
@@ -248,7 +248,7 @@ public class NameChangerTab extends BaseTab {
         return Component.literal("Rank: " + cfg.getOwnRank().label);
     }
 
-    /** "Rank Colour: ■" in the picked colour, or "Rank Colour: Rank's Own" when none is picked. */
+    /** "Rank Color: ■" in the picked color, or "Rank Color: Rank's Own" when none is picked. */
     private static Component rankColorText(String label, int argb) {
         if (argb == NameColor.NONE) {
             return Component.literal(label + ": Rank's Own");
@@ -257,7 +257,7 @@ public class NameChangerTab extends BaseTab {
                 Style.EMPTY.withColor(TextColor.fromRgb(argb & 0xFFFFFF))));
     }
 
-    /** The next of "the rank's own" and the 16 chat colours, {@code dir} steps from {@code current}. */
+    /** The next of "the rank's own" and the 16 chat colors, {@code dir} steps from {@code current}. */
     static int stepColor(int current, int dir) {
         int n = NameRank.COLOR_CODES.length() + 1;
         int index = 0;
@@ -279,9 +279,9 @@ public class NameChangerTab extends BaseTab {
     }
 
     /**
-     * "Letter Colours" (killer560, 2026-10-04: "add an option to change each character's colour for your own
-     * name"): one swatch per letter of your display name, each drawn in that letter's current colour. Click one
-     * to pick its colour; "Clear Letter Colours" drops them all so the name's normal colour/fade shows again.
+     * "Letter Colors" (killer560, 2026-10-04: "add an option to change each character's color for your own
+     * name"): one swatch per letter of your display name, each drawn in that letter's current color. Click one
+     * to pick its color; "Clear Letter Colors" drops them all so the name's normal color/fade shows again.
      * It is a dropdown so opening it always lays the row out for the name as currently typed - rebuilding the
      * tab on every keystroke would throw the focus out of the name box.
      */
@@ -295,7 +295,7 @@ public class NameChangerTab extends BaseTab {
         if (!letterColoursOpen) {
             return y;
         }
-        // Indexed exactly as NameChangerFeature.ownStyled colours it: &-codes become §-codes, which are not letters.
+        // Indexed exactly as NameChangerFeature.ownStyled colors it: &-codes become §-codes, which are not letters.
         String text = NameChangerFeature.colorize(cfg.getOwnDisplayName());
         int letters = Math.min(NameColor.visibleLetters(text), NameChangerConfig.MAX_CHAR_COLORS);
         if (letters == 0) {
@@ -359,9 +359,9 @@ public class NameChangerTab extends BaseTab {
         return Component.literal(ch).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(argb & 0xFFFFFF)));
     }
 
-    /** Colour button for a name. killer560 (2026-09-20): "instead of using color codes I select a color for
+    /** Color button for a name. killer560 (2026-09-20): "instead of using color codes I select a color for
      *  it". The picker is free-form ARGB, but a replaced name travels as a legacy-coded string, so the pick
-     *  is snapped to the nearest of Minecraft's 16 chat colours (see {@link NameColor}). */
+     *  is snapped to the nearest of Minecraft's 16 chat colors (see {@link NameColor}). */
     private static AbstractWidget colorButton(int x, int y, int width, String title, int argb,
                                               java.util.function.IntConsumer setter) {
         return SettingsButtonWidget.builder(swatch(argb, width), btn -> {

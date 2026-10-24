@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Inventory Search's match highlight: a full fill of the slot drawn right before vanilla draws the slot's item, at the
  * one {@code Slot.isFake()} call in {@code AbstractContainerScreen#extractSlot(GuiGraphicsExtractor, Slot, int, int)}
- * (javap 26.1.2 and 26.2; the same point {@code InventoryThemeSlotMixin} uses). So the item sits on top of the colour,
+ * (javap 26.1.2 and 26.2; the same point {@code InventoryThemeSlotMixin} uses). So the item sits on top of the color,
  * the tooltip covers both, and a slot another mixin hides with a HEAD cancel gets no orphan fill. Coordinates are
  * slot-local (docs/LESSONS-GUI.md).
  */

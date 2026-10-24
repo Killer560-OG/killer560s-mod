@@ -27,7 +27,7 @@ import java.util.Set;
  * <li><b>Room Cleared</b> - only the room he is standing in (killer560, 2026-10-18: "room alerts should only be for the room
  * the player is currently in"), and only when he saw it uncleared and then saw it clear, via
  * {@link LiveMapFeature#isRoomCleared(int)}. Latched per room (grid main-tile index), cleared on world change. The text
- * is just "Room Cleared!"; the colour is a setting.
+ * is just "Room Cleared!"; the color is a setting.
  * <li><b>Secrets Done</b> - can only really track the room the player is CURRENTLY standing in: the only
  * secrets-found signal this mod has is a single tab-list run-total ({@link DungeonInfoFeature#roomSecretsFound()}),
  * with no per-room breakdown, so which room a given secret came from is only known while you're in it (the
@@ -150,7 +150,7 @@ final class RoomAlerts {
         DungeonAlertsFeature.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 0.25f, 1f);
     }
 
-    /** For the testkit: the text and colour of the alert last raised (blank before any). */
+    /** For the testkit: the text and color of the alert last raised (blank before any). */
     public static String lastAlertText() {
         return alertText;
     }

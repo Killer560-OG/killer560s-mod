@@ -263,7 +263,7 @@ public final class RagAxeFeature {
         }
     };
 
-    /** NoammAddons' centred "rag" text, now driven by every prompt rather than just the Wither King line. */
+    /** NoammAddons' centered "rag" text, now driven by every prompt rather than just the Wither King line. */
     public static final HudElement PROMPT_HUD = new HudElement() {
         @Override
         public String id() {
@@ -283,7 +283,7 @@ public final class RagAxeFeature {
         @Override
         public int defaultY() {
             int h = Minecraft.getInstance().getWindow().getGuiScaledHeight();
-            // Noamm's 0.444h is the same row Room Alerts defaults to; one text line lower so the two centred
+            // Noamm's 0.444h is the same row Room Alerts defaults to; one text line lower so the two centered
             // alerts don't stack when both fire (or in the HUD editor).
             return (int) (h / 2f - h * 0.056f) + 12;
         }

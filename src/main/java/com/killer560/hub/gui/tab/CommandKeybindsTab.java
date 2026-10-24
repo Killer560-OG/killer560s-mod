@@ -44,7 +44,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
             Group.KUUDRA_BASIC, Group.KUUDRA_HOT, Group.KUUDRA_BURNING,
             Group.KUUDRA_FIERY, Group.KUUDRA_INFERNAL);
 
-    /** EditBox's own default text colour (javap, 26.1.2 and 26.2: {@code textColor = -2039584}). */
+    /** EditBox's own default text color (javap, 26.1.2 and 26.2: {@code textColor = -2039584}). */
     private static final int TEXT = 0xFFE0E0E0;
     private static final int REFUSED = 0xFFFF5555;
     private static final int GAP = 6;

@@ -49,7 +49,7 @@ public final class SimSidebar {
     private static final String TEAM = "k560t";
 
     /**
-     * Line {@code i}'s holder: a colour code and a reset and nothing else, which draws as nothing - what Hypixel
+     * Line {@code i}'s holder: a color code and a reset and nothing else, which draws as nothing - what Hypixel
      * does. {@code ScoreboardData.lineText} already drops an owner that is blank once formatting is stripped,
      * so the Custom Scoreboard and every sidebar reader see the prefix alone.
      */
@@ -146,7 +146,7 @@ public final class SimSidebar {
      *
      * <p>killer560 (2026-10-04): "For the sim scoreboard there still shows a lot of stuff like time, keys,
      * k560l4 and stuff like that." So: who this world belongs to, the two things worth glancing at while
-     * practising - secrets and the room he is in - and the Discord link. No clock, no keys/doors, no "not
+     * practicing - secrets and the room he is in - and the Discord link. No clock, no keys/doors, no "not
      * Hypixel" line (the tab list footer still says that). The Catacombs line STAYS: the floor change it
      * produces in {@code DungeonState} is what starts the run timer, Score Calc's run and the Live Map's grid
      * reset (his 2026-10-04 log, the three lines right after "Dungeon floor changed"), and Hypixel shows it too.

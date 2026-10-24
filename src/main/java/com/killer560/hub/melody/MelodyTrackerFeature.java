@@ -253,7 +253,7 @@ public final class MelodyTrackerFeature {
     }
 
     /** Movable in the HUD editor like every other element. Amber-themed: dim-orange bar background, bright
-     *  orange fill, the mod's own off-white text colour (see {@code ModChat}). Default OFF, New tab. */
+     *  orange fill, the mod's own off-white text color (see {@code ModChat}). Default OFF, New tab. */
     private static final class TeamMelodyHudElement implements HudElement {
         static final TeamMelodyHudElement INSTANCE = new TeamMelodyHudElement();
 

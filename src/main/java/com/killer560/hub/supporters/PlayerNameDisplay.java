@@ -23,7 +23,7 @@ import java.util.UUID;
  * <ol>
  *   <li>Your own name, if you've set one in Name Changer ({@link SupportersFeature#isSelfOverridden}) -
  *       returns {@code null} here so the normal Font-level rewrite (which already paints your own name,
- *       colour and fade) does the actual work; this only stops the supporter cosmetic from fighting it.</li>
+ *       color and fade) does the actual work; this only stops the supporter cosmetic from fighting it.</li>
  *   <li>A manual Name Changer rename for THIS player's current real ign - "you explicitly renamed this
  *       specific person" beats "the relay says they picked a name."</li>
  *   <li>Their shared supporter cosmetic name, if any.</li>

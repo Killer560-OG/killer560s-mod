@@ -36,8 +36,8 @@ import com.killer560.hub.compat.McCompat;
  * <li>Candidates: CHEST / TRAPPED_CHEST, LEVER, and skulls that {@link SecretsFeature#isWitherEssence} or
  * {@link SecretsFeature#isRedstoneKey} confirms by skin profile id; and, once a key skull in reach has gone (picked up),
  * the room's REDSTONE_BLOCK once, to put the key on it (QUOI; Place Redstone Key).
- * <li>Nearest candidate within range: chests and levers 4.5 eye to block BOX (QUOI 6.2 to the centre, which the
- * server refused past 4.5); essence skulls QUOI's 4.7 eye to block CENTRE (3.8-4.2 to the box), and never past
+ * <li>Nearest candidate within range: chests and levers 4.5 eye to block BOX (QUOI 6.2 to the center, which the
+ * server refused past 4.5); essence skulls QUOI's 4.7 eye to block CENTER (3.8-4.2 to the box), and never past
  * the 4.5 box cap either. Every click also waits out ActionGate's 20-tick world-change settle (QUOI AuraManager).
  * <li>QUOI's "click delay": a block must have been in range for the cooldown before its first click; a global
  * cooldown also spaces consecutive clicks. A retry is allowed once after 1s if the click didn't take (chest
@@ -122,7 +122,7 @@ public final class SecretAuraFeature {
     private SecretAuraFeature() {
     }
 
-    // ---- logging only (no behaviour reads these) ----
+    // ---- logging only (no behavior reads these) ----
     private static final org.slf4j.Logger LOGGER = CheatUtils.LOGGER;
     /** The gate that held the whole aura last tick ("" = running), logged on change only. */
     private static String lastGateLogged = null;
@@ -375,12 +375,12 @@ public final class SecretAuraFeature {
             if (state.getBlock() == Blocks.LEVER && !inBoss) {
                 leverInitialState.putIfAbsent(key, state.getValue(LeverBlock.POWERED));
             }
-            // To the block's nearest point, not its centre - the measure the server itself uses. See
-            // BlockHits.boxDistanceSq: comparing centre distance against a range capped at vanilla's 4.5
+            // To the block's nearest point, not its center - the measure the server itself uses. See
+            // BlockHits.boxDistanceSq: comparing center distance against a range capped at vanilla's 4.5
             // made the effective reach nearer 4.0 and dropped clicks the server would have taken.
             double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
             if ("essence".equals(kind) || "redstoneKey".equals(kind) || "redstoneNode".equals(kind)) {
-                // A skull goes by its CENTRE, QUOI's 4.7 (see CheatUtilsConfig.MAX_AURA_SKULL_RANGE), and still never
+                // A skull goes by its CENTER, QUOI's 4.7 (see CheatUtilsConfig.MAX_AURA_SKULL_RANGE), and still never
                 // past the 4.5-to-the-box cap every click has.
                 if (Vec3.atCenterOf(pos).distanceToSqr(eye) > skullRangeSq || distSq > capSq) {
                     if (distSq <= capSq * 2.0) {
@@ -436,7 +436,7 @@ public final class SecretAuraFeature {
                     + cfg.getAuraCooldownMs() + " target=" + bestKind + "@" + xyz(bestPos));
             return;
         }
-        // STANDS DOWN WHILE THE INTERACTIVE MAP IS TRAVELLING. killer560 (2026-09-27): "For the aura make those
+        // STANDS DOWN WHILE THE INTERACTIVE MAP IS TRAVELING. killer560 (2026-09-27): "For the aura make those
         // turn off while using the interactive map... if the etherwarp is pathinding to a start node it cannot
         // hit a random node halfway through my secret route and start doing the secret route midway through it
         // should only start from the start node."
@@ -498,7 +498,7 @@ public final class SecretAuraFeature {
         // turned to it: turned this tick, clicked next tick once the movement packet has reported it, given back the
         // tick after. Clicked as it was, a lever behind him drew GrimAC RotationPlace (testkit 419, 2026-10-07).
         // The Redstone Key's node is struck only on a face open to AIR (killer560, 2026-10-12); every other secret on the
-        // face the eye-to-centre ray meets.
+        // face the eye-to-center ray meets.
         boolean node = "redstoneNode".equals(bestKind);
         BlockHitResult aimHit = node
                 ? com.killer560.hub.util.BlockHits.exposedSurface(client.level, bestPos, client.player.getEyePosition())
@@ -523,7 +523,7 @@ public final class SecretAuraFeature {
         lastClickKey = "chest".equals(bestKind) ? key : null;
         lastClickWindows = com.killer560.hub.util.ChestWindows.count();
 
-        // A SURFACE hit, not the block's centre with a hardcoded east face.
+        // A SURFACE hit, not the block's center with a hardcoded east face.
         //
         // Measured 2026-09-28 against a live GrimAC: clicking a lever at 4.50 blocks - inside vanilla's own
         // limit, and accepted by the server - drew a PositionPlace violation every single time, because the hit
@@ -648,7 +648,7 @@ public final class SecretAuraFeature {
         return null;
     }
 
-    /** How far a Redstone Key skull is watched for being picked up, eye to skull centre (killer560, 2026-10-12). */
+    /** How far a Redstone Key skull is watched for being picked up, eye to skull center (killer560, 2026-10-12). */
     static final double KEY_WATCH_RANGE = 10.0;
 
     /**

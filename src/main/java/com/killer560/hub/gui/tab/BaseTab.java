@@ -32,7 +32,7 @@ public abstract class BaseTab {
     /**
      * The menu card's switch (Option A menu, 2026-10-12): which of the widgets this tab just built is its master on/off,
      * or null for a tab with none (the card then has no switch). The default takes the tab's first control, in reading
-     * order, when that control is an ON/OFF button; failing that, an ON/OFF button labelled with the tab's own name or
+     * order, when that control is an ON/OFF button; failing that, an ON/OFF button labeled with the tab's own name or
      * "Enabled". Override where that picks the wrong one.
      */
     public com.killer560.hub.gui.SettingsButtonWidget masterToggle(List<AbstractWidget> built) {
@@ -70,7 +70,7 @@ public abstract class BaseTab {
         return m == null ? List.of() : List.of(m);
     }
 
-    /** The ON/OFF rows of {@code built} labelled {@code labels} (those that exist, in the order given). */
+    /** The ON/OFF rows of {@code built} labeled {@code labels} (those that exist, in the order given). */
     protected static List<com.killer560.hub.gui.SettingsButtonWidget> switchRows(List<AbstractWidget> built, String... labels) {
         List<com.killer560.hub.gui.SettingsButtonWidget> out = new java.util.ArrayList<>();
         for (String l : labels) {
@@ -156,7 +156,7 @@ public abstract class BaseTab {
         String q = query.toLowerCase(Locale.US);
         for (AbstractWidget widget : buildWidgets(0, 0, 200, () -> {})) {
             // Strip § codes first so a styled header (e.g. SectionHeaders' "§c§l" prefix, or a mid-string
-            // colour code) never breaks a match that spans the formatting.
+            // color code) never breaks a match that spans the formatting.
             String text = net.minecraft.ChatFormatting.stripFormatting(widget.getMessage().getString());
             if (text != null && text.toLowerCase(Locale.US).contains(q)) {
                 return true;

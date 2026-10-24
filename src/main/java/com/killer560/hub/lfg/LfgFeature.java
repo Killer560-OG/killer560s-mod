@@ -77,7 +77,7 @@ public final class LfgFeature {
             Pattern.compile("^The party was disbanded because the party leader disconnected\\.$"),
             Pattern.compile("^You left the party\\.$"));
     /**
-     * STUB - Hypixel's line for a Party Finder queue that was cancelled or delisted is not known (needs killer560's
+     * STUB - Hypixel's line for a Party Finder queue that was canceled or delisted is not known (needs killer560's
      * screenshot). Empty, so nothing is matched; when known, add it here anchored on both ends.
      */
     static final List<Pattern> HYPIXEL_DELISTED = List.of();
@@ -636,7 +636,7 @@ public final class LfgFeature {
         }
     }
 
-    /** One line, colour codes stripped and trimmed. */
+    /** One line, color codes stripped and trimmed. */
     public static void onLine(String line) {
         if (line.isEmpty()) {
             return;

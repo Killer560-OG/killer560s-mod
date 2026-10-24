@@ -36,7 +36,7 @@ public final class SettingTooltips {
         }
         // FolderTab draws its accordion rows as "▶ <name>" / "▼ <name>", so drop that prefix - otherwise a
         // category row's key is "▶ live map" and no description can ever match it (2026-09-16 tooltip sweep).
-        // Prefix only, and never the whole label: a button labelled just "▼" (Custom Scoreboard's old reorder
+        // Prefix only, and never the whole label: a button labeled just "▼" (Custom Scoreboard's old reorder
         // arrows were) would become the empty key under a blanket strip.
         if (plain.length() > 1 && (plain.charAt(0) == '▶' || plain.charAt(0) == '▼')) {
             plain = plain.substring(1);

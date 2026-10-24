@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * The Themes tab's Font section (killer560, 2026-10-15): which font, where it applies, its size, and the import folder.
  * Built by {@code MenuThemeTab}; every row acts on {@link FontConfig#getInstance()} at press time, so a profile load
- * that replaced the config object is honoured.
+ * that replaced the config object is honored.
  */
 public final class FontSettings {
 

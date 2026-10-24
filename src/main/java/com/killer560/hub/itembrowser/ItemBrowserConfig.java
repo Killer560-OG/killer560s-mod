@@ -96,7 +96,7 @@ public final class ItemBrowserConfig {
      *  tooltip-altering feature in this mod (EnchantColorsTooltipMixin etc.). */
     private boolean showItemValue = false;
     /** Only draw the panel on the player's inventory screen (killer560, 2026-10-18: "only have the item browser only show in
-     *  inventory open not all menus"). Off = every container screen, the old behaviour. On by default. */
+     *  inventory open not all menus"). Off = every container screen, the old behavior. On by default. */
     private boolean inventoryOnly = true;
 
     private ItemBrowserConfig() {

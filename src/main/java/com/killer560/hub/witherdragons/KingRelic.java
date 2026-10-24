@@ -50,7 +50,7 @@ public enum KingRelic {
         return "Corrupted " + colourName + " Relic";
     }
 
-    /** By Skyblock id first (Odin), then by item name colour (NoammAddons) - e.g. on p3sim, where items may
+    /** By Skyblock id first (Odin), then by item name color (NoammAddons) - e.g. on p3sim, where items may
      *  not carry Hypixel's custom data. */
     public static KingRelic fromStack(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {

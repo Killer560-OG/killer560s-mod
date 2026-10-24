@@ -1,11 +1,11 @@
 package com.killer560.hub.gui;
 
 /**
- * The mod menu's colour presets (killer560, 2026-10-12): Amber (the orange look, the default), Dark (neutral greys),
- * Light (light panels, dark text), Ocean (teal on navy), Green (forest green) and Custom (five colours of his own, started from a preset). Every colour the menu
- * draws is derived from five base colours - accent, panel background, card background, text and the on-switch - by
+ * The mod menu's color presets (killer560, 2026-10-12): Amber (the orange look, the default), Dark (neutral grays),
+ * Light (light panels, dark text), Ocean (teal on navy), Green (forest green) and Custom (five colors of his own, started from a preset). Every color the menu
+ * draws is derived from five base colors - accent, panel background, card background, text and the on-switch - by
  * {@link MenuStyle#use}, so a custom set gets the same bevels, wells, shadows and hover shades as a preset; a panel
- * lighter than mid grey gets the light treatment (grey outlines, soft shadows, no text shadow).
+ * lighter than mid gray gets the light treatment (gray outlines, soft shadows, no text shadow).
  */
 public enum MenuTheme {
 
@@ -37,12 +37,12 @@ public enum MenuTheme {
         this.switchOn = switchOn;
     }
 
-    /** The five editable colours, in {@link Slot} order. */
+    /** The five editable colors, in {@link Slot} order. */
     public int[] base() {
         return new int[]{accent, panel, card, text, switchOn};
     }
 
-    /** One of the colours a Custom theme sets. */
+    /** One of the colors a Custom theme sets. */
     public enum Slot {
         ACCENT("Accent"),
         PANEL("Panel Background"),
@@ -69,15 +69,15 @@ public enum MenuTheme {
         return AMBER;
     }
 
-    /** The five base colours a themed screen draws in: its own Theme setting resolved by {@link ScreenThemes} ("Theme
-     *  Default" = the menu's active colours). The one per-screen lookup every themed screen goes through. */
+    /** The five base colors a themed screen draws in: its own Theme setting resolved by {@link ScreenThemes} ("Theme
+     *  Default" = the menu's active colors). The one per-screen lookup every themed screen goes through. */
     public static int[] forScreen(String screenId) {
         return ScreenThemes.colours(screenId);
     }
 
     private static final MenuTheme[] PRESETS = {AMBER, DARK, LIGHT, OCEAN, GREEN};
 
-    /** The presets only (Custom excluded). One shared array (screen colour lookups run every frame): do not modify it. */
+    /** The presets only (Custom excluded). One shared array (screen color lookups run every frame): do not modify it. */
     public static MenuTheme[] presets() {
         return PRESETS;
     }

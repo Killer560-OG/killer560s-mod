@@ -382,7 +382,7 @@ public final class ActionGate {
     /**
      * The spacing floor, plus its own 0-1 tick of jitter.
      * <p>
-     * killer560's rule: "don't make it a metronome". A flat floor is harmless while a feature's own randomised
+     * killer560's rule: "don't make it a metronome". A flat floor is harmless while a feature's own randomized
      * delay is the thing actually pacing it, but the moment something saturates the gate - a Melody lookahead
      * burst draining, two auras alternating - a fixed floor would emit interactions at exactly N x 50 ms
      * forever, which is a cleaner signature than the bursts this class was written to remove. Re-rolled after
@@ -396,7 +396,7 @@ public final class ActionGate {
         // Jitter is 0-20ms, not 0-50ms. A full tick of jitter on top of a one-tick floor averages 75ms,
         // which silently caps every automation at ~13 clicks/second - and killer560 had just asked Arrow
         // Align for 15-17 cps (59-67ms), a rate the gate would then have made unreachable while looking
-        // like the feature's own settings were being honoured. 0-20ms still breaks up the metronome (no two
+        // like the feature's own settings were being honored. 0-20ms still breaks up the metronome (no two
         // gaps alike) while leaving his configured rates achievable. The gate only ever delays.
         return (minSpacingTicks * 50L + ThreadLocalRandom.current().nextLong(0L, 21L)) * 1_000_000L;
     }
@@ -504,7 +504,7 @@ public final class ActionGate {
     /**
      * {@link #tryAct(Actor, Screen)} for a {@link Kind#SCREEN} actor driving a container whose screen it
      * deliberately never showed (Pet Wheel's "Hide pets menu while summoning": the open-screen packet's
-     * {@code setScreen} is cancelled, so {@code player.containerMenu} is the menu but nothing is on screen).
+     * {@code setScreen} is canceled, so {@code player.containerMenu} is the menu but nothing is on screen).
      * Same rules as a visible screen, with the "focused screen" test replaced by: that exact menu is the
      * player's open container, and no visible container screen is up instead. Every other rule (one per tick,
      * cross-class spacing, settles, priority) is identical.

@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * Interactive Map - the full-screen map you open with a key, split out of the old Live Map tab per killer560
- * (2026-09-17): "Interactive Map should be in its own tab". Room/door colours and checkmarks are shared with the
+ * (2026-09-17): "Interactive Map should be in its own tab". Room/door colors and checkmarks are shared with the
  * HUD map and live in {@link LiveMapTab}; only what is specific to this screen is here.
  * <p>
  * <b>Cheat build only</b> - killer560, 2026-09-20: "the interactive map is the one where I click on a room and it
@@ -198,7 +198,7 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
     private static Component mapModeText(LiveMapConfig cfg) {
         // killer560, 2026-09-27: "have an option where pressing the button to open the map is off of click and
         // it stays open until i press it again or hold to keep it open" - already exactly what "Close On"
-        // (Release/Repress) did; relabelled to Hold/Toggle since that is how he actually described the two modes.
+        // (Release/Repress) did; relabeled to Hold/Toggle since that is how he actually described the two modes.
         return Component.literal("Map Mode: " + (cfg.isCloseOnRepress() ? "Toggle" : "Hold"));
     }
 

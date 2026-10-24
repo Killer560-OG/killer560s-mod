@@ -8,16 +8,16 @@ import java.util.UUID;
 
 /**
  * One row of {@code GET /supporters} - see {@code SUPPORTERS-CONTRACT.md}. {@code rawName} is exactly what the
- * relay sent (plain text, {@code &} colour codes, up to 32 visible chars) - unfiltered and un-colourised;
+ * relay sent (plain text, {@code &} color codes, up to 32 visible chars) - unfiltered and un-colorized;
  * {@link SupportersFeature} is what turns it into something safe to paint. {@code scale} is always clamped
  * into the contract's 0.5-2.0 range here so nothing downstream has to re-check it.
  * <p>
- * {@code colors} (relay field {@code colors}, 2026-10-11): the supporter's fade / letter colours, one {@code 0xRRGGBB}
+ * {@code colors} (relay field {@code colors}, 2026-10-11): the supporter's fade / letter colors, one {@code 0xRRGGBB}
  * per visible letter of {@code rawName}, or {@code null} for an entry without styling - every entry from before that
- * date, and any staff-set one, which then shows its single {@code &} colour as always. A list whose length does not
+ * date, and any staff-set one, which then shows its single {@code &} color as always. A list whose length does not
  * match the letters is dropped here, never half-applied.
  * <p>
- * {@code animation} (relay field {@code animation}, 2026-10-13): Wave or Pulse for those colours ({@link NameAnimation}),
+ * {@code animation} (relay field {@code animation}, 2026-10-13): Wave or Pulse for those colors ({@link NameAnimation}),
  * or {@code null} - always null without {@code colors}, since there is nothing to animate.
  * <p>
  * {@code trail} (relay field {@code trail}, 2026-10-13): the supporter's shared movement trail ({@link TrailSpec}), or

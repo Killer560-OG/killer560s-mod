@@ -33,7 +33,7 @@ import java.util.function.IntPredicate;
  * <p>
  * <b>Room identity.</b> A reported room's name is resolved against the exact same real room database local
  * scanning uses ({@link RoomDatabase#lookupByName}), so it gets the same real type/secrets-total and draws
- * in its real colour. A name that does not resolve (a stale local database, a mismatched-build teammate, a
+ * in its real color. A name that does not resolve (a stale local database, a mismatched-build teammate, a
  * corrupted string, ...) still gets a cell - drawn generic, see {@link MapPainter#drawReportedRoom} - rather
  * than being dropped; nothing in this class can throw on a bad name.
  * <p>

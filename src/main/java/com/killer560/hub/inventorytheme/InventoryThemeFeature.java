@@ -52,7 +52,7 @@ import net.minecraft.world.inventory.Slot;
  * {@code recipeBookComponent.isVisible() && widthTooNarrow} - on a narrow window the real 36-slot grid
  * doesn't render AT ALL while that panel is open, i.e. exactly "a second inventory hud" replacing the
  * real one. Fixed by {@link com.killer560.hub.inventorytheme.mixin.InventoryThemeRecipeBookVisibilityMixin}
- * forcing {@code isVisible()} false (not just cancelling its render) so the caller always takes the
+ * forcing {@code isVisible()} false (not just canceling its render) so the caller always takes the
  * normal path this feature's own mixins already handle - which doubles as killer560's separate "remove
  * ... the recipe book" ask, alongside {@link #register()}'s button hide for the case where it was never
  * open to begin with.
@@ -64,7 +64,7 @@ import net.minecraft.world.inventory.Slot;
  */
 public final class InventoryThemeFeature {
 
-    // Panel and slot colours come from the theme (PanelTheme: Amber's are ModScreen's panel fill 0xFF0D0D0D and
+    // Panel and slot colors come from the theme (PanelTheme: Amber's are ModScreen's panel fill 0xFF0D0D0D and
     // SettingsButtonWidget's control fill 0xFF1A1A1A, the constants this used before themes) or the Slot Color setting.
 
     private static final int SLOT_SIZE = 18;
@@ -155,7 +155,7 @@ public final class InventoryThemeFeature {
     /**
      * The panel, in vanilla's own shape (killer560, 2026-10-12: "change inventory up to essentially be a reskin of the
      * original with its coloring"): a 1-unit outline with its corners cut, a 2-unit raised bevel - light along the top and
-     * left, dark along the bottom and right - and the fill, in the preset's colours ({@link InventoryPalette}), drawn
+     * left, dark along the bottom and right - and the fill, in the preset's colors ({@link InventoryPalette}), drawn
      * procedurally (vanilla's texture is neither copied nor tinted). The player inventory also gets the sunken
      * player-model window and the crafting arrow. Opaque in every preset (killer560, 2026-10-12: "make the inventories
      * not transparent"). GUI units, pixel-exact.
@@ -198,7 +198,7 @@ public final class InventoryThemeFeature {
     }
 
     /** Vanilla's raised panel over {@code (x,y)..(x+w,y+h)}: outline with cut corners, light top-left / dark bottom-right
-     *  bevel two units wide, the two meeting corners left in the fill colour like vanilla's. */
+     *  bevel two units wide, the two meeting corners left in the fill color like vanilla's. */
     static void panel(PixelRects r, int x, int y, int w, int h, InventoryPalette p, int alpha) {
         int fill = withAlpha(p.panel(), alpha);
         int light = withAlpha(p.light(), alpha);
@@ -298,11 +298,11 @@ public final class InventoryThemeFeature {
         }
     }
 
-    /** Replacement for vanilla's grey title label text, drawn at the exact same position vanilla
+    /** Replacement for vanilla's gray title label text, drawn at the exact same position vanilla
      *  already computed ({@code titleLabelX/Y}, read via {@link InventoryThemeGeometryAccessor}) - only
      *  the color changes, so no layout logic is duplicated here. killer560: "remove ... the inventory
      *  text" - the separate "Inventory" sub-label vanilla draws below/beside it is deliberately no
-     *  longer drawn at all (used to render here via {@code inventoryLabelX/Y} in a dim grey). */
+     *  longer drawn at all (used to render here via {@code inventoryLabelX/Y} in a dim gray). */
     public static void drawLabels(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         InventoryThemeGeometryAccessor geo = (InventoryThemeGeometryAccessor) screen;
         Font font = screen.getFont();

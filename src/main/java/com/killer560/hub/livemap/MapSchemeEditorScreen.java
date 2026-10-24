@@ -18,9 +18,9 @@ import net.minecraft.network.chat.Component;
  * it. Make creating a custom color scheme its own button as well instead of toggling through the arrows to get there and
  * make sure you can save them").
  * <p>
- * Left: a sample floor in the scheme's colours, drawn with the Dungeon Map's own geometry (16-unit rooms, 4-unit doors) -
+ * Left: a sample floor in the scheme's colors, drawn with the Dungeon Map's own geometry (16-unit rooms, 4-unit doors) -
  * every room type, an unexplored room, a locked wither door and the blood door, with checkmarks. Right: the scheme's name,
- * its ten colours (each opens the colour picker), Reset to Real Map, Delete (a second click confirms) and Done. Every
+ * its ten colors (each opens the color picker), Reset to Real Map, Delete (a second click confirms) and Done. Every
  * change is saved at once to {@code killer560smod-livemap.json}.
  */
 public class MapSchemeEditorScreen extends Screen implements MenuThemedScreen {

@@ -195,7 +195,7 @@ public final class LagDisplayFeature {
 
     public static final class LagHudElement implements HudElement {
 
-        // The five colours are the user's (LagDisplayConfig, Performance HUD > Colors); lines() reads them once per
+        // The five colors are the user's (LagDisplayConfig, Performance HUD > Colors); lines() reads them once per
         // rebuild into these, and a change of any of them rebuilds the cached lines.
         private static int COLOR_GOOD = LagDisplayConfig.DEFAULT_GOOD;
         private static int COLOR_OK = LagDisplayConfig.DEFAULT_OK;

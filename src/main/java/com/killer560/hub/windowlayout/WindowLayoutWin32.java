@@ -76,7 +76,7 @@ final class WindowLayoutWin32 {
             if (!user32.GetMonitorInfoW(hMonitor, info)) {
                 return null;
             }
-            // rcMonitor = [1..4] must match the GLFW monitor, otherwise MonitorFromRect picked a neighbour.
+            // rcMonitor = [1..4] must match the GLFW monitor, otherwise MonitorFromRect picked a neighbor.
             if (info[1] != x || info[2] != y || info[3] - info[1] != w || info[4] - info[2] != h) {
                 return null;
             }

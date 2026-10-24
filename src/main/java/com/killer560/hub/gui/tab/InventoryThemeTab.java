@@ -113,7 +113,7 @@ public class InventoryThemeTab extends BaseTab {
     }
 
     /** Default, the menu's presets, every theme he saved (read live), then Vanilla and Custom. The menu's own Custom
-     *  colours are not a choice of their own: Default already is whatever the menu is on. */
+     *  colors are not a choice of their own: Default already is whatever the menu is on. */
     public static List<String> themeChoices() {
         List<String> out = new ArrayList<>();
         for (String c : ScreenThemes.builtInChoices()) {

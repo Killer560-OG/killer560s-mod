@@ -54,7 +54,7 @@ final class CommandChatListener {
     private static void onMessage(Component message) {
         try {
             if (!PartyCommandsConfig.getInstance().isEnabled()) {
-                // Lines are not read while off (or outside Skyblock), so a leader learnt earlier may be stale.
+                // Lines are not read while off (or outside Skyblock), so a leader learned earlier may be stale.
                 PartyLeaderTracker.resetIfSet();
                 return;
             }

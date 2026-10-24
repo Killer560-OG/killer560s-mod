@@ -21,8 +21,8 @@ import java.util.Map;
 
 /**
  * Persisted Party Finder Overlay settings ({@link PartyFinderOverlay}). The option set mirrors Devonian's
- * {@code PartyFinderHighlight} / {@code PartyFinderCount} / {@code PartyFinderOverview} features; colours that
- * Devonian hard-codes are exposed here so the overlay can be customised. The overlay itself defaults OFF; the
+ * {@code PartyFinderHighlight} / {@code PartyFinderCount} / {@code PartyFinderOverview} features; colors that
+ * Devonian hard-codes are exposed here so the overlay can be customized. The overlay itself defaults OFF; the
  * three parts default ON so switching the overlay on shows everything.
  */
 public final class PartyFinderOverlayConfig {
@@ -37,7 +37,7 @@ public final class PartyFinderOverlayConfig {
     public static final int DEFAULT_COUNT_COLOR = 0xFFFFFFFF;
 
     /** Devonian "Overview PB": Both = S+ when it exists, otherwise S - and here, failing both, the floor's fastest
-     *  clear at any score (grey, labelled "Any"), so a player with runs but no S is not shown as "NO PB". */
+     *  clear at any score (gray, labeled "Any"), so a player with runs but no S is not shown as "NO PB". */
     public enum PbMode {
         BOTH("Both"), S("S"), S_PLUS("S+");
 

@@ -33,8 +33,8 @@ public enum DungeonClass {
         return (alpha << 24) | (color & 0x00FFFFFF);
     }
 
-    /** The nearest section-sign colour code to {@link #color()}: button labels in this GUI are such strings, and these
-     *  are the codes the rest of the mod's class-coloured text already uses. {@code null} (unknown) is grey. */
+    /** The nearest section-sign color code to {@link #color()}: button labels in this GUI are such strings, and these
+     *  are the codes the rest of the mod's class-colored text already uses. {@code null} (unknown) is gray. */
     public static String colourCode(DungeonClass cls) {
         if (cls == null) {
             return "§7";

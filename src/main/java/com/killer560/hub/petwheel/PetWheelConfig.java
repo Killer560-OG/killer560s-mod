@@ -53,7 +53,7 @@ public final class PetWheelConfig {
     /** Icon Size: a second, independent multiplier on top of {@link #scalePercent} that only grows the pet
      *  picture itself (killer560: "make a way to have the pictures alot bigger as well") - the tile box and
      *  ring radius both grow to fit it (see {@code PetWheelScreen#layout}), so a huge icon setting can't make
-     *  neighbouring slices overlap. */
+     *  neighboring slices overlap. */
     public static final int MIN_ICON_SCALE_PCT = 100;
     public static final int MAX_ICON_SCALE_PCT = 400;
     public static final int DEFAULT_ICON_SCALE_PCT = 100;
@@ -421,7 +421,7 @@ public final class PetWheelConfig {
         wheelPets.removeIf(p -> p.uuid().equals(uuid));
     }
 
-    /** @return true if the swap happened (both indices were valid neighbours-or-not within range). */
+    /** @return true if the swap happened (both indices were valid neighbors-or-not within range). */
     public boolean moveInWheel(int index, int delta) {
         int target = index + delta;
         if (index < 0 || index >= wheelPets.size() || target < 0 || target >= wheelPets.size()) {

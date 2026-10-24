@@ -20,8 +20,8 @@ import java.util.Locale;
 
 /**
  * Custom Crosshair settings - killer560, 2026-10-06: "add a custom crosshair feature, I should be able to fully edit my
- * crosshair in just about every way." A CS2/Valorant-style editor: shape, every dimension, colours, outline, dynamic
- * behaviour and visibility, plus named presets saved beside this file and a short share code.
+ * crosshair in just about every way." A CS2/Valorant-style editor: shape, every dimension, colors, outline, dynamic
+ * behavior and visibility, plus named presets saved beside this file and a short share code.
  * <p>
  * Sizes are in crosshair units: one unit is one GUI pixel of the baseline (2560x1440 at GUI Scale 3, so three screen
  * pixels there) in {@link SizeMode#GUI}, and one screen pixel in {@link SizeMode#PIXELS}. The renderer rounds every
@@ -458,7 +458,7 @@ public final class CustomCrosshairConfig {
 
     // ---- JSON ------------------------------------------------------------------------------------------------------
 
-    /** Every appearance and behaviour field; {@code enabled} only when asked (a preset never switches the feature). */
+    /** Every appearance and behavior field; {@code enabled} only when asked (a preset never switches the feature). */
     public JsonObject toJson(boolean includeEnabled) {
         JsonObject o = new JsonObject();
         if (includeEnabled) {
@@ -576,7 +576,7 @@ public final class CustomCrosshairConfig {
     public static final List<String> BUILT_IN = List.of("Classic", "Vanilla", "Green Pro", "Dot", "Circle Dot",
             "T-Shape", "X", "Valorant");
 
-    /** Puts every appearance/behaviour field back to its default, keeping {@code enabled}. */
+    /** Puts every appearance/behavior field back to its default, keeping {@code enabled}. */
     public void resetLook() {
         applyJson(new CustomCrosshairConfig().toJson(false), false);
     }
@@ -589,7 +589,7 @@ public final class CustomCrosshairConfig {
         resetLook();
         switch (name) {
             case "Vanilla" -> {
-                // Vanilla's 15x15 cross, one GUI pixel thick, colour-inverted against the world.
+                // Vanilla's 15x15 cross, one GUI pixel thick, color-inverted against the world.
                 length = 7f;
                 gap = 0f;
                 dot = true;
@@ -719,7 +719,7 @@ public final class CustomCrosshairConfig {
 
     /**
      * The look as a short code: {@link #CODE_PREFIX} + URL-safe base64 of a fixed byte layout (style, size mode, a flag
-     * word, twelve sizes in 1/20ths as shorts, five ARGB colours) - 50 bytes, 67 characters. Append-only: a later
+     * word, twelve sizes in 1/20ths as shorts, five ARGB colors) - 50 bytes, 67 characters. Append-only: a later
      * version adds bytes at the end, and an older code simply has fewer.
      */
     public String toShareCode() {

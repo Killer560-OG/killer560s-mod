@@ -24,7 +24,7 @@ import com.killer560.hub.compat.McCompat;
  * the first maze teleport has happened (you step on the start pad yourself), one tick after every maze teleport it
  * picks the pad to use in the current cell ({@link MazeRoute} since 2026-10-06: the exit pad, or a way to it over links
  * already taken, else QUOI's exploring order - best, unvisited diagonal, farthest - else a known way to a chamber with
- * a pad still untried), turns the camera to face that pad's centre and holds the forward key until the next teleport. Nothing
+ * a pad still untried), turns the camera to face that pad's center and holds the forward key until the next teleport. Nothing
  * beyond QUOI: no pathing, jumping or strafing. Stops when a screen opens, when there is no pad to go to (the end),
  * when you leave the room, and (safety addition) after 3 seconds of walking without a teleport.
  * <p>
@@ -36,7 +36,7 @@ import com.killer560.hub.compat.McCompat;
  * From there this walks (plain forward-key + camera turn, same primitive already used above for pad-to-pad hops -
  * both "end" and "start" sit on the maze's own starting platform, not across a void gap, so no etherwarp/pathfinder
  * is needed or appropriate here - {@code AutoClearUtils.canPath} already refuses to path ANY "Maze" room for exactly
- * that reason). Since 2026-10-19 the finish walks toward the centre cell's chest, clicking it with its own deliberate
+ * that reason). Since 2026-10-19 the finish walks toward the center cell's chest, clicking it with its own deliberate
  * interact (not {@code SecretAuraFeature} - works even with Secret Aura off) once he is in that cell and in reach, until
  * the server confirms the click; then walks onto the only pad in that cell (the "end" pad, which sends him out), then
  * to this room's own doorway-side spot ({@link AutoClearUtils#roomOverride}, the same one "Interactive Map" uses to
@@ -48,7 +48,7 @@ final class AutoTeleportMaze {
     private static final String ROOM = "Teleport Maze";
     private static final long WALK_TIMEOUT_MS = 3000L;
     private static final long FINISH_WALK_TIMEOUT_MS = 5000L;
-    /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the centre. */
+    /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the center. */
     private static final double AURA_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     private static final double ARRIVE_SQ = 2.25; // 1.5 blocks - "close enough", same feel as QUOI's own pad hops
     // Same fixed relative layout TeleportMazeSolverFeature's own PADS array carries ("end"/"start", the two pads
@@ -84,7 +84,7 @@ final class AutoTeleportMaze {
 
     /** Further than this from the end pad in one tick and the pad has sent him out. */
     private static final double SENT_OUT_SQ = 36.0;
-    /** The centre chamber's interior, database-relative (walls at x 11/19, z 13/21; SIM.md) - the last cell. The
+    /** The center chamber's interior, database-relative (walls at x 11/19, z 13/21; SIM.md) - the last cell. The
      *  end pad (15,69,14) is the only pad in it. */
     private static final int[] CENTRE_MIN_RELATIVE = {12, 68, 14};
     private static final int[] CENTRE_MAX_RELATIVE = {18, 71, 20};
@@ -95,7 +95,7 @@ final class AutoTeleportMaze {
     private static final int MAX_CHEST_CLICKS = 4;
     /** Horizontal distance (squared) inside which the walk stops pushing into the chest and only waits. */
     private static final double CHEST_STOP_SQ = 1.69;
-    /** The chest in the centre cell, once found. */
+    /** The chest in the center cell, once found. */
     private static BlockPos finishChest = null;
     /** {@code ChestWindows.count} when the final step began: a chest window after it is this chest's answer. */
     private static int chestWindowMark = 0;
@@ -221,7 +221,7 @@ final class AutoTeleportMaze {
         }
         if (!wasInRoom) {
             // Only react to teleports made while in the room - or, after a start-pad walk, from when that walk
-            // began, so the start pad's own teleport counts even if the room only read as the maze afterwards.
+            // began, so the start pad's own teleport counts even if the room only read as the maze afterward.
             lastSeq = startSeq >= 0 ? startSeq : TeleportMazeSolverFeature.getTeleportSeq();
             LOGGER.info("[AutoPuzzles] TeleportMaze: entered the maze: baseSeq={} (from {}) tick={}", lastSeq,
                     startSeq >= 0 ? "the start-pad walk" : "the solver now", nowTick());
@@ -589,13 +589,13 @@ final class AutoTeleportMaze {
     }
 
     /**
-     * The last cell: walk toward the chest (clicking it once he is in the centre cell and in reach) until the server
+     * The last cell: walk toward the chest (clicking it once he is in the center cell and in reach) until the server
      * confirms the click, then walk to the only pad in that cell - the end pad - which sends him out, then walk out.
      *
-     * <p>killer560, 2026-10-19: "in tp maze once it gets to the final thing have it walk towards the chest till it
+     * <p>killer560, 2026-10-19: "in tp maze once it gets to the final thing have it walk toward the chest till it
      * realizes it clicked it then once it clicks it have it walk to the only pad in that cell", and the chest is
      * aura'd once he is in the middle cell and in range. This replaced the old finish (one click from the end pad, then
-     * a walk to the start pad, which the centre's wall at z 13 made impossible on Hypixel - SIM.md).
+     * a walk to the start pad, which the center's wall at z 13 made impossible on Hypixel - SIM.md).
      */
     private static void tickFinish(Minecraft client) {
         if (finishStage == FinishStage.CHEST) {
@@ -631,9 +631,9 @@ final class AutoTeleportMaze {
     }
 
     /**
-     * Whether the server has answered a click on the centre chest, and how - the signals the other puzzle autos read
+     * Whether the server has answered a click on the center chest, and how - the signals the other puzzle autos read
      * for a chest (AutoBoulder.chestTaken): a chest window since the final step began (counted as its packet arrives,
-     * so Auto Close Chest cancelling the screen does not hide it), a container screen open, Secret Aura having seen it
+     * so Auto Close Chest canceling the screen does not hide it), a container screen open, Secret Aura having seen it
      * taken, or its lid open. Null while none has come.
      */
     private static String chestClickConfirmed(Minecraft client) {
@@ -676,7 +676,7 @@ final class AutoTeleportMaze {
         finishStageLag = com.killer560.hub.util.ServerLag.mark();
     }
 
-    /** Whether his feet are inside the centre chamber. */
+    /** Whether his feet are inside the center chamber. */
     private static boolean inCentreCell(LocalPlayer player, int[] cr) {
         BlockPos rel = PuzzleCoords.relative(player.blockPosition(), cr);
         return rel.getX() >= CENTRE_MIN_RELATIVE[0] && rel.getX() <= CENTRE_MAX_RELATIVE[0]
@@ -684,8 +684,8 @@ final class AutoTeleportMaze {
     }
 
     /**
-     * Walks toward the chest in the centre cell, holding forward until right beside it, and clicks it (the puzzle
-     * autos' own click: gateWorldClick, then interactBlock) whenever he is inside the centre cell and it is in reach,
+     * Walks toward the chest in the center cell, holding forward until right beside it, and clicks it (the puzzle
+     * autos' own click: gateWorldClick, then interactBlock) whenever he is inside the center cell and it is in reach,
      * again every {@link #CHEST_RECLICK_MS} while no answer has come. Gives up, and says why, after
      * {@link #CHEST_TIMEOUT_MS} with no confirmation.
      */
@@ -823,7 +823,7 @@ final class AutoTeleportMaze {
         walking = true;
     }
 
-    /** Rotates the camera towards {@code target} and holds forward until close, same primitive as the normal
+    /** Rotates the camera toward {@code target} and holds forward until close, same primitive as the normal
      *  pad-to-pad walk above. @return true once this leg is over (arrived, no known target, or timed out) -
      *  callers must check {@code finishStage} afterward since a timeout still advances it. */
     private static boolean walkFinishLeg(Minecraft client, LocalPlayer player, BlockPos target, FinishStage nextStage, String label) {
@@ -874,7 +874,7 @@ final class AutoTeleportMaze {
     private static String padReason = "";
 
     /**
-     * The next pad, from {@link MazeRoute} over what this visit has learnt (the solver's visited pads, exit candidates,
+     * The next pad, from {@link MazeRoute} over what this visit has learned (the solver's visited pads, exit candidates,
      * best pad and the links its teleports showed). QUOI's own pick - best, unvisited diagonal, farthest, and once a
      * chamber was used up "the diagonal again" - walked him BACK through the maze from any pad he had come back
      * through, and on two generated floors of three never reached the middle (2026-10-06); see MazeRoute.

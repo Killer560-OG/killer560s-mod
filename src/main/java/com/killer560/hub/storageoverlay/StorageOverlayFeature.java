@@ -177,14 +177,14 @@ public final class StorageOverlayFeature {
 
             // Third time (2026-10-07, "my storage overlay isn't centered again"): his HUD config held a SAVED
             // storage_overlay position {x: 0, y: 20}, written by the HUD editor at 20:26 that day. A saved position
-            // wins over defaultX(), so every fix to the centring maths above was simply not consulted any more. The
+            // wins over defaultX(), so every fix to the centering math above was simply not consulted any more. The
             // editor writes one for ANY press-release on the box, and this box is a 510x160 rectangle across the top
             // middle of the screen, over Dungeon Info and the other top HUDs - so grabbing one of those, or a drag
             // that snapped to the screen's left edge, parks the overlay at x 0. Deleting the entry (the 2026-09-30
-            // cure) only lasts until the next stray click. And a saved x could never stay centred anyway: the
+            // cure) only lasts until the next stray click. And a saved x could never stay centered anyway: the
             // grid's width changes with the column count, the Scale slider and the window, its x does not.
-            // So the horizontal position is no longer a saved value at all: it is the centre, every frame, at
-            // every GUI scale and window size. The height is still his to drag (a saved y is honoured, in the
+            // So the horizontal position is no longer a saved value at all: it is the center, every frame, at
+            // every GUI scale and window size. The height is still his to drag (a saved y is honored, in the
             // same Auto Scale baseline units the registry uses), and an old saved x is ignored, not deleted.
             @Override
             public int[] layoutPosition() {
@@ -582,7 +582,7 @@ public final class StorageOverlayFeature {
                 return;
             }
             // Every container screen runs this every frame. Not a storage page and not the overview is the same
-            // question shouldHideVanilla answers, memoised on the title object; the title's text and two regexes per
+            // question shouldHideVanilla answers, memoized on the title object; the title's text and two regexes per
             // frame were spent only to find that out (mixin FPS pass, 2026-10-15).
             if (!shouldHideVanilla(screen.getTitle())) {
                 return;
@@ -826,7 +826,7 @@ public final class StorageOverlayFeature {
         graphics.fill(barX, knobY, barX + barW, knobY + knobH, 0xCCFFFFFF);
     }
 
-    /** Scrolls the grid so the slot Storage Item Search asked for is roughly centred in the viewport, once, on the
+    /** Scrolls the grid so the slot Storage Item Search asked for is roughly centered in the viewport, once, on the
      *  first frame after {@link #highlightItem}. Runs after the layout pass (which is what knows where that panel
      *  ended up) and before the normal clamp. */
     private static void applyPendingScroll(List<PanelLayout> layout, int viewportHeightLocal) {
@@ -1245,7 +1245,7 @@ public final class StorageOverlayFeature {
         return renamingKey != null;
     }
 
-    /** Manually forwards a key press to the active rename box - real bug found and fixed (2026-09-08),
+    /** Manually forward a key press to the active rename box - real bug found and fixed (2026-09-08),
      *  per killer560's report that typing a movement key (e.g. "w") while renaming also made him walk.
      *  {@link EditBox#keyPressed} only actually claims (returns true for) navigation/editing keys like
      *  backspace and the arrow keys - a plain letter key is deliberately left unclaimed there, since
@@ -1341,10 +1341,10 @@ public final class StorageOverlayFeature {
      * Found 2026-09-30: nothing checked that the configured count fits. At GUI scale 3 the widest
      * setting (5 columns) is exactly 854 local units, and a small window is far narrower than that -
      * MC's own default 854x480 window is 285 GUI-scaled units wide, where even TWO columns (338) does
-     * not fit. {@code defaultX()} then computed a negative centre, {@code clampIntoScreen} pinned it to
+     * not fit. {@code defaultX()} then computed a negative center, {@code clampIntoScreen} pinned it to
      * x=0, and the columns past the right edge were simply unreachable: a clamp cannot rescue a panel
      * that is wider than the screen, it can only choose which part of it to hide. Dropping a column
-     * instead keeps every column he can see usable and keeps the grid centred.
+     * instead keeps every column he can see usable and keeps the grid centered.
      */
     private static int effectiveColumns() {
         int columns = StorageOverlayConfig.getInstance().getColumns();
@@ -1467,7 +1467,7 @@ public final class StorageOverlayFeature {
             graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, active ? activeBorder : border);
             int labelHeight = font.lineHeight + 4;
             String label = displayLabel(key, prefix);
-            // Amber keeps its gold "§6" active label exactly; Dark and Light colour it with their own (non-orange) accent.
+            // Amber keeps its gold "§6" active label exactly; Dark and Light color it with their own (non-orange) accent.
             if (active && theme.amber()) {
                 graphics.text(font, "§6" + label, panelX + 3, panelY + 3, textColor);
             } else {
@@ -1682,7 +1682,7 @@ public final class StorageOverlayFeature {
         if (!client.isSameThread()) {
             return (id != null ? id.toString() : "unknown-account") + "|" + profile;
         }
-        // Built again only when the account or the profile name changes (the name String is the memoised one below,
+        // Built again only when the account or the profile name changes (the name String is the memoized one below,
         // so identity is exact).
         if (profile != prefixProfile || !java.util.Objects.equals(id, prefixId) || prefixValue == null) {
             prefixValue = (id != null ? id.toString() : "unknown-account") + "|" + profile;

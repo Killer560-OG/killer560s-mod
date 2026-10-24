@@ -30,7 +30,7 @@ import com.killer560.hub.compat.McCompat;
  * {@link I4LeapFeature}). Every leap has an enable switch, an "Auto" child and a target:
  * <ul>
  * <li><b>Fast leap</b>: left-clicking while holding a Spirit Leap / Infinileap (in a dungeon, no screen open) is
- * cancelled and leaps to the target for where you are ({@link #attemptFastLeap()}), falling back to the P3 stage leap.
+ * canceled and leaps to the target for where you are ({@link #attemptFastLeap()}), falling back to the P3 stage leap.
  * Rate-limited by "Fast leap click delay".</li>
  * <li><b>Auto</b>: QUOI's triggers - door opened (outside boss), 2nd Energy Laser charge (P1), Storm's lightning line
  * (predev), 1st/2nd Storm crush (pads), teammate reaching the PY healer spot, Storm's death line, P3 section complete

@@ -6,7 +6,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Reads the auction lines Hypixel appends to an item's lore in its AH menus (plain text, colour codes stripped).
+ * Reads the auction lines Hypixel appends to an item's lore in its AH menus (plain text, color codes stripped).
  * Line shapes from SkyHanni (2026-10-07): {@code AuctionsHighlighter} "§7Buy it now: §6<coins> coins",
  * "§7(?:Starting bid|Top bid): §6<coins> coins", "§7Status: §aSold!" / "§7Status: §cExpired!";
  * {@code AuctionHouseCopyUnderbidPrice} "(?:Buy it now|Starting bid|Top bid): <coins> coins"; Skyblocker

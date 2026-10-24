@@ -22,15 +22,15 @@ import java.util.Map;
  * happen without the cheat see all doors option once you know fairy door is there", "if you dont have see all doors on
  * you cannot see the door after fairy either until fairy is opened and the door is loaded".
  *
- * <p><b>Which doors.</b> Every door cell the map ({@link HeldMap}) colours WITHER or BLOOD with at least one of its two
+ * <p><b>Which doors.</b> Every door cell the map ({@link HeldMap}) colors WITHER or BLOOD with at least one of its two
  * rooms opened - the map shows no door that no opened room reaches, so the door after an unopened Fairy is never one.
- * A door into an opened Fairy room (map colour 82) is only drawn once its block is loaded, so its lock state is real.
- * A wither door whose block is loaded and air is open (the map recolours it on its next update) and is dropped.
+ * A door into an opened Fairy room (map color 82) is only drawn once its block is loaded, so its lock state is real.
+ * A wither door whose block is loaded and air is open (the map recolors it on its next update) and is dropped.
  *
  * <p><b>The Fairy door.</b> Hypixel's map draws the door into an unexplored Fairy room black, like a wither door, while
  * the doorway is empty. So a map-WITHER door from an opened room into an unopened one, whose doorway he has SEEN to be
  * empty (a ray from his eyes reached the doorway's middle without hitting anything), is the Fairy door: drawn in the
- * Fairy colour instead of as a wither door. Until he has seen it, it is what the map says it is, a wither door. It
+ * Fairy color instead of as a wither door. Until he has seen it, it is what the map says it is, a wither door. It
  * stops being the Fairy door once the room beyond is opened on the map, or he or a teammate stands in it.
  *
  * <p>Nothing here scans: the only blocks read are the anchor block of a door the map already shows (its lock state,

@@ -9,7 +9,7 @@ import java.util.Locale;
  * <p>
  * {@link #AMBER} is, value for value, what the Storage Overlay's old "Dark" mode and the Inventory Theme drew before
  * this existed, so a saved old dark setting migrates to it with no visible change. {@link #DARK} keeps Amber's dark
- * fills but swaps every orange/brown line and accent for neutral greys; {@link #LIGHT} is the old Storage Overlay
+ * fills but swaps every orange/brown line and accent for neutral grays; {@link #LIGHT} is the old Storage Overlay
  * "Light" mode with its one orange (the hover border) replaced, plus a light Inventory Theme to match.
  */
 public enum PanelTheme {
@@ -27,7 +27,7 @@ public enum PanelTheme {
     public final int border;
     /** Storage Overlay: a hovered side button's outline. */
     public final int hoverBorder;
-    /** Storage Overlay: the outline (and label colour) of the page that is open right now. */
+    /** Storage Overlay: the outline (and label color) of the page that is open right now. */
     public final int activeBorder;
     public final int text;
     public final int cellBg;

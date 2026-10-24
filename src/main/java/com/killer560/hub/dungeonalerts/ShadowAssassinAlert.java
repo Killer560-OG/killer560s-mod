@@ -20,7 +20,7 @@ final class ShadowAssassinAlert {
         // Packet hook lives in DungeonAlertsPacketMixin (handleInitializeBorder).
     }
 
-    /** The subtitle, in the colour he chose (purple by default; killer560, 2026-10-18). */
+    /** The subtitle, in the color he chose (purple by default; killer560, 2026-10-18). */
     static net.minecraft.network.chat.Component subtitle(DungeonAlertsConfig cfg) {
         return net.minecraft.network.chat.Component.literal("Shadow Assassin!").withStyle(
                 net.minecraft.network.chat.Style.EMPTY.withColor(

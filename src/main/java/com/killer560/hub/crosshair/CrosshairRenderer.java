@@ -11,7 +11,7 @@ import net.minecraft.client.renderer.RenderPipelines;
  * <b>Pixel-perfect.</b> Everything is drawn in SCREEN pixels: the pose is reset and scaled by {@code 1 / guiScale}, so
  * an int passed to {@code fill} is one framebuffer pixel, and every size is rounded to whole pixels before drawing. A
  * one-pixel line is therefore one crisp pixel at any GUI Scale, never a smeared GUI pixel or a half-covered one. The
- * shape is laid out from the corner of its centre square (thickness x thickness), so with integer sizes every edge is
+ * shape is laid out from the corner of its center square (thickness x thickness), so with integer sizes every edge is
  * an integer and the arms are exactly symmetric; quarter-turn rotations are done in integers too. Only a free rotation
  * (anything not a multiple of 90, including the X style's 45) goes through the pose and is not grid-aligned - a
  * diagonal line cannot be.
@@ -25,7 +25,7 @@ public final class CrosshairRenderer {
     private CrosshairRenderer() {
     }
 
-    /** A cached ring: the rectangles covering every pixel whose centre lies in the annulus, rows merged into runs. */
+    /** A cached ring: the rectangles covering every pixel whose center lies in the annulus, rows merged into runs. */
     private static final class Ring {
         int radius = Integer.MIN_VALUE;
         int width;
@@ -134,7 +134,7 @@ public final class CrosshairRenderer {
     public static int lastFillCount;
 
     /**
-     * Draws {@code c} centred on screen pixel ({@code centreX}, {@code centreY}).
+     * Draws {@code c} centered on screen pixel ({@code centreX}, {@code centreY}).
      *
      * @param guiScale the window's GUI scale (screen pixels per GUI pixel), to reach screen pixels
      * @param unit     screen pixels per crosshair unit ({@link CustomCrosshairFeature#unit})
@@ -150,8 +150,8 @@ public final class CrosshairRenderer {
         int len = Math.max(0, Math.round(c.getLength() * unit));
         int gap = Math.round((c.getGap() + spread) * unit);
         int d = Math.max(1, Math.round(c.getDotSize() * unit));
-        // The centre square everything is laid out from. With arms it is the line thickness, and the dot keeps the
-        // same parity so it sits dead centre between them.
+        // The center square everything is laid out from. With arms it is the line thickness, and the dot keeps the
+        // same parity so it sits dead center between them.
         int a = arms ? t : d;
         if (arms && ((d - a) & 1) != 0) {
             d++;
@@ -262,7 +262,7 @@ public final class CrosshairRenderer {
         }
     }
 
-    /** One rectangle in the corner frame, turned {@code k} quarter turns about the centre square's middle. */
+    /** One rectangle in the corner frame, turned {@code k} quarter turns about the center square's middle. */
     private static void rect(GuiGraphicsExtractor g, int k, int a, int x0, int y0, int x1, int y1, int color,
                              boolean invert) {
         int rx0, ry0, rx1, ry1;

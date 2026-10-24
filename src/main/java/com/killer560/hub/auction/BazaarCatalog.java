@@ -123,7 +123,7 @@ public final class BazaarCatalog {
         return productId == null ? null : byId.get(productId);
     }
 
-    /** The product a Hypixel menu calls {@code name} (colour codes already stripped), or null. */
+    /** The product a Hypixel menu calls {@code name} (color codes already stripped), or null. */
     public static String idForName(String name) {
         ensureLoaded();
         return name == null ? null : idByName.get(name.trim().toLowerCase(Locale.ROOT));

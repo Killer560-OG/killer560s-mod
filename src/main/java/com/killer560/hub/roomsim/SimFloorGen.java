@@ -29,7 +29,7 @@ import java.util.Set;
  *
  * <p>The old generator laid a single line of rooms from the entrance to blood. That is not a floor and it is
  * not what a route is written against: on a real floor most of the rooms are off to the side, the order you
- * take them in is the decision being practised, and a corridor removes the decision entirely.
+ * take them in is the decision being practiced, and a corridor removes the decision entirely.
  *
  * <p>The layout itself lives in {@link SimFloorLayout}, which fits rooms together by their real doorways -
  * killer560 (2026-09-29): "it should read which rooms have doors where and make sure that each room is
@@ -38,10 +38,10 @@ import java.util.Set;
  * pair of linked rooms.
  *
  * <p>Rooms-to-blood is the distance from the entrance to the blood door along that map, counted the way he
- * counts it - blood, entrance and fairy are given and do not count towards it.
+ * counts it - blood, entrance and fairy are given and do not count toward it.
  *
  * <p><b>Rooms are rotated now.</b> They were not, for two reasons that both had to be dealt with first: the
- * cells were reserved from the unrotated footprint, so a quarter turn spilled a 2x1 room over its neighbour;
+ * cells were reserved from the unrotated footprint, so a quarter turn spilled a 2x1 room over its neighbor;
  * and {@link SimSecrets} measured every secret from the room's north-west corner whatever the rotation, so a
  * turned room threw its chests outside itself. The footprint is now rotated with the room and the secrets are
  * measured from the corner that matches the rotation, which is what made a door-driven layout possible at all
@@ -192,7 +192,7 @@ public final class SimFloorGen {
         //
         // Setting it here set it too early and in too few places. Too early because SimWorld.open below
         // unloads whatever world is open first, and SimWorld.onWorldUnloaded calls SimState.leave(), which
-        // clears the flag - so from the second generation of a session onwards it was already false by the
+        // clears the flag - so from the second generation of a session onward it was already false by the
         // time the floor was built. Too few places because four other paths build a floor without coming
         // through here at all: SimGenerator's two map-code entries, the map editor's Build, and
         // SimRunHistory's rebuild. All five go through SimBuilder.build, so that is where it belongs.
@@ -486,7 +486,7 @@ public final class SimFloorGen {
      *
      * <p>Placements are keyed by {@code gz * ROOM_GRID + gx} and anchored at their top-left cell, the corner
      * the capture measured from. A room whose footprint runs off the grid or over another room is dropped and
-     * reported rather than pasted on top of its neighbour.
+     * reported rather than pasted on top of its neighbor.
      *
      * @return how many rooms were placed, or -1 if there was nothing to build
      */
@@ -628,7 +628,7 @@ public final class SimFloorGen {
      * At most ONE yellow room on a floor.
      *
      * <p>killer560 (2026-10-01): "there should only be the ability for there to be 1 yellow room per run."
-     * Yellow on the Catacombs map is the miniboss colour - {@code MapPainter} maps colour 74 to it - and the
+     * Yellow on the Catacombs map is the miniboss color - {@code MapPainter} maps color 74 to it - and the
      * room database's name for that type is {@code CHAMPION}, of which it holds four.
      *
      * <p>Done by trimming the CANDIDATE POOL rather than by constraining the layout engine, which is both
@@ -813,7 +813,7 @@ public final class SimFloorGen {
      * <p>Read from the capture rather than from the database's shape string, because the capture is what will
      * actually be pasted. If those two ever disagree the paste wins, so the layout has to be planned against
      * it - planning against the database and pasting the capture is how you get a room overlapping its
-     * neighbour.
+     * neighbor.
      */
     private static int[] cellFootprint(RoomLibrary.Room r) {
         if (r == null) {
@@ -831,9 +831,9 @@ public final class SimFloorGen {
      *
      * <p>Wrong between 00:27 and 01:20 on 2026-09-29, and only for multi-tile rooms. The old form read the
      * captured size as a TILE span and halved it, which was exactly right while capture was inflating every
-     * multi-tile room by a factor of about 1.65 - the two errors cancelled. Fixing the capture left this one
+     * multi-tile room by a factor of about 1.65 - the two errors canceled. Fixing the capture left this one
      * standing alone, and it then planned a 2-tile room into a single cell: 65 blocks pasted into a 32-block
-     * slot, straight over the neighbour. That is "the map isnt generating right".
+     * slot, straight over the neighbor. That is "the map isnt generating right".
      */
     private static int tilesAcross(int size) {
         return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
@@ -875,9 +875,9 @@ public final class SimFloorGen {
      * generator did not follow it. It wrote only the even tile cells and left the connector as NO_ROOM.
      *
      * <p>{@code SimBuilder} pastes one room per group found by flood-filling cells that share an id, and that
-     * flood fill steps ONE cell at a time. From an even tile cell its neighbours are the odd connectors, so on
+     * flood fill steps ONE cell at a time. From an even tile cell its neighbors are the odd connectors, so on
      * a generated floor it never reached the room's other tile: every tile became its own group and the whole
-     * room was pasted at each of them, offset by a tile and smeared over the neighbour. Live captures were
+     * room was pasted at each of them, offset by a tile and smeared over the neighbor. Live captures were
      * fine, which is why this survived - the two paths disagreed about what a room's cells are.
      *
      * <p>Filling the connector fixes it at the source and leaves one convention instead of two. Connectors
@@ -886,7 +886,7 @@ public final class SimFloorGen {
     private static void markRoomCells(int[] cellRoom, int[] cellRotation, List<int[]> cells, int id,
                                       int rotation) {
         // The whole grid box the room's tiles span, which is every tile cell plus every connector between
-        // them - including the CENTRE of a 2x2, which sits diagonally between four tiles and is reached by no
+        // them - including the CENTER of a 2x2, which sits diagonally between four tiles and is reached by no
         // edge midpoint. A first version filled only the edge seams and left 2x2 rooms at 8 cells of 9, which
         // still split the flood fill. The reserved cells are always a rectangle (footprintCells walks a
         // rectangle), so the box IS the room.

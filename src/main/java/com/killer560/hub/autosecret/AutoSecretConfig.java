@@ -44,7 +44,7 @@ public final class AutoSecretConfig {
     private boolean chatFeedback = true;
 
     // ---- Dungeon Autopilot (Auto Secret + Auto Clear + Auto Puzzles under one planner) ----
-    /** What the autopilot optimises for. */
+    /** What the autopilot optimizes for. */
     public enum RunMode {
         SOLO("Solo (300 score)"), PARTY("Party (secrets)");
 

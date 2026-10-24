@@ -228,8 +228,8 @@ public final class Ap3Executor {
     /** Nodes with the {@code ss} modifier entered before Simon Says was done: they fire the tick it is, if he is still
      *  inside (killer560, 2026-10-18: "only trigger that node after ss finishes"). */
     private static final Set<Ap3Node> ssWaiting = Collections.newSetFromMap(new IdentityHashMap<>());
-    /** WALK / RUN boxes he is inside but less centred in than another WALK / RUN he is inside: each fires the tick he
-     *  becomes more centred in it than in any other (killer560, 2026-10-18: "lets say I am in two run nodes at the same
+    /** WALK / RUN boxes he is inside but less centered in than another WALK / RUN he is inside: each fires the tick he
+     *  becomes more centered in it than in any other (killer560, 2026-10-18: "lets say I am in two run nodes at the same
      *  time ... WHichever one i am more in the center of is the one that should toggle on that tick"). */
     private static final Set<Ap3Node> moverDeferred = Collections.newSetFromMap(new IdentityHashMap<>());
     /** Triggered nodes waiting their turn, kept in priority order (ties keep trigger order). */
@@ -288,7 +288,7 @@ public final class Ap3Executor {
     /** Set by {@link #onGateDestroyed()} from the chat hook: Hypixel's own confirmation that a boom worked. */
     private static volatile boolean boomChatConfirmed;
     /** Half-extent of the cube of blocks a boom snapshots for its block-change confirmation. A Superboom's blast is
-     *  bigger than one block, so the 6 face-neighbours the first cut sampled could all be unchanged even when the
+     *  bigger than one block, so the 6 face-neighbors the first cut sampled could all be unchanged even when the
      *  gate really broke (killer560, 2026-09-20: the gate WAS destroyed but AP3 said it wasn't). */
     private static final int BOOM_SCAN_RADIUS = 2;
 
@@ -650,7 +650,7 @@ public final class Ap3Executor {
      * killer560: "drops all movement, leaps, and then no movement on the other side unless it hits a node" - and
      * "Make sure that also happens if I am using auto leap and auto leap goes off during it even if it isnt a node."
      * So: the held walk is dropped for good (never resumed on the far side), the queue is cleared (it was for where
-     * you were), every key is released, and a node mid-way (an align, a stop) is cancelled - you are not there any
+     * you were), every key is released, and a node mid-way (an align, a stop) is canceled - you are not there any
      * more. The one exception is AP3's own LEAP node waiting to confirm its landing: that IS this leap, so it is left
      * to finish. Nothing here touches Fast Leap: AP3 observes the leap, it never cancels, delays or re-triggers it.
      */
@@ -843,7 +843,7 @@ public final class Ap3Executor {
         }
         Vec3 pos = player.position();
         boolean handsOn = !Ap3FreezeState.isFrozen() && physicalMovementKeyDown(client);
-        // The WALK / RUN he is most centred in this tick, of all he stands in (killer560, 2026-10-18: two run nodes
+        // The WALK / RUN he is most centered in this tick, of all he stands in (killer560, 2026-10-18: two run nodes
         // slightly offset, "WHichever one i am more in the center of is the one that should toggle on that tick").
         double bestMover = Double.MAX_VALUE;
         for (Ap3Node node : chain.nodes()) {
@@ -879,7 +879,7 @@ public final class Ap3Executor {
                 fire(node, pos, bestMover);
             } else if (in && !handsOn && moverDeferred.contains(node)
                     && node.edgeFraction(pos) <= bestMover + MOVER_CENTRE_EPS) {
-                // He is now more centred in this one than in the walk / run that fired before it: it takes over.
+                // He is now more centered in this one than in the walk / run that fired before it: it takes over.
                 moverDeferred.remove(node);
                 triggerUnlessSs(node);
             } else if (in && ssWaiting.contains(node) && !ssPending(node)) {
@@ -893,12 +893,12 @@ public final class Ap3Executor {
         }
     }
 
-    /** Two overlapping WALK / RUN boxes this close in {@link Ap3Node#edgeFraction} count as equally centred. */
+    /** Two overlapping WALK / RUN boxes this close in {@link Ap3Node#edgeFraction} count as equally centered. */
     private static final double MOVER_CENTRE_EPS = 1e-6;
 
     /**
-     * A box was entered (or his hands came off inside it): a WALK / RUN he is less centred in than another one he is
-     * also inside waits in {@link #moverDeferred} until he is more centred in it; everything else goes on to
+     * A box was entered (or his hands came off inside it): a WALK / RUN he is less centered in than another one he is
+     * also inside waits in {@link #moverDeferred} until he is more centered in it; everything else goes on to
      * {@link #triggerUnlessSs}.
      */
     private static void fire(Ap3Node node, Vec3 pos, double bestMover) {
@@ -921,7 +921,7 @@ public final class Ap3Executor {
         trigger(node);
     }
 
-    /** Test hook: nodes waiting for Simon Says, and WALK / RUN boxes waiting until he is more centred in them. */
+    /** Test hook: nodes waiting for Simon Says, and WALK / RUN boxes waiting until he is more centered in them. */
     public static int ssWaitingCount() {
         return ssWaiting.size();
     }
@@ -1281,7 +1281,7 @@ public final class Ap3Executor {
      * was looking when they made the node."
      *
      * <p>The angle is the node's OWN recorded yaw and pitch, fed through the same aim path BOOM uses - so the
-     * server sees the rotation before the use, and the camera is put back afterwards rather than left pointing
+     * server sees the rotation before the use, and the camera is put back afterward rather than left pointing
      * wherever the node said. Nothing is swapped: it uses what is held, because "uses an item" is about the
      * action, and which item is his to choose by putting it in his hand.
      *
@@ -1646,7 +1646,7 @@ public final class Ap3Executor {
         Ap3Config.AlignMethod method = fast ? Ap3Config.AlignMethod.CAMERA : cfg.getAlignMethod();
         // Fast Align used to be clamped to 0.001 here no matter what the setting said, which made the setting a
         // lie for this node type and put a hard floor 30,000x looser than the .00000003 killer560 is aiming at
-        // (2026-09-28). The configured value is now honoured; Ap3Config.MIN_ALIGN_TOLERANCE is the only floor,
+        // (2026-09-28). The configured value is now honored; Ap3Config.MIN_ALIGN_TOLERANCE is the only floor,
         // and the default is unchanged, so nothing moves unless he tightens it himself.
         alignTolerance = cfg.getAlignTolerance();
         if (step == Step.PREP) {
@@ -1806,7 +1806,7 @@ public final class Ap3Executor {
                 ModChat.dim(" (" + model + ")"));
     }
 
-    // ---- Path: the optimised route (see Ap3RouteRunner) -----------------------------------------------------------
+    // ---- Path: the optimized route (see Ap3RouteRunner) -----------------------------------------------------------
 
     private static void tickPath(Minecraft client, LocalPlayer player, Ap3Node node) {
         if (step == Step.PREP) {
@@ -2046,7 +2046,7 @@ public final class Ap3Executor {
      * from where the server put him - the align planners and the route runner plan from the live position every tick,
      * and a node box he is put back into fires again as any entered box does. Until then a correction stopped AP3,
      * blocked the node for a second, and two in 10 s switched AP3 off ("Stop On Server Corrections", removed).
-     * Nothing is changed about the packet; vanilla applies it as always, so the corrected position is honoured.
+     * Nothing is changed about the packet; vanilla applies it as always, so the corrected position is honored.
      *
      * <p>Ordinary teleports during normal play - every warp, every leap - print nothing: only a packet while AP3 is
      * moving him counts.
@@ -2823,7 +2823,7 @@ public final class Ap3Executor {
      * <li>on the far side nothing moves: {@link #onLeapHappened} (fed by the landing) clears anything queued, and
      *     only a node at the destination can start movement again.</li>
      * </ol>
-     * If the leap fails or is cancelled (no target, menu never opened, timeout) the movement stays released - the
+     * If the leap fails or is canceled (no target, menu never opened, timeout) the movement stays released - the
      * hold was dropped before the request, and a failure ends in {@link #stop}, never in a resumed walk.
      */
     private static void tickLeap(Minecraft client, LocalPlayer player, Ap3Node node) {
@@ -3137,7 +3137,7 @@ public final class Ap3Executor {
     // to make faster AP3s." Same shape as BOOM - swap, one interaction along the node's recorded yaw/pitch from the
     // live eye (the camera is not turned) - but the interaction is a block PLACE through the game's own
     // gameMode.useItemOn, so the block appears client-side at once (the ghost block) whatever the server decides.
-    // It does not end a held walk (Type.keepsHold) and swaps back to the slot you had afterwards.
+    // It does not end a held walk (Type.keepsHold) and swaps back to the slot you had afterward.
 
     /** Dev diagnostics: the spot the last Block node placed into, watched for a second. */
     private static BlockPos blockWatchPos;
@@ -3317,7 +3317,7 @@ public final class Ap3Executor {
         for (int[] k : AIM_KEYS) {
             float yaw = walkYaw - k[2]; // the facing that points this combination along the walk
             for (int i = 0; i <= 360; i++) {
-                // centre-out search from the node's own pitch
+                // center-out search from the node's own pitch
                 float step = (i % 2 == 0 ? 1 : -1) * ((i + 1) / 2) * 0.5f;
                 float pitch = node.pitch + step;
                 if (pitch < -90f || pitch > 90f) {
@@ -3335,7 +3335,7 @@ public final class Ap3Executor {
     }
 
     /** A Block node places into hit.pos + face: any ray that ends in the same placement spot is as good (a different
-     *  face of a neighbouring block included). A Boom needs the same block. */
+     *  face of a neighboring block included). A Boom needs the same block. */
     private static boolean sameTarget(Ap3Node node, BlockHitResult hit, BlockHitResult ref) {
         if (node.type == Ap3Node.Type.BLOCK) {
             // Same spot AND the same half (killer560, 2026-09-21: "it is important that it is on the bottom or top half
@@ -3653,7 +3653,7 @@ public final class Ap3Executor {
      * <p>
      * What "walk at the 45 degree angle that gets the approximately 2% speed boost" really is in 26.1.2, read from
      * the game's own bytecode (javap on the 26.1.2 jar, {@code LocalPlayer.modifyInput}): the key-derived
-     * {@code moveVector} is normalised, scaled by 0.98, then passed through {@code modifyInputSpeedForSquareMovement}
+     * {@code moveVector} is normalized, scaled by 0.98, then passed through {@code modifyInputSpeedForSquareMovement}
      * = {@code unit * min(length * distanceToUnitSquare(unit), 1)}, where the unit-square distance is 1 for a
      * straight input and sqrt(2) for a 45-degree one. So a plain W press ends at 0.98 and a W+A press at
      * min(0.98 * 1.414, 1) = 1.00 - the ~2%. Since this class writes the vector itself, the length it writes decides

@@ -33,8 +33,8 @@ import java.util.regex.Pattern;
  * packet listener; the mixin catches anything thrown and lets vanilla add the line as normal.
  * <p>
  * <b>Stack Duplicate Messages</b>: a line identical to one of the last {@value #STACK_WINDOW_MESSAGES} messages in chat
- * that arrived at most {@value #STACK_WINDOW_SECONDS} s ago (same text, same colours and formatting, same click events;
- * hover is ignored) takes that copy's place: the earlier copy is removed and one line ending in a grey {@code (x2)},
+ * that arrived at most {@value #STACK_WINDOW_SECONDS} s ago (same text, same colors and formatting, same click events;
+ * hover is ignored) takes that copy's place: the earlier copy is removed and one line ending in a gray {@code (x2)},
  * {@code (x3)} ... is added at the bottom, where the newest chat is read (killer560, 2026-10-08: "if a message comes in
  * between something that would stack then they should still stack"; until then only consecutive repeats stacked). The
  * window is bounded both ways so an old line is never pulled down from far up the history, and the search is at most
@@ -192,7 +192,7 @@ public final class ChatTidy {
     /**
      * The earlier copy {@code incoming} repeats within the window, or null. {@code all} is the chat's
      * {@code allMessages} (newest first); {@code visible} is its visible-message filter. The returned content is the
-     * FIRST copy's component (its click and hover events) plus a grey {@code (xN)}.
+     * FIRST copy's component (its click and hover events) plus a gray {@code (xN)}.
      */
     public static Match findStack(List<GuiMessage> all, GuiMessage incoming, java.util.function.Predicate<GuiMessage> visible) {
         if (incoming == null || incoming.signature() != null || all.isEmpty()) {
@@ -329,7 +329,7 @@ public final class ChatTidy {
         return out;
     }
 
-    /** The colour of the last run of the newest chat message ("gray" for a stack suffix), or "" if none. */
+    /** The color of the last run of the newest chat message ("gray" for a stack suffix), or "" if none. */
     public static String testNewestLastColour() {
         ChatComponent chat = McCompat.chat(Minecraft.getInstance());
         List<GuiMessage> all = ((com.killer560.hub.chattidy.mixin.ChatTidyAccessor) chat).killer560smod$getAllMessages();

@@ -24,8 +24,8 @@ import java.util.regex.Pattern;
  */
 public final class Shortbows {
 
-    /** Yaw between neighbouring arrows of a multi-arrow shot, in degrees - QUOI's Terminator side arrows (AutoBlaze
-     *  shoots them at {@code yaw +- 5}), the same pitch as the centre one. */
+    /** Yaw between neighboring arrows of a multi-arrow shot, in degrees - QUOI's Terminator side arrows (AutoBlaze
+     *  shoots them at {@code yaw +- 5}), the same pitch as the center one. */
     public static final float SPREAD_DEGREES = 5f;
 
     private static final Pattern ARROW_COUNT = Pattern.compile("^Shoots ([2-9]) arrows at once\\.?$");
@@ -73,7 +73,7 @@ public final class Shortbows {
         return 1;
     }
 
-    /** Yaw offsets (degrees) of each arrow of an {@code n}-arrow shot, centred: 1 -> {0}, 3 -> {-5, 0, 5}. */
+    /** Yaw offsets (degrees) of each arrow of an {@code n}-arrow shot, centered: 1 -> {0}, 3 -> {-5, 0, 5}. */
     public static float[] yawOffsets(int n) {
         float[] out = new float[Math.max(1, n)];
         for (int i = 0; i < out.length; i++) {

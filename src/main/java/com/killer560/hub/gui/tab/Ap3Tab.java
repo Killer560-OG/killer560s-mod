@@ -116,7 +116,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             return w;
         }
 
-        // Reorganised 2026-09-21 (killer560: "go through and reorganize the menu"): config file, then the controls
+        // Reorganized 2026-09-21 (killer560: "go through and reorganize the menu"): config file, then the controls
         // you reach for while testing, then how it moves, how it talks, how nodes look, and the collapsibles last.
         // The "AP3 status:" line is gone (killer560: "remove the ap3 status: line").
         w.add(SettingsButtonWidget.builder(Component.literal("Choose AP3 Config: \u00a76" + cfg.getChainsFile()), btn -> {
@@ -185,7 +185,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             header(w, contentX, y, contentWidth, "Dev Tools");
             toggle(w, contentX, y, "Align Timer (dev)", cfg::isAlignTimerDevRaw, cfg::setAlignTimerDev, null);
         }
-        // killer560 (2026-09-21): colours "right above the keybinds section and also make that collapsible".
+        // killer560 (2026-09-21): colors "right above the keybinds section and also make that collapsible".
         buildColorSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         buildKeybindSection(w, cfg, contentX, y, contentWidth, requestRebuild);
         // The AP3 screens' Theme (Choose AP3 Config, /ap3 edit; screen sweep 2026-10-13).
@@ -231,7 +231,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
     /**
      * The world labels (killer560, 2026-09-16: "have it label nodes that i make. For instance the very first node
      * is 1 the second is 2 and so on. It should be toggleable for color and if it shows"): a master switch, the
-     * three parts of a label, the colour choice, and the same scale / height knobs Posmsg's waypoints have.
+     * three parts of a label, the color choice, and the same scale / height knobs Posmsg's waypoints have.
      */
     private void buildLabelSection(List<AbstractWidget> w, Ap3Config cfg, int x, int[] y, int width, int half, Runnable rebuild) {
         header(w, x, y, width, "Node Labels");
@@ -251,7 +251,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         toggleCell(w, x + half + GAP, y[0], right, "Show Node Type", cfg::isShowNodeType, cfg::setShowNodeType);
         y[0] += ROW + GAP;
         toggleCell(w, x, y[0], half, "Show Node Details", cfg::isShowNodeDetails, cfg::setShowNodeDetails);
-        // "toggleable for colour": the node's own colour (so the number matches its box) or one fixed colour.
+        // "toggleable for colour": the node's own color (so the number matches its box) or one fixed color.
         w.add(SettingsButtonWidget.cycling(labelColorModeText(cfg), (btn, dir) -> {
                     cfg.setLabelUseNodeColor(!cfg.isLabelUseNodeColor());
                     cfg.save();
@@ -355,7 +355,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
     }
 
     /** Delegates to the config rather than keeping a second copy - the duplicate table had drifted from
-     *  the real defaults for 10 of the 11 node types, so "reset" set a colour that was never the default
+     *  the real defaults for 10 of the 11 node types, so "reset" set a color that was never the default
      *  (2026-09-16 review). */
     private static int defaultColor(Ap3Node.Type type) {
         return Ap3Config.defaultNodeColor(type);
@@ -416,7 +416,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
     }
 
-    /** Colour picker button. {@code save} is what persists the picked value; null = the settings file. */
+    /** Color picker button. {@code save} is what persists the picked value; null = the settings file. */
     private static void colorButton(List<AbstractWidget> w, int x, int y, int width, String label, int argb, int defaultArgb,
                                     IntConsumer apply, Runnable save) {
         w.add(SettingsButtonWidget.builder(ColorSwatch.label(label, argb), btn -> {

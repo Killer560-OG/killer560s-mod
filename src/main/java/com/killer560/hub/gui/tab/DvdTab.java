@@ -187,7 +187,7 @@ public class DvdTab extends BaseTab {
                 }).bounds(contentX + 226, y, contentWidth - 226, ROW_H).build());
         y += ROW_H + 4;
 
-        // The colour picker (hex box, Copy / Paste, Recent) instead of a bare 6-digit hex field (2026-10-13).
+        // The color picker (hex box, Copy / Paste, Recent) instead of a bare 6-digit hex field (2026-10-13).
         widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("Text Color", e.textColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     com.killer560.hub.compat.McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(

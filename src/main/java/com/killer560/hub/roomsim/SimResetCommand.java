@@ -9,7 +9,7 @@ import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 
 /**
- * {@code /reset} (and {@code /reload}): rebuild the solo room he is practising and stand him back at its spawn (see
+ * {@code /reset} (and {@code /reload}): rebuild the solo room he is practicing and stand him back at its spawn (see
  * {@link SimBuilder#resetSingleRoom}). In a full floor it only says that it is for solo rooms.
  *
  * <p><b>Outside the sim the name does not exist.</b> killer560 (2026-10-16): "make the /reset not show up on main as

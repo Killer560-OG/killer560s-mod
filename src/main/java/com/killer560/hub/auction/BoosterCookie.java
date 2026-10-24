@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
  * {@code /killer560bz}, the browser key or a settings button opens the browser), so it does not depend on another
  * feature having ticked.
  * <p>
- * Formats (read 2026-10-07; colour codes stripped). The tab list is server-only text: no player's chat can write it.
+ * Formats (read 2026-10-07; color codes stripped). The tab list is server-only text: no player's chat can write it.
  * <ul>
  *   <li>Footer: a line {@code Cookie Buff}, then the time left on the next line, or, when off, the two lines
  *       {@code Not active! Obtain booster cookies from the community} / {@code shop in the hub.} - SkyHanni

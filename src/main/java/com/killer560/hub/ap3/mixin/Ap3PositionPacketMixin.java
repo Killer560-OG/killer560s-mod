@@ -27,7 +27,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * {@code PacketUtils.ensureRunningOnSameThread(packet, this, minecraft.packetProcessor())}, so the hook sits right
  * after it - main thread, BEFORE vanilla applies the packet, so the client position read here is still the one the
  * server is correcting. The absolute target is computed the way vanilla does
- * ({@code PositionMoveRotation.calculateAbsolute(of(player), change, relatives)}); nothing is changed or cancelled.
+ * ({@code PositionMoveRotation.calculateAbsolute(of(player), change, relatives)}); nothing is changed or canceled.
  * Fails closed to a log line: an exception out of a packet handler disconnects the client ("Network Protocol Error").
  */
 @Mixin(ClientPacketListener.class)

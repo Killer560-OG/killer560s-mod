@@ -34,11 +34,11 @@ import com.killer560.hub.compat.McCompat;
  * <ul>
  *   <li>no Room Size slider ("they scroll to adjust it" - the HUD editor's scroll sizes the map);</li>
  *   <li>Player Heads only under Show Teammates when that is on; Recolor by Class also rings a teammate's head in his
- *       class colour; a Player Marker Size slider;</li>
+ *       class color; a Player Marker Size slider;</li>
  *   <li>Custom Checkmark Sprite (off = Hypixel's own marks, on = the mod's or his own PNGs);</li>
- *   <li>Map Theme: Real Map, each menu preset, Match Menu Theme or Custom; room colours only exist under Custom, in
+ *   <li>Map Theme: Real Map, each menu preset, Match Menu Theme or Custom; room colors only exist under Custom, in
  *       {@link MapSchemeEditorScreen} with a sample map, and New Custom Scheme makes another saved scheme;</li>
- *   <li>Funny Map (the scan) with Show Mimic Room and its colour, cheat build only, at the bottom.</li>
+ *   <li>Funny Map (the scan) with Show Mimic Room and its color, cheat build only, at the bottom.</li>
  * </ul>
  * A row that has no partner is drawn the full width, so its switch sits on the right edge with every other row's.
  */
@@ -160,7 +160,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, full, 18).build());
         y += 20;
         if (cfg.getMapTheme() == MapThemes.Theme.CUSTOM && cfg.getActiveScheme() >= 0) {
-            // Room colours exist only here: "Make it so you can only adjust room colors on custom otherwise it doesnt
+            // Room colors exist only here: "Make it so you can only adjust room colors on custom otherwise it doesnt
             // show room colors and make custom its own menu where you are shown a dummy map to edit it."
             widgets.add(SettingsButtonWidget.cycling(schemeText(cfg), (btn, dir) -> {
                         cfg.useScheme(SettingsButtonWidget.step(cfg.getActiveScheme(), dir, cfg.getSchemes().size()));

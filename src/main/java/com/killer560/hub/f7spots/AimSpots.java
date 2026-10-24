@@ -32,7 +32,7 @@ import java.util.List;
  * </pre>
  * Devonian stores each as a {@code BlockPos} with <b>y = 0</b> and renders it as a vertical beam from y = 0 up to
  * {@code maxY = 17.0} ({@code renderBeam(bp.x, bp.y, bp.z, colour, maxY = 17.0)}, the Double overload, so no +0.5
- * block centring) - it marks an X/Z column, not a single point. This mod's markers are points, so each crosshair
+ * block centering) - it marks an X/Z column, not a single point. This mod's markers are points, so each crosshair
  * goes at the TOP of that column, {@code y = 17.0}, the only other Y Devonian names; X and Z are Devonian's
  * numbers exactly and nothing is interpolated. Each column sits 1-4 blocks from its dragon's spawn point along
  * the first ticks of that dragon's {@code path}, i.e. ahead of where the dragon comes out. Devonian makes no
@@ -50,7 +50,7 @@ import java.util.List;
  */
 public final class AimSpots {
 
-    // Same dragon colours the Wither Dragons feature uses (Odin's WitherDragonsEnum argb values).
+    // Same dragon colors the Wither Dragons feature uses (Odin's WitherDragonsEnum argb values).
     private static final int RED = 0xFFFF5555;
     private static final int ORANGE = 0xFFFFAA00;
     private static final int GREEN = 0xFF55FF55;

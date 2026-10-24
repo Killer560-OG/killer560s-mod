@@ -126,7 +126,7 @@ public final class MainMenuChrome {
         }
     }
 
-    /** A title-screen button: a raised face in the theme's card colour, an accent ring, glow and side bar on hover. */
+    /** A title-screen button: a raised face in the theme's card color, an accent ring, glow and side bar on hover. */
     public static void drawButton(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active, boolean hover,
                                   float alpha) {
         MenuWidgets.sync();
@@ -159,7 +159,7 @@ public final class MainMenuChrome {
         r.submit();
     }
 
-    /** Label colours on a title-screen button. */
+    /** Label colors on a title-screen button. */
     public static int labelColour(boolean active, boolean hover) {
         MenuWidgets.sync();
         if (!active) {
@@ -169,7 +169,7 @@ public final class MainMenuChrome {
     }
 
     /**
-     * "● Playing as Name" as a chip centred under the menu. The name is the account's REAL name, wrapped so Name Changer
+     * "● Playing as Name" as a chip centered under the menu. The name is the account's REAL name, wrapped so Name Changer
      * leaves it alone (killer560, 2026-10-15: "Do not have the custom ign color work on this page").
      */
     public static void drawPlayingAs(GuiGraphicsExtractor g, int cx, int y, String name, float alpha) {
@@ -206,7 +206,7 @@ public final class MainMenuChrome {
                 textA), MenuStyle.TEXT_SHADOW);
     }
 
-    /** The footer's "Killer560's Mod <version>" colour (accent) and the version line's (dim). */
+    /** The footer's "Killer560's Mod <version>" color (accent) and the version line's (dim). */
     public static int modTagColour() {
         usePalette();
         return (MenuStyle.LIGHT ? MenuStyle.OR_DARK : MenuStyle.OR) & 0xFFFFFF;

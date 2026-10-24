@@ -38,8 +38,8 @@ import com.killer560.hub.compat.McCompat;
  * <p>
  * Layout follows killer560's own order (2026-09-16): "Two options at the top. First a toggle for Auto Routes as a
  * whole, second legit or obvious", then the start-node-only option "in the main settings", then recording, the
- * node list for the room you're standing in with delete buttons, colours ("per node type ... or one uniform
- * colour"), QUOI-style render style/thickness/height, and one keybind row per command. The "Open Routes Folder" /
+ * node list for the room you're standing in with delete buttons, colors ("per node type ... or one uniform
+ * color"), QUOI-style render style/thickness/height, and one keybind row per command. The "Open Routes Folder" /
  * "Reload Routes" pair is his later "implement a button to open the routes folder so that way it's very easy for
  * you to share your routes config" - the folder holds the one JSON file all routes live in.
  * <p>
@@ -61,7 +61,7 @@ import com.killer560.hub.compat.McCompat;
  *   Open Routes Folder | Reload Routes
  *   Render Style:  Style | Show Node Numbers,  Thickness | Height,  Breaker Block Display | Breaker Block Style
  *   Recording:     Start | Stop,  Start Key | Stop Key
- *   Colours (dropdown)
+ *   Colors (dropdown)
  *   Keybinds (dropdown)
  * </pre>
  * The per-room node list is gone from the menu; {@code /ar list}, {@code /ar delete}, {@code /ar undo} and
@@ -159,9 +159,9 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(modeRow ? contentX + half + GAP : contentX, y[0], modeRow ? right : contentWidth, 20).build();
-        // Interlock #6 in the spec: forced on in legit mode. Greyed rather than hidden so the user can see WHY
+        // Interlock #6 in the spec: forced on in legit mode. Grayed rather than hidden so the user can see WHY
         // the route won't pick up halfway through (the "(forced in Legit)" suffix no longer fits a half-width cell;
-        // the greyed ON says the same).
+        // the grayed ON says the same).
         startOnly.active = !cfg.isLegitMode();
         w.add(startOnly);
         y[0] += 24;
@@ -292,7 +292,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         }
         // "Colour options per node type (superboom nodes red, bat nodes bat-coloured, etc.) or one uniform colour."
         int right = Math.max(1, width - half - GAP);
-        // The switch and the always-there Active Node Colour share the first row.
+        // The switch and the always-there Active Node Color share the first row.
         toggleCell(w, x, y[0], half, "Uniform Color", cfg::isUniformColor, cfg::setUniformColor, rebuild);
         colorButton(w, x + half + GAP, y[0], right, "Active Node Color", cfg.getActiveColorArgb(), 0xFFFFFFFF, cfg::setActiveColorArgb);
         y[0] += 24;
@@ -459,10 +459,10 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         return sb.toString();
     }
 
-    /** The picker's "reset" colour per node type - killer560's examples: "superboom nodes red, bat nodes
-     *  bat-coloured" (a Spirit Sceptre use node, so a dark bat-purple). Mirror any change in the core config. */
+    /** The picker's "reset" color per node type - killer560's examples: "superboom nodes red, bat nodes
+     *  bat-colored" (a Spirit Sceptre use node, so a dark bat-purple). Mirror any change in the core config. */
     /** Delegates rather than keeping a second table - the duplicate had drifted from the shipped defaults
-     *  for seven node types, so "reset" set a colour that was never the default (2026-09-16 review). */
+     *  for seven node types, so "reset" set a color that was never the default (2026-09-16 review). */
     private static int defaultColor(RouteNode.Type type) {
         return AutoRoutesConfig.defaultNodeColor(type);
     }

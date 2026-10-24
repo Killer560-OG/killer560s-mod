@@ -21,7 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  Fixed by refreshing from here too - the real base {@code Screen.extractBackground}, confirmed via
  *  javap to actually exist as its own method there (not just assumed inherited), so every subclass's
  *  own override chain runs through it eventually, covering every kind of screen in the game, not just
- *  chest-style ones. Purely a safety net (no cancelling here, unlike the more specific mixin) - just
+ *  chest-style ones. Purely a safety net (no canceling here, unlike the more specific mixin) - just
  *  guarantees state is never more than one frame stale for anything this mod doesn't actually cover. */
 @Mixin(Screen.class)
 public abstract class TerminalSolverStateRefreshMixin {

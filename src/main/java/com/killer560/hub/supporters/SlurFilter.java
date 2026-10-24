@@ -12,17 +12,17 @@ import java.util.stream.Collectors;
  * that one. A hit falls back to the player's real IGN (see {@link SupportersFeature#displayNameFor}); it
  * never hides the player or drops their scale.
  * <p>
- * Normalisation: lower-case, common leetspeak digits/symbols folded back to letters, everything that isn't
+ * Normalization: lower-case, common leetspeak digits/symbols folded back to letters, everything that isn't
  * {@code a-z} stripped (color codes, spaces, punctuation, digits that weren't leetspeak), then runs of the
- * same letter collapsed to one - so "n1gg3r", "n-i-g-g-e-r" and "niiiggeerrr" all normalise identically.
- * Matching is "contains" for anything that normalises to 4+ letters (a slur can be buried inside an
+ * same letter collapsed to one - so "n1gg3r", "n-i-g-g-e-r" and "niiiggeerrr" all normalize identically.
+ * Matching is "contains" for anything that normalizes to 4+ letters (a slur can be buried inside an
  * otherwise ordinary-looking name), but WHOLE-TOKEN ONLY for anything shorter, so a short entry can't
  * condemn every name that merely contains those few letters in a row for an unrelated reason.
  */
 final class SlurFilter {
 
     // Deliberately small: this exists to stop the obvious cases (killer560's spec), not to be a general
-    // profanity filter - and every entry here is normalised once at class-init via {@link #normalise}, so it
+    // profanity filter - and every entry here is normalized once at class-init via {@link #normalise}, so it
     // is compared on equal footing with the name being checked.
     private static final Set<String> WORDS = normaliseAll(Set.of(
             "nigger", "nigga", "faggot", "fag", "retard", "retarded", "tranny", "chink", "spic", "kike",

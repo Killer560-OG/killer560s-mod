@@ -32,7 +32,7 @@ import com.killer560.hub.compat.McCompat;
  * element must pass both:
  * <ul>
  *   <li>{@link HudElement#isEnabledInSettings()} - its own toggle. Off means it is not listed at all, not
- *       even greyed: there is nothing there to place.</li>
+ *       even grayed: there is nothing there to place.</li>
  *   <li>{@link HudSeen} - it actually drew within {@link HudSeen#GRACE_MS} of this screen opening. This is
  *       stamped by the element's real render path, so it is the drawing itself and not a guess about it.</li>
  * </ul>
@@ -139,7 +139,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
 
     private static final int BOX_BG = 0x55FFFFFF;
     private static final int BOX_BG_DRAGGING = 0x8055FF55;
-    // The accent colours come from the theme (screen sweep, 2026-10-13): MenuStyle, which holds the open screen's theme.
+    // The accent colors come from the theme (screen sweep, 2026-10-13): MenuStyle, which holds the open screen's theme.
     private static int boxOutline() {
         return MenuStyle.OR;
     }

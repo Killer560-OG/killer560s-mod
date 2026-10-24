@@ -22,7 +22,7 @@ import java.util.Set;
  */
 public final class ItemIdentity {
 
-    /** Every reforge name that can prefix a Skyblock item's display name (weapons, armour, tools, accessories). */
+    /** Every reforge name that can prefix a Skyblock item's display name (weapons, armor, tools, accessories). */
     private static final Set<String> REFORGES = Set.of(
             "ambered", "ancient", "auspicious", "awkward", "bizarre", "blessed", "blooming", "bloody", "bountiful",
             "bulky", "bustling", "candied", "chomp", "clean", "coldfused", "cubic", "deadly", "demonic", "dirty",
@@ -147,7 +147,7 @@ public final class ItemIdentity {
      * Whether a stack satisfies a node's recorded item.
      *
      * <p>The family widening lives HERE and not in {@link #of}, which looks like the tidier place and is the wrong
-     * one. {@code of} is also what Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker key
+     * one. {@code of} is also what Auto Sell, the Inventory Sorter, Armor Dye and the mining profit tracker key
      * on, and collapsing the wither blades there would make "sell my Hyperion" sell an Astraea and make the
      * sorter treat two different swords as one. Only a route's USE_ITEM node wants the loose match, and
      * {@code matches} is only reached from {@link #findHotbarSlot}, so this is the whole blast radius.

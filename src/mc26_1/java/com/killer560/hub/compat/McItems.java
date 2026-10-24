@@ -5,13 +5,13 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
 /**
- * Coloured items and dyes that moved between Minecraft versions.
+ * Colored items and dyes that moved between Minecraft versions.
  *
  * <p>GENERATED SHAPE, hand-maintained: every version's copy is produced from the same list so the two cannot
  * drift, which is the one failure mode a facade like this has. Add a constant to one and you must add it to
  * all, or a clean compile on one Minecraft version becomes a break on another.
  *
- * <p>26.2 collapsed the sixteen coloured variants of each family into a {@code ColorCollection} - so
+ * <p>26.2 collapsed the sixteen colored variants of each family into a {@code ColorCollection} - so
  * {@code Items.RED_DYE} became {@code Items.DYE.pick(DyeColor.RED)}, and the class went from 1147 static fields to 881.
  * The registry ids are untouched (a {@code ColorCollection}'s ids are still {@code <colour>_<base>}), which
  * matters because room captures store block states as strings and are shared between versions over the relay.
@@ -147,7 +147,7 @@ public final class McItems {
     public static final Item RED_WOOL = Items.RED_WOOL;
     public static final Item BLACK_WOOL = Items.BLACK_WOOL;
 
-    // Lightning rod. Not a colour family: 26.2 gave the rod copper weathering, so Items.LIGHTNING_ROD there is a
+    // Lightning rod. Not a color family: 26.2 gave the rod copper weathering, so Items.LIGHTNING_ROD there is a
     // WeatheringCopperCollection and no longer an Item at all. This is the plain, unwaxed, unaffected rod -
     // registry id minecraft:lightning_rod - which is what the Termism practice screen has always shown for L.
     public static final Item LIGHTNING_ROD = Items.LIGHTNING_ROD;

@@ -61,8 +61,8 @@ public final class TerminalSolverFeature {
     // terminal grid" than hardcoding each type's own grid slot count.
     private static final int PLAYER_INVENTORY_SIZE = 36;
 
-    // Overlay colours (2026-09-15, killer560: "add the option to set custom colors for terminal
-    // overlays"). Every colour this class draws with used to be a hardcoded constant right here
+    // Overlay colors (2026-09-15, killer560: "add the option to set custom colors for terminal
+    // overlays"). Every color this class draws with used to be a hardcoded constant right here
     // (THEME_ORANGE 0xFFFF8C00, BRIGHT_ORANGE 0xFFFFA500, MUTED_ORANGE 0xFFB37744, FAINT_ORANGE
     // 0xFF4D3319, PANEL_BG_COLOR 0xFF241206, the Melody palette, the Rubix left/right split). They now
     // live in TerminalSolverConfig.OverlayColor, whose per-constant defaults are EXACTLY those same
@@ -71,7 +71,7 @@ public final class TerminalSolverFeature {
     // the panel's opaque-not-0xEE fix, Melody's track base walked down 0xFFF2E0 -> 0xCDA775) is written
     // up on the enum constants themselves, so the reasoning didn't get lost by moving them.
     //
-    // Read fresh on every draw rather than cached in a field, so dragging the colour picker live-updates
+    // Read fresh on every draw rather than cached in a field, so dragging the color picker live-updates
     // the terminal that's already open behind it.
     /** The panel behind a terminal's custom GUI: the Panel Background Color setting, or on a Menu Theme the theme's panel. */
     private static int panelBackground() {
@@ -226,8 +226,8 @@ public final class TerminalSolverFeature {
     public record SlotHighlight(int color, String label, boolean primary) {
         /** The 2-arg form every solver except Numbers uses. {@code primary} only means anything for
          *  Numbers (see {@link #pickAutoClickTarget}), where it marks the ONE slot that must be clicked
-         *  next; it used to be inferred by comparing the highlight's colour against BRIGHT_ORANGE, which
-         *  stops working the moment the user is allowed to give two Numbers tiers the same colour. */
+         *  next; it used to be inferred by comparing the highlight's color against BRIGHT_ORANGE, which
+         *  stops working the moment the user is allowed to give two Numbers tiers the same color. */
         public SlotHighlight(int color, String label) {
             this(color, label, false);
         }
@@ -439,14 +439,14 @@ public final class TerminalSolverFeature {
             return;
         }
         // Read once per title object and set of enabled types, not every frame: this runs at the head of every
-        // container's draw, and was a String, a normalised copy and up to six regex Matchers per frame on any chest
+        // container's draw, and was a String, a normalized copy and up to six regex Matchers per frame on any chest
         // (95-perf-screens JFR, fps-gui-1015). Same values: all three are pure functions of those inputs.
         net.minecraft.network.chat.Component titleComponent = screen.getTitle();
         int mask = enabledMask(cfg);
         if (titleComponent != matchedTitleFor || mask != matchedMask || matchedRaw == null) {
             matchedRaw = titleComponent.getString();
-            // Normalized (colour codes and resource-pack glyphs out) for matching AND for Starts With / Select, which
-            // read their letter / colour out of it.
+            // Normalized (color codes and resource-pack glyphs out) for matching AND for Starts With / Select, which
+            // read their letter / color out of it.
             matchedNorm = TerminalType.normalizeTitle(matchedRaw);
             matchedType = matchType(matchedNorm, cfg);
             matchedTitleFor = titleComponent;
@@ -806,7 +806,7 @@ public final class TerminalSolverFeature {
      *  Skyblocker injects at the HEAD of {@code AbstractContainerScreen#extractTooltip}, the exact method
      *  {@link com.killer560.hub.terminals.mixin.TerminalSolverSlotMixin} cancels at HEAD while Custom GUI
      *  is showing. Whichever HEAD handler runs first wins; when this mod's does, Skyblocker's solver stays
-     *  half-initialised for the whole terminal and the first click into it NPEs. Nothing on this side can
+     *  half-initialized for the whole terminal and the first click into it NPEs. Nothing on this side can
      *  fill in another mod's field, and a real mouse click reaches the same code, so the fix is to make the
      *  click path non-fatal: report it, treat the click as never sent, and let the caller stand down.
      *  @return whether the click actually reached the server. */
@@ -1128,13 +1128,13 @@ public final class TerminalSolverFeature {
      *  several rows between two frames (another mod's auto terminal skipping rows), a whole-window resend, or a
      *  reopen under a new container id is drawn correctly on the very next frame.
      *  <p>Real bug found and fixed (2026-10-05), killer560: "if melody is clicked where it gets a large skip it
-     *  no longer draws the moving square". This used to colour by DyeColor: the one pane colour appearing
+     *  no longer draws the moving square". This used to color by DyeColor: the one pane color appearing
      *  EXACTLY ONCE on the board was "the mover". Any board holding a second lime pane - a finished row keeping
      *  its marker, which is why Odin's MelodyHandler takes the LAST lime pane and the LAST lime terracotta
-     *  (indexOfLast, javap Odin 0.3.1) - has no singleton colour, so nothing was drawn as moving until the
+     *  (indexOfLast, javap Odin 0.3.1) - has no singleton color, so nothing was drawn as moving until the
      *  terminal closed. The piece is now found by position the way Odin and NoammAddons find it: the row being
      *  played is the last row whose button (slot 16/25/34/43) is lime terracotta, and its lime pane is the
-     *  piece; with no lit button, the last lime pane on the board. Only that one slot is coloured as moving, so
+     *  piece; with no lit button, the last lime pane on the board. Only that one slot is colored as moving, so
      *  the round-10 "whole board renders as the mover" failure cannot come back either. */
     static int findMelodyMovingSlot(List<Slot> slots, int slotCount) {
         int limit = Math.min(slotCount, slots.size());
@@ -1166,7 +1166,7 @@ public final class TerminalSolverFeature {
      *  lightened the track base further:
      *  <ul>
      *  <li>The two purple pieces (fixed track endpoints) -&gt; same color as the panel border.
-     *  <li>The "moving piece" (see {@link #findMelodyMovingSlot}) -&gt; its own colour, MELODY_MOVING.
+     *  <li>The "moving piece" (see {@link #findMelodyMovingSlot}) -&gt; its own color, MELODY_MOVING.
      *  <li>The real buttons you click (not a stained glass pane at all - a full block item, distinct from
      *      the flat track panes in the original screenshot) -&gt; same color as the endpoints/mover too.
      *  <li>Everything else (the static track base) -&gt; a light orange.
@@ -1726,7 +1726,7 @@ public final class TerminalSolverFeature {
         String colorText = matcher.group(1).trim().toLowerCase(Locale.ROOT);
         DyeColor color = parseSelectColor(colorText);
         // Not getOrDefault: its default is evaluated eagerly, so the one-element List.of was allocated on every
-        // call even though SELECT_PREFIXES has an entry for every colour that gets here - and refreshState
+        // call even though SELECT_PREFIXES has an entry for every color that gets here - and refreshState
         // re-solves this every frame a Select terminal is open.
         List<String> mapped = color != null ? SELECT_PREFIXES.get(color) : null;
         List<String> prefixes = mapped != null ? mapped : List.of(colorText);
@@ -1774,11 +1774,11 @@ public final class TerminalSolverFeature {
     /** "Change all to same color!" - each pane cycles forward one step through
      *  {@link #RUBIX_COLOR_ORDER} per click (no neighbor coupling). The FIRST time this runs for a given
      *  puzzle, tries every possible target color and commits to whichever needs the fewest total clicks
-     *  (counting a "3 or 4 forward" pane as cheaper clicked backwards instead - real Hypixel lets you
+     *  (counting a "3 or 4 forward" pane as cheaper clicked backward instead - real Hypixel lets you
      *  reverse-cycle a pane, same mechanic Odin's RubixHandler relies on) - every later frame reuses that
      *  SAME committed target (see {@link #rubixTargetColorIndex}) instead of re-searching, so a misclick
      *  never suddenly flashes the whole board over to a different target. Each highlighted slot's label
-     *  is the signed click count: positive = click normally that many times, negative = click backwards. */
+     *  is the signed click count: positive = click normally that many times, negative = click backward. */
     private static Map<Integer, SlotHighlight> solveRubix(List<ItemStack> items) {
         List<int[]> panes = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
@@ -1861,7 +1861,7 @@ public final class TerminalSolverFeature {
     }
 
     /**
-     * Strips Minecraft colour codes.
+     * Strips Minecraft color codes.
      *
      * <p>Was {@code replaceAll}, which COMPILES the pattern on every call - and this runs per item, per
      * terminal, per frame while a terminal is open. A hand-written strip is both faster and allocation-free

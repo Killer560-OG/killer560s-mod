@@ -647,7 +647,7 @@ public final class SimRoomLevers {
             ServerLevel level = server.overworld();
             for (BlockPos pos : blocks) {
                 // setBlockAndUpdate, not the bulk flags: this is a few dozen blocks at a moment he is looking
-                // at them, and the neighbours around a removed frame (stairs, bars, torches) have to settle.
+                // at them, and the neighbors around a removed frame (stairs, bars, torches) have to settle.
                 level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
             }
         });

@@ -20,7 +20,7 @@ import com.killer560.hub.compat.McCompat;
  * NoammAddons ({@code DungeonListener.kt} / {@code enums/Blessing.kt}) and Devonian
  * ({@code features/dungeons/BlessingsDisplay.kt}) use.</li>
  * <li>HUD layout: one line per enabled blessing, "Power: 12" (or "Power XII" with Roman Numerals on) - Devonian's
- * two formats, drawn in its order (Power, Time, Wisdom, Stone, Life) in its colours.</li>
+ * two formats, drawn in its order (Power, Time, Wisdom, Stone, Life) in its colors.</li>
  * <li>LEVELS ONLY: no source gives a level -> stat table, so no derived stat is ever shown.</li>
  * <li>Reset on world change, like both sources.</li>
  * </ul>

@@ -179,7 +179,7 @@ public enum ChunkedStat {
 
     abstract String color();
 
-    /** Coloured value for the chunked line, or null to leave this stat out. */
+    /** Colored value for the chunked line, or null to leave this stat out. */
     String display(CustomScoreboardConfig cfg) {
         String raw = raw();
         if (raw == null) {

@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  (javap-verified: both have a private {@code effects} field of this exact type), so a single mixin
  *  here covers every screen that can show one. Same HEAD-cancel-the-one-extract-method shape every other
  *  mixin in this package uses - {@code EffectsInInventory#extractRenderState} is the one place that
- *  draws the panel; cancelling it is equivalent to there being no active effects at all, purely visual.
+ *  draws the panel; canceling it is equivalent to there being no active effects at all, purely visual.
  *  <p>
  *  Since 2026-10-18 it is no longer a setting of its own: the panel is hidden whenever the Inventory Theme is on
  *  ({@link InventoryThemeConfig#isHidePotionEffects()} is {@link InventoryThemeConfig#isEnabled()}), on every screen

@@ -18,11 +18,11 @@ import java.util.regex.Pattern;
  * Per {@code SUPPORTERS-CONTRACT.md} ("for chat, replace only the sender name token, and only when you can
  * tie the message to that player's UUID or exact current IGN"): {@link #SENDER} is anchored at the very
  * start of the line (mirrors {@code InteropChatParser.PARTY_LINE}'s precedent for Hypixel's own
- * {@code Channel > [rank] Name: message} shape, generalised to cover public/{@code /msg} chat too), so it can
+ * {@code Channel > [rank] Name: message} shape, generalized to cover public/{@code /msg} chat too), so it can
  * only ever capture the SENDER position - never a supporter's name merely mentioned later in someone else's
  * message. The captured token must then exactly equal a supporter's CURRENT resolved ign
  * ({@link SupportersFeature#findChatSender}, never their stored vanity name) before anything is replaced.
- * Only the captured span is spliced; the rest of the line's styling (rank colour, click/hover events) is
+ * Only the captured span is spliced; the rest of the line's styling (rank color, click/hover events) is
  * left completely alone.
  */
 final class SupportersChatRewriter {

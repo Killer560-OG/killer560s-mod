@@ -167,7 +167,7 @@ final class LeapChatPanel {
         GuiRects r = GuiRects.begin(g);
         ScreenChrome.card(r, b[0], b[1], b[2], b[3], false, false);
         int[] a = linesArea();
-        // Vanilla chat's dark backing whatever the theme, so every chat colour stays readable.
+        // Vanilla chat's dark backing whatever the theme, so every chat color stays readable.
         r.fill(a[0], a[1], a[0] + a[2], a[1] + a[3], 0xB0000000);
         r.submit();
         int count = visibleCount();

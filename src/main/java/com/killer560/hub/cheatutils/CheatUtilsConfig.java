@@ -47,14 +47,14 @@ public final class CheatUtilsConfig {
     /**
      * 3.0 blocks for an ENTITY, which is a tighter limit than the 4.5 a block gets.
      *
-     * <p>Measured 2026-09-28 on the sim against a live GrimAC, walking in on an armour stand and interacting at
+     * <p>Measured 2026-09-28 on the sim against a live GrimAC, walking in on an armor stand and interacting at
      * each step: 3.26 blocks and beyond drew a {@code Reach} violation naming the distance; 2.18 and closer drew
      * nothing. That brackets the line at vanilla's own entity limit of 3.0, which is where it is set.
      *
      * <p>One caveat recorded honestly: the probe that produced those numbers also drew {@code Hitboxes} flags,
      * because it passed the stand's feet as the hit vector rather than a point on its box. That was a fault in
-     * the probe, not in this mod - Arrow Align aims at the centre of the frame's player-facing face and Terminal
-     * Aura clips the eye-to-centre line against the stand's box, which is what a real ray does. Only the
+     * the probe, not in this mod - Arrow Align aims at the center of the frame's player-facing face and Terminal
+     * Aura clips the eye-to-center line against the stand's box, which is what a real ray does. Only the
      * distance half of that measurement is used here.
      */
     public static final double MEASURED_MAX_ENTITY_REACH = 3.0;
@@ -63,11 +63,11 @@ public final class CheatUtilsConfig {
     public static final double MIN_AURA_RANGE = 2.1;
     public static final double MAX_AURA_RANGE = MEASURED_MAX_REACH;
     /**
-     * Skull range is measured from the eye to the block's CENTRE, QUOI's measure for skulls (2026-10-12), not to its
-     * box like every other aura range. QUOI keeps skulls (Wither Essence) at 4.7 to the centre against 6.2 for
-     * chests and levers, because Hypixel's reach for a skull looks tighter than for a chest; 4.7 to the centre is
+     * Skull range is measured from the eye to the block's CENTER, QUOI's measure for skulls (2026-10-12), not to its
+     * box like every other aura range. QUOI keeps skulls (Wither Essence) at 4.7 to the center against 6.2 for
+     * chests and levers, because Hypixel's reach for a skull looks tighter than for a chest; 4.7 to the center is
      * 3.8-4.2 to the box, so it is always inside the 4.5-to-the-box cap ({@link #MEASURED_MAX_REACH}) as well.
-     * Until then this was 4.5 to the box, which let a skull be clicked from up to 5.0-5.4 to its centre.
+     * Until then this was 4.5 to the box, which let a skull be clicked from up to 5.0-5.4 to its center.
      */
     public static final double MAX_AURA_SKULL_RANGE = 4.7;
     public static final int MIN_AURA_COOLDOWN_MS = 100;
@@ -88,7 +88,7 @@ public final class CheatUtilsConfig {
     // Was QUOI's 6.2. Capped at the measured maximum: past 4.5 the server refused the click and the
     // anticheat flagged the attempt, so the bigger number cost traffic and bought nothing.
     private double auraRange = MEASURED_MAX_REACH;
-    private double auraSkullRange = MAX_AURA_SKULL_RANGE;  // QUOI default, eye to block centre
+    private double auraSkullRange = MAX_AURA_SKULL_RANGE;  // QUOI default, eye to block center
     private int auraCooldownMs = 150;     // QUOI "Click delay" default
     private boolean auraSwing = false;    // QUOI "Swing hand" default off
     private boolean auraPauseWhileSneaking = true;

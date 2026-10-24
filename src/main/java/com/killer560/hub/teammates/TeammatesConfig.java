@@ -53,7 +53,7 @@ public final class TeammatesConfig {
     private boolean highlightSelf = false;
     private boolean showName = false;
     private boolean showDistance = false;
-    /** Colour used for a teammate whose dungeon class isn't known yet (tab list not parsed, or outside a dungeon). */
+    /** Color used for a teammate whose dungeon class isn't known yet (tab list not parsed, or outside a dungeon). */
     private int unknownColor = DEFAULT_UNKNOWN_COLOR;
     /** Tab list shows them as "(DEAD)" - {@code PartyTracker.isDead}. On by default: a dead teammate is a ghost. */
     private boolean skipDead = true;

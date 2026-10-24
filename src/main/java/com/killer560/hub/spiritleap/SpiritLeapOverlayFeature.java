@@ -78,7 +78,7 @@ public final class SpiritLeapOverlayFeature {
      * around for a split second on my screen because it thinks the player is gone since I am holding their head").
      * The click picks the head up client-side until Hypixel answers, so for a moment that slot is empty and a re-read
      * would drop the teammate and slide everyone after them along. Hypixel closes the menu on a leap well inside this;
-     * if it does not (a refused leap), reading resumes afterwards.
+     * if it does not (a refused leap), reading resumes afterward.
      */
     private static final long FREEZE_MS = 1500L;
 
@@ -468,7 +468,7 @@ public final class SpiritLeapOverlayFeature {
         return out;
     }
 
-    /** The whole screen counts as 4 quarters for clicking (Odin's behaviour) - the boxes are a visual guide. */
+    /** The whole screen counts as 4 quarters for clicking (Odin's behavior) - the boxes are a visual guide. */
     private static int spotFor(double mouseX, double mouseY, int width, int height) {
         int row = mouseY >= height / 2.0 ? 1 : 0;
         int col = mouseX >= width / 2.0 ? 1 : 0;
@@ -508,7 +508,7 @@ public final class SpiritLeapOverlayFeature {
                     : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xCC)));
             graphics.fill(x0, y0, x0 + boxW, y0 + boxH, fill);
             graphics.outline(x0, y0, boxW, boxH, color);
-            // Their face on the left of the box (Show Player Heads); the name centres in what is left.
+            // Their face on the left of the box (Show Player Heads); the name centers in what is left.
             int face = SpiritLeapOverlayConfig.getInstance().isShowHeads() ? Math.max(8, (int) (boxH * 0.6f)) : 0;
             int textLeft = x0;
             if (face > 0) {

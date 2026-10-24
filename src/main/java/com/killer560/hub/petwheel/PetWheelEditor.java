@@ -24,7 +24,7 @@ import com.killer560.hub.compat.McCompat;
  * {@code ServerCommands} recursion risk here), then hijacks the PLAYER'S OWN next click on a real pet slot
  * there.
  * <p>
- * That click is captured and CANCELLED, never replayed as a programmatic click of our own - the wheel is a
+ * That click is captured and CANCELED, never replayed as a programmatic click of our own - the wheel is a
  * cosmetic "which pet to summon later" list, not the live-equipped pet, so picking a pet to go in a wheel slot
  * must never also equip/despawn whatever was clicked in the real menu as a side effect. This is a deliberate,
  * more conservative reading than "let the click go through AND record it" - see this wave's task brief's own
@@ -77,7 +77,7 @@ final class PetWheelEditor {
         }
         if (sentCommand) {
             // /pets never opened (not on Skyblock, command swallowed): without this the pick stayed armed, and the
-            // next /pets the player opened himself had his first pet click cancelled and written into the wheel.
+            // next /pets the player opened himself had his first pet click canceled and written into the wheel.
             // While the /pets menu is up its remove hook owns the pick. Any other screen open at the expiry is his own
             // (chat, another menu): drop the pick without opening anything over it (sweep 2026-10-21: the expiry
             // reopened the edit wheel on top of whatever he had open). Only with no screen up does the wheel come back.
@@ -153,7 +153,7 @@ final class PetWheelEditor {
             }
             reopenEditScreen();
         });
-        return false; // cancelled - never reaches vanilla's own summon/despawn click handling
+        return false; // canceled - never reaches vanilla's own summon/despawn click handling
     }
 
     private static void reopenEditScreen() {

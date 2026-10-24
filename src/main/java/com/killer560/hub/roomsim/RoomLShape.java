@@ -9,7 +9,7 @@ import org.slf4j.Logger;
  * Which quarter of an L room's 2x2 capture is NOT the room - the one place that is decided.
  *
  * <p>An L is captured as its 2x2 bounding box, and the quarter it does not occupy holds whatever stood there the
- * day it was scanned: nothing, or a neighbouring room. The single-room map, the room index, the paste and the spawn
+ * day it was scanned: nothing, or a neighboring room. The single-room map, the room index, the paste and the spawn
  * all need the same answer, and they each used to get it from {@code SimBuilder.lMissingTile}'s "fewest blocks in
  * y 66..99" - which reads a PIT as missing. Lava Ravine's real quarter is a ravine, mostly air in that band, so
  * a capture with Entrance in its fourth quarter (killer560's, 2026-10-13) had the ravine dropped from the map and
@@ -18,8 +18,8 @@ import org.slf4j.Logger;
  *
  * <p>The evidence, strongest first, all read off the capture:
  * <ol>
- *   <li>the room database's core hash of each tile's centre column ({@link RoomDatabase#coreOfColumn}): a tile
- *       whose core is ANOTHER room's is a neighbour, and when three tiles carry this room's own cores the fourth
+ *   <li>the room database's core hash of each tile's center column ({@link RoomDatabase#coreOfColumn}): a tile
+ *       whose core is ANOTHER room's is a neighbor, and when three tiles carry this room's own cores the fourth
  *       is the missing one;</li>
  *   <li>a tile with no block at all in the whole capture band;</li>
  *   <li>the old rule, the emptiest tile in y 66..99, logged, for a capture neither of those settles.</li>

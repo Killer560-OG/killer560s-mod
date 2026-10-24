@@ -30,7 +30,7 @@ public final class BazaarFlipConfig {
      *  ("profit per coin invested"), because that is arithmetically the same ordering as
      *  {@link #PERCENTAGE_MARGIN}. */
     public enum RankingMode {
-        /** Realised profit as a percentage of what was actually spent. */
+        /** Realized profit as a percentage of what was actually spent. */
         PERCENTAGE_MARGIN("Percentage Margin"),
         /** Raw coins of profit for one buy-and-sell cycle. */
         TOTAL_PROFIT_PER_RUN("Total Profit Per Run");

@@ -7,12 +7,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Ground truth for "colour by tier" - killer560, 2026-09-20: "They should follow skyhanni where the color is
- * based off of tier not enchant." Replaces the old per-enchant colour table entirely.
+ * Ground truth for "color by tier" - killer560, 2026-09-20: "They should follow skyhanni where the color is
+ * based off of tier not enchant." Replaces the old per-enchant color table entirely.
  * <p>
  * <b>2026-09-27 correction, killer560: "make the enchant colors the exact same as skyhanni's for the actual
- * colors."</b> The 2026-09-20 pass got the goodLevel/maxLevel tier MATHS right but the actual default COLOUR
- * VALUES wrong (they read like a leftover from an earlier legacy-16-colour guess, not SkyHanni's real
+ * colors."</b> The 2026-09-20 pass got the goodLevel/maxLevel tier MATH right but the actual default COLOR
+ * VALUES wrong (they read like a leftover from an earlier legacy-16-color guess, not SkyHanni's real
  * defaults). Re-verified from two concrete sources, both dated 2026-09-27:
  * <ol>
  *   <li>{@code javap -c -p -constants} against the actually-installed {@code SkyHanni-7.22.0-mc1.21.11.jar}
@@ -23,14 +23,14 @@ import java.util.Set;
  *       LorenzColor.CHROMA}, {@code ultimateEnchantColor = LorenzColor.LIGHT_PURPLE}, {@code
  *       boldPerfectEnchant = false}. {@code Enchant.getStyle}'s bytecode confirms the tier comparison
  *       ({@code level >= maxLevel} -&gt; Perfect, etc. - see below) reads exactly these four properties, in
- *       that order, so there's no advanced-colour override or hidden per-enchant table involved.</li>
+ *       that order, so there's no advanced-color override or hidden per-enchant table involved.</li>
  *   <li>{@code LorenzColor}'s own {@code <clinit>} (same jar) gives each name's literal {@code
- *       java.awt.Color(r,g,b)} - they are exactly Minecraft's 16 legacy chat colours: GRAY = (170,170,170),
- *       BLUE = (85,85,255), GOLD = (255,170,0), LIGHT_PURPLE = (255,85,255). CHROMA is NOT a static colour -
+ *       java.awt.Color(r,g,b)} - they are exactly Minecraft's 16 legacy chat colors: GRAY = (170,170,170),
+ *       BLUE = (85,85,255), GOLD = (255,170,0), LIGHT_PURPLE = (255,85,255). CHROMA is NOT a static color -
  *       its constructor uses alpha 0 and its {@code toChromaColor}/{@code ChromaManager} path animates a
  *       cycling rainbow. This mod has no chroma-cycling renderer, so {@link
  *       com.killer560.hub.enchantcolors.EnchantColorsConfig#isPerfectChroma()} reimplements just the "Perfect
- *       is an animated rainbow by default" behaviour (see that class and {@code EnchantColorsFeature}), and
+ *       is an animated rainbow by default" behavior (see that class and {@code EnchantColorsFeature}), and
  *       {@link #PERFECT} below is only the STATIC fallback used while that toggle is off - not what SkyHanni
  *       actually ships.</li>
  * </ol>
@@ -40,7 +40,7 @@ import java.util.Set;
  * the same file), keyed by its {@code loreName} (lower-cased) so every key here is exactly what Hypixel
  * prints, NOT a guess from the NBT id. That distinction matters: an id-derived guess like "dragon hunter"
  * (from the {@code dragon_hunter} enchant id) never appears in real lore - Hypixel prints that enchant as
- * "Gravity" - so it would never match and never get recoloured. See
+ * "Gravity" - so it would never match and never get recolored. See
  * {@link EnchantColorsFeature#ID_TO_LORE_NAME} for the full list of ids whose id and printed name diverge
  * like this (also "Drain"/syphon, "Pyroclasm"/magmarizer, "Woodsplitter"/arcane).
  * <p>
@@ -51,10 +51,10 @@ import java.util.Set;
  * vitality", "strong vitality", "vampiric vitality", "vivacious vitality") that never appear in real lore and
  * so could never match - renamed to their actual {@code loreName}s ("hardened mana", "strong mana", "mana
  * vampire", "ferocious mana"; see {@code EnchantColorsFeature#buildIdAliases} - they need no id alias at all,
- * since {@code hardened_mana} etc. already normalise straight to those names). Two entries with no match
+ * since {@code hardened_mana} etc. already normalize straight to those names). Two entries with no match
  * anywhere in the live repo file at all - {@code karma} and {@code petalfall} - are removed rather than kept
- * on a guessed maximum: per killer560's own rule, "a wrong colour table applied to every enchant is worse
- * than leaving it," so an unconfirmed enchant is left uncoloured (falls through to Unknown/untouched) instead
+ * on a guessed maximum: per killer560's own rule, "a wrong color table applied to every enchant is worse
+ * than leaving it," so an unconfirmed enchant is left uncolored (falls through to Unknown/untouched) instead
  * of carrying forward a number nothing here can verify.
  * <p>
  * The four-tier split and the "ultimates ignore level entirely" rule are decompiled (javap) from SkyHanni's
@@ -62,10 +62,10 @@ import java.util.Set;
  * ({@code features/misc/items/enchants/Enchant.class}): {@code level >= maxLevel} -&gt; Perfect;
  * {@code goodLevel < level < maxLevel} -&gt; Great; {@code level == goodLevel} -&gt; Good;
  * {@code level < goodLevel} -&gt; Poor. An {@code Enchant$Ultimate} never reads goodLevel/maxLevel at all -
- * it is always the ultimate colour, which is why ultimates aren't in {@link #TIERS}.
+ * it is always the ultimate color, which is why ultimates aren't in {@link #TIERS}.
  * <p>
  * Stacking enchants (Absorb, Compact, Cultivating, Expertise, Hecatomb, Champion, Toxophilite) are folded
- * into the same table using their own goodLevel/maxLevel (all 0/10) - the tier maths is identical, this mod
+ * into the same table using their own goodLevel/maxLevel (all 0/10) - the tier math is identical, this mod
  * doesn't render their separate stacking-progress footer either way, and leaving them out would mean a
  * fully-stacked farming tool never lights up "Perfect" for a genuinely maxed enchant.
  * <p>
@@ -110,20 +110,20 @@ public final class EnchantColorsDefaults {
     /** SkyHanni default: {@code LorenzColor.GOLD} = legacy §6, (255,170,0). */
     public static final int GREAT = 0xFFFFAA00;
     /** Static fallback only, used while {@code EnchantColorsConfig#isPerfectChroma()} is OFF. SkyHanni's real
-     *  default for Perfect is an animated rainbow (LorenzColor.CHROMA), not a fixed colour - see this class's
+     *  default for Perfect is an animated rainbow (LorenzColor.CHROMA), not a fixed color - see this class's
      *  own doc. White was picked as a neutral fallback, not because it's SkyHanni's default - it isn't. */
     public static final int PERFECT = 0xFFFFFFFF;
-    /** SkyHanni default: {@code LorenzColor.LIGHT_PURPLE} = legacy §d, (255,85,255). Also the fallback colour
+    /** SkyHanni default: {@code LorenzColor.LIGHT_PURPLE} = legacy §d, (255,85,255). Also the fallback color
      *  for anything the NBT says is an {@code ultimate_*} id. */
     public static final int ULTIMATE = 0xFFFF55FF;
     /** Anything not in {@link #TIERS}, when "Only Known Enchantments" is off. Hypixel's own lore blue - not
-     *  a SkyHanni value, since SkyHanni has no equivalent "recognised but untiered" state. */
+     *  a SkyHanni value, since SkyHanni has no equivalent "recognized but untiered" state. */
     public static final int UNKNOWN = 0xFF5555FF;
 
-    /** Lore-normalised enchant name -&gt; {goodLevel, maxLevel}. Never mutated - copy before editing. */
+    /** Lore-normalized enchant name -&gt; {goodLevel, maxLevel}. Never mutated - copy before editing. */
     public static final Map<String, int[]> TIERS = Collections.unmodifiableMap(buildTiers());
 
-    /** Lore-normalised names of every known ultimate enchant, for the "New" 2026-09 additions
+    /** Lore-normalized names of every known ultimate enchant, for the "New" 2026-09 additions
      *  (First Impression, Flowstate, Refrigerate, Sunset, Crop Fever) the old hardcoded list shipped
      *  without. Ultimate detection itself still comes from the {@code ultimate_} NBT id prefix in
      *  {@link EnchantColorsFeature}; this set only backs the lore-name fallback for the handful of ids
@@ -137,15 +137,15 @@ public final class EnchantColorsDefaults {
         Map<String, int[]> t = new LinkedHashMap<>();
         // ---- Normal
         t.put("angler", new int[]{5, 6});
-        // Checked against SkyHanni's own Enchants.json (2026-09-28), which is where its tier colouring gets
+        // Checked against SkyHanni's own Enchants.json (2026-09-28), which is where its tier coloring gets
         // goodLevel/maxLevel from - killer560: "somehow skyhanni knows which enchants are what tier so you can
         // find it from them". Its rule turned out to be the one this file already implements
         // (level >= maxLevel is Perfect, level > goodLevel is Great), so only the DATA was behind.
         //
-        // Six entries were simply absent, so those enchants got no tier colour at all. Four of them are the
+        // Six entries were simply absent, so those enchants got no tier color at all. Four of them are the
         // vitality family, which is the current name for what Hypixel used to call the mana enchants - the old
         // "ferocious mana" / "hardened mana" / "mana vampire" / "strong mana" keys further down are kept so an
-        // old item still colours, but they are legacy and these are the live names.
+        // old item still colors, but they are legacy and these are the live names.
         t.put("hardened vitality", new int[]{0, 10});
         t.put("strong vitality", new int[]{0, 10});
         t.put("vampiric vitality", new int[]{0, 10});
@@ -153,8 +153,8 @@ public final class EnchantColorsDefaults {
         t.put("karma", new int[]{0, 6});
         t.put("petalfall", new int[]{0, 5});
         //
-        // The 26 ultimate enchants in that file are deliberately NOT here. An ultimate is coloured by its own
-        // fixed colour whatever its level, in this mod and in SkyHanni alike, so a good/max pair would never be
+        // The 26 ultimate enchants in that file are deliberately NOT here. An ultimate is colored by its own
+        // fixed color whatever its level, in this mod and in SkyHanni alike, so a good/max pair would never be
         // read. Stealth was the largest single correction: it was 0/1 here and is 0/6 there, so every level
         // above 1 was being called Perfect.
         t.put("aqua affinity", new int[]{1, 1});
@@ -276,7 +276,7 @@ public final class EnchantColorsDefaults {
         t.put("vicious", new int[]{0, 5});
         t.put("ferocious mana", new int[]{0, 10});
         t.put("woodsplitter", new int[]{5, 6});
-        // ---- Stacking (same tier maths; this mod doesn't render their progress footer)
+        // ---- Stacking (same tier math; this mod doesn't render their progress footer)
         t.put("absorb", new int[]{0, 10});
         t.put("champion", new int[]{0, 10});
         t.put("compact", new int[]{0, 10});

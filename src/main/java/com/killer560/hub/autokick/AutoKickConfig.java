@@ -85,7 +85,7 @@ public final class AutoKickConfig {
 
     /** Which of a joiner's times is judged (killer560, 2026-10-11: "have a toggle for which ones it uses"). */
     public enum TimeMode {
-        /** His S+ personal best only - the behaviour before this setting existed, and the default. */
+        /** His S+ personal best only - the behavior before this setting existed, and the default. */
         S_PLUS("S+"),
         /** His S personal best only. */
         S("S"),

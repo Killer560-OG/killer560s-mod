@@ -19,7 +19,7 @@ import java.util.Locale;
  * Persisted Custom Scoreboard settings - see {@link CustomScoreboardFeature}. Every field survives a restart,
  * including which lines, events and chunked stats are on the board and their order ({@link EntryOrder}). Position/scale live in {@code HudConfig}
  * under {@link CustomScoreboardFeature#ELEMENT_ID}. Defaults mirror SkyHanni's CustomScoreboardConfig/DisplayConfig/
- * BackgroundConfig/InformationFilteringConfig (plus a few SkyBlock Custom Scoreboard options), with the colours swapped
+ * BackgroundConfig/InformationFilteringConfig (plus a few SkyBlock Custom Scoreboard options), with the colors swapped
  * to this mod's orange theme. Cached game data (Maxwell, cookie buff, quiver, mayor) lives in
  * {@link ScoreboardExtraData}'s own file.
  */
@@ -223,8 +223,8 @@ public final class CustomScoreboardConfig {
     }
 
     /**
-     * Where the border's colour comes from (killer560, 2026-10-18: "make a custom border for it"). MENU ("Default"): the
-     * mod menu's accent colour, so the border is there under the default theme. CUSTOM: the Border Color, Bottom Color and
+     * Where the border's color comes from (killer560, 2026-10-18: "make a custom border for it"). MENU ("Default"): the
+     * mod menu's accent color, so the border is there under the default theme. CUSTOM: the Border Color, Bottom Color and
      * Gradient Border settings. The border thickness and Border On/Off apply to both; Chroma Border still overrides both.
      */
     public enum BorderStyle {
@@ -457,7 +457,7 @@ public final class CustomScoreboardConfig {
                     cfg.borderStyle = ConfigJson.getEnum(obj, "borderStyle", BorderStyle.class, cfg.borderStyle);
                 } else {
                     // A file from before Border Style (or a key that was never written): it takes the new default, Custom,
-                    // which draws the Border Color and Bottom Color. Those are the colours such a file already had, so
+                    // which draws the Border Color and Bottom Color. Those are the colors such a file already had, so
                     // its border looks the same as before. A saved borderStyle is never overwritten here.
                     cfg.borderStyle = BorderStyle.CUSTOM;
                 }

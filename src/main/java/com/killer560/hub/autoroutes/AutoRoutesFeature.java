@@ -493,7 +493,7 @@ public final class AutoRoutesFeature {
                         + ", shift-right-click removes. Other items click normally. /ar edit db to finish."));
     }
 
-    /** The node a Go-to is travelling to, until it lands or the path fails. */
+    /** The node a Go-to is traveling to, until it lands or the path fails. */
     private static RouteNode gotoNode;
     private static Route gotoRoute;
 
@@ -594,7 +594,7 @@ public final class AutoRoutesFeature {
         enterEditModeAt(node);
     }
 
-    /** A Go-to whose warp ended without the arrival callback: the planner found no path (or it was cancelled). */
+    /** A Go-to whose warp ended without the arrival callback: the planner found no path (or it was canceled). */
     private static void reportGotoFailed() {
         RouteNode node = gotoNode;
         Route route = gotoRoute;
@@ -999,7 +999,7 @@ public final class AutoRoutesFeature {
         // A start-node trip whose last landing the server has just confirmed ends now, so the node can arm this tick.
         ClearExecutor.finishArrivalEarly(client);
         // Interlock 5: Blood Rush (or any Interactive Map teleport in flight) -> inert.
-        // isSteering() covers the ticks a map goal spends QUEUED behind a cancelled path, where isBusy() is
+        // isSteering() covers the ticks a map goal spends QUEUED behind a canceled path, where isBusy() is
         // false by design and a node underfoot would otherwise arm in the gap and steer against the warp that
         // is about to start (killer560, 2026-09-29: "it'll use the interactive map portion instead of the
         // secret route portion").
@@ -1034,7 +1034,7 @@ public final class AutoRoutesFeature {
         if (teleportSettleTicks > 0 && --teleportSettleTicks == 0) {
             // A same-room warp (the map click that takes you to your own start node) never produces a room
             // change, so the flag had nothing to clear it and start-only stayed enforced for one extra room
-            // afterwards. Clear it once the teleport has settled instead (2026-09-16 review).
+            // afterward. Clear it once the teleport has settled instead (2026-09-16 review).
             arrivedByTeleport = false;
             LOGGER.info("[AutoRoutes] Map teleport settled: arrivedByTeleport cleared, start-only hold still {}, tick={}",
                     mapArrivalGuard, AwaitEvents.now());

@@ -12,12 +12,12 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * The Watcher's blood mobs by name (killer560, 2026-10-15: recognise them "so mobs that landed while he was far away are
+ * The Watcher's blood mobs by name (killer560, 2026-10-15: recognize them "so mobs that landed while he was far away are
  * tracked"). The list is hypixelskyblock.minecraft.wiki's Blood Room / The Watcher page, read 2026-10-15: the undead
  * mobs he summons on every floor, the Wandering Soul, the reincarnated bosses from Floor III on (Bonzo, Scarf, Spirit
  * Bear, Livid) and the Floor VII Sadan giants he reanimates. The wiki gives no separate Master Mode list.
  * <p>
- * Matched on a mob's NAME-TAG armour stand (a custom name on a stand, never chat), anchored on the whole line and
+ * Matched on a mob's NAME-TAG armor stand (a custom name on a stand, never chat), anchored on the whole line and
  * bounded: an optional "[Lv123] " prefix, the exact name, an optional health ("2.1M", "400k/1.2M"), and the heart that
  * ends every Hypixel mob name tag - "Revoker 1.4M❤". The stand is mapped to its mob the way Dungeon ESP maps starred
  * stands (the entity one id below it, else the first living thing in the stand's box moved down). A player-model NPC
@@ -38,7 +38,7 @@ final class BloodMobNames {
     private static final Set<String> NAME_SET = Set.copyOf(NAMES);
 
     // Hypixel puts an affix word before some blood mobs' names ("Stormy Doze", "Stormy Mr. Dead", "Army Walker", killer560
-    // 2026-10-18 screenshots), so one optional capitalised word may come before the name. Before that, mob-type icons:
+    // 2026-10-18 screenshots), so one optional capitalized word may come before the name. Before that, mob-type icons:
     // one after the level ("[Lv79] <icon> Parasite") and two side by side on the giant ("<icon><icon> Boomer Giant"),
     // killer560's 2026-10-22 screenshot. Up to two runs of at most four symbol characters (no letter, digit or space,
     // so a chat-style "[VIP] Name:" still fails), each followed by a space.

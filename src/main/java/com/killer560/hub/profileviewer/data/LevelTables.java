@@ -233,7 +233,7 @@ public final class LevelTables {
      * The level this XP would reach with NO cap at all (killer560, 2026-10-08/11: "There should be no cap. It should
      * be based off of their level calculation passed the true cap"). Every skill on the standard 60-level curve walks
      * that table to 60 whatever its own cap (Farming, Taming, Foraging, Alchemy and Carpentry included), then keeps
-     * levelling past 60 the way SkyHanni does: level 61 costs 7,600,000 XP, each next level 600,000 more, and the
+     * leveling past 60 the way SkyHanni does: level 61 costs 7,600,000 XP, each next level 600,000 more, and the
      * per-level increase doubles every time a multiple of ten is reached.
      * <p>
      * Reference (read only, our own code): SkyHanni {@code SkillUtil.calculateSkillLevel}, commit

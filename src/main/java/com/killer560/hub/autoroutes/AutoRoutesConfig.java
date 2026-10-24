@@ -20,7 +20,7 @@ import java.util.Map;
 /**
  * Persisted Auto Routes settings ({@code killer560smod-autoroutes-settings.json}). Cheat build only; ships
  * disabled. Kept SEPARATE from the routes file ({@link RouteStore}) so sharing your routes never hands over your
- * keybinds and colours, and someone else's routes file never overwrites your settings.
+ * keybinds and colors, and someone else's routes file never overwrites your settings.
  * <p>
  * Same split as {@code leveraura/LeverAuraConfig}: every getter that can make the feature act is gated on
  * {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} and {@link com.killer560.hub.util.SkyblockGate},
@@ -151,7 +151,7 @@ public final class AutoRoutesConfig {
     private float height = 0.1f;
     /** Ticks between a rotation settling and the click that follows it (QUOI "Interact delay"). */
     private int interactDelayTicks = 2;
-    /** Further than this from the recorded path and playback gives up (lag defence, see the spec). */
+    /** Further than this from the recorded path and playback gives up (lag defense, see the spec). */
     private double maxDriftDistance = 2.5;
     /** No progress along the path for this many ticks and playback gives up. */
     private int reachTimeoutTicks = 60;
@@ -180,7 +180,7 @@ public final class AutoRoutesConfig {
         }
     }
 
-    /** QUOI's per-action colours, plus killer560's "superboom nodes red, bat nodes bat-coloured" (await = the
+    /** QUOI's per-action colors, plus killer560's "superboom nodes red, bat nodes bat-coloured" (await = the
      *  bat-secret wait, so it gets a bat brown). */
     public static int defaultNodeColor(RouteNode.Type type) {
         return switch (type) {
@@ -198,7 +198,7 @@ public final class AutoRoutesConfig {
             case CRYPT -> 0xFF7FFF7F;
             case BAT -> 0xFF8B5A2B;
             case JUMP -> 0xFF4F8BFF;
-            // AP3's Align colour.
+            // AP3's Align color.
             case ALIGN -> 0xFFFFA040;
         };
     }
@@ -345,7 +345,7 @@ public final class AutoRoutesConfig {
     public boolean isRunWhileMapOpen() { return runWhileMapOpen; }
     public void setRunWhileMapOpen(boolean v) { runWhileMapOpen = v; }
 
-    // ------------------------------------------------------------------------------------------- colours
+    // ------------------------------------------------------------------------------------------- colors
 
     public boolean isUniformColor() { return uniformColor; }
     public void setUniformColor(boolean v) { uniformColor = v; }
@@ -367,7 +367,7 @@ public final class AutoRoutesConfig {
         }
     }
 
-    /** The colour a node should render with: its own override, else the uniform colour, else its type's. */
+    /** The color a node should render with: its own override, else the uniform color, else its type's. */
     public int colorFor(RouteNode node) {
         if (node != null && node.colour != null) {
             return node.colour;

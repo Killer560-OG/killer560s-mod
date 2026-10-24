@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted "Enchant Colours" settings - see {@link EnchantColorsFeature}. Ships disabled by default.
+/** Persisted "Enchant Colors" settings - see {@link EnchantColorsFeature}. Ships disabled by default.
  *  <p>
  *  Gated on {@link SkyblockGate} because this reads Hypixel's own lore text and Hypixel's
  *  {@code ExtraAttributes} NBT: outside Skyblock there is nothing for it to match, so it should follow
@@ -21,7 +21,7 @@ import java.nio.file.Path;
  *  <p>
  *  2026-09-20 rewrite (killer560: "should follow skyhanni where the color is based off of tier not enchant"):
  *  the old per-enchant override table ({@code colors}/{@code onlyConfigured}/{@code defaultColor}) is gone,
- *  replaced with one colour per SkyHanni tier (Poor/Good/Great/Perfect) plus the existing Ultimate colour.
+ *  replaced with one color per SkyHanni tier (Poor/Good/Great/Perfect) plus the existing Ultimate color.
  *  An old config file's now-unused keys are simply ignored by {@link ConfigJson}'s per-key reads - no
  *  migration needed, it just reseeds the new keys with defaults. */
 public final class EnchantColorsConfig {
@@ -37,21 +37,21 @@ public final class EnchantColorsConfig {
      *  tier table" rather than "has an override", since there is no per-enchant override anymore. When on,
      *  an enchant {@link EnchantColorsDefaults#TIERS} has no entry for is left exactly as Hypixel sent it. */
     private boolean onlyKnownEnchants = true;
-    /** Colour for a recognised-but-untiered enchant while {@link #onlyKnownEnchants} is off. In practice this
+    /** Color for a recognized-but-untiered enchant while {@link #onlyKnownEnchants} is off. In practice this
      *  should rarely fire - {@link EnchantColorsDefaults#TIERS} is sourced from SkyHanni's own repo data - but
-     *  Hypixel adding a brand new enchant before this table is updated would otherwise go uncoloured. */
+     *  Hypixel adding a brand new enchant before this table is updated would otherwise go uncolored. */
     private int unknownColor = EnchantColorsDefaults.UNKNOWN;
     private int poorColor = EnchantColorsDefaults.POOR;
     private int goodColor = EnchantColorsDefaults.GOOD;
     private int greatColor = EnchantColorsDefaults.GREAT;
     private int perfectColor = EnchantColorsDefaults.PERFECT;
     /** killer560, 2026-09-27: "make the enchant colors the exact same as skyhanni's." SkyHanni's real default
-     *  Perfect colour is {@code LorenzColor.CHROMA} - an animated rainbow, not a fixed colour (decompiled,
+     *  Perfect color is {@code LorenzColor.CHROMA} - an animated rainbow, not a fixed color (decompiled,
      *  see {@link EnchantColorsDefaults}'s class doc) - so this defaults ON rather than matching a static
-     *  swatch. Turn it off to use {@link #perfectColor} instead, which this mod's colour picker CAN express
+     *  swatch. Turn it off to use {@link #perfectColor} instead, which this mod's color picker CAN express
      *  and SkyHanni's animated one can't be reduced to. */
     private boolean perfectChroma = true;
-    /** Chroma waterfall (killer560, 2026-10-13): how fast the colour bands sweep (x, 1 = one cycle in 3 s) and how
+    /** Chroma waterfall (killer560, 2026-10-13): how fast the color bands sweep (x, 1 = one cycle in 3 s) and how
      *  wide they are (x, 1 = one rainbow per 160 GUI units along the diagonal). See {@code util/ChromaWave}. */
     public static final float MIN_CHROMA_SPEED = 0.1f, MAX_CHROMA_SPEED = 5f;
     public static final float MIN_CHROMA_SIZE = 0.25f, MAX_CHROMA_SIZE = 4f;
@@ -67,11 +67,11 @@ public final class EnchantColorsConfig {
      *  detecting something like gk5 being a t7." The trap this closes: {@link EnchantColorsDefaults#TIERS}'
      *  {@code maxLevel} is already the enchant's real, post-Experiments/Dark-Auction ceiling (Giant Killer's
      *  is 7, not the enchant-table cap of 5 - confirmed against hypixelskyblock.minecraft.wiki, 2026-09-27),
-     *  so {@code nbtLevel >= maxLevel} already colours a Giant Killer VII as Perfect rather than lumping it
+     *  so {@code nbtLevel >= maxLevel} already colors a Giant Killer VII as Perfect rather than lumping it
      *  in with an ordinary V. Defaults ON because that ceiling data is the whole point of matching SkyHanni;
      *  OFF is an escape hatch for if that per-enchant table ever drifts out of date (Hypixel raising a cap
      *  again, same way VI/VII themselves got added) - with it off, nothing above {@code goodLevel} is ever
-     *  called Perfect, which is exactly the old "clamped to the table's top colour" behaviour killer560 was
+     *  called Perfect, which is exactly the old "clamped to the table's top color" behavior killer560 was
      *  pointing at, kept available on purpose rather than silently wrong. */
     private boolean trueMaxDetection = true;
 
@@ -88,7 +88,7 @@ public final class EnchantColorsConfig {
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new EnchantColorsConfig();
-            // A profile switch that leaves no file must not keep serving tooltips cached under the old colours.
+            // A profile switch that leaves no file must not keep serving tooltips cached under the old colors.
             EnchantColorsFeature.clearCache();
             return;
         }
@@ -141,8 +141,8 @@ public final class EnchantColorsConfig {
         } catch (Exception ignored) {
         }
         // Every rendered tooltip is cached by lore identity, so an edit has to invalidate it or the new
-        // colour wouldn't show until you hovered something else (SkyHanni hits the same problem and solves
-        // it with a "configChanged" dirty flag on every colour option).
+        // color wouldn't show until you hovered something else (SkyHanni hits the same problem and solves
+        // it with a "configChanged" dirty flag on every color option).
         EnchantColorsFeature.clearCache();
     }
 

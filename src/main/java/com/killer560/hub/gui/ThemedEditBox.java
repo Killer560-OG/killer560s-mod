@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Component;
 
 /**
  * A text box in the menu theme for {@link MenuThemedScreen}s: a recessed well (accent ring when focused or hovered) with
- * the text in the theme's colour. Vanilla's bordered box draws a fixed dark sprite and a shadowed hint, unreadable on
+ * the text in the theme's color. Vanilla's bordered box draws a fixed dark sprite and a shadowed hint, unreadable on
  * the Light theme (docs/LESSONS-GUI.md, the Profiles name box), so this is an unbordered {@link EditBox} placed inside
  * the outer box it was asked for, painting the well and its own hint, and taking clicks anywhere on the outer box
  * ({@code AbstractWidget.mouseClicked} asks {@link #isMouseOver}, javap 26.1.2). Its getters still report the inner
@@ -34,13 +34,13 @@ public class ThemedEditBox extends EditBox {
         setBordered(false);
     }
 
-    /** The hint shown while the box is empty and not focused (drawn flat, in the theme's dim colour). */
+    /** The hint shown while the box is empty and not focused (drawn flat, in the theme's dim color). */
     public ThemedEditBox hint(String hint) {
         this.themedHint = hint == null ? "" : hint;
         return this;
     }
 
-    /** Draws the hint in the text colour instead of the dim one (killer560's proxy fields: "make it all white"). */
+    /** Draws the hint in the text color instead of the dim one (killer560's proxy fields: "make it all white"). */
     public ThemedEditBox brightHint() {
         this.brightHint = true;
         return this;

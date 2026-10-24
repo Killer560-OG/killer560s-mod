@@ -44,7 +44,7 @@ public final class DungeonAlertsConfig {
     // Spring Boots Overlay
     public boolean springBootsEnabled = false;
     public boolean springBootsBox = true;
-    /** Height box colour (ARGB) and style (killer560, 2026-10-11). The default is Odin's red, outline only. */
+    /** Height box color (ARGB) and style (killer560, 2026-10-11). The default is Odin's red, outline only. */
     public int springBootsColor = DEFAULT_SPRING_BOOTS_COLOR;
     public BoxStyle springBootsBoxStyle = BoxStyle.OUTLINE;
 
@@ -79,7 +79,7 @@ public final class DungeonAlertsConfig {
     public boolean roomAlertsRoomCleared = true;
     public boolean roomAlertsSecretsDone = true;
     public float roomAlertsDisplaySeconds = 2.0f;
-    /** The alerts' on-screen colours (killer560, 2026-10-18: "an option for room alerts colors ... let me change the color
+    /** The alerts' on-screen colors (killer560, 2026-10-18: "an option for room alerts colors ... let me change the color
      *  of the shadow assassin one and by default make it more of a purple"), RGB. */
     public int roomAlertsClearedColor = DEFAULT_ROOM_ALERT_COLOR;
     public int roomAlertsSecretsColor = DEFAULT_ROOM_ALERT_COLOR;

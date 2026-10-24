@@ -13,7 +13,7 @@ import java.nio.file.Path;
 
 /**
  * Persisted Bazaar Advisor answers (killer560, 2026-10-19). {@code /bzflip} asks four questions - where to sell (NPC or
- * Bazaar), what to optimise (total profit per inventory or best profit percentage), how to buy (Insta Buy or Buy Order) and,
+ * Bazaar), what to optimize (total profit per inventory or best profit percentage), how to buy (Insta Buy or Buy Order) and,
  * for a Bazaar sale, how to sell (Insta Sell or Sell Offer) - and the answers are what every Bazaar menu's recommendation
  * is worked out from. Legit: it only reads the Bazaar and prints chat lines, it never clicks anything.
  */

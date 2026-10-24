@@ -10,12 +10,12 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * The skin and trim half of Armour Recolour. Same hook Skyblocker uses
+ * The skin and trim half of Armor Recolor. Same hook Skyblocker uses
  * ({@code mixins/DataComponentHolderMixin}, credited in {@link ArmourDye}): a client-side, read-only override of
  * three render-only data components on the client's own copy of a stack.
  * <ul>
- *   <li>{@code minecraft:equippable} - its {@code assetId} is the armour texture set {@code HumanoidArmorLayer}
- *       hands to {@code EquipmentLayerRenderer}, so rewriting it is the armour skin.</li>
+ *   <li>{@code minecraft:equippable} - its {@code assetId} is the armor texture set {@code HumanoidArmorLayer}
+ *       hands to {@code EquipmentLayerRenderer}, so rewriting it is the armor skin.</li>
  *   <li>{@code minecraft:trim} - read straight off the stack by {@code EquipmentLayerRenderer}, and by the item
  *       model in inventories, so one override covers both.</li>
  *   <li>{@code minecraft:item_model} - the inventory/hand icon, so a skinned piece doesn't look like two different

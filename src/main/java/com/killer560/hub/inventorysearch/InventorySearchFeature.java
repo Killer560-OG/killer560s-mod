@@ -31,7 +31,7 @@ import java.util.Locale;
  * reference neu for how to do it"): a query that parses as a sum shows " = result" after it, in NEU's
  * language - see {@link SearchCalculator}. A sum highlights nothing.
  * <p>
- * A match is a full fill of the slot in the highlight colour, drawn behind the item (killer560, 2026-10-11:
+ * A match is a full fill of the slot in the highlight color, drawn behind the item (killer560, 2026-10-11:
  * "have the item be a full red highlight so its easier to see") from {@code InventorySearchSlotMixin}, inside the
  * slot's own draw, so it sits under the tooltip.
  * <p>
@@ -232,7 +232,7 @@ public final class InventorySearchFeature {
         QUERY.delete(i, end);
     }
 
-    /** Fill alpha of a matching slot - the colour setting's RGB at this alpha, behind the item. */
+    /** Fill alpha of a matching slot - the color setting's RGB at this alpha, behind the item. */
     private static final int MATCH_FILL_ALPHA = 0xC0;
 
     /** Per-slot match cache for {@link #drawSlotHighlight}: the query it was built for and stack -> matched. Identity
@@ -281,7 +281,7 @@ public final class InventorySearchFeature {
 
     /**
      * Called from {@code InventorySearchSlotMixin} just before vanilla draws a slot's item, so a match gets a full
-     * fill of the highlight colour behind the item and under any tooltip. Slot-local coordinates (extractContents
+     * fill of the highlight color behind the item and under any tooltip. Slot-local coordinates (extractContents
      * has already translated by leftPos/topPos). Public for the testkit.
      */
     public static void drawSlotHighlight(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {

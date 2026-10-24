@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 /**
  * Sliders (FOV, volumes, render distance, GUI scale, mouse sensitivity, other mods' option sliders): themed track
  * box with a warm filled strip up to the handle, an orange knob (light orange while hovered/focused), and the
- * label recoloured like buttons.
+ * label recolored like buttons.
  * <p>
  * 26.1.2 (javap): {@code AbstractSliderButton.extractWidgetRenderState(GuiGraphicsExtractor,int,int,float)} makes
  * exactly two {@code GuiGraphicsExtractor.blitSprite(RenderPipeline,Identifier,int,int,int,int,int)} calls - ordinal 0

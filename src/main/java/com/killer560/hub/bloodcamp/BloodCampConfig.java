@@ -69,8 +69,8 @@ public final class BloodCampConfig {
     private boolean killPopup = false;
     private int killPopupLeadTicks = DEFAULT_KILL_POPUP_LEAD_TICKS;
     private float timerTextScale = DEFAULT_TIMER_TEXT_SCALE;
-    /** Colour of the countdown text on each blood mob's box (killer560, 2026-10-18: a text colour option). Default
-     *  white, the colour it always had (NoammAddons' timerColor default). */
+    /** Color of the countdown text on each blood mob's box (killer560, 2026-10-18: a text color option). Default
+     *  white, the color it always had (NoammAddons' timerColor default). */
     private int timerTextColor = DEFAULT_TIMER_TEXT_COLOR;
     public static final int DEFAULT_TIMER_TEXT_COLOR = 0xFFFFFFFF;
     /** killer560: "it is from the wall spot to where it is going to spawn." Default ON - Blood Camp itself
@@ -297,7 +297,7 @@ public final class BloodCampConfig {
         this.timerTextScale = Math.max(MIN_TIMER_TEXT_SCALE, Math.min(MAX_TIMER_TEXT_SCALE, timerTextScale));
     }
 
-    /** ARGB colour of the countdown text on each blood mob's box. */
+    /** ARGB color of the countdown text on each blood mob's box. */
     public int getTimerTextColor() {
         return timerTextColor;
     }

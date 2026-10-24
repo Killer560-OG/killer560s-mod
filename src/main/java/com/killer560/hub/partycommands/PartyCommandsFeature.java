@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
  * Odin's party commands plus its informational "!" replies, in one feature: someone types "!warp" or "!coords" in a
  * chat you allow, and your client runs the party command or answers. Ported from OdinLegacy's
  * {@code src/main/kotlin/me/odinmain/features/impl/skyblock/ChatCommands.kt} (github.com/odtheking/OdinLegacy) -
- * behaviour, trigger words and reply shapes, not its code. {@link CommandChatListener} is the one chat intake.
+ * behavior, trigger words and reply shapes, not its code. {@link CommandChatListener} is the one chat intake.
  * <p>
  * <b>One list, chosen chats, 2026-10-08</b> (see {@link PartyCommandsConfig}'s class doc for his words): the old
  * "destructive" switch, "Confirm Invites", the joke command and the separate informational list are gone. What is left:
@@ -487,7 +487,7 @@ public final class PartyCommandsFeature {
 
     /**
      * {@code !reinv} / {@code !reinvite}: kick the teammate who asked, then invite them back {@link #REINVITE_DELAY_MS}
-     * later. The gap is a scheduled tick entry, re-validated when due ({@link #reinviteStillValid}) and cancelled from
+     * later. The gap is a scheduled tick entry, re-validated when due ({@link #reinviteStillValid}) and canceled from
      * {@link #onServerLine} the moment this client stops being in that party.
      */
     private static void reinvite(String sender) {
@@ -613,7 +613,7 @@ public final class PartyCommandsFeature {
         if (due == null) {
             return;
         }
-        // The backwards remove-loop above collects newest-first; run in scheduling order.
+        // The backward remove-loop above collects newest-first; run in scheduling order.
         java.util.Collections.reverse(due);
         for (Pending pending : due) {
             try {

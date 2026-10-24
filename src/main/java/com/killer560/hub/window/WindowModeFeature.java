@@ -105,7 +105,7 @@ public final class WindowModeFeature {
             // deferred sync here (it is a no-op once the two flags agree) keeps it from clobbering us.
             window.updateFullscreenIfChanged();
         } else if ((!fromStartup || !cfg.hasSavedWindowedBounds()) && !coversMonitor(window, window.getWidth(), window.getHeight())) {
-            // A window that already fills the monitor (maximised, or the launcher's full-size window) is not a
+            // A window that already fills the monitor (maximized, or the launcher's full-size window) is not a
             // windowed size worth coming back to - leaving borderless would just give the same size again.
             cfg.saveWindowedBounds(window.getX(), window.getY(), window.getWidth(), window.getHeight());
             cfg.save();
@@ -137,7 +137,7 @@ public final class WindowModeFeature {
         // killer560 (2026-09-21): "the first time I press f11 to exit out of the borderless fullscreen, the window
         // is still the same size just windowed. It would be nice if it was back to that original smaller size."
         // Nothing smaller was ever saved (or an old build saved the full-monitor size): come back as a normal
-        // window - 60% of the monitor's width, 16:9, centred. Once he resizes it, that size is saved next time.
+        // window - 60% of the monitor's width, 16:9, centered. Once he resizes it, that size is saved next time.
         Monitor monitor = window.findBestMonitor();
         if (monitor != null && (!cfg.hasSavedWindowedBounds() || coversMonitor(window, width, height))) {
             VideoMode mode = McCompat.currentMode(monitor);
@@ -167,7 +167,7 @@ public final class WindowModeFeature {
 
     /** The window rect to use for borderless on the monitor {@code (mx, my, mw, mh)}: the monitor itself
      *  plus {@link #OVERHANG} pixels pushed off one edge of that monitor, chosen on the side where no other
-     *  monitor is sitting so the sliver lands on empty desktop rather than over a neighbouring screen.
+     *  monitor is sitting so the sliver lands on empty desktop rather than over a neighboring screen.
      *  @return {x, y, width, height} */
     private static int[] borderlessRect(int mx, int my, int mw, int mh) {
         if (OVERHANG <= 0) {

@@ -95,9 +95,9 @@ public class Killer560ModClient implements ClientModInitializer {
                 BuildVariant.CHEAT_FEATURES_ENABLED ? "cheat" : "legit",
                 BuildVariant.DEV_TOOLS ? "dev" : "release");
 
-        // util/ChatColors carries the 16 legacy colour RGB values by hand, because Minecraft 26.2 deleted
+        // util/ChatColors carries the 16 legacy color RGB values by hand, because Minecraft 26.2 deleted
         // ChatFormatting.getColor() and there is nothing left to ask. A wrong entry would compile, draw a
-        // plausible-looking colour and never be noticed - so on the version that still HAS the real method,
+        // plausible-looking color and never be noticed - so on the version that still HAS the real method,
         // check the table against it and say so loudly if they ever disagree. On 26.2 the check cannot run and
         // returns nothing, which is why the log line below says which version it spoke for rather than
         // reporting a pass it did not earn.
@@ -141,7 +141,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // Whether a hotbar swap may go out now or must wait for the next tick (GrimAC Post, grim-post-autopilot-1016).
         com.killer560.hub.util.HotbarSelect.register();
         com.killer560.hub.roomsim.SimSpiritSceptre.register();
-        // Only so the Terminator's own arrows can be recognised when they land - that is what arms Salvation
+        // Only so the Terminator's own arrows can be recognized when they land - that is what arms Salvation
         // now that the shot is real entities instead of a ray cast. Nothing else in this file needs it.
         com.killer560.hub.roomsim.SimTerminator.register();
         com.killer560.hub.roomsim.SimPuzzleSolvedLine.register();

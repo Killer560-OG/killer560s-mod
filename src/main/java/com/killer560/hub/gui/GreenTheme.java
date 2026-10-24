@@ -3,16 +3,16 @@ package com.killer560.hub.gui;
 import com.killer560.hub.hud.GuiRects;
 
 /**
- * The Green menu theme's name, five base colours and panel background (killer560, 2026-10-15: "make a default viridian
+ * The Green menu theme's name, five base colors and panel background (killer560, 2026-10-15: "make a default viridian
  * green style theme and call it green for now, we will rename it in a bit"). The shown name is {@link #NAME} and nothing
  * else: renaming the theme is one edit here. Its saved id is the enum constant {@code MenuTheme.GREEN}, so a rename never
  * breaks a saved setting.
  *
  * <p>Second pass, from the theme's designer (2026-10-15: "The color is more teal than green, I think making it more green
- * would be good. Also can you do gradients for the background or no?"): every colour moved from hue ~160 (viridian, a
+ * would be good. Also can you do gradients for the background or no?"): every color moved from hue ~160 (viridian, a
  * teal) to ~130 (forest green), and the menu's panel draws one of the {@link Gradient}s below instead of the plain
  * two-stop bevel. Only this theme draws one: {@link MenuStyle#derive} asks {@link #background} and gets null for any other
- * set of colours, and {@link MenuStyle#panel} then draws exactly the bevel it always did.
+ * set of colors, and {@link MenuStyle#panel} then draws exactly the bevel it always did.
  */
 public final class GreenTheme {
 
@@ -38,7 +38,7 @@ public final class GreenTheme {
         FOREST_NIGHT,
         /** B: dark at the top, through the panel green, to a lighter moss at the foot. */
         MOSS_FLOOR,
-        /** C: forest night with a soft canopy glow spreading down from the top centre. */
+        /** C: forest night with a soft canopy glow spreading down from the top center. */
         CANOPY_GLOW
     }
 
@@ -64,7 +64,7 @@ public final class GreenTheme {
         }
     }
 
-    /** The panel background for these five colours: Green's when they are exactly Green's, otherwise null (every other
+    /** The panel background for these five colors: Green's when they are exactly Green's, otherwise null (every other
      *  theme, and Custom, keeps the plain bevel). */
     static Background background(int accent, int panel, int card, int text, int switchOn) {
         if ((accent | 0xFF000000) != ACCENT || (panel | 0xFF000000) != PANEL || (card | 0xFF000000) != CARD
@@ -88,7 +88,7 @@ public final class GreenTheme {
     /**
      * A theme background: vertical stops spaced evenly from top to bottom for the outer panel ({@link #panel}), the
      * sidebar and drawer ({@link #side}, a little deeper) and the well the cards sit in ({@link #well}, deeper still), and
-     * optionally a glow of one colour spreading down from the top centre of the well, drawn as nested translucent boxes
+     * optionally a glow of one color spreading down from the top center of the well, drawn as nested translucent boxes
      * that stack brighter toward the middle (a radial falloff out of plain fills).
      */
     static final class Background {
@@ -127,7 +127,7 @@ public final class GreenTheme {
             int w = x1 - x0;
             int cx = x0 + w / 2;
             for (int i = 0; i < ringColours.length; i++) {
-                // ring i: widest first, each fading to clear at its foot; the smaller ones stack on top toward the centre
+                // ring i: widest first, each fading to clear at its foot; the smaller ones stack on top toward the center
                 float f = 1f - i / (float) RINGS;
                 int hw = Math.round(w * 0.5f * f);
                 int hh = Math.round(h * 0.6f * f);

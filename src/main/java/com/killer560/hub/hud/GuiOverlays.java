@@ -69,8 +69,8 @@ public final class GuiOverlays {
                 });
     }
 
-    /** {@link ModOverlayMessage}, centred on screen and word-wrapped to two thirds of its width (2026-09-07), in
-     *  the theme colour with any caller's own formatting codes stripped. */
+    /** {@link ModOverlayMessage}, centered on screen and word-wrapped to two thirds of its width (2026-09-07), in
+     *  the theme color with any caller's own formatting codes stripped. */
     private static void drawOverlayMessage(GuiGraphicsExtractor graphics) {
         String message = ModOverlayMessage.current();
         if (message == null) {
@@ -82,7 +82,7 @@ public final class GuiOverlays {
         }
         Font font = Minecraft.getInstance().font;
         // Auto Scale: the popup is laid out on a canvas 1/f the size of the GUI area and drawn scaled by f, so it
-        // is the same fraction of the window on every monitor and still centred and wrapped to two thirds.
+        // is the same fraction of the window on every monitor and still centered and wrapped to two thirds.
         float f = AutoScale.menuFactor();
         int canvasW = AutoScale.layoutSize(graphics.guiWidth(), f);
         int canvasH = AutoScale.layoutSize(graphics.guiHeight(), f);

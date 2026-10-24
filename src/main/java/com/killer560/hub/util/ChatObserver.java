@@ -24,7 +24,7 @@ import java.util.function.Consumer;
  * {@code ChatComponentMixin}'s hook on {@code ChatComponent}'s private {@code addMessage} funnel (every
  * public add path - player/client-system/server-system - goes through it, confirmed with javap on the
  * real 26.1.2 jar). A normal line fires Fabric first, then reaches ChatComponent with the same text and is
- * dropped as a duplicate; a line another mod cancelled-and-re-added only arrives via ChatComponent.
+ * dropped as a duplicate; a line another mod canceled-and-re-added only arrives via ChatComponent.
  * De-dup: identical stripped text (or one being a prefix of the other, which covers suffix rewrites like
  * Odin's splits or this mod's own Device Times annotation) within {@link #DEDUPE_WINDOW_MS}.
  * <p>
@@ -58,7 +58,7 @@ public final class ChatObserver {
      * The line being delivered right now, and its text, computed at most once (fps-idle-1015, 2026-10-15).
      *
      * <p>Every subscriber and most raw chat listeners start with {@code message.getString()} (a full walk of the
-     * component tree into a new String) and usually a strip of the colour codes; with ~55 subscribers that was ~55
+     * component tree into a new String) and usually a strip of the color codes; with ~55 subscribers that was ~55
      * walks of the same line. While a line is being delivered - one {@link #dispatch}, or one of Fabric's CHAT /
      * GAME / MODIFY_GAME events between the two phases {@link #registerScopes} adds around them - {@link #raw} and
      * {@link #strip(Component)} hand back the text already made for that very object. Identity only, and only for
@@ -320,7 +320,7 @@ public final class ChatObserver {
 
     /**
      * Exactly {@link ChatFormatting#stripFormatting} (null in, null out), without its regex when the string holds no
-     * section sign - which is nearly always: tab-list and scoreboard Components carry their colour in Style, so
+     * section sign - which is nearly always: tab-list and scoreboard Components carry their color in Style, so
      * {@code getString()} has no codes in it. Several tick handlers strip every tab entry every tick; the regex's
      * Matcher and replaceAll were most of that (95-fps-bench JFR, 2026-10-05).
      */
@@ -328,7 +328,7 @@ public final class ChatObserver {
         return raw == null || raw.indexOf('§') < 0 ? raw : ChatFormatting.stripFormatting(raw);
     }
 
-    /** {@code message.getString()} with colour codes stripped; made once per delivered line (see {@link #raw}). */
+    /** {@code message.getString()} with color codes stripped; made once per delivered line (see {@link #raw}). */
     public static String strip(Component message) {
         if (inScope(message)) {
             String p = scopePlain;
@@ -346,7 +346,7 @@ public final class ChatObserver {
     }
 
     /** The same stripping for a raw string that is not a chat line - item/entity names, container titles - trimmed
-     *  (the {@code stripName} the puzzle solvers use, shared so name comparisons all normalise the same way). */
+     *  (the {@code stripName} the puzzle solvers use, shared so name comparisons all normalize the same way). */
     public static String strip(String raw) {
         if (raw == null) {
             return "";

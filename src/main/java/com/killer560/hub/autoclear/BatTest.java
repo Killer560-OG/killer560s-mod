@@ -661,7 +661,7 @@ public final class BatTest {
         return best;
     }
 
-    /** No block (collision shape) between {@code eye} and the mob's centre. */
+    /** No block (collision shape) between {@code eye} and the mob's center. */
     static boolean clearLine(Minecraft client, LocalPlayer player, Vec3 eye, Entity mob) {
         Vec3 c = mob.getBoundingBox().getCenter();
         HitResult hit = client.level.clip(new ClipContext(eye, c, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
@@ -671,7 +671,7 @@ public final class BatTest {
 
     /**
      * A block to stand ON (one an etherwarp lands on: solid, two air above) whose eye is about {@code blocks} from the
-     * mob's centre with a clear line to it: 36 directions round the mob, the distance give or take two, six blocks up or
+     * mob's center with a clear line to it: 36 directions round the mob, the distance give or take two, six blocks up or
      * down; the one nearest him wins, a distance closer to the shot's breaking ties.
      */
     private static BlockPos standSpot(Minecraft client, LocalPlayer player, Entity mob, double blocks) {

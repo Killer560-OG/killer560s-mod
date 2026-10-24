@@ -12,9 +12,9 @@ import java.util.Locale;
  * {@code /fl} - killer560's 8.7 toggle between OUR Friends List and Hypixel's own, per the brief:
  * <ul>
  * <li>bare {@code /fl} opens {@link FriendsListScreen} when {@link FriendsListConfig#isEnabled()} is on,
- * otherwise forwards straight to Hypixel's real {@code /fl} - unchanged behaviour, since the setting ships
+ * otherwise forward straight to Hypixel's real {@code /fl} - unchanged behavior, since the setting ships
  * OFF (the brief's explicit "must never hijack his /fl until he turns it on").</li>
- * <li>{@code /flcustom} always opens our list, {@code /flhypixel} always forwards to Hypixel's - both work
+ * <li>{@code /flcustom} always opens our list, {@code /flhypixel} always forward to Hypixel's - both work
  * regardless of the toggle, so neither one is ever unreachable.</li>
  * </ul>
  * <b>Collision check done before writing this</b> (see impl-bestfriends.md): this mod registers no other

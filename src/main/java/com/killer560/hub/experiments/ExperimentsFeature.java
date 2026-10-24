@@ -315,7 +315,7 @@ public final class ExperimentsFeature {
      * AFTER the container screen has drawn its own background/box - real bug found and fixed
      * (2026-09-06): this used to be called from the earlier {@code Gui}-level HUD render pass, which
      * runs BEFORE the container screen draws its own darkened background over the whole viewport, so
-     * the button was getting dimmed by that overlay and looked greyed-out/disabled even though it was
+     * the button was getting dimmed by that overlay and looked grayed-out/disabled even though it was
      * actually fully functional. Drawing it from the container screen's own render pass instead means
      * nothing draws over it afterward - same reason {@code RngMeterOverlay} does the same thing.
      * <p>
@@ -805,7 +805,7 @@ public final class ExperimentsFeature {
         if (!gate.isEnabled() && !gate.isAutonomousMode()) {
             // Switched off (or left Skyblock) with a board open: the tick that would have noticed the screen
             // closing never runs, so the mode, the board read and the Superpairs ghost icons stayed as they were
-            // and kept drawing remembered items into any container opened afterwards.
+            // and kept drawing remembered items into any container opened afterward.
             if (lastLoggedMode != ExperimentSolver.Mode.NONE) {
                 SOLVER.select("");
                 logModeChangeIfAny(ExperimentSolver.Mode.NONE, "");
@@ -1375,10 +1375,10 @@ public final class ExperimentsFeature {
      *  note up into his cursor. The autonomous auto-clicker never had this problem, since
      *  {@link #clickSlot} has always sent {@code ContainerInput.CLONE} (pick-block) instead - a no-op
      *  for real item movement in survival, matching SkyHanni's own {@code makePickblock()} exactly. A
-     *  correct click here now gets the same treatment: cancelled and redirected through
+     *  correct click here now gets the same treatment: canceled and redirected through
      *  {@code clickSlot} instead of being let through as-is, so it registers with Hypixel exactly like
      *  before but never actually picks anything up.
-     *  @return true if the click should be BLOCKED (cancelled). */
+     *  @return true if the click should be BLOCKED (canceled). */
     public static boolean shouldBlockManualMisclick(MouseButtonEvent event) {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
         if (!cfg.isEnabled() || !cfg.isClickProtectionEnabled() || cfg.isAutonomousMode()) {
@@ -1417,7 +1417,7 @@ public final class ExperimentsFeature {
             // AbstractContainerScreen sends a ContainerInput.QUICK_MOVE action whenever Shift is held,
             // never a normal click. Hypixel's custom Chronomatron/Ultrasequencer menu doesn't treat a
             // quick-move as "click this note," so the override never actually did anything even though
-            // it wasn't being blocked. Cancelling vanilla's handling unconditionally and sending the
+            // it wasn't being blocked. Canceling vanilla's handling unconditionally and sending the
             // real click ourselves via the same clickSlot mechanism the autonomous auto-clicker already
             // uses successfully sidesteps vanilla's shift-specific branching entirely.
             clickSlot(menu.containerId, slot);
@@ -1698,7 +1698,7 @@ public final class ExperimentsFeature {
      *  Superpairs' {@code decideSuperpairsClick} refuses to decide anything else at all while {@code
      *  superpairsAwaitingConfirmSlot} stays set (ExperimentSolver.java:768). Both assume the deferred
      *  click this method schedules always eventually fires. The first ActionGate wiring here didn't
-     *  honour that: it treated a denied gate check as "log a warning and drop it," which for
+     *  honor that: it treated a denied gate check as "log a warning and drop it," which for
      *  Chronomatron silently skips a click in the exact repeated-sequence Hypixel is validating - an
      *  instant round fail that looks identical to "it didn't recognize the enchant" - and for Superpairs
      *  leaves {@code superpairsAwaitingConfirmSlot} stuck forever, since its own confirm-timeout clock

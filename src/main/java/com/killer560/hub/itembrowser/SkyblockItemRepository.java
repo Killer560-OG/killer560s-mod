@@ -59,7 +59,7 @@ public final class SkyblockItemRepository {
             ModPaths.config("killer560smod-itembrowser-items-cache.json");
     private static final long CACHE_TTL_MS = 12L * 60 * 60 * 1000;
     /** Bump when the cache gains a field. Schema 2 added leather {@code color}; an older cache is still served
-     *  but treated as stale, so one refresh rewrites it with colour. */
+     *  but treated as stale, so one refresh rewrites it with color. */
     private static final int CACHE_SCHEMA = 2;
     private static final long SCHEMA_RETRY_MS = 5L * 60 * 1000;
 
@@ -113,7 +113,7 @@ public final class SkyblockItemRepository {
 
     /** The catalog entry for {@code id} from the on-disk cache alone (the compactor preview reads it that way; killer560,
      *  2026-10-18: "only shows paper"). The one exception is a cache older than {@link #CACHE_SCHEMA}: that starts a single
-     *  refresh (retried at most every {@link #SCHEMA_RETRY_MS} while it keeps failing) so leather colour reaches the disk
+     *  refresh (retried at most every {@link #SCHEMA_RETRY_MS} while it keeps failing) so leather color reaches the disk
      *  even with the Item Browser off. Everything else here stays download-free. */
     public static SkyblockItemEntry findOnDisk(String id) {
         if (id == null) {
@@ -220,7 +220,7 @@ public final class SkyblockItemRepository {
                     : (item.has("category_display") ? item.get("category_display").getAsString() : null);
             Double npcSellPrice = item.has("npc_sell_price") ? item.get("npc_sell_price").getAsDouble() : null;
             String description = item.has("description") ? cleanDescription(item.get("description").getAsString()) : null;
-            // Leather armour's "color" is a string "r,g,b" (e.g. "139,0,0"); absent or unparseable -> null.
+            // Leather armor's "color" is a string "r,g,b" (e.g. "139,0,0"); absent or unparseable -> null.
             String rawColor = item.has("color") && item.get("color").isJsonPrimitive() ? item.get("color").getAsString() : null;
             Integer dyeColor = DyeColors.parse(rawColor);
 
@@ -455,7 +455,7 @@ public final class SkyblockItemRepository {
                 setItems(cached);
                 lastFetchAtMs = cachedAt;
                 if (schema < CACHE_SCHEMA) {
-                    // Written before the current fields existed (no leather colour): serve it, but mark it stale
+                    // Written before the current fields existed (no leather color): serve it, but mark it stale
                     // so the next refresh rewrites it. Zero makes ensureLoaded refresh now; findOnDisk does too.
                     lastFetchAtMs = 0;
                     schemaStale = true;

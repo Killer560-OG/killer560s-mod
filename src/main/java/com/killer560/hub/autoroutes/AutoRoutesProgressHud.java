@@ -29,7 +29,7 @@ import java.util.function.Function;
  */
 public final class AutoRoutesProgressHud {
 
-    /** One drawn row: its text and 0xRRGGBB colour. */
+    /** One drawn row: its text and 0xRRGGBB color. */
     record Line(String text, int rgb) {
     }
 

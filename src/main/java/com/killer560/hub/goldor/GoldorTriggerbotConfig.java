@@ -24,7 +24,7 @@ import java.nio.file.Path;
  * between the two ends (see {@link GoldorTriggerbotFeature}).
  * <p>
  * {@link #MAX_CPS} is 20 on purpose: {@code ActionGate} allows one automated interaction per client tick plus
- * 0-20 ms of jitter, so anything above roughly 20 CPS is a number the gate would quietly refuse to honour.
+ * 0-20 ms of jitter, so anything above roughly 20 CPS is a number the gate would quietly refuse to honor.
  */
 public final class GoldorTriggerbotConfig {
 

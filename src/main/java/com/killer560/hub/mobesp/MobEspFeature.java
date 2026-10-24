@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Dungeon ESP - highlights four kinds of dungeon target, each with its own colour ({@link MobEspConfig}):
+ * Dungeon ESP - highlights four kinds of dungeon target, each with its own color ({@link MobEspConfig}):
  * <ul>
  * <li><b>Starred mobs</b> (dungeon clear, not boss). Hypixel puts the "✯ ... ❤" name on a separate invisible
  * armor stand, never on the mob, so each starred stand is mapped to its real mob the way NoammAddons 26.1.2
@@ -51,11 +51,11 @@ import java.util.Set;
  * <li><b>Wither ESP</b> (F7/M7 boss, P1-P4): {@link WitherEspFeature#isRealWither} (not Hypixel's invisible /
  * 800-invulnerable-tick display withers). Cheat build only, like the Cheat Utils Wither ESP it replaces; always
  * through walls and never range-limited. Takes precedence over Wither Highlight when both are on. Its optional
- * Tracer draws a line from your eyes to each highlighted wither's hitbox centre, in the wither colour; Wither Highlight
+ * Tracer draws a line from your eyes to each highlighted wither's hitbox center, in the wither color; Wither Highlight
  * has the same Tracer, drawn only to a wither that passed the line-of-sight test (2026-10-15).
  * </ul>
  * Styles: Outline Box / Filled Box ({@link EspRenderer}) or Glow - vanilla's entity outline, forced through
- * {@code Minecraft#shouldEntityAppearGlowing} and coloured through {@code Entity#getTeamColor} by the
+ * {@code Minecraft#shouldEntityAppearGlowing} and colored through {@code Entity#getTeamColor} by the
  * cheatutils {@code WitherGlow*Mixin}s (NoammAddons' two hooks), so no entity data is ever mutated.
  * <p>
  * Legit (the default, and the only option on the legit jar): a target is only highlighted while there is a clear
@@ -73,7 +73,7 @@ public final class MobEspFeature {
     private static final Set<String> MINIBOSS_NAMES = Set.of(
             "Shadow Assassin", "Lost Adventurer", "Frozen Adventurer", "Diamond Guy", "King Midas");
 
-    /** Everything a box target needs; glow targets only need the colour. */
+    /** Everything a box target needs; glow targets only need the color. */
     record Box(int argb, boolean filled, boolean throughWalls) {
     }
 
@@ -129,7 +129,7 @@ public final class MobEspFeature {
         return entity != null && set.ids.length != 0 && java.util.Arrays.binarySearch(set.ids, entity.getId()) >= 0;
     }
 
-    /** Glow mixin hook: the ARGB outline colour for this entity, or null if Dungeon ESP isn't glowing it. */
+    /** Glow mixin hook: the ARGB outline color for this entity, or null if Dungeon ESP isn't glowing it. */
     public static Integer glowColor(Entity entity) {
         GlowSet set = glowSet;
         if (entity == null || set.ids.length == 0) {
@@ -139,7 +139,7 @@ public final class MobEspFeature {
         return i >= 0 ? set.colors[i] : null;
     }
 
-    /** {@link #glowTargets} as sorted entity ids and their colours (the map's own Integer objects), published with it.
+    /** {@link #glowTargets} as sorted entity ids and their colors (the map's own Integer objects), published with it.
      *  The two glow hooks run for every entity every frame while anything glows, and each did a boxed-key map lookup
      *  (entity ids are far above Integer's small cache, so a new Integer each time). Same answers as the map. */
     private record GlowSet(int[] ids, Integer[] colors) {
@@ -267,7 +267,7 @@ public final class MobEspFeature {
                 if (!espMode && !wantWitherHighlight) {
                     continue;
                 }
-                // The same colour in both modes (killer560, 2026-10-15: no separate wither boss colour for ESP).
+                // The same color in both modes (killer560, 2026-10-15: no separate wither boss color for ESP).
                 int color = cfg.getWitherHighlightColor();
                 boolean wallsOk = espMode;
                 boolean asGlow = espMode ? glow : witherGlow;
@@ -341,7 +341,7 @@ public final class MobEspFeature {
      * <p>
      * Uses the live scanned dungeon, not a guess: {@link DungeonLayout#current()} (the shared per-tick snapshot),
      * {@code roomAtWorld} for the player's room and the room's own even tiles for its footprint - each tile is
-     * 32x32 centred on {@link DungeonLayout#cellCenter}, which reproduces {@code LiveMapFeature.roomWorldBounds}
+     * 32x32 centered on {@link DungeonLayout#cellCenter}, which reproduces {@code LiveMapFeature.roomWorldBounds}
      * exactly. Vertically unbounded: dungeon rooms stack over several floors and the margin is a horizontal one.
      *
      * @return the current room's box inflated by {@code margin}, or null when the room isn't known yet (in which
@@ -443,7 +443,7 @@ public final class MobEspFeature {
                 if (entity == null || entity.isRemoved()) {
                     continue;
                 }
-                // Aim at the hitbox centre rather than the feet: a wither's box is 3.5 blocks tall and a line to
+                // Aim at the hitbox center rather than the feet: a wither's box is 3.5 blocks tall and a line to
                 // its origin reads as pointing at the floor underneath it.
                 Vec3 lerped = entity.getPosition(partialTick);
                 Vec3 centre = entity.getBoundingBox().move(lerped.subtract(entity.position())).getCenter();
@@ -451,8 +451,8 @@ public final class MobEspFeature {
             }
         }
         // Every box into four reusable lists (fill / outline x depth-tested / through walls), each drawn with ONE call:
-        // per box this used to be a fill call and an outline call, each with its own colour array and lambda, plus an
-        // AABB and two Vec3 for the interpolated box (FPS pass, 2026-10-15). Same boxes, same colours, same types.
+        // per box this used to be a fill call and an outline call, each with its own color array and lambda, plus an
+        // AABB and two Vec3 for the interpolated box (FPS pass, 2026-10-15). Same boxes, same colors, same types.
         FILL_DEPTH.clear();
         FILL_WALLS.clear();
         LINE_DEPTH.clear();
@@ -596,7 +596,7 @@ public final class MobEspFeature {
         return hasLineOfSightTo(client, eye, target, target.getEyePosition(), 0);
     }
 
-    /** Cache key salt for the ray to a blood mob's box centre: entity ids are positive, so the salted key never meets one. */
+    /** Cache key salt for the ray to a blood mob's box center: entity ids are positive, so the salted key never meets one. */
     private static final int BODY_LOS_KEY = Integer.MIN_VALUE;
 
     /** {@link #hasLineOfSight} to {@code point}, cached under {@code target.getId() ^ keySalt}. */

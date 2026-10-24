@@ -13,10 +13,10 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * {@code killer560s-mod-logs/theme-green-final/hq/make_hq.py} (Lanczos in linear light, a halo-free clamped sharpen, the
  * cleanup kept), and sampled with linear filtering ({@code .png.mcmeta} blur), so it is sharp on a 1440p screen and the
  * ripple tiles slide between texels instead of snapping. Everything below still works in a 1920x1080 picture space (UVs
- * are normalised, so the texture's real size does not matter). On top, all in that space:
+ * are normalized, so the texture's real size does not matter). On top, all in that space:
  * <ul>
  *   <li>the cape and the hair flow: those regions are redrawn as small tiles of the picture whose source is offset by a
- *       travelling sine, growing from nothing where they attach (shoulders, crown) to the most at the free ends;</li>
+ *       traveling sine, growing from nothing where they attach (shoulders, crown) to the most at the free ends;</li>
  *   <li>streaks falling down the acid waterfall and foam flickering where it lands on the slime's crown;</li>
  *   <li>the slime's glow pulsing gently, shimmer drifting across the lake, fog drifting over the water, a few motes rising
  *       at the sides;</li>
@@ -25,7 +25,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  *       ledge; only two faint far ones fall through the middle;</li>
  * </ul>
  * The view itself never moves (killer560, 2026-10-16: the side-to-side sway was removed); only those parts do. Built on
- * {@link PictureScene}, which was generalised from this class (2026-10-16) so a further painted picture needs only a spec.
+ * {@link PictureScene}, which was generalized from this class (2026-10-16) so a further painted picture needs only a spec.
  */
 final class TargetScene {
 

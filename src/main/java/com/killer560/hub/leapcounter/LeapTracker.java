@@ -126,7 +126,7 @@ public final class LeapTracker {
     }
 
     /** Forgets every counted teammate at the current spot (the anchor re-follows you). Position history is kept, so a
-     *  teammate who walked in before the reset still cannot be counted afterwards. */
+     *  teammate who walked in before the reset still cannot be counted afterward. */
     public static void reset() {
         COUNTED.clear();
         complete = false;

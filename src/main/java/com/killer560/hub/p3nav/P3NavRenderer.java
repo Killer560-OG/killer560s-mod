@@ -59,7 +59,7 @@ final class P3NavRenderer {
                         .build())).sortOnUpload().createRenderSetup());
     }
 
-    /** Fill is drawn at 35% of the colour's own alpha so whatever is inside the box stays readable. */
+    /** Fill is drawn at 35% of the color's own alpha so whatever is inside the box stays readable. */
     private static final float FILL_ALPHA_SCALE = 0.35f;
 
     static void draw(LevelRenderContext context, AABB box, int argb, P3NavConfig.Style style, float lineWidth,

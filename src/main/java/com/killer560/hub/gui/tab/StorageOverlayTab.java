@@ -48,7 +48,7 @@ public class StorageOverlayTab extends BaseTab {
                 }).bounds(contentX, y, 220, 20).build());
         y += 24;
 
-        // Menu Theme (2026-10-15): Default keeps the Overlay Theme above; anything else draws in the mod menu's colours.
+        // Menu Theme (2026-10-15): Default keeps the Overlay Theme above; anything else draws in the mod menu's colors.
         widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.STORAGE_OVERLAY,
                 contentX, y, 220, 20));
         y += 26;

@@ -24,7 +24,7 @@ import com.killer560.hub.compat.McCompat;
  *  <p>
  *  Controls per waypoint are the ones killer560 asked for (2026-09-16): the message field with its Set
  *  button, Enabled, Set To My Position, Show Radius, Radius, Border Thickness, Only Send Once Per Run,
- *  the colour, and (his test-round additions) Text Scale and Text Height for the floating label. Radius
+ *  the color, and (his test-round additions) Text Scale and Text Height for the floating label. Radius
  *  is a slider rather than a cycling button at his request. Enabled sits directly under the waypoint's
  *  title and collapses everything below it when off, so an unused waypoint costs one line in a list
  *  that is already 7 entries long. Every waypoint starts OFF - flipping the master switch lights up

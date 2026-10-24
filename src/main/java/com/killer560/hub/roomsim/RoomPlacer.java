@@ -20,7 +20,7 @@ import com.killer560.hub.compat.McBlocks;
  *
  * <p>Everything here is coordinate/registry plumbing except the rotation, which is the one part a route practice
  * session cannot survive being wrong (killer560's own framing of this task: a room placed at the wrong rotation
- * makes every route practised in it wrong). So the coordinate rotation is not an original formula - it is the
+ * makes every route practiced in it wrong). So the coordinate rotation is not an original formula - it is the
  * exact transform vanilla itself uses, recovered by disassembling {@code StructureTemplate.transform(BlockPos,
  * Mirror, Rotation, BlockPos)} with {@code javap -c} against the mapped 26.1.2 jar (Mirror.NONE branch only,
  * since a room is never mirrored here). With dx = x - pivotX, dz = z - pivotZ, that method's bytecode is:
@@ -31,7 +31,7 @@ import com.killer560.hub.compat.McBlocks;
  * </pre>
  * (Confirmed against the {@code StructureTemplate$1} switch-map static initializer, which is the only place the
  * enum's ordinals are pinned to those switch cases - the ordinal order alone is not enough to trust.)
- * {@link #rotateLocal} below is that same transform, specialised to a pivot at the room's own centre and written
+ * {@link #rotateLocal} below is that same transform, specialized to a pivot at the room's own center and written
  * for plain ints so {@link #selfCheckRotation()} can exercise it with no world at all.
  */
 public final class RoomPlacer {
@@ -46,7 +46,7 @@ public final class RoomPlacer {
      * on-place, skip block-entity side effects, suppress drops, known-shape) plus {@link Block#UPDATE_INVISIBLE}
      * (4). Neither that flag nor any other {@code UPDATE_*} constant in this version includes
      * {@link Block#UPDATE_NEIGHBORS} (1) - that bit is what would cascade into one shape recalculation per
-     * neighbour for every one of a room's ~78,000 blocks (31 x 31 x 81) and hang the server, so it stays off here
+     * neighbor for every one of a room's ~78,000 blocks (31 x 31 x 81) and hang the server, so it stays off here
      * too. But vanilla's 820 also drops {@link Block#UPDATE_CLIENTS} (2), which is fine for world-gen (the chunk
      * has not been sent to anyone yet) and wrong here: this runs on a level a player is already standing in, so
      * the client must be told. Flag used: {@code UPDATE_CLIENTS | UPDATE_SKIP_ALL_SIDEEFFECTS}.
@@ -248,7 +248,7 @@ public final class RoomPlacer {
      * exactly.
      *
      * <p>{@code rotation} is degrees clockwise (viewed from above, +X east / +Z south), one of 0/90/180/270 -
-     * matching {@link Rotation#CLOCKWISE_90}'s own sense, verified above. It is applied about the room's centre,
+     * matching {@link Rotation#CLOCKWISE_90}'s own sense, verified above. It is applied about the room's center,
      * to BOTH the block positions (via {@link #rotateLocal}) and each block's facing/rotation properties (via
      * vanilla {@link BlockState#rotate(Rotation)}, which already knows how to turn a stair, door, lever, sign or
      * banner without needing to be told which properties exist). Any other value throws.
@@ -314,7 +314,7 @@ public final class RoomPlacer {
             this.writer = new SectionWriter(level);
             BlockPos origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
             // The same offset capture used, including the wall margin. If these two ever disagree every room
-            // lands a block off its neighbours and the seams stop lining up.
+            // lands a block off its neighbors and the seams stop lining up.
             this.worldX0 = origin.getX() - RoomLibrary.TILE / 2 - marginOf(room);
             this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - marginOf(room);
             // Hypixel's door piece for the side each doorway faces at THIS turn (RoomDoorPieces).
@@ -395,7 +395,7 @@ public final class RoomPlacer {
                     if (writer.outsideWorld() > 0) {
                         // Loud, and naming the room, because this is what "half of supertall" looks like
                         // from the inside. A build that cannot reach the top of a room is not a build that
-                        // went slightly wrong, it is a room he cannot practise in.
+                        // went slightly wrong, it is a room he cannot practice in.
                         LOGGER.warn("Sim build: \"{}\" lost {} block(s) that fell outside the world - the "
                                 + "floor's offset puts part of this room past the build limit, so what is "
                                 + "standing there is only the part that fitted", room.name,
@@ -411,7 +411,7 @@ public final class RoomPlacer {
                     //
                     // Marked rather than quietly floored with something that looks real: a room is only
                     // partly captured because he has not walked that part yet, and a patch that blends in
-                    // would have him practising a route across ground that may not be there. Red concrete
+                    // would have him practicing a route across ground that may not be there. Red concrete
                     // says "this is not the dungeon" at a glance and is still something to stand on.
                     int lx = rotatedX(x, z, room.sizeX, room.sizeZ, rotation);
                     int lz = rotatedZ(x, z, room.sizeX, room.sizeZ, rotation);
@@ -564,12 +564,12 @@ public final class RoomPlacer {
     }
 
     /**
-     * Rotates one local (x, z) about the room's own centre, clockwise by {@code degrees} (0/90/180/270 - see
+     * Rotates one local (x, z) about the room's own center, clockwise by {@code degrees} (0/90/180/270 - see
      * {@link #paste}). Plain ints, no Minecraft classes, so {@link #selfCheckRotation()} can call this directly
      * with no world.
      *
-     * <p>Derived from the vanilla transform documented on the class, specialised to a pivot at the room's centre
-     * instead of an arbitrary {@code BlockPos}, and worked through in centre-relative doubled coordinates
+     * <p>Derived from the vanilla transform documented on the class, specialized to a pivot at the room's center
+     * instead of an arbitrary {@code BlockPos}, and worked through in center-relative doubled coordinates
      * (X2 = 2x - (sizeX-1), so it stays exactly on the pivot with no fractions) to get back to plain array
      * indices for a rotated room whose dimensions swap on a 90/270 turn:
      * <pre>

@@ -15,7 +15,7 @@ import com.killer560.hub.compat.McRender;
 /**
  * Node markers for the current area's chain: one box per node (the small marker for a 1x1 node, the full trigger
  * box width x length for a sized one - see {@link #renderNodeBox}), an arrow for a WALK / RUN's travel direction, the wall side of an AXIS_ALIGN, a short
- * ray for a LOOK / BOOM, the chain line between consecutive nodes, the active node in its own colour, and 1-based
+ * ray for a LOOK / BOOM, the chain line between consecutive nodes, the active node in its own color, and 1-based
  * labels. Nodes stacked on the same spot get their labels lifted one step each (killer560: "Nodes stacked in the
  * same spot must draw their labels at different heights so they can be told apart").
  * <p>
@@ -90,7 +90,7 @@ public final class Ap3Renderer {
             }
         }
         if (cfg.isShowPlannedPath()) {
-            // The route the optimiser actually plans to run, tick by tick - not the straight chain line.
+            // The route the optimizer actually plans to run, tick by tick - not the straight chain line.
             Vec3[] path = Ap3RouteRunner.plannedPath(playerPos.y + 0.1); // cached per plan, never changed after
             if (path.length >= 2) {
                 WorldRenderUtils.renderLineStrip(ctx, path, 1.0f, 0.70f, 0.28f, 0.9f, Math.max(1f, thickness));
@@ -196,7 +196,7 @@ public final class Ap3Renderer {
     }
 
     /**
-     * The node's ONE box, always at the EXACT trigger size, centred on the node. killer560 (2026-09-21): "if I go to
+     * The node's ONE box, always at the EXACT trigger size, centered on the node. killer560 (2026-09-21): "if I go to
      * 1 1 then nothing changes visually ... If I go bigger than 1 1 it does though" - a default-size node used to
      * draw a fixed 0.5-wide marker whatever its real box was, so 0.5x0.5 and 1x1 looked the same; now what is drawn
      * is what {@link Ap3Node#contains} tests. Fixed in world space and ALWAYS square to the block grid

@@ -20,14 +20,14 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Persisted Custom Items settings (Armour Recolour until 2026-10-08; same file, so every saved look carried over) -
+ * Persisted Custom Items settings (Armor Recolor until 2026-10-08; same file, so every saved look carried over) -
  * see {@link ArmourDye} for what the overrides actually do. Ships OFF, like every other new feature in this mod.
  * The old {@code skinInventoryIcons} and {@code captureKey} keys are no longer read: killer560 asked for both to go,
  * and a skin no longer swaps the inventory icon by itself (the Look does that, per item).
  * <p>
  * Read with {@link ConfigJson}'s per-key readers (2026-09-15 persistence audit) and, for the entry list, element by
- * element: one hand-edited bad entry is skipped instead of wiping every colour the user has set. Every mutator's
- * caller calls {@link #save()} so a colour picked mid-run survives a Minecraft restart - the mod's standing "every
+ * element: one hand-edited bad entry is skipped instead of wiping every color the user has set. Every mutator's
+ * caller calls {@link #save()} so a color picked mid-run survives a Minecraft restart - the mod's standing "every
  * setting must persist" rule.
  * <p>
  * Registered in {@code ProfileManager.reloadAllConfigs()} so switching settings profiles re-reads this file too.

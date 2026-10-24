@@ -8,7 +8,7 @@ import org.joml.Matrix3x2fStack;
 
 /**
  * Light's Soft Light scene drawn smooth (killer560, 2026-10-16: "can you smooth out the light one"): the same rays, drifting
- * lights and title glow as {@link MainMenuScenes}' soft light, at the same places, colours and speeds, but at the screen's
+ * lights and title glow as {@link MainMenuScenes}' soft light, at the same places, colors and speeds, but at the screen's
  * real resolution instead of GUI-scale blocks:
  * <ul>
  *   <li>each slanted ray is one sheared gradient fading down the screen, built of nested layers so its sides fall off
@@ -46,7 +46,7 @@ final class SoftLightSmooth {
             double width = (16 + k * 6) * (double) s;
             double mid = x0 + width / 2;
             // three nested layers (a core and two wider, fainter ones) so the sides fall off softly; few enough that each
-            // still moves the 8-bit colour (six faint ones each rounded away on the light backdrop and the ray vanished)
+            // still moves the 8-bit color (six faint ones each rounded away on the light backdrop and the ray vanished)
             for (int l = 0; l < 3; l++) {
                 double half = width * (l == 0 ? 0.40 : l == 1 ? 0.50 : 0.60);
                 int la = (int) Math.round(a * (l == 0 ? 0.62 : l == 1 ? 0.26 : 0.14));
@@ -88,7 +88,7 @@ final class SoftLightSmooth {
     /**
      * The same scene through {@link SceneShaders} (killer560, 2026-10-16: "make that one super high quality and 120fps"):
      * the backdrop (base gradient, rays, title glow, vignette) as one full-screen quad composited in float and dithered with
-     * blue noise, then the drifting lights as exactly antialiased discs at their sub-pixel places. The same places, colours,
+     * blue noise, then the drifting lights as exactly antialiased discs at their sub-pixel places. The same places, colors,
      * speeds and strengths as {@link #draw} and {@link #vignette}; the rays' three nested layers become one smooth side
      * profile with the same total. Nothing here depends on the frame: every position is a function of {@code t}.
      * Returns false (having drawn nothing) when the shaders are unavailable; the caller then draws the GuiRects version.
@@ -176,7 +176,7 @@ final class SoftLightSmooth {
     }
 
     /**
-     * An antialiased disc in the current pose's pixels: placed at its sub-pixel centre (the pose moved by the fraction),
+     * An antialiased disc in the current pose's pixels: placed at its sub-pixel center (the pose moved by the fraction),
      * one row per pixel, each row's two edge pixels carrying the partial coverage. {@code alpha} 0..255, unrounded.
      */
     static void aaDisc(GuiRects r, double cx, double cy, double radius, int rgb, double alpha) {

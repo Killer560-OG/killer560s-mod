@@ -22,7 +22,7 @@ import com.killer560.hub.compat.McRender;
  * line, sent within one tick of each other. Consecutive collinear points (|dot| &gt; 0.99, &lt; 0.5 blocks from the
  * current end, &lt;= 1 tick apart) extend the same beam; anything else starts a new one. Hypixel sends every beam
  * twice, so exact duplicate points are ignored. A beam renders once it has at least 6 points, as a single line
- * from its first to its last point. Firework particle packets are cancelled while in a dungeon if Hide Particles
+ * from its first to its last point. Firework particle packets are canceled while in a dungeon if Hide Particles
  * is on (reference cancels unconditionally).
  */
 public final class MageBeamFeature {

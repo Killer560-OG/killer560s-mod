@@ -26,7 +26,7 @@ public final class RouteNode {
      * i should do something like /ar add etherwarp start, and that is the start node. same with await."). Nothing
      * creates a node of either type any more - {@code /ar add} now takes {@code start} and {@code await:<n>} as
      * modifiers on any real node ({@link #start} / {@link #awaitEnabled} below). The two constants stay in the
-     * enum only so {@link RouteStore} can still recognise {@code "type": "START"} / {@code "AWAIT"} in an old
+     * enum only so {@link RouteStore} can still recognize {@code "type": "START"} / {@code "AWAIT"} in an old
      * routes file and fold it onto the modifier fields on load ({@code RouteStore#migrateLegacyMarkers}) instead
      * of silently dropping someone's saved route.
      */
@@ -51,7 +51,7 @@ public final class RouteNode {
         JUMP,
         /** killer560, 2026-10-20: "for auto routes I need an align node that I can do W2 L2 on". AP3's ALIGN: its
          *  trigger is a {@link #alignWidth} x {@link #alignLength} box ({@code w2 l2}, as {@code /ap3 add align w2 l2}),
-         *  and when it fires AP3's camera-method align brings him to rest on the node's point (the block centre). */
+         *  and when it fires AP3's camera-method align brings him to rest on the node's point (the block center). */
         ALIGN;
 
         public static Type parse(String s) {
@@ -123,7 +123,7 @@ public final class RouteNode {
     public int pathIndex;
     /** Ring diameter in blocks (QUOI's {@code radius} is really a diameter - kept for parity). */
     public double radius = DEFAULT_RADIUS;
-    /** Optional per-node ARGB colour, or null to use the type / uniform colour from the settings. */
+    /** Optional per-node ARGB color, or null to use the type / uniform color from the settings. */
     public Integer colour;
 
     // ---- modifiers (killer560, 2026-09-2x: "/ar add etherwarp start await:2" - any node can carry either, or
@@ -133,7 +133,7 @@ public final class RouteNode {
      *  node had it before setting it on a new one. */
     public boolean start;
     /** True when this node waits for {@link #awaitCondition} / {@link #awaitAmount} to be satisfied BEFORE it
-     *  fires (the old {@code Type.AWAIT} node's behaviour, now a modifier instead of a separate node in the
+     *  fires (the old {@code Type.AWAIT} node's behavior, now a modifier instead of a separate node in the
      *  sequence - see {@code RouteExecutor#tickAction}'s pre-action await gate). */
     public boolean awaitEnabled;
 
@@ -334,7 +334,7 @@ public final class RouteNode {
     public float pitch() { return pitch; }
     public int pathIndex() { return pathIndex; }
     public double radius() { return radius; }
-    /** Per-node ARGB colour override, or null. */
+    /** Per-node ARGB color override, or null. */
     public Integer colour() { return colour; }
     public List<BlockPos> breakerBlocks() { return breakerBlocks; }
     public String item() { return item; }
@@ -404,10 +404,10 @@ public final class RouteNode {
     }
 
     /**
-     * The centre of the whole block {@code v} is in: {@code floor(v) + 0.5} (killer560, 2026-10-04: "Make it so nodes
+     * The center of the whole block {@code v} is in: {@code floor(v) + 0.5} (killer560, 2026-10-04: "Make it so nodes
      * need to snap to a whole block for the autoroutes"). Auto Routes nodes used AP3's half-block grid
      * ({@code Ap3Node.snapCentre}) until then; AP3 keeps it. Snapped in WORLD space and then made room-relative: a room
-     * rotation is a quarter turn about an integer clay corner, which maps block centres onto block centres.
+     * rotation is a quarter turn about an integer clay corner, which maps block centers onto block centers.
      */
     public static double snapBlockCentre(double v) {
         return Math.floor(v) + 0.5;
@@ -415,7 +415,7 @@ public final class RouteNode {
 
     /**
      * True when {@code other} stands on the same TILE as this node, so the two fire together as one stack
-     * ({@link Route#stackOf}). Nodes are placed on whole-block centres ({@link #snapBlockCentre}, via
+     * ({@link Route#stackOf}). Nodes are placed on whole-block centers ({@link #snapBlockCentre}, via
      * {@code RouteRecorder.snappedFeet}), so "same tile" is "the same block": {@code floor} of x, of z and of the feet
      * height (with a thousandth of slack for the snapped height) are equal. A node saved on the old half-block grid
      * (x or z on a seam, {@code n.0}) counts as the block on its +x / +z side until it is next moved, which snaps it.

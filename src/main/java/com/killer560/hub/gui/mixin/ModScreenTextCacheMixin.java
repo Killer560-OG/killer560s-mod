@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Every one of the mod's own screens (the Dungeon Sim menus, the editors, the colour picker...) draws inside
+ * Every one of the mod's own screens (the Dungeon Sim menus, the editors, the color picker...) draws inside
  * {@link HudTextCache}'s scope, so its String lines keep their visual order between frames instead of an ICU Bidi per
  * string per frame (fps-gui-1015; the mod menu opens the scope itself too). The sequence is exactly what vanilla
  * computes. Vanilla's and other mods' screens are untouched. {@code extractRenderStateWithTooltipAndSubtitles} is the

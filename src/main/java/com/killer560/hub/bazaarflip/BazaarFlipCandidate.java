@@ -8,7 +8,7 @@ import java.util.Locale;
  *
  * <p>Every number here comes from walking the product's real instant-buy order book level by level (see
  * {@link BazaarFlipScanner#size}), not from {@code quick_status.buyPrice}, which is a weighted average and
- * overstates what a real purchase realises.
+ * overstates what a real purchase realizes.
  *
  * @param productId       real Hypixel Bazaar product id, e.g. {@code ENCHANTED_DIAMOND_BLOCK}
  * @param displayName     the catalog's display name, which is also what gets typed at {@code /bz}
@@ -19,7 +19,7 @@ import java.util.Locale;
  * @param npcSellPrice    the item's {@code npc_sell_price} from the resources endpoint
  * @param revenue         {@code units * npcSellPrice}
  * @param profit          {@code revenue - spend}
- * @param marginPercent   {@code profit / spend * 100} - realised, not top-of-book
+ * @param marginPercent   {@code profit / spend * 100} - realized, not top-of-book
  * @param capacityLimited true when the walk stopped because the inventory filled rather than because the
  *                        purse ran out or the book got too expensive
  */

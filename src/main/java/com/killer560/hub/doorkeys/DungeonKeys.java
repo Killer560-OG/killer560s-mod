@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
  *       spends one, "&lt;name&gt; has obtained Blood Key!" / "The BLOOD DOOR has been opened!" for the blood key. A
  *       teammate's pickup is the same line, so it counts the same.</li>
  * </ul>
- * A dropped key is a named armour stand ("Wither Key" / "Blood Key"), as {@link DoorKeysFeature} draws them.
+ * A dropped key is a named armor stand ("Wither Key" / "Blood Key"), as {@link DoorKeysFeature} draws them.
  * Every pattern is anchored with a {@code [A-Za-z0-9_]{1,16}} name: these lines make automation click doors and travel,
  * and a player's chat always has a prefix before the name (CLAUDE.md, "anchor every chat pattern that gates an action").
  */

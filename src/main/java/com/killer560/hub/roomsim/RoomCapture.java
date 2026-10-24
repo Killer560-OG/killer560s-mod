@@ -24,10 +24,10 @@ import java.util.Locale;
  * Re-captures ONE room from the world he is standing in - {@code /mage} (and {@code /killer560 mage}).
  *
  * <p>killer560 (2026-10-15): "Make the command /mage". The shipped Mage capture is two rooms stitched together: its
- * second tile's centre column hashes to ALTAR's core in the room database, so in the sim Mage has one real doorway and
+ * second tile's center column hashes to ALTAR's core in the room database, so in the sim Mage has one real doorway and
  * is a dead end (docs/SIM.md, "Doorways are at one height"). The Room Recorder that took captures was removed on
  * 2026-10-04 (tag {@code room-recorder-last}); this restores only its read-and-save half, for one room at a time, with
- * the check that recorder never had: before anything is written, every tile's centre column must hash to THIS room.
+ * the check that recorder never had: before anything is written, every tile's center column must hash to THIS room.
  *
  * <p>What it does, in order, refusing with a chat line at the first thing that is wrong:
  * <ol>
@@ -40,7 +40,7 @@ import java.util.Locale;
  *       tile) is read at every y of the level, in WORLD orientation exactly as every shipped capture was:
  *       {@link RoomCaptureRotation} works the turn out from the blocks, so nothing is rotated here. In the sim, y is
  *       taken back to the capture's own heights ({@link SimAltitude#toCaptured});</li>
- *   <li>{@link #validate}: every tile's centre column is this room in the room database, and the room has a doorway at
+ *   <li>{@link #validate}: every tile's center column is this room in the room database, and the room has a doorway at
  *       the doorway floor ({@link RoomDoors#DOOR_FLOOR_Y}, y 69..72);</li>
  *   <li>written to the user library ({@link RoomLibrary#writeCapture}: a file already there is backed up first), read
  *       back and compared block for block, and the library reloaded - a usable disk room wins over the jar's.</li>
@@ -151,7 +151,7 @@ public final class RoomCapture {
         }
         int sizeX = tilesX * (RoomLibrary.TILE + 1) + 1;
         int sizeZ = tilesZ * (RoomLibrary.TILE + 1) + 1;
-        // The first tile's centre, then half a tile and the wall margin out: the window every capture uses.
+        // The first tile's center, then half a tile and the wall margin out: the window every capture uses.
         int originX = LiveMapFeature.START_X + minGx * 16 - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
         int originZ = LiveMapFeature.START_Z + minGz * 16 - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
 

@@ -6,7 +6,7 @@ import net.minecraft.resources.Identifier;
  * The game sounds the Sound Effects tab can replace (killer560, 2026-10-18). Each is matched by the sound event the game
  * plays: vanilla ids seen in the repo already ({@code entity.arrow.hit_player} in SecretSound, {@code entity.player.attack.*}
  * and {@code block.*.break} are the names Minecraft's own sound events use). A match is a SoundEvent id, so a resource pack
- * that renames them changes what it covers, which is the intended behaviour.
+ * that renames them changes what it covers, which is the intended behavior.
  */
 public enum SoundEffect {
     ARROW_HIT("arrow_hit", "Arrow Hit", "an arrow hitting a mob or a player"),

@@ -16,12 +16,12 @@ import com.killer560.hub.util.ChatColors;
  * Hypixel writes lore as 1.8 "§"-coded text; by the time it reaches the client it has been split into
  * styled component children. SkyHanni's enchant parser runs its patterns against the re-flattened,
  * codes-intact form (its {@code formattedTextCompat()}) for exactly this reason - the enchant NAME and its
- * colour have to be matched together, and the real strings contain duplicated/garbage runs like
+ * color have to be matched together, and the real strings contain duplicated/garbage runs like
  * {@code §5§r§d§l§r§d§lUltimate Wise V}. Same idea here.
  * <p>
  * Rebuilding is safe because Minecraft's own {@code StringDecomposer} still interprets "§" codes inside a
  * literal component (which is why every settings label in this mod can write {@code "§aON"}), and because a
- * legacy COLOUR code resets bold/italic - so a rebuilt line that starts with a colour code renders exactly
+ * legacy COLOR code resets bold/italic - so a rebuilt line that starts with a color code renders exactly
  * the way Hypixel's own line did.
  */
 public final class LegacyText {
@@ -64,7 +64,7 @@ public final class LegacyText {
         TextColor color = style.getColor();
         Character code = color == null ? null : RGB_TO_CODE.get(color.getValue());
         if (code != null) {
-            // A colour code clears every other legacy flag, so it must come first.
+            // A color code clears every other legacy flag, so it must come first.
             out.append('§').append(code.charValue());
         } else if (color != null) {
             // Truecolor (no legacy equivalent): reset, then let the flags below re-apply. Hypixel lore never
@@ -90,11 +90,11 @@ public final class LegacyText {
 
     /**
      * The "§" codes still in effect at {@code index}, as a ready-to-emit prefix (e.g. {@code "§9"} or
-     * {@code "§d§l"}). Used to re-state a colour explicitly on an enchant we are NOT recolouring: once an
+     * {@code "§d§l"}). Used to re-state a color explicitly on an enchant we are NOT recoloring: once an
      * earlier enchant on the same line has been given a new code, any following text without a code of its
      * own would otherwise inherit it.
      *
-     * @return the prefix, {@code "§r"} if formatting is active but no colour was ever set, or {@code ""} if
+     * @return the prefix, {@code "§r"} if formatting is active but no color was ever set, or {@code ""} if
      *         nothing is in effect at all.
      */
     public static String activeCodesAt(String legacy, int index) {

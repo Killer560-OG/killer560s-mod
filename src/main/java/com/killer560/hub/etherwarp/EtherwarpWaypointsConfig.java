@@ -18,7 +18,7 @@ public final class EtherwarpWaypointsConfig {
 
     /** killer560, 2026-09-27: "Make an option to have it filled, outline, or fill and outline." Same three
      *  choices Secret Waypoints / the Etherwarp Overlay already offer, spelled out the way he asked for them
-     *  this time rather than reusing either package's own enum (each feature's colour picker names its own). */
+     *  this time rather than reusing either package's own enum (each feature's color picker names its own). */
     public enum Style {
         FILLED("Filled"), OUTLINE("Outline"), FILL_AND_OUTLINE("Filled+Outline");
 
@@ -110,7 +110,7 @@ public final class EtherwarpWaypointsConfig {
         highlightDistance = Math.max(8.0, Math.min(128.0, v));
     }
 
-    /** The highlight colour as r/g/b floats for the world renderer (alpha is handled separately per style,
+    /** The highlight color as r/g/b floats for the world renderer (alpha is handled separately per style,
      *  same convention {@code SecretWaypointsRenderer} uses). */
     public float[] highlightRgb() {
         return new float[] {((color >> 16) & 0xFF) / 255f, ((color >> 8) & 0xFF) / 255f, (color & 0xFF) / 255f};
@@ -145,7 +145,7 @@ public final class EtherwarpWaypointsConfig {
             if (obj.has("color")) {
                 cfg.color = ConfigJson.getInt(obj, "color", cfg.color);
             } else {
-                // 2026-09-27 migration: older files stored the colour as a bare "RRGGBB"/"AARRGGBB" hex string
+                // 2026-09-27 migration: older files stored the color as a bare "RRGGBB"/"AARRGGBB" hex string
                 // ("highlightColorHex") with no picker behind it. Read it once so nobody's saved cyan gets
                 // silently swapped for the new purple default; the picker only ever writes the new "color" key.
                 String legacy = ConfigJson.getString(obj, "highlightColorHex", null);

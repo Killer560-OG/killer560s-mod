@@ -14,8 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Custom Items (Armour Recolour until 2026-10-08) in the Cosmetics category. killer560: "it should just have the
- * toggle, a reset all button, and a way to open the menu" - everything else (picking items, colours, skins, removing
+ * Custom Items (Armor Recolor until 2026-10-08) in the Cosmetics category. killer560: "it should just have the
+ * toggle, a reset all button, and a way to open the menu" - everything else (picking items, colors, skins, removing
  * them) happens in {@link CustomItemsScreen}, also {@code /customitems}. Reset All asks for a second press.
  */
 public class CustomItemsTab extends BaseTab {

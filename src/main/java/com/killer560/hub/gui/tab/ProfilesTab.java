@@ -53,7 +53,7 @@ public class ProfilesTab extends BaseTab {
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
-        MenuStyle.use(); // the name box takes the theme's text colour and shadow when built
+        MenuStyle.use(); // the name box takes the theme's text color and shadow when built
         List<AbstractWidget> widgets = new ArrayList<>();
         Font font = MenuStyle.font();
         int x = contentX;

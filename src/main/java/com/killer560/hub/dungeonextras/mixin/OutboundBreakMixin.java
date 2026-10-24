@@ -27,7 +27,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * its zeroes read as findings. The same trap already cost a wrong conclusion about
  * {@code continueDestroyBlock} on 2026-09-24.
  * <p>
- * At HEAD, nothing is cancelled and no packet is touched or copied - it reads three getters and returns. Any throw
+ * At HEAD, nothing is canceled and no packet is touched or copied - it reads three getters and returns. Any throw
  * is swallowed: this sits on the send path of every packet the client produces, so a fault here must never be able
  * to take the connection down.
  */

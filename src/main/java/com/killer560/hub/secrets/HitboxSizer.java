@@ -13,7 +13,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  *     down across the face, Length out from the surface it is attached to. On a floor or ceiling the face lies flat,
  *     with Width perpendicular to the block's facing and Height along it - the same way vanilla lays those out.</li>
  * <li><b>Standing</b> blocks (chests, floor skulls): Height grows up from the floor, Width and Length grow evenly
- *     around the centre (Width side to side as you face it, Length front to back).</li>
+ *     around the center (Width side to side as you face it, Length front to back).</li>
  * </ul>
  * One instance per block type caches its shapes per orientation and only rebuilds them when a slider moves, so the
  * per-frame {@code getShape} calls cost an array read.

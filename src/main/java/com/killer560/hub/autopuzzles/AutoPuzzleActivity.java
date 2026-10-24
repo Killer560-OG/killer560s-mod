@@ -113,7 +113,7 @@ public final class AutoPuzzleActivity {
     /**
      * The auto's last step is over (its reward chest claimed): the working spell ends now, not {@link #GRACE_TICKS}
      * later - the grace is for gaps INSIDE a run, and after the last step it only held Autopilot, Auto Secret and Auto
-     * Routes for two seconds of nothing (killer560's rule: no fixed waits). Anything that marks again afterwards starts
+     * Routes for two seconds of nothing (killer560's rule: no fixed waits). Anything that marks again afterward starts
      * a new spell.
      */
     static void ended() {

@@ -97,7 +97,7 @@ public final class SupportersSelfService {
                 .exceptionally(e -> MeResult.failure(reason(e)));
     }
 
-    /** {@code colors}: one 0xRRGGBB per visible letter of {@code rawName} (fade / letter colours), or null for none.
+    /** {@code colors}: one 0xRRGGBB per visible letter of {@code rawName} (fade / letter colors), or null for none.
      *  {@code animation}: their Wave/Pulse, sent only alongside {@code colors} (the relay refuses it alone).
      *  {@code trail}: the shared movement trail, or null for none. With a trail, {@code rawName} may be empty (a
      *  supporter sharing a trail but no custom name; the relay accepts that only beside a trail).

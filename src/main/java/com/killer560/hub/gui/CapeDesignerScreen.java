@@ -13,11 +13,11 @@ import net.minecraft.network.chat.Component;
 /**
  * The Make Your Own cape designer (killer560, 2026-10-19: "make your own should be its own button ... it should open its own menu
  * for you to custom place each pixel"). The grid is the cape's back panel, one square per pixel of the 10 x 16 sheet. Left click
- * (or drag) paints with the brush; right click (or drag) clears a pixel back to the pattern colour. Changes are saved when you
+ * (or drag) paints with the brush; right click (or drag) clears a pixel back to the pattern color. Changes are saved when you
  * leave the screen and reach the cape at once.
  * <p>
- * Copy and Paste move a design as text: 16 rows of 10 entries, each a {@code RRGGBB} colour or {@code -} for a pixel that takes
- * the pattern colour, so a design can be shared or kept in a message.
+ * Copy and Paste move a design as text: 16 rows of 10 entries, each a {@code RRGGBB} color or {@code -} for a pixel that takes
+ * the pattern color, so a design can be shared or kept in a message.
  */
 public class CapeDesignerScreen extends Screen {
 
@@ -144,7 +144,7 @@ public class CapeDesignerScreen extends Screen {
         }
     }
 
-    /** Loads a design from the clipboard: exactly 160 entries, each a colour or {@code -}. Anything else changes nothing. */
+    /** Loads a design from the clipboard: exactly 160 entries, each a color or {@code -}. Anything else changes nothing. */
     private void pasteDesign() {
         String clip;
         try {
@@ -191,7 +191,7 @@ public class CapeDesignerScreen extends Screen {
         r.outline(panelX - 1, panelY - 1, panelW + 2, panelH + 2, MenuStyle.FRAME_RING);
         MenuStyle.panel(r, panelX, panelY, panelW, panelH);
 
-        // The back panel: each square is the colour that pixel will wear (the paint, or the pattern underneath).
+        // The back panel: each square is the color that pixel will wear (the paint, or the pattern underneath).
         int hovered = pixelAt(mouseX, mouseY);
         for (int y = 0; y < CapeConfig.PANEL_H; y++) {
             for (int x = 0; x < CapeConfig.PANEL_W; x++) {
@@ -209,7 +209,7 @@ public class CapeDesignerScreen extends Screen {
             r.outline(hx, hy, cell, cell, MenuStyle.OR);
         }
 
-        // Palette, then the brush swatch and a Pick button for any other colour.
+        // Palette, then the brush swatch and a Pick button for any other color.
         for (int i = 0; i < PALETTE.length; i++) {
             int sx = panelX + 10 + i * (SWATCH + SWATCH_GAP);
             r.fill(sx, paletteY, sx + SWATCH, paletteY + SWATCH, 0xFF000000 | PALETTE[i]);

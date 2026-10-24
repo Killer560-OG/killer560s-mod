@@ -35,7 +35,7 @@ import java.util.WeakHashMap;
  * baseline layout - 853x480 GUI pixels - always fits inside the window: {@code (2560 / 3) * F <= W / g} follows
  * directly from taking the min. Height alone would push right-anchored HUDs and wide menus off the side there.
  * <p>
- * <b>Dead band and floor.</b> A factor within {@link #DEAD_BAND} of 1.0 is 1.0: a maximised (not fullscreen) window
+ * <b>Dead band and floor.</b> A factor within {@link #DEAD_BAND} of 1.0 is 1.0: a maximized (not fullscreen) window
  * on his 1440p monitor is about 2560x1361, a 5% difference nobody can see, and a non-integer scale softens Minecraft's
  * bitmap font for no visible gain. The factor is also never allowed below {@code 1 / guiScale}, so a font pixel never
  * gets smaller than a screen pixel on a tiny window.

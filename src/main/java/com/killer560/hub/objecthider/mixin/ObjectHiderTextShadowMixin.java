@@ -27,7 +27,7 @@ public abstract class ObjectHiderTextShadowMixin {
     // CRASHED THE GAME ON STARTUP (2026-09-20, killer560's boot log): this was an @ModifyArg at
     // @At("NEW"), and a NEW insn is not a method call - Mixin rejects that outright with
     // InvalidInjectionException, which is an apply-time error that require = 0 does NOT soften, so the
-    // whole mod failed to initialise. Modifying the method's own dropShadow PARAMETER at HEAD reaches the
+    // whole mod failed to initialize. Modifying the method's own dropShadow PARAMETER at HEAD reaches the
     // same constructor argument (the funnel passes it straight through) without depending on any
     // instruction inside the method, so a future remap can only make it a no-op, never a crash.
     @ModifyVariable(method = "text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;IIIZ)V",

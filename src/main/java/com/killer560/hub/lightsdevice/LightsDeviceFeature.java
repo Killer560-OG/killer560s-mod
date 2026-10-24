@@ -233,7 +233,7 @@ public final class LightsDeviceFeature {
         double nearestAnySq = Double.MAX_VALUE;
         Set<Long> inRangeNow = new HashSet<>();
         for (BlockPos pos : LIGHTS_LEVERS) {
-            // Nearest point of the block, not its centre. See BlockHits.boxDistanceSq.
+            // Nearest point of the block, not its center. See BlockHits.boxDistanceSq.
             double d = BlockHits.boxDistanceSq(eye, pos);
             if (d > rangeSq) {
                 continue;
@@ -296,7 +296,7 @@ public final class LightsDeviceFeature {
         if (BlockHits.boxDistanceSq(eye, pos) > rangeSq) {
             return false;
         }
-        // A surface hit from the eye rather than the block's centre: a point inside the block is what GrimAC flagged on
+        // A surface hit from the eye rather than the block's center: a point inside the block is what GrimAC flagged on
         // Secret Aura (2026-09-28, PositionPlace at a distance the server itself accepted). See BlockHits.
         BlockHitResult hit = BlockHits.surface(client.level, pos, eye);
         if (hit == null) {

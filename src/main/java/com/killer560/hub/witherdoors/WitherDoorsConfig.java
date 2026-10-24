@@ -37,7 +37,7 @@ public final class WitherDoorsConfig {
     public static final int MAX_FILL_OPACITY = 100;
     public static final int DEFAULT_FILL_OPACITY = 35;
     public static final int DEFAULT_FILL_COLOR = DEFAULT_LOCKED_COLOR;
-    /** Pink, the Fairy room's own colour on the map - an open door to walk through, not a locked one to key. */
+    /** Pink, the Fairy room's own color on the map - an open door to walk through, not a locked one to key. */
     public static final int DEFAULT_FAIRY_DOOR_COLOR = 0xFFFF55FF;
 
     /** Outline (the original look), Fill, or both - killer560, 2026-10-07: "make it so wither doors also have a fill
@@ -72,7 +72,7 @@ public final class WitherDoorsConfig {
     private Style style = Style.OUTLINE;
     /** Percent, {@link #MIN_FILL_OPACITY}..{@link #MAX_FILL_OPACITY}. */
     private int fillOpacity = DEFAULT_FILL_OPACITY;
-    /** false: the fill takes the door's current state colour (locked / key), so the two stay readable. */
+    /** false: the fill takes the door's current state color (locked / key), so the two stay readable. */
     private boolean customFillColor = false;
     private int fillColor = DEFAULT_FILL_COLOR;
     /** Cheat build only: draw every locked Wither door and the Blood door, not just the closest Wither

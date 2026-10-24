@@ -59,7 +59,7 @@ public final class ScoreCalculatorConfig {
     private boolean showDeaths = true;
     private boolean showMimicPrince = false;
     private boolean textShadow = true;
-    // HUD colours, RGB (killer560, 2026-10-18: "Make it so they can custom color the stuff"). Defaults are the menu's.
+    // HUD colors, RGB (killer560, 2026-10-18: "Make it so they can custom color the stuff"). Defaults are the menu's.
     private int labelColor = com.killer560.hub.util.ModChat.ORANGE;
     private int subLabelColor = com.killer560.hub.util.ModChat.LIGHT_ORANGE;
     private int valueColor = com.killer560.hub.util.ModChat.TEXT;
@@ -175,8 +175,8 @@ public final class ScoreCalculatorConfig {
             cfg.batAlertEnabled = ConfigJson.getBool(legacy, "batMessageEnabled", cfg.batAlertEnabled);
             cfg.batAlertMessage = ConfigJson.getString(legacy, "batMessage", cfg.batAlertMessage);
             // The old manual 270/300 "Send Now" text only carries over into the (now shared) party message
-            // if killer560 actually customised it away from its own old default - otherwise the party
-            // message's own text (customised or not) wins, same idea as DungeonInfoConfig's own
+            // if killer560 actually customized it away from its own old default - otherwise the party
+            // message's own text (customized or not) wins, same idea as DungeonInfoConfig's own
             // migrateOldDefault used to apply to the mimic/prince/bat text.
             // These alerts used to fire from Dungeon Info on their own; here they only fire while the Score
             // Calculator is on. If any was switched on before the move, switch the Score Calculator on too so
@@ -298,7 +298,7 @@ public final class ScoreCalculatorConfig {
     public int getBadColor() { return badColor; }
     public void setBadColor(int rgb) { badColor = rgb & 0xFFFFFF; }
 
-    /** One number that changes when any HUD colour does (the HUD's line cache compares it). */
+    /** One number that changes when any HUD color does (the HUD's line cache compares it). */
     public int colorsKey() {
         return java.util.Objects.hash(labelColor, subLabelColor, valueColor, goodColor, badColor);
     }

@@ -16,7 +16,7 @@ import net.minecraft.util.Mth;
  * player model never call them, so nothing Hypixel receives changes by a degree. That is the whole reason this is
  * safe to do: it is a lie told to the monitor, not to the server.
  * <p>
- * <b>It releases itself.</b> A puzzle that throws, is cancelled, or simply stops mid-rotation must never be able
+ * <b>It releases itself.</b> A puzzle that throws, is canceled, or simply stops mid-rotation must never be able
  * to leave him stuck looking the wrong way, and relying on every caller to run a release in a finally block is
  * exactly the kind of promise that gets broken once and then never noticed. So a hold is a LEASE: whoever is
  * turning him re-asserts it each time it rotates, and it lapses on its own {@link #STALE_MS} after the last

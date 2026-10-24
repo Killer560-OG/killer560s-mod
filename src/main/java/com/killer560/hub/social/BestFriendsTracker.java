@@ -33,7 +33,7 @@ import java.util.UUID;
  * <b>Gating.</b> Tracking only runs while {@link BestFriendsConfig#isEnabled()} is on - the same "off by
  * default, nothing happens until killer560 turns it on" rule every other feature in this mod follows (e.g.
  * {@code runsummary.RunSummaryFeature} does nothing at all while its own config is disabled). This is a
- * judgement call worth him confirming: he might instead want the clock always running in the background
+ * judgment call worth him confirming: he might instead want the clock always running in the background
  * (even with the New-tab menu itself off) so no history is lost before he gets around to turning the tab on -
  * see "Needs his answer" in the staging notes.
  * <p>

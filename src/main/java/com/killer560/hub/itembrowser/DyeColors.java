@@ -1,7 +1,7 @@
 package com.killer560.hub.itembrowser;
 
 /**
- * Hypixel's own leather-armour {@code color} field, which the public item catalog writes as a string
+ * Hypixel's own leather-armor {@code color} field, which the public item catalog writes as a string
  * {@code "r,g,b"} (for example {@code "139,0,0"} on the Arachne pieces). Packed here as the {@code 0xRRGGBB}
  * int that {@code DyedItemColor} takes, the same convention {@code LegacyItems} uses for a legacy NBT
  * {@code display.color}. Pure Java with no Minecraft types, so it can be checked on its own.

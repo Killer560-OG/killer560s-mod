@@ -24,11 +24,11 @@ import java.util.PriorityQueue;
  *
  * <p>The mod's own walking pathfinder ({@code pathfinding.GraphPathfinder}) runs on recorded island graphs loaded
  * from JSON - there is no graph for a dungeon room, and a chamber is a few dozen blocks - so this is a small grid
- * search over the blocks themselves: Dijkstra on the 8-neighbour grid at the target's feet level (no corner cutting,
+ * search over the blocks themselves: Dijkstra on the 8-neighbor grid at the target's feet level (no corner cutting,
  * steps up of at most 0.6 like a player's own step height, a block you cannot stand in or a wall/fence/bars at head
  * height is solid), then the cells thinned to the farthest one in a clear straight line.
  *
- * <p>Movement stays what it was: the camera turned towards the next point and the forward key held - one discrete
+ * <p>Movement stays what it was: the camera turned toward the next point and the forward key held - one discrete
  * key, no strafing, no fractional input, nothing written to position or velocity.
  */
 final class MazeWalk {
@@ -100,7 +100,7 @@ final class MazeWalk {
             }
         }
         // Thin to the farthest cell reachable in a clear straight line, so the walk is a few straight legs rather
-        // than a staircase of cell centres.
+        // than a staircase of cell centers.
         int i = 0;
         while (i < cells.size() - 1) {
             int j = cells.size() - 1;
@@ -147,7 +147,7 @@ final class MazeWalk {
     }
 
     /**
-     * Turns towards the next point and holds forward. Re-plans if he has been pushed off the line.
+     * Turns toward the next point and holds forward. Re-plans if he has been pushed off the line.
      * @return false when there is nothing left to walk to
      */
     boolean tick(Minecraft client) {

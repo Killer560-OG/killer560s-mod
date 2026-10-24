@@ -280,7 +280,7 @@ public final class ArrowAlignFeature {
         boolean serverSolved = totalServerClicksNeeded() == 0;
         if (solvedAnnounced) {
             if (!serverSolved) {
-                // Device reset / re-randomised after a solve - arm a fresh attempt.
+                // Device reset / re-randomized after a solve - arm a fresh attempt.
                 LOGGER.info("[ArrowAlign] device unsolved again after a solve: new attempt armed (needed {})", neededSummary());
                 solvedAnnounced = false;
                 heldIndex = -2; // the same layout rolled again: the Leave Last Arrow frame is chosen afresh
@@ -452,8 +452,8 @@ public final class ArrowAlignFeature {
             logHeld("gate", "ActionGate refused ARROW_ALIGN for frame " + index);
             return false;
         }
-        // Where the line from the eye meets the frame's box - the point a real click reports. (It was the centre of
-        // the east face, right only for a player standing east of the frames.) Falls back to that face's centre.
+        // Where the line from the eye meets the frame's box - the point a real click reports. (It was the center of
+        // the east face, right only for a player standing east of the frames.) Falls back to that face's center.
         Vec3 eye = client.player.getEyePosition();
         Vec3 hit = box.clip(eye, box.getCenter())
                 .orElse(new Vec3(box.maxX, (box.minY + box.maxY) / 2.0, (box.minZ + box.maxZ) / 2.0));
@@ -712,7 +712,7 @@ public final class ArrowAlignFeature {
 
     private static boolean isAuraClickable(int index, Vec3 eye, double rangeSq) {
         ItemFrame frame = frames[index];
-        // To the frame's BOX, not its centre. A frame is about 0.75 wide and 1/16 deep, so the centre reads up
+        // To the frame's BOX, not its center. A frame is about 0.75 wide and 1/16 deep, so the center reads up
         // to ~0.53 further and the effective aura range was nearer 2.5 than the 3.0 the config clamps to -
         // frames the server would have accepted looked out of range.
         return frame != null && !frame.isRemoved() && auraClicksLeft(index) > 0
@@ -763,7 +763,7 @@ public final class ArrowAlignFeature {
         }
     }
 
-    /** Odin/NoammAddons dynamic colours: under 3 green, under 5 gold, else red. */
+    /** Odin/NoammAddons dynamic colors: under 3 green, under 5 gold, else red. */
     private static int colorFor(int clicks) {
         return clicks < 3 ? COLOR_GREEN : clicks < 5 ? COLOR_GOLD : COLOR_RED;
     }

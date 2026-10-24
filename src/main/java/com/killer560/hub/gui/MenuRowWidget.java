@@ -11,7 +11,7 @@ import net.minecraft.network.chat.Component;
 
 /** A fully custom-rendered clickable row, used for both the main category sidebar (flat text, amber
  *  underline when selected - matching Skyblocker's own reference menu) and {@code FolderTab}'s
- *  accordion section headers (a bordered amber/black box instead of vanilla's grey button texture,
+ *  accordion section headers (a bordered amber/black box instead of vanilla's gray button texture,
  *  since vanilla {@link net.minecraft.client.gui.components.Button} doesn't expose a way to recolor
  *  its own 9-slice texture). Part of the black+amber GUI overhaul (2026-09-07), per killer560's "focusing
  *  more on black with orange accents." */
@@ -24,7 +24,7 @@ public final class MenuRowWidget extends AbstractWidget {
     private static final int BOX_BG = 0xFF1A1108;
     private static final int BOX_BG_HOVER = 0xFF2A1B0D;
 
-    /** Idle (not selected/hovered) text colour for a cheat-only row - a dimmer red, mirroring TEXT_DIM vs ACCENT. */
+    /** Idle (not selected/hovered) text color for a cheat-only row - a dimmer red, mirroring TEXT_DIM vs ACCENT. */
     private static final int CHEAT_TEXT_DIM = 0xFFCC4444;
 
     private final String label;

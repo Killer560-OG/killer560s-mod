@@ -41,7 +41,7 @@ public final class CroesusConfig {
 
     /**
      * What a Bazaar item in a dungeon chest is worth (killer560, 2026-10-11: "croesus should have a profit option by insta
-     * sell or sell offer"). Hypixel's quick_status names them backwards (docs/LESSONS.md): {@code sellPrice} is what an
+     * sell or sell offer"). Hypixel's quick_status names them backward (docs/LESSONS.md): {@code sellPrice} is what an
      * instant sell gets, {@code buyPrice} is the cheapest sell offer, i.e. what a sell order of yours has to undercut.
      * Auction-house items stay on lowest BIN in both modes.
      */
@@ -87,9 +87,9 @@ public final class CroesusConfig {
     public static final int DEFAULT_CHEST_KEY_COLOR = 0xFF9A1F;
     private int chestFreeColor = DEFAULT_CHEST_FREE_COLOR;
     private int chestKeyColor = DEFAULT_CHEST_KEY_COLOR;
-    /** Colour the run heads in the Croesus menu by whether anything has been claimed from them yet. */
+    /** Color the run heads in the Croesus menu by whether anything has been claimed from them yet. */
     private boolean highlightRuns = false;
-    /** Highlight Runs' colours (killer560, 2026-10-12: "the highlight runs portion of croesus just kind of looks like
+    /** Highlight Runs' colors (killer560, 2026-10-12: "the highlight runs portion of croesus just kind of looks like
      *  poop"): a light tint and a thin inset border on a run nothing was claimed from, a dark tint on one already
      *  claimed. RGB; the alphas are fixed in ChestProfitFeature. */
     public static final int DEFAULT_RUN_UNCLAIMED_COLOR = 0xFF8C1A;
@@ -98,7 +98,7 @@ public final class CroesusConfig {
      *  a claimed run whose second chest is worth a key (Auto Croesus's key rules); never hidden. Magenta since
      *  2026-10-12 ("these colors are hard to actually tell if they are different": the old gold read as the unclaimed
      *  orange over Hypixel's green and red heads), with a thicker border and a key mark; a solid
-     *  purple-magenta fill since 2026-10-13 (0xCC0096 sat 28.6 deltaE from the key-used grey). */
+     *  purple-magenta fill since 2026-10-13 (0xCC0096 sat 28.6 deltaE from the key-used gray). */
     public static final int DEFAULT_RUN_KEY_COLOR = 0x9B00B2;
     /** Earlier needs-a-key defaults (gold, then 0xCC0096): a config still on one moves to the new one. */
     static final int[] LEGACY_RUN_KEY_COLORS = {0xFFD000, 0xCC0096};
@@ -110,9 +110,9 @@ public final class CroesusConfig {
      *  a config still on it moves to the muted one. */
     static final int[] LEGACY_RUN_UNKNOWN_COLORS = {0x7DF9FF};
     private int runUnknownColor = DEFAULT_RUN_UNKNOWN_COLOR;
-    /** A one-line key to the run colours in the Croesus info box. */
+    /** A one-line key to the run colors in the Croesus info box. */
     private boolean showRunLegend = true;
-    /** "If no chest key then it should be different": claimed, no key used, nothing left worth a key. A muted grey-blue
+    /** "If no chest key then it should be different": claimed, no key used, nothing left worth a key. A muted gray-blue
      *  2 px outline (2026-10-13), so it reads apart from the dark key-used tint and, for a protanope, from the deep magenta
      *  needs-a-key (2026-10-12; 0x2F6FD0 was too close to it). */
     public static final int DEFAULT_RUN_OPENED_COLOR = 0x798FAD;
@@ -178,7 +178,7 @@ public final class CroesusConfig {
             cfg.runClaimedColor = ConfigJson.getInt(obj, "runClaimedColor", cfg.runClaimedColor) & 0xFFFFFF;
             cfg.runKeyColor = ConfigJson.getInt(obj, "runKeyColor", cfg.runKeyColor) & 0xFFFFFF;
             if (java.util.Arrays.stream(LEGACY_RUN_KEY_COLORS).anyMatch(c -> c == cfg.runKeyColor)) {
-                cfg.runKeyColor = DEFAULT_RUN_KEY_COLOR; // still on the old default: the new palette; a picked colour stays
+                cfg.runKeyColor = DEFAULT_RUN_KEY_COLOR; // still on the old default: the new palette; a picked color stays
             }
             cfg.runUnknownColor = ConfigJson.getInt(obj, "runUnknownColor", cfg.runUnknownColor) & 0xFFFFFF;
             for (int legacy : LEGACY_RUN_UNKNOWN_COLORS) {

@@ -115,11 +115,11 @@ public final class McCompat {
     }
 
     /**
-     * The sidebar slot a team's colour maps to, or null when the team has no colour.
+     * The sidebar slot a team's color maps to, or null when the team has no color.
      *
      * <p>26.1.2: {@code PlayerTeam.getColor()} is a {@code ChatFormatting} and {@code DisplaySlot} has a static
-     * {@code teamColorToSlot} for it. 26.2 replaces both - the colour is an {@code Optional<TeamColor>} and the
-     * slot hangs off the colour as {@code TeamColor.displaySlot()} - so the whole two-step lives here.
+     * {@code teamColorToSlot} for it. 26.2 replaces both - the color is an {@code Optional<TeamColor>} and the
+     * slot hangs off the color as {@code TeamColor.displaySlot()} - so the whole two-step lives here.
      */
     public static DisplaySlot teamDisplaySlot(PlayerTeam team) {
         return DisplaySlot.teamColorToSlot(team.getColor());

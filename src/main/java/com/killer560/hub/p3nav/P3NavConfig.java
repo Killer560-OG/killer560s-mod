@@ -49,7 +49,7 @@ public final class P3NavConfig {
     private int gateColor = DEFAULT_GATE_COLOR;
     private Style gateStyle = Style.FILLED_OUTLINE;
     private float gateLineWidth = 2.5f;
-    /** Noamm's own behaviour: the box only draws while the gate's probe block is still there. Off = always
+    /** Noamm's own behavior: the box only draws while the gate's probe block is still there. Off = always
      *  draw the box for the section you're in, even after the gate is gone. */
     private boolean gateHideDestroyed = true;
 

@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
-/** The search screen for {@link StorageSearchFeature}, drawn in the mod menu's active theme ({@link ScreenChrome}: bevelled
+/** The search screen for {@link StorageSearchFeature}, drawn in the mod menu's active theme ({@link ScreenChrome}: beveled
  *  frame, header bar, recessed search field and results well, themed rows). Every control keeps its place. */
 public class StorageSearchScreen extends Screen implements MenuThemedScreen {
 

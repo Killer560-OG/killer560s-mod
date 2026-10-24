@@ -364,7 +364,7 @@ public final class SimSecretItems {
         for (Map.Entry<BlockPos, Integer> entry : PENDING.entrySet()) {
             BlockPos at = entry.getKey();
             // From his BODY to the item's BLOCK, gap to gap. killer560 (2026-10-13): "I had a test where I was 3 blocks
-            // away and it didnt spawn" - feet to the block's centre read an item three blocks ahead and half a block
+            // away and it didnt spawn" - feet to the block's center read an item three blocks ahead and half a block
             // up as further than 3. His box is 0.6 wide and 1.8 tall from his feet.
             double dx = Math.max(0, Math.max(at.getX() - (px + 0.3), (px - 0.3) - (at.getX() + 1)));
             double dy = Math.max(0, Math.max(at.getY() - (py + 1.8), py - (at.getY() + 1)));
@@ -509,7 +509,7 @@ public final class SimSecretItems {
     /**
      * Says why a drop that is sitting there has not been picked up.
      *
-     * <p>killer560 authorised this logger on 2026-09-30 after scenario 81 reported "the item secret appeared
+     * <p>killer560 authorized this logger on 2026-09-30 after scenario 81 reported "the item secret appeared
      * but standing on it did not collect it" three times across five runs and two attempts to fix it from
      * reasoning alone - one of which was based on the drop having fallen, which it cannot, because it is
      * spawned with no gravity. Both attempts were guesses at a mechanism, and a guess had already been wrong

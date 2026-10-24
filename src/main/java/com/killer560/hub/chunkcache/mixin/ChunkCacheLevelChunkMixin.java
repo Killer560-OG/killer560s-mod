@@ -28,7 +28,7 @@ import java.util.function.Consumer;
  * {@code shouldRenderOffScreen} block entities (beacons, end gateways) to {@code globallyRenderedBlockEntities} -
  * a set {@code LevelRenderer} draws every frame until the entry reports {@code isRemoved()}.
  * <p>
- * Cancelling {@code addAndRegisterBlockEntity} for a cache-only chunk drops both: the caller still gets the freshly
+ * Canceling {@code addAndRegisterBlockEntity} for a cache-only chunk drops both: the caller still gets the freshly
  * created block entity back (vanilla returns it either way), it is simply never stored, never ticked and never
  * rendered. Nothing is written to the chunk's map, so this stays safe on the worker threads the pathfinder and the
  * solvers read from.

@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * always the end of a branch.
  *
  * <p><b>The doorways are measured, not declared.</b> Nothing in the room database says where a room's doors
- * are, so this reads them off the blocks he captured. A Catacombs doorway is three wide and four high, centred
+ * are, so this reads them off the blocks he captured. A Catacombs doorway is three wide and four high, centered
  * on a tile's edge midpoint, cut through the room's own perimeter wall - so for every tile edge on the
  * perimeter this looks at that 3x4 window and asks whether it is a doorway or wall.
  *
@@ -72,7 +72,7 @@ public final class RoomDoors {
      * perimeter doorways measure at this floor and no other, each with wall on both sides of the opening and a lintel
      * over it. What used to be searched (any 3x4 opening from y64 to y86) also matched three openings that are not
      * doors - Entrance's west wall above its back staircase (y76 up, open to the sky), Mage's north wall on its second
-     * tile (y72..87, which is a tile of ALTAR in that capture: its centre column hashes to Altar's core in the room
+     * tile (y72..87, which is a tile of ALTAR in that capture: its center column hashes to Altar's core in the room
      * database), and a 5x4 red terracotta panel in Quad Lava's east wall at y77..80 (red terracotta reads as a shut blood
      * door). The layout linked rooms through the last two, and the carve at the doorway floor then cut into the solid
      * wall below the opening (testkit 1441-sim-door-height).
@@ -170,8 +170,8 @@ public final class RoomDoors {
      * within one block of that floor - solid underfoot, nothing in the feet and head blocks. In the capture's own
      * frame, so rotate it with {@link #rotate} exactly like the doorway mask.
      *
-     * <p>For {@code SimFloorLayout}'s last-resort fill, which carves a door through a neighbour's wall where the
-     * neighbour has no doorway. Measured 2026-10-04 with tools/bench/FloorBench over 40 floors: 27 rooms were put
+     * <p>For {@code SimFloorLayout}'s last-resort fill, which carves a door through a neighbor's wall where the
+     * neighbor has no doorway. Measured 2026-10-04 with tools/bench/FloorBench over 40 floors: 27 rooms were put
      * in that way, and clicks into or out of 8 of them failed for the etherwarp planner - Criss Cross through the
      * Entrance landed against its two-block platform, Rail Track through Three Floors in a drop - which was 54 of
      * the 88 clicks the Interactive Map's planner failed.
@@ -264,7 +264,7 @@ public final class RoomDoors {
     private static final Map<String, Map<Integer, Integer>> CARVABLE = new ConcurrentHashMap<>();
 
     /**
-     * From the wall at {@code (wallX, wallZ)}, stepping inwards by {@code (inX, inZ)}: along any of the opening's three
+     * From the wall at {@code (wallX, wallZ)}, stepping inward by {@code (inX, inZ)}: along any of the opening's three
      * columns ({@code (alongX, alongZ)}), a floor he can walk on from three blocks in from the wall (the first one
      * the carve does not reach) to six, starting within one block of the carve's floor and never stepping more
      * than one block up or down. A one-block ledge in front of a pit (Jumping Skulls) does not count.
@@ -382,7 +382,7 @@ public final class RoomDoors {
      *
      * <p>The wall line is at {@code margin} blocks in from the captured window's edge on each side - the window
      * deliberately takes in one column of the shared wall (see {@link RoomLibrary#WALL_MARGIN}), so the wall
-     * itself is the next column in. Tile centres sit {@code margin + TILE/2} in and every {@code TILE + 1}
+     * itself is the next column in. Tile centers sit {@code margin + TILE/2} in and every {@code TILE + 1}
      * after that, which is the same arithmetic {@link RoomPlacer} pastes with.
      */
     /** {@link #of}'s measurement for a room that is not (yet) in the library - {@link RoomCapture}'s check. No cache. */
@@ -430,7 +430,7 @@ public final class RoomDoors {
     /**
      * A doorway: the 3x4 window at {@link #DOOR_FLOOR_Y} is at least {@value #DOOR_MIN_MATCH} of 12 doorway material,
      * and at least {@value #DOOR_MIN_FRAME} of the 11 blocks round it are wall. {@code open.test(u, y)} reads the wall
-     * plane at {@code u} blocks along it from the edge's centre.
+     * plane at {@code u} blocks along it from the edge's center.
      *
      * <p>Only that one height. The Entrance's back staircase used to need its own rule ("the doorway that matches
      * LOWEST wins", 2026-09-29) because the search walked y up to 86 and matched the stairwell; at one height it is not

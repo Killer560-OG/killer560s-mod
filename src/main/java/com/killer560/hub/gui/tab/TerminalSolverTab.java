@@ -24,15 +24,15 @@ import com.killer560.hub.compat.McCompat;
  *  per killer560's explicit "make auto terms into its own section in dungeons" follow-up request; this
  *  tab's own solving/highlighting works identically on both builds regardless.
  *  <p>
- *  Overlay Colours (2026-09-15, killer560: "add the option to set custom colours for terminal overlays")
+ *  Overlay Colors (2026-09-15, killer560: "add the option to set custom colours for terminal overlays")
  *  - one picker button per real drawing role (see {@link TerminalSolverConfig.OverlayColor}), plus a
- *  Reset Colours button. Everything is legit-build behaviour, so every header here is the normal orange
+ *  Reset Colors button. Everything is legit-build behavior, so every header here is the normal orange
  *  {@link SectionHeaders} one, not the cheat red.
  *  <p>
  *  Terminal QoL (2026-09-16) - five small terminal-adjacent features ported from Devonian, see
  *  {@link com.killer560.hub.terminals.TerminalQolFeature}. They live under this tab because they are all
  *  terminal-scoped, but none of them touches the solver: every one works with the solver toggle off.
- *  Legit-build behaviour too (Melody Keys sends one click per keypress, the same class as the mod's existing
+ *  Legit-build behavior too (Melody Keys sends one click per keypress, the same class as the mod's existing
  *  Slot Binds / Loadout Keybinds / Custom Leap Menu keys), so orange headers throughout. */
 public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
 
@@ -184,7 +184,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                 contentX, y, 220, 20));
         y += 26;
 
-        // ------------------------------------------------------------------ overlay colours
+        // ------------------------------------------------------------------ overlay colors
         y = buildColorSection(widgets, contentX, y, contentWidth, requestRebuild);
 
         // ------------------------------------------------------------------ terminal QoL
@@ -351,12 +351,12 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("Drop Key: " + name);
     }
 
-    /** One colour-picker button per real drawing role, grouped the same way the overlay itself is:
+    /** One color-picker button per real drawing role, grouped the same way the overlay itself is:
      *  per-terminal-type highlights first, then Melody's own per-role board palette, then the shared
      *  panel/text chrome. Every button opens the existing {@link ColorPickerScreen} (live preview while
-     *  dragging) and saves on every change, so a colour survives a restart like every other setting in
+     *  dragging) and saves on every change, so a color survives a restart like every other setting in
      *  this mod. Single 220-wide column, matching the toggles above - two 108-wide columns would clip
-     *  labels like "Melody Moving Piece Colour". */
+     *  labels like "Melody Moving Piece Color". */
     private static int buildColorSection(List<AbstractWidget> widgets, int contentX, int y, int contentWidth,
                                          Runnable requestRebuild) {
         Minecraft mc = Minecraft.getInstance();
@@ -394,7 +394,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                     TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
                     cfg.resetOverlayColors();
                     cfg.save();
-                    // Full rebuild - every swatch above has to redraw in its restored colour, and a
+                    // Full rebuild - every swatch above has to redraw in its restored color, and a
                     // button can't reach its siblings' labels on its own.
                     requestRebuild.run();
                 }).bounds(contentX, y, 220, 20).build());
@@ -403,8 +403,8 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         return y;
     }
 
-    /** One colour row. The swatch on the button label is redrawn live from the picker's own callback, so
-     *  the menu matches the in-game colour the moment you let go of the slider (2026-09-14 rule - see
+    /** One color row. The swatch on the button label is redrawn live from the picker's own callback, so
+     *  the menu matches the in-game color the moment you let go of the slider (2026-09-14 rule - see
      *  {@link ColorSwatch}), without needing a whole tab rebuild per drag. */
     private static AbstractWidget colorButton(TerminalSolverConfig.OverlayColor key, int x, int y, int width) {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
@@ -420,8 +420,8 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
     }
 
     /** The "already default" hint goes AFTER a colon on purpose - {@code SettingTooltips#key} cuts the
-     *  label at the first ':', so the tooltip key stays "reset colours" in both states instead of
-     *  changing out from under {@code SettingTooltipsData} whenever the colours are stock. */
+     *  label at the first ':', so the tooltip key stays "reset colors" in both states instead of
+     *  changing out from under {@code SettingTooltipsData} whenever the colors are stock. */
     private static Component resetText() {
         return Component.literal("Reset Colors"
                 + (TerminalSolverConfig.getInstance().isOverlayColorsDefault() ? ": §7default" : ""));

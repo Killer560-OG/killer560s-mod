@@ -53,7 +53,7 @@ public final class TeleportMazeSolverFeature {
     private static List<Set<BlockPos>> realCells = new ArrayList<>();
     private static Set<BlockPos> correctPortals = new LinkedHashSet<>();
     private static final Set<BlockPos> visited = new LinkedHashSet<>();
-    /** Pad stepped on -> pad it sent him to, learnt from this visit's teleports (see {@link #onPlayerPosition}). */
+    /** Pad stepped on -> pad it sent him to, learned from this visit's teleports (see {@link #onPlayerPosition}). */
     private static final java.util.Map<BlockPos, BlockPos> links = new java.util.LinkedHashMap<>();
     private static BlockPos best = null;
     private static int teleportSeq = 0;
@@ -104,7 +104,7 @@ public final class TeleportMazeSolverFeature {
         return best;
     }
 
-    /** The links learnt this visit: pad stepped on -> pad landed on (the way back assumed, see onPlayerPosition). */
+    /** The links learned this visit: pad stepped on -> pad landed on (the way back assumed, see onPlayerPosition). */
     public static java.util.Map<BlockPos, BlockPos> getLinks() {
         return Collections.unmodifiableMap(links);
     }
@@ -194,9 +194,9 @@ public final class TeleportMazeSolverFeature {
         // The landing's own block, a quarter block either way. QUOI's box started AT the landing (x.5) and ran one
         // block on, inflated by one: x-0.5 .. x+2.5 of the pad's block - which takes in the pad two blocks over in +x
         // or +z. The maze has eleven such pairs, every one across a wall into the next chamber ((4,12)/(4,14),
-        // (10,20)/(10,22), ...), so landing on one marked its neighbour visited too and reported the wrong landing
+        // (10,20)/(10,22), ...), so landing on one marked its neighbor visited too and reported the wrong landing
         // pad. 93-solve-teleportmaze-budget (2026-10-06): a landing on (4,12) logged as (4,14), and the auto then
-        // went round between two chambers following a link it had learnt wrong.
+        // went round between two chambers following a link it had learned wrong.
         AABB landing = new AABB(pos.x - 0.5, pos.y, pos.z - 0.5, pos.x + 0.5, pos.y + 1, pos.z + 0.5)
                 .inflate(0.25, 0.0, 0.25);
         AABB playerBox = client.player.getBoundingBox().inflate(1.0, 0.0, 1.0);
@@ -216,7 +216,7 @@ public final class TeleportMazeSolverFeature {
                 from = pad;
             }
         }
-        // The pad he stepped on and the pad it put him on: one link of the maze, learnt. Every link is two-way (the
+        // The pad he stepped on and the pad it put him on: one link of the maze, learned. Every link is two-way (the
         // pad you land on takes you back), so the way back is assumed until a teleport says otherwise.
         if (from != null && to != null) {
             links.put(from, to);
@@ -253,7 +253,7 @@ public final class TeleportMazeSolverFeature {
             // the 32-block ray shrinks by cos(pitch) - looking down at the pad he walked to (40-60 degrees) it stopped
             // 16-24 blocks out, short of a far exit pad, which then dropped out of the candidates for good and the
             // solver never named it (2026-10-06, 93-solve-teleportmaze-budget: in the exit's chamber the auto took
-            // another pad). Every pad is at the same height, so nothing is lost by levelling it.
+            // another pad). Every pad is at the same height, so nothing is lost by leveling it.
             if (isXZInterceptable(column, 32.0, pos, yaw, 0f) &&!new AABB(it).inflate(0.5, 0.0, 0.5).intersects(playerBox)) {
                 next.add(it);
             }

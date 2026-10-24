@@ -47,7 +47,7 @@ import java.util.Set;
  * every block of every room. A candidate is one room, turned one of four ways, placed so that its footprint covers the
  * tile the block was seen in and no tile the map shows opened, inside the floor. Every seen block inside a candidate's
  * footprint is compared with the block that room has there (block ids only - states turn with the room; the edges of
- * each tile, where doorways differ between floors, are skipped, and so are chests, heads, levers' neighbours and door
+ * each tile, where doorways differ between floors, are skipped, and so are chests, heads, levers' neighbors and door
  * blocks that change during a run, and a puzzle's moving parts - {@link #VOLATILE}, Water Board's board). A candidate
  * that disagrees with more than {@link #MISMATCH_FLOOR} plus
  * {@link #MISMATCH_RATE} of what it was compared with is ruled out, for good.
@@ -417,7 +417,7 @@ public final class RoomPredictor {
     /** Test only, 0 outside testkit 1020-predict-matrix: the share of seen blocks {@link #record} reads as another. */
     static double TEST_NOISE = 0;
     /**
-     * Whether {@link Candidate#soft} matches count towards {@link #MIN_MATCHES}. They did until 2026-10-20, and
+     * Whether {@link Candidate#soft} matches count toward {@link #MIN_MATCHES}. They did until 2026-10-20, and
      * 1020-predict-matrix with 5-8% of seen blocks read as other blocks named Water Board on a Mines tile in 1-12
      * glances a run: Mines was ruled out by the noise, and Water Board's board planes, whose blocks match whatever
      * stone a look meets there, made up its matches. Off, it names Water Board as often as before.
@@ -806,10 +806,10 @@ public final class RoomPredictor {
      * (glass has no visual shape), so most of what a look into the room meets is the board behind it, and that board is
      * different on every run: Hypixel has four layouts (the identifier blocks at relative (14|16, 77|78, 27) say which),
      * and twenty-seven sticky pistons move its ore gates as the levers are flicked. Every capture of the room there is
-     * holds the same frame of board 0, every colour retracted. Under the walkway glass, three of the five colour columns
+     * holds the same frame of board 0, every color retracted. Under the walkway glass, three of the five color columns
      * are pushed out on every run. Decoded off the bundled {@code Water_Board.json} (capture x = relative z + 1, capture z
      * = 31 - relative x, its own turn 270): the front glass is relative z 25; the maze plane, the ore wall, the pistons and
-     * the redstone behind them are relative z 26..30 from y 59 up; the colour columns are relative z 15..19, x 12..18,
+     * the redstone behind them are relative z 26..30 from y 59 up; the color columns are relative z 15..19, x 12..18,
      * y 54..57 (the wool and the pistons beside it). The room's shell, floors, stairs, walkway and lever plinths are
      * compared as for any room, and they are what names it.
      *
@@ -1153,7 +1153,7 @@ public final class RoomPredictor {
         return out;
     }
 
-    /** Test hook: seen blocks counted towards a tile (grid index). */
+    /** Test hook: seen blocks counted toward a tile (grid index). */
     public static int evidence(int gridIdx) {
         int t = (gridIdx / DungeonLayout.GRID / 2) * TILES + (gridIdx % DungeonLayout.GRID) / 2;
         return t >= 0 && t < EVIDENCE.length ? EVIDENCE[t] : 0;

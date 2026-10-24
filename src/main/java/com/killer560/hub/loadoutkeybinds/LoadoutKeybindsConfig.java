@@ -39,7 +39,7 @@ public final class LoadoutKeybindsConfig {
 
     /** What each slot's key does (killer560, 2026-10-13: "a toggle per keybind to have that keybind open the menu and
      *  swap then close it or just only swap if you are in the menu"). Default {@link Mode#ONLY_IN_MENU}, the
-     *  behaviour every bind had before, so nothing changes until he flips one. */
+     *  behavior every bind had before, so nothing changes until he flips one. */
     public enum Mode {
         ONLY_IN_MENU("Only In Menu"),
         OPEN_SWAP_CLOSE("Open, Swap, Close");

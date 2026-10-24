@@ -32,7 +32,7 @@ import java.util.Map;
  * terminals of the section you are in, tagged by section from that source's own coordinate table (its lines
  * 34-39). This port deliberately does NOT copy the source's packet-listener bookkeeping
  * ({@code ClientboundSetEntityDataPacket} into a cached {@code MutableMap<ArmorStand, HitboxInfo>}): the same
- * information is already on the armour stand itself every frame, so completion tracking here is just "is this
+ * information is already on the armor stand itself every frame, so completion tracking here is just "is this
  * stand still named <i>Inactive Terminal</i>". Hypixel renames the stand to "Terminal Active" the instant the
  * terminal is finished, so a completed terminal stops being drawn on the very next frame, self-correcting after
  * a lag spike or a mid-fight rejoin, with no second chat listener (this mod's existing terminal completion
@@ -77,7 +77,7 @@ public final class P3NavFeature {
     /**
      * Section bounds, copied from {@link Floor7Tracker}'s own {@code getStageAt()} x/z ranges (which only ever
      * test the local player) with the P3 y band from its {@code getPhaseAt()} (100 &lt; y &lt;= 155), so an
-     * arbitrary armour stand can be placed in a section too. Tested in order, S1 first, same as the source of
+     * arbitrary armor stand can be placed in a section too. Tested in order, S1 first, same as the source of
      * the ranges - S1/S2 overlap slightly around x 89..111, z 121..122.
      */
     private static final AABB[] SECTION_BOXES = {
@@ -91,7 +91,7 @@ public final class P3NavFeature {
     /** Hypixel's hologram over an un-flicked lever/device (see {@code leveraura/LeverAuraFeature}). */
     private static final String NOT_ACTIVATED = "Not Activated";
 
-    /** A marker armour stand has a zero-size bounding box; fall back to a normal stand's size around it. */
+    /** A marker armor stand has a zero-size bounding box; fall back to a normal stand's size around it. */
     private static final double MARKER_HALF_WIDTH = 0.3;
     private static final double MARKER_HEIGHT = 1.975;
 

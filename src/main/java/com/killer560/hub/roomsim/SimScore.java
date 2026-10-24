@@ -9,9 +9,9 @@ import java.util.Locale;
  *
  * <p>killer560 (2026-09-28): "make sure it has crypt and prince logic and bat logic for calcuating 300 score in
  * the non individual room test." So a full-map run has to be able to answer "is this 300" the same way a real
- * one does, because a route that clears fast and misses 300 is not a route worth practising.
+ * one does, because a route that clears fast and misses 300 is not a route worth practicing.
  *
- * <p><b>What is modelled and what is not.</b> Catacombs score is Skill + Explore + Time + Bonus. The parts a sim
+ * <p><b>What is modeled and what is not.</b> Catacombs score is Skill + Explore + Time + Bonus. The parts a sim
  * can honestly reproduce are the ones that depend on what is IN the map and what the player did to it: crypts
  * blown, the mimic (prince) killed, bats killed, secrets found, rooms completed. Time is real because the run
  * clock is real. Skill's death penalty is real because deaths are real.
@@ -97,7 +97,7 @@ public final class SimScore {
      */
     public static synchronized void batKilled(net.minecraft.core.BlockPos at) {
         batsKilled++;
-        // Counted for the ROOM as well, like every other secret (2026-10-09, "bats aren't counting towards the secret
+        // Counted for the ROOM as well, like every other secret (2026-10-09, "bats aren't counting toward the secret
         // total in sim"): the room's "x/y Secrets" action bar line, which Auto Routes' await and the map read, is the
         // per-room count, and a bat only ever reached the run total.
         secretFound(at);
@@ -239,7 +239,7 @@ public final class SimScore {
         return roomScore + Math.min(40, secretScore);
     }
 
-    /** Skill: 100 less the death penalty. Puzzle fails are not modelled - the sim does not fail puzzles yet. */
+    /** Skill: 100 less the death penalty. Puzzle fails are not modeled - the sim does not fail puzzles yet. */
     public static int skillScore() {
         return Math.max(0, 100 - deaths * 2);
     }

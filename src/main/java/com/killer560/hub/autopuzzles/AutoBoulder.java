@@ -38,7 +38,7 @@ import java.util.Locale;
  * Auto Boulder: get the Boulder room's reward chest, then walk back out so he can etherwarp again.
  *
  * <p>killer560 (2026-10-06): "first detect if i have secret aura on or not, if i do then once I interactive map to the
- * room or walk into it then it should walk straight forward towards those iron bars at the back ... it can just run on
+ * room or walk into it then it should walk straight forward toward those iron bars at the back ... it can just run on
  * the barrier blocks and it should be able to reach the chest if it runs all the way forward ... If i dont have secret
  * auras on then it needs to pathfind to the buttons that it actually needs ... that pathfinding needs to look legit ...
  * after it gets both it needs to run back out of the room such that I am able to etherwarp again."
@@ -52,7 +52,7 @@ import java.util.Locale;
  * The doorway opens at roof height: the box grid is roofed with barrier at relative y 68, and at the far end the roof
  * meets a block wall topped by iron bars (relative z 27), directly over the alcove holding the chest (15,66,29). Standing
  * against that wall his eye is about 4.4 from the chest's box (Map Logger capture, decoded), inside the 4.5 reach. So he
- * turns smoothly to face along the room towards the chest's column, holds forward and sprint, and lets go of both the
+ * turns smoothly to face along the room toward the chest's column, holds forward and sprint, and lets go of both the
  * moment the chest is inside Secret Aura's range - Secret Aura does the click. No button is pressed. If he is not on
  * the roof (he fell, or came in some other way) the room is played as with Secret Aura off.
  *
@@ -212,7 +212,7 @@ public final class AutoBoulder {
     private static boolean testRunning = false;
 
     /**
-     * For the testkit's GrimAC case (1016-grim-puzzle-speed): run out towards {@code target} every tick, exactly as the
+     * For the testkit's GrimAC case (1016-grim-puzzle-speed): run out toward {@code target} every tick, exactly as the
      * room's run out does (turn at the human pace with the camera held, forward and sprint once facing it), with no room
      * around it - a dedicated test server has no Boulder. Null ends it: keys up, the body turned back under the view.
      */
@@ -239,7 +239,7 @@ public final class AutoBoulder {
         finishStep(player);
         Vec3 test = testTarget;
         if (test != null && player != null) {
-            // The testkit's GrimAC case: the run out's own steering, keys and body turn, towards its point, no room.
+            // The testkit's GrimAC case: the run out's own steering, keys and body turn, toward its point, no room.
             if (!testRunning) {
                 testRunning = true;
                 running = true;
@@ -637,7 +637,7 @@ public final class AutoBoulder {
             giveUp(client, "the run to the bars took over 10 s (chest still " + fmt(dist) + " away)");
             return;
         }
-        // Straight along the room at the chest's column, towards the bars.
+        // Straight along the room at the chest's column, toward the bars.
         BlockPos bars = PuzzleCoords.real(15, ROOF_FEET_REL, BARS_Z_REL, cr);
         Vec3 aim = new Vec3(chestReal.getX() + 0.5, player.getEyeY(), chestReal.getZ() + 0.5);
         if (Math.hypot(aim.x - player.getX(), aim.z - player.getZ()) < 1.0) {
@@ -964,7 +964,7 @@ public final class AutoBoulder {
                 && bh.getBlockPos().equals(target) ? bh : null;
     }
 
-    /** A point inside the middle 60% of the target's outline, picked once per target - nobody aims at the exact centre. */
+    /** A point inside the middle 60% of the target's outline, picked once per target - nobody aims at the exact center. */
     private static Vec3 humanAimPoint(Minecraft client, BlockPos target) {
         VoxelShape shape = client.level.getBlockState(target).getShape(client.level, target);
         if (shape.isEmpty()) {
@@ -1092,7 +1092,7 @@ public final class AutoBoulder {
     }
 
     /**
-     * The point the run out aims at: past the doorway gap, on the doorway's centre line, at his feet height.
+     * The point the run out aims at: past the doorway gap, on the doorway's center line, at his feet height.
      *
      * <p>Why a run and not the path (killer560, 2026-10-16: "the boulder pathfinder broke going out, it didn't just run
      * in and out"). The way out from the bars is a straight line along the roof, and the walk followed it as 30 path
@@ -1104,7 +1104,7 @@ public final class AutoBoulder {
      * far ahead there is nothing to swing across: the run in already worked that way, and the run out now does too.
      */
     private static Vec3 outPoint() {
-        // Relative x 15 is the middle of the doorway's three columns, so its block centre is the doorway's centre line,
+        // Relative x 15 is the middle of the doorway's three columns, so its block center is the doorway's center line,
         // whichever way the room is turned.
         BlockPos o = PuzzleCoords.real(15, ROOF_FEET_REL, OUT_Z_REL, cr);
         return new Vec3(o.getX() + 0.5, o.getY(), o.getZ() + 0.5);
@@ -1112,7 +1112,7 @@ public final class AutoBoulder {
 
     /**
      * Whether nothing but standable floor at his own feet height lies between him and {@link #outPoint}, wide enough for
-     * his body (the centre line and 0.35 either side), up to two blocks past the doorway gap - so a straight sprint
+     * his body (the center line and 0.35 either side), up to two blocks past the doorway gap - so a straight sprint
      * cannot step off a ledge, climb, or brush a wall. With the barrier roof excluded in the button mode, as every walk.
      */
     private static boolean straightOut(Minecraft client, LocalPlayer player) {
@@ -1168,7 +1168,7 @@ public final class AutoBoulder {
     }
 
     /**
-     * One tick of the run out: turn towards {@link #outPoint} at the human pace, and once roughly facing it hold forward
+     * One tick of the run out: turn toward {@link #outPoint} at the human pace, and once roughly facing it hold forward
      * and sprint every tick until the finish (the live map no longer files him under Boulder) lets go. Discrete keys
      * only; the heading is re-aimed every tick from where he is, so a slide along a wall corrects itself.
      */
@@ -1265,7 +1265,7 @@ public final class AutoBoulder {
         return true;
     }
 
-    /** One tick of following the planned path: turn smoothly towards a point a little ahead and hold forward. */
+    /** One tick of following the planned path: turn smoothly toward a point a little ahead and hold forward. */
     private static void tickWalk(Minecraft client, LocalPlayer player) {
         if (!walking) {
             return;
@@ -1598,7 +1598,7 @@ public final class AutoBoulder {
     // ------------------------------------------------------------------ rotation and keys
 
     /**
-     * One human step towards (yaw, pitch). Secret Aura off: his REAL rotation, camera and all - he actually looks
+     * One human step toward (yaw, pitch). Secret Aura off: his REAL rotation, camera and all - he actually looks
      * where he walks and at what he clicks (killer560: "it needs to have the player actually looking at the button").
      * Secret Aura's run: the body through {@link BodyAim}, camera held.
      */

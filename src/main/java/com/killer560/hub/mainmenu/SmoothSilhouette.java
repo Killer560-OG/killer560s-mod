@@ -11,8 +11,8 @@ import com.killer560.hub.hud.GuiRects;
  * the other hand holding a clean blade low and forward; the edges facing the boss are lit.
  * <p>
  * The shape is a union of soft primitives (ellipses and tapered capsules) measured as a signed distance in real screen
- * pixels. Once per screen size it is rasterised into spans at screen resolution - inside pixels dark, the one-pixel edge at
- * half alpha (antialiasing), and the pixels within a few of the edge facing the boss in the rim colour - and runs that repeat
+ * pixels. Once per screen size it is rasterized into spans at screen resolution - inside pixels dark, the one-pixel edge at
+ * half alpha (antialiasing), and the pixels within a few of the edge facing the boss in the rim color - and runs that repeat
  * on the next row are merged into one rectangle. A frame then only replays those rectangles under a pose scaled to real
  * pixels; it allocates nothing beyond the batch's own parts.
  */
@@ -97,7 +97,7 @@ final class SmoothSilhouette {
         return Math.sqrt(dx * dx + dy * dy) - (ra + (rb - ra) * t);
     }
 
-    // ---- the rasterised spans (rebuilt only when the screen size or GUI scale changes) -----------------------------
+    // ---- the rasterized spans (rebuilt only when the screen size or GUI scale changes) -----------------------------
     private static int builtW = -1;
     private static int builtH = -1;
     private static int builtScale = -1;
@@ -125,7 +125,7 @@ final class SmoothSilhouette {
         int sw = w * scale;
         int sh = h * scale;
         double unit = sh * 0.098;          // one head height in real pixels (she is about seven tall)
-        double ox = sw * 0.14;             // the hood's centre
+        double ox = sw * 0.14;             // the hood's center
         double oy = sh * 0.29;             // the top of the hood
         double rimPx = Math.max(2.0, sh / 360.0);
         int left = Math.max(0, (int) Math.floor(ox - 1.2 * unit));

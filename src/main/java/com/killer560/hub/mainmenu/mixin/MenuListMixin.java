@@ -32,11 +32,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * translucent warm-dark panel. Subclasses overriding it with an empty body (StatsScreen lists,
  * SocialInteractionsPlayerList) never reach this.</li>
  * <li>{@code extractListItems(G, int, int, float)} HEAD (no cancel): remembers the mouse position for the
- * selection colours and draws a faint hover wash under a hovered, non-selected row of a list whose entries
+ * selection colors and draws a faint hover wash under a hovered, non-selected row of a list whose entries
  * can be selected (skipping the server list's LAN "Scanning" header and the world list's loading /
  * no-worlds rows). Inside the list scissor, before any entry content.</li>
  * <li>{@code extractSelection(G, E, int)}: vanilla does fill(entry rect, colourArg) then fill(rect inset 1,
- * 0xFF000000). The two colour args are swapped (ordinal 0 -> orange / light-orange border, ordinal 1 ->
+ * 0xFF000000). The two color args are swapped (ordinal 0 -> orange / light-orange border, ordinal 1 ->
  * opaque warm-dark fill), giving a 1px orange outline without re-implementing the geometry.</li>
  * </ul>
  * ModMenu's ModListWidget draws its selection through its own drawSelectionHighlight (MenuModMenuListMixin).

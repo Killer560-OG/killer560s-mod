@@ -154,7 +154,7 @@ public final class IslandDetector {
         return "";
     }
 
-    /** Plain (colour-stripped) sidebar lines, highest score first. */
+    /** Plain (color-stripped) sidebar lines, highest score first. */
     private static List<String> sidebarLines(Minecraft client) {
         List<String> out = new ArrayList<>();
         if (client.level == null) {

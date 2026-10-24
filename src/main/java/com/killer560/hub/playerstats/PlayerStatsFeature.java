@@ -22,11 +22,11 @@ import java.util.regex.Pattern;
  * real stat line, not some other action-bar use like an ability name), takes the stat segments out of it
  * when "Hypixel Stat Text" is on under Hide -
  * see {@link #actionBarReplacement} - the same "replace it, don't just add to it" treatment
- * {@link #registerVanillaSuppression()} already gives the vanilla hearts/hunger/armour/air bars. Any
+ * {@link #registerVanillaSuppression()} already gives the vanilla hearts/hunger/armor/air bars. Any
  * action-bar text that doesn't match a pattern is left completely alone.
  * <p>
  * Renamed "Player Stats" -&gt; "Stat Bars" (killer560, 2026-09-21) and given the ability to hide the
- * vanilla hearts/hunger/armour/air bars it sits alongside - see {@link #registerVanillaSuppression()},
+ * vanilla hearts/hunger/armor/air bars it sits alongside - see {@link #registerVanillaSuppression()},
  * ported from Skyblocker's mixin-free {@code fancybars.FancyStatusBars}. Only display strings changed;
  * every persistence key ({@code id()} below, the config file name, every {@code PlayerStatsConfig} JSON
  * key) is untouched so existing HUD positions and settings survive the rename.
@@ -43,14 +43,14 @@ public final class PlayerStatsFeature {
     private static final String CODES = "(?:\u00A7.)*";
     // Overflow mana (2026-10-04): Hypixel shows it as "(3)200<U+02AC>" right after the mana segment once mana is
     // past max - the same pattern SkyHanni's ActionBarStatsData reads. It has no max, so it is text only.
-    // Its colour code is (3), a DIGIT, so a bare "([\\d,]+)" read "(3)200" as 3200 (caught by a scratch run of
+    // Its color code is (3), a DIGIT, so a bare "([\\d,]+)" read "(3)200" as 3200 (caught by a scratch run of
     // these patterns against a sample line, 2026-10-04). The match now starts where a number cannot continue
-    // and takes the colour codes itself. Same guard on OTHER_REGEX below.
+    // and takes the color codes itself. Same guard on OTHER_REGEX below.
     private static final String NUMBER_START = "(?<![\u00A7\\d,])" + CODES;
-    // Health, mana and defence start the same way (2026-10-07, killer560: "Whenever I get absorption it breaks the
-    // health one"). With absorption Hypixel colours the health segment GOLD, (6) instead of (c) (SkyHanni's
+    // Health, mana and defense start the same way (2026-10-07, killer560: "Whenever I get absorption it breaks the
+    // health one"). With absorption Hypixel colors the health segment GOLD, (6) instead of (c) (SkyHanni's
     // ActionBarStatsData accepts "(c|6)" there), and (6) is a digit: the old bare "([\\d,]+)" read "(6)12,345/10,464"
-    // as 612,345, so the bar went almost all absorption colour and its number became six digits wide. The same fix the
+    // as 612,345, so the bar went almost all absorption color and its number became six digits wide. The same fix the
     // overflow pattern already had; every pattern on this line now uses it.
     private static final Pattern HEALTH_REGEX =
             Pattern.compile(NUMBER_START + "([\\d,]+)/([\\d,]+)" + CODES + "[\uE010\u2764]");
@@ -59,7 +59,7 @@ public final class PlayerStatsFeature {
     private static final Pattern DEFENSE_REGEX = Pattern.compile(NUMBER_START + "([\\d,]+)" + CODES + "[\uE008\u2748]");
     private static final Pattern OVERFLOW_REGEX = Pattern.compile(NUMBER_START + "([\\d,]+)" + CODES + "\u02AC");
     // Any OTHER "current/max<icon>" segment on the stat line (2026-10-04): killer560's screenshot of that day
-    // shows a fourth one, a red "117/117" with its own resource-pack icon, beside health/defence/mana. What it
+    // shows a fourth one, a red "117/117" with its own resource-pack icon, beside health/defense/mana. What it
     // is changes with what he is doing, so it is read generically: the first n/n followed by a non-ASCII icon
     // that is not the health or mana icon. ASCII is excluded so "(1/3)" or "5/7 Secrets" never count.
     private static final Pattern OTHER_REGEX =
@@ -76,8 +76,8 @@ public final class PlayerStatsFeature {
     static final String VITALITY_ICONS = "\uE028";
     private static final Pattern VITALITY_REGEX =
             Pattern.compile(NUMBER_START + "([\\d,]+)/([\\d,]+)" + CODES + "[" + VITALITY_ICONS + "]");
-    // What "Hide Hypixel Stat Text" removes from the line. Each takes its own leading colour codes and, for
-    // defence and mana, the trailing word Hypixel sometimes prints ("Defense", "Mana").
+    // What "Hide Hypixel Stat Text" removes from the line. Each takes its own leading color codes and, for
+    // defense and mana, the trailing word Hypixel sometimes prints ("Defense", "Mana").
     private static final Pattern[] STRIP = {
             Pattern.compile(CODES + "[\\d,]+/[\\d,]+" + CODES + "[\uE010\u2764]"),
             Pattern.compile(CODES + "[\\d,]+/[\\d,]+" + CODES + "[\uE003\u270E](?:" + CODES + " Mana)?"),
@@ -182,7 +182,7 @@ public final class PlayerStatsFeature {
 
     /**
      * Whether vanilla's held-item name is skipped this frame: always, never, or (the default) only where it would land on
-     * a Health and Mana Bars readout drawn this frame. The name's box is vanilla's own: its text centred at
+     * a Health and Mana Bars readout drawn this frame. The name's box is vanilla's own: its text centered at
      * {@code guiHeight - 59} ({@code + 14} where the player cannot be hurt), with the two units of backdrop vanilla's
      * {@code textWithBackdrop} draws round it (javap, 26.1.2 and 26.2 alike). Its width is that of the held stack's name,
      * which is what vanilla shows after a slot switch. Skyblock Only, like the rest of the mod.
@@ -229,7 +229,7 @@ public final class PlayerStatsFeature {
     /**
      * Hides the vanilla HUD bars our own Stat Bars line replaces - ported from Skyblocker's
      * {@code fancybars.FancyStatusBars#init()}, ONE difference from that mixin-free approach: Skyblocker
-     * hides the whole bar block at once, ours is per-bar so hearts/hunger/armour/air can each be toggled
+     * hides the whole bar block at once, ours is per-bar so hearts/hunger/armor/air can each be toggled
      * independently (killer560, 2026-09-21). Uses Fabric's own HUD-element API - the exact same import
      * already proven at {@code hud.HudInGameRenderer.java:3} - and deliberately {@code replaceElement}
      * rather than {@code removeElement}: the replacement function re-runs every frame, so a toggle (or
@@ -462,7 +462,7 @@ public final class PlayerStatsFeature {
      * Before 2026-10-04 a stat line was dropped WHOLE whenever Stat Bars was on, which also took whatever else
      * Hypixel puts on that line ("5/7 Secrets", an ability name). It is now its own option, "Hypixel Stat
      * Text" under Hide (killer560: "add an option to hide the text Hypixel has like 3000/3000 with the heart
-     * symbol"), and only the stat segments go. Only a line carrying health, mana or defence is touched; the
+     * symbol"), and only the stat segments go. Only a line carrying health, mana or defense is touched; the
      * extras (overflow mana, the other n/n resource) are only removed from such a line. Called from
      * {@code CustomScoreboardGuiMixin} at {@code setOverlayMessage} HEAD, after the scoreboard has read it.
      */

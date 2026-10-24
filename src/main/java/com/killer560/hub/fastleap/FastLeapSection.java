@@ -290,7 +290,7 @@ public final class FastLeapSection {
      * The leap's Target button (killer560: "a button to select what class/name it should leap to"): left click forward,
      * right click back through None, the five classes, then everyone in the party by name. A class shows who in the party
      * has it now with Leap Order's class picks applied ({@link Teammates#firstAliveOfClass} is what the leap itself uses),
-     * and a name shows that player's class. Labelled "Target", or "S1".."S4" for P3's sections.
+     * and a name shows that player's class. Labeled "Target", or "S1".."S4" for P3's sections.
      */
     static SettingsButtonWidget targetButton(int x, int y, int w, LeapTarget target, FastLeapConfig cfg) {
         String label = target.group == LeapGroup.P3 ? target.label : "Target";
@@ -408,7 +408,7 @@ public final class FastLeapSection {
         boolean get();
     }
 
-    /** A row label, vertically centred on a {@link #ROW}-high control starting at {@code y}. */
+    /** A row label, vertically centered on a {@link #ROW}-high control starting at {@code y}. */
     public static StringWidget label(int x, int y, int w, String text) {
         return new StringWidget(x, y + (ROW - 8) / 2, Math.max(1, w), 10, Component.literal(text), Minecraft.getInstance().font);
     }

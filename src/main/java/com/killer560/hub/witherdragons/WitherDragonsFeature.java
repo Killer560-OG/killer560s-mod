@@ -406,7 +406,7 @@ public final class WitherDragonsFeature {
     /** Odin {@code getDragonTimer}. */
     static String formatTimer(int ticks) {
         WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
-        // Memoised (fps pass 2026-10-19): asked per dragon per frame by the world text and the HUD, and the Seconds style
+        // Memoized (fps pass 2026-10-19): asked per dragon per frame by the world text and the HUD, and the Seconds style
         // is a String.format. The text is a pure function of the ticks and the two style settings, which form the key.
         int style = cfg.getTimerStyle().ordinal() * 2 + (cfg.isTimerSymbol() ? 1 : 0);
         int slot = ticks & (MEMO_SLOTS - 1);
@@ -439,7 +439,7 @@ public final class WitherDragonsFeature {
 
     /** Odin {@code colorHealth}/{@code formatHealth}. */
     static String formatHealth(float health) {
-        // Memoised on the exact float (fps pass 2026-10-19): a dragon's health changes on a server update, not per
+        // Memoized on the exact float (fps pass 2026-10-19): a dragon's health changes on a server update, not per
         // frame, and this is a String.format per dragon per frame in P5. Pure function of its argument.
         int bits = Float.floatToRawIntBits(health);
         int slot = (bits ^ (bits >>> 16)) & (MEMO_SLOTS - 1);
@@ -513,7 +513,7 @@ public final class WitherDragonsFeature {
         }
     }
 
-    // The spawn-timer label per dragon, rebuilt only when its timer text (the memoised String above) or its display name
+    // The spawn-timer label per dragon, rebuilt only when its timer text (the memoized String above) or its display name
     // (one of the dragon's two final names, per the Name Style setting) is a different object.
     private static final String[] LABEL_TIMER = new String[WitherDragon.values().length];
     private static final String[] LABEL_NAME = new String[WitherDragon.values().length];

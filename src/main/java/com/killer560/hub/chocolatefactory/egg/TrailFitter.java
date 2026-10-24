@@ -10,7 +10,7 @@ import java.util.function.Predicate;
  * Works out where the Egglocator's particle trail is heading. The trail does not reach the egg: Hypixel draws only the start of a
  * cubic Bezier curve from the player toward it, so the last particle is wherever the trail happened to be when it stopped, often
  * far short of the egg. This is SkyHanni's method (PolynomialFitter.kt's BezierFitter / ParticlePathBezierFitter and
- * LocationUtils.computePitchWeight, LGPL-2.1, read for behaviour; written again here): fit a cubic in the particle's index to
+ * LocationUtils.computePitchWeight, LGPL-2.1, read for behavior; written again here): fit a cubic in the particle's index to
  * each of x, y and z by least squares, then follow the fitted curve out to the parameter where the real curve ends.
  * <p>
  * That end parameter comes from the curve's start: the first control point sits a pitch-dependent distance from the player

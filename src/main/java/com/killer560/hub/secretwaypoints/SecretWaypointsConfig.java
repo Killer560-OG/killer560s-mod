@@ -56,7 +56,7 @@ public final class SecretWaypointsConfig {
     private int redstoneKeyColor = DEFAULT_REDSTONE_KEY_COLOR;
     /** killer560, 2026-09-27: "it also needs to highlight levers just like it does secrets but only during clear...
      *  You can choose the color for levers." No NoammAddons precedent for this one (levers aren't in its secret
-     *  waypoint set at all - see {@link SecretWaypointsFeature}'s lever-scan note), so the default is just a colour
+     *  waypoint set at all - see {@link SecretWaypointsFeature}'s lever-scan note), so the default is just a color
      *  that doesn't collide with any of the five above. */
     public static final int DEFAULT_LEVER_COLOR = 0xFFFFA500;
     private int leverColor = DEFAULT_LEVER_COLOR;
@@ -67,7 +67,7 @@ public final class SecretWaypointsConfig {
      *  {@link CryptScanner}, not the room database (which only has a crypt COUNT). */
     private boolean showCrypts = false;
     private boolean showPrinces = false;
-    /** Colours that collide with none of the six secret types: purple for a crypt, gold for the golden crypt. */
+    /** Colors that collide with none of the six secret types: purple for a crypt, gold for the golden crypt. */
     public static final int DEFAULT_CRYPT_COLOR = 0xFFAA00FF;
     public static final int DEFAULT_PRINCE_COLOR = 0xFFFFD700;
     private int cryptColor = DEFAULT_CRYPT_COLOR;
@@ -109,8 +109,8 @@ public final class SecretWaypointsConfig {
             cfg.cryptColor = ConfigJson.getInt(obj, "cryptColor", cfg.cryptColor);
             cfg.princeColor = ConfigJson.getInt(obj, "princeColor", cfg.princeColor);
             if (!obj.has("noammDefaultsV1")) {
-                // One-time: older files saved the old colours and the Full Block size as plain values, so they are
-                // moved onto the new defaults once (colours match NoammAddons, boxes sized to the object).
+                // One-time: older files saved the old colors and the Full Block size as plain values, so they are
+                // moved onto the new defaults once (colors match NoammAddons, boxes sized to the object).
                 SecretWaypointsConfig fresh = new SecretWaypointsConfig();
                 cfg.chestColor = fresh.chestColor;
                 cfg.itemColor = fresh.itemColor;
@@ -121,8 +121,8 @@ public final class SecretWaypointsConfig {
             } else if (!obj.has("colorPassV2")) {
                 // One-time, 2026-09-27 (killer560: "change chest colors to be green and bats to be a brown"): a
                 // config that already went through the noammDefaultsV1 migration above still has the OLD chest
-                // (magenta) and bat (green) colours on disk. Only move a value that is still exactly the old
-                // default onto the new one - a colour the picker was already used to change is left alone.
+                // (magenta) and bat (green) colors on disk. Only move a value that is still exactly the old
+                // default onto the new one - a color the picker was already used to change is left alone.
                 if (cfg.chestColor == 0xFFFF00FF) {
                     cfg.chestColor = 0xFF00FF00;
                 }

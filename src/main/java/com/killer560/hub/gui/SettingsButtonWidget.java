@@ -20,7 +20,7 @@ import net.minecraft.network.chat.Component;
  *  <p>
  *  Built (2026-09-07), part 2 of the black+amber GUI overhaul: vanilla {@code Button} has no way to
  *  recolor its own fixed 9-slice texture, so once the menu chrome (phase 1) was reworked, every actual
- *  settings control still rendered as a plain grey vanilla button, clashing with the new theme - per
+ *  settings control still rendered as a plain gray vanilla button, clashing with the new theme - per
  *  killer560's "make those boxes a different colour, something more fitting." Deliberately styled with a
  *  DIMMER border than {@link MenuRowWidget}'s accordion headers (full amber, always) so headers still
  *  visually lead over individual controls instead of every box in the menu competing at once.
@@ -153,7 +153,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
     }
 
     /** True for a button that steps through values (built with {@link #cycling}). A plain button with a right-click
-     *  handler of its own (Door Keys' colour rows: right click sets Auto) is not one. Read by the testkit. */
+     *  handler of its own (Door Keys' color rows: right click sets Auto) is not one. Read by the testkit. */
     public boolean isCycling() {
         return cycling;
     }
@@ -184,7 +184,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
             return this;
         }
 
-        /** Right-click handler - used by cycling/toggle buttons to step backwards instead of forwards.
+        /** Right-click handler - used by cycling/toggle buttons to step backward instead of forward.
          *  Left unset (the default) for ordinary buttons, so right-click on them stays a no-op. */
         public Builder secondaryPress(OnPress onSecondaryPress) {
             this.onSecondaryPress = onSecondaryPress;
@@ -304,7 +304,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
             return new Parts(Look.PILL, "", plain, "", false, dim);
         }
         if (colon > 0 && colon < plain.length() - 1) {
-            // The value keeps its own colour codes (a key bind's §b, a status's §a/§c).
+            // The value keeps its own color codes (a key bind's §b, a status's §a/§c).
             int rawColon = raw.indexOf(':');
             String value = rawColon >= 0 ? raw.substring(rawColon + 1).trim() : plain.substring(colon + 1).trim();
             return new Parts(Look.CHIP, plain.substring(0, colon).trim(), value, "", false, dim);
@@ -348,7 +348,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         String label = MenuStyle.ellipsize(MenuStyle.LIGHT ? MenuStyle.lightReadable(raw) : raw, w - 8);
         int color = !active ? MenuStyle.DIM2 : (danger ? 0xFFFFD0D0 : (hover || primary ? MenuStyle.OR_HOVER : MenuStyle.OR));
         if (swatchColour() != null) {
-            // A ColorSwatch label ("Colour: ■"): drawn as the Component so the square keeps its own colour (sweep-b).
+            // A ColorSwatch label ("Color: ■"): drawn as the Component so the square keeps its own color (sweep-b).
             graphics.text(font, getMessage(), x0 + (w - font.width(getMessage())) / 2, y0 + (h - 8) / 2, faded(color),
                     MenuStyle.TEXT_SHADOW);
             return;
@@ -435,7 +435,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         int h = getHeight();
         var font = Minecraft.getInstance().font;
         boolean hover = isHovered && active;
-        // Eased in the menu (gui/MenuAnim): hover shades, a press flash, the switch's knob and colour.
+        // Eased in the menu (gui/MenuAnim): hover shades, a press flash, the switch's knob and color.
         anim.hover.set(hover ? 1f : 0f);
         float hv = anim.hover.get();
         float pr = anim.press.get();
@@ -529,7 +529,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         } else if (p.look() == Look.CHIP) {
             Integer swatch = swatchColour();
             if (swatch != null) {
-                // A colour setting ("Colour: ■" from ColorSwatch): the chip shows the colour itself.
+                // A color setting ("Color: ■" from ColorSwatch): the chip shows the color itself.
                 com.killer560.hub.hud.GuiRects sw = com.killer560.hub.hud.GuiRects.begin(graphics);
                 sw.fill(c[0] + 3, c[1] + 3, c[0] + c[2] - 3, c[1] + c[3] - 3, 0xFF000000 | swatch);
                 sw.outline(c[0] + 2, c[1] + 2, c[2] - 4, c[3] - 4, MenuStyle.BLACK);
@@ -543,7 +543,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         }
     }
 
-    /** The RGB of a {@code ColorSwatch} label's "■", or null when this is not a colour setting. */
+    /** The RGB of a {@code ColorSwatch} label's "■", or null when this is not a color setting. */
     private Integer swatchColour() {
         for (net.minecraft.network.chat.Component part : getMessage().getSiblings()) {
             if ("■".equals(part.getString()) && part.getStyle().getColor() != null) {
@@ -590,9 +590,9 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
     }
 
     /**
-     * This colour at the widget's current opacity.
+     * This color at the widget's current opacity.
      *
-     * <p>Every colour here was a hardcoded {@code 0xFF......}, so the widget drew fully opaque no matter what
+     * <p>Every color here was a hardcoded {@code 0xFF......}, so the widget drew fully opaque no matter what
      * {@link #setAlpha} had been told. That is why the Dungeon Sim button did not fade in with the rest of the
      * title screen (killer560, 2026-09-28 and again 2026-09-30).
      *

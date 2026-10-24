@@ -1,7 +1,7 @@
 package com.killer560.hub.ap3;
 
 /**
- * The movement model the route optimiser plans on: vanilla's horizontal step (the same one {@link Ap3AlignMath} and
+ * The movement model the route optimizer plans on: vanilla's horizontal step (the same one {@link Ap3AlignMath} and
  * {@link Ap3DiscretePlanner} use for an align) plus the vertical side, so a JUMP can be planned as well as a run.
  * No Minecraft types on purpose - the offline harness runs this exact code.
  * <p>
@@ -31,7 +31,7 @@ final class Ap3RouteMath {
     // ---- lava bounce (measured, not guessed) -----------------------------------------------------------------
     // From killer560's own /lavalab runs, 2026-09-22 (two sessions, 30 bounces). Landing in lava launches you with a
     // single upward impulse, and everything after it is ordinary air flight - the recorded velocities follow
-    // (vy - 0.08) * 0.98 to five decimals. The impulse itself is quantised, not a curve:
+    // (vy - 0.08) * 0.98 to five decimals. The impulse itself is quantized, not a curve:
     //     impulse = 2.25 * (looking up ? 1.35 : 1) + (jump held ? 0.04 : 0)      [blocks on the launch tick]
     //     the velocity left after that tick = impulse * 0.8 - 0.025             [lava drag, then normal air]
     // which reproduces every measured bounce exactly: 1.775 / 1.807 / 2.405 / 2.437. Peaks: about 18.5 blocks
@@ -125,7 +125,7 @@ final class Ap3RouteMath {
      *       drags at GROUND rates, and only the ticks after it are air ticks.</li>
      *   <li>Vertical velocity exists on the ground too: a standing tick goes into the move at -0.0784 and has it
      *       taken away by the floor. That is what makes a step up possible at all, because vanilla only looks for
-     *       one when the move was downwards or you were already standing.</li>
+     *       one when the move was downward or you were already standing.</li>
      * </ol>
      */
     static void step(RouteState s, Ap3DiscretePlanner.Action a, float yaw, boolean jump, boolean sprint,

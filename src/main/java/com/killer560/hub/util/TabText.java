@@ -13,13 +13,13 @@ import java.util.WeakHashMap;
  *
  * <p>About a dozen features walk the tab list (Dungeon Info every tick, the party tracker, the score calculator,
  * Teammates, the island detector, Skyblock Area, ...) and each one called {@code getTabListDisplayName().getString()}
- * and stripped the colour codes of all ~80 entries on its own schedule, every time - the same 80 strings rebuilt and
+ * and stripped the color codes of all ~80 entries on its own schedule, every time - the same 80 strings rebuilt and
  * regex-stripped several times a second while the entries change a few times a second at most (FPS sweep, 2026-10-07).
  *
  * <p>An entry's display name is replaced, not mutated, when the server updates it, so the memo is keyed on the
  * {@link Component} instance the entry holds now (and the language, which {@code getString} can depend on): a new
  * component is a miss and is flattened again, exactly as the reader would have. Off the client thread nothing is
- * memoised and the text is computed directly.
+ * memoized and the text is computed directly.
  */
 public final class TabText {
 

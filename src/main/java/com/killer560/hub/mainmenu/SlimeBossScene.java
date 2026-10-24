@@ -136,7 +136,7 @@ final class SlimeBossScene {
 
     /**
      * The character, close up on the left facing right toward the boss, cropped by the left and bottom edges: drawn first
-     * shifted toward the glow in the rim colour, then dark, so only the edges facing the boss are lit.
+     * shifted toward the glow in the rim color, then dark, so only the edges facing the boss are lit.
      */
     static void character(GuiRects r, int w, int h, int hot, float s) {
         if (SMOOTH) {
@@ -145,7 +145,7 @@ final class SlimeBossScene {
             return;
         }
         float u = h * 0.0195f;
-        float hx = w * 0.13f; // head centre
+        float hx = w * 0.13f; // head center
         float hy = h * 0.36f; // head top
         int shift = Math.max(1, Math.round(1.5f * s));
         int rim = MenuStyle.alpha(hot, 0xB8);

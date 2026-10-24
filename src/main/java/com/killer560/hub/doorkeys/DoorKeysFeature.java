@@ -39,7 +39,7 @@ import com.killer560.hub.compat.McRender;
  * (Auto Clear tab, 1 block by default, which nothing published states) - the same number Auto Clear walks to, so the
  * two can never disagree.
  * <p>
- * killer560, 2026-10-15: "Radius is just a circle drawn at its height." The circle is centred on the key's stand at the
+ * killer560, 2026-10-15: "Radius is just a circle drawn at its height." The circle is centered on the key's stand at the
  * stand's own height - the point every pickup check measures his feet to, and the sphere's equator - where until then it
  * lay on the first solid block under the key.
  */
@@ -48,7 +48,7 @@ public final class DoorKeysFeature {
     private static Entity currentKey = null;
     private static float[] currentColor = null;
     private static boolean currentBlood = false;
-    /** The circle's centre (the key's stand, at its height) and radius: {x, y, z, r}, or null. */
+    /** The circle's center (the key's stand, at its height) and radius: {x, y, z, r}, or null. */
     private static volatile double[] ring = null;
     private static final int RING_SEGMENTS = 64;
     /** How opaque the Sphere style's shading is: enough to see the edge of the range, not enough to hide the room. */
@@ -133,7 +133,7 @@ public final class DoorKeysFeature {
         }
     }
 
-    /** The pickup circle for {@code key}: centred on its stand, at the stand's own height. */
+    /** The pickup circle for {@code key}: centered on its stand, at the stand's own height. */
     private static double[] ringFor(Minecraft client, Entity key) {
         Vec3 p = key.position();
         double radius = com.killer560.hub.autosecret.AutoSecretConfig.getInstance().keyPickupRange();
@@ -173,16 +173,16 @@ public final class DoorKeysFeature {
     }
 
     /**
-     * Where the tracer ends: the centre of the block the key rests in (x and z), at the circle's own height with the Radius
+     * Where the tracer ends: the center of the block the key rests in (x and z), at the circle's own height with the Radius
      * style so the line meets the ring (killer560, 2026-10-18: "have the tracer point to the same height as the circle").
-     * The Sphere style's circle is its equator at the stand's position, and its tracer keeps the block centre's height.
+     * The Sphere style's circle is its equator at the stand's position, and its tracer keeps the block center's height.
      */
     public static Vec3 tracerTarget(Vec3 keyPos, double standBoxHeight, float lift, boolean sphere) {
         double y = sphere ? Math.floor(keyPos.y) + 0.5 : circleY(keyPos.y, standBoxHeight, lift);
         return new Vec3(Math.floor(keyPos.x) + 0.5, y, Math.floor(keyPos.z) + 0.5);
     }
 
-    /** A colour setting as r, g, b, a floats: {@code configured} (ARGB) unless it is {@link DoorKeysConfig#COLOR_AUTO},
+    /** A color setting as r, g, b, a floats: {@code configured} (ARGB) unless it is {@link DoorKeysConfig#COLOR_AUTO},
      *  then {@code auto} with {@code autoAlpha}. */
     public static float[] resolveColor(int configured, float[] auto, float autoAlpha) {
         if (configured == DoorKeysConfig.COLOR_AUTO) {
@@ -198,7 +198,7 @@ public final class DoorKeysFeature {
         return r == null ? null : r.clone();
     }
 
-    /** For the testkit: the sphere the Sphere style draws, {x, y, z, radius} - centred on the key's stand, whose
+    /** For the testkit: the sphere the Sphere style draws, {x, y, z, radius} - centered on the key's stand, whose
      *  position every pickup check measures his feet to - or null when no key is shown. */
     public static double[] pickupSphere() {
         Entity key = currentKey;
@@ -246,14 +246,14 @@ public final class DoorKeysFeature {
         // killer560, 2026-09-20: "make it so the wither key tracer goes to some fixed midpoint that is
         // unmoving. Right now it really bugs out." It was aimed at the dropped item's live position, and a
         // dropped item bobs up and down and spins forever - so the far end of the line jittered every frame.
-        // Anchor it to the centre of the block the key is resting in instead: it stops moving the moment the
+        // Anchor it to the center of the block the key is resting in instead: it stops moving the moment the
         // key settles, and still follows if the key is actually thrown somewhere else.
         Vec3 keyPos = currentKey.position();
         Vec3 target = tracerTarget(keyPos, currentKey.getBbHeight(), cfg.getCircleLift(), sphere);
         float thickness = cfg.getTracerThickness();
         if (sphere) {
             // A see-through shaded ball of the pickup radius around the stand: step inside it and the key is his.
-            // The Wither Key's own near-black would vanish as a fill, so it is drawn as the light grey of its name.
+            // The Wither Key's own near-black would vanish as a fill, so it is drawn as the light gray of its name.
             float[] c = currentColor[0] < 0.2f && currentColor[1] < 0.2f ? new float[]{0.75f, 0.75f, 0.8f} : currentColor;
             float[] fill = resolveColor(cfg.getFillColor(), c, SPHERE_ALPHA);
             WorldRenderUtils.renderFilledSphere(context, keyPos, circle[3], 12, 24, fill[0], fill[1], fill[2], fill[3]);

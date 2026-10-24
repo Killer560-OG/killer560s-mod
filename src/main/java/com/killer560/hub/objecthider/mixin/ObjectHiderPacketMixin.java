@@ -22,15 +22,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *     {@code misc/hiders/DisableBlindness.kt} drops the packet, and so does this.</li>
  * <li>{@code handleAddEntity} - QUOI {@code RenderOptimiser.kt} "Hide falling blocks" / "Hide lightning"
  *     ({@code :28-29}, cancel {@code :46-49}): both are pure client-render cosmetics with no server-side
- *     interaction, and cancelling the spawn packet is cheaper than letting the entity spawn and cancelling
- *     its render every frame afterwards. This is the one hider pair here that never gets an entity ID in the
+ *     interaction, and canceling the spawn packet is cheaper than letting the entity spawn and canceling
+ *     its render every frame afterward. This is the one hider pair here that never gets an entity ID in the
  *     first place rather than skipping its render.</li>
  * </ul>
  * Both hooks sit right AFTER {@code PacketUtils.ensureRunningOnSameThread(packet, this,
  * minecraft.packetProcessor())} - javap-verified as instruction 9 of both handlers in the 26.1.2 jar - for the
  * same reason as {@code BloodCampPacketMixin}/{@code DungeonAlertsPacketMixin}: a HEAD hook runs twice (once on
  * the network thread, which then throws {@code RunningOnDifferentThreadException} and reschedules). Injecting
- * after that call means the hook only ever runs on the main thread, and cancelling there returns before vanilla
+ * after that call means the hook only ever runs on the main thread, and canceling there returns before vanilla
  * applies the packet. {@code require = 0} so a future mapping change degrades to "hider off", never a crash.
  */
 @Mixin(ClientPacketListener.class)

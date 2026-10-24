@@ -35,7 +35,7 @@ import com.killer560.hub.compat.McCompat;
  * 2026-10-09 (killer560: "once I set everyone's class then it should automatically move them where they would normally
  * be; I should still be able to manually move them"): the Default Order button picks a {@link LeapOrderMode}, and every
  * teammate not moved by hand sits where it puts their class - so setting a class moves that teammate at once. A swap
- * pins both names it moved (drawn with a small grey "pinned"); shift-click unpins one, Reset Positions unpins all.
+ * pins both names it moved (drawn with a small gray "pinned"); shift-click unpins one, Reset Positions unpins all.
  * <p>
  * 2026-10-11, the class wizard (killer560: "it goes though player by player asking you their class, then after you get
  * a player on the right class you press next on a button on the bottom of your screen. Then it goes through all 4 of the
@@ -231,7 +231,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         int y = 76;
         int w = Math.max(50, contentWidth() - 2 * 18);
         int room = Math.max(40, height - 40 - y);
-        // Tall enough to fill a normal window, but not a long empty strip on a big one: past 280 units the row is centred.
+        // Tall enough to fill a normal window, but not a long empty strip on a big one: past 280 units the row is centered.
         int h = Math.min(room, 280);
         return new int[]{x, y + (room - h) / 2, w, h};
     }
@@ -477,7 +477,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         // The menu theme (screen sweep, 2026-10-13): one panel over the whole window with a header band for the title
-        // (and the Default Order pill), the spots as the menu's cards with their class colour as the edge, the class
+        // (and the Default Order pill), the spots as the menu's cards with their class color as the edge, the class
         // buttons as cards too. Every position is the one it had: the spots still sit exactly where the leap menu puts them.
         ScreenChrome.backdrop(graphics, this.width, this.height);
         themedBounds = new int[]{6, 6, width - 12, height - 12};
@@ -505,7 +505,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                 int color = c != null ? ScreenChrome.readable(c.color()) : MenuStyle.OR;
                 GuiRects card = GuiRects.begin(graphics);
                 ScreenChrome.card(card, b[0], b[1], b[2], b[3], hovered, spot == selectedSpot);
-                // The class colour as the card's edge and a strip down its left side.
+                // The class color as the card's edge and a strip down its left side.
                 card.outline(b[0] + 1, b[1] + 1, b[2] - 2, b[3] - 2, name == null ? MenuStyle.ACCENT_EDGE : color);
                 if (name != null) {
                     card.fill(b[0] + 2, b[1] + 2, b[0] + 4, b[1] + b[3] - 2, color);
@@ -556,7 +556,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         return width - contentLeft();
     }
 
-    /** The centre line of what the stage may use (the screen's centre when the chat is closed). */
+    /** The center line of what the stage may use (the screen's center when the chat is closed). */
     private int contentCx() {
         return contentLeft() + contentWidth() / 2;
     }
@@ -576,7 +576,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
             rebuild();
             if (chat.open && chat.input != null) {
                 // Opening it is for typing: no extra click. A mouse press re-focuses the pressed button after this runs
-                // (ContainerEventHandler.mouseClicked), so mouseClicked focuses the input again afterwards.
+                // (ContainerEventHandler.mouseClicked), so mouseClicked focuses the input again afterward.
                 setFocused(chat.input);
                 focusChatAfterClick = true;
             }
@@ -720,7 +720,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         return false;
     }
 
-    /** Text drawn {@code scale} times its size, centred on {@code cx} with its top at {@code y}. */
+    /** Text drawn {@code scale} times its size, centered on {@code cx} with its top at {@code y}. */
     private static void drawLarge(GuiGraphicsExtractor g, String s, int cx, int y, float scale, int colour) {
         int w = MenuStyle.font().width(s);
         g.pose().pushMatrix();
@@ -788,7 +788,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
 
         @Override
         protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-            // A card in the menu theme with the class colour as its edge (screen sweep, 2026-10-13).
+            // A card in the menu theme with the class color as its edge (screen sweep, 2026-10-13).
             int c = ScreenChrome.readable(color);
             GuiRects r = GuiRects.begin(graphics);
             ScreenChrome.card(r, getX(), getY(), getWidth(), getHeight(), isHovered, false);

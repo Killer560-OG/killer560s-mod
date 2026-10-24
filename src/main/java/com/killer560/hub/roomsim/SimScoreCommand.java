@@ -10,7 +10,7 @@ import net.minecraft.client.Minecraft;
  * {@code /simscore} - where a sim run stands, and what is still missing for 300.
  *
  * <p>The number on its own is not the useful part. "289" tells him the run failed; "two more crypts and the
- * mimic" tells him which of those to go and do, and that is the whole reason the score is modelled rather than
+ * mimic" tells him which of those to go and do, and that is the whole reason the score is modeled rather than
  * just timed.
  */
 public final class SimScoreCommand {

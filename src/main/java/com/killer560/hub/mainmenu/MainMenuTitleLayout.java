@@ -253,14 +253,14 @@ public final class MainMenuTitleLayout {
                 }
             }
             if (options == null || quit == null) {
-                // Unrecognised title screen (another mod rebuilt it): don't guess, leave it alone.
+                // Unrecognized title screen (another mod rebuilt it): don't guess, leave it alone.
                 return;
             }
 
             int cx = screen.width / 2;
             int oldRowY = options.getY();
 
-            // Column: every visible full-width centred widget above the Options row; Realms, icons, every Mod Menu
+            // Column: every visible full-width centered widget above the Options row; Realms, icons, every Mod Menu
             // button and our own button excluded. Stable-sorted by current y.
             List<AbstractWidget> column = new ArrayList<>();
             for (AbstractWidget w : widgets) {
@@ -294,7 +294,7 @@ public final class MainMenuTitleLayout {
                     // theory that a widget added after init could not join vanilla's fade. That theory was
                     // wrong: TitleScreen fades by walking its children every frame and calling setAlpha on each
                     // AbstractWidget, and this button IS one of its children - it was being handed the right
-                    // alpha all along. SettingsButtonWidget drew with hardcoded 0xFF colours and ignored it.
+                    // alpha all along. SettingsButtonWidget drew with hardcoded 0xFF colors and ignored it.
                     // Fixed there, so the button simply fades like the rest and this needs no timer at all.
                     // Into the screen's widget list at the matching spot, so tab order follows what you see.
                     int idx = widgets.indexOf(multiplayer);
@@ -451,7 +451,7 @@ public final class MainMenuTitleLayout {
     /** Height of the "Playing as" chip. */
     private static final int CHIP_HEIGHT = 15;
 
-    /** "Playing as <name>" as a chip centred under the panel when it fits above the footer band; otherwise (very
+    /** "Playing as <name>" as a chip centered under the panel when it fits above the footer band; otherwise (very
      *  small windows / huge GUI scale) as the button's tooltip instead. The name is always the account's real one,
      *  never Name Changer's (killer560, 2026-10-15: "Do not have the custom ign color work on this page"). */
     private static void installPlayingAs(Screen screen, SwapAccountsButton swap, String name, int cx, int chipY) {

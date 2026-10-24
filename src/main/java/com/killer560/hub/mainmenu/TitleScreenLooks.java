@@ -234,7 +234,7 @@ public final class TitleScreenLooks {
         relayout = true;
     }
 
-    /** The picked look's five colours for the mod's own screens (so Mod Settings shows Green's gradients), or null. */
+    /** The picked look's five colors for the mod's own screens (so Mod Settings shows Green's gradients), or null. */
     public static int[] menuColours() {
         Look c = current();
         if (c == null || c.vanilla()) {

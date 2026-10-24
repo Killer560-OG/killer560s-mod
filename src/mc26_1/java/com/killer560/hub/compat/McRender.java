@@ -28,7 +28,7 @@ import org.joml.Vector3fc;
  * {@code MultiBufferSource} does not exist in 26.2 at all - zero occurrences in the jar - and
  * {@code LevelRenderer.render} now works through a frame graph and render-state objects instead of handing
  * out vertex buffers. But {@code OrderedSubmitNodeCollector.submitCustomGeometry} takes a callback that
- * receives a {@code VertexConsumer}, so the mod's own vertex maths is untouched and only the way it gets hold
+ * receives a {@code VertexConsumer}, so the mod's own vertex math is untouched and only the way it gets hold
  * of a consumer differs. {@code RenderType} and {@code RenderTypes} sit at the same package in both versions,
  * so the signatures here are genuinely identical rather than merely similar.
  *
@@ -304,13 +304,13 @@ public final class McRender {
         return builder.withSampler("Sampler0");
     }
 
-    /** An off-screen colour target the size of the window, in the same format as the main one. */
+    /** An off-screen color target the size of the window, in the same format as the main one. */
     public static TextureTarget newTextureTarget(String label, int width, int height, boolean useDepth) {
         return new TextureTarget(label, width, height, useDepth);
     }
 
     /**
-     * Clears a colour texture to transparent black - the {@code 0} that 26.1.2's {@code clearColorTexture} took
+     * Clears a color texture to transparent black - the {@code 0} that 26.1.2's {@code clearColorTexture} took
      * as a packed ARGB int, which 26.2 takes as a {@code Vector4fc}.
      */
     public static void clearToZero(GpuTexture texture) {

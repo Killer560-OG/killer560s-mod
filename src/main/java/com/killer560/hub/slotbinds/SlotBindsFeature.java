@@ -147,7 +147,7 @@ public final class SlotBindsFeature {
      * Whether the Slot Binds key and the Protect Item key are the same key and both features are live on this screen.
      * Then the key's gesture belongs to Slot Binds: Protect's own key press steps aside and {@link #resolve} calls
      * {@link ItemProtectFeature#toggleProtectFromSlot} on release when the press was quick. Off the inventory screen
-     * Slot Binds is not active, so Protect keeps its press behaviour there.
+     * Slot Binds is not active, so Protect keeps its press behavior there.
      */
     public static boolean ownsSharedKey(Screen screen, int key) {
         if (key == KeyUtil.NONE || !(screen instanceof InventoryScreen)) {

@@ -17,13 +17,13 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The mod menu's own settings (2026-10-12, Option A menu): the features starred as Favourites, in the order they were
+ * The mod menu's own settings (2026-10-12, Option A menu): the features starred as Favorites, in the order they were
  * starred. A feature is named by its tab class's simple name ({@code HealthAndManaBarsTab}), the same id the testing
  * build's Mark tested uses, so renaming a label never loses a star. Saved in {@code killer560smod-menu.json}; profiles
  * carry it like every other setting file.
  * <p>Saved themes (killer560, 2026-10-13: "Make it so each custom menu you save you can rename. Also they should be
- * saved."): any number of named Custom colour sets. Using one makes it the Custom set the menu draws; while one is in
- * use, changing a Custom colour changes that saved theme too.
+ * saved."): any number of named Custom color sets. Using one makes it the Custom set the menu draws; while one is in
+ * use, changing a Custom color changes that saved theme too.
  */
 public final class MenuConfig {
 
@@ -33,20 +33,20 @@ public final class MenuConfig {
     private static MenuConfig instance;
 
     private final Set<String> favourites = new LinkedHashSet<>();
-    /** The colour preset the menu draws in (killer560, 2026-10-12): Amber by default. */
+    /** The color preset the menu draws in (killer560, 2026-10-12): Amber by default. */
     private MenuTheme theme = MenuTheme.AMBER;
     /** The menu's Animations setting (killer560, 2026-10-15): Smooth by default. */
     private MenuAnim.Mode animations = MenuAnim.Mode.SMOOTH;
     /** Animation Speed (killer560, 2026-10-15): Fast, today's timing, by default. */
     private MenuAnim.Speed animationSpeed = MenuAnim.Speed.FAST;
-    /** The preset the Custom colours were started from (what Reset puts back). */
+    /** The preset the Custom colors were started from (what Reset puts back). */
     private MenuTheme customBase = MenuTheme.AMBER;
-    /** Custom's five colours, in {@link MenuTheme.Slot} order. */
+    /** Custom's five colors, in {@link MenuTheme.Slot} order. */
     private final int[] custom = MenuTheme.AMBER.base();
     /** Bumped on every theme change, so the drawing side knows to re-derive its palette. */
     private static int version;
 
-    /** A named Custom colour set: its five colours in {@link MenuTheme.Slot} order and the preset it started from. */
+    /** A named Custom color set: its five colors in {@link MenuTheme.Slot} order and the preset it started from. */
     public static final class SavedTheme {
         /** Stable across renames and deletions of other themes ("T1", "T2"...): a screen's Theme setting names a saved
          *  theme by it ({@link ScreenThemes}), never by position or name. */
@@ -194,7 +194,7 @@ public final class MenuConfig {
         return CONFIG_PATH;
     }
 
-    /** Changes whenever the theme or a custom colour changes (or the file is re-read). */
+    /** Changes whenever the theme or a custom color changes (or the file is re-read). */
     public static int version() {
         return version;
     }
@@ -219,8 +219,8 @@ public final class MenuConfig {
         return theme;
     }
 
-    /** Picks a theme. Choosing Custom from a preset starts Custom from that preset's colours (killer560's
-     *  "a Custom option starting from the active preset"); Custom keeps its own colours after that. */
+    /** Picks a theme. Choosing Custom from a preset starts Custom from that preset's colors (killer560's
+     *  "a Custom option starting from the active preset"); Custom keeps its own colors after that. */
     public void setTheme(MenuTheme t) {
         MenuTheme next = t == null ? MenuTheme.AMBER : t;
         if (next == MenuTheme.CUSTOM && theme != MenuTheme.CUSTOM) {
@@ -234,7 +234,7 @@ public final class MenuConfig {
         return customBase;
     }
 
-    /** The five colours the menu draws from right now (the preset's, or Custom's). */
+    /** The five colors the menu draws from right now (the preset's, or Custom's). */
     public int[] activeColours() {
         return theme == MenuTheme.CUSTOM ? custom.clone() : theme.base();
     }
@@ -243,7 +243,7 @@ public final class MenuConfig {
         return custom[slot.ordinal()];
     }
 
-    /** Sets one Custom colour and switches the menu to Custom (started from the preset in use, if it was one). */
+    /** Sets one Custom color and switches the menu to Custom (started from the preset in use, if it was one). */
     public void setCustomColour(MenuTheme.Slot slot, int argb) {
         if (theme != MenuTheme.CUSTOM) {
             startCustomFrom(theme);
@@ -256,7 +256,7 @@ public final class MenuConfig {
         version++;
     }
 
-    /** Custom's colours back to the preset it was started from. */
+    /** Custom's colors back to the preset it was started from. */
     public void resetCustom() {
         System.arraycopy(customBase.base(), 0, custom, 0, custom.length);
         if (activeSaved >= 0) {
@@ -277,7 +277,7 @@ public final class MenuConfig {
         return theme == MenuTheme.CUSTOM ? activeSaved : -1;
     }
 
-    /** Saves the colours the menu draws now as a new theme called "Custom N" and switches to it. Returns its index. */
+    /** Saves the colors the menu draws now as a new theme called "Custom N" and switches to it. Returns its index. */
     public int saveCurrentAsTheme() {
         int[] cols = activeColours();
         MenuTheme base = theme == MenuTheme.CUSTOM ? customBase : theme;
@@ -361,7 +361,7 @@ public final class MenuConfig {
         }
     }
 
-    /** Deletes saved theme {@code i}. The menu keeps drawing the same colours (Custom just stops being that theme). */
+    /** Deletes saved theme {@code i}. The menu keeps drawing the same colors (Custom just stops being that theme). */
     public void deleteSavedTheme(int i) {
         if (i < 0 || i >= savedThemes.size()) {
             return;

@@ -16,15 +16,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Tab buttons (Create World Game/World/More, other TabNavigationBar screens): themed tab boxes, selected tab full
- * height and warm with an orange frame, orange underline under the selected tab's title, labels recoloured.
+ * height and warm with an orange frame, orange underline under the selected tab's title, labels recolored.
  * <p>
  * 26.1.2 (javap), {@code TabButton.extractWidgetRenderState(GuiGraphicsExtractor,int,int,float)}:
  * <ul>
  *   <li>one {@code GuiGraphicsExtractor.blitSprite(RenderPipeline,Identifier,int,int,int,int)} - the tab sprite;</li>
  *   <li>if isSelected(): {@code this.extractMenuBackground(GuiGraphicsExtractor,int,int,int,int)} (protected, draws
- *       Screen.MENU_BACKGROUND inside the tab - cancelled while themed, the tab box already fills it) and
+ *       Screen.MENU_BACKGROUND inside the tab - canceled while themed, the tab box already fills it) and
  *       {@code this.extractFocusUnderline(GuiGraphicsExtractor,Font,int)} (private; one
- *       {@code GuiGraphicsExtractor.fill(int,int,int,int,int)}, arg 4 = white/grey colour);</li>
+ *       {@code GuiGraphicsExtractor.fill(int,int,int,int,int)}, arg 4 = white/gray color);</li>
  *   <li>{@code this.extractLabel(ActiveTextCollector)} (private; one
  *       {@code ActiveTextCollector.acceptScrollingWithDefaultCenter(Component,int,int,int,int)} interface call,
  *       arg 0 = getMessage()).</li>

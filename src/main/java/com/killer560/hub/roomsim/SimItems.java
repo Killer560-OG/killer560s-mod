@@ -71,7 +71,7 @@ public final class SimItems {
      * 2026-09-28), not a lookalike picked here. It matters for more than looks: an item's model decides its
      * held pose and its icon, so a Hyperion that is a netherite sword in the sim and an iron sword on Hypixel
      * looks different in the hotbar and in the hand, and a hotbar you read by shape is the thing being
-     * practised.
+     * practiced.
      */
     private enum GiveItem {
         ASPECT_OF_THE_VOID("ASPECT_OF_THE_VOID", Items.DIAMOND_SHOVEL, "Aspect of the Void", 1),
@@ -325,7 +325,7 @@ public final class SimItems {
      *
      * <p>killer560 (2026-09-28): "Treat the default as 12 nearly no one plays with less." Instant Transmission
      * is 8 blocks plus a block per Transmission Tuner, four maximum, so four tuners is 12 - what he plays with,
-     * and therefore what a route practised in here has to be built against. A sim item that teleported 8 would
+     * and therefore what a route practiced in here has to be built against. A sim item that teleported 8 would
      * teach a route that lands four blocks short of where it does on Hypixel.
      */
     private static final int DEFAULT_TUNERS = 4;
@@ -341,7 +341,7 @@ public final class SimItems {
         CompoundTag tag = new CompoundTag();
         tag.putString("id", item.skyblockId);
         if (TUNABLE.contains(item.skyblockId)) {
-            // The same tag Hypixel uses and EtherwarpHopper already reads, so the sim's own range maths and the
+            // The same tag Hypixel uses and EtherwarpHopper already reads, so the sim's own range math and the
             // mod's real one agree without either knowing about the other.
             tag.putInt("tuned_transmission", DEFAULT_TUNERS);
         }
@@ -368,9 +368,9 @@ public final class SimItems {
     }
 
     // ---------------------------------------------------------------------------------------------------
-    // Ability behaviour for the items SimAbilities does not cover, run on the integrated SERVER in answer to the
+    // Ability behavior for the items SimAbilities does not cover, run on the integrated SERVER in answer to the
     // packet - the way Hypixel's server answers it. SimAbilities' server-side use handler delegates any skyblock
-    // id it does not itself recognise to useOnServer; the left-click packet (START_DESTROY_BLOCK) arrives at
+    // id it does not itself recognize to useOnServer; the left-click packet (START_DESTROY_BLOCK) arrives at
     // onServerAttack. Etherwarp items, the wither blades and Tactical Insertion stay in SimAbilities.
     // ---------------------------------------------------------------------------------------------------
 
@@ -424,7 +424,7 @@ public final class SimItems {
                     failOnServer("not looking at a block");
                     yield false;
                 }
-                // getDirection() points OUT of the block, towards him, so the chamber is behind it.
+                // getDirection() points OUT of the block, toward him, so the chamber is behind it.
                 yield superboom(sp, hit.getBlockPos().immutable(), hit.getDirection());
             }
             // NO DUNGEONBREAKER HERE. It is a left-click tool - see onServerAttack. It used to be on the right-click
@@ -510,7 +510,7 @@ public final class SimItems {
      * use-on-block packet or a START_DESTROY_BLOCK, whoever sent it.
      *
      * <p>A superboom that opens a CRYPT counts toward the score: five crypts are worth the bonus five points,
-     * and that is most of the gap between a 299 and a 300. Recognised by the blocks it breaks rather than by
+     * and that is most of the gap between a 299 and a 300. Recognized by the blocks it breaks rather than by
      * where it was used.
      */
     private static boolean superboom(ServerPlayer sp, BlockPos target, net.minecraft.core.Direction face) {
@@ -528,7 +528,7 @@ public final class SimItems {
             // is exactly the wall and nothing else.
             // ONE crypt test, on the block he AIMED at, and BEFORE anything is destroyed.
             //
-            // Asking afterwards cannot work: the blast is what joins the chamber to the room, so by the time
+            // Asking afterward cannot work: the blast is what joins the chamber to the room, so by the time
             // the loop runs nothing is sealed any more. Counted once per detonation rather than per block, or
             // a single charge would hand out the bonus five points several times over.
             BlockState aimed = level.getBlockState(center);
@@ -558,7 +558,7 @@ public final class SimItems {
             boolean wallCrypt = aimedChamber != null;
             java.util.LinkedHashSet<BlockPos> targets = new java.util.LinkedHashSet<>();
             // Where each opened crypt's zombie stands: a slab crypt's chamber is under its lid; a wall crypt's is
-            // behind the wall (getDirection() points out towards him, so the opposite of it is the chamber).
+            // behind the wall (getDirection() points out toward him, so the opposite of it is the chamber).
             java.util.List<BlockPos> cryptZombies = new java.util.ArrayList<>();
             // A crypt gets the SLAB; anything else keeps the fragile-only fill. See docs/SIM.md for the
             // census behind that - cracked brick is decoration almost everywhere, and a crypt wall is cracked
@@ -580,7 +580,7 @@ public final class SimItems {
             // applied to every one of them within SUPERBOOM_CRYPT_REACH, each opened with its own zombie. Decorative
             // cracked brick (no chamber behind it) is still only broken when aimed at, as before.
             //
-            // REACH IS A REAL 3-BLOCK RADIUS, measured from where the charge lands (the centre of the face it hit) to
+            // REACH IS A REAL 3-BLOCK RADIUS, measured from where the charge lands (the center of the face it hit) to
             // each block's BOX - not the old x/z +-3, y +-2 cube around the hit block's corner. killer560 (2026-10-14):
             // "It should break the crypts and cracked stone and stuff from 3 blocks away", and "if it is a chain of
             // blocks but any one is within the 3 blocks then it should break them all". So anything breakable whose
@@ -680,7 +680,7 @@ public final class SimItems {
                 // The zombie that is standing in the crypt. killer560 (2026-09-29): "It should break crypts
                 // and have the zombie spawn."
                 // BEHIND the wall, in the chamber. above() put it inside the stonework, where it either
-                // suffocated or never appeared - getDirection() points out towards him, so the opposite
+                // suffocated or never appeared - getDirection() points out toward him, so the opposite
                 // of it is the air the crypt was sealing.
                 // A slab crypt's chamber is under its lid, whichever way he was facing when he threw it.
                 // NOT starred. killer560 (2026-10-04): "Spawned crypts shouldn't be starred." A crypt's zombie is
@@ -735,7 +735,7 @@ public final class SimItems {
      * inside that bound is a chamber, and one that runs out of it has escaped into the room and is not.
      *
      * <p>Run BEFORE anything is destroyed, deliberately - the blast opens the wall and joins the chamber to
-     * the room, so asking afterwards would find every chamber connected to everything and identify none.
+     * the room, so asking afterward would find every chamber connected to everything and identify none.
      */
     private static boolean sealsAChamber(ServerLevel level, BlockPos wall) {
         return chamberBehind(level, wall) != null;
@@ -830,7 +830,7 @@ public final class SimItems {
         return name != null && "PUZZLE".equals(SimFloorGen.typeOf(name));
     }
 
-    /** The 11x11 grid cell whose centre is closest to {@code at}, or -1 when the grid is empty. */
+    /** The 11x11 grid cell whose center is closest to {@code at}, or -1 when the grid is empty. */
     private static int nearestCell(BlockPos at) {
         int best = -1;
         long bestDist = Long.MAX_VALUE;
@@ -972,7 +972,7 @@ public final class SimItems {
      *
      * <p>Bounded at {@link #SUPERBOOM_MAX_BLOCKS}: connected cracked brick could in principle run a long way
      * through a floor's stonework, and an unbounded flood fill on the server thread is how a click becomes a
-     * freeze. Orthogonal neighbours only - a wall that meets another only at a corner is a different wall.
+     * freeze. Orthogonal neighbors only - a wall that meets another only at a corner is a different wall.
      */
     /** How many connected smooth stone slabs make a crypt rather than a decorative slab. */
     private static final int MIN_CRYPT_SLABS = 4;
@@ -983,7 +983,7 @@ public final class SimItems {
     /** How far a fragile chain may run from the hit block horizontally: half a room tile, so it stays in the room. */
     private static final int SUPERBOOM_CHAIN_SPAN = 15;
 
-    /** Where the charge goes off: the centre of the face it hit (the TNT lands ON the block, not inside it). */
+    /** Where the charge goes off: the center of the face it hit (the TNT lands ON the block, not inside it). */
     private static Vec3 boomPoint(BlockPos hit, net.minecraft.core.Direction face) {
         BlockPos out = hit.relative(face);
         return Vec3.atCenterOf(hit).add((out.getX() - hit.getX()) * 0.5, (out.getY() - hit.getY()) * 0.5,
@@ -991,7 +991,7 @@ public final class SimItems {
     }
 
     /** Whether {@code p}'s block BOX is within {@link #SUPERBOOM_CRYPT_REACH} of the blast point (CLAUDE.md: reach is
-     *  measured to the box, never to the centre, which reads up to half a block further). */
+     *  measured to the box, never to the center, which reads up to half a block further). */
     static boolean inReach(Vec3 boom, BlockPos p) {
         double dx = Math.max(0.0, Math.max(p.getX() - boom.x, boom.x - (p.getX() + 1)));
         double dy = Math.max(0.0, Math.max(p.getY() - boom.y, boom.y - (p.getY() + 1)));
@@ -1174,7 +1174,7 @@ public final class SimItems {
         java.util.LinkedHashSet<BlockPos> out = new java.util.LinkedHashSet<>(slabs);
         java.util.List<BlockPos> stairs = new java.util.ArrayList<>();
         for (BlockPos slab : slabs) {
-            // Horizontal neighbours only, for the same reason the slab run is: the rim is on the slab layer,
+            // Horizontal neighbors only, for the same reason the slab run is: the rim is on the slab layer,
             // and a stair above or below it belongs to a different one.
             for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.Plane.HORIZONTAL) {
                 BlockPos next = slab.relative(dir).immutable();

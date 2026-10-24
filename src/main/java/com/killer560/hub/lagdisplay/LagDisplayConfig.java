@@ -45,7 +45,7 @@ public final class LagDisplayConfig {
     private boolean showFps = true;
     private boolean showCps = false;
     private boolean colorByValue = true;
-    // Custom colours (killer560, 2026-10-18). Good/Ok/Bad/Awful colour a value when Color By Value is on; Text is
+    // Custom colors (killer560, 2026-10-18). Good/Ok/Bad/Awful color a value when Color By Value is on; Text is
     // every line when it is off and the CPS line always. Opaque ARGB.
     public static final int DEFAULT_GOOD = 0xFF55FF55;
     public static final int DEFAULT_OK = 0xFFFFFF55;

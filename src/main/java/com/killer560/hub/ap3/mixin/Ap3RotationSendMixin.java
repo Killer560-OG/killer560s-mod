@@ -28,7 +28,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * It also sends AP3's armed USE / BLOCK / BOOM click at its head ({@link Ap3Executor#beforeSendPosition}).
  * Rotation 360 rule: every value written here is a running value - the player's own previous one, or a server-side
  * yaw that was seeded from the player's own live yaw and only ever moved by bounded wrapped deltas - never wrapped,
- * never normalised, and the live values are restored unchanged.
+ * never normalized, and the live values are restored unchanged.
  */
 @Mixin(LocalPlayer.class)
 public abstract class Ap3RotationSendMixin {

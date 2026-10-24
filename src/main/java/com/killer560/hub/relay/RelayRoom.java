@@ -71,7 +71,7 @@ public final class RelayRoom {
             return null;
         }
         // Sorted + lower-cased + de-duplicated so every member hashes byte-identical input regardless of the
-        // order Hypixel listed them in or how anyone's client capitalised a name.
+        // order Hypixel listed them in or how anyone's client capitalized a name.
         TreeSet<String> names = new TreeSet<>();
         names.add(self.toLowerCase(Locale.ROOT));
         for (String teammate : teammates) {

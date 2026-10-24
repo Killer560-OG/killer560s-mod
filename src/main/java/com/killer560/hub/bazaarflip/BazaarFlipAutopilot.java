@@ -300,7 +300,7 @@ final class BazaarFlipAutopilot {
         lastPlacementCounted = counted;
     }
 
-    /** Colour-stripped chat while the autopilot runs (BazaarFlipFeature forwards it). Every pattern anchored. */
+    /** Color-stripped chat while the autopilot runs (BazaarFlipFeature forward it). Every pattern anchored. */
     static void onChatLine(String line) {
         if (ORDER_COOLDOWN.matcher(line).matches()) {
             cooldownSeenAtMs = System.currentTimeMillis();
@@ -789,7 +789,7 @@ final class BazaarFlipAutopilot {
                 }
                 if (timedOut) {
                     if (action instanceof FlipAction.Cancel || action instanceof FlipAction.Relist) {
-                        // A cancelled sell offer's items can go to the stash when the inventory is full.
+                        // A canceled sell offer's items can go to the stash when the inventory is full.
                         expect = Expect.NONE;
                         onCancelled(client, 0);
                         return false;
@@ -1308,7 +1308,7 @@ final class BazaarFlipAutopilot {
                     : action instanceof FlipAction.Cancel c ? c.order() : ((FlipAction.Relist) action).order();
             Integer slot = slots.get(target.key());
             if (slot == null) {
-                // Filled, claimed or cancelled since the decision: nothing left to do for it.
+                // Filled, claimed or canceled since the decision: nothing left to do for it.
                 done("the order " + target.key() + " is no longer listed");
                 return;
             }
@@ -1588,7 +1588,7 @@ final class BazaarFlipAutopilot {
     /** Whether one of the session's own open buy orders on the product bids this price (as Manage Orders last showed). */
     private static boolean ownBuyAt(String productId, double price) {
         for (FlipOrder o : orders) {
-            // mine drops an order the moment it is cancelled, so a relist never "matches" the order it replaced.
+            // mine drops an order the moment it is canceled, so a relist never "matches" the order it replaced.
             if (o.ours() && o.buy() && mine.containsKey(o.key()) && productId != null && productId.equals(o.productId())
                     && Math.abs(o.price() - price) <= FlipAutopilot.PRICE_EPS) {
                 return true;

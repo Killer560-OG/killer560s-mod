@@ -31,7 +31,7 @@ public abstract class RightClickTeleportMixin {
      * Before vanilla applies the packet and answers it (the injection point {@code SmoothTpPositionMixin} and
      * {@code Ap3PositionPacketMixin} use, client thread, both versions): an Auto Routes path hop landing may turn the body to
      * the next hop's look here, so the answer carries it ({@code RouteExecutor.beforeTeleportAnswer}). The target is
-     * computed as vanilla does. Nothing is cancelled; a throw is swallowed.
+     * computed as vanilla does. Nothing is canceled; a throw is swallowed.
      */
     @Inject(method = "handleMovePlayer", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER),
             require = 0)

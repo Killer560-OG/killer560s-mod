@@ -9,11 +9,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * The dye half of Armour Recolour, and the single highest-value hook in the whole feature - this is the same place
+ * The dye half of Armor Recolor, and the single highest-value hook in the whole feature - this is the same place
  * Skyblocker hooks ({@code mixins/DyedItemColorMixin}, credited in {@link ArmourDye}).
  * <p>
  * {@code DyedItemColor.getOrDefault(stack, fallback)} is what BOTH render paths ask for the leather tint:
- * {@code EquipmentLayerRenderer#renderLayers} calls it for the armour painted on the body, and
+ * {@code EquipmentLayerRenderer#renderLayers} calls it for the armor painted on the body, and
  * {@code net.minecraft.client.color.item.Dye} calls it for the item model in inventories, the hotbar, your hand and
  * dropped item entities. One override therefore covers every surface at once. Because it replaces the value
  * {@code getOrDefault} was going to return, it also works on a piece that has no {@code minecraft:dyed_color}

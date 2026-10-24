@@ -51,7 +51,7 @@ public final class SimBreakerState {
      *
      * <p>This was ONE tick, on his 2026-09-28 "for sim make it so it breaks but instantly comes back", and he
      * reversed it on 2026-09-30: "they insta come back and dont wait like they should". Ten seconds is the
-     * real behaviour, and it is the part that makes a breaker route a route - a hole that closes behind you
+     * real behavior, and it is the part that makes a breaker route a route - a hole that closes behind you
      * is a timing problem, and one that never closes is not.
      */
     private static final int RESTORE_TICKS = 200;

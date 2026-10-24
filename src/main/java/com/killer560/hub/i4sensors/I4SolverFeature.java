@@ -58,7 +58,7 @@ public final class I4SolverFeature {
     private static final int MASK_MIN_X = 64, MASK_MAX_X = 68, MASK_MIN_Y = 126, MASK_MAX_Y = 130;
     private static final int WALL_Z = 50;
     private static final int FRONT_Z = 49;
-    // Flags 2|16: tell the renderer, but skip neighbour shape updates.
+    // Flags 2|16: tell the renderer, but skip neighbor shape updates.
     private static final int CLIENT_ONLY_FLAGS = 18;
     private static final Map<BlockPos, BlockState> maskedOriginals = new HashMap<>();
     private static Object maskedInLevel = null;
@@ -113,7 +113,7 @@ public final class I4SolverFeature {
         wasActive = true;
         // Wipe progress when the player steps off the pressure pad (2026-09-14, killer560: "if it detects I walk off of
         // the pressure pad or the dev cancels then wipe the progress of the solver") - Hypixel cancels the device's
-        // progress then. A device cancelled while still standing on it shows up as a hit target lighting again,
+        // progress then. A device canceled while still standing on it shows up as a hit target lighting again,
         // which already clears below.
         boolean onPad = I4SensorsFeature.isOnDevice(client.player.position());
         if (wasOnPad && !onPad && !hits.isEmpty()) {

@@ -55,7 +55,7 @@ final class OceanFallsScene {
     static final int TW = 1920;
     static final int TH = 1080;
 
-    /** The streaks' colours: the picture's glowing teal and a near-white head. */
+    /** The streaks' colors: the picture's glowing teal and a near-white head. */
     static final int TEAL = 0xFF5FF2E4;
     static final int HEAD = 0xFFCFFFF8;
     static final int MIST = 0xFF7FE6DE;
@@ -170,7 +170,7 @@ final class OceanFallsScene {
     // ---- shapes --------------------------------------------------------------------------------------------------------
 
     /**
-     * A soft falling streak from {@code yTail} (clear) to {@code yHead} (brightest) centred on x, {@code w} wide: a faint
+     * A soft falling streak from {@code yTail} (clear) to {@code yHead} (brightest) centered on x, {@code w} wide: a faint
      * glow three and a half times as wide, a core of three columns (the outer two at 45%), and a short fade below the head
      * so the head has no hard edge. One pose for the whole streak (a pose change costs the batch a matrix copy), placed so
      * x and both ends are sub-pixel: across, a unit is w/12; down, len/256.
@@ -209,7 +209,7 @@ final class OceanFallsScene {
     }
 
     /**
-     * A soft round glow (Gaussian, no rings) at a sub-pixel centre: columns {@code rx / perRx} wide, each a few
+     * A soft round glow (Gaussian, no rings) at a sub-pixel center: columns {@code rx / perRx} wide, each a few
      * piecewise-linear vertical gradients through {@code knots} (in radii). One pose for all of it - across, a unit is an
      * eighth of a column; down, ry/64 - so it is a cheaper {@link Px#softGlow} for the many puffs of mist and halos.
      */
@@ -264,7 +264,7 @@ final class OceanFallsScene {
         pose.popMatrix();
     }
 
-    /** An elliptical ring (rx, ry) of {@code thick} px at a sub-pixel centre, one pose for all of it (quarter-pixel
+    /** An elliptical ring (rx, ry) of {@code thick} px at a sub-pixel center, one pose for all of it (quarter-pixel
      *  units); its far half (the top, on the water) is fainter. */
     static void ring(GuiRects r, double cx, double cy, double rx, double ry, double thick, int rgb, int alpha) {
         if (alpha <= 2 || rx < 1) {

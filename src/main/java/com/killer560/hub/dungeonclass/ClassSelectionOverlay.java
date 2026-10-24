@@ -41,7 +41,7 @@ import com.killer560.hub.compat.McCompat;
  * <b>Assignment.</b> There is no real Hypixel mechanic for putting a class on someone else - each player picks
  * their own. So "drag and drop or click and it replaces/goes to that spot" is implemented as a local planning
  * tool over the mod's own existing "who is meant to be playing what" store, {@link ClassOverrides} (the exact
- * same one the Leap Order editor - {@code /leaporder}, {@code /class} - edits, and every class-coloured display in the
+ * same one the Leap Order editor - {@code /leaporder}, {@code /class} - edits, and every class-colored display in the
  * mod already reads) - not a second, throwaway assignment table. The party bar ends in an "Edit Classes" chip that
  * opens that editor over this screen (2026-10-15). Interaction is click-based (the request explicitly offers it as an
  * alternative to drag-and-drop): click a name in the top bar to pick it up, then click one of the five class
@@ -232,7 +232,7 @@ public final class ClassSelectionOverlay {
 
             // The faint background label - "whatever it would normally be", i.e. the class this box has always
             // meant, kept legible underneath whichever teammate ends up assigned to it. Translucency comes from
-            // the colour argument's own alpha byte (DungeonClass#colorWithAlpha), not RenderSystem.setShaderColor
+            // the color argument's own alpha byte (DungeonClass#colorWithAlpha), not RenderSystem.setShaderColor
             // - that call does not exist on this MC version (javap-verified against the mapped jar).
             graphics.centeredText(font, cls.displayName().toUpperCase(Locale.ROOT), x0 + 8, y0 + 4,
                     cls.colorWithAlpha(0x50));

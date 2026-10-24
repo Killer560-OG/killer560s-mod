@@ -26,7 +26,7 @@ import java.util.Map;
  *
  * <p>Deliberately not a general-purpose cache. It holds one container's worth of lore, replaced wholesale when a
  * new container's contents arrive, so it cannot grow and cannot serve a stale menu's text to a new menu. A slot
- * this has never seen simply falls back to the live stack, which is no worse than the old behaviour.
+ * this has never seen simply falls back to the live stack, which is no worse than the old behavior.
  */
 public final class PartyFinderLoreCache {
 

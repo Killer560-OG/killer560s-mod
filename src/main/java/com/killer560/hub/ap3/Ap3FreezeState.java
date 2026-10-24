@@ -16,8 +16,8 @@ import java.util.Locale;
 /**
  * Freeze State + tick rewind, a node-placing tool for AP3 - killer560 (2026-09-21): "create a freezestate command.
  * This should freeze my character where they are. If I want to do /ap3 add ___ it should use my angle even if my
- * character has a different facing angle because it is frozen. Also I should be able to set a keybind for backwards
- * or forwards in time by 1 tick. It should have a configurable amount of ticks it remembers. Make it so on main I
+ * character has a different facing angle because it is frozen. Also I should be able to set a keybind for backward
+ * or forward in time by 1 tick. It should have a configurable amount of ticks it remembers. Make it so on main I
  * have to type /rewind for it to go back as it will insta ban."
  * <ul>
  * <li><b>History</b>: every client tick while NOT frozen, the player's position, velocity, rotation, ground state

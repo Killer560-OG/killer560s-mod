@@ -82,7 +82,7 @@ final class StorageSearchNbtCodec {
     }
 
     /** Cheap "did anything actually change" test, same item-id + count comparison {@code captureIfChanged} uses -
-     *  keeps a per-tick re-capture from rewriting the cache file every tick once it has stabilised. */
+     *  keeps a per-tick re-capture from rewriting the cache file every tick once it has stabilized. */
     static boolean sameContents(List<ItemStack> a, List<ItemStack> b) {
         if (a == null || b == null || a.size() != b.size()) {
             return false;

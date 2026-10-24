@@ -24,9 +24,9 @@ import java.util.TreeSet;
  * of 21-91%. What is wrong is the CAPTURES, and the cause is in {@code resolveFootprint}'s clamp.
  *
  * <p>An Ashfall practice floor lays every room out in a LINE with no gaps, so the live map merges a whole run
- * of neighbours into one "room". The capture box is anchored at the minimum cell of that merged run, and the
+ * of neighbors into one "room". The capture box is anchored at the minimum cell of that merged run, and the
  * clamp then decides only HOW MANY tiles to read from it - so a four-tile room read four tiles of the line:
- * its neighbour, itself, the gap between two rooms, and the room after. That is exactly what Waterfall's
+ * its neighbor, itself, the gap between two rooms, and the room after. That is exactly what Waterfall's
  * capture is: tile 0 is a tile of Catwalk, tile 2 is nothing but air, and tile 3 is the whole of Rare
  * Overgrown. Thirty-four tiles across the library are a tile of some other room, and twelve are empty.
  *

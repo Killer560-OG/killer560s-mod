@@ -308,7 +308,7 @@ public final class ThemeBackgroundPlayer {
         uploads++;
     }
 
-    /** Fills the screen keeping the picture's shape: the longer side is cropped, centred. */
+    /** Fills the screen keeping the picture's shape: the longer side is cropped, centered. */
     private static void blitCover(GuiGraphicsExtractor g, Loaded l, int w, int h) {
         float pictureAspect = l.width / (float) Math.max(1, l.height);
         float screenAspect = w / (float) Math.max(1, h);

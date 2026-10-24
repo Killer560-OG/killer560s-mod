@@ -66,8 +66,8 @@ import java.util.function.Predicate;
  *       and <b>one block lower</b> than the solver's y. That capture sits a block below the reference the
  *       bundled data was measured in; it is the only one of the eleven that does, so the nudge is searched
  *       for rather than hard-coded, and logged when it is used.</li>
- *   <li><b>Quiz</b> and <b>Three Weirdos</b> - Oruo and the three weirdos are ARMOUR STANDS and the answer
- *       spots are plain floor. There is no puzzle furniture to bind to, so the labelled chests are created,
+ *   <li><b>Quiz</b> and <b>Three Weirdos</b> - Oruo and the three weirdos are ARMOR STANDS and the answer
+ *       spots are plain floor. There is no puzzle furniture to bind to, so the labeled chests are created,
  *       but at {@code QuizSolverFeature}'s own real answer coordinates rather than in a line of three.</li>
  *   <li><b>Higher/Lower Blaze</b> - blazes are entities. Nothing about their placement is bundled anywhere in
  *       this repo, so the positions stay this mod's own invention; what changes is that they are now spawned

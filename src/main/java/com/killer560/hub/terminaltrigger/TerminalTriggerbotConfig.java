@@ -27,7 +27,7 @@ public final class TerminalTriggerbotConfig {
     /**
      * Measured ENTITY reach.
      *
-     * <p>Was 4.0. A terminal is clicked through its armour stand, which makes this an entity interaction, and
+     * <p>Was 4.0. A terminal is clicked through its armor stand, which makes this an entity interaction, and
      * the anticheat names the distance past 3.0 to the entity's box - so this allowed a full block past the
      * limit while looking like a conservative number.
      */

@@ -24,8 +24,8 @@ import java.util.Locale;
  *
  * <p>How: {@code SimStaticWaterMixin} cancels {@code FlowingFluid.tick} for WATER on the integrated server's
  * overworld while {@link SimState#isActive()}, unless the position is inside a placed Water Board room's paste box.
- * A cancelled tick is simply consumed - nothing spreads, nothing drains, nothing reschedules - and a later neighbour
- * update that schedules another gets cancelled the same way. A normal singleplayer world (SimState inactive) and
+ * A canceled tick is simply consumed - nothing spreads, nothing drains, nothing reschedules - and a later neighbor
+ * update that schedules another gets canceled the same way. A normal singleplayer world (SimState inactive) and
  * Hypixel (no integrated server ticks fluids for it) are untouched.
  *
  * <p>The Water Board's area is its PASTE box - the same anchor {@code RoomPlacer.PasteJob} pastes from
@@ -55,7 +55,7 @@ public final class SimStaticWater {
     }
 
     /**
-     * Whether a water tick at this position must be cancelled. Called from the mixin on the server thread, once per
+     * Whether a water tick at this position must be canceled. Called from the mixin on the server thread, once per
      * scheduled water tick in any level - so the cheap tests come first.
      */
     public static boolean shouldFreeze(ServerLevel level, BlockPos pos) {
@@ -77,7 +77,7 @@ public final class SimStaticWater {
         return true;
     }
 
-    /** Water ticks cancelled since the game started. */
+    /** Water ticks canceled since the game started. */
     public static long frozenTicks() {
         return frozen;
     }

@@ -17,7 +17,7 @@ import com.killer560.hub.compat.McCompat;
  *  {@link com.killer560.hub.secretwaypoints.SecretWaypointsFeature}'s class doc for the real room
  *  database this is built on (same one Live Map uses). Moved from a top-level {@code NewTab} entry into
  *  the "Secrets" folder 2026-09-21 (see {@link SecretsTab}) per killer560's menu-structure request - no
- *  behaviour change, just a different accordion home. */
+ *  behavior change, just a different accordion home. */
 public class SecretWaypointsTab extends BaseTab {
 
     public SecretWaypointsTab() {
@@ -84,8 +84,8 @@ public class SecretWaypointsTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 26;
 
-        // Per-type colours (killer560, 2026-09-27: "You can choose the colour for levers" - and there was no
-        // colour picker for any of the other five either until now, same gap EtherwarpOverlayTab/MobEspTab's
+        // Per-type colors (killer560, 2026-09-27: "You can choose the colour for levers" - and there was no
+        // color picker for any of the other five either until now, same gap EtherwarpOverlayTab/MobEspTab's
         // colorButton already closed for their own features).
         int gap = 8;
         int colW = (contentWidth - gap) / 2;

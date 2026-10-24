@@ -238,7 +238,7 @@ public final class SimonSaysFeature {
         return (long) total;
     }
 
-    // Real bug found and fixed (2026-09-14, killer560's own report: "it still really likes saving up time towards the
+    // Real bug found and fixed (2026-09-14, killer560's own report: "it still really likes saving up time toward the
     // end of the click cycle and waiting on the last click which normally makes it end up being late"): the reveal
     // reserve was a fixed table, but real round transitions differ by server - p3sim measured 1748/2151/2550ms,
     // Hypixel 2148/2398/2798ms. On sim every transition came in 150-250ms UNDER the reserve, so that time sat unused
@@ -389,7 +389,7 @@ public final class SimonSaysFeature {
     private static float rotateApproachElapsedTicks = 0f;
     private static long rotateLastFrameAtNanos = 0L;
     // Real feature added (2026-09-14, killer560's own request: "keep a similar rotation speed but have it
-    // miss a button, go towards the next one, then go back after missing" - after several rounds of
+    // miss a button, go toward the next one, then go back after missing" - after several rounds of
     // chasing exactly why settling before a click felt like sitting and waiting): rather than continuing
     // to tune settle thresholds, gives Rotate Mode a real humanized "feint" - reaches partway toward
     // wherever the real NEXT button is before correcting back to properly click the CURRENT one, like a
@@ -464,7 +464,7 @@ public final class SimonSaysFeature {
     private static float momentumCarryPitch = 0f;
     private static final double MOMENTUM_CARRY_DECAY = 0.55;
     private static final float MOMENTUM_CARRY_GAIN = 1.0f;
-    // A click with Momentum on needs the crosshair inside this fraction of the button face from its centre, both axes.
+    // A click with Momentum on needs the crosshair inside this fraction of the button face from its center, both axes.
     private static final float MOMENTUM_FACE_FRACTION = 0.6f;
     // Counters the testkit reads (1018-ss-momentum): clicks fired on the face before settling, frames spent gliding
     // on to the next button after a click, and frames that carried speed from the previous turn.
@@ -502,7 +502,7 @@ public final class SimonSaysFeature {
     private static boolean goldorLineSeenThisPhase = false;
     private static final Vec3 IDLE_LOOK_ANCHOR = new Vec3(108.0, 120.0, 94.0);
     // killer560, 2026-09-20: "make it so the solver works no matter where I am but for autos and looking
-    // towards the middle and whatnot, none of that works unless I am within a radius of 2 blocks from the
+    // toward the middle and whatnot, none of that works unless I am within a radius of 2 blocks from the
     // coordinates 108 120 94." The SOLVER keeps its own generous ACTIVE_RANGE_SQ (30 blocks) so the
     // highlights still show on the walk up; everything that CLICKS or MOVES THE CAMERA uses this instead.
     private static final double IDLE_LOOK_RANGE_SQ = 2.0 * 2.0;
@@ -670,7 +670,7 @@ public final class SimonSaysFeature {
     }
 
     /** Real bug found and fixed (2026-09-14, killer560's own report: "when auto solve is off it shouldnt mess with my
-     *  crosshair at all. Right now it pulls it towards the middle of the obsidian"): every camera-moving path
+     *  crosshair at all. Right now it pulls it toward the middle of the obsidian"): every camera-moving path
      *  (Auto Start's look-only approach, PRE_DRIFT, IDLE's grid-center look) only checked the Rotate mode setting,
      *  which stays saved as Rotate even with Auto Solve switched off. Rotation now requires Auto Solve itself to
      *  be on; with it off, Auto Start clicks aura-style and the camera is never touched. */
@@ -1073,7 +1073,7 @@ public final class SimonSaysFeature {
                         // can correctly remove the true first element.
                         if (autoStartClickedThisPhase) {
                             // Real bug found and fixed (2026-09-14, killer560's own request: "whatever it
-                            // senses as the second button is the one it should go towards to hold until it
+                            // senses as the second button is the one it should go toward to hold until it
                             // is able to click"): the just-added SECOND light is the one that survives a
                             // correct "drop the first" once a real 3rd light confirms it - track it now,
                             // tentatively, rather than the first light (which might get dropped) or waiting
@@ -1153,7 +1153,7 @@ public final class SimonSaysFeature {
         if (firstPhase && lastLanternChangeTick > 10 && stoneButtonCount > 8) {
             firstPhase = false;
             // Real bug found and fixed (2026-09-14, killer560's own request: "whatever it senses as the
-            // second button is the one it should go towards to hold until it is able to click"): the
+            // second button is the one it should go toward to hold until it is able to click"): the
             // size==2/size==3 branches above only ever update rememberedFirstButton once a REAL second
             // light arrives - but a real round 1 with only a single total step (the single most common
             // non-skip case) never reaches size 2 at all, so it would otherwise never get tracked. Once
@@ -1344,7 +1344,7 @@ public final class SimonSaysFeature {
                 announceWholeDeviceCompleted(System.currentTimeMillis());
             }
             // Stim: the round just seen, captured before resetSolveState clears it. Not after the last round - there is
-            // nothing left to practise for, and idle stands down then too.
+            // nothing left to practice for, and idle stands down then too.
             if (!wholeDeviceCompleted && rotateActive(cfg) && cfg.isAutoSolveStim()) {
                 armStim(cfg);
             } else {
@@ -1649,7 +1649,7 @@ public final class SimonSaysFeature {
         // too.
         if (rotateActive(cfg) || autoStartIsRestart) {
             // Eye to the block's BOX, not feet to a point inside it. The old pairing reads 4.50-to-box as
-            // 5.08-to-centre, which is how a limit that looks conservative ends up sending out-of-range
+            // 5.08-to-center, which is how a limit that looks conservative ends up sending out-of-range
             // clicks - the same mistake Auto Water Board made on 2026-09-29.
             double distSqToStart = com.killer560.hub.util.BlockHits.boxDistanceSq(
                     client.player.getEyePosition(), START_BUTTON);
@@ -1827,7 +1827,7 @@ public final class SimonSaysFeature {
         BlockPos nextLantern = clickInOrder.get(clickNeeded);
         BlockPos nextButton = nextLantern.west();
         // Real feature added (2026-09-14, killer560's own request: "keep a similar rotation speed but
-        // have it miss a button, go towards the next one, then go back after missing" - after several
+        // have it miss a button, go toward the next one, then go back after missing" - after several
         // rounds of chasing exactly why settling before a click felt like sitting and waiting): rather
         // than continuing to tune settle thresholds, gives Rotate Mode a real humanized "feint" - reaches
         // partway toward wherever the NEXT real button actually is before correcting back to click the
@@ -2038,7 +2038,7 @@ public final class SimonSaysFeature {
             return;
         }
         if (fired.equals(START_BUTTON)) {
-            // Left for tickAutoStart - unless its run was cancelled mid-burst (resetSolveState), in which
+            // Left for tickAutoStart - unless its run was canceled mid-burst (resetSolveState), in which
             // case nothing will ever consume it, so drop it instead of letting it linger.
             if (!autoStartRunning) {
                 rotateClickFiredFor = null;
@@ -2138,7 +2138,7 @@ public final class SimonSaysFeature {
         // exceed the remaining window).
         // Real bug found and fixed (2026-09-14, killer560's own report: "dont make it pause on that last button so
         // long. It always pauses for like half a second on the very last one of the 5th set"): each weighted delay
-        // was base * weight, and almost every hop in this grid is to a neighbour (weight 0.5), so every click
+        // was base * weight, and almost every hop in this grid is to a neighbor (weight 0.5), so every click
         // under-spent its share and the leftover piled onto the unweighted final click (a real log showed round
         // 5 going 348 -> 450 -> 551 -> 1598ms). Weights now only REDISTRIBUTE the remaining active window: this
         // hop gets window * (its weight / sum of weights of every click still ahead), where hops still ahead in
@@ -2254,7 +2254,7 @@ public final class SimonSaysFeature {
         // finish faster than the turn itself takes): sped up the base turn rate (was 0.30-0.45 per-tick
         // smoothing) so Rotate Mode can physically reach lower configured targets.
         rotateSmoothingThisApproach = 0.45f + (float) (Math.random() * 0.20);
-        // Real bug found and fixed (2026-09-14, "it is also kind of doing this really weird flick towards
+        // Real bug found and fixed (2026-09-14, "it is also kind of doing this really weird flick toward
         // the buttons... it should more or less be on track to the button at all times just make it not
         // be a perfectly straight line"): 2.5/2.0-degree overshoot plus a 3-degree curve, each rolling
         // 40% of the time, could stack to 5+ degrees of deviation from the direct path - a huge detour for
@@ -2321,7 +2321,7 @@ public final class SimonSaysFeature {
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
         if (client.player == null || !cfg.isEnabled() || !rotateActive(cfg) || !isWithinAutoAnchor(client)) {
             // The anchor check is here too, not just on the click paths: killer560 asked that "looking
-            // towards the middle" also stop outside 2 blocks, and this frame loop is what moves the camera.
+            // toward the middle" also stop outside 2 blocks, and this frame loop is what moves the camera.
             rotateLastFrameAtNanos = 0L;
             return;
         }
@@ -2388,7 +2388,7 @@ public final class SimonSaysFeature {
         } else {
             boolean nearAnchor = isNearIdleLookAnchor(client);
             // Real bug found and fixed (2026-09-14, killer560's own request: "dont have it full stop on
-            // buttons it should keep moving the whole time towards the next one"): once a click fired,
+            // buttons it should keep moving the whole time toward the next one"): once a click fired,
             // the camera used to just freeze (falling into BLOCKED below) for however long the pacing
             // schedule made it wait before the NEXT click was due - a real, visible dead stop. Whenever a
             // real click is due in the current round but not yet permitted to fire (solveStepsPending),
@@ -2544,7 +2544,7 @@ public final class SimonSaysFeature {
     }
 
     /** With Momentum on, a click needs the crosshair ON the button face, inside {@link #MOMENTUM_FACE_FRACTION} of it
-     *  from the centre on both axes, along the rotation the player has right now, and a fresh pick along that same
+     *  from the center on both axes, along the rotation the player has right now, and a fresh pick along that same
      *  rotation must hit the button. Never looser than the face itself, so it can never click early. */
     private static boolean crosshairOnInnerFace(Minecraft client, BlockPos buttonPos) {
         var player = client.player;
@@ -2654,7 +2654,7 @@ public final class SimonSaysFeature {
         }
 
         // Real feature added (2026-09-14, killer560's own request: "keep a similar rotation speed but
-        // have it miss a button, go towards the next one, then go back after missing"): pulls rawTarget
+        // have it miss a button, go toward the next one, then go back after missing"): pulls rawTarget
         // toward roughly where the next button is for a brief real moment, then fades back out, letting
         // the approach correct and settle on the true current target normally.
         // Real bug found and fixed (2026-09-14, killer560's own report: "Be careful to not have it snap"):
@@ -2876,7 +2876,7 @@ public final class SimonSaysFeature {
         // the slow sway-chasing smoothing so the small idle wobble still reads as a human resting on the
         // button, not a snappy flick.
         // Real bug found and fixed (2026-09-14, killer560's own report: "please make the movement keep
-        // the mouse towards the middle it still likes to drift off really far"): stillCatchingUp used to
+        // the mouse toward the middle it still likes to drift off really far"): stillCatchingUp used to
         // compare the raw (no-sway) distance against a FIXED 3-degree threshold - fine when the sway's own
         // max amplitude is small, but for a button close enough that its real face fills a large angular
         // area, 25% of that real half-extent (maxSway, computed below) can itself exceed 3 degrees. Once
@@ -3085,7 +3085,7 @@ public final class SimonSaysFeature {
             return false;
         }
         // Never a click on a button that is not there. The device takes its buttons away between rounds, and a click
-        // into the empty block (surfaceOrCentre's centre fallback) is GrimAC AirLiquidPlace - testkit 422/423 drew one
+        // into the empty block (surfaceOrCentre's center fallback) is GrimAC AirLiquidPlace - testkit 422/423 drew one
         // per round from Auto Solve, before and after the turn below. False is the callers' "retry next tick".
         if (!(client.level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ButtonBlock)) {
             return false;
@@ -3094,7 +3094,7 @@ public final class SimonSaysFeature {
             return false;
         }
         // A surface hit from the eye. This method was the precedent Secret Aura and Lever Aura copied, so it
-        // carried the same fault: the block's centre - a point inside it - with a hardcoded east face. Measured
+        // carried the same fault: the block's center - a point inside it - with a hardcoded east face. Measured
         // 2026-09-28, that shape draws a PositionPlace violation per click even inside vanilla's reach. See
         // BlockHits.
         BlockHitResult hitResult = com.killer560.hub.util.BlockHits.surfaceOrCentre(

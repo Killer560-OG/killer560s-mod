@@ -19,7 +19,7 @@ import net.minecraft.ChatFormatting;
  *
  * <p><b>What was verified, and how.</b> Both jars' {@code ChatFormatting} were disassembled
  * ({@code javap -c -p} against {@code .gradle/loom-cache/.../26.1.2/} and the extracted 26.2 classes) and the
- * enum's static initialiser read off directly rather than guessed:
+ * enum's static initializer read off directly rather than guessed:
  *
  * <ul>
  *   <li>The 22 constants sit in the same order with the same {@code code} characters in both versions -
@@ -31,11 +31,11 @@ import net.minecraft.ChatFormatting;
  *   <li>26.1.2's {@code isColor()} is {@code !isFormat && this != RESET}, and {@code isFormat} is true for
  *       exactly ordinals 16-20 with {@code RESET} at 21 - so {@code ordinal() < 16}.</li>
  *   <li>26.1.2's {@code getName()} is {@code name().toLowerCase(Locale.ROOT)}. Not the raw enum name: the
- *       one caller in this mod lowercases the result again, which would have hidden getting this backwards.</li>
+ *       one caller in this mod lowercases the result again, which would have hidden getting this backward.</li>
  *   <li>26.1.2's {@code getByName(String)} looks the name up after {@code cleanName}, which is
  *       {@code toLowerCase(Locale.ROOT).replaceAll("[^a-z]", "")} - so it strips the underscore too and
  *       {@code "dark blue"}, {@code "DARK_BLUE"} and {@code "darkblue"} all resolve. {@link #byName} keeps
- *       that, because its caller feeds it colour names out of Hypixel's API and a stricter match would
+ *       that, because its caller feeds it color names out of Hypixel's API and a stricter match would
  *       silently fall back to a default instead.</li>
  * </ul>
  *
@@ -43,12 +43,12 @@ import net.minecraft.ChatFormatting;
  * at runtime: {@code McCompat.verifyChatColors()} compares it against the real {@code getColor()} on 26.1.2,
  * where that method still exists, and {@code Killer560ModClient} runs that check once at start-up in a dev or
  * cheat build and logs an ERROR naming every mismatch. A wrong entry here would compile, draw a plausible
- * colour and never be noticed otherwise.
+ * color and never be noticed otherwise.
  */
 public final class ChatColors {
 
     /**
-     * RGB of the 16 colour formats, indexed by {@link ChatFormatting#ordinal()}.
+     * RGB of the 16 color formats, indexed by {@link ChatFormatting#ordinal()}.
      *
      * <p>Read out of 26.1.2's {@code ChatFormatting.<clinit>} as decimal literals and converted:
      * 170, 43520, 43690, 11141120, 11141290, 16755200, 11184810, 5592405, 5592575, 5635925, 5636095,
@@ -91,12 +91,12 @@ public final class ChatColors {
         return f.toString().charAt(1);
     }
 
-    /** Whether this is one of the 16 colours rather than a style or RESET, as {@code isColor()} gave it. */
+    /** Whether this is one of the 16 colors rather than a style or RESET, as {@code isColor()} gave it. */
     public static boolean isColor(ChatFormatting f) {
         return f.ordinal() < RGB.length;
     }
 
-    /** RGB of a colour format, or null for a style or RESET - as {@code getColor()} gave it, Integer and all. */
+    /** RGB of a color format, or null for a style or RESET - as {@code getColor()} gave it, Integer and all. */
     public static Integer color(ChatFormatting f) {
         return isColor(f) ? RGB[f.ordinal()] : null;
     }

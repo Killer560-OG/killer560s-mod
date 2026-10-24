@@ -32,7 +32,7 @@ import java.util.List;
  *       {@code SimSpiritSceptre} (1.02 blocks/tick for 29 ticks, ~29.6 blocks), tuned by killer560's feel, not
  *       measured on Hypixel - so planning stays well inside it ({@link #SCEPTRE_PLAN_RANGE}).</li>
  * </ul>
- * Distances are measured from the blast centre to the mob's BOX (its nearest point), the way the sim's blasts measure
+ * Distances are measured from the blast center to the mob's BOX (its nearest point), the way the sim's blasts measure
  * them, and every plan keeps {@link #MARGIN} inside the radius.
  */
 public final class WeaponReach {
@@ -45,9 +45,9 @@ public final class WeaponReach {
     public static final double SCEPTRE_RADIUS = 6.0;
     /** How far a bat is trusted to fly. The sim flies ~29.6 (unmeasured on Hypixel); 24 leaves room for error. */
     public static final double SCEPTRE_PLAN_RANGE = 24.0;
-    /** Planned inside each radius by this much: lag, a mob shifting, the box/centre the server measures from. */
+    /** Planned inside each radius by this much: lag, a mob shifting, the box/center the server measures from. */
     public static final double MARGIN = 1.0;
-    /** The blast centre above his feet: half a standing player (the sim measures from there). */
+    /** The blast center above his feet: half a standing player (the sim measures from there). */
     private static final double BLAST_ABOVE_FEET = 0.9;
 
     private WeaponReach() {
@@ -131,7 +131,7 @@ public final class WeaponReach {
 
     /**
      * Where a bat fired from {@code eye} along {@code dir} explodes: the first block (collision shape) or living mob it
-     * meets, else in the air at {@link #SCEPTRE_PLAN_RANGE}. Armour stands (the star tags) are markers and are skipped.
+     * meets, else in the air at {@link #SCEPTRE_PLAN_RANGE}. Armor stands (the star tags) are markers and are skipped.
      */
     public static Vec3 batImpact(Level level, Player player, Vec3 eye, Vec3 dir) {
         Vec3 hit = batImpactOrAir(level, player, eye, dir);
@@ -270,7 +270,7 @@ public final class WeaponReach {
     /**
      * Whether a sceptre bat fired by him standing with his feet at {@code feet} reaches the mob, for the room's plan of
      * stand blocks (autoclear-speed-1020): fired straight down (the blast at his feet, the old rule), or a straight shot at
-     * the mob's centre or top within {@link #SCEPTRE_PLAN_RANGE} whose first block on the way (collision shapes; mobs and
+     * the mob's center or top within {@link #SCEPTRE_PLAN_RANGE} whose first block on the way (collision shapes; mobs and
      * stands are not looked at) is within the planned blast radius of it. A cut of {@link #sceptreAim}, which also tries
      * a fan of looks round the mob: whatever this says reaches, the aim from there finds.
      */

@@ -16,17 +16,17 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * A real HSV color picker (hue bar + saturation/value square + alpha slider) - killer560's "click on
- * it then it opens a color wheel" request. Every colour setting in the mod opens this one screen.
+ * it then it opens a color wheel" request. Every color setting in the mod opens this one screen.
  * <p>
  * Live-previews as you drag (calls {@code onChange} immediately, same as every other live-updating
  * setting in this mod) rather than only applying on "Done". "Set Default" resets to whatever default
  * ARGB the caller passed in, independent of Done/Cancel.
  * <p>
- * Moving colours between menus (killer560, 2026-10-13): a hex box that shows the colour and takes a typed one, Copy
- * (the colour as {@code #RRGGBB}, or {@code #AARRGGBB} when it is translucent, onto the system clipboard) and Paste
+ * Moving colors between menus (killer560, 2026-10-13): a hex box that shows the color and takes a typed one, Copy
+ * (the color as {@code #RRGGBB}, or {@code #AARRGGBB} when it is translucent, onto the system clipboard) and Paste
  * (anything {@link ColourHex#parse} reads; anything else is refused with a red line and changes nothing), Ctrl+C /
- * Ctrl+V for both while the hex box is not focused, and a Recent row ({@link RecentColours}: the last eight colours
- * picked, copied or pasted in any picker) where a click applies that colour. A colour without alpha keeps this
+ * Ctrl+V for both while the hex box is not focused, and a Recent row ({@link RecentColours}: the last eight colors
+ * picked, copied or pasted in any picker) where a click applies that color. A color without alpha keeps this
  * setting's own alpha.
  * <p>
  * The exact ARGB is kept in {@link #argb}; the HSV fields only drive the square and the bar, so a pasted
@@ -34,7 +34,7 @@ import com.killer560.hub.compat.McCompat;
  */
 public class ColorPickerScreen extends Screen {
 
-    /** Tooltip scope for this screen's buttons in {@code SettingTooltipsData} ("colour picker/copy" ...). */
+    /** Tooltip scope for this screen's buttons in {@code SettingTooltipsData} ("color picker/copy" ...). */
     static final String TOOLTIP_SCOPE = "color picker";
     private static final long STATUS_MS = 3000L;
     private static final int SWATCH = 16;
@@ -108,7 +108,7 @@ public class ColorPickerScreen extends Screen {
         syncWidgets();
     }
 
-    /** Puts a colour set from outside the square (paste, recent, default, typed hex) on every control and applies it. */
+    /** Puts a color set from outside the square (paste, recent, default, typed hex) on every control and applies it. */
     private void applyArgb(int c) {
         setFromArgb(c);
         applyLive();
@@ -134,7 +134,7 @@ public class ColorPickerScreen extends Screen {
         statusUntil = System.currentTimeMillis() + STATUS_MS;
     }
 
-    /** Copy: the colour onto the system clipboard and into Recent. */
+    /** Copy: the color onto the system clipboard and into Recent. */
     public void copyColour() {
         String hex = ColourHex.format(argb);
         try {
@@ -147,7 +147,7 @@ public class ColorPickerScreen extends Screen {
         setStatus("Copied " + hex, false);
     }
 
-    /** Paste: the clipboard's colour, if it is one; otherwise a red line and nothing changes. Never throws. */
+    /** Paste: the clipboard's color, if it is one; otherwise a red line and nothing changes. Never throws. */
     public boolean pasteColour() {
         String clip;
         try {
@@ -166,7 +166,7 @@ public class ColorPickerScreen extends Screen {
         return true;
     }
 
-    /** Applies Recent colour {@code index} (0 = newest); false when there is none there. */
+    /** Applies Recent color {@code index} (0 = newest); false when there is none there. */
     public boolean useRecent(int index) {
         List<Integer> recent = RecentColours.getInstance().getRecent();
         if (index < 0 || index >= recent.size()) {
@@ -333,7 +333,7 @@ public class ColorPickerScreen extends Screen {
         return -1;
     }
 
-    /** The menu's hover descriptions for this screen's buttons; a Recent swatch names its colour. */
+    /** The menu's hover descriptions for this screen's buttons; a Recent swatch names its color. */
     private void drawTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int swatch, List<Integer> recent) {
         AbstractWidget hovered = null;
         if (swatch < 0) {
@@ -480,7 +480,7 @@ public class ColorPickerScreen extends Screen {
         return false;
     }
 
-    /** The alpha slider; {@link #sync} moves it when the colour changed elsewhere (a paste, a Recent swatch). */
+    /** The alpha slider; {@link #sync} moves it when the color changed elsewhere (a paste, a Recent swatch). */
     private final class AlphaSlider extends ThemedSliderButton {
         AlphaSlider(int x, int y, int w, int h, double v) {
             super(x, y, w, h, Component.literal(label((float) v)), v);

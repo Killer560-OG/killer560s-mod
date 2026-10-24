@@ -51,7 +51,7 @@ public final class MimicKiller {
     private static int lastUseTick;
     private static int uses;
     private static boolean[] keysAtStart;
-    /** The trapped chest this run is for (its centre). */
+    /** The trapped chest this run is for (its center). */
     private static Vec3 chestAt;
     /**
      * Past this from the chest, nothing it sends can reach the mimic (the mimic stays within AwaitEvents' 8 of its chest,
@@ -280,7 +280,7 @@ public final class MimicKiller {
     private static final float LEGIT_AIM_TOLERANCE = 6f;
 
     /**
-     * One tick of a Spirit Sceptre use AT the mimic's centre. The look is from his eye, yaw as a delta on his running
+     * One tick of a Spirit Sceptre use AT the mimic's center. The look is from his eye, yaw as a delta on his running
      * value (never wrapped), pitch within +-90. Obvious mode turns the body (camera held) and uses only once the server
      * has heard that look in a movement packet - a use whose rotation no movement packet reported is GrimAC BadPacketsJ,
      * and Hypixel's 1.8 server aims the bats along the look it last heard; the first aimed use costs that one tick,

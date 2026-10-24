@@ -25,7 +25,7 @@ import java.nio.file.Path;
  * <ul>
  * <li>Skyblocker's terminal solver drawing over ours (settled 2026-09-21: warn once on join).</li>
  * <li>Devonian's Party Finder Overview rewriting the party items' lore every tick, which replaces our style
- *     and leaves our parser nothing it recognises - found 2026-09-21 as the cause of "the current style does
+ *     and leaves our parser nothing it recognizes - found 2026-09-21 as the cause of "the current style does
  *     not work". killer560 9.1: this warning alone wasn't enough (a scrollback chat line is easy to miss, and
  *     the party finder screen stays broken for the rest of the session), so
  *     {@link com.killer560.hub.partyfinder.PartyFinderOverlay} also checks

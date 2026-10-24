@@ -119,9 +119,9 @@ public final class SimWhere {
      *
      * <p>By the room's own footprint - the same origin and size the paste and {@link #captureLocal} use - not by
      * nearest grid cell. The grid this used to ask is the live map's 11 x 11, whose odd cells are the CONNECTORS
-     * between tiles; a block in a room's outer rows is as near the connector's centre as the tile's, often nearer,
+     * between tiles; a block in a room's outer rows is as near the connector's center as the tile's, often nearer,
      * and a connector belongs to no 1x1 room. So a gate in a room's wall read "not inside any placed room" (Spider's
-     * facade and Atlas' log wall, 2026-10-16). Where two captures' margins overlap, the room whose footprint centre
+     * facade and Atlas' log wall, 2026-10-16). Where two captures' margins overlap, the room whose footprint center
      * is nearer wins.
      */
     public static SimRoomIndex.Placed roomAt(BlockPos pos) {
@@ -169,7 +169,7 @@ public final class SimWhere {
      * The inverse of the paste transform: a world position back to the coordinate it has in the capture file.
      *
      * <p>{@code SimRoomPuzzles.capturedPos} is the forward direction and this undoes it step for step - the
-     * same room origin, the same {@code RoomPlacer.rotateLocal}, run backwards by rotating by the complement.
+     * same room origin, the same {@code RoomPlacer.rotateLocal}, run backward by rotating by the complement.
      * A quarter turn's inverse is the turn that completes the circle, which is why 90 and 270 swap here.
      */
     private static int[] captureLocal(SimRoomIndex.Placed room, RoomLibrary.Room lib, BlockPos pos) {

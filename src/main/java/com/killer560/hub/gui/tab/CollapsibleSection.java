@@ -9,7 +9,7 @@ import java.util.List;
 
 /**
  * A section header that opens and closes its section - the row reads {@code ▶ Title} closed and {@code ▼ Title}
- * open (the same arrows {@link FolderTab}'s accordion and Live Map's "Room Colours" row use, and the prefix
+ * open (the same arrows {@link FolderTab}'s accordion and Live Map's "Room Colors" row use, and the prefix
  * {@code SettingTooltips} already strips, so the tooltip key stays the plain title). Whoever calls it owns the
  * open/closed flag - keep it in the feature's config when it should survive a restart - and adds the section's
  * widgets only when {@code open} is true. Shared so no tab grows its own copy (killer560, 2026-09-21: the AP3

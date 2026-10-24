@@ -32,7 +32,7 @@ import com.killer560.hub.compat.McCompat;
  * drew and a floor the mod invented are built identically and can only differ in which rooms went where.
  *
  * <p>Only rooms that are {@link RoomLibrary.Room#usable()} are listed. Offering a room captured at the old
- * footprint would let him place something that pastes over its neighbour, and a map editor that silently
+ * footprint would let him place something that pastes over its neighbor, and a map editor that silently
  * corrupts the floor is worse than one with a shorter list.
  */
 public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
@@ -183,7 +183,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     private int gCell = 8;
     /** The gutter between a cell's lines and the room drawn in it, in grid units, the same on all four sides. */
     private int gGap = 1;
-    /** The square the grid is drawn in: an F7's whole 6x6, and a smaller floor centred in it at a bigger cell. */
+    /** The square the grid is drawn in: an F7's whole 6x6, and a smaller floor centered in it at a bigger cell. */
     private int areaX;
     private int areaY;
     private int areaSize;
@@ -210,7 +210,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // Everything that knows a room is a puzzle, a trap, blood or fairy goes through
         // SimFloorGen.typeOf -> RoomDatabase.lookupByName, and the only thing that ever started that load was
         // LiveMapFeature, which runs when he is in a real dungeon on Hypixel. The sim opens from the MAIN
-        // MENU, so the database was never loaded and every room came back NORMAL: one colour for the whole
+        // MENU, so the database was never loaded and every room came back NORMAL: one color for the whole
         // grid, "normal" under every name in the list, and - worse than cosmetic - a generator that could not
         // tell a puzzle from an ordinary room while being asked for three of them, and could not see which
         // rooms are L-shaped to exclude them (SimFloorGen.shapeOf reads the same entry).
@@ -434,7 +434,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
     }
 
-    /** Colour per room type, so a floor reads at a glance the way the live map does. */
+    /** Color per room type, so a floor reads at a glance the way the live map does. */
     private static int colourFor(String name) {
         return switch (SimFloorGen.typeOf(name)) {
             case "ENTRANCE" -> 0xFF1F8B3A;
@@ -771,7 +771,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         // The menu theme (screen sweep, 2026-10-13): the menu's panel and header bar; the grid and the room list are
-        // recessed wells, list rows hover / select like the menu's, every colour from the active theme.
+        // recessed wells, list rows hover / select like the menu's, every color from the active theme.
         themedBounds = new int[]{panelX, panelY, panelW, panelH};
         nav.drawFrame(g, this.width, this.height);
         // The type filters read the room database; a list built before it loaded is rebuilt the moment it does.
@@ -878,7 +878,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         gGap = Math.max(1, Math.round(gCell * 0.08f));
         gx0 = ax0 + Math.max(0, size - (gCell * floor.across + 1)) / 2;
         gy0 = ay0 + Math.max(0, size - (gCell * floor.down + 1)) / 2;
-        // GUI-unit values for everything that is not the grid's own drawing: rounded inwards, so gridX + cell * across
+        // GUI-unit values for everything that is not the grid's own drawing: rounded inward, so gridX + cell * across
         // never reaches past the drawn grid.
         float toUnits = gk / gridPx;
         gridX = (int) Math.ceil(gx0 * toUnits - 1e-4f);
@@ -947,7 +947,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     }
 
     /**
-     * A placed room's fills in grid units, and the box its label is centred in: a rectangle is one box over its cells;
+     * A placed room's fills in grid units, and the box its label is centered in: a rectangle is one box over its cells;
      * an L is its three cells and the two bridges between them, its label on the L's horizontal pair as the live map
      * places it.
      */
@@ -1045,7 +1045,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         StringBuilder drawnNow = new StringBuilder();
         for (Map.Entry<Integer, String> e : placements.entrySet()) {
             String name = e.getValue();
-            // Centred in the room's own drawn box (an L: its horizontal pair), converted from grid units.
+            // Centered in the room's own drawn box (an L: its horizontal pair), converted from grid units.
             int[] b = new int[4];
             roomFills(e.getKey(), name, b);
             float x0 = b[0] * toUnits;
@@ -1065,7 +1065,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             drawnNow.append(String.join("|", lines)).append(';');
             // The live map's own fitting, not a truncation. killer560 (2026-10-04): "make it so the text will
             // fit rooms that are too small to load the whole text, just like our normal map would." One word a
-            // line, scaled down until the longest word and the line count both fit the room, centred on it -
+            // line, scaled down until the longest word and the line count both fit the room, centered on it -
             // MapPainter.drawFittedLines is the same code the dungeon map draws its names with, at the same
             // wanted scale.
             com.killer560.hub.livemap.MapPainter.drawFittedLines(g, this.font, lines.toArray(new String[0]),
@@ -1078,7 +1078,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     /**
      * A doorway's box {@code {x0, y0, x1, y1}} in grid units for map cell {@code (gx, gz)} of the 11x11 plan: across the
      * gutter between the two rooms it joins, from one room's edge to the other's, and 6/16 of a room's side long
-     * (the live map's proportion, {@code MapPainter.doorUnits}), centred on the cells to the pixel.
+     * (the live map's proportion, {@code MapPainter.doorUnits}), centered on the cells to the pixel.
      */
     private int[] doorBox(int gx, int gz, boolean betweenX) {
         int inner = gCell - 1 - 2 * gGap;
@@ -1098,11 +1098,11 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     }
 
     /**
-     * The doors the build will actually cut, coloured the way the dungeon map colours them.
+     * The doors the build will actually cut, colored the way the dungeon map colors them.
      *
      * <p>Read from the plan's own door cells - the generated plan when there is one, otherwise the quiet plan
      * of the drawing - so a gap with no door in it is drawn as the wall it will be. An ordinary doorway is a
-     * narrow opening; wither, blood and entrance doors are wider blocks in the live map's configured colours,
+     * narrow opening; wither, blood and entrance doors are wider blocks in the live map's configured colors,
      * a wither door plain black and blood plain red, with no outline.
      */
     private void drawDoors(GuiGraphicsExtractor g) {
@@ -1149,7 +1149,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                 } else if (type == com.killer560.hub.livemap.DungeonLayout.DOOR_BLOOD) {
                     colour = 0xFFB23030;
                 } else if (normal) {
-                    // The live map's own connector colour: that of the joined room with the best type priority.
+                    // The live map's own connector color: that of the joined room with the best type priority.
                     colour = connectorColour(plan, gx, gz, betweenX);
                 }
                 // The live map's doorway (killer560, 2026-10-06: "make the paths between rooms on the map the exact
@@ -1162,7 +1162,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                 int by1 = box[3];
                 g.fill(bx0, by0, bx1, by1, colour);
                 if (wither) {
-                    // A thin light-grey rim so a black door reads against the dark gap (killer560, 2026-10-06:
+                    // A thin light-gray rim so a black door reads against the dark gap (killer560, 2026-10-06:
                     // "change something so the black doors are easier to be seen").
                     g.outline(bx0, by0, bx1 - bx0, by1 - by0, 0xFFB0B0B0);
                 }

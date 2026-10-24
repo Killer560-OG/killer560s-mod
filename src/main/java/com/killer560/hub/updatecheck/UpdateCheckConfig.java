@@ -22,7 +22,7 @@ import java.nio.file.Path;
  * <p>It is still ONE check, at startup, and never again that session. The class it lives beside was deliberately
  * written click-only with "no background polling, matching his explicit requirement" - that rule was about the
  * mod quietly talking to the network over and over, and a single check on launch is not that. The toggle is here
- * so anyone who disagrees can have the old behaviour back.
+ * so anyone who disagrees can have the old behavior back.
  */
 public final class UpdateCheckConfig {
 

@@ -61,7 +61,7 @@ public final class ChestProfitFeature {
     /** Chest view: the free claim / the key chest are filled at this alpha with a 2 px solid border, like the run list's
      *  action states. */
     private static final int CHEST_MARK_FILL_ALPHA = 0xA0;
-    /** Run heads in the Croesus menu (2026-10-12 redesign): an unclaimed run gets a light tint of its colour and a 1 px
+    /** Run heads in the Croesus menu (2026-10-12 redesign): an unclaimed run gets a light tint of its color and a 1 px
      *  border INSIDE its 16x16 slot (slots are 18 apart, so no two borders touch); a claimed run a darker tint, no
      *  border. Drawn behind the item from {@code croesus/mixin/CroesusSlotMixin}, so the item and tooltip cover it. */
     // killer560, 2026-10-13: "it is really hard still to tell what needs opened now". The two states that need him
@@ -82,7 +82,7 @@ public final class ChestProfitFeature {
     static final byte RUN_OPENED = 3;
     /** "No more chests to open!": a key was used, the run is done. Hidden by Hide Opened Runs. */
     static final byte RUN_DONE = 4;
-    /** Claimed, no key used, its chests not looked at this session: drawn as "needs a look" (key colour, border only),
+    /** Claimed, no key used, its chests not looked at this session: drawn as "needs a look" (key color, border only),
      *  never hidden, until the run view is opened once (by him or Auto Croesus). */
     static final byte RUN_UNKNOWN = 5;
     /** The head line once a run is fully used up - SkyHanni's {@code chest.state.keyused} pattern ("No more chests to
@@ -822,7 +822,7 @@ public final class ChestProfitFeature {
             }
             // killer560, 2026-10-13: "can you change that light blue to be a full outline". Both blue states are a
             // solid outline as thick as the action states' borders, with no fill: the fill is what keeps unclaimed and
-            // needs-a-key louder, and both colours are muted (898 salience). Teal = not looked at, grey-blue = opened.
+            // needs-a-key louder, and both colors are muted (898 salience). Teal = not looked at, gray-blue = opened.
             case RUN_UNKNOWN -> outline(graphics, x, y, 0xFF000000 | cfg.getRunUnknownColor());
             case RUN_OPENED -> outline(graphics, x, y, 0xFF000000 | cfg.getRunOpenedColor());
             default -> graphics.fill(x, y, x + 16, y + 16, (RUN_USED_FILL_ALPHA << 24) | cfg.getRunClaimedColor());
@@ -835,7 +835,7 @@ public final class ChestProfitFeature {
         insetBorder(graphics, x + 1, y + 1, 14, argb);
     }
 
-    /** A 1 px border inside the 16x16 slot, so neighbouring borders never touch. */
+    /** A 1 px border inside the 16x16 slot, so neighboring borders never touch. */
     private static void insetBorder(GuiGraphicsExtractor graphics, int x, int y, int argb) {
         insetBorder(graphics, x, y, 16, argb);
     }
@@ -847,7 +847,7 @@ public final class ChestProfitFeature {
         graphics.fill(x + size - 1, y + 1, x + size, y + size - 1, argb);
     }
 
-    /** 5x5 marks, drawn on a dark plate in the slot's top-right corner, so a state reads without its colour too. */
+    /** 5x5 marks, drawn on a dark plate in the slot's top-right corner, so a state reads without its color too. */
     private static final String[] KEY_MARK = {".....", "XX...", "XXXXX", "...XX", "....."};
 
     /**
@@ -967,14 +967,14 @@ public final class ChestProfitFeature {
         }
     }
 
-    /** The colour legend: one line, each state's colour swatch (or mark) and a word. */
+    /** The color legend: one line, each state's color swatch (or mark) and a word. */
     private static Line legendLine(CroesusConfig cfg) {
         net.minecraft.network.chat.MutableComponent c = Component.empty();
         legendPart(c, "\u25A0", cfg.getRunUnclaimedColor(), "new  ");
         legendPart(c, "\u25A0", cfg.getRunKeyColor(), "key  ");
         legendPart(c, "□", cfg.getRunUnknownColor(), "unchecked  ");
         legendPart(c, "\u25A1", cfg.getRunOpenedColor(), "done  ");
-        // The key-used tint is near black: drawn on the dark panel as a lighter grey of the same hue.
+        // The key-used tint is near black: drawn on the dark panel as a lighter gray of the same hue.
         legendPart(c, "\u25A0", lighten(cfg.getRunClaimedColor()), "used");
         return new Line(c.getString(), 0xFF000000 | ModChat.DIM, null, 0, c);
     }
@@ -1166,8 +1166,8 @@ public final class ChestProfitFeature {
         return lines.size() * 10 + PANEL_PADDING * 2 - 1;
     }
 
-    /** A line colour on a menu theme: the mod's orange, light orange, text and dim map onto the theme's accent, hover accent,
-     *  text and dim; good / bad greens and reds and every other colour stay. */
+    /** A line color on a menu theme: the mod's orange, light orange, text and dim map onto the theme's accent, hover accent,
+     *  text and dim; good / bad greens and reds and every other color stay. */
     static int themed(com.killer560.hub.gui.OverlayPalette menu, int argb) {
         if (menu == null) {
             return argb;
@@ -1192,7 +1192,7 @@ public final class ChestProfitFeature {
         Font font = Minecraft.getInstance().font;
         int panelW = panelWidth(lines);
         int panelH = panelHeight(lines);
-        // Menu Theme (2026-10-15): Default draws exactly the colours below; anything else maps them onto the menu's.
+        // Menu Theme (2026-10-15): Default draws exactly the colors below; anything else maps them onto the menu's.
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.CHEST_PROFIT);
         graphics.fill(x, y, x + panelW, y + panelH, menu == null ? PANEL_BG : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xD0));
         graphics.outline(x, y, panelW, panelH, menu == null ? PANEL_BORDER : menu.border());

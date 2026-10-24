@@ -87,8 +87,8 @@ public class DoorKeysTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
-        // killer560, 2026-10-18: the circle's line thickness and height, and colours for the tracer, the circle and the
-        // sphere's fill. A colour left on Auto follows the key (near-black Wither Key, red Blood Key); right-click resets.
+        // killer560, 2026-10-18: the circle's line thickness and height, and colors for the tracer, the circle and the
+        // sphere's fill. A color left on Auto follows the key (near-black Wither Key, red Blood Key); right-click resets.
         boolean sphere = cfg.getRangeStyle() == DoorKeysConfig.RANGE_SPHERE;
         float tSpan = DoorKeysConfig.MAX_CIRCLE_THICKNESS - DoorKeysConfig.MIN_CIRCLE_THICKNESS;
         widgets.add(new ThemedSliderButton(col2aX, y, col2W, 18, circleThicknessText(cfg),
@@ -147,7 +147,7 @@ public class DoorKeysTab extends BaseTab {
         return widgets;
     }
 
-    /** A colour row: Auto until he picks one (the picker starts from {@code shownWhenAuto}); right-click puts it back to Auto. */
+    /** A color row: Auto until he picks one (the picker starts from {@code shownWhenAuto}); right-click puts it back to Auto. */
     private static SettingsButtonWidget colorButton(String label, java.util.function.IntSupplier get,
                                                     java.util.function.IntConsumer set, int shownWhenAuto, int pickerDefault,
                                                     DoorKeysConfig cfg, int x, int y, int w) {

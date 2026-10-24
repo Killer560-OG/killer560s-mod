@@ -18,7 +18,7 @@ import java.util.Set;
  * <b>Books with more than one enchantment are skipped entirely</b>, as QUOI does. Combining two identical multi-enchant
  * books would raise each enchant only where the anvil allows it, so the result could be partly upgraded and partly
  * not, and there is no level-by-level cap check that covers that safely. Single-enchant books are what the anvil's
- * book-levelling is for.
+ * book-leveling is for.
  * <p>
  * <b>The cap.</b> Combining two level-N books makes N+1 only where Hypixel's anvil can make N+1. That is NOT "up to
  * V": most enchantment-table enchants stop at the table's top level (two Sharpness V do not make VI - wiki: "the top
@@ -76,7 +76,7 @@ public final class AnvilBooks {
                 "titan_killer", "vampirism", "venomous",
                 // bows
                 "power",
-                // armour
+                // armor
                 "blast_protection", "fire_protection", "growth", "projectile_protection", "protection",
                 // tools
                 "efficiency", "harvesting", "woodsplitter",

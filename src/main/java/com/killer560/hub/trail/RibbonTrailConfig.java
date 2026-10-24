@@ -33,11 +33,11 @@ public final class RibbonTrailConfig {
     public static final int DEFAULT_MID_COLOR = 0xFFFF8C1A;
     public static final int DEFAULT_TAIL_COLOR = 0xFFFFE01A;
 
-    /** Where the ribbon's colours come from. */
+    /** Where the ribbon's colors come from. */
     public enum ColorMode {
-        /** The ribbon's own Head / (Middle) / Tail colours. */
+        /** The ribbon's own Head / (Middle) / Tail colors. */
         GRADIENT("Gradient"),
-        /** The Name Changer's own-name colour and its fade target (falls back to Gradient when no colour is set). */
+        /** The Name Changer's own-name color and its fade target (falls back to Gradient when no color is set). */
         NAME_FADE("Name Fade"),
         /** A rainbow that flows from the head toward the tail ({@link com.killer560.hub.util.ChromaWave}). */
         CHROMA("Chroma");

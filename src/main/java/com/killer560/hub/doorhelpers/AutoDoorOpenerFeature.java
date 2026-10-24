@@ -19,14 +19,14 @@ import com.killer560.hub.compat.McBlocks;
  * Auto Door Opener - port of QUOI {@code module/impl/dungeon/AutoDoorOpener.kt} (runs on tick end, clear
  * phase only, not while dead):
  * <ul>
- * <li>Aura: closest locked door (block at (door.x, 69, door.z)) whose centre is within Range of the eyes.
+ * <li>Aura: closest locked door (block at (door.x, 69, door.z)) whose center is within Range of the eyes.
  * <li>Triggerbot: the crosshair block, when it is within {@code blockInteractionRange}, at y 69..73, and within 2
  * blocks (x and z) of a locked door of the matching material - COAL_BLOCK for Wither, RED_TERRACOTTA for Blood.
  * <li>One attempt per Retry delay (the timer restarts on every attempt, as in QUOI), optional main-hand swing,
  * nothing while a CONTAINER screen is open (see {@code ActionGate}).
  * </ul>
  * The click is QUOI {@code AuraManager.interactBlock} -> {@code BlockInteract}: the face comes from
- * {@code VecUtils.getHitResult} (clip the block's outline shape from the eyes through its centre; no shape = no
+ * {@code VecUtils.getHitResult} (clip the block's outline shape from the eyes through its center; no shape = no
  * click), sent here through {@code gameMode.useItemOn} like {@code SecretAuraFeature}. QUOI's one-tick
  * "another use-item packet just went out, queue this one" spacer is not ported (no packet hook here; Retry delay
  * is at least 100ms anyway).
@@ -43,7 +43,7 @@ public final class AutoDoorOpenerFeature {
 
     /** How long after a key is picked up this will keep trying to land its one click - long enough to walk the
      *  last couple of blocks up to the door and look at/approach it, not so long it starts to look like the old
-     *  continuous behaviour. */
+     *  continuous behavior. */
     private static final int PENDING_WINDOW_TICKS = 60;
 
     private static long lastClick = 0L;
@@ -236,7 +236,7 @@ public final class AutoDoorOpenerFeature {
         double bestDist = Double.MAX_VALUE;
         for (DoorScanner.Door door : doors) {
             BlockPos pos = door.basePos();
-            // Nearest point of the block, not its centre. See BlockHits.boxDistanceSq.
+            // Nearest point of the block, not its center. See BlockHits.boxDistanceSq.
             double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
             if (distSq <= rangeSq && distSq < bestDist) {
                 bestDist = distSq;

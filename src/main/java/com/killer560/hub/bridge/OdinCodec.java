@@ -28,7 +28,7 @@ public final class OdinCodec {
 
     /**
      * Spec 2.3 / 3.1: {@code \d\d/\d\d/\d\d (\w{0,6}) *}, byte-identical in NoammAddons
-     * ({@code LocationUtils.kt:140}, applied to each scoreboard team's prefix + suffix, colour codes stripped,
+     * ({@code LocationUtils.kt:140}, applied to each scoreboard team's prefix + suffix, color codes stripped,
      * {@code LocationUtils.kt:54-56}) and Odin ({@code LocationUtils} constant pool #93). The group is the
      * Hypixel server code shown on the sidebar date line, e.g. {@code m104BN}.
      */
@@ -39,7 +39,7 @@ public final class OdinCodec {
     private OdinCodec() {
     }
 
-    /** @return the server code in this (colour-stripped) sidebar text, or {@code null} if absent/blank. */
+    /** @return the server code in this (color-stripped) sidebar text, or {@code null} if absent/blank. */
     public static String serverCode(String strippedTeamText) {
         if (strippedTeamText == null) {
             return null;

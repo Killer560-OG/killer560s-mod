@@ -32,7 +32,7 @@ import java.util.List;
  * <p>Look (killer560, 2026-10-20: "make the HUD feel custom to the mod"): the mod menu's own frame - ScreenChrome's
  * accent ring around MenuStyle's bevel (outline, panel gradient, light top-left and dark bottom-right edges) - and its
  * slider track for the progress bar (recessed track, the played part in the accent gradient), all in the menu theme's
- * colours from {@link OverlayThemes#menu()}, so the panel follows the theme he picked. The word being sung is the bright
+ * colors from {@link OverlayThemes#menu()}, so the panel follows the theme he picked. The word being sung is the bright
  * accent on an accent-tinted chip with an underline.
  *
  * <p>Cover art and the total time come from Spotify via Windows' media controls when that reader runs; without it the

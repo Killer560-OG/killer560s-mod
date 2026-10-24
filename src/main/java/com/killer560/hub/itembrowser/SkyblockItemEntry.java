@@ -25,7 +25,7 @@ import java.util.List;
  *   items), with its {@code %%color%%} tokens converted to section-sign codes. Not full item lore (no
  *   stats) - Hypixel's public resource doesn't expose that.</li>
  *   <li>{@code dyeColor} - packed {@code 0xRRGGBB} from Hypixel's {@code "color":"r,g,b"} field, which the
- *   catalog gives leather armour (Arachne pieces are {@code 139,0,0}). Null when the item has none or the
+ *   catalog gives leather armor (Arachne pieces are {@code 139,0,0}). Null when the item has none or the
  *   value does not parse. See {@link DyeColors}.</li>
  * </ul>
  */

@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
  * that getter and hand back {@code EMPTY_KEY_MANAGER}, which would leave Mod Chat permanently unable to
  * authenticate for anyone running one of those (a very common mod on this modlist). Reading the field directly
  * sidesteps that - NoammAddons' {@code IMinecraft} does exactly the same thing for exactly the same reason.
- * Injects no behaviour; {@link com.killer560.hub.relay.RelayAuth} still falls back to the public getter if the
+ * Injects no behavior; {@link com.killer560.hub.relay.RelayAuth} still falls back to the public getter if the
  * mixin somehow did not apply.
  */
 @Mixin(Minecraft.class)

@@ -184,7 +184,7 @@ public final class InteractiveMapFeature {
      * <li>"If I click a room I am already in once then it does its secrets still" - a single press on the room
      * you are standing in is {@link #activateRoom}, i.e. Auto Routes runs that room's own route.
      * <li>"If I click a different room mid path then it goes doesn't have to be a double click same with
-     * dooring" - any other single press just goes there, cancelling a path already in flight if there is one.
+     * dooring" - any other single press just goes there, canceling a path already in flight if there is one.
      * </ol>
      *
      * @param cell grid cell under the cursor, or -1 when the cursor is not over the map
@@ -309,14 +309,14 @@ public final class InteractiveMapFeature {
     // ------------------------------------------------------------------------------------------- goal queue
 
     /** A queued map goal. It is re-resolved against a FRESH layout when it finally runs, because it can sit for
-     *  a few ticks waiting for the cancelled path to stop and a room INDEX is only valid for the capture it came
+     *  a few ticks waiting for the canceled path to stop and a room INDEX is only valid for the capture it came
      *  from - the grid CELL it was pressed on is what stays meaningful across captures. */
     @FunctionalInterface
     private interface MapGoal {
         void run(DungeonLayout layout, int room, int tile);
     }
 
-    /** ~3s. Long enough to cover a cancelled search finishing plus a landing, short enough that a goal which can
+    /** ~3s. Long enough to cover a canceled search finishing plus a landing, short enough that a goal which can
      *  never start (standing in a Boulder room, say - {@link AutoClearUtils#canPath}) says so instead of hanging. */
     private static final int PENDING_GOAL_TIMEOUT_TICKS = 60;
 
@@ -334,7 +334,7 @@ public final class InteractiveMapFeature {
      * execute once you have warped off it ({@code ClearNode.inside} wants you within 0.32 blocks of its first
      * hop). So the goal is held and issued from the tick once the queue has actually stopped.
      */
-    /** True while a map goal is waiting for a cancelled path to stop. {@code ClearExecutor.isBusy()} is false
+    /** True while a map goal is waiting for a canceled path to stop. {@code ClearExecutor.isBusy()} is false
      *  through that window by design, so anything that must not steer against the map (Auto Routes' interlock 5)
      *  has to ask this as well. */
     public static boolean isSteering() {
@@ -385,7 +385,7 @@ public final class InteractiveMapFeature {
         }
         DungeonLayout layout = DungeonLayout.capture();
         // canPath is what every other entry point checks anyway; here it also covers the airborne tick or two
-        // right after the cancelled path's last warp, which is exactly when a retarget tends to be pressed.
+        // right after the canceled path's last warp, which is exactly when a retarget tends to be pressed.
         if (!ClearExecutor.isBusy() && AutoClearUtils.canPath(layout)) {
             MapGoal goal = pendingGoal;
             int cell = pendingGoalCell;
@@ -455,7 +455,7 @@ public final class InteractiveMapFeature {
     /** killer560, 2026-09-29: "same with dooring" - the Locked Door Key retargets a path already in flight too,
      *  so it goes through the same queue as a room press rather than being swallowed while the executor is busy.
      *  The door is re-picked against the fresh layout when the goal runs, since "nearest locked door" is measured
-     *  from the room you are in and cancelling a path can leave you in a different one. */
+     *  from the room you are in and canceling a path can leave you in a different one. */
     static void pathToLockedDoor() {
         queue(-1, (layout, room, cell) -> {
             int door = AutoClearUtils.getLockedDoor(layout);

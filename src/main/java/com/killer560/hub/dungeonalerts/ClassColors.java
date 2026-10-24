@@ -204,7 +204,7 @@ public final class ClassColors {
     }
 
     /**
-     * True when this mod draws the class-colour nametag for {@code player}, so the vanilla one above the model
+     * True when this mod draws the class-color nametag for {@code player}, so the vanilla one above the model
      * must not be drawn too (killer560, 2026-10-18: "they still keep their old nametag"). Same conditions as
      * {@link #onWorldRender}'s per-player skip, nothing more: with Class Colors or its Nametags setting off this is
      * false and vanilla is untouched. Called from AvatarRenderer.shouldShowName (DungeonAlertsNametagMixin), render thread.

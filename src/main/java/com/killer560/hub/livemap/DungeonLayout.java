@@ -271,7 +271,7 @@ public final class DungeonLayout {
                 if (client.level != null && ChunkCacheManager.isLoadedOrCached(client.level, pos)) {
                     layout.doorLocked[idx] = !client.level.getBlockState(pos).isAir();
                 } else {
-                    // Out of render distance: trust the map (an opened wither door turns normal-coloured there).
+                    // Out of render distance: trust the map (an opened wither door turns normal-colored there).
                     layout.doorLocked[idx] = type == DOOR_BLOOD || mapDoor == LiveMapFeature.Tile.DOOR_WITHER;
                 }
             }
@@ -300,7 +300,7 @@ public final class DungeonLayout {
      *
      * <p>Here, in one place, because four separate callers derived a height from {@link #doorBlock} and then
      * overwrote its y with a literal 68, 70 or 71 - so the one site that had been fixed was undone by its
-     * own neighbours. Anything that wants a height near the dungeon floor asks for it relative to the door
+     * own neighbors. Anything that wants a height near the dungeon floor asks for it relative to the door
      * block or adds this.
      */
     public static int simYOffset() {
@@ -317,7 +317,7 @@ public final class DungeonLayout {
                 LiveMapFeature.START_Z + (idx / GRID) * LiveMapFeature.HALF_ROOM);
     }
 
-    /** World centre of a cell at y 70 (QUOI {@code RoomTile.blockPos}). */
+    /** World center of a cell at y 70 (QUOI {@code RoomTile.blockPos}). */
     public static BlockPos cellCenter(int idx) {
         return new BlockPos(LiveMapFeature.START_X + (idx % GRID) * LiveMapFeature.HALF_ROOM,
                 70 + simYOffset(),
@@ -325,9 +325,9 @@ public final class DungeonLayout {
     }
 
     /**
-     * The same centre, from grid coordinates rather than an index, so a cell just OFF the grid still has one.
+     * The same center, from grid coordinates rather than an index, so a cell just OFF the grid still has one.
      *
-     * <p>The sim needs that: a room on the edge of the map can have a doorway pointing outwards, and the wall
+     * <p>The sim needs that: a room on the edge of the map can have a doorway pointing outward, and the wall
      * it has to brick up stands at the cell beyond the last one. {@link #cellCenter(int)} cannot express that,
      * because {@code idx % GRID} wraps a negative column round to the far side of the map.
      */
@@ -350,11 +350,11 @@ public final class DungeonLayout {
         //
         // (int) truncates TOWARD ZERO, so at negative coordinates - which is the entire dungeon grid, anchored
         // at -185 - it rounds the wrong way and the last block of each tile on the +x and +z sides was
-        // assigned to the neighbouring room. LiveMapFeature.gridCellFor uses the double directly and was
+        // assigned to the neighboring room. LiveMapFeature.gridCellFor uses the double directly and was
         // right; this disagreed with it by one block, and roomAtWorld feeds canPath, getLockedDoor,
         // nearestDoorOut, Blood Rush and the pathfinder's start room.
         //
-        // Measured from the middle of the tile's centre block (START + 0.5), on the position itself (2026-10-12): the
+        // Measured from the middle of the tile's center block (START + 0.5), on the position itself (2026-10-12): the
         // one-block gap between two tiles is exactly halfway, and from the block's floor every position in it went to
         // the +x / +z tile. Now each half of the gap block goes to the tile it is nearer - a doorway's two sides to
         // their own rooms. Inside one room both sides are the same room anyway; where the nearer tile is no room at all

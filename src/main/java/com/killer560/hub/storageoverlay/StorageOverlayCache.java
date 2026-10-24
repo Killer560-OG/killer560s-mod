@@ -125,7 +125,7 @@ public final class StorageOverlayCache {
 
     /** Saves the cache without stalling the caller: every change used to pretty-print and rewrite the whole file (all
      *  pages, all profiles) on the render thread, once per page marked or moved item. The snapshot is taken here (a few
-     *  dozen string references); the serialising and the disk write happen on a writer thread, and a JVM shutdown hook
+     *  dozen string references); the serializing and the disk write happen on a writer thread, and a JVM shutdown hook
      *  writes whatever is still waiting (fps pass 2026-10-21). */
     public void save() {
         JsonObject obj = new JsonObject();

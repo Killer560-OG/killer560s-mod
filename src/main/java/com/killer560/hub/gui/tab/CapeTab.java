@@ -11,7 +11,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Custom Cape: pick one of the built-in designs to wear (your own player only), or Make Your Own: a pattern and two colours.
+/** Custom Cape: pick one of the built-in designs to wear (your own player only), or Make Your Own: a pattern and two colors.
  *  Click to step; the first click on None starts at the first design, and Make Your Own comes after the last design. */
 public class CapeTab extends BaseTab {
 

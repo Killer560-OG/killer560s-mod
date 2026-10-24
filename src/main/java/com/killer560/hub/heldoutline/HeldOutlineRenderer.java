@@ -59,9 +59,9 @@ import java.util.Set;
  * <li>In {@code GameRenderer.renderLevel}, right before the screen effect is submitted (after the hands, before the
  * GUI), each recorded item is submitted again through vanilla's own {@code renderItem} and drawn with
  * {@code RenderSystem.outputColorTextureOverride}/{@code outputDepthTextureOverride} pointing at a cleared
- * window-sized mask target - every {@code RenderType} draw honours those overrides (javap: {@code RenderType.draw} on
+ * window-sized mask target - every {@code RenderType} draw honors those overrides (javap: {@code RenderType.draw} on
  * 26.1.2, {@code PreparedRenderType.drawFromBuffer} on 26.2). It is drawn under the model-view vanilla drew the hands
- * with ({@code McRender.drawHandMask}). A mask texel that took depth or any colour is the item's silhouette (not every
+ * with ({@code McRender.drawHandMask}). A mask texel that took depth or any color is the item's silhouette (not every
  * item pipeline writes alpha).</li>
  * <li>A post chain ({@code assets/killer560smod/heldoutline/held_outline.json}) runs a horizontal pass storing the
  * distance to the nearest mask pixel in each row, then a vertical pass that turns those into the exact Euclidean
@@ -102,7 +102,7 @@ public final class HeldOutlineRenderer {
     private static boolean drawingMask;
 
     private static TextureTarget mask;
-    /** Outline Side: the near face alone and the far face alone (colour only; they borrow {@link #mask}'s depth). */
+    /** Outline Side: the near face alone and the far face alone (color only; they borrow {@link #mask}'s depth). */
     private static TextureTarget nearMask;
     private static TextureTarget farMask;
     /** 0 while vanilla submits; 1 / 2 while the near / far face mask is drawn (read by {@link #filterSubmit}). */
@@ -316,7 +316,7 @@ public final class HeldOutlineRenderer {
     }
 
     /**
-     * Draws every recorded item again into {@code target}'s colour (and {@link #mask}'s depth), under the model-view
+     * Draws every recorded item again into {@code target}'s color (and {@link #mask}'s depth), under the model-view
      * vanilla drew the hands with. {@code filter} 0 draws the whole item; 1 / 2 only its near / far face.
      */
     private static void drawMask(Minecraft mc, SubmitNodeCollector collector, TextureTarget target, int filter) {
@@ -346,11 +346,11 @@ public final class HeldOutlineRenderer {
 
     /**
      * {@code SubmitNodeStorage.submitItem} HEAD while a face mask is drawn: re-submits only the item's near face
-     * ({@link #faceFilter} 1) or far face (2), and returns true so the original call is cancelled.
+     * ({@link #faceFilter} 1) or far face (2), and returns true so the original call is canceled.
      *
      * <p>A flat item's model (ItemModelGenerator) is two full-size quads facing NORTH and SOUTH - the sprite's front and
      * back, its shape coming from the texture's alpha - plus thin wall quads along the texel edges; a cube is six full
-     * quads. The near face is the one whose centre is nearer the camera. The far face points away, so back-face culling
+     * quads. The near face is the one whose center is nearer the camera. The far face points away, so back-face culling
      * would drop it; it is re-submitted with its vertex order reversed, which covers the same pixels facing the camera.
      * A layer without such a pair draws nothing here (a shield's special model never comes here at all), and the frame
      * falls back to Far.

@@ -25,7 +25,7 @@ import java.nio.file.Path;
  * turned on.
  * <p>
  * 2026-09-20: expanded with every hide QUOI 1.1.0/1.1.1 has that this pack didn't (see
- * {@code wave/research-pack.md} section 1) - grouped the same way QUOI groups them (Render Optimiser / Name
+ * {@code wave/research-pack.md} section 1) - grouped the same way QUOI groups them (Render Optimizer / Name
  * Tags / Player Display -> Hide / Tweaks / Item Animations / Chat Replacements / Splits / 1.1.1's Hide
  * Players), nothing added beyond QUOI's own set per killer560's "dont go beyond what they have".
  */
@@ -72,7 +72,7 @@ public final class ObjectHiderConfig {
     private boolean hideWitherImpactExplosions = false;
     private boolean hideSmokeParticles = false;
 
-    // --- QUOI Render Optimiser ---------------------------------------------------------------------
+    // --- QUOI Render Optimizer ---------------------------------------------------------------------
     private boolean disableTextShadow = false;
     private boolean containerTextShadow = false;
     private boolean disableFog = false;
@@ -509,7 +509,7 @@ public final class ObjectHiderConfig {
         hideSmokeParticles = v;
     }
 
-    // --- QUOI Render Optimiser ---------------------------------------------------------------------
+    // --- QUOI Render Optimizer ---------------------------------------------------------------------
 
     public boolean isDisableTextShadow() {
         return objectHiderEnabled && disableTextShadow && SkyblockGate.allows();

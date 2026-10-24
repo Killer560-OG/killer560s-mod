@@ -686,7 +686,7 @@ public final class ShortsFeature {
         return true;
     }
 
-    /** Windows 11 draws a thin accent-colour border around every top-level window via DWM, independent of the
+    /** Windows 11 draws a thin accent-color border around every top-level window via DWM, independent of the
      *  WS_* frame styles already stripped above - that's what was still visible as a white border around the
      *  cropped, caption-less Shorts window (killer560 screenshot 2026-09-20_15.18.59.png). Best-effort: silently
      *  does nothing on Windows 10 (no DWMWA_BORDER_COLOR support) or if dwmapi failed to load. */
@@ -839,7 +839,7 @@ public final class ShortsFeature {
     }
 
     /** @return {x, y, w, h} of the video area in screen pixels for a Minecraft client rect {x, y, w, h},
-     *  per the configured {@link ShortsConfig.PlacementMode}. ANCHORED is the original, sole behaviour. */
+     *  per the configured {@link ShortsConfig.PlacementMode}. ANCHORED is the original, sole behavior. */
     static int[] computeContentRect(ShortsConfig cfg, int[] mcRect) {
         return cfg.getPlacementMode() == ShortsConfig.PlacementMode.CUSTOM
                 ? customRect(cfg, mcRect) : anchoredRect(cfg, mcRect);
@@ -886,7 +886,7 @@ public final class ShortsFeature {
      * the hub/dvd feature bounces gifs/text drawn INSIDE Minecraft's own GUI - it has no concept of an
      * external OS window at all, so "compatible" can't mean literally interoperating with it in code
      * without either (a) teaching hub/dvd about a foreign HWND, or (b) giving the Shorts window the same
-     * bounce behaviour itself. (b) is the one that's actually buildable from here without touching
+     * bounce behavior itself. (b) is the one that's actually buildable from here without touching
      * hub/dvd (out of scope for this package) or fighting a second system for ownership of the same
      * screen space: it reuses the exact same reflect-off-the-edges physics as {@code DvdFeature}, applied
      * to the real window via the same {@code SetWindowPos} call {@link #updatePlacement} already makes
@@ -1292,10 +1292,10 @@ public final class ShortsFeature {
      * scroll never reaches the browser at all while Minecraft has the mouse captured for gameplay (it's raw
      * input straight to the game, not routed by Windows to whatever's visually under the cursor) - that's
      * exactly why this feature drives Next/Previous with keybinds -> a single simulated ArrowDown/Up key,
-     * never a scroll event, so there has never been a "scroll advances the video" behaviour for this mod to
+     * never a scroll event, so there has never been a "scroll advances the video" behavior for this mod to
      * redirect. When the mouse ISN'T captured (a menu's open, or the window's unfocused), physical scroll
      * over the browser goes straight to the page and already scrolls whatever's under the cursor - including
-     * a comments panel's own scrollable container - as ordinary site behaviour, outside the mod entirely.
+     * a comments panel's own scrollable container - as ordinary site behavior, outside the mod entirely.
      * The one real thing achievable from here: don't let a Next/Previous KEYBIND press yank the feed out
      * from under him while he's reading/typing in comments. Best-effort and YouTube-Shorts-specific (the
      * engagement-panel selector above); not attempted for TikTok/Reels/Twitch, whose comment UIs are

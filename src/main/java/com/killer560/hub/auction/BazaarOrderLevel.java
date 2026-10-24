@@ -8,7 +8,7 @@ package com.killer560.hub.auction;
  *
  * <p><b>Read {@link BazaarApi#fetchInstantBuyBooksAsync()} before using this.</b> Hypixel's two summaries
  * are named the opposite of how they read: {@code buy_summary} is the book you INSTANT-BUY OUT OF, and
- * {@code sell_summary} is the book you instant-sell into. Getting that backwards produces fake
+ * {@code sell_summary} is the book you instant-sell into. Getting that backward produces fake
  * billion-coin flips.
  */
 public record BazaarOrderLevel(double pricePerUnit, long amount, int orders) {

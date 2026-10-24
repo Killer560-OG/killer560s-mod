@@ -62,7 +62,7 @@ public class LividSolverTab extends BaseTab {
         SolverEspRows.append(widgets, SOLVER, contentX, contentWidth, y, true, false);
         y = below(widgets, y);
 
-        // killer560, 2026-10-18: the colour of the highlight and the tracer - the Livid's own, or the two set here.
+        // killer560, 2026-10-18: the color of the highlight and the tracer - the Livid's own, or the two set here.
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Livid Color", false),
                 Minecraft.getInstance().font));
         y += 16;

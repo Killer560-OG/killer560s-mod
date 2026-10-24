@@ -199,7 +199,7 @@ public final class ModChatFeature {
             if (rawMessage == null || rawMessage.isBlank() || from == null || !SENDER.matcher(from).matches()) {
                 return;
             }
-            // Hostile input: bounded, and stripped of section signs / control characters so a sender cannot colour or
+            // Hostile input: bounded, and stripped of section signs / control characters so a sender cannot color or
             // fake chat lines. The whisper marker (a control character) is tested on the raw text first.
             boolean whisper = rawMessage.startsWith(WHISPER_PREFIX);
             Minecraft.getInstance().execute(() -> {

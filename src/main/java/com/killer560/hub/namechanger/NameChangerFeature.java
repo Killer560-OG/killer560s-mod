@@ -21,7 +21,7 @@ import java.util.UUID;
  * "Name Changer" / nick hider suite (killer560's roadmap: change your own displayed IGN client-side, rename specific
  * other players client-side, and a mode that randomizes everyone else's name).
  * <p>
- * How it works (modelled on quoi's {@code NickHider} + {@code FontMixin}, itself a port of Ownwn's Client-Custom-Name):
+ * How it works (modeled on quoi's {@code NickHider} + {@code FontMixin}, itself a port of Ownwn's Client-Custom-Name):
  * every piece of text the client draws - chat, name tags, tab list, scoreboard, item lore, container titles, tooltips -
  * ends up in {@code Font.prepareText(...)} (GUI text via {@code GuiTextRenderState.ensurePrepared}, world text via
  * {@code Font.drawInBatch}), and layout goes through {@code Font.width(...)}. {@code NameChangerFontMixin} rewrites
@@ -189,7 +189,7 @@ public final class NameChangerFeature {
         NameReplacer.clearCaches();
     }
 
-    /** A display name with its picked colour applied as a legacy code prefix (see {@link NameColor}) - the
+    /** A display name with its picked color applied as a legacy code prefix (see {@link NameColor}) - the
      *  name itself may still carry {@code &} format codes, which {@link #colorize} converts as before. */
     static String styled(String display, int argb) {
         return NameColor.prefix(argb) + colorize(display);
@@ -197,9 +197,9 @@ public final class NameChangerFeature {
 
     /** Cosmetics tab's own display name specifically - same as {@link #styled}, except when "Fade Color" is
      *  on, in which case a per-letter gradient ({@link NameColor#buildFade}) is built instead of one flat
-     *  colour. Only your own name can fade; manual per-player renames ({@link NameChangerConfig.Mapping})
+     *  color. Only your own name can fade; manual per-player renames ({@link NameChangerConfig.Mapping})
      *  always use {@link #styled} - fading someone else's rename would be surprising for something you
-     *  didn't ask them to look like. Falls back to white -> red when a colour endpoint was never picked, so
+     *  didn't ask them to look like. Falls back to white -> red when a color endpoint was never picked, so
      *  turning Fade on always shows something instead of two identical (invisible) endpoints. */
     static String ownStyled(NameChangerConfig cfg) {
         String styled = ownStyledPlain(cfg);
@@ -217,16 +217,16 @@ public final class NameChangerFeature {
         if (!perChar) {
             return NameColor.buildFade(display, from, to);
         }
-        // Letter colours: each letter with its own pick uses it, the rest keep the fade (or the flat colour,
+        // Letter colors: each letter with its own pick uses it, the rest keep the fade (or the flat color,
         // white when none was picked - a letter cannot fall back to "whatever surrounds the name" once its
-        // neighbours carry their own colour codes).
+        // neighbors carry their own color codes).
         return NameColor.buildPerChar(display, from, cfg.isOwnColorFadeEnabled() ? to : from, cfg::getOwnCharColor);
     }
 
     /**
-     * What Share if Supporter sends as {@code colors} (relay, 2026-10-11): your display name's colour per letter exactly as
-     * {@link #ownStyled} paints it, or {@code null} when it is one flat colour (no fade, no letter colours) - then the
-     * single {@code &} colour in the shared name says it all, as before. Read off the painted string itself, so the
+     * What Share if Supporter sends as {@code colors} (relay, 2026-10-11): your display name's color per letter exactly as
+     * {@link #ownStyled} paints it, or {@code null} when it is one flat color (no fade, no letter colors) - then the
+     * single {@code &} color in the shared name says it all, as before. Read off the painted string itself, so the
      * shared look cannot drift from your own.
      */
     public static int[] ownShareColours() {
@@ -244,7 +244,7 @@ public final class NameChangerFeature {
     }
 
     /** Your own name's Wave/Pulse ({@link NameAnimation}), or {@code null} when it is Off or the name has no fade and no
-     *  letter colours to animate (a flat name never animates). */
+     *  letter colors to animate (a flat name never animates). */
     public static NameAnimation.Spec ownAnimation() {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
         if (cfg.getOwnDisplayName().isEmpty() || (!cfg.isOwnColorFadeEnabled() && !cfg.hasOwnCharColors())) {
@@ -254,13 +254,13 @@ public final class NameChangerFeature {
     }
 
     /** What Share if Supporter sends as {@code animation}: {@link #ownAnimation} when {@link #ownShareColours} sends a
-     *  colour list for it to animate, else {@code null}. */
+     *  color list for it to animate, else {@code null}. */
     public static NameAnimation.Spec ownShareAnimation() {
         return ownShareColours() == null ? null : ownAnimation();
     }
 
-    /** The Name Changer tab's preview: your display name exactly as {@link #ownStyled} paints it (colour, fade, letter
-     *  colours), or your real IGN when no display name is typed, as a styled Component. */
+    /** The Name Changer tab's preview: your display name exactly as {@link #ownStyled} paints it (color, fade, letter
+     *  colors), or your real IGN when no display name is typed, as a styled Component. */
     public static net.minecraft.network.chat.Component ownPreview() {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
         Minecraft mc = Minecraft.getInstance();

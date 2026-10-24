@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
  * a crypt as well").
  *
  * <p>Told by NAME, never by "a mob that appeared near me": entering a room brings every mob in it into tracking range at
- * once, so a spawn cannot be told from a mob coming into view. Hypixel names a crypt's undead on its name-tag armour stand,
+ * once, so a spawn cannot be told from a mob coming into view. Hypixel names a crypt's undead on its name-tag armor stand,
  * {@code ⚔ Crypt Undead 512.6k❤}, with no star (it does not count toward the clear), and there are only two kinds,
  * Crypt Undead and Prince (killer560, 2026-10-16, from a run screenshot). The sim's own crypt mob carries the same tag as
  * its custom name ({@code roomsim.SimMobs.spawnCrypt}), read the same way.
@@ -48,7 +48,7 @@ public final class CryptMobs {
         return name.length() <= 48 && TAG.matcher(name).matches();
     }
 
-    /** A living mob that can be a crypt's undead at all: not an armour stand, bat, him, or a real player. */
+    /** A living mob that can be a crypt's undead at all: not an armor stand, bat, him, or a real player. */
     private static boolean candidate(Minecraft client, Entity e) {
         if (!(e instanceof LivingEntity l) || e instanceof ArmorStand || e instanceof Bat || e == client.player) {
             return false;
@@ -83,7 +83,7 @@ public final class CryptMobs {
         return out;
     }
 
-    /** A named armour stand over the mob (Hypixel's name tag) that reads as a crypt mob. */
+    /** A named armor stand over the mob (Hypixel's name tag) that reads as a crypt mob. */
     private static boolean tagOver(Minecraft client, LivingEntity mob) {
         AABB box = mob.getBoundingBox();
         AABB over = new AABB(box.minX - 0.4, box.minY, box.minZ - 0.4, box.maxX + 0.4, box.maxY + 1.5, box.maxZ + 0.4);

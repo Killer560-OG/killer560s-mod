@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
  * {@link SelfDerivation} (and by any existing feature that already knows something; see
  * {@code ScoreCalculatorFeature}). This is the only feed that works for a player whose party mates run no
  * mods at all, so it is always preferred.</li>
- * <li>{@link InteropSource#CHAT} - {@link InteropChatParser} recognised an announcement another dungeon mod
+ * <li>{@link InteropSource#CHAT} - {@link InteropChatParser} recognized an announcement another dungeon mod
  * made in party chat. Works for OUR user with only OUR mod installed, as long as a party mate runs one of
  * those mods.</li>
  * <li>{@link InteropSource#BRIDGE} - {@link LocalModBridge} read another mod's own state in this JVM.
@@ -127,7 +127,7 @@ public final class PartyInteropState {
     }
 
     /** Run totals. Accepted when the source is at least as trusted as the one we hold and the number has not
-     *  gone backwards, or when what we hold has gone stale. */
+     *  gone backward, or when what we hold has gone stale. */
     public static boolean offerCounter(Counter counter, int value, InteropSource source, String reporter) {
         return offerCounter(counter, value, -1, source, reporter);
     }
@@ -136,9 +136,9 @@ public final class PartyInteropState {
      * As {@link #offerCounter(Counter, int, InteropSource, String)}, with the "(n/m)" denominator when the source
      * knows it ({@code -1} otherwise). Terminals, devices and levers are NOT run totals: Hypixel's
      * "{@code Bob activated a terminal! (n/m)}" counts one P3 section, shared by all three kinds, and restarts at
-     * the next section (7/7, then 1/8). A new section is recognised when the denominator changes, or when the
+     * the next section (7/7, then 1/8). A new section is recognized when the denominator changes, or when the
      * held section was complete and a lower number arrives; all three section counters are then dropped so the
-     * new section's values are accepted instead of being refused as "going backwards" for {@link #STALE_MS}.
+     * new section's values are accepted instead of being refused as "going backward" for {@link #STALE_MS}.
      */
     public static boolean offerCounter(Counter counter, int value, int total, InteropSource source, String reporter) {
         if (counter == null || source == null || value < 0) {
@@ -298,7 +298,7 @@ public final class PartyInteropState {
 
     private static final Pattern WHITESPACE_RUN = Pattern.compile("\\s+");
 
-    /** Room names arrive from several places with different capitalisation and stray spaces. The map asks for
+    /** Room names arrive from several places with different capitalization and stray spaces. The map asks for
      *  this every frame per room, so a name that is already clean (the usual case) is returned as it is. */
     private static String normaliseRoom(String roomName) {
         if (roomName == null) {

@@ -31,7 +31,7 @@ import java.util.Map;
  * hotbar's ends, 5 up) and six at the screen's corners and beside the crosshair. Each anchor holds rows, each row holds
  * bars side by side; rows grow away from the anchor, one bar height (9) plus 1 apart, and an empty row takes no room.
  * Above the hotbar a row always fills the hotbar's 182 px: each bar has a size in twelfths, the row's sizes are pushed
- * to sum to 12, and neighbours sit 2 px apart; with the vanilla hearts still drawn the row takes only the right half.
+ * to sum to 12, and neighbors sit 2 px apart; with the vanilla hearts still drawn the row takes only the right half.
  * Elsewhere a bar is its own size (25 px a unit, 2 to 6 units). Bar text sits ON the bar. In its editor a picked-up bar
  * follows the mouse; touching another bar's side inserts it beside that bar, touching its top or bottom opens a new row,
  * and an empty anchor shows a white 20x20 square (the full width above the hotbar) that takes it. A disabled bar is
@@ -40,7 +40,7 @@ import java.util.Map;
  * <b>What this builds from it.</b> Four areas round the hotbar plus Hidden ({@link Area}). The two rows above the
  * hotbar are Skyblocker's HOTBAR_TOP as two layers: every readout in a row gets an equal share of the hotbar's width
  * ({@link #GAP} apart, keeping its order), and the rows stack upward from just above the highest vanilla row that is
- * still drawn - hearts (every heart row, vanilla's own row maths), armour, hunger, air, the XP bar and its level - so
+ * still drawn - hearts (every heart row, vanilla's own row math), armor, hunger, air, the XP bar and its level - so
  * they never cover one, whichever of the hide settings are on. Left and Right of Hotbar stack readouts upward beside
  * the hotbar (clear of the offhand slot when it shows), each bar at its own length up to the room there is. The
  * corner and crosshair anchors were left out: the top right is where vanilla draws potion effects, the bottom left is
@@ -50,7 +50,7 @@ import java.util.Map;
  * Positions are in GUI pixels relative to the hotbar, so they follow the window size and GUI scale exactly as the
  * hotbar does. A readout's thickness and its text are drawn at its HUD scale (its own scale times HUD Scale times Auto
  * Scale, {@link HudElementRegistry#resolveScale}), like every other element, and the rows are stacked by those drawn
- * heights, so a scaled readout still never overlaps its neighbour. Text readouts are members of the areas like the
+ * heights, so a scaled readout still never overlaps its neighbor. Text readouts are members of the areas like the
  * bars rather than being glued to one: a bar already carries its own number (Show Value, which is where Skyblocker
  * puts text), three readouts (Overflow Mana, Intelligence, Effective Health) have no bar to follow, and a text stuck
  * to a bar in a two-row stack would have nowhere to go that is not the next row.
@@ -528,10 +528,10 @@ public final class StatLayout {
 
     /**
      * Top (GUI y) of the highest vanilla row drawn over the hotbar right now: the hotbar's own selection frame, the XP
-     * bar and its level number, every heart row, armour, hunger and air - each only while it is really drawn (game mode,
+     * bar and its level number, every heart row, armor, hunger and air - each only while it is really drawn (game mode,
      * this mod's hides and Object Hider's). Vanilla's numbers, javap of {@code Gui.extractPlayerHealth} (26.1.2) and
      * {@code Hud.extractPlayerHealth} (26.2), identical: hearts at {@code guiHeight - 39}, rows
-     * {@code ceil((max(maxHealth, health) + absorption) / 2 / 10)}, row step {@code max(10 - (rows - 2), 3)}, armour
+     * {@code ceil((max(maxHealth, health) + absorption) / 2 / 10)}, row step {@code max(10 - (rows - 2), 3)}, armor
      * 10 above the top heart row, hunger at -39, air at -49; the XP bar at {@code guiHeight - 24 - 5} and its level text
      * at {@code guiHeight - 24 - 9 - 2}, outlined one pixel out (ContextualBarRenderer / ContextualBar).
      */

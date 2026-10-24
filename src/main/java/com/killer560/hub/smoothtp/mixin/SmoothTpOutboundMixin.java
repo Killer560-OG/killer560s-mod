@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * before the server's position packet arrives. {@code public void send(Packet<?>)} on
  * {@code ClientCommonPacketListenerImpl} is on 26.1.2 and 26.2 (javap, 2026-10-07; the same target
  * {@code dungeonextras/mixin/OutboundBreakMixin} uses); every use packet - vanilla's, Auto Routes', the Interactive
- * Map's - passes through it. Nothing is cancelled, copied or sent; a throw is swallowed so the packet still goes.
+ * Map's - passes through it. Nothing is canceled, copied or sent; a throw is swallowed so the packet still goes.
  */
 @Mixin(ClientCommonPacketListenerImpl.class)
 public abstract class SmoothTpOutboundMixin {

@@ -37,7 +37,7 @@ public final class MenuWidgets {
     private static int lastSig = Integer.MIN_VALUE;
 
     /**
-     * Brings every colour here (and {@link MenuChrome}'s) in line with the palette the open screen should use. Cheap: a
+     * Brings every color here (and {@link MenuChrome}'s) in line with the palette the open screen should use. Cheap: a
      * cached lookup and an int compare unless the theme changed. Called at the top of every draw helper.
      */
     public static void sync() {
@@ -216,7 +216,7 @@ public final class MenuWidgets {
         g.outline(x, top, w, bh, border);
     }
 
-    /** Replaces the 2px header-separator strips either side of the tab row with a single border-coloured
+    /** Replaces the 2px header-separator strips either side of the tab row with a single border-colored
      *  line on the bottom row (aligned with the unselected tabs' bottom edge). */
     public static void drawTabSeparator(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         sync();

@@ -212,7 +212,7 @@ public final class AutoClearFeature {
     /**
      * Clears one room's starred mobs, then calls {@code onDone}; calls {@code onGiveUp(reason)} instead when it cannot
      * (room not on the map, no weapon, no path, mobs out of reach, his input, the boss). Never both, and never after
-     * {@link #cancel()} - the caller cancelled, so it already knows. A room already cleared calls {@code onDone} on the
+     * {@link #cancel()} - the caller canceled, so it already knows. A room already cleared calls {@code onDone} on the
      * next tick.
      */
     public static void clearRoom(String roomName, Runnable onDone, Consumer<String> onGiveUp) {
@@ -245,7 +245,7 @@ public final class AutoClearFeature {
         return AutoClearTargets.bloodRushRooms(layout);
     }
 
-    /** Stops whatever is running, with no callback (the caller cancelled). */
+    /** Stops whatever is running, with no callback (the caller canceled). */
     public static void cancel() {
         if (running) {
             stopQuietly();
@@ -1019,7 +1019,7 @@ public final class AutoClearFeature {
      * <p>
      * All-inclusive (killer560, 2026-10-20: "if there is a wither door blocking off a section it doesn't include that
      * other section into the clear timer"): the rooms counted are the plan's, plus the rooms not identified yet
-     * ({@link #unidentifiedRoomsLeft}), which is what a room behind a shut wither door usually is - the map shows it grey
+     * ({@link #unidentifiedRoomsLeft}), which is what a room behind a shut wither door usually is - the map shows it gray
      * and nothing has scanned it, so it is not a mob room to the plan and was left out. Each is counted at the plan's own
      * per-room figure (its pace, or the trip plus {@link #CLEAR_SECONDS_GUESS}), as a mob room, because its kind cannot be
      * known until it is seen. On top, every shut wither door on the way ({@link #witherDoorSeconds}). The plan itself
@@ -1061,7 +1061,7 @@ public final class AutoClearFeature {
     static final double UNSEEN_KEY_BLOCKS = 16.0;
 
     /**
-     * Rooms on the map with no identity yet (no room database entry: the grey "?" room behind a shut wither door, or one
+     * Rooms on the map with no identity yet (no room database entry: the gray "?" room behind a shut wither door, or one
      * further on that the world scan has not read), not cleared, not in {@code counted}, that the run would reach: a way
      * to them from where he is (or the Entrance) with locked doors passable but no shut BLOOD door on it - the room behind
      * that is the Blood Room, never cleared. In Blood Rush Split mode only those on the rush path. Timer only: the plan
@@ -1841,7 +1841,7 @@ public final class AutoClearFeature {
     static final long ROAM_TIME_LIMIT_MS = 25_000L;
     /** A spot must be this far from everywhere already looked from, or it shows nothing new. */
     static final double ROAM_MIN_SEPARATION = 8.0;
-    /** The offset of each quadrant's look point from its tile centre (a tile is 31 across). */
+    /** The offset of each quadrant's look point from its tile center (a tile is 31 across). */
     private static final int ROAM_QUADRANT = 8;
 
     private static int roamSpotsTried = 0;
@@ -4831,7 +4831,7 @@ public final class AutoClearFeature {
 
     /**
      * The floor as Auto Clear reads it, one line a room: {@code name|type|mob|cleared|rush|x|z} (mob/cleared/rush are 1
-     * or 0; rush = on the Blood Rush Split path; x/z the centre of the room's first tile). For the testkit and for
+     * or 0; rush = on the Blood Rush Split path; x/z the center of the room's first tile). For the testkit and for
      * checking the mode's reading of a floor by hand. Client thread.
      */
     public static List<String> floorReport() {

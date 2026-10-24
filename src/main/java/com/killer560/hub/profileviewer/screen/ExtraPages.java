@@ -49,7 +49,7 @@ import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.style;
 import com.killer560.hub.compat.McItems;
 
 /**
- * The Profile Viewer pages beyond Basic Info / Dungeons / Inventories / Pets, modelled on skyblock-pv's
+ * The Profile Viewer pages beyond Basic Info / Dungeons / Inventories / Pets, modeled on skyblock-pv's
  * Collections, Mining (+ Glacite, Foraging), Bestiary, Crimson Isle, Museum, Rift, Farming and networth
  * displays. Drawn immediate-mode with {@link ProfileViewerScreen}'s helpers; every remote piece
  * (museum / garden / player endpoints, repo tables, prices) is an async future polled per frame.

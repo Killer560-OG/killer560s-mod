@@ -556,7 +556,7 @@ public final class ExactWarpSearch {
         return next;
     }
 
-    /** B_{b+1}: every landing not yet labelled (and not a dead end) that reaches some node of B_b in one warp. */
+    /** B_{b+1}: every landing not yet labeled (and not a dead end) that reaches some node of B_b in one warp. */
     private List<Integer> backward(List<Integer> bLayer, int b, long deadline) {
         double r = reachXZ();
         int stamp = ++markStamp;

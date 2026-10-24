@@ -24,7 +24,7 @@ import net.minecraft.world.phys.Vec3;
  * some amount that will one tap every mob".
  *
  * <p>So this is deliberately not a class system. There is one class, it has one attack, and that attack always
- * kills. That is enough to practise a clear - the thing being practised is the route and the order you kill
+ * kills. That is enough to practice a clear - the thing being practiced is the route and the order you kill
  * things in, not the damage numbers - and every piece of it that is not needed is a piece that can be wrong.
  *
  * <p>The beam is hitscan along the look vector, stopping at the first wall. Mobs in the sim have one health, so

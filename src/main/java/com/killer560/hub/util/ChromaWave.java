@@ -6,11 +6,11 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
- * The one place the mod's animated "chroma" colour is worked out (killer560, 2026-10-13: "for chroma for things like
+ * The one place the mod's animated "chroma" color is worked out (killer560, 2026-10-13: "for chroma for things like
  * the enchant colors make it so it waterfalls the color from top left to bottom right in a wavy manner").
  *
- * <p>The colour at a point depends on where the point is on screen and on the time: the cycle position is
- * {@code (x + y + wobble) / span - t / period}, so a line of equal colour is a diagonal ({@code x + y} constant) that
+ * <p>The color at a point depends on where the point is on screen and on the time: the cycle position is
+ * {@code (x + y + wobble) / span - t / period}, so a line of equal color is a diagonal ({@code x + y} constant) that
  * slides toward the bottom right as time passes, and the {@code wobble} - a small sine of the position ACROSS the
  * band, {@code x - y}, which itself drifts with time - bends that straight stripe into a wave. Every chroma user
  * passes its real screen position, so a multi-line text block (a whole tooltip) or a border is one continuous
@@ -21,20 +21,20 @@ import java.util.Map;
  *   <li>Shapes (the scoreboard border, the crosshair) call {@link #rainbow}/{@link #gradient} with their own
  *       position, speed and size.</li>
  *   <li>Text gets a {@link Spec}: {@link Spec#textColor()} is a {@link TextColor} put on a {@code Style} like any
- *       other colour, and {@code chroma/mixin/ChromaGlyphColorMixin} recolours every glyph drawn in it from the
+ *       other color, and {@code chroma/mixin/ChromaGlyphColorMixin} recolors every glyph drawn in it from the
  *       glyph's own position as the font lays the text out (GUI text is prepared every frame at its GUI
- *       coordinates, so this animates and needs no rebuilt components). Its RGB value is the static colour shown
- *       if that hook is ever missing. A spec is either the rainbow or a looping gradient between colour stops, which
+ *       coordinates, so this animates and needs no rebuilt components). Its RGB value is the static color shown
+ *       if that hook is ever missing. A spec is either the rainbow or a looping gradient between color stops, which
  *       is what an animated fade name (supporters' "Wave" mode) needs: make ONE spec per gradient and keep it.</li>
  * </ul>
  *
- * <p>Nothing here allocates per call: the glyph path looks the colour up in a 256-step table per spec.
+ * <p>Nothing here allocates per call: the glyph path looks the color up in a 256-step table per spec.
  */
 public final class ChromaWave {
 
     /** GUI units along {@code x + y} for one whole cycle at Size 1. A tooltip is about 150 x 100, so 1.5 rainbows. */
     public static final float BASE_SPAN = 160f;
-    /** Milliseconds for one whole cycle to pass a point at Speed 1 (the old Enchant Colours / crosshair period). */
+    /** Milliseconds for one whole cycle to pass a point at Speed 1 (the old Enchant Colors / crosshair period). */
     public static final float BASE_PERIOD_MS = 3000f;
     /** How far (GUI units, along the diagonal) the wave bends the band, at Size 1. */
     public static final float WOBBLE_AMPLITUDE = 6f;
@@ -104,7 +104,7 @@ public final class ChromaWave {
         return gradientAt(phase(x, y, nowMs, speed, size), stops);
     }
 
-    /** Colour {@code phase} (0..1) of the way round a looping gradient through {@code stops}. Returns 0xRRGGBB. */
+    /** Color {@code phase} (0..1) of the way round a looping gradient through {@code stops}. Returns 0xRRGGBB. */
     public static int gradientAt(float phase, int[] stops) {
         if (stops == null || stops.length == 0) {
             return 0xFFFFFF;
@@ -186,7 +186,7 @@ public final class ChromaWave {
         return spec;
     }
 
-    /** One animated text colour: rainbow or a looping gradient, with its own speed and size. */
+    /** One animated text color: rainbow or a looping gradient, with its own speed and size. */
     public static final class Spec {
         private final TextColor textColor;
         private final int[] table = new int[TABLE];
@@ -196,7 +196,7 @@ public final class ChromaWave {
 
         private Spec(int[] stops, int fallbackRgb) {
             // A fresh instance (fromRgb never interns, javap 26.1.2 and 26.2): the font hook matches it by identity,
-            // so a real colour that happens to share the RGB value is never mistaken for it.
+            // so a real color that happens to share the RGB value is never mistaken for it.
             this.textColor = TextColor.fromRgb(fallbackRgb & 0xFFFFFF);
             for (int i = 0; i < TABLE; i++) {
                 float ph = i / (float) TABLE;
@@ -205,7 +205,7 @@ public final class ChromaWave {
             }
         }
 
-        /** Put this on a {@code Style}; every glyph drawn in it is recoloured from its own position. */
+        /** Put this on a {@code Style}; every glyph drawn in it is recolored from its own position. */
         public TextColor textColor() {
             return textColor;
         }

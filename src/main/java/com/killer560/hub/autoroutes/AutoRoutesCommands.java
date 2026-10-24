@@ -138,7 +138,7 @@ public final class AutoRoutesCommands {
 
     // ---- tab completion (same shape as Ap3Commands - a fixed type-word list, plus modifiers offered after any
     //      type; killer560's tab-completion ask from Ap3 applies here just as much: typing a node type or a
-    //      modifier should show its options, not require memorising them) ----
+    //      modifier should show its options, not require memorizing them) ----
 
     /** Every word {@code /ar add <type>} accepts, and the only ones - killer560's list, in his order. A walk node
      *  sprints (see {@code RouteExecutor}'s walk hold) even though it is called walk. */
@@ -210,7 +210,7 @@ public final class AutoRoutesCommands {
     public static void register() {
         // "/ar and /autoroutes, both are the exact same, just different wording" (killer560, 2026-10-04). The same
         // tree is BUILT TWICE under the two names - ProfileViewerFeature's /pv + /killer560pv pattern - rather than
-        // a Brigadier redirect, which forwards the children but not the root's own executes (bare /autoroutes
+        // a Brigadier redirect, which forward the children but not the root's own executes (bare /autoroutes
         // would print nothing) and tab-completes through the alias less reliably.
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(root("ar"));
@@ -589,7 +589,7 @@ public final class AutoRoutesCommands {
      * (wait for that many secrets before this node fires). Any order, either, neither, or both - and nothing else.
      * A bare {@code await} or {@code await:} waits for 1. {@code await:x} and {@code await:0} are refused: the x is a
      * placeholder for a number (killer560, 2026-10-04).
-     * @return null (after saying why in chat) on anything unrecognised, so a typo never adds the node at all.
+     * @return null (after saying why in chat) on anything unrecognized, so a typo never adds the node at all.
      */
     private static RouteRecorder.NodeModifiers parseModifiers(String mods) {
         boolean start = false;
@@ -779,7 +779,7 @@ public final class AutoRoutesCommands {
     }
 
     /** "Dungeon Breaker", "Use Item", ... from the enum constant. */
-    /** One name per node type everywhere - this used to say "Boom" while the world label, the colour button
+    /** One name per node type everywhere - this used to say "Boom" while the world label, the color button
      *  and the keybind row all said "Superboom" (2026-09-16 review). */
     public static String typeName(RouteNode.Type type) {
         return type.label();

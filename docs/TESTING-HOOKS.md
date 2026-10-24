@@ -11,7 +11,7 @@ default)` and goes out through `ModNet.send` / `sendAsync` / `open` / `webSocket
 - `-Dkiller560.net.<service>=http://127.0.0.1:PORT` points one service at a fake. The scheme, host and port of
   the default URL are replaced and its path and query kept; a path on the override is prepended. A `ws`/`wss`
   default given an `http` override becomes `ws` (and the reverse). Read once, when each feature's URL constants
-  initialise, so set it on the command line.
+  initialize, so set it on the command line.
 - `-Dkiller560.net.offline=true` refuses every call at once with a `java.net.ConnectException`, the same error a
   dead network gives, so each caller's own failure path runs. Hosts named by a `killer560.net.<service>`
   override are still reachable, so a harness can run offline with only its fakes. Read on every call.
@@ -80,8 +80,8 @@ pipe), the Proxy Client (the game connection itself), and anything Minecraft or 
 
 ## Name Animation clock (`namechanger/NameAnimation`)
 
-No property. `NameAnimation.freezeClockForTest(epochMs)` fixes the clock Wave/Pulse names are coloured from (-1 goes
-back to the real one), so two screenshots are exact (testkit 960-965); `coloursNow(sequence)` returns the colours the
+No property. `NameAnimation.freezeClockForTest(epochMs)` fixes the clock Wave/Pulse names are colored from (-1 goes
+back to the real one), so two screenshots are exact (testkit 960-965); `coloursNow(sequence)` returns the colors the
 Font hook paints for a text at that time. Wave at 1x moves one letter per 250 ms; Pulse at 1x is darkest at 1000 ms.
 
 ## Chat listener failures (`util/ChatObserver`)

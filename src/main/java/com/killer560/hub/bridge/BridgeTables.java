@@ -31,7 +31,7 @@ public final class BridgeTables {
      * <p>
      * {@code devonianId} is Devonian's {@code RoomData.roomID}. <b>The spec (1.4 "Field-format notes") calls this
      * a run-local scan index; it is not.</b> Re-read 2026-09-21: {@code DungeonScanner.kt:23-34} declares
-     * {@code RoomData(..., val roomID: Int, ...)} deserialised from the static
+     * {@code RoomData(..., val roomID: Int, ...)} deserialized from the static
      * {@code /assets/devonian/dungeons/rooms.json}, and {@code DungeonRoom.kt:48} copies it
      * ({@code roomID = data.roomID}). It is a fixed per-room id (0..145, 140 rooms, all unique), the same for
      * every Devonian client in every run - which is what makes this table possible.
@@ -232,7 +232,7 @@ public final class BridgeTables {
 
     /**
      * NoammAddons' {@code DoorType} enum (spec 2.4 "Enum wire values": {@code DoorType.kt:6-10} -
-     * {@code BLOOD, WITHER, NORMAL, ENTRANCE}, upper-case, Gson enum-name serialisation) against the lower-case
+     * {@code BLOOD, WITHER, NORMAL, ENTRANCE}, upper-case, Gson enum-name serialization) against the lower-case
      * door names our own {@code dg.v1.door} uses ({@code killer560s-mod-relay/PROTOCOL.md}, "dg.v1.door":
      * {@code normal, wither, blood, entrance}). Devonian and Odin carry no door data.
      * @return the NoammAddons wire value, or null for anything else.
@@ -269,8 +269,8 @@ public final class BridgeTables {
 
     /**
      * NoammAddons' {@code WitherDragonEnum} constants (spec 2.4: {@code WitherDragonEnum.kt:38-43} -
-     * {@code Red, Orange, Green, Blue, Purple, None}, <b>first letter capitalised only</b>) against the
-     * lower-case colours our {@code dg.v1.dragon} / {@code PartyInteropState.offerDragonSpawn} use. {@code None}
+     * {@code Red, Orange, Green, Blue, Purple, None}, <b>first letter capitalized only</b>) against the
+     * lower-case colors our {@code dg.v1.dragon} / {@code PartyInteropState.offerDragonSpawn} use. {@code None}
      * is never sent and never accepted.
      */
     public static String noammDragon(String ourColour) {

@@ -30,10 +30,10 @@ import org.slf4j.Logger;
  * picture on top at 2560x1440, its animation maps below at the same size, sampled linearly ({@code .mcmeta} blur, and the
  * pipeline's own LINEAR sampler). The shader and the overlays work in 1920x1080 picture units whatever the texture size. One full-screen quad draws it through the
  * {@code killer560smod:pipeline/amber_aurora} shader ({@code shaders/core/amber_aurora.fsh}), sampled LINEAR, so all of
- * the motion is smooth at full resolution: the curtains ripple (travelling waves move the sky a few pixels sideways and up
+ * the motion is smooth at full resolution: the curtains ripple (traveling waves move the sky a few pixels sideways and up
  * and down, nothing on the land), each ray flickers softly on its own phase, light travels slowly along the bands, the
  * stars twinkle in place, the low sun's glow breathes, glints drift on the river and the lava pulses. The view never sways.
- * The clock rides in the quad's vertex colour as a 24-bit fraction of a 600 s loop whose every motion is a whole number of
+ * The clock rides in the quad's vertex color as a 24-bit fraction of a 600 s loop whose every motion is a whole number of
  * turns, so it wraps without a jump. A few soft embers drift up at the sides over it ({@link PictureScene} overlays).
  * <p>
  * If the pipeline is unavailable (VulkanMod, a failure) the picture is drawn still with the embers over it.
@@ -97,7 +97,7 @@ final class AmberAuroraScene {
         }
     }
 
-    /** The scene clock as the shader reads it: a 24-bit fraction of the loop in the colour's rgb, alpha full. */
+    /** The scene clock as the shader reads it: a 24-bit fraction of the loop in the color's rgb, alpha full. */
     static int timeColour(double t) {
         return timeColour(t, LOOP);
     }

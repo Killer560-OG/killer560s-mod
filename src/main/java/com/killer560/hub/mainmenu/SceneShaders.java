@@ -24,17 +24,17 @@ import java.util.Random;
 
 /**
  * The main menu scenes' own shaders (killer560, 2026-10-16: "make that one super high quality and 120fps"): what a vertex
- * colour cannot do. A {@code GuiRects} gradient is interpolated in the GPU and then rounded to the 8-bit framebuffer once per
+ * color cannot do. A {@code GuiRects} gradient is interpolated in the GPU and then rounded to the 8-bit framebuffer once per
  * layer, so a faint slow gradient (a ray fading down a near-white sky, a glow's falloff) shows as contour bands, and nothing
- * drawn with vertex colours can be dithered. The pipelines, all {@link RenderPipelines#GUI_TEXTURED_SNIPPET} (position, uv,
- * colour, {@code Sampler0}) with this mod's shaders in {@code assets/killer560smod/shaders/core/}:
+ * drawn with vertex colors can be dithered. The pipelines, all {@link RenderPipelines#GUI_TEXTURED_SNIPPET} (position, uv,
+ * color, {@code Sampler0}) with this mod's shaders in {@code assets/killer560smod/shaders/core/}:
  * <ul>
  *   <li>{@code scene_soft_light}: Light's whole Soft Light backdrop in one full-screen quad - the base gradient, the four
  *       slanted rays with smooth sides, the title glow and the stepless vignette, composited in float and dithered once with
  *       blue noise at the end, so the 8-bit result has no bands at all;</li>
  *   <li>{@code scene_soft_disc}: one drifting light, an analytically antialiased disc (exact coverage at any GUI scale and any
- *       sub-pixel position). The glow and vignette above it are an affine map of the colour, so the shader applies them to
- *       the disc's own colour, which is exactly the result of drawing the disc under them;</li>
+ *       sub-pixel position). The glow and vignette above it are an affine map of the color, so the shader applies them to
+ *       the disc's own color, which is exactly the result of drawing the disc under them;</li>
  *   <li>{@code scene_cone_glow}: a radial glow (Viridian's slime glow and fog), the stepped glow's nested ellipses averaged
  *       into one smooth falloff, its alpha dithered with blue noise;</li>
  *   <li>{@code scene_simple_bg} and {@code scene_simple_mote}: the Simple scenes ({@link SimpleScenes}) - a backdrop of base
@@ -185,7 +185,7 @@ public final class SceneShaders {
 
     // ---- elements -----------------------------------------------------------------------------------------------------
 
-    /** A run of textured quads (x0 y0 x1 y1 u0 v0 u1 v1 colour) in one pose, submitted as one element. */
+    /** A run of textured quads (x0 y0 x1 y1 u0 v0 u1 v1 color) in one pose, submitted as one element. */
     static final class Quads implements GuiElementRenderState {
         private final RenderPipeline pipeline;
         private final TextureSetup tex;
@@ -296,7 +296,7 @@ public final class SceneShaders {
 
     /**
      * A {@code n} x {@code n} tileable blue-noise threshold map by Ulichney's void-and-cluster (Gaussian energy, sigma 1.5,
-     * toroidal): every value 0..255 equally often, neighbours as different as possible, so dithering with it adds no visible
+     * toroidal): every value 0..255 equally often, neighbors as different as possible, so dithering with it adds no visible
      * pattern. About 30 ms once.
      */
     static byte[] blueNoise(int n, long seed) {

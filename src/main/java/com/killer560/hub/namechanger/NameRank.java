@@ -48,7 +48,7 @@ public final class NameRank {
         }
     }
 
-    /** The 16 chat colours the quick-colour button steps through, after "the rank's own". */
+    /** The 16 chat colors the quick-color button steps through, after "the rank's own". */
     public static final String COLOR_CODES = "0123456789abcdef";
 
     public static final int MAX_TEXT = 12;
@@ -56,7 +56,7 @@ public final class NameRank {
     private NameRank() {
     }
 
-    /** What a custom rank's text may hold: no brackets (they are added) and no colour/format markers. */
+    /** What a custom rank's text may hold: no brackets (they are added) and no color/format markers. */
     public static String cleanText(String s) {
         if (s == null) {
             return "";
@@ -100,7 +100,7 @@ public final class NameRank {
         int pickedMain = cfg.getOwnRankColor();
         int pickedPlus = cfg.getOwnRankPlusColor();
         char main = pickedMain != NameColor.NONE ? NameColor.codeFor(pickedMain) : p.main;
-        // A custom rank's plus follows its colour unless picked; a Hypixel rank's plus keeps its own colour.
+        // A custom rank's plus follows its color unless picked; a Hypixel rank's plus keeps its own color.
         char plus = pickedPlus != NameColor.NONE ? NameColor.codeFor(pickedPlus) : (p == Preset.CUSTOM ? main : p.plus);
         StringBuilder sb = new StringBuilder();
         sb.append('§').append(main).append('[').append(text);

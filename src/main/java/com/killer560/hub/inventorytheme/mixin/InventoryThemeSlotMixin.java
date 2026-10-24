@@ -35,7 +35,7 @@ public abstract class InventoryThemeSlotMixin {
         InventoryThemeFeature.drawSlotBackdrop(graphics, self, slot);
     }
 
-    /** An EMPTY slot with a placeholder icon (the armour slots' helmet/chestplate/leggings/boots outlines, the offhand's
+    /** An EMPTY slot with a placeholder icon (the armor slots' helmet/chestplate/leggings/boots outlines, the offhand's
      *  shield) never reaches {@code isFake}: {@code extractSlot} draws the icon with {@code blitSprite} and returns
      *  (javap, 26.1.2 and 26.2 alike), so those slots had no square or lines at all - found 2026-10-07 by testkit 475,
      *  with nothing worn. The backdrop goes in right before the {@code getNoItemIcon} call instead, only when there IS
@@ -59,7 +59,7 @@ public abstract class InventoryThemeSlotMixin {
 
     /** killer560: "remove the offhand slot ... for now." A HEAD-cancel of the WHOLE method, same narrow
      *  single-slot scope {@code TerminalSolverSlotMixin}/{@code StorageOverlaySlotMixin} use for their
-     *  own per-slot hides - cancelling here also skips {@link #killer560smod$drawSlotBackdrop} above
+     *  own per-slot hides - canceling here also skips {@link #killer560smod$drawSlotBackdrop} above
      *  (it's later in the same method), so no orphan backdrop square is left behind either. The slot
      *  itself is untouched - still fully functional, just not drawn - matching this feature's
      *  visual-re-skin-only, never-touch-mechanics rule. */

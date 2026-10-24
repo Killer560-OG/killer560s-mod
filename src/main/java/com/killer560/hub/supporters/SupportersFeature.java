@@ -29,7 +29,7 @@ import java.util.function.BiConsumer;
  * you have set your own name in Name Changer, Name Changer's own-name rewrite wins on your own screen - see
  * {@link #isSelfOverridden}. This does NOT suppress your own scale; only the name is overridable.
  * <p>
- * A resolved entry's display text is pre-built (colourised, slur-checked) once per fetch in {@link #apply},
+ * A resolved entry's display text is pre-built (colorized, slur-checked) once per fetch in {@link #apply},
  * not per render - the hot paths ({@link #displayNameFor}/{@link #scaleFor}, called from the nametag/tab-list/
  * scale mixins every frame) are a single map lookup plus a couple of field reads, no allocation beyond the
  * one {@link Component#literal} wrapper needed to hand back a {@link Component}.
@@ -94,7 +94,7 @@ public final class SupportersFeature {
             }
         }
         byUuid = Map.copyOf(map);
-        // Wave/Pulse names are recoloured where text is drawn (NameAnimation), recognised by these painted texts.
+        // Wave/Pulse names are recolored where text is drawn (NameAnimation), recognized by these painted texts.
         com.killer560.hub.namechanger.NameAnimation.setShared(animated);
         if (persist) {
             SupportersCache.save(version, entries);
@@ -154,8 +154,8 @@ public final class SupportersFeature {
         return r == null ? null : r.mob();
     }
 
-    /** The first and last letter colours of {@code id}'s shared name (their fade's ends, 0xRRGGBB) for a shared
-     *  trail's Name Fade, or {@code null} when their name has no colours. */
+    /** The first and last letter colors of {@code id}'s shared name (their fade's ends, 0xRRGGBB) for a shared
+     *  trail's Name Fade, or {@code null} when their name has no colors. */
     public static int[] nameFadeEndsFor(UUID id) {
         Resolved r = id == null ? null : byUuid.get(id);
         return r == null ? null : r.fadeEnds();
@@ -254,7 +254,7 @@ public final class SupportersFeature {
     }
 
     /** The text painted for one entry: its {@code &} codes as {@code §}, and when the supporter shared a fade or letter
-     *  colours ({@link SupporterEntry#colors}), each letter in its own true colour exactly as on their own screen. */
+     *  colors ({@link SupporterEntry#colors}), each letter in its own true color exactly as on their own screen. */
     static String styled(SupporterEntry e) {
         String text = colorize(e.rawName());
         int[] colors = e.colors();
@@ -265,8 +265,8 @@ public final class SupportersFeature {
                 i -> i < colors.length ? 0xFF000000 | colors[i] : NameColor.NONE);
     }
 
-    /** {@code &} + a vanilla colour/format code -> {@code §} + that code (same convention Name Changer's own
-     *  colour input uses) - a supporter's stored name travels as plain text with {@code &} codes
+    /** {@code &} + a vanilla color/format code -> {@code §} + that code (same convention Name Changer's own
+     *  color input uses) - a supporter's stored name travels as plain text with {@code &} codes
      *  ({@code SUPPORTERS-CONTRACT.md}), never raw {@code §}. */
     public static String colorize(String s) {
         if (s.indexOf('&') < 0) {

@@ -23,7 +23,7 @@ import com.killer560.hub.compat.McCompat;
  *
  * <p>Laid out the way Skyblock's own storage menus are - a grid of real item icons in a bordered panel, hover
  * for the name, click to take one - rather than as a list of labels. That matters more than looks: the point of
- * practising in here is muscle memory, and picking a Hyperion out of a grid by its icon is the same action as
+ * practicing in here is muscle memory, and picking a Hyperion out of a grid by its icon is the same action as
  * picking it out of a Skyblock menu, while reading "hyperion" off a list of words is not.
  *
  * <p>The items themselves still come from {@link SimItems}, which owns the one table of what exists and what
@@ -158,13 +158,13 @@ public final class SimItemsScreen extends Screen implements MenuThemedScreen {
         for (int i = 0; i < entries.size(); i++) {
             int cx = gridX + (i % COLUMNS) * (CELL + PAD);
             int cy = gridY + (i / COLUMNS) * (CELL + PAD);
-            // Centred in the cell rather than pinned to a corner - an item icon is 16px.
+            // Centered in the cell rather than pinned to a corner - an item icon is 16px.
             g.item(icons.get(i), cx + (CELL - 16) / 2, cy + (CELL - 16) / 2);
         }
         ScreenChrome.centered(g, "Give me everything", panelX + panelW / 2, allY + 5, overAll ? MenuStyle.OR_HOVER : MenuStyle.OR);
 
         // The name under the grid rather than in a floating tooltip: the grid is small and a tooltip would
-        // cover the neighbouring items you are choosing between.
+        // cover the neighboring items you are choosing between.
         String label = hovered >= 0 && hovered < entries.size()
                 ? entries.get(hovered).displayName()
                 : "Click an item to take one";

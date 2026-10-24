@@ -78,7 +78,7 @@ public final class DvdFeature {
         int frameIndex;
         long lastFrameChangeAtMs;
 
-        /** The entry's colour setting the current colour was last taken from, so a change in the tab shows at once. */
+        /** The entry's color setting the current color was last taken from, so a change in the tab shows at once. */
         String baseColorHex;
         /** Text width measured once per text, not once per frame. */
         String measuredText;
@@ -308,7 +308,7 @@ public final class DvdFeature {
         float dt = Math.min(0.25f, (now - rt.lastUpdateMs) / 1000f);
         rt.lastUpdateMs = now;
 
-        // A new colour picked in the tab replaces the box's current (possibly wall-hit) colour at once.
+        // A new color picked in the tab replaces the box's current (possibly wall-hit) color at once.
         if (!e.textColorHex.equals(rt.baseColorHex)) {
             rt.baseColorHex = e.textColorHex;
             rt.currentColor = e.textColor();

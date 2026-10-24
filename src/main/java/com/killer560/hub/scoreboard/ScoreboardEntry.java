@@ -1125,7 +1125,7 @@ public enum ScoreboardEntry {
         return out;
     }
 
-    /** Word-wraps legacy text to ~40 visible characters, carrying the last colour code onto each new line. */
+    /** Word-wraps legacy text to ~40 visible characters, carrying the last color code onto each new line. */
     static List<String> wrap(String text, String baseColor) {
         List<String> out = new ArrayList<>();
         if (text == null || text.isEmpty()) {

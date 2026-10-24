@@ -37,7 +37,7 @@ public final class SimPauseEntry {
     }
 
     /**
-     * The y just under the lowest button in the centre column, or the old bottom-of-screen spot when the
+     * The y just under the lowest button in the center column, or the old bottom-of-screen spot when the
      * menu has no buttons (F3+Esc opens it without them).
      */
     private static int belowVanillaColumn(Screen screen, AbstractWidget own) {
@@ -68,7 +68,7 @@ public final class SimPauseEntry {
         // killer560 (2026-10-04): it "sits alone at the very bottom of the Game Menu screen, far below the
         // vanilla button column". It was pinned to screen.height - 46 whatever the column did. The column's
         // positions are read off the screen's own widgets now, so it lands 4 px under Save and Quit (or
-        // whatever is lowest in the centre column) and moves with it at any GUI scale.
+        // whatever is lowest in the center column) and moves with it at any GUI scale.
         int width = WIDTH;
         int x = screen.width / 2 - width / 2;
         int y = belowVanillaColumn(screen, ownerScreen.get() == screen ? ownButton.get() : null);

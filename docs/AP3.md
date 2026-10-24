@@ -14,7 +14,7 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   Align and Auto I4. `ActionGate` does not help — `tryAct` returns immediately and the caller sends
   synchronously, so it arbitrates who acts and never changes ordering.
 - An automated click must aim at a point on the block's real **surface**, from the eye, not at
-  `Vec3.atCenterOf(pos)` with a fixed `Direction`. The centre is a point *inside* the block and no raycast
+  `Vec3.atCenterOf(pos)` with a fixed `Direction`. The center is a point *inside* the block and no raycast
   produces it; GrimAC raised `PositionPlace` on every such click even at a distance the server accepted
   (2026-09-28). Use `util/BlockHits.surface`, and prefer skipping a tick to sending an impossible hit. Entity
   clicks are the same: aim at a point on the entity's box, which Arrow Align and Terminal Aura already do.
@@ -34,7 +34,7 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   floor that charges the stop sits at 4.41 ticks against the planner's 4.52 (measured 2026-09-28), and 3 ticks
   is impossible for 72% of aligns at any tolerance. Tolerance is nearly free: Caleb's 3e-8 costs 0.09 of a tick
   over 1e-4. Do not accept a "make the align faster" task without re-deriving that floor first.
-- **A node's angle was being quantised on every save.** `Ap3Store.writeNode` wrote yaw and pitch through
+- **A node's angle was being quantized on every save.** `Ap3Store.writeNode` wrote yaw and pitch through
   `round(v, 1)`, so a restart moved every node's angle to the nearest tenth of a degree and the loss compounded
   (killer560, 2026-09-29: "it feels like the angles and stuff gets truncated whenever I close and restart").
   `Ap3EditScreen.fmt` did the same at two decimals, and it is read back on Save, so opening an editor and

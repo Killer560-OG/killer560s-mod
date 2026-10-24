@@ -24,7 +24,7 @@ import java.util.SequencedSet;
  *
  * <p>A sim item was a vanilla stack with a plain white name on it, so the tooltip read "Superboom TNT" and
  * under it "TNT". That is not the item he uses on Hypixel, and the tooltip is not decoration: the ability line
- * and the mana cost are what you check when you are learning what a class can do, and the rarity colour is how
+ * and the mana cost are what you check when you are learning what a class can do, and the rarity color is how
  * you tell two items apart in a hotbar at a glance.
  *
  * <p><b>What is here and what is deliberately not.</b> These are the ability blocks and the rarity lines, which
@@ -50,7 +50,7 @@ public final class SimItemLore {
     }
 
     /**
-     * Name colour and lore per Skyblock id.
+     * Name color and lore per Skyblock id.
      *
      * <p>Keyed on the id in CUSTOM_DATA rather than on the sim's own enum, so anything that hands out an item -
      * the picker, a loadout, a secret drop, a wither key - gets the same tooltip without knowing about this
@@ -94,7 +94,7 @@ public final class SimItemLore {
         Map.entry("TERMINATOR", new String[]{
             "§6Terminator",
             // THE LINE THREE AUTOS LOOK FOR. killer560 (2026-10-01): "the auto puzzles none were working except
-            // auto blaze wanted to look towards the middle."
+            // auto blaze wanted to look toward the middle."
             //
             // That is this line's absence, exactly. Auto Creeper Beams, Auto Ice Path and Auto Blaze all gate
             // their shot on AutoPuzzleUtil.isShortbow, which is a lore search for "Shortbow: Instantly shoots!"
@@ -200,7 +200,7 @@ public final class SimItemLore {
     /**
      * Puts the Skyblock name and lore on a stack.
      *
-     * <p>The first line of the table is the NAME, which is where the rarity colour lives - an item's colour is
+     * <p>The first line of the table is the NAME, which is where the rarity color lives - an item's color is
      * how you find it in a hotbar, and a white "Hyperion" is not a Hyperion. Unknown ids are left alone rather
      * than given an invented tooltip.
      *

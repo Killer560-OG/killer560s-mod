@@ -20,7 +20,7 @@ import java.util.function.Consumer;
  * {@link #SYNC_HELD_KARP_MAX} rooms it is solved exactly at once (Held-Karp). Past that {@link #order} answers at once with
  * the nearest-room-next order improved by moving rooms, and a worker thread keeps searching: Held-Karp up to
  * {@link #HELD_KARP_MAX}, else iterated local search and then a depth-first branch and bound to the end. The bound is the
- * Held-Karp Lagrangian one (a minimum spanning tree of what is left, its degrees pushed towards a path's by subgradient
+ * Held-Karp Lagrangian one (a minimum spanning tree of what is left, its degrees pushed toward a path's by subgradient
  * steps), and a bounded table of (rooms done, last room) to the cheapest way seen there cuts every repeat. A branch and
  * bound that runs out is a proof: no order is cheaper. Each better order is published as it is found; the caller reads
  * the best so far at every room boundary.
@@ -799,7 +799,7 @@ public final class LeastWarpSearch {
             return bestL;
         }
 
-        /** Prim over verts[0..m) with the penalised costs; fills deg[], returns the tree less the penalties. */
+        /** Prim over verts[0..m) with the penalized costs; fills deg[], returns the tree less the penalties. */
         private double mst(int m, int cur, double[] pi) {
             for (int q = 0; q < m; q++) {
                 inTree[q] = false;

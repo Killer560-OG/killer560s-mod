@@ -12,22 +12,22 @@ import java.util.Locale;
 
 /**
  * Animated faded names (killer560, 2026-10-13: "if someone has our custom name with a fade color, they can have it
- * pulsate and kind of do a wave ... where the color shifts right"). A name with a fade or letter colours can be
- * {@link Mode#WAVE} (the colours flow to the right along the name, looping on a mirrored copy of the fade so there is
+ * pulsate and kind of do a wave ... where the color shifts right"). A name with a fade or letter colors can be
+ * {@link Mode#WAVE} (the colors flow to the right along the name, looping on a mirrored copy of the fade so there is
  * no seam) or {@link Mode#PULSE} (the whole name dims and brightens), at a {@link #MIN_SPEED}-{@link #MAX_SPEED}
  * speed. Your own setting lives in {@link NameChangerConfig}; another player's arrives with their supporter entry.
  * <p>
  * <b>Where it is applied.</b> Not where names are built, but where text is drawn: {@code NameChangerFontMixin} passes
- * every {@code Font.prepareText} through {@link #animate} / {@link #iterate}. A painted name is recognised by its exact
- * letters in their exact base colours (every glyph of the run must match, so ordinary text cannot), and only those
- * glyphs are recoloured for the current time. So chat lines baked minutes ago, the tab list's cached rows, nametags,
+ * every {@code Font.prepareText} through {@link #animate} / {@link #iterate}. A painted name is recognized by its exact
+ * letters in their exact base colors (every glyph of the run must match, so ordinary text cannot), and only those
+ * glyphs are recolored for the current time. So chat lines baked minutes ago, the tab list's cached rows, nametags,
  * the menu preview and anything else that paints the name all animate, without one hook per place.
  * <p>
  * Cost: with no animated name known, {@link #animate} is one volatile read. Otherwise each prepared text is first
- * walked by a probe that tests one colour per change of style and stops at a glyph in a registered starting colour; a
+ * walked by a probe that tests one color per change of style and stops at a glyph in a registered starting color; a
  * text without one is returned as it was (nametag perf, 2026-10-13: buffering every glyph of every text first was 70 us
  * a frame in a busy hub, testkit 975). Only a candidate is walked again into a reused per-thread buffer, and only a
- * text that contains an animated name allocates (its copy and one style per animated letter). The colour is
+ * text that contains an animated name allocates (its copy and one style per animated letter). The color is
  * computed from the wall clock each frame, so it is smooth at any frame rate and two clients show roughly the same
  * phase.
  */
@@ -76,11 +76,11 @@ public final class NameAnimation {
     public static final double MAX_SPEED = 3.0;
     public static final double SPEED_STEP = 0.25;
     public static final double DEFAULT_SPEED = 1.0;
-    /** Wave at 1x: letters per second the colours move (250 ms per letter). */
+    /** Wave at 1x: letters per second the colors move (250 ms per letter). */
     static final double WAVE_LETTERS_PER_SEC = 4.0;
     /** Pulse at 1x: seconds per bright-dim-bright cycle. */
     static final double PULSE_PERIOD_SEC = 2.0;
-    /** Pulse: the darkest point, as a fraction of the name's own colours. */
+    /** Pulse: the darkest point, as a fraction of the name's own colors. */
     static final double PULSE_MIN = 0.55;
 
     /** {@code speed} snapped onto the {@link #SPEED_STEP} grid inside the bounds; {@link #DEFAULT_SPEED} for NaN. */
@@ -101,7 +101,7 @@ public final class NameAnimation {
 
     // ---- registry ---------------------------------------------------------------------------------------------------
 
-    /** One animated name: its letters (code points) and their base colours, plus the wave's looping palette. */
+    /** One animated name: its letters (code points) and their base colors, plus the wave's looping palette. */
     private static final class Entry {
         final int[] cps;
         final int[] rgb;
@@ -150,7 +150,7 @@ public final class NameAnimation {
     private static final Entry[] NONE = new Entry[0];
 
     private static volatile Entry[] entries = NONE;
-    /** Sorted distinct first-letter colours of {@link #entries}: the quick reject. */
+    /** Sorted distinct first-letter colors of {@link #entries}: the quick reject. */
     private static volatile int[] starts = new int[0];
     private static volatile Entry ownEntry;
     private static volatile List<Entry> shared = List.of();
@@ -176,7 +176,7 @@ public final class NameAnimation {
 
     /**
      * Replaces every other player's animated name (from the supporters list): each item is a painted display text
-     * ({@code §} codes, hex escapes included) and its animation. Names without a colour on every letter are skipped.
+     * ({@code §} codes, hex escapes included) and its animation. Names without a color on every letter are skipped.
      */
     public static void setShared(List<Object[]> textAndSpec) {
         List<Entry> out = new ArrayList<>();
@@ -254,7 +254,7 @@ public final class NameAnimation {
 
     // ---- the Font hook ----------------------------------------------------------------------------------------------
 
-    /** {@code seq} with every animated name in it recoloured for now, or {@code seq} itself when there is none. */
+    /** {@code seq} with every animated name in it recolored for now, or {@code seq} itself when there is none. */
     public static FormattedCharSequence animate(FormattedCharSequence seq) {
         if (seq == null) {
             return null;
@@ -269,8 +269,8 @@ public final class NameAnimation {
         }
         b.busy = true;
         try {
-            // Fast reject first: nearly no text holds a glyph in a registered starting colour, and finding that out
-            // needs no buffer - one colour test per change of Style, stopping at the first hit.
+            // Fast reject first: nearly no text holds a glyph in a registered starting color, and finding that out
+            // needs no buffer - one color test per change of Style, stopping at the first hit.
             int[] startCols = starts;
             if (!b.probe.anyStart(seq, startCols)) {
                 return seq;
@@ -299,7 +299,7 @@ public final class NameAnimation {
         }
     }
 
-    /** {@link NameColor#iterateFormatted} with every animated name recoloured for now (the String path of the Font). */
+    /** {@link NameColor#iterateFormatted} with every animated name recolored for now (the String path of the Font). */
     public static boolean iterate(String text, Style base, FormattedCharSink sink) {
         Entry[] reg = registry();
         if (reg.length == 0 || text == null) {
@@ -337,7 +337,7 @@ public final class NameAnimation {
         return NameColor.iterateFormatted(text, base, sink);
     }
 
-    /** {@code text}'s glyph colours for now (0xRRGGBB, -1 for none): what the Font hook paints. For the testkit. */
+    /** {@code text}'s glyph colors for now (0xRRGGBB, -1 for none): what the Font hook paints. For the testkit. */
     public static int[] coloursNow(FormattedCharSequence text) {
         List<Integer> out = new ArrayList<>();
         animate(text).accept((pos, style, cp) -> {
@@ -350,7 +350,7 @@ public final class NameAnimation {
 
     private static final ThreadLocal<Buf> BUF = ThreadLocal.withInitial(Buf::new);
 
-    /** Does a text hold any glyph whose colour is a registered starting colour? Stops at the first one. */
+    /** Does a text hold any glyph whose color is a registered starting color? Stops at the first one. */
     private static final class Probe implements FormattedCharSink {
         private int[] startColours;
         private Style lastStyle;
@@ -430,7 +430,7 @@ public final class NameAnimation {
             return true;
         }
 
-        /** Recolours every registered name found in the buffer. True when at least one was. */
+        /** Recolors every registered name found in the buffer. True when at least one was. */
         boolean recolour(Entry[] reg, double tSec) {
             boolean any = false;
             int i = 0;
@@ -473,7 +473,7 @@ public final class NameAnimation {
         }
     }
 
-    // ---- colour maths -----------------------------------------------------------------------------------------------
+    // ---- color math -----------------------------------------------------------------------------------------------
 
     static int lerp(int a, int b, double t) {
         int r = (int) Math.round(((a >> 16) & 255) + (((b >> 16) & 255) - ((a >> 16) & 255)) * t);

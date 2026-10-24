@@ -27,8 +27,8 @@ import com.killer560.hub.util.ModLog;
  * <p>They do not need capturing, because this mod already ships them. {@link RoomDatabase} holds 140 rooms'
  * worth of secret positions - chests, bats, items, wither essence and redstone keys - together with the
  * relative-to-absolute transform the secret waypoints feature already uses. Using that same transform is the
- * point rather than a shortcut: if the sim placed secrets by its own maths, a waypoint could sit somewhere the
- * secret is not, and the waypoints are what he is practising against.
+ * point rather than a shortcut: if the sim placed secrets by its own math, a waypoint could sit somewhere the
+ * secret is not, and the waypoints are what he is practicing against.
  *
  * <p><b>What is approximated.</b> Chests and bats are the real thing. An item secret is a dropped item, which
  * is faithful. A wither essence is Hypixel's own essence skull (see WITHER_MARKER); a redstone key is Hypixel's key
@@ -61,7 +61,7 @@ public final class SimSecrets {
      * state, not a skin), so the head there is rewritten.
      *
      * <p><b>Why a player head and not the black {@code wither_skeleton_skull} it was until 2026-10-05.</b> Every
-     * client feature recognises an essence by that profile, as it must on Hypixel - Secret Aura, the secret
+     * client feature recognizes an essence by that profile, as it must on Hypixel - Secret Aura, the secret
      * hitboxes, Secret Sound, and Auto Routes' await (which counts {@code PLAYER_HEAD} clicks). A profile-less
      * wither skeleton skull was invisible to all of them, so Secret Aura carried a sim-only branch and an Auto
      * Routes await never counted a sim essence. The sim now sends what Hypixel sends and nothing special-cases it.
@@ -130,7 +130,7 @@ public final class SimSecrets {
      *
      * <p>Built through {@code ResolvableProfile.CODEC} because the patch has no public factory: a resolved profile
      * is encoded, the patch's {@code texture} field added, and decoded. If that ever fails the plain profile is
-     * used - the id is what every feature reads; only the colour would be lost.
+     * used - the id is what every feature reads; only the color would be lost.
      */
     static net.minecraft.world.item.component.ResolvableProfile essenceProfile() {
         if (essenceProfile != null) {
@@ -284,7 +284,7 @@ public final class SimSecrets {
      *
      * <p>Public and shared, because {@link SimRoomIndex} hands the same corner to Secret Waypoints. If the
      * waypoints computed their own, a waypoint could be drawn where the secret is not - and the waypoints are
-     * the thing being practised against.
+     * the thing being practiced against.
      *
      * @param gridX the 11x11 grid coordinates of the room's top-left cell
      * @return {@code {clayX, clayZ}}
@@ -378,7 +378,7 @@ public final class SimSecrets {
         return PLACED_CHESTS.size() - new java.util.HashSet<>(PLACED_CHESTS).size();
     }
 
-    /** Every chest this floor placed, so the build can check afterwards that they are all still there. */
+    /** Every chest this floor placed, so the build can check afterward that they are all still there. */
     /** Secret chests skipped because they landed in a carved doorway. Reported by the build. */
     public static int chestsInDoorways;
 
@@ -410,7 +410,7 @@ public final class SimSecrets {
      * floor. Three of Supertall's chests sit at y 142, two above the ceiling of the capture, and a build
      * reported "only 30 of 33 secret chest(s) survived - the rest were replaced by void_air" at exactly the
      * floor's top plus two. Sixty-four more secrets across the library sit below y 60 and were going the same
-     * way, downwards.
+     * way, downward.
      *
      * <p>There is nothing to place them against: the geometry around those positions was never captured. A
      * secret floating in the void is worse than a missing one, because the room's count still promises it.

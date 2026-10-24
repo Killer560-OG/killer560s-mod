@@ -97,7 +97,7 @@ public final class HudElementRegistry {
         int[] pos = cfg.savedPosition(element.id());
         if (pos == null) {
             // Never dragged. Defaults are NOT multiplied: several are computed from the live screen size already (the
-            // Storage Overlay centres itself), and they are clamped on screen here anyway. The memo answers an
+            // Storage Overlay centers itself), and they are clamped on screen here anyway. The memo answers an
             // unchanged default without the int[] getPosition built for it every frame (one per never-moved element
             // per frame until 2026-10-15); it allocates only on a miss.
             try {
@@ -110,7 +110,7 @@ public final class HudElementRegistry {
             // Auto Scale (2026-10-05): a saved position is in BASELINE GUI pixels - the units of his 2560x1440 /
             // GUI 3 monitor, where it was dragged - and is drawn at that times the factor, so the layout keeps
             // its relative placement and every element stays the same fraction of the window. Where the factor
-            // is not 1 the scaled box is clamped fully on screen (memoised, so no per-frame width() calls):
+            // is not 1 the scaled box is clamped fully on screen (memoized, so no per-frame width() calls):
             // positions placed on a different screen shape must not end up hanging off an edge. At factor 1 the
             // old rule stands - a deliberate half-off-screen placement is his to keep.
             float f = AutoScale.current();
@@ -139,8 +139,8 @@ public final class HudElementRegistry {
     /**
      * The saved value that draws back at exactly {@code screen} ({@code Math.round(saved * f) == screen}) when one
      * exists, else the nearest. Below factor 1 plain {@code round(screen / f)} always round-trips; above it not every
-     * screen pixel is reachable and plain rounding could land one pixel off a neighbour it was snapped to in the HUD
-     * editor (2026-10-07), so the neighbours of the rounded value are tried too.
+     * screen pixel is reachable and plain rounding could land one pixel off a neighbor it was snapped to in the HUD
+     * editor (2026-10-07), so the neighbors of the rounded value are tried too.
      */
     static int toSaved(int screen, float f) {
         int s = Math.round(screen / f);

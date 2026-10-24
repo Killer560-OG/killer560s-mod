@@ -356,8 +356,8 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
 
     /**
      * One chip: a toggle in a row, drawn as a {@link SettingsButtonWidget} box. Its message is the bare label, so a
-     * test can find it by name; {@link #row()} says which row it is in. The colour is added only when drawing: §6 when
-     * chosen, §8 when the row is switched off, as the mod's tabs colour a chosen or disabled value.
+     * test can find it by name; {@link #row()} says which row it is in. The color is added only when drawing: §6 when
+     * chosen, §8 when the row is switched off, as the mod's tabs color a chosen or disabled value.
      */
     public static final class Chip extends AbstractWidget {
         private final String label;

@@ -31,7 +31,7 @@ import com.killer560.hub.compat.McCompat;
  * dropped rather than sent late at whatever you are looking at now. Each terminal is clicked at most once
  * per world; the marker entity disappears when a terminal activates, so a reopened one is a new entity.
  * <p>
- * Terminals are marker armour stands and don't reliably appear in {@code Minecraft#hitResult}, so
+ * Terminals are marker armor stands and don't reliably appear in {@code Minecraft#hitResult}, so
  * "looking at" is resolved by {@link TerminalStands#raycast} against their own bounding boxes rather than
  * by reading the client's crosshair target.
  */

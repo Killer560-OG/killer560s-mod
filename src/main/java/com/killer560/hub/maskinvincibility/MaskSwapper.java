@@ -41,7 +41,7 @@ import com.killer560.hub.compat.McCompat;
  * same anti-spam rules. This is the single implementation both call: {@link #request} takes a target and a
  * requester label, refuses while another swap is running, and everything below - the gate calls, the inter-step
  * delay, the "don't retry, mark it missing" rule - applies once, for whoever asked. {@code I4AutoMask} has
- * already dropped its own copy of this flow in favour of this class; it is still not this agent's file.
+ * already dropped its own copy of this flow in favor of this class; it is still not this agent's file.
  * <p>
  * <b>The rod.</b> A Phoenix pet cannot be equipped from {@code /stats}, and {@code /pets} is another menu and
  * another command. killer560's own route is a Hypixel <i>Autopet rule</i> keyed to holding a rod ("throw a rod

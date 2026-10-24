@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
  * Ability numbers, all from hypixelskyblock.minecraft.wiki/w/Ragnarock ("RIGHT CLICK - Mana Cost: 500 -
  * Cooldown: 20s - Begin a channel. After not taking damage for 3s, gain 1.5x this weapon's Strength for 10s"):
  * <ul>
- * <li>{@link #CHANNEL_MS} 3000 - the wind-up. Taking damage inside it produces "Ragnarock was cancelled due
+ * <li>{@link #CHANNEL_MS} 3000 - the wind-up. Taking damage inside it produces "Ragnarock was canceled due
  * to (being hit|taking damage)!" and no buff.
  * <li>{@link #BUFF_MS} 10000 - the strength buff, starting when the channel completes.
  * <li>Cooldown 20 s from the cast, configurable ({@link RagAxeConfig#getCooldownSeconds()}) because the client
@@ -108,7 +108,7 @@ public final class RagAxeState {
     static void onChat(String plain) {
         RagAxeConfig cfg = RagAxeConfig.getInstance();
         // Deliberately NOT gated on isCancelAlert(): that setting only controls the title/sound. The state
-        // clear has to happen either way, or a cancelled rag would still run the buff timer down and still
+        // clear has to happen either way, or a canceled rag would still run the buff timer down and still
         // announce "Gained strength" (and party-announce it) 3 s later for strength that was never gained.
         if (!cfg.isEnabled()) {
             return;
@@ -135,7 +135,7 @@ public final class RagAxeState {
         }
         long now = System.currentTimeMillis();
         if (!strengthSent && buffStartMs > 0 && now >= buffStartMs) {
-            // Announced when the channel actually completes, so a cancelled rag never claims strength.
+            // Announced when the channel actually completes, so a canceled rag never claims strength.
             strengthSent = true;
             if (cfg.isStrengthMessage()) {
                 ModChat.send("Ragnarock", ModChat.text("Gained strength: "),

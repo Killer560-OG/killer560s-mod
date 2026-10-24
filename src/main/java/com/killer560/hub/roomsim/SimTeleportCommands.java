@@ -157,9 +157,9 @@ public final class SimTeleportCommands {
      * Puts him in the named room on the current floor.
      *
      * <p>The landing spot is not computed here. {@link SimBuilder#snapPlayerTo} already answers "somewhere in
-     * this room he can actually stand" - it scans the cell's centre column from the bottom of the world up for a
+     * this room he can actually stand" - it scans the cell's center column from the bottom of the world up for a
      * solid block with two blocks of air on it, which is the same test that decides whether an etherwarp is
-     * legal - and it is the behaviour he already gets when a single room is built. A second copy of that scan
+     * legal - and it is the behavior he already gets when a single room is built. A second copy of that scan
      * would be a second place for the three bugs it has already had (the roof, the basement floor, the negative
      * y sentinel) to come back.
      *
@@ -196,7 +196,7 @@ public final class SimTeleportCommands {
         // room it placed there - so a multi-tile room lands in the same corner it lands in when it is built on
         // its own, rather than in whichever tile a second definition of "the middle" happened to pick.
         // The ROOM is handed over too, so /goto lands where that room wants him rather than in its middle -
-        // one block in from the doorway for a blaze shaft, four off the centre column in Creeper Beams. The
+        // one block in from the doorway for a blaze shaft, four off the center column in Creeper Beams. The
         // same table a single-room build uses, so the two cannot drift.
         //
         // ON THE SERVER THREAD. snapPlayerTo scans the room's columns in the ServerLevel, and this command runs on
@@ -262,7 +262,7 @@ public final class SimTeleportCommands {
     // ---------------------------------------------------------------- /c
 
     /**
-     * Moves him {@code blocks} along the direction he is looking. Negative goes backwards.
+     * Moves him {@code blocks} along the direction he is looking. Negative goes backward.
      *
      * <p>"Clip" is taken at its word: no collision walk, so it goes through whatever is in the way. That is the
      * point of it in a practice world - reaching the other side of a wall to set up a jump is exactly the thing

@@ -183,7 +183,7 @@ public final class BlazeSolverFeature {
         LOGGER.info("[BlazeSolver] {}: blazes={} order:{}", event, found.size(), order.length() == 0 ? " none" : order);
     }
 
-    /** Colour codes stripped before matching, the same way {@code AutoPuzzlesFeature} reads entity names -
+    /** Color codes stripped before matching, the same way {@code AutoPuzzlesFeature} reads entity names -
      *  a nametag that picks up formatting must not stop matching the way the cosmetic glyph did. */
     private static String plainName(Entity entity) {
         String raw = entity.getName().getString();

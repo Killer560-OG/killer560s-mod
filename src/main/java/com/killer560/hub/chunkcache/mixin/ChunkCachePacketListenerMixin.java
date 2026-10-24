@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * dropped in between (it happens on teleports), that lookup now finds the CACHED chunk, and vanilla would happily
  * re-enable lighting and mark sections dirty for a chunk nothing else considers loaded.
  * <p>
- * Cancelling it for a non-live chunk keeps the light engine's state exactly as it is without the Chunk Cache. When
+ * Canceling it for a non-live chunk keeps the light engine's state exactly as it is without the Chunk Cache. When
  * the feature is off this never fires at all.
  */
 @Mixin(ClientPacketListener.class)

@@ -53,7 +53,7 @@ import com.killer560.hub.compat.McCompat;
  * <h2>Scanning only while running</h2>
  * One scan on start, then one every {@link #RESCAN_INTERVAL_MS} <b>while running only</b>. Nothing scans while
  * idle, and this path never calls {@code BazaarApi.ensureAutoStarted()}, whose five-minute background loop is
- * the always-on behaviour that made the Auction House scan a performance complaint in the first place.
+ * the always-on behavior that made the Auction House scan a performance complaint in the first place.
  *
  * <h2>Starting and stopping</h2>
  * The configured bind starts it. Any key or mouse button he presses while it runs stops it, and the stop message names
@@ -247,7 +247,7 @@ public final class BazaarFlipFeature {
         }
     }
 
-    /** One chat line, colour-stripped. Every pattern here is anchored on the whole line. */
+    /** One chat line, color-stripped. Every pattern here is anchored on the whole line. */
     static void onChatLine(String line) {
         if (line.startsWith("[Bazaar Flip]")) {
             return; // this feature's own lines

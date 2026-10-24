@@ -22,15 +22,15 @@ import java.util.function.Supplier;
  * its own search.
  *
  * <p><b>Nodes.</b> The floor's landing blocks, thinned to one per bucket: for every {@code bucket x bucket}
- * square of columns and every height, the landing nearest the square's centre (its representative). A landing
+ * square of columns and every height, the landing nearest the square's center (its representative). A landing
  * is what {@link EtherSearch#etherwarpable} accepts, minus the landing blacklist, minus whatever
  * {@code landingOk} refuses (the dungeon's bounds, the sim's roofs). Columns {@link Fine} accepts (the game passes
- * the doorways and tile centre lines) keep every landing as its own node.
+ * the doorways and tile center lines) keep every landing as its own node.
  *
  * <p><b>Edges.</b> From a node, an edge to every representative within reach that {@link EtherSearch#aim}'s rule
  * reaches: a yaw/pitch is worked out, the real hop - that float yaw and pitch, the executor's look vector,
  * exactly {@code range} blocks - is cast, and only a hop seen to land on the block is an edge. So every hop of
- * every path is verified the way the old search verified it. A line to the top centre stopped early is refused
+ * every path is verified the way the old search verified it. A line to the top center stopped early is refused
  * without the other aim points (see fastAim and {@link #partialFrom}).
  *
  * <p><b>Why not the fan.</b> The old search moved along the rays of a 6 x 7 degree fan. Near the horizon a
@@ -113,7 +113,7 @@ public final class WarpGraph {
     public boolean timedOut;
     /** Nodes in the exact goal's aim set of the last search. */
     public int goalSetSize;
-    /** Nodes the backward search labelled in the last search. */
+    /** Nodes the backward search labeled in the last search. */
     public int labelled;
     /** Where the last plan's time went, nanoseconds: the start's expansion, the aim set, the backward labels. */
     public long nanosStart;
@@ -300,7 +300,7 @@ public final class WarpGraph {
                     && landingOk.ok(this, x, y, z);
         }
 
-        /** Every bucket representative of a chunk column: per bucket and height, the landing nearest its centre. */
+        /** Every bucket representative of a chunk column: per bucket and height, the landing nearest its center. */
         long[] scanReps(int cx, int cz) {
             int b = bucket;
             int x0 = cx << 4;
@@ -429,7 +429,7 @@ public final class WarpGraph {
         }
 
         /**
-         * {@link EtherSearch#aim}, cheaply refused when the straight line to the block's top centre is stopped
+         * {@link EtherSearch#aim}, cheaply refused when the straight line to the block's top center is stopped
          * well short of it: the other aim points are inside the same block, so a wall in the way of one is in the
          * way of all of them. Only a line stopped within two blocks of the target (a lip, a step, a railing) gets
          * the full eighteen-point aim. Sets the search's aimYaw/aimPitch.
@@ -930,7 +930,7 @@ public final class WarpGraph {
     }
 
     /**
-     * Whether the segment from the eye to the target block's centre passes through any of the widened boxes. The
+     * Whether the segment from the eye to the target block's center passes through any of the widened boxes. The
      * boxes are grown by {@link #BOX_REACH}, which covers the block's half-diagonal: every cast an aim makes runs
      * from the eye to a point inside the target block (or stops short of it), so it stays inside that cone.
      */
@@ -1429,7 +1429,7 @@ public final class WarpGraph {
     }
 
     /**
-     * The reverse edges, and breadth first BACKWARDS from every tile's click region over them: the exact fewest
+     * The reverse edges, and breadth first BACKWARD from every tile's click region over them: the exact fewest
      * warps from any node into that tile, which makes a room click's A* walk straight down its optimal paths.
      * Built when warming completes, so every node reachable from him has its edges.
      */
@@ -1530,7 +1530,7 @@ public final class WarpGraph {
         fieldsValid = true;
     }
 
-    /** Breadth first backwards from tile {@code t}'s nodes over the reverse edges: fewest warps into the tile. */
+    /** Breadth first backward from tile {@code t}'s nodes over the reverse edges: fewest warps into the tile. */
     private static byte[] tileField(int t, int n, int[] tileOfNode, int[] starts, int[] r, int[] queue) {
         byte[] f = new byte[n];
         Arrays.fill(f, (byte) NO_WAY);
@@ -1573,7 +1573,7 @@ public final class WarpGraph {
         public int tile = -1;
         /**
          * Not NaN: of the landings in the region reached in the FEWEST warps, the one nearest this point (x, z - the
-         * clicked tile's centre). Never a warp more for it. killer560 (2026-10-06): "the quadrant I click on it takes
+         * clicked tile's center). Never a warp more for it. killer560 (2026-10-06): "the quadrant I click on it takes
          * me essentially still in the hallway to that room" and "I want it to go as central and far into the square as
          * possible with the exact same etherwarps."
          */
@@ -1644,7 +1644,7 @@ public final class WarpGraph {
     /** The bound on total warps each node was pushed with (its f), for the preferred-landing search. */
     private int[] fW = new int[1024];
 
-    /** How long a click may spend, after it found its fewest warps, looking for the landing nearest the centre. */
+    /** How long a click may spend, after it found its fewest warps, looking for the landing nearest the center. */
     private static final long PREFER_NANOS = 5_000_000L;
     /** The last region search's landing, as the larger of its x and z offsets from the preferred point; or -1. */
     public int lastDepth = -1;
@@ -1996,7 +1996,7 @@ public final class WarpGraph {
         goalN = 0;
         int g = find(EtherSearch.pack(goal.x, goal.y, goal.z));
         if (g >= 0 && g < fieldNodes && fieldsValid && warmComplete) {
-            // The goal is a node itself (a doorway, a spot on a tile's centre line): its aim set IS its in-edges,
+            // The goal is a node itself (a doorway, a spot on a tile's center line): its aim set IS its in-edges,
             // worked out by the same aim, so read them rather than aim again.
             int n = 0;
             for (int k = revStart[g]; k < revStart[g + 1]; k++) {
@@ -2072,7 +2072,7 @@ public final class WarpGraph {
         return n;
     }
 
-    /** Labelled nodes after which an exact goal's backward search stops and the cell fields bound the rest. */
+    /** Labeled nodes after which an exact goal's backward search stops and the cell fields bound the rest. */
     public int labelBudget = 3000;
     private final byte[][] frontierField = new byte[36][];
     private int frontierN;
@@ -2151,8 +2151,8 @@ public final class WarpGraph {
 
     /**
      * Backward breadth first from the goal set over every known edge, layer by layer, until the layer that holds
-     * one of the start's own landings. Then {@code label} is the exact number of warps left from any labelled
-     * node and anything unlabelled needs at least {@code labelFloor}: the A* that follows only looks at nodes on
+     * one of the start's own landings. Then {@code label} is the exact number of warps left from any labeled
+     * node and anything unlabeled needs at least {@code labelFloor}: the A* that follows only looks at nodes on
      * fewest-warp paths. Needs the reverse edges, so only once the floor is warm.
      */
     private void backwardLabels(int base, int maxWarps) {
@@ -2218,12 +2218,12 @@ public final class WarpGraph {
             level++;
         }
         labelled = tail;
-        // Run dry without reaching him: nothing unlabelled can reach the goal at all.
+        // Run dry without reaching him: nothing unlabeled can reach the goal at all.
         labelFloor = reachedStart || budgetHit || level >= maxWarps + 1 ? level + 1 : Integer.MAX_VALUE;
         labels = true;
         if (budgetHit) {
             // Stopped early to save time: layer `level` (queue[head, tail)) is complete, and every path from an
-            // unlabelled node enters the goal's labelled ball through it. So warps(v -> goal) >= level + warps(v ->
+            // unlabeled node enters the goal's labeled ball through it. So warps(v -> goal) >= level + warps(v ->
             // that layer), and the second term is at least the cell field of the layer's cells.
             boolean[] seenCell = new boolean[tileFieldCount];
             boolean ok = true;
@@ -2262,7 +2262,7 @@ public final class WarpGraph {
         double gx = goal.x + 0.5;
         double gy = goal.y + 0.5;
         double gz = goal.z + 0.5;
-        // A tile click: ties among equally few warps go to the landing nearest the tile's centre, not the clicked
+        // A tile click: ties among equally few warps go to the landing nearest the tile's center, not the clicked
         // block (which is the tile's block nearest HIM, so on his side of the room - the doorway).
         boolean preferOn = region != null && !Double.isNaN(goal.preferX) && !Double.isNaN(goal.preferZ);
         if (preferOn) {
@@ -2407,7 +2407,7 @@ public final class WarpGraph {
             }
             if (bestU >= 0 && (fW[u] > bestW || System.nanoTime() > preferUntil)) {
                 // Every landing with the fewest warps has come off once f passes them. Never a warp more for a
-                // landing nearer the centre (killer560, 2026-10-06: "if it is going to take even 1 extra
+                // landing nearer the center (killer560, 2026-10-06: "if it is going to take even 1 extra
                 // etherwarp to go more center I don't want that").
                 break;
             }
@@ -2418,7 +2418,7 @@ public final class WarpGraph {
                     if (!preferOn) {
                         return reconstruct(start, u, Float.NaN, Float.NaN);
                     }
-                    // Nearest the centre wins; then the deeper in (the larger of the x and z offsets, smaller).
+                    // Nearest the center wins; then the deeper in (the larger of the x and z offsets, smaller).
                     double s = preferDist(u, gx, gz) + 0.001 * preferDepth(u, gx, gz);
                     if (bestU < 0) {
                         bestW = g;
@@ -2491,7 +2491,7 @@ public final class WarpGraph {
         return null;
     }
 
-    /** Horizontal distance of a node's landing (its block's centre) from the preferred point. */
+    /** Horizontal distance of a node's landing (its block's center) from the preferred point. */
     private double preferDist(int u, double px, double pz) {
         double dx = nx[u] + 0.5 - px;
         double dz = nz[u] + 0.5 - pz;
@@ -2675,7 +2675,7 @@ public final class WarpGraph {
             if (System.nanoTime() > end) {
                 return true;
             }
-            // Take the next nodes off the queue; the known ones just pass their neighbours on.
+            // Take the next nodes off the queue; the known ones just pass their neighbors on.
             batch.clear();
             int want = parallel ? BATCH_PER_WORKER * threads : 1;
             while (warmHead != warmTail && batch.size() < want) {
@@ -2795,7 +2795,7 @@ public final class WarpGraph {
     /**
      * For a click on a graph that was warm and has had blocks change since: finish re-warming now, on the workers the
      * last {@link #warm} call was given, for at most {@code budgetNanos}. After a change that is the re-checked edges'
-     * new neighbours (usually none) and the fields - tens of milliseconds - and it puts the exact heuristic back, so
+     * new neighbors (usually none) and the fields - tens of milliseconds - and it puts the exact heuristic back, so
      * the click does not have to search the floor without it. Returns whether the graph is warm now.
      */
     public boolean finishWarm(EtherSearch.Grid grid, double sx, double sy, double sz, long budgetNanos) {

@@ -12,7 +12,7 @@ import java.util.List;
  */
 public final class LiveMapReads {
 
-    /** A room tile the map item has not shown opened yet (grey with "?"), or not shown at all. */
+    /** A room tile the map item has not shown opened yet (gray with "?"), or not shown at all. */
     public static final int STATE_UNOPENED = DungeonMapScanner.STATE_UNOPENED;
 
     /** One teammate the map places: name and world x/z. Never includes him. */
@@ -43,7 +43,7 @@ public final class LiveMapReads {
         return DungeonMapScanner.stateAt(idx);
     }
 
-    /** The map item's room colour id for a cell (82 = Fairy), or 0. */
+    /** The map item's room color id for a cell (82 = Fairy), or 0. */
     public static int mapItemRoomColor(int idx) {
         return DungeonMapScanner.roomColorAt(idx);
     }

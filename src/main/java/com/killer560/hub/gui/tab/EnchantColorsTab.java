@@ -17,15 +17,15 @@ import java.util.ArrayList;
 import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
-/** Enchant Colours settings - see {@link EnchantColorsFeature} for what actually gets recoloured and where
- *  the behaviour was taken from SkyHanni. Ships OFF.
+/** Enchant Colors settings - see {@link EnchantColorsFeature} for what actually gets recolored and where
+ *  the behavior was taken from SkyHanni. Ships OFF.
  *  <p>
- *  2026-09-20 rewrite: killer560 wanted tier-based colours ("should follow skyhanni where the color is based
+ *  2026-09-20 rewrite: killer560 wanted tier-based colors ("should follow skyhanni where the color is based
  *  off of tier not enchant"), so the old per-enchant override list (add/edit/remove, a filterable page of
- *  colour swatches) is gone - replaced with one picker per SkyHanni tier, which is also just five widgets
+ *  color swatches) is gone - replaced with one picker per SkyHanni tier, which is also just five widgets
  *  instead of a whole paginated editor.
  *  <p>
- *  2026-09-27 correction: the tier default colours were actually wrong (see {@code EnchantColorsDefaults}'
+ *  2026-09-27 correction: the tier default colors were actually wrong (see {@code EnchantColorsDefaults}'
  *  class doc) - fixed, and a "Perfect Chroma" toggle added since SkyHanni's REAL Perfect default is an
  *  animated rainbow, not a fixed swatch. The static "Perfect" picker only shows while that toggle is off. */
 public class EnchantColorsTab extends BaseTab {
@@ -82,7 +82,7 @@ public class EnchantColorsTab extends BaseTab {
         }
         y += 26;
 
-        // ---------------- Tier colours ----------------
+        // ---------------- Tier colors ----------------
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 SectionHeaders.header("Tier Colors", false), mc.font));
         y += 16;
@@ -161,7 +161,7 @@ public class EnchantColorsTab extends BaseTab {
 
         // killer560, 2026-09-27: "something like gk5 being a t7" - a Giant Killer VII (real max, see
         // EnchantColorsDefaults) is Perfect only because this is on; off falls back to never calling
-        // anything above Good "Perfect" at all, the old "clamped to the table's top colour" behaviour, kept
+        // anything above Good "Perfect" at all, the old "clamped to the table's top color" behavior, kept
         // as an escape hatch rather than removed.
         widgets.add(SettingsButtonWidget.builder(onOff("True Max Detection", cfg.isTrueMaxDetection()), btn -> {
                     cfg.setTrueMaxDetection(!cfg.isTrueMaxDetection());
@@ -206,7 +206,7 @@ public class EnchantColorsTab extends BaseTab {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
-    /** A themed slider over [min, max] snapped to {@code step}, labelled "Label: 1.0x". */
+    /** A themed slider over [min, max] snapped to {@code step}, labeled "Label: 1.0x". */
     private static AbstractWidget slider(int x, int y, int width, String label, float min, float max, float step,
                                          float current, java.util.function.Consumer<Float> set) {
         double start = (Math.max(min, Math.min(max, current)) - min) / (double) (max - min);

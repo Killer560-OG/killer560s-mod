@@ -50,7 +50,7 @@ import com.killer560.hub.compat.McCompat;
  *     documented on {@link #shouldHideCompletionChat}.
  * </ul>
  * All five are LEGIT by this mod's own rules - four of them only ever BLOCK or restyle your own input and
- * your own screen. Melody Keys is the one grey area: it sends one slot click per keypress. That is the
+ * your own screen. Melody Keys is the one gray area: it sends one slot click per keypress. That is the
  * exact same class of action as the mod's existing Slot Binds, Loadout Keybinds and Custom Leap Menu keys
  * 1-4 (the player initiates every single click, nothing is automated, no rotation, no timing advantage),
  * so it lives here with the other legit keybinds rather than under Auto Terminals' cheat gate.
@@ -160,7 +160,7 @@ public final class TerminalQolFeature {
 
     /** Devonian {@code TerminalProtection}: true when this click landed too soon after the terminal opened and
      *  must be swallowed. Plays the same note-block "nope" it does, and - exactly like Devonian - arms itself
-     *  off afterwards ({@code terminalStart = -1L}), so only the first too-early click of a given terminal is
+     *  off afterward ({@code terminalStart = -1L}), so only the first too-early click of a given terminal is
      *  ever eaten. */
     public static boolean shouldSwallowClick() {
         syncScreen();
@@ -410,7 +410,7 @@ public final class TerminalQolFeature {
         } else if (guiScaleApplied) {
             guiScaleApplied = false;
             // Recomputed from the live option rather than remembered, so a scale the player changed in Video
-            // Settings while a terminal was open is still honoured when it closes.
+            // Settings while a terminal was open is still honored when it closes.
             int vanilla = window.calculateScale(client.options.guiScale().get(), client.isEnforceUnicode());
             if (window.getGuiScale() != vanilla) {
                 applyScale(client, window, vanilla);

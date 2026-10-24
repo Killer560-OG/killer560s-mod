@@ -195,7 +195,7 @@ public final class AutoGfsFeature {
         // other automated action goes through this gate. A denial here just retries next tick; it can never
         // shrink the >=3s spacing above, only occasionally push a send back by a tick or two.
         // Second gap found (2026-09-21, gate audit): the re-verify below used to run AFTER the gate had
-        // already been claimed, so an item that no longer needed a refill burnt this tick's single mod-wide
+        // already been claimed, so an item that no longer needed a refill burned this tick's single mod-wide
         // interaction slot and sent nothing - every other aura/solver stood down for a command that never
         // went out. Worse, the queue entry was polled BEFORE the gate answered, so a denial silently threw
         // the queued refill away (the same shape as the Experimentation Table bug). Now: peek, re-verify,

@@ -58,7 +58,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *       always-running top water rests on - see {@link #WATER_GATE}. Open, the water falls into the maze and
  *       vanilla fluid ticks carry it down; shut, it drains. The column right behind the lever
  *       ({@code (15, 59..62, 4)}) is never touched; it runs on Hypixel too.</li>
- *   <li><b>Water reaching a colour's column moves that wool.</b> The five colours each own a column at
+ *   <li><b>Water reaching a color's column moves that wool.</b> The five colors each own a column at
  *       {@code x=15}; the wool sits at {@code (15, 55, z)} and is pushed up to {@code (15, 56, z)}. That upper
  *       block is exactly what {@code WaterSolverFeature.scan} reads to decide which three are "extended", so
  *       the sim moving it between those two positions is the same event his solver watches for. Since 2026-10-06
@@ -70,7 +70,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <h2>What is real here</h2>
  *
  * <p>Everything about the board comes from the live solver rather than from a second copy in here: the seven
- * lever positions ({@link LeverBlock#relX()} and friends), the five colour columns ({@link WoolColor#relZ()}),
+ * lever positions ({@link LeverBlock#relX()} and friends), the five color columns ({@link WoolColor#relZ()}),
  * the four blocks that identify which physical board is active
  * ({@link WaterSolverFeature#IDENTIFIER_MARKERS}), and the timings themselves
  * ({@link WaterSolverFeature#bundledClickOrder}, straight out of the bundled
@@ -78,8 +78,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * switches the whole sequence - a sim that ignored it would disagree with the tracer on his screen.
  *
  * <p>That is also what makes his <b>solver work in here</b>, which he asked for. The solver needs three of the
- * five colours pushed out and a recognised marker block; a captured room has neither (every colour is retracted
- * in the capture). So binding picks a board the bundled file actually contains, pushes those three colours out,
+ * five colors pushed out and a recognized marker block; a captured room has neither (every color is retracted
+ * in the capture). So binding picks a board the bundled file actually contains, pushes those three colors out,
  * and then drives itself from the same entry - the solver scans the room, finds the same three, keys into the
  * same solution and lights up the same levers the sim is scoring against.
  *
@@ -88,9 +88,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>Two things, both stated rather than hidden:
  *
  * <ul>
- *   <li><b>Which colours open when.</b> The real room's redstone decides this; a capture is one frozen frame of
- *       it and cannot be replayed. So the colours open in the order the water would reach them - nearest the
- *       entrance first - spread evenly across the timed clicks. Three colours and two timed clicks means one
+ *   <li><b>Which colors open when.</b> The real room's redstone decides this; a capture is one frozen frame of
+ *       it and cannot be replayed. So the colors open in the order the water would reach them - nearest the
+ *       entrance first - spread evenly across the timed clicks. Three colors and two timed clicks means one
  *       opens per third of the sequence.</li>
  *   <li><b>It cannot be failed.</b> killer560 (2026-10-04): "should not be failable". A click the board did
  *       not ask for still moves its blocks - that is the lever's job - and is named in chat, but nothing is
@@ -102,7 +102,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Same as the rest of {@code roomsim}: gated on {@link SimState#canAct}, and every world write happens on
  * the integrated server's own thread - see {@code SimDoors}'s class doc. Piston, power and wall-face writes use
- * {@link #WRITE_FLAGS} (no neighbour updates); only the cell IN the water's plane is written with
+ * {@link #WRITE_FLAGS} (no neighbor updates); only the cell IN the water's plane is written with
  * {@link Block#UPDATE_ALL}, so vanilla water reacts to it - see {@link #setSlot}.
  */
 public final class SimWaterPuzzle {
@@ -113,7 +113,7 @@ public final class SimWaterPuzzle {
      * Block-write flags for this puzzle.
      *
      * <p>{@link Block#UPDATE_CLIENTS} because a player is already standing in this level and has to see the
-     * change; {@link Block#UPDATE_SKIP_ALL_SIDEEFFECTS} so nothing schedules a fluid or neighbour tick off the
+     * change; {@link Block#UPDATE_SKIP_ALL_SIDEEFFECTS} so nothing schedules a fluid or neighbor tick off the
      * back of it. That second half is not tidiness: the water this puzzle places and removes is a sealed
      * column, and one scheduled fluid tick with a hole in the wrong place is a flooded floor.
      */
@@ -124,22 +124,22 @@ public final class SimWaterPuzzle {
 
 
 
-    /** The colour wool's two positions: retracted, and pushed up into the walkway where the solver reads it. */
+    /** The color wool's two positions: retracted, and pushed up into the walkway where the solver reads it. */
     private static final int WOOL_IN_Y = 55;
     private static final int WOOL_OUT_Y = 56;
 
     /**
-     * THE BOTTOM PATH: a colour that is out fills its whole layer, not just the middle block.
+     * THE BOTTOM PATH: a color that is out fills its whole layer, not just the middle block.
      *
      * <p>killer560 (2026-10-06): "make it so the bottom path isn't just the one bottom middle block up for the ones
      * it needs to fix it should be that entire layer is out". Decoded from {@code Water_Board.json} (all three
      * capture sets agree): under the glass floor a walkway runs from the stairs at relative z 9..11 to z 23, three
-     * wide (x 14..16), and each colour owns one layer of it at its own z (red 15 .. purple 19). Every layer has FIVE
+     * wide (x 14..16), and each color owns one layer of it at its own z (red 15 .. purple 19). Every layer has FIVE
      * sticky pistons, not one: the up-facing one under the middle at {@code (15, 54, z)}, and two facing in from
-     * each side at {@code (12, 56|57, z)} and {@code (18, 56|57, z)}, each with its colour's wool in front of it
+     * each side at {@code (12, 56|57, z)} and {@code (18, 56|57, z)}, each with its color's wool in front of it
      * ({@code (13|17, 56|57, z)}). The capture is a retracted frame, so the walkway is open; out, all five fire and
      * the layer is wool from x 14 to 16 - which is what blocks the path to the reward chest until the water has
-     * reached that colour. The sim used to move only the middle wool, which is the solver's read cell
+     * reached that color. The sim used to move only the middle wool, which is the solver's read cell
      * {@code (15, 56, z)} and still is.
      *
      * <p>The pistons are read off the room at arm time, facing and all, so no rotation is guessed. Each has a power
@@ -151,10 +151,10 @@ public final class SimWaterPuzzle {
                                BlockState powerOff) {
     }
 
-    /** Room-relative cells that may hold one of a colour layer's pistons; z is the colour's own. */
+    /** Room-relative cells that may hold one of a color layer's pistons; z is the color's own. */
     private static final int[][] LAYER_PISTONS = {{15, 54}, {12, 56}, {12, 57}, {18, 56}, {18, 57}};
 
-    /** Each colour's layer pistons, read at arm time. Empty for a standalone arena, which falls back to the middle. */
+    /** Each color's layer pistons, read at arm time. Empty for a standalone arena, which falls back to the middle. */
     private static final Map<WoolColor, List<LayerPiston>> LAYERS = new ConcurrentHashMap<>();
 
     /**
@@ -334,8 +334,8 @@ public final class SimWaterPuzzle {
     }
 
     /**
-     * Reads every colour layer's pistons into {@link #LAYERS} - see {@link LayerPiston}. Server thread, at arm time.
-     * A cell that is not a sticky piston with this colour's wool in front of it is skipped and the count is logged,
+     * Reads every color layer's pistons into {@link #LAYERS} - see {@link LayerPiston}. Server thread, at arm time.
+     * A cell that is not a sticky piston with this color's wool in front of it is skipped and the count is logged,
      * so a re-captured room that moved them says so instead of half-filling a layer.
      */
     private static void readLayers(ServerLevel level) {
@@ -359,7 +359,7 @@ public final class SimWaterPuzzle {
                 BlockPos power = piston.relative(facing.getOpposite());
                 boolean out = state.getValue(PistonBaseBlock.EXTENDED);
                 if (!level.getBlockState(out ? push : head).is(wool.getBlock())) {
-                    continue;   // not this colour's piston
+                    continue;   // not this color's piston
                 }
                 BlockState powerOff = level.getBlockState(power);
                 if (powerOff.is(Blocks.REDSTONE_BLOCK)) {
@@ -382,7 +382,7 @@ public final class SimWaterPuzzle {
 
     // ------------------------------------------------------------------------------------------- the board
 
-    /** The three colours this board starts with pushed out, in the order the water reaches them. */
+    /** The three colors this board starts with pushed out, in the order the water reaches them. */
     private static volatile List<WoolColor> board = List.of();
     /** Those of {@link #board} currently retracted - the ones already solved. */
     private static final Set<WoolColor> openColours = EnumSet.noneOf(WoolColor.class);
@@ -503,7 +503,7 @@ public final class SimWaterPuzzle {
     /**
      * Builds a practice arena where he is standing, for {@code /simpuzzle water}.
      *
-     * <p>The levers, the five colour columns and the six gates are placed; the water column is not, because
+     * <p>The levers, the five color columns and the six gates are placed; the water column is not, because
      * out here there is no sealed shaft to hold it and a source block in the open would flood whatever the
      * arena was built on. The flow is still tracked and still has to be started - only its water is invisible,
      * which is said in chat so it does not read as broken.
@@ -521,7 +521,7 @@ public final class SimWaterPuzzle {
             ServerLevel level = server.overworld();
             forget();
             standaloneOrigin = base;
-            // The levers need something to stand on, and the colour columns need a floor - the minimum the
+            // The levers need something to stand on, and the color columns need a floor - the minimum the
             // mechanic needs, the same approach SimDoors takes with its door blocks.
             for (LeverBlock lever : LeverBlock.values()) {
                 BlockPos pos = at(lever.relX(), lever.relY(), lever.relZ());
@@ -535,7 +535,7 @@ public final class SimWaterPuzzle {
                 level.setBlock(at(15, WOOL_IN_Y - 1, colour.relZ()), Blocks.STONE.defaultBlockState(), WRITE_FLAGS);
             }
             // No gates in a standalone arena: the gates are the captured room's piston board, and a bare
-            // arena has no back wall to put one on. The levers, the clock and the colour columns are all
+            // arena has no back wall to put one on. The levers, the clock and the color columns are all
             // here; only the thing they move is missing, which is said in chat below rather than faked with
             // a row of andesite under each lever (which is what this used to build, and what he saw as
             // blocks moving in the wrong place).
@@ -600,7 +600,7 @@ public final class SimWaterPuzzle {
         openedTick = -1;
         tickCounter = 0;
 
-        // The three colours this board starts with pushed out, ordered the way the water meets them: the
+        // The three colors this board starts with pushed out, ordered the way the water meets them: the
         // entrance is at the low-z end, so nearest first.
         List<WoolColor> chosen = new ArrayList<>();
         for (int i = 0; i < slots.length(); i++) {
@@ -635,7 +635,7 @@ public final class SimWaterPuzzle {
     private static volatile boolean hasWater = false;
 
     /**
-     * Which three colours to push out: a board the bundled file actually has a solution for.
+     * Which three colors to push out: a board the bundled file actually has a solution for.
      *
      * <p>{@code "012"} first because it is the one every identifier carries, then every other three-of-five
      * combination in the file's own ascending-index spelling, so a board that is missing for one identifier
@@ -842,9 +842,9 @@ public final class SimWaterPuzzle {
      *
      * <p><b>The power goes with it.</b> Every extended piston in the capture has a redstone block behind it and
      * every retracted one has polished andesite, so the block at {@link #BOARD_POWER_Z} is swapped to match.
-     * That matters now that water moves: a piston head beside flowing water forwards each neighbour update to
+     * That matters now that water moves: a piston head beside flowing water forward each neighbor update to
      * its base, and a base whose power disagreed with its state would move itself and undo the lever. Checked
-     * on the capture: no piston sits directly under another, so a redstone block cannot quasi-power a neighbour.
+     * on the capture: no piston sits directly under another, so a redstone block cannot quasi-power a neighbor.
      *
      * <p><b>Only the cell in the water's plane is written with updates</b> ({@link Block#UPDATE_ALL}), and it is
      * written last, so the water beside it re-ticks and flows into a slot that opened or drains below one that
@@ -890,11 +890,11 @@ public final class SimWaterPuzzle {
     }
 
     /**
-     * Moves the colour wool to match how far through the sequence he is.
+     * Moves the color wool to match how far through the sequence he is.
      *
-     * <p>{@code timedDone} of {@code timed.size()} clicks done means that fraction of the board's colours have
+     * <p>{@code timedDone} of {@code timed.size()} clicks done means that fraction of the board's colors have
      * had water in their column, nearest the entrance first. Recomputed from scratch every time rather than
-     * stepped, so a restart or a pushed-back colour needs no separate undo.
+     * stepped, so a restart or a pushed-back color needs no separate undo.
      */
     private static void syncWool(MinecraftServer server) {
         List<WoolColor> colours = board;
@@ -975,7 +975,7 @@ public final class SimWaterPuzzle {
     }
 
     /**
-     * Pushes one colour's wool out, or pulls it in.
+     * Pushes one color's wool out, or pulls it in.
      *
      * <p>Out is {@code (15, 56, z)} - the block {@code WaterSolverFeature.scan} tests - and in is one lower.
      * Only one of the two ever holds the wool, so the room reads the same way to the solver as a real one.
@@ -984,7 +984,7 @@ public final class SimWaterPuzzle {
         List<LayerPiston> layer = LAYERS.get(colour);
         if (layer != null && !layer.isEmpty()) {
             // The whole layer - see LayerPiston. The middle piston is one of them, so (15, 56, z) still holds the
-            // wool exactly when the colour is out, which is all the solver reads.
+            // wool exactly when the color is out, which is all the solver reads.
             for (LayerPiston p : layer) {
                 level.setBlock(p.power(), out ? Blocks.REDSTONE_BLOCK.defaultBlockState() : p.powerOff(), WRITE_FLAGS);
                 level.setBlock(p.piston(), out ? p.extended() : p.retracted(), WRITE_FLAGS);
@@ -1018,7 +1018,7 @@ public final class SimWaterPuzzle {
         level.setBlock(inPos, out ? air : wool, WRITE_FLAGS);
     }
 
-    /** The capture's own block for each colour - note the "green" slot is LIME wool in the real room. */
+    /** The capture's own block for each color - note the "green" slot is LIME wool in the real room. */
     private static Block woolFor(WoolColor colour) {
         return switch (colour) {
             case PURPLE -> McBlocks.PURPLE_WOOL;

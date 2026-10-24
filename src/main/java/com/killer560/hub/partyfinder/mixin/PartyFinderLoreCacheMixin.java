@@ -33,7 +33,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * A silent miss here would put the overlay straight back to reading rewritten lore with nothing to explain it,
  * which is the bug this class exists to fix - so a bad target should stop the launch and say so instead.
  *
- * <p>Nothing is cancelled and no stack is copied or touched; every throw is swallowed, because this sits on the
+ * <p>Nothing is canceled and no stack is copied or touched; every throw is swallowed, because this sits on the
  * packet path for every container in the game and a fault in a cache must never be able to break a menu.
  */
 @Mixin(ClientPacketListener.class)

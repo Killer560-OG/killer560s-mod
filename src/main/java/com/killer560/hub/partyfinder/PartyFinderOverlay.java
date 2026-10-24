@@ -53,7 +53,7 @@ import com.killer560.hub.util.ChatColors;
  * <p>
  * Custom style placeholders (Devonian's {@code /dv pfo help}): {@code $RoleColor $RoleSingle $RoleShort $Role
  * $RoleName $NameColor $Name $RoleLevel $Cata $Secrets $SecretsShort $SecretAvg $SecretShortAvg $PB}; '&amp;' is a
- * colour code prefix. Style 1 as a custom string:
+ * color code prefix. Style 1 as a custom string:
  * {@code &8[$RoleColor$RoleSingle&8] $NameColor$Name &8[&e$RoleLevel &7| &6$Cata&8] &8[&3$SecretsShort &7| &b$SecretShortAvg&8] &8[$PB&8]}
  */
 public final class PartyFinderOverlay {
@@ -451,7 +451,7 @@ public final class PartyFinderOverlay {
         };
     }
 
-    /** The legacy colour code ("&b") of the styled segment holding {@code name} (the player's rank colour). */
+    /** The legacy color code ("&b") of the styled segment holding {@code name} (the player's rank color). */
     private static String rankColorCode(Component line, String name) {
         Optional<String> code = line.visit((style, text) -> {
             if (!text.contains(name)) {
@@ -551,7 +551,7 @@ public final class PartyFinderOverlay {
             new PreviewPlayer("latinomommy", DungeonClass.MAGE, 30,
                     previewStats(30, 21_000, 42.0, pbEntry(null, "4:20"))));
 
-    /** Rank colours for the sample names, so Rank Name Colors visibly does something in the preview too. */
+    /** Rank colors for the sample names, so Rank Name Colors visibly does something in the preview too. */
     private static final ChatFormatting[] PREVIEW_RANKS = {
             ChatFormatting.GOLD, ChatFormatting.AQUA, ChatFormatting.GREEN, ChatFormatting.GRAY, ChatFormatting.AQUA};
 
@@ -560,7 +560,7 @@ public final class PartyFinderOverlay {
     public static final int PREVIEW_LINE_COUNT = PREVIEW_PLAYERS.size();
 
     /** The sample party's member lines as Hypixel sends them on a Party Finder head: " Name: Class (level)",
-     *  the name in its rank colour. */
+     *  the name in its rank color. */
     public static List<Component> previewMemberLore() {
         List<Component> out = new ArrayList<>(PREVIEW_PLAYERS.size());
         for (int i = 0; i < PREVIEW_PLAYERS.size(); i++) {

@@ -163,7 +163,7 @@ public class F7SpotsTab extends BaseTab {
                                 : (newSituation == AimSituation.P5_PURPLE ? null : newSituation.next());
                     } else {
                         // Mirror of the left-click ring above (null=Auto -> ANY -> ... -> P5_PURPLE -> null),
-                        // walked backwards: null -> P5_PURPLE -> ... -> ANY -> null.
+                        // walked backward: null -> P5_PURPLE -> ... -> ANY -> null.
                         newSituation = newSituation == null ? AimSituation.P5_PURPLE
                                 : (newSituation == AimSituation.ANY ? null : newSituation.previous());
                     }

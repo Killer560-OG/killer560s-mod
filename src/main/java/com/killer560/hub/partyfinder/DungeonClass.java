@@ -2,8 +2,8 @@ package com.killer560.hub.partyfinder;
 
 import java.util.List;
 
-/** Dungeon classes with the colour codes / short names Devonian's {@code DungeonClass} uses in its Party Finder
- *  tooltip. Colour codes use '&amp;' (converted to '§' when rendered). */
+/** Dungeon classes with the color codes / short names Devonian's {@code DungeonClass} uses in its Party Finder
+ *  tooltip. Color codes use '&amp;' (converted to '§' when rendered). */
 public enum DungeonClass {
     ARCHER("Archer", "Arch", 'A', "&c"),
     BERSERK("Berserk", "Bers", 'B', "&6"),

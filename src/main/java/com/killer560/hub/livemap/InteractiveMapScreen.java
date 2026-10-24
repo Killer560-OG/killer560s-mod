@@ -19,10 +19,10 @@ import java.util.List;
 
 /**
  * The Interactive Map screen - QUOI {@code InteractiveMap.map()} / {@code MapRenderer.renderMap(autoClear = true)}:
- * QUOI's room layout (16-unit rooms, 4-unit gaps, merged multi-tile rooms, door blocks, names centred on
- * {@code textPlacement}, name colour by clear state, no names on Entrance/Fairy/Blood), current-room highlight colour,
+ * QUOI's room layout (16-unit rooms, 4-unit gaps, merged multi-tile rooms, door blocks, names centered on
+ * {@code textPlacement}, name color by clear state, no names on Entrance/Fairy/Blood), current-room highlight color,
  * hover brighten + white outline, and clicks that teleport-path (cheat builds). On top of QUOI: player heads/arrows
- * with names and class colours (QUOI's commented-out icon config / NoammAddons), hover tooltips (type, secrets, crypts,
+ * with names and class colors (QUOI's commented-out icon config / NoammAddons), hover tooltips (type, secrets, crypts,
  * puzzle, clear state, who cleared), scroll zoom (the map never pans: no drag moves it) and a legend.
  * No world dim/blur, like QUOI's {@code open(background = false)}.
  */
@@ -47,7 +47,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
 
     /** Wide enough that the longest swatch label ("Entrance") fits its half-width column whole. */
     private static final int LEGEND_W = 120;
-    // The chrome's colours (screen sweep, 2026-10-13): the theme's, read each frame from MenuStyle after
+    // The chrome's colors (screen sweep, 2026-10-13): the theme's, read each frame from MenuStyle after
     // MenuStyle.use(). The hover tooltips keep these fixed ones - vanilla draws their dark box.
     private static final int LIGHT_ORANGE = 0xFFFFA040;
     /** The map's canvas, the same on every theme (the room palette is drawn for it). */
@@ -71,9 +71,9 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         return MenuStyle.DIM;
     }
 
-    // Room/door colours, the 16/4 layout, checkmarks and player markers all live in MapPainter now - the HUD map
+    // Room/door colors, the 16/4 layout, checkmarks and player markers all live in MapPainter now - the HUD map
     // shares exactly the same painter (killer560, 2026-09-17: "the live map hud does not look like the real
-    // dungeon map"). The palette itself is configurable, defaulting to the real map's own colours.
+    // dungeon map"). The palette itself is configurable, defaulting to the real map's own colors.
 
     private final boolean openedByKey;
     private float zoom = 1f;
@@ -158,7 +158,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         }
     }
 
-    /** The shown part of the grid ({@link MapPainter#gridExtent}) is centred in the panel, so a 4x5 or 6x5 floor
+    /** The shown part of the grid ({@link MapPainter#gridExtent}) is centered in the panel, so a 4x5 or 6x5 floor
      *  sits in the middle of the square, and a sim floor that does not start at slot 0 is shifted back into it. This
      *  is the origin of grid unit 0, which is what {@link #cellAt} and every drawing call measure from. */
     private float originX() {
@@ -220,7 +220,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         cursorY = mouseY;
         int[] p = panel();
         // The map's frame in the theme: the menu frame's ring and a recessed edge. The canvas inside stays the map's own
-        // dark on every theme - the room colours and labels are drawn for it, and a Light canvas washed them out.
+        // dark on every theme - the room colors and labels are drawn for it, and a Light canvas washed them out.
         MenuStyle.use();
         com.killer560.hub.hud.GuiRects frame = com.killer560.hub.hud.GuiRects.begin(graphics);
         frame.outline(p[0] - 2, p[1] - 2, p[2] - p[0] + 4, p[3] - p[1] + 4, MenuStyle.FRAME_RING);
@@ -325,7 +325,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         // killer560 (2026-10-12): "since there is a room there that is actual tangible space that should also be
         // highlighted" - the strip joining this tile to the room's next one is real floor, so the hovered tile takes
         // the half of each such strip on its side (and the quarter of a 2x2's middle when both its strips are the
-        // room's), and the next tile's hover takes the other half: neighbouring highlights meet, nothing in the room is
+        // room's), and the next tile's hover takes the other half: neighboring highlights meet, nothing in the room is
         // left unlit between them. The white edge goes only along the room's outside, never across its floor.
         boolean west = tx > 0 && LiveMapFeature.groupIdAt(tile - 1) == gid;
         boolean east = tx < g - 1 && LiveMapFeature.groupIdAt(tile + 1) == gid;
@@ -559,7 +559,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         ty = swatchPair(g, x, ty, cfg.getColorBlood(), "Blood", cfg.getColorEntrance(), "Entrance");
         ty = legendHeader(g, "Doors", null, x, ty + SECTION_GAP);
         ty = swatchPair(g, x, ty, cfg.getColorWitherDoor(), "Wither", cfg.getColorBlood(), "Blood");
-        ty = swatchPair(g, x, ty, 0xFF55FF55, "You", 0, null); // the map's own marker colour
+        ty = swatchPair(g, x, ty, 0xFF55FF55, "You", 0, null); // the map's own marker color
 
         int headerY = ty + SECTION_GAP;
         ty = legendHeader(g, "Controls", expanded ? "[-]" : "[+]", x, headerY);

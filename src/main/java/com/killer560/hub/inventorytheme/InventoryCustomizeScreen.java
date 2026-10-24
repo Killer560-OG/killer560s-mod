@@ -16,8 +16,8 @@ import net.minecraft.network.chat.Component;
  * The Inventory Theme's Customize screen (killer560, 2026-10-18: "if you have it on custom there will be a bar that says
  * customize where you click it and it opens a new menu for you to fully customize how you want it all to look"). Opened
  * from the Customize row that the Inventory Theme tab shows while its Theme is Custom. It holds everything the Custom look
- * is made of: the Base colours (Amber, Dark or Light), and the slot and accent colours, each following the Base or a
- * colour you pick. Every change is saved at once and drawn at once in the next inventory you open.
+ * is made of: the Base colors (Amber, Dark or Light), and the slot and accent colors, each following the Base or a
+ * color you pick. Every change is saved at once and drawn at once in the next inventory you open.
  */
 public final class InventoryCustomizeScreen extends Screen implements MenuThemedScreen {
 

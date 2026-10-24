@@ -106,7 +106,7 @@ public final class AutoKickFeature {
         }
     }
 
-    /** One chat line (colour codes already stripped). */
+    /** One chat line (color codes already stripped). */
     public static void onLine(String plain) {
         AutoKickConfig cfg = AutoKickConfig.getInstance();
         if (!cfg.isEnabled() || DungeonState.isInDungeon()) {

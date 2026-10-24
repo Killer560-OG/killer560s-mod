@@ -175,7 +175,7 @@ public final class LeverAuraFeature {
                     logLever(pos, "notLever", "no lever block there (chunk not loaded or replaced)", -1);
                     continue;
                 }
-                // Nearest point of the block, not its centre. See BlockHits.boxDistanceSq.
+                // Nearest point of the block, not its center. See BlockHits.boxDistanceSq.
                 double d = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
                 if (d > rangeSq) {
                     logLever(pos, "outOfRange", "out of range " + String.format(java.util.Locale.ROOT, "%.2f", cfg.getRange()), d);
@@ -245,7 +245,7 @@ public final class LeverAuraFeature {
 
     /** False when nothing went out this tick (no hit yet, or the body was turned to the lever first). */
     private static boolean click(Minecraft client, LeverAuraConfig cfg, BlockPos pos, String reason, boolean s2Open) {
-        // A surface hit from the eye rather than the block's centre: a point INSIDE the block is what GrimAC flagged on
+        // A surface hit from the eye rather than the block's center: a point INSIDE the block is what GrimAC flagged on
         // Secret Aura (2026-09-28, PositionPlace at a distance the server itself accepted). See BlockHits.
         BlockHitResult hit = com.killer560.hub.util.BlockHits.surface(client.level, pos,
                 client.player.getEyePosition());

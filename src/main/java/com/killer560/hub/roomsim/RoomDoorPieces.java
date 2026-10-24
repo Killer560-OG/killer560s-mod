@@ -157,7 +157,7 @@ public final class RoomDoorPieces {
      */
     static BlockState piece(int side, int k, int u, int y, boolean fill) {
         if (!fill) {
-            // By id, not Blocks.CYAN_TERRACOTTA: colour blocks are named differently on 26.2 (see McBlocks).
+            // By id, not Blocks.CYAN_TERRACOTTA: color blocks are named differently on 26.2 (see McBlocks).
             return k == 0 ? RoomPlacer.resolve("minecraft:cyan_terracotta") : Blocks.AIR.defaultBlockState();
         }
         if (k == 0) {
@@ -197,7 +197,7 @@ public final class RoomDoorPieces {
     /**
      * Capture position of the box over doorway {@code (side, index)}: {@code k} blocks in from the wall plane (which is
      * {@code margin} in from the capture's edge, as {@link RoomDoors} measures), {@code u} along the wall from the
-     * tile's centre.
+     * tile's center.
      */
     static int[] at(RoomLibrary.Room room, int side, int index, int k, int u, int y) {
         int c = room.margin + RoomLibrary.TILE / 2 + index * (RoomLibrary.TILE + 1);

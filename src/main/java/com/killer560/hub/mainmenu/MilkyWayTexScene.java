@@ -12,7 +12,7 @@ package com.killer560.hub.mainmenu;
  * ({@code milkyway_nochar_patch.png}) fills her place from the sky and hills beside her. On top, in the picture's own
  * 1920x1080 space: the bright stars twinkling as crisp crosses, a few faint ones flickering, a blocky shooting star every
  * few seconds (never across the title), the core's glow breathing, faint haze drifting along the hills and, with the
- * character, her cape fluttering (that region redrawn as small tiles of the picture offset by a travelling sine). Built on
+ * character, her cape fluttering (that region redrawn as small tiles of the picture offset by a traveling sine). Built on
  * {@link PictureScene}.
  */
 final class MilkyWayTexScene {

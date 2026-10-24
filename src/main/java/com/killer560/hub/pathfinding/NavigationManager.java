@@ -66,7 +66,7 @@ public final class NavigationManager {
         return target;
     }
 
-    /** Path points (block centres) from the first graph node to the target, or empty. */
+    /** Path points (block centers) from the first graph node to the target, or empty. */
     public static List<Vec3> path() {
         return path;
     }
@@ -257,7 +257,7 @@ public final class NavigationManager {
 
     // ------------------------------------------------------------------ geometry helpers
 
-    /** Feet-level centre of a graph node's block (positions in the graph are the block a player stands on). */
+    /** Feet-level center of a graph node's block (positions in the graph are the block a player stands on). */
     public static Vec3 centre(IslandGraph.Node node) {
         return new Vec3(node.x + 0.5, node.y + 0.5, node.z + 0.5);
     }

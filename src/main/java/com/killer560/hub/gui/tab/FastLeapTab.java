@@ -25,7 +25,7 @@ import java.util.Locale;
  * Cheat-only, so the tab title and every section header are red ({@link SectionHeaders}).
  * <p>
  * Regrouped 2026-09-21 at killer560's request ("I hate the way fast leaps menu is currently set up. Please
- * redesign the setting menu for it" - no further detail given, a judgement call): the actual row-building lives
+ * redesign the setting menu for it" - no further detail given, a judgment call): the actual row-building lives
  * in {@link FastLeapSection}, whose own class doc has the full before/after reasoning, but the short version is
  * headed groups instead of one flat row of toggles, settings that only matter once their switch is on now
  * staying hidden until then, and the leap list now split under a red header per boss phase instead of one flat

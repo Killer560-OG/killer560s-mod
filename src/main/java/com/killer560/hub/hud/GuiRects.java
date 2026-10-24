@@ -153,8 +153,8 @@ public final class GuiRects {
     }
 
     /** As {@code GuiGraphicsExtractor.fillGradient(x0, y0, x1, y1, top, bottom)}: a vertical gradient, {@code top} at the
-     *  upper edge ({@code col1} is the y0 vertex colour and {@code fillGradient} does not swap corners, javap 26.1.2 and
-     *  26.2). Here the corners are put in order first, so {@code top} is always the upper colour. */
+     *  upper edge ({@code col1} is the y0 vertex color and {@code fillGradient} does not swap corners, javap 26.1.2 and
+     *  26.2). Here the corners are put in order first, so {@code top} is always the upper color. */
     public GuiRects gradient(int x0, int y0, int x1, int y1, int top, int bottom) {
         if (x0 > x1) {
             int t = x0;

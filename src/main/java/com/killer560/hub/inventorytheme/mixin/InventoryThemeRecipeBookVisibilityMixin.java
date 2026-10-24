@@ -15,7 +15,7 @@ import com.killer560.hub.compat.McCompat;
  *  the player's recipe book was left open/closed as last time, completely independent of this feature,
  *  and {@code AbstractRecipeBookScreen#extractRenderState} skips drawing the real inventory slots
  *  entirely while it's visible on a narrow window. Forcing {@code isVisible()} false here (rather than
- *  just cancelling {@code RecipeBookComponent#extractRenderState}'s own draw) fixes both problems at
+ *  just canceling {@code RecipeBookComponent#extractRenderState}'s own draw) fixes both problems at
  *  once: the panel never draws, AND the caller always takes the normal background+slots+labels path
  *  this feature's other mixins already handle correctly - so the real inventory always shows. Doubles as
  *  killer560's separate "remove ... the recipe book" ask; companion to

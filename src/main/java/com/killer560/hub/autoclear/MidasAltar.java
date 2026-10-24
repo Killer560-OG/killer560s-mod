@@ -22,7 +22,7 @@ import java.util.Set;
  *
  * <h2>Where it is (the room capture, {@code rooms/King_Midas.json}, taken in a real Hypixel dungeon)</h2>
  * A 5 x 7 stone-brick tomb at capture x 14..18, y 67..69, z 9..15 (the capture is 33 x 33 with a 1-block margin, so the
- * room's own x/z are one less: 13..17 and 8..14 of 0..30, centred on the room's x and on the carpet's axis). Its top is
+ * room's own x/z are one less: 13..17 and 8..14 of 0..30, centered on the room's x and on the carpet's axis). Its top is
  * a lid of 35 bottom smooth stone slabs at y 69 - the only smooth stone slabs in the whole capture. Gold blocks stand at
  * its four foot corners ((14|18, 67, 9|15)) and three more under the lid's front row at y 68 (x 15..17, z 14); the skull
  * (player_head, rotation 8) is at (16, 68, 15) on the front face, and the red carpet runs from the front out to z 20

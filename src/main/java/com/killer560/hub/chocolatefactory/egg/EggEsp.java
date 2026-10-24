@@ -40,10 +40,10 @@ import java.util.Optional;
 
 /**
  * Egg ESP - CHEAT BUILD ONLY (killer560, 2026-10-19: "an egg ESP option for the cheat variant"). Boxes the hidden
- * Hoppity's Hunt Chocolate Eggs through walls, coloured by meal (Breakfast gold, Lunch blue, Dinner green).
+ * Hoppity's Hunt Chocolate Eggs through walls, colored by meal (Breakfast gold, Lunch blue, Dinner green).
  * <p>
- * What counts as an egg is the shape Skyblocker's EggFinder (LGPL-3.0, read for behaviour only, no code taken) keys
- * on: an invisible, unnamed armour stand wearing a player head whose skin is one of the three egg skins. We match the
+ * What counts as an egg is the shape Skyblocker's EggFinder (LGPL-3.0, read for behavior only, no code taken) keys
+ * on: an invisible, unnamed armor stand wearing a player head whose skin is one of the three egg skins. We match the
  * skin by its texture id inside the decoded {@code textures} property rather than the whole base64 value, so a
  * re-signed profile with a new timestamp still matches. The three ids were decoded from Skyblocker's EggType values
  * (2026-10-19); Brunch, Dejeuner and Supper wear the same three heads.
@@ -194,7 +194,7 @@ public final class EggEsp {
         });
     }
 
-    /** The head of a full-size armour stand sits about 1.45-2.0 blocks above its feet. */
+    /** The head of a full-size armor stand sits about 1.45-2.0 blocks above its feet. */
     private static AABB boxFor(Egg egg) {
         return new AABB(egg.x() - 0.3, egg.y() + 1.4, egg.z() - 0.3, egg.x() + 0.3, egg.y() + 2.0, egg.z() + 0.3);
     }

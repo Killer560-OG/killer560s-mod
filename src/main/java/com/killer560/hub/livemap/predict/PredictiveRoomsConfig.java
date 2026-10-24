@@ -14,7 +14,7 @@ import java.nio.file.Path;
 /**
  * Predictive Rooms settings, both builds (killer560, 2026-10-15: "FOr the predictive room stuff that should be on legit
  * and cheat"). Two switches: Predictive Rooms (name a room from what he has seen of it, {@link RoomPredictor}) and
- * Special Room Guess (an unopened room the map shows is one tile across is split-coloured with the special rooms it can
+ * Special Room Guess (an unopened room the map shows is one tile across is split-colored with the special rooms it can
  * still be, {@code livemap.SpecialRoomGuess}). Both ship ON: they only ever show what he saw or what the map already
  * shows.
  */

@@ -5,7 +5,7 @@ package com.killer560.hub.roomsim;
  *
  * <p>killer560 (2026-09-28): "For the attack speed make sure all items assume 100 attack speed equivalent on
  * hypicrl." So every weapon in the sim swings at 100 Attack Speed regardless of what his real gear would do -
- * fixed rather than modelled, because a rhythm that changed with his armour would be a different rhythm every
+ * fixed rather than modeled, because a rhythm that changed with his armor would be a different rhythm every
  * session and could not be compared across them, which is the whole point of a practice tool.
  *
  * <p><b>The numbers here are the wiki's, not mine.</b> Both constants in this class used to be guesses, and

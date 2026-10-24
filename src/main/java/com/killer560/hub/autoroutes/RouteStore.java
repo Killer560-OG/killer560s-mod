@@ -416,7 +416,7 @@ public final class RouteStore {
             if (kind == RouteNode.Type.START) {
                 if (keptStartNode != null) {
                     // More than one legacy START in a hand-edited file - Route#startNode() only ever
-                    // recognised one anyway, so keep the one that plays latest, same as before.
+                    // recognized one anyway, so keep the one that plays latest, same as before.
                     keptStartNode.start = false;
                 }
                 target.start = true;
@@ -655,7 +655,7 @@ public final class RouteStore {
             o.addProperty("colour", String.format(Locale.ROOT, "#%08X", n.colour));
         }
         // Modifiers (killer560's redesign - see RouteNode's start/awaitEnabled fields): apply to any node type,
-        // so they're written outside the type switch below, sparse like radius/colour just above.
+        // so they're written outside the type switch below, sparse like radius/color just above.
         if (n.start) {
             o.addProperty("start", true);
         }

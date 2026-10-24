@@ -29,7 +29,7 @@ import java.util.Locale;
  * death-save procs ({@code com.killer560.hub.maskinvincibility}) - see {@link ItemAbility}'s class doc.
  *
  * <p>Ships OFF. The HUD element is movable in the HUD editor like every other one, and "Text Only" drops
- * the colour swatch so it renders as a bare text list.
+ * the color swatch so it renders as a bare text list.
  */
 public final class AbilityCooldownFeature {
 
@@ -188,7 +188,7 @@ public final class AbilityCooldownFeature {
             return out;
         }
 
-        // One row per ability, kept while its shown tenth and colour are the same: the text was a String.format per
+        // One row per ability, kept while its shown tenth and color are the same: the text was a String.format per
         // running ability per frame, and again for width()/height() (2026-10-15). "%.1f" rounds the exact decimal
         // ms/1000 half up, so every ms in ((t - 0.05) s, (t + 0.05) s] shows t: the tenth key (ms + 50) / 100 is that t.
         private static final Line[] ROW = new Line[ItemAbility.values().length];

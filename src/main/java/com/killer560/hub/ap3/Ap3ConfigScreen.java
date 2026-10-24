@@ -17,7 +17,7 @@ import com.killer560.hub.compat.McCompat;
 /**
  * "Choose AP3 Config" - killer560 (2026-09-21): "I should be able to click into it and select any of the ap3's in
  * my folder, and create new ones through this." A small panel in the mod's own chrome (the same black / amber the
- * colour picker and the main menu use, the title in the cheat red because AP3 only exists in the cheat jar): one
+ * color picker and the main menu use, the title in the cheat red because AP3 only exists in the cheat jar): one
  * row per chains file in {@link Ap3Store#directory()} with the one in use marked, a name box + New Config, Done.
  * <p>
  * Every change goes through {@link Ap3Store#select} / {@link Ap3Store#createConfig} - the same code the store

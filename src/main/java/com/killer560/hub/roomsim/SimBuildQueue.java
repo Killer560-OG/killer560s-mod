@@ -275,7 +275,7 @@ public final class SimBuildQueue {
     /**
      * How far through the whole build we are, 0 to 1.
      *
-     * <p>Counts jobs already finished as complete rather than forgetting them, or the bar would jump backwards
+     * <p>Counts jobs already finished as complete rather than forgetting them, or the bar would jump backward
      * every time one job ended and the next began.
      */
     public static synchronized float progress() {
@@ -351,7 +351,7 @@ public final class SimBuildQueue {
      *
      * <p>Diamond because it is unmistakable. The point is not to hide the edge of the room but to mark it -
      * he should be able to tell at a glance which walls are the dungeon's and which are the sim stopping him
-     * falling into the void, or he will practise a route that walks through one.
+     * falling into the void, or he will practice a route that walks through one.
      */
     public static synchronized void submitSeal(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
         submitSeal(level, minX, minZ, maxX, maxZ, null);
@@ -624,7 +624,7 @@ public final class SimBuildQueue {
      * What to run, on the server thread, once every queued room has landed.
      *
      * <p>Set after the rooms are queued. Replacing an existing callback is deliberate: a second build request
-     * supersedes the first, and running the old completion afterwards would take the loading screen down for a
+     * supersedes the first, and running the old completion afterward would take the loading screen down for a
      * build that is no longer the one in progress.
      */
     public static synchronized void whenDone(Runnable action) {
@@ -640,7 +640,7 @@ public final class SimBuildQueue {
         touchedChunks.clear();
     }
 
-    /** Forgets which chunks were touched, without cancelling anything - for starting a fresh build. */
+    /** Forgets which chunks were touched, without canceling anything - for starting a fresh build. */
     public static synchronized void forgetTouched() {
         touchedChunks.clear();
         lastBuiltBounds = null;

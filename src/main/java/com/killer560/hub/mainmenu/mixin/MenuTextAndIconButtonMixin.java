@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
  * SpriteIconButton$TextAndIcon gets its box from extractDefaultSprite (MainMenuButtonMixin) but draws its label itself
  * rather than through extractDefaultLabel. 26.1.2 (javap): {@code SpriteIconButton$TextAndIcon.extractContents(
  * GuiGraphicsExtractor,int,int,float)} has exactly one {@code ActiveTextCollector.acceptScrolling(Component,int,int,
- * int,int,int)} interface call, whose arg 0 is getMessage(). Recoloured the same way as ordinary button labels.
+ * int,int,int)} interface call, whose arg 0 is getMessage(). Recolored the same way as ordinary button labels.
  */
 @Mixin(SpriteIconButton.TextAndIcon.class)
 public abstract class MenuTextAndIconButtonMixin {

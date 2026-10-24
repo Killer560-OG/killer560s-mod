@@ -234,8 +234,8 @@ public final class PartyTracker {
      *  come in is Hypixel's own leap menu order (container slot order), which the Leap Order editor lays its spots
      *  out in. Remembered (and persisted) so the editor's spots start where the real menu puts them. */
     public static void noteTeammates(List<String> namesInSlotOrder) {
-        // Normalised here, not at the call sites: the custom leap menu already hands over bare IGNs but the fast-leap
-        // path hands over raw head names ("[MVP+] Name"). Un-normalised those would enter MEMBERS as a second,
+        // Normalized here, not at the call sites: the custom leap menu already hands over bare IGNs but the fast-leap
+        // path hands over raw head names ("[MVP+] Name"). Un-normalized those would enter MEMBERS as a second,
         // never-matching "teammate", would match nobody in #teammatesInLeapOrder, and - when both paths poll the same
         // open menu - would make the two disagree about the stored order and save the config on every tick.
         List<String> names = new ArrayList<>(namesInSlotOrder.size());

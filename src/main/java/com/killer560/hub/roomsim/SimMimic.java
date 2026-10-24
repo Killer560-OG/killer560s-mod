@@ -21,11 +21,11 @@ import java.util.Set;
  *
  * <p>The second half is the useful half, and it is something the real game cannot give him. On Hypixel you find
  * the mimic by opening chests until one bites. Here every chest that was ELIGIBLE is marked, so he can see the
- * shape of the problem - which rooms were ever in play and which chests he can stop checking - and practise the
+ * shape of the problem - which rooms were ever in play and which chests he can stop checking - and practice the
  * route that covers them rather than the route he happened to take.
  *
  * <p><b>Which chests are eligible.</b> A mimic does not appear in the entrance, in blood, in a fairy room, in a
- * puzzle or in a trap. Those are recognised from the ROOM NAME, which is what the sim has, and the matching is
+ * puzzle or in a trap. Those are recognized from the ROOM NAME, which is what the sim has, and the matching is
  * deliberately generous: a room wrongly excluded silently shrinks the candidate set and would teach him to skip
  * a chest that really can bite, which is the more expensive mistake of the two.
  */
@@ -45,7 +45,7 @@ public final class SimMimic {
      *
      * <p>Concurrent, and ACTUALLY concurrent, which an earlier version only claimed to be: it was
      * {@code Collections.newSetFromMap(new LinkedHashMap<>(){...})} with a comment saying it existed to stop a
-     * ConcurrentModificationException, and {@code newSetFromMap} adds no synchronisation at all. Kept concurrent
+     * ConcurrentModificationException, and {@code newSetFromMap} adds no synchronization at all. Kept concurrent
      * now that {@code SimMimicRenderer} is gone, because the two sides still do not share a thread: a build's
      * completion callback adds secret chests from the integrated SERVER thread while the picker reads the set.
      * A CopyOnWriteArraySet is genuinely safe to iterate under concurrent writes and keeps the insertion order
@@ -237,8 +237,8 @@ public final class SimMimic {
 
     // mimicCell() is gone (2026-10-13). The map painted the sim's mimic room from it, a sim-only branch, because the
     // sim's mimic was once an ordinary chest; it has been a real trapped chest at a secret position since, which the
-    // map's own check reads. It also picked the NEAREST cell centre, which for a chest more than 8 blocks off its tile
-    // centre was a doorway cell outside the room, so that branch missed many mimic rooms anyway.
+    // map's own check reads. It also picked the NEAREST cell center, which for a chest more than 8 blocks off its tile
+    // center was a doorway cell outside the room, so that branch missed many mimic rooms anyway.
 
     public static boolean hasMimic() {
         return mimic != null;

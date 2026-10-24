@@ -13,7 +13,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 /**
- * Real Time clock HUD, modelled on SkyHanni's "Real Time" display (TimeFeatures.kt): the current computer
+ * Real Time clock HUD, modeled on SkyHanni's "Real Time" display (TimeFeatures.kt): the current computer
  * time formatted {@code hh:mm[:ss] a} (12h) or {@code HH:mm[:ss]} (24h). Extended with a custom time zone
  * (any {@link ZoneId}), optional zone abbreviation ("EST"), optional "Real Time: " label, text color and shadow.
  * Drawn in game by {@code HudInGameRenderer} (id {@value #ELEMENT_ID}); only visible with no screen open,

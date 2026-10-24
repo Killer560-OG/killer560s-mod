@@ -28,7 +28,7 @@ import java.util.Set;
  * 20-tick length, just implemented twice (already flagged as a known overlap in {@code TickTimersFeature}'s class
  * doc before this move, and confirmed here: the two P2 start/end lines below are byte-for-byte the same ones
  * {@code TickTimersFeature}'s {@code STORM_START_REGEX}/{@code STORM_END_REGEX} already matched). Per "there must
- * be ONE timer afterwards, not two", the duplicate copy is deleted: this class no longer tracks the pad cycle at
+ * be ONE timer afterward, not two", the duplicate copy is deleted: this class no longer tracks the pad cycle at
  * all. {@link TickTimersFeature#padTickTime} is now the ONE pad-cycle counter, split out from the "Storm" bundle
  * into its own {@link TickTimersConfig#isPadCycleTimer()} toggle so his old F7 Spots "Pad Cycle Timer" preference
  * still means something specific (just the pad line) after the merge, instead of dragging Lightning/PY/the Storm

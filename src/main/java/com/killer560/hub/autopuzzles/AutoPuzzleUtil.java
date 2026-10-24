@@ -232,7 +232,7 @@ public final class AutoPuzzleUtil {
      * <p>
      * {@link ViewFreeze} takes the view at the first rotation of a run and holds it for every one after, while his
      * mouse keeps steering that held view. It is a LEASE, renewed on each rotation and lapsing by itself shortly
-     * after the solver stops, so a puzzle that is cancelled or throws cannot leave him looking the wrong way.
+     * after the solver stops, so a puzzle that is canceled or throws cannot leave him looking the wrong way.
      */
     public static void rotateCamera(LocalPlayer player, float targetYaw, float targetPitch) {
         ViewFreeze.hold(player.getYRot(), player.getXRot());
@@ -330,7 +330,7 @@ public final class AutoPuzzleUtil {
      * Finds a shortbow in the hotbar and swaps to it - the ONE way Auto Ice Path, Auto Blaze and Auto Creeper Beams
      * get a bow into his hand.
      *
-     * <p>A shortbow is any item whose lore has {@value #SHORTBOW_LORE} once colour codes are stripped
+     * <p>A shortbow is any item whose lore has {@value #SHORTBOW_LORE} once color codes are stripped
      * ({@link #loreContains}), which is how Hypixel marks every shortbow - the Terminator's lore carries it as a gold
      * line under the name. Before 2026-10-04 only Auto Ice Path swapped; Auto Blaze and Auto Beams only checked the
      * hand, so with the AOTV still held from the reposition they logged "not a shortbow" and never fired.
@@ -482,9 +482,9 @@ public final class AutoPuzzleUtil {
     /**
      * The aim for an etherwarp that will actually LAND on {@code to}, for {@link AutoReposition}.
      *
-     * <p>{@link #etherwarpDirection} is QUOI's: its top-centre point sits exactly on the top face, which the voxel
+     * <p>{@link #etherwarpDirection} is QUOI's: its top-center point sits exactly on the top face, which the voxel
      * walk files under the air block above, so from above it never matches and what gets used is a point 0.001
-     * from an edge - a grazing aim that a rounding can put on the neighbour (the same fault
+     * from an edge - a grazing aim that a rounding can put on the neighbor (the same fault
      * {@code TeleportUtils.getEtherwarpDirection} documents and fixes). That one aims inside the face and checks the
      * real hop, so it is tried first; the QUOI answer is the fallback so nothing that warped before stops warping.
      */
@@ -649,7 +649,7 @@ public final class AutoPuzzleUtil {
      *
      * <p>Every puzzle auto carried its own constant - 36.0 (6.0 blocks) in Blaze, Boulder, Teleport Maze,
      * Tic Tac Toe and the Quiz, 30.0 (5.48) in Weirdos and Water - and all of them measured to the block's
-     * CENTRE, which reads up to half a block further still. Measured on a real server, the limit is 4.5 to the
+     * CENTER, which reads up to half a block further still. Measured on a real server, the limit is 4.5 to the
      * BOX and past it the server refuses the interaction outright. Those numbers were inherited from QUOI and
      * were never tied to the measurement.
      *
@@ -678,8 +678,8 @@ public final class AutoPuzzleUtil {
                     && block != net.minecraft.world.level.block.Blocks.TRAPPED_CHEST) {
                 continue;
             }
-            // To the BOX, not the centre. The centre reads up to half a block further, so a chest picked by
-            // centre distance can sit outside the 4.5 the server actually enforces - and then every click at
+            // To the BOX, not the center. The center reads up to half a block further, so a chest picked by
+            // center distance can sit outside the 4.5 the server actually enforces - and then every click at
             // it is refused, or flagged. Same measure BlockHits uses everywhere else.
             double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
             if (distSq <= bestDistSq) {
@@ -764,7 +764,7 @@ public final class AutoPuzzleUtil {
     /**
      * Standable blocks (solid, two clear above, etherwarpable, inside the live map's room when it knows one) from
      * which BOTH the standing and the sneaking eye reach every one of {@code targets}' boxes within {@code reach}.
-     * {@code needSight}: the standing eye must also see each target's centre (the target itself or nothing hit
+     * {@code needSight}: the standing eye must also see each target's center (the target itself or nothing hit
      * first). Ordered nearest-to-{@code prefer} first. The same rules Auto Blaze's aura spots use, for any block.
      */
     public static java.util.List<BlockPos> reachSpots(Minecraft client, java.util.List<BlockPos> targets, double reach,
@@ -878,7 +878,7 @@ public final class AutoPuzzleUtil {
         return best;
     }
 
-    /** Whether a ray from {@code eye} to the centre of {@code target} meets nothing before it. */
+    /** Whether a ray from {@code eye} to the center of {@code target} meets nothing before it. */
     public static boolean sees(Minecraft client, Vec3 eye, BlockPos target) {
         Vec3 centre = Vec3.atCenterOf(target);
         HitResult hit = client.level.clip(new ClipContext(eye, centre, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE,
@@ -1063,7 +1063,7 @@ public final class AutoPuzzleUtil {
 
     /**
      * {@link #aimBodyAt(LocalPlayer, BlockPos, FreeCam)} for an entity's box (a Three Weirdos NPC): the body turns onto
-     * the point of the box nearest the line to its centre, so the interact the next tick meets it on the reported look
+     * the point of the box nearest the line to its center, so the interact the next tick meets it on the reported look
      * (an interact the reported look misses is GrimAC Hitboxes) and needs no turn tick of its own.
      * @return true when the body was turned
      */
@@ -1135,7 +1135,7 @@ public final class AutoPuzzleUtil {
     }
 
     /** No-rotate block interact - same as {@code AutoPuzzlesFeature}'s (QUOI {@code BlockPos.getHitResult()}):
-     *  {@code useItemOn} with the eye-to-shape-centre ray clipped against the real shape, then a main-hand swing.
+     *  {@code useItemOn} with the eye-to-shape-center ray clipped against the real shape, then a main-hand swing.
      *  Callers must have claimed the tick with {@link #gateWorldClick()} first.
      *  @return false (nothing sent) if the block has no shape */
     public static boolean interactBlock(Minecraft client, BlockPos pos) {
@@ -1155,7 +1155,7 @@ public final class AutoPuzzleUtil {
         if (hit == null) {
             // Only reached when the ray misses the outline entirely. These two paths ALREADY clip from the eye
             // above, which is the thing that matters (see BlockHits and the PositionPlace measurement of
-            // 2026-09-28) - so this last-resort centre is fine where it is and was deliberately left alone.
+            // 2026-09-28) - so this last-resort center is fine where it is and was deliberately left alone.
             hit = new BlockHitResult(centre, Direction.getApproximateNearest(eyes.subtract(centre)), pos, false);
         }
         double boxDistSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eyes, pos);

@@ -248,7 +248,7 @@ public final class AutoClearUtils {
 
     /**
      * A press on the strip joining two tiles of {@code room}: the landing at that spot (the column under the cursor,
-     * the block nearest the floor), or the nearest one in the room within a few blocks - never a tile's centre.
+     * the block nearest the floor), or the nearest one in the room within a few blocks - never a tile's center.
      * killer560 (2026-10-12): "since there is a room there that is actual tangible space".
      */
     public static boolean pathToSpot(DungeonLayout layout, int room, int tileIdx, double x, double z) {
@@ -375,7 +375,7 @@ public final class AutoClearUtils {
 
     /**
      * QUOI {@code pathToRoom}. Type 0: the room's override spot (by name, or by tile core) when the rotation is known,
-     * else the etherwarpable block nearest the tile centre. Type 1 (route start ring) falls back to type 0.
+     * else the etherwarpable block nearest the tile center. Type 1 (route start ring) falls back to type 0.
      */
     public static boolean pathToRoom(DungeonLayout layout, int room, int tileIdx, int type) {
         if (!canPath(layout, true) || (type != 0 && type != 1) || room < 0) {
@@ -387,7 +387,7 @@ public final class AutoClearUtils {
         boolean wholeTile = false;
         if (goal == null && client.player != null) {
             // INSIDE THE CLICKED TILE, nearest to him - see TeleportUtils.etherwarpableInTile for why the old
-            // 25-block sphere around the tile centre was the wrong search. Falls back to that sphere only when
+            // 25-block sphere around the tile center was the wrong search. Falls back to that sphere only when
             // the tile holds no standable block at all, which is a room the map should not have offered.
             BlockPos centre = DungeonLayout.cellCenter(tileIdx);
             goal = TeleportUtils.etherwarpableInTile(centre, client.player.position());

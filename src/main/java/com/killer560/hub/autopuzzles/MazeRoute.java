@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Picks Auto Teleport Maze's next pad from what this visit has learnt. No Minecraft in it, so it can be checked offline
+ * Picks Auto Teleport Maze's next pad from what this visit has learned. No Minecraft in it, so it can be checked offline
  * against thousands of drawn mazes ({@code tools/mazecheck/RouteCheck.java}).
  *
  * <p><b>Why it exists (2026-10-06).</b> The old pick was QUOI's: the solver's best pad if unvisited, else an unvisited
@@ -14,7 +14,7 @@ import java.util.Set;
  * joins two chambers, so a pad not on the way forward sends him back along the maze, and "the diagonal again" from a pad
  * he came BACK through keeps walking back: 142-sim-autopilot2 saw it on two floors of three ("every pad in this chamber
  * is visited - taking the diagonal again" until the autopilot's 30 s ran out) and 93-solve ended once on the start pad,
- * "no pad to walk to", with the shortest route five pads long. Nothing it had learnt was used: each teleport tells which
+ * "no pad to walk to", with the shortest route five pads long. Nothing it had learned was used: each teleport tells which
  * pad goes where, and that is enough to find the way.
  *
  * <p><b>Now</b>, in order: the exit pad when the solver has narrowed it to one and it is in this chamber; else a way
@@ -37,7 +37,7 @@ public final class MazeRoute {
      * @param current    the pad he stands on (index into {@code xz}), or -1
      * @param xz         every pad's {x, z}
      * @param cellOf     each pad's chamber, -1 for the start and end pads
-     * @param links      pad stepped on -> pad landed on, learnt
+     * @param links      pad stepped on -> pad landed on, learned
      * @param visited    pads already stepped on or landed on
      * @param candidates the solver's unvisited exit candidates
      * @param best       the solver's best pad, or -1
@@ -94,7 +94,7 @@ public final class MazeRoute {
     }
 
     /**
-     * Breadth first over chambers along learnt links from where he stands, to the nearest chamber {@code goal} accepts.
+     * Breadth first over chambers along learned links from where he stands, to the nearest chamber {@code goal} accepts.
      * The pad he stands (or will land) on is not a step: it is inert until he steps off it, and it only leads back.
      *
      * @return the pad to step on first, or -1 when no known way exists
@@ -121,7 +121,7 @@ public final class MazeRoute {
                 }
                 Integer to = links.get(p);
                 if (to == null || to < 0 || to >= cellOf.length || cellOf[to] < 0) {
-                    continue; // not learnt, or the start/end pad
+                    continue; // not learned, or the start/end pad
                 }
                 int next = cellOf[to];
                 if (firstPad[next] != -2) {

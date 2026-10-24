@@ -131,7 +131,7 @@ public final class PosmsgConfig {
 
     /** The built-in presets, in list order. Coordinates are killer560's own (2026-09-16), copied from the
      *  config he tuned in real runs rather than guessed, so a fresh install fires in the right places.
-     *  Note Simon Says' X/Z are an un-snapped standing position (the others sit on half-block centres) -
+     *  Note Simon Says' X/Z are an un-snapped standing position (the others sit on half-block centers) -
      *  kept exactly as he had it. */
     private static final Map<String, Preset> PRESETS = new LinkedHashMap<>();
 
@@ -154,12 +154,12 @@ public final class PosmsgConfig {
     }
 
     /** Old preset name -&gt; new preset name. A config saved before the rename keeps its coordinates,
-     *  colour, radius and enabled state under the new label instead of getting a second, blank row. */
+     *  color, radius and enabled state under the new label instead of getting a second, blank row. */
     private static final Map<String, String> RENAMED_PRESETS = Map.of(
             "Outpour", "Outcore",
             "Recor", "Recore");
 
-    /** Old default message -&gt; new default message, applied only when the player never customised it.
+    /** Old default message -&gt; new default message, applied only when the player never customized it.
      *  A hand-edited message ("at op!") is theirs and stays. */
     private static final Map<String, String> RENAMED_MESSAGES = Map.of(
             "at outpour", "at outcore",
@@ -224,7 +224,7 @@ public final class PosmsgConfig {
     /** Adds any shipped preset that isn't in the list yet, by name, and gives an already-present preset
      *  the shipped coordinates if the player never set their own ({@code configured=false}). Presets
      *  can't be deleted from the tab, so "missing" only ever means a brand-new install or a preset added
-     *  in a later build - a preset the player has positioned, recoloured or renamed is never touched. */
+     *  in a later build - a preset the player has positioned, recolored or renamed is never touched. */
     private void seedMissingPresets() {
         Map<String, PosmsgEntry> byName = new LinkedHashMap<>();
         for (PosmsgEntry e : entries) {

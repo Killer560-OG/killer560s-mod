@@ -5,13 +5,13 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
 /**
- * Coloured blocks that moved between Minecraft versions.
+ * Colored blocks that moved between Minecraft versions.
  *
  * <p>GENERATED SHAPE, hand-maintained: every version's copy is produced from the same list so the two cannot
  * drift, which is the one failure mode a facade like this has. Add a constant to one and you must add it to
  * all, or a clean compile on one Minecraft version becomes a break on another.
  *
- * <p>26.2 collapsed the sixteen coloured variants of each family into a {@code ColorCollection} - so
+ * <p>26.2 collapsed the sixteen colored variants of each family into a {@code ColorCollection} - so
  * {@code Blocks.RED_TERRACOTTA} became {@code Blocks.DYED_TERRACOTTA.pick(DyeColor.RED)}, and the class went from 1147 static fields to 881.
  * The registry ids are untouched (a {@code ColorCollection}'s ids are still {@code <colour>_<base>}), which
  * matters because room captures store block states as strings and are shared between versions over the relay.

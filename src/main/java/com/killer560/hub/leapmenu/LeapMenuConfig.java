@@ -753,7 +753,7 @@ public final class LeapMenuConfig {
         return t;
     }
 
-    /** A teammate's class from the dungeon tab list (read by the leap menu colours and the Live Map). */
+    /** A teammate's class from the dungeon tab list (read by the leap menu colors and the Live Map). */
     public DungeonClass getAssignedClass(String playerName) {
         return PartyTracker.classOf(playerName);
     }

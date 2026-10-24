@@ -71,7 +71,7 @@ import com.killer560.hub.compat.McEntities;
  * javap-verified against the 26.1.2 merged jar: {@code LevelRenderer} calls
  * {@code shouldRender(Entity, Frustum, double, double, double)} once per entity per frame and, when it returns
  * false (and the entity isn't carrying the local player), skips extraction and submission entirely. The entity
- * itself stays in the world untouched. Particles are cancelled in {@code ParticleEngine.add}
+ * itself stays in the world untouched. Particles are canceled in {@code ParticleEngine.add}
  * (the single funnel - {@code createParticle} calls {@code add}, javap-verified) or, where a position/flag
  * predicate is needed, on the {@code ClientboundLevelParticlesPacket} handler.
  *
@@ -285,7 +285,7 @@ public final class ObjectHiderFeature {
     }
 
     // -------------------------------------------------------------------------------------------
-    // QUOI Render Optimiser "Hide recipe book" (2026-09-20) - no mixin, Fabric screen-widget API
+    // QUOI Render Optimizer "Hide recipe book" (2026-09-20) - no mixin, Fabric screen-widget API
     // -------------------------------------------------------------------------------------------
 
     private static void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
@@ -507,7 +507,7 @@ public final class ObjectHiderFeature {
     }
 
     /** QUOI {@code RenderOptimiser.kt} "Hide falling blocks" / "Hide lightning" - drop the spawn packet before
-     *  the entity exists at all, cheaper than cancelling its render every frame afterwards. Both are pure
+     *  the entity exists at all, cheaper than canceling its render every frame afterward. Both are pure
      *  client-render cosmetics; nothing about what's sent to the server changes. */
     public static boolean shouldCancelAddEntity(ClientboundAddEntityPacket packet) {
         if (packet == null) {
@@ -687,7 +687,7 @@ public final class ObjectHiderFeature {
         if (stack == null || stack.isEmpty()) {
             return null;
         }
-        // Read-only view, no deep copy: this runs per armour stand per frame with Hide Healer Orbs on (fps pass).
+        // Read-only view, no deep copy: this runs per armor stand per frame with Hide Healer Orbs on (fps pass).
         CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack);
         if (tag == null) {
             return null;

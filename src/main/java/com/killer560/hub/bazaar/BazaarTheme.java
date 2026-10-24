@@ -10,13 +10,13 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.FormattedCharSequence;
 
 /**
- * The Bazaar screen's colours. By default the mod menu's theme (its Screen Theme, set in the Bazaar tab: Theme Default
+ * The Bazaar screen's colors. By default the mod menu's theme (its Screen Theme, set in the Bazaar tab: Theme Default
  * follows the menu, or any preset / Custom), derived from {@link MenuStyle} with {@code bevel} on, so the panel, wells
- * and buttons take the menu's bevelled look (sweep-b, 2026-10-13). The Screen Theme "Inventory Theme" keeps the older
+ * and buttons take the menu's beveled look (sweep-b, 2026-10-13). The Screen Theme "Inventory Theme" keeps the older
  * look: the Inventory Theme's Amber / Dark / Light (read only, from {@link InventoryThemeConfig#getTheme()}), flat.
  * <p>
- * On Light, every colour Hypixel's own item names and lore carry (white, yellow, grey...) would vanish into the panel,
- * so {@link #seq} darkens each styled character's colour the same way; on Amber and Dark it is the text unchanged.
+ * On Light, every color Hypixel's own item names and lore carry (white, yellow, gray...) would vanish into the panel,
+ * so {@link #seq} darkens each styled character's color the same way; on Amber and Dark it is the text unchanged.
  */
 public record BazaarTheme(String name, boolean light, int backdrop, int panelBg, int border, int railBg, int listBg,
         int rowAlt, int rowHover, int selectedBg, int accent, int accentBright, int text, int dim, int faint, int gold,
@@ -56,7 +56,7 @@ public record BazaarTheme(String name, boolean light, int backdrop, int panelBg,
         };
     }
 
-    /** The menu palette in force ({@link MenuStyle} after {@code use}) as the Bazaar's colours. */
+    /** The menu palette in force ({@link MenuStyle} after {@code use}) as the Bazaar's colors. */
     private static BazaarTheme fromMenu() {
         boolean light = MenuStyle.LIGHT;
         return new BazaarTheme("Menu", light, MenuStyle.BACKDROP, MenuStyle.PANEL_TOP, MenuStyle.ACCENT_EDGE,
@@ -76,12 +76,12 @@ public record BazaarTheme(String name, boolean light, int backdrop, int panelBg,
         int g = (argb >> 8) & 0xFF;
         int b = argb & 0xFF;
         if (r > 0xC8 && g > 0xC8 && b > 0xC8) {
-            return text; // white (common items, plain lore) reads as the theme's own text colour
+            return text; // white (common items, plain lore) reads as the theme's own text color
         }
         return (argb & 0xFF000000) | ((r * 45 / 100) << 16) | ((g * 45 / 100) << 8) | (b * 45 / 100);
     }
 
-    /** Hypixel's styled text made readable on this theme's panel: every colour darkened on Light. */
+    /** Hypixel's styled text made readable on this theme's panel: every color darkened on Light. */
     public FormattedCharSequence seq(FormattedCharSequence s) {
         if (!light) {
             return s;

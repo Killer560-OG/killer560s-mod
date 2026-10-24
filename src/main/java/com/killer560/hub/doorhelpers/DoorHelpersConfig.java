@@ -20,7 +20,7 @@ import java.nio.file.Path;
  * aura only click the door the second the key is grabbed for door helpers. And rename it to auto door opener." -
  * Look At Door (its own camera-turn feature) is gone entirely, along with its 4 settings below; the whole
  * former "Door Helpers" tab is just Auto Door Opener now. See {@link AutoDoorOpenerFeature} for the new
- * fire-on-key-pickup behaviour.
+ * fire-on-key-pickup behavior.
  */
 public final class DoorHelpersConfig {
 
@@ -50,7 +50,7 @@ public final class DoorHelpersConfig {
     // Capped at the reach measured to be accepted and unflagged - see CheatUtilsConfig.MEASURED_MAX_REACH.
     private double autoDoorRange = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
     private int autoDoorRetryDelayMs = 500;
-    /** Triggerbot mode: how long the crosshair must stay on the door before it is clicked. 0 = at once (the behaviour
+    /** Triggerbot mode: how long the crosshair must stay on the door before it is clicked. 0 = at once (the behavior
      *  before this setting, 2026-10-11). */
     private int autoDoorTriggerDelayMs = 0;
     public static final int TRIGGER_DELAY_MAX_MS = 1000;

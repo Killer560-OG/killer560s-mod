@@ -79,13 +79,13 @@ public final class RoomLibrary {
      * Extra columns captured on each side, to take in the walls.
      *
      * <p>killer560 (2026-09-28): "it isnt getting the walls around the room". Correct, and here is why: the
-     * dungeon grid's cells are 32 blocks apart but {@link #TILE} is 31, so a window centred on a cell covers
-     * centre-15 to centre+15 and the boundary column at centre+/-16 is never read. That column is exactly where
+     * dungeon grid's cells are 32 blocks apart but {@link #TILE} is 31, so a window centered on a cell covers
+     * center-15 to centre+15 and the boundary column at centre+/-16 is never read. That column is exactly where
      * the wall between two rooms stands. Checked against his own capture before changing anything: in
      * Entrance.json the x=0 edge holds chiseled stone brick while x=30 holds plain stone, so the window was
      * landing inside the wall on one side and out in the rock on the other.
      *
-     * <p>One column each side makes it 33 across a 32 pitch, so neighbouring rooms overlap by one - which is
+     * <p>One column each side makes it 33 across a 32 pitch, so neighboring rooms overlap by one - which is
      * right, because they SHARE that wall rather than each owning half of it.
      *
      * <p>This changes the shape of a captured room, so rooms captured before it are a different size and are
@@ -152,7 +152,7 @@ public final class RoomLibrary {
          * Blocks of wall captured outside the room on each side.
          *
          * <p>Stored rather than worked out from {@link #sizeX}. {@code RoomPlacer} used to infer it with
-         * {@code size % TILE == WALL_MARGIN * 2}, which only ever worked because the footprint maths below was
+         * {@code size % TILE == WALL_MARGIN * 2}, which only ever worked because the footprint math below was
          * wrong in a way that happened to leave every size a multiple of 31 plus 2. With the footprint correct
          * a three-tile room is 97 wide and 97 % 31 is 4, so the inference would have silently decided those
          * rooms had no margin and pasted them one block off. A number this load-bearing belongs in the file.
@@ -163,7 +163,7 @@ public final class RoomLibrary {
          * Where starred mobs stood, in ROOM-LOCAL coordinates.
          *
          * <p>Captured as well as the blocks because a sim room without its mobs is scenery. Hypixel puts the
-         * "star" name on a separate invisible armour stand rather than on the mob, so these are the stands'
+         * "star" name on a separate invisible armor stand rather than on the mob, so these are the stands'
          * positions - which is where the mob is, and is the only thing visible from the client.
          *
          * <p>Deduplicated by position rather than accumulated: a room walked through five times would otherwise
@@ -474,7 +474,7 @@ public final class RoomLibrary {
      * the client dead for as long as that took.
      *
      * <p>Two things were wrong and both are fixed. The format was JSON numbers - 77,841 of them per room,
-     * every one tokenised - and is now gzipped bytes, roughly a twentieth of the size and needing no parsing.
+     * every one tokenized - and is now gzipped bytes, roughly a twentieth of the size and needing no parsing.
      * And the work happened on the render thread at all, which no amount of making it faster would have made
      * safe: a library big enough is always going to outlast a frame. It runs on its own thread now and the
      * callers wait on {@link #isReady()} instead of on the disk.
@@ -776,7 +776,7 @@ public final class RoomLibrary {
      *
      * <p>The inverse of the capture footprint ({@code tiles * 32 + 1}), in one place, because the layout planner and the paste MUST agree
      * about it. They did not between 00:27 and 01:20 on 2026-09-29 and the result was every multi-tile room
-     * pasted over its neighbour.
+     * pasted over its neighbor.
      *
      * @return 0 when the room is unknown or not in the current format
      */

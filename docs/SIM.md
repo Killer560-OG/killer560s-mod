@@ -13,7 +13,7 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   So did Wither Doors (until 2026-10-08): its gate also refused the sim (no server address), and `WitherDoorScanner` read
   roof heights 73/74/81/82 and the anchor at bare y 69 inside a 0..255 band, so with the floor near y -60 it found no
   door at all. It now shifts all of them by `DungeonLayout.simYOffset()`; testkit 538 checks a sim wither door's box.
-- An L-shaped room is captured as its 2x2 bounding box, and nine of his eleven have a NEIGHBOURING room's
+- An L-shaped room is captured as its 2x2 bounding box, and nine of his eleven have a NEIGHBORING room's
   geometry in the quarter they do not occupy. They are excluded from generated floors until the capture
   records which quadrant is real. Hand-drawn maps are not filtered.
 - A room's DOORWAYS are read off the captured blocks (`RoomDoors`), not declared anywhere. A Catacombs
@@ -65,7 +65,7 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   `MEASURED_MAX_ENTITY_REACH` in `CheatUtilsConfig` are the single places those live. The entity figure was
   re-measured at 0.1 resolution on 2026-09-29 (scenario 85, player placed rather than walked): **3.00 draws no
   flag, 3.10 does** - so 3.0 is right and is exactly on the edge. Confirmed in the same run that 4.50 to the box
-  is 5.08 to the CENTRE, which is why a centre-measured 4.5 limit silently refuses legitimate blocks.
+  is 5.08 to the CENTER, which is why a center-measured 4.5 limit silently refuses legitimate blocks.
   Audited 2026-09-29: 22 sites carried their own number, all inherited from QUOI and none tied to the
   measurement - 6.0 in the puzzle chest auras and Auto Croesus, 5.48 in Weirdos/Water/Tic Tac Toe/Auto Routes,
   4.0 for a terminal (an ENTITY click, so the limit is 3.0), 4.7 for essence skulls, and clamps at 5.5 and 6.0
@@ -91,9 +91,9 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
 - A room's captured size is `tiles * 32 + 1` (`RoomLibrary.footprint`), and the ONLY inverse is
   `tiles = (size - 1) / 32`. Two places had their own: capture read a room's grid-cell span as a tile count
   (a 3-tile room captured 157 blocks long instead of 97, running 60 columns into the next room), and
-  `SimFloorGen.cellFootprint` read the captured size as a tile span and halved it. Those two errors cancelled
+  `SimFloorGen.cellFootprint` read the captured size as a tile span and halved it. Those two errors canceled
   exactly, so fixing one alone produced a worse bug than either — a 2-tile room planned into one cell and
-  pasted over its neighbour. `RoomLibrary.cellFootprint(name)` is now the single inverse; scenario 73 asserts
+  pasted over its neighbor. `RoomLibrary.cellFootprint(name)` is now the single inverse; scenario 73 asserts
   every room covers exactly its captured footprint.
 - Map-code room ids are per PLACEMENT, never per name. They were deduplicated by name, and `SimBuilder` pastes
   by flood-filling cells with the same id — so two placements of one room standing next to each other merged
@@ -108,15 +108,15 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   full map" was `SimFloorLayout` stopping at `wantRooms` placements: a 1x2 covers two of the 36 room slots and a
   2x2 covers four, so 21 rooms landed anywhere from 25 to 35 cells, median 30, with whole rows of the 6x6 grid
   empty. His own Map Logger scans of 40 real floors put a fully-walked one at 34-36 with 12 of the 40 at exactly
-  36. `Floor.cells` is now the target and `Floor.rooms` only a minimum; measured over 500 planned F7s afterwards,
+  36. `Floor.cells` is now the target and `Floor.rooms` only a minimum; measured over 500 planned F7s afterward,
   36 of 36 cells every time with 21-26 rooms. Three things had to come with it, and each was its own defect:
   the attempt scoring has to rank the room MINIMUM above cells, or an attempt that stalled at 20 rooms over 32
   cells beats one that reached 22 over 31; a room's footprint has to be capped at
   `cellsLeft - (roomsStillOwed - 1)`, or big rooms fill the grid with fewer rooms than the floor is supposed to
-  have; and a free cell whose every neighbour is a blank wall can never be filled, so `score` costs a placement
+  have; and a free cell whose every neighbor is a blank wall can never be filled, so `score` costs a placement
   for each one it would strand.
 - Preferring small rooms is not free. `choose` sorted candidates by `area * 0.45 - doors * 0.9`, and a
-  multi-tile room also has more doorways that can end up facing a neighbour's blank wall — worth -3 each in
+  multi-tile room also has more doorways that can end up facing a neighbor's blank wall — worth -3 each in
   `score` — so between them the layout refused nearly every big room. Reaching 36 cells took 26 rooms until the
   size term flipped sign while the floor is behind the cells-per-room a real floor has, the "good enough, stop
   looking" threshold moved with the extra credit, and multi-tile footprints got credit for the cells they bring.
@@ -125,7 +125,7 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   fairy, but a fairy placed after blood could still end up against it (about 2% of floors). No door was ever cut
   between them, so the blood-rush rule held by luck rather than by construction. The same rule had a second hole
   on the ENTRANCE side, and for a different reason: choosing where the fairy goes respects it (a fairy is only
-  attached to a stub at least one doorway in), but the extra-door pass afterwards chooses nothing - it opens a
+  attached to a stub at least one doorway in), but the extra-door pass afterward chooses nothing - it opens a
   door wherever two placed rooms happen to have doorways facing each other, including between the fairy and the
   entrance it was carefully kept a room away from. Never once in 4,000 generated floors, once in 200 with rooms
   pinned, because pinning lays out five times as many candidates and keeps the best. `SimFloorLayout.
@@ -137,10 +137,10 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   as a separate fixpoint pass, and the pass almost never fired: the growth loop's "any doorway that meets a
   doorway facing back is a door too" block had already consumed the pin's stub and added the link, without
   clearing the dormant flag. So the pin was pruned at the end with the link still pointing at its now-empty
-  cells. 63% of single pins honoured and 67 links to an empty cell per 200 floors, against 100% and none once
+  cells. 63% of single pins honored and 67 links to an empty cell per 200 floors, against 100% and none once
   the wake moved into that block. The fixpoint pass is still needed, but only for a pin next to the seed and for
   two pins side by side.
-- A pin no attempt can connect has to cause a SECOND layout without it. Its cells counted towards the cell
+- A pin no attempt can connect has to cause a SECOND layout without it. Its cells counted toward the cell
   target the whole way through and the growth stopped on them, so pruning it at the end leaves a floor short of
   target with a hole where it was - one unreachable pin dragged the median F7 from 36 cells to 34 and the worst
   case to 26. `run` lays the floor out again with that room dropped and still reports it.
@@ -205,7 +205,7 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   singleplayer server, and `SimBreakerState` ticks on `END_SERVER_TICK`, which never fires on a remote
   server - so those are structurally safe rather than gated. Scenario 88 fires every sim command at a real
   dedicated server and fingerprints the arena block for block before and after.
-- **A sim miniboss the Mob ESP recognises has to be a real server-side PLAYER, and four separate things each
+- **A sim miniboss the Mob ESP recognizes has to be a real server-side PLAYER, and four separate things each
   silently refuse it.** `MobEspFeature.isMiniboss` wants a client `Player` with a **version-2 UUID** and a name
   from its five, so the only route is an AddEntity packet of type `PLAYER` -
   `ClientPacketListener.createEntityFromPacket` builds a `RemotePlayer` from `getPlayerInfo(uuid).getProfile()`
@@ -244,7 +244,7 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
 
 ## Unreproduced: "this room is not part of supertall it is its on 1x1"
 
-His 2026-09-30 screenshot showed a 1x1 drawn as part of the neighbouring 2x2 Supertall. Measured rather than
+His 2026-09-30 screenshot showed a 1x1 drawn as part of the neighboring 2x2 Supertall. Measured rather than
 eyeballed, and it did not happen: scenario 90 plans a floor, publishes it through
 `LiveMapFeature.publishSimFloor`, captures it through `DungeonLayout.capture` and compares the two partitions
 of the even cells - which placement owns a tile against which map room owns it. Over **240 planned F7s, 160
@@ -253,7 +253,7 @@ of them holding Supertall, 8,639 room tiles across 5,263 map rooms: zero merges 
 
 So the map-code and grouping path is not where it went wrong, and the three mechanisms that could merge two
 rooms were each checked and are sound: `SimFloorGen.markRoomCells` fills a rectangle of reserved cells and
-never a neighbour's; a connector between two different rooms is left `NO_ROOM` so it is never `Tile.ROOM`;
+never a neighbor's; a connector between two different rooms is left `NO_ROOM` so it is never `Tile.ROOM`;
 and `rebuildGroups`' union-by-name is capped at the room's own `shapeTileCount`. Supertall's capture is 65x65
 (2 tiles each way) and the database says `2x2`, so it is not a footprint mismatch either.
 
@@ -352,7 +352,7 @@ joined by links already kept.
 `SimBuildQueue.isBusy()` is false both before a build starts and after it finishes, and `progress()` is 0
 in both cases too (`finishedWork` is zeroed the moment the queue empties). `generate()` returns as soon as
 the world is opening, and the rooms are queued from a later server task, so anything that asks "is it busy"
-straight afterwards gets "no" and then measures an empty world. Use `buildsFinished()`, which only counts
+straight afterward gets "no" and then measures an empty world. Use `buildsFinished()`, which only counts
 completions: snapshot it, ask for the floor, wait for it to change. Eleven testkit scenarios had this bug
 and two of them - "0 secret chests" and "sim mobs never spawn" - read for days as defects in the mod.
 
@@ -420,7 +420,7 @@ and the map should only show the room that i loaded not the previous map" (2026-
 `build()` did - so the HUD map, the interactive map and every pathfinder that reads the layout kept the last
 FLOOR's twenty-two rooms while the world held one. It now publishes a map of just that room's cells.
 Scenario 91 builds an F7, loads one room into the same world, and requires the map to go from 22 rooms to
-exactly 1 named room, with a block of the old floor found at the edge of the grid first and gone afterwards.
+exactly 1 named room, with a block of the old floor found at the edge of the grid first and gone afterward.
 
 And `SimBuildQueue`'s "Sim build took N ms" was measuring from the PREVIOUS build. `startedAtMs` was set only
 in `submit`, and a single-room load queues its clear first, so the paste then found a non-empty queue and
@@ -461,14 +461,14 @@ So the likely cause is not the floor search at all, it is the invented doorway: 
 side of Blood that has no opening, and the 3x4x7 carve is then expected to tunnel through the room's own solid
 perimeter. "moved 2.2 across, blocked by stone_bricks" is consistent with a tunnel that starts but does not
 finish. Worth checking first whether the carve depth of 7 actually reaches through Blood's wall from the
-connector centre, and second whether the invented doorway should be placed on the side the layout wants rather
+connector center, and second whether the invented doorway should be placed on the side the layout wants rather
 than always NORTH.
 
 The chest case is separate and partly fixed: `findFloor` used to treat a chest in the room's perimeter as the
 floor, returning one block too high and leaving the chest in the opening - Pedestal has one at capture y70 on
 its z=0 edge and Archway one at y70, and y70 is exactly where an opening starts. It now steps past a chest to
 find the real floor. Run 2 above still shows a chest in the blockage, so at least one variant of that remains,
-probably a chest off the connector's centre column.
+probably a chest off the connector's center column.
 
 
 ## Never iterate the level's entity list while removing from it
@@ -508,7 +508,7 @@ Anything in `roomsim/` that damages a mob must name the player. Resolve the `Ser
 
 ## FlatTestRoom is one tile and must declare margin 0
 
-A real capture is `TILE + 2 * WALL_MARGIN` across, because it shares a wall column with each neighbour.
+A real capture is `TILE + 2 * WALL_MARGIN` across, because it shares a wall column with each neighbor.
 `FlatTestRoom` is exactly `TILE` and draws its own walls inside that tile, so it owns nothing outside it — but
 it was built before `Room.margin` existed and inherited the `WALL_MARGIN` default. `RoomPlacer` anchors at
 `origin - TILE / 2 - margin`, so the entire room was pasted one block negative on both axes.
@@ -735,30 +735,30 @@ empties the list itself.
 database rotation 270 (`capture (cx,cz) -> db (31-cz, cx-1)`), and every piece of furniture the live
 `WaterSolverFeature` indexes is in it at the position that solver already uses: 7 of 7 levers at
 `(20|10, 61, 10|15|20)` plus the back lever at `(15, 60, 5)`, each ore lever mounted on its own matching ore
-block one block further out; the five colour columns at `x=15`, `z=15..19`, each with its wool at `(15, 55, z)`
+block one block further out; the five color columns at `x=15`, `z=15..19`, each with its wool at `(15, 55, z)`
 standing on an up-facing sticky piston at `(15, 54, z)`, pushing into `(15, 56, z)` - which is exactly the block
 the solver's `extendedSlots` scan tests; and the terracotta identifier marker at `(14, 77, 27)`, so this capture
 is **board 0**. The room's water is a sealed column: a source at `(15, 62, 3)` feeding `(15, 59..62, 4)`, boxed
 in by sea lanterns at `x=14/16` and andesite at `z=5`.
 
-What is NOT in it is the mechanism. A capture is one frozen frame, and in this one **every colour is retracted**
+What is NOT in it is the mechanism. A capture is one frozen frame, and in this one **every color is retracted**
 (all five of `(15, 56, z)` are air) and there are no pistons behind the lever walls at all - Hypixel moves those
 blocks by `setblock`, not by redstone a capture could record. So the sim cannot replay the real board; it can
 only drive the same visible parts.
 
-**Three of five colours have to be pushed out or his solver sits out.** `WaterSolverFeature.scan` refuses to do
+**Three of five colors have to be pushed out or his solver sits out.** `WaterSolverFeature.scan` refuses to do
 anything unless exactly three of the five read as extended AND an identifier marker matches. A captured room
 fails the first test, which is the whole reason the Water Board solver never lit up in the sim.
 `SimWaterPuzzle.bindAt` therefore picks a board the bundled `water-solutions.json` actually contains (`"012"`
-first - every identifier carries it), pushes those three colours out itself, and then drives its own rules from
+first - every identifier carries it), pushes those three colors out itself, and then drives its own rules from
 `WaterSolverFeature.bundledClickOrder` for the same board. It also reads his own **Optimized Path** setting,
 because that switches the whole sequence: a sim that ignored it would score him against a different solution
 from the one on his screen.
 
-**The bundled data kills the obvious model.** "One timed click opens one colour" holds for only 6 of the 80
-bundled boards - the non-zero click counts run from 1 to 10 against always exactly 3 colours. And `water` is not
+**The bundled data kills the obvious model.** "One timed click opens one color" holds for only 6 of the 80
+bundled boards - the non-zero click counts run from 1 to 10 against always exactly 3 colors. And `water` is not
 always a single click: 12 of the 80 boards flip the back lever a SECOND time at a non-zero time, which is the
-flow being stopped and restarted mid-solution. So the sim spreads the three colours evenly across however many
+flow being stopped and restarted mid-solution. So the sim spreads the three colors evenly across however many
 timed clicks the board has, nearest the entrance first, and treats a later `water` entry as an ordinary timed
 click that also toggles the flow. Both of those are the sim's own choice and are written as such in
 `SimWaterPuzzle`'s class doc.
@@ -771,19 +771,19 @@ was corrected on 2026-10-02** - see "The 2026-10-02 puzzle round": it is the boa
 
 ## A failed sim puzzle can now turn its room red
 
-`DungeonMapScanner.STATE_FAILED` comes from the vanilla dungeon map ITEM: Hypixel sets a failed puzzle's centre
+`DungeonMapScanner.STATE_FAILED` comes from the vanilla dungeon map ITEM: Hypixel sets a failed puzzle's center
 map byte to 18 (red) while its side byte stays 66 (purple), which is the pair `case 18` decodes. A sim has no
 map item, the scanner is never calibrated, and every room painted as plain "discovered" - so there was no way
 for a failed sim puzzle to show. `SimRoomState` is the sim saying so directly, keyed by room NAME because that
 is what a puzzle knows about itself and what `MapPainter` already resolves a `RoomGroup` to. Cleared when a
-floor is built and when an Architect's First Draft resets the puzzles, which is exactly the behaviour he asked
+floor is built and when an Architect's First Draft resets the puzzles, which is exactly the behavior he asked
 for ("If i then use an archetechs draft itll fix it and restart it").
 
 **It is the NAME that goes red, not the square.** killer560, 2026-10-01: "no not the square the text should
-become red." That needed nothing drawing-side - every label is already coloured `stateColor(visibleState(group))`
-and `STATE_FAILED`'s colour is `0xFFFF5555` - so reaching the state is the whole job and a tint on
+become red." That needed nothing drawing-side - every label is already colored `stateColor(visibleState(group))`
+and `STATE_FAILED`'s color is `0xFFFF5555` - so reaching the state is the whole job and a tint on
 `roomColor` was wrong. Worth remembering before "make X show on the map" turns into a painter change: the
-state-driven colours are already wired, and most of these asks are about a state nothing in a sim can set.
+state-driven colors are already wired, and most of these asks are about a state nothing in a sim can set.
 
 `SimPuzzles.reportFail` also gained a room-name overload: six of the seven failable puzzles live in a room named
 after them, but `SimQuizPuzzle` runs both Quiz and Three Weirdos and was hardcoding "Three Weirdos" into the
@@ -810,7 +810,7 @@ name.
 The 2026-10-01 version cut the HUD panel to the bounding box of the rooms REVEALED so far (`MapPainter.panelUnits`
 /`autoFit`), so on a real floor the box changed shape and every room shrank each time a far room came into view -
 killer560, 2026-10-04: "It shouldn't do this weird fill in and shrink in real dungeons." Both are gone. The outline
-is always `MAP_UNITS` square at the Room Size setting, and `MapPainter.floorFit` scales and centres the floor's
+is always `MAP_UNITS` square at the Room Size setting, and `MapPainter.floorFit` scales and centers the floor's
 whole grid inside it from `DungeonState.getFloor()` alone (`MapPainter.floorRooms`: E 4x4, F1 4x5, F2/F3 5x5, F4
 6x5, rest 6x6, M floors as their number - from `DungeonMapScanner.calibrate`'s start corners and the FloorSizeLog
 samples). The sim reports M7 and always lays out on the 6x6, so it gets 6x6. A drawn room outside the floor's grid
@@ -825,7 +825,7 @@ faces on Hypixel is dungeon scenery outside the 31x31 tile a capture covers. `Si
 fills air in the room's own outermost layer with stone, using the same "only where the ring is already air" rule
 `SimBuildQueue.submitSeal` uses for single-room tests, but with stone rather than diamond because here it is
 meant to disappear. It runs from `doorWork` BEFORE the doorways are carved, so the one real door is reopened
-afterwards; running it after would brick up the way out of the run.
+afterward; running it after would brick up the way out of the run.
 
 ## Every solver was pointing at Hypixel's height
 
@@ -922,8 +922,8 @@ which is what "once everything is down" was always supposed to mean.
 
 The mimic's room gets the map's ordinary `MIMIC_TINT` from the ordinary check (a `trapped_chest` at a database secret
 position, cheat build): since 2026-10-13 the sim picks its mimic only among the secret chests `SimSecrets` placed, and
-the sim-only `mimicCell()` branch in `MapPainter` is gone (it took the NEAREST cell centre, a doorway cell for any chest
-more than 8 blocks off its tile centre). The map latches the room for the rest of the run (`MapPainter.MIMIC_TILES`),
+the sim-only `mimicCell()` branch in `MapPainter` is gone (it took the NEAREST cell center, a doorway cell for any chest
+more than 8 blocks off its tile center). The map latches the room for the rest of the run (`MapPainter.MIMIC_TILES`),
 because the chest turns to air when the mimic springs - which is what made his room lose its red on Hypixel.
 
 ## Trap rooms take your abilities
@@ -958,13 +958,13 @@ has always searched with 60 blocks a hop; Hypixel's etherwarp is 57 and `SimAbil
 a hop planned at 58-60 was accepted by the search and refused by the ability, leaving the queue stuck on a node
 that could never fire. In the sim the planner now asks `SimAbilities.etherwarpRange()`.
 
-## Teleporting up had only one fallback, and it was downwards
+## Teleporting up had only one fallback, and it was downward
 
 `dashTarget` walks the look vector and keeps the furthest point the player still fits at. When a step did not
 fit it fell back to the same horizontal position **at the height he started at** - right for aiming down (the
 floor stops you and you slide along it, which his Hypixel log confirms) and wrong for aiming up, where the
 moment the ceiling stopped the climb it dropped him all the way back to his own level. The fallback now walks
-from the candidate's own height TOWARDS his, one block at a time, and takes the first that fits: under him that
+from the candidate's own height TOWARD his, one block at a time, and takes the first that fits: under him that
 is the floor, over him it is the last block below the roof. A settle that is not further than the best so far is
 refused outright, so looking straight up at a low ceiling does nothing rather than teleporting him to where he
 already is.
@@ -1051,20 +1051,20 @@ day.
 
 ## Rooms that want a different spawn than their middle
 
-`snapPlayerTo` drops him at the tile centre and scans UP from the bottom of the world for somewhere to stand.
+`snapPlayerTo` drops him at the tile center and scans UP from the bottom of the world for somewhere to stand.
 Two rooms need better: a blaze shaft's middle is the chain and its "level" is the one you walk in on, and
 Creeper Beams' middle is the puzzle's own structure. `SimBuilder.spawnFor` is the table - an x/z offset plus a
 flag that flips the landing scan to come DOWN from the top, which is what Higher Blaze needs and no other room
 does. The blaze doorway side comes from the room's own measured `RoomDoors` mask rather than a guess; 14 is the
-tile centre stepped out to the wall and back in one. `/goto` passes the room through to the same table, so the
+tile center stepped out to the wall and back in one. `/goto` passes the room through to the same table, so the
 command and a single-room build cannot drift apart.
 
 ## One held shot is twenty clicks
 
 "it wouldnt let my shots render the thing as hit most of the time" and "make the delay between selecting a
-block and unslecting that same block 3 ticks" are the same fault. CLAUDE.md already records that cancelling a
+block and unslecting that same block 3 ticks" are the same fault. CLAUDE.md already records that canceling a
 block break re-enters `AttackBlockCallback` every TICK rather than once per click; Creeper Beams consumes that
-callback, so one held shot picked a lantern, cancelled it and picked it again twenty times a second. From in
+callback, so one held shot picked a lantern, canceled it and picked it again twenty times a second. From in
 front of it that is a lantern that mostly does not respond. Three ticks of per-position cooldown, and the
 repeat is swallowed rather than passed on to a block break.
 
@@ -1198,7 +1198,7 @@ thirteen are the room's own sea lanterns and are there on Hypixel too, so shooti
 Auto Creeper Beams needed one more thing: it does not watch the blocks at all, it advances a pair's stage only
 when an `entity.elder_guardian.hurt` sound packet arrives at the exact lantern it just shot, with pitch
 `1.3968254` (first hit) or `2.0` (pair done). The sim plays both now, at **integer** coordinates - a sound at a
-block's centre arrives as `x + 0.5` and would never match.
+block's center arrives as `x + 0.5` and would never match.
 
 ## Quiz: the question was announced from the corridor, and the solver wiped it
 
@@ -1273,7 +1273,7 @@ Hypixel's sequence on the SERVER (`SimQuizPuzzle`'s Oruo section):
 - Lines go out at START_SERVER_TICK (or inside the interact packet) and the server counts ticks at END, so a lock of
   N ticks opens exactly when a client counting N pings after the line (QuizState) is allowed to press: 1017-sim-quiz-timing
   measures every Auto Quiz answer on the opening tick + 1.
-- The question block is Hypixel's: blank, centred "Question #N", the centred question, blank, `    §6 ⓐ §a<answer>` x3,
+- The question block is Hypixel's: blank, centered "Question #N", the centered question, blank, `    §6 ⓐ §a<answer>` x3,
   blank; the answer holograms are replaced with each question.
 
 ## Quiz: walking in starts it (2026-10-18)
@@ -1311,7 +1311,7 @@ ones the pattern did not want. It has to be written at all - this room's own arr
 boulders, in the room's own plank.
 
 The push had the same off-by-a-column fault: it moved one block, from y 65, so a press carved the middle out of
-a boulder and left its top and bottom standing. The clearance test only looked at y 65 too, so a neighbouring
+a boulder and left its top and bottom standing. The clearance test only looked at y 65 too, so a neighboring
 boulder's gap-free column read as "air" at the only height being checked and the roll walked through it.
 
 ## Etherwarp onto the roof, and what the interactive map actually needs
@@ -1331,13 +1331,13 @@ which is where nearly every landing on a clear is, so the normal path costs noth
 
 "it doesn't need to go the exact spot that I click instead it just needs to go to that room, more specifically if
 that room is a 1x2 then it should go into that rooms quadrant that I clicked. It can choose anywhere in that room
-whatever is fastest." The fallback was `nearestEtherwarpable` on the tile centre - a 25-block sphere sorted by
-distance from that centre, which can leave the tile, pick a block 20 up, or land on a wall, and has no idea where
+whatever is fastest." The fallback was `nearestEtherwarpable` on the tile center - a 25-block sphere sorted by
+distance from that center, which can leave the tile, pick a block 20 up, or land on a wall, and has no idea where
 the player is. `etherwarpableInTile` stays inside the clicked tile's own footprint, at that tile's floor height,
 and picks the candidate closest to him. A room override that turns out not to be standable now falls through to
 it rather than failing the whole press.
 
-## Blaze: the solver only looks at armour stands
+## Blaze: the solver only looks at armor stands
 
 "auto blaze wanted to look towards the middle" - and then nothing. `BlazeSolverFeature.rescan` begins:
 
@@ -1348,7 +1348,7 @@ for (Entity entity : client.level.entitiesForRendering()) {
 
 so a name set on the Blaze itself is invisible to it however well it matches the pattern. The sim named the blaze.
 The solver therefore found **zero** blazes in there, and `AutoBlaze` reads nothing but `getOrderedBlazes()` - its
-very first line. What he saw was `seedDefaultView`, which runs before the empty-list check, turning him towards
+very first line. What he saw was `seedDefaultView`, which runs before the empty-list check, turning him toward
 the middle; everything after that was skipped. The label hangs on its own stand now, the same way `SimMobs`
 already tags its starred mobs, and it is dropped the tick its blaze is found dead so the solver stops counting it.
 
@@ -1457,7 +1457,7 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   entries) and the vanilla tab list header/footer carry "killer560's personal testing sim" and
   `discord.gg/hkQMF5fE84`. The sidebar objective's title stays `SKYBLOCK`: `SkyblockGate` reads it, and every
   "Skyblock Only" feature in the sim depends on that.
-- The pause screen's Change Room button is a vanilla `Button` placed 4 px under the lowest button in the centre
+- The pause screen's Change Room button is a vanilla `Button` placed 4 px under the lowest button in the center
   column, read from the screen's widgets, instead of pinned to `height - 46`.
 - **Routes filter and "Next room with no routes" (2026-10-05)** live in `SimRoomRoutes`. (Superseded 2026-10-07: the
   picker's Routes button is the Filters panel's "Your routes" row and the solo-room pause button is gone - see "One
@@ -1493,7 +1493,7 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   for every room without its own rule: `doorwaySpot` measures each mask doorway's floor in the world (RoomDoors' 3x4
   window rule, >= 11 of 12 open or a shut door, in y 64..82 + `SimAltitude.offset()`), takes the height most doorways
   share (lowest on a tie; the walk-in side first for a 1x1 on a generated floor), and stands two in (then 1, 3, 4, +-1
-  sideways) on solid with feet and head clear of blocks and fluid, facing in. Creeper Beams' "4 off centre" went to this
+  sideways) on solid with feet and head clear of blocks and fluid, facing in. Creeper Beams' "4 off center" went to this
   rule. Before (testkit `97-sim-roomspawn`, main d0b84c73): of 133 single rooms 67 landed off the doorway floor, 3
   unsafe, 56 on it but 15+ blocks from any doorway, 7 by a doorway; `/goto` on an F7: 11 of 22 off the floor. After: 133
   of 133 and 23 of 23. A doorway's floor must be searched in the doorway BAND: the lowest 3x3 gap in the wall column was
@@ -1530,13 +1530,13 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   blaze rooms' number), at the doorway's floor, facing in. "The entrance" is the doorway a BFS from the
   Entrance over the decoded floor (`SimBuilder.floorPlan`, the room's own cells excluded) reaches first; a
   single-room load falls back to the first measured doorway.
-- **`/goto museum` put him on the roof** because Museum is a 2x2 whose four tile centres are all inside solid
+- **`/goto museum` put him on the roof** because Museum is a 2x2 whose four tile centers are all inside solid
   pillars (decoded `Museum.json`: those columns are solid y58 to the roof at y119), so the first spot with two
   air on it was the roof. Every landing now needs cover overhead in both scan directions, and a column without
   one gives way to the nearest covered column in the same tile (rings out to 15). A tile with no covered spot
   at all falls back to the old uncovered scan.
 - **The sidebar showed "k560l4"** because a score holder's name is drawn after its team prefix - the holders
-  were plain `k560l0..15`. They are colour-code-only names now (`§X§r`, Hypixel's trick), the old holders and
+  were plain `k560l0..15`. They are color-code-only names now (`§X§r`, Hypixel's trick), the old holders and
   teams are cleared from the saved world once, and the score numbers are blanked (`BlankFormat`). The lines are
   only the title line, secrets, room and the Discord link: time, keys/doors, the floor line and the "not
   Hypixel" line went. Nothing in the sim needed them - `DungeonState` gets the floor from `setRoomSim`. The
@@ -1569,9 +1569,9 @@ re-read; a hop with no target stops the path; a queue that cannot find him on an
 (Superseded 2026-10-04: the sim now lands at + 1.05 too and the planner uses one value - see the end of this file.)
 **"Off by one" had two causes.** The planner stood him at block top + 1.05 (QUOI's Hypixel number) while the
 sim stands him at + 1.0, so every sim hop was aimed from an eye 0.05 too high; the sim now plans at + 1.0. And
-QUOI's aim points are mostly 0.001 from a block's edge, with its top-centre point exactly ON the top face, which
+QUOI's aim points are mostly 0.001 from a block's edge, with its top-center point exactly ON the top face, which
 the voxel walk files under the air block above - so from above the edge points were what got used, and a ray
-grazing an edge flips to the neighbour on any rounding. `getEtherwarpDirection` now aims at face centres first
+grazing an edge flips to the neighbor on any rounding. `getEtherwarpDirection` now aims at face centers first
 and only returns an aim after casting the real float yaw/pitch for exactly the hop range and seeing it land on
 the block.
 
@@ -1611,16 +1611,16 @@ failed `LayoutSim`'s structure check (one blood, one trap, no overlap, every roo
 in beat a recent one that fitted. Variety also went past the point of usefulness: consecutive floors shared 0.6
 rooms, against about 3.5 by pure chance. Now recency only orders the shortlist (weight 1.5; table in the javadoc
 of `RECENCY_ORDER_WEIGHT`), the sixty-room shortlist cap only ends a search that has found something, and
-`fillGaps` fills whatever the growth leaves: an unused room meeting an open doorway; else a 1x1 neighbour turned
+`fillGaps` fills whatever the growth leaves: an unused room meeting an open doorway; else a 1x1 neighbor turned
 or swapped so a measured doorway faces the hole (all its doors kept); else, last, a 1x1 whose door is carved
-through the neighbour's wall. One WARN per floor that needed it, another if a cell is still empty. `ensureBlood`
+through the neighbor's wall. One WARN per floor that needed it, another if a cell is still empty. `ensureBlood`
 swaps the blood room in for the deepest 1x1 dead end when no attempt placed one. Result, 2000 floors from his
 file: 0 with an empty cell, 1 without blood, consecutive floors share 5.0 rooms. Most holes the growth leaves are
 corner cells walled in by 2x2 rooms, which only a carve fills - about a quarter of floors get one carved door.
 
 **Theoretical wither doors.** `SimWitherDoors`: every ordinary door on the room path from the Entrance to Blood
 (the wiki: "The path to the Blood Room is guarded by a series of Wither Doors"), worked out when the floor is
-published. Drawn on the sim's live map in the wither colour with a SINGLE amber outline (a real locked one has
+published. Drawn on the sim's live map in the wither color with a SINGLE amber outline (a real locked one has
 two) and in the Map Designer like a wither door. `isTheoretical` is false unless `SimState.isActive()`, and the
 table is only filled by `publishSimFloor`, so a Hypixel map never shows one. They stay ordinary doors to every
 pathfinder.
@@ -1661,13 +1661,13 @@ Eight reports, one fix each. Where a rule came from somewhere other than the cod
   visible name made a second label. `setMarker` is private; the flag goes through `ArmorStand.DATA_CLIENT_FLAGS`
   / `CLIENT_FLAG_MARKER`, public and identical in 26.1.2 and 26.2, and `onSyncedDataUpdated` refreshes the box
   on that key. A marker also fits Odin's "1 under the stand" offsets better: from `bbHeight + 0.1` it lands on
-  the blaze's centre, where the full stand put it at the head. `SimMobs`' star tags are still full stands.
-- **Teleport Maze: the route to the centre is checked pad by pad.** On paper the pairing was already right
+  the blaze's center, where the full stand put it at the head. `SimMobs`' star tags are still full stands.
+- **Teleport Maze: the route to the center is checked pad by pad.** On paper the pairing was already right
   (20,000 simulated draws: every successful one reached the exit), but nothing verified it at bind and a draw
   that failed 500 times left `link` empty, which makes every pad dead. `routeToCentre` now walks exactly what he
   does - walk to any pad of the chamber, step on it, land where it links - and a draw is only kept if it reaches
   the end pad; the shortest route is logged at bind. A fixed chamber chain is the fallback, never an empty table.
-  The decoded floor confirms the start pad is alone in the entrance chamber and the end pad alone in the centre.
+  The decoded floor confirms the start pad is alone in the entrance chamber and the end pad alone in the center.
   **Not reproduced**: no defect was found in the pairing itself, so if a run still never reaches the middle,
   the bind log line now names the route to compare against.
 - **Ice Path: a silverfish out of range is not a dead one.** `level.getEntity(uuid)` only sees entities in
@@ -1696,7 +1696,7 @@ Eight reports, one fix each. Where a rule came from somewhere other than the cod
   the grid or taken, the box disappears. Played over all eight patterns, all 18 solution steps find their box
   and an empty button cell, and every pattern goes from no row-9-to-row-24 path to an open one - which is the
   solved test. Plain push fails 6 of the 18 steps, pull fails 4. Buttons are wall buttons at y 65, one block
-  out from the middle of each face whose neighbour cell is on the grid and empty (the capture's 31 follow that
+  out from the middle of each face whose neighbor cell is on the grid and empty (the capture's 31 follow that
   rule), and are laid again after every move. The puzzle cannot be failed.
 - **Three Weirdos: visible NPCs, and they speak when talked to.** The three `[NPC]` lines were sent on the
   client in the same call that queued the stands' spawn on the server, so the solver read each line before its
@@ -1728,13 +1728,13 @@ Eight reports, one fix each. Where a rule came from somewhere other than the cod
   bind on the server thread cannot lose the new chain's. The aim offsets were left alone: Odin's
   `centre - 1` from a marker stand at `bbHeight + 0.1` is the blaze's middle. `[AutoPuzzles] Blaze:` INFO lines
   now log each target, each shot and a missing clean shot.
-- **Teleport Maze: the centre has a chest and a way out.** The capture holds no chest and the database lists
-  no secret, so the sim places one at relative `(15,69,17)` in the centre chamber (interior x 12..18, z 14..20,
+- **Teleport Maze: the center has a chest and a way out.** The capture holds no chest and the database lists
+  no secret, so the sim places one at relative `(15,69,17)` in the center chamber (interior x 12..18, z 14..20,
   walls at 11/19 and 13/21). A click on it from outside that box is refused with FAIL (no packet, not counted -
   registered before `SimMimic`). The end pad `(15,69,14)` used to do nothing; stepping off it and back on now
   sends him to the Interactive Map's entry spot for the room (`AutoClearUtils` `(15,68,-2)`, standing on it),
   falling back a block or three into the doorway if that is not standable in the build. The decoded capture
-  confirms the centre is walled from the start pad at z 13, so Auto Teleport Maze's Hypixel finish (walk to the
+  confirms the center is walled from the start pad at z 13, so Auto Teleport Maze's Hypixel finish (walk to the
   start pad) cannot work in here; in the sim only, it steps off the end pad and back on instead.
 - **Auto Teleport Maze holds the free camera** (`ViewFreeze`) every tick from the first maze teleport until it
   stops or finishes, starting from the view of the tick before that teleport. `rotateCamera`'s per-hop lease was
@@ -1760,7 +1760,7 @@ Eight reports, one fix each. Where a rule came from somewhere other than the cod
   updates, so nothing ever flowed. Slot moves write the maze-plane cell with `UPDATE_ALL` (water re-ticks and
   flows or drains) and everything else with no updates; each slot's power block (relative z 29: redstone when
   out, polished andesite when in, as every slot in the capture is) moves with it, so a piston head next to
-  flowing water that forwards an update to its base finds it already agreeing. No piston sits directly under
+  flowing water that forward an update to its base finds it already agreeing. No piston sits directly under
   another, so nothing is quasi-powered. **The puzzle cannot fail any more** and the back lever always works;
   an off-script click is named in chat and nothing else. Water leaving the maze's five bottom gaps spreads on
   the room floor at y 59 - not measured in game.
@@ -1768,11 +1768,11 @@ Eight reports, one fix each. Where a rule came from somewhere other than the cod
   the client builds a plain `Silverfish`, and on the client a non-player entity's `pushEntities` selects
   exactly the local player (`EntitySelector.pushableBy`, 26.1.2 bytecode). The fish now joins a scoreboard team
   (`k560_icepath_fish`) with collision rule NEVER, which is synced and makes `pushableBy` return push-nothing.
-  **A behaviour override on a server-side entity subclass does nothing on the client.**
+  **A behavior override on a server-side entity subclass does nothing on the client.**
 - **Creeper Beams: the far lantern was out of reach, not refused.** The only ways in were a left or right
   click ON the block, which vanilla only produces within 4.5 blocks; the Terminator's arrows hit nothing the
   puzzle listened to and the Mage beam only looked for mobs. `SimCreeperPuzzle.shotAlong` now resolves a shot
-  (Terminator centre arrow, Salvation, Mage beam with no mob in the way) as a block ray at fire time; the
+  (Terminator center arrow, Salvation, Mage beam with no mob in the way) as a block ray at fire time; the
   three-tick same-lantern guard absorbs a shot and a click on the same lantern in one tick.
 - **Boulder: reward chest and no etherwarp.** The chest goes on the top step of the far staircase, capture
   (30, 66, 16) - three steps at x 28..30 across z 14..18, back wall at x 31, opposite the raised doorway side
@@ -1813,7 +1813,7 @@ score; WARN when the marker and the secrets disagree, and when the answer is unc
 recording: uncertain means no outright winner, fewer than two votes, a source preferring another rotation, or the
 marker/secrets pointing only at a rotation the shape forbids. Sim only - on Hypixel the rotation is read live.
 
-**Hypixel behaviour is unchanged**: nothing in `livemap`, `secretwaypoints` or `roomdatabase` was touched, and
+**Hypixel behavior is unchanged**: nothing in `livemap`, `secretwaypoints` or `roomdatabase` was touched, and
 this class is consulted only for captured rooms in the sim.
 
 Result over the 134 shipped captures (`tools/layoutsim/rotation.sh -Droomdata=...rooms-modern.json`, which runs the
@@ -1832,9 +1832,9 @@ real class and `RoomTileAudit`): every usable capture certain except four, and o
 already refuses in 28 others (Skull, Bridges, Pedestal, Slime, Gravel, Doors, Wizard, Waterfall show the identical
 signature and ARE refused). Catwalk and Purple Flags: the marker and the tile-0 secrets agree on a quarter turn
 that a long-along-x box cannot have, and every secret beyond tile 0 is out of the box - the room ran along z and
-the box was laid along x, so tiles 1+ are a neighbour. Archway and Balcony: nothing lands until the room is moved
+the box was laid along x, so tiles 1+ are a neighbor. Archway and Balcony: nothing lands until the room is moved
 one tile, so the box is anchored a tile off. No rotation is right for any of them; a route recorded there cannot
-match Hypixel until each is walked again. The audit only misses them because their neighbours' tiles are not
+match Hypixel until each is walked again. The audit only misses them because their neighbors' tiles are not
 captured anywhere else to compare against.
 
 ## The sim answers packets, like Hypixel's server (2026-10-04)
@@ -1865,7 +1865,7 @@ branches in `ClearNode`, `ClearExecutor`, `EtherwarpPathfinder` and `EtherSearch
   the server, so Auto Routes reads charges from the lore as on Hypixel (the 0-ping breaker reads the same line).
 - **Landing height is one value.** Etherwarp lands at the collision top + 1.05 (`SimAbilities.
   ETHERWARP_LANDING_OFFSET`), then falls; the planner always plans 1.05 (`EtherwarpPathfinder.STAND_OFFSET`).
-  Instant Transmission still lands on a whole y - that is the measured Hypixel behaviour and what
+  Instant Transmission still lands on a whole y - that is the measured Hypixel behavior and what
   `ClearNode.AotvNode` (+ 1.0) already predicts. The ray is the planner's (`TeleportUtils.traverseVoxels` with a
   `Level` argument, eye 1.27, `getLook`), run on the server level.
 - **Weapons aimed by the packet.** Spirit Sceptre and Terminator right clicks are resolved on the server too, which
@@ -1879,7 +1879,7 @@ branches in `ClearNode`, `ClearExecutor`, `EtherwarpPathfinder` and `EtherSearch
   client callback cancels `startDestroyBlock` at HEAD before its TAIL hook).
 - **Still different, and why:** `TeleportUtils.underCover` / `EtherwarpPathfinder.coverTest` (the sim's rooms are
   separate towers with open sky between them; Hypixel's dungeon is solid rock), `AutoTeleportMaze.afterChest` (the
-  capture walls the centre chamber off from the start pad) and the y offset everywhere (`SimAltitude`). (Secret
+  capture walls the center chamber off from the start pad) and the y offset everywhere (`SimAltitude`). (Secret
   Aura's essence test was on this list until 2026-10-05; the sim now places Hypixel's essence skull, so it is not.) Each is the sim's WORLD differing, not its
   server; fixing them means changing what the sim builds.
 - **Auto Routes recording warning.** Starting a recording or `/ar add` in the sim in a room whose capture rotation
@@ -1954,17 +1954,17 @@ fell back on every attempt because of it. Compare given rooms by name.
 - **The sim read the shove direction off the arrow entity, which is never the aim.** `Projectile.shoot` sets an
   arrow's yaw to `atan2(x, z)` of its velocity (26.1.2 bytecode) - the mirror of a look yaw's `atan2(-x, z)`; a
   shot at pitch 90 has almost no horizontal velocity, and `SimTerminator.fromAngles` even points that sliver
-  backwards (`cos` of the float pi/2 is -4.4e-8); and an arrow hitting the invulnerable silverfish is deflected
+  backward (`cos` of the float pi/2 is -4.4e-8); and an arrow hitting the invulnerable silverfish is deflected
   with `ProjectileDeflection.REVERSE` (about 180 degrees). So every Auto Ice Path shot shoved along a flipped
   board axis - into a wall, where nothing moves and nothing was logged. `TerminatorArrow` now carries the aim
   (`SimTerminator.shotYaw`), `pollForArrow` shoves with that (any other arrow: its shooter's yaw), discards all
   three arrows of the shot, and every shove or wall-shove is an INFO line. **An arrow's `getYRot()` is not where
   it was aimed.**
 - **Auto Ice Path's shot yaw was an etherwarp aim.** It took the yaw of `etherwarpDirection(nextSpot)`, whose
-  top-centre point never matches from above (filed under the air block), so the point used was 0.001 from an edge
+  top-center point never matches from above (filed under the air block), so the point used was 0.001 from an edge
   of the next block - up to 45 degrees off the board axis for a one-cell stop, on Hypixel too, and no shot at all
-  when nothing was visible. The yaw is now cell centre to cell centre. `AutoReposition` aims with
-  `AutoPuzzleUtil.etherwarpAim` (TeleportUtils' verified face-centre aim, QUOI's as fallback) and logs start,
+  when nothing was visible. The yaw is now cell center to cell center. `AutoReposition` aims with
+  `AutoPuzzleUtil.etherwarpAim` (TeleportUtils' verified face-center aim, QUOI's as fallback) and logs start,
   arrival and refusal. Every Auto Ice Path gate logs once per change as `[AutoIcePath] ...`, each shot as
   `[AutoIcePath] shot N from ... toward ...`, and three shots from one cell without a slide WARN.
 - **Not proven from the log which gate stopped it** - the old code had no log line in any of them. The sim fault
@@ -1983,7 +1983,7 @@ fell back on every attempt because of it. Compare given rooms by name.
 - **No auto ever held a bow, because his Terminator was older than its tooltip.** The log repeats "[AutoIcePath]
   waiting: no shortbow ... in the hotbar" and Auto Blaze "holding 'Aspect of the Void', which is not a shortbow".
   `SimItemLore`'s table has had the `§6Shortbow: Instantly shoots!` line since 2026-10-01 and `loreContains`
-  strips colour codes correctly - but the sim's save is reused (`SimWorld`), so the player's inventory is too, and
+  strips color codes correctly - but the sim's save is reused (`SimWorld`), so the player's inventory is too, and
   the Terminator in his hotbar (read out of `saves/killer560s-dungeon-sim/players/data/<uuid>.dat`) still carries
   the pre-10-01 lore: "Ability: Salvation / Shoots 3 arrows at once. / (blank) / LEGENDARY BOW". **Fixing the
   item table fixes no item already in a saved inventory.** `SimItemLore.register` now re-applies the table, every
@@ -1991,7 +1991,7 @@ fell back on every attempt because of it. Compare given rooms by name.
   Dungeon Breaker's "Charges" line is ignored in the comparison and kept) - what Hypixel's server does whenever an
   item's lore changes. Separately, only Auto Ice Path swapped; Auto Blaze and Auto Creeper Beams only checked the
   hand. All three now call `AutoPuzzleUtil.holdShortbow` (HELD / SWAPPING / NONE: any hotbar item whose
-  colour-stripped lore contains the phrase, one swap a tick, shoot on a later tick). The real Hypixel Terminator
+  color-stripped lore contains the phrase, one swap a tick, shoot on a later tick). The real Hypixel Terminator
   carries the same line, so it is one rule in both places.
 - **Higher Blaze's blazes sat above the top landing.** `SimBlazePuzzle.bindAt` searched for the floor DOWN from
   Higher Blaze's top, and the first air-over-solid on the way down is the cobblestone landing at capture y 118, so
@@ -2023,7 +2023,7 @@ fell back on every attempt because of it. Compare given rooms by name.
   links rooms now asks `SimFloorLayout.isOneDoor`: the growth sends a puzzle's other doorways straight to the
   bricked-up list, the loop pass skips puzzles, the fill pass never meets or carves into a puzzle and a puzzle it
   places takes one door, a woken pinned puzzle loses its stubs, and `doorLinks` joins puzzles last, one door each.
-  A cell whose only neighbours are puzzles is filled by swapping the puzzle for an ordinary room (last step, after
+  A cell whose only neighbors are puzzles is filled by swapping the puzzle for an ordinary room (last step, after
   the carve) and the puzzle is owed again. AFTER, same sweep: **0** puzzles with != 1 door in 22,400 floors with
   recency and 22,400 without; path, fairy, wither doors, cells, blood/trap/fairy counts and reachability all 100%;
   puzzle count right on 99.96% (8 short, was 1) and room minimum missed 0.19% (42, was 15) - the same full F5/F7
@@ -2043,16 +2043,16 @@ pitch -13 about 10, and nothing between 22 and 57 blocks along a floor is ever h
 9-to-20-block hops. A bench run with a 2-degree fan cut the warps by 30% on its own.
 
 **Now** (`WarpGraph`, wired in `EtherwarpPathfinder.findDungeonPath` / `findDungeonPathToTile`):
-- Nodes are the floor's landings thinned to one per 3x3 columns and height (the one nearest the square's centre),
-  except along every tile's centre lines and in every doorway box, where each landing is its own node: every
-  door sits on a seam at a centre line, and whether a long sight through it passes is decided by a block either
+- Nodes are the floor's landings thinned to one per 3x3 columns and height (the one nearest the square's center),
+  except along every tile's center lines and in every doorway box, where each landing is its own node: every
+  door sits on a seam at a center line, and whether a long sight through it passes is decided by a block either
   way. Without those the graph took 12% more warps than every-landing; with them under 5%.
 - An edge is a verified aim at a node within reach: the real float yaw/pitch is cast for exactly the hop range and
-  must land on the block, the same rule as before. A line to the block's top centre that is stopped in its first
+  must land on the block, the same rule as before. A line to the block's top center that is stopped in its first
   60% is refused without trying the other 17 aim points (they are inside the same block); stopped later, the full
   aim runs. That cheap refusal misses 1.4-4% of the pairs the full aim accepts (bench `-Daimcheck`).
 - A click is A* on (warps, distance). Once the floor is warm the heuristic is exact: a room click reads a per-tile
-  distance field (breadth first backwards from the tile's floor band, built when warming completes), an exact
+  distance field (breadth first backward from the tile's floor band, built when warming completes), an exact
   block gets a backward breadth-first search from the nodes that can aim at it, stopped at his own landings.
 - A node's edges are kept. Every section its rays read is recorded; `LevelEtherGrid` sets a touched section's old
   flags aside and the planner thread reports it to the graph only if the FLAGS changed (`processChanges`), so a
@@ -2152,7 +2152,7 @@ the map lands on the doorway, and the walk is the forward key and the camera.
 **Teleport Maze: round the walls.** The capture has a cobblestone wall (collision 1.5) in the middle of two sides of
 every chamber, right between the two pads on that side, so a straight walk to the pad beside you hit it and timed
 out ("no teleport after 3000ms of walking"). `autopuzzles/MazeWalk` is a grid Dijkstra at the pad's feet level (8
-neighbours, no corner cutting, 0.6 step-up, nothing solid in the body's 1.8), thinned to straight legs, steered with
+neighbors, no corner cutting, 0.6 step-up, nothing solid in the body's 1.8), thinned to straight legs, steered with
 the camera and the forward key only; it re-plans if pushed 1.6 blocks off its line, falls back to the old straight
 walk if it finds no way, and the timeout grows with the planned length. The mod's walking pathfinder
 (`pathfinding.GraphPathfinder`) runs on recorded island graphs, of which a dungeon room has none, which is why it is
@@ -2161,24 +2161,24 @@ straight (exactly the same-side pairs), 0 without a way round; doorway to start 
 **On Hypixel:** the room is the same capture, so the same walls.
 
 **Teleport Maze: one closed loop.** Reading of the structure: seven chambers of four corner pads, every pad a two-way
-link to a pad in another chamber, the start linked to one, one exit to the centre (wiki, Dungeon Puzzle Rooms:
+link to a pad in another chamber, the start linked to one, one exit to the center (wiki, Dungeon Puzzle Rooms:
 "seven rooms with four teleport pads each, all leading to different rooms"). The wiki's way through (Catacombs
 Puzzle Rooms) is to take the pad diagonal to the one you arrived on until you land facing a pad in the same room,
 and Auto Teleport Maze's fallback does the same. Pair each pad with its diagonal: the fourteen diagonals and the
 links between them make paths and closed loops. The old draw paired pads at random, which split them into several
 loops; a walk that entered one off the start-to-exit line (any non-diagonal pad, the auto's "best"/"farthest" picks,
 or a human) could go round it for ever. `TeleportMazeLinks.draw` now lays all fourteen diagonals in one chain
-(start, d1..d14, exit), no two neighbours in the same chamber, each entered by a random one of its two pads. The
-centre pad returns him beside the start, so start-chain-centre-start is the one loop. `tools/mazecheck/run.sh`,
+(start, d1..d14, exit), no two neighbors in the same chamber, each entered by a random one of its two pads. The
+center pad returns him beside the start, so start-chain-center-start is the one loop. `tools/mazecheck/run.sh`,
 100,000 draws each:
 
-| | closed loops (1 / 2 / 3 / 4+) | landings from which following diagonals never reaches the centre |
+| | closed loops (1 / 2 / 3 / 4+) | landings from which following diagonals never reaches the center |
 |-|-------------------------------|---------------------------------------------------------------|
 | old random pairing | 39.4% / 42.1% / 15.7% / 2.7% | 26.6% |
 | one chain | 100% / 0 / 0 / 0 | 0% |
 
 Both: no structural faults (every link two-way and across chambers, one exit, start linked). From the start pad,
-diagonals reach the centre in 15 pads now (11.3 on average before: the random pairing's start-to-exit line was
+diagonals reach the center in 15 pads now (11.3 on average before: the random pairing's start-to-exit line was
 shorter, and the rest of the pads were in the separate loops). Only the sim is changed; on Hypixel the pairing is
 the server's own, and nothing in the client assumes either.
 
@@ -2198,7 +2198,7 @@ finds exactly what the every-landing reference finds (87.25% both), 3.14 warps a
 347 worse (limit 16%); only the absolute 89.7% found fails. The tree at d17520c (WarpGraph before the merge) passes
 with the same script: 100% / 7.53 warps, small 89.75%. So the planner is unchanged and the floors are what moved -
 most likely doorways the new generator joins that the bench's standard seam carve does not open the way SimDoors
-does. Re-baselining the thresholds, or modelling those doorways, is his call and is not done here. (That guess was
+does. Re-baselining the thresholds, or modeling those doorways, is his call and is not done here. (That guess was
 wrong - the carve was faithful; see the next section.)
 
 ## The floor bench was not building the game's floors (2026-10-04, fix-bench)
@@ -2208,7 +2208,7 @@ wrong - the carve was faithful; see the next section.)
 - It never loaded the room database, so `SimFloorGen.typeOf` said NORMAL and `shapeOf` null for every room. The
   layout therefore placed no puzzles ("0 puzzle(s) of the 3 asked for" on every floor), treated traps and puzzles as
   ordinary rooms, and placed the eleven L rooms a generated floor never gets (`SimFloorLayout.candidates` leaves them
-  out: their 2x2 capture box has a void or a neighbour's quarter). Every failing click traced on seed 560 crossed an L room
+  out: their 2x2 capture box has a void or a neighbor's quarter). Every failing click traced on seed 560 crossed an L room
   (Dino Site, Layers, Spider, Withermancer, Chambers); a top-down walk map of Dino Site showed the door to Quad Lava
   opening onto a quarter with no floor between y30 and y80.
 - It carved EVERY `links()` adjacency instead of the `doorLinks` tree, and sealed only unlinked doorways. At d17520c
@@ -2273,7 +2273,7 @@ were the SIM's and three were the autos'; each is named at its fix.
   The label stands (peaceful leaves them alone) stayed up, so Auto Blaze shot at ten labels with nothing under them
   (server: ten alive at 20:02:41, none three seconds later; client: no `Blaze` entity at all). A single-room load
   puts him ~170 blocks off until the build hands over, and a floor puts the Blaze room anywhere, so this is not a test
-  artefact. `SimBlazePuzzle.putBackMissing` puts a chain blaze back at its spot with its HP, and moves its label over,
+  artifact. `SimBlazePuzzle.putBackMissing` puts a chain blaze back at its spot with its HP, and moves its label over,
   once it has been missing for 20 ticks from a section that `isPositionEntityTicking`.
 - **"Dead" was inferred from absence.** `isDead` was `getEntity == null || !isAlive`, and null only means the section
   is not being shown - every blaze for the ~27 s a fresh sim world takes to bring its chunks up. So the whole chain
@@ -2293,7 +2293,7 @@ were the SIM's and three were the autos'; each is named at its fix.
   cell or did nothing, and from the board the eye is 1.27 over the ice, so the ray to a cell a few blocks off runs
   along the maze's own pillars ("no etherwarp aim onto -114,-59,-115 from where you stand", from the room's spawn six
   cells away). Now: a direct warp, else a warp to an open board cell he can see from which the fish's cell can be
-  seen (a neighbour of the fish's cell always qualifies when visible), else a walk through the Interactive Map's
+  seen (a neighbor of the fish's cell always qualifies when visible), else a walk through the Interactive Map's
   pathing. **Solver:** a board change seen on a tick the silverfish was not found or was sliding was thrown away,
   so a board that read all air before the chunks arrived was never solved again; the change is now kept
   (`boardDirty`) until a solve uses it.
@@ -2322,11 +2322,11 @@ were the SIM's and three were the autos'; each is named at its fix.
 - **Blaze, still an out-of-order kill about one run in twenty (2026-10-05, night-blaze):** the safety check traced each
   arrow until it touched a box and counted a touch of the TARGET as safe. One arrow kills a blaze and an arrow passes
   through a dying one, so whichever of the three killed the target first, the others flew on. Measured with the sim's
-  new per-kill attribution ("blaze N of 10 died (due: k) ... killed by shot #S centre / yaw-5 side / yaw+5 side
+  new per-kill attribution ("blaze N of 10 died (due: k) ... killed by shot #S center / yaw-5 side / yaw+5 side
   arrow"): 31 of 160 and 52 of 206 kills were made by a side arrow, and the one fail in 36 baseline runs was shot #9's
-  centre arrow killing blaze 5 at tick 4 and its +5 arrow - "safe" because it reached blaze 5's box - killing blaze 10
-  at tick 6. Now every arrow (centre and both sides) is traced to where it lands with the target treated as absent, and
-  must miss every other blaze; the centre one must still reach the target first. This is the auto, so it holds on
+  center arrow killing blaze 5 at tick 4 and its +5 arrow - "safe" because it reached blaze 5's box - killing blaze 10
+  at tick 6. Now every arrow (center and both sides) is traced to where it lands with the target treated as absent, and
+  must miss every other blaze; the center one must still reach the target first. This is the auto, so it holds on
   Hypixel too.
 - **Sim: Terminator arrows were saved with the world.** One still in the air when the world closed came back on the
   next load as a plain arrow with its 10,000 damage and kept flying; in back-to-back Lower Blaze runs two saved arrows
@@ -2335,8 +2335,8 @@ were the SIM's and three were the autos'; each is named at its fix.
   older jar saved) is refused and discarded by the damage hook.
 - **Creeper Beams, "times out, then never shoots again":** the timeout was the slot fault above. After it, the shots
   were aimed with `etherwarpDirection` - a SNEAKING eye whatever his stance, at QUOI's face-edge sample points - so
-  standing up after the cancelled reposition every shot missed its lantern. Shots now aim from the real eye at the
-  lantern's centre or a face centre inset 0.05, each checked with a collider ray to land on the lantern. "On the
+  standing up after the canceled reposition every shot missed its lantern. Shots now aim from the real eye at the
+  lantern's center or a face center inset 0.05, each checked with a collider ray to land on the lantern. "On the
   platform" is within half a block, not `==` (an etherwarp lands 0.05 high and settles a tick later, and the exact
   test started a second warp). A platform spot it cannot warp onto is skipped next time; the lantern under the
   creeper's own feet is not checked for the creeper being in the way; with no clear spot it shoots anyway and says so.
@@ -2356,7 +2356,7 @@ nobody at the keys except where the scenario says so.
 - **Boulder would not arm on Mod Only Test's capture** ("best 1 of 7"). The bind fingerprinted the seven buttons of
   one row of the capture's OWN arrangement - but every capture holds whatever arrangement Hypixel dealt that run, and
   Mod Only Test's is also turned a quarter. Decoded, the two captures agree only on the fixed room: the diorite
-  checkerboard under every other grid cell (21 cell centres at relative y 63) and the far staircase (stairs at
+  checkerboard under every other grid cell (21 cell centers at relative y 63) and the far staircase (stairs at
   (13..17, 64, 27), barrier over them at y 68). That is the fingerprint now (31 of 31 land on both). The reward chest
   moved from capture-local (30,66,16) to relative (15,66,29) through the bind's anchor, which is the same block in
   every capture. **Bind a puzzle to what the room always has, never to the puzzle's own state.**
@@ -2369,11 +2369,11 @@ nobody at the keys except where the scenario says so.
   doorway once. Every stage change and refusal is an INFO line. The sim presses the box on the SERVER copy of
   `UseBlockCallback` now (raw packets push too) and records the reward chest being opened
   (`SimBoulderPuzzle.isRewardChestOpened`). A single-room Boulder spawns one block in from its doorway, like the maze:
-  the tile-centre scan put him on the floor inside whatever ring of boxes the arrangement had, walled in.
+  the tile-center scan put him on the floor inside whatever ring of boxes the arrangement had, walled in.
 - **Three Weirdos never spoke to the auto.** The weirdo spoke from the CLIENT copy of `UseEntityCallback`, which Fabric
   fires only from `Minecraft.startUseItem` - a real click - so `gameMode.interact` (the same packet) did nothing. The
   SERVER copy (inside `ServerGamePacketListenerImpl.handleInteract`, javap of fabric-events-interaction 5.2.8) now
-  speaks, with `ServerPlayer.sendSystemMessage`; left clicks pass on the client and are answered (and cancelled) on
+  speaks, with `ServerPlayer.sendSystemMessage`; left clicks pass on the client and are answered (and canceled) on
   the server. Auto Three Weirdos logs each NPC it talks to and every reason it waits. It still never walks to the
   NPCs; the scenario places him. (Since weirdos-reach-1015 it moves into reach itself - see docs/LESSONS-AUTOMATION.md.)
 - **Water Board: QUOI's spots are out of reach.** Standing on (15,58,z), every side lever (x 10 or 20) is 4.52-4.54
@@ -2496,7 +2496,7 @@ counters a scenario reads instead of trusting the auto's log - `breaks()`, `rege
 regenerations also log one INFO line each.
 
 `AutoIceFill` splits its path into sections by height (stair midpoints excluded). A section with half or more of its
-path tiles gone to air, or feet 1.5 under the tile last stood on, starts a recovery: reposition / map walk cancelled,
+path tiles gone to air, or feet 1.5 under the tile last stood on, starts a recovery: reposition / map walk canceled,
 sneak released, no hops, until every tile of that section reads `ICE` (15 s cap, then a chat line and it stops until
 he leaves the room); then `AutoReposition` onto that section's first tile (Interactive Map walk if there is no warp
 line; 10 s cap), and the hops resume from it. Leaving the room resets it; five breaks in one room stops it. The old
@@ -2523,10 +2523,10 @@ back, up to 711 ms.
 **Searching the half-built graph harder cannot fix it.** Until a node's edges are worked out it costs about 1.5 ms of
 rays a thread. Counted on the warm graph, a cold click's A* closes on average 6,170 nodes (a tile click's bound is
 just "one more warp", so it is a breadth-first search of the floor); weighting the bound changes little; a heuristic
-that follows the doors' centres still needs 2,600 nodes for +0.04 warps or 940 for +0.42 - 0.2-0.6 s on every core.
+that follows the doors' centers still needs 2,600 nodes for +0.04 warps or 940 for +0.42 - 0.2-0.6 s on every core.
 
 **`FloorGraphs`** pairs the full graph with a QUICK graph of the same floor: bucket 5, every landing kept only on
-each doorway's own centre line (7 columns per door, not the 7x3 box and the tile centre lines), no partial-occlusion
+each doorway's own center line (7 columns per door, not the 7x3 box and the tile center lines), no partial-occlusion
 aims. A tenth of the rays: warm in ~0.3-0.5 s, 6.4-7.8k nodes, 0.29-0.51M edges. It is warmed first, follows the
 full graph for block changes (`WarpGraph.follower`), and until the full graph is warm a click is planned on it -
 complete and exact on its own landings, every hop still a verified aim, so the bench's hop-by-hop replay holds (0
@@ -2590,7 +2590,7 @@ unreachable fairy is retried four times), blood 0 -> 0. `tools/layoutsim -Dpinro
 **88 "the world CHANGED"** was the test server's own random tick: the one failure's block counts differ by exactly one
 grass_block turned dirt. The testkit compares the arena position by position and ignores a grass/dirt swap.
 
-## Water Board: whole colour layers, and the reward chest (2026-10-06, sim-waterboard)
+## Water Board: whole color layers, and the reward chest (2026-10-06, sim-waterboard)
 
 killer560: "make it so the bottom path isn't just the one bottom middle block up for the ones it needs to fix it should
 be that entire layer is out", and "Waterboard needs a chest that spawns in once I complete the puzzle, it should be in
@@ -2598,10 +2598,10 @@ between those carpets down low but closer to the exit between them not touching 
 
 - **The bottom path is a walkway under the glass.** Decoded (shipped/Ashfall, Map Logger and Mod Only Test captures
   agree): stairs at relative z 9..11 lead from the lever floor down to y 56, a walkway x 14..16 runs to an end wall at
-  z 24, and each colour owns one layer of it at its z (red 15 .. purple 19). A layer has FIVE sticky pistons - up under
-  the middle at (15, 54, z), and inward at (12, 56|57, z) and (18, 56|57, z) with the colour's wool at (13|17, 56|57, z).
+  z 24, and each color owns one layer of it at its z (red 15 .. purple 19). A layer has FIVE sticky pistons - up under
+  the middle at (15, 54, z), and inward at (12, 56|57, z) and (18, 56|57, z) with the color's wool at (13|17, 56|57, z).
   Every capture is a retracted frame. The sim used to move only the middle wool; `SimWaterPuzzle.LayerPiston` now reads
-  all five per colour at arm time (facing off the block, so no rotation guessed) and moves them together, with a power
+  all five per color at arm time (facing off the block, so no rotation guessed) and moves them together, with a power
   cell behind each (redstone while out, the board's own rule). The solver still reads only (15, 56, z).
 - **The reward chest is relative (15, 56, 22), facing back up the walkway.** Gray carpet sits at (13|14|16|17, 56, 22)
   and (14|16, 56, 23): between them is x 15, and z 23 touches the end wall while z 22 does not and is nearer the stairs.
@@ -2683,17 +2683,17 @@ for it. Also the single room should have the same filter option."
 - **Teleport Maze Solver read the wrong landing pad.** QUOI's landing box ran from the landing (x.5) one block on, inflated
   one: x-0.5 .. x+2.5 of the pad's block, which takes in the pad two blocks over in +x/+z. The room has eleven such pairs,
   each across a wall into the next chamber ((4,12)/(4,14), (10,20)/(10,22), ...). A landing on (4,12) marked (4,14) visited
-  too and was logged as landing there; the autopilot run's loop was the auto walking a link it had learnt wrong. The box is
+  too and was logged as landing there; the autopilot run's loop was the auto walking a link it had learned wrong. The box is
   now the landing's own block, a quarter block either way. **Same pad layout on Hypixel, so the same fault there.**
 - **And it lost the exit pad.** The candidates' 32-block XZ ray was taken along his LOOK, pitch included, and he lands looking
   down at the pad he walked onto (66-75 degrees in every logged teleport), so the ray stopped 8-13 blocks out and a far exit
-  dropped out of the candidates for good (the set is only ever narrowed). The ray is levelled (pitch 0). Every maze teleport
+  dropped out of the candidates for good (the set is only ever narrowed). The ray is leveled (pitch 0). Every maze teleport
   logs one `[TeleportMaze] teleport N: from -> to, yaw, pitch, candidates` line.
 - **Auto Teleport Maze's pick** is `autopuzzles/MazeRoute`: the exit pad when named and here; a way to its chamber over links
   this visit has seen (breadth first); QUOI's exploring order; else a known way to the nearest chamber with an untried pad.
-  "The diagonal again" (which walked him back towards the start pad from any pad he had come back through) is gone.
+  "The diagonal again" (which walked him back toward the start pad from any pad he had come back through) is gone.
   `tools/mazecheck/route.sh` plays it offline on sim mazes: with a correct solver the old pick and MazeRoute both reach the
-  centre every time (mean 6.7 teleports, max 13); MazeRoute's part is not going round when the data is wrong.
+  center every time (mean 6.7 teleports, max 13); MazeRoute's part is not going round when the data is wrong.
 - **Auto Boulder from the map's doorway spot.** The map lands him on relative (15,68,-2), filed under the next tile, and
   Boulder Solver only scans while the live map says Boulder, so the 4 s solver wait ran out at the doorway with the boxes
   unmoved. It now walks to the nearest spot inside the tile first and starts the wait there. Separately, the chest click aimed
@@ -2731,7 +2731,7 @@ warp I figured out in 3 [...] Make sure that it is 100% perfect as to the most o
 a half slab on the bottom of a block; they can do a top slab [...] if I place a node specifically on a bottom half slab
 then it can go there".
 
-**Why the floor graph misses routes.** `WarpGraph` keeps one landing per 2x2 columns (doorways and centre lines
+**Why the floor graph misses routes.** `WarpGraph` keeps one landing per 2x2 columns (doorways and center lines
 excepted), tries 18 aim points a block, refuses a line blocked early (`partialFrom`; `startPartialFrom = 1` for his own
 position) without trying the rest, and a non-exact goal may end on a "near" landing. Each of those can drop the one warp
 that makes a route shorter. The 1-vs-2 case reproduces as `tools/bench/exact.sh -Dlip=true`: a goal whose top is seen
@@ -2744,14 +2744,14 @@ behind the inside of one block already seen to stop a line (convexity makes that
 real float hop lands and `holds` at +-0.01 degrees. Breadth first from both ends: a route of a + b + 1 warps exists
 exactly when some node of F_a reaches some node of B_b, rounds try 1, 2, 3... and the smaller side grows a whole layer
 between rounds, so the first round that finds a pair is the minimum (no pruning drops an optimal route). Ties: shortest
-total hop length (a tile: nearest its centre first). The graph's plan is the upper bound (`maxWarps = graph - 1`) and the
+total hop length (a tile: nearest its center first). The graph's plan is the upper bound (`maxWarps = graph - 1`) and the
 fallback. Path nodes (`EtherwarpPathfinder.findOptimalPath`, from `RoutePathPlanner`) get 20 s; map presses 250 ms and
 only when the graph's plan is 5 warps or fewer. Every outcome logs `[Path] exact: ...` (proved / NOT proved).
 
 **Measured** (`tools/bench/exact.sh`, 6 threads, sim-style floors of the shipped captures). Path-node pairs (same or
 next room), 3 floors x 60: the graph took more warps than the minimum on 21 of 180 (19 by one, 2 by two, one of them a
 single warp it took 2 for); exact search median 9.6 ms, p90 125 ms, max 2.6 s. `-Dbrute=5`: 15 pairs solved by brute
-force (every landing in the box, every cell centre of every level on every face, no hidden-cell shortcut) - 0
+force (every landing in the box, every cell center of every level on every face, no hidden-cell shortcut) - 0
 mismatches. Whole-floor presses (`-Dfar`, 25): fewer warps on 12 (up to 3 fewer, 17 -> 15), but 0.02-23 s (median
 1.9 s) to prove - hence the map's cap.
 
@@ -2806,8 +2806,8 @@ it still lands in that world; `BreakerAuraFeature.plannerTreatsAsAir` decides, s
   removed KILLED), not `getEntity(uuid) == null`, which also fired for a bat in a non-ticking section. Testkit 643.
 - **Mimic route ("kill the mimic then teleport in the direction of the mimic"): not reproduced.** 96-ar-644 plays it -
   #1 etherwarp with await 1 aimed away from the trapped chest, Kill Mimic Spirit Sceptre and Hyperion, obvious and legit,
-  by hand and by Secret Aura - 14 tries, he never moved towards the chest and always landed on #1's target. What it did
-  find: a straight-down Hyperion moved an off-centre player to his block's centre (0.42 blocks in 644-sim-hype-down on the
+  by hand and by Secret Aura - 14 tries, he never moved toward the chest and always landed on #1's target. What it did
+  find: a straight-down Hyperion moved an off-center player to his block's center (0.42 blocks in 644-sim-hype-down on the
   old jar), because `dashTarget` settled on his own block and only compared distances. Fixed (his own block is not a
   teleport). And one run in five of the aura+Hyperion variant left the mimic alive: the mimic was spawned from the
   CLIENT's chest-click callback via `server.execute`, so a click that bypassed the client's gameMode (Secret Aura's)
@@ -2853,7 +2853,7 @@ and counts reaching a column outside the rooms or a drop with no ground: 3 / 2 /
 killer560, Big Red Flag: "that whole structure should be gone", and "if it is a chain of blocks but any one is within the 3
 blocks then it should break them all". A prince opened only its own blocks (lid + slab ring) and the one layer under them, so
 Big Red Flag's tomb (capture x 12..17, y 69..72, z 22..26) kept its eaves, walls and feet; the reach was an x/z +-3, y +-2
-cube round the hit block and decorative cracked brick in it was spared. Now: reach is radius 3 from the centre of the hit
+cube round the hit block and decorative cracked brick in it was spared. Now: reach is radius 3 from the center of the hit
 FACE to each block's box (`SimItems.inReach`); a prince with any tomb block in reach goes whole (`SimPrince.tombOf`: the
 smooth stone joined to it gives footprint and top, layers are taken down to a fully solid one, at most 2 under the skin;
 census: Big Red Flag 86 blocks with the room wall at z 27 / x 18 outside, every other prince only its own layer); a slab crypt
@@ -2867,7 +2867,7 @@ across). Captures carry no "breakable" marking, so groups are by block family an
 - The floor's prince scan reads only chunks already loaded, so a prince can go unregistered (Leaves through route practice,
   2026-10-13: Superbooms on its andesite said prince=false). Every Superboom now rescans an 8-block cube round itself
   (`SimPrince.scanNear`); testkit 1404 resets the scan and still needs prince=true. Item secrets measure his body to
-  the item's block (3 blocks, gap to gap): feet to block centre missed one 3 blocks ahead (1405).
+  the item's block (3 blocks, gap to gap): feet to block center missed one 3 blocks ahead (1405).
 
 ## Water stands still outside the Water Board (2026-10-13, sim-water-static)
 
@@ -2878,13 +2878,13 @@ BlockState, FluidState)` at HEAD for water (`WaterFluid` does not override it; s
 the integrated server's overworld while `SimState.isActive()`, unless the column is inside a placed Water Board's paste box.
 `SimStaticWater` reads that box from `SimRoomIndex` (cached on its new `version()`): `cellCenter - TILE/2 - margin`, the
 PasteJob anchor, by the room's size turned by its paste rotation, every y - so it holds whether or not the puzzle armed.
-A cancelled tick is consumed; nothing reschedules it. `frozenTicks()`/`allowedTicks()` count both ways, and the first freeze
+A canceled tick is consumed; nothing reschedules it. `frozenTicks()`/`allowedTicks()` count both ways, and the first freeze
 on a floor logs "Sim water: holding water still outside the Water Board". Testkit 1410-sim-water-static.
 
 ## Two placed levers and Hypixel's Redstone Key (2026-10-15, sim-levers-1015)
 
 - **RSM's waypoints are the place to look for a lever or node a capture is missing.** `rsm-ref/.../assets/rsm/secrets.json`
-  (killer560s-mod-logs) lists every secret per room, LEVER and REDSTONE_BLOCK included, centre-relative (+16 = capture,
+  (killer560s-mod-logs) lists every secret per room, LEVER and REDSTONE_BLOCK included, center-relative (+16 = capture,
   +15 = database) in the canonical turn. Turn it by the k that lands its chests, keys and levers on the capture's own
   blocks; Cobble Wall Pillar needs k=1, Golden Oasis and Redstone Key k=0, Redstone Crypt k=2. Both of his levers came out
   exactly where his Hypixel shots put them, and both captures hold air there.
@@ -2996,7 +2996,7 @@ over it (3 of 3) - the same fixed height Hypixel's doors have on the 32-block gr
 from y64 to y86, which also took:
 - **Entrance W0** (y76 up): the top of the back staircase, open to the sky. Already dropped by the Entrance-only
   "lowest wins" rule, so harmless; that rule is gone now, the height rule covers it.
-- **Mage N1** (y72..87, 17 wide, no wall at all): Mage's capture is not Mage on its second tile. That tile's centre
+- **Mage N1** (y72..87, 17 wide, no wall at all): Mage's capture is not Mage on its second tile. That tile's center
   column hashes to ALTAR's core in the room database (Mage tile 0 is Mage's own), and the capture has a full air sheet at
   x=32 with walls at x=31/33 and a 3-wide doorway between them - two separate rooms, stitched. The "doorway" is Altar's
   interior running on. Mage is NOT flagged by `RoomTileAudit` (it compares tiles block for block, not by core), so it is
@@ -3007,7 +3007,7 @@ from y64 to y86, which also took:
   Pirate, Spider, Well, Withermancer): open air top to bottom, no frame. Generated floors leave L rooms out, so only a
   drawn or pinned L could be joined there.
 
-In a built floor (testkit 1446, main jar, three runs): Mage pinned, 21-25 of 30 planned F7s joined a neighbour through
+In a built floor (testkit 1446, main jar, three runs): Mage pinned, 21-25 of 30 planned F7s joined a neighbor through
 Mage N1; Quad Lava pinned, 20-23 of 30 through E0. The built door cut 25 solid capture blocks out of Mage - a 3-deep
 tunnel at y69..72 that ends in stone (nothing walkable 4..6 blocks in; Mage's open space starts at y72) - and 23 out of
 Quad Lava's three-thick east wall (cobblestone walls, cyan terracotta: the tunnel comes out in the room, but through what
@@ -3027,12 +3027,12 @@ read-and-save half for ONE room, from tag `room-recorder-last`: the footprint fr
 they fit the room database's shape - the recorder's worst damage came from a mis-grouped box), every chunk of it loaded
 (asked of the chunk source - `ClientLevel.hasChunk` is always true), every block of every y of the level in WORLD
 orientation (as every shipped capture was; `RoomCaptureRotation` finds the turn), y taken back by `SimAltitude` in the
-sim. Then the check the recorder never had: each tile's centre column must hash to the room in the room database
+sim. Then the check the recorder never had: each tile's center column must hash to the room in the room database
 (`RoomDatabase.coreOfColumn`, as `RoomLShape` uses) and there must be a doorway at y 69..72. The shipped Mage fails it on
 tile 1,0 ("Altar"). A good capture goes to the user library through `RoomLibrary.writeCapture` (the file it replaces
 kept as `.bak-<stamp>`), is read back block for block, and the library reloads; a usable disk room wins over the jar's.
 Only `/mage` is exposed; `captureCurrent(client, name)` takes any room. Testkit 1490 builds Mage in the sim, checks every
-refusal, swaps the stitched tile's centre column for the good one's so the room validates, and compares the decoded
+refusal, swaps the stitched tile's center column for the good one's so the room validates, and compares the decoded
 file with the server's world: 602,745 blocks, 0 differ.
 
 ## 1446 after the re-capture: one test edge that no longer existed, and the fill's tunnels (2026-10-15, sim-doorblock-1015)
@@ -3044,7 +3044,7 @@ detection: `RoomDoors.of` measures Mage W0/E1 and no Quad Lava E0 on both the ja
   `RoomDoors.doorCells`, pointed at the cell EAST of Mage - so it counted doors between two other rooms. The scenario
   now refuses an edge off the room's tile grid and pins Mage only to build and walk its doors.
 - **Quad Lava E0 was the fill pass's carve**, which is by design (a cell no strict room fits gets a 1x1 whose doorway
-  faces a neighbour, carved through the neighbour's wall where `RoomDoors.carvable` says the cut lands on floor). The
+  faces a neighbor, carved through the neighbor's wall where `RoomDoors.carvable` says the cut lands on floor). The
   carve took the FIRST walkable wall in cell order, and about four in five cut more than a one-thick wall: in
   `tools/layoutsim -Dsweep=true -Dbounded=true -Dnorecency=true -Dseed=1 -Doffdoor=true` (2,240 floors) the doors off a
   measured doorway were 248 through a one-thick wall, 1,278 tunnels and 83 blind, 14,302 solid blocks cut behind wall
@@ -3053,7 +3053,7 @@ detection: `RoomDoors.of` measures Mage W0/E1 and no Quad Lava E0 on both the ja
   18, Quad Lava E0 reads 14), and `carveOnce` takes the least over the whole floor (the Entrance still only when nothing
   else fits). After: 339 thin, 1,179 tunnels, 77 blind, 12,126 blocks; every layoutsim guarantee unchanged. With Quad Lava
   pinned (his library, 840 F7s) E0 is joined on 2 floors instead of 5.
-- What is left is forced: a cell whose every neighbour faces it with a thick wall. Refusing thick walls outright
+- What is left is forced: a cell whose every neighbor faces it with a thick wall. Refusing thick walls outright
   (tried: at most 2 blocks behind) sent 882 carves to the BLIND tier instead of 153, which is worse - a blind cut is not
   walkable at all. Leaving the cell empty would break "every floor fills its real rectangle". Testkit 1446's TUNNEL
   phase sums the cut over 150 seeded F7s.
@@ -3063,7 +3063,7 @@ detection: `RoomDoors.of` measures Mage W0/E1 and no Quad Lava E0 on both the ja
 killer560 (sim F7, Old Trap joined to Museum and to Teleport Maze): "Old Trap does not have a door off of the back of it,
 only the one entrance." Not doorway detection: `RoomDoors.of` measures one doorway on Old Trap (E0), New Trap, Blood, the
 Entrance, all eleven puzzles, the four champion rooms and the five rare rooms, in the jar's and his Mod Only Test library.
-The second door was the fill pass's carve through a neighbour's wall, which skipped only Blood and puzzles and took the
+The second door was the fill pass's carve through a neighbor's wall, which skipped only Blood and puzzles and took the
 Entrance as a last resort - so Old Trap's back wall (W0, opposite its doorway) was a carve target, and so were New Trap's,
 the Entrance's and the rare rooms'. `tools/layoutsim -Dsweep=true -Dbounded=true -Dnorecency=true -Dseed=1` on his
 library: 180 of 2,240 floors had one of them on two doors (Entrance 89, Old Trap 52, New Trap 37, Rail Track / Rare
@@ -3196,7 +3196,7 @@ in `SimRoomLevers` went from 20 rules to 39; the per-room facts are in its javad
   taking something, the unbound levers listed), each room on his list solo with each lever used as the player, Grass
   Ruin with Layers on one drawn floor, and `/reset` putting Grass Ruin's window back (1978 is a screenshot survey, run
   only when named). Reach in those is to the lever's block box: Purple Flags' lever hangs at the top of a shaft, 4.4 to
-  its box from the floor and 4.9 to its centre.
+  its box from the floor and 4.9 to its center.
 - **Gates can be lattices of WALL blocks** (2026-10-17, sim-rails-spider-1017): Rails' and Spider's are cobblestone walls
   set in a cobblestone facade ("the cobblestone fences"). Grown together with the facade they were one shapeless body that
   filled no box, so the first sweep never saw them; `tools/lever_gates.py` now grows walls and fences as their own class,
@@ -3214,7 +3214,7 @@ in `SimRoomLevers` went from 20 rules to 39; the per-room facts are in its javad
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the
   kill. Both now score on the mob's DEATH (`SimMobs.spawnCrypt`, `SimMimic.tickServer`), the mimic chest is a trapped
   chest, and a secret bat carries Hypixel's 100 max health (the client's only way to tell it from a sceptre bat).
-- An L room's missing quarter is decided ONLY by `roomsim/RoomLShape` (room-database core of each tile's centre column,
+- An L room's missing quarter is decided ONLY by `roomsim/RoomLShape` (room-database core of each tile's center column,
   then a wholly empty tile). "Emptiest in y 66..99" read Lava Ravine's ravine as missing and kept Market's Chains quarter;
   the solo map, `SimRoomIndex`, the paste clear and the spawn all ask it (testkit 97-sim-lshape, 2026-10-14).
 - `AutoClearUtils.canPath` must not test a room NAME for "Trap" once `isTrap` has read the database: Arrow Trap is NORMAL,
@@ -3386,7 +3386,7 @@ Two sim options of the sim's own data (`roomsim/SimLiveMobs`), off unless asked 
   reads what it will once Auto Trap is hooked up. Log: `[Sim] trap room <name> counted cleared with its N secret(s)`.
 
 Testkit: `1020-sim-ac-speed` (Auto Clear's ticks per room on whole floors with live mobs, `-PacsHp`, `-PacsWalk`) and
-`1020-sim-300` (Dungeon Autopilot Solo to 300 with the trap counted). Sim behaviours found on the way, not changed:
+`1020-sim-300` (Dungeon Autopilot Solo to 300 with the trap counted). Sim behaviors found on the way, not changed:
 the sim's bats leave the look by up to `SPREAD` (0.06 an axis) and fly 1.02 a tick to ~29.6 blocks, so a 20-block
 straight shot misses a lone mob in open space (Auto Clear now refuses such aims); a stand block can leave him in a pit
 no etherwarp leaves (Tomioka, `acs/codes-stuck.txt`: the base jar gave up 10 rooms from it).

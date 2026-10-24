@@ -15,8 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The colour picker's "Recent" row (killer560, 2026-10-13): the last {@link #MAX} colours picked, copied or pasted in any
- * picker, newest first, so a colour moves between menus without the OS clipboard. Saved as {@code #RRGGBB} /
+ * The color picker's "Recent" row (killer560, 2026-10-13): the last {@link #MAX} colors picked, copied or pasted in any
+ * picker, newest first, so a color moves between menus without the OS clipboard. Saved as {@code #RRGGBB} /
  * {@code #AARRGGBB} strings in {@code killer560smod-colours.json}.
  */
 public final class RecentColours {

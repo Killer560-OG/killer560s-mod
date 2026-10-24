@@ -41,7 +41,7 @@ import com.killer560.hub.compat.McRender;
  * spot in the SAME room template resolves to the right real-world block however that room happens to be
  * rotated or placed this run. That is also what makes it safe to persist them in
  * {@link EtherwarpWaypointsStore} across restarts instead of clearing the list every time a new dungeon run
- * starts (the old behaviour, kept only because absolute coordinates really were garbage next run).
+ * starts (the old behavior, kept only because absolute coordinates really were garbage next run).
  * <p>
  * Follows from there: a waypoint only means anything while you are standing in an instance of the room it
  * belongs to (see {@link #onWorldRender}, {@link #currentRoomContext}) - "you cannot see them outside of
@@ -116,7 +116,7 @@ public final class EtherwarpFeature {
         double maxSq = cfg.getHighlightDistance() * cfg.getHighlightDistance();
 
         // Only the distance test is per frame: the room's boxes, their entries and their numbers are built once per
-        // room / saved-list change / colour (FPS pass, 2026-10-15: forRoom's scan and sort, a coordinate transform, an
+        // room / saved-list change / color (FPS pass, 2026-10-15: forRoom's scan and sort, a coordinate transform, an
         // AABB, an entry and a label String per waypoint per frame before). The entry list is fresh each frame: the
         // renderer's callback may read it later in the frame on 26.2.
         List<EtherwarpWaypointsRenderer.Entry> entries = new ArrayList<>(room.boxes.length);
@@ -413,7 +413,7 @@ public final class EtherwarpFeature {
     /**
      * {@code /ew delete|remove} with no number - the same rule as {@code /ap3 delete}: the waypoint you clearly stand
      * nearest, within {@value #NEAREST_MAX} blocks and every other one at least {@value #NEAREST_MARGIN} further,
-     * else it says so and deletes nothing. Distance is from your feet to the top centre of the waypoint's block.
+     * else it says so and deletes nothing. Distance is from your feet to the top center of the waypoint's block.
      */
     public static boolean deleteNearest() {
         Minecraft client = Minecraft.getInstance();

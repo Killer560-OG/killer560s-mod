@@ -21,7 +21,7 @@ import java.util.Set;
  * Finds the chest blocks around killer560 - including ones he is nowhere near any more.
  * <p>
  * This is the half of island-chest search that needs {@link ChunkCacheManager}: vanilla's
- * {@code ClientChunkCache} only answers for chunks inside its fixed ring around the view centre, so walking to the
+ * {@code ClientChunkCache} only answers for chunks inside its fixed ring around the view center, so walking to the
  * other end of the island is enough to make a chest you opened five seconds ago unreadable. With the Chunk Cache on,
  * {@code Level.getChunk(..., FULL, false)} falls back to the cached chunk object (and its block entities, which that
  * feature deliberately keeps alive through unload), so a chest stays discoverable for the rest of the world session.
@@ -50,7 +50,7 @@ public final class IslandChestScanner {
     }
 
     /** Every chest/barrel/shulker block position in a {@code radiusChunks} chunk square around the player that this
-     *  client can still read (loaded, or kept by the Chunk Cache). Memoised - see the class doc. */
+     *  client can still read (loaded, or kept by the Chunk Cache). Memoized - see the class doc. */
     public static List<BlockPos> scan(int radiusChunks) {
         Minecraft client = Minecraft.getInstance();
         ClientLevel level = client.level;

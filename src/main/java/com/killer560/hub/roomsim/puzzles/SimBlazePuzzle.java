@@ -61,7 +61,7 @@ public final class SimBlazePuzzle {
      * makes Higher and Lower different puzzles in the first place - you are picking by height as well as by HP.
      * The old ring put all five at {@code y+3} spread around in x and z, which is a different puzzle.
      *
-     * <p>Spacings are tried in order and the first that fits the room's own centre column wins, so a shorter
+     * <p>Spacings are tried in order and the first that fits the room's own center column wins, so a shorter
      * shaft still gets a chain rather than no blazes at all - see {@link #bindAt}.
      */
     private static final int[] SPACINGS = {3, 2};
@@ -154,11 +154,11 @@ public final class SimBlazePuzzle {
         return net.minecraft.network.chat.Component.literal("[Lv1] Blaze " + hp + "/" + hp + "\u2764");
     }
 
-    /** Blaze UUID -> the armour stand carrying its label, so a dead blaze's label dies with it. */
+    /** Blaze UUID -> the armor stand carrying its label, so a dead blaze's label dies with it. */
     private static final Map<UUID, UUID> LABEL_STANDS = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
-     * Hangs the label on an ARMOUR STAND over the blaze, which is the only thing the solver looks at.
+     * Hangs the label on an ARMOR STAND over the blaze, which is the only thing the solver looks at.
      *
      * <p>killer560 (2026-10-01): "auto blaze wanted to look towards the middle" - and then nothing. This is why.
      * {@code BlazeSolverFeature.rescan} begins:
@@ -169,7 +169,7 @@ public final class SimBlazePuzzle {
      * so a name set on the Blaze itself is invisible to it however well it matches the pattern. The solver
      * therefore found zero blazes in the sim, and {@code AutoBlaze} reads nothing BUT
      * {@code getOrderedBlazes()} - its very first line. What he saw was {@code seedDefaultView}, which runs
-     * before the empty-list check, turning him towards the middle; everything after that was skipped.
+     * before the empty-list check, turning him toward the middle; everything after that was skipped.
      *
      * <p>This is also how the real room is built - Hypixel renders a mob's name on a separate stand - and how
      * {@code SimMobs} already tags its starred mobs, so the shape is proven rather than invented.
@@ -183,9 +183,9 @@ public final class SimBlazePuzzle {
      * and identical in 26.1.2 and 26.2 (javap); {@code ArmorStand.onSyncedDataUpdated} calls
      * {@code refreshDimensions()} on exactly that key, so the box really does collapse.
      *
-     * <p>A marker also fits Odin's offsets better than a full stand did: its box centre IS its position, so
+     * <p>A marker also fits Odin's offsets better than a full stand did: its box center IS its position, so
      * "1 block under the stand" from {@code getY() + bbHeight + 0.1} lands at blaze y + 0.9 - the blaze's own
-     * centre (it is 1.8 tall). The full stand put that point a block higher, at the blaze's head.
+     * center (it is 1.8 tall). The full stand put that point a block higher, at the blaze's head.
      *
      * <p><b>The one dial here, said out loud.</b> The stand sits just above the blaze, which is
      * {@code SimMobs}' own star-tag placement and the only one in this codebase shown not to swallow a kill.
@@ -336,7 +336,7 @@ public final class SimBlazePuzzle {
                 }
                 byPlacement[i] = blaze.getUUID();
                 remember(blaze, HEALTHS[i]);
-            // The label the SOLVER reads lives on its own armour stand - see attachLabel.
+            // The label the SOLVER reads lives on its own armor stand - see attachLabel.
             attachLabel(level, blaze, HEALTHS[i]);
             }
             List<UUID> ordered = new ArrayList<>(HEALTHS.length);
@@ -358,7 +358,7 @@ public final class SimBlazePuzzle {
      * A blaze is an entity; a room capture is blocks. Nothing in this repo's bundled data says where a blaze
      * stands either - {@code BlazeSolverFeature} reads live entities and has no position table - so the five
      * stand positions stay this file's own invention, as its class doc already says. What changes is only
-     * WHERE they are invented: an air pocket found by scanning the room's own centre column, instead of four
+     * WHERE they are invented: an air pocket found by scanning the room's own center column, instead of four
      * blocks in front of wherever he was standing when he typed a command.
      *
      * <p>The kill order does change with the room, and that part is real: {@code BlazeSolverFeature}'s class
@@ -400,7 +400,7 @@ public final class SimBlazePuzzle {
         // and its first target's stand was 37 blocks over his head - "they were all way too high and it made the
         // auto solver bug out". Decoding the two captures settles the shape: Higher Blaze (y 65..133) and Lower
         // Blaze (y 15..83) are the same shaft 50 blocks apart - floor block at 69 / 19, open air from 70 / 20 up to
-        // a polished-andesite ceiling at 130 / 80, the middle bar of iron bars running up the centre. On Hypixel
+        // a polished-andesite ceiling at 130 / 80, the middle bar of iron bars running up the center. On Hypixel
         // the blazes float at different heights through that shaft, around the bar ("a tall chamber with blazes",
         // wiki); only the kill order differs between the two rooms. So both now start on the shaft's floor and
         // spread up through the clear air above it (layoutAround, up to 5 apart: relative 71..116 in Higher Blaze),
@@ -467,7 +467,7 @@ public final class SimBlazePuzzle {
             }
             byPlacement[i] = blaze.getUUID();
             remember(blaze, HEALTHS[i]);
-            // The label the SOLVER reads lives on its own armour stand - see attachLabel.
+            // The label the SOLVER reads lives on its own armor stand - see attachLabel.
             attachLabel(level, blaze, HEALTHS[i]);
         }
         List<UUID> ordered = new ArrayList<>(HEALTHS.length);

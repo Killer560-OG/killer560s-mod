@@ -24,9 +24,9 @@ import com.killer560.hub.compat.McCompat;
  * Auto Blaze - port of QUOI {@code BlazeSolver.kt}'s {@code auto} (TickEvent.End) logic on top of this mod's
  * {@link BlazeSolverFeature} kill order. Each tick: wait out the previous shot's arrow travel time (dist/2.5*50ms,
  * or until the target blaze dies); take the next blaze; build QUOI's hitboxes (target 0.35x0.8 half-extents,
- * others 0.75x1.45, centred 1 block under the stand); try 7 aim points on the target with the arrow simulation and
+ * others 0.75x1.45, centered 1 block under the stand); try 7 aim points on the target with the arrow simulation and
  * accept the first whose simulated arrow reaches the target before any other blaze or a block AND whose every arrow
- * (Terminator: the centre and both +-5 degree side arrows) misses every other blaze for its whole flight, with the
+ * (Terminator: the center and both +-5 degree side arrows) misses every other blaze for its whole flight, with the
  * target treated as not there - any one of them may be the one that kills it, and the others fly on; shoot with the held shortbow once the Shoot cooldown
  * allows. With "Etherwarp Reposition" on, it also cycles QUOI's standing spots when there's no clean shot (and on
  * Higher Blaze below y=75).
@@ -44,9 +44,9 @@ import com.killer560.hub.compat.McCompat;
  *   {@link AutoPuzzleUtil#pathIfMapOn}) to the nearest secret this room's real database entry
  *   ({@link RoomEntry#secretCoords}) actually knows about, then auras it itself if it's a chest - never
  *   {@code SecretAuraFeature}, same reasoning as Auto Boulder.</li>
- *   <li>"for blaze by default can you have my characters head face more towards the middle when put into the
+ *   <li>"for blaze by default can you have my characters head face more toward the middle when put into the
  *   freecam view" - {@link #engageCamera} takes the run's {@link FreeCam} facing the room's own horizontal
- *   centre, using {@link LiveMapFeature#roomWorldBounds}.</li>
+ *   center, using {@link LiveMapFeature#roomWorldBounds}.</li>
  * </ul>
  * killer560, 2026-10-06: "make higher lower blaze enter a free cam state right now it just snaps my camera around
  * everywhere. It should be the same state used for ap3." The camera is held by {@link FreeCam} from the first aim
@@ -68,7 +68,7 @@ final class AutoBlaze {
             new BlockPos(24, 62, 14), new BlockPos(9, 45, 18), new BlockPos(10, 68, 23),
             new BlockPos(24, 29, 16), new BlockPos(13, 50, 8), new BlockPos(24, 48, 17)
     };
-    /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the centre. */
+    /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the center. */
     private static final double AURA_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     private static final long SECRET_WALK_TIMEOUT_MS = 20_000L; // these rooms are tall - the pathfinder needs longer
     private static final int MAX_AURA_ATTEMPTS = 3;
@@ -791,7 +791,7 @@ final class AutoBlaze {
         for (Vec3 point : testPoints) {
             float[] dir = AutoPuzzleUtil.arrowDirection(eyePos, point, terminator);
             Vec3 origin = AutoPuzzleUtil.arrowOrigin(eyePos, dir[0], terminator);
-            // The centre arrow must reach the target before anything else...
+            // The center arrow must reach the target before anything else...
             if (!reachesTarget(client, player, origin, dir[0], dir[1], hitboxes)) {
                 continue;
             }
@@ -813,12 +813,12 @@ final class AutoBlaze {
         }
         // The Terminator's side arrows (+-5 degrees of yaw, same pitch and origin - the sim logs which of the three
         // killed, "yaw-5 side arrow"): a volley whose SIDE arrow reaches the target first, with all three clear of every
-        // other blaze, is as good a shot as one whose centre arrow does. It finds a shot from spots where the centre
+        // other blaze, is as good a shot as one whose center arrow does. It finds a shot from spots where the center
         // arrow's line is blocked or crosses another blaze, so fewer of them need a warp (killer560, 2026-10-16).
         for (Vec3 point : testPoints) {
             float[] dir = AutoPuzzleUtil.arrowDirection(eyePos, point, true);
             Vec3 origin = AutoPuzzleUtil.arrowOrigin(eyePos, dir[0], true);
-            // With a little to spare in pitch: a side-arrow shot is taken only where the centre arrow had no line, often
+            // With a little to spare in pitch: a side-arrow shot is taken only where the center arrow had no line, often
             // past a ledge's edge, and one that only just reached missed in 93-solve-higherblaze-speed (2026-10-16).
             if (!reachesTarget(client, player, origin, dir[0], dir[1], hitboxes)
                     || !reachesTarget(client, player, origin, dir[0], dir[1] + 0.4f, hitboxes)
@@ -946,7 +946,7 @@ final class AutoBlaze {
         return true;
     }
 
-    /** QUOI's check for the centre arrow: it reaches the target's box before any other blaze or a block. */
+    /** QUOI's check for the center arrow: it reaches the target's box before any other blaze or a block. */
     private static boolean reachesTarget(Minecraft client, LocalPlayer player, Vec3 from, float yaw, float pitch,
                                          List<BlazeHitbox> hitboxes) {
         BlazeHitbox target = null;
@@ -1296,13 +1296,13 @@ final class AutoBlaze {
     }
 
     /**
-     * Takes the run's free camera, once, before its first aim - facing the room's horizontal centre (killer560,
-     * 2026-09-27: "for blaze by default can you have my characters head face more towards the middle when put into
+     * Takes the run's free camera, once, before its first aim - facing the room's horizontal center (killer560,
+     * 2026-09-27: "for blaze by default can you have my characters head face more toward the middle when put into
      * the freecam view"), or where he is looking when the room's bounds are not known.
      * <p>
      * This used to be {@code seedDefaultView}, called EVERY tick and holding a fresh 400 ms lease whenever none was
      * held. Nothing renewed that lease, so it lapsed every 400 ms and was immediately re-seeded: the camera dropped
-     * onto his body (facing the last blaze) for a frame and was then thrown back to the room centre, wiping out
+     * onto his body (facing the last blaze) for a frame and was then thrown back to the room center, wiping out
      * whatever his mouse had done - half of the "snaps my camera around everywhere" of 2026-10-06.
      */
     private static void engageCamera(LocalPlayer player) {
@@ -1349,7 +1349,7 @@ final class AutoBlaze {
         if (secretStage != SecretStage.AURA && !SECRET_WARP.isActive()) {
             // Held only for the last-leg warp and the chest click it readies. A blaze still listed means shooting resumes
             // (the final volley missed): the shooting's camera takes the hold over as it is, view unmoved
-            // (93-solve-blazemiss-*: a release then a fresh engage facing the room's centre swung the view 135 degrees).
+            // (93-solve-blazemiss-*: a release then a fresh engage facing the room's center swung the view 135 degrees).
             if (!blazes.isEmpty()) {
                 SECRET_CAM.handTo(CAMERA, player);
             } else {
@@ -1475,7 +1475,7 @@ final class AutoBlaze {
     }
 
     /**
-     * Where he leaves the room: the centre of the room's door nearest where he came in (a puzzle room has one door),
+     * Where he leaves the room: the center of the room's door nearest where he came in (a puzzle room has one door),
      * or where he came in when the map knows no door, or where he stands.
      */
     private static Vec3 exitPoint(LocalPlayer player) {
@@ -1675,7 +1675,7 @@ final class AutoBlaze {
         }
         if (!AutoPuzzleUtil.gateWorldClick(client, target)) {
             held("secretgate", "the action gate held the chest click at " + AutoPuzzleUtil.fmt(target));
-            return; // gate held this tick back (or the body was turned to it) - not burnt, retried next tick
+            return; // gate held this tick back (or the body was turned to it) - not burned, retried next tick
         }
         secretAuraAttempts++;
         if (!AutoPuzzleUtil.interactBlock(client, target)) {

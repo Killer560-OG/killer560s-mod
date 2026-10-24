@@ -30,10 +30,10 @@ import com.killer560.hub.compat.McCompat;
  * therefore the HUD-editor preview path only.
  * <p>
  * Background Opacity fades the panel, its outline and the slots. Item Opacity fades the items: they are not tinted (item
- * textures cannot be on 26.1.2, see {@link #drawStack}), so each occupied cell gets a veil in the slot colour at
- * (100 - item opacity)% drawn over its item, and an item fades toward the slot colour rather than the world. Not a true
+ * textures cannot be on 26.1.2, see {@link #drawStack}), so each occupied cell gets a veil in the slot color at
+ * (100 - item opacity)% drawn over its item, and an item fades toward the slot color rather than the world. Not a true
  * per-item alpha.
- * Where it sits when never moved: centred above the hotbar, a little way up ({@link InventoryHudElement#defaultX}).
+ * Where it sits when never moved: centered above the hotbar, a little way up ({@link InventoryHudElement#defaultX}).
  */
 public final class InventoryHudFeature {
 
@@ -173,7 +173,7 @@ public final class InventoryHudFeature {
         }
 
         if (bg != InventoryHudConfig.Background.NONE) {
-            // Menu Theme (2026-10-15): Default keeps the colours below; anything else takes the menu theme's.
+            // Menu Theme (2026-10-15): Default keeps the colors below; anything else takes the menu theme's.
             com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.INVENTORY_HUD);
             // The panel, its outline, the 27 slot backdrops and the slot grid: the same fills in the same order, all
             // before the items, submitted as ONE render-state element (GuiRects) instead of up to 32 that each paid
@@ -244,10 +244,10 @@ public final class InventoryHudFeature {
     }
 
     /**
-     * The veil drawn over each occupied cell after its item, as ARGB at (100 - itemOpacity)%: the colour the panel is drawn
+     * The veil drawn over each occupied cell after its item, as ARGB at (100 - itemOpacity)%: the color the panel is drawn
      * behind the items with (the slot backdrop, or the panel fill when there are no slot backdrops), so the item fades
-     * toward that colour. Returns 0 (no veil, no extra draw) at 100% item opacity, and with no panel under the items (None),
-     * where there is no colour to fade toward. At 0% the veil is opaque, so every item is hidden behind the colour; the
+     * toward that color. Returns 0 (no veil, no extra draw) at 100% item opacity, and with no panel under the items (None),
+     * where there is no color to fade toward. At 0% the veil is opaque, so every item is hidden behind the color; the
      * panel itself still follows the background opacity (0 there hides the whole panel, see drawPanel).
      */
     private static int itemVeil(InventoryHudConfig.Background bg, int itemOpacity, com.killer560.hub.gui.OverlayPalette menu) {
@@ -267,7 +267,7 @@ public final class InventoryHudFeature {
      * Every slot's 1px outline ({@code cell} x {@code cell} at each grid position, as vanilla {@code outline} draws
      * it: a full-width top and bottom row and the two sides between them) as whole grid lines: one fill per
      * horizontal line (two adjacent slots' bottom and top rows together) and one per vertical segment (two adjacent
-     * slots' right and left columns together). The same pixels with no overlaps, so a translucent colour blends
+     * slots' right and left columns together). The same pixels with no overlaps, so a translucent color blends
      * the same - (rows + 1) + rows * (cols + 1) fills (34 for the 3x9 grid) instead of 108, each a GUI element
      * that pays vanilla's intersection scan (95-fps-bench JFR, 2026-10-05).
      */
@@ -310,7 +310,7 @@ public final class InventoryHudFeature {
         // Why the item itself is not faded (checked in the 26.1.2 and 26.2 merged jars, 2026-10-18): RenderSystem has no
         // setShaderColor any more, and GuiGraphicsExtractor.item(ItemStack, int, int, int) only takes a position and a
         // seed. It builds a TrackingItemStackRenderState and adds a GuiItemRenderState (pose, state, x, y, scissor),
-        // which carries no colour either. The only per-item colour is the tints array on submitItem, which a mixin
+        // which carries no color either. The only per-item color is the tints array on submitItem, which a mixin
         // would have to rewrite, and blending of its alpha has not been verified in game. So the fade is the veil
         // drawn by drawPanel (see itemVeil): an approximation, not a true per-item alpha.
         float pop = cfg.isPickupAnimation() ? stack.getPopTime() - partialTick : 0f;
@@ -356,7 +356,7 @@ public final class InventoryHudFeature {
 
         @Override
         public int defaultX() {
-            // Centred above the hotbar (killer560, 2026-10-18). Computed from the live window like the Storage Overlay's;
+            // Centered above the hotbar (killer560, 2026-10-18). Computed from the live window like the Storage Overlay's;
             // resolvePosition clamps it on screen and re-asks whenever the window or the scale changes. A position he
             // saved in the HUD editor is never replaced by this.
             var window = Minecraft.getInstance().getWindow();

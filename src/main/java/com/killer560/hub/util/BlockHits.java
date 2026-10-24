@@ -12,7 +12,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * the face that point actually lies on.
  *
  * <p>This exists because of a measured flag. Several of this mod's auras used to send
- * {@code new BlockHitResult(Vec3.atCenterOf(pos), Direction.EAST, pos, false)} - the block's centre, which is
+ * {@code new BlockHitResult(Vec3.atCenterOf(pos), Direction.EAST, pos, false)} - the block's center, which is
  * a point <i>inside</i> the block, paired with a hardcoded east face regardless of where the player was
  * standing. No real click can produce that: a click comes from a raycast, so its position is always on a
  * surface and its face is always the one the ray struck.
@@ -23,7 +23,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * harness across hundreds of interactions. The difference was the hit itself, not the distance and not the
  * timing.
  *
- * <p>The clip is deliberately generous at the far end ({@code + 1.5}) so a shape whose centre sits behind a
+ * <p>The clip is deliberately generous at the far end ({@code + 1.5}) so a shape whose center sits behind a
  * partial outline - a lever on a wall, a skull, a chest lid - is still struck rather than missed by a ray that
  * stopped a hair short.
  */
@@ -53,9 +53,9 @@ public final class BlockHits {
     }
 
     /**
-     * A surface hit on a face of the block that is EXPOSED - its neighbour on that side is air - and faces the eye, or
+     * A surface hit on a face of the block that is EXPOSED - its neighbor on that side is air - and faces the eye, or
      * null when there is none (killer560, 2026-10-12, Redstone Key placement: "it has to be on a side hitting air").
-     * The eye-to-centre ray's own face first (the face {@link #surface} returns, which is what QUOI, RSA and a vanilla
+     * The eye-to-center ray's own face first (the face {@link #surface} returns, which is what QUOI, RSA and a vanilla
      * look at the block produce); if that face is against another block, the nearest other exposed face the eye is in
      * front of, hit at a point on that face. A face against a block is never returned.
      */
@@ -84,7 +84,7 @@ public final class BlockHits {
             if (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? eyeAxis <= plane : eyeAxis >= plane) {
                 continue;
             }
-            // Aim a little inside the face's centre, so the ray enters through that face and no other.
+            // Aim a little inside the face's center, so the ray enters through that face and no other.
             Vec3 faceCentre = box.getCenter().add(d.getStepX() * (box.getXsize() / 2.0 - 0.01),
                     d.getStepY() * (box.getYsize() / 2.0 - 0.01), d.getStepZ() * (box.getZsize() / 2.0 - 0.01));
             Vec3 dir = faceCentre.subtract(eye);
@@ -106,9 +106,9 @@ public final class BlockHits {
      * Squared distance from {@code eye} to the NEAREST POINT of a block's cell - the measure a server uses when
      * it decides whether an interaction is in range.
      *
-     * <p>Not the distance to the centre, which is what the auras used to compare against their range setting and
+     * <p>Not the distance to the center, which is what the auras used to compare against their range setting and
      * which reads up to half a block further (0.87 at a corner). That difference is not academic: with the range
-     * capped at vanilla's own 4.5, measuring to the centre put the effective reach nearer 4.0 and silently
+     * capped at vanilla's own 4.5, measuring to the center put the effective reach nearer 4.0 and silently
      * dropped clicks the server would have accepted. Breaker Aura hit the same thing from the other direction in
      * September and was fixed the same way.
      *
@@ -133,7 +133,7 @@ public final class BlockHits {
     }
 
     /**
-     * Same, but falling back to the centre with the nearest-facing side when the ray misses the outline.
+     * Same, but falling back to the center with the nearest-facing side when the ray misses the outline.
      *
      * <p>For callers that must click <i>something</i> rather than skip a turn. Still better than a hardcoded
      * face - the side is at least the one facing the player - but it is the weaker option and the fallback is

@@ -310,7 +310,7 @@ public final class TooltipScrollFeature {
         }
         scrollable = true;
         // Can't both overflow and be manually nudged - once a tooltip overflows it goes back to a clean,
-        // un-nudged line-scroll position rather than compounding the two behaviours.
+        // un-nudged line-scroll position rather than compounding the two behaviors.
         nudgeOffset = 0;
 
         // Smallest line count whose prefix height already covers the overflow: translating by exactly that

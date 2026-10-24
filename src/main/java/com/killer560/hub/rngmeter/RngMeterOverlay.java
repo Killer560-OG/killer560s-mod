@@ -202,7 +202,7 @@ public final class RngMeterOverlay {
 
     public static void onContainerScreenRender(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
         try {
-            // The title test is a memoised flag read; the gate is not, and every container screen asks every frame.
+            // The title test is a memoized flag read; the gate is not, and every container screen asks every frame.
             if (!isRngTitle(screen.getTitle())) {
                 return;
             }
@@ -697,7 +697,7 @@ public final class RngMeterOverlay {
         return String.format(Locale.US, "§b§lKiller560's Mod: §b%,.1f coins/pt", cpp);
     }
 
-    /** One line of the ranking panel: text, colour, and its offset below the panel's top. */
+    /** One line of the ranking panel: text, color, and its offset below the panel's top. */
     private record RankLine(String text, int color, int dy) {
     }
 

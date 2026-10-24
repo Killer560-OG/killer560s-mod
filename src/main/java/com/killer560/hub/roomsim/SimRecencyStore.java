@@ -18,7 +18,7 @@ import java.util.Map;
  *
  * <p>killer560 (2026-10-04): "It still feels like just about the exact same rooms every run." The recency map
  * lived only in memory, so every launch began with none and the first floors of each session leaned on the same
- * favourites. Kept in its own class rather than in {@link SimFloorLayout}, which deliberately has no Minecraft
+ * favorites. Kept in its own class rather than in {@link SimFloorLayout}, which deliberately has no Minecraft
  * or Fabric classes under it so the generator can be run outside the game.
  */
 public final class SimRecencyStore {

@@ -27,7 +27,7 @@ import java.util.Random;
  *  It deliberately owns NO solving logic of its own: it is driven entirely by the highlights
  *  {@link TerminalSolverFeature} already computes every frame, through the very same
  *  {@link TerminalSolverFeature#pickAutoClickTarget} decision Auto Terminals uses (so Numbers' strict
- *  click order and Rubix's left-vs-right click direction are honoured here without a second copy of
+ *  click order and Rubix's left-vs-right click direction are honored here without a second copy of
  *  either rule), and sends its clicks through the same {@code SlotClickInvoker} path. The Terminal
  *  Solver itself therefore has to be ON for this to do anything - there are no highlights to hover
  *  otherwise.
@@ -35,12 +35,12 @@ import java.util.Random;
  *  <b>Precedence.</b> If Auto Terminals is enabled AND enabled for the terminal that is open, Hover
  *  Terminals stands completely down for that terminal ({@code autoClickingThisType} below): Auto
  *  Terminals is already clicking every slot this would, and a second click on the same slot is not a
- *  no-op - on Rubix it cycles the pane one step PAST the target colour, and on Numbers it lands out of
+ *  no-op - on Rubix it cycles the pane one step PAST the target color, and on Numbers it lands out of
  *  order. Auto wins because it is the strictly more complete automation and the user turned it on
  *  explicitly; hover adds nothing on top of it (its Block Input option, on by default, also swallows
  *  real mouse movement-driven input while it runs).
  *  <p>
- *  <b>Terminal Protection.</b> {@link TerminalQolFeature}'s opening window is honoured through the
+ *  <b>Terminal Protection.</b> {@link TerminalQolFeature}'s opening window is honored through the
  *  non-consuming {@link TerminalQolFeature#withinProtectionWindow()} query - a hover click inside that
  *  window is simply not sent (and the dwell timer restarts), rather than being sent and then swallowed,
  *  which would waste Protection's one-shot on a click the player never made. */

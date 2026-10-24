@@ -193,7 +193,7 @@ public final class SimSpiritSceptre {
     /**
      * Right-click: launch a burst.
      *
-     * @return whether anything was fired, so the caller can fall through to normal item behaviour if not
+     * @return whether anything was fired, so the caller can fall through to normal item behavior if not
      */
     public static boolean fire(Minecraft client) {
         if (!SimState.canAct(client) || client.player == null || client.level == null) {
@@ -330,7 +330,7 @@ public final class SimSpiritSceptre {
     /**
      * One bat's explosion: the picture on the client, the damage on the server.
      *
-     * <p>The damage is worked out server-side from the blast centre rather than handed a list of entities the
+     * <p>The damage is worked out server-side from the blast center rather than handed a list of entities the
      * client picked, so it is the server's own view of what is in range that decides - the same rule
      * {@code SimAbilities.teleport} and {@code SimDoors.openDoor} follow.
      */

@@ -2256,7 +2256,7 @@ public final class AutoSecretFeature {
                 clearsLater.add(net.minecraft.world.phys.Vec3.atBottomCenterOf(c));
             }
         }
-        // Secrets Then Clears: the uncleared rooms afterwards, nearest first.
+        // Secrets Then Clears: the uncleared rooms afterward, nearest first.
         List<net.minecraft.world.phys.Vec3> left = new ArrayList<>(clearsLater);
         while (!left.isEmpty()) {
             net.minecraft.world.phys.Vec3 next = null;
@@ -2377,7 +2377,7 @@ public final class AutoSecretFeature {
         return out;
     }
 
-    /** Ticks a route takes, travel excluded, before Dungeon Autopilot has learnt better: 1 s plus 1 s a node. */
+    /** Ticks a route takes, travel excluded, before Dungeon Autopilot has learned better: 1 s plus 1 s a node. */
     static double routeWorkTicks(Route route) {
         return 20.0 * (1.0 + Autopilot.routeSecondsPerNode() * (route == null ? 0 : route.nodes().size()));
     }

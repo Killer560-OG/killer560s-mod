@@ -13,16 +13,16 @@ import java.util.Locale;
 
 /**
  * The custom stat bars and text readouts under Health and Mana Bars (killer560, 2026-10-04: "make custom
- * health, intel, vitality, defence, true defence, and other such bars that a player may find useful ... make
+ * health, intel, vitality, defense, true defense, and other such bars that a player may find useful ... make
  * options for custom text, custom bars and whatnot all scalable"). Every readout is its own {@link HudElement},
  * so each one moves and scales on its own in the HUD editor (the settings row's own scale slider was removed on
  * 2026-10-07; it wrote this same HudConfig scale), and is drawn in game by {@code HudInGameRenderer}.
  * <p>
- * Only what Hypixel actually puts on the action bar can be shown live: health, mana, defence, overflow mana,
- * vitality and one further "current/max" resource with its own icon (see {@link PlayerStatsFeature}). True Defence
+ * Only what Hypixel actually puts on the action bar can be shown live: health, mana, defense, overflow mana,
+ * vitality and one further "current/max" resource with its own icon (see {@link PlayerStatsFeature}). True Defense
  * never appears there - it is only in the /stats menu - so it has no bar. Intelligence is not on the action bar
- * either, but max mana is 100 + Intelligence, so it is derived from the mana segment. The Defence bar shows damage
- * reduction, defence / (defence + 100), since defence itself has no maximum.
+ * either, but max mana is 100 + Intelligence, so it is derived from the mana segment. The Defense bar shows damage
+ * reduction, defense / (defense + 100), since defense itself has no maximum.
  * <p>
  * Vitality and the XP readouts came on 2026-10-07 (killer560: "It needs to detect vitality ... it needs a dedicated
  * vitality one. Also there should be a custom XP bar one as well."). The XP bar and text read the client's own
@@ -95,11 +95,11 @@ public final class StatElements {
     public static final int VALUE_PAD_Y = 1;
     public static final int VALUE_PAD_X = 4;
     /** Even, so half of it is a whole GUI pixel at Auto Scale 0.5 (13 drew 6.5 units and edge drags in the HUD editor
-     *  moved by a pixel less than dragged, testkit 399): the digits' body centred, 2.5 units above it and below. */
+     *  moved by a pixel less than dragged, testkit 399): the digits' body centered, 2.5 units above it and below. */
     public static final int MIN_VALUE_THICKNESS = VALUE_ROWS + 2 * VALUE_PAD_Y + 1;
 
-    /** Rows of a digit (and of the capital letters): the body the eye centres. The comma's tail and the shadow hang
-     *  below it, so centring the full {@link #VALUE_ROWS} put the digits a row high. */
+    /** Rows of a digit (and of the capital letters): the body the eye centers. The comma's tail and the shadow hang
+     *  below it, so centering the full {@link #VALUE_ROWS} put the digits a row high. */
     public static final int DIGIT_ROWS = 7;
 
     /** The number's outline (2026-10-12, killer560: "Can the text stand out a hair more ... I feel like it is a hair hard
@@ -110,11 +110,11 @@ public final class StatElements {
     private static final int[] OUT_DY = {-1, -1, -1, 0, 0, 1, 1, 1};
 
     /**
-     * Draws {@code value} centred on the bar box {@code (x, top, w, h)} at text scale {@code s} (killer560, 2026-10-07:
-     * "Can you center the text for my custom health bars in their new slightly larger state"). Centred is the glyphs: the
+     * Draws {@code value} centered on the bar box {@code (x, top, w, h)} at text scale {@code s} (killer560, 2026-10-07:
+     * "Can you center the text for my custom health bars in their new slightly larger state"). Centered is the glyphs: the
      * digits' 7 rows vertically (not the 9 the comma and shadow need, which sat them a row high), and their ink
      * horizontally - a string's width ends in one unit of spacing after its last glyph, which is not ink. The outline
-     * is the same on every side, so it does not move the centre.
+     * is the same on every side, so it does not move the center.
      */
     static void drawCentred(GuiGraphicsExtractor g, Font font, String value, int x, int top, int w, int h, float s,
                             int color) {
@@ -123,7 +123,7 @@ public final class StatElements {
     }
 
     /**
-     * Draws {@code value} with its left ink at {@code fx}, its digits centred on the rows {@code top..top+h}, at scale
+     * Draws {@code value} with its left ink at {@code fx}, its digits centered on the rows {@code top..top+h}, at scale
      * {@code s}, outlined. The position is snapped to the nearest screen pixel through the current pose, so the glyphs
      * sit on whole pixels at every GUI scale.
      */
@@ -284,7 +284,7 @@ public final class StatElements {
     /**
      * The value's short form, for a bar too short for all of it: the part before its slash (the current value), else
      * the part before " (" - the Defense bar's "996 (90.9%)" and the XP bar's "Level 30 (45%)" have no slash, so until
-     * 2026-10-19 a short bar showed no number for them at all (killer560: "the defence bar is not filling in the defence
+     * 2026-10-19 a short bar showed no number for them at all (killer560: "the defense bar is not filling in the defense
      * number"). Null when there is no shorter form.
      */
     static String shortValue(String value) {

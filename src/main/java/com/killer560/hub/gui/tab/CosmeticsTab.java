@@ -107,7 +107,7 @@ public class CosmeticsTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
         // Trails (killer560, 2026-10-13: "it should be toggleable to see in cosmetics for whether it is shared or not
-        // and it can only be shared by a supporter"): Share Trail is greyed out, with the reason under it, until the
+        // and it can only be shared by a supporter"): Share Trail is grayed out, with the reason under it, until the
         // relay says this account is a linked supporter. Only the Ribbon Trail is shared (2026-10-14); the same two
         // switches are on the Ribbon Trail tab too. "Share Ribbon Trail" since 2026-10-20.
         String trailBlocker = SupportersAutoShare.trailShareBlocker();
@@ -389,7 +389,7 @@ public class CosmeticsTab extends BaseTab {
         ModOverlayMessage.show("§a[Cosmetics] Copied - hand this to staff for the Discord bot route.", 3000);
     }
 
-    /** Your display name as shared: its text without the colour (sent separately), with an {@code &l} in front when
+    /** Your display name as shared: its text without the color (sent separately), with an {@code &l} in front when
      *  Bold Name is on - the relay accepts {@code &k-o} (SupporterNameValidator), so bold is shared with no relay change. */
     private String plainOwnName() {
         NameChangerConfig nc = NameChangerConfig.getInstance();

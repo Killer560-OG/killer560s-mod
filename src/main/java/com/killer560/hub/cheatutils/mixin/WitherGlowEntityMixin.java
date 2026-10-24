@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Dungeon ESP Glow style: per-target outline colour (name kept from the old Wither ESP so the mixin config is unchanged).
+/** Dungeon ESP Glow style: per-target outline color (name kept from the old Wither ESP so the mixin config is unchanged).
  *  Target javap-verified 26.1.2: {@code public int Entity#getTeamColor()} (not overridden by LivingEntity/Mob/Monster/
  *  WitherBoss) - same injection NoammAddons' MixinEntity uses. */
 @Mixin(Entity.class)

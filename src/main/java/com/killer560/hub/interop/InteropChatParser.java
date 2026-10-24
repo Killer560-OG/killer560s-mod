@@ -55,7 +55,7 @@ import java.util.regex.Pattern;
  * ({@code WitherDragonsFeature}), which is strictly better than a relayed message anyway.</li>
  * <li><b>Terminal / device / lever completion</b> - nobody announces it because Hypixel already does, as a
  * normal server line every client receives. {@link SelfDerivation} reads that line.</li>
- * <li>Flavour and status chatter ({@code "Blaze Done!"}, {@code "Blaze puzzle solved!"},
+ * <li>Flavor and status chatter ({@code "Blaze Done!"}, {@code "Blaze puzzle solved!"},
  * {@code "270 Score!"}, {@code "FAST WATCHER"}, {@code "SS Broke!"}, leap messages) - real announcements, but
  * nothing here needs them yet. They are easy to add later; the point of not adding them now is that every
  * pattern is a chance to fire on the wrong line.</li>

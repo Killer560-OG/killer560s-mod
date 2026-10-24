@@ -164,7 +164,7 @@ public final class MaskInvincibilityFeature {
         wasInDungeon = inDungeon;
 
         // The timers count down whether or not the switch is on: a mask cooldown is Hypixel's, so switching the
-        // feature off and on (or leaving Skyblock) must not freeze it and show a stale time afterwards.
+        // feature off and on (or leaving Skyblock) must not freeze it and show a stale time afterward.
         for (Type t : TYPES) {
             int active = activeRemaining.get(t);
             if (active > 0) {
@@ -326,7 +326,7 @@ public final class MaskInvincibilityFeature {
         private static String rowText(Type t) {
             MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
             // Hiding the name only makes sense when there's an icon to identify the row by, so it is ignored
-            // without one - otherwise the HUD would be three unlabelled numbers.
+            // without one - otherwise the HUD would be three unlabeled numbers.
             boolean names = !(cfg.isShowItemIcons() && cfg.isHideMaskNames());
             int active = activeRemaining.get(t);
             int cooldown = cooldownRemaining.get(t);
@@ -378,7 +378,7 @@ public final class MaskInvincibilityFeature {
                     graphics.item(icon(t), x, lineY);
                     textX = x + 20;
                 }
-                // Centre the 8px-tall line against a 16px icon; without icons keep the old flush-top layout.
+                // Center the 8px-tall line against a 16px icon; without icons keep the old flush-top layout.
                 int textY = icons ? lineY + 4 : lineY;
                 graphics.text(Minecraft.getInstance().font, rowText(t), textX, textY, color, false);
                 lineY += row;

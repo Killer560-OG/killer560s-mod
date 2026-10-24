@@ -291,7 +291,7 @@ public final class RoutePathPlanner {
                 if (!prover.proven()) {
                     LOGGER.info("[RoutePlan] proof of path #{} -> #{} canceled after {} ms (pair moved, or world change)",
                             a, b, took);
-                    return;   // cancelled: the pair moved or went
+                    return;   // canceled: the pair moved or went
                 }
                 RouteNode dest = route.pathDestination(src);
                 boolean same = dest != null && route.indexOf(src) >= 0 && Math.abs(src.x - fx) < 0.002

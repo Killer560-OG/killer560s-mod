@@ -10,7 +10,7 @@ package com.killer560.hub.gui;
  * comparison; a tween is a handful of primitive fields allocated with whatever owns it (a card, a row), never per frame.
  *
  * <p>{@link #frame()} samples the clock once per drawn frame (ModScreen's draw, and the closing menu's fade). The
- * Animations setting ({@link Mode}, Menu Theme drawer) picks the durations: Smooth, Reduced (colour and opacity fades
+ * Animations setting ({@link Mode}, Menu Theme drawer) picks the durations: Smooth, Reduced (color and opacity fades
  * only, nothing moves or grows) or Off (every tween is already at its target).
  *
  * <p>Test hooks (docs/TESTING-HOOKS.md): {@link #setClockForTest} fixes the clock; {@code -Dkiller560.test.menuAnimClock=instant}
@@ -155,7 +155,7 @@ public final class MenuAnim {
     }
 
     /** Duration of a tween in nanoseconds under the current setting: 0 when Off, and 0 under Reduced for one that MOVES
-     *  something (a slide, a knob, a scale) - Reduced keeps only colour and opacity fades, a little shorter. */
+     *  something (a slide, a knob, a scale) - Reduced keeps only color and opacity fades, a little shorter. */
     public static long durationNanos(int ms, boolean motion) {
         Mode m = mode();
         if (m == Mode.OFF || (motion && m == Mode.REDUCED) || (INSTANT_UNLESS_DRIVEN && testClockNanos < 0)) {
@@ -202,7 +202,7 @@ public final class MenuAnim {
     // ---- fade multiplier ----------------------------------------------------------------------------------------------
 
     /**
-     * Opacity every colour drawn right now is multiplied by (the menu fading in or out, a tooltip fading in). Read by
+     * Opacity every color drawn right now is multiplied by (the menu fading in or out, a tooltip fading in). Read by
      * {@code gui/mixin/MenuFadeMixin} for every fill and text, and by {@code GuiRects}. 1 almost always.
      */
     public static float fade = 1f;

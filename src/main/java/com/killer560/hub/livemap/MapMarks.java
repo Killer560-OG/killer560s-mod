@@ -17,7 +17,7 @@ import java.util.Map;
  * hypixels sprites. If it is on then it uses the one you created or they can make their own custom sprite."
  * <ul>
  *   <li><b>Hypixel's</b> (Custom Checkmark Sprite off, the default): the mark's own pixels, copied off the dungeon map
- *       ITEM - every pixel inside the room's squares that is not the room's colour, in that pixel's own map colour, at
+ *       ITEM - every pixel inside the room's squares that is not the room's color, in that pixel's own map color, at
  *       the place Hypixel put it. Exact by construction, and it is only ever what the item shows. With no map item to
  *       copy from (the sim, p3sim, a Funny Map room the item has not shown) the built-in copy of the same shapes in
  *       {@link MapPainter} is drawn instead.</li>
@@ -74,7 +74,7 @@ public final class MapMarks {
         if (sx < 0 || sz < 0 || sx >= 128 || sz >= 128) {
             return NONE;
         }
-        int roomByte = px[sz * 128 + sx] & 0xFF;   // the room's own colour: its square's top-left pixel
+        int roomByte = px[sz * 128 + sx] & 0xFF;   // the room's own color: its square's top-left pixel
         java.util.List<float[]> rects = new java.util.ArrayList<>();
         java.util.List<Integer> colors = new java.util.ArrayList<>();
         for (int cell : group.cells) {
@@ -149,8 +149,8 @@ public final class MapMarks {
 
     // ------------------------------------------------------------------------------------------- the mod's sprites
 
-    // '#' the mark's colour, 'o' its outline (black), '.' nothing. Drawn by this mod for its Custom Checkmark Sprite:
-    // bolder than Hypixel's, each with a one-pixel dark edge so it reads on any room colour.
+    // '#' the mark's color, 'o' its outline (black), '.' nothing. Drawn by this mod for its Custom Checkmark Sprite:
+    // bolder than Hypixel's, each with a one-pixel dark edge so it reads on any room color.
     private static final String[] MOD_CHECK = {
             "........ooo",
             ".......o##o",
@@ -202,7 +202,7 @@ public final class MapMarks {
         return new Sprite(out);
     }
 
-    /** The mod's own sprite for a state, in the state's colour, or null for a state with no mark. */
+    /** The mod's own sprite for a state, in the state's color, or null for a state with no mark. */
     /** {@link #modSprite} by state: they never change, and were rebuilt (rows of int arrays) for every mark drawn. */
     private static final Sprite[] MOD_SPRITES = new Sprite[5];
 
@@ -321,7 +321,7 @@ public final class MapMarks {
         }
     }
 
-    /** Draws {@code sprite} centred on (cx, cy), {@code size} wide, one fill per run of equal colour in a row. */
+    /** Draws {@code sprite} centered on (cx, cy), {@code size} wide, one fill per run of equal color in a row. */
     static void drawSprite(GuiGraphicsExtractor graphics, Sprite sprite, float cx, float cy, float size) {
         int w = sprite.width();
         int h = sprite.argb().length;

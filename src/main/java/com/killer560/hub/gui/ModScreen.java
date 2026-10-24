@@ -55,7 +55,7 @@ public class ModScreen extends Screen {
     // ---- persistent state (static: survives closing and reopening the menu) ----------------------------------------
     private static List<BaseTab> tabs;
     private static int selectedTab = 0;
-    /** True when the sidebar's Favourites entry is selected (it is not a category of {@link #tabs}). */
+    /** True when the sidebar's Favorites entry is selected (it is not a category of {@link #tabs}). */
     private static boolean favouritesSelected = false;
     /** The feature whose drawer is open, or null. */
     private static BaseTab openFeature;
@@ -94,7 +94,7 @@ public class ModScreen extends Screen {
     // ---- grid ------------------------------------------------------------------------------------------------------
     private enum ItemKind { CARD, HEADER, BLOCK }
 
-    /** One thing in the centre grid, positioned in grid-content coordinates (before {@link #gridScroll}). */
+    /** One thing in the center grid, positioned in grid-content coordinates (before {@link #gridScroll}). */
     private static final class Item {
         final ItemKind kind;
         final BaseTab tab;
@@ -180,7 +180,7 @@ public class ModScreen extends Screen {
     /** When this menu was first drawn, and when it was closed (its fade out is drawn over what comes next). */
     private long openedAt = Long.MIN_VALUE;
     private long closedAt = Long.MIN_VALUE;
-    /** Which page the grid shows (category index, -2 Favourites); a change slides the new page in. */
+    /** Which page the grid shows (category index, -2 Favorites); a change slides the new page in. */
     private int gridContext = Integer.MIN_VALUE;
     private long gridContextAt = Long.MIN_VALUE;
     private final MenuAnim.Tween gridScrollShown = new MenuAnim.Tween(MenuAnim.SCROLL_MS, true);
@@ -357,7 +357,7 @@ public class ModScreen extends Screen {
         }
     }
 
-    /** Opens {@code leaf}'s drawer in its own category (Favourites stays if it is starred there). */
+    /** Opens {@code leaf}'s drawer in its own category (Favorites stays if it is starred there). */
     private void navigateTo(BaseTab leaf) {
         BaseTab cat = MenuCategories.category(leaf);
         boolean keepFav = favouritesSelected && MenuConfig.getInstance().isFavourite(id(leaf));
@@ -399,7 +399,7 @@ public class ModScreen extends Screen {
         rebuild();
     }
 
-    /** Selects the sidebar entry called {@code name} ("Favourites" included) and rebuilds; false if there is none. */
+    /** Selects the sidebar entry called {@code name} ("Favorites" included) and rebuilds; false if there is none. */
     public boolean selectCategory(String name) {
         if ("Favorites".equals(name)) {
             favouritesSelected = true;
@@ -821,7 +821,7 @@ public class ModScreen extends Screen {
      * to make room (killer560 left side-by-side vs stacked to us: in the narrow drawer a half-width row cut most labels
      * short). Only a line made purely of plain setting rows (buttons and sliders sharing one y, nothing else overlapping
      * it) is stacked; a line holding anything else (a text box and its Set button, a preview, a list) keeps its layout and
-     * only moves down. Every widget keeps its own behaviour - only its x, y and width change.
+     * only moves down. Every widget keeps its own behavior - only its x, y and width change.
      */
     static void stackRows(List<AbstractWidget> widgets, int x, int width) {
         List<AbstractWidget> order = new ArrayList<>(widgets);
@@ -964,7 +964,7 @@ public class ModScreen extends Screen {
         List<BaseTab> cheat = new ArrayList<>();
         for (BaseTab s : folder.subTabs()) {
             if (cat instanceof HomeTab && s instanceof com.killer560.hub.gui.tab.MenuThemeTab) {
-                continue; // killer560, 2026-10-13: set from Home's Menu Theme row; Customise... still opens its drawer
+                continue; // killer560, 2026-10-13: set from Home's Menu Theme row; Customize... still opens its drawer
             }
             if (s.isCheatOnly() && com.killer560.hub.streamer.StreamerMode.hidesCheatUi()) {
                 continue; // streamer mode: the cheat parts of the GUI are not shown
@@ -1061,7 +1061,7 @@ public class ModScreen extends Screen {
 
     /**
      * Gives every card its new place. On the same page a card that moved (the drawer opened and the grid narrowed, a
-     * favourite was removed) glides there; a new page puts every card in place at once and slides the page in.
+     * favorite was removed) glides there; a new page puts every card in place at once and slides the page in.
      */
     private void placeCards() {
         int ctx = pageMode() ? -3 : favouritesSelected ? -2 : selectedTab;
@@ -1553,7 +1553,7 @@ public class ModScreen extends Screen {
         return null;
     }
 
-    /** Testkit: {@code tab}'s card animation as of the last frame - {hover, knob, on colour, selected, press, x, y, w,
+    /** Testkit: {@code tab}'s card animation as of the last frame - {hover, knob, on color, selected, press, x, y, w,
      *  lift} (x, y in grid-content units, before scroll) - or null when it has never been laid out. */
     public float[] cardAnimState(BaseTab tab) {
         CardAnim a = cardAnims.get(tab);
@@ -2053,7 +2053,7 @@ public class ModScreen extends Screen {
             r.fill(kx + 1, searchY + 4, kx + kw - 1, searchY + searchH - 4, MenuStyle.KEY_CHIP_BG);
         }
         // icons
-        // Discord's, GitHub's and YouTube's own colours, the features doc in the menu's accent.
+        // Discord's, GitHub's and YouTube's own colors, the features doc in the menu's accent.
         int[] colours = {0xFF5865F2, 0xFF333333, MenuStyle.OR2, 0xFFFF0033};
         for (int i = 0; i < 4; i++) {
             int[] b = iconBounds(i);
@@ -2069,7 +2069,7 @@ public class ModScreen extends Screen {
         String ver = headerVersion();
         MenuStyle.text(g, ver, headerX + 8 + bw + 8, headerY + (headerH - 8) / 2 + 1, MenuStyle.DIM2);
         MenuStyle.flat(g, "⌕", searchX + 4, searchY + 4, MenuStyle.DIM2);
-        // The theme can change with the menu open (the ◐ icon), so the box takes its colour and shadow every frame.
+        // The theme can change with the menu open (the ◐ icon), so the box takes its color and shadow every frame.
         searchField.setTextColor(MenuStyle.TXT);
         searchField.setTextShadow(MenuStyle.TEXT_SHADOW);
         if (showHint && !focus) {
@@ -2179,7 +2179,7 @@ public class ModScreen extends Screen {
         }
     }
 
-    /** The small number beside a sidebar row: only Favourites has one (how many are starred). The categories' on/total
+    /** The small number beside a sidebar row: only Favorites has one (how many are starred). The categories' on/total
      *  counts were taken out on killer560's request (2026-10-12: "HUD 7/12" became "HUD"). */
     private static String sideCount(SideEntry e) {
         if (e.favourites()) {
@@ -2676,7 +2676,7 @@ public class ModScreen extends Screen {
     @Override
     public void added() {
         super.added();
-        // Reopened (the same object back from a colour picker, or a new menu): no old fade out left over it.
+        // Reopened (the same object back from a color picker, or a new menu): no old fade out left over it.
         closedAt = Long.MIN_VALUE;
         MenuCloseFade.stop();
     }
@@ -2727,7 +2727,7 @@ public class ModScreen extends Screen {
 
     // ---- Home page blocks ------------------------------------------------------------------------------------------
 
-    /** A plain line of text across the grid (Favourites with nothing starred). */
+    /** A plain line of text across the grid (Favorites with nothing starred). */
     private final class HintBlock implements Block {
         private final String text;
 
@@ -2916,8 +2916,8 @@ public class ModScreen extends Screen {
         }
     }
 
-    /** Home's Menu Theme row: the presets as chips (the active one lit), Customise, which opens the Menu Theme drawer with
-     *  Custom's colours, and the main menu's Fancy / Simple scene (killer560, 2026-10-16: "right by menu theme somewhere you
+    /** Home's Menu Theme row: the presets as chips (the active one lit), Customize, which opens the Menu Theme drawer with
+     *  Custom's colors, and the main menu's Fancy / Simple scene (killer560, 2026-10-16: "right by menu theme somewhere you
      *  should have a button to toggle between the fancy or simple mode for main menu"; left click forward, right click back). */
     private final class ThemeBlock implements Block {
 
@@ -2951,7 +2951,7 @@ public class ModScreen extends Screen {
             return widest + 6 > half;
         }
 
-        /** Chip {@code i}: a theme (MenuTheme order), then Customise... ({@code values().length}), then the main menu
+        /** Chip {@code i}: a theme (MenuTheme order), then Customize... ({@code values().length}), then the main menu
          *  scene ({@code values().length + 1}). */
         private int[] chip(int i, int x, int y, int w) {
             int n = MenuTheme.values().length;
@@ -3137,7 +3137,7 @@ public class ModScreen extends Screen {
 
         /**
          * A tab's text line in the theme: a section heading ("§6§l" / "§c§l") in the accent or the cheat red, and on a
-         * light theme every other line with its washed-out colour codes darkened. False leaves it to the widget.
+         * light theme every other line with its washed-out color codes darkened. False leaves it to the widget.
          */
         private static boolean drawString(GuiGraphicsExtractor g, StringWidget s) {
             String raw = s.getMessage().getString();

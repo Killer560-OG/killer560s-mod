@@ -11,7 +11,7 @@ import java.util.Map;
  * stop from server corrections ever - just have it send a chat message and make noises"). A feature that sees the server
  * put him somewhere it did not plan calls {@link #report}, then CARRIES ON from where the server put him - replanning if
  * it plans paths. Nothing here stops, pauses or disables anything, and nothing ever moves the player back: the corrected
- * position is honoured.
+ * position is honored.
  *
  * <p>Per feature, the chat line goes out at most once every 2 s (a burst says how many it folded in); the alarm has its
  * own 3 s limit in {@link ModSounds#playCorrectionAlarm()}. Every report is logged.

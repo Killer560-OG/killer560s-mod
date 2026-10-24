@@ -34,7 +34,7 @@ import java.util.Set;
  * {@code (7, 77, 34)}; it lighting starts a 68-tick spawn timer (Odin/NoammAddons 68, NoFrills 68, CaribouStonks 69
  * "68-70"); it going back to coal means the bear cycle is over (timer back to "not spawned").
  * <p>
- * Differences from Odin, all behaviour-preserving: Odin reacts to block-update packets through its own mixin event;
+ * Differences from Odin, all behavior-preserving: Odin reacts to block-update packets through its own mixin event;
  * this polls the 25/30 fixed positions once per client tick (no mixin needed, and a mid-fight join/relog picks up the
  * ring's current state instead of starting at 0). Kills = number of lit ring blocks, which equals Odin's clamped
  * +1/-1 transition count. Odin's timer counts server ticks (ping-packet based); this counts client ticks, so it can

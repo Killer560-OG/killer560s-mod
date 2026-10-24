@@ -8,7 +8,7 @@ import org.lwjgl.glfw.GLFW;
  * One open-bind for Storage Item Search - killer560 (2026-09-21): "allow for me to have multiple keybinds in the
  * sense of ctrl + f to open it". {@link KeyUtil} only stores a single bare key (or a mouse button) per setting and
  * has no notion of a modifier combination, so the combination half lives here rather than being bolted onto every
- * other keybind in the mod; see this feature's staging notes for the KeyUtil generalisation that would let the rest
+ * other keybind in the mod; see this feature's staging notes for the KeyUtil generalization that would let the rest
  * of the mod share it.
  * <p>
  * {@code code} is exactly what {@link KeyUtil} already understands - a GLFW key code, or a negative mouse code

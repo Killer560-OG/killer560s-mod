@@ -55,7 +55,7 @@ public class LagDisplayTab extends BaseTab {
         toggle(w, contentX, y[0], contentWidth, "Color By Value", cfg::isColorByValue, cfg::setColorByValue, cfg);
         y[0] += 24;
 
-        // Custom colours (killer560, 2026-10-18). The four value colours only matter with Color By Value on.
+        // Custom colors (killer560, 2026-10-18). The four value colors only matter with Color By Value on.
         header(w, contentX, y, contentWidth, "Colors");
         color(w, contentX, y[0], half, "Good Color", cfg::getColorGood, cfg::setColorGood,
                 LagDisplayConfig.DEFAULT_GOOD, cfg);

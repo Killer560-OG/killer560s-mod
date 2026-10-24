@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * The two header-separator strips TabNavigationBar draws left of the first tab and right of the last tab become a
- * single border-coloured line that lines up with the themed unselected tabs' bottom edge (MenuTabButtonMixin), so the
+ * single border-colored line that lines up with the themed unselected tabs' bottom edge (MenuTabButtonMixin), so the
  * tab row reads as one continuous themed strip with the selected tab "open" into the content.
  * <p>
  * 26.1.2 (javap): {@code TabNavigationBar.extractRenderState(GuiGraphicsExtractor,int,int,float)} has exactly two

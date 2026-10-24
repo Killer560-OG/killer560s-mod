@@ -65,7 +65,7 @@ public final class IceFillSolverFeature {
     private IceFillSolverFeature() {
     }
 
-    /** Copy of the drawn path (block centre x/z, floor y + 0.1) - for AutoPuzzles. Empty until all 3 floors scan. */
+    /** Copy of the drawn path (block center x/z, floor y + 0.1) - for AutoPuzzles. Empty until all 3 floors scan. */
     public static List<Vec3> getCurrentPath() {
         return new ArrayList<>(currentPath);
     }

@@ -314,7 +314,7 @@ final class PartyDataProtocol {
         return value != null && value.isJsonObject() ? value.getAsJsonObject() : null;
     }
 
-    /** Enum-like fields (flag, counter, door type, colour, event) compare case-insensitively, so lower-case them. */
+    /** Enum-like fields (flag, counter, door type, color, event) compare case-insensitively, so lower-case them. */
     private static String enumString(JsonElement value, String field) {
         String s = string(value, field);
         return s == null ? null : s.toLowerCase(Locale.ROOT);

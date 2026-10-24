@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <h2>Why this exists</h2>
  *
  * <p>On Hypixel a failed puzzle turns its room RED on the dungeon map, and that red square is how you notice
- * from across the floor that someone needs an Architect's First Draft. The mod already draws that colour: it
+ * from across the floor that someone needs an Architect's First Draft. The mod already draws that color: it
  * comes from {@code DungeonMapScanner.STATE_FAILED}, which the scanner reads off the vanilla dungeon map ITEM.
  *
  * <p>A singleplayer sim has no map item, so the scanner is never calibrated and every room paints as plain

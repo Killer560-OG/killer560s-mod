@@ -11,9 +11,9 @@ import java.util.Random;
  *
  * <p><b>The structure, and why.</b> Seven chambers of four pads in the corners; every pad is one end of a two-way
  * link to a pad in a different chamber; the start pad is linked to one chamber pad, and one pad (the exit) leads to
- * the centre. The wiki's way through (hypixelskyblock.minecraft.wiki, Catacombs Puzzle Rooms, Teleport Maze) is to
+ * the center. The wiki's way through (hypixelskyblock.minecraft.wiki, Catacombs Puzzle Rooms, Teleport Maze) is to
  * "run to the teleport pad diagonal of the one you used to enter the room" and keep doing so until you land facing a
- * pad in the same room, which then takes you to the centre - and Auto Teleport Maze's own fallback
+ * pad in the same room, which then takes you to the center - and Auto Teleport Maze's own fallback
  * ({@code getPad}) does the same. That only ever works if following diagonals cannot go round in a circle that
  * misses the exit.
  *
@@ -22,12 +22,12 @@ import java.util.Random;
  * each diagonal has exactly two links, so the diagonals and links form paths and closed loops. killer560
  * (2026-10-04): "Make sure tp maze only has one closed loop, not multiple." A random pairing (what this used to
  * draw) splits them into several pieces - start-to-exit plus one or more separate loops - and a diagonal walk that
- * starts in the wrong piece never finds the centre. So the draw now lays all fourteen diagonals in ONE chain:
- * start, d1, d2, ... d14, exit. The centre's own pad sends him back to the room's entrance, beside the start pad,
- * so start-chain-centre-start is the one closed loop, and it goes through every diagonal of every chamber.
+ * starts in the wrong piece never finds the center. So the draw now lays all fourteen diagonals in ONE chain:
+ * start, d1, d2, ... d14, exit. The center's own pad sends him back to the room's entrance, beside the start pad,
+ * so start-chain-center-start is the one closed loop, and it goes through every diagonal of every chamber.
  *
  * <p>Pads are numbered as {@code TeleportMazeSolverFeature.PADS}: chamber {@code c} is pads {@code 4c..4c+3},
- * then {@link #END} (the centre) and {@link #START}.
+ * then {@link #END} (the center) and {@link #START}.
  */
 public final class TeleportMazeLinks {
 
@@ -108,7 +108,7 @@ public final class TeleportMazeLinks {
         throw new IllegalStateException("no ordering of the diagonals keeps chambers apart");
     }
 
-    /** No two neighbours in the chain from the same chamber (a pad never links into its own chamber). */
+    /** No two neighbors in the chain from the same chamber (a pad never links into its own chamber). */
     private static boolean separated(List<int[]> order) {
         for (int i = 1; i < order.size(); i++) {
             if (chamberOf(order.get(i)[0]) == chamberOf(order.get(i - 1)[0])) {
@@ -119,12 +119,12 @@ public final class TeleportMazeLinks {
     }
 
     /**
-     * How many separate pieces the links make of the fourteen diagonals plus the start and the centre (the start and
-     * centre counted as one node, since the centre's pad returns him beside the start). One means one closed loop
+     * How many separate pieces the links make of the fourteen diagonals plus the start and the center (the start and
+     * center counted as one node, since the center's pad returns him beside the start). One means one closed loop
      * through everything.
      */
     public static int loops(int[] link, int[][] rel) {
-        int[] parent = new int[END + 1];   // 0..27 pads, 28 = start/centre
+        int[] parent = new int[END + 1];   // 0..27 pads, 28 = start/center
         for (int i = 0; i < parent.length; i++) {
             parent[i] = i;
         }
@@ -143,7 +143,7 @@ public final class TeleportMazeLinks {
     }
 
     /**
-     * The pads stepped on following diagonals only, from the start, until the centre - or null if that walk goes
+     * The pads stepped on following diagonals only, from the start, until the center - or null if that walk goes
      * round without reaching it: the wiki's rule taken literally, the pad diagonal to the one he landed on, every
      * time.
      */

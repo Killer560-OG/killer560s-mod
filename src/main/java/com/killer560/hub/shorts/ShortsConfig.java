@@ -53,10 +53,10 @@ public final class ShortsConfig {
         }
     }
 
-    /** Page colour scheme the Shorts window is asked to use (2026-09-16, killer560: "make an option for dark or
+    /** Page color scheme the Shorts window is asked to use (2026-09-16, killer560: "make an option for dark or
      *  light mode", then "add an onyx mode that is our orange theme... instead of onyx call it amber").
-     *  SYSTEM is the pre-option behaviour: the browser follows Windows' own app theme. AMBER is this mod's
-     *  own theme - dark emulation plus a stylesheet recolouring YouTube's chrome to the menu's accent, so
+     *  SYSTEM is the pre-option behavior: the browser follows Windows' own app theme. AMBER is this mod's
+     *  own theme - dark emulation plus a stylesheet recoloring YouTube's chrome to the menu's accent, so
      *  the Shorts window looks like part of the mod rather than a browser someone parked on top of it. */
     public enum Theme {
         SYSTEM("System"), DARK("Dark"), LIGHT("Light"), AMBER("Amber");
@@ -119,7 +119,7 @@ public final class ShortsConfig {
         }
     }
 
-    /** How the window is positioned (2026-09-21 expansion). ANCHORED is the original, sole behaviour -
+    /** How the window is positioned (2026-09-21 expansion). ANCHORED is the original, sole behavior -
      *  Anchor/Size/Margin below. CUSTOM is a free rect set once by turning Edit Window off (see
      *  {@link ShortsFeature#toggleEditMode}). DVD bounces the window around Minecraft's client area like
      *  the mod's own DVD screensaver feature - see {@link ShortsFeature} for why this reading of "DVD
@@ -169,7 +169,7 @@ public final class ShortsConfig {
     private int muteKey = -1;
 
     // ---- 2026-09-21 expansion (killer560 item 8.8) - every field below defaults to the pre-expansion
-    // behaviour (YouTube Shorts, anchored placement, 100% zoom, guard off) so an existing config keeps
+    // behavior (YouTube Shorts, anchored placement, 100% zoom, guard off) so an existing config keeps
     // working exactly as before until killer560 changes one of these himself. ----
     private Site site = Site.YOUTUBE_SHORTS;
     /** Only used when {@link #site} is {@link Site#CUSTOM}; stored exactly as typed. */

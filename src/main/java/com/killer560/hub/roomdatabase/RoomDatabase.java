@@ -334,7 +334,7 @@ public final class RoomDatabase {
      * (32 blocks) off, and every route node and secret waypoint drawn 32 blocks down the room. Mossy, Pipes, Pit,
      * Quartz Knight and Waterfall have the same stripe at a tile join. Checked against every capture in
      * {@code rooms/}: all 133 real corner markers have air on both outward sides, and 12 of the 13 tile-join blue
-     * blocks do not. A neighbour in an unloaded chunk is not held against the corner.
+     * blocks do not. A neighbor in an unloaded chunk is not held against the corner.
      */
     private static boolean isOuterRoofCorner(Level level, int x, int y, int z, int dx, int dz) {
         BlockPos sideX = new BlockPos(x + dx, y, z);
@@ -347,7 +347,7 @@ public final class RoomDatabase {
 
     /** @return how many grid tiles a room of this database {@code shape} ("1x1", "1x2", "1x3", "1x4",
      *  "2x2", "L") covers - NoammAddons' {@code RoomShape.tileCount}; 4 (the largest real room) when the
-     *  shape is missing or unrecognised. */
+     *  shape is missing or unrecognized. */
     public static int shapeTileCount(String shape) {
         if (shape == null) {
             return 4;
@@ -371,12 +371,12 @@ public final class RoomDatabase {
      *  passes {@code 360 - rotation} first ({@code DungeonWaypoints.getRoomData}, {@code TrapHelper:45},
      *  and every puzzle solver: {@code WaterBoardSolver:48}, {@code IcePathSolver:44},
      *  {@code QuizSolver:52}, {@code TeleportMazeSolver:30}, {@code IceFillSolver:30}, with Boulder and
-     *  Creeper Beams using {@code 360 - r + 180} because their data is centre-mirrored). We were passing
+     *  Creeper Beams using {@code 360 - r + 180} because their data is center-mirrored). We were passing
      *  the raw value, which is the correct rotation only where it equals its own negation - i.e. exactly
      *  at 0 and 180, which is why those two rotations always worked and 90/270 never did.
      *  <p>
      *  Proof, corner index 1 (clay at {@code maxX+15, minZ-15}, the room's NE corner, rotation 90) on a
-     *  1x1 room centred (cx, cz): relative coordinates in this database are all non-negative offsets that
+     *  1x1 room centered (cx, cz): relative coordinates in this database are all non-negative offsets that
      *  run INTO the room ({@code x} 1..122, {@code z} 1..60 across all 140 rooms), so a relative
      *  {@code (rx, rz)} must land inside {@code [cx-15, cx+15] x [cz-15, cz+15]}. Raw:
      *  {@code rotate(rx, rz, 90) = (rz, -rx)}, giving {@code (cx+15+rz, cz-15-rx)} - outside the room on

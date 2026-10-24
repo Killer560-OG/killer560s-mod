@@ -59,7 +59,7 @@ public final class TerminalLayouts {
     // ------------------------------------------------------------------ Melody
 
     /** @return the slots of Melody's clickable row buttons, top row first: every slot in the button column whose
-     *  item is a terracotta (lime on the row being played, another colour on the others). A 4-row board gives
+     *  item is a terracotta (lime on the row being played, another color on the others). A 4-row board gives
      *  16/25/34/43; a 3-row board gives three. With no terracotta on the board yet, the assumed layout's slots that
      *  fit inside the grid. */
     public static int[] melodyButtonSlots(List<ItemStack> items) {

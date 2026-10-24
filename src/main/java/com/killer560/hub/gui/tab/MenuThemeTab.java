@@ -18,11 +18,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Home's Menu Theme section (killer560, 2026-10-12): the colour preset the mod menu draws in - Amber (the default),
- * Dark, Light or Custom - and Custom's five colours, each opened in the usual colour picker. Changing a colour while a
+ * Home's Menu Theme section (killer560, 2026-10-12): the color preset the mod menu draws in - Amber (the default),
+ * Dark, Light or Custom - and Custom's five colors, each opened in the usual color picker. Changing a color while a
  * preset is in use starts Custom from that preset; Reset puts Custom back to the preset it started from. Saved in
- * {@code killer560smod-menu.json} with Favourites ({@link MenuConfig}).
- * <p>Saved Themes (killer560, 2026-10-13): Save as New Theme keeps the colours on screen as a named theme; each saved
+ * {@code killer560smod-menu.json} with Favorites ({@link MenuConfig}).
+ * <p>Saved Themes (killer560, 2026-10-13): Save as New Theme keeps the colors on screen as a named theme; each saved
  * theme has Use, a name box to rename it, and Delete (a second click confirms). They are kept in the same file.
  */
 public class MenuThemeTab extends BaseTab {
@@ -44,7 +44,7 @@ public class MenuThemeTab extends BaseTab {
         widgets.add(SettingsButtonWidget.cycling(themeText(), (btn, dir) -> {
                     step(dir);
                     btn.setMessage(themeText());
-                    requestRebuild.run(); // the colour rows show the new theme's colours
+                    requestRebuild.run(); // the color rows show the new theme's colors
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 22;
         // killer560, 2026-10-15: "for the mod menu can you make animations for it smooth" (gui/MenuAnim).
@@ -190,14 +190,14 @@ public class MenuThemeTab extends BaseTab {
         cfg.save();
     }
 
-    /** Sets one Custom colour (the colour picker's answer) and saves; the menu switches to Custom. */
+    /** Sets one Custom color (the color picker's answer) and saves; the menu switches to Custom. */
     public static void setColour(MenuTheme.Slot slot, int argb) {
         MenuConfig cfg = MenuConfig.getInstance();
         cfg.setCustomColour(slot, argb);
         cfg.save();
     }
 
-    /** Custom's colours back to the preset it started from, saved. */
+    /** Custom's colors back to the preset it started from, saved. */
     public static void resetCustom() {
         MenuConfig cfg = MenuConfig.getInstance();
         cfg.resetCustom();

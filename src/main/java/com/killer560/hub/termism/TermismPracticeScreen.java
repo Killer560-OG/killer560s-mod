@@ -259,7 +259,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
 
     @Override
     protected void init() {
-        // init() runs again on every window resize: keep the board and its timer, only re-centre it.
+        // init() runs again on every window resize: keep the board and its timer, only re-center it.
         if (cells.isEmpty()) {
             generatePuzzle();
         } else {
@@ -697,7 +697,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         tickAutoClick();
         // The menu theme round the board (screen sweep, 2026-10-13): a panel with the title in its header bar and the
         // hint under the board. The board itself keeps the terminal's own look (the solver's panel with Custom GUI on,
-        // vanilla's grey with it off), since that is what is being practised.
+        // vanilla's gray with it off), since that is what is being practiced.
         ScreenChrome.backdrop(graphics, this.width, this.height);
 
         boolean customGui = customGuiOn();

@@ -57,7 +57,7 @@ public final class DungeonInfoFeature {
     // SIDEBAR, but Hypixel's dungeon sidebar only has Keys / Time Elapsed / Cleared - "Secrets Found" is a
     // TAB LIST entry, so lastSecretsCount stayed -1 all run. Formats per Odin's DungeonListener
     // (" Secrets Found: 12" team count, " Secrets Found: 45.5%" percentage) and NoammAddons'
-    // ScoreCalculation (same lines, colour-coded) - matched on the formatting-stripped string.
+    // ScoreCalculation (same lines, color-coded) - matched on the formatting-stripped string.
     private static final Pattern TAB_SECRETS_COUNT_PATTERN = Pattern.compile("^\\s*Secrets Found: (\\d{1,6})\\s*$");
     private static final Pattern TAB_SECRETS_PERCENT_PATTERN = Pattern.compile("^\\s*Secrets Found: ([\\d.]+)%\\s*$");
 

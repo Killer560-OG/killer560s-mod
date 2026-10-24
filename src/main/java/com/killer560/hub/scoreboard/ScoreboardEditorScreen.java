@@ -152,7 +152,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
 
     @Override
     protected void init() {
-        // The theme's palette now, so the section headings and hints built below take its colours.
+        // The theme's palette now, so the section headings and hints built below take its colors.
         MenuStyle.use();
         cfg = CustomScoreboardConfig.getInstance();
         if (selected != null && !cfg.entries().contains(selected)) {
@@ -474,7 +474,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         out.add(colorButton("Background Color", cfg::getBackgroundColor, CustomScoreboardConfig.DEFAULT_BACKGROUND_COLOR,
                 cfg::setBackgroundColor, colBX, y, colW));
         y += STEP;
-        // Background opacity: the alpha of the background colour, shown as a percentage (killer560, 2026-10-18).
+        // Background opacity: the alpha of the background color, shown as a percentage (killer560, 2026-10-18).
         out.add(slider(x, y, colW, (cfg.getBackgroundColor() >>> 24) * 100 / 255, 0, 100,
                 v -> "Background Opacity: " + v + "%",
                 v -> cfg.setBackgroundColor((Math.round(v * 255f / 100f) << 24) | (cfg.getBackgroundColor() & 0xFFFFFF))));
@@ -497,7 +497,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         out.add(slider(colBX, y, colW, cfg.getBorderThickness(), 1, 5, v -> "Border Thickness: " + v,
                 cfg::setBorderThickness));
         y += STEP;
-        // Default: the menu's accent. Custom: the colours below (killer560, 2026-10-18).
+        // Default: the menu's accent. Custom: the colors below (killer560, 2026-10-18).
         out.add(cycle(() -> "Border Style: §6" + cfg.getBorderStyle().label,
                 () -> cfg.setBorderStyle(cfg.getBorderStyle().next()),
                 () -> cfg.setBorderStyle(cfg.getBorderStyle().previous()), x, y, colW));
@@ -791,7 +791,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
             mouseY = my;
         }
         // The menu theme (screen sweep, 2026-10-13): one panel over the window with the two help lines in its header
-        // bar, the board in a recessed well, the settings side on a raised box, every colour from the theme.
+        // bar, the board in a recessed well, the settings side on a raised box, every color from the theme.
         ScreenChrome.backdrop(g, this.width, this.height);
         themedBounds = new int[]{3, 3, this.width - 6, this.height - 6};
         ScreenChrome.frame(g, 3, 3, this.width - 6, this.height - 6);
@@ -907,7 +907,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         int h = lines.size() * (this.font.lineHeight + 1);
         int x = (int) Math.round(mouseX - Math.min(grabDX, w));
         int y = (int) Math.round(mouseY - grabDY);
-        g.fill(x - 3, y - 2, x + w + 3, y + h + 1, 0xE0101010); // the board's own dark, so its colours read as in game
+        g.fill(x - 3, y - 2, x + w + 3, y + h + 1, 0xE0101010); // the board's own dark, so its colors read as in game
         g.outline(x - 3, y - 2, w + 6, h + 3, MenuStyle.OR);
         int ly = y;
         for (ScoreboardLine l : lines) {
@@ -986,7 +986,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         };
     }
 
-    /** A section heading in the theme's accent, bold (a StringWidget colours its own text). */
+    /** A section heading in the theme's accent, bold (a StringWidget colors its own text). */
     private static Component heading(String title) {
         return Component.literal(title).withStyle(net.minecraft.ChatFormatting.BOLD).withColor(MenuStyle.OR & 0xFFFFFF);
     }

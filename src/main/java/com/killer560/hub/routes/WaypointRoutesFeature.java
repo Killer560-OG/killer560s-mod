@@ -323,7 +323,7 @@ public final class WaypointRoutesFeature {
                 ModChat.text(" to "), ModChat.value(route.name));
     }
 
-    /** Top-centre of the waypoint block - where a player standing on it has their feet. */
+    /** Top-center of the waypoint block - where a player standing on it has their feet. */
     private static Vec3 anchor(Route.Point p) {
         return new Vec3(p.x() + 0.5, p.y() + 1.0, p.z() + 0.5);
     }

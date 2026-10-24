@@ -136,7 +136,7 @@ public final class NoammCodec {
      * Spec 2.3 "Join" message ({@code C2SPacketDungeonStart.kt:5-9}, sent {@code FEAT_WebSocket.kt:74-82}):
      * {@code members} is every dungeon teammate INCLUDING the sender ({@code dungeonTeammates}, not
      * {@code ...NoSelf}); {@code entrance} is the entrance room's first grid cell as {@code (column, row)},
-     * serialised by Gson as {@code {"first": column, "second": row}}.
+     * serialized by Gson as {@code {"first": column, "second": row}}.
      */
     public static String dungeonStart(String serverId, String floor, List<String> members, int entranceCol, int entranceRow) {
         if (serverId == null || !SERVER_CODE.matcher(serverId).matches() || floor == null

@@ -33,7 +33,7 @@ import java.util.List;
  * WITHER door"/"RIGHT CLICK on the BLOOD DOOR" prompts), independently tracked here since that class's
  * state is private and its listener only fires useful renders while Door Helpers' own cheat-only toggles
  * are on. Like that class, this does not filter by which player's name is in the message - any party
- * member obtaining the key marks it held, same as the existing behaviour it mirrors.
+ * member obtaining the key marks it held, same as the existing behavior it mirrors.
  * <li><b>Legit honesty:</b> the closest-door box is always drawn with {@code WorldRenderUtils.renderOutlineBox}
  * (depth-tested, so it disappears behind geometry) - "Show All Doors" (which also draws through walls) only
  * exists as a {@link WitherDoorsConfig} getter gated on {@link BuildVariant#CHEAT_FEATURES_ENABLED}, so the legit
@@ -50,7 +50,7 @@ import java.util.List;
 public final class WitherDoorsFeature {
 
     /** One ready-to-draw box. Built on the tick, consumed by {@link WitherDoorsRenderer} on the frame. {@code fr/fg/fb}
-     *  is the fill colour: the outline's own (the door's state colour) unless a custom Fill Color is set. */
+     *  is the fill color: the outline's own (the door's state color) unless a custom Fill Color is set. */
     record DoorBox(AABB box, float r, float g, float b, float fr, float fg, float fb) {
     }
 
@@ -157,7 +157,7 @@ public final class WitherDoorsFeature {
         }
         // ANCHORED, mirroring AutoDoorOpenerFeature - which this class's own doc says it mirrors, and
         // which was anchored on 2026-09-29 while this copy was left on contains(). Display only here (it
-        // recolours the nearest door's highlight), so this was never the ban-shaped version of the bug - but
+        // recolors the nearest door's highlight), so this was never the ban-shaped version of the bug - but
         // a stranger typing "has obtained Wither Key" turning his door green reads as the mod being wrong
         // about a key he does not have.
         if (KEY_OBTAINED_WITHER.matcher(msg).matches() || WITHER_KEY_PICKED_UP.matcher(msg).matches()
@@ -310,7 +310,7 @@ public final class WitherDoorsFeature {
 
     /**
      * Without Show All Doors, both builds: the doors the held map shows ({@link MapDoors}) - every wither door on it,
-     * the nearest in the key colour once a Wither Key is held, the Blood door in its own colours (it used to need Show
+     * the nearest in the key color once a Wither Key is held, the Blood door in its own colors (it used to need Show
      * All Doors: killer560, 2026-10-15, "For some reason blood door isnt highlighting unless I have all doors on"), and
      * the Fairy door once it is known. Depth-tested boxes, each with a waypoint label that reads through walls.
      */
@@ -430,7 +430,7 @@ public final class WitherDoorsFeature {
         addBox(door.x(), door.z(), door.y(), door.wallAlongZ(), argb);
     }
 
-    /** The Fairy Door ({@link FairyDoor}): the same box, style and fill settings as a wither door, in its own colour.
+    /** The Fairy Door ({@link FairyDoor}): the same box, style and fill settings as a wither door, in its own color.
      *  Its height comes from {@link com.killer560.hub.livemap.DungeonLayout#doorBlock}, which follows the sim's shift. */
     private static void addFairyDoor(Minecraft client, WitherDoorsConfig cfg) {
         int cell = cfg.isFairyDoor() ? FairyDoor.door() : -1;

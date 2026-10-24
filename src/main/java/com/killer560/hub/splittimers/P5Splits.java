@@ -12,7 +12,7 @@ import java.util.Locale;
  * <ul>
  * <li>Dragon line = spawn -&gt; kill, i.e. Odin's "X was alive for Ns" ({@code WitherDragonsEnum.setAlive/setDead},
  * https://github.com/odtheking/Odin/blob/main/src/main/kotlin/com/odtheking/odin/features/impl/boss/WitherDragonsEnum.kt).
- * A dragon still alive shows a live, grey time.
+ * A dragon still alive shows a live, gray time.
  * <li>Relic spawn = Necron's "All this, for nothing..." -&gt; first relic head equipped on an armor stand (Odin
  * {@code KingRelics.kt} "relic spawned in").
  * <li>Relic placed = same P5 start -&gt; placement (Odin "relic placed in" for yours; NoammAddons
@@ -71,7 +71,7 @@ public final class P5Splits {
         }
     }
 
-    /** First placement per relic colour wins. {@code who} may be null. */
+    /** First placement per relic color wins. {@code who} may be null. */
     public static synchronized void relicPlaced(String key, String coloredLabel, long nowMs, String who) {
         for (RelicRow row : RELICS) {
             if (row.key().equals(key)) {

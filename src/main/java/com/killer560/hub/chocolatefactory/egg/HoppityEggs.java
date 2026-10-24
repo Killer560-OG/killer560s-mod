@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
 /**
  * Hoppity's Hunt egg calculator - the legit half of the egg request (killer560, 2026-10-19: "make the chocolate factory
  * also do egg calculations"). Read-only: it never clicks, never sends anything. It works out, the way SkyHanni's
- * Hoppity egg timers and Skyblocker's egg finder do (both read for behaviour only, see {@link HoppityCalendar}):
+ * Hoppity egg timers and Skyblocker's egg finder do (both read for behavior only, see {@link HoppityCalendar}):
  * <ul>
  * <li>for each meal (Breakfast/Brunch, Lunch/Dejeuner, Dinner/Supper) whether its live egg is still to find, found,
  * or unknown (you logged in after it spawned and no chat line has said), and when the next one spawns;</li>

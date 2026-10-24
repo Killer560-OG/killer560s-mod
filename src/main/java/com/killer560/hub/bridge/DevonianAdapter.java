@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
  * <b>Sign-in (spec 1.2):</b> random {@code r}; Mojang {@code joinServer(uuid, accessToken,
  * serverIdHash(r))} - the access token goes to Mojang's session server only, via authlib, exactly as vanilla
  * does when joining any server - then {@code Authenticate[<ign>, <r>]} on the socket. The server sends no
- * acknowledgement (spec 1.2 step 7), so the connection counts as signed in once it has stayed open
+ * acknowledgment (spec 1.2 step 7), so the connection counts as signed in once it has stayed open
  * {@link #VERIFY_MS} after that frame; a close inside that window counts as a sign-in failure.
  * <p>
  * <b>Carried:</b> in, {@code RoomSecrets} (mapped through {@link BridgeTables}) and {@code SecretTracker}

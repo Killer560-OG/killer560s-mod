@@ -14,7 +14,7 @@ import net.minecraft.world.phys.AABB;
  */
 final class SquareTrail {
 
-    /** The airborne colour - a bright blue that reads clearly against the grounded green. */
+    /** The airborne color - a bright blue that reads clearly against the grounded green. */
     private static final int AIRBORNE_BLUE = 0x2299FF;
     /** Green while grounded (killer560, 2026-09-21: "make the on ground color green instead of orange"). */
     private static final int GROUNDED_GREEN = 0x55FF55;

@@ -16,8 +16,8 @@ import java.util.Set;
  * room (a room the held map shows opened, or anything on the cheat build's full map, is drawn by {@link MapPainter} as
  * before and left alone here).
  *
- * <p>A predicted room: its certain tiles in its type's colour, joined where they touch, with its name; the tiles it may
- * or may not cover grey with a "?". No doors - the map's doors come from the held map only. A guessed one-tile room:
+ * <p>A predicted room: its certain tiles in its type's color, joined where they touch, with its name; the tiles it may
+ * or may not cover gray with a "?". No doors - the map's doors come from the held map only. A guessed one-tile room:
  * split into vertical strips of the special rooms it can still be (darkened, as the guess they are), with a "?".
  */
 public final class PredictedRoomsPainter {
@@ -48,14 +48,14 @@ public final class PredictedRoomsPainter {
                 }
             }
             // Every "?" first, then every named room over them (2026-10-19): the room ahead's unsure tiles can lie on the
-            // room beyond it, and drawn in map order they painted grey over that room's name - plan() already let a name win.
+            // room beyond it, and drawn in map order they painted gray over that room's name - plan() already let a name win.
             for (RoomPredictor.Prediction p : shown) {
                 for (int t : p.uncertainTiles()) {
                     if (!certainAnywhere.contains(t)) {
                         int gx = t % DungeonLayout.GRID;
                         int gz = t / DungeonLayout.GRID;
-                        // The grey MapPainter.roomColor gives every unopened room, Darken Unexplored included: it was
-                        // the plain Unopened colour, so with his saved 0.4 an unsure tile read lighter than every
+                        // The gray MapPainter.roomColor gives every unopened room, Darken Unexplored included: it was
+                        // the plain Unopened color, so with his saved 0.4 an unsure tile read lighter than every
                         // other "?" room (killer560's 14:47:48 screenshot, 2026-10-19).
                         fill(graphics, ox, oy, ppu, gx, gz, MapPainter.unopenedFill(cfg));
                         question(graphics, font, cfg, gx, gz, ox, oy, ppu);
@@ -155,7 +155,7 @@ public final class PredictedRoomsPainter {
             int gx = t % DungeonLayout.GRID;
             int gz = t / DungeonLayout.GRID;
             fill(graphics, ox, oy, ppu, gx, gz, color);
-            // Join it to a certain neighbour on the right and below, through the gap between them.
+            // Join it to a certain neighbor on the right and below, through the gap between them.
             if (certain.contains(t + 2)) {
                 fill(graphics, ox, oy, ppu, gx + 1, gz, color);
             }
@@ -170,7 +170,7 @@ public final class PredictedRoomsPainter {
         if (minX == Integer.MAX_VALUE) {
             return;
         }
-        // On the room's own tiles, not the centre of its bounding box: an L's box centre is its empty corner (killer560,
+        // On the room's own tiles, not the center of its bounding box: an L's box center is its empty corner (killer560,
         // 2026-10-19 23:15:17, "Chambers 0/5" half outside the room). MapPainter.labelBox is the one rule for both.
         float[] box = MapPainter.labelBox(p.certainTiles());
         String[] lines = predictionLines(p, cfg.getRoomLabels());
@@ -212,7 +212,7 @@ public final class PredictedRoomsPainter {
             // killer560, 2026-10-19: "it still isnt auto filling yellow room ever", and the blood-door room stayed a "?".
             graphics.fill(x0, y0, x1, y1, MapPainter.typeColor(types.get(0), cfg));
             if ("BLOOD".equals(types.get(0)) && cfg.getRoomLabels() >= 3) {
-                // Labelled like MapPainter labels it (killer560, 2026-10-19: "the map is not labeling blood").
+                // Labeled like MapPainter labels it (killer560, 2026-10-19: "the map is not labeling blood").
                 MapPainter.drawFittedLines(graphics, font, new String[]{"Blood"},
                         ox + (MapPainter.cellPos(gx) + MapPainter.ROOM_UNITS / 2f) * ppu,
                         oy + (MapPainter.cellPos(gz) + MapPainter.ROOM_UNITS / 2f) * ppu,

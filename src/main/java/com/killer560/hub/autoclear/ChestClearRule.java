@@ -177,7 +177,7 @@ public final class ChestClearRule {
      * next pick ({@code next}, -1 for none) is not it -
      * <ul>
      *   <li>counted as cleared for its chest (past {@link #LEAVE_TICKS}) and the next pick is two or more rooms from it:
-     *       its come-back falls due now, before the run leaves its neighbourhood (it then counts as uncleared, once);</li>
+     *       its come-back falls due now, before the run leaves its neighborhood (it then counts as uncleared, once);</li>
      *   <li>already due (the 30 s passed) and he is near it again: it goes first, rather than wherever its order puts it.</li>
      * </ul>
      * Only rooms {@code allowed} passes (the ones the caller would clear; null for any). Each room at most once a run;

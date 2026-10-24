@@ -27,7 +27,7 @@ import com.killer560.hub.compat.McCompat;
  * A port of QUOI's {@code TerminalAura} (credited there to Kyleen), asked for by killer560 2026-09-16:
  * "it should be just like every other aura that you have implemented just for terminals".
  * <p>
- * This only <i>opens</i> a terminal - it right-clicks the "Inactive Terminal" armour stand. Solving what
+ * This only <i>opens</i> a terminal - it right-clicks the "Inactive Terminal" armor stand. Solving what
  * is inside is Auto Terminals' job, and the two are independent: with Auto Terminals off, this just saves
  * the click that opens the GUI.
  * <p>
@@ -228,7 +228,7 @@ public final class TerminalAuraFeature {
         return pick(client, player, range, TerminalAuraConfig.MAX_FOV);
     }
 
-    /** {yaw, pitch} from the eye to the stand's box centre; pitch within +-90, yaw in any wrapping (turn by delta). */
+    /** {yaw, pitch} from the eye to the stand's box center; pitch within +-90, yaw in any wrapping (turn by delta). */
     public static float[] aimAt(Player player, ArmorStand stand) {
         Vec3 d = TerminalStands.center(stand).subtract(player.getEyePosition());
         float yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));
@@ -301,7 +301,7 @@ public final class TerminalAuraFeature {
             if (!fullCircle && center.subtract(eyes).normalize().dot(look) < minFovDot) {
                 continue;
             }
-            // To the BOX. The centre reads further than the server measures, so a terminal at the edge of
+            // To the BOX. The center reads further than the server measures, so a terminal at the edge of
             // the 3.0 entity limit was refused when it was really in range.
             if (com.killer560.hub.util.BlockHits.boxDistanceSq(eyes,
                     stand.getBoundingBox()) > rangeSqr) {

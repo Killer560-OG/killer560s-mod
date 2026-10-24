@@ -33,7 +33,7 @@ public final class MapCode {
     private static final String PREFIX = "MC2:";
 
     /**
-     * The previous format, which had no rotation. Recognised only so a stale code can be refused by name
+     * The previous format, which had no rotation. Recognized only so a stale code can be refused by name
      * instead of failing as unparseable - "this code is from an older format" is actionable, "invalid" is not.
      */
     private static final String PREFIX_V1 = "MC1:";
@@ -77,7 +77,7 @@ public final class MapCode {
             cellRoom[idx] = room >= 0 ? nameIndex.get(roomName[room]) : NO_ROOM;
             cellDoor[idx] = layout.doorType(idx);
             // Without this a rebuilt map has every room facing whichever way it was captured, which looks
-            // almost right and makes every route practised in it wrong.
+            // almost right and makes every route practiced in it wrong.
             int[] clay = room >= 0 ? layout.clayRotation(room) : null;
             cellRotation[idx] = clay != null && clay.length >= 3 ? ((clay[2] % 360) + 360) % 360 : 0;
         }

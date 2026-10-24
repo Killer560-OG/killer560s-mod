@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 
 /**
  * Reads one of the player's Bazaar orders from the item Hypixel shows for it in the Manage Orders menu. Pure string
- * work on the item's colour-stripped name and lore, so it can be tested without a client; never throws.
+ * work on the item's color-stripped name and lore, so it can be tested without a client; never throws.
  * <p>
  * The formats come from two mods that parse this same menu, since Hypixel publishes none:
  * <ul>

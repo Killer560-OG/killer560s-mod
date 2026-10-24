@@ -8,8 +8,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 /** The bottom-right "Copyright Mojang AB. Do not distribute!" link is a PlainTextButton drawn in plain
- *  white; on the title screen it becomes dim grey, light orange while hovered. Clicking still opens the
- *  credits exactly as before (only the colour argument changes). */
+ *  white; on the title screen it becomes dim gray, light orange while hovered. Clicking still opens the
+ *  credits exactly as before (only the color argument changes). */
 @Mixin(PlainTextButton.class)
 public abstract class MainMenuCopyrightMixin {
 

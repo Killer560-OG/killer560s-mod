@@ -35,7 +35,7 @@ public final class Ap3Chain {
         return classFilter;
     }
 
-    /** The live node list - callers that mutate it must {@code Ap3Store.getInstance().save()} afterwards. */
+    /** The live node list - callers that mutate it must {@code Ap3Store.getInstance().save()} afterward. */
     public List<Ap3Node> nodes() {
         return nodes;
     }

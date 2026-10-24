@@ -56,7 +56,7 @@ computed it correctly, which is why the *waypoints* landed while the solvers did
 >   corridor. The solver armed on it, then the room change wiped it. Gated on the live map naming the room,
 >   held steady for three ticks. Auto Quiz now presses a pillar *button* instead of the pillar.
 > • **Teleport Maze** — the start pad was the only pad nothing indexed, and it's the only way into a sealed
->   maze. Teleports also land at the half-block height your solver recognises.
+>   maze. Teleports also land at the half-block height your solver recognizes.
 > • **Tic Tac Toe** — marks were painted on the wall behind the buttons, which is the one place the solver never
 >   looks. They're on the cell now, and an unplayed cell is its button.
 > • **Boulder** — a boulder is a three-block plank column; the pattern write and the push both treated it as one

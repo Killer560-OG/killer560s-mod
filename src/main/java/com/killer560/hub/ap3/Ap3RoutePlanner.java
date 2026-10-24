@@ -8,7 +8,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * The route optimiser - killer560 (2026-09-22): "a movement optimizer/pathfinder... I should be able to set the first
+ * The route optimizer - killer560 (2026-09-22): "a movement optimizer/pathfinder... I should be able to set the first
  * node, a second node, a third node, etc. It should find the most optimal movement to hit each node from the first to
  * the last without skipping one... prioritize reaching the last node in that set as fast as possible."
  * <p>
@@ -117,7 +117,7 @@ final class Ap3RoutePlanner {
     private static final int JUMP_CELLS = 20;
 
     /**
-     * How much height a sprint jump gains, for deciding whether the heuristic's grid is connected upwards. A jump
+     * How much height a sprint jump gains, for deciding whether the heuristic's grid is connected upward. A jump
      * peaks at 1.252 blocks, and you have to land ON the ledge rather than brush it, so this is a little under.
      */
     static final double JUMP_CLIMB = 1.2;
@@ -857,7 +857,7 @@ final class Ap3RoutePlanner {
      * has not. That is fine on open floor and fatal on a short hop. Landing on a pad two blocks deep, one block up
      * and one block away, needs an approach of about 0.5 blocks a tick where killer560 runs at 1.5 - so every state
      * that could make the jump was cut, the rest fell in the hole, and the search reported "no route found" having
-     * never tried slowing down. That is his "it just tries to jump towards the node with no regard to it still
+     * never tried slowing down. That is his "it just tries to jump toward the node with no regard to it still
      * being a whole block low": the only approaches it kept were ones going too fast to land.
      * <p>
      * So the beam is shared between speed bands, cheapest first within each. The fast band still gets the lion's
@@ -930,7 +930,7 @@ final class Ap3RoutePlanner {
     /**
      * Between two ways of finishing on the same tick: fewer jumps first (running is what he wants where it works),
      * then fewer ticks spent scraping along things, then the cheaper f. All of these are ties on the only thing the
-     * search actually minimises, so none of them can buy a slower route.
+     * search actually minimizes, so none of them can buy a slower route.
      */
     private static boolean better(Node a, Node b) {
         if (a.jumps != b.jumps) {
@@ -1077,7 +1077,7 @@ final class Ap3RoutePlanner {
         c.bumps = n.bumps + (s.sprintBlocked && s.y <= n.s.y + 1.0E-9 ? 1 : 0);
         c.crossed = crossed;
         // NOTE: the jump preference is deliberately NOT priced in here. f is what the beam prunes by, and charging
-        // jumps made the beam drop every jumping state in favour of running ones that could not finish: a 5-block
+        // jumps made the beam drop every jumping state in favor of running ones that could not finish: a 5-block
         // gap at speed 550 has to be jumped, and it went from crossing every time to INCOMPLETE every time. The
         // preference belongs where the answer is chosen, not where the search is cut.
         // Clipping IS priced in, unlike jumping, and for the opposite reason: a jump is sometimes the only way
@@ -1178,7 +1178,7 @@ final class Ap3RoutePlanner {
         final float[][] dist;
         /** The surface height this grid believes each cell has - one per column, which is the whole difficulty. */
         float[] surface;
-        /** Distance from gate i-1's centre on to the end, walked through the fields. */
+        /** Distance from gate i-1's center on to the end, walked through the fields. */
         final double[] tail;
         /**
          * Per gate: did the flood reach the START? When it did, the field knows a way, and a floored cell it could
@@ -1258,7 +1258,7 @@ final class Ap3RoutePlanner {
             // only, so seeding the gate's whole column tells the search that standing directly underneath a node is
             // zero blocks away from it. killer560, 2026-09-22: "it runs and jumps straight at it instead of taking a
             // detour to go up a few blocks", and the diagnosis line agreed - "best was 13 ticks in and still 0.0
-            // blocks out" while stood on the floor beneath a platform. With the seeding levelled, the floor under
+            // blocks out" while stood on the floor beneath a platform. With the seeding leveled, the floor under
             // the platform measures its real distance - the whole way round by the stairs - and the detour becomes
             // the cheap thing it actually is.
             boolean seeded = false;
@@ -1276,7 +1276,7 @@ final class Ap3RoutePlanner {
                         }
                         // Second pass drops the height test: if nothing in the gate's column sits at its level -
                         // a node on a shape this 2.5D grid reads differently, say - an unseeded field would be
-                        // worse than a flat one, so fall back to the old behaviour rather than to nothing.
+                        // worse than a flat one, so fall back to the old behavior rather than to nothing.
                         if (pass == 0 && Math.abs(floor[cell] - g.y) > GATE_Y_TOLERANCE) {
                             continue;
                         }
@@ -1315,7 +1315,7 @@ final class Ap3RoutePlanner {
                         if (ni < 0 || nj < 0 || ni >= w || nj >= h || wall[ni * h + nj]) {
                             continue;
                         }
-                        // The field measures the way TO the gate, so the player travels neighbour -> cur. He may
+                        // The field measures the way TO the gate, so the player travels neighbor -> cur. He may
                         // drop any distance, but he may only rise what he can walk or jump up: without this the
                         // field is flat, and the cheapest way to close the distance to a gate at the top of a
                         // staircase is to jump OFF the staircase and sprint along the floor below it - which is
@@ -1335,7 +1335,7 @@ final class Ap3RoutePlanner {
                 // "X X X X X X X X -4.0 -2.5 ... 5.0" - is almost entirely unreachable to the field. It then falls
                 // back to straight-line distance, which is admissible but tells the search nothing, so the search
                 // does the only thing an uninformed search can: it heads straight at the node. That is exactly what
-                // he described - "it just tries to jump towards the node with no regard to it still being a whole
+                // he described - "it just tries to jump toward the node with no regard to it still being a whole
                 // block low" - and it is why 47 plans in one session came back INCOMPLETE.
                 // So: from a cell on the lip of a hole, reach across it to anywhere a jump could actually land.
                 if (!onLip) {
@@ -1355,7 +1355,7 @@ final class Ap3RoutePlanner {
                         // is high enough to be flown into.
                         //
                         // This used to break at the first cell that was not a hole, on the reasoning that solid
-                        // ground is walked by the ordinary neighbours. That is only true when the walker can
+                        // ground is walked by the ordinary neighbors. That is only true when the walker can
                         // actually get onto it. Measured on killer560's neo, 2026-09-23: between his node at 121
                         // and the platform he jumps from at 120 sits a ledge at 122 - two above the platform, so
                         // unwalkable from it. The flood reached the ledge at len 4 and broke at len 5, so the
@@ -1367,7 +1367,7 @@ final class Ap3RoutePlanner {
                         }
                         if (!hole(wall, floor, cur, mid)
                                 && floor[mid] <= floor[cur] + Ap3RouteCollide.MAX_UP_STEP) {
-                            // Ordinary ground at his own level: the walking neighbours already handle it, and
+                            // Ordinary ground at his own level: the walking neighbors already handle it, and
                             // stopping here is what keeps this loop cheap. Without this the scan runs its full
                             // length in all eight directions from every lip cell on open ground, and the field
                             // took 7 seconds instead of 2.8 on BalconyHarness - which then lost the search the
@@ -1434,7 +1434,7 @@ final class Ap3RoutePlanner {
                 int bj = -1;
                 float best = dist[gate][ci * h + cj];
                 // Widen the ring until something lower turns up. One cell is not enough: the flood JUMPS holes
-                // (see JUMP_CELLS), so at the lip of a gap every neighbour is either the gap or further away, and
+                // (see JUMP_CELLS), so at the lip of a gap every neighbor is either the gap or further away, and
                 // a walk that only looks one cell out stops dead there. Measured on killer560's route, 2026-09-22:
                 // every fraction from 0.3 to 0.7 came back with the same point, the near lip of his 3-block gap -
                 // which is no use as a place to cut the route in half, because it is before the hard part.

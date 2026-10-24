@@ -268,7 +268,7 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
         return cachedLines;
     }
 
-    /** The 11x11 grid the run finished on - rooms coloured by type, doors as their own darker cells. */
+    /** The 11x11 grid the run finished on - rooms colored by type, doors as their own darker cells. */
     private void drawMap(GuiGraphicsExtractor graphics, RunRecord.MapSnapshot map, int x, int y) {
         RunMapPainter.draw(graphics, map, x, y, MAP_CELL, 2);
         String caption = map.rooms().size() + " rooms";

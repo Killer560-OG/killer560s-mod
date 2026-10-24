@@ -47,7 +47,7 @@ public final class DungeonExtrasConfig {
     // Auto Dialogue (cheat)
     private boolean autoDialogueEnabled = false;
     private int autoDialogueDelayTicks = 5;
-    /** Comma-separated NPC names; blank = any NPC (reference behaviour). */
+    /** Comma-separated NPC names; blank = any NPC (reference behavior). */
     private String autoDialogueNpcFilter = "";
     /** Off (default): Auto Dialogue only acts while {@code DungeonState.isInDungeon()}. On: anywhere on Skyblock. */
     private boolean autoDialogueOutsideDungeons = false;
@@ -312,7 +312,7 @@ public final class DungeonExtrasConfig {
         return o.has(key) ? o.get(key).getAsBoolean() : def;
     }
 
-    /** A missing, misspelt or non-string value keeps the default instead of throwing - a throw here would reset
+    /** A missing, misspelled or non-string value keeps the default instead of throwing - a throw here would reset
      *  the WHOLE config (load's catch). */
     private static <E extends Enum<E>> E enumOr(JsonObject o, String key, Class<E> type, E def) {
         try {

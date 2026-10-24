@@ -13,7 +13,7 @@ import net.minecraft.world.entity.Relative;
 import java.util.Set;
 
 /**
- * {@code /center} - in the dungeon sim, moves him onto the centre of the block he stands on, the way an etherwarp lands
+ * {@code /center} - in the dungeon sim, moves him onto the center of the block he stands on, the way an etherwarp lands
  * him: a server teleport to the block's middle at his feet's height, the camera left as it is.
  */
 public final class SimCenterCommand {

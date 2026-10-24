@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Cancels the full-screen fire overlay draw when "No Fire" is enabled - verified via javap against the real
- * jars that the private static method this cancels is called only when {@code player.isOnFire()}, so cancelling
+ * jars that the private static method this cancels is called only when {@code player.isOnFire()}, so canceling
  * it here leaves the water/portal/confusion/pumpkin overlays (and the actual on-fire game state and damage)
  * untouched.
  *

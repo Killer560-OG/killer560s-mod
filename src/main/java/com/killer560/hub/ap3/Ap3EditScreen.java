@@ -409,7 +409,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
         return name == null || name.isBlank() ? (id == null ? "" : id) : name.trim();
     }
 
-    /** Leading room for an icon drawn at a button's left edge (the label is centred). */
+    /** Leading room for an icon drawn at a button's left edge (the label is centered). */
     private static String pad(ItemStack icon) {
         return icon == null ? "" : "    ";
     }
@@ -576,7 +576,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
      * A number in a field, at the node file's precision ({@link Ap3Node#SAVED_DECIMALS}) but without a tail of zeros.
      *
      * <p>The boxes are read back on Save, so this must print at least what the file keeps: at two decimals, simply
-     * opening a node's editor and saving it quantised its position and angle; at five (until 2026-10-06) it still
+     * opening a node's editor and saving it quantized its position and angle; at five (until 2026-10-06) it still
      * dropped the sixth decimal the file has kept since 2026-10-05. Trailing zeros are trimmed so an ordinary value
      * still reads as "3" and not "3.000000".
      */

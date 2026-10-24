@@ -21,18 +21,18 @@ import java.util.Map;
  * Each themed screen's own Theme setting (killer560, 2026-10-13: "have each theme option start on theme default which
  * copies it, then you can toggle through different selected themes for each menu"). A screen id maps to
  * {@link #DEFAULT} ("Theme Default": follows the mod menu's theme, what every screen starts on) or to one of the menu's
- * presets, Custom being the menu's saved Custom colours. {@link MenuTheme#forScreen} resolves an id to its five base
- * colours and {@link MenuStyle#use} applies them while that screen is open, so nothing else changes per screen.
+ * presets, Custom being the menu's saved Custom colors. {@link MenuTheme#forScreen} resolves an id to its five base
+ * colors and {@link MenuStyle#use} applies them while that screen is open, so nothing else changes per screen.
  * <p>
  * <p>The choices (killer560, 2026-10-15: "if i make a new custom theme it would show up there"): Theme Default, the four
- * presets, Custom (the menu's live Custom colours), then every theme he has SAVED, read live from {@link MenuConfig} each
+ * presets, Custom (the menu's live Custom colors), then every theme he has SAVED, read live from {@link MenuConfig} each
  * time the list is used - a theme saved a second ago is on the next press. A saved theme is stored by its stable id
  * ({@code SAVED:T2}), so renaming or deleting another one never moves it; one that has been deleted reads as Default.
  * Overlays that draw over the game (the Storage Overlay and its kin, {@link OverlayThemes}) use the same list with
  * "Default" meaning THEIR OWN look rather than following the menu.
  * <p>
  * A screen whose own older style choices should stay available passes them to {@link #button} as extra choices; their
- * names are stored as given and {@link #colours} leaves them to the screen (it returns the menu's colours for them).
+ * names are stored as given and {@link #colours} leaves them to the screen (it returns the menu's colors for them).
  * Saved in {@code killer560smod-menu-screens.json} (ModPaths' {@code menu} row puts it beside the menu's own file) and
  * re-read by {@code ProfileManager.reloadAllConfigs}.
  */
@@ -140,7 +140,7 @@ public final class ScreenThemes {
         version++;
     }
 
-    /** Theme Default, then the menu's presets, then Custom (the menu's live Custom colours), then every saved theme in the
+    /** Theme Default, then the menu's presets, then Custom (the menu's live Custom colors), then every saved theme in the
      *  order he saved them. Read live: call it when the choice is made, never cache it. */
     public static List<String> builtInChoices() {
         List<String> out = new ArrayList<>();
@@ -201,7 +201,7 @@ public final class ScreenThemes {
         return lower.isEmpty() ? choice : Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
     }
 
-    /** The five base colours the screen draws in: the menu's own for Theme Default (or an unknown/extra choice). */
+    /** The five base colors the screen draws in: the menu's own for Theme Default (or an unknown/extra choice). */
     public static int[] colours(String screenId) {
         MenuConfig menu = MenuConfig.getInstance();
         String c = get(screenId);
@@ -268,7 +268,7 @@ public final class ScreenThemes {
     }
 
     /**
-     * The five colours an OVERLAY draws in, or null when it is on Default (its own look). The one question every overlay
+     * The five colors an OVERLAY draws in, or null when it is on Default (its own look). The one question every overlay
      * asks; {@link OverlayThemes#of} wraps it into a full palette.
      */
     public static int[] overlayColours(String overlayId) {

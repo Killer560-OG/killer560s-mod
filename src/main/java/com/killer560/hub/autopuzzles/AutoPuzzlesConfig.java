@@ -76,7 +76,7 @@ public final class AutoPuzzlesConfig {
     // killer560, 2026-09-27: "have an option for auto secret" (Higher/Lower Blaze) - pathfinds to the room's known
     // secret once the blazes are all dead, only when Auto Blaze is also on. See AutoBlaze.
     private boolean autoBlazeSecretEnabled = false;
-    // killer560, 2026-09-27: Auto Tic Tac Toe "walk towards that chest and get close enough to aura it as an
+    // killer560, 2026-09-27: Auto Tic Tac Toe "walk toward that chest and get close enough to aura it as an
     // option as well" - only when Auto Tic Tac Toe is also on. See AutoTicTacToe.
     private boolean ticTacToeAuraChestEnabled = false;
     /**
@@ -284,7 +284,7 @@ public final class AutoPuzzlesConfig {
         this.autoBeamsEnabled = enabled;
     }
 
-    /** Auto Creeper Beams' way of hitting a lantern. Shoot (the shortbow, from the centre platform) is the default. */
+    /** Auto Creeper Beams' way of hitting a lantern. Shoot (the shortbow, from the center platform) is the default. */
     public enum BeamsMode {
         SHOOT("Shoot"),
         MELEE("Melee");

@@ -106,7 +106,7 @@ public final class PosmsgFeature {
         }
     }
 
-    /** Walk-in send: honours the global gap and the per-run gate, and stays completely silent when it
+    /** Walk-in send: honors the global gap and the per-run gate, and stays completely silent when it
      *  declines (this fires on movement, not on a button press - a warning overlay every few steps
      *  would be worse than the missed callout). */
     private static void trySend(PosmsgEntry entry) {
@@ -122,7 +122,7 @@ public final class PosmsgFeature {
         }
     }
 
-    /** Sends the given entry to Party Chat now, honouring the once-per-run gate. Used by the tab's
+    /** Sends the given entry to Party Chat now, honoring the once-per-run gate. Used by the tab's
      *  {@code /killer560 posmsg send <name>} command, where an explicit click/command deserves an
      *  explicit reason when nothing happens. */
     public static void send(PosmsgEntry entry) {

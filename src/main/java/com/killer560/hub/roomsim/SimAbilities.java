@@ -24,9 +24,9 @@ import net.minecraft.world.phys.Vec3;
 import java.util.Set;
 
 /**
- * Hypixel's movement abilities, reimplemented locally for the dungeon sim - as SERVER behaviour.
+ * Hypixel's movement abilities, reimplemented locally for the dungeon sim - as SERVER behavior.
  *
- * <p>Etherwarp, Instant Transmission, Wither Impact and Tactical Insertion are all server behaviour on Hypixel:
+ * <p>Etherwarp, Instant Transmission, Wither Impact and Tactical Insertion are all server behavior on Hypixel:
  * the client sends a use packet ({@code ServerboundUseItemPacket}, or {@code ServerboundUseItemOnPacket} when the
  * crosshair is on a block), the server reads its own copy of the player - position, the rotation the packet
  * carried, the sneak state from {@code ServerboundPlayerInputPacket}, the held item - and moves him with a
@@ -380,7 +380,7 @@ public final class SimAbilities {
         String room = SimState.roomNameAt(sp.getBlockX(), sp.getBlockZ());
         if (trapLocked(id, room)) {
             sayTrapLocked(sp, room);
-            // FAIL, not PASS: PASS would let the item's VANILLA behaviour through, and an ender pearl is vanilla
+            // FAIL, not PASS: PASS would let the item's VANILLA behavior through, and an ender pearl is vanilla
             // all the way down - it would still throw and still teleport him out of the trap.
             return InteractionResult.FAIL;
         }
@@ -524,7 +524,7 @@ public final class SimAbilities {
     /**
      * Wither Impact's radius, in blocks: 6, Hypixel's own - hypixelskyblock.minecraft.wiki, Wither Impact (2026-10-06):
      * "Teleports 10 blocks ahead of you dealing 10,000 Damage damage to nearby enemies within a 6 block radius." It was
-     * 5 here. Measured from the box of the mob to his centre, as before.
+     * 5 here. Measured from the box of the mob to his center, as before.
      */
     public static final double WITHER_BLAST_RADIUS = 6.0;
 
@@ -575,7 +575,7 @@ public final class SimAbilities {
      * <p><b>This model was MEASURED, not reasoned about.</b> killer560 ran 52 Instant Transmissions on real
      * Hypixel on 2026-09-30 with the teleport logger. What the log shows Hypixel actually does:
      * <ul>
-     *   <li><b>It lands you on a block.</b> 51 of 52 landings sat exactly on a block centre in x and z, and
+     *   <li><b>It lands you on a block.</b> 51 of 52 landings sat exactly on a block center in x and z, and
      *       52 of 52 on a whole y - which is also what the mod's planner predicts for an AOTV hop
      *       ({@code ClearNode.AotvNode}, block + 1.0). Etherwarp is the one with the 1.05.</li>
      *   <li><b>It travels along the look vector, not along the ground.</b></li>
@@ -660,7 +660,7 @@ public final class SimAbilities {
                         break;
                     }
                 }
-                // Never a step BACKWARDS. Looking straight up at a low ceiling settles on his own block, which is
+                // Never a step BACKWARD. Looking straight up at a low ceiling settles on his own block, which is
                 // not a teleport - it is undoing the one he already has.
                 if (settled != null
                         && (best == null || from.distanceToSqr(settled) > from.distanceToSqr(best))) {
@@ -672,11 +672,11 @@ public final class SimAbilities {
             break;
         }
         // HIS OWN BLOCK IS NOT A TELEPORT. Aimed straight down (Kill Mimic's Hyperion), the only spot that fits is the
-        // block he stands in, and snap() centres it - so a player standing off-centre was moved up to 0.7 blocks
+        // block he stands in, and snap() centers it - so a player standing off-center was moved up to 0.7 blocks
         // sideways by a "teleport" that, on Hypixel, goes nowhere (witherImpact's own note). Auto Routes then took
         // its next etherwarp from the shifted spot (2026-10-11, investigating "the auto routes kill the mimic then
-        // teleport in the direction of the mimic"). The step-backwards rule above already meant this; it only
-        // compared distances, which an off-centre start defeats.
+        // teleport in the direction of the mimic"). The step-backward rule above already meant this; it only
+        // compared distances, which an off-center start defeats.
         if (best != null && Math.floor(best.x) == Math.floor(from.x) && Math.floor(best.z) == Math.floor(from.z)
                 && best.y == Math.floor(from.y)) {
             return null;
@@ -685,7 +685,7 @@ public final class SimAbilities {
     }
 
     /**
-     * Puts a position on the block Hypixel would have landed you on: centred in x and z, whole in y.
+     * Puts a position on the block Hypixel would have landed you on: centered in x and z, whole in y.
      *
      * <p>{@code floor} rather than {@code round} on y because the landing is the block you stand ON.
      */

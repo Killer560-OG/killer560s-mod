@@ -86,7 +86,7 @@ public final class ItemProtect {
 
     /** The key this item is remembered by in the protected list: its UUID, or (with the fallback setting on)
      *  its Skyblock item id. Null when the item has neither - an item that can't be identified is never
-     *  added, matching Devonian's own behaviour rather than silently protecting the wrong stack. */
+     *  added, matching Devonian's own behavior rather than silently protecting the wrong stack. */
     public static String protectKeyFor(ItemStack stack, ItemProtectConfig cfg) {
         String uuid = itemUuid(stack);
         if (uuid != null && !uuid.isBlank()) {

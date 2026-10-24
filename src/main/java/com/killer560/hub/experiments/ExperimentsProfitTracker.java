@@ -245,7 +245,7 @@ public final class ExperimentsProfitTracker {
             }
             // matches(), not find(): these are Hypixel's own whole lines, and another player's chat line that merely
             // contains the text must not log a bonus charge or a claim.
-            // Colour codes off first: a leading code on Hypixel's line would make matches() miss it.
+            // Color codes off first: a leading code on Hypixel's line would make matches() miss it.
             String whole = com.killer560.hub.util.ChatObserver.strip(text);
             Matcher charge = BONUS_CHARGE.matcher(whole);
             if (charge.matches()) {
@@ -643,7 +643,7 @@ public final class ExperimentsProfitTracker {
         return toIdToken(name);
     }
 
-    /** The coin value of one of the Superpairs reward named {@code name} (colour codes stripped; a book as its enchant,
+    /** The coin value of one of the Superpairs reward named {@code name} (color codes stripped; a book as its enchant,
      *  "Power VII"), priced exactly as a claimed reward is, or null when it cannot be priced (prices not loaded yet,
      *  an XP tile, an unknown name). For {@link ExperimentSolver}'s Explore Before Claiming threshold. */
     static Double unitPriceOf(String name) {
@@ -688,7 +688,7 @@ public final class ExperimentsProfitTracker {
      *  session summary look like it "didn't recognize" Gravity/Drain/Woodsplitter/Pyroclasm books as
      *  enchants at all, next to correctly-priced books of every other kind - the exact same root cause
      *  (a name GUESSED from the id instead of matched against Hypixel's real one) already found and
-     *  fixed for tooltip colouring in {@code EnchantColorsFeature#ID_TO_LORE_NAME} (id -&gt; printed name).
+     *  fixed for tooltip coloring in {@code EnchantColorsFeature#ID_TO_LORE_NAME} (id -&gt; printed name).
      *  This is that table's inverse (printed name -&gt; id), rebuilt here rather than reused because
      *  {@code ID_TO_LORE_NAME} is package-private to {@code enchantcolors} and out of scope for this file
      *  to touch - same source list (SkyHanni's repo constants), so the two stay in sync by construction,

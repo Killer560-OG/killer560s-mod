@@ -100,7 +100,7 @@ import java.util.UUID;
  * a shot fired from directly overhead as well as one fired across the room.
  *
  * <p>Either way the direction is snapped to the nearest of the four board directions by comparing the shove
- * vector against the world offsets of the board's own four neighbours, so it stays correct at every rotation
+ * vector against the world offsets of the board's own four neighbors, so it stays correct at every rotation
  * without re-deriving the room transform here.
  *
  * <p>There is no failure state, and so no {@link SimPuzzles#reportFail} call: a badly aimed shove in the real
@@ -124,7 +124,7 @@ public final class SimIcePathPuzzle {
     private static final int ICE_Y = 66;
     private static final int WALL_Y = 67;
 
-    /** Room-relative x/z of the board's centre cell, which a standalone arena is anchored on. */
+    /** Room-relative x/z of the board's center cell, which a standalone arena is anchored on. */
     private static final int CENTRE_X = 15;
     private static final int CENTRE_Z = 16;
 
@@ -249,7 +249,7 @@ public final class SimIcePathPuzzle {
      * THE REWARD CHEST (2026-10-15). killer560: "Auto ice path ... do not claim there chest once it finishes" - so the
      * real room has one once the silverfish is out, and the sim had none, so no auto could ever be seen claiming it.
      * Where it stands on Hypixel is NOT measured: this puts it in the alcove past the exit gap (row -1, columns 7-9),
-     * on the first cell of the centre column behind the gap that has floor under it and air at the wall layer. Placed
+     * on the first cell of the center column behind the gap that has floor under it and air at the wall layer. Placed
      * on the solve, removed by a reset, dropped by {@link #forget}. Not a secret ({@code SimMimic.markPuzzleReward}).
      */
     private static volatile BlockPos rewardChest = null;
@@ -293,7 +293,7 @@ public final class SimIcePathPuzzle {
     }
 
     /**
-     * Clears any previous arena and builds a fresh Ice Path centred on {@code origin}.
+     * Clears any previous arena and builds a fresh Ice Path centered on {@code origin}.
      *
      * <p>The real room's own maze, ice and exit gap, laid around the player rather than read out of a capture -
      * see {@link #WALLS}. Same rules as a bound room.
@@ -409,7 +409,7 @@ public final class SimIcePathPuzzle {
         // There is one true Ice Path - killer560, 2026-10-01 - and WALLS is it, checked against a real room.
         // The shipped capture carries one wall the real room does not have, at (15,16), and that single block
         // makes 26 of the board's cells unable to reach the exit. Reading the room as captured would hand him a
-        // maze that is not the one he practises on, and sometimes an unsolvable one.
+        // maze that is not the one he practices on, and sometimes an unsolvable one.
         //
         // Only the maze layer inside the 17x17 is touched - nothing outside the board, nothing at any other
         // height - and the count is logged, so a capture that has drifted says how far rather than silently
@@ -679,9 +679,9 @@ public final class SimIcePathPuzzle {
     /**
      * The board direction a shove of this yaw pushes in.
      *
-     * <p>Snapped by comparing the shove vector against the WORLD offsets of the board's own four neighbours,
+     * <p>Snapped by comparing the shove vector against the WORLD offsets of the board's own four neighbors,
      * rather than by turning the yaw by the room's rotation here. The board transform is a rigid rotation, so
-     * one cell's neighbour offsets are every cell's, and the centre cell is used for all of them.
+     * one cell's neighbor offsets are every cell's, and the center cell is used for all of them.
      */
     private static int[] directionFor(float yaw) {
         double rad = Math.toRadians(yaw);
@@ -708,9 +708,9 @@ public final class SimIcePathPuzzle {
     }
 
     /**
-     * The world yaw a silverfish travelling in board direction {@code d} should face.
+     * The world yaw a silverfish traveling in board direction {@code d} should face.
      *
-     * <p>Derived from the same neighbour offsets {@link #directionFor} snaps against, so the fish faces the way
+     * <p>Derived from the same neighbor offsets {@link #directionFor} snaps against, so the fish faces the way
      * it is actually going at every room rotation. Minecraft's yaw convention: 0 looks along +Z, and the look
      * vector is {@code (-sin yaw, cos yaw)}, which inverts to {@code atan2(-x, z)}.
      */
@@ -734,7 +734,7 @@ public final class SimIcePathPuzzle {
         SimSilverfish fish = new SimSilverfish(McEntities.SILVERFISH, level);
         fish.setPersistenceRequired();
         // Stationary until something shoves it, and never hurt by the shove - see the class doc. Invulnerable
-        // as well as the cancelled punch, because an arrow reaches it on a path no callback can refuse.
+        // as well as the canceled punch, because an arrow reaches it on a path no callback can refuse.
         fish.setNoAi(true);
         fish.setInvulnerable(true);
         // The slide is driven by position, one step a tick, so vanilla physics must not also be moving it.
@@ -971,7 +971,7 @@ public final class SimIcePathPuzzle {
      * push and the aim's yaw says everything - that is the reading QUOI's auto relies on, on Hypixel. The aim is
      * NOT {@code arrow.getYRot()}: that is the projectile's own yaw, which is mirrored against a look yaw, near
      * meaningless for a vertical shot, and turned ~180 degrees when the arrow bounces off this invulnerable fish -
-     * so the shove went backwards along one board axis or the other, usually into a wall where nothing moves and
+     * so the shove went backward along one board axis or the other, usually into a wall where nothing moves and
      * nothing is said (2026-10-04, "auto ice path isn't working"). A Terminator arrow carries its aim
      * ({@link com.killer560.hub.roomsim.SimTerminator#shotYaw}); any other arrow uses its shooter's current yaw.
      *
@@ -1031,8 +1031,8 @@ public final class SimIcePathPuzzle {
          * where the tile you are on is the whole state is worse than annoying.
          *
          * <p>Both halves are needed and they are different methods. {@code pushEntities} is what a living entity
-         * does TO its neighbours each tick - {@code setNoAi} does not stop it, because it runs from
-         * {@code LivingEntity.aiStep} rather than from any goal - and {@code isPushable} is what lets neighbours
+         * does TO its neighbors each tick - {@code setNoAi} does not stop it, because it runs from
+         * {@code LivingEntity.aiStep} rather than from any goal - and {@code isPushable} is what lets neighbors
          * do it back. The slide is driven by {@code setPos}, so this entity has no need of either.
          */
         @Override

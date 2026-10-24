@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
  * can't crash it, {@link #ready()} just says it is not available there. Unlike {@code /ap3}'s gate, this does NOT
  * require the master toggle or Skyblock/p3sim - choosing which wall-set is active is meta-configuration, and
  * killer560 already asked for picking itself to work with the aura off ("I should have a keybind to select
- * blocks"); requiring the feature to be ON just to organise its saved sets would be a strange asymmetry with that.
+ * blocks"); requiring the feature to be ON just to organize its saved sets would be a strange asymmetry with that.
  */
 public final class BreakerAuraCommands {
 

@@ -5,13 +5,13 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
 /**
- * Coloured items and dyes that moved between Minecraft versions.
+ * Colored items and dyes that moved between Minecraft versions.
  *
  * <p>GENERATED SHAPE, hand-maintained: every version's copy is produced from the same list so the two cannot
  * drift, which is the one failure mode a facade like this has. Add a constant to one and you must add it to
  * all, or a clean compile on one Minecraft version becomes a break on another.
  *
- * <p>26.2 collapsed the sixteen coloured variants of each family into a {@code ColorCollection} - so
+ * <p>26.2 collapsed the sixteen colored variants of each family into a {@code ColorCollection} - so
  * {@code Items.RED_DYE} became {@code Items.DYE.pick(DyeColor.RED)}, and the class went from 1147 static fields to 881.
  * The registry ids are untouched (a {@code ColorCollection}'s ids are still {@code <colour>_<base>}), which
  * matters because room captures store block states as strings and are shared between versions over the relay.
@@ -147,7 +147,7 @@ public final class McItems {
     public static final Item RED_WOOL = Items.WOOL.pick(DyeColor.RED);
     public static final Item BLACK_WOOL = Items.WOOL.pick(DyeColor.BLACK);
 
-    // Lightning rod. Not a colour family: 26.2 gave the rod copper weathering, so Items.LIGHTNING_ROD is now a
+    // Lightning rod. Not a color family: 26.2 gave the rod copper weathering, so Items.LIGHTNING_ROD is now a
     // WeatheringCopperCollection<Item> with eight members. weathering().unaffected() is the one registered as
     // plain minecraft:lightning_rod - checked against the 26.2 lang file, which prefixes every other variant
     // (exposed_, weathered_, oxidized_, waxed_*) and leaves only that one bare.

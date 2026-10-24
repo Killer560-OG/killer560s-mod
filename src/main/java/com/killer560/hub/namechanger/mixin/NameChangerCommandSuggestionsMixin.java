@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Leaves the chat box's command suggestions and usage hint exactly as the game wrote them (killer560, 2026-10-15: typing
- * "/killer560" showed the custom name colouring, partly black). The suggestion list is not an edit box, so the edit-box
+ * "/killer560" showed the custom name coloring, partly black). The suggestion list is not an edit box, so the edit-box
  * suppression never covered it; a name inside a command is a command, not a name to restyle. Matched by method name with a
  * callback-only handler, which Mixin accepts for any descriptor, so one mixin serves 26.1.2 and 26.2.
  */

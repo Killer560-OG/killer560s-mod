@@ -104,7 +104,7 @@ final class SpringBootsOverlay {
     private static float coloredFor = Float.NaN;
     private static String coloredText = "";
 
-    /** The coloured height; the string is rebuilt only when the height changes (the HUD asks every frame, twice). */
+    /** The colored height; the string is rebuilt only when the height changes (the HUD asks every frame, twice). */
     private static String colored(float blocks) {
         if (blocks != coloredFor) {
             String code = blocks <= 13.5f ? "§c" : blocks <= 22.5f ? "§e" : blocks <= 33.0f ? "§6" : blocks <= 43.5f ? "§a" : "§b";

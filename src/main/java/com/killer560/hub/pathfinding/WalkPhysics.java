@@ -13,7 +13,7 @@ import net.minecraft.world.phys.Vec3;
  * <p>
  * Vanilla's player travel, the same constants AP3's align model uses ({@code ap3/Ap3AlignMath}), javap 26.1.2:
  * <ul>
- *   <li>the input is the key vector (each axis -1/0/1, normalised, x0.98), turned by the body yaw;</li>
+ *   <li>the input is the key vector (each axis -1/0/1, normalized, x0.98), turned by the body yaw;</li>
  *   <li>on the ground it pushes {@code speed * 0.216 / f^3} (f = the block's friction, 0.6 for most blocks, so exactly
  *       the MOVEMENT_SPEED attribute - Skyblock speed, the Speed effect and the sprint modifier all live there); in the
  *       air 0.02, 0.026 sprinting;</li>

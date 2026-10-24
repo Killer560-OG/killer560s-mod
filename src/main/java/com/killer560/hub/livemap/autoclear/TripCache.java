@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * have it figure ways to get to other rooms that it can see automatically - it just needs to get something ready within
  * the first 5s so my first warp goes out near instantly. Then as it loads in all rooms it should calculate from the very
  * last node of every auto routes to the start node of every other room's auto routes and every other room ... and save
- * them so it always hits the most optimal route afterwards").
+ * them so it always hits the most optimal route afterward").
  *
  * <p><b>What is planned.</b> Phase 1: from where he stands (re-planned whenever he settles somewhere new) to every room
  * the map knows - each of its tiles as a map press goes there ({@link AutoClearUtils#pathToRoom}: its recorded spot, or
@@ -93,7 +93,7 @@ public final class TripCache {
         return tileIdx >= 0 ? "T" + tileIdx : "B" + to.getX() + "," + to.getY() + "," + to.getZ();
     }
 
-    /** One planned trip. {@code corridor}: per hop the eye and the landing block's centre, six doubles a hop. */
+    /** One planned trip. {@code corridor}: per hop the eye and the landing block's center, six doubles a hop. */
     public static final class Entry {
         final Vec3 from;
         final Goal goal;
@@ -150,7 +150,7 @@ public final class TripCache {
             return onFull;
         }
 
-        /** Per hop: the eye, then the landing block's centre (six doubles a hop). A copy. */
+        /** Per hop: the eye, then the landing block's center (six doubles a hop). A copy. */
         public double[] corridor() {
             return corridor.clone();
         }
@@ -320,7 +320,7 @@ public final class TripCache {
         }
     }
 
-    /** Whether any hop's ray (eye to landing block centre) passes through the box. */
+    /** Whether any hop's ray (eye to landing block center) passes through the box. */
     static boolean crosses(double[] c, double x0, double y0, double z0, double x1, double y1, double z1) {
         for (int i = 0; i + 5 < c.length; i += 6) {
             if (segmentHitsBox(c[i], c[i + 1], c[i + 2], c[i + 3], c[i + 4], c[i + 5], x0, y0, z0, x1, y1, z1)) {

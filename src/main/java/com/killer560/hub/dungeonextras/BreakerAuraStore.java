@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
  * swap between (one wall-set per dungeon layout, handed to a friend as one file) - live here. Reach, cooldown,
  * zero ping, auto swap and every other Breaker Aura setting stay in {@link DungeonExtrasConfig}: they describe
  * how his OWN client swings, not which blocks a floor needs broken, so they apply the same no matter which picks
- * are active - exactly the split {@code Ap3Store} (chains) draws against {@code Ap3Config} (keybinds/colours).
+ * are active - exactly the split {@code Ap3Store} (chains) draws against {@code Ap3Config} (keybinds/colors).
  * <p>
  * <b>Migration</b> (killer560 already has real picks saved): {@link DungeonExtrasConfig#getBreakerAuraSelected()}
  * - the old single {@code LinkedHashSet<String>} field this replaces - is copied into {@code default.json} the

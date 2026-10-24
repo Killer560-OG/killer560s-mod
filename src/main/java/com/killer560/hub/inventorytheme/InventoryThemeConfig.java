@@ -17,7 +17,7 @@ import java.nio.file.Path;
  *  the mod's theme") - re-skins the vanilla chest/inventory GUI (background, per-slot backdrops, hover
  *  highlight, title text) to match the mod's own Amber look instead of Minecraft's stone texture, the
  *  same kind of thing SkyHanni/Odin already do. Follows the same per-key {@link ConfigJson} load/save
- *  shape every neighbouring {@code XyzConfig} in this mod uses, so a single malformed/missing key never
+ *  shape every neighboring {@code XyzConfig} in this mod uses, so a single malformed/missing key never
  *  resets the whole file. OFF by default per the New-tab rule - killer560 hasn't confirmed this live. */
 public final class InventoryThemeConfig {
 
@@ -41,7 +41,7 @@ public final class InventoryThemeConfig {
     public static final int MAX_LINE_WIDTH = 12;
     /** New installs: two pixels, the old default (one unit) at GUI 2. */
     public static final int DEFAULT_LINE_WIDTH = 2;
-    /** Hotbar scale (killer560, 2026-10-07: "a custom scale option"), about the hotbar's bottom centre. */
+    /** Hotbar scale (killer560, 2026-10-07: "a custom scale option"), about the hotbar's bottom center. */
     public static final float MIN_HOTBAR_SCALE = 0.5f;
     public static final float MAX_HOTBAR_SCALE = 2.0f;
 
@@ -62,9 +62,9 @@ public final class InventoryThemeConfig {
 
     /** The Theme choice's id in {@code ScreenThemes}/{@code OverlayThemes} (the Inventory Theme's own section). */
     public static final String CHOICE_ID = com.killer560.hub.gui.OverlayThemes.INVENTORY_THEME;
-    /** Theme choice: vanilla's own greys. */
+    /** Theme choice: vanilla's own grays. */
     public static final String VANILLA_CHOICE = "VANILLA";
-    /** Theme choice: Custom - the Customize screen's colours. */
+    /** Theme choice: Custom - the Customize screen's colors. */
     public static final String CUSTOM_CHOICE = "INVENTORY_CUSTOM";
 
     private static volatile InventoryThemeConfig instance;
@@ -89,7 +89,7 @@ public final class InventoryThemeConfig {
     /** A width in GUI units from a file written before pixels ({@code lineWidth} without {@code lineWidthPx}), waiting
      *  for a GUI scale to convert it; -1 when there is none. */
     private int legacyLineUnits = -1;
-    /** Slot backdrop recolour (killer560, 2026-10-07: "an option to recolor it"): off follows the theme. */
+    /** Slot backdrop recolor (killer560, 2026-10-07: "an option to recolor it"): off follows the theme. */
     private boolean useCustomSlotColor = false;
     private int customSlotColor = PanelTheme.AMBER.invSlotBg;
     /** True once the old preset has been carried over to the Theme choice (written to the file as themeChoiceMigrated). */
@@ -135,7 +135,7 @@ public final class InventoryThemeConfig {
                 cfg.choiceMigrated = ConfigJson.getBool(obj, "themeChoiceMigrated", false);
                 if (!cfg.choiceMigrated) {
                     // A file from before the Theme choice: carry its preset over, unless a Menu Theme was already picked
-                    // (that one won in the old getPalette too). Default meant vanilla colours then.
+                    // (that one won in the old getPalette too). Default meant vanilla colors then.
                     if (com.killer560.hub.gui.ScreenThemes.DEFAULT.equals(com.killer560.hub.gui.ScreenThemes.get(CHOICE_ID))) {
                         Preset legacy = ConfigJson.getEnum(obj, "preset", Preset.class, Preset.DEFAULT);
                         String mapped = switch (legacy) {
@@ -334,7 +334,7 @@ public final class InventoryThemeConfig {
         this.paletteMemo = null;
     }
 
-    /** The slot backdrop colour actually drawn: the custom one when set, else the theme's. */
+    /** The slot backdrop color actually drawn: the custom one when set, else the theme's. */
     public int getSlotColor() {
         return useCustomSlotColor ? customSlotColor : theme.invSlotBg;
     }
@@ -363,11 +363,11 @@ public final class InventoryThemeConfig {
     }
 
     /** The shades everything is drawn in, from the Theme choice (killer560, 2026-10-18): Default follows the mod menu's
-     *  theme, a named theme is that theme's colours, Vanilla is vanilla's greys, Custom is what the Customize screen
+     *  theme, a named theme is that theme's colors, Vanilla is vanilla's grays, Custom is what the Customize screen
      *  sets (its Base / Slot Color / Accent Color). The Slot and Accent overrides apply to Custom only. */
     public InventoryPalette getPalette() {
-        // Asked once per slot per frame: remembered until the Theme choice, the menu's colours or one of this config's own
-        // colour settings changes (the versions move on every such change), instead of four locked lookups and a new
+        // Asked once per slot per frame: remembered until the Theme choice, the menu's colors or one of this config's own
+        // color settings changes (the versions move on every such change), instead of four locked lookups and a new
         // palette (a record plus its derived shades) for each of ~90 slots.
         PaletteMemo memo = paletteMemo;
         int sv = com.killer560.hub.gui.ScreenThemes.version();
@@ -390,8 +390,8 @@ public final class InventoryThemeConfig {
             return InventoryPalette.DEFAULT;
         }
         if (isCustom()) {
-            // Built from the Base's colours with the custom accent / slot colour taking their place, so the accent also
-            // colours the bevels.
+            // Built from the Base's colors with the custom accent / slot color taking their place, so the accent also
+            // colors the bevels.
             return InventoryPalette.custom(theme.invPanelBg, getSlotColor(), getAccentColor());
         }
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(CHOICE_ID);

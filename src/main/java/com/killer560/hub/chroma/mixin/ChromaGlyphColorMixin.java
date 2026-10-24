@@ -9,13 +9,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
- * Per-glyph chroma: when a glyph's style carries a {@link ChromaWave.Spec}'s colour, the font gets the colour of the
+ * Per-glyph chroma: when a glyph's style carries a {@link ChromaWave.Spec}'s color, the font gets the color of the
  * waterfall at that glyph's own position instead.
  *
  * <p>{@code Font$PreparedTextBuilder.accept(int, Style, BakedGlyph)} reads {@code style.getColor()} once per glyph,
- * turns it into the glyph colour with {@code getTextColor} (keeping the text's alpha) and derives the shadow from that,
+ * turns it into the glyph color with {@code getTextColor} (keeping the text's alpha) and derives the shadow from that,
  * while {@code x}/{@code y} still hold the glyph's own origin (javap, identical in 26.1.2 and 26.2). GUI text is
- * prepared there at its GUI coordinates every frame ({@code GuiTextRenderState.ensurePrepared}), so the colour
+ * prepared there at its GUI coordinates every frame ({@code GuiTextRenderState.ensurePrepared}), so the color
  * animates without any component being rebuilt, and the lines of one tooltip share one coordinate space.
  *
  * <p>A {@code @Redirect} rather than a cancellable {@code @Inject}: this runs for every glyph the game draws, and a

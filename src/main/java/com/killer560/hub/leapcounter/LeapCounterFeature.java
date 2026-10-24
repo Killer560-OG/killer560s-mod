@@ -20,12 +20,12 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * Leap Counter - entry point. Ticks {@link LeapTracker}, feeds it chat (through {@link ChatObserver}, so Hypixel's
- * "You have teleported to Name!" line still arrives when another mod cancelled and re-added it), shows the title +
+ * "You have teleported to Name!" line still arrives when another mod canceled and re-added it), shows the title +
  * sound when the expected number of teammates have leapt to you, and owns the movable/scalable HUD element.
  * Default OFF ({@link LeapCounterConfig}); informational only, so it ships on both jars.
  * <p>
  * Alert defaults follow NoammAddons' LeapCounter ("&aEveryone Leaped!" title, experience-orb pickup sound); the HUD
- * line is its "{count}/{max} Players Leaped" shape with Devonian's colour-by-progress.
+ * line is its "{count}/{max} Players Leaped" shape with Devonian's color-by-progress.
  */
 public final class LeapCounterFeature {
 

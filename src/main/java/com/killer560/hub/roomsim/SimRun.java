@@ -15,7 +15,7 @@ import java.util.Locale;
  * <p>killer560 (2026-09-28): "if I want to do a full run, then I should always start in green room with that
  * door locked in a five second countdown for it to start".
  *
- * <p>The countdown is the point of it. Practising a clear means practising the opening seconds, and a run that
+ * <p>The countdown is the point of it. Practicing a clear means practicing the opening seconds, and a run that
  * begins the instant you load is a run whose first room you were already walking through before you were ready.
  * Locking the door makes the start line real rather than an instruction to wait.
  *

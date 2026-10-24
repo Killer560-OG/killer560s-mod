@@ -11,19 +11,19 @@ import java.util.Locale;
 import com.killer560.hub.util.ChatColors;
 
 /**
- * Colour handling for Name Changer's display names. killer560 (2026-09-20): "instead of using color codes I
+ * Color handling for Name Changer's display names. killer560 (2026-09-20): "instead of using color codes I
  * select a color for it" - the tab now opens this mod's own {@code ColorPickerScreen} and stores an ARGB int
  * per name.
  * <p>
  * Names still travel through {@link NameReplacer} as plain strings with legacy {@code §} codes (that's what
  * makes the replacement keep the original text's click/hover events), and legacy codes only cover the 16 chat
- * colours - so a picked colour is snapped to the nearest of those, not written as a true RGB style.
- * {@link #migrate} pulls the colour out of a display name that was typed with {@code &} / {@code §} codes
+ * colors - so a picked color is snapped to the nearest of those, not written as a true RGB style.
+ * {@link #migrate} pulls the color out of a display name that was typed with {@code &} / {@code §} codes
  * before this change, so an existing setup keeps looking exactly the same.
  */
 public final class NameColor {
 
-    /** "No colour picked" - the name is shown in whatever colour the surrounding text already had. */
+    /** "No color picked" - the name is shown in whatever color the surrounding text already had. */
     public static final int NONE = 0;
 
     private static final ChatFormatting[] COLORS = buildColors();
@@ -37,7 +37,7 @@ public final class NameColor {
                 .toArray(ChatFormatting[]::new);
     }
 
-    /** ARGB of a legacy colour code character, or {@link #NONE} if it isn't one of the 16 colours. */
+    /** ARGB of a legacy color code character, or {@link #NONE} if it isn't one of the 16 colors. */
     public static int argbForCode(char code) {
         char lower = Character.toLowerCase(code);
         for (ChatFormatting f : COLORS) {
@@ -48,7 +48,7 @@ public final class NameColor {
         return NONE;
     }
 
-    /** The legacy code whose colour is closest to {@code argb} (plain RGB distance). */
+    /** The legacy code whose color is closest to {@code argb} (plain RGB distance). */
     public static char codeFor(int argb) {
         int r = (argb >> 16) & 0xFF;
         int g = (argb >> 8) & 0xFF;
@@ -74,12 +74,12 @@ public final class NameColor {
         return argb == NONE ? "" : "§" + codeFor(argb);
     }
 
-    /** A display name split into its plain text and the colour it was typed with. */
+    /** A display name split into its plain text and the color it was typed with. */
     public record Migrated(String text, int argb) {
     }
 
-    /** Pulls the first {@code &}/{@code §} colour code out of {@code display} and removes every colour code
-     *  from the text, leaving the non-colour format codes (bold, italic, ...) alone so those keep working. */
+    /** Pulls the first {@code &}/{@code §} color code out of {@code display} and removes every color code
+     *  from the text, leaving the non-color format codes (bold, italic, ...) alone so those keep working. */
     public static Migrated migrate(String display) {
         if (display == null || display.isEmpty()) {
             return new Migrated("", NONE);
@@ -110,9 +110,9 @@ public final class NameColor {
      * to {@code toArgb} across the letters of {@code text}, written as one {@code §x§R§R§G§G§B§B} prefix per letter.
      * <p>
      * <b>Vanilla does not read that escape.</b> {@code StringDecomposer.iterateFormatted} (javap, 26.1.2 and 26.2) skips
-     * {@code §x} as an unknown code and then applies each {@code §<hex digit>} as a LEGACY colour, so every letter took
-     * the 16-colour code of its blue channel's low nibble - the "random blacks, whites and pinks" between the two picked
-     * colours (killer560, 2026-10-11). Every place this mod turns one of these strings into styled glyphs therefore goes
+     * {@code §x} as an unknown code and then applies each {@code §<hex digit>} as a LEGACY color, so every letter took
+     * the 16-color code of its blue channel's low nibble - the "random blacks, whites and pinks" between the two picked
+     * colors (killer560, 2026-10-11). Every place this mod turns one of these strings into styled glyphs therefore goes
      * through {@link #iterateFormatted} ({@code NameReplacer}, the {@code Font.prepareText(String)} redirect in
      * {@code NameChangerFontMixin}, {@link #toComponent}). {@code §} codes already in the text (bold, ...) are copied
      * through and are not letters.
@@ -125,10 +125,10 @@ public final class NameColor {
     }
 
     /**
-     * {@code StringDecomposer.iterateFormatted(s, base, sink)} plus Bungee's {@code §x§R§R§G§G§B§B} true-colour escape,
-     * which vanilla misreads (see {@link #buildFade}). A hex colour keeps the bold/italic/... already active, so a
+     * {@code StringDecomposer.iterateFormatted(s, base, sink)} plus Bungee's {@code §x§R§R§G§G§B§B} true-color escape,
+     * which vanilla misreads (see {@link #buildFade}). A hex color keeps the bold/italic/... already active, so a
      * gradient over a bold name stays bold. Every other code behaves exactly as vanilla: {@code §r} goes back to
-     * {@code base}, a legacy colour or format goes through {@code Style.applyLegacyFormat}, an unknown code is skipped.
+     * {@code base}, a legacy color or format goes through {@code Style.applyLegacyFormat}, an unknown code is skipped.
      */
     public static boolean iterateFormatted(String s, Style base, FormattedCharSink sink) {
         if (s == null) {
@@ -195,7 +195,7 @@ public final class NameColor {
         return sb.toString();
     }
 
-    /** The colour of each letter {@code s} paints (0xRRGGBB, -1 where a letter has no colour of its own). */
+    /** The color of each letter {@code s} paints (0xRRGGBB, -1 where a letter has no color of its own). */
     public static int[] letterColours(String s) {
         java.util.List<Integer> out = new java.util.ArrayList<>();
         iterateFormatted(s, Style.EMPTY, (pos, style, cp) -> {
@@ -234,9 +234,9 @@ public final class NameColor {
     }
 
     /**
-     * Your own name with a colour per letter (Cosmetics tab "Letter Colours"). Letter {@code i} gets
+     * Your own name with a color per letter (Cosmetics tab "Letter Colors"). Letter {@code i} gets
      * {@code perChar.applyAsInt(i)} when that is not {@link #NONE}, otherwise the {@code fromArgb}-to-{@code
-     * toArgb} gradient's colour at that letter (pass the same colour twice for a flat name). Existing {@code §}
+     * toArgb} gradient's color at that letter (pass the same color twice for a flat name). Existing {@code §}
      * codes in the text are copied through and do not count as letters.
      */
     public static String buildPerChar(String text, int fromArgb, int toArgb,
@@ -268,8 +268,8 @@ public final class NameColor {
     }
 
     /**
-     * {@code text} in bold all through: a {@code §l} at the start and again after every legacy colour code and
-     * {@code §r} (each of which ends bold in vanilla). A {@code §x} true colour keeps bold ({@link #iterateFormatted}),
+     * {@code text} in bold all through: a {@code §l} at the start and again after every legacy color code and
+     * {@code §r} (each of which ends bold in vanilla). A {@code §x} true color keeps bold ({@link #iterateFormatted}),
      * so it is copied whole and untouched.
      */
     public static String bold(String text) {
@@ -327,7 +327,7 @@ public final class NameColor {
         return 0xFF000000 | (r << 16) | (g << 8) | b;
     }
 
-    /** Bungee's {@code §x} hex-colour escape: {@code §x} followed by 6 {@code §<hex digit>} pairs, one per RGB nibble.
+    /** Bungee's {@code §x} hex-color escape: {@code §x} followed by 6 {@code §<hex digit>} pairs, one per RGB nibble.
      *  Vanilla does NOT understand it - only {@link #iterateFormatted} does (see {@link #buildFade}). */
     private static String hexPrefix(int argb) {
         String hex = String.format(Locale.ROOT, "%06x", argb & 0xFFFFFF);
@@ -339,7 +339,7 @@ public final class NameColor {
         return sb.toString();
     }
 
-    /** Human-readable name of the nearest legacy colour, for the settings tab. */
+    /** Human-readable name of the nearest legacy color, for the settings tab. */
     public static String label(int argb) {
         if (argb == NONE) {
             return "Default";

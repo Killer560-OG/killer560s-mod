@@ -279,7 +279,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         if (selected == null && event.button() == 0 && overTrack(event.x(), event.y())) {
             int ty = thumbY();
             int th = thumbHeight();
-            // On the thumb: grab it where it was clicked. On the track: jump the thumb's centre there.
+            // On the thumb: grab it where it was clicked. On the track: jump the thumb's center there.
             dragGrabY = event.y() >= ty && event.y() < ty + th ? event.y() - ty : th / 2.0;
             draggingScroll = true;
             dragScrollTo(event.y());
@@ -462,7 +462,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
             int lineY1 = rowY + 2;
             int lineY2 = rowY + 12;
-            // Vertically centred in the row, level with the Invite button.
+            // Vertically centered in the row, level with the Invite button.
             String status = onlineStatusText(f);
             int statusW = this.font.width(status);
             ScreenChrome.text(graphics, status, bx - 6 - statusW, rowY + (ROW_H - this.font.lineHeight) / 2, MenuStyle.TXT);

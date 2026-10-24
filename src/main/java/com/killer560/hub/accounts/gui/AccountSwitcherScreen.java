@@ -107,7 +107,7 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
     private final Map<String, MenuAnim.Tween> hoverState = new HashMap<>();
 
     /** Pixels the list is scrolled to (killer560, 2026-09-21: "make the swap accounts page scrollable"), and the
-     *  shown value easing towards it. */
+     *  shown value easing toward it. */
     private int scroll;
     private final MenuAnim.Tween scrollAnim = new MenuAnim.Tween(MenuAnim.SCROLL_MS, true);
     private boolean draggingScroll;

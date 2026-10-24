@@ -27,18 +27,18 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Custom Items (Armour Recolour until 2026-10-08) - client-side colour, armour skin, trim, Look (item model) and
+ * Custom Items (Armor Recolor until 2026-10-08) - client-side color, armor skin, trim, Look (item model) and
  * head-texture overrides for any item you hold. killer560 (2026-09-16): "add an option from skyblocker where you can
  * custom recolor armor, using dyes and armor skin client side"; 2026-10-08: "select an item in your inventory and you
  * can then apply a skin to it or recolor or something". Keyed per item UUID or per Skyblock id (see
  * {@link ArmourDyeEntry}).
  * <p>
- * Ported from Skyblocker's armour customization (github.com/SkyblockerMod/Skyblocker -
+ * Ported from Skyblocker's armor customization (github.com/SkyblockerMod/Skyblocker -
  * {@code skyblock/item/custom/CustomArmor{DyeColors,Trims}}, {@code mixins/{DyedItemColor,DataComponentHolder,
  * EquipmentLayerRenderer}Mixin}), credited the same way this mod credits QUOI, Odin, NoammAddons and Devonian.
  * Three deliberate divergences from Skyblocker, all of them killer560's call:
  * <ol>
- *   <li><b>Keyed on the Skyblock item id, not the item UUID.</b> Skyblocker stores one colour per physical item, so
+ *   <li><b>Keyed on the Skyblock item id, not the item UUID.</b> Skyblocker stores one color per physical item, so
  *       a second Necron's Chestplate is a second job. killer560 asked for "every copy of that piece you own looks
  *       the same", so the key is {@code ItemIdentity.of(stack)} - the id this mod already reads for Auto Routes and
  *       Item Protect, with {@code STARRED_}, reforges and stars stripped.</li>
@@ -47,13 +47,13 @@ import java.util.Map;
  *       the asset key off that component before it ever calls the renderer, so one hook does the job and we don't
  *       have to pin a renderer method descriptor that Mojang reshuffles most versions.</li>
  *   <li><b>No animated dyes.</b> Skyblocker has keyframed OkLab dye animation; that is a whole second feature and
- *       killer560 asked for a recolour, so it isn't here.</li>
+ *       killer560 asked for a recolor, so it isn't here.</li>
  * </ol>
  *
  * <h2>Nothing leaves the client</h2>
  * Every override happens inside a component <i>getter</i> on the client's own copy of the stack. No
  * {@code ItemStack#set}, no NBT edit, no packet, no command - the server's item is untouched and other players see
- * the real armour. This is why the feature is legit and ships on both builds.
+ * the real armor. This is why the feature is legit and ships on both builds.
  *
  * <h2>Never take down a frame</h2>
  * Both mixins funnel through here and every entry point is wrapped. After {@link #MAX_FAILURES} exceptions the
@@ -71,13 +71,13 @@ public final class ArmourDye {
     private static int failures = 0;
 
     /**
-     * One-slot memo. A single armour piece is asked for {@code equippable}, then {@code trim}, then its dye colour
+     * One-slot memo. A single armor piece is asked for {@code equippable}, then {@code trim}, then its dye color
      * within the same render call, so remembering the last stack turns three id reads into one. Weak so a stack we
      * looked at once can't keep a whole inventory alive.
      * <p>
      * Stack and entry live in ONE immutable record behind ONE volatile field: {@code DataComponentHolder#get} is
      * also reached from off the render thread, and two separate fields could be read torn - a piece wearing another
-     * piece's colour for a frame. One volatile read can't tear.
+     * piece's color for a frame. One volatile read can't tear.
      */
     private record Memo(WeakReference<ItemStack> stack, ArmourDyeEntry entry) {
     }
@@ -99,7 +99,7 @@ public final class ArmourDye {
             }
             snapshot = Map.copyOf(map);
             // isEnabledRaw, not isEnabled: the Skyblock gate is re-checked per frame in active() so leaving and
-            // rejoining Skyblock puts the colours straight back without a config reload.
+            // rejoining Skyblock puts the colors straight back without a config reload.
             active = !failed && cfg.isEnabledRaw() && !snapshot.isEmpty();
         } catch (Exception e) {
             snapshot = Map.of();
@@ -148,7 +148,7 @@ public final class ArmourDye {
             if (entry == null || !entry.colorEnabled) {
                 return original;
             }
-            // Opaque: vanilla's armour-layer tint treats a zero alpha as "invisible", and the picker lets you drag
+            // Opaque: vanilla's armor-layer tint treats a zero alpha as "invisible", and the picker lets you drag
             // alpha down. Same call Skyblocker makes (ARGB.opaque).
             return 0xFF000000 | (entry.color & 0x00FFFFFF);
         } catch (Exception e) {
@@ -217,7 +217,7 @@ public final class ArmourDye {
     }
 
     /**
-     * The Look: the entry's own model, or the player-head model when it carries a head texture. Failing those, an armour
+     * The Look: the entry's own model, or the player-head model when it carries a head texture. Failing those, an armor
      * skin's matching vanilla icon for this slot ({@link ArmourSkin#iconModel}). That last step was missing until
      * 2026-10-18: the skin only changed the worn texture, so the inventory icon, the menu and the hand never showed it.
      */
@@ -288,7 +288,7 @@ public final class ArmourDye {
         return stack == null || stack.isEmpty() ? null : raw(stack, DataComponents.ITEM_MODEL);
     }
 
-    /** The piece's real armour slot, read straight off the component map so we never re-enter our own {@code get}. */
+    /** The piece's real armor slot, read straight off the component map so we never re-enter our own {@code get}. */
     public static EquipmentSlot slotOf(ItemStack stack) {
         Equippable equippable = raw(stack, DataComponents.EQUIPPABLE);
         return equippable == null ? null : equippable.slot();
@@ -373,7 +373,7 @@ public final class ArmourDye {
 
     /**
      * Same identity {@code ItemIdentity.of} produces, but reading {@code ExtraAttributes} without copying the tag -
-     * this runs per armour piece per frame, and {@code CustomData#copyTag} is a full NBT deep copy. Falls back to
+     * this runs per armor piece per frame, and {@code CustomData#copyTag} is a full NBT deep copy. Falls back to
      * {@code ItemIdentity.of} (display-name path) only for a piece with no Skyblock id, which is rare enough that
      * the extra copy there doesn't matter.
      */
@@ -387,7 +387,7 @@ public final class ArmourDye {
                 return id.startsWith("STARRED_") ? id.substring("STARRED_".length()) : id;
             }
         }
-        // The display-name path runs four regexes. Since Custom Items looks at EVERY drawn item (not only armour), an
+        // The display-name path runs four regexes. Since Custom Items looks at EVERY drawn item (not only armor), an
         // id-less item (a menu's glass pane) would pay that each frame; the answer is remembered per stack object,
         // which a menu keeps for as long as it shows the item.
         synchronized (NAME_IDENTITY) {
@@ -416,7 +416,7 @@ public final class ArmourDye {
      * {@code getHoverName} on a player head is {@code PlayerHeadItem.getName}, which reads {@code minecraft:profile}
      * through {@code DataComponentHolder#get} - one of the components our mixin overrides - so the override asked
      * for the stack's identity, which asked for its name, which asked for the override, until the render thread
-     * overflowed (crash 2026-10-18: any id-less player head, e.g. on an armour stand, with any Custom Items entry
+     * overflowed (crash 2026-10-18: any id-less player head, e.g. on an armor stand, with any Custom Items entry
      * saved). Per thread because {@code get} is also reached off the render thread.
      */
     private static final ThreadLocal<boolean[]> NAMING = ThreadLocal.withInitial(() -> new boolean[1]);
@@ -424,7 +424,7 @@ public final class ArmourDye {
     /** Stack object -&gt; its display-name identity ("" = none). Weak; ItemStack keeps Object identity equality. */
     private static final Map<ItemStack, String> NAME_IDENTITY = new java.util.WeakHashMap<>();
 
-    /** True for a helmet, chestplate, leggings or boots - the pieces an armour skin and a trim apply to. */
+    /** True for a helmet, chestplate, leggings or boots - the pieces an armor skin and a trim apply to. */
     public static boolean isArmour(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return false;

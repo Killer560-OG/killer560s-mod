@@ -34,7 +34,7 @@ public record BazaarProduct(
         String group,
         /** Index into {@link BazaarCatalog#groups()}, or -1 when the product is newer than the bundled table. */
         int groupIndex,
-        /** Rarity tier (COMMON...), or null if unknown; colours the name. */
+        /** Rarity tier (COMMON...), or null if unknown; colors the name. */
         String tier,
         /** An ultimate enchantment's book: drawn in Hypixel's bold pink. */
         boolean ultimate,

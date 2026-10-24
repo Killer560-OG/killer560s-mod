@@ -22,7 +22,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * A REAL Catacombs-style miniboss for the dungeon sim: a server-side player entity that Mob ESP recognises on
+ * A REAL Catacombs-style miniboss for the dungeon sim: a server-side player entity that Mob ESP recognizes on
  * its own miniboss path, and that can be hit and killed like any other mob.
  *
  * <h2>The contract it has to satisfy</h2>
@@ -265,7 +265,7 @@ public final class SimMiniboss {
 
     /**
      * The entity. A {@link FakePlayer} for its fake packet listener (see this class's doc), with the three
-     * {@code FakePlayer}/{@code ServerPlayer} behaviours that would make it unfightable taken back out.
+     * {@code FakePlayer}/{@code ServerPlayer} behaviors that would make it unfightable taken back out.
      */
     private static final class Miniboss extends FakePlayer {
 

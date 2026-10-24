@@ -3,17 +3,17 @@ package com.killer560.hub.gui;
 import java.util.Locale;
 
 /**
- * Colour text for the colour picker's Copy / Paste / hex box (killer560, 2026-10-13: "a button to copy the hex id of that
+ * Color text for the color picker's Copy / Paste / hex box (killer560, 2026-10-13: "a button to copy the hex id of that
  * color ... and an easy way to paste it between menus").
  * <p>
- * An opaque colour is written {@code #RRGGBB}; a translucent one {@code #AARRGGBB}, so a fill's alpha travels with it.
+ * An opaque color is written {@code #RRGGBB}; a translucent one {@code #AARRGGBB}, so a fill's alpha travels with it.
  * Read back: {@code #RRGGBB}, {@code RRGGBB}, {@code #RGB}, {@code 0xRRGGBB}, {@code #AARRGGBB} / {@code 0xAARRGGBB} /
  * {@code AARRGGBB}, any whitespace ignored. A form without alpha leaves the target's own alpha alone
- * ({@link #applyTo}), so pasting a plain colour into a translucent setting keeps it translucent. Never throws.
+ * ({@link #applyTo}), so pasting a plain color into a translucent setting keeps it translucent. Never throws.
  */
 public final class ColourHex {
 
-    /** A colour read from text; {@code hasAlpha} when the text gave one (eight digits). */
+    /** A color read from text; {@code hasAlpha} when the text gave one (eight digits). */
     public record Parsed(int argb, boolean hasAlpha) {
     }
 
@@ -26,7 +26,7 @@ public final class ColourHex {
                 : String.format(Locale.ROOT, "#%08X", argb);
     }
 
-    /** The colour {@code text} names, or null when it is not one of the accepted forms. */
+    /** The color {@code text} names, or null when it is not one of the accepted forms. */
     public static Parsed parse(String text) {
         if (text == null) {
             return null;

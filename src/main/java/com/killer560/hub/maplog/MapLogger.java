@@ -116,7 +116,7 @@ public final class MapLogger {
         int tilesZ = (maxGz - minGz) / 2 + 1;
         int sizeX = tilesX * (RoomLibrary.TILE + 1) + 1;
         int sizeZ = tilesZ * (RoomLibrary.TILE + 1) + 1;
-        // The same window a room capture reads: one tile half and the wall margin out from the first tile's centre.
+        // The same window a room capture reads: one tile half and the wall margin out from the first tile's center.
         int originX = LiveMapFeature.START_X + minGx * 16 - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
         int originZ = LiveMapFeature.START_Z + minGz * 16 - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
         String key = name + "@" + originX + "," + originZ;

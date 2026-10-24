@@ -7,7 +7,7 @@ import net.minecraft.util.Util;
 
 /**
  * The main menu's animated backgrounds (killer560, 2026-10-15: "You can make custom things like the waterfall theme is
- * more like falling water"), one per theme and all drawn in that theme's colours. Since 2026-10-16 each theme has a Fancy
+ * more like falling water"), one per theme and all drawn in that theme's colors. Since 2026-10-16 each theme has a Fancy
  * scene (its painted picture) and a Simple one ({@link SimpleScenes}), picked by Main Menu Scene; the older drawn scenes
  * below (embers, waterfall, starfield, blocky soft light, aurora) stay reachable through the hooks and Custom's Background.
  * <p>
@@ -342,13 +342,13 @@ public final class MainMenuScenes {
         r.gradient(0, 0, w, h, baseTop(accent, panel, light), baseBottom(accent, panel, light));
     }
 
-    /** The backdrop gradient's top colour. */
+    /** The backdrop gradient's top color. */
     static int baseTop(int accent, int panel, boolean light) {
         return light ? MenuStyle.mix(panel, 0xFFFFFFFF, 0.35f)
                 : MenuStyle.mix(MenuStyle.mix(panel, 0xFF000000, 0.25f), accent, 0.07f);
     }
 
-    /** The backdrop gradient's bottom colour. */
+    /** The backdrop gradient's bottom color. */
     static int baseBottom(int accent, int panel, boolean light) {
         return light ? MenuStyle.mix(panel, accent, 0.14f) : MenuStyle.mix(panel, 0xFF000000, 0.78f);
     }

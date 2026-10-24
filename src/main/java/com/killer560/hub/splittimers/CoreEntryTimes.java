@@ -96,7 +96,7 @@ final class CoreEntryTimes {
         }
         // Real bug found and fixed (2026-09-20, killer560: "It did pick up one person but it was the wrong
         // person and the wrong time"): EXPECTED used to be snapshotted ONCE in onCoreOpening() and only grew
-        // afterwards as a side effect of record()'s own "unexpected arrival" fallback below. If the party tab
+        // afterward as a side effect of record()'s own "unexpected arrival" fallback below. If the party tab
         // list hadn't finished re-parsing at that exact instant (a real risk right as the floor transitions
         // into "The Core entrance is opening!"), EXPECTED started with only 1-2 names in it. The very first
         // teammate to physically reach the y<=100 band then satisfied "ENTRIES.size() >= EXPECTED.size()" all

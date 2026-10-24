@@ -15,7 +15,7 @@ import java.util.Locale;
 /**
  * Reading Hypixel's Bazaar and {@code /trades} menus BY CONTENTS.
  *
- * <p>No slot index is hardcoded here. Bazaar pages are recognised by {@link BazaarPages} (the Bazaar reskin's own
+ * <p>No slot index is hardcoded here. Bazaar pages are recognized by {@link BazaarPages} (the Bazaar reskin's own
  * classifier, built from SkyHanni, Skyblocker and the wiki) and buttons are found by their visible name. The one
  * real dump on record (killer560's Untested Cheat client, 2026-10-08) confirmed the first hop: {@code /bz Lump of
  * Magma} opens {@code Bazaar ➜ "Lump of Magma"} with the product at slot 11 under its own name, and Hypixel's chat
@@ -42,7 +42,7 @@ public final class BazaarFlipMenus {
         return menu.slots.subList(Math.max(0, total - 36), total);
     }
 
-    /** Plain, colour-code-free name of whatever is in a slot, or "" for an empty slot. */
+    /** Plain, color-code-free name of whatever is in a slot, or "" for an empty slot. */
     public static String nameOf(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return "";

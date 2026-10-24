@@ -34,8 +34,8 @@ import com.killer560.hub.util.ModLog;
  * produced them would train the wrong reach. Saving the layout once means every practice run starts identical
  * to the last, and identical to what he actually plays with.
  *
- * <p>Saved as Skyblock ITEM IDS per slot rather than as serialised stacks. An id is readable, hand-editable and
- * survives a change to how sim items are built; a serialised stack is none of those and would quietly rot the
+ * <p>Saved as Skyblock ITEM IDS per slot rather than as serialized stacks. An id is readable, hand-editable and
+ * survives a change to how sim items are built; a serialized stack is none of those and would quietly rot the
  * first time an item's construction changed.
  */
 public final class SimLoadout {

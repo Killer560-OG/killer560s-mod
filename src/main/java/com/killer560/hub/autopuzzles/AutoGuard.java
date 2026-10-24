@@ -9,7 +9,7 @@ import com.killer560.hub.util.ModLog;
  * <ul>
  *   <li>"seen empty in this world" (same review fix as Auto Quiz/Weirdos): the solvers keep static state, so an auto
  *   never acts in a level until its solver has been observed with NO data at least once in that level - anything it
- *   reports afterwards was produced in this instance, never a previous room/run.</li>
+ *   reports afterward was produced in this instance, never a previous room/run.</li>
  *   <li>one chat warning per room visit when the auto is on but its solver is off.</li>
  * </ul>
  */

@@ -17,8 +17,8 @@ import java.util.List;
 import com.killer560.hub.compat.McRender;
 
 /**
- * Node markers for the current room's route (QUOI Box / Filled box / Cylinder styles, per-type or uniform colours,
- * thickness + height sliders, the active node in its own colour), the chain line between consecutive nodes, each
+ * Node markers for the current room's route (QUOI Box / Filled box / Cylinder styles, per-type or uniform colors,
+ * thickness + height sliders, the active node in its own color), the chain line between consecutive nodes, each
  * node's 1-based number (AP3's numbering, behind Show Node Numbers), and in edit mode: the recorded path as a faint line, and a faint highlight on every block any dungeon
  * breaker node will break (air = red outline, present = white fill - QUOI's DB editor). Nothing is drawn while the
  * Interactive Map is open (the feature decides that; see {@link AutoRoutesFeature#isRenderHidden}).
@@ -33,12 +33,12 @@ import com.killer560.hub.compat.McRender;
  * a 30-node room standing still. Now the vertices are built ONCE into flat arrays ({@link Mesh}) and replayed every
  * frame, in the same order and with the same float arithmetic, in one camera-space call per render type. The mesh is
  * rebuilt when its {@link Mesh#matches key} changes: the route, every node's drawn fields (identity, position, radius,
- * type, start/await modifiers, path index, colour) compared field by field each frame, the room transform and the sim's
+ * type, start/await modifiers, path index, color) compared field by field each frame, the room transform and the sim's
  * height shift, and the draw settings. A field-by-field check rather than a version counter bumped by writers: nodes
  * are edited in place through public fields from some forty places (recorder, editor, undo, planner, commands, the
  * testkit), and one missed bump would leave a stale drawing on screen, where a compare of ~30 x 12 fields cannot miss
- * and costs about a microsecond. Colours live in a small {@link Mesh#palette}, rebuilt when the active node or the
- * active colour changes, so playback's highlight moves on the very frame the active node does. Nodes whose whole
+ * and costs about a microsecond. Colors live in a small {@link Mesh#palette}, rebuilt when the active node or the
+ * active color changes, so playback's highlight moves on the very frame the active node does. Nodes whose whole
  * drawing lies outside the camera's culling frustum (inflated by a margin wider than the thickest line) are skipped;
  * the chain and the recorded path are never culled, since a segment between two off-screen nodes can cross the view.
  */
@@ -205,12 +205,12 @@ public final class AutoRoutesRenderer {
                 nodesDrawn, nodesCulled, labelsDrawn, totalLabels};
     }
 
-    /** Testkit: the node the last drawn frame coloured as active (null for none). */
+    /** Testkit: the node the last drawn frame colored as active (null for none). */
     public static Object drawnActive() {
         return drawnActive;
     }
 
-    /** Palette slots per node: the colour at alpha, x0.6 (cylinder top ring), x0.35 (Filled fill), x0.45, x0.7. */
+    /** Palette slots per node: the color at alpha, x0.6 (cylinder top ring), x0.35 (Filled fill), x0.45, x0.7. */
     private static final int SLOTS = 5;
     private static final int S_FULL = 0;
     private static final int S_RING_TOP = 1;
@@ -231,7 +231,7 @@ public final class AutoRoutesRenderer {
         int count;
         RouteNode[] nodes;          // route list order
         double[] key;               // per node: x, y, z, radius
-        int[] keyInts;              // per node: type, flags, awaitCondition, awaitAmount, pathIndex, colour
+        int[] keyInts;              // per node: type, flags, awaitCondition, awaitAmount, pathIndex, color
         String roomName;
         int clayX;
         int clayZ;
@@ -274,8 +274,8 @@ public final class AutoRoutesRenderer {
         int paletteActiveArgb;
         boolean paletteBuilt;
         float[] palette;            // 4 floats per slot
-        int[] packed;               // the same colours as BufferBuilder.setColor(int) takes them, one per slot
-        int[] argb;                 // per list position: the colour drawn (active or base), for the label
+        int[] packed;               // the same colors as BufferBuilder.setColor(int) takes them, one per slot
+        int[] argb;                 // per list position: the color drawn (active or base), for the label
 
         int lineSegCount() {
             return seg.length / 6;
@@ -324,7 +324,7 @@ public final class AutoRoutesRenderer {
             return (n.start ? 1 : 0) | (n.awaitEnabled ? 2 : 0);
         }
 
-        /** The colours, when the active node or a colour changed. Replaces the arrays rather than writing them. */
+        /** The colors, when the active node or a color changed. Replaces the arrays rather than writing them. */
         void updatePalette(RouteNode active, int activeArgb) {
             if (paletteBuilt && active == paletteActive && activeArgb == paletteActiveArgb) {
                 return;
@@ -677,7 +677,7 @@ public final class AutoRoutesRenderer {
     // ---- the two replays ----
 
     /**
-     * Each 4-float colour as the ARGB int whose {@code BufferBuilder.setColor(int)} writes the same four bytes as
+     * Each 4-float color as the ARGB int whose {@code BufferBuilder.setColor(int)} writes the same four bytes as
      * {@code setColor(r, g, b, a)}: VertexConsumer's {@code setColor(float x4)} is {@code setColor((int) (r * 255f), ...)}
      * and BufferBuilder writes those as bytes R, G, B, A (four {@code memPutByte}, each an FFM segment on Java 25 -
      * the largest allocation left under the replay, JFR 2026-10-16); {@code setColor(int)} is {@code memPutInt} of
@@ -795,7 +795,7 @@ public final class AutoRoutesRenderer {
                 float dx = ex - sx, dy = ey - sy, dz = ez - sz;
                 if (fast) {
                     // VertexConsumer.addVertex(Pose, ...) / setColor(float x4) / setNormal(Pose, ...) exactly, minus
-                    // their new Vector3f and the per-byte colour puts.
+                    // their new Vector3f and the per-byte color puts.
                     int col = packed[c >> 2];
                     pose.transformNormal(dx, dy, dz, nv);
                     mat.transformPosition(sx, sy, sz, v);
@@ -874,7 +874,7 @@ public final class AutoRoutesRenderer {
     private static int pathKeyShift;
     private static float[] pathSegs;
 
-    /** The path's colour: WorldRenderUtils.renderLineStrip(..., 1f, 0.65f, 0.2f, PATH_ALPHA, ...) as before. */
+    /** The path's color: WorldRenderUtils.renderLineStrip(..., 1f, 0.65f, 0.2f, PATH_ALPHA, ...) as before. */
     private static final float[] PATH_RGBA = {1f, 0.65f, 0.2f, PATH_ALPHA};
     private static final int[] PATH_PACKED = pack(PATH_RGBA);
 
@@ -901,7 +901,7 @@ public final class AutoRoutesRenderer {
             if (last != null) {
                 points.add(RouteCoords.toReal(frame, last.x(), last.y(), last.z()).add(0, 0.05, 0));
             }
-            // A new array each rebuild, never written afterwards: on 26.2 the draw reads it later in the frame.
+            // A new array each rebuild, never written afterward: on 26.2 the draw reads it later in the frame.
             float[] segs = new float[Math.max(0, points.size() - 1) * 6];
             for (int i = 0; i < points.size() - 1; i++) {
                 Vec3 a = points.get(i);

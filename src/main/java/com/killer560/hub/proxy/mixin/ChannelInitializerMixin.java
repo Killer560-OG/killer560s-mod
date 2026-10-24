@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Injects a SOCKS {@link ProxyHandler} at the head of the client's outbound
- * channel pipeline, so Minecraft's server connection is tunnelled through the
+ * channel pipeline, so Minecraft's server connection is tunneled through the
  * configured proxy. The handler performs the SOCKS handshake first, then all
  * subsequent traffic flows through the proxy to the real destination.
  *

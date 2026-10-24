@@ -3,7 +3,7 @@ package com.killer560.hub.mainmenu;
 /**
  * The drawing surface the picture scenes' overlays use ({@link PictureScene}): solid fills and vertical gradients, nothing
  * else. In the game it is {@link GuiPx} over the frame's {@link com.killer560.hub.hud.GuiRects} batch. The static helpers
- * are the colour arithmetic and soft shapes the overlays share (ARGB ints, straight alpha).
+ * are the color arithmetic and soft shapes the overlays share (ARGB ints, straight alpha).
  */
 interface Px {
 
@@ -20,7 +20,7 @@ interface Px {
         return alpha(argb, (int) Math.round(a * 255.0));
     }
 
-    /** Channel-wise mix of two ARGB colours (alpha too). */
+    /** Channel-wise mix of two ARGB colors (alpha too). */
     static int mix(int a, int b, double t) {
         int r = 0;
         for (int s = 0; s < 32; s += 8) {
@@ -31,7 +31,7 @@ interface Px {
         return r;
     }
 
-    /** An opaque colour from 0..1 channels (clamped). */
+    /** An opaque color from 0..1 channels (clamped). */
     static int rgb(double r, double g, double b) {
         return 0xFF000000 | (ch(r) << 16) | (ch(g) << 8) | ch(b);
     }

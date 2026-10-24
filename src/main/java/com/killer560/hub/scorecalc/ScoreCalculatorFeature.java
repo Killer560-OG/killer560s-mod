@@ -75,7 +75,7 @@ import com.killer560.hub.compat.McCompat;
  * <li>Paul (EZPZ +10): Hypixel's keyless election endpoint (Odin {@code WebUtils.hasBonusPaulScore}; Skytils also
  * counts the minister's perk), falling back to {@link ScoreboardExtraData}'s cached election data.</li>
  * </ul>
- * The maths lives in {@link ScoreCalculator}. Everything here only runs while the master toggle is on and
+ * The math lives in {@link ScoreCalculator}. Everything here only runs while the master toggle is on and
  * {@link DungeonState#isInDungeon()}; state resets whenever a new dungeon world is entered.
  */
 public final class ScoreCalculatorFeature {
@@ -775,7 +775,7 @@ public final class ScoreCalculatorFeature {
      * right now there is lots of space to be used and it is used poorly"): the secrets as found / needed for S+ / the
      * floor's total, and crypts; then score, deaths and the bonus kills as M (Mimic, Floor 6 and up), P (Prince) and B
      * (the Murkbat bat), green when done and red when not ("Abbreviate Mimic to M, Prince to P and Bat to B"), split by
-     * bars. Each row is drawn centred under the map. B carries a count when more than one player's bat bonus is known.
+     * bars. Each row is drawn centered under the map. B carries a count when more than one player's bat bonus is known.
      */
     public static List<String> mapInfoLines(boolean demo) {
         ScoreCalculator.Result r = demo ? new ScoreCalculator.Result(302, 100, 100, 60, 40, 100, 2, 36, 60, 57, 3, "S+")
@@ -850,7 +850,7 @@ public final class ScoreCalculatorFeature {
     private static final int SCORE_YELLOW = 0xFFFF55;
 
     private static int scoreColor(int score, ScoreCalculatorConfig cfg) {
-        // Odin MapInfo.colorizeScore: red < 270, yellow < 300, green 300+ (red and green are his colours now).
+        // Odin MapInfo.colorizeScore: red < 270, yellow < 300, green 300+ (red and green are his colors now).
         return score < 270 ? cfg.getBadColor() : score < 300 ? SCORE_YELLOW : cfg.getGoodColor();
     }
 

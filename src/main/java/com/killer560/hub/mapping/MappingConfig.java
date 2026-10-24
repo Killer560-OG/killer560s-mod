@@ -17,7 +17,7 @@ import java.nio.file.Path;
  *  <p>
  *  The three placeholders that lived here (Funny Map, Mimic Room Show/Hide and Player-Head Class Recolor, which never
  *  drew anything) became real settings of the Dungeon Map on 2026-10-15 and live in {@code LiveMapConfig}: Funny Map and
- *  Show Mimic Room (cheat build) and Recolor by Class, which rings a teammate's head in his class colour. Their old keys
+ *  Show Mimic Room (cheat build) and Recolor by Class, which rings a teammate's head in his class color. Their old keys
  *  in this file are ignored. */
 public final class MappingConfig {
 

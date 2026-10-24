@@ -18,7 +18,7 @@ import java.nio.file.Path;
  *  Deliberately a SEPARATE file from {@link TerminalSolverConfig} ({@code killer560smod-terminalsolver.json})
  *  rather than more keys inside it: none of these five settings touch the solver's own highlighting at all -
  *  they work whether the solver is on or off - and the solver config had just been reworked for custom overlay
- *  colours, so folding an unrelated feature pack into it would have made that diff unreadable. Same
+ *  colors, so folding an unrelated feature pack into it would have made that diff unreadable. Same
  *  per-key {@code ConfigJson} read + {@code save()}-on-every-change pattern, so every setting here survives
  *  a Minecraft restart like every other setting in this mod.
  *  <p>

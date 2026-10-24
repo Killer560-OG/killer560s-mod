@@ -51,7 +51,7 @@ public final class GifPlayerFeature {
      * not copied into the folder, so nothing on disk is ever written or overwritten. Its key is the filename of his
      * own copy, so the HUD position and scale he already saved for that file apply to it, and a folder file of the
      * same name takes its place rather than showing twice. It is toggled like any folder file (absent = on), and its
-     * frames were downscaled from 500px to 256px / 128 colours to keep the jar small (871 KB).
+     * frames were downscaled from 500px to 256px / 128 colors to keep the jar small (871 KB).
      */
     public static final String BUILTIN_NAME = "cute-anime-cat-girl-dancing-qb6oo9cgljjixtqf.gif";
     private static final String BUILTIN_RESOURCE = "/assets/killer560smod/gifs/dancing-catgirl.gif";
@@ -371,7 +371,7 @@ public final class GifPlayerFeature {
             }
             int[] pos = HudElementRegistry.resolvePosition(element);
             float scale = HudElementRegistry.resolveScale(element);
-            // The element's render() just forwards to drawFrame, so it is also the HUD editor's preview -
+            // The element's render() just forward to drawFrame, so it is also the HUD editor's preview -
             // this in-game loop is the call that means the GIF was really on screen.
             HudSeen.markDrawn(entry.elementId);
             graphics.pose().pushMatrix();

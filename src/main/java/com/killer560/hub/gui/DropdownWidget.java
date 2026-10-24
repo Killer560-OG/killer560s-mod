@@ -26,7 +26,7 @@ import java.util.function.Consumer;
  * The list has to draw over every other widget and take every click while it is open, which a widget cannot do from its
  * own {@code extractWidgetRenderState} (widgets added after it draw over it, and the screen hands clicks to whichever
  * child is under the mouse). So at most one drop-down is open at a time ({@link #openOne()}), and a screen holding any
- * forwards four things to the static helpers: {@link #clickOpen} first in {@code mouseClicked}, {@link #keyOpen} first in
+ * forward four things to the static helpers: {@link #clickOpen} first in {@code mouseClicked}, {@link #keyOpen} first in
  * {@code keyPressed}, {@link #scrollOpen} first in {@code mouseScrolled}, and {@link #extractOpen} after
  * {@code super.extractRenderState} (it starts a new stratum, so nothing drawn before it covers the list). Call
  * {@link #closeAll()} in the screen's {@code init}, so a rebuilt screen never keeps a stale list open. {@code LfgScreen}
@@ -216,7 +216,7 @@ public final class DropdownWidget<T> extends AbstractWidget {
         return scroll + row;
     }
 
-    // ---- the screen's forwards -------------------------------------------------------------------------------------
+    // ---- the screen's forward -------------------------------------------------------------------------------------
 
     /** True while a list is open and the mouse is over it (the screen then draws its widgets as un-hovered). */
     public static boolean coversMouse(double mx, double my) {

@@ -62,7 +62,7 @@ public final class SimMobs {
      * near them, they are the upside down Enderman" ({@link #FEL}); and "essentially a mini boss style [that]
      * should maybe take more than just one hit just to be sure that your config works with something that
      * doesn't get one shot" ({@link #MINIBOSS}) - which is a {@link SimMiniboss}, the real player-entity form
-     * Mob ESP recognises, not a durable mob standing in for one.
+     * Mob ESP recognizes, not a durable mob standing in for one.
      *
      * <p>Every kind can be spawned starred or not - see {@link #spawn} against {@link #spawnStarred} - because
      * telling a starred mob from an ordinary one is the whole job of a clear, and a sim where everything is
@@ -166,7 +166,7 @@ public final class SimMobs {
     private record StarredEntry(UUID id, double x, double y, double z) {
     }
 
-    /** A dormant Fel: an invisible armour stand wearing a skull. See {@link #spawnFel}. */
+    /** A dormant Fel: an invisible armor stand wearing a skull. See {@link #spawnFel}. */
     private static final class FelMarker {
         final ArmorStand skull;
         final boolean starred;
@@ -195,7 +195,7 @@ public final class SimMobs {
         if (server == null) {
             return;
         }
-        // Reading and mutating mob/armour-stand state has to happen on the server thread, same reasoning as
+        // Reading and mutating mob/armor-stand state has to happen on the server thread, same reasoning as
         // SimAbilities.teleport: the integrated server, not the client, owns these entities.
         server.execute(() -> {
             ServerLevel level = server.overworld();
@@ -406,7 +406,7 @@ public final class SimMobs {
      * Places a real miniboss, falling back to the durable starred zombie this kind used to be.
      *
      * <p>The fallback is not decoration: the player-entity form depends on a Fabric API class, on a version-2
-     * UUID reaching the client before the entity does, and on three {@code ServerPlayer} behaviours being
+     * UUID reaching the client before the entity does, and on three {@code ServerPlayer} behaviors being
      * overridden - and if any of that ever stops working the sim must still put something in the room that takes
      * more than one hit, rather than leaving it empty with only a log line. There is no setting either way;
      * killer560, 2026-09-29: "it will be something that is done basically on your end only and that the user
@@ -532,7 +532,7 @@ public final class SimMobs {
         mob.setPersistenceRequired();
         // NEVER MOVES. killer560 (2026-09-28): "on the main their movement is dependent on where you are and
         // will be far too hard to replicate I would rather just have them never move". So a sim mob stands
-        // exactly where the capture found it, which is also the only way a practised route means anything -
+        // exactly where the capture found it, which is also the only way a practiced route means anything -
         // a route timed against mobs that chase you is a route timed against your own path.
         mob.setNoAi(true);
         mob.setPos(pos.getX() + 0.5, feetY, pos.getZ() + 0.5);
@@ -546,10 +546,10 @@ public final class SimMobs {
     }
 
     /**
-     * Gives a starred mob the same name-tag armour stand Hypixel gives it.
+     * Gives a starred mob the same name-tag armor stand Hypixel gives it.
      *
      * <p>killer560 asked that "things like mob, ESP work and door ESP and all that style of stuff". Mob ESP does
-     * not look at the mob: Hypixel puts the "star ... heart" name on a separate invisible armour stand and every
+     * not look at the mob: Hypixel puts the "star ... heart" name on a separate invisible armor stand and every
      * mod, this one included, resolves that stand to the mob beneath it. A sim mob with no stand is invisible to
      * all of it.
      *
@@ -807,8 +807,8 @@ public final class SimMobs {
     }
 
     /**
-     * Places a dormant Fel: an invisible, no-base-plate armour stand wearing a skull, so only the skull shows -
-     * an invisible armour stand still renders its equipped items, which is the whole trick. It is invulnerable
+     * Places a dormant Fel: an invisible, no-base-plate armor stand wearing a skull, so only the skull shows -
+     * an invisible armor stand still renders its equipped items, which is the whole trick. It is invulnerable
      * while dormant because a Fel is not a fightable mob yet on Hypixel either; it only becomes one once it
      * wakes, in {@link #wake}.
      */
@@ -861,7 +861,7 @@ public final class SimMobs {
      * model (verified in the 26.1.2 bytecode, 2026-09-28). So the enderman is named Grumm and the name tag is
      * hidden - the flip is a property of the NAME, not of the tag being drawn, so hiding it costs nothing.
      *
-     * <p>That is worth preferring over a mixin even though a mixin would work: this is a rendering behaviour
+     * <p>That is worth preferring over a mixin even though a mixin would work: this is a rendering behavior
      * the game already has, and a mixin on an entity renderer is a thing that breaks quietly on the next
      * Minecraft version.
      */
@@ -965,7 +965,7 @@ public final class SimMobs {
     }
 
     /**
-     * Every starred mob paired with its name-tag armour stand, as {@code {mobUuid, tagUuid}}.
+     * Every starred mob paired with its name-tag armor stand, as {@code {mobUuid, tagUuid}}.
      *
      * <p>For a test that has to check the pair the way Mob ESP reads it, WITHOUT enumerating the level:
      * entity enumeration does not work in a gametest client (a vanilla entity added with

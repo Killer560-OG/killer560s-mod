@@ -34,7 +34,7 @@ import com.killer560.hub.compat.McRender;
  * Left out on purpose: that renderer's scratch-array distance-cull batching. It exists there because a
  * dungeon floor's secret waypoints can be well over a hundred boxes a frame; an etherwarp waypoint list is
  * whatever killer560 personally placed in the one room he's standing in - a handful at most - so a plain
- * per-box loop costs nothing worth optimising away.
+ * per-box loop costs nothing worth optimizing away.
  */
 final class EtherwarpWaypointsRenderer {
 

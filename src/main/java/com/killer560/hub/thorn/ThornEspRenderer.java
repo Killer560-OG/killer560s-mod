@@ -63,7 +63,7 @@ final class ThornEspRenderer {
         });
     }
 
-    /** Fill is drawn at 35% of the colour's own alpha so the mob stays visible inside it. */
+    /** Fill is drawn at 35% of the color's own alpha so the mob stays visible inside it. */
     static void filled(LevelRenderContext context, AABB box, int argb, boolean throughWalls) {
         float[] c = rgba(argb, 0.35f);
         McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox(), (pose, buffer) -> {

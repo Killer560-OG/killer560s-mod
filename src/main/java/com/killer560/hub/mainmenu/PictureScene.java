@@ -13,7 +13,7 @@ import org.joml.Matrix3x2fStack;
  * <ul>
  *   <li>{@link Patch}: a small texture blitted over the base - baked-in UI cleaned off, or a variant (the Milky Way without
  *       its character);</li>
- *   <li>{@link Ripple}: a region of the picture redrawn as small tiles whose source is offset by a travelling sine that is
+ *   <li>{@link Ripple}: a region of the picture redrawn as small tiles whose source is offset by a traveling sine that is
  *       zero where the region is attached (shoulders, a crown, a waterline) - cloth, hair, water;</li>
  *   <li>{@link Overlay}s drawn over it in the picture's own space: a pulsing glow, falling streaks, a splash, shimmer
  *       drifting across water, drifting fog, rising motes, twinkling stars, a shooting star;</li>
@@ -255,7 +255,7 @@ final class PictureScene {
 
     /**
      * A glow whose strength (and optionally size and position) follows {@code v = c0 + c1 * sin(t * freq)}: alpha
-     * {@code a0 + aK * v}, horizontal radius {@code rx + rxK * v}, centre x drifting by {@code driftAmp * sin(t * driftFreq)}.
+     * {@code a0 + aK * v}, horizontal radius {@code rx + rxK * v}, center x drifting by {@code driftAmp * sin(t * driftFreq)}.
      * Stepped ({@link MainMenuScenes#glow}, the older pictures) or soft ({@link Px#softGlow}, no rings).
      */
     record Glow(int cx, int cy, double rx, double ry, int rgb, double c0, double c1, double freq, int a0, int aK, double rxK,
@@ -279,8 +279,8 @@ final class PictureScene {
     /**
      * The stepped glow ({@link MainMenuScenes#glow}: {@code layers} nested ellipses of {@code alpha / layers} each) drawn by
      * {@link SceneShaders}' {@code scene_cone_glow} as the same falloff without its steps (killer560, 2026-10-16: Viridian
-     * "super high res"): the stair of ellipses averaged into one line from the centre to a half step past the outer
-     * ellipse, at a sub-pixel centre, its alpha unrounded in time and dithered with blue noise in space, so the slime's
+     * "super high res"): the stair of ellipses averaged into one line from the center to a half step past the outer
+     * ellipse, at a sub-pixel center, its alpha unrounded in time and dithered with blue noise in space, so the slime's
      * pulse and the drifting fog show no rings and no one-pixel hops. The batch so far is submitted first so the glow
      * stays in its place in the drawing order. False (nothing drawn) without the shaders.
      */
@@ -439,7 +439,7 @@ final class PictureScene {
      * the stars pulsate a bit more", then "make it so all of the stars are able to fade, not just some of them"): the bright
      * ones at {@code stars} (x, y pairs) breathe clearly - a soft round glow growing and dimming with a soft cross whose arms
      * taper away; every other star of the picture, at {@code points} (x, y, brightness triples, lifted out of the texture),
-     * fades between a fifth of its brightness and all of it on its own slow clock, as a soft point (a centre pixel and a
+     * fades between a fifth of its brightness and all of it on its own slow clock, as a soft point (a center pixel and a
      * fainter plus around it); and {@code faint} small soft dots at sub-pixel places above {@code skyBottom} come and go,
      * none inside {@code calm} (x0, y0, x1, y1: the title). Every brightness follows an eased curve, so nothing pops. The
      * lists never hold a point on the character or the land (make_textures.py leaves them out).
@@ -460,7 +460,7 @@ final class PictureScene {
                 cross(r, x, y, (5 + 12 * tw) * scale, rgb, (int) Math.round(a * 0.5));
             }
             // The points in whole screen pixels: a picture pixel is rarely one screen pixel (2560 wide on a 1920 screen),
-            // and a quad smaller than a pixel can miss every pixel centre and wink out. So the pose is put into screen
+            // and a quad smaller than a pixel can miss every pixel center and wink out. So the pose is put into screen
             // pixels for them and each star is snapped to the nearest one (they do not move).
             Matrix3x2fStack pose = r.graphics().pose();
             float f = pose.m00() * Math.max(1, net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale());
@@ -548,7 +548,7 @@ final class PictureScene {
             pose.rotate((float) (Math.PI / 2 * k));
             pose.translate(-0.5f, 0f);
             pose.scale(1f, (float) (arm / 32.0));
-            // a vertical arm from the centre (full) to its tip (clear), half a pixel either side of the axis
+            // a vertical arm from the center (full) to its tip (clear), half a pixel either side of the axis
             r.gradient(0, -32, 1, 0, none, c);
             pose.popMatrix();
         }
@@ -701,7 +701,7 @@ final class PictureScene {
     // ---- smooth little shapes (sub-pixel placed, antialiased) ----------------------------------------------------------
 
     /**
-     * An antialiased disc of {@code radius} (stretched vertically by {@code stretch}) centred on a sub-pixel position: the
+     * An antialiased disc of {@code radius} (stretched vertically by {@code stretch}) centered on a sub-pixel position: the
      * pose is moved by the fraction, rows are spans whose edge pixels carry the partial coverage, and a soft halo of
      * stacked faint discs surrounds it for the near drops ({@code glow} 0..1).
      */
@@ -765,7 +765,7 @@ final class PictureScene {
         pose.popMatrix();
     }
 
-    /** An antialiased elliptical ring (rx, ry) of {@code thick} pixels, centred on a sub-pixel position; its far half
+    /** An antialiased elliptical ring (rx, ry) of {@code thick} pixels, centered on a sub-pixel position; its far half
      *  (the top, on the water) is fainter. */
     static void ring(GuiRects r, double cx, double cy, double rx, double ry, double thick, int rgb, int alpha) {
         if (alpha <= 2 || rx < 1) {

@@ -319,7 +319,7 @@ public final class ThemeMusic {
 
     /** Play Preview's press: starts {@code theme}'s chosen track once, at Music Volume, through the same sound path as
      *  the menu music; a press while one plays stops it. Nothing waits: the sound starts in this call. Returns whether a
-     *  preview is playing afterwards (false too when the theme's choice is Off or its file is gone). */
+     *  preview is playing afterward (false too when the theme's choice is Off or its file is gone). */
     public static boolean togglePreview(MenuTheme theme) {
         Minecraft mc = Minecraft.getInstance();
         if (preview != null) {

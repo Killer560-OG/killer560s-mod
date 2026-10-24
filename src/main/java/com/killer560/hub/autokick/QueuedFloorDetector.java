@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
  * From his screenshots of the real menus: Party Finder's "Start a New Queue" opens the "Group Builder", whose
  * "Select Dungeon Type" item carries the lore line "Currently Selected: Master Mode The Catacombs" (or "... The
  * Catacombs") and whose "Select Floor" item carries "Currently Selected: Floor IV". Both are found by item NAME, never
- * by slot, with colour codes stripped. That reading becomes the queued floor only when Hypixel says
+ * by slot, with color codes stripped. That reading becomes the queued floor only when Hypixel says
  * "Party Finder > Your party has been queued in the dungeon finder!" (the line Odin's PartyUtils matches). The menu is
  * the server's own, and the chat line is anchored on both ends and starts with "Party Finder > ", which no player's
  * chat line can (a player line starts with a rank or a name, and a name has no spaces), so another player can forge
@@ -139,7 +139,7 @@ public final class QueuedFloorDetector {
         }
     }
 
-    /** One chat line, colour stripped and trimmed: the queued line commits the Group Builder's pick. */
+    /** One chat line, color stripped and trimmed: the queued line commits the Group Builder's pick. */
     static void onLine(String plain) {
         if (builderPick != null && QUEUED.matcher(plain).matches()) {
             detected = true;

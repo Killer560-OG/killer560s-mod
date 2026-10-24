@@ -32,7 +32,7 @@ public final class DoorHelpersFeature {
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("DoorHelpersFeature.onEndTick", DoorHelpersFeature::onEndTick));
         // ChatObserver, not a raw GAME listener: it catches a throw per listener (a throw on the packet path
-        // disconnects him), also sees lines another chat mod cancelled and re-added, and de-duplicates.
+        // disconnects him), also sees lines another chat mod canceled and re-added, and de-duplicates.
         // Off (or a legit build): nothing is armed, so a key line seen while it is off cannot leave a stale
         // window that clicks a door the moment it is turned on.
         com.killer560.hub.util.ChatObserver.subscribe(message -> {

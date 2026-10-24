@@ -12,7 +12,7 @@ import net.minecraft.world.item.component.CustomData;
  * <p>{@code CustomData#copyTag()} is the only public reader and copies the whole tree - enchantments, gems, runes and
  * all - and the Skyblock id reads that use it run for the held item every tick, for every slot of a menu every frame
  * (Item Protect) and for every arm render (no-shortbow-swing). They only ever read one or two keys, so they read the
- * live tag through Armour Recolour's accessor instead (FPS sweep, 2026-10-07).
+ * live tag through Armor Recolor's accessor instead (FPS sweep, 2026-10-07).
  *
  * <p><b>The returned tag is the stack's own NBT. Never write to it.</b> A caller that needs to modify or keep the tag
  * must still use {@code copyTag()}.

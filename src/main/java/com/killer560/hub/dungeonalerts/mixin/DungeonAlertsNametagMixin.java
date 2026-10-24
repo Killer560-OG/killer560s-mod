@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Class Colors draws its own class-coloured nametag for a dungeon teammate, so the vanilla tag is dropped for that
+ * Class Colors draws its own class-colored nametag for a dungeon teammate, so the vanilla tag is dropped for that
  * player (killer560, 2026-10-18: two tags showed). Same hook and descriptor as OwnNameTagF5Mixin:
  * {@code AvatarRenderer.shouldShowName(Avatar, double)} is {@code (Lnet/minecraft/world/entity/Avatar;D)Z} on both
  * 26.1.2 and 26.2. Only ever turns a tag off, and only while {@link ClassColors#replacesVanillaNametag} says so.

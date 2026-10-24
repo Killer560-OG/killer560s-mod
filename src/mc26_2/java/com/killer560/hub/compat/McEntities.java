@@ -38,7 +38,7 @@ public final class McEntities {
      * six-argument form is byte-for-byte the 26.1.2 three-argument one - so the sim passes a generic source
      * and zero rather than null, which is what a subclass override would be entitled to dereference.
      *
-     * <p>The vector convention is vanilla's own and is the easy thing to get backwards: {@code dx}/{@code dz}
+     * <p>The vector convention is vanilla's own and is the easy thing to get backward: {@code dx}/{@code dz}
      * point FROM the target TO the attacker, and knockback pushes the opposite way.
      */
     public static void knockback(net.minecraft.world.entity.LivingEntity target,

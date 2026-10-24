@@ -16,13 +16,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * other mods' config screens), without replacing any widget (so click handlers, tooltips, narration,
  * positions and other mods' references to those Button objects are all untouched).
  * <p>
- * 26.1.2 (javap): every vanilla button draws its grey 9-slice through the one final
+ * 26.1.2 (javap): every vanilla button draws its gray 9-slice through the one final
  * {@code AbstractButton.extractDefaultSprite} - Button$Plain (almost every menu button, incl. ModMenu's and
  * most mod-added ones), CycleButton (option toggles, when it has no custom SpriteSupplier) and
  * SpriteIconButton$CenteredIcon / $TextAndIcon (language / accessibility icons) all call it, then draw their
- * label/icon on top. Cancelling it and drawing the dark box keeps icons visible. Labels drawn through
- * {@code extractDefaultLabel} (Button$Plain, CycleButton) are additionally recoloured (near-white, light
- * orange on hover, dim when inactive); explicit colours inside a label (red warnings, vanilla's grey
+ * label/icon on top. Canceling it and drawing the dark box keeps icons visible. Labels drawn through
+ * {@code extractDefaultLabel} (Button$Plain, CycleButton) are additionally recolored (near-white, light
+ * orange on hover, dim when inactive); explicit colors inside a label (red warnings, vanilla's gray
  * inactive message from WithInactiveMessage.defaultInactiveMessage) still win - see
  * {@link MainMenuTheme#recolorLabel}.
  * <p>

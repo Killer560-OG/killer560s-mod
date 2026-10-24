@@ -39,8 +39,8 @@ import java.util.Set;
  * </ul>
  * <p>
  * What it measures is chosen to answer the questions replication actually needs: how many breaks land on ONE tick,
- * how far the furthest one was (to the block's box AND to its centre, because different mods measure differently -
- * QUOI uses centre-from-feet, we use box-from-eye), whether line of sight was required, and whether it swings or
+ * how far the furthest one was (to the block's box AND to its center, because different mods measure differently -
+ * QUOI uses center-from-feet, we use box-from-eye), whether line of sight was required, and whether it swings or
  * swaps the hotbar. Read-only throughout: nothing here sends, cancels or alters a packet.
  */
 public final class ForeignBreakerProbe {

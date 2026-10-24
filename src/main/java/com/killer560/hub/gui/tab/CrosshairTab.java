@@ -36,7 +36,7 @@ import java.util.function.Supplier;
  * 2026-10-07: "Crosshair should not be its own tab, put it in General"). Settings on the left, a live preview on the
  * right that stays in view while the settings scroll (narrow menus put it on top instead). The preview draws through
  * {@link CrosshairRenderer} at the real in-game pixel size, over a background you can click through, and can show the
- * dynamic states (spread, recoil, target colours). Presets: built-ins, named presets saved in
+ * dynamic states (spread, recoil, target colors). Presets: built-ins, named presets saved in
  * {@code config/killer560/interface/crosshair/killer560smod-crosshair-presets/}, and a share code via the clipboard.
  */
 public class CrosshairTab extends BaseTab {

@@ -39,7 +39,7 @@ import java.util.function.Supplier;
  *  <p>
  *  Regrouped later that day, killer560: "Make the menu have text next to text and bars next to bars", and "remove the
  *  classic display option, that is not needed". The page is the Stat Bars switch, then <b>Bars</b> - every bar in a
- *  two-column grid, each with its colour once it is on, then the bar settings - then <b>Text</b> - every text readout
+ *  two-column grid, each with its color once it is on, then the bar settings - then <b>Text</b> - every text readout
  *  in the same grid, then Text Shadow - then <b>Hide</b>: the vanilla bars Stat Bars hides, and what is always hidden
  *  (Hypixel's own stat text and the vanilla XP bar included). Classic Display is gone (see
  *  {@code PlayerStatsConfig.migrateClassic}). Vitality and XP joined both grids; while an XP readout is on, the vanilla
@@ -49,7 +49,7 @@ public class HealthAndManaBarsTab extends BaseTab {
     private static final int GAP = 6;
     private static final int ROW_H = 18;
     private static final int ROW = 22;
-    /** Width of the "Colour: ■" button beside a readout's toggle. */
+    /** Width of the "Color: ■" button beside a readout's toggle. */
     private static final int SWATCH_W = 52;
     /** Bar Size moves in halves (killer560, 2026-10-19). */
     private static final double BAR_SIZE_STEP = 0.5;
@@ -103,7 +103,7 @@ public class HealthAndManaBarsTab extends BaseTab {
      * things going on there and it should be far simpler"). The page is what most people touch - Stat Bars, Edit Bars,
      * which bars are on, Style and Text Size - and one {@link CollapsibleSection} "Advanced", closed by default and
      * remembered ({@code PlayerStatsConfig.menuAdvancedOpen}), holding everything else: Layout, the bar look (corners,
-     * icons, number, smooth fill, damage ghost, background, length and thickness), the colours in one grid, the text
+     * icons, number, smooth fill, damage ghost, background, length and thickness), the colors in one grid, the text
      * readouts and the vanilla hides. Every setting is the same field as before; only where its row sits changed. The
      * "Hide Vanilla XP Bar" row was a second copy of Hide's "XP Bar And Level" and is gone (the setting stays there).
      */
@@ -135,7 +135,7 @@ public class HealthAndManaBarsTab extends BaseTab {
                         McCompat.setScreen(client, com.killer560.hub.hud.HudEditorScreen.forBars(McCompat.screen(client)));
                     }).bounds(contentX, y[0], contentWidth, ROW_H).build());
             y[0] += ROW;
-            // Which bars are shown: on/off only (their colours are in Advanced).
+            // Which bars are shown: on/off only (their colors are in Advanced).
             for (int i = 0; i < BARS.length; i++) {
                 Readout r = BARS[i];
                 toggle(widgets, i % 2 == 0 ? contentX : col2, y[0], half, r.label, () -> ps.isReadoutOn(r),
@@ -239,7 +239,7 @@ public class HealthAndManaBarsTab extends BaseTab {
             }
             y[0] += ROW;
 
-            // Colours, one compact grid: each bar that is on, the overflow layers of the bars that have one, and the
+            // Colors, one compact grid: each bar that is on, the overflow layers of the bars that have one, and the
             // empty track.
             note(widgets, contentX, contentWidth, y, "Colors");
             int cols = contentWidth >= 420 ? 3 : 2;
@@ -265,7 +265,7 @@ public class HealthAndManaBarsTab extends BaseTab {
                 y[0] += ROW;
             }
 
-            // Text readouts: the same stats as text, plus the text-only ones, each with its colour once it is on.
+            // Text readouts: the same stats as text, plus the text-only ones, each with its color once it is on.
             note(widgets, contentX, contentWidth, y, "Text readouts");
             grid(widgets, contentX, col2, half, y, TEXTS, requestRebuild);
             // The grid's odd last cell leaves the right column free: Text Shadow sits there.
@@ -323,7 +323,7 @@ public class HealthAndManaBarsTab extends BaseTab {
         return widgets;
     }
 
-    /** "Health Colour" for the Health Bar: the bar's label without "Bar", for the colour grid. */
+    /** "Health Color" for the Health Bar: the bar's label without "Bar", for the color grid. */
     private static String colourLabel(Readout r) {
         return switch (r) {
             case OTHER_BAR -> "Other Color";
@@ -331,7 +331,7 @@ public class HealthAndManaBarsTab extends BaseTab {
         };
     }
 
-    /** One colour cell of a {@code cols}-wide grid; {@code cell[0]} counts cells and moves {@code y} on a row end. */
+    /** One color cell of a {@code cols}-wide grid; {@code cell[0]} counts cells and moves {@code y} on a row end. */
     private static void gridColour(List<AbstractWidget> widgets, int x0, int[] y, int cols, int cellW, int[] cell,
                                    String label, int argb, int defaultArgb, IntConsumer apply) {
         int col = cell[0] % cols;
@@ -373,7 +373,7 @@ public class HealthAndManaBarsTab extends BaseTab {
         }
     }
 
-    /** One readout in a half-width cell: "<Name>: ON/OFF", and its colour beside it while it is on. */
+    /** One readout in a half-width cell: "<Name>: ON/OFF", and its color beside it while it is on. */
     private static void readout(List<AbstractWidget> widgets, int x, int width, int y, Readout r,
                                 Runnable requestRebuild) {
         PlayerStatsConfig ps = PlayerStatsConfig.getInstance();

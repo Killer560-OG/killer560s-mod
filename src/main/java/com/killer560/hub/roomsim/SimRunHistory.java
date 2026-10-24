@@ -30,11 +30,11 @@ import java.util.Set;
  * <p>So this reads that rather than keeping a second store. An earlier version of this file wrote its own map
  * codes to their own folder, which meant two records of the same run that could disagree, and a "previous runs"
  * list that would have been empty for every floor he had already played. Reading the existing history means his
- * whole back catalogue is available immediately.
+ * whole back catalog is available immediately.
  *
  * <p><b>Rotation (2026-10-15).</b> killer560: "those saved rooms did not save the proper orientation from the real
  * run, rooms have no doors that are aligning properly." The snapshot never stored a rotation and this file put every
- * room down at 0, so most rooms faced the wrong way and their doorways missed their neighbours'. The snapshot now
+ * room down at 0, so most rooms faced the wrong way and their doorways missed their neighbors'. The snapshot now
  * stores each room's DATABASE rotation as the live map read it ({@code RunRecord.MapRoom.rotation}), and
  * {@link #pasteRotations} turns that into the PASTE rotation the sim needs by taking off the capture's own turn
  * ({@link RoomCaptureRotation}) - the inverse of what {@code SimRoomIndex.add} does, so the rebuilt room's

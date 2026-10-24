@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
  *
  *  <p>Re-checked 2026-10-08 after "all terminal solvers and auto terminal is broken": the six titles are unchanged in
  *  the current source of Odin (TerminalTypes.kt), NoammAddons, Skyblocker, Devonian and jcnlk's quoi (Dungeon.kt). Every
- *  matcher in the mod goes through {@link #match} / {@link #normalizeTitle}, which drops colour codes and the
+ *  matcher in the mod goes through {@link #match} / {@link #normalizeTitle}, which drops color codes and the
  *  private-use / formatting glyphs a resource-pack GUI title carries, so a decorated title still matches. */
 public enum TerminalType {
 

@@ -66,12 +66,12 @@ public final class CustomCrosshairFeature {
         return base * c.getScale();
     }
 
-    /** The main colour right now: chroma if on. Target colours are applied by the caller. */
+    /** The main color right now: chroma if on. Target colors are applied by the caller. */
     public static int baseColor(CustomCrosshairConfig c) {
         int main = c.getColor();
         if (c.isChroma()) {
-            // The shared chroma waterfall (util/ChromaWave), sampled where the crosshair sits - the screen centre - so it
-            // shows the same colour as any chroma text or border passing behind it. One colour for the whole shape: a
+            // The shared chroma waterfall (util/ChromaWave), sampled where the crosshair sits - the screen center - so it
+            // shows the same color as any chroma text or border passing behind it. One color for the whole shape: a
             // crosshair is a few units across, a sliver of one band.
             com.mojang.blaze3d.platform.Window w = Minecraft.getInstance().getWindow();
             int rgb = com.killer560.hub.util.ChromaWave.rainbow(w.getGuiScaledWidth() / 2f, w.getGuiScaledHeight() / 2f,

@@ -12,13 +12,13 @@ import com.killer560.hub.compat.McCompat;
  * <li>Left-button press with no screen open -&gt; {@link FastLeapFeature#onLeftClick()} (fast leap; cancels the click
  * while holding a Spirit Leap).</li>
  * <li>{@link LeapManager#blocksInput()} (QUOI "Block inputs" / "Fast mode"): every mouse-button press, key press,
- * scroll and camera turn is cancelled, in the world and while the Spirit Leap menu itself is open.</li>
+ * scroll and camera turn is canceled, in the world and while the Spirit Leap menu itself is open.</li>
  * <li>{@link I4LeapFeature#blocksInput()} ("Prevent Inputs"): in the world only - mouse-button presses, movement-key
- * presses (forward/back/left/right/jump/sprint/sneak), scroll and camera turn are cancelled.</li>
+ * presses (forward/back/left/right/jump/sprint/sneak), scroll and camera turn are canceled.</li>
  * </ul>
- * Releases and Escape are never cancelled (so nothing sticks down and the menu/pause screen can always be opened or
+ * Releases and Escape are never canceled (so nothing sticks down and the menu/pause screen can always be opened or
  * closed); when a block ends the key states are re-synced with
- * {@code KeyMapping.setAll()}. Camera turn is cancelled at {@code MouseHandler.turnPlayer}, whose caller still resets the
+ * {@code KeyMapping.setAll()}. Camera turn is canceled at {@code MouseHandler.turnPlayer}, whose caller still resets the
  * accumulated mouse delta, so the view doesn't jump when the block ends; code that sets rotation directly (Auto i4)
  * is unaffected.
  */

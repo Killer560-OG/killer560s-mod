@@ -85,7 +85,7 @@ public final class SelfDerivation {
                 case "device" -> PartyInteropState.Counter.DEVICES_DONE;
                 default -> PartyInteropState.Counter.LEVERS_DONE;
             };
-            // The denominator lets the state tell a new P3 section (7/7, then 1/8) from a number going backwards.
+            // The denominator lets the state tell a new P3 section (7/7, then 1/8) from a number going backward.
             PartyInteropState.offerCounter(counter, done, parseInt(m.group(5)), InteropSource.SELF, m.group(1));
             return;
         }

@@ -948,7 +948,7 @@ public final class PartyFinderStatsApi {
         }
     }
 
-    /** A relay reason, safe for the tooltip footer: printable ASCII, no colour codes, bounded. */
+    /** A relay reason, safe for the tooltip footer: printable ASCII, no color codes, bounded. */
     private static String clean(JsonElement reason) {
         String s = reason != null && reason.isJsonPrimitive() ? reason.getAsString() : "relay: no data";
         StringBuilder sb = new StringBuilder();

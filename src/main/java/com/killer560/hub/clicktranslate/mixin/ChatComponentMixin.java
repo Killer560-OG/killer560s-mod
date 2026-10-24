@@ -34,7 +34,7 @@ public abstract class ChatComponentMixin {
     }
 
     // Real bug found and fixed (2026-09-14, real Hypixel F7 log): a device-completion line another mod
-    // (Odin's Terminal Splits) cancelled via Fabric's ALLOW_GAME and re-added straight to ChatComponent never
+    // (Odin's Terminal Splits) canceled via Fabric's ALLOW_GAME and re-added straight to ChatComponent never
     // reached any Fabric chat listener. ChatObserver sees every real chat add here instead. Hooked on the
     // private addMessage(Component, MessageSignature, GuiMessageSource, GuiMessageTag) funnel - all three
     // public methods above call it (javap-confirmed on the 26.1.2 jar), so it also catches a mod invoking it

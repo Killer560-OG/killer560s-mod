@@ -12,9 +12,9 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * Bordered text fields (server name/address, world name/seed, search boxes, other mods' config fields, and this
- * mod's own settings fields) on themed menus: the grey {@code widget/text_field(_highlighted)} 9-slice becomes a
+ * mod's own settings fields) on themed menus: the gray {@code widget/text_field(_highlighted)} 9-slice becomes a
  * dark field with a dim orange border, full orange while focused. Text, hint, suggestion, selection highlight and
- * cursor are left exactly as vanilla draws them (light text / grey hint on a dark field stays readable).
+ * cursor are left exactly as vanilla draws them (light text / gray hint on a dark field stays readable).
  * <p>
  * 26.1.2 (javap): {@code EditBox.extractWidgetRenderState(GuiGraphicsExtractor,int,int,float)} contains exactly one
  * {@code GuiGraphicsExtractor.blitSprite(RenderPipeline,Identifier,int,int,int,int)} call - the border sprite, only

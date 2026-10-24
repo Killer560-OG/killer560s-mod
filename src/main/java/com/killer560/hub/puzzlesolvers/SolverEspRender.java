@@ -110,7 +110,7 @@ public final class SolverEspRender {
     }
 
     /** A solver box sits exactly on the block faces it is outlining, so with the depth test on the two
-     *  coincide and z-fight into nothing. Nudging it out by half a millimetre costs nothing visually and
+     *  coincide and z-fight into nothing. Nudging it out by half a millimeter costs nothing visually and
      *  makes the outline actually land in front of the block. */
     private static final double Z_FIGHT_NUDGE = 0.005;
 

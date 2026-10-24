@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
  * Class/Player backup used when no melody player is known, they can't be leapt to, or they're not in the leap menu.</li>
  * <li><b>Prevent Inputs</b>: while Auto i4 is on and you're on the i4 pad (x 62-65, z 34-37, |y-127| &lt; 0.5) after the
  * device has started (a target block on the wall lit) and until it completes or you step off, movement keys are held up and mouse
- * clicks, scrolling and camera look are cancelled; after an auto/fast i4 leap is requested the same block stays on
+ * clicks, scrolling and camera look are canceled; after an auto/fast i4 leap is requested the same block stays on
  * until the leap finishes, and the leap itself runs with {@link LeapManager}'s "block inputs".</li>
  * </ul>
  */

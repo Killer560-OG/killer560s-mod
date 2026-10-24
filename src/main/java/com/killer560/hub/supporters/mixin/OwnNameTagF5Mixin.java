@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * {@code entity == getCameraEntity()} (javap, 26.1.2), and {@code AvatarRenderer.shouldShowName(Avatar, double)} only
  * narrows that further. With the setting on, the local player's tag is shown in both third-person views, never in first
  * person and never with F1. The tag's TEXT is the normal path ({@code getNameTag}, then Name Changer's Font-level
- * replace), so a custom name, colour or fade shows exactly as everyone else's tag would. Descriptor
+ * replace), so a custom name, color or fade shows exactly as everyone else's tag would. Descriptor
  * {@code (Lnet/minecraft/world/entity/Avatar;D)Z} on both 26.1.2 and 26.2 (javap). {@code require = 0}.
  */
 @Mixin(AvatarRenderer.class)

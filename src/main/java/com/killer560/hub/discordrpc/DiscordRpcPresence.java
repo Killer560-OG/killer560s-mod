@@ -71,7 +71,7 @@ public final class DiscordRpcPresence {
                 return "Boss - " + phase.name();
             }
         } catch (Throwable ignored) {
-            // Tracker not initialised / not on a floor it understands - fall through.
+            // Tracker not initialized / not on a floor it understands - fall through.
         }
         return DungeonState.isBossPhaseActive() ? "Boss fight" : "In a dungeon run";
     }

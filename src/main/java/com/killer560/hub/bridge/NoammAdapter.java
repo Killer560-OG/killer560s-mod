@@ -170,7 +170,7 @@ final class NoammAdapter extends SocketAdapter {
     }
 
     /** Spec 2.2 steps 3-7. Signing happens here with the key object Minecraft already holds; nothing about
-     *  the private key is ever serialised. */
+     *  the private key is ever serialized. */
     private static String body(UUID uuid, ProfileKeyPair pair) {
         ProfilePublicKey.Data data = pair.publicKey().data();
         byte[] nonce = NoammCodec.nonceBytes(UUID.randomUUID());

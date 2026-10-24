@@ -44,7 +44,7 @@ public class SpringBootsTab extends BaseTab {
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
             if (cfg.springBootsBox) {
-                // Colour and style of the height box (killer560, 2026-10-11).
+                // Color and style of the height box (killer560, 2026-10-11).
                 Minecraft mc = Minecraft.getInstance();
                 w.add(SettingsButtonWidget.builder(ColorSwatch.label("Height Box Color", cfg.springBootsColor), btn ->
                         McCompat.setScreen(mc, new ColorPickerScreen(McCompat.screen(mc), "Height Box Color",

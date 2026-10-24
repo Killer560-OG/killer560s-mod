@@ -171,7 +171,7 @@ public final class SkyblockItemStackFactory {
             }
         }
 
-        // Leather armour: Hypixel's own "color" (see DyeColors). Without DYED_COLOR the leather layer draws the
+        // Leather armor: Hypixel's own "color" (see DyeColors). Without DYED_COLOR the leather layer draws the
         // default brown. Same component and constructor LegacyItems already uses under src/main for both versions.
         if (entry.dyeColor() != null && entry.material() != null && entry.material().startsWith("LEATHER")) {
             stack.set(DataComponents.DYED_COLOR, new DyedItemColor(entry.dyeColor()));
@@ -188,7 +188,7 @@ public final class SkyblockItemStackFactory {
      * stack sizes for its own items, and nothing in the public item catalog exposes what it uses, so this
      * is deliberately the conservative direction: where the two disagree, vanilla is the smaller number
      * (ender pearls are 16 here), so a buy sized off this under-fills rather than over-fills. Never treat
-     * it as verified Skyblock behaviour.
+     * it as verified Skyblock behavior.
      *
      * @return 1..64, or 64 when {@code material} is null/unresolvable (the overwhelmingly common case for
      * the enchanted blocks this actually matters for).

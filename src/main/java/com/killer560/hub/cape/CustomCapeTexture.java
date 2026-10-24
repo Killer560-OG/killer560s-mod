@@ -7,8 +7,8 @@ import net.minecraft.resources.Identifier;
 
 /**
  * Builds the Make Your Own cape as a 64x32 texture at runtime and registers it with the texture manager. Regenerated only when
- * the colours or the pattern change. The back panel of a cape sheet is x 1..10, y 1..16; every other pixel of the sheet takes the
- * colour of the nearest back-panel pixel, so the sides and front match.
+ * the colors or the pattern change. The back panel of a cape sheet is x 1..10, y 1..16; every other pixel of the sheet takes the
+ * color of the nearest back-panel pixel, so the sides and front match.
  */
 public final class CustomCapeTexture {
 
@@ -52,12 +52,12 @@ public final class CustomCapeTexture {
         return ID;
     }
 
-    /** What back-panel pixel (u 0..9, v 0..15) shows right now without a paint: the pattern's colour. For the designer's grid. */
+    /** What back-panel pixel (u 0..9, v 0..15) shows right now without a paint: the pattern's color. For the designer's grid. */
     public static int patternColour(CapeConfig cfg, int u, int v) {
         return colourAt(cfg.getCustomPattern(), cfg.getCustomColourA(), cfg.getCustomColourB(), u, v);
     }
 
-    /** The colour of one back-panel pixel (u 0..9, v 0..15) for a pattern. */
+    /** The color of one back-panel pixel (u 0..9, v 0..15) for a pattern. */
     static int colourAt(CapeConfig.Pattern pattern, int a, int b, int u, int v) {
         switch (pattern) {
             case STRIPES:

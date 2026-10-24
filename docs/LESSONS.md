@@ -11,14 +11,14 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   maximum - so a fully tuned one of any of them goes 12, and killer560 plays fully tuned ("nearly no one plays
   with less"). AOTV is NOT 12 by nature; assuming that got AOTE and AOTV wrongly split in the route matcher
   once already. `EtherwarpHopper` reads the same tag for the 57-block etherwarp.
-- `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker (shelved until after 2.0).
+- `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armor Dye and the mining profit tracker (shelved until after 2.0).
   Widening it to make two items equal makes "sell my Hyperion" sell an Astraea. Loose matching belongs in
   `matches()`, which only a route's USE_ITEM node reaches.
 - A shift-click in Hypixel's Trades menu sells the clicked STACK only, not every item of that kind. Auto Sell marked an
   identity done after one click, so three Dreadlord Swords took three visits and two Training Weights stacks two
   (log, 2026-10-20). `AutoSellVisit` tracks clicks per slot, capped per identity at the most stacks seen in one scan.
 - Custom Items' `DataComponentHolder#get` override must never reach `getHoverName`: on a player head that is
-  `PlayerHeadItem.getName`, which reads the overridden `minecraft:profile`, so an id-less head (one on an armour stand)
+  `PlayerHeadItem.getName`, which reads the overridden `minecraft:profile`, so an id-less head (one on an armor stand)
   overflowed the render thread (2026-10-18). `ArmourDye.identityOf` reads the name with `entryFor` switched off per thread.
 - **The live map's world scan must stay inside the floor's room grid.** Floor 1's boss arena stands in slots
   (4..5, 5) of the 6x6 footprint; scanning all 121 cells read its roof as two ROOM tiles, which widened the map's
@@ -30,12 +30,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   Turning a powerup over is all it takes (killer560, 2026-10-05): it never uses a turn's click slot (the open tile
   stays up), Instant Finds stack ("insta find into an insta find then your next two clicks are insta finds"), and
   there is no activation click - the solver's old second click on the face-up tile did nothing but wait out 1s.
-  XP reward tiles are recognised by NAME (`... Enchanting Exp`): the item varies, and cocoa beans were missed.
+  XP reward tiles are recognized by NAME (`... Enchanting Exp`): the item varies, and cocoa beans were missed.
   Clicking a tile that is already uncovered does not use a click (killer560, 2026-10-01). A pair's first click
   can fail to land (tile still covered, others still read "Click any button!"); clicking the partner anyway lost
   Experiment the Fish, so the first tile is now re-clicked before its partner. **Superpairs is played in turns of
   two clicks**: a pair started while a tile is turned over matches against that tile and both pairs are lost, and
-  a chance match that is not recognised as claimed gets re-queued and clicked as no-ops forever. The solver reads
+  a chance match that is not recognized as claimed gets re-queued and clicked as no-ops forever. The solver reads
   both off the board each decision (two face-up tiles of a kind = claimed, one = the turn's open tile; 2026-10-05,
   `ExperimentSolver.readBoard`). An offline port of the testkit's Hx table driving the solver class found both: in it,
   main's solver never finished 207 of 300 random boards (how often real Hypixel boards hit it is unmeasured).
@@ -56,7 +56,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   other way round produced a fake 1.6-billion-coin flip. `quick_status.buyPrice` is also a weighted AVERAGE,
   matching the exact top of book on only 628 of 1833 products, so anything sizing a real purchase must walk the
   levels. Scale check for the Bazaar-to-NPC flipper: of 819 products with an `npc_sell_price` only ~46 profit at
-  all and the worthwhile margins are 0.4%-1.5% - a result far outside that band means the book is backwards.
+  all and the worthwhile margins are 0.4%-1.5% - a result far outside that band means the book is backward.
 - `/bz <name>` opens a SEARCH page (`Bazaar ➜ "Lump of Magma"`, product at slot 11), not the product page: the
   flipper's old buy step looked for "instant buy" there and stopped every session (his dry run, 2026-10-08). It now
   reads every page through `BazaarPages` and walks search -> product -> Instant Buy by name (testkit 761-764).
@@ -131,10 +131,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   answers were HTTP 500s that the relay fetched fine later: treat a backend 5xx as transient (retry in seconds), never
   as a 3-minute failure. The relay's own Hypixel key still answers 403 "Invalid API key" (checked 2026-10-15), so the
   relay runs on SkyBlockPV too and its `etaMs` (3.3 s per queue place) is 3-8x optimistic; trust it only briefly.
-- A Minecraft colour code can be a DIGIT (`§3` is dark aqua), so `([\d,]+)` with optional codes BEFORE it reads
+- A Minecraft color code can be a DIGIT (`§3` is dark aqua), so `([\d,]+)` with optional codes BEFORE it reads
   Hypixel's overflow mana `§3200ʬ` as 3200. Start the match where a number cannot continue and let the pattern take
   the codes itself: `(?<![§\d,])(?:§.)*([\d,]+)` (`PlayerStatsFeature.NUMBER_START`, 2026-10-04, found by a scratch
-  run against a sample line). The health/mana/defence patterns did NOT escape it: with absorption Hypixel colours health
+  run against a sample line). The health/mana/defense patterns did NOT escape it: with absorption Hypixel colors health
   GOLD, `§6`, and "§612,000/10,464" read as 612,000 - a nearly all-absorption bar (his "absorption breaks the health one",
   2026-10-07). Every stat pattern now starts with `NUMBER_START`; testkit 442 sends the gold line through the real path.
 - `IslandDetector.graphIsland()` is null off any known island (sim, lobby, singleplayer), and `Set.of(...).contains(null)`
@@ -181,7 +181,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   and MODIFY_GAME), and the always-on handlers test a literal their patterns require before `matcher()`. 15.5 KB a line
   is left, ~14 KB of it vanilla's (ICU Bidi, wrapping). A new chat handler: read the text through ChatObserver, and put
   a `startsWith`/`contains` the pattern needs in front of it.
-- **Server-sent text can be memoised by object identity.** A tab entry's display name, a team's prefix/suffix and an
+- **Server-sent text can be memoized by object identity.** A tab entry's display name, a team's prefix/suffix and an
   entry's display are REPLACED with a new `Component` when the server updates them, never edited, so "same object (and
   same `Language`), same string" is exact. `util/TabText` and `DungeonState.readSidebarText` key on that (2026-10-07):
   a dozen tab readers had each re-flattened and regex-stripped all ~80 entries, and the sidebar was rebuilt every tick
@@ -200,10 +200,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   2026-10-05.
 - A step that closes a menu and sends a command must time out if the screen it waits for never opens. Auto E-Table's
   Guardian swap closed the table, sent /pets, and waited forever when nothing opened; it now gives up after 10 s.
-- Melody's Custom GUI picked the moving piece as the one pane COLOUR appearing exactly once; a board with a second
+- Melody's Custom GUI picked the moving piece as the one pane COLOR appearing exactly once; a board with a second
   lime pane (a finished row keeping its marker, which Odin handles with indexOfLast) has none, so after a row or an
   auto terminal's skip nothing was drawn as moving (killer560, 2026-10-05). Find a terminal's piece by position from
-  the current slots (`findMelodyMovingSlot`), never by colour counts; testkit 218 fails 5/16 on the old rule.
+  the current slots (`findMelodyMovingSlot`), never by color counts; testkit 218 fails 5/16 on the old rule.
 - Terminal and device SIZES are read off the board/device, never constants (SkyBlock 0.27.2: Melody 3 rows, Click in
   order 10, Simon Says 4 rounds; `terminals/TerminalLayouts`). The old Melody code was row-generic only by accident
   (`MELODY_CLAY_SLOTS[r-1] == r*9+7` for rows 1-4), so a 3-row board still auto-clicked; what broke was indexing past
@@ -226,7 +226,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - An item pickup reaches the client a round trip after the server took it, by which time an etherwarp or a chest grab has
   carried the player away; Secret Waypoints missed pickups by checking a 3-block box around the player (2026-10-19).
   Watch the item entity by id and count its REMOVAL from the level, not its leaving a box around the player.
-- **Cancelling a block break makes `AttackBlockCallback` fire every TICK, not once per click.**
+- **Canceling a block break makes `AttackBlockCallback` fire every TICK, not once per click.**
   `MultiPlayerGameMode.continueDestroyBlock` only continues an existing break when `isDestroying` is set, and
   that field is set inside `startDestroyBlock` - which is where the callback lives and which a cancel returns
   from first. So holding the button re-enters the callback twenty times a second (verified by `javap -c`:
@@ -354,7 +354,7 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - **Hypixel's SkyBlock resource pack is required**: the 0.26 announcement (hypixel.net thread 6117801) says it is
   force-enabled and SkyBlock cannot be joined without loading it, and players who declined report being kicked with
   "failed to load resource pack". Noamm's PackDisabler gets round that by answering ACCEPTED + SUCCESSFULLY_LOADED and
-  cancelling the push, i.e. reporting a pack it never applied. Our Pack Disabler leaves the push to vanilla (the pack
+  canceling the push, i.e. reporting a pack it never applied. Our Pack Disabler leaves the push to vanilla (the pack
   really loads) and only swaps the model each SkyBlock item is drawn with, at `ItemModelResolver.appendItemLayers`
   (2026-10-07). Hypixel's pack overrides no vanilla item textures, so a vanilla look still comes from his own packs.
 - NotEnoughUpdates moved items onto Hypixel's pack models in SEVERAL commits on 2026-07-09 (Auction House, Other,
@@ -365,7 +365,7 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - **The Murkbat bat bonus is one per PLAYER, not one per run like the Prince** (2026-10-07). The shard's Rekindle
   attribute says "+1 Bonus Score", "Limit of +1 Score per run" (hypixelskyblock wiki, Murkbat_Shard), but the wiki's
   Dungeon Score page says it works out as one per player, up to 5, and Odin counts it that way (833e0533). Hypixel's
-  line is `A Bat has been slain. +1 Bonus Score` (Odin `Mimic.kt`, Skyblocker `DungeonScore.java`; colour codes unknown).
+  line is `A Bat has been slain. +1 Bonus Score` (Odin `Mimic.kt`, Skyblocker `DungeonScore.java`; color codes unknown).
   `ScoreCalculatorFeature` keys each bat on a name (his own line, a mate's "Bat Killed!") and `ScoreCalculator.BAT_BONUS_CAP`
   is the one number to set to 1 if Hypixel makes it per run. The dungeon sim does not model attributes, so it never sends it.
 
@@ -431,7 +431,7 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   identity-hash order, not tab order. `PartyTracker` built the party from it, so the Dungeon Map paired far teammates'
   map markers with names in a random order (testkit 1015-noamm-map: party read `[Bravo, Charlie, Delta, Alpha]`, 0 of 4
   on their own marker). Anything that relies on the tab's order reads `util/TabOrder.listed`, the overlay's comparator.
-- The dungeon map item's start corner is fixed per floor; measuring it from the first 16-pixel run of colour 30 (as
+- The dungeon map item's start corner is fixed per floor; measuring it from the first 16-pixel run of color 30 (as
   NoammAddons does for F4+) read (16,5) on two of his M5 runs (2026-10-08 log) and shifted the whole map for the run.
   `DungeonMapScanner.knownCorner` holds every floor; the run is only a size check and the fallback for an unknown floor.
 - **`ClientLevel.hasChunk(x, z)` is hard-wired to `true`** (javap 26.1.2 and 26.2: `iconst_1; ireturn`), and so is
@@ -474,7 +474,7 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   Mod Only Test log, 2026-10-18 19:25:02). Glass has no visual shape, so a look into the room mostly meets the board behind
   the front glass, and Hypixel's board differs every run (four layouts, 27 piston gates the levers move); every Water Board
   capture there is (bundled, Mod Only Test's - the same rotated 90 degrees - and Map Logger's) is the same frame of board 0.
-  `RoomPredictor.VOLATILE` leaves the board planes and the colour columns out of the comparison. Write such boxes in
+  `RoomPredictor.VOLATILE` leaves the board planes and the color columns out of the comparison. Write such boxes in
   ROOM-RELATIVE coordinates and turn them through each capture's own `RoomCaptureRotation`: the first version held capture
   boxes decoded off the bundled file, and his disk capture (which wins) is turned a quarter, so they covered the wrong
   wall. The sim's own board matched the capture, so it named the room on main too; testkit 1018-waterboard-predict-board
@@ -487,7 +487,7 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   The sim's blocks ARE the captures, so a clean matrix never names wrong; `tune("TEST_NOISE", 0.05)` reads that share of seen
   blocks as random others, and it alone found Water Board named on Mines (4-6 glances a run, on main too): its board planes'
   palette matches any stone, so with Mines ruled out by noise they made up Water Board's matches. Soft matches no longer
-  count towards MIN_MATCHES. The comparison budget charged every seen block in a candidate's span, ruled out or not, so
+  count toward MIN_MATCHES. The comparison budget charged every seen block in a candidate's span, ruled out or not, so
   more rays queued ticks of work that took a few (1018-predict-hypixel-fresh named at tick 20: 3506 placements, 1712 seen);
   it now charges a compared block 1, a block in another tile 1/16, and nothing after a candidate is ruled out.
 - A `@Inject` at HEAD of a `ClientPacketListener.handleX` runs TWICE per packet: first on the Netty thread, where

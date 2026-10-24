@@ -25,14 +25,14 @@ import java.util.Optional;
  * ({@code BuildVariant.CHEAT_FEATURES_ENABLED}), behind the Auto Fairy Souls switch, and independent of the Fairy Souls
  * tab's own switch (killer560, 2026-10-17): it loads the island graph and runs the soul route itself.
  * <p>
- * Route order comes from {@link FairySoulsFeature} (nearest-neighbour + 2-opt/Or-opt over real graph distances), always
+ * Route order comes from {@link FairySoulsFeature} (nearest-neighbor + 2-opt/Or-opt over real graph distances), always
  * the whole island. Getting to each soul depends on the mode:
  * <ul>
  * <li>{@code WALK} - walking only, never an etherwarp.</li>
  * <li>{@code ETHERWARP} - walk, but every half second look ahead along the path for an etherwarp that skips at least
  * {@link #SHORTCUT_MIN_SAVING} blocks of walking, and take it.</li>
  * <li>{@code FAST_ETHERWARP} - plan a whole etherwarp chain to each soul with the Interactive Map's A* and run it,
- * falling back to the ETHERWARP behaviour for that leg when no chain exists.</li>
+ * falling back to the ETHERWARP behavior for that leg when no chain exists.</li>
  * </ul>
  * When the walker has no way back onto the route on foot ({@link AutoWalker#needsEscape}: an enclosed pit, a hole with
  * no climb out), the cheapest allowed escape is taken (killer560, 2026-10-17: "it should be able to get out with things
@@ -665,7 +665,7 @@ public final class AutoSoulRunner {
         return bestSpot != null && EtherwarpHopper.hop(bestSpot, () -> state = State.IDLE);
     }
 
-    /** The soul itself: Hypixel renders it as an armour stand wearing a head, right next to the graph node. */
+    /** The soul itself: Hypixel renders it as an armor stand wearing a head, right next to the graph node. */
     private static ArmorStand findSoulEntity(Minecraft client, Vec3 soulCentre) {
         if (client.level == null) {
             return null;

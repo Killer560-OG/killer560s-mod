@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * A three-chest "which one is right" puzzle for the dungeon sim: three chests, one labelled answer is correct,
+ * A three-chest "which one is right" puzzle for the dungeon sim: three chests, one labeled answer is correct,
  * clicking it solves the puzzle and clicking either other one fails it. Built fresh at a given origin, not read
  * off a real captured room.
  *
@@ -45,7 +45,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * each question (it is how the live solver tells you which of Oruo's three floor spots to stand on - it does not
  * need to know the wrong options, since it never has to display them). Hypixel generates the two wrong options
  * itself and nothing in this codebase records what they were. So the wrong options here are other REAL questions'
- * REAL correct answers, borrowed out of context and relabelled as distractors for a question they don't belong
+ * REAL correct answers, borrowed out of context and relabeled as distractors for a question they don't belong
  * to - a generated puzzle using real data as raw material, not a reproduction of a real trivia round. Said plainly
  * rather than dressed up as authentic.
  *
@@ -195,7 +195,7 @@ public final class SimQuizPuzzle {
         // fires inside ServerGamePacketListenerImpl.handleInteract for the ServerPlayer (javap, fabric-events-
         // interaction 5.2.8), so a real click and a programmatic interact both reach it, exactly as both reach
         // Hypixel. The client copy returns SUCCESS for a real click, which makes Fabric send the packet and skip
-        // the client-side interaction; the server copy speaks and returns SUCCESS so the armour stand's own
+        // the client-side interaction; the server copy speaks and returns SUCCESS so the armor stand's own
         // interaction (hanging his held item on it) never runs.
         net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register(
                 (player, level, hand, entity, hitResult) -> {
@@ -279,7 +279,7 @@ public final class SimQuizPuzzle {
      * Arms this puzzle on a REAL captured Quiz or Three Weirdos room, at the room's own answer positions.
      *
      * <p>This is the one bind that has to CREATE its furniture, and the reason is in the real rooms rather
-     * than in the capture: Oruo and the three weirdos are <b>armour stands</b> and their answer spots are
+     * than in the capture: Oruo and the three weirdos are <b>armor stands</b> and their answer spots are
      * plain floor, so there is no puzzle block anywhere in either capture for a bind to attach to. What the
      * bind does provide is the right PLACE.
      *
@@ -355,7 +355,7 @@ public final class SimQuizPuzzle {
                 // Decoding the capture settles where they are without a guess: at this room's own turn the
                 // three answer spots land on capture (11,70,25), (16,70,22) and (21,70,25), and all twelve of
                 // its stone buttons sit in rings of four around exactly those - each spot's four horizontal
-                // neighbours at the same height. So a button is an answer spot stepped one block along x or z,
+                // neighbors at the same height. So a button is an answer spot stepped one block along x or z,
                 // and pressing any of a pillar's four answers that pillar.
                 for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
                     quizButtons.add(new Object[]{
@@ -705,7 +705,7 @@ public final class SimQuizPuzzle {
         // the options squashed onto one row satisfies. The options go out one per line now, raw, which is how
         // Oruo sends them; the "[Sim]" header above them is still there to say where they came from.
         ModChat.send("Sim", ModChat.text(pendingQuestion));
-        // Hypixel sends the question as a centred line with NOTHING in front (his own Hypixel logs, 2026-10-04:
+        // Hypixel sends the question as a centered line with NOTHING in front (his own Hypixel logs, 2026-10-04:
         // "                 What SkyBlock year is it?"), and the solver is anchored to that since f40ec89.
         raw(client, "           " + pendingQuestion);
         String[] lines = pendingOptions;
@@ -1035,7 +1035,7 @@ public final class SimQuizPuzzle {
         }
     }
 
-    /** An invisible, no-gravity armour stand carrying the option's letter and text as its name - the same
+    /** An invisible, no-gravity armor stand carrying the option's letter and text as its name - the same
      *  "invisible stand, visible name" tag SimMobs uses for star mobs, and WeirdosSolverFeature reads for real
      *  NPCs. Floats just above the chest so it doesn't block the click raycast onto the chest itself. */
     private static UUID spawnLabel(ServerLevel level, BlockPos chestPos, String text) {
@@ -1334,7 +1334,7 @@ public final class SimQuizPuzzle {
         for (int i = 0; i < 3; i++) {
             LABELS.add(spawnLabel(level, positions[i], letters[i] + " " + text[i]));
         }
-        // Hypixel's block, line by line as his log has it: a blank line, the centred "Question #N", the centred question,
+        // Hypixel's block, line by line as his log has it: a blank line, the centered "Question #N", the centered question,
         // a blank line, the three options ("    §6 ⓐ §a<answer>"), a blank line.
         sendRaw(Component.literal(""));
         sendRaw(Component.literal("                                Question #" + q));

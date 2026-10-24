@@ -31,7 +31,7 @@ import java.util.Set;
  *
  * <p>Moving is lazy AND eager: {@link #migrateAll()} runs first thing in the client entrypoint and sweeps every old
  * file out of the config root, and {@link #config(String)} also moves its own file if it finds it still at the old
- * spot (a class initialised before the sweep, or a file the sweep could not move). A failed move never loses a
+ * spot (a class initialized before the sweep, or a file the sweep could not move). A failed move never loses a
  * setting - {@link #config(String)} then hands back the OLD path, so the feature keeps reading what it always read.
  */
 public final class ModPaths {
@@ -195,11 +195,11 @@ public final class ModPaths {
         t.put("mainmenu", "interface/mainmenu");
         // The Font setting (killer560smod-fonts.json) and its import folder (killer560smod-fonts/), 2026-10-15.
         t.put("fonts", "interface/fonts");
-        // The mod menu's own settings: Favourites (killer560smod-menu.json, Option A menu 2026-10-12).
+        // The mod menu's own settings: Favorites (killer560smod-menu.json, Option A menu 2026-10-12).
         t.put("menu", "interface/menu");
         // The Sound Effects tab's settings (killer560smod-sound-effects.json, 2026-10-18).
         t.put("sound-effects", "interface/menu");
-        // Every colour picker's Recent row (killer560smod-colours.json, 2026-10-13).
+        // Every color picker's Recent row (killer560smod-colours.json, 2026-10-13).
         t.put("colours", "interface/menu");
         t.put("window", "interface/window");
         t.put("inventorytheme", "interface/inventorytheme");

@@ -38,7 +38,7 @@ public final class EtherwarpOverlayConfig {
         }
     }
 
-    // The exact colours the overlay always drew before it had a colour option (r/g/b 0.2/1.0/0.2 and
+    // The exact colors the overlay always drew before it had a color option (r/g/b 0.2/1.0/0.2 and
     // 1.0/0.2/0.2, i.e. 0x33 = 51 = 0.2 * 255), exposed so the picker's "Set Default" restores them exactly.
     public static final int DEFAULT_SAFE_COLOR = 0xFF33FF33;
     public static final int DEFAULT_FAILED_COLOR = 0xFFFF3333;

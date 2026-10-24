@@ -37,9 +37,9 @@ import java.util.List;
 public final class FairyDoor {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-witherdoors");
-    /** Fairy's map colour id (NoammAddons {@code RoomType.fromMapColor}). */
+    /** Fairy's map color id (NoammAddons {@code RoomType.fromMapColor}). */
     private static final int MAP_COLOR_FAIRY = 82;
-    /** Blocks from a tile's centre that count as inside the room: the 31-wide room less its wall. */
+    /** Blocks from a tile's center that count as inside the room: the 31-wide room less its wall. */
     private static final int INSIDE = 14;
     private static final int PATH_EVERY_TICKS = 10;
 
@@ -232,7 +232,7 @@ public final class FairyDoor {
         return true;
     }
 
-    /** The room the layout names Fairy: the room database's type, else the map item's Fairy colour. */
+    /** The room the layout names Fairy: the room database's type, else the map item's Fairy color. */
     private static int findFairy(DungeonLayout layout) {
         for (int r = 0; r < layout.roomCount(); r++) {
             var entry = layout.entry(r);

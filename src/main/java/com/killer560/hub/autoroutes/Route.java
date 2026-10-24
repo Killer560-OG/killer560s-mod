@@ -22,7 +22,7 @@ public final class Route {
         return roomName;
     }
 
-    /** The live node list - callers that mutate it must {@code RouteStore.getInstance().save()} afterwards. */
+    /** The live node list - callers that mutate it must {@code RouteStore.getInstance().save()} afterward. */
     public List<RouteNode> nodes() {
         return nodes;
     }

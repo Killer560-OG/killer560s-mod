@@ -72,7 +72,7 @@ final class SecretWaypointsRenderer {
     }
 
     /**
-     * Draws every waypoint in {@code waypoints} whose centre is within {@code maxDistance} blocks of the camera.
+     * Draws every waypoint in {@code waypoints} whose center is within {@code maxDistance} blocks of the camera.
      *
      * @return how many boxes were actually drawn (the rest were distance-culled).
      */

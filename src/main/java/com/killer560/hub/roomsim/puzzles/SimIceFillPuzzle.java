@@ -240,7 +240,7 @@ public final class SimIceFillPuzzle {
      * Clears any previous arena and lays a fresh ice path anchored so {@code origin} is the first tile.
      *
      * <p>A standalone arena is the bundled route and nothing else, so there is nowhere to step wrong except
-     * backwards - which is exactly the mistake this puzzle is about. Same rules as a bound room: regular ice,
+     * backward - which is exactly the mistake this puzzle is about. Same rules as a bound room: regular ice,
      * packed once walked, and a repeat breaks that section for {@link #REGEN_TICKS} ticks.
      */
     public static void build(Minecraft client, BlockPos origin) {
@@ -393,7 +393,7 @@ public final class SimIceFillPuzzle {
         //
         // Read out of the CAPTURE rather than scanned out of the world, through the same
         // {@link SimRoomPuzzles#capturedBlocks} the other binds use, so only the room's own water is touched and
-        // nothing of a neighbour's. A waterlogged stair or fence is a different block state and is left alone -
+        // nothing of a neighbor's. A waterlogged stair or fence is a different block state and is left alone -
         // worth saying, because if any of the flooding survives that is where the rest of it is.
         int drained = 0;
         for (BlockPos pos : SimRoomPuzzles.capturedBlocks(p, Blocks.WATER)) {
@@ -674,7 +674,7 @@ public final class SimIceFillPuzzle {
     }
 
     /**
-     * How far above standing height the feet must be before an airborne tick counts towards a jump. A real jump
+     * How far above standing height the feet must be before an airborne tick counts toward a jump. A real jump
      * clears it on its first tick (0.42) and stays over it for about ten; an etherwarp landing (1.05 on the block,
      * so 0.05 over) and the tick after a teleport, when the client has not yet told the server it is grounded, do
      * not.
@@ -817,7 +817,7 @@ public final class SimIceFillPuzzle {
         Minecraft.getInstance().execute(r);
     }
 
-    /** Whether two tiles touch - the eight neighbours and one block of height, as a walked step does. */
+    /** Whether two tiles touch - the eight neighbors and one block of height, as a walked step does. */
     private static boolean touching(BlockPos a, BlockPos b) {
         return a != null && b != null
                 && Math.abs(a.getX() - b.getX()) <= 1

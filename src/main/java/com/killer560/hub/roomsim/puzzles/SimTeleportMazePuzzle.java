@@ -57,7 +57,7 @@ public final class SimTeleportMazePuzzle {
 
     private static final int CELL_COUNT = 7; // real fact - see class doc
     private static final int PADS_PER_CELL = 4; // real fact - see class doc
-    /** Invented spacing between cells - just far enough that no cell's platform touches its neighbour's. */
+    /** Invented spacing between cells - just far enough that no cell's platform touches its neighbor's. */
     private static final int CELL_SPACING = 6;
 
     /** Pad offsets within a cell, relative to that cell's own entry tile - this file's own invented layout. */
@@ -235,7 +235,7 @@ public final class SimTeleportMazePuzzle {
      * is the correct one is still drawn fresh here, exactly as {@link #build} does and for the reason that
      * class doc gives: the real game decides it per room instance and there is no table to port.
      *
-     * <p>A correct pad teleports to the CENTRE of the next chamber - the midpoint of its four corner pads -
+     * <p>A correct pad teleports to the CENTER of the next chamber - the midpoint of its four corner pads -
      * rather than onto one of its pads, because landing on a pad would be read as a choice on arrival.
      *
      * <p>Server thread only; called from {@code SimBuilder}'s post-build block.
@@ -256,7 +256,7 @@ public final class SimTeleportMazePuzzle {
         // next server tick, which on a rebuild of the same room would be inside the room just pasted. The
         // build's own wipe has already removed the last floor.
         builtBlocks = Map.of();
-        // The chamber centres, one per cell, plus the end pad as the final landing spot. Worked out from the
+        // The chamber centers, one per cell, plus the end pad as the final landing spot. Worked out from the
         // pads themselves so a room whose chambers are laid out differently still lands the player inside one.
         BlockPos[] anchors = new BlockPos[CELL_COUNT + 1];
         PAD_INDEX.clear();
@@ -276,7 +276,7 @@ public final class SimTeleportMazePuzzle {
             // cellAnchor, which every landing adds one to, is the block below the walking level. Same
             // convention build() uses, where the anchor is the floor it places and the player stands on top.
             // floorDiv, not /: the sim's grid is anchored at -185, so these world coordinates are negative and
-            // plain integer division truncates towards zero rather than down - a one-block drift in the landing
+            // plain integer division truncates toward zero rather than down - a one-block drift in the landing
             // spot that only shows up on the negative side of the map, which is all of it.
             anchors[c] = new BlockPos(Math.floorDiv(sx, PADS_PER_CELL), y - 1,
                     Math.floorDiv(sz, PADS_PER_CELL));
@@ -351,10 +351,10 @@ public final class SimTeleportMazePuzzle {
     }
 
     /**
-     * Draws a fresh pairing: the start linked to one chamber pad, one exit pad to the centre, every other pad
+     * Draws a fresh pairing: the start linked to one chamber pad, one exit pad to the center, every other pad
      * linked two-way to a pad in another chamber - laid as ONE chain through all fourteen diagonals, so the pads
-     * make a single closed loop (start, every diagonal, the centre, back beside the start) and following diagonals
-     * always reaches the centre. See {@link TeleportMazeLinks} for the structure and why.
+     * make a single closed loop (start, every diagonal, the center, back beside the start) and following diagonals
+     * always reaches the center. See {@link TeleportMazeLinks} for the structure and why.
      */
     private static void drawLinks() {
         TeleportMazeLinks.Maze maze = TeleportMazeLinks.draw(ThreadLocalRandom.current(), REAL_PADS);
@@ -372,7 +372,7 @@ public final class SimTeleportMazePuzzle {
     }
 
     /**
-     * The pads he steps on, in order, to get from the start pad to the CENTRE (the end pad), or null if there is
+     * The pads he steps on, in order, to get from the start pad to the CENTER (the end pad), or null if there is
      * no way.
      *
      * <p>killer560 (2026-10-02): "make sure one of the pads actually takes me to the middle." The chamber check
@@ -380,7 +380,7 @@ public final class SimTeleportMazePuzzle {
      * in a chamber, walk to any of its pads (free: a chamber's four pads share one floor, checked against the
      * decoded capture), step on one, land where its link says - and so it is the check that matches the
      * complaint word for word. The start pad stands alone in the entrance chamber and the end pad alone in the
-     * centre one, both read off {@code Teleport_Maze.json} at y 69.
+     * center one, both read off {@code Teleport_Maze.json} at y 69.
      */
     private static List<Integer> routeToCentre(int[] l) {
         // Search over the pad he is standing next to; the "chamber" of START is the entrance (-1 here).
@@ -438,24 +438,24 @@ public final class SimTeleportMazePuzzle {
                 chamberOf(exitPad), route.size(), sb);
     }
 
-    // ---------------------------------------------------------------- the centre: its chest and its way out
+    // ---------------------------------------------------------------- the center: its chest and its way out
 
-    /** Database-relative interior of the centre chamber (walls at x 11/19 and z 13/21, decoded from
+    /** Database-relative interior of the center chamber (walls at x 11/19 and z 13/21, decoded from
      *  Teleport_Maze.json), from its floor at 68 to four blocks of air over it. */
     private static final int[] CENTRE_REL_MIN = {12, 68, 14};
     private static final int[] CENTRE_REL_MAX = {18, 73, 20};
-    /** The reward chest, on the centre chamber's floor three blocks in from the end pad. The capture holds no
+    /** The reward chest, on the center chamber's floor three blocks in from the end pad. The capture holds no
      *  chest anywhere and the room database lists no secret for this room, so the sim places one. */
     private static final int[] REWARD_CHEST_REL = {15, 69, 17};
 
-    /** Feet block the centre's pad sends him back to; null until bound. */
+    /** Feet block the center's pad sends him back to; null until bound. */
     private static volatile BlockPos returnSpot = null;
     private static volatile BlockPos rewardChest = null;
     private static volatile BlockPos centreMin = null;
     private static volatile BlockPos centreMax = null;
     private static volatile long lastRefusalMs = 0L;
 
-    /** Where the centre's pad sends him, for Auto Teleport Maze's finish; null when no maze is bound. */
+    /** Where the center's pad sends him, for Auto Teleport Maze's finish; null when no maze is bound. */
     public static BlockPos returnSpot() {
         return returnSpot;
     }
@@ -519,7 +519,7 @@ public final class SimTeleportMazePuzzle {
     }
 
     /**
-     * Refuses the reward chest to anyone not standing in the centre chamber.
+     * Refuses the reward chest to anyone not standing in the center chamber.
      *
      * <p>killer560 (2026-10-04): "Make sure I cannot collect the chest unless I am inside the middle room in tp
      * maze." The chamber's walls are iron bars above the floor, and a click reaches through bars, so the chest
@@ -563,7 +563,7 @@ public final class SimTeleportMazePuzzle {
             return;
         }
         if (pad == END) {
-            // THE CENTRE'S PAD IS THE WAY OUT. killer560 (2026-10-04): "the teleporter at the middle by the chest
+            // THE CENTER'S PAD IS THE WAY OUT. killer560 (2026-10-04): "the teleporter at the middle by the chest
             // should take me back right to the same block I would tp to into the room". Landing on it from the
             // exit pad locks it like any other landing, so it fires once he has stepped off it and back on.
             BlockPos back = returnSpot;
@@ -673,7 +673,7 @@ public final class SimTeleportMazePuzzle {
             return;
         }
         if (boundAnchor != null) {
-            // Not stopped by completion: the centre's pad is the way back out, and it is only ever stood on
+            // Not stopped by completion: the center's pad is the way back out, and it is only ever stood on
             // after the maze is crossed.
             tickBound(client);
             return;

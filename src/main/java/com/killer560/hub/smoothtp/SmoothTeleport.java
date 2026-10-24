@@ -38,7 +38,7 @@ import java.util.Locale;
  * next position packet is matched against the oldest one still under {@link #PENDING_MS}. It must land within the
  * item's range (plus slack) and in the direction he was looking. Anything else - a lag-back, a correction, /warp, a
  * server tp, a teleport with no use behind it - cancels any glide in progress and the camera is where he is on the
- * next frame: a correction is honoured, never smoothed over. Skyblocker's default mode instead smooths ANY position
+ * next frame: a correction is honored, never smoothed over. Skyblocker's default mode instead smooths ANY position
  * packet while a teleport item is held, which would glide a lag-back too.
  *
  * <p><b>Glide.</b> At the first frame after an accepted packet the camera's offset from its vanilla position (which
@@ -217,7 +217,7 @@ public final class SmoothTeleport {
         PendingUse use = PENDING.peekFirst();
         String verdict = judge(use, move, dist);
         if (verdict != null) {
-            // Not ours: a correction, a lag-back, a warp. Honour it - no glide, and stop any glide in progress.
+            // Not ours: a correction, a lag-back, a warp. Honor it - no glide, and stop any glide in progress.
             boolean wasGliding = isGliding();
             cancel();
             snaps++;

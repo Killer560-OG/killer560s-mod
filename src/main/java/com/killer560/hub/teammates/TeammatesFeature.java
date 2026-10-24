@@ -25,11 +25,11 @@ import java.util.Map;
 import com.killer560.hub.compat.McRender;
 
 /**
- * Teammate Highlight - boxes your dungeon party in the world, coloured by their dungeon class, with optional name and
+ * Teammate Highlight - boxes your dungeon party in the world, colored by their dungeon class, with optional name and
  * distance labels.
  * <p>
  * Ported from Devonian {@code features/dungeons/HighlightTeammates.kt} (box/outline switch, "Highlight Self" option,
- * teammate-role colour, wire + fill box). Devonian's default style is vanilla's entity glow outline with a box as the
+ * teammate-role color, wire + fill box). Devonian's default style is vanilla's entity glow outline with a box as the
  * alternative; this port keeps only the box styles - the glow path in this mod is the {@code cheatutils} WitherGlow
  * mixins, which only ask {@code MobEspFeature}, and those mixins are not this feature's to edit.
  * <p>
@@ -38,8 +38,8 @@ import com.killer560.hub.compat.McRender;
  * <li><b>Who is a teammate and what class they are</b>: {@link PartyTracker#teammates()} / {@link PartyTracker#classOf}
  * (tab-list "[lvl] Name (Class XL)" parse shared with Class Colors / Leap Menu), and {@link PartyTracker#isDead} for
  * the "(DEAD)" skip.
- * <li><b>Class colours</b>: {@link DungeonClass#color()} - the same shared palette Class Colors paints nametags and
- * the tab list with, and that Live Map paints its teammate dots with. No second set of colours.
+ * <li><b>Class colors</b>: {@link DungeonClass#color()} - the same shared palette Class Colors paints nametags and
+ * the tab list with, and that Live Map paints its teammate dots with. No second set of colors.
  * <li><b>Line of sight / through walls</b>: the same {@code Level#clip} raycast and the same two no-depth pipelines
  * {@code mobesp.MobEspFeature} uses (via {@link TeammatesEspRenderer}). Line-of-sight only is legit and is the only
  * option on the legit jar; Through Walls is cheat-build only, same rule as Dungeon ESP / Wither ESP.
@@ -158,7 +158,7 @@ public final class TeammatesFeature {
         float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 selfPos = client.player.getPosition(partialTick);
         // Boxes into two reusable lists drawn with one call each, labels after them (FPS pass, 2026-10-15: a fill call,
-        // an outline call and a String.format per teammate per frame before). Same boxes, colours and text.
+        // an outline call and a String.format per teammate per frame before). Same boxes, colors and text.
         FILLS.clear();
         LINES.clear();
         int labels = 0;

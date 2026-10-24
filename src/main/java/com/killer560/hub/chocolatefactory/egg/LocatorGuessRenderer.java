@@ -20,7 +20,7 @@ import java.util.Optional;
 
 /**
  * Draws the Egglocator's guess on both builds, as SkyHanni's drawGuessLocations does: a filled waypoint on the egg's block,
- * seen through blocks, a "Guess" label, and a green line from the crosshair to the block's centre (killer560, 2026-10-19:
+ * seen through blocks, a "Guess" label, and a green line from the crosshair to the block's center (killer560, 2026-10-19:
  * "tracer lines should be drawn to my crosshair always").
  * <p>
  * The crosshair point is the camera plus 2 blocks along its forward vector, SkyHanni's exactPlayerCrosshairLocation; the
@@ -28,7 +28,7 @@ import java.util.Optional;
  * <p>
  * Far eggs (killer560: "should even if the egg is out of render distance"): the line shader applies fog
  * (26.1.2's rendertype_lines.fsh calls apply_fog with the render-distance fog), so a line end or an
- * outline past the fog turns the fog's colour and vanishes, and anything past the far plane (4 x render distance, javap
+ * outline past the fog turns the fog's color and vanishes, and anything past the far plane (4 x render distance, javap
  * Camera.update) is clipped. So when the egg is further than {@link #FOG_SAFE} of the render distance the marker is drawn at
  * that distance along the true direction, larger, and the line ends there; it points exactly at the egg either way.
  */

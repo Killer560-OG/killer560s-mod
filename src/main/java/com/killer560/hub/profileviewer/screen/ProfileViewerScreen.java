@@ -52,7 +52,7 @@ import com.killer560.hub.compat.McCompat;
  */
 public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
-    // The page colours, taken from the menu theme (or this screen's own Theme setting) by syncTheme() at the start of
+    // The page colors, taken from the menu theme (or this screen's own Theme setting) by syncTheme() at the start of
     // every frame (2026-10-13); the values here are Amber's. Not final on purpose: every page reads them.
     static int ACCENT = 0xFFCC6600;
     static int BORDER = 0xFF553311;
@@ -74,7 +74,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     /** This screen's own Theme setting (Theme Default follows the menu). */
     public static final String THEME_ID = "profileviewer";
 
-    /** The vanilla tooltip stays dark on every theme, so tooltip lines keep the old fixed colours. */
+    /** The vanilla tooltip stays dark on every theme, so tooltip lines keep the old fixed colors. */
     private static final int TIP_ACCENT = 0xFFCC6600;
     private static final int TIP_TEXT = 0xFF000000 | ModChat.TEXT;
     private static final int TIP_VALUE = 0xFF000000 | ModChat.LIGHT_ORANGE;
@@ -83,7 +83,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     private static final int TIP_MAXED = 0xFFFFAA00;
     private static final int TIP_GOOD = 0xFF55FF55;
 
-    /** Derives the menu palette and points every page colour at it. */
+    /** Derives the menu palette and points every page color at it. */
     static void syncTheme() {
         MenuStyle.use();
         ACCENT = MenuStyle.OR;
@@ -1444,7 +1444,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return this.font.lineHeight + 4 + itemRows * 18 + 2;
     }
 
-    /** One Storage Overlay panel (theme colours from the Storage Overlay's own setting): label strip, the slot-cell
+    /** One Storage Overlay panel (theme colors from the Storage Overlay's own setting): label strip, the slot-cell
      *  grid and the items, with the rarity background and a tooltip only for a slot inside {@code clipTop..clipBottom}. */
     void overlayPanel(GuiGraphicsExtractor g, int x, int y, String label, List<ItemStack> items, int mx, int my,
                       int clipTop, int clipBottom) {
@@ -1704,8 +1704,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
-    /** A tooltip line's style. Tooltips are vanilla's (dark on every theme), so a page colour is swapped back for the
-     *  fixed colour it had before the theme reached this screen. */
+    /** A tooltip line's style. Tooltips are vanilla's (dark on every theme), so a page color is swapped back for the
+     *  fixed color it had before the theme reached this screen. */
     static Style style(int argb) {
         return Style.EMPTY.withColor(TextColor.fromRgb(tipColour(argb) & 0xFFFFFF)).withItalic(false);
     }
@@ -1740,7 +1740,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         ScreenChrome.text(g, s, x, y, color);
     }
 
-    /** A styled line (a rank tag) keeps its own colours; only its unstyled parts take {@code color}. */
+    /** A styled line (a rank tag) keeps its own colors; only its unstyled parts take {@code color}. */
     static void tx(GuiGraphicsExtractor g, Component s, int x, int y, int color) {
         ScreenChrome.text(g, s.getVisualOrderText(), x, y, color);
     }

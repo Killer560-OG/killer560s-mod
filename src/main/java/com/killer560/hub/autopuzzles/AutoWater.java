@@ -45,7 +45,7 @@ final class AutoWater {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-autopuzzles");
     private static final String ROOM = "Water Board";
-    /** Measured block reach, squared - was 30.0 (5.48 blocks) to the centre. */
+    /** Measured block reach, squared - was 30.0 (5.48 blocks) to the center. */
     private static final double REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     /** AutoClearUtils' own "Water Board" room override - the doorway-side spot, not a guess. */
     private static final int[] START_SPOT_RELATIVE = com.killer560.hub.livemap.autoclear.AutoClearUtils.roomOverride(ROOM);
@@ -220,10 +220,10 @@ final class AutoWater {
                     : "opened at solver tick " + opened));
             return; // standing on its spot with the body already on the lever (prepare): it goes the tick it is due
         }
-        // To the BOX, not the centre. The limit is 4.5 to the box; measuring to the centre reads up to half
+        // To the BOX, not the center. The limit is 4.5 to the box; measuring to the center reads up to half
         // a block further, so pairing the two made this stricter than the server is and the auto
         // refused reachable blocks. Caught 2026-09-29 on Auto Water Board, which opened the water and
-        // then stalled on every other lever at a measured 5.08-5.2 to centre.
+        // then stalled on every other lever at a measured 5.08-5.2 to center.
         double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), next.pos());
         String blocker = player.isShiftKeyDown() ? "sneaking"
                 : distSq > REACH_SQ ? String.format(java.util.Locale.US, "out of reach (%.2f blocks)", Math.sqrt(distSq)) : null;
@@ -308,7 +308,7 @@ final class AutoWater {
         }
         if (reposition && !inReach(player.getEyePosition(), next.pos())) {
             // Only warp when the lever is NOT already in reach from where he stands - and then onto a spot from
-            // which it IS. QUOI's spot (15,58,z) is the board's centre line, five blocks from every side lever:
+            // which it IS. QUOI's spot (15,58,z) is the board's center line, five blocks from every side lever:
             // eye-to-box 4.52-4.54, past the 4.5 measured on Hypixel (2026-10-04 93-solve: "4.516 vs 4.5", the
             // lever at z 10 never clicked and nothing was logged). See leverSpot.
             BlockPos follow = soonAfter(next);

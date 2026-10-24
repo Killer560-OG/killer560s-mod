@@ -196,10 +196,10 @@ public final class TeleportUtils {
      *
      * <p>killer560 (2026-10-04): "sometimes it doesn't aim at the right block so it ends up off one or so."
      * QUOI's version returned the direction to the first of {@link #VISIBLE_OFFSETS} a ray could reach, and
-     * those are mostly points 0.001 from a block's EDGE - and its top-centre point sits exactly on the top face,
+     * those are mostly points 0.001 from a block's EDGE - and its top-center point sits exactly on the top face,
      * which the voxel walk files under the AIR block above, so from above it never matched and the edge points
      * were what got used. A ray grazing an edge is a coin toss: a twentieth of a block of eye height or one
-     * rounding of the float yaw puts it on the neighbour. So the aim now goes for the middle of a face first
+     * rounding of the float yaw puts it on the neighbor. So the aim now goes for the middle of a face first
      * ({@link #AIM_POINTS}), and every answer is checked by casting the REAL hop - the float yaw and pitch it
      * will be sent with, along {@link #getLook}, for exactly {@code dist} blocks - and refused unless that ray
      * lands on {@code to}. The old points remain as a last resort, under the same check.
@@ -209,7 +209,7 @@ public final class TeleportUtils {
     }
 
     /**
-     * The same, with {@code thorough == false} trying only the face-centre {@link #AIM_POINTS}: 18 rays instead
+     * The same, with {@code thorough == false} trying only the face-center {@link #AIM_POINTS}: 18 rays instead
      * of 48 for a block that turns out not to be visible, which is what most of the pairs the path smoother asks
      * about are. The edge points it skips are the fragile aims this method exists to avoid anyway.
      */
@@ -221,10 +221,10 @@ public final class TeleportUtils {
             return null;
         }
         // FIRM FIRST (path-wrongblock-1015). An aim that lands for its exact float yaw and pitch can still be a coin toss:
-        // from a stand at a block's centre, a line to a face point on the half-block lattice (0.3/0.7 of a block, the
-        // centre) often runs EXACTLY through a block's vertical edge on the way, and the voxel walk's tie-break then
+        // from a stand at a block's center, a line to a face point on the half-block lattice (0.3/0.7 of a block, the
+        // center) often runs EXACTLY through a block's vertical edge on the way, and the voxel walk's tie-break then
         // decides which of the two blocks it enters. The server reads the yaw a few float bits off (the running yaw a
-        // use carries), breaks the tie the other way, and the warp goes into the neighbour - a path hop re-aimed this way
+        // use carries), breaks the tie the other way, and the warp goes into the neighbor - a path hop re-aimed this way
         // left his 2026-10-15 22:47:07 sim run at -149, 262, -189 where -149, 261, -188 was aimed at. So an aim that
         // still lands for every look within EtherSearch.AIM_MARGIN (the planner's own rule, holds()) is taken first, over
         // the off-lattice points too; only when there is none does the first exact landing go, as before.
@@ -309,7 +309,7 @@ public final class TeleportUtils {
         return fragileAims;
     }
 
-    /** Top-face points off the half-block lattice ({@code EtherSearch.FIRM_POINTS}): lines from a block centre to them do
+    /** Top-face points off the half-block lattice ({@code EtherSearch.FIRM_POINTS}): lines from a block center to them do
      *  not run exactly through block edges, so a firm aim is usually among them when the lattice points are all fragile. */
     private static final double[][] FIRM_POINTS = {
             {0.37, 0.97, 0.61}, {0.63, 0.97, 0.39}, {0.41, 0.97, 0.43}, {0.59, 0.97, 0.57},
@@ -320,7 +320,7 @@ public final class TeleportUtils {
     /**
      * Aim points well inside a block's faces, best first: the top face (where almost every etherwarp lands from
      * above), then the four sides at mid height, then the bottom. All of them are a few hundredths INSIDE the
-     * block, so the voxel walk files them under the block itself and not under its neighbour.
+     * block, so the voxel walk files them under the block itself and not under its neighbor.
      */
     private static final double[][] AIM_POINTS = {
             {0.5, 0.97, 0.5},
@@ -683,7 +683,7 @@ public final class TeleportUtils {
      * into that rooms quadrant that I clicked. It can choose anywhere in that room whatever is fastest."
      *
      * <p>{@link #nearestEtherwarpable} was what that fell back to, and it is the wrong search for this: it is a
-     * 25-block sphere around the tile centre sorted by distance from that centre, so it can and does leave the
+     * 25-block sphere around the tile center sorted by distance from that center, so it can and does leave the
      * tile, pick a block 20 blocks up, or land on a wall - and it has no idea where the player is, so "nearest"
      * meant nearest to the middle of the room rather than nearest to him. This one stays inside the clicked
      * tile's own footprint, at that tile's own floor height, and picks the candidate closest to where he is

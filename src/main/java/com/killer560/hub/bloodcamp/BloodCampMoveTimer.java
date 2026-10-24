@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  * <pre>
  *   gap 31-34s -&gt; he moves 36s after the greeting     gap 25-28s -&gt; 30s
  *   gap 28-31s -&gt; 33s                                 gap 22-25s -&gt; 27s
- *   gap  1-22s -&gt; 24s                                 anything else -&gt; gap + 3s (Odin's generalisation)
+ *   gap  1-22s -&gt; 24s                                 anything else -&gt; gap + 3s (Odin's generalization)
  * </pre>
  * i.e. the move lands on the next 3-second boundary a couple of seconds after the last wave goes out. SkyHanni fires
  * its own "Kill Blood" title 150 ms (3 ticks) before that instant; that lead is {@link BloodCampConfig#getKillPopupLeadTicks()}
@@ -270,7 +270,7 @@ public final class BloodCampMoveTimer {
 
         @Override
         public int defaultY() {
-            // killer560, 2026-09-27: "in the top middle of the screen" (was 38% down - dead centre).
+            // killer560, 2026-09-27: "in the top middle of the screen" (was 38% down - dead center).
             return 12;
         }
 
@@ -317,8 +317,8 @@ public final class BloodCampMoveTimer {
             }
             Minecraft client = Minecraft.getInstance();
             // killer560, 2026-09-27: "with no background overlay" - the semi-transparent fill this used to
-            // draw behind the text is gone. The text itself is drawn scaled up around the box's own centre,
-            // in the OLD 76x14 coordinate space (BASE_W/BASE_H), so the same centring math as before just
+            // draw behind the text is gone. The text itself is drawn scaled up around the box's own center,
+            // in the OLD 76x14 coordinate space (BASE_W/BASE_H), so the same centering math as before just
             // ends up SCALE times bigger instead of being rewritten for the new footprint.
             HudSeen.markDrawn(id());
             graphics.pose().pushMatrix();

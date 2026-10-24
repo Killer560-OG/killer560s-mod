@@ -637,7 +637,7 @@ public final class Ap3Store {
         // Rounded to what a float actually carries, not to what reads nicely in the file.
         //
         // killer560 (2026-09-29): "my ap3 feels like the angles and stuff gets truncated whenever I close and
-        // restart the game." It did. Yaw and pitch were written to ONE decimal place, so every save quantised
+        // restart the game." It did. Yaw and pitch were written to ONE decimal place, so every save quantized
         // a node's recorded angle to the nearest tenth of a degree and the loss compounded across restarts -
         // and for a USE node, whose whole point is the angle he was looking at, that is the value itself being
         // damaged rather than a display detail. Width and length at two decimals had the same problem for

@@ -324,7 +324,7 @@ public final class EtherSearch {
      * wrapped 893.65979 back to 173.65979 where 173.65981 was planned (95-sim-map-warp, 2026-10-06), and that ray
      * caught the corner of a block 13 blocks out that the planned one cleared by a few millionths of a block. Hypixel
      * computes its look from the raw float, which loses the same bits. 0.01 degrees covers a running yaw up to about
-     * 100,000 degrees (a float's step there is 0.008) and is about a centimetre at 57 blocks.
+     * 100,000 degrees (a float's step there is 0.008) and is about a centimeter at 57 blocks.
      */
     public static final float AIM_MARGIN = 0.01f;
 
@@ -377,8 +377,8 @@ public final class EtherSearch {
     }
 
     /**
-     * More top-face points for {@link #aimFirm}, off the half-block lattice: from a stand at a block's centre, a line
-     * to another block's centre (or its quarter points) with whole-number offsets runs exactly through block corners
+     * More top-face points for {@link #aimFirm}, off the half-block lattice: from a stand at a block's center, a line
+     * to another block's center (or its quarter points) with whole-number offsets runs exactly through block corners
      * on the way - yaw 18.43495 is atan(1/3) - which is what makes an aim fragile in the first place.
      */
     private static final double[][] FIRM_POINTS = {
@@ -483,7 +483,7 @@ public final class EtherSearch {
 
     /**
      * Whether the segment from the eye to a point passes through the INSIDE of a block (shrunk by a hair, so a line
-     * that only grazes an edge or a corner - where the voxel walk might pick either neighbour - does not count). A
+     * that only grazes an edge or a corner - where the voxel walk might pick either neighbor - does not count). A
      * line through a block's inside is walked through that block, so a cast along it stops there or earlier.
      */
     static boolean segmentThroughBlock(double ex, double ey, double ez, double tx, double ty, double tz, int x, int y,
@@ -521,10 +521,10 @@ public final class EtherSearch {
     /**
      * How finely {@link #aimExact} looks at each face: a face is split into quarters this many times, so its smallest
      * cells are {@code 1 / 2^depth} of a block across (4: a sixteenth, 256 cells a face). Every cell that is not
-     * proved hidden gets its centre cast.
+     * proved hidden gets its center cast.
      */
     public int exactDepth = 4;
-    /** Points inside the face a cell's corners and centre are moved in by, so the walk enters the target block. */
+    /** Points inside the face a cell's corners and center are moved in by, so the walk enters the target block. */
     private static final double FACE_INSET = 0.004;
     // Blocks already seen to stop a line toward the block aimExact is aiming at.
     private final int[] occX = new int[64];
@@ -539,7 +539,7 @@ public final class EtherSearch {
      * visible face split into cells down to {@link #exactDepth}. A cell whose four corners are all hidden behind the
      * inside of one block already seen to stop a line is hidden as a whole (the block is convex and lies between the
      * eye and the face, so it hides every line to a point between the corners too) and is not looked into; any other
-     * cell has its centre cast, and is split further. A point counts only when the line to it reaches the block first
+     * cell has its center cast, and is split further. A point counts only when the line to it reaches the block first
      * AND the real hop - the float yaw and pitch toward it, cast the full range - lands on the block for every aim
      * within {@link #AIM_MARGIN} ({@link #holds}). Sets {@link #aimYaw}/{@link #aimPitch}.
      *

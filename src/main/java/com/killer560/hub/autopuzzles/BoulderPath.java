@@ -22,12 +22,12 @@ import java.util.function.Predicate;
  *
  * <p>Why it exists. killer560 (2026-10-06): "It seems to struggle pathfinding down the stairs right now." The old
  * walk ({@link MazeWalk}) plans on ONE feet level: it samples every column at the target's height and allows a step of
- * at most 0.6 up / 1.25 down between neighbours, so a staircase spanning five blocks is not a path at all. Auto Boulder
+ * at most 0.6 up / 1.25 down between neighbors, so a staircase spanning five blocks is not a path at all. Auto Boulder
  * worked around it by looking for a hole in the roof and dropping through it, which is the "struggle" - a walk to a
  * roof edge that timed out, a step into the air, a five-block fall. A real player takes the stairs.
  *
  * <p>The model: a node is a column (x, z) plus the block his feet are in (y), standable when the block under him (or a
- * low shape in his feet block - a slab) gives a surface and 1.8 blocks over it are clear. Neighbours are the eight
+ * low shape in his feet block - a slab) gives a surface and 1.8 blocks over it are clear. Neighbors are the eight
  * columns around, at feet y one up, level, or one/two down, joined when the step is one a player walks: up at most 0.6
  * (a slab, a stair's lower half), or onto a BOTTOM-half stair entered from its low side (one block, the way stairs are
  * climbed without jumping); down at most 1.25 (a stair, a step off a ledge). Diagonals never cut a corner and stay on
@@ -55,7 +55,7 @@ final class BoulderPath {
     /** Stand height per node, NaN when not standable. Computed lazily (NEGATIVE_INFINITY = not computed yet). */
     private final double[] stand;
 
-    /** The planned path: cell centres at stand height, start first. */
+    /** The planned path: cell centers at stand height, start first. */
     private final List<Vec3> points = new ArrayList<>();
     private BlockPos goalFeet = null;
     private int expanded = 0;

@@ -110,7 +110,7 @@ public final class TranslateFeature {
     }
 
     /**
-     * @return true if this call was handled here (the vanilla send must be cancelled), false if
+     * @return true if this call was handled here (the vanilla send must be canceled), false if
      * the caller should let the vanilla chat-send logic run as normal.
      */
     public static boolean tryIntercept(String normalizedMessage, boolean addToHistory) {

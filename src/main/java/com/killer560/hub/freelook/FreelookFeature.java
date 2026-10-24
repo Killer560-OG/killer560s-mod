@@ -10,14 +10,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 
 /**
- * Freelook (killer560, 2026-10-18: "add a custom f5 so you press f5 and it puts you in backwards f5 if the setting is on.
+ * Freelook (killer560, 2026-10-18: "add a custom f5 so you press f5 and it puts you in backward f5 if the setting is on.
  * You can have an option to hold it or to toggle it. In this f5 you can choose a button to hold and pan around you.").
  * "Freelook" is the name the mods that did this use (Freelook OG, Free Look UTI, Decent Freelook; Shoulder Check and
  * SimpleLook are the same idea).
  * <p>
  * <b>Rear view.</b> With the switch on, the game's perspective key (F5 by default) no longer cycles the three views: its
  * clicks are taken here at START_CLIENT_TICK, before vanilla's {@code Minecraft.handleKeybinds} reads them, and it goes
- * straight to the backwards view ({@link CameraType#THIRD_PERSON_FRONT}, the camera in front of him looking back) and
+ * straight to the backward view ({@link CameraType#THIRD_PERSON_FRONT}, the camera in front of him looking back) and
  * back to whatever view he had. Hold keeps it while the key is held (the {@link KeyMapping}'s own down state, so it follows
  * whatever key he bound in Controls); Toggle switches on each press.
  * <p>

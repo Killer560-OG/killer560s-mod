@@ -15,7 +15,7 @@ import net.minecraft.world.item.Items;
  * <p>
  * Skyblocker's fancy bars (read, not copied) are two nine-slice sprites, a 7-pixel back and a 5-pixel fill tinted per
  * stat, a 9-pixel icon sprite at the left, the number drawn outlined just above the bar, the overflow (absorption,
- * overflow mana) as a second tinted fill over the first, and no easing. Ours draws everything from coloured quads (so
+ * overflow mana) as a second tinted fill over the first, and no easing. Ours draws everything from colored quads (so
  * there is no texture to upload and it scales to any length and thickness the editor gives it), uses the real item for
  * the icon, and adds what Skyblocker does not have: easing, a damage "ghost" and the mod's orange rim on Bold.
  * <p>
@@ -188,7 +188,7 @@ public final class BarPainter {
         // ---- frame ----
         // Rounded corners (killer560, 2026-10-12: "make the corners slightly more rounded for the bars"): a 2-unit stepped
         // curve - the outer ring skips two units at each corner and steps in one unit diagonally - and the track's own
-        // corner unit is painted back in the frame colour after the fill, so no square fill corner shows through.
+        // corner unit is painted back in the frame color after the fill, so no square fill corner shows through.
         int outer = bold ? 0xFF000000 : 0xF0141010;
         // The mod's orange, darkened so the fill stays the brightest thing on the bar.
         int rim = 0xFFB85C0A;
@@ -201,7 +201,7 @@ public final class BarPainter {
         if (iw > 0 && ih > 0) {
             // ---- empty track ----
             q.fill(ix0, iy0, ix1, iy1, cfg.getBarBackground());
-            // ---- ghost: where the bar was before the hit, draining towards the value ----
+            // ---- ghost: where the bar was before the hit, draining toward the value ----
             if (ghostEnd > filled) {
                 q.fill(ix0 + filled, iy0, ix0 + ghostEnd, iy1, ghostColor(color));
             }
@@ -266,7 +266,7 @@ public final class BarPainter {
     /**
      * Units the icon takes at the box's left (its square plus {@link #ICON_GAP}), 0 when icons are off or there is no
      * room. A bar long enough (the track keeps at least 2h + 18) gets an icon as tall as the bar; a shorter one gets the
-     * {@link #SMALL_ICON}, centred on the bar, as long as {@link #MIN_TRACK} units of track are left - his 50-unit
+     * {@link #SMALL_ICON}, centered on the bar, as long as {@link #MIN_TRACK} units of track are left - his 50-unit
      * Vitality Bar beside the hotbar had no icon at all under the old one rule (killer560, 2026-10-13: "the vitality
      * symbol still doesn't show"). A bar under 6 thick has none.
      */
@@ -355,7 +355,7 @@ public final class BarPainter {
      *  needed. It replaces the glistering melon, which read as health. */
     static final String VITALITY_GLYPH = "♨";
     /** The ♨'s ink at text size, measured on a screenshot (testkit 899, 2026-10-13): about 4 units wide and 6 tall inside
-     *  Unifont's 8-unit cell, its centre about 1.2 units left of the cell's. Sized and centred by its ink, not the cell -
+     *  Unifont's 8-unit cell, its center about 1.2 units left of the cell's. Sized and centered by its ink, not the cell -
      *  by the cell it filled half the icon square. */
     private static final float GLYPH_ROWS = 6f;
     private static final float GLYPH_NUDGE_X = 1.2f;

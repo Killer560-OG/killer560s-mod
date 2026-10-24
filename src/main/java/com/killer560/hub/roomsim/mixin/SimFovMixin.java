@@ -15,12 +15,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *
  * <p>{@code /speed} writes the player's {@code MOVEMENT_SPEED} attribute, and vanilla's
  * {@code getFieldOfViewModifier} widens the view in proportion to how far that attribute sits above its
- * base. At the speeds he practises at that is a permanent fisheye, and it is not something Hypixel does to
+ * base. At the speeds he practices at that is a permanent fisheye, and it is not something Hypixel does to
  * him - his real speed comes from gear, which vanilla's FOV code never sees.
  *
  * <p>Done here rather than by writing {@code fovEffectScale}: that is one of HIS vanilla options, saved to
  * {@code options.txt} at shutdown, so turning it off for the sim would quietly turn it off for every world
- * he plays afterwards. This touches nothing outside the sim.
+ * he plays afterward. This touches nothing outside the sim.
  *
  * <p>It removes the movement FOV change entirely while the sim is active, sprint included, rather than
  * subtracting only the part {@code /speed} contributed. A fixed view is the point - a practice run where the

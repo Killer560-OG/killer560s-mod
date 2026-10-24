@@ -100,7 +100,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     /**
-     * What the Dungeon Sim button and /map open: the map designer the first time this game session, afterwards the page
+     * What the Dungeon Sim button and /map open: the map designer the first time this game session, afterward the page
      * he was on last (killer560, 2026-10-15).
      */
     public static Screen open(Screen parent) {
@@ -701,9 +701,9 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         // The menu theme (screen sweep, 2026-10-13): the menu's panel and header bar, lists in a recessed well with
-        // hover / selected rows, every colour from the active theme.
+        // hover / selected rows, every color from the active theme.
         // The menu theme (screen sweep, 2026-10-13): the menu's panel and header bar, lists in a recessed well with
-        // hover / selected rows, every colour from the active theme. No page name at the right of the bar any more
+        // hover / selected rows, every color from the active theme. No page name at the right of the bar any more
         // (killer560, 2026-10-15): the lit entry in the left column already says which page this is.
         themedBounds = new int[]{panelX, panelY, panelW, panelH};
         nav.drawFrame(g, this.width, this.height);
@@ -795,7 +795,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    /** A kind's colour in the list: the dungeon map's room colours, made readable on the theme. */
+    /** A kind's color in the list: the dungeon map's room colors, made readable on the theme. */
     private static int kindColour(String kind) {
         return switch (kind) {
             case "PUZZLE" -> ScreenChrome.readable(0xFFB67FE8);

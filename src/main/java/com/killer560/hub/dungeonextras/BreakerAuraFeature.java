@@ -44,7 +44,7 @@ import com.killer560.hub.compat.McCompat;
  * broken: the automatic path sweep, Side Reach and the "Only Picked Blocks" switch were removed 2026-10-05
  * (killer560: "the aura shouldn't randomly grab blocks, only ones I have selected").
  * <p>
- * Sources: QUOI {@code DungeonBreaker.kt} auto-db tick loop (charges cap per cycle, eye-to-centre reach, skip
+ * Sources: QUOI {@code DungeonBreaker.kt} auto-db tick loop (charges cap per cycle, eye-to-center reach, skip
  * recently-attempted positions) and {@code AuraManager.breakBlock(immediate = true)} (one
  * {@code START_DESTROY_BLOCK} sent through {@code MultiPlayerGameMode#startPrediction} + main-hand swing, 6-tick
  * cooldown); QUOI {@code VecUtils.getHitResult} for the face; target validity = QUOI
@@ -325,7 +325,7 @@ public final class BreakerAuraFeature {
      * be broken... if i press the keybind on a selected block then it unbinds it."
      * <p>
      * Polled before every other gate in {@link #onClientTick} so picking works with the aura switched off - you
-     * choose the wall first and turn it on afterwards - and unbound by default like every other key in this mod.
+     * choose the wall first and turn it on afterward - and unbound by default like every other key in this mod.
      * It does nothing while a screen is open, so typing cannot mark blocks.
      */
     private static void tickSelectKey(Minecraft client) {
@@ -578,16 +578,16 @@ public final class BreakerAuraFeature {
 
     /**
      * Squared distance from the eye to the NEAREST POINT OF THE BLOCK, which is what the server measures a break
-     * against - not the distance to the block's centre, which is what this used to ask for.
+     * against - not the distance to the block's center, which is what this used to ask for.
      * <p>
      * killer560 (2026-09-23): "It is still struggling to break blocks as i run into them. I shouldnt be outmoving
      * them but I dont know." He was not outmoving them; they were being called out of range while the server would
-     * have allowed them. A centre is up to half a block further away on each axis, so the error grows with every
+     * have allowed them. A center is up to half a block further away on each axis, so the error grows with every
      * axis he is offset on - and a wall he runs at is offset on all three, because he is beside it, below it and
      * approaching it at once.
      * <p>
      * Measured on his own picks (the ten-block wall at x 53-56, y 132-133, z 142) walking in along -z at x 54.5
-     * with his feet at y 131: standing four blocks out, the centre test finds 2 of the 10 in reach and this one
+     * with his feet at y 131: standing four blocks out, the center test finds 2 of the 10 in reach and this one
      * finds all 10. That is the whole wall available on the tick he arrives instead of two blocks of it.
      */
     private static double eyeToBlockSq(Vec3 eye, BlockPos pos) {
@@ -1131,7 +1131,7 @@ public final class BreakerAuraFeature {
         return state.getDestroySpeed(level, pos) >= 0f;
     }
 
-    /** QUOI {@code BlockPos.getHitResult}: clip the block's own outline shape from the eyes through its centre. */
+    /** QUOI {@code BlockPos.getHitResult}: clip the block's own outline shape from the eyes through its center. */
     private static BlockHitResult hitResult(LocalPlayer player, ClientLevel level, BlockPos pos) {
         VoxelShape shape = level.getBlockState(pos).getShape(level, pos);
         if (shape.isEmpty()) {

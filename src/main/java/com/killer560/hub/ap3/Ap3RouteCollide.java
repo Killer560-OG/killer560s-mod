@@ -7,7 +7,7 @@ import java.util.List;
  * Vanilla's collision, transcribed rather than approximated: the player's box is swept against the real block
  * shapes one axis at a time, and a blocked move is retried at every step height the geometry offers.
  * <p>
- * The route optimiser used to resolve the ground by sampling floor heights along a tick's travel. That reads a
+ * The route optimizer used to resolve the ground by sampling floor heights along a tick's travel. That reads a
  * staircase correctly but it is not what the game does, and on stairs the two came apart: the plan expected 1.35
  * blocks of climb where the game managed 0.94, and the route stalled halfway up (killer560's logs, 2026-09-22).
  * This class removes the guess. No Minecraft types on purpose - the offline harness runs this exact code.
@@ -21,7 +21,7 @@ import java.util.List;
  * travel than the blocked move did. There is no drop back down: you are left standing at that height and gravity
  * does the rest next tick.
  *
- * <h2>What is deliberately not modelled</h2>
+ * <h2>What is deliberately not modeled</h2>
  * {@code Player.maybeBackOffFromEdge} (a sneaking player refusing to walk off a ledge) and
  * {@code Entity.getBlockSpeedFactor} (soul sand / honey). Neither is on a dungeon floor, and both are additions to
  * this, not corrections of it.
@@ -41,7 +41,7 @@ final class Ap3RouteCollide {
     private static final double EPSILON = 1.0E-7;
     /** {@code Mth.equal}: how far two doubles may differ and still count as the same - what decides a wall hit. */
     private static final double MTH_EPSILON = 1.0E-5;
-    /** {@code Entity.collide}: the sliver the step-up search box is grown downwards by when you did not just land. */
+    /** {@code Entity.collide}: the sliver the step-up search box is grown downward by when you did not just land. */
     private static final double STEP_SEARCH_SLIVER = 9.999999747378752E-6;
 
     // ---- boxes ---------------------------------------------------------------------------------------------------
@@ -470,7 +470,7 @@ final class Ap3RouteCollide {
         boolean hitX, hitZ;
         /** {@code movement.y != vec3.y}: something stopped the vertical move (a floor, a ceiling, or a step up). */
         boolean hitY;
-        /** {@code verticalCollisionBelow}: the vertical move was downwards and got stopped - i.e. you are standing. */
+        /** {@code verticalCollisionBelow}: the vertical move was downward and got stopped - i.e. you are standing. */
         boolean onGround;
     }
 
@@ -546,7 +546,7 @@ final class Ap3RouteCollide {
     }
 
     /**
-     * {@code collectColliders} over {@code box.expandTowards(move)}, grown downwards by a sliver and upwards by
+     * {@code collectColliders} over {@code box.expandTowards(move)}, grown downward by a sliver and upward by
      * {@code extraUp} so ONE gather serves both the plain move and the step-up probe.
      * <p>
      * {@code extraUp} must be added to the move's own reach, not substituted for it: folding it in as

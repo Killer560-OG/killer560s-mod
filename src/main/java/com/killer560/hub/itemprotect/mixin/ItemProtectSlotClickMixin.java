@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Item Protection's container guard. {@code AbstractContainerScreen#slotClicked(Slot, int, int,
  * ContainerInput)} is the single funnel every CLIENT-initiated container interaction goes through before
  * the packet is built - a plain click, shift-click, number-key swap, middle-click clone, Q-throw over a
- * slot, an outside click that drops the carried stack, and each step of a quick-craft drag. Cancelling at
+ * slot, an outside click that drops the carried stack, and each step of a quick-craft drag. Canceling at
  * HEAD means no packet is ever sent, so the client and server never disagree about where an item is.
  * <p>
  * Nothing the server does passes through here, so this can't silently swallow a server-side move - the

@@ -34,7 +34,7 @@ import java.util.Set;
  * fields), and turns them into {@link #pendingSlotMigration} - the slot indices whose items still have to be looked
  * at. {@link ItemProtectFeature} carries each locked slot's item over by its Skyblock UUID the first time the
  * inventory is readable, then clears the list. Lock In Place is switched on with it, so a migrated item keeps the
- * "cannot be moved at all" behaviour its slot had.
+ * "cannot be moved at all" behavior its slot had.
  */
 public final class ItemProtectConfig {
 
@@ -45,7 +45,7 @@ public final class ItemProtectConfig {
     /** Player {@code Inventory} container slots: 0-8 hotbar, 9-35 main, 36-39 armor, 40 offhand. */
     public static final int INVENTORY_SLOTS = 41;
 
-    /** Default star colour: gold, the colour a "protected" star reads as at a glance. */
+    /** Default star color: gold, the color a "protected" star reads as at a glance. */
     public static final int DEFAULT_STAR_COLOR = 0xFFFFAA00;
 
     /** Mouse buttons are stored as {@code MOUSE_CODE_BASE - button} (left -100, right -101, middle -102, ...)
@@ -63,7 +63,7 @@ public final class ItemProtectConfig {
     private boolean protectItemEnabled = false;
     private int protectKey = KeyUtil.NONE;
     private boolean useItemIdFallback = false;
-    /** Colour of the small star drawn in the top-right corner of every protected item's slot. */
+    /** Color of the small star drawn in the top-right corner of every protected item's slot. */
     private int protectedColor = DEFAULT_STAR_COLOR;
     /** What Slot Lock used to do, per item instead of per slot: a protected item cannot be clicked at all - not
      *  picked up, shift-moved, number-key swapped or thrown - in any menu, your own inventory included. */
@@ -312,7 +312,7 @@ public final class ItemProtectConfig {
         this.useItemIdFallback = value;
     }
 
-    /** The star colour (the key keeps its old name, {@code protectedColor}, so a saved colour carries over). */
+    /** The star color (the key keeps its old name, {@code protectedColor}, so a saved color carries over). */
     public int getProtectedColor() {
         return protectedColor;
     }

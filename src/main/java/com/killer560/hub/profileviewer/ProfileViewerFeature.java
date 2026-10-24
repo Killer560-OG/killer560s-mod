@@ -23,7 +23,7 @@ import java.util.UUID;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * SkyBlock Profile Viewer - {@code /pv [name]} (and {@code /killer560pv [name]}), modelled on
+ * SkyBlock Profile Viewer - {@code /pv [name]} (and {@code /killer560pv [name]}), modeled on
  * NotEnoughUpdates' old 1.8.9 {@code /pv} GUI and today's SkyBlock Profile Viewer mod (meowdding/skyblock-pv).
  * No name = yourself. Read-only: it only fetches public API data and shows it; never interacts with the
  * server. Not gated - works anywhere a client command does.

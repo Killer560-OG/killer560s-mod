@@ -102,7 +102,7 @@ public final class AutoCroesusFeature {
      *  in effect), so Start ETable's base size simply follows Croesus's from here on. */
     private static final int START_BUTTON_WIDTH = 110;
     private static final int START_BUTTON_HEIGHT = 20;
-    // Same palette as the Start ETable button, which reuses SettingsButtonWidget's own colours.
+    // Same palette as the Start ETable button, which reuses SettingsButtonWidget's own colors.
     private static final int START_BUTTON_BG = 0xFF1A1A1A;
     private static final int START_BUTTON_BORDER = 0xFFCC6600;
     private static final int START_BUTTON_BORDER_RUNNING = 0xFFFF5555;

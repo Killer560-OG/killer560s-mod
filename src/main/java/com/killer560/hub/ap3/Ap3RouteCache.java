@@ -38,7 +38,7 @@ final class Ap3RouteCache {
     /** How far from where a cached plan was planned he may start and still be given it. */
     /**
      * Measured against his own misses: the log showed saved plans sitting 1.00, 1.27 and 1.38 blocks from where he
-     * stepped on, all refused at 0.75. A schedule from a metre away is not perfect - the drift check will correct
+     * stepped on, all refused at 0.75. A schedule from a meter away is not perfect - the drift check will correct
      * it within a few ticks - but it is a great deal better than searching from scratch, and with several
      * approaches kept per route the near ones win anyway.
      */

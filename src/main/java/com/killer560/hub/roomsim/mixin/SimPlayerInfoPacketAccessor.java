@@ -13,7 +13,7 @@ import java.util.List;
  * <p>Every public constructor of {@link ClientboundPlayerInfoUpdatePacket} takes {@code ServerPlayer}s (javap,
  * 26.1.2 and 26.2 alike); the entry list is a private final field. Hypixel's tab list is eighty fake profiles
  * with display names, and the only way to send those from the integrated server is to build the packet with
- * no players and put the entries in afterwards. {@code SimTabList} is the only user.
+ * no players and put the entries in afterward. {@code SimTabList} is the only user.
  */
 @Mixin(ClientboundPlayerInfoUpdatePacket.class)
 public interface SimPlayerInfoPacketAccessor {

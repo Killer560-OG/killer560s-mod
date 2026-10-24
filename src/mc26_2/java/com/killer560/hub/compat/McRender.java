@@ -32,7 +32,7 @@ import org.joml.Vector3fc;
  * {@code MultiBufferSource} does not exist in 26.2 at all - zero occurrences in the jar - and
  * {@code LevelRenderer.render} now works through a frame graph and render-state objects instead of handing
  * out vertex buffers. But {@code OrderedSubmitNodeCollector.submitCustomGeometry} takes a callback that
- * receives a {@code VertexConsumer}, so the mod's own vertex maths is untouched and only the way it gets hold
+ * receives a {@code VertexConsumer}, so the mod's own vertex math is untouched and only the way it gets hold
  * of a consumer differs. {@code RenderType} and {@code RenderTypes} sit at the same package in both versions,
  * so the signatures here are genuinely identical rather than merely similar.
  *
@@ -97,9 +97,9 @@ public final class McRender {
      *
      * <p>The render state does NOT carry this one, so it is rebuilt the way {@code Camera} builds it:
      * {@code Camera.setRotation} does {@code FORWARDS.rotate(rotation, forwards)} with the class's private
-     * {@code FORWARDS} constant, which the static initialiser sets to {@code (0, 0, -1)} - both facts read off
+     * {@code FORWARDS} constant, which the static initializer sets to {@code (0, 0, -1)} - both facts read off
      * {@code javap -c} on 26.2's own {@code Camera}, not assumed from the 26.1.2 source. Minus Z, not plus:
-     * getting that sign wrong would have compiled and pointed every tracer backwards.
+     * getting that sign wrong would have compiled and pointed every tracer backward.
      *
      * <p>A fresh vector each call, because {@code rotate} writes into its destination and the camera's own
      * {@code forwards} field is not reachable here.
@@ -133,7 +133,7 @@ public final class McRender {
         poseStack.pushPose();
         poseStack.translate(-cam.x, -cam.y, -cam.z);
         // order(0) is the default ordering bucket. submitCustomGeometry captures the pose at submit time and
-        // hands it back to the callback, so popping immediately afterwards is correct even though the frame
+        // hands it back to the callback, so popping immediately afterward is correct even though the frame
         // graph runs the callback later.
         context.submitNodeCollector().order(0).submitCustomGeometry(poseStack, type, geometry::draw);
         poseStack.popPose();
@@ -145,7 +145,7 @@ public final class McRender {
      * is NOT a guess: {@code submitText} takes four trailing ints where {@code drawInBatch} took three, and the
      * order was read off the components of {@code TextFeatureRenderer.Submit}, the record it builds -
      * {@code lightCoords, color, backgroundColor, outlineColor}. Getting that wrong would have compiled and
-     * drawn text in the wrong colour.
+     * drawn text in the wrong color.
      *
      * <p>{@code font} is unused here - 26.2 needs only the sequence - but stays in the signature so both
      * versions' copies match, which is the rule for this package.
@@ -220,7 +220,7 @@ public final class McRender {
     }
 
     /**
-     * An off-screen colour target the size of the window, in the same format as the main one.
+     * An off-screen color target the size of the window, in the same format as the main one.
      *
      * <p>26.2's {@code TextureTarget} constructor gained a {@code GpuFormat}. {@code RGBA8_UNORM} is not a guess:
      * it is what {@code MainTarget}'s own constructor passes up to {@code RenderTarget}, read off its bytecode -
@@ -232,7 +232,7 @@ public final class McRender {
     }
 
     /**
-     * Clears a colour texture to transparent black - the {@code 0} that 26.1.2's {@code clearColorTexture} took
+     * Clears a color texture to transparent black - the {@code 0} that 26.1.2's {@code clearColorTexture} took
      * as a packed ARGB int, which 26.2 takes as a {@code Vector4fc}.
      */
     public static void clearToZero(GpuTexture texture) {

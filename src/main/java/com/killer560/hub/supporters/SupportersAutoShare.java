@@ -14,7 +14,7 @@ import java.util.function.Consumer;
  * cosmetics should be shared with others automatically." Before this, sharing your name/scale to the relay
  * needed a manual Save press in the old Supporters tab's own editor ({@link SupportersSelfService}, still
  * used here completely unchanged) - this class is what calls it FOR you, from {@code
- * com.killer560.hub.gui.tab.CosmeticsTab}, whenever its own name/colour/scale fields actually changed since
+ * com.killer560.hub.gui.tab.CosmeticsTab}, whenever its own name/color/scale fields actually changed since
  * the last successful push.
  * <p>
  * Throttled to at most once every {@link #MIN_PUSH_GAP_MS}: the relay's own self-service endpoint already
@@ -24,10 +24,10 @@ import java.util.function.Consumer;
  * the tab), so it always converges to whatever the fields currently say once the player stops changing them.
  * <p>
  * Never sends an over-length name to the relay: {@link SupporterNameValidator}'s own rules (max 32 visible
- * characters, only the 16 legacy {@code &0-9a-fk-or} colour codes) are checked here BEFORE ever calling {@link
- * SupportersSelfService#save}. The name itself carries the nearest legacy {@code &} colour (the fade's FROM colour),
- * which is what a client older than 2026-10-11 shows; a fade or letter colours go alongside it as the relay's
- * {@code colors} list, one true colour per visible letter, which newer clients paint exactly as you see it.
+ * characters, only the 16 legacy {@code &0-9a-fk-or} color codes) are checked here BEFORE ever calling {@link
+ * SupportersSelfService#save}. The name itself carries the nearest legacy {@code &} color (the fade's FROM color),
+ * which is what a client older than 2026-10-11 shows; a fade or letter colors go alongside it as the relay's
+ * {@code colors} list, one true color per visible letter, which newer clients paint exactly as you see it.
  * <p>
  * Your Ribbon Trail goes along as the relay's {@code trail} while "Share Ribbon Trail" and the Ribbon Trail itself are on
  * (killer560, 2026-10-13: "it can only be shared by a supporter"; 2026-10-14: only the ribbon, never the squares Trail) -
@@ -59,11 +59,11 @@ public final class SupportersAutoShare {
     /**
      * @param plainName   the Cosmetics tab's own display name, plain text (no {@code &}/{@code §} codes) -
      *                    same text {@link NameColor#buildFade} would use as its base.
-     * @param argb        the picked colour (the fade's FROM colour when fading - see class doc), or {@link
+     * @param argb        the picked color (the fade's FROM color when fading - see class doc), or {@link
      *                    NameColor#NONE}.
      * @param whitelisted must already be confirmed true by a fresh {@code GET /supporters/me} - this method
      *                    never triggers that check itself.
-     * @param colors      your name's colour per visible letter ({@code NameChangerFeature.ownShareColours}), or null. Sent
+     * @param colors      your name's color per visible letter ({@code NameChangerFeature.ownShareColours}), or null. Sent
      *                    only when it has exactly one entry per visible letter of the shared name; otherwise the name goes alone.
      * @param animation   your name's Wave/Pulse ({@code NameChangerFeature.ownShareAnimation}), or null; sent only with
      *                    {@code colors}.
@@ -227,7 +227,7 @@ public final class SupportersAutoShare {
         return com.killer560.hub.mobskin.MobSkins.isPet(id) ? null : id;
     }
 
-    /** Pushes the current name, colours, animation, size, trail and mob from the settings (no-op unless linked and Share
+    /** Pushes the current name, colors, animation, size, trail and mob from the settings (no-op unless linked and Share
      *  if Supporter is on, or when nothing changed since the last push). */
     public static void shareCurrent(Consumer<String> onError) {
         SupportersConfig cfg = SupportersConfig.getInstance();

@@ -199,7 +199,7 @@ public final class Ap3TrapWalk {
      * onto {@code to} (feet, real coordinates) within the Align Tolerance, at rest, held the settle ticks. {@code halfX} /
      * {@code halfZ} are the node's W x L box in real axes, which is where an align that times out at rest still counts as
      * arrived, as in a walk. Refused at once - as AP3 fails an align - when he stands further than
-     * {@code ALIGN_REACH + W/2 + L/2} from the point. A correction is honoured and the align carries on
+     * {@code ALIGN_REACH + W/2 + L/2} from the point. A correction is honored and the align carries on
      * ({@link #onCorrection}).
      */
     public static void beginAlign(Minecraft client, LocalPlayer player, Vec3 to, double halfX, double halfZ, String what) {

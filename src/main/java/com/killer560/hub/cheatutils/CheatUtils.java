@@ -111,7 +111,7 @@ public final class CheatUtils {
      *
      * <p>Only ever localhost, and only in a DEV build. It is deliberately not a setting: nothing a normal user
      * runs should be able to convince this mod that an arbitrary server is Hypixel, and the gametest harness
-     * already has its own way of labelling the address it dials.
+     * already has its own way of labeling the address it dials.
      */
     private static boolean localTestServerOverride(String ip) {
         if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {

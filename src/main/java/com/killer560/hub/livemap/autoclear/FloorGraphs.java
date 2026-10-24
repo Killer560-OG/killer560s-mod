@@ -8,12 +8,12 @@ import java.util.function.Supplier;
  * The floor's two etherwarp graphs and which one a click is planned on.
  *
  * <p><b>Why two.</b> The full graph ({@link WarpGraph}, every landing thinned to one per 2x2 columns, every doorway
- * and tile centre line kept whole) takes about five seconds of warm-up on six threads before a click can use it, and
+ * and tile center line kept whole) takes about five seconds of warm-up on six threads before a click can use it, and
  * a click before that had 40 ms on it and then the room-by-room planner: about 14 warps where the warm graph takes 9
  * (tools/bench/FloorBench -Dearly). It cannot simply search harder: until it is warm every node its search closes
  * needs about 1.5 ms of rays, and a near-fewest search closes thousands of them even with a heuristic that follows the
  * doors (docs/SIM.md, "A click during the first warm-up"). So a second, QUICK graph of the same floor - coarser
- * buckets, the doorways' own centre lines kept whole, no partial-occlusion aims - is warmed FIRST: about a tenth of
+ * buckets, the doorways' own center lines kept whole, no partial-occlusion aims - is warmed FIRST: about a tenth of
  * the rays, warm in about half a second, and from then on a click gets a complete fewest-warp answer on it in a
  * millisecond or two. Its paths are verified hop by hop exactly as the full graph's are; they only take a warp or so
  * more, because it has fewer landings to choose from. Once the full graph is warm, clicks use it alone.

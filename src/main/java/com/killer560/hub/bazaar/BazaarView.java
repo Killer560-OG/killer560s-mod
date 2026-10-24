@@ -1134,7 +1134,7 @@ public final class BazaarView {
     /**
      * His click on a product (list, recents): open it on Hypixel. A product row on the open menu is clicked (one
      * click); with a Booster Cookie (or from the menu-less screen) {@code /bz <name>} is sent and the follow-up armed;
-     * at the NPC without a Cookie the one menu click that leads towards it is made, and the next click goes on.
+     * at the NPC without a Cookie the one menu click that leads toward it is made, and the next click goes on.
      */
     static void openProduct(String productId) {
         if (productId == null) {
@@ -1164,7 +1164,7 @@ public final class BazaarView {
             say("Opening " + name + " on Hypixel...");
             return;
         }
-        // At the NPC without a Booster Cookie: one menu click per click of his, each a step towards the product.
+        // At the NPC without a Booster Cookie: one menu click per click of his, each a step toward the product.
         BazaarProduct p = BazaarFormat.byId(productId);
         BazaarPages.Page page = st.page;
         if (page.kind() == BazaarPages.Kind.CATEGORY && p != null) {
@@ -1449,7 +1449,7 @@ public final class BazaarView {
         g.itemDecorations(font, stack, x + 4, y + 4);
         contentItems++;
         componentText(true, "card", fitComponent(stack.getHoverName(), w - 28), x + 24, y + 8);
-        // The lore Hypixel sent, in its own colours, wrapped to the card; what does not fit is in the tooltip.
+        // The lore Hypixel sent, in its own colors, wrapped to the card; what does not fit is in the tooltip.
         int ly = y + 24;
         int bottom = y + h - 3;
         ItemLore lore = stack.get(DataComponents.LORE);

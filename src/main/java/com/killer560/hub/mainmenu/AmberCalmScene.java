@@ -27,7 +27,7 @@ final class AmberCalmScene {
         int deep = MenuStyle.mix(accent, BLACK, 0.45f);
         double breathe = 0.82 + 0.18 * Math.sin(t * 0.35);
 
-        // The warm floor of light: one wide gradient, and a soft glow centred low that drifts a little side to side.
+        // The warm floor of light: one wide gradient, and a soft glow centered low that drifts a little side to side.
         int floorTop = h - Math.max(1, (int) (h * 0.45));
         r.gradient(0, floorTop, w, h, MenuStyle.alpha(deep, 0), MenuStyle.alpha(deep, (int) (0x70 * breathe)));
         int glowCx = w / 2 + (int) Math.round(Math.sin(t * 0.07) * w * 0.08);
@@ -87,9 +87,9 @@ final class AmberCalmScene {
         }
     }
 
-    /** A soft elliptical glow as {@code cols} vertical gradient columns: each fades from the centre line out to the
+    /** A soft elliptical glow as {@code cols} vertical gradient columns: each fades from the center line out to the
      *  ellipse's edge, and the columns dim toward the sides, so there are no horizontal bands to see. Two rectangles per
-     *  column (one when the centre is off the bottom of the screen). */
+     *  column (one when the center is off the bottom of the screen). */
     private static void softGlow(GuiRects r, int cx, int cy, double rx, double ry, int rgb, int maxAlpha, int cols, int h) {
         if (rx < 1 || ry < 1 || maxAlpha <= 0) {
             return;

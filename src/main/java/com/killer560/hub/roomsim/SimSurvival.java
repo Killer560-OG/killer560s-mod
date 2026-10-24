@@ -12,7 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * The parts of survival mode that get in the way of practising, taken back out.
+ * The parts of survival mode that get in the way of practicing, taken back out.
  *
  * <p>killer560 (2026-09-28): "make it so i dont take fall damage. also let me do /fly to fly. If i ever die i
  * shouldd be teleported back to the middle of the room."
@@ -23,8 +23,8 @@ import net.minecraft.server.level.ServerPlayer;
  * on Hypixel is part of a route; dying to it in a practice room just means walking back.
  *
  * <p>So: fall damage off, flight on demand rather than always, and death turned into a trip back to the middle
- * of the room instead of a respawn screen. Cancelling the death rather than letting it happen and respawning
- * afterwards keeps the run's own state intact - a respawn would move him to the world spawn, hundreds of
+ * of the room instead of a respawn screen. Canceling the death rather than letting it happen and respawning
+ * afterward keeps the run's own state intact - a respawn would move him to the world spawn, hundreds of
  * blocks from the room, which is the exact problem the snap-to-room fix existed to solve.
  */
 public final class SimSurvival {
@@ -68,7 +68,7 @@ public final class SimSurvival {
                     sp.clearFire();
                 }
                 // The sim runs on EASY now (SimWorld), where hunger drains; PEACEFUL used to refill it. A route
-                // practised for half an hour must not lose sprint to an empty food bar.
+                // practiced for half an hour must not lose sprint to an empty food bar.
                 if (sp.getFoodData().getFoodLevel() < 20) {
                     sp.getFoodData().eat(20, 1.0f);
                 }

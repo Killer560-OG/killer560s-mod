@@ -187,7 +187,7 @@ public class CroesusTrackerScreen extends Screen implements MenuThemedScreen {
         return floors;
     }
 
-    /** The totals behind the three cards, honouring both switches. */
+    /** The totals behind the three cards, honoring both switches. */
     private CroesusProfitLog.Totals selectedTotals() {
         Map<String, CroesusProfitLog.Totals> map =
                 sessionOnly ? CroesusProfitLog.session() : CroesusProfitLog.allTime();

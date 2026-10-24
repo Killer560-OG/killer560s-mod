@@ -28,10 +28,10 @@ public final class TerminalAuraConfig {
      *
      * <p><b>The top of this slider is past what was measured to be safe, and that is worth knowing before
      * using it.</b> {@link #SAFE_RANGE} is 3.0, measured on his own harness against a live GrimAC on
-     * 2026-09-28: interacting with an armour stand at 3.26 blocks and beyond drew a {@code Reach} violation
-     * naming the distance, 2.18 and closer drew nothing. A terminal IS an armour stand, so that is the limit
+     * 2026-09-28: interacting with an armor stand at 3.26 blocks and beyond drew a {@code Reach} violation
+     * naming the distance, 2.18 and closer drew nothing. A terminal IS an armor stand, so that is the limit
      * that applies here - the 4.5 figure is the BLOCK interaction limit, which is a different and looser one.
-     * The cap used to be 3.0 for exactly this reason. It is 4.5 now because he asked for it; the tab colours
+     * The cap used to be 3.0 for exactly this reason. It is 4.5 now because he asked for it; the tab colors
      * anything past 3.0 so the choice is visible where it is made rather than only in this comment.
      */
     public static final double MIN_RANGE = 0.5;
@@ -164,7 +164,7 @@ public final class TerminalAuraConfig {
      * <p>killer560 (2026-10-01): "add an option to not have term aura work whenever you are moving by moving,
      * I mean, holding any movement key at all whatsoever, not necessarily having velocity." So the test is the
      * KEY, not the velocity - see {@code TerminalAuraFeature.movementKeyHeld}. Ships off, so turning it on is
-     * his choice rather than a behaviour change he did not ask for on the next build.
+     * his choice rather than a behavior change he did not ask for on the next build.
      */
     public boolean isPauseOnMovementKeys() {
         return pauseOnMovementKeys;

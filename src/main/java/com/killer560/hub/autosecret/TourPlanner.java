@@ -12,7 +12,7 @@ import java.util.List;
  * etherwarping across a map for 2 secrets is less optimal than doing 2 1 secret rooms taking 5 ticks each." Taking the
  * room with the most secrets first, or the best secrets-per-second next, looks one room ahead and crosses the floor for a
  * small room whenever it is the biggest left. This looks at the whole order: every room has a value {@code w} (its
- * secrets, or Dungeon Autopilot's score) and is worth it by the tick it is done, so the order minimises
+ * secrets, or Dungeon Autopilot's score) and is worth it by the tick it is done, so the order minimizes
  * {@code sum(w_i * done_i)} - the value-weighted time every room is waiting for. With no travel at all that is exactly
  * "best value per tick first" (Smith's rule); with travel it also counts what a long trip makes every OTHER room wait,
  * which is the cost of crossing the map for two secrets.

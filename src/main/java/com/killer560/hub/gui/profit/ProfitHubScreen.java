@@ -16,7 +16,7 @@ import net.minecraft.network.chat.Component;
  * <p>killer560, 2026-10-05: "make it so the command /profit is what shows the custom gui's for things like croesus
  * profit and whatnot. It should load a general screen where i select which tracker I want. Or i can do /profit
  * etable or whatnot to open the menu specifically." Laid out like the Croesus screen (same panel, header and
- * {@link ProfitPanels} colours) so the two read as one family; Auto Scale is the screen mixin's job, nothing here.
+ * {@link ProfitPanels} colors) so the two read as one family; Auto Scale is the screen mixin's job, nothing here.
  */
 public class ProfitHubScreen extends Screen implements MenuThemedScreen {
 

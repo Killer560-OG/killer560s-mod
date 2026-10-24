@@ -393,7 +393,7 @@ public final class Ap3Commands {
                                                     new Ap3EditScreen(null, index)));
                                             return 1;
                                         })))
-                        // "/ap3 set <n> length|width|wait|precise|count|leap|colour ..." - the per-node fields.
+                        // "/ap3 set <n> length|width|wait|precise|count|leap|color ..." - the per-node fields.
                         .then(ClientCommands.literal("set")
                                 .then(ClientCommands.argument("n", IntegerArgumentType.integer(1))
                                         .then(ClientCommands.literal("length")
@@ -602,7 +602,7 @@ public final class Ap3Commands {
     // ---- actions ----
 
     private static void add(Ap3Node.Type type) {
-        // The core owns where the node lands (block-centre snap, current yaw for walk/run, held class for leap...)
+        // The core owns where the node lands (block-center snap, current yaw for walk/run, held class for leap...)
         // AND announces the result itself, refusal or success. Deliberately silent here: echoing a second,
         // differently-worded line is exactly the double-chat bug Auto Routes shipped with (2026-09-16).
         Ap3Feature.addNode(type);
@@ -930,7 +930,7 @@ public final class Ap3Commands {
         });
     }
 
-    /** {@code /ap3 set <n> colour <hex>|reset}: "RRGGBB" or "AARRGGBB", '#' optional; null clears the override. */
+    /** {@code /ap3 set <n> color <hex>|reset}: "RRGGBB" or "AARRGGBB", '#' optional; null clears the override. */
     public static boolean setColour(int index, String hex) {
         Integer argb = null;
         if (hex != null) {
@@ -1124,7 +1124,7 @@ public final class Ap3Commands {
         return "#" + (index + 1) + " " + describe(node);
     }
 
-    /** Block-centre coordinates need one decimal ("12.5"); a precise align keeps two ("12.73"). */
+    /** Block-center coordinates need one decimal ("12.5"); a precise align keeps two ("12.73"). */
     private static String fmt(double v) {
         return v * 10 == Math.rint(v * 10) ? String.format(Locale.US, "%.1f", v) : String.format(Locale.US, "%.2f", v);
     }

@@ -118,7 +118,7 @@ public final class BloodCampFeature {
      *  {@code terminalaura.TerminalStands} uses for its own triggerbot. */
     private static final double AIM_INFLATE = 0.1;
     /** The Trigger Bot's aim test ({@link #aimedAtRoughly}): the box is grown this much on every side, and a look within
-     *  this many degrees of the box's centre counts as well. */
+     *  this many degrees of the box's center counts as well. */
     private static final double TRIGGER_AIM_MARGIN = 0.5;
     private static final double TRIGGER_AIM_CONE_DEGREES = 5.0;
     /** How far from a predicted spawn a real entity may be and still count as "the mob that spawned there". */
@@ -306,7 +306,7 @@ public final class BloodCampFeature {
                     bloodMobs.size(), nowTick);
         } else if (nowTick - data.lastMoveTick >= RESETTLE_GAP_TICKS) {
             // This class's own doc: "the SAME entity periodically repositions". Deltas arrive every tick while a
-            // mob is travelling, so a gap usually means the last trip ended - without restarting here the start
+            // mob is traveling, so a gap usually means the last trip ended - without restarting here the start
             // vector, the countdown origin and the accumulated delta history all stayed on trip #1 forever.
             //
             // But a gap is ALSO what a server or network stall looks like from here (killer560, 2026-10-08: "Blood camp
@@ -1468,7 +1468,7 @@ public final class BloodCampFeature {
     }
 
     /**
-     * Whether he can see any of {@code box}: a ray from his eye to its centre, its upper part or its top meets no block
+     * Whether he can see any of {@code box}: a ray from his eye to its center, its upper part or its top meets no block
      * first (killer560, 2026-10-15: "make sure it doesn't track them through walls").
      */
     static boolean visible(Minecraft client, AABB box) {
@@ -1592,7 +1592,7 @@ public final class BloodCampFeature {
     /**
      * Whether he is inside the Blood Room: the room tile the Watcher is in, or a room the map calls BLOOD. The Watcher
      * never leaves the Blood Room, which is always a 1x1 room, so his tile (32 x 32 on the grid {@code LiveMapFeature}
-     * uses, centres at -185 + 32n) IS the Blood Room. Without a Watcher there are no blood mobs, so nothing is lost by
+     * uses, centers at -185 + 32n) IS the Blood Room. Without a Watcher there are no blood mobs, so nothing is lost by
      * answering "no".
      * <p>
      * killer560, 2026-10-18: "I just tired blood camp triggerbot and it wasnt working in f1." Until then the map's room
@@ -1631,7 +1631,7 @@ public final class BloodCampFeature {
         return roomTile(p.x) == roomTile(w.x) && roomTile(p.z) == roomTile(w.z) && Math.abs(p.y - w.y) < 40.0;
     }
 
-    /** The room tile index along one axis (rounded to the nearest room centre, -185 + 32n). */
+    /** The room tile index along one axis (rounded to the nearest room center, -185 + 32n). */
     static long roomTile(double coord) {
         return Math.round((coord - com.killer560.hub.livemap.LiveMapFeature.START_X) / 32.0);
     }
@@ -1758,7 +1758,7 @@ public final class BloodCampFeature {
      * play only on the tick the trigger bot should hit to kill a mob, not every tick while a mob is on the wall or
      * starting to spawn"). That tick is the first one its countdown is below {@code clickBelow} (the kill timer moved by
      * Trigger Offset, Auto Detect Lag's ping included) while the Kill Popup's kill timer lets attacks through - the same
-     * test the Trigger Bot's first click uses, so the two land on one tick. Only a stand that really travelled
+     * test the Trigger Bot's first click uses, so the two land on one tick. Only a stand that really traveled
      * ({@link #MIN_TRIP_BLOCKS}) counts. The Countdown Start Sound no longer plays at all; it was the sound of a mob
      * starting to spawn. Mobs due on the same tick, or within {@link #SOUND_MIN_GAP_TICKS}, share one sound.
      */
@@ -1895,7 +1895,7 @@ public final class BloodCampFeature {
      * only {@link #AIM_INFLATE}, so on a 0.6-wide blood mob ten blocks away his crosshair had to sit inside about 4
      * degrees, on both the look last reported and this tick's, and most of his clicks were never sent. Here a look counts
      * when its ray passes through the box grown by {@link #TRIGGER_AIM_MARGIN} on every side, or points within
-     * {@link #TRIGGER_AIM_CONE_DEGREES} of the box's centre (which is what matters at range, where half a block is a
+     * {@link #TRIGGER_AIM_CONE_DEGREES} of the box's center (which is what matters at range, where half a block is a
      * sliver of a degree). Still never through a wall: some part of the real box must be in sight, and the look's ray must
      * not meet a block before the box. Both looks (reported and this tick's) must count, as in {@link #aimedAt}. Only
      * the decision to click is widened: the entity an attack names is still the one under his real crosshair
@@ -1916,7 +1916,7 @@ public final class BloodCampFeature {
         return roughLook(client, box, eyes, Vec3.directionFromRotation(reportedPitch, reportedYaw));
     }
 
-    /** One look for {@link #aimedAtRoughly}: through the grown box before a block, or inside the cone round its centre. */
+    /** One look for {@link #aimedAtRoughly}: through the grown box before a block, or inside the cone round its center. */
     private static boolean roughLook(Minecraft client, AABB box, Vec3 eye, Vec3 dir) {
         if (reachesBeforeBlock(client, box.inflate(TRIGGER_AIM_MARGIN), eye, dir)) {
             return true;
@@ -1948,7 +1948,7 @@ public final class BloodCampFeature {
      * The entity to actually swing at for a blood mob that is due.
      * <p>
      * The tracked {@link ArmorStand} is what Hypixel moves around, but the thing that takes damage once the mob
-     * materialises is a real mob entity at the same spot, and attacking the stand instead is a wasted swing. So
+     * materializes is a real mob entity at the same spot, and attacking the stand instead is a wasted swing. So
      * the nearest real, non-player living entity the crosshair ray meets near the prediction wins, and the stand
      * is only the fallback - and only when the crosshair is genuinely on the stand's own box, which a marker
      * stand (zero-size box) never satisfies, so that fallback quietly costs nothing when the stand is just a
@@ -2052,7 +2052,7 @@ public final class BloodCampFeature {
         // fill) from 1.5 to 2.5 above the predicted landing spot, magenta, turning green once your ping exceeds the
         // time left; a cyan 2 px line from the stand's INTERPOLATED position + 2 (the skull in the wall, every frame,
         // not the last tick's spot) to the landing spot + 2; and the time left, white with a shadow, 0.05 per pixel
-        // (Timer Text Scale 2 x 0.025), centred on the landing spot + 2 and hanging down from it. All of it draws
+        // (Timer Text Scale 2 x 0.025), centered on the landing spot + 2 and hanging down from it. All of it draws
         // through walls, from the first move packet until the stand is removed. Spawn Line and its width, Timer Text
         // Scale and Show Overlay still switch their part.
         float partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
@@ -2093,16 +2093,16 @@ public final class BloodCampFeature {
         // lastFrameText() derives them from these rows, with the same timerText on the same ticks-left value.
     }
 
-    /** Noamm's box colour (255, 0, 255), and its invert once the mob is due within your ping. */
+    /** Noamm's box color (255, 0, 255), and its invert once the mob is due within your ping. */
     static final int BOX_COLOR = 0xFFFF00FF;
     static final int BOX_COLOR_KILLABLE = 0xFF00FF00;
-    /** Noamm's line colour, {@code Color.CYAN}. */
+    /** Noamm's line color, {@code Color.CYAN}. */
     static final int LINE_COLOR = 0xFF00FFFF;
     /** Noamm's {@code renderBoxBounds} default line width. */
     static final float BOX_LINE_WIDTH = 2.5f;
 
     /** What the last frame drew, one row per mob: line start xyz (NaN with Spawn Line off), line end xyz, box
-     *  min xyz, box max xyz, ARGB colour, ticks left, stand entity id. For the testkit; rebuilt every frame. */
+     *  min xyz, box max xyz, ARGB color, ticks left, stand entity id. For the testkit; rebuilt every frame. */
     private static final List<double[]> LAST_FRAME = new ArrayList<>();
 
     public static List<double[]> lastFrame() {
@@ -2117,7 +2117,7 @@ public final class BloodCampFeature {
         return out;
     }
 
-    /** "Kill now": your ping in ms is more than the time left (Noamm's colour flip). With no ping known, at zero. */
+    /** "Kill now": your ping in ms is more than the time left (Noamm's color flip). With no ping known, at zero. */
     static boolean killable(double remainingTicks, int pingMs) {
         return pingMs > remainingTicks * 50.0;
     }
@@ -2136,7 +2136,7 @@ public final class BloodCampFeature {
     static String timerText(double remainingTicks) {
         double seconds = (remainingTicks - 0.8) / 20.0;
         double rounded = Math.round(seconds * 10.0) / 10.0;
-        // Memoised on the rounded value (fps pass 2026-10-19): a String.format per mob per frame, for a label that
+        // Memoized on the rounded value (fps pass 2026-10-19): a String.format per mob per frame, for a label that
         // changes a few times a second. Pure function of `rounded`; small direct-mapped table of immutable entries, so a
         // reader on another thread (the testkit) can only miss, never pair one value with another's text.
         long bits = Double.doubleToRawLongBits(rounded);
@@ -2156,7 +2156,7 @@ public final class BloodCampFeature {
     private static final int TIMER_SLOTS = 64;
     private static final TimerText[] TIMER_TEXT = new TimerText[TIMER_SLOTS];
 
-    /** Testkit: the colour the last countdown text was drawn in. */
+    /** Testkit: the color the last countdown text was drawn in. */
     private static int lastTimerTextColor;
 
     public static int lastTimerTextColor() {
@@ -2178,7 +2178,7 @@ public final class BloodCampFeature {
         poseStack.scale(scale, -scale, scale);
 
         float width = font.width(text);
-        // Centred across, hanging DOWN from the anchor (y 0 is the top of the glyphs), with a shadow and no
+        // Centered across, hanging DOWN from the anchor (y 0 is the top of the glyphs), with a shadow and no
         // background plate, through walls - as Noamm's renderString draws it.
         // Timer Text Color (killer560, 2026-10-18), white by default as it always was.
         int color = BloodCampConfig.getInstance().getTimerTextColor();

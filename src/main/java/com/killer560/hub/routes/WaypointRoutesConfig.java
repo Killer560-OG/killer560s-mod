@@ -117,7 +117,7 @@ public final class WaypointRoutesConfig {
             JsonObject active = new JsonObject();
             activeByArea.forEach(active::addProperty);
             obj.add("activeByArea", active);
-            WRITER.write(GSON.toJson(obj)); // serialised here (a snapshot), written off the render thread
+            WRITER.write(GSON.toJson(obj)); // serialized here (a snapshot), written off the render thread
         } catch (Exception ignored) {
         }
     }

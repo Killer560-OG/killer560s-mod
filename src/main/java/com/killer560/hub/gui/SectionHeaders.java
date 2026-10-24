@@ -11,7 +11,7 @@ public final class SectionHeaders {
 
     public static final String LEGIT_PREFIX = "§6§l";
     public static final String CHEAT_PREFIX = "§c§l";
-    /** ARGB colours for headers drawn with an explicit colour instead of § codes. */
+    /** ARGB colors for headers drawn with an explicit color instead of § codes. */
     public static final int LEGIT_COLOR = 0xFFFFAA00;
     public static final int CHEAT_COLOR = 0xFFFF5555;
 

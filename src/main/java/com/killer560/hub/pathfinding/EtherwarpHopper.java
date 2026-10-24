@@ -29,8 +29,8 @@ import java.util.concurrent.Executors;
  * {@code livemap/autoclear/EtherwarpPathfinder} (multi-threaded A* over etherwarp raycasts + path smoothing) and
  * {@code livemap/autoclear/ClearExecutor} (item swap, forced sneak, the rotated use-item packet, one hop per tick,
  * server position sync). The only change made to the Interactive Map code is
- * {@code ClearExecutor.setExternalOwner(boolean)}, which stops the executor cancelling a queue that this feature owns
- * while the Interactive Map's own "Teleport Pathing" toggle is off; Interactive Map behaviour is unchanged.
+ * {@code ClearExecutor.setExternalOwner(boolean)}, which stops the executor canceling a queue that this feature owns
+ * while the Interactive Map's own "Teleport Pathing" toggle is off; Interactive Map behavior is unchanged.
  * <p>
  * The item is whatever etherwarp item is actually in the hotbar (anything with the {@code ethermerge} tag, or an
  * {@code ETHERWARP_CONDUIT}), and the range is Hypixel's 57 blocks plus the item's own {@code tuned_transmission}.

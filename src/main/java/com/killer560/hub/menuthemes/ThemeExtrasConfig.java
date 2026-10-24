@@ -16,7 +16,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /**
- * What each menu theme brings besides its colours (killer560, 2026-10-21: "Can you add an option for menu themes to have
+ * What each menu theme brings besides its colors (killer560, 2026-10-21: "Can you add an option for menu themes to have
  * their own background music as well for all themes"). Saved in {@code killer560smod-menu-themeextras.json} (the
  * {@code menu} row of ModPaths, so {@code config/killer560/interface/menu/}); re-read by
  * {@code ProfileManager.reloadAllConfigs}. Everything here except the music switch is off or "none" until he picks it, so a theme with nothing set

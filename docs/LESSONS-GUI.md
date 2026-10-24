@@ -2,7 +2,7 @@
 
 Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size limit. Problem, then fix; verified only.
 
-- `RenderSystem.setShaderColor` does not exist in 26.1.2, so there is no global colour multiplier and items
+- `RenderSystem.setShaderColor` does not exist in 26.1.2, so there is no global color multiplier and items
   cannot be tinted per-item. A translucent black quad over the panel (the 2026-09-27 "dim the items" workaround)
   can only darken, so every step below 100% put a black box over the Inventory HUD (killer560, 2026-10-18); it
   was removed, Opacity fades the panel/outline/slots only, 0 still hides the panel outright, and the items are never dimmed.
@@ -22,7 +22,7 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
 
 - **A HUD element's `width()` must be in the registry's unit, and the HUD editor saves on a zero-pixel
   click.** `HudElementRegistry` defines an element's on-screen size as `width() * HudConfig` scale, but the
-  Storage Overlay's `defaultX()` centred against `width() * its own slider scale` and its render pose used a
+  Storage Overlay's `defaultX()` centered against `width() * its own slider scale` and its render pose used a
   third combination, so the clamp, the editor box and the drawn panel measured three different panels
   (2026-09-30). A clamp also cannot rescue a panel *wider* than the screen - it only picks which columns to
   hide - so `gridWidthLocal()` now drops columns until the grid fits. Separately, `HudEditorScreen.
@@ -31,12 +31,12 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   2560x1441, which is what "the storage overlay is no longer centered" turned out to be. A saved position is
   never re-clamped, so deleting the entry only lasted until the next stray click: on 2026-10-07 his HUD config
   again held `storage_overlay {x: 0, y: 20}` (saved 20:26) and the overlay sat at the left edge. Its x is now
-  not a saved value at all - `layoutPosition()` returns the centre every frame and only the saved y is honoured
+  not a saved value at all - `layoutPosition()` returns the center every frame and only the saved y is honored
   (testkit 453 measures it at six window/GUI sizes with that saved x 0). And `width()`/
   `height()` must measure the SAME lines `render()` draws (one `lines()`/`layout()` method both read, sizes via
   `hud/HudText`): fixed guesses left 20 of 50 boxes more than 3 units off (Split Timers +70, Autopilot -76) until
-  2026-10-07; testkit 390-ui-hud-boxes checks every element. Centred elements (Room Alerts, blood camp popup) keep
-  a fixed box, since their centre is the anchor and a hugging box would move the text.
+  2026-10-07; testkit 390-ui-hud-boxes checks every element. Centered elements (Room Alerts, blood camp popup) keep
+  a fixed box, since their center is the anchor and a hugging box would move the text.
 
 - The mod's own widget labels are not drawn through `GuiGraphicsExtractor.text`; they go through
   `GuiGraphicsExtractor$RenderingTextCollector.accept`. A text hook that only targets `text` misses every
@@ -61,7 +61,7 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   at 2560x1369 GUI 3). Clamp bottom-anchored pixel boxes to `getWindow().getHeight()`.
 - **A shared slot line must straddle the gap between two items, not sit on one side of it.** The Inventory Theme drew
   each slot's left/top line inside its box and the right/bottom one past it, so a 16-unit item had t px less room on its
-  left/top than its right/bottom - t/2 off centre at every GUI scale (killer560, 2026-10-12, measured 2 px at the default
+  left/top than its right/bottom - t/2 off center at every GUI scale (killer560, 2026-10-12, measured 2 px at the default
   2 px by testkit 897). `cellBox` now shifts every grid line by `lineShift(t) = t/2`; odd widths stay half a pixel off.
 - **Anything drawn from inside `AbstractContainerScreen.extractContents` is already translated by leftPos/topPos**
   (labels, `extractSlotHighlightBack/Front`, `extractSlots`/`extractSlot`; javap, 26.1.2 and 26.2), so it draws at
@@ -97,7 +97,7 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   `Screen.extractBackground`, after the dim gradient (javap 26.1.2). So something meant to sit behind an inventory like the
   hotbar must be attached to a vanilla layer before SUBTITLES - and to one that always runs: an attached element only runs
   where its parent does, and after `EXPERIENCE_LEVEL` the bars vanished in creative. Health and Mana Bars are
-  `attachElementAfter(MISC_OVERLAYS)` since 2026-10-07 (testkit 441: no pixel of the bar's raw colour beside the open
+  `attachElementAfter(MISC_OVERLAYS)` since 2026-10-07 (testkit 441: no pixel of the bar's raw color beside the open
   inventory; 443/444 draw in creative).
 
 - A `FolderTab` section that is pinned (always open, no header) is never in `expanded`, so
@@ -111,7 +111,7 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   one added, so a HUD that draws a shape a pixel row at a time is quadratic in rows. The Custom Scoreboard border
   (two fills per pixel row) was 6% of the render thread and most of its allocation; merged into runs of equal rows
   it is a handful of fills with identical pixels (2026-10-05). Draw runs, not rows - and when merging, keep the
-  rects non-overlapping or a translucent colour blends twice.
+  rects non-overlapping or a translucent color blends twice.
   The placement walk (`navigateToAboveHighestElementWithIntersectingBounds`, javap 26.1.2 and 26.2) starts at the TOP
   node and scans every element of each node until one intersects, so fills drawn before each item of a menu are
   scanned against every earlier item: the Inventory Theme's per-slot fill + outline (450 elements in a chest) was 8% of
@@ -174,12 +174,12 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   paints over their overlays).
 
 - **An empty slot with a placeholder icon never reaches `Slot.isFake` in `AbstractContainerScreen.extractSlot`.** The
-  method blits the icon (armour outlines, the offhand shield) and returns (javap, 26.1.2 and 26.2), so the Inventory
-  Theme's backdrop, injected at `isFake`, left empty armour slots with no square or lines (testkit 475, 2026-10-07: the
-  armour column scan found no outline at all with nothing worn). A second injection at `Slot.getNoItemIcon` draws it there
+  method blits the icon (armor outlines, the offhand shield) and returns (javap, 26.1.2 and 26.2), so the Inventory
+  Theme's backdrop, injected at `isFake`, left empty armor slots with no square or lines (testkit 475, 2026-10-07: the
+  armor column scan found no outline at all with nothing worn). A second injection at `Slot.getNoItemIcon` draws it there
   when the icon is non-null. Theme lines are counted in screen pixels through `inventorytheme/PixelRects` (pose read,
   then `identity().scale(1/guiScale)`), and touching slots share one line by drawing each square's right/bottom line on
-  the neighbour's left/top pixels (testkit 473/474).
+  the neighbor's left/top pixels (testkit 473/474).
 - **A container reskin is not a mod screen, so Auto Scale skips it** (`AutoScale.scalesScreen` only takes classes under
   `com.killer560.hub`). The unified Auction House draws its API browser (a mod screen, scaled) and Hypixel's reskinned AH
   menus (a vanilla `ContainerScreen`) in one frame; unscaled, the reskin would draw at a different size from the browser
@@ -233,8 +233,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   `PingTracker.automationMs()` (median of the last 5 pongs, tab value until the first) and keep it requesting while on
   (testkit 791-796).
 - **Vanilla does not read Bungee's `§x§R§R§G§G§B§B` hex escape.** `StringDecomposer.iterateFormatted` skips `§x` and applies
-  each `§<hex digit>` as a LEGACY colour (javap, 26.1.2 and 26.2), so the Name Changer fade drew every letter in the
-  16-colour code of its blue channel's low nibble - "random blacks, whites and pinks" (killer560, 2026-10-11). Decode such
+  each `§<hex digit>` as a LEGACY color (javap, 26.1.2 and 26.2), so the Name Changer fade drew every letter in the
+  16-color code of its blue channel's low nibble - "random blacks, whites and pinks" (killer560, 2026-10-11). Decode such
   strings with `NameColor.iterateFormatted` (NameReplacer, NameSplice, `toComponent`, and a redirect in
   `Font.prepareText(String)`); testkit 811-814 read the screenshot for a clean green-to-blue run in chat, tab, F5 tag, preview.
 - A nametag's height comes from `EntityRenderState.nameTagAttachment` (the entity's dimensions), not from the render-state
@@ -242,7 +242,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - A Fabric `ScreenEvents.afterExtract` overlay draws ON TOP of what the screen drew, the carried item included: the custom
   leap menu's 80%-opaque boxes covered the head a leap click puts on the cursor, which is the "almost fully faded
   out" head killer560 saw (2026-10-11). Hiding the real menu needs the carried/snapback/floating item renders
-  cancelled too (`SpiritLeapHideMixin`), not just the slots.
+  canceled too (`SpiritLeapHideMixin`), not just the slots.
 
 - **A raw-polled key must also ask "was he typing a tick ago?".** Key presses reach the open screen before
   END_CLIENT_TICK, so the press that ends a "Press any key..." capture finds the capture already over at the poll and the
@@ -265,7 +265,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   content in after the mod's tick (frames outrun ticks in the real game) and checks every frame; the old jar drew 10/12
   unhidden on the content frame.
 - **A Croesus run is not identified by its party.** He runs the same floor with the same party all day, so a key of name +
-  floor + players was shared by many runs: looking at one run's chests re-coloured, hid or showed every run like it (his
+  floor + players was shared by many runs: looking at one run's chests re-colored, hid or showed every run like it (his
   "sometimes they come back sometimes they disappear"; testkit 884 on the old jar: all four runs flipped 2<->3 six
   times). Runs are now known by that signature plus the instant their chests expire (croesus/CroesusRunMemory, saved
   in killer560smod-croesus-runs.json), matched per page by the list's shift, so a run keeps its state when one ahead
@@ -280,11 +280,11 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **A Unifont glyph's pixels are half a text unit.** The ♨ Vitality icon outlined like the bar number (one whole unit) was a
   black blob with red slivers; it is outlined by one glyph pixel (half a unit) and scaled so a glyph pixel is whole screen
   pixels (`BarPainter.drawGlyph`, v3 shots, 2026-10-12).
-- **Judge "can you tell these colours apart" with CIEDE2000, over the real background, with a CVD simulation.** CIE76 rated
+- **Judge "can you tell these colors apart" with CIEDE2000, over the real background, with a CVD simulation.** CIE76 rated
   Croesus's old gold needs-a-key border 39 from the unclaimed orange, which he could not tell apart; CIEDE2000 puts the
   gold-vs-gold "not looked at" pair at 19.8 and orange-vs-gold for a deuteranope at 11.6. Magenta and blue collapse for a
   protanope whatever the shades, so the key mark and its plate carry that pair, and testkit 898 samples those pixels too.
-- **Distinct is not enough when most of a page is one state.** Five well-separated Croesus colours still hid the runs
+- **Distinct is not enough when most of a page is one state.** Five well-separated Croesus colors still hid the runs
   needing action under 17 bright "not looked at" outlines (2026-10-13). 898 now also scores salience (frame contrast and
   chroma against the page with highlights off): the action states must beat the quiet ones 2x; the old palette scored 0.77.
 - **A testkit "restart" that reloads one store is not a restart.** 890 reloaded the run memory from disk and passed, while the
@@ -309,19 +309,19 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **A narrow drawer stacks side-by-side rows** (`ModScreen.stackRows`): only a line made purely of setting rows sharing one
   y, with nothing else overlapping it, is stacked full width; everything below moves down by the same amount. A line
   with a text box, a preview or a list keeps its layout. Tabs still lay themselves out for any width.
-- **The menu's colours are one palette derived from five.** `MenuStyle`'s colours are mutable statics that `MenuStyle.use()`
+- **The menu's colors are one palette derived from five.** `MenuStyle`'s colors are mutable statics that `MenuStyle.use()`
   re-derives from the active `MenuTheme` (accent, panel, card, text, on-switch) whenever `MenuConfig.version()` moves, so a
   Custom set gets the same bevels, wells and hover shades as a preset; a panel above mid luminance switches on the light
-  treatment (grey outlines, shadows at a third, no text shadow). A new piece of the menu takes its colours from those
-  statics - a literal there is a colour the theme cannot change. Danger red and Discord/GitHub's own colours are the
+  treatment (gray outlines, shadows at a third, no text shadow). A new piece of the menu takes its colors from those
+  statics - a literal there is a color the theme cannot change. Danger red and Discord/GitHub's own colors are the
   only fixed ones.
-- **A tab's `StringWidget` colours its own text** (§ codes, drawn through `visitLines`, left-aligned at `getX()`), so a
+- **A tab's `StringWidget` colors its own text** (§ codes, drawn through `visitLines`, left-aligned at `getX()`), so a
   light theme cannot reach it: the drawer pane draws section headings itself in the accent / cheat red, and on a light
   theme every other line too, with the washed-out codes (§7 §f §a §b §e) swapped for darker partners
   (`MenuStyle.lightReadable`). `ColorSwatch`'s square is a styled sibling, not a § code, so `getString()` loses it: the
   row reads the sibling's `TextColor` and paints the swatch.
 - **A container reskin is not a MenuThemedScreen, so it sets its palette itself** (sweep-b, 2026-10-13). The Bazaar and AH
-  reskins draw over a vanilla `ContainerScreen`, where `MenuStyle.use()` falls back to the menu's colours; they call
+  reskins draw over a vanilla `ContainerScreen`, where `MenuStyle.use()` falls back to the menu's colors; they call
   `MenuStyle.use(MenuTheme.forScreen(id))` before reading the palette, and the next `use()` re-derives the menu's. Their
   frame is `ScreenChrome.frameTight`: the reskin keeps a 4-8 unit margin whose outer 6 units testkit 496 requires to be
   pure backdrop at Auto Scale 1.125, and a 3-unit shadow already reached 2 pixel rows into it.
@@ -331,21 +331,21 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   tooltips. A vanilla `EditBox` draws its text and hint with a shadow, which smears dark text on the Light theme: call
   `setTextShadow(MenuStyle.TEXT_SHADOW)` (both versions, javap) and paint the hint yourself (testkit 948's shots).
 - **Anything that must change a name's look over time belongs at `Font.prepareText`, not where the name is built.** Chat
-  lines are styled once when added and the tab list caches its rows, so a name built with per-frame colours would only
-  animate in some places. `NameAnimation` (Wave/Pulse, 2026-10-13) recolours at draw time, recognising a name by its
-  exact letters in their exact base colours; testkit 960-965 freeze its clock to compare two frames pixel for pixel.
+  lines are styled once when added and the tab list caches its rows, so a name built with per-frame colors would only
+  animate in some places. `NameAnimation` (Wave/Pulse, 2026-10-13) recolors at draw time, recognizing a name by its
+  exact letters in their exact base colors; testkit 960-965 freeze its clock to compare two frames pixel for pixel.
 - **Never find a menu tab by its top-level index.** A testing build's `TestingMenu.arrange` moves every untested tab into
   Untested, Profiles included, so Home's Profiles button (`indexOf(ProfilesTab.class)`) silently did nothing there until
   2026-10-13. Open the leaf from `allLeaves()` with `openFeature(leaf)`: a page normally, a drawer in Untested (testkit 948).
-- **Per-glyph text colour belongs in the font, not in the component.** Rebuilding a styled `Component` to animate a colour
-  (Enchant Colours' old 100 ms chroma bucket) can only give a whole segment one colour. `Font$PreparedTextBuilder.accept`
+- **Per-glyph text color belongs in the font, not in the component.** Rebuilding a styled `Component` to animate a color
+  (Enchant Colors' old 100 ms chroma bucket) can only give a whole segment one color. `Font$PreparedTextBuilder.accept`
   reads `style.getColor()` once per glyph while `x`/`y` are still that glyph's origin, and GUI text is prepared there at its
   GUI coordinates every frame (`GuiTextRenderState.ensurePrepared`; javap 26.1.2 and 26.2), so `chroma/mixin/
   ChromaGlyphColorMixin` redirects that call for a `util/ChromaWave` spec's TextColor (matched by identity; `fromRgb` never
   interns) and a whole tooltip is one diagonal waterfall (testkit 971: line 2 continues line 1 by +23.8 deg, 2026-10-13).
 - **26.2's title screen has a row of icons the themed layout must name.** `TitleScreen.init` adds `FriendsButton`
   (key `gui.friends.open`), language and accessibility between the column and Options/Quit, and Mod Menu 20's icon style adds
-  `SmallModMenuButtonWidget` there (18 on 26.1.2 used `UpdateCheckerTexturedButtonWidget`; javap). Unrecognised, both stayed
+  `SmallModMenuButtonWidget` there (18 on 26.1.2 used `UpdateCheckerTexturedButtonWidget`; javap). Unrecognized, both stayed
   on top of Swap Accounts (killer560, 2026-10-13). `MainMenuTitleLayout` removes them and every other Mod Menu button,
   classic row included (Friends via `McCompat.isFriendsButton`);
   testkit 341 checks every visible widget and every pair's overlap, Mod Menu loaded, both styles, both versions.
@@ -404,7 +404,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **On 26.1.2 a block entity paints over anything drawn into the immediate buffer source before the solid features.**
   `COLLECT_SUBMITS` fires before `renderSolidFeatures`, and McRender's 26.1.2 path writes into `context.bufferSource()`,
   whose shared buffer is ended (drawn) the moment the feature renderers ask for their first buffer; neither
-  `LINES_TRANSLUCENT` nor `debugFilledBox` writes depth, so a chest, ender chest or trapped chest model drawn afterwards
+  `LINES_TRANSLUCENT` nor `debugFilledBox` writes depth, so a chest, ender chest or trapped chest model drawn afterward
   covered the Etherwarp Overlay box except the half of each line outside its silhouette ("etherwarp on chest corners does
   not really show up", killer560 2026-10-15; testkit 1324 on main: Filled 0/50, Outline 0/63 on a chest, full blocks and
   slabs fine; 26.2 never had it, because its McRender already submits). The overlay now submits through
@@ -427,11 +427,11 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   text on the Light theme's title screen smeared; `mainmenu/mixin/MainMenuLabelShadowMixin` turns it off there (1565).
 
 - **Vanilla menus kept the old dark-and-orange look whatever the theme** because `mainmenu/MenuChrome` and `MenuWidgets`
-  held it in `static final` colours. They are now plain statics re-derived by `MenuWidgets.sync()` from the main menu's
+  held it in `static final` colors. They are now plain statics re-derived by `MenuWidgets.sync()` from the main menu's
   theme (`MainMenuLook`), checked at the top of every draw helper, so a theme change reaches an open pause menu on the next
   frame (testkit 1570: Back to Game measured 41,35,29 in Amber, 33,42,52 in Ocean, 231,229,226 in Light without reopening).
   Inside one of the mod's own screens they read that screen's palette instead: re-deriving `MenuStyle` there would repaint
-  the rest of the mod screen's frame in the main menu's colours.
+  the rest of the mod screen's frame in the main menu's colors.
 
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
@@ -441,7 +441,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.
 
 - **A per-screen or per-overlay Theme choice must name a saved theme by a stable id, and be listed live** (2026-10-15). `ScreenThemes`
-  offered Theme Default, the presets and ONE "Custom" (the menu's current Custom colours), so a theme he saved never appeared;
+  offered Theme Default, the presets and ONE "Custom" (the menu's current Custom colors), so a theme he saved never appeared;
   a list captured when the tab was built would also miss one saved after. A choice is `SAVED:<id>` (`MenuConfig.SavedTheme.id`,
   "T1"..., persisted; a file from before ids gets them in list order) and `ScreenThemes.choices()` is read when the button is
   pressed. Overlays over the game (`OverlayThemes`, setting "Menu Theme") use the same list but "Default" means the overlay's
@@ -488,9 +488,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   (killer560, 2026-10-15: "Darken Unexplored does not work"). `MapPainter.unexplored` now decides from the map item's own
   tile states, and testkit 1015-sim-map-item-only reads the drawn fill at Darken 0 and 0.6.
 - **A blood door has a room on both sides.** `MapPainter.unopenedBloodRoom` took any unopened room touching it, so the
-  unopened room it is reached from (his F7 Gold room, 2026-10-18) was greyed as the blood room too. The Blood Room is the dead
-  end: the blood door must be its only door. Funny Map also painted a not-yet-scanned unopened room in the regular map's grey;
-  it is its own colour darkened now (testkit 1018-map-unopened-funny/-blood).
+  unopened room it is reached from (his F7 Gold room, 2026-10-18) was grayed as the blood room too. The Blood Room is the dead
+  end: the blood door must be its only door. Funny Map also painted a not-yet-scanned unopened room in the regular map's gray;
+  it is its own color darkened now (testkit 1018-map-unopened-funny/-blood).
 - **A half-width row with no partner keeps its switch halfway across the drawer.** `ModScreen.stackRows` widened only rows of
   two or more, so a row whose partner was hidden (Door Keys' Show Tracer with the tracer off) or never planned (Names
   Holding Leap) stopped in the middle. Lone plain rows now take the drawer's full width, stacked or not
@@ -537,7 +537,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   width changed, and a Min Width box kept its text on the left so the text's right end moved by the slack (testkit 1668,
   2026-10-15). Draw it shifted by `round(w * scale) - w * scale` (`anchorShift`) and put the text block against the wall
   (`blockOffset`); the hover layout must use the same shift and block.
-- **Hiding a container's slots does not stop vanilla hovering them.** The terminal Custom GUI cancelled `extractSlot`,
+- **Hiding a container's slots does not stop vanilla hovering them.** The terminal Custom GUI canceled `extractSlot`,
   the tooltip and the background, but `extractContents` still set `hoveredSlot` from the private `getHoveredSlot(DD)`, so
   the white hover highlight (`extractSlotHighlightBack/Front`, not part of `extractSlot`) lit up the invisible slots and the
   hotbar-number and drop keys sent SWAP/THROW on them (killer560, 2026-10-15; testkit 1015-menu-term-hidden-slots on main:
@@ -566,7 +566,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   driver's per-draw work is not in the probe), so judge this kind of change on draw calls and bytes. The probe now books
   that draw under `compat.McRender`, so add it back when comparing a feature with main.
   A per-item loop should still feed a `util/BoxBatch` rather than one `inCameraSpace` per box: each call allocates its
-  lambda and colour array, and the ESP's per-box AABB/Vec3 were most of its 112 KB.
+  lambda and color array, and the ESP's per-box AABB/Vec3 were most of its 112 KB.
 - **A screen drawn every frame must not lay out, split or Bidi its text every frame.** The mod menu allocated 340 KB a
   frame on its card grid and 700 KB with a drawer open (testkit 95-perf-screens, 2026-10-15): about 45% was ICU Bidi from
   `text(Font, String)` (vanilla reorders every String, every call; a `Component` keeps its order, a fresh
@@ -579,7 +579,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   PerfProbe (testkit 95-perf-hud, 2026-10-15): Score Calculator 13,375 B on main with its lines rebuilt every frame,
   11,712 B with them cached; Advanced Position 7,607 vs 7,476. Caching text saves the String.format/concatenation time,
   not the ~70 B per drawn character `GuiGraphicsExtractor.text` costs. And `Font.width` of a string with `§` codes builds
-  a `Style` per code: Advanced Position's width() was 1,600 B a call until it was memoised on the line array.
+  a `Style` per code: Advanced Position's width() was 1,600 B a call until it was memoized on the line array.
 - **A HUD element's render-state elements can be replayed on a later frame** (`livemap/MapDrawCache`, 2026-10-15): hand
   the same `ColoredRectangleRenderState`/`GuiTextRenderState` objects to `GuiRenderState` again, through the same `add*`
   calls in the same order, and they layer exactly as a fresh draw (a text state even keeps its glyph layout, so drop the
@@ -587,7 +587,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   (95-perf-livemap verify: "count 30 vs fresh 15", 2406 stale frames), counting depth fixed it (0 of 2817). The key must
   be every input compared exactly; the verify mode (paint afresh unsubmitted, compare) is what finds a missed one, and
   the paint count is what found Predictive Rooms bumping its version every tick (the map repainted every tick under ALL ON).
-- **Writing world vertices through VertexConsumer's Pose/Matrix/float-colour helpers allocates per vertex** (javap, 26.1.2
+- **Writing world vertices through VertexConsumer's Pose/Matrix/float-color helpers allocates per vertex** (javap, 26.1.2
   and 26.2 alike; JFR 2026-10-16, ar-render-1016): `addVertex(Matrix4fc|Pose, x, y, z)` and `setNormal(Pose, ...)` each
   make a `new Vector3f`, and `setColor(r, g, b, a)` becomes four `MemoryUtil.memPutByte`, each an FFM segment object on
   Java 25. BufferBuilder overrides none of them, so for a plain BufferBuilder the same JOML calls into scratch vectors plus
@@ -599,7 +599,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   shape drawn as several push/translate/pop pieces allocates per piece. Ocean's Cavern Falls drew each streak under three poses
   pipeline built on `RenderPipelines.GUI_TEXTURED_SNIPPET` (which already declares Sampler0 in 26.1.2 and 26.2, so no
   and each mist column under its own: 8085 quads at 35.4 B/quad against the old waterfall's 28.9 (testkit 1690). Drawing each
-  `withSampler0`) and a `TextureSetup` with the LINEAR clamp sampler; the clock rides in the vertex colour (24-bit loop
+  `withSampler0`) and a `TextureSetup` with the LINEAR clamp sampler; the clock rides in the vertex color (24-bit loop
   streak, puff and ring under ONE scaled pose (integer units of w/12, len/256, a column's eighth) made it 5136 quads at
   fraction) because a GUI element has no uniform of its own. Booted and checked on both versions by testkit 1695.
   30.8 B/quad with the same picture (ocean-waterfall-1016).
@@ -608,32 +608,32 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   (`SHORT_AFK`) after 60 s without input under the default Inactivity FPS Limit AFK. `mixin/MainMenuFramerateMixin` lifts
   only the first to the Max Framerate (a setting under 120 is kept, killer560 2026-10-16) while the themed scene shows (light-hq-1016: 59.7 -> 119.3 fps measured, 2262
   unlimited). A frame-rate test that runs after a long session reads the AFK 30 unless it calls `onInputReceived()` first.
-- **A vertex-colour gradient cannot be dithered, so a faint one bands** (light-hq-1016): `GuiRects`/`fillGradient` colours
+- **A vertex-color gradient cannot be dithered, so a faint one bands** (light-hq-1016): `GuiRects`/`fillGradient` colors
   are interpolated and rounded to the 8-bit framebuffer once per layer, so a 20-level sky gradient was 42-row bands with
-  every column stepping on the same row (and R, G, B stepping on different rows: coloured stripes). `mainmenu/SceneShaders`
+  every column stepping on the same row (and R, G, B stepping on different rows: colored stripes). `mainmenu/SceneShaders`
   composites a scene in float in its own fragment shader and adds blue noise once. Judge banding by how many columns step
   TOGETHER between two rows (1.00 banded, 0.33 dithered), not by run length: correct +-0.5 LSB dither still holds a level
   for ~20 rows near an exact level, which fooled the first instrument.
 - **Custom GUI shader parameters ride in a texture** (light-hq-1016): a `GuiElementRenderState` cannot bind a uniform
   block, so `SceneShaders` writes floats bit-exact into an RGBA8 `DynamicTexture` (`setPixelABGR(Float.floatToRawIntBits)`;
   the shader rebuilds them with `uintBitsToFloat(r | g<<8 | b<<16 | a<<24)`) and the VERTEX shader reads them into flat
-  varyings, so fragments fetch nothing. `GUI_TEXTURED_SNIPPET` (position, uv, colour, Sampler0) and the vanilla
+  varyings, so fragments fetch nothing. `GUI_TEXTURED_SNIPPET` (position, uv, color, Sampler0) and the vanilla
   `position_tex_color` shader are byte-identical in 26.1.2 and 26.2. A PNG's `.png.mcmeta` `"blur": true` gives a GUI
   blit linear filtering on both (`ReloadableTexture` reads `TextureContents.blur()`).
 - **A scene clip can stutter when the scene does not** (2026-10-16): x264 at default settings puts a keyframe every 250
   frames (a quality pop every ~2 s at 120 fps) and holds a slow scene still for several frames, then jumps (Amber Aurora: raw
   per-frame change 0.0068-0.0084, the CRF clip 0.0004-0.5). Judge smoothness on the PNG frames, and encode clips with
   `-g <frames> -x264-params scenecut=0`, at CRF 8 for a slow scene.
-- **A scene-shader particle carries everything but its colour in its UVs** (simple-scenes-1016): a `SceneShaders.Quads`
-  quad has only position, uv and one colour, so `SimpleScenes` puts the parameter slot in u (`slot * 16 + local`) and the
+- **A scene-shader particle carries everything but its color in its UVs** (simple-scenes-1016): a `SceneShaders.Quads`
+  quad has only position, uv and one color, so `SimpleScenes` puts the parameter slot in u (`slot * 16 + local`) and the
   particle kind in v (`kind * 16 + local`), and the vertex shader splits them with `floor((uv + 8) / 16)`. That only holds
   while the local coordinate stays inside +-8, so a quad's reach is capped at 7.5 core radii (a firefly's wide glow is cut
   there, under 1% alpha). The backdrop's flat varyings stay at 52 components, under GL 3.3's guaranteed 60.
-- **Colour bands cut with `enableScissor` leave a gap under any non-integer scale** (killer560, 2026-10-17, "a line through
+- **Color bands cut with `enableScissor` leave a gap under any non-integer scale** (killer560, 2026-10-17, "a line through
   Full Toggle"): `MenuStyle.gradientText` draws the text three times through scissor bands at 0/3/6/9, and the scissor
   rounds each band to whole pixels on its own, so at 1.5x (Profiles), or 1x/4/3x inside the menu's HUD Scale pose, rows
   between bands drew nothing and the shadow showed - one row at GUI 1, up to five at GUI 4. Testkit 1436 found it in 20 of
-  40 draws on the old code and 0 with the fix (the whole text in the middle colour first, 136effd5). It is the only banded
+  40 draws on the old code and 0 with the fix (the whole text in the middle color first, 136effd5). It is the only banded
   text in the mod (sweep 2026-10-18); never split text by scissor without a full-text pass under it.
 - An entity made with `EntityType.create` and never added to a level must be given `setId` before any renderer sees it: on
   26.2 `getId()` throws "Tried to access entity ID before ID assignment" (26.1.2 does not), and renderers read it. Play as

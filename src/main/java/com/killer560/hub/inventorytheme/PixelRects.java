@@ -70,7 +70,7 @@ final class PixelRects {
     }
 
     /** An outline {@code t} pixels thick drawn inside the pixel box, as four non-overlapping strips (so a translucent
-     *  colour never blends twice). 0 draws nothing; a width over half the box is capped there. */
+     *  color never blends twice). 0 draws nothing; a width over half the box is capped there. */
     PixelRects outline(int x0, int y0, int x1, int y1, int t, int color) {
         int w = x1 - x0;
         int h = y1 - y0;

@@ -53,7 +53,7 @@ final class PlayerNameCache {
 
     private final Map<UUID, Entry> byUuid = new ConcurrentHashMap<>();
     /** Reverse index kept in step with {@link #byUuid} so {@link #uuidOf} is O(1) - this is read from hot,
-     *  per-frame lookups (class colours, leap order display) all over the mod. */
+     *  per-frame lookups (class colors, leap order display) all over the mod. */
     private final Map<String, UUID> byName = new ConcurrentHashMap<>();
     private volatile boolean dirty = false;
 
@@ -165,7 +165,7 @@ final class PlayerNameCache {
         Entry existing = byUuid.get(id);
         // An unchanged name only refreshes its timestamp once per SEEN_REFRESH_MS. The tab-list scan notes every
         // listed player every 500 ms, and a strictly newer timestamp used to count as a change: in any lobby the
-        // cache went dirty on every scan and the whole file (up to 4096 entries) was re-serialised and rewritten
+        // cache went dirty on every scan and the whole file (up to 4096 entries) was re-serialized and rewritten
         // every two seconds, forever (FPS sweep, 2026-10-07). The timestamp only orders trim() and gates the
         // once-a-day name refresh in PlayerNames.resolveAsync, and ten minutes of slack changes neither.
         if (existing != null && existing.name().equals(name) && atMs - existing.updatedAtMs() < SEEN_REFRESH_MS) {

@@ -105,7 +105,7 @@ public final class SpotifyDesktopSource {
                 title = Win.titleOfProcess(pids);
             }
             if (title == null || title.isBlank()) {
-                // Spotify running but no titled top-level window: minimised to tray on some builds.
+                // Spotify running but no titled top-level window: minimized to tray on some builds.
                 return NowPlaying.paused();
             }
             String lower = title.toLowerCase(Locale.ROOT);

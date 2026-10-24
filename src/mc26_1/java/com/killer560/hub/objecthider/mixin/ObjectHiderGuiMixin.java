@@ -14,17 +14,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * QUOI {@code PlayerDisplay.kt} "Hide" dropdown (Health / Absorption / Mount health / Regeneration bounce /
- * Armour / Hunger), all six OFF by default - {@link ObjectHiderConfig}. QUOI's own hooks target an older
+ * Armor / Hunger), all six OFF by default - {@link ObjectHiderConfig}. QUOI's own hooks target an older
  * {@code Gui.renderHearts}/{@code renderArmor}/{@code renderFood}/{@code renderVehicleHealth} render pass
  * (mixins/GuiMixin.java:29-99); javap-verified against THIS 26.1.2 merged jar, {@code Gui} no longer renders
  * directly - it only EXTRACTS a render state ({@code extractHearts}/{@code extractArmor}/{@code extractFood}/
  * {@code extractVehicleHealth}, all still present, all still {@code private}), which a separate submission
- * pass turns into draw calls later. Cancelling the extract call is equivalent to QUOI's render-cancel: nothing
+ * pass turns into draw calls later. Canceling the extract call is equivalent to QUOI's render-cancel: nothing
  * is added to the {@link GuiGraphicsExtractor} for that bar, so nothing is submitted or drawn - purely visual,
  * this never touches health/armor/food values or anything sent to the server.
  * <p>
  * Absorption and the regen "bounce" have no dedicated extract method to cancel (they're read inline inside
- * {@code extractPlayerHealth}, which also computes normal hearts, air and the heart-blink timer - cancelling
+ * {@code extractPlayerHealth}, which also computes normal hearts, air and the heart-blink timer - canceling
  * it outright would be far too broad). javap-verified {@code extractPlayerHealth} calls
  * {@code Player.getAbsorptionAmount()} once and {@code Player.hasEffect(MobEffects.REGENERATION)} once, so
  * both are redirected instead - same technique QUOI itself uses for Absorption

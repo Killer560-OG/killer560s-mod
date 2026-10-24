@@ -44,7 +44,7 @@ public final class IslandGraph {
         public final double x;
         public final double y;
         public final double z;
-        /** Raw name (may contain § colour codes), or null. */
+        /** Raw name (may contain § color codes), or null. */
         public final String name;
         /** Name with § codes removed, or null. */
         public final String cleanName;

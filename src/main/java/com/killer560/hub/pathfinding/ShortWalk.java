@@ -106,7 +106,7 @@ public final class ShortWalk {
         }
         List<BlockPos> withGoal = new ArrayList<>(cells);
         if (!withGoal.get(withGoal.size() - 1).equals(goalFeet) && LocalPlanner.cell(level, goalFeet)) {
-            withGoal.add(goalFeet);   // LocalPlanner's goal test takes a neighbour of it; finish on the block itself
+            withGoal.add(goalFeet);   // LocalPlanner's goal test takes a neighbor of it; finish on the block itself
         }
         List<Vec3> points = LocalPlanner.toPoints(withGoal);
         points.remove(0);   // his own block

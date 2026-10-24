@@ -41,7 +41,7 @@ public final class SlotTextFeature {
 
     public enum Pos { TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT }
 
-    /** One piece of text for a slot: where it sits and its ARGB colour. */
+    /** One piece of text for a slot: where it sits and its ARGB color. */
     public record Entry(SlotTextType type, Pos pos, String text, int color) {
     }
 

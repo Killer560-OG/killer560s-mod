@@ -17,13 +17,13 @@ import java.util.Locale;
  * room-relative transform applies here.
  * <p>
  * <b>Trigger box.</b> Every node owns a box {@link #width} x {@link #length} blocks (width across, length along
- * the grid-snapped {@link #boxYaw()}; 0.5 x 0.5 by default) centred on the node. Every node is armed on its own: walking INTO its box fires it, in whatever order
+ * the grid-snapped {@link #boxYaw()}; 0.5 x 0.5 by default) centered on the node. Every node is armed on its own: walking INTO its box fires it, in whatever order
  * you reach the nodes (killer560, 2026-09-20: "node one, then node two, then node 4, then node 18, they should all
  * fire ... The order never matters"); same-tick collisions fire one per tick by {@link Type#priority()}. "/ap3 add
  * walk w1 l1" sets the box "in whole blocks, any size". A held Walk carries you into the next box.
  * <p>
  * <b>Snapping</b> (killer560: "All align nodes snap you to .5/.5 on the block by default. '/ap3 add align precise'
- * uses your exact current coordinates instead"): X and Z snap to the block centre ONCE at placement
+ * uses your exact current coordinates instead"): X and Z snap to the block center ONCE at placement
  * ({@link #snapCentre}) unless the node is {@link #precise}; Y snaps to the block floor.
  * <p>
  * <b>Modifiers</b> (his "modifiers, replacing the wait node", and they apply to ANY node): {@link #waitAfterMs}
@@ -152,7 +152,7 @@ public final class Ap3Node {
                 // A Use fires in the box like a Boom does, after the movement nodes have had it.
                 case USE -> 7;
                 case JUMP, EDGE, BLOCK -> 7;
-                // A Path node starts / continues the optimised route; No Go is data for the planner and never fires.
+                // A Path node starts / continues the optimized route; No Go is data for the planner and never fires.
                 case PATH -> 6;
                 case NO_GO -> 99;
                 // Opening the terminal is the point of standing here: before a walk carries you past it.
@@ -241,7 +241,7 @@ public final class Ap3Node {
     private static final double BOX_EPS = 0.02;
 
     public Type type = Type.WALK;
-    /** Absolute feet position (snapped to the block centre unless {@link #precise}). */
+    /** Absolute feet position (snapped to the block center unless {@link #precise}). */
     public double x;
     public double y;
     public double z;
@@ -319,7 +319,7 @@ public final class Ap3Node {
      */
     public boolean pathStart, pathEnd;
     /**
-     * {@link Type#PATH}: the speed the route must be travelling at when it crosses this node, blocks/tick; negative
+     * {@link Type#PATH}: the speed the route must be traveling at when it crosses this node, blocks/tick; negative
      * means "any". killer560 asked for "a certain position with a certain velocity or range of velocity".
      */
     public double minSpeed = -1, maxSpeed = -1;
@@ -334,7 +334,7 @@ public final class Ap3Node {
      */
     public boolean termWait;
 
-    /** Optional per-node ARGB colour, or null to use the type / uniform colour from the settings. */
+    /** Optional per-node ARGB color, or null to use the type / uniform color from the settings. */
     public Integer colour;
 
     public Ap3Node() {
@@ -347,13 +347,13 @@ public final class Ap3Node {
         this.z = z;
         this.yaw = yaw;
         this.pitch = pitch;
-        // Box: DEFAULT_WIDTH x DEFAULT_LENGTH (0.5 x 0.5) for every type - the field initialisers. An align still
+        // Box: DEFAULT_WIDTH x DEFAULT_LENGTH (0.5 x 0.5) for every type - the field initializers. An align still
         // pulls you in from ALIGN_REACH once it fires, so a small box does not mean it is easy to miss.
     }
 
     // ---- snapping -------------------------------------------------------------------------------------------
 
-    /** The nearest half-block line: a block centre ({@code n.5}) - killer560's ".5/.5 on the block" - or, when you
+    /** The nearest half-block line: a block center ({@code n.5}) - killer560's ".5/.5 on the block" - or, when you
      *  stand closer to it, the seam between two blocks ({@code n.0}) (2026-09-21: "if I am closer to being halfway
      *  between blocks then the node snaps there as well. So it could snap in the middle of 4 blocks, or just 2").
      *  Per axis, so one .0 axis is between 2 blocks and two .0 axes the middle of 4. */
@@ -506,13 +506,13 @@ public final class Ap3Node {
         return new Vec3(Math.cos(r), 0.0, Math.sin(r));
     }
 
-    /** Signed lateral offset of {@code p} from the trigger box's centre line (positive = to the box's left). */
+    /** Signed lateral offset of {@code p} from the trigger box's center line (positive = to the box's left). */
     public double lateralOffset(Vec3 p) {
         Vec3 l = boxLeft();
         return (p.x - x) * l.x + (p.z - z) * l.z;
     }
 
-    /** Signed distance of {@code p} along the trigger box's direction from its centre (positive = ahead). */
+    /** Signed distance of {@code p} along the trigger box's direction from its center (positive = ahead). */
     public double alongOffset(Vec3 p) {
         Vec3 d = boxDir();
         return (p.x - x) * d.x + (p.z - z) * d.z;
@@ -561,7 +561,7 @@ public final class Ap3Node {
     }
 
     /**
-     * How far from the box's centre {@code p} is, as a fraction of the box: 0 at the centre, 1 on its edge (the larger
+     * How far from the box's center {@code p} is, as a fraction of the box: 0 at the center, 1 on its edge (the larger
      * of the two axes, each over its half-extent), so boxes of different sizes compare fairly. Used to pick the RUN /
      * WALK he is "more in the center of" when two overlap (killer560, 2026-10-18).
      */
@@ -571,7 +571,7 @@ public final class Ap3Node {
         return Math.max(a, l);
     }
 
-    /** Horizontal distance from {@code p} to the node centre. */
+    /** Horizontal distance from {@code p} to the node center. */
     public double horizontalDistance(Vec3 p) {
         double dx = p.x - x;
         double dz = p.z - z;

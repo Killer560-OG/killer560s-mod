@@ -41,7 +41,7 @@ import java.util.concurrent.TimeoutException;
  * (2s doubling to a 2-minute cap, with jitter) so it never spins, and an outage produces exactly one message to
  * the player and then silence - see {@code reportedFailure}.
  * <p>
- * <b>What leaves the client:</b> the handshake described in {@link RelayAuth}, and afterwards only the chat
+ * <b>What leaves the client:</b> the handshake described in {@link RelayAuth}, and afterward only the chat
  * lines the player typed into {@code /killer560 chat}, a keep-alive ping, and the room name (a hash - see
  * {@link RelayRoom}). No telemetry, no inventory, no position, no run data unless a feature explicitly calls
  * {@link #sendData}.

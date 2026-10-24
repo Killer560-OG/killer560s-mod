@@ -19,7 +19,7 @@ import java.util.List;
 public final class CapeConfig {
 
     public static final String NONE = "none";
-    /** The Make Your Own cape: generated at runtime from the two colours and the pattern below. */
+    /** The Make Your Own cape: generated at runtime from the two colors and the pattern below. */
     public static final String CUSTOM = "custom";
 
     /** Layouts for the Make Your Own cape. */
@@ -45,7 +45,7 @@ public final class CapeConfig {
     private int customColourA = 0x2D6CDF;
     private int customColourB = 0xF2B134;
     private Pattern customPattern = Pattern.STRIPES;
-    /** The hand-painted back panel, row by row (10 wide, 16 tall), RGB per pixel; {@link #UNSET} takes the pattern's colour. */
+    /** The hand-painted back panel, row by row (10 wide, 16 tall), RGB per pixel; {@link #UNSET} takes the pattern's color. */
     public static final int PANEL_W = 10;
     public static final int PANEL_H = 16;
     public static final int UNSET = -1;
@@ -62,7 +62,7 @@ public final class CapeConfig {
         return p;
     }
 
-    /** The painted colour of back-panel pixel (x, y), or {@link #UNSET}. */
+    /** The painted color of back-panel pixel (x, y), or {@link #UNSET}. */
     public int getPixel(int x, int y) {
         return pixels[y * PANEL_W + x];
     }

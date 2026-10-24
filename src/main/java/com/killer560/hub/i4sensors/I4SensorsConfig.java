@@ -82,7 +82,7 @@ public final class I4SensorsConfig {
     private boolean legacyVerboseEnabled = false;
     private boolean solverEnabled = false;
     // Aim marker color (2026-09-14, killer560: the aim squares were "almost impossible to see") - user-pickable;
-    // bright cyan contrasts with the purple glass and grey wall. Hit targets stay orange.
+    // bright cyan contrasts with the purple glass and gray wall. Hit targets stay orange.
     // Neon yellow (2026-09-14, killer560: "super bright color and really noticeable") - yellow is purple's
     // complement, so it pops hardest against the i4 wall's purple glass. Cyan was the previous default.
     public static final int DEFAULT_SOLVER_COLOR = 0xFFFFFF00;

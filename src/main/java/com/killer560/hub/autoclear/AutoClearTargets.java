@@ -290,7 +290,7 @@ final class AutoClearTargets {
         return dist;
     }
 
-    /** Rooms joined to {@code room} by any door, locked or not - DungeonMapPathfinder's neighbour rule. */
+    /** Rooms joined to {@code room} by any door, locked or not - DungeonMapPathfinder's neighbor rule. */
     private static List<Integer> adjacent(DungeonLayout layout, int room) {
         List<Integer> out = new ArrayList<>();
         int[][] dirs = {{0, -1}, {0, 1}, {1, 0}, {-1, 0}};

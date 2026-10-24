@@ -63,7 +63,7 @@ final class SettingTooltipsData {
     }
 
     private static void colourPicker(Map<String, String> d) {
-        // Every colour setting's picker (gui/ColorPickerScreen), 2026-10-13: Copy / Paste / Recent between menus.
+        // Every color setting's picker (gui/ColorPickerScreen), 2026-10-13: Copy / Paste / Recent between menus.
         d.put("color picker/copy", "Copies this color to the clipboard as #RRGGBB (#AARRGGBB when it is see-through), and adds it to Recent. Ctrl+C does the same.");
         d.put("color picker/paste", "Uses the color on the clipboard: #RRGGBB, RRGGBB, #RGB, 0xRRGGBB or #AARRGGBB. Ctrl+V does the same; anything else is refused.");
         d.put("color picker/set default", "Puts this setting's own default color back.");
@@ -95,7 +95,7 @@ final class SettingTooltipsData {
     }
 
     private static void menuTheme(Map<String, String> d) {
-        // Option A menu, 2026-10-12: the menu's colour presets and Custom colours (gui/tab/MenuThemeTab).
+        // Option A menu, 2026-10-12: the menu's color presets and Custom colors (gui/tab/MenuThemeTab).
         d.put("menu theme/menu theme", "Amber, Dark, Light, Ocean, Green or Custom. Left click goes to the next, right click back.");
         d.put("theme", "This screen's own colors. Theme Default follows the mod menu's theme; Amber, Dark, Light, Ocean, Green or Custom (the menu's Custom colors) apply to this screen only. Left click goes to the next, right click back.");
         d.put("menu theme/animations", "How the mod menu moves: Smooth eases hovers, switches, the drawer, scrolling and opening; Reduced keeps only short color fades (nothing slides or grows); Off changes everything at once. Left click goes to the next, right click back.");
@@ -1204,7 +1204,7 @@ final class SettingTooltipsData {
         d.put("auto fairy souls/sprint", "Sprints where the path is clear; it still slows for corners and the soul at any speed.");
         d.put("start/stop key", "Starts or stops Auto Fairy Souls (it has no button; /k560path souls auto starts it too).");
 
-        // Terminal overlay colours
+        // Terminal overlay colors
         d.put("panes color", "Highlight color for the Correct all the panes terminal.");
         d.put("starts with color", "Highlight color for matching items in the What starts with terminal.");
         d.put("select all color", "Highlight color for matching items in the Select all the [color] items terminal.");
@@ -2094,7 +2094,7 @@ final class SettingTooltipsData {
         d.put("health and mana bars/armor bar", "While Stat Bars is on: hides the vanilla armor points bar.");
         d.put("health and mana bars/air bar", "While Stat Bars is on: hides the vanilla air/breath bubbles bar.");
         d.put("health and mana bars/unhide hearts in rift", "Shows the vanilla heart bar again while inside The Rift.");
-        // Redone 2026-10-07 (killer560: "way too complicated looking"): Armor Bar became Armour Bar, Hypixel Stat Text
+        // Redone 2026-10-07 (killer560: "way too complicated looking"): Armor Bar became Armor Bar, Hypixel Stat Text
         // became Hide Hypixel Stat Text in the new Text section, and the per-readout Scale slider went (the HUD editor
         // sets the same scale). The always-on Object Hider bar hides below had no description until then.
         d.put("health and mana bars/hypixel stat text", "Takes Hypixel's own health, defense and mana numbers (and the other stat segments) out of the action bar, leaving anything else on that line.");

@@ -108,7 +108,7 @@ public final class ClearExecutor {
     private static volatile boolean sneakMixinApplied = false;
     private static boolean forcedSneakKey = false;
     // 2026-09-15: set while another feature (Pathfinding's Auto Fairy Souls) owns the queue, so its hops are not
-    // cancelled just because the Interactive Map's own "Teleport Pathing"/"Auto Blood Rush" toggles are off.
+    // canceled just because the Interactive Map's own "Teleport Pathing"/"Auto Blood Rush" toggles are off.
     // Nothing else changes: when it is false this class behaves exactly as before.
     private static volatile boolean externalOwner = false;
 
@@ -438,7 +438,7 @@ public final class ClearExecutor {
         plan(to, tileIdx, complete);
     }
 
-    /** One search towards a goal: {@link #etherPath} for a new goal, {@link #tickReplan} for the same one again. */
+    /** One search toward a goal: {@link #etherPath} for a new goal, {@link #tickReplan} for the same one again. */
     private static void plan(BlockPos to, int tileIdx, Runnable complete) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
@@ -591,7 +591,7 @@ public final class ClearExecutor {
     /**
      * Why a planned path cannot happen as planned, or null. Each hop is cast exactly as {@link ClearNode.EtherNode}
      * will cast it (its stand, sneaking eye, float yaw and pitch): it must land, within the hop range (the block's
-     * centre at most {@code range + 1} from the eye - the server refuses anything past its own reach), and on the
+     * center at most {@code range + 1} from the eye - the server refuses anything past its own reach), and on the
      * next hop's stand. The first hop must start where he is. Together that also bounds the warps against the
      * distance: no N-warp plan reaches further than N hop ranges. Client thread.
      */
@@ -1360,7 +1360,7 @@ public final class ClearExecutor {
         compDelay = 2;
         onComplete = null;
         pendingCompletion = null;
-        // The arrival sync belongs to the path being cancelled, so drop it too. Left running it kept
+        // The arrival sync belongs to the path being canceled, so drop it too. Left running it kept
         // isBusy() true for up to 49 more ticks (the 40-tick position-packet wait plus the 9-tick settle)
         // with no completion callback left to run - long enough that the Interactive Map's retarget
         // (killer560, 2026-09-29: "If I click a different room mid path...") would look like it did nothing.
@@ -1586,7 +1586,7 @@ public final class ClearExecutor {
         }
         if (expected != null && at != null && !landedOn(at, expected, 1.5, 3.0)) {
             // The last landing was answered, but he is not there now: the goal is not reached, so the
-            // "arrived" behaviour (face the door, an auto's next step) must not run.
+            // "arrived" behavior (face the door, an auto's next step) must not run.
             offPath(String.format(java.util.Locale.US, "ended %.1f blocks from the planned landing",
                     horizontal(at, expected)), callback);
             return;
@@ -1965,7 +1965,7 @@ public final class ClearExecutor {
         }
         if (executed) {
             if (nodes == null) {
-                return; // cancelled inside execute
+                return; // canceled inside execute
             }
             if (bx != playerPos[0] || by != playerPos[1] || bz != playerPos[2]) {
                 issued.add(new Vec3(playerPos[0], playerPos[1], playerPos[2]));

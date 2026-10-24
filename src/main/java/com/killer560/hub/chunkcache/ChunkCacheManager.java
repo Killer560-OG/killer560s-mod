@@ -28,9 +28,9 @@ import java.util.Set;
  *
  * <h2>Why this is needed on 26.1.2</h2>
  * {@code ClientChunkCache} stores chunks in a fixed {@code (2r+1)^2} ring ({@code r = serverViewDistance + 3}) around
- * the view centre, and {@code getChunk} refuses anything outside that ring ({@code Storage.inRange}) - so walking
+ * the view center, and {@code getChunk} refuses anything outside that ring ({@code Storage.inRange}) - so walking
  * away is enough to make a chunk unreadable even before the server's {@code ClientboundForgetLevelChunkPacket}
- * arrives. Cancelling that packet (the Live Map's existing "Keep Chunks Loaded") therefore cannot be enough on its own.
+ * arrives. Canceling that packet (the Live Map's existing "Keep Chunks Loaded") therefore cannot be enough on its own.
  *
  * <h2>How it works</h2>
  * Every chunk the server sends is recorded in the world's {@link ChunkCacheStore} as it is applied
@@ -43,7 +43,7 @@ import java.util.Set;
  * chunk this cache owns the two block-entity calls inside {@code LevelChunk.clearAllBlockEntities} are skipped
  * ({@code ChunkCacheLevelChunkMixin}) - the map is left exactly as it was, never cleared and never re-filled, so a
  * worker thread reading a cached chunk can never see a half-restored map. The ticker half of that method runs
- * untouched, and a cache-only chunk registers nothing new either: {@code addAndRegisterBlockEntity} is cancelled for
+ * untouched, and a cache-only chunk registers nothing new either: {@code addAndRegisterBlockEntity} is canceled for
  * it, so no block-entity ticker and no off-screen renderer entry is ever created behind vanilla's back.
  *
  * <h2>Who sees cached chunks</h2>
@@ -56,7 +56,7 @@ import java.util.Set;
  *
  * <h2>Known limitation</h2>
  * The server sends no block updates for chunks it no longer tracks, so a cached chunk is a snapshot from the moment
- * it was last sent. Blocks broken or placed there afterwards are not reflected until the server sends that chunk
+ * it was last sent. Blocks broken or placed there afterward are not reflected until the server sends that chunk
  * again, which replaces the cached copy.
  *
  * <h2>What is deliberately NOT changed</h2>
@@ -158,8 +158,8 @@ public final class ChunkCacheManager {
 
     private static void onClientTick(Minecraft client) {
         ChunkCacheConfig cfg = ChunkCacheConfig.getInstance();
-        // The Live Map's "Keep Chunks Loaded" keeps cancelling forget packets exactly as before AND turns this cache
-        // on, since cancelling that packet alone does not survive the view centre moving.
+        // The Live Map's "Keep Chunks Loaded" keeps canceling forget packets exactly as before AND turns this cache
+        // on, since canceling that packet alone does not survive the view center moving.
         active = cfg.isEnabled() || LiveMapConfig.getInstance().isKeepChunksLoaded();
         maxChunks = cfg.getMaxChunks();
 

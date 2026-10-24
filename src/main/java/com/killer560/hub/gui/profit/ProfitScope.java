@@ -241,7 +241,7 @@ public final class ProfitScope {
         }
 
         /** The next value after the filter's current one: All, then each value seen, then All again
-         *  ({@code step} -1 goes backwards, for a right click). */
+         *  ({@code step} -1 goes backward, for a right click). */
         public void cycle(Filter f, Collection<Key> keys, int step) {
             List<String> vals = values(keys);
             int n = vals.size() + 1; // index 0 is "All"

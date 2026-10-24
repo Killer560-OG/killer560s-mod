@@ -123,7 +123,7 @@ public class WindowLayoutScreen extends Screen implements MenuThemedScreen {
         int[][] cells = WindowMonitors.cells(monitor.area(cfg.isRespectTaskbar()), cfg.getWindowsPerMonitor(), cfg.getGap());
         int[][] out = new int[cells.length][];
         for (int i = 0; i < cells.length; i++) {
-            // At least a 1px visible separation between neighbouring cells in the preview even at gap 0.
+            // At least a 1px visible separation between neighboring cells in the preview even at gap 0.
             int[] g = toGui(p, cells[i][0], cells[i][1], cells[i][2], cells[i][3]);
             out[i] = new int[]{g[0] + 1, g[1] + 1, g[2] - 1, g[3] - 1};
         }

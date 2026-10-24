@@ -11,7 +11,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Writes a small JSON file off the render thread. The caller serialises on its own thread (so the data is a
+/** Writes a small JSON file off the render thread. The caller serializes on its own thread (so the data is a
  *  snapshot), the disk write runs on one shared daemon thread, and a burst of saves (a slider drag, typing a
  *  name) collapses into the newest one. {@link #flush()} waits for queued writes, so a load that follows a save
  *  never reads a stale file. */

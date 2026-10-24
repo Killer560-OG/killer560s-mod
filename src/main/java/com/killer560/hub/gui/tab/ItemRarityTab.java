@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Item Rarity Backgrounds settings - see {@link com.killer560.hub.itemrarity.ItemRarityFeature}. Controls only:
- *  the two grey explainer lines (what it colours, Hypixel/p3sim-only) were removed 2026-09-16 - killer560 called
+ *  the two gray explainer lines (what it colors, Hypixel/p3sim-only) were removed 2026-09-16 - killer560 called
  *  them clutter. The tooltips still carry that information on hover. */
 public class ItemRarityTab extends BaseTab {
 

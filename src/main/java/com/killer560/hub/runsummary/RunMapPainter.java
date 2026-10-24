@@ -11,8 +11,8 @@ import java.util.Locale;
  * A logged run's 11x11 map, drawn at any cell size: the run log's detail view and the Dungeon Sim's saved-run cards
  * (a thumbnail) and detail page all draw it through here, so a run's map looks the same everywhere.
  *
- * <p>Rooms are coloured by the room database's type, doors are smaller darker squares in their own colour, a still
- * locked door gets an amber ring. The map keeps its own dark backdrop on every theme: the room colours are the map's,
+ * <p>Rooms are colored by the room database's type, doors are smaller darker squares in their own color, a still
+ * locked door gets an amber ring. The map keeps its own dark backdrop on every theme: the room colors are the map's,
  * not the theme's. Everything goes out as ONE batched element ({@link GuiRects}), because a page of thumbnails is a
  * few thousand squares.
  */

@@ -47,7 +47,7 @@ import java.util.Map;
  *
  * <p>Coordinates and yaw are shown in WORLD terms (what F3 shows) and turned back into the room-relative values
  * the route stores on Save. A box left exactly as it was keeps the stored value bit for bit, so opening and saving
- * a node never moves it; a changed position is snapped to the centre of its block, where every placed node sits
+ * a node never moves it; a changed position is snapped to the center of its block, where every placed node sits
  * ({@link RouteNode#snapBlockCentre}), which is what makes two nodes on one tile a stack.
  *
  * <p>Every change goes through {@link AutoRoutesFeature#applyNodeEdit}, which records it in {@link RouteHistory},
@@ -214,7 +214,7 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
         addField(x + third + GAP, y, third, "Y", 12);
         addField(x + (third + GAP) * 2, y, w - (third + GAP) * 2, "Z", 12);
         y += line;
-        // Whole-block nudges on the WORLD axes, each landing on a block centre like a placed node.
+        // Whole-block nudges on the WORLD axes, each landing on a block center like a placed node.
         String[] nudgeLabels = {"X -1", "X +1", "Z -1", "Z +1", "Y -1", "Y +1"};
         int nw = (w - GAP * 5) / 6;
         for (int i = 0; i < nudgeLabels.length; i++) {
@@ -380,7 +380,7 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
         return Component.literal(label + ": " + (on ? "§aon" : "§7off"));
     }
 
-    /** Moves the position boxes by {@code step} along a world axis, x/z landing on a block centre. */
+    /** Moves the position boxes by {@code step} along a world axis, x/z landing on a block center. */
     private void nudge(String axis, double step) {
         Double v = num(axis);
         if (v == null) {

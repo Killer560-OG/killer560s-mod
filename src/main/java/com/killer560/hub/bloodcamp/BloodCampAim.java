@@ -275,7 +275,7 @@ final class BloodCampAim {
         }
         double t = ticks + Mth.clamp(partial, 0.0, 0.999);
         if (t < lastT) {
-            t = lastT; // never run time backwards (partial resets at the tick)
+            t = lastT; // never run time backward (partial resets at the tick)
         }
         lastT = t;
         return t;

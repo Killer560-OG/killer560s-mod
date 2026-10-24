@@ -41,7 +41,7 @@ public final class NameChangerConfig {
     private static volatile int version = 0;
 
     /** One "realName=displayName" row. {@code display} is the plain text; {@code color} is the picked ARGB
-     *  ({@link NameColor#NONE} = leave the surrounding colour alone). {@code display} may still contain
+     *  ({@link NameColor#NONE} = leave the surrounding color alone). {@code display} may still contain
      *  {@code §} format codes (bold, italic) for anyone who wants them. */
     public static final class Mapping {
         public String real;
@@ -63,29 +63,29 @@ public final class NameChangerConfig {
     private boolean ownNameEnabled = true;
     /** What your own IGN is shown as. Blank = own name is left alone. */
     private String ownDisplayName = "";
-    /** Picked colour for {@link #ownDisplayName} - see {@link NameColor}. */
+    /** Picked color for {@link #ownDisplayName} - see {@link NameColor}. */
     private int ownColor = NameColor.NONE;
     /** Cosmetics tab "Fade Color" (killer560: "allow them to fade the color") - when on, {@link #ownColor}
      *  is the gradient's start and {@link #ownColorFadeTo} its end; see {@link NameColor#buildFade}. */
     private boolean ownColorFadeEnabled = false;
     private int ownColorFadeTo = NameColor.NONE;
     /** "Bold Name" (killer560, 2026-10-13: "make a toggle for custom names to be bold"): your own display name drawn in
-     *  bold, and shared bold by Share if Supporter (an {@code &l} after its colour, which the relay already accepts). */
+     *  bold, and shared bold by Share if Supporter (an {@code &l} after its color, which the relay already accepts). */
     private boolean ownBold = false;
-    /** "Name Animation" (killer560, 2026-10-13): Off, Wave or Pulse for a faded / letter-coloured own name, and its
+    /** "Name Animation" (killer560, 2026-10-13): Off, Wave or Pulse for a faded / letter-colored own name, and its
      *  speed - see {@link NameAnimation}. Shared with the name by Share if Supporter. */
     private NameAnimation.Mode ownAnimation = NameAnimation.Mode.OFF;
     private double ownAnimationSpeed = NameAnimation.DEFAULT_SPEED;
-    /** Per-letter colours for your own display name (killer560, 2026-10-04: "add an option to change each
-     *  character's colour for your own name"). Index = visible character position; {@link NameColor#NONE}
-     *  means that letter keeps the name's normal colour (flat or fade). Entries past the name's length are
+    /** Per-letter colors for your own display name (killer560, 2026-10-04: "add an option to change each
+     *  character's color for your own name"). Index = visible character position; {@link NameColor#NONE}
+     *  means that letter keeps the name's normal color (flat or fade). Entries past the name's length are
      *  kept, so shortening and re-lengthening the name does not lose them. */
     private final List<Integer> ownCharColors = new ArrayList<>();
     /** Rank tag before your own name (killer560, 2026-10-15) - see {@link NameRank}. */
     private NameRank.Preset ownRank = NameRank.Preset.DEFAULT;
-    /** Picked colour for the rank's brackets and text ({@link NameColor#NONE} = the rank's own colour). */
+    /** Picked color for the rank's brackets and text ({@link NameColor#NONE} = the rank's own color). */
     private int ownRankColor = NameColor.NONE;
-    /** Picked colour for the rank's {@code +} signs ({@link NameColor#NONE} = the rank's own, or the text colour). */
+    /** Picked color for the rank's {@code +} signs ({@link NameColor#NONE} = the rank's own, or the text color). */
     private int ownRankPlusColor = NameColor.NONE;
     private String ownRankCustomText = "";
     /** "Per-Profile Names": when on, custom names ride in each profile like every other setting; off (the default) they
@@ -184,8 +184,8 @@ public final class NameChangerConfig {
         if (obj.has("ownColor")) {
             ownColor = ConfigJson.getInt(obj, "ownColor", NameColor.NONE);
         } else {
-            // Pre-colour-picker config (killer560, 2026-09-20: "instead of using color codes I select
-            // a color for it") - lift the typed &/§ colour code out of the name so his current setup
+            // Pre-color-picker config (killer560, 2026-09-20: "instead of using color codes I select
+            // a color for it") - lift the typed &/§ color code out of the name so his current setup
             // keeps looking the same with the new picker.
             NameColor.Migrated migrated = NameColor.migrate(ownDisplayName);
             ownDisplayName = migrated.text();
@@ -467,7 +467,7 @@ public final class NameChangerConfig {
 
     public static final int MAX_CHAR_COLORS = 64;
 
-    /** {@link NameColor#NONE} when letter {@code index} has no colour of its own. */
+    /** {@link NameColor#NONE} when letter {@code index} has no color of its own. */
     public int getOwnCharColor(int index) {
         if (index < 0 || index >= ownCharColors.size()) {
             return NameColor.NONE;
@@ -506,8 +506,8 @@ public final class NameChangerConfig {
         return mappings;
     }
 
-    /** Cosmetics tab's bottom "Reset" button: puts the own-name display text/colour/fade back to their
-     *  defaults, letter colours included. Deliberately leaves {@link #ownNameEnabled}/{@link #mappingsEnabled}/{@link
+    /** Cosmetics tab's bottom "Reset" button: puts the own-name display text/color/fade back to their
+     *  defaults, letter colors included. Deliberately leaves {@link #ownNameEnabled}/{@link #mappingsEnabled}/{@link
      *  #randomizeOthers} and the mapping list alone - those are feature toggles and saved data, not cosmetic
      *  VALUES, same distinction {@link com.killer560.hub.helditem.HeldItemConfig#resetValues} draws. */
     public void resetOwnNameCosmetics() {

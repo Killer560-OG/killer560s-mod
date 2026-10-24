@@ -16,8 +16,8 @@ import org.joml.Matrix4f;
 
 /**
  * The Ribbon Trail (killer560, 2026-10-13, a Roblox "Using Trails" picture: "can you make trails have an option to do
- * something like this as well?"): one continuous band streaming behind the player, the head colour at the body running
- * to the tail colour at the end, fading to nothing there.
+ * something like this as well?"): one continuous band streaming behind the player, the head color at the body running
+ * to the tail color at the end, fading to nothing there.
  *
  * <p>The band is a WORLD-FIXED vertical strip like a Roblox Trail (killer560, 2026-10-14: "it looks to be horizontal and
  * depending on how i move my mouse sometimes it is vertical" / "I want the ribbon to be vertical behind them, not
@@ -206,8 +206,8 @@ public final class RibbonTrail {
 
     /**
      * Lays new points behind {@code player} and draws; called every frame while this ribbon is shown. {@code spec} is
-     * the look ({@code length} is the seconds a point lasts), {@code fadeEnds} the head/tail colours Name Fade uses (null
-     * falls back to the spec's colours), and {@code hidden} lays points but draws nothing (your own ribbon in first
+     * the look ({@code length} is the seconds a point lasts), {@code fadeEnds} the head/tail colors Name Fade uses (null
+     * falls back to the spec's colors), and {@code hidden} lays points but draws nothing (your own ribbon in first
      * person with Show In First Person off).
      */
     void draw(LevelRenderContext context, Player player, TrailSpec spec, int[] fadeEnds, boolean hidden) {
@@ -332,11 +332,11 @@ public final class RibbonTrail {
         smooth(px, py, pz, n, brk);
         smooth(px, py, pz, n, brk);
 
-        // Arc length from the tail, normalised: 0 at the tail, 1 at the anchor.
+        // Arc length from the tail, normalized: 0 at the tail, 1 at the anchor.
         double total = 0;
         along[0] = 0f;
         for (int i = 1; i < n; i++) {
-            // A gap (Break mode) adds no length: the colours run on across it as if the pieces were one band.
+            // A gap (Break mode) adds no length: the colors run on across it as if the pieces were one band.
             if (!brk[i]) {
                 total += dist(px[i - 1], py[i - 1], pz[i - 1], px[i], py[i], pz[i]);
             }
@@ -422,12 +422,12 @@ public final class RibbonTrail {
                 .setColor(verts[o + 3], verts[o + 4], verts[o + 5], verts[o + 6]);
     }
 
-    /** Colour at {@code u} along the band (1 = at the player, 0 = the tail end). 0xRRGGBB. {@code fadeEnds}: Name Fade's
-     *  head and tail colours, or null to fall back to the spec's own colours. {@code chromaT} is Chroma's 0..1 phase. */
+    /** Color at {@code u} along the band (1 = at the player, 0 = the tail end). 0xRRGGBB. {@code fadeEnds}: Name Fade's
+     *  head and tail colors, or null to fall back to the spec's own colors. {@code chromaT} is Chroma's 0..1 phase. */
     static int colorAt(TrailSpec spec, int[] fadeEnds, float u, float chromaT) {
         switch (spec.mode()) {
             case CHROMA: {
-                // The colours flow from the player toward the tail as time passes.
+                // The colors flow from the player toward the tail as time passes.
                 return ChromaWave.hsv((1f - u) * 0.6f - chromaT, 1f, 1f);
             }
             case NAME_FADE: {

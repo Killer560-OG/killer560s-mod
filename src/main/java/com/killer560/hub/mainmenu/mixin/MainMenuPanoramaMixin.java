@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** Swaps the rotating panorama for the themed background. TitleScreen doesn't override {@code extractPanorama}
  *  (javap, 26.1.2) - it calls Screen's from {@code extractRenderState} - so the hook sits on Screen.
  *  <ul>
- *  <li>TitleScreen: unchanged behaviour - full {@link MainMenuTheme#drawBackground} whenever the theme is
+ *  <li>TitleScreen: unchanged behavior - full {@link MainMenuTheme#drawBackground} whenever the theme is
  *  active.</li>
  *  <li>Every other screen: only while {@link MainMenuTheme#activeOnMenuBackground()} (Themed Other Menus on,
  *  not a container screen, no world loaded) - the toned-down {@link MenuChrome#drawMenuBackground}.

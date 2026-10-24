@@ -43,7 +43,7 @@ public final class TrailFeature {
     private static boolean wasRibbon = false;
     /** The local look, rebuilt each tick from the settings (the renderers read it every frame). */
     private static volatile TrailSpec localSpec = null;
-    /** The Name Changer's own colour and fade target for Name Fade (null when no colour is set), rebuilt each tick. */
+    /** The Name Changer's own color and fade target for Name Fade (null when no color is set), rebuilt each tick. */
     private static volatile int[] localFadeEnds = null;
 
     private TrailFeature() {
@@ -67,7 +67,7 @@ public final class TrailFeature {
         return spec != null ? spec : TrailSpec.fromConfig(RibbonTrailConfig.getInstance());
     }
 
-    /** The Name Changer's own colour (head) and its fade target (tail) as 0xRRGGBB, or null when no colour is set. */
+    /** The Name Changer's own color (head) and its fade target (tail) as 0xRRGGBB, or null when no color is set. */
     static int[] ownFadeEnds() {
         NameChangerConfig nc = NameChangerConfig.getInstance();
         int from = nc.getOwnColor();
@@ -95,7 +95,7 @@ public final class TrailFeature {
         TrailConfig cfg = TrailConfig.getInstance();
         RibbonTrailConfig ribbon = RibbonTrailConfig.getInstance();
         boolean ribbonNow = ribbon.isEnabled();
-        // The look is only read while the ribbon draws, so with it off the TrailSpec, colour array and Name Changer
+        // The look is only read while the ribbon draws, so with it off the TrailSpec, color array and Name Changer
         // lookups are not rebuilt every tick (localSpec() rebuilds on demand).
         if (ribbonNow) {
             localSpec = TrailSpec.fromConfig(ribbon);

@@ -1,10 +1,10 @@
 package com.killer560.hub.armourdye;
 
 /**
- * One item's client-side look override in Custom Items (Armour Recolour until 2026-10-08).
+ * One item's client-side look override in Custom Items (Armor Recolor until 2026-10-08).
  * <p>
  * Keyed one of two ways (killer560, 2026-10-08: "select an item in your inventory and you can then apply a skin to it
- * or recolor"): the Skyblock item id, so every copy of the item looks the same (his original Armour Recolour ask, and
+ * or recolor"): the Skyblock item id, so every copy of the item looks the same (his original Armor Recolor ask, and
  * how every migrated entry stays), or {@code UUID:<uuid>} for that one physical item. {@link ArmourDye#entryFor}
  * tries the UUID key first. Every field is a pure render override; nothing here is ever written back to an
  * {@code ItemStack}, so nothing can reach the server.
@@ -28,7 +28,7 @@ public final class ArmourDyeEntry {
     /** ARGB. Vanilla's dye tint ignores alpha, so only the low 24 bits reach the screen. */
     public int color = 0xFFFFFFFF;
 
-    /** Armour only: which armour set the piece is painted as on the body. */
+    /** Armor only: which armor set the piece is painted as on the body. */
     public ArmourSkin skin = ArmourSkin.NONE;
 
     /** Raw {@code namespace:path} equipment asset, only used when {@link #skin} is {@link ArmourSkin#CUSTOM}. */

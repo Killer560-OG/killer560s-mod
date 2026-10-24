@@ -50,7 +50,7 @@ public final class SlotBindsConfig {
     private int bindKey = -1;
     private final Map<Integer, Integer> binds = new LinkedHashMap<>();
     private OverlayMode overlayMode = OverlayMode.ALWAYS;
-    // Amber, matching this mod's own GUI theme colour (SectionHeaders.LEGIT_COLOR) rather than inventing
+    // Amber, matching this mod's own GUI theme color (SectionHeaders.LEGIT_COLOR) rather than inventing
     // a new default palette for a marker most people will never need to change.
     private int overlayColor = 0xFFFFAA00;
 

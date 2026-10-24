@@ -59,7 +59,7 @@ final class TeammatesEspRenderer {
         return throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox();
     }
 
-    /** The colour's alpha as the box batch reads it (0 means opaque). */
+    /** The color's alpha as the box batch reads it (0 means opaque). */
     static float alpha(int argb) {
         float a = ((argb >>> 24) & 0xFF) / 255f;
         return a <= 0f ? 1f : a;

@@ -17,7 +17,7 @@ import com.killer560.hub.compat.McBlocks;
  * scans while one of its own consumers is enabled).
  * <ul>
  * <li>Grid: 11x11 cells at world {@code (-185 + gx*16, -185 + gz*16)}; door cells are the ones where exactly one of
- * gx/gz is odd (QUOI: not both even = room, not both odd = 2x2 centre).
+ * gx/gz is odd (QUOI: not both even = room, not both odd = 2x2 center).
  * <li>A door cell's roof (highest non-air block) is 73/74/81/82. Its type comes from the block at y 69 the first time
  * the cell is scanned: COAL_BLOCK = WITHER, RED_TERRACOTTA = BLOOD, INFESTED_CHISELED_STONE_BRICKS = ENTRANCE, else
  * NORMAL. Once a cell is classified it is never re-scanned (QUOI keeps {@code scannedDoors} until world change).
@@ -77,7 +77,7 @@ public final class DoorScanner {
                 boolean colEven = gx % 2 == 0;
                 boolean rowEven = gz % 2 == 0;
                 if (colEven == rowEven) {
-                    continue; // room (both even) or 2x2 centre (both odd)
+                    continue; // room (both even) or 2x2 center (both odd)
                 }
                 int idx = gx + gz * GRID;
                 if (cells[idx] != null) {

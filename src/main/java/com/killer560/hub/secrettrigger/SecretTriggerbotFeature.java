@@ -171,7 +171,7 @@ public final class SecretTriggerbotFeature {
 
         // Shared one-interaction-per-tick gate, above every state change below: a refused tick must leave
         // pendingPos/lastClickMs/clicked untouched so the same target is simply clicked a tick or two later.
-        // STANDS DOWN WHILE THE INTERACTIVE MAP IS TRAVELLING. killer560 (2026-09-27): "For the aura make those
+        // STANDS DOWN WHILE THE INTERACTIVE MAP IS TRAVELING. killer560 (2026-09-27): "For the aura make those
         // turn off while using the interactive map... if the etherwarp is pathinding to a start node it cannot
         // hit a random node halfway through my secret route and start doing the secret route midway through it
         // should only start from the start node."

@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Fast/Auto Leap: never show the Spirit Leap menu the leap itself opened (see
- *  {@link LeapManager#interceptLeapScreen}). Cancelled at HEAD, before {@code Screen.removed}/{@code releaseMouse}/
+ *  {@link LeapManager#interceptLeapScreen}). Canceled at HEAD, before {@code Screen.removed}/{@code releaseMouse}/
  *  {@code KeyMapping.releaseAll}/{@code Screen.init}, so there is no cursor flicker and the HUD stays up. Target verified
  *  with javap on the 26.1.2 jar: {@code public void setScreen(net.minecraft.client.gui.screens.Screen)}, called by
  *  {@code MenuScreens.ScreenConstructor.fromPacket} right after it assigns {@code player.containerMenu}.

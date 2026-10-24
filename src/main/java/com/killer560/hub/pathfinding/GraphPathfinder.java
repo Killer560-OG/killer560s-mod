@@ -14,7 +14,7 @@ import java.util.PriorityQueue;
  * optional early bail-out once the goal is settled. Dijkstra rather than A*: jump pads / teleport pads are edges whose
  * weight is far below their straight-line length, so a Euclidean A* heuristic would not be admissible.</li>
  * <li>{@code utils/navigation/NavigationUtils.kt getRoute}: distance matrix from one Dijkstra per target, greedy
- * nearest-neighbour tour from the start, then a 2-opt pass. SkyHanni's 2-opt only compares the two boundary edges,
+ * nearest-neighbor tour from the start, then a 2-opt pass. SkyHanni's 2-opt only compares the two boundary edges,
  * which is wrong on a directed graph (reversing a segment reverses every edge inside it); this version re-costs the
  * reversed interior too.</li>
  * </ul>
@@ -140,7 +140,7 @@ public final class GraphPathfinder {
         return out;
     }
 
-    /** Nearest-neighbour tour over the matrix, starting at stop 0. */
+    /** Nearest-neighbor tour over the matrix, starting at stop 0. */
     static int[] greedy(double[][] cost) {
         int m = cost.length;
         int[] route = new int[m];

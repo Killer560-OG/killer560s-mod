@@ -43,23 +43,23 @@ public final class TerminalSolverConfig {
     public static final int MIN_HOVER_JITTER_MS = 0;
     public static final int MAX_HOVER_JITTER_MS = 250;
 
-    // ---- Overlay colours (2026-09-15, killer560: "add the option to set custom colors for terminal
+    // ---- Overlay colors (2026-09-15, killer560: "add the option to set custom colors for terminal
     // overlays") ----
-    /** Alpha floor applied to every overlay colour except {@link OverlayColor#PANEL_BACKGROUND} (which is
+    /** Alpha floor applied to every overlay color except {@link OverlayColor#PANEL_BACKGROUND} (which is
      *  forced opaque instead). The picker exposes a real alpha slider - translucent highlights are a
-     *  legitimate choice and are NOT clamped up to opaque - but a colour dragged all the way to alpha 0
-     *  would draw literally nothing, which reads as "the solver broke" rather than as a colour setting.
-     *  Turning a highlight off is what the per-type toggles above are for, so the floor keeps a colour
+     *  legitimate choice and are NOT clamped up to opaque - but a color dragged all the way to alpha 0
+     *  would draw literally nothing, which reads as "the solver broke" rather than as a color setting.
+     *  Turning a highlight off is what the per-type toggles above are for, so the floor keeps a color
      *  always at least faintly visible. */
     public static final int MIN_OVERLAY_ALPHA = 0x10;
 
-    /** Every colour the terminal overlays actually draw with. Each constant's {@code defaultArgb} is
+    /** Every color the terminal overlays actually draw with. Each constant's {@code defaultArgb} is
      *  EXACTLY the value that used to be hardcoded in {@link TerminalSolverFeature} (THEME_ORANGE /
      *  BRIGHT_ORANGE / MUTED_ORANGE / FAINT_ORANGE / PANEL_BG_COLOR / the Melody palette / ...), so
      *  nothing changes visually until the user actually edits one.
      *  <p>
      *  Roles that carry real meaning stay separate constants on purpose rather than being collapsed into
-     *  one "highlight colour": Numbers' next vs after-next vs 3rd tier is the whole point of that reveal,
+     *  one "highlight color": Numbers' next vs after-next vs 3rd tier is the whole point of that reveal,
      *  Rubix's left-click vs right-click tells you which mouse button to use, and Melody's endpoint /
      *  moving-piece / button / track roles are what make its board readable at a glance. */
     public enum OverlayColor {
@@ -84,7 +84,7 @@ public final class TerminalSolverConfig {
         PANEL_BORDER("colorPanelBorder", "Panel Border Color", 0xFFFFA500, false),
         /** The little per-slot label drawn over the vanilla (non-Custom-GUI) overlay. */
         LABEL_TEXT("colorLabelText", "Label Text Color", 0xFFFFFFFF, false),
-        /** Rubix's click-count number, drawn centred inside its filled Custom GUI cell. */
+        /** Rubix's click-count number, drawn centered inside its filled Custom GUI cell. */
         RUBIX_COUNT_TEXT("colorRubixCountText", "Rubix Count Text Color", 0xFF000000, false);
 
         private final String key;
@@ -211,12 +211,12 @@ public final class TerminalSolverConfig {
     // passing over it on the way to another one, short enough not to feel like waiting.
     private int hoverDelayMs = 100;
     // Off by default - a perfectly constant hover-to-click gap is a trivial signature, but the plain
-    // delay is what was actually asked for, so the humanising jitter is opt-in rather than a surprise
+    // delay is what was actually asked for, so the humanizing jitter is opt-in rather than a surprise
     // inconsistency in a number the user just set.
     private int hoverJitterMs = 0;
     // Melody is the one type where a hover click can't be driven by the solver's highlights (it has no
     // solved/correct set at all) - the dwell only ARMS the row button and the click fires the frame its
-    // indicator lines up. That's a different enough behaviour from the other five to be its own toggle,
+    // indicator lines up. That's a different enough behavior from the other five to be its own toggle,
     // and it ships off.
     private boolean hoverMelodyEnabled = false;
     /** Never null and always fully populated - see the constructor. */
@@ -284,7 +284,7 @@ public final class TerminalSolverConfig {
             cfg.hoverDelayMs = clampHoverDelay(ConfigJson.getInt(obj, "hoverDelayMs", 100));
             cfg.hoverJitterMs = clampHoverJitter(ConfigJson.getInt(obj, "hoverJitterMs", 0));
             cfg.hoverMelodyEnabled = ConfigJson.getBool(obj, "hoverMelodyEnabled", false);
-            // Per-key reads (ConfigJson) so one bad/missing colour falls back to just that colour's
+            // Per-key reads (ConfigJson) so one bad/missing color falls back to just that color's
             // default instead of resetting every other setting in the file.
             for (OverlayColor c : OverlayColor.values()) {
                 cfg.overlayColors.put(c, c.sanitize(ConfigJson.getInt(obj, c.key(), c.defaultArgb())));
@@ -658,7 +658,7 @@ public final class TerminalSolverConfig {
         }
     }
 
-    /** "Reset Colours" button - puts every overlay colour back to the value it shipped with. Callers
+    /** "Reset Colors" button - puts every overlay color back to the value it shipped with. Callers
      *  still have to {@link #save()} (same as every other setter here). */
     public void resetOverlayColors() {
         for (OverlayColor c : OverlayColor.values()) {
@@ -666,7 +666,7 @@ public final class TerminalSolverConfig {
         }
     }
 
-    /** @return true if every overlay colour is still its shipped default - drives the Reset button's
+    /** @return true if every overlay color is still its shipped default - drives the Reset button's
      *  own enabled/disabled look in {@code TerminalSolverTab}. */
     public boolean isOverlayColorsDefault() {
         for (OverlayColor c : OverlayColor.values()) {

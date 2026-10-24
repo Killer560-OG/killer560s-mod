@@ -19,7 +19,7 @@ import java.util.Objects;
  *
  * <p>What the map draws is a function of state that changes a few times a second at most - rooms, doors, map item
  * states, labels, settings - but it used to be worked out and submitted from scratch every frame: every room's state
- * and colour, every door's colour from its neighbours, every label and checkmark run, a fresh render-state object per
+ * and color, every door's color from its neighbors, every label and checkmark run, a fresh render-state object per
  * fill and per line of text, and for every line a fresh glyph layout in the GUI renderer. The heaviest HUD element
  * under ALL ON (95-perf-features: ~55 us and ~19.5 KB a frame).
  *

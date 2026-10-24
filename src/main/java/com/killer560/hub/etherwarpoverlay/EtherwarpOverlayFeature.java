@@ -147,14 +147,14 @@ public final class EtherwarpOverlayFeature {
         lastOutcome = "drawn " + etherPos.pos().toShortString() + (etherPos.succeeded() ? " ok" : " failed");
 
         AABB box = cfg.isFullBlock() ? new AABB(etherPos.pos()) : realBoxFor(client.level, etherPos.pos());
-        // Pulled 1% of the way towards the camera, so lines drawn exactly on the block's own faces never tie with them
+        // Pulled 1% of the way toward the camera, so lines drawn exactly on the block's own faces never tie with them
         // for depth. Scaling about the eye moves every point along its own sight line: the box lands on exactly the same
         // pixels and only its depth changes (growing the box instead pushed the lines visibly outside the face up close).
         Vec3 cam = McRender.cameraPos(context);
         box = towardsCamera(box, cam);
-        // Colour + style are user-picked since 2026-09-16 (killer560's testing feedback); the defaults are the
+        // Color + style are user-picked since 2026-09-16 (killer560's testing feedback); the defaults are the
         // exact green/red outline this always drew. Style semantics copied from Simon Says so "Filled" and
-        // "Filled+Outline" look the same across the mod: a plain fill uses the colour's own alpha, the combo
+        // "Filled+Outline" look the same across the mod: a plain fill uses the color's own alpha, the combo
         // halves the fill so the outline still reads. Never let a render exception escape into the frame.
         try {
             float[] c = WorldRenderUtils.argbToFloats(etherPos.succeeded() ? cfg.getSafeColor() : cfg.getFailedColor());
@@ -169,7 +169,7 @@ public final class EtherwarpOverlayFeature {
                             (pose, buf) -> WorldRenderUtils.frontOutlineVertices(pose, buf, b, cam, c[0], c[1], c[2], 1f, 2f));
                 }
                 // The box's own edges at every distance (an edge off screen is simply not seen), but only those of the
-                // faces turned towards him. killer560 (2026-10-13): "I want the full outline and if you can't see an Edge
+                // faces turned toward him. killer560 (2026-10-13): "I want the full outline and if you can't see an Edge
                 // then don't draw that part of it" - replacing a red tint, then a smaller outline shrunk onto the face he
                 // was pressed against. The back edges showed through a stair's open corner and made the box look as if it
                 // sat behind the block (his screenshots of a stone brick stair, both versions).
@@ -201,7 +201,7 @@ public final class EtherwarpOverlayFeature {
         poseStack.popPose();
     }
 
-    /** How far towards the camera the drawn box is pulled, as a fraction of its distance. */
+    /** How far toward the camera the drawn box is pulled, as a fraction of its distance. */
     static final double TOWARDS_CAMERA = 0.01;
 
     /** {@code box} scaled about {@code cam} by 1 - TOWARDS_CAMERA: the same on screen, a little nearer in depth. */
@@ -220,7 +220,7 @@ public final class EtherwarpOverlayFeature {
      * Reads whatever is in the main hand every frame, so {@code CustomData#copyTag}'s full NBT deep copy here
      * was a real per-frame cost for EVERY held item with a CUSTOM_DATA component (i.e. almost every Skyblock
      * item), not just Etherwarp ones. Reads the live backing tag instead via the same read-only
-     * {@link CustomDataTagAccessor} mixin Armour Recolour already uses for the identical reason - see that
+     * {@link CustomDataTagAccessor} mixin Armor Recolor already uses for the identical reason - see that
      * mixin's own doc comment. Never mutates the returned tag.
      */
     private static CompoundTag getEtherwarpData(ItemStack stack) {
@@ -240,7 +240,7 @@ public final class EtherwarpOverlayFeature {
         // and an item that has one and no ethermerge tag was silently ignored with no way to tell from the
         // outside. The third test below is the item's own words: a Skyblock item that can etherwarp says
         // "Ability: Etherwarp" in its lore, so an Aspect of the Void or Aspect of the End that has the ability
-        // is recognised whatever its tags look like.
+        // is recognized whatever its tags look like.
         boolean isEtherItem = tag.getIntOr("ethermerge", 0) == 1
                 || ETHERWARP_CONDUIT_ID.equals(id)
                 || loreMentionsEtherwarp(stack);

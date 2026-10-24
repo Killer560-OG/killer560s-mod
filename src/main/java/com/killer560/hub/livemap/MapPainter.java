@@ -21,7 +21,7 @@ import java.util.Set;
  * {@link LiveMapFeature.LiveMapHudElement} HUD.
  * <p>
  * killer560, 2026-09-17 (screenshots {@code 14.17.05} = ours vs {@code 14.18.46} = the real held map): the HUD map
- * "does not look like the real dungeon map" - it drew every room the same grey on a uniform 8px grid with a 1px inset
+ * "does not look like the real dungeon map" - it drew every room the same gray on a uniform 8px grid with a 1px inset
  * on all four sides, so rooms, corridors and gaps were all the same size and nothing ever touched anything. Only the
  * interactive map had the real layout, so that painter was pulled out here and the HUD now calls it too.
  * <p>
@@ -33,10 +33,10 @@ import java.util.Set;
  * <p>
  * Room types come from the real map's own bytes: NoammAddons {@code RoomType.kt}/{@code DoorType.kt} decode Hypixel's
  * {@code MapColor} ids (63/85 normal, 30 entrance, 66 puzzle, 62 trap, 74 miniboss, 82 fairy, 18 blood, 119 wither
- * door). The default COLOURS they are drawn in are NoammAddons' {@code MapConfig.kt} ones since 2026-10-19 (killer560:
- * "ours should essentially match that style"), Blood excepted - see {@link MapThemes#REAL}; a Custom scheme recolours
+ * door). The default COLORS they are drawn in are NoammAddons' {@code MapConfig.kt} ones since 2026-10-19 (killer560:
+ * "ours should essentially match that style"), Blood excepted - see {@link MapThemes#REAL}; a Custom scheme recolors
  * any of them.
- * A plain door takes the colour of its most interesting neighbouring room (NoammAddons {@code DoorTile.getColor},
+ * A plain door takes the color of its most interesting neighboring room (NoammAddons {@code DoorTile.getColor},
  * Devonian {@code doorColor}) - that is why corridors on the real map are the same brown as the rooms they join.
  */
 public final class MapPainter {
@@ -178,7 +178,7 @@ public final class MapPainter {
      * {@code {scale, offsetUnitsX, offsetUnitsY}}.
      *
      * <p>{@code scale} blows the shown part of the grid ({@link #gridExtent}) up until its long side fills the
-     * outline (1 on a 6x6 floor, about 1.5 on the Entrance's 4x4); the offsets, in the floor's own units, centre the
+     * outline (1 on a 6x6 floor, about 1.5 on the Entrance's 4x4); the offsets, in the floor's own units, center the
      * short side and shift a part that does not start at slot 0 (a sim floor) back to the outline's corner. Multiply
      * the pixels-per-unit by the scale and add the offsets times that ppu to the origin, and every drawing call
      * stays untouched.
@@ -292,9 +292,9 @@ public final class MapPainter {
     }
 
     /**
-     * A room he has not been in yet, which Darken Unexplored darkens. On the map-item map that is a grey "?" room the
+     * A room he has not been in yet, which Darken Unexplored darkens. On the map-item map that is a gray "?" room the
      * map shows as unopened; on Funny Map it is any room the map item does not show as opened yet, drawn in its real
-     * colour. With no map item to ask (the sim, p3sim) nothing is known to be unexplored.
+     * color. With no map item to ask (the sim, p3sim) nothing is known to be unexplored.
      * <p>killer560, 2026-10-15: "Darken Unexplored does not work." It darkened only rooms in the UNDISCOVERED state,
      * and those are exactly the rooms the map never draws; and on the cheat jar every scanned room was promoted to
      * discovered first, so the slider could not reach a single drawn pixel.
@@ -407,8 +407,8 @@ public final class MapPainter {
             return DungeonMapScanner.STATE_DISCOVERED; // he is inside it: opened, whether or not the map item says so yet
         }
         // killer560, 2026-09-20 (screenshot 14.52.05, cheat build): "it still isn't properly showing each room as
-        // grey - some still have question marks" - two teammates were standing INSIDE a room our own world scan had
-        // long since marked visited, yet it kept drawing grey with "?" because the held map's own byte for it was
+        // gray - some still have question marks" - two teammates were standing INSIDE a room our own world scan had
+        // long since marked visited, yet it kept drawing gray with "?" because the held map's own byte for it was
         // still STATE_UNOPENED, not STATE_UNDISCOVERED - the old check here only forgave UNDISCOVERED, so a room the
         // map item is merely slow to redraw as opened stayed stuck behind its stale "?" even on the cheat build. Any
         // world-scanned tile (grid[] != UNKNOWN, i.e. we resolved a real roof height there) proves the room is open,
@@ -427,7 +427,7 @@ public final class MapPainter {
         return visibleState(group) != DungeonMapScanner.STATE_UNDISCOVERED;
     }
 
-    /** On the legit map a room the game only shows as a grey "unopened" block must not carry its name, its secret
+    /** On the legit map a room the game only shows as a gray "unopened" block must not carry its name, its secret
      *  count or its real type - Hypixel has not told you what is in there yet. */
     static boolean identityRevealed(LiveMapFeature.RoomGroup group) {
         int state = visibleState(group);
@@ -450,10 +450,10 @@ public final class MapPainter {
 
     /**
      * Where a room's text goes, in map units: {@code {centreX, centreZ, boxW, boxH}} for a room made of these room tiles
-     * (grid indices, even cells). A room that fills its bounding rectangle (1x1, 1xN, 2x2) is labelled on the rectangle;
+     * (grid indices, even cells). A room that fills its bounding rectangle (1x1, 1xN, 2x2) is labeled on the rectangle;
      * any other shape - the L - on its longest straight run of tiles, a row before a column (QUOI's
      * {@code textPlacement}: the L's horizontal pair). Drawing only: nothing here feeds the room's logic.
-     * <p>killer560, 2026-10-19 (23:15:17): Predictive Rooms labelled the L room Chambers on the centre of its 2x2
+     * <p>killer560, 2026-10-19 (23:15:17): Predictive Rooms labeled the L room Chambers on the center of its 2x2
      * bounding box, the empty corner, so "Chambers 0/5" sat half outside the room and was sized for a 2x2 room.
      */
     static float[] labelBox(int[] tiles) {
@@ -527,12 +527,12 @@ public final class MapPainter {
         return new float[]{(left + right) / 2f, (top + bottom) / 2f, right - left, bottom - top};
     }
 
-    /** Map-unit position of a world coordinate (tile centres land on tile centres). */
+    /** Map-unit position of a world coordinate (tile centers land on tile centers). */
     static double worldToUnits(double world) {
         return (world - LiveMapFeature.START_X) * 0.625 + 8;
     }
 
-    /** World x (or z) of a point given in map units: {@link #worldToUnits} backwards. */
+    /** World x (or z) of a point given in map units: {@link #worldToUnits} backward. */
     static double unitsToWorld(double units) {
         return (units - 8) / 0.625 + LiveMapFeature.START_X;
     }
@@ -552,7 +552,7 @@ public final class MapPainter {
         return Math.round(origin + (float) units * ppu);
     }
 
-    // ------------------------------------------------------------------------------------------- colours
+    // ------------------------------------------------------------------------------------------- colors
 
     static int multiply(int argb, float f) {
         int a = (argb >>> 24) & 0xFF;
@@ -563,16 +563,16 @@ public final class MapPainter {
     }
 
     /**
-     * The grey a room or door the map item shows as unopened is drawn in (the "?" rooms, and the door into one): the
-     * Unopened colour, as NoammAddons' {@code RoomTile.getColor}/{@code DoorTile.getColor} draw it (65, 65, 65, not
-     * darkened), then Darken Unexplored, whose default 0 leaves it exactly NoammAddons' grey (killer560, 2026-10-19).
+     * The gray a room or door the map item shows as unopened is drawn in (the "?" rooms, and the door into one): the
+     * Unopened color, as NoammAddons' {@code RoomTile.getColor}/{@code DoorTile.getColor} draw it (65, 65, 65, not
+     * darkened), then Darken Unexplored, whose default 0 leaves it exactly NoammAddons' gray (killer560, 2026-10-19).
      */
     public static int unopenedFill(LiveMapConfig cfg) {
         return multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
     }
 
     /**
-     * A room (or door) drawn in its own colour although he has not opened it yet - every such room on Funny Map, and the
+     * A room (or door) drawn in its own color although he has not opened it yet - every such room on Funny Map, and the
      * Blood Room behind its blood door. NoammAddons' cheater map draws these {@code color.darker().darker()}
      * ({@code MapRenderer.renderRooms}); Darken Unexplored darkens further from there, 0 by default.
      */
@@ -616,14 +616,14 @@ public final class MapPainter {
             case 30 -> "ENTRANCE";
             case 63, 85 -> "NORMAL";
             // killer560, 2026-10-18 (to-do 20): "just show it as normal no grey" - a room that is not in the database is
-            // drawn as an ordinary room, never in the unopened grey.
+            // drawn as an ordinary room, never in the unopened gray.
             default -> "NORMAL";
         };
     }
 
     /**
      * A room still shown unopened that sits behind a blood door (the Blood Room's door, red on the map): killer560,
-     * 2026-10-18: greyed out in the Funny Map's greyed brown in both styles, and on the regular map with no "?" over it.
+     * 2026-10-18: grayed out in the Funny Map's grayed brown in both styles, and on the regular map with no "?" over it.
      * Such a room is told apart by the blood door beside it being its only door (the map item gives no type for an
      * unopened room), or by its database type where the identity is already shown.
      */
@@ -638,7 +638,7 @@ public final class MapPainter {
             return group.entry.type.equalsIgnoreCase("BLOOD");
         }
         // A blood door has a room on BOTH sides, and the one it is reached from is often still unopened as well (the
-        // Gold room in killer560's 2026-10-18 screenshot was greyed with the blood room). The Blood Room is the dead end:
+        // Gold room in killer560's 2026-10-18 screenshot was grayed with the blood room). The Blood Room is the dead end:
         // the blood door is its only door.
         boolean bloodDoor = false;
         int g = LiveMapFeature.GRID;
@@ -686,8 +686,8 @@ public final class MapPainter {
         };
     }
 
-    /** Devonian {@code RoomTypes.prio} - which neighbour a plain door borrows its colour from. Fairy sits BELOW
-     *  normal because NoammAddons' {@code DoorTile.getColor} explicitly prefers a non-fairy neighbour. */
+    /** Devonian {@code RoomTypes.prio} - which neighbor a plain door borrows its color from. Fairy sits BELOW
+     *  normal because NoammAddons' {@code DoorTile.getColor} explicitly prefers a non-fairy neighbor. */
     public static int typePriority(String type) {
         return switch (type) {
             case "BLOOD" -> 0;
@@ -703,11 +703,11 @@ public final class MapPainter {
     }
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-livemap");
-    /** Rooms already logged as Blood this run, keyed by reset generation + tiles, so the per-frame colour logs once. */
+    /** Rooms already logged as Blood this run, keyed by reset generation + tiles, so the per-frame color logs once. */
     private static final Set<String> BLOOD_LOGGED = new HashSet<>();
     private static int bloodLogGeneration = Integer.MIN_VALUE;
 
-    /** One INFO line the first time a room is coloured as Blood in a run (killer560 checks it in latest.log). */
+    /** One INFO line the first time a room is colored as Blood in a run (killer560 checks it in latest.log). */
     private static void logBloodRoom(LiveMapFeature.RoomGroup group) {
         int generation = LiveMapFeature.resetGeneration();
         if (generation != bloodLogGeneration) {
@@ -730,19 +730,19 @@ public final class MapPainter {
     }
 
     /** Room fill before the current-room/hover tweaks. NoammAddons {@code RoomTile.getColor}: an unopened room is
-     *  grey whatever its real type is, because that is all the map itself knows about it. */
+     *  gray whatever its real type is, because that is all the map itself knows about it. */
     static int roomColor(LiveMapFeature.RoomGroup group, LiveMapConfig cfg) {
         int state = visibleState(group);
         if (state != DungeonMapScanner.STATE_UNDISCOVERED && unopenedBloodRoom(group)) {
             // killer560, 2026-10-19 (15:52:11): "the map is not labeling blood or showing it as red either for funny map."
-            // The room behind the blood door is the Blood Room: drawn in the Blood colour (darkened as unexplored, like
-            // every other room he has not been in), in both styles. It was the greyed Normal brown (2026-10-18), which
+            // The room behind the blood door is the Blood Room: drawn in the Blood color (darkened as unexplored, like
+            // every other room he has not been in), in both styles. It was the grayed Normal brown (2026-10-18), which
             // on Funny Map read as an ordinary unopened room. On the regular map only once its blood door is known.
             logBloodRoom(group);
             return unexploredFill(cfg.getColorBlood(), cfg);
         }
-        // Funny Map: an unopened room the world scan has not reached yet is still a Funny Map room - its own colour
-        // (the map item's byte, Normal brown for a plain unopened room) darkened below, not the regular map's grey.
+        // Funny Map: an unopened room the world scan has not reached yet is still a Funny Map room - its own color
+        // (the map item's byte, Normal brown for a plain unopened room) darkened below, not the regular map's gray.
         if (state == DungeonMapScanner.STATE_UNDISCOVERED
                 || (state == DungeonMapScanner.STATE_UNOPENED && !cfg.isFunnyMap())) {
             return unopenedFill(cfg);
@@ -752,9 +752,9 @@ public final class MapPainter {
         if (cfg.isColourByType() && "BLOOD".equals(type)) {
             logBloodRoom(group);
         }
-        // A failed puzzle does NOT recolour its square. killer560, 2026-10-01: "no not the square the text
-        // should become red." The room keeps its own type colour and the NAME goes red, which it already does
-        // - every label's colour is stateColor(visibleState(group)), and STATE_FAILED's is 0xFFFF0000. So the
+        // A failed puzzle does NOT recolor its square. killer560, 2026-10-01: "no not the square the text
+        // should become red." The room keeps its own type color and the NAME goes red, which it already does
+        // - every label's color is stateColor(visibleState(group)), and STATE_FAILED's is 0xFFFF0000. So the
         // only thing the sim had to add was a way to reach that state without a map item (SimRoomState).
         // killer560, 2026-09-27: "if you have cheater map then it should highlight the room tha thas mimic
         // as a faint red instead of the normal brown" - cheat build only, same live "is this known secret
@@ -765,11 +765,11 @@ public final class MapPainter {
         // not a flat overwrite, so it reads as "this brown room" plus a warning, not a different room type.
         // The sim's mimic is a real trapped chest at one of the room's database secret positions (SimMimic), so
         // this one check covers it too; the sim-only branch that asked SimMimic for its cell is gone (2026-10-13).
-        // The tint only blends the FILL: the room's checkmark, name colour and secret count are drawn over it as
+        // The tint only blends the FILL: the room's checkmark, name color and secret count are drawn over it as
         // before, so a cleared mimic room reads "red-tinted brown with its checkmark".
         // Both builds: a room is red once the mimic is known to be there. The cheat build knows it in advance (the
         // trapped chest scan); the legit build only once HE has killed it there (onMimicKillTick), killer560 2026-10-13.
-        // The default tint is 20% red over the room's own colour - NoammAddons' mimic room highlight exactly: its
+        // The default tint is 20% red over the room's own color - NoammAddons' mimic room highlight exactly: its
         // MapRenderer draws ColorUtils.lerp(roomColour, colorMimic, 0.2) with colorMimic (255, 0, 0) (javap of
         // NoammAddons 1.2.7, 2026-10-05). 0x33 = 51/255 = 0.2. The cheat build's Mimic Room Color recolors it; its
         // alpha is how strongly it is blended.
@@ -788,7 +788,7 @@ public final class MapPainter {
      * in has its tiles added here - and never removed until {@link #forgetMimics} (a grid reset: new floor, new
      * world, a sim rebuild).
      *
-     * <p>killer560, 2026-10-13: "If i get a mimic in a room do not have that room go back to being grey it should
+     * <p>killer560, 2026-10-13: "If i get a mimic in a room do not have that room go back to being gray it should
      * stay red on my map." It went back because this used to be a per-second SNAPSHOT of what the world held:
      * when the mimic springs, Hypixel replaces its trapped chest (the sim does the same, with air), and when he
      * walks away the chunk can unload ({@code isLoaded} false) - either way the next scan found nothing and the
@@ -845,7 +845,7 @@ public final class MapPainter {
         }
     }
 
-    /** The room tile (even grid cell) whose 32x32 footprint holds this x/z: the nearest tile centre. */
+    /** The room tile (even grid cell) whose 32x32 footprint holds this x/z: the nearest tile center. */
     private static int tileAt(double x, double z) {
         int best = -1;
         double bestD = 16.5 * 16.5 * 2;
@@ -922,8 +922,8 @@ public final class MapPainter {
         }
     }
 
-    /** A teammate-reported room's fill colour: its real type colour once {@link RoomDatabase#lookupByName}
-     *  resolves it, else a plain generic box - never the "unopened"/grey treatment {@link #roomColor} gives
+    /** A teammate-reported room's fill color: its real type color once {@link RoomDatabase#lookupByName}
+     *  resolves it, else a plain generic box - never the "unopened"/gray treatment {@link #roomColor} gives
      *  an unseen local cell, since a reported cell is not "unseen", it is "seen by someone else". Dimmed the
      *  same way {@link #drawDoors} dims a reported door when {@link LiveMapConfig#isMarkReportedRooms()} is on. */
     static int reportedRoomColor(PartyMapIntel.ReportedRoom room, LiveMapConfig cfg) {
@@ -1011,7 +1011,7 @@ public final class MapPainter {
         float scale = Math.max(LABEL_MIN_SCALE, Math.min(want, fit));
         float cx = ox + (cellPos(room.col()) + ROOM_UNITS / 2f) * ppu;
         float cy = oy + (cellPos(room.row()) + ROOM_UNITS / 2f) * ppu;
-        int color = 0xFFCCCCCC; // neutral - a reported room has no cleared/failed/unopened state to colour by
+        int color = 0xFFCCCCCC; // neutral - a reported room has no cleared/failed/unopened state to color by
         graphics.pose().pushMatrix();
         graphics.pose().translate(cx, cy);
         graphics.pose().scale(scale, scale);
@@ -1023,7 +1023,7 @@ public final class MapPainter {
         graphics.pose().popMatrix();
     }
 
-    /** Colour a plain corridor inherits from the rooms it joins. */
+    /** Color a plain corridor inherits from the rooms it joins. */
     private static int connectorColor(int idx, LiveMapConfig cfg) {
         int g = LiveMapFeature.GRID;
         int gx = idx % g;
@@ -1093,11 +1093,11 @@ public final class MapPainter {
     }
 
     /**
-     * Whether {@link #drawRoom} paints cell (gx, gz) of room {@code gid}: every tile; a 2x2 room's centre; and a gap
+     * Whether {@link #drawRoom} paints cell (gx, gz) of room {@code gid}: every tile; a 2x2 room's center; and a gap
      * between two tiles only when the room's tiles on BOTH sides of it are in the room. A gap the grouping joined to one
      * room alone (its union with the room on the other side was refused, or that side is not a room) is a wall, not part
      * of the room. killer560, 2026-10-19 15:39: "map broke again and looks all weird" - such a strip bridged a room into
-     * its neighbour, and the standing-room fill (cellRevealed) painted it even where the map item shows nothing.
+     * its neighbor, and the standing-room fill (cellRevealed) painted it even where the map item shows nothing.
      */
     static boolean drawnCell(int gid, int gx, int gz) {
         boolean oddX = gx % 2 == 1;
@@ -1121,11 +1121,11 @@ public final class MapPainter {
     private static final int[] ROOM_RECTS = new int[4 * 64];
 
     /**
-     * Fills {@code n} disjoint rectangles of one colour as few fills as cover exactly the same pixels: rectangles that
+     * Fills {@code n} disjoint rectangles of one color as few fills as cover exactly the same pixels: rectangles that
      * share a full edge are joined, along rows first and then down columns. A room of four cells and its connectors was
      * nine fills, and every GUI fill is a render-state element that the next one is intersection-tested against (see
      * the GUI fill lesson in docs/LESSONS-GUI.md); the map was ~120 fills a frame on F7 (FPS sweep, 2026-10-07). Only
-     * rectangles meeting edge to edge are joined, so nothing ever overlaps and a translucent room colour blends once.
+     * rectangles meeting edge to edge are joined, so nothing ever overlaps and a translucent room color blends once.
      */
     static void fillMerged(com.killer560.hub.hud.GuiRects graphics, int[] r, int n, int color) {
         boolean merged = true;
@@ -1146,7 +1146,7 @@ public final class MapPainter {
                         r[b] = Integer.MIN_VALUE;
                         merged = true;
                     } else if (r[a] == r[b] && r[a + 2] == r[b + 2] && r[a + 3] == r[b + 1]) {
-                        r[a + 3] = r[b + 3]; // b continues a's column downwards
+                        r[a + 3] = r[b + 3]; // b continues a's column downward
                         r[b] = Integer.MIN_VALUE;
                         merged = true;
                     }
@@ -1200,17 +1200,17 @@ public final class MapPainter {
 
     // ------------------------------------------------------------------------------------------- doors
 
-    /** Fill colour a reported-but-unseen cell is dimmed by, when {@link LiveMapConfig#isMarkReportedRooms()}
-     *  is on - "subtly", per killer560s-mod-relay task (2026-09-21): still readable as its real colour, just
+    /** Fill color a reported-but-unseen cell is dimmed by, when {@link LiveMapConfig#isMarkReportedRooms()}
+     *  is on - "subtly", per killer560s-mod-relay task (2026-09-21): still readable as its real color, just
      *  not mistaken for something this client actually saw. */
     private static final float REPORTED_DIM = 0.78f;
-    /** Accent colour for the small reported-cell corner marker - the same amber already used for the
-     *  locked-wither-door outline below, so it reads as "the mod's own accent", not a new colour language. */
+    /** Accent color for the small reported-cell corner marker - the same amber already used for the
+     *  locked-wither-door outline below, so it reads as "the mod's own accent", not a new color language. */
     private static final int REPORTED_MARK_COLOR = 0xFFFFAA00;
 
     /**
      * A doorway's box in map units, {@code {x, z, width, height}}, for the odd grid cell {@code (gx, gz)} that
-     * holds it: the {@link #GAP_UNITS}-long stub across the gap, 6 units wide across the doorway, centred on the
+     * holds it: the {@link #GAP_UNITS}-long stub across the gap, 6 units wide across the doorway, centered on the
      * 16-unit room. Shared with the Dungeon Sim's map designer so both draw the same doorway.
      */
     public static float[] doorUnits(int gx, int gz) {
@@ -1238,7 +1238,7 @@ public final class MapPainter {
             boolean locked = layout.isLocked(idx);
             if (hideUnrevealed()) {
                 // Legit build: the door AND whether it is still locked come from the map item's own byte, never
-                // from the world scan or the chunk cache - an opened wither door turns room-coloured on the real
+                // from the world scan or the chunk cache - an opened wither door turns room-colored on the real
                 // map, so that is the only thing we are allowed to know.
                 type = switch (DungeonMapScanner.doorTileAt(idx)) {
                     case DOOR_WITHER -> DungeonLayout.DOOR_WITHER;
@@ -1253,7 +1253,7 @@ public final class MapPainter {
                 continue;
             }
             // SIM ONLY (isTheoretical is false unless SimState.isActive()): an ordinary sim door where a real
-            // floor would have a wither door. Drawn in the wither colour with a SINGLE amber outline, against the
+            // floor would have a wither door. Drawn in the wither color with a SINGLE amber outline, against the
             // double one a real locked wither door gets, because it is passable and the pathfinders treat it so.
             boolean theoreticalWither = type == DungeonLayout.DOOR_NORMAL
                     && com.killer560.hub.roomsim.SimWitherDoors.isTheoretical(idx);
@@ -1267,9 +1267,9 @@ public final class MapPainter {
             };
             int mapByte = hideUnrevealed() ? DungeonMapScanner.doorColorAt(idx) : 0;
             if (mapByte == 85) {
-                // The map item's own grey: a door into a room nobody has opened yet. Hypixel draws it grey (NoammAddons
-                // DoorTile: "Unopened Door"), not in the colour of the opened room it leads from; it used to be drawn as
-                // that room's colour darkened, so it read as an opened corridor.
+                // The map item's own gray: a door into a room nobody has opened yet. Hypixel draws it gray (NoammAddons
+                // DoorTile: "Unopened Door"), not in the color of the opened room it leads from; it used to be drawn as
+                // that room's color darkened, so it read as an opened corridor.
                 color = unopenedFill(cfg);
             } else if (DungeonMapScanner.isCalibrated() && DungeonMapScanner.stateAt(idx) >= DungeonMapScanner.STATE_UNOPENED) {
                 color = unexploredFill(color, cfg);
@@ -1290,8 +1290,8 @@ public final class MapPainter {
             if (type == DungeonLayout.DOOR_WITHER && locked) {
                 // killer560, 2026-09-20: "wither doors are very hard to see on the map" - the real map's own byte
                 // for a locked wither door is near-black (default #101010), which vanishes into the HUD background.
-                // A double amber outline (the mod's own accent colour) makes it read as a warning at a glance
-                // without touching the fill colour itself, which is still the real map's own and still a picker.
+                // A double amber outline (the mod's own accent color) makes it read as a warning at a glance
+                // without touching the fill color itself, which is still the real map's own and still a picker.
                 rects.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
                 rects.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
             }
@@ -1313,7 +1313,7 @@ public final class MapPainter {
      * {@link PartyMapIntel} has already dropped (local scan settled it) simply is not in
      * {@link PartyMapIntel#reportedDoorsView()} any more, so this can never draw over a real local door.
      * <p>
-     * The wire format carries only the door TYPE, never a lock state, so this always draws the LOCKED colour
+     * The wire format carries only the door TYPE, never a lock state, so this always draws the LOCKED color
      * for a wither/blood door - the safer default for a door nobody here has actually checked.
      */
     static void drawReportedDoors(GuiGraphicsExtractor graphics, LiveMapConfig cfg, float ox, float oy, float ppu) {
@@ -1398,8 +1398,8 @@ public final class MapPainter {
             "...##...",
     };
 
-    /** Label (and mark) colour by room state: NoammAddons' {@code MapRenderer.renderText} (lines 177-182) - green
-     *  85,255,85, cleared white, failed pure red 255,0,0 (ours was 255,85,85 until 2026-10-19), anything else 170 grey. */
+    /** Label (and mark) color by room state: NoammAddons' {@code MapRenderer.renderText} (lines 177-182) - green
+     *  85,255,85, cleared white, failed pure red 255,0,0 (ours was 255,85,85 until 2026-10-19), anything else 170 gray. */
     static int stateColor(int state) {
         return switch (state) {
             case DungeonMapScanner.STATE_GREEN -> 0xFF55FF55;
@@ -1473,12 +1473,12 @@ public final class MapPainter {
     /**
      * Whether text in {@code text} would be hard to read on a room filled with {@code fill}.
      *
-     * <p>killer560 (2026-09-29): "for those rare rooms that are grey, make a way for the room name text on the
-     * map to stand out. Right now it doesnt." A rare room is grey and the label is light, so the two sit at
+     * <p>killer560 (2026-09-29): "for those rare rooms that are gray, make a way for the room name text on the
+     * map to stand out. Right now it doesnt." A rare room is gray and the label is light, so the two sit at
      * nearly the same brightness and the name disappears into the fill.
      *
-     * <p>Measured rather than special-cased on "RARE", because every one of these colours is his to change in
-     * the GUI - a rule written around today's grey would be wrong the moment he recolours anything. This
+     * <p>Measured rather than special-cased on "RARE", because every one of these colors is his to change in
+     * the GUI - a rule written around today's gray would be wrong the moment he recolors anything. This
      * compares perceived brightness (the usual 0.299/0.587/0.114 weighting, since green reads far brighter
      * than blue at the same value) and calls it a problem when they are within a quarter of the range.
      */
@@ -1516,7 +1516,7 @@ public final class MapPainter {
             RoomEntry entry = group.entry;
             List<String> lines;
             if (style >= 3 && bloodLabelled(group)) {
-                // killer560, 2026-10-19: the Blood Room is labelled "Blood" in both styles, known by its blood door even
+                // killer560, 2026-10-19: the Blood Room is labeled "Blood" in both styles, known by its blood door even
                 // before it is opened or identified (QUOI's renderName writes no name on it; he wants one).
                 lines = new ArrayList<>(List.of("Blood"));
             } else if (entry == null || !identityRevealed(group)) {
@@ -1583,12 +1583,12 @@ public final class MapPainter {
         return secrets <= 0 ? "0" : "0/" + secrets;
     }
 
-    /** The colour the live map writes an unopened room's text in. */
+    /** The color the live map writes an unopened room's text in. */
     public static int unopenedTextColor() {
         return stateColor(DungeonMapScanner.STATE_UNOPENED);
     }
 
-    /** Whether the live map would put a shadow under text of this colour on this fill (its Text Shadow setting,
+    /** Whether the live map would put a shadow under text of this color on this fill (its Text Shadow setting,
      *  or low contrast), so the designer's labels read the way the map's do. */
     public static boolean labelShadow(LiveMapConfig cfg, int textColor, int fillColor) {
         return cfg.isTextShadow() || lowContrast(textColor, fillColor);
@@ -1671,7 +1671,7 @@ public final class MapPainter {
     }
 
     /**
-     * Room-name text, one word per line, scaled down until it fits a box and centred on it - the live map's
+     * Room-name text, one word per line, scaled down until it fits a box and centered on it - the live map's
      * own fitting rule, shared so the sim's map designer writes names exactly the way this map does.
      *
      * @param boxW  the room's width in screen pixels
@@ -1715,7 +1715,7 @@ public final class MapPainter {
         drawSampleMark(graphics, state, cfg, cx, cy, ppu);
     }
 
-    /** A mark centred on (cx, cy) without a map item to copy from: the built-in copy of Hypixel's shapes, or with
+    /** A mark centered on (cx, cy) without a map item to copy from: the built-in copy of Hypixel's shapes, or with
      *  Custom Checkmark Sprite on the mod's sprites or his own. The scheme editor's sample floor draws through here. */
     static void drawSampleMark(GuiGraphicsExtractor graphics, int state, LiveMapConfig cfg, float cx, float cy, float ppu) {
         float size = Math.max(6f, 10f * ppu);
@@ -1745,7 +1745,7 @@ public final class MapPainter {
 
     // ------------------------------------------------------------------------------------------- players
 
-    /** How opaque a teammate head's class-colour ring is: faint, so it reads as a tint around the head, not a frame. */
+    /** How opaque a teammate head's class-color ring is: faint, so it reads as a tint around the head, not a frame. */
     static final int CLASS_RING_ALPHA = 0x90;
     /** Test hook: the last class ring drawn around a head (ARGB), 0 for none yet. */
     private static volatile int lastClassRing = 0;
@@ -1775,7 +1775,7 @@ public final class MapPainter {
      *  direction"; until then it was upright with a heading tick orbiting it); anyone else keeps the arrow.
      *  (The skin-head option removed on 2026-09-20, "i do not want it showing the white heads for mobs", drew mobs
      *  because the marker list took every Player entity; {@link InteractiveMapFeature#players} only takes vouched
-     *  teammates since, so no mob can get a head.) Every arrow and tick has a solid outline in the colour that
+     *  teammates since, so no mob can get a head.) Every arrow and tick has a solid outline in the color that
      *  contrasts with its own fill ({@link #outlineFor}), which is what keeps the green arrow off a green room.
      *  @return whether {@code (mouseX, mouseY)} is over this marker. */
     static boolean drawMarker(GuiGraphicsExtractor graphics, Font font, InteractiveMapFeature.MapPlayer mp,
@@ -1793,7 +1793,7 @@ public final class MapPainter {
             // half again the arrow's 8: the face has to be big enough to tell who it is.
             size = Math.max(5, Math.round(HEAD_UNITS * cfg.getIconScale() * markerScale));
             // killer560, 2026-10-15: "have recolor by class ... also have a faint outline around their player head on
-            // the map" - a teammate's head gets a translucent ring in his class colour outside its black edge.
+            // the map" - a teammate's head gets a translucent ring in his class color outside its black edge.
             int ring = !mp.self() && classColours && cls != null ? (CLASS_RING_ALPHA << 24) | (cls.color() & 0xFFFFFF) : 0;
             drawHead(graphics, skin, x, y, size, mp.yaw(), ring);
         } else {
@@ -1817,7 +1817,7 @@ public final class MapPainter {
         return Math.abs(mouseX - x) <= size / 2f + 1 && Math.abs(mouseY - y) <= size / 2f + 1;
     }
 
-    /** A {@code size}-unit face (skin face + hat layer) centred on {@code (x, y)}, framed by a one-unit black edge,
+    /** A {@code size}-unit face (skin face + hat layer) centered on {@code (x, y)}, framed by a one-unit black edge,
      *  turned by exactly the arrow's rotation ({@link #headRotationDegrees}), so the top of the head is where the arrow
      *  would point: facing north (yaw 180) the head is upright on the north-up map. No arrow or tick is drawn. */
     private static void drawHead(GuiGraphicsExtractor graphics, net.minecraft.world.entity.player.PlayerSkin skin,
@@ -1849,7 +1849,7 @@ public final class MapPainter {
         return 180f + yaw;
     }
 
-    /** Map marker pointing towards local -y (rotated to the player's heading by the caller).
+    /** Map marker pointing toward local -y (rotated to the player's heading by the caller).
      *  <p>
      *  killer560, 2026-09-20 (screenshot 14.52.05): "the player arrow should read as an arrow at small scale" - a
      *  plain triangle, width non-decreasing from the tip (the heading) to a flat back edge, at any size.
@@ -1905,7 +1905,7 @@ public final class MapPainter {
     }
 
     /** Black around a light fill, white around a dark one. Either way the outline is far from the fill, so whatever
-     *  colour a room is (and every room colour is a picker), it cannot match both: the marker always has an edge. */
+     *  color a room is (and every room color is a picker), it cannot match both: the marker always has an edge. */
     static int outlineFor(int fill) {
         int r = (fill >> 16) & 0xFF;
         int g = (fill >> 8) & 0xFF;
@@ -1921,7 +1921,7 @@ public final class MapPainter {
      *  Make it a toggleable section." A small circle at each queued hop
      *  ({@link com.killer560.hub.livemap.autoclear.ClearExecutor#plannedHopPositions()}), in order, with a line
      *  joining consecutive hops - same orange {@link com.killer560.hub.livemap.autoclear.ClearNode#toEther}
-     *  already colours the in-world hop markers, just drawn flat on the map instead. Gated on
+     *  already colors the in-world hop markers, just drawn flat on the map instead. Gated on
      *  {@link LiveMapConfig#isShowEtherwarpPath()}, so it costs nothing when the section is off. */
     static void drawEtherwarpPath(GuiGraphicsExtractor graphics, LiveMapConfig cfg, float ox, float oy, float ppu) {
         if (!cfg.isShowEtherwarpPath()) {
@@ -1951,7 +1951,7 @@ public final class MapPainter {
     }
 
     /** A small filled circle (scanline fill via {@code fill()} rects - {@code GuiGraphicsExtractor} has no
-     *  round-shape primitive) with a 1px darker ring so it reads against any room colour underneath it. */
+     *  round-shape primitive) with a 1px darker ring so it reads against any room color underneath it. */
     private static void fillCircle(GuiGraphicsExtractor graphics, int cx, int cy, int radius, int argb, int outlineArgb) {
         for (int dy = -radius - 1; dy <= radius + 1; dy++) {
             int outerDx = (int) Math.round(Math.sqrt(Math.max(0, (radius + 1) * (radius + 1) - dy * dy)));

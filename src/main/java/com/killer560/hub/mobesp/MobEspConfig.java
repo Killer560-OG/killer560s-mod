@@ -20,7 +20,7 @@ import java.nio.file.Path;
  * <li>old mobesp {@code enabled} -> {@code starredMobs}; {@code colorHex} -> {@code starredColor};
  *     {@code cheatMode} -> {@code throughWalls}; an old file with no {@code style} keeps the Glow look it had.
  * <li>old {@code killer560smod-cheatutils.json} Wither ESP: {@code witherEspEnabled} -> {@code withers}, and the
- *     colour of the phase it was filtered to is no longer carried over: the ESP uses the Wither Boss Highlight's colour
+ *     color of the phase it was filtered to is no longer carried over: the ESP uses the Wither Boss Highlight's color
  *     (killer560, 2026-10-15), so an old {@code witherColor} key is ignored. CheatUtilsConfig no longer reads or writes those keys.
  * </ul>
  */
@@ -92,7 +92,7 @@ public final class MobEspConfig {
     /** One-time marker for the gold -> Amber default change. */
     private boolean starredColorAmberMigrated = false;
     private int batColor = DEFAULT_BAT_COLOR;
-    /** The colour of the wither bosses in BOTH modes (the ESP used to have a colour of its own). */
+    /** The color of the wither bosses in BOTH modes (the ESP used to have a color of its own). */
     private int witherHighlightColor = DEFAULT_WITHER_COLOR;
     private WitherStyle witherHighlightStyle = WitherStyle.GLOW;
     private Style style = Style.OUTLINE;
@@ -110,7 +110,7 @@ public final class MobEspConfig {
     /** killer560, 2026-09-20: "instead of being range based it should be every starred mob in the room I am currently
      *  in. Then if a mob is slightly outside of the room it gets that as well." When true, Range is ignored for
      *  starred mobs + bats and the live dungeon room's own world bounds (plus {@link #roomMargin}) are used instead.
-     *  Defaults off so an existing install keeps the range behaviour until he confirms this live. */
+     *  Defaults off so an existing install keeps the range behavior until he confirms this live. */
     private boolean roomScoped = false;
     /** How far outside the current room's bounds, in blocks, still counts as "in the room". */
     private double roomMargin = DEFAULT_ROOM_MARGIN;
@@ -302,7 +302,7 @@ public final class MobEspConfig {
     public boolean getWitherHighlightRaw() { return witherHighlight; }
     public void setWitherHighlight(boolean v) { witherHighlight = v; }
 
-    // ---- Colours ----
+    // ---- Colors ----
     public int getStarredColor() { return starredColor; }
     public void setStarredColor(int v) { starredColor = v; }
     public int getBatColor() { return batColor; }

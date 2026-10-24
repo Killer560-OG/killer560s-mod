@@ -311,7 +311,7 @@ public final class SimWorld {
             LevelSettings settings = new LevelSettings(
                     LEVEL_NAME,
                     // killer560 (2026-09-28): "make my gamemode survival not creative." Survival is also the
-                    // mode the thing being practised happens in - creative flight would let a route cheat past
+                    // mode the thing being practiced happens in - creative flight would let a route cheat past
                     // exactly the jumps and drops it exists to rehearse.
                     GameType.SURVIVAL,
                     // EASY, not PEACEFUL (2026-10-05). On 26.2 EntityType.canSpawn refuses any type that is not

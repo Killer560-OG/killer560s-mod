@@ -40,7 +40,7 @@ import com.killer560.hub.compat.McCompat;
  * a local NoammAddons checkout), not guessed: while standing on the device (Noamm's isOnDev) holding a bow,
  * whenever one of the 9 wall targets ({@link I4SensorsFeature#DEV_BLOCKS}) turns {@code EMERALD_BLOCK},
  * aim at Noamm's own per-column aim point (x 67.5 / 65.5 - between columns, so a Terminator's side arrow
- * catches the neighbour - y = 131 - 2*row, z 50) and shoot. With Predictions on, immediately follows up with
+ * catches the neighbor - y = 131 - 2*row, z 50) and shoot. With Predictions on, immediately follows up with
  * a shot at a likely next target (Noamm's getPredictionTarget - prefers horizontally adjacent pairs of still-
  * unhit blocks) so the arrow is already in the air when it lights. A target that stays lit 1s after the last
  * shot gets re-shot (Noamm's watchdog). A target turning {@code BLUE_TERRACOTTA} is done. Stops on the
@@ -59,7 +59,7 @@ import com.killer560.hub.compat.McCompat;
  * <p>
  * Weapon (2026-09-14): Terminator = the above (3-arrow spread, between-column aim points, predictions).
  * Machine Gun Shortbow (Skyblock id MACHINE_GUN_BOW) fires a single arrow, so it aims at the lit block's own
- * x centre (x + 0.5) with Noamm's same arrow-drop height (y = 131 - 2*row, i.e. 0.5 above the block centre)
+ * x center (x + 0.5) with Noamm's same arrow-drop height (y = 131 - 2*row, i.e. 0.5 above the block center)
  * and never predicts. Its "Rapid Fire" ability (hypixelskyblock.minecraft.wiki: LEFT CLICK, 5 arrows/s for
  * 8s, 100s cooldown) is activated with a left click (arm swing) when the attempt's first target lights, and
  * for its duration nothing swaps away ({@link #isAbilityHoldActive()} - {@link I4AutoMask} waits).
@@ -82,7 +82,7 @@ public final class AutoI4Feature {
     // inside the shortbow cooldown (ceil(10 / (1 + AS/100)) ticks, 5-7 ticks at a Terminator's Attack Speed; see
     // roomsim/SimAttackSpeed). A mid-turn click spends that cooldown, so the aimed click after it was often dropped, the
     // camera turned straight on, and only the 1 s watchdog brought it back. A shot now ends when the client SEES its arrow
-    // leave along the aim; until then the camera stays and the next cadence slot clicks again. Given up (old behaviour,
+    // leave along the aim; until then the camera stays and the next cadence slot clicks again. Given up (old behavior,
     // watchdog as before) after this many aimed clicks with no arrow, so a server that shows no arrows cannot stall it.
     private static final int MAX_UNSEEN_AIMED_CLICKS = 3;
     private static final double ARROW_DIRECTION_TOLERANCE_DEG = 3.0;
@@ -583,8 +583,8 @@ public final class AutoI4Feature {
     // Aiming and firing
     // ------------------------------------------------------------------
 
-    /** Terminator: Noamm's getTargetVector - aim between columns so the 3-arrow spread covers the neighbour too.
-     *  Machine Gun Shortbow (one arrow): the block's own x centre, same drop-compensated y and z as Noamm. */
+    /** Terminator: Noamm's getTargetVector - aim between columns so the 3-arrow spread covers the neighbor too.
+     *  Machine Gun Shortbow (one arrow): the block's own x center, same drop-compensated y and z as Noamm. */
     private static Vec3 aimPointFor(BlockPos pos) {
         int i = Math.max(0, indexOf(pos));
         int col = i % 3;
@@ -619,7 +619,7 @@ public final class AutoI4Feature {
         Vec3 aim = pinned != null ? pinned : aimPointFor(target);
         // Shot Accuracy (2026-09-14, killer560's own request): with probability (100 - accuracy)%, aim a little
         // too high or too low so the arrow misses. Rows are 2 blocks apart, so ~1 block up/down lands the arrow in
-        // the empty gap between rows instead of on a neighbouring target. A missed target stays lit and gets
+        // the empty gap between rows instead of on a neighboring target. A missed target stays lit and gets
         // picked up again by the normal re-shoot logic.
         int accuracy = cfg.getShotAccuracyPercent();
         if (accuracy < 100 && Math.random() * 100.0 >= accuracy) {

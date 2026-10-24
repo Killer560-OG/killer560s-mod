@@ -16,11 +16,11 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Creeper Beams - port of QUOI {@code CreeperBeamsSolver.kt}'s {@code auto} on top of this mod's
- * {@link BeamsSolverFeature} lit-pair scan. Standing on the centre platform (y == 75), it picks the first lit pair and
+ * {@link BeamsSolverFeature} lit-pair scan. Standing on the center platform (y == 75), it picks the first lit pair and
  * shoots its first lantern, then its second, with the held shortbow. Progress comes from the elder guardian hurt
  * sound at the lantern (pitch 1.3968254 = first hit, 2.0 = pair done - QUOI's exact values, via
  * {@code PuzzlePacketMixin}). The shot aims at the lantern's etherwarp-visible face point (falls back to its
- * centre). If the creeper is between the player and the lantern it (with "Etherwarp Reposition" on) moves to the
+ * center). If the creeper is between the player and the lantern it (with "Etherwarp Reposition" on) moves to the
  * first platform spot with a clear line; the same toggle also warps onto the platform when off it. After 4 solved
  * pairs it stops and releases sneak.
  * <p>
@@ -28,7 +28,7 @@ import com.killer560.hub.compat.McCompat;
  * every shot for an extra {@code missCooldownMs} on top of the Shoot cooldown whenever the hurt sound hadn't
  * arrived yet, in case that shot missed. Now every shot is paced by the Shoot cooldown alone, hit or miss.
  * <p>
- * Mode "Melee" (killer560's to-do item 29, 2026-10-18; Shoot above stays the default): no bow and no centre platform -
+ * Mode "Melee" (killer560's to-do item 29, 2026-10-18; Shoot above stays the default): no bow and no center platform -
  * it etherwarps to a spot within reach of each lantern and left-clicks it. See {@link #meleeTick}.
  */
 public final class AutoBeams {
@@ -220,7 +220,7 @@ public final class AutoBeams {
         // down and teleport and that was it."
         //
         // That is this check, and it could never pass in the sim. 75 is Hypixel's height for the top of the
-        // centre platform - start is room-relative (16,74,14), so one above it IS 75 on a real floor and the two
+        // center platform - start is room-relative (16,74,14), so one above it IS 75 on a real floor and the two
         // readings are identical there. The sim shifts the whole map vertically (SimAltitude), so the platform is
         // somewhere else entirely and player.getY() was never 75: it repositioned onto the platform, re-read 75,
         // found it still false, and repositioned again. Warp, look down, nothing, forever.
@@ -335,12 +335,12 @@ public final class AutoBeams {
     }
 
     /**
-     * Where to aim so the shot's line meets {@code lantern} first: its centre, then the middle of each face pulled
+     * Where to aim so the shot's line meets {@code lantern} first: its center, then the middle of each face pulled
      * a little inside the block, each checked with a collider ray from the REAL eye.
      *
      * <p>This was {@link AutoPuzzleUtil#etherwarpDirection}, which aims from a SNEAKING eye whatever his stance and
-     * at QUOI's etherwarp sample points - face edges 0.001 in, and a top centre that sits exactly on the face. An
-     * arrow is not an etherwarp: from the real eye an edge aim lands on the neighbour as often as on the lantern,
+     * at QUOI's etherwarp sample points - face edges 0.001 in, and a top center that sits exactly on the face. An
+     * arrow is not an etherwarp: from the real eye an edge aim lands on the neighbor as often as on the lantern,
      * and the etherwarp ray treats ladders, buttons and lanterns as see-through where an arrow does not.
      */
     private static float[] shotAim(Minecraft client, LocalPlayer player, Vec3 eye, BlockPos lantern) {
@@ -1259,9 +1259,9 @@ public final class AutoBeams {
      * lantern first. Planned at {@link #MELEE_PLAN_REACH}, with the server's 4.5 as the fallback when nothing is that
      * close. The hit goes standing (it waits out the landing's sneak), so the standing eye is the one measured.
      *
-     * <p>A lantern set into a wall or under a ledge shows one or two faces, and a ray to its CENTRE from most spots passes
-     * through a neighbour first; measured in the sim's room, that alone hid every spot for seven of the twenty-two lanterns.
-     * Hence a point on any face, not the centre. Even so, about half the lanterns there (hung under the ceiling, or set in a
+     * <p>A lantern set into a wall or under a ledge shows one or two faces, and a ray to its CENTER from most spots passes
+     * through a neighbor first; measured in the sim's room, that alone hid every spot for seven of the twenty-two lanterns.
+     * Hence a point on any face, not the center. Even so, about half the lanterns there (hung under the ceiling, or set in a
      * wall with nothing to stand on in reach) have no spot at all: their pairs are never picked ({@link #pickMeleePair}),
      * and four of the eleven pairs can be played to the end - exactly the four beams the room needs.
      */
@@ -1338,13 +1338,13 @@ public final class AutoBeams {
                 == net.minecraft.world.level.block.state.properties.SlabType.BOTTOM;
     }
 
-    /** Where his feet rest on {@code pos}: half a block up on a bottom slab, a whole one on anything else (a stair's centre
+    /** Where his feet rest on {@code pos}: half a block up on a bottom slab, a whole one on anything else (a stair's center
      *  is on its upper step's edge, which holds him at the top). */
     private static double standTop(Minecraft client, BlockPos pos) {
         return isBottomSlab(client.level.getBlockState(pos)) ? 0.5 : 1.0;
     }
 
-    /** Points tried on a lantern for a line of sight: the centre, then on every face its centre and four quarter points,
+    /** Points tried on a lantern for a line of sight: the center, then on every face its center and four quarter points,
      *  each a hair inside the block so the ray enters through that face. */
     private static final double[][] FACE_POINTS = facePoints();
 
@@ -1370,8 +1370,8 @@ public final class AutoBeams {
     /**
      * A point of {@code lantern} the eye sees, or null: the look a turn onto it would report (its yaw and pitch, as floats)
      * meets the lantern first - and so do the looks a third of a degree either way in yaw and in pitch. The margin is not
-     * optional: the sim's first full run aimed at a lantern's centre past a neighbour's corner, the exact ray passing by a
-     * ten-thousandth of a block, and the turned body's float look met the neighbour every tick, so the hit never went.
+     * optional: the sim's first full run aimed at a lantern's center past a neighbor's corner, the exact ray passing by a
+     * ten-thousandth of a block, and the turned body's float look met the neighbor every tick, so the hit never went.
      */
     private static Vec3 visiblePoint(Minecraft client, Vec3 eye, BlockPos lantern) {
         for (double[] p : FACE_POINTS) {

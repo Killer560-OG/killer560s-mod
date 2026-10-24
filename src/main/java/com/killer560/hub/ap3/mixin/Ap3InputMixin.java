@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * vanilla has built {@code keyPresses} from the real keys and derived
  * {@code moveVector = new Vec2(calculateImpulse(left, right), calculateImpulse(forward, backward)).normalized()}
  * (javap-verified on the 26.1.2 jar). AP3 replaces both: the {@code Input} record with the nearest 8-way keys for
- * the direction it moves in, and the vector with its own analog one - NOT re-normalised, because its length is the
+ * the direction it moves in, and the vector with its own analog one - NOT re-normalized, because its length is the
  * speed ({@code Ap3Executor#writeMove}: 1/0.98 for the real W+A speed, 1/d for the plain-W speed).
  * <p>
  * The physical keys are never touched, so the {@code keyPresses} read at the top are the player's own - that is how

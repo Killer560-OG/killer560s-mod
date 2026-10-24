@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  <p>
  *  Targets verified with javap against the real 26.1.2 jar: {@code public void setTitle(Component)} and
  *  {@code public void setSubtitle(Component)} both really exist on {@code net.minecraft.client.gui.Gui}.
- *  Cancelling is safe on both - neither returns anything and neither is the thing that drives the title FADE
+ *  Canceling is safe on both - neither returns anything and neither is the thing that drives the title FADE
  *  timer ({@code setTimes}/{@code resetTitleTimes} are separate methods), so a hidden title simply never gets
  *  any text to draw.
  *  <p>

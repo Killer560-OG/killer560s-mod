@@ -23,7 +23,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * {@code level.removeEntity(id, DISCARDED)}.
  * <p>
  * An entity carrying the local player is still rendered by vanilla regardless of this hook (the
- * {@code hasIndirectPassenger} clause above), which is the desired behaviour anyway.
+ * {@code hasIndirectPassenger} clause above), which is the desired behavior anyway.
  */
 @Mixin(EntityRenderDispatcher.class)
 public abstract class ObjectHiderRenderMixin {

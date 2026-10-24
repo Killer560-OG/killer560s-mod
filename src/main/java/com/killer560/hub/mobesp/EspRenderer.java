@@ -59,13 +59,13 @@ final class EspRenderer {
         return throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox();
     }
 
-    /** The colour's alpha as {@link #rgba} reads it (0 means opaque). */
+    /** The color's alpha as {@link #rgba} reads it (0 means opaque). */
     static float alpha(int argb) {
         float a = ((argb >>> 24) & 0xFF) / 255f;
         return a <= 0f ? 1f : a;
     }
 
-    /** A single line from {@code from} to {@code to} - the Wither ESP tracer, drawn in the ESP's own colour. */
+    /** A single line from {@code from} to {@code to} - the Wither ESP tracer, drawn in the ESP's own color. */
     static void tracer(LevelRenderContext context, Vec3 from, Vec3 to, int argb, float width, boolean throughWalls) {
         float[] c = rgba(argb, 1.0f);
         McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT, (pose, buffer) -> {

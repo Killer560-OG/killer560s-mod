@@ -25,10 +25,10 @@ import java.util.Optional;
 
 /**
  * The Custom Items menu (killer560, 2026-10-08; main page redesigned 2026-10-18). Left: a search box and the grid of
- * the player's own items (armour, inventory, hotbar). Right: the selected item's preview and four buttons:
+ * the player's own items (armor, inventory, hotbar). Right: the selected item's preview and four buttons:
  * <ul>
  *   <li><b>Custom Item</b> - {@link CustomItemPickerScreen}: search Minecraft and Hypixel items and apply one's look.</li>
- *   <li><b>Custom Color</b> - {@link CustomColorScreen}: a large preview with the colour, skin, trim and pattern controls.</li>
+ *   <li><b>Custom Color</b> - {@link CustomColorScreen}: a large preview with the color, skin, trim and pattern controls.</li>
  *   <li><b>Clear Changes</b> - removes every change from the selected item.</li>
  *   <li><b>Copy Look</b> - click Copy Look, then an item in the grid: that item takes the selected item's changes.</li>
  * </ul>
@@ -178,7 +178,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         say(perItem ? "Now every copy of this item." : "Now only this exact item.", false);
     }
 
-    /** Sets and arms the colour. */
+    /** Sets and arms the color. */
     void setColour(int argb) {
         ArmourDyeEntry e = editable();
         if (e == null) {
@@ -200,7 +200,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         showLook();
     }
 
-    /** Cycles the armour skin; {@code forward} false goes back one. */
+    /** Cycles the armor skin; {@code forward} false goes back one. */
     void cycleSkin(boolean forward) {
         ArmourDyeEntry e = editable();
         if (e == null) {
@@ -398,7 +398,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return panelY + 100 + k * BTN_STEP;
     }
 
-    /** Top-left of grid cell {@code index}: 0-3 armour (head first), 4-30 main storage (inventory 9-35), 31-39 hotbar. */
+    /** Top-left of grid cell {@code index}: 0-3 armor (head first), 4-30 main storage (inventory 9-35), 31-39 hotbar. */
     public int[] cellPos(int index) {
         if (index < 4) {
             return new int[]{gridX + index * SLOT, gridY};
@@ -538,7 +538,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return false;
     }
 
-    /** Opens the shared colour wheel; the choice is applied to the selection and the wheel returns to {@code back}. */
+    /** Opens the shared color wheel; the choice is applied to the selection and the wheel returns to {@code back}. */
     static void colourPicker(Screen back, String label, int current, java.util.function.IntConsumer onChange) {
         Minecraft.getInstance().setScreenAndShow(new ColorPickerScreen(back, label + " Color", current, 0xFFFFFFFF, onChange));
     }

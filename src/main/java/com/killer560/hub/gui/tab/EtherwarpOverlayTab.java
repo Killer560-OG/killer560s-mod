@@ -57,7 +57,7 @@ public class EtherwarpOverlayTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        // Style + colours (2026-09-16, killer560's testing feedback: a colour option and a filled option).
+        // Style + colors (2026-09-16, killer560's testing feedback: a color option and a filled option).
         widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
                     cfg.setStyle(dir > 0 ? cfg.getStyle().next() : cfg.getStyle().previous());
                     cfg.save();

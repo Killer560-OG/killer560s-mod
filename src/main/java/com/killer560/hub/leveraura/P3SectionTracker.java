@@ -126,7 +126,7 @@ public final class P3SectionTracker {
         // p3sim.net (and a mid-run join) can skip Goldor's opening line: with no start line seen this world, the
         // first objective line tells us P3 is running, so take the section from where the player is actually
         // standing (Floor7Tracker's own S1..S4 boxes) instead of assuming S1 - otherwise the S2 "finish the
-        // device" behaviour never runs there. Same rule Floor7Tracker uses for its own phase inference.
+        // device" behavior never runs there. Same rule Floor7Tracker uses for its own phase inference.
         if (!sawGoldorStart && section == 1 && sectionTotal == 0) {
             Floor7Tracker.Stage at = Floor7Tracker.getStageAt();
             if (at.number >= 2 && at.number <= 4) {

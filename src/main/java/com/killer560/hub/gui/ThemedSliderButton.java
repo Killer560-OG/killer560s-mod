@@ -7,7 +7,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /** Drop-in replacement for vanilla {@link AbstractSliderButton} that only overrides its rendering
- *  (vanilla draws its own fixed grey sprite track/handle with no way to recolor it) - every other bit
+ *  (vanilla draws its own fixed gray sprite track/handle with no way to recolor it) - every other bit
  *  of behavior (drag-to-set-value, click-to-jump, keyboard nudging, {@code updateMessage()}/
  *  {@code applyValue()}) is fully inherited unchanged. Existing anonymous subclasses just need
  *  {@code AbstractSliderButton} swapped for {@code ThemedSliderButton} at their `new` site - same

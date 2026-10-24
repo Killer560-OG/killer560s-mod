@@ -17,7 +17,7 @@ import java.util.Set;
  * <p><b>The sim</b> sends no map item, so without a stand-in every one of those features would show nothing in there.
  * The stand-in follows the rule the real map follows: the Entrance and every room someone has stood in are opened,
  * a room joined to an opened room by a door is shown unopened, and a door is shown once one of its rooms is opened.
- * A door's colour is the door the sim built (coal = wither, red terracotta = blood), except the door into a Fairy room
+ * A door's color is the door the sim built (coal = wither, red terracotta = blood), except the door into a Fairy room
  * nobody has entered, which Hypixel draws black although the doorway is empty (his F1, 2026-10-08_15.48.34) - so the
  * stand-in draws it black too. Sim only: {@link #emulated()} is false whenever the sim is not active.
  */
@@ -135,8 +135,8 @@ public final class HeldMap {
         return DungeonMapScanner.kindAt(idx) == DungeonMapScanner.KIND_SEPARATOR;
     }
 
-    /** An OPENED tile's room type as the map colours it ("FAIRY", "PUZZLE", "TRAP", "CHAMPION", "BLOOD", "ENTRANCE",
-     *  "RARE", "NORMAL"), or null for a tile that is not opened (an unopened room is grey whatever it is). */
+    /** An OPENED tile's room type as the map colors it ("FAIRY", "PUZZLE", "TRAP", "CHAMPION", "BLOOD", "ENTRANCE",
+     *  "RARE", "NORMAL"), or null for a tile that is not opened (an unopened room is gray whatever it is). */
     public static String roomType(int tile) {
         if (!roomOpened(tile)) {
             return null;
@@ -285,7 +285,7 @@ public final class HeldMap {
         }
         int type = layout.doorType(idx);
         if (type == DungeonLayout.DOOR_WITHER) {
-            // An opened wither door turns the colour of its rooms on the map.
+            // An opened wither door turns the color of its rooms on the map.
             return layout.isLocked(idx) ? DungeonLayout.DOOR_WITHER : DungeonLayout.DOOR_NORMAL;
         }
         if (type == DungeonLayout.DOOR_NORMAL && com.killer560.hub.roomsim.SimWitherDoors.isTheoretical(idx)) {

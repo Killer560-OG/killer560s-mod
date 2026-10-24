@@ -27,7 +27,7 @@ public final class SimState {
     }
 
     /**
-     * Whether sim behaviour may act right now.
+     * Whether sim behavior may act right now.
      *
      * <p>Also requires a local world. If a sim session were somehow still flagged while connected to a real
      * server, every ability below would start writing positions on Hypixel, which is the one outcome that must
@@ -58,7 +58,7 @@ public final class SimState {
         mapCode = code == null ? "" : code;
         // The dungeon gate is set HERE rather than on the world-load path, so it can never disagree with this
         // flag. Secret routes, auto routes, the map and every other clear feature gate on DungeonState, and a
-        // sim where they all sit out is a sim he cannot practise in.
+        // sim where they all sit out is a sim he cannot practice in.
         com.killer560.hub.secrets.DungeonState.setRoomSim(true);
     }
 
@@ -84,13 +84,13 @@ public final class SimState {
     }
 
     /** The map code this session was built from, for showing and for sharing. */
-    /** The floor the current map was generated as, for the sidebar. Defaults to F7, the one he practises. */
+    /** The floor the current map was generated as, for the sidebar. Defaults to F7, the one he practices. */
     private static String floorLabel = "F7";
 
     /**
      * Whether what is loaded is a whole generated floor rather than a single room.
      *
-     * <p>The two are different things to practise in and the Dungeon Breaker treats them differently -
+     * <p>The two are different things to practice in and the Dungeon Breaker treats them differently -
      * killer560 (2026-09-30): "before the countdown make it so breaker doesnt work on the generated map. If i
      * only choose one room thought then the breaker should work." A single room is a sandbox; a floor is a
      * clear, and letting him cut through its walls before the timer starts would defeat the point of it.
@@ -154,7 +154,7 @@ public final class SimState {
             return null;
         }
         // By TILE, not by nearest cell. Rooms sit on even cells two steps apart and a tile reaches a whole step
-        // either side of its centre; rounding to the nearest cell put the outer half of every 1x1 room's tile in
+        // either side of its center; rounding to the nearest cell put the outer half of every 1x1 room's tile in
         // the odd connector cell beside it, which no 1x1 room covers - so anywhere within about eight blocks of a
         // wall the room was "nothing" and the sidebar fell back to "Room: Entrance". It went unseen while a single
         // room dropped him in its middle; the doorway landing (2026-10-06) puts him right there.

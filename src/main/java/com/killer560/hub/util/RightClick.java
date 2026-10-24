@@ -442,7 +442,7 @@ public final class RightClick {
             if (unpairable(client, player, serverFeet, ny, np)) {
                 continue;
             }
-            // A look that lands only for its exact float values can go into the neighbouring block once the server reads
+            // A look that lands only for its exact float values can go into the neighboring block once the server reads
             // the running yaw a few bits off (path-wrongblock-1015, his 22:47:07 sim run: re-aimed at -149, 261, -188,
             // the server's cast went into -149, 262, -189). Any look that still lands within the planner's margin wins.
             boolean firm = com.killer560.hub.livemap.autoclear.TeleportUtils.holdsOn(eye, r.yaw(), np, dist, target);
@@ -487,7 +487,7 @@ public final class RightClick {
                 out.add(new double[]{a, y, 0.97});
             }
         }
-        // Off the tenths lattice: from a stand at a block's centre the lines to the points above often run exactly through a
+        // Off the tenths lattice: from a stand at a block's center the lines to the points above often run exactly through a
         // block's edge, which is a fragile aim (see reaimIfUnpairable); these give a firm one a chance.
         double[][] off = {{0.37, 0.61}, {0.63, 0.39}, {0.41, 0.43}, {0.59, 0.57}, {0.23, 0.62}, {0.77, 0.38},
                 {0.62, 0.23}, {0.38, 0.77}};
@@ -518,7 +518,7 @@ public final class RightClick {
      * pairs it with the stored click (verdict replayed: nothing happens) and clears it, so the warp that follows a tick
      * later is an ordinary right click and fires. Should the server not pair it after all, it is a right click in the air
      * with a pickaxe: nothing either - unlike sending the warp itself to be eaten, which costs a round trip to find out
-     * and, were the judgement wrong, a second warp from the landing (killer560's Bridges, 2026-10-17).
+     * and, were the judgment wrong, a second warp from the landing (killer560's Bridges, 2026-10-17).
      *
      * @return true when the use was sent
      */
@@ -585,7 +585,7 @@ public final class RightClick {
      * again: the measured round trip ({@link PingTracker#automationMs}) and half again, rounded up to ticks, plus 2 -
      * 3 ticks on a local server. The eaten use cleared the server's stored verdict whatever happened to it (the server
      * pairs a use with the click once), so the second one goes as an ordinary right click in the air and fires. If the
-     * judgement was wrong and the first use fired after all (Hypixel traced from an eye this class did not expect), its
+     * judgment was wrong and the first use fired after all (Hypixel traced from an eye this class did not expect), its
      * landing arrives inside the round trip and nothing is sent again. Callers add {@link ServerLag} on top.
      * <p>
      * Why it is needed at all (fullclear-1016, his sim run 2026-10-16 16:59:25 Cathedral #15 and 17:00:06 Crypt): the

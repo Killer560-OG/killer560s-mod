@@ -525,7 +525,7 @@ public final class Ap3Feature {
     /**
      * Re-places node {@code index} where you stand and/or look, without deleting and re-adding it (which would
      * also lose its number in the chain and every modifier on it). {@code position} = feet position (snapped to
-     * the block centre unless the node is precise), {@code look} = yaw/pitch. An AXIS_ALIGN re-reads the wall you
+     * the block center unless the node is precise), {@code look} = yaw/pitch. An AXIS_ALIGN re-reads the wall you
      * are touching when the position moves and refuses when you are not touching one, same rule as placing one.
      */
     public static boolean replaceNode(int index, boolean position, boolean look) {
@@ -635,7 +635,7 @@ public final class Ap3Feature {
         return removed;
     }
 
-    /** Persist after the tab edits a node's fields in place (box, wait, leap modifier, colour...). */
+    /** Persist after the tab edits a node's fields in place (box, wait, leap modifier, color...). */
     public static void saveChains() {
         Ap3Store store = Ap3Store.getInstance();
         store.markEdited();
@@ -1031,7 +1031,7 @@ public final class Ap3Feature {
         }
     }
 
-    /** The on-screen reminder while Force Dungeon is on - fixed top-centre, not a HUD-editor element, drawn even
+    /** The on-screen reminder while Force Dungeon is on - fixed top-center, not a HUD-editor element, drawn even
      *  with the mod menu open, so it cannot be moved out of sight or forgotten. */
     private static void drawForceDungeonReminder(GuiGraphicsExtractor graphics) {
         try {

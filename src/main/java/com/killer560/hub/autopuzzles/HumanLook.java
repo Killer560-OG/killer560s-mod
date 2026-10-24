@@ -7,7 +7,7 @@ import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * A human-looking turn towards a target rotation, one tick at a time, for Auto Boulder.
+ * A human-looking turn toward a target rotation, one tick at a time, for Auto Boulder.
  *
  * <p>killer560 (2026-10-06): the Boulder walk "needs to look legit if the aura isnt on", and "it needs to have the
  * player actually looking at the button and still be fast with realistic rotations". A mouse turn has marks a set
@@ -58,7 +58,7 @@ final class HumanLook {
         }
     }
 
-    /** @return {yaw, pitch} one tick on from (yaw, pitch) towards (targetYaw, targetPitch) */
+    /** @return {yaw, pitch} one tick on from (yaw, pitch) toward (targetYaw, targetPitch) */
     float[] step(Minecraft client, float yaw, float pitch, float targetYaw, float targetPitch) {
         float dy = Mth.wrapDegrees(targetYaw + overYaw - yaw);
         float dp = Mth.clamp(targetPitch + overPitch, -90f, 90f) - pitch;

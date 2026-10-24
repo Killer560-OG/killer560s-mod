@@ -532,7 +532,7 @@ public final class SecretWaypointsFeature {
      * the exact same as secret waypoints just for princes and crypts."
      *
      * <p>Same rules as every other waypoint here: the room you are standing in only, during clear only (the caller
-     * has already returned in boss), same box style, colours, names and through-walls. What differs is where the
+     * has already returned in boss), same box style, colors, names and through-walls. What differs is where the
      * positions come from - see {@link CryptScanner} for why it is the room's blocks and not the room database.
      *
      * <p>Done the way a secret is done: a shut tomb is drawn, and once most of its blocks are gone (the Superboom
@@ -721,7 +721,7 @@ public final class SecretWaypointsFeature {
      *  within range at once; this walks the exact same shape of volume but only for the ONE room
      *  {@link #rebuild} already narrowed everything else down to, on the same once-a-second/8-block cache. Same
      *  fixed floor-relative Y band as that removed check: dungeon room floors sit at y=68 (see
-     *  {@code LiveMapFeature.classifyDoor}, which reads the door-colour block one above it) and 41 levels
+     *  {@code LiveMapFeature.classifyDoor}, which reads the door-color block one above it) and 41 levels
      *  covers every normal and tall room without deriving a per-room ceiling.
      *  <p>
      *  It did not (2026-10-16): the room library's levers run from y 53 (Grass Ruin's basement) to y 142

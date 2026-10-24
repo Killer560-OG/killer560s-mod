@@ -198,7 +198,7 @@ public final class WorldRenderUtils {
 
     /**
      * {@link #renderLineStrip(LevelRenderContext, java.util.List, float, float, float, float, float)} for points the
-     * caller already holds in an array it never changes afterwards (on 26.2 the callback reads it later in the frame),
+     * caller already holds in an array it never changes afterward (on 26.2 the callback reads it later in the frame),
      * so nothing is copied.
      */
     public static void renderLineStrip(LevelRenderContext context, Vec3[] pts, float r, float g, float b, float a,
@@ -221,7 +221,7 @@ public final class WorldRenderUtils {
     }
 
     /**
-     * An outline of only the box's edges that bound a face turned towards {@code cam}. The back edges are left out, so
+     * An outline of only the box's edges that bound a face turned toward {@code cam}. The back edges are left out, so
      * where the block itself is not a full cube (a stair's open corner) they cannot show through it and make the box
      * look as if it sat behind the block. killer560 (2026-10-13), the Etherwarp Overlay on a stair.
      */
@@ -388,7 +388,7 @@ public final class WorldRenderUtils {
     }
 
     /**
-     * Outlines the first {@code count} boxes in ONE camera-space pass (one pose push, one buffer), colour
+     * Outlines the first {@code count} boxes in ONE camera-space pass (one pose push, one buffer), color
      * {@code rgba[4i..4i+3]} for box i. On 26.2 the callback runs later in the frame, so the caller must hand over
      * arrays it will not touch again - a fresh pair per frame, never a live list's backing store.
      * {@code throughWalls} needs {@link #initThroughWalls()} at init.

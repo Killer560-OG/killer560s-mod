@@ -13,7 +13,7 @@ import java.util.Locale;
  * arrives as plain numbers and strings, and a mining or fishing tracker can draw the same screen by handing over
  * its own.
  *
- * <p>Colours are the mod's amber, not the blue and purple of the mockup these were drawn from.
+ * <p>Colors are the mod's amber, not the blue and purple of the mockup these were drawn from.
  */
 public final class ProfitPanels {
 
@@ -33,7 +33,7 @@ public final class ProfitPanels {
      * One headline figure: a small label, a large value, and a quieter line underneath.
      *
      * <p>The left edge is a solid bar in {@code stripe}, which is what carries the good/bad read at a glance -
-     * the mockup's cards are told apart by that stripe rather than by colouring the whole box, and a full box of
+     * the mockup's cards are told apart by that stripe rather than by coloring the whole box, and a full box of
      * red over a losing session is a lot to look at.
      */
     public static void card(GuiGraphicsExtractor g, Font font, int x, int y, int w, int h,
@@ -49,7 +49,7 @@ public final class ProfitPanels {
     }
 
     /**
-     * One headline figure in the menu's active theme: a raised card with the stripe on its left. Colours given as
+     * One headline figure in the menu's active theme: a raised card with the stripe on its left. Colors given as
      * {@link #GOOD} / {@link #BAD} / {@link #TEXT} / {@link #ACCENT} / {@link #DIM} are mapped to the theme's own.
      */
     public static void themedCard(GuiGraphicsExtractor g, Font font, int x, int y, int w, int h,
@@ -65,7 +65,7 @@ public final class ProfitPanels {
         }
     }
 
-    /** One of this class's fixed colours as the active theme draws it (anything else made readable on the panel). */
+    /** One of this class's fixed colors as the active theme draws it (anything else made readable on the panel). */
     public static int themed(int c) {
         if (c == GOOD) {
             return com.killer560.hub.gui.ScreenChrome.good();

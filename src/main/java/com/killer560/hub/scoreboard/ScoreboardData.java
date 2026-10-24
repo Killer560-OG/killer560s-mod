@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
  * Raw Skyblock data the Custom Scoreboard is built from, refreshed on the client tick:
  * <ul>
  * <li>sidebar lines in legacy {@code §} form - same construction as SkyHanni's {@code ScoreboardData}
- * ({@code team prefix + team suffix}, highest score first, duplicate colour codes at the prefix/suffix seam removed)
+ * ({@code team prefix + team suffix}, highest score first, duplicate color codes at the prefix/suffix seam removed)
  * and the same formatted-text conversion as SkyHanni's {@code formattedTextCompatLessResets()};</li>
  * <li>the tab list in vanilla display order (unformatted + formatted) and its footer;</li>
  * <li>the latest action bar text (captured by {@code CustomScoreboardGuiMixin}).</li>
@@ -96,7 +96,7 @@ public final class ScoreboardData {
         }
     }
 
-    /** Same objective choice as vanilla {@code Gui#extractScoreboardSidebar}: team-colour slot first, then SIDEBAR. */
+    /** Same objective choice as vanilla {@code Gui#extractScoreboardSidebar}: team-color slot first, then SIDEBAR. */
     public static Objective sidebarObjective(Minecraft client) {
         if (client.level == null) {
             return null;
@@ -176,7 +176,7 @@ public final class ScoreboardData {
         return false;
     }
 
-    /** SkyHanni's {@code ScoreboardData.formatLines}: strip colour codes from the start of the suffix that the
+    /** SkyHanni's {@code ScoreboardData.formatLines}: strip color codes from the start of the suffix that the
      *  prefix already ended with, so e.g. {@code §8- §c§aApex Dra§agon} matches the dragon regex. */
     static String joinPrefixSuffix(String start, String end) {
         String lastColor = lastColorCode(start);
@@ -195,7 +195,7 @@ public final class ScoreboardData {
         return start + end;
     }
 
-    /** The last run of consecutive colour/format codes in {@code s} - what the last {@code find()} of
+    /** The last run of consecutive color/format codes in {@code s} - what the last {@code find()} of
      *  {@link #COLOR_CODES} returns - or null. A scan, not a Matcher: this runs for every team-built sidebar line on
      *  every refresh, and its Matcher was the scoreboard's largest allocation (95-perf JFR, 2026-10-15). */
     static String lastColorCode(String s) {
@@ -291,7 +291,7 @@ public final class ScoreboardData {
 
     /**
      * Component to legacy {@code §} text, SkyHanni's {@code computeFormattedTextCompat(noExtraResets = true)}: each
-     * styled run is prefixed with its colour + decoration codes, except a leading plain {@code §f}.
+     * styled run is prefixed with its color + decoration codes, except a leading plain {@code §f}.
      */
     public static String formatted(Component component, boolean lessResets) {
         if (component == null) {

@@ -22,7 +22,7 @@ import net.minecraft.world.item.ItemStack;
  * the themed panel, slot squares, selected slot and offhand square, then runs VANILLA'S layer with its four background
  * sprites dropped ({@link com.killer560.hub.inventorytheme.mixin.InventoryThemeHotbarSpriteMixin}). So the items, their
  * pickup "pop", stack counts, durability bars, cooldown overlays and the hotbar attack indicator are vanilla's own
- * pixels, not a copy that could drift. Scale is a pose transform about the hotbar's bottom centre around both halves.
+ * pixels, not a copy that could drift. Scale is a pose transform about the hotbar's bottom center around both halves.
  * <p>
  * Geometry is vanilla's (javap, identical on both versions): bar 182x22 at (w/2 - 91, h - 22); item i at
  * (w/2 - 90 + 20i + 2, h - 19); offhand item at (w/2 - 91 - 26, h - 19) on the left or (w/2 + 91 + 10, h - 19) on the right,
@@ -107,11 +107,11 @@ public final class HotbarTheme {
     }
 
     /**
-     * The hotbar in vanilla's shape, recoloured (killer560, 2026-10-12: "a reskin of the original with its coloring"):
+     * The hotbar in vanilla's shape, recolored (killer560, 2026-10-12: "a reskin of the original with its coloring"):
      * the 182 x 22 bar with a one-unit outline and the panel fill, each of the nine slots a sunken square exactly round
      * its item (item x - 1 .. x + 17, the same square the inventory draws), the selected slot ringed two units wide in the
      * accent where vanilla puts its 24 x 24 selection frame, and the offhand's own square when it holds something.
-     * Colours from {@link InventoryPalette}, all opaque (killer560, 2026-10-12: "make the inventories not transparent").
+     * Colors from {@link InventoryPalette}, all opaque (killer560, 2026-10-12: "make the inventories not transparent").
      * Pixel-exact through
      * {@link PixelRects}, also under Hotbar Scale.
      */
@@ -134,8 +134,8 @@ public final class HotbarTheme {
                 int sx = x0 + 3 + 20 * i;
                 InventoryThemeFeature.slotSquare(r, sx - 1, bottom - 20, sx + 17, bottom - 2, p.slotFill(), p);
             }
-            // Vanilla's ring in every preset, its light band in the preset's colour (killer560, 2026-10-12: "Mimic that for
-            // all presets"): Mod Theme and Custom in the accent, Dark in a muted grey so it does not glare.
+            // Vanilla's ring in every preset, its light band in the preset's color (killer560, 2026-10-12: "Mimic that for
+            // all presets"): Mod Theme and Custom in the accent, Dark in a muted gray so it does not glare.
             int ringMain = cfg.isDarkChoice()
                     ? DARK_RING : withAlpha(p.accent(), 0xFF);
             int frameDark = withAlpha(p.panel(), 0xFF);
@@ -158,7 +158,7 @@ public final class HotbarTheme {
     }
 
     // Vanilla's hotbar shades (read off the game's own hotbar, 26.1.2). Vanilla's slot insides are translucent; here they
-    // are opaque (killer560, 2026-10-12: "make the inventories not transparent") in a dark grey close to how vanilla's read.
+    // are opaque (killer560, 2026-10-12: "make the inventories not transparent") in a dark gray close to how vanilla's read.
     private static final int V_BORDER = 0xFF000000;
     private static final int V_TOP_LIGHT = 0xFF939393;
     private static final int V_LIGHT = 0xFF7E7E7E;
@@ -177,7 +177,7 @@ public final class HotbarTheme {
      * The Default preset's hotbar: vanilla's own look, drawn by the mod (killer560, 2026-10-12: Default is "the normal"
      * vanilla look). The 182 x 22 bar has a black outline, a light top row and left column, then a dark row / column, and
      * a light-then-dark pair along the bottom and right end. Between two slots there are four columns, light, dark, light,
-     * dark, so each slot's inside is exactly its 16-unit item box. The insides are an opaque dark grey, a shade darker
+     * dark, so each slot's inside is exactly its 16-unit item box. The insides are an opaque dark gray, a shade darker
      * along their top and left. The selection ring is vanilla's (see {@link #selectionRing}). Coordinates are GUI units through {@link PixelRects}; the bottom outline is
      * kept on the window when the GUI's last row hangs off it.
      */
@@ -240,7 +240,7 @@ public final class HotbarTheme {
         }
     }
 
-    /** Dark preset's ring colour: a muted light grey, well below white. */
+    /** Dark preset's ring color: a muted light gray, well below white. */
     private static final int DARK_RING = 0xFF8C8C92;
     /** {@code a} blended toward {@code b} by {@code 1 - t} (t = 1 gives a), opaque. */
     static int mix(int a, int b, float t) {
@@ -257,7 +257,7 @@ public final class HotbarTheme {
      * the outside in -
      * <ol>
      *   <li>the outline: {@code top} along the top (and the off-screen bottom), {@code side} down both sides - the bar's own
-     *   edge colour, so the ring reads as the bar's frame bulging round the slot;</li>
+     *   edge color, so the ring reads as the bar's frame bulging round the slot;</li>
      *   <li>light along the top and left, faint along the right and bottom (mid where they meet);</li>
      *   <li>mid all round;</li>
      *   <li>faint along the top and left, light along the right and bottom (mid at the top-right corner) - the band that

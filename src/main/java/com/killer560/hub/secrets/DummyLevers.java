@@ -28,7 +28,7 @@ import java.util.Set;
  * the database's chests: capture 58,70,6 and 40,90,27 are database 57,70,5 and 39,90,26): wall levers facing south at
  * capture 57,70,6 and 60,70,6 (database 56,70,5 and 59,70,5) flank the chest at capture 58,70,6; the real lever is the
  * floor lever at capture 55,69,6 (database 54,69,5), which is also the only Red Blue lever in RSM's secret list
- * (centre-relative 39,69,-10). No other room's dummy lever is confirmed yet; add one here and every reader has it.
+ * (center-relative 39,69,-10). No other room's dummy lever is confirmed yet; add one here and every reader has it.
  *
  * <p>Readers: Secret Aura (and so Auto Secret's "still being taken" wait), Secret Waypoints, Secret Triggerbot, Secret
  * Sound, and Auto Routes' {@code AwaitEvents} (its await count and the run memory Auto Secret counts from).

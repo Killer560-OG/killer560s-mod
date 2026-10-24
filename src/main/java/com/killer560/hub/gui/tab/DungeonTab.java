@@ -31,7 +31,7 @@ public class DungeonTab extends FolderTab {
                 new DungeonQueueTab(),
                 new CustomPartyFinderTab(),
                 new AutoKickTab(),
-                // Not cheat-only: setting someone's class fixes the normal leap menu and every class-coloured display
+                // Not cheat-only: setting someone's class fixes the normal leap menu and every class-colored display
                 // too, not just AP3's leap nodes (killer560, 2026-09-16).
                 new ClassColorsTab(),
                 new TeammatesTab(),

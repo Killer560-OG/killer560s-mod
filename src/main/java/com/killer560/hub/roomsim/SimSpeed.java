@@ -14,7 +14,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
  * {@code /speed <n>} - sets movement speed on the Hypixel scale, inside the sim.
  *
  * <p>killer560 (2026-09-28): "Make a command for /speed ___ and let me set it to whatever I want." It matters
- * more than it sounds: he plays at 550 to 600, every route he practises is timed at that speed, and a sim stuck
+ * more than it sounds: he plays at 550 to 600, every route he practices is timed at that speed, and a sim stuck
  * at a normal walk would teach spacing that does not transfer.
  *
  * <p>100 is a normal walk, which is vanilla's 0.1 - so the attribute is simply the number over a thousand, the
@@ -38,7 +38,7 @@ public final class SimSpeed {
     /**
      * The last speed he set, kept across restarts.
      *
-     * <p>killer560 (2026-09-28): "Make sure it saves my speed on reboot." Every route he practises is timed at
+     * <p>killer560 (2026-09-28): "Make sure it saves my speed on reboot." Every route he practices is timed at
      * 550 to 600, so a sim that comes back at 100 is not merely inconvenient - the first run after every
      * restart is at the wrong speed, and a route rehearsed at walking pace is a different route.
      */

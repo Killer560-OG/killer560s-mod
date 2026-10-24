@@ -23,7 +23,7 @@ public final class MenuCloseFade {
 
     private static ModScreen closing;
 
-    /** The menu-themed screens already given their clock hook (a screen that is initialised again keeps one). */
+    /** The menu-themed screens already given their clock hook (a screen that is initialized again keeps one). */
     private static final java.util.Set<Object> CLOCK_HOOKED =
             java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
 

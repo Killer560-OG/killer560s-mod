@@ -53,7 +53,7 @@ public final class ScoreboardPattern {
     // ---- dungeon ----
     public static final Pattern M7_DRAGONS = p("§cNo Alive Dragons|§8- (?:§.)+[\\w\\s]+Dragon§a [\\w,.]+(?:§." + HEALTH_ICON + "?)?");
     // Looser than SkyHanni's "Keys: §.■ §.[✗✓] §.■ §a.x" (2026-10-07): his dungeon board draws the blood-key mark as an
-    // "x", and a wither-key count past 9 is two digits; any colour codes may sit between the parts.
+    // "x", and a wither-key count past 9 is two digits; any color codes may sit between the parts.
     public static final Pattern KEYS = p("(?:§.)*Keys: (?:§.)*■ (?:§.)*[✗✓✘✔xX] (?:§.)*■ (?:§.)*\\d{1,3}x(?:§.)*");
     public static final Pattern CLEARED = p("(?:§.)*Cleared: (?:§.)*(?<percent>[\\w,.]+)% (?:§.)*\\((?:§.)*(?<score>[\\w,.]+)(?:§.)*\\)");
     // SkyHanni's is the exact "§3§lSolo"; killer560's board on 2026-10-07 showed it bold dark aqua and still reported

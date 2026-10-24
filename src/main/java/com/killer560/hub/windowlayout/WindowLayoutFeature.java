@@ -239,7 +239,7 @@ public final class WindowLayoutFeature {
         }
     }
 
-    /** Full Monitor should end up borderless-fullscreen unless the user turned that behaviour off. */
+    /** Full Monitor should end up borderless-fullscreen unless the user turned that behavior off. */
     private static boolean wantsBorderlessFullMonitor() {
         return WindowLayoutConfig.getInstance().isFullMonitorBorderless();
     }

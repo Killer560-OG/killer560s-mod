@@ -41,7 +41,7 @@ import com.killer560.hub.util.KeyUtil;
  * "show the pie chart lines between pets"), and are safe to add despite that: {@code GuiGraphicsExtractor.pose()}'s
  * real return type in this MC version is {@code org.joml.Matrix3x2fStack} (confirmed with {@code javap} against the real
  * 26.1.2 mapped jar for this task, not guessed), which has a real {@code rotate(float)} - translating to the
- * wheel's centre, rotating to a slice boundary and filling a thin rect from the inner dead-zone out to the rim
+ * wheel's center, rotating to a slice boundary and filling a thin rect from the inner dead-zone out to the rim
  * draws exactly one spoke, with the same angle convention {@link #hoveredIndex}/{@link #drawSlice} already use.
  * <p>
  * Per-frame cost: the render loop is O(slice count) (capped at {@link PetWheelConfig#MAX_SLICES}, 12), every
@@ -60,8 +60,8 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
 
     private static final float BASE_RADIUS = 84f;
     private static final int BASE_TILE = 28;
-    /** Minimum extra room (beyond the tile's own footprint) two neighbouring tiles must keep between their
-     *  centres, so a big Icon Size setting pushes the ring outward instead of overlapping slices. */
+    /** Minimum extra room (beyond the tile's own footprint) two neighboring tiles must keep between their
+     *  centers, so a big Icon Size setting pushes the ring outward instead of overlapping slices. */
     private static final float TILE_SPACING_FACTOR = 1.15f;
 
     /** The current page's pets; replaced when the page is changed from the wheel. */
@@ -173,7 +173,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
     }
 
     /** Radius grows past the plain {@code BASE_RADIUS * scale} baseline once the tile itself (driven by Icon
-     *  Size, independently of the overall Scale slider) would otherwise make neighbouring slices overlap. */
+     *  Size, independently of the overall Scale slider) would otherwise make neighboring slices overlap. */
     private Layout layout(int count, int tile) {
         float radius = BASE_RADIUS * scale;
         if (count >= 2) {
@@ -275,7 +275,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
         graphics.pose().pushMatrix();
         graphics.pose().translate(layoutData.centerX(), layoutData.centerY());
         for (int i = 0; i < count; i++) {
-            // Boundary BEFORE slice i, in drawSlice's own "-PI/2 + index*sliceAngle" slice-centre convention.
+            // Boundary BEFORE slice i, in drawSlice's own "-PI/2 + index*sliceAngle" slice-center convention.
             float angle = (float) (-Math.PI / 2.0 + i * sliceAngle - sliceAngle / 2.0);
             graphics.pose().pushMatrix();
             graphics.pose().rotate(angle);
@@ -340,7 +340,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
         graphics.pose().popMatrix();
     }
 
-    /** Centred text on a small card plate: the wheel draws over the world, where the Light theme's dark text would
+    /** Centered text on a small card plate: the wheel draws over the world, where the Light theme's dark text would
      *  vanish without one. */
     private void plateText(GuiGraphicsExtractor graphics, String text, int cx, int y, int color) {
         int w = font.width(text);

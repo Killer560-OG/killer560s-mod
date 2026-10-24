@@ -62,7 +62,7 @@ public final class BatLog {
     /** Without a hint: the mob nearest the look within this angle and distance is taken as the target. */
     static final double TARGET_CONE_DEG = 25.0;
     static final double TARGET_RANGE = 40.0;
-    /** A flight that stays within this (blocks) of the line it flew is straight; a centre passed this much nearer than a
+    /** A flight that stays within this (blocks) of the line it flew is straight; a center passed this much nearer than a
      *  straight bat along the look would pass it means it bent toward the target. */
     static final double STRAIGHT_BLOCKS = 0.75;
     /** A straight flight whose line is within this many degrees of the launch look flew along the look. */
@@ -90,7 +90,7 @@ public final class BatLog {
         public final double pitchOffDeg;
         public final float healthBefore;
         public final String tagBefore;
-        /** Closest the straight launch look passes the target centre (blocks): where a straight bat would go by it. */
+        /** Closest the straight launch look passes the target center (blocks): where a straight bat would go by it. */
         public final double rayMissBlocks;
 
         int batId = -1;
@@ -429,7 +429,7 @@ public final class BatLog {
         double offNow = offRay(player.getEyePosition(), lookNow, at);
         s.endOffNow = offNow;
         Entity target = s.targetId < 0 ? null : client.level.getEntity(s.targetId);
-        // To the target's CENTRE, as rayMissBlocks is: the two are compared to tell a bat bending toward it.
+        // To the target's CENTER, as rayMissBlocks is: the two are compared to tell a bat bending toward it.
         double toTarget = target == null ? -1 : at.distanceTo(target.getBoundingBox().getCenter());
         if (toTarget >= 0) {
             s.closestToTarget = Math.min(s.closestToTarget, toTarget);
@@ -503,7 +503,7 @@ public final class BatLog {
      * How the bat flew, from its seen positions: the line from the first to the last ({@link Shot#flightOffDeg} off the
      * launch look) and how far the flight bowed off that line ({@link Shot#bowBlocks}). A flight within
      * {@link #STRAIGHT_BLOCKS} of its line is straight - along the look when the line is within {@link #ALONG_DEG} of it;
-     * otherwise it curved, toward the target when it passed the target's centre nearer than a straight bat along the look
+     * otherwise it curved, toward the target when it passed the target's center nearer than a straight bat along the look
      * would have.
      */
     private static String curve(Shot s) {

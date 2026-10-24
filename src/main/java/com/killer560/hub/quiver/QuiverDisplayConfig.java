@@ -24,7 +24,7 @@ public final class QuiverDisplayConfig {
 
     private boolean enabled = false;
     private boolean showName = true;
-    /** Colour of the whole HUD line (killer560, 2026-10-11: "add an option to change the text color"). */
+    /** Color of the whole HUD line (killer560, 2026-10-11: "add an option to change the text color"). */
     private int textColor = DEFAULT_TEXT_COLOR;
     /** Low-arrow alert: a title plus a sound once the count drops below {@link #alertThreshold}. */
     private boolean alertEnabled = false;

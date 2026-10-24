@@ -58,7 +58,7 @@ public final class AutoWalker {
     private static final int WALL_TICKS_BEFORE_SIDESTEP = 4;
     private static final int SIDESTEP_TICKS = 9;
     private static final int BACKOFF_TICKS = 6;
-    /** How far short of the soul (feet to its centre) the walk aims to come to rest - inside the 3.0 click reach. */
+    /** How far short of the soul (feet to its center) the walk aims to come to rest - inside the 3.0 click reach. */
     static final double STOP_SHORT = 1.6;
     /** A turn of less than this along the path is not slowed for. */
     private static final double CORNER_MIN_DEG = 25.0;

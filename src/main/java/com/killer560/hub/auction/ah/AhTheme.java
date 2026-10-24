@@ -7,9 +7,9 @@ import com.killer560.hub.gui.ScreenThemes;
 import com.killer560.hub.inventorytheme.InventoryThemeConfig;
 
 /**
- * The unified Auction House's colours. By default the mod menu's theme (the AH's Screen Theme, set in its tab: Theme
+ * The unified Auction House's colors. By default the mod menu's theme (the AH's Screen Theme, set in its tab: Theme
  * Default follows the menu, or any preset / Custom), derived from {@link MenuStyle} with {@code bevel} on, so the panel,
- * field and buttons take the menu's bevelled look (sweep-b, 2026-10-13). The Screen Theme "Inventory Theme" keeps the
+ * field and buttons take the menu's beveled look (sweep-b, 2026-10-13). The Screen Theme "Inventory Theme" keeps the
  * older look, from the Inventory Theme (Amber, Dark or Light plus its accent), flat. Read once per frame; nothing is
  * written back.
  */
@@ -52,8 +52,8 @@ public record AhTheme(boolean light, int accent, int accentBright, int backdrop,
         return theme;
     }
 
-    /** The menu palette in force ({@link MenuStyle} after {@code use}) as the AH's colours. Cards stay dark on a light
-     *  theme, as they always have: item names arrive in Hypixel's colours. */
+    /** The menu palette in force ({@link MenuStyle} after {@code use}) as the AH's colors. Cards stay dark on a light
+     *  theme, as they always have: item names arrive in Hypixel's colors. */
     private static AhTheme fromMenu() {
         boolean light = MenuStyle.LIGHT;
         int accent = MenuStyle.OR;
@@ -95,12 +95,12 @@ public record AhTheme(boolean light, int accent, int accentBright, int backdrop,
                 0xFFC4C4C8, mix(accent, 0xFFFFFFFF, 0.35f),
                 0xFF1A1A1C, 0xFF55555C, 0xFF85858C,
                 0xFFA86A00, 0xFF1E8A1E, 0xFFC02020, 0xFF107A8A,
-                // Cards stay dark in the Light theme: item names arrive in Hypixel's own colours (white for COMMON),
+                // Cards stay dark in the Light theme: item names arrive in Hypixel's own colors (white for COMMON),
                 // which a white card would swallow.
                 0xFF2A2A2F, mix(accent, 0xFF2A2A2F, 0.70f), 0xFFF0F0F2, 0xFFB4B4BC, 0xFF85858E, false);
     }
 
-    /** Colours for text ON a card: cards stay dark in the Light theme, so they take the dark theme's bright tones. */
+    /** Colors for text ON a card: cards stay dark in the Light theme, so they take the dark theme's bright tones. */
     public int cardGold() {
         return light ? 0xFFFFC040 : gold;
     }

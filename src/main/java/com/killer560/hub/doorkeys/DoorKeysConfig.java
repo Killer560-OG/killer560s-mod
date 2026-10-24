@@ -49,7 +49,7 @@ public final class DoorKeysConfig {
      *  for the circle is too low"). The default height is the middle of the key stand's box. */
     public static final float MIN_CIRCLE_LIFT = -2f;
     public static final float MAX_CIRCLE_LIFT = 3f;
-    /** Colour 0 means "the key's own colour" (near-black for a Wither Key, red for a Blood Key). */
+    /** Color 0 means "the key's own color" (near-black for a Wither Key, red for a Blood Key). */
     public static final int COLOR_AUTO = 0;
     private float circleThickness = 7f;
     private float circleLift = 0.0f;
