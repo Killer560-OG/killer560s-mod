@@ -84,6 +84,8 @@ public class DoorKeysTab extends BaseTab {
                             DoorKeysConfig.RANGE_STYLE_NAMES.length));
                     cfg.save();
                     btn.setMessage(rangeText(cfg));
+                    // Circle Height and Sphere Fill are built only for their own style, so the rows must be rebuilt.
+                    requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
