@@ -73,9 +73,9 @@ pipe), the Proxy Client (the game connection itself), and anything Minecraft or 
 
 ## Interactive Map warp count (`livemap/autoclear/EtherwarpPathfinder`)
 
-- `-Dkiller560.test.checkFewest=true` makes every tile click plan itself a second time without the centre
-  preference and append `[check] without the centre preference: N warp(s), landing D block(s) from the tile centre`
-  to its `[Path] ... warp(s) (tile)` line, so a harness can check that landing nearer the centre never costs a warp
+- `-Dkiller560.test.checkFewest=true` makes every tile click plan itself a second time without the center
+  preference and append `[check] without the center preference: N warp(s), landing D block(s) from the tile center`
+  to its `[Path] ... warp(s) (tile)` line, so a harness can check that landing nearer the center never costs a warp
   (testkit 95-sim-map-warp). Costs one more search per click; never set outside the testkit.
 
 ## Name Animation clock (`namechanger/NameAnimation`)
