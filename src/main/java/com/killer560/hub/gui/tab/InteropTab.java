@@ -5,7 +5,6 @@ import com.killer560.hub.partydata.PartyDataConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.interop.InteropConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -77,9 +76,5 @@ public class InteropTab extends BaseTab {
         // (killer560, 2026-10-18: "hide all that extra info at the bottom of party interop").
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

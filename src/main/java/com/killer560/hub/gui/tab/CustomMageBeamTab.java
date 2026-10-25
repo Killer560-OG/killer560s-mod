@@ -114,8 +114,4 @@ public class CustomMageBeamTab extends BaseTab {
     private static Component durationText(DungeonExtrasConfig cfg) {
         return Component.literal("Duration: " + cfg.getMageBeamDurationTicks() + " ticks");
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

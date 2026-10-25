@@ -92,8 +92,4 @@ public class CompactorPreviewTab extends BaseTab implements KeyCaptureTab {
         }
         return Component.literal("Key: " + CommandKeybindsTab.bindName(cfg.getKeyCode()));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

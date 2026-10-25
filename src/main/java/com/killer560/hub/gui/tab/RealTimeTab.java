@@ -250,8 +250,4 @@ public class RealTimeTab extends BaseTab {
     private static Component formatLabel(RealTimeConfig cfg) {
         return Component.literal("Format: §6" + (cfg.isUse24Hour() ? "24 Hour" : "12 Hour"));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

@@ -58,8 +58,4 @@ public class TicTacToeSolverTab extends BaseTab {
     private static Component styleText(TicTacToeSolverConfig cfg) {
         return Component.literal("Highlight Style: \u00a76" + (cfg.isFill() ? "Fill" : "Outline"));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

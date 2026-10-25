@@ -324,10 +324,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         return y;
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private static Component thresholdText(TerminalQolConfig cfg) {
         return Component.literal("Threshold: " + cfg.getProtectionThresholdMs() + "ms");
     }

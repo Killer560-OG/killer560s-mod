@@ -263,8 +263,4 @@ public class RunSummaryTab extends BaseTab {
         return Component.literal("PB Minimum Score: §6" + (cfg.getPbMinScore() >= RunSummaryConfig.PB_MIN_SPLUS
                 ? "S+ (300)" : "S (270)"));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

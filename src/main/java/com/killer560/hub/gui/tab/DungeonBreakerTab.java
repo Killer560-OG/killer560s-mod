@@ -3,7 +3,6 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.dungeonbreaker.DungeonBreakerConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,9 +54,5 @@ public class DungeonBreakerTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

@@ -73,8 +73,4 @@ public class AutoUltTab extends BaseTab {
         }).bounds(x, y[0], BTN_W, 20).build());
         y[0] += 24;
     }
-
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
-    }
 }

@@ -57,8 +57,4 @@ public class CustomPartyFinderTab extends BaseTab {
                     btn.setMessage(onOff(label, get.getAsBoolean()));
                 }).bounds(x, y, w, 18).build();
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

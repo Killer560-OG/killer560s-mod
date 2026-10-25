@@ -187,8 +187,4 @@ public class P3NavTab extends BaseTab {
     private static Component styleText(String label, P3NavConfig.Style style) {
         return Component.literal(label + ": §b" + style.label);
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

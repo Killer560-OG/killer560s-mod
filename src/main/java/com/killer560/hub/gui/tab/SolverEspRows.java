@@ -41,10 +41,10 @@ final class SolverEspRows {
         widgets.add(new StringWidget(x, y, width, 12, SectionHeaders.header("Solver Highlight", false),
                 Minecraft.getInstance().font));
         y += 16;
-        widgets.add(SettingsButtonWidget.builder(onOff("Solver Highlight", cfg.isEnabled(solver)), btn -> {
+        widgets.add(SettingsButtonWidget.builder(BaseTab.onOff("Solver Highlight", cfg.isEnabled(solver)), btn -> {
                     cfg.setEnabled(solver, !cfg.isEnabled(solver));
                     cfg.save();
-                    btn.setMessage(onOff("Solver Highlight", cfg.isEnabled(solver)));
+                    btn.setMessage(BaseTab.onOff("Solver Highlight", cfg.isEnabled(solver)));
                 }).bounds(x, y, width, 18).build());
         y += 22;
         if (throughWallsRow) {
@@ -63,18 +63,14 @@ final class SolverEspRows {
     /** The Through Walls row alone, at {@code y}. */
     static void throughWallsRow(List<AbstractWidget> widgets, SolverEspConfig.Solver solver, int x, int width, int y) {
         SolverEspConfig cfg = SolverEspConfig.getInstance();
-        widgets.add(SettingsButtonWidget.builder(onOff("Solver Highlight Through Walls", cfg.isThroughWalls(solver)), btn -> {
+        widgets.add(SettingsButtonWidget.builder(BaseTab.onOff("Solver Highlight Through Walls", cfg.isThroughWalls(solver)), btn -> {
                     cfg.setThroughWalls(solver, !cfg.isThroughWalls(solver));
                     cfg.save();
-                    btn.setMessage(onOff("Solver Highlight Through Walls", cfg.isThroughWalls(solver)));
+                    btn.setMessage(BaseTab.onOff("Solver Highlight Through Walls", cfg.isThroughWalls(solver)));
                 }).bounds(x, y, width, 18).build());
     }
 
     private static Component styleText(SolverEspConfig cfg, SolverEspConfig.Solver solver) {
         return Component.literal("Solver Highlight Style: §6" + cfg.getWaypointStyle(solver).label);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

@@ -85,10 +85,6 @@ public class AutoGfsTab extends BaseTab {
         y[0] += 24;
     }
 
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
-    }
-
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,
                                java.util.function.DoubleConsumer apply) {
         w.add(new ThemedSliderButton(x, y, width, 20, Component.literal(text.get()), Math.max(0.0, Math.min(1.0, normalized))) {

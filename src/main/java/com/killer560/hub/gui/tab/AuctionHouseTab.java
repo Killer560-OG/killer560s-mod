@@ -102,10 +102,6 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
         return widgets;
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private static Component keyText(AuctionConfig cfg) {
         String name = cfg.getOpenAhKeyCode() < 0 ? "Not Set"
                 : InputConstants.Type.KEYSYM.getOrCreate(cfg.getOpenAhKeyCode()).getDisplayName().getString();

@@ -169,8 +169,4 @@ public class CroesusTab extends BaseTab {
     private static Component priceModeText(CroesusConfig cfg) {
         return Component.literal("Price Mode: §6" + cfg.getPriceMode().label);
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

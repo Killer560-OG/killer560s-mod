@@ -131,8 +131,4 @@ public class DungeonAlertsTab extends BaseTab {
     private static Component displayLabel(DungeonAlertsConfig cfg) {
         return Component.literal(String.format(Locale.US, "Display Time: %.1fs", cfg.roomAlertsDisplaySeconds));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

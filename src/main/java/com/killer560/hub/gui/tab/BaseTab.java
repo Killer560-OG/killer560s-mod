@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.Locale;
@@ -10,6 +11,11 @@ public abstract class BaseTab {
 
     protected BaseTab(String name) {
         this.name = name;
+    }
+
+    /** A switch row's label: {@code "<label>: §aON"} or {@code "<label>: §cOFF"}. */
+    protected static Component onOff(String label, boolean on) {
+        return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
     }
 
     /** True only while the menu builds the open tab's rows to show them; false for every off-screen build (the search

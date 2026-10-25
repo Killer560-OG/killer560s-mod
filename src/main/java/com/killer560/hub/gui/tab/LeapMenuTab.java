@@ -229,10 +229,6 @@ public class LeapMenuTab extends BaseTab {
         return Component.literal("Leap Style: §6" + cfg.getStyle().label());
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private static Component leapMessageEnabledText() {
         return onOff("Leap Message Enabled", LeapMessageConfig.getInstance().isEnabled());
     }

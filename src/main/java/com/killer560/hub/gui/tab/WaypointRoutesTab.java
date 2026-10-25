@@ -291,10 +291,6 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
         return Component.literal(WaypointRoutesConfig.KEY_NAMES[which] + ": §6" + name);
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     @Override
     public boolean isListeningForKey() {
         return capturingKey >= 0;

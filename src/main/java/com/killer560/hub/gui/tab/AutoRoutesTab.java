@@ -526,10 +526,6 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         }).bounds(x, y, Math.max(1, width), 20).build());
     }
 
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
-    }
-
     private static void colorButton(List<AbstractWidget> w, int x, int y, int width, String label, int argb, int defaultArgb,
                                     IntConsumer apply) {
         w.add(SettingsButtonWidget.builder(ColorSwatch.label(label, argb), btn -> {

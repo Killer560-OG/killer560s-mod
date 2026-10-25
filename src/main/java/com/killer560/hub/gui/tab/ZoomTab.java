@@ -134,8 +134,4 @@ public class ZoomTab extends BaseTab implements KeyCaptureTab {
     private static Component scrollStepText(ZoomConfig cfg) {
         return Component.literal(String.format(Locale.US, "Scroll Step: %.0f%%", cfg.getScrollStep() * 100));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

@@ -282,10 +282,6 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("Box Style: §6" + cfg.getBreakerAuraStyle().label);
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     /** Mirrors {@code Ap3Tab#openFolder} - a fresh install has no folder yet, and opening a missing directory
      *  does nothing at all, silently, so it is created first. */
     private static void openFolder() {

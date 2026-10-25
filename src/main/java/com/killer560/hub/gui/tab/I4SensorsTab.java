@@ -216,8 +216,4 @@ public class I4SensorsTab extends BaseTab {
     private static Component orderText(I4SensorsConfig cfg) {
         return Component.literal("Order: §b" + I4SensorsConfig.orderLabel(cfg.getMaskOrder()));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

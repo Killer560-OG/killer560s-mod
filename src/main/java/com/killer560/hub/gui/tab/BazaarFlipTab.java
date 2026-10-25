@@ -259,8 +259,4 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
         w.active = false;
         return w;
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

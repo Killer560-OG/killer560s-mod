@@ -96,8 +96,4 @@ public class DiscordRpcTab extends BaseTab {
             return "-";
         }
     }
-
-    private static Component onOff(String label, boolean on) {
-        return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
-    }
 }

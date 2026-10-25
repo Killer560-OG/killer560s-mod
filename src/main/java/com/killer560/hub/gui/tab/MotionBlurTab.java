@@ -61,8 +61,4 @@ public class MotionBlurTab extends BaseTab {
     private static Component strengthText(int strength) {
         return Component.literal("Strength: " + strength + "%");
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

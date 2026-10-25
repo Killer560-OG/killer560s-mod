@@ -196,8 +196,4 @@ public class WitherDoorsTab extends BaseTab {
     private static Component fillModeText(WitherDoorsConfig cfg) {
         return Component.literal("Fill Color: " + (cfg.isCustomFillColor() ? "§6Custom" : "§7Same as Outline"));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

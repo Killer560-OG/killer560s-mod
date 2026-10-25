@@ -111,8 +111,4 @@ public class QuiverDisplayTab extends BaseTab {
     private static Component thresholdLabel(QuiverDisplayConfig cfg) {
         return Component.literal("Low Arrow Threshold: §b" + cfg.getAlertThreshold());
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

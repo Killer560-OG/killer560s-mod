@@ -138,10 +138,6 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
         return com.killer560.hub.util.ServerCommands.toServer("loadouts");
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     /** A slot's mode button's label; the testkit finds it by "Slot N Mode". */
     public static Component modeText(LoadoutKeybindsConfig cfg, int index) {
         return Component.literal("Slot " + (index + 1) + " Mode: " + cfg.getSlotMode(index).label());

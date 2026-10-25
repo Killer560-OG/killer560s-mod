@@ -360,8 +360,4 @@ public class DungeonQueueTab extends BaseTab {
     private static Component valueText(String label, String value) {
         return Component.literal(label + ": §6" + value);
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

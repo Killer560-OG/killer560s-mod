@@ -290,10 +290,6 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         }).bounds(x, y, Math.max(1, width), 20).build());
     }
 
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
-    }
-
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,
                                DoubleConsumer apply) {
         w.add(new ThemedSliderButton(x, y, Math.max(1, width), 20, Component.literal(text.get()),

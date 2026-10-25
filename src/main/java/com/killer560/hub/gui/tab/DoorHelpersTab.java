@@ -131,8 +131,4 @@ public class DoorHelpersTab extends BaseTab {
     private static Component retryText(DoorHelpersConfig cfg) {
         return Component.literal("Retry Delay: " + cfg.getAutoDoorRetryDelayMs() + "ms");
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

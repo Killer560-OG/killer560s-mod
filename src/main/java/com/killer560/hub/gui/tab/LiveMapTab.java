@@ -320,10 +320,6 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         return Component.literal(label + ": §b" + name);
     }
 
-    static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     @Override
     public boolean isListeningForKey() {
         return capturing != null;

@@ -329,10 +329,6 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("Restart Key: \u00a7b" + name);
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "\u00a7aON" : "\u00a7cOFF"));
-    }
-
     @Override
     public boolean isListeningForKey() {
         return capturingRestartKey;

@@ -68,8 +68,4 @@ public class ModTagTab extends BaseTab {
     private static Component showAsText(ModUserConfig cfg) {
         return Component.literal("Show As: " + ("cheat".equals(cfg.getShareAs()) ? "Cheat (red)" : "Legit (green)"));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

@@ -237,10 +237,6 @@ public class PosmsgTab extends BaseTab {
         return Component.literal(String.format(Locale.US, "Text Height: %.2f", e.textHeightOffset));
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private static Component masterText() {
         return Component.literal("Posmsg: " + (PosmsgConfig.getInstance().isEnabledRaw() ? "§aON" : "§cOFF"));
     }

@@ -139,8 +139,4 @@ public class TeammatesTab extends BaseTab {
     private static Component rangeText(TeammatesConfig cfg) {
         return Component.literal(String.format(Locale.US, "Range: %.0f", cfg.getRange()));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

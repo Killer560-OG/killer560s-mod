@@ -224,8 +224,4 @@ public class ArrowAlignTab extends BaseTab {
     private static Component rangeText(ArrowAlignConfig cfg) {
         return Component.literal(String.format(Locale.US, "Aura Range: %.1f", cfg.getAuraRange()));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

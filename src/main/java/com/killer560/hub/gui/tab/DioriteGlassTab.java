@@ -3,7 +3,6 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.diorite.DioriteGlassConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,9 +35,5 @@ public class DioriteGlassTab extends BaseTab {
 
         // In-panel description moved to the toggle's hover tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

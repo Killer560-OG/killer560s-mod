@@ -141,8 +141,4 @@ public class AutoBloodCampTab extends BaseTab {
         String dir = ticks < 0 ? " (late)" : ticks > 0 ? " (early)" : "";
         return "Trigger Offset: " + (ticks > 0 ? "+" : "") + ticks + "t" + dir;
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

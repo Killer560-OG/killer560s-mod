@@ -194,8 +194,4 @@ public class ScoreCalculatorTab extends BaseTab {
     private static Component paulLabel(ScoreCalculatorConfig cfg) {
         return Component.literal("Paul (EZPZ): §6" + cfg.getPaulMode().label);
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

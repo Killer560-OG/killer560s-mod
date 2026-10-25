@@ -154,10 +154,6 @@ public class SecretAuraTab extends BaseTab {
         y[0] += 24;
     }
 
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
-    }
-
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,
                                DoubleConsumer apply) {
         slider(w, x, y, width, text, normalized, apply, () -> CheatUtilsConfig.getInstance().save());

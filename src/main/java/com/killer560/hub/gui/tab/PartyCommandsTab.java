@@ -116,8 +116,4 @@ public class PartyCommandsTab extends BaseTab {
     private static Component delayText(PartyCommandsConfig cfg) {
         return Component.literal("Reply Delay: " + cfg.getReplyDelayMs() + " ms");
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

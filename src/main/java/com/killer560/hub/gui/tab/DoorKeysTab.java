@@ -185,8 +185,4 @@ public class DoorKeysTab extends BaseTab {
     private static Component thicknessText(DoorKeysConfig cfg) {
         return Component.literal(String.format(Locale.US, "Tracer Thickness: %.1f", cfg.getTracerThickness()));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

@@ -7,7 +7,6 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -80,9 +79,5 @@ public class ChocolateFactoryTab extends BaseTab {
             }
         }).bounds(x, y[0], BTN_W, 20).build());
         y[0] += 24;
-    }
-
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
     }
 }

@@ -218,10 +218,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("Drops To Force: " + cfg.getForceDrops());
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private static Component keyLabel(String label, int key, boolean listening) {
         if (listening) {
             return Component.literal("Press any key...");

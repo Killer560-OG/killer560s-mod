@@ -174,8 +174,4 @@ public class ThornTab extends BaseTab {
     private static Component lineWidthText(ThornConfig cfg) {
         return Component.literal(String.format(Locale.US, "Thorn ESP Line Width: %.1f", cfg.getLineWidth()));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

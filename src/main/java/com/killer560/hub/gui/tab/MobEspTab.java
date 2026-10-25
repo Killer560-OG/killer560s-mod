@@ -238,8 +238,4 @@ public class MobEspTab extends BaseTab {
     private static Component roomMarginText(MobEspConfig cfg) {
         return Component.literal(String.format(Locale.US, "Room Margin: %.0f", cfg.getRoomMargin()));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

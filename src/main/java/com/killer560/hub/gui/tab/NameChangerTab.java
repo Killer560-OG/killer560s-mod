@@ -382,8 +382,4 @@ public class NameChangerTab extends BaseTab {
                 ? Component.literal("Color: ").append(block)
                 : Component.empty().append(block);
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

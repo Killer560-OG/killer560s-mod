@@ -307,10 +307,6 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
         return CommandShortcutsFeature.nameProblem(c.name(), c);
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private static Component toggleText(boolean on) {
         return Component.literal(on ? "§aON" : "§cOFF");
     }

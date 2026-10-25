@@ -109,10 +109,6 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("Open Key: §b" + name);
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     @Override
     public boolean isListeningForKey() {
         return capturingKey;

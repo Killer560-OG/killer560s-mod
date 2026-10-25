@@ -117,8 +117,4 @@ public class EtherwarpTab extends BaseTab {
     private static Component masterText() {
         return Component.literal("Etherwarp Waypoints: " + (EtherwarpWaypointsConfig.getInstance().isHighlightBlocks() ? "§aON" : "§cOFF"));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

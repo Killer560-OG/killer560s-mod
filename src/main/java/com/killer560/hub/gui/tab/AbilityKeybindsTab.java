@@ -83,10 +83,6 @@ public class AbilityKeybindsTab extends BaseTab implements KeyCaptureTab {
         return widgets;
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private Component keyText(String label, int key, int index) {
         if (capturing == index) {
             return Component.literal("Press any key...");

@@ -52,10 +52,6 @@ public class IceFillSolverTab extends BaseTab {
         return widgets;
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private static Component colorLabel(com.killer560.hub.puzzlesolvers.IceFillSolverConfig.LineColor color) {
         return Component.literal("Line Color: " + color.name().charAt(0)
                 + color.name().substring(1).toLowerCase(java.util.Locale.ROOT));

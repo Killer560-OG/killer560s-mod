@@ -106,10 +106,6 @@ public class MaxorTab extends BaseTab {
         }).bounds(x, y, width, 18).build();
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     /**
      * The reset box: a card of its own, not a settings button. Idle it is a dark box with the orange edge. The first click arms
      * it: the box turns red and shows a countdown for {@link #ARM_COOLDOWN_MS}, and clicks in that time do nothing. Once the

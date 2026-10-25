@@ -98,8 +98,4 @@ public class RunStatsTab extends BaseTab {
     private static Component delayText(RunStatsConfig cfg) {
         return Component.literal("Summary Delay: " + cfg.getDelaySeconds() + "s");
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

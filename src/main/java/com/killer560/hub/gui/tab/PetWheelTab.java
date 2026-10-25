@@ -235,10 +235,6 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("Page " + (cfg.getPageIndex() + 1) + " of " + cfg.getPageCount());
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private Component keyText(PetWheelConfig cfg) {
         if (capturing == Capturing.WHEEL) {
             return Component.literal("Press any key/button...");

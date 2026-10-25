@@ -215,8 +215,4 @@ public class AutoCroesusTab extends BaseTab {
     private static StringWidget label(int x, int y, int width, String text) {
         return new StringWidget(x, y, width, 12, Component.literal(text), Minecraft.getInstance().font);
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

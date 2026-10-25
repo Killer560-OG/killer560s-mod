@@ -241,8 +241,4 @@ public class AutoPuzzlesTab extends BaseTab {
     private static Component beamsModeText(AutoPuzzlesConfig cfg) {
         return Component.literal("Creeper Beams Mode: §6" + cfg.getAutoBeamsMode().label());
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

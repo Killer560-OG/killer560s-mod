@@ -134,10 +134,6 @@ public class SpotifyTab extends BaseTab {
         return SongShareConfig.getInstance();
     }
 
-    private static Component onOff(String label, boolean on) {
-        return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
-    }
-
     private static Component sendText() {
         return onOff("Send Lyrics To Chat", SpotifyLyricsFeature.isSendLyricsToChat());
     }

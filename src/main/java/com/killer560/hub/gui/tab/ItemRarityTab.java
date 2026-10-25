@@ -101,8 +101,4 @@ public class ItemRarityTab extends BaseTab {
     private static Component styleLabel(ItemRarityConfig cfg) {
         return Component.literal("Style: " + cfg.getStyle().label);
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

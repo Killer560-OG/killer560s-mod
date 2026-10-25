@@ -6,7 +6,6 @@ import com.killer560.hub.lagdisplay.LagDisplayConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -101,9 +100,5 @@ public class LagDisplayTab extends BaseTab {
                         cfg.save();
                     }));
         }).bounds(x, y, width, 18).build());
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

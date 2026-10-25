@@ -3,7 +3,6 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.p4platform.P4PlatformHighlightConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,9 +43,5 @@ public class P4PlatformHighlightTab extends BaseTab {
         // and its own switch and Filled Box are the rows above.
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

@@ -3,7 +3,6 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.maskinvincibility.MaskInvincibilityConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -99,9 +98,5 @@ public class MaskInvincibilityTab extends BaseTab {
         y += 24;
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

@@ -150,8 +150,4 @@ public class TrailTab extends BaseTab {
                     btn.setMessage(onOff(label, now));
                 }).bounds(x, y, width, 18).build());
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

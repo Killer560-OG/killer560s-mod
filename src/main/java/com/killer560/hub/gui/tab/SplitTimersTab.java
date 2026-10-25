@@ -118,8 +118,4 @@ public class SplitTimersTab extends BaseTab {
     private static Component p5PosLabel(SplitTimersConfig cfg) {
         return Component.literal("P5 Lines Position: §6" + (cfg.isP5LinesRight() ? "Right" : "Below"));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

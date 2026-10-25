@@ -119,10 +119,6 @@ public class ItemBrowserTab extends BaseTab {
         return widgets;
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private static Component columnsText(ItemBrowserConfig cfg) {
         return Component.literal("Item Width (Columns): " + cfg.getColumns());
     }

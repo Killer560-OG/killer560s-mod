@@ -189,8 +189,4 @@ public class TerminalAuraTab extends BaseTab {
     private static Component leapDelayText(TerminalAuraConfig cfg) {
         return Component.literal(String.format(Locale.US, "Leap Delay Time: %.1fs", cfg.getLeapDelaySeconds()));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

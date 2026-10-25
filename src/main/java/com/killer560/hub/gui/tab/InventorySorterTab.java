@@ -129,8 +129,4 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
     private static Component tickLabel(String label, int ticks) {
         return Component.literal(label + ": " + ticks + (ticks == 1 ? " tick" : " ticks"));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

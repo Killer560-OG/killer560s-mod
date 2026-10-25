@@ -252,10 +252,6 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("ESP Time: " + StorageSearchConfig.getInstance().getEspSeconds() + "s");
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     @Override
     public boolean isListeningForKey() {
         return capturingIndex != NOT_CAPTURING;

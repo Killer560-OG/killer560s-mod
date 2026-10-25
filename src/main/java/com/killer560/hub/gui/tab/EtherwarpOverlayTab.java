@@ -91,8 +91,4 @@ public class EtherwarpOverlayTab extends BaseTab {
     private static Component styleText(EtherwarpOverlayConfig cfg) {
         return Component.literal("Style: §b" + cfg.getStyle().label);
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

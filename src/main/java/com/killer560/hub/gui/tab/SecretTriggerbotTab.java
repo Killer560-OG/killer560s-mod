@@ -113,8 +113,4 @@ public class SecretTriggerbotTab extends BaseTab {
     private static Component slotText(SecretTriggerbotConfig cfg) {
         return Component.literal("Swap Slot: " + cfg.getSwapSlot());
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

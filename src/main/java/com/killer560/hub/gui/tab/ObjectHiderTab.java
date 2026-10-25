@@ -206,10 +206,6 @@ public class ObjectHiderTab extends BaseTab {
         y[0] += 24;
     }
 
-    static Component onOff(String label, boolean on) {
-        return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
-    }
-
     private static Component orbRadiusText(ObjectHiderConfig cfg) {
         return Component.literal("Keep Radius: " + cfg.getKeepOrbRadius() + " blocks");
     }

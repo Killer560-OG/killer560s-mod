@@ -423,10 +423,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         }).bounds(x, y, Math.max(1, width), ROW).build());
     }
 
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
-    }
-
     /** Color picker button. {@code save} is what persists the picked value; null = the settings file. */
     private static void colorButton(List<AbstractWidget> w, int x, int y, int width, String label, int argb, int defaultArgb,
                                     IntConsumer apply, Runnable save) {

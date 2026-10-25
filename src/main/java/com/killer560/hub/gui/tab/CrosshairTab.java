@@ -295,10 +295,6 @@ public class CrosshairTab extends BaseTab {
         y[0] += 14;
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     /** An ON/OFF row. {@code rebuild} non-null when the switch shows or hides other rows. */
     private static void toggle(List<AbstractWidget> w, int x, int y, int width, String label, Supplier<Boolean> get,
                                Consumer<Boolean> set, CustomCrosshairConfig cfg, Runnable rebuild) {

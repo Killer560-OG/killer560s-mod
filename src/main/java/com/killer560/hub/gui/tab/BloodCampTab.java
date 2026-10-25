@@ -179,10 +179,6 @@ public class BloodCampTab extends BaseTab {
         return Component.literal(String.format(java.util.Locale.US, "Sound Volume: %.2f", cfg.getSoundVolume()));
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private static Component timerScaleText(BloodCampConfig cfg) {
         return Component.literal(String.format(java.util.Locale.US, "Timer Text Scale: %.1fx", cfg.getTimerTextScale()));
     }

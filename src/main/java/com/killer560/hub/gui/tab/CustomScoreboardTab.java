@@ -49,8 +49,4 @@ public class CustomScoreboardTab extends BaseTab {
         // The themes (the board's and the editor's) moved into the Visual Editor's Settings page (killer560, 2026-10-18).
         return widgets;
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

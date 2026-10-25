@@ -132,8 +132,4 @@ public class SecretWaypointsTab extends BaseTab {
         return Component.literal("Waypoint Box: "
                 + (cfg.getBoxSize() == SecretWaypointsConfig.BoxSize.FULL_BLOCK ? "Full Block" : "Hitbox Only"));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

@@ -87,8 +87,4 @@ public class AutoDialogueTab extends BaseTab {
     private static Component delayText(DungeonExtrasConfig cfg) {
         return Component.literal("Delay: " + cfg.getAutoDialogueDelayTicks() + " ticks");
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

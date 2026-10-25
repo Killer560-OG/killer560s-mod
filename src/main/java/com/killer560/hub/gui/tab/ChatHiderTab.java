@@ -6,7 +6,6 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,9 +69,5 @@ public class ChatHiderTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(x, y[0], width, 20).build());
         y[0] += 24;
-    }
-
-    private static Component onOff(String label, boolean on) {
-        return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
     }
 }

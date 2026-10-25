@@ -120,8 +120,4 @@ public class AutoSellTab extends BaseTab implements KeyCaptureTab {
     private static Component maxTicksText(AutoSellConfig cfg) {
         return Component.literal("Max Wait Between Sells: " + cfg.getMaxTicks() + " ticks");
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

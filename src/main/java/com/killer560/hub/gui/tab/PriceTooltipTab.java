@@ -153,8 +153,4 @@ public class PriceTooltipTab extends BaseTab {
     private static Component refreshText(PriceTooltipConfig cfg) {
         return Component.literal("Refresh Every: " + cfg.getRefreshMinutes() + " min");
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

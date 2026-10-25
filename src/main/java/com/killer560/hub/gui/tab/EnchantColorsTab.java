@@ -202,10 +202,6 @@ public class EnchantColorsTab extends BaseTab {
         return widgets;
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     /** A themed slider over [min, max] snapped to {@code step}, labeled "Label: 1.0x". */
     private static AbstractWidget slider(int x, int y, int width, String label, float min, float max, float step,
                                          float current, java.util.function.Consumer<Float> set) {

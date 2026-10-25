@@ -261,10 +261,6 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
         return new StringWidget(x, y, width, 12, Component.literal(text), Minecraft.getInstance().font);
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     @Override
     public boolean isListeningForKey() {
         return capturing >= 0;

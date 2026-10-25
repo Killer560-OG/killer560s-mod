@@ -165,8 +165,4 @@ public class AutoKickTab extends BaseTab {
         int s = seconds % 60;
         return String.format(Locale.US, "%d:%02d", m, s);
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

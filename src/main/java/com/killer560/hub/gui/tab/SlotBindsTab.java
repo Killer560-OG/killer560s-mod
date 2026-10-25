@@ -105,10 +105,6 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
         return widgets;
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private static Component bindKeyText() {
         int key = SlotBindsConfig.getInstance().getBindKey();
         String name = key == -1 ? "Not Set" : InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString();

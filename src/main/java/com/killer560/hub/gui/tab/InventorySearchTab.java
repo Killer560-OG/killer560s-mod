@@ -71,10 +71,6 @@ public class InventorySearchTab extends BaseTab {
         return widgets;
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
     private static Component scaleText(InventorySearchConfig cfg) {
         return Component.literal(String.format("Search Bar Scale: %.0f%%", cfg.getBoxScale() * 100));
     }

@@ -122,8 +122,4 @@ public class GoldorTriggerbotTab extends BaseTab {
     private static Component rangeText(GoldorTriggerbotConfig cfg) {
         return Component.literal(String.format(Locale.US, "Range: %.1f", cfg.getRange()));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }
