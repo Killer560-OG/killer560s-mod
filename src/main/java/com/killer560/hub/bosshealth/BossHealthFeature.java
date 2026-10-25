@@ -63,7 +63,8 @@ public final class BossHealthFeature {
 
     /** The lines the HUD draws right now (color codes included). Read by the testkit. */
     public static List<String> currentLines() {
-        return lines;
+        // The tick stops with the switch (FeatureBits), so the last lines would stay up after it is turned off.
+        return BossHealthConfig.getInstance().isEnabled() ? lines : List.of();
     }
 
     private static void tick(Minecraft client) {
@@ -225,7 +226,7 @@ public final class BossHealthFeature {
             if (McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen) {
                 return SAMPLE;
             }
-            return lines;
+            return currentLines();
         }
 
         @Override
