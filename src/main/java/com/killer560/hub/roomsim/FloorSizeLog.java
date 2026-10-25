@@ -21,11 +21,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -197,14 +195,6 @@ public final class FloorSizeLog {
      *
      * <p>So this walks cells, stepping between adjacent room cells only where the cell between them is a door.
      * Cells of the same room connect freely - crossing a 2x2 is real distance, but it needs no door.
-     */
-    private static int distanceBetween(DungeonLayout layout, Map<Integer, Integer> cellToRoom,
-                                       int fromRoom, int toRoom) {
-        return distanceBetween(layout, cellToRoom, fromRoom, toRoom, Set.of());
-    }
-
-    /**
-     * Cells between the entrance and blood, not counting the given rooms.
      *
      * <p>killer560 (2026-09-28): "the max is 8 if you do not count blood green room or fairy. It cannot be
      * more." My first version counted every cell the path crossed, including the entrance's own and blood's
@@ -270,33 +260,6 @@ public final class FloorSizeLog {
             Files.writeString(FILE, GSON.toJson(all), StandardCharsets.UTF_8);
         } catch (Exception e) {
             LOGGER.warn("Could not write the floor size log", e);
-        }
-    }
-
-    /** What has been recorded so far, per floor - for chat, and for me to read off disk. */
-    public static String summary() {
-        try {
-            if (!Files.exists(FILE)) {
-                return "No floors recorded yet.";
-            }
-            JsonArray all = JsonParser.parseString(
-                    Files.readString(FILE, StandardCharsets.UTF_8)).getAsJsonArray();
-            Map<String, List<Integer>> byFloor = new HashMap<>();
-            for (var el : all) {
-                JsonObject o = el.getAsJsonObject();
-                byFloor.computeIfAbsent(o.get("floor").getAsString(), k -> new ArrayList<>())
-                        .add(o.get("rooms").getAsInt());
-            }
-            StringBuilder sb = new StringBuilder();
-            for (var e : byFloor.entrySet()) {
-                int min = e.getValue().stream().mapToInt(Integer::intValue).min().orElse(0);
-                int max = e.getValue().stream().mapToInt(Integer::intValue).max().orElse(0);
-                sb.append(e.getKey()).append(' ').append(min == max ? String.valueOf(min) : (min + "-" + max))
-                        .append(" rooms (").append(e.getValue().size()).append(" run(s));  ");
-            }
-            return sb.isEmpty() ? "No floors recorded yet." : sb.toString();
-        } catch (Exception e) {
-            return "Could not read the floor size log.";
         }
     }
 }
