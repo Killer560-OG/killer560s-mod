@@ -315,3 +315,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - A reference mod's feature can already be here under another name: OdinClient's "Secret Hitboxes" is this mod's Full Block
   (Secrets folder, cheat build, testkit 62-full-block-reach / 1025-fullblock-*), though reference-mods-1018 said "no
   equivalent" and a duplicate was half built on 2026-10-25. Grep docs/FEATURES.md for the behavior, not the name, first.
+- Menu tabs share `BaseTab.onOff`/`onOffButton` (cleanup-gui, 2026-10-25): a tab with its own `private static onOff` no longer
+  compiles ("cannot override ... in BaseTab"); three tabs written on main beside the cleanup broke the merge that way. Use BaseTab's.
+- Docs are split by topic since docs-condense (2026-10-25): LESSONS.md, LESSONS-AUTOMATION.md, LESSONS-GUI.md and SIM.md are
+  indexes to LESSONS-{AUTOCLEAR,ROUTES,AUTOMATION-PUZZLES,DUNGEONS,HUD,MENU,MINECRAFT,PERF}.md and SIM-*.md. Add a lesson to the
+  topic file; a branch that appends to an old monolith conflicts on merge.
