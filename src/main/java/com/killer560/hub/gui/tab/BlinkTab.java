@@ -136,6 +136,12 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Release On Hit", cfg.isReleaseOnHit()));
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
+        w.add(SettingsButtonWidget.builder(onOff("Release On Dig", cfg.isReleaseOnDig()), btn -> {
+                    cfg.setReleaseOnDig(!cfg.isReleaseOnDig());
+                    cfg.save();
+                    btn.setMessage(onOff("Release On Dig", cfg.isReleaseOnDig()));
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + 4;
         w.add(SettingsButtonWidget.builder(onOff("Show HUD", cfg.isShowHud()), btn -> {
                     cfg.setShowHud(!cfg.isShowHud());
                     cfg.save();

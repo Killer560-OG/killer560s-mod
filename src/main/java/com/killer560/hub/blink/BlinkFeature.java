@@ -20,6 +20,7 @@ import net.minecraft.network.protocol.game.ServerboundAttackPacket;
 import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 
@@ -144,6 +145,15 @@ public final class BlinkFeature {
                 // against its no-Blink control, 2026-10-25). Release what is held, let this tick go out live (the hit,
                 // its swing, the move), and hold again from the next tick.
                 releaseLocked("hit", false);
+                return false;
+            }
+            if (packet instanceof ServerboundPlayerActionPacket action
+                    && action.getAction() == ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK
+                    && BlinkConfig.getInstance().isReleaseOnDig()) {
+                // GrimAC times a break from the start packet's arrival to the finish's. Held together they arrive
+                // together, and a stone block mined in ~300 ms read as instant: FastBreak (testkit 1025-blink-dig,
+                // 2026-10-25). The start goes live; the finish may still be held - it then only ever arrives later.
+                releaseLocked("dig", false);
                 return false;
             }
             queue.addLast(new Held(packet, listener, flush));
