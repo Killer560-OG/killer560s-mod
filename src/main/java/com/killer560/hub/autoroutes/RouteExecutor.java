@@ -203,8 +203,9 @@ public final class RouteExecutor {
     private static final java.util.ArrayDeque<InFlight> inFlight = new java.util.ArrayDeque<>();
     /** Where the server will have him once every warp in flight lands - the newest's landing - or null with none. */
     private static Vec3 zpFeet;
-    /** At most this many warps in flight at once. */
-    private static final int MAX_IN_FLIGHT = 8;
+    /** At most this many warps in flight at once: within Blink's 22-tick hold, so Blink The Chain is never stopped by it
+     *  (8 held up a blinked chain until Blink's own limit released it, testkit 62-argrim-1025-zpchain, 2026-10-25). */
+    private static final int MAX_IN_FLIGHT = 21;
     /** Counters, for the testkit and the log. */
     private static int zpChained;
     private static int zpConfirmed;
@@ -6127,8 +6128,17 @@ public final class RouteExecutor {
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
         if (!cfg.isZeroPingChain() || stepTicks < 1 || hopIndex >= 0 || node.type != RouteNode.Type.ETHERWARP
                 || route == null || !route.path().isEmpty() || !stackQueue.isEmpty() || warpTarget == null
-                || actionOrigin == null || warpEaten || inFlight.size() >= MAX_IN_FLIGHT
-                || com.killer560.hub.util.RightClick.unpaired()) {
+                || actionOrigin == null || warpEaten || com.killer560.hub.util.RightClick.unpaired()) {
+            return false;
+        }
+        if (inFlight.size() >= MAX_IN_FLIGHT) {
+            if (blinkChainOwned) {
+                // Nothing in flight can be confirmed while Blink holds it: let the server catch up now.
+                blinkChainOwned = false;
+                com.killer560.hub.blink.BlinkFeature.end("Auto Routes chain: " + MAX_IN_FLIGHT + " warps in flight");
+            }
+            logHold("zpmax:" + traceIndex(node), "Zero Ping Chain ({}): {} warps in flight - waiting for the server's "
+                    + "landings", nodeTag(node), inFlight.size());
             return false;
         }
         Vec3 eye = new Vec3(actionOrigin.x, actionOrigin.y + TeleportUtils.eyeHeight(true), actionOrigin.z);
