@@ -175,8 +175,8 @@ final class CardBlurbsData {
         d.put("FreelookTab", "F5 rear view; hold a key to pan.");
         d.put("BlinkTab", "Hold your packets, release them in one burst.");
         d.put("InventoryWalkTab", "Keep walking while a menu is open.");
-        d.put("ZeroPingEtherwarpTab", "Camera lands your etherwarp at once.");
-        d.put("LeftClickEtherwarpTab", "Left click etherwarps with an AOTV.");
+        d.put("ZeroPingEtherwarpTab", "Instant etherwarp view.");
+        d.put("LeftClickEtherwarpTab", "Left click etherwarps.");
         d.put("SmoothTeleportTab", "Glides the camera.");
         d.put("SessionRecorderTab", "Logs what features do.");
         d.put("TrajectoriesTab", "Bow, shortbow and pearl flight paths.");
