@@ -1004,7 +1004,7 @@ public final class ProfileManager {
                             unreadable++;
                             continue;
                         }
-                        Files.write(dir.resolve(fileName), bytes);
+                        Files.write(dir.resolve(fileName), keepLiveImportLocked(fileName, bytes));
                         count++;
                     }
                 }
@@ -1015,6 +1015,17 @@ public final class ProfileManager {
                     deleteFolderQuietly(dir);
                 }
                 return new Result(false, "§c[Profiles] \"" + zipPath.getFileName() + "\" has no setting files in it.");
+            }
+            // A locked file the zip left out would be reset to its defaults when the profile is applied, which changes
+            // the locked settings too; give the profile his live values for them instead.
+            for (String lockedFile : IMPORT_LOCKED_FIELDS.keySet()) {
+                Path inProfile = dir.resolve(lockedFile);
+                if (!Files.isRegularFile(inProfile)) {
+                    byte[] onlyLive = keepLiveImportLocked(lockedFile, "{}".getBytes(StandardCharsets.UTF_8));
+                    if (Files.isRegularFile(ModPaths.config(lockedFile))) {
+                        Files.write(inProfile, onlyLive);
+                    }
+                }
             }
             StringBuilder msg = new StringBuilder("§a[Profiles] Imported " + count + " setting file(s)");
             if (data > 0) {
@@ -1041,6 +1052,52 @@ public final class ProfileManager {
             LOGGER.warn("[Profiles] import of {} failed", zipPath, e);
             return new Result(false, "§cFailed to import profile: " + e.getMessage());
         }
+    }
+
+    /**
+     * Settings a profile someone else made may never change (security audit 2026-10-24): which release channel Auto
+     * Update installs from, and the settings that share something about him with other players or the relay. On
+     * import, each of these keys in the zip's copy is replaced by his live value (or dropped when he has none, so it
+     * loads its default, as his own does); every other key in the file is kept. His own saved profiles are unaffected.
+     */
+    private static final java.util.Map<String, Set<String>> IMPORT_LOCKED_FIELDS = java.util.Map.of(
+            "killer560smod-autoupdate.json", Set.of("channel", "enabled"),
+            "killer560smod-modusers.json", Set.of("share", "shareAs"),
+            "killer560smod-partydata.json", Set.of("shareEnabled"),
+            "killer560smod-teammelody.json", Set.of("shareProgress"),
+            "killer560smod-supporters.json", Set.of("shareIfSupporter", "shareTrail")
+    );
+
+    /** {@code bytes} (an imported setting file) with its {@link #IMPORT_LOCKED_FIELDS} set to the live values. */
+    private static byte[] keepLiveImportLocked(String fileName, byte[] bytes) {
+        Set<String> locked = IMPORT_LOCKED_FIELDS.get(fileName);
+        if (locked == null) {
+            return bytes;
+        }
+        com.google.gson.JsonObject current = null;
+        Path live = ModPaths.config(fileName);
+        if (Files.isRegularFile(live)) {
+            try {
+                current = com.google.gson.JsonParser
+                        .parseString(Files.readString(live, StandardCharsets.UTF_8)).getAsJsonObject();
+            } catch (Exception ignored) {
+                // Unreadable live file: it loads as defaults, so the locked keys are dropped below.
+            }
+        }
+        com.google.gson.JsonObject incoming;
+        try {
+            incoming = com.google.gson.JsonParser.parseString(new String(bytes, StandardCharsets.UTF_8)).getAsJsonObject();
+        } catch (RuntimeException notAnObject) {
+            incoming = new com.google.gson.JsonObject();
+        }
+        for (String field : locked) {
+            incoming.remove(field);
+            if (current != null && current.has(field)) {
+                incoming.add(field, current.get(field));
+            }
+        }
+        return new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(incoming)
+                .getBytes(StandardCharsets.UTF_8);
     }
 
     /** The most a single setting file (or the stamp) in an imported zip may be: they are small JSON, held in memory. */
