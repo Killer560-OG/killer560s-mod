@@ -519,3 +519,6 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   server answers, so the Bazaar Flip autopilot read its own clicked Confirm Instant Buy as a new question, dropped its
   wait, and bought from the reopened Instant Buy page a second time (testkit 2762, 2026-10-22). Key such a wait on the
   clicked page's container id.
+- **A setting file in `other/` was never in a profile.** `ModPaths.settingFiles` took only `<category>/<feature>/file`, and a
+  name with no table row lives at `other/file`, one level up, so Zoom, Cape, Legit GFS, Streamer and Mod Users never rode in
+  profiles (testkit 320 caught it as an import holding one file more than its source, 2026-10-25). It now takes `other/file` too.

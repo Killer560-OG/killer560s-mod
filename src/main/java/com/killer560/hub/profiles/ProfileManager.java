@@ -1070,7 +1070,8 @@ public final class ProfileManager {
             "killer560smod-supporters.json", Set.of("shareIfSupporter", "shareTrail")
     );
 
-    /** {@code bytes} (an imported setting file) with its {@link #IMPORT_LOCKED_FIELDS} set to the live values. */
+    /** {@code bytes} (an imported setting file) with its {@link #IMPORT_LOCKED_FIELDS} set to the live values, each in
+     *  its own place; the bytes come back untouched when they already hold the live values. */
     private static byte[] keepLiveImportLocked(String fileName, byte[] bytes) {
         Set<String> locked = IMPORT_LOCKED_FIELDS.get(fileName);
         if (locked == null) {
@@ -1090,13 +1091,28 @@ public final class ProfileManager {
         try {
             incoming = com.google.gson.JsonParser.parseString(new String(bytes, StandardCharsets.UTF_8)).getAsJsonObject();
         } catch (RuntimeException notAnObject) {
+            incoming = null;
+        }
+        boolean changed = incoming == null;
+        if (incoming == null) {
             incoming = new com.google.gson.JsonObject();
         }
         for (String field : locked) {
-            incoming.remove(field);
-            if (current != null && current.has(field)) {
-                incoming.add(field, current.get(field));
+            com.google.gson.JsonElement liveValue = current != null ? current.get(field) : null;
+            if (java.util.Objects.equals(incoming.get(field), liveValue)) {
+                continue;
             }
+            changed = true;
+            if (liveValue != null) {
+                // add() on a key already there keeps its place, so the file keeps its key order.
+                incoming.add(field, liveValue);
+            } else {
+                incoming.remove(field);
+            }
+        }
+        if (!changed) {
+            // The zip already holds his values: keep its bytes, so an import of his own export is byte for byte.
+            return bytes;
         }
         return new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(incoming)
                 .getBytes(StandardCharsets.UTF_8);

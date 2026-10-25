@@ -30,10 +30,11 @@ public class AutoNucleusRunTab extends BaseTab {
         return true;
     }
 
-    /** No switch, so the card's line cannot come from a master toggle's tooltip. */
+    /** No switch, so the card's line cannot come from a master toggle's tooltip. Short, like every card line: testkit
+     *  1060 fails a card whose text only fits because the menu cut it. */
     @Override
     public String cardDescription() {
-        return "Planned, not built yet: a full mine-to-Nucleus-and-back run. Nothing here acts in-game.";
+        return "Planned stub; does nothing yet.";
     }
 
     @Override

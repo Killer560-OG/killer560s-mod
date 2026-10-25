@@ -497,8 +497,8 @@ public final class ModPaths {
 
     /**
      * Every live {@code killer560smod-*.json} setting file - what used to be {@code newDirectoryStream(configDir,
-     * "killer560smod-*.json")}. Only files sitting directly in a feature folder count (the same depth the config root
-     * used to be), so a profile's own copies under {@code system/profiles/killer560smod-profiles/<name>/} and any
+     * "killer560smod-*.json")}. Only files sitting directly in a feature folder (or in {@code other/}) count (the same
+     * depth the config root used to be), so a profile's own copies under {@code system/profiles/killer560smod-profiles/<name>/} and any
      * feature's sub-folder data are never mistaken for live settings. A file the migration could not move, still in
      * the config root, is included too unless the tree already has one of that name.
      */
@@ -507,7 +507,7 @@ public final class ModPaths {
         Path r = root();
         if (Files.isDirectory(r)) {
             try (var walk = Files.walk(r, 3)) {
-                walk.filter(p -> r.relativize(p).getNameCount() == 3)
+                walk.filter(p -> isFeatureFolderDepth(r.relativize(p)))
                         .filter(Files::isRegularFile)
                         .filter(p -> isSettingName(p.getFileName().toString()))
                         .sorted()
@@ -526,6 +526,14 @@ public final class ModPaths {
             // No config folder yet - nothing left over to include.
         }
         return new ArrayList<>(byName.values());
+    }
+
+    /** A file directly in a feature folder ({@code <category>/<feature>/file}), or directly in {@link #OTHER}, where a
+     *  name with no table row is put ({@code other/file}). Missing the second case kept every setting in other/
+     *  (Zoom, Cape, Legit GFS, Streamer, Mod Users) out of profiles. */
+    private static boolean isFeatureFolderDepth(Path relative) {
+        int n = relative.getNameCount();
+        return n == 3 || (n == 2 && relative.getName(0).toString().equals(OTHER));
     }
 
     private static boolean isSettingName(String name) {
