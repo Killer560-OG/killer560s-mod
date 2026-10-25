@@ -62,6 +62,22 @@ public final class BlinkCharge {
     /** A teleport was just confirmed: the move that answers it goes out at once, never kept for the tick-end. */
     private static boolean teleportMoveNext;
     /**
+     * Something has gone out since the last tick-end. A waiting ping answer may only go first in a tick: GrimAC's Post
+     * check flags an item use followed by a ping answer before the next movement (testkit 62-argrim-1025-chargechain:
+     * Auto Routes sent its use at the start of the tick, then Blink's tick sent the due answers behind it).
+     */
+    private static boolean tickOpen;
+    /** Banked ticks a shot still has to run (it stopped at {@link #SHOT_BLOCKS_PER_TICK}); they run next tick. */
+    private static int shotLeft;
+    private static String shotLeftWhy = "";
+    /**
+     * The most a shot moves him inside one tick. The vanilla server takes more than five move packets in one of its ticks
+     * as one, and sets back a player moved more than 10 blocks in it ("moved too quickly"): a Speed IV shot of 10.5 blocks
+     * was set back, an 11-block one passed only when the burst happened to straddle two server ticks (testkit
+     * 1025-blink-charge-far, 2026-10-25). Past this the rest of the shot runs the next tick.
+     */
+    private static final double SHOT_BLOCKS_PER_TICK = 9.5;
+    /**
      * The answers to the server's pings, each sent {@link #ANSWER_DELAY_MS} after it was made while Charge is on (killer560,
      * 2026-10-25: the charge must never be dropped for time). GrimAC measures how far behind real time he may be from the
      * last ping he answered when a tick next arrives (Timer / TimerLimit lastMovementPlayerClock, javap 2.3.74): answered
@@ -91,14 +107,24 @@ public final class BlinkCharge {
 
     /** Blink's send hook, before its own hold. True when the packet is not to be sent now. Any thread. */
     static boolean onSend(Connection c, Packet<?> packet, ChannelFutureListener listener, boolean flush) {
-        if (!active || passing) {
+        if (!active) {
             return false;
         }
         synchronized (LOCK) {
-            if (!active || passing || c != connection) {
+            if (!active || c != connection) {
                 return false;
             }
-            if (packet instanceof net.minecraft.network.protocol.common.ServerboundPongPacket) {
+            boolean answer = packet instanceof net.minecraft.network.protocol.common.ServerboundPongPacket;
+            if (!answer) {
+                if (!passing && !tickOpen) {
+                    releaseDueAnswersLocked(System.currentTimeMillis());
+                }
+                tickOpen = !(packet instanceof ServerboundClientTickEndPacket);
+            }
+            if (passing) {
+                return false;
+            }
+            if (answer) {
                 answers.addLast(new Answer(new Held(packet, listener, flush), System.currentTimeMillis()));
                 answersHeldTotal++;
                 return true;
@@ -262,7 +288,16 @@ public final class BlinkCharge {
             return false;
         }
         synchronized (LOCK) {
-            releaseDueAnswersLocked(System.currentTimeMillis());
+            if (!tickOpen) {
+                releaseDueAnswersLocked(System.currentTimeMillis());
+            }
+        }
+        if (shotLeft > 0) {
+            synchronized (LOCK) {
+                banked += shotLeft;
+                shotLeft = 0;
+            }
+            shoot(client, player, shotLeftWhy + ", continued");
         }
         boolean moveKey = movementKeyDown(client);
         boolean shootNow = banked > 0 && (!want || (BlinkConfig.getInstance().isShootOnMove() && moveKey
@@ -299,18 +334,27 @@ public final class BlinkCharge {
         net.minecraft.world.phys.Vec3 from = player.position();
         long t0 = System.nanoTime();
         int ran = 0;
+        double lastStep = 0;
         passing = true;
         try {
             for (int i = 0; i < n; i++) {
                 if (player.isRemoved() || client.level == null) {
                     break;
                 }
+                double sofar = from.distanceTo(player.position());
+                if (i > 0 && sofar + lastStep > SHOT_BLOCKS_PER_TICK) {
+                    shotLeft = n - i;
+                    shotLeftWhy = why;
+                    break;
+                }
+                net.minecraft.world.phys.Vec3 before = player.position();
                 // What ClientLevel.tickNonPassenger does for an entity each tick (javap 26.1.2), then the tick-end
                 // Minecraft.tick sends after it: one whole client tick of his own movement, physics and keys.
                 player.setOldPosAndRot();
                 player.tickCount++;
                 player.tick();
                 connection.send(ServerboundClientTickEndPacket.INSTANCE);
+                lastStep = before.distanceTo(player.position());
                 ran++;
             }
             connection.flushChannel();
@@ -323,8 +367,9 @@ public final class BlinkCharge {
         lastShotTicks = ran;
         lastShotBlocks = blocks;
         LOGGER.info(String.format(java.util.Locale.ROOT, "[Blink] charge shot (%s): %d banked tick(s) run in %.1f ms, moved "
-                        + "%.2f blocks from %s to %s; shot #%d", why, ran, (System.nanoTime() - t0) / 1e6, blocks,
-                fmt(from), fmt(player.position()), shots));
+                        + "%.2f blocks from %s to %s; shot #%d%s", why, ran, (System.nanoTime() - t0) / 1e6, blocks,
+                fmt(from), fmt(player.position()), shots, shotLeft > 0 ? "; " + shotLeft + " tick(s) left for next tick "
+                        + "(the server takes at most 10 blocks a tick)" : ""));
         if (BlinkConfig.getInstance().isChatMessages()) {
             ModChat.send("Blink", ModChat.text(String.format(java.util.Locale.ROOT, "shot %d tick(s), %.1f blocks", ran, blocks)));
         }
@@ -414,6 +459,8 @@ public final class BlinkCharge {
             left = banked;
             active = false;
             banked = 0;
+            shotLeft = 0;
+            tickOpen = false;
             busy = false;
             if (stash != null && connection != null && connection.isConnected()) {
                 sendLocked(stash);
