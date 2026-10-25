@@ -47,11 +47,12 @@ public final class PartyFinderLoreCache {
         }
     }
 
-    /** One slot changed. Ignored for a container this has no record of, so a stale id cannot poison a new menu. */
+    /** One slot changed. Ignored for a container this has no record of, so a stale id cannot poison a new menu -
+     *  and a slot update for the player's own inventory (container 0, which vanilla's handleContainerSetSlot
+     *  writes to the inventory menu even while another menu is open) cannot wipe the open menu's lore. */
     public static synchronized void onSlot(int id, int slot, ItemStack stack) {
         if (id != containerId) {
-            containerId = id;
-            BY_SLOT.clear();
+            return;
         }
         put(slot, stack);
     }
