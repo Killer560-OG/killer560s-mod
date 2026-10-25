@@ -934,7 +934,11 @@ public final class BreakerAuraFeature {
             ForeignBreakerProbe.ours();
             String blockName = level.getBlockState(pos).getBlock().getName().getString(); // before any prediction
             boolean stands = standsOn(player, pos);
-            breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing() || stands);
+            // Inside a Blink Charge shot the break is predicted at once: the shot's next ticks move him into that spot before
+            // the server's answer can arrive, and a block still there stopped him at the wall it had just mined (testkit
+            // 1025-blink-shot-breaker, 2026-10-25).
+            breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing() || stands
+                    || com.killer560.hub.blink.BlinkCharge.inShot());
             LOGGER.info("[BreakerAura] START_DESTROY_BLOCK sent: pos={} block={} face={} seq={} boxDist={} reach={}"
                             + " zeroPing={} standsOn={} predictedAir={} charges={} available={} #{} of {} this tick tick={}",
                     pos.toShortString(), blockName, hit.getDirection(), lastSentSeq,

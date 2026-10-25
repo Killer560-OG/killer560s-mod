@@ -110,6 +110,25 @@ public final class BlinkCharge {
 
     private static int shotTickActions;
     private static int shotPacketsSent;
+    /** True while a shot's ticks are running (Breaker Aura predicts its breaks then: see {@link #inShot}). */
+    private static volatile boolean shooting;
+    /** Milliseconds the shots have run ahead of the wall clock: every shot tick is 50 ms to the server. */
+    private static volatile long shotMsAhead;
+
+    /**
+     * A clock for features that time things in milliseconds (Secret Aura's 150 ms in-reach delay): the wall clock plus
+     * 50 ms for every shot tick so far, so a shot's ticks count as the time they are to the server. Without it a lever
+     * a shot passed was only clicked on the real tick after the shot (testkit 1025-blink-shot-lever, 2026-10-25). Never
+     * goes backwards.
+     */
+    public static long nowMs() {
+        return System.currentTimeMillis() + shotMsAhead;
+    }
+
+    /** A shot's ticks are running now (render thread). */
+    public static boolean inShot() {
+        return shooting;
+    }
 
     /** Shot ticks in which an aura sent something (a dig, a lever click), for the testkit and the log. */
     public static int shotTickActions() {
@@ -386,7 +405,13 @@ public final class BlinkCharge {
                 }
                 net.minecraft.world.phys.Vec3 before = player.position();
                 int sentBefore = shotPacketsSent;
-                runShotTickHooks(client);
+                shotMsAhead += 50L;
+                shooting = true;
+                try {
+                    runShotTickHooks(client);
+                } finally {
+                    shooting = false;
+                }
                 if (shotPacketsSent > sentBefore) {
                     shotTickActions++;
                 }

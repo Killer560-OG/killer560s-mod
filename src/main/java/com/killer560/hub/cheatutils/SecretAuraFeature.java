@@ -238,7 +238,7 @@ public final class SecretAuraFeature {
             reset("left dungeon");
         }
         wasActive = inDungeon;
-        long now = System.currentTimeMillis();
+        long now = com.killer560.hub.blink.BlinkCharge.nowMs();
         if (client.level != null && (!done.isEmpty() || !attempts.isEmpty() || !leverInitialState.isEmpty())) {
             // Runs even while a screen is open: a chest's GUI opening right after our click means it worked
             // (its lid open-ness can already be back to 0 by the time the GUI is closed again).
@@ -816,7 +816,7 @@ public final class SecretAuraFeature {
         double skullRangeSq = cfg.getAuraSkullRange() * cfg.getAuraSkullRange();
         double capSq = CheatUtilsConfig.MEASURED_MAX_REACH * CheatUtilsConfig.MEASURED_MAX_REACH;
         double maxRange = Math.max(cfg.getAuraRange(), cfg.getAuraSkullRange());
-        long now = System.currentTimeMillis();
+        long now = com.killer560.hub.blink.BlinkCharge.nowMs();
         String best = null;
         double bestDist = Double.MAX_VALUE;
         BlockPos min = BlockPos.containing(eye.x - maxRange, eye.y - maxRange, eye.z - maxRange);
@@ -891,7 +891,7 @@ public final class SecretAuraFeature {
      * be shut again before a tick reads it) and Auto Secret waited out its whole limit (147, 2026-10-15). Any thread.
      */
     public static void noteWindowOpened() {
-        windowOpenedAtMs = System.currentTimeMillis();
+        windowOpenedAtMs = com.killer560.hub.blink.BlinkCharge.nowMs();
         LOGGER.debug("[SecretAura] container window opened (shown or not) sinceLastClickMs={}", windowOpenedAtMs - lastClickMs);
     }
 
@@ -930,7 +930,7 @@ public final class SecretAuraFeature {
                         tickNow());
             } else {
                 LOGGER.info("[SecretAura] done: pos={} why={} attempts={} sinceLastClickMs={} tick={}", xyz(BlockPos.of(key)),
-                        why, a.count(), System.currentTimeMillis() - a.lastMs(), tickNow());
+                        why, a.count(), com.killer560.hub.blink.BlinkCharge.nowMs() - a.lastMs(), tickNow());
             }
             if (why != null && why.startsWith("gave up")) {
                 // Given up with the secret not taken: Auto Routes' await stops waiting on a click that is not coming.
