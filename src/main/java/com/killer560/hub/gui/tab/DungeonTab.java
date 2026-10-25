@@ -111,6 +111,7 @@ public class DungeonTab extends FolderTab {
             tabs.add(new AutoCroesusTab());
             tabs.add(new BlinkTab());
             tabs.add(new ZeroPingEtherwarpTab());
+            tabs.add(new LeftClickEtherwarpTab());
         }
         return tabs;
     }
