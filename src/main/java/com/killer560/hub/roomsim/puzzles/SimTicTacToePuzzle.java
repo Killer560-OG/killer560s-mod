@@ -499,16 +499,6 @@ public final class SimTicTacToePuzzle {
         }
     }
 
-    /** The block a cell's color is written to - the cell itself, which is also where its button is. */
-    private static BlockPos paintTarget(int index) {
-        BlockPos[] walls = paintPos;
-        if (walls != null && index >= 0 && index < walls.length && walls[index] != null) {
-            return walls[index];
-        }
-        BlockPos[] cells = cellPos;
-        return cells == null || index < 0 || index >= cells.length ? null : cells[index];
-    }
-
     private static void paintAll(MinecraftServer server) {
         char[] snapshot = board.clone();
         java.util.List<Object[]> writes = new java.util.ArrayList<>();
