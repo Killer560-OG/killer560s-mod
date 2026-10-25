@@ -33,6 +33,8 @@ public final class DungeonExtrasFeature {
         // not depend on which feature's handler happens to run first, and it observes on START_CLIENT_TICK
         // itself, registered above this line and therefore before it.
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("BreakerAuraFeature.onClientTick", BreakerAuraFeature::onClientTick));
+        // A Blink Charge shot's ticks mine what he runs into, as real ticks would (2026-10-25).
+        com.killer560.hub.blink.BlinkCharge.addShotTickHook(BreakerAuraFeature::onClientTick);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DungeonExtrasFeature", client -> {
             MageBeamFeature.onClientTick(client);
             AutoDialogueFeature.onClientTick(client);

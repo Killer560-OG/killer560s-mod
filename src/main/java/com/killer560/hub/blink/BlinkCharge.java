@@ -94,6 +94,39 @@ public final class BlinkCharge {
     static final long ANSWER_DELAY_MS = 1050L;
     private static long answersHeldTotal;
 
+    /**
+     * What else runs in each of a shot's ticks, before his movement (killer560, 2026-10-25: a blink that runs him into
+     * breaker blocks should mine them, and one past a lever should still flick it). A shot's ticks all run inside one
+     * real tick, where the auras would get one turn between them; these give each shot tick the turn a real tick gives
+     * it, in a real tick's order: ActionGate's new tick, then the auras' START work, then his movement and the tick-end.
+     */
+    private static final java.util.List<java.util.function.Consumer<Minecraft>> SHOT_TICK_HOOKS =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** A feature that acts on what he passes (an aura) adds its START tick here. Cheat build only matters. */
+    public static void addShotTickHook(java.util.function.Consumer<Minecraft> hook) {
+        SHOT_TICK_HOOKS.add(hook);
+    }
+
+    private static int shotTickActions;
+    private static int shotPacketsSent;
+
+    /** Shot ticks in which an aura sent something (a dig, a lever click), for the testkit and the log. */
+    public static int shotTickActions() {
+        return shotTickActions;
+    }
+
+    private static void runShotTickHooks(Minecraft client) {
+        com.killer560.hub.util.ActionGate.onClientTick(client);
+        for (java.util.function.Consumer<Minecraft> hook : SHOT_TICK_HOOKS) {
+            try {
+                hook.accept(client);
+            } catch (RuntimeException e) {
+                LOGGER.error("[Blink] a shot-tick hook threw", e);
+            }
+        }
+    }
+
     private static long shots;
     private static long shotTicks;
     private static int lastShotTicks;
@@ -115,6 +148,10 @@ public final class BlinkCharge {
                 return false;
             }
             boolean answer = packet instanceof net.minecraft.network.protocol.common.ServerboundPongPacket;
+            if (passing && !answer && !(packet instanceof ServerboundMovePlayerPacket)
+                    && !(packet instanceof ServerboundClientTickEndPacket)) {
+                shotPacketsSent++;
+            }
             if (!answer) {
                 if (!passing && !tickOpen) {
                     releaseDueAnswersLocked(System.currentTimeMillis());
@@ -348,6 +385,11 @@ public final class BlinkCharge {
                     break;
                 }
                 net.minecraft.world.phys.Vec3 before = player.position();
+                int sentBefore = shotPacketsSent;
+                runShotTickHooks(client);
+                if (shotPacketsSent > sentBefore) {
+                    shotTickActions++;
+                }
                 // What ClientLevel.tickNonPassenger does for an entity each tick (javap 26.1.2), then the tick-end
                 // Minecraft.tick sends after it: one whole client tick of his own movement, physics and keys.
                 player.setOldPosAndRot();

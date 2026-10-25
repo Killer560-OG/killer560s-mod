@@ -105,6 +105,8 @@ public final class LeverAuraFeature {
     public static void register() {
         P3SectionTracker.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("LeverAuraFeature.tick", LeverAuraFeature::tick));
+        // A Blink Charge shot's ticks flick the levers he passes, as real ticks would (2026-10-25).
+        com.killer560.hub.blink.BlinkCharge.addShotTickHook(LeverAuraFeature::tick);
         LOGGER.debug("[LeverAura] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 

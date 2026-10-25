@@ -39,6 +39,8 @@ public final class CheatUtils {
         // produces. Measured 2026-09-27 - Secret Aura drew Post violations from here. These were missed by the
         // first sweep because it looked for the interaction calls and the registration in the SAME file, and
         // these three are ticked from this lambda while the sends live in their own classes.
+        // A Blink Charge shot's ticks click the secrets he passes, as real ticks would (2026-10-25).
+        com.killer560.hub.blink.BlinkCharge.addShotTickHook(SecretAuraFeature::tick);
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("CheatUtils", client -> {
             SecretAuraFeature.tick(client);
             AutoUltFeature.tick(client);
