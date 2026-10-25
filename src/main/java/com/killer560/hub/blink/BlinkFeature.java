@@ -49,7 +49,7 @@ import java.util.List;
  * ignores moves until its teleport is accepted, so the held ones do no harm) and lets the accept and the move after it go
  * straight out; the hold starts again next tick if the key still says so - the correction is honored, reported through
  * {@link ServerCorrections} when it moved him, and nothing stops. A world change (login or respawn packet) releases what is
- * held but drops the held MOVES, which belong to the world he just left; a configuration switch releases everything; a
+ * held but drops the held moves and tick-ends, which belong to the world he just left; a configuration switch releases everything; a
  * disconnect throws the queue away (there is nothing to send it on). After a world change or a disconnect the blink is
  * off until pressed again.
  *
@@ -291,7 +291,12 @@ public final class BlinkFeature {
         }
     }
 
-    private static void releaseLocked(String why, boolean dropMoves) {
+    /**
+     * @param dropStale a world change: the held moves and tick-ends belong to the world he left, so they are dropped (the
+     *                  tick-ends too: sent, they would still count against GrimAC's timer, and a hold longer than 22 ticks
+     *                  ending in a world change drew TimerLimit, testkit 1025-blink-world 2026-10-25); everything else goes
+     */
+    private static void releaseLocked(String why, boolean dropStale) {
         if (!holding) {
             return;
         }
@@ -305,7 +310,8 @@ public final class BlinkFeature {
         int dropped = 0;
         if (connection != null && connection.isConnected()) {
             for (Held h : out) {
-                if (dropMoves && h.packet() instanceof ServerboundMovePlayerPacket) {
+                if (dropStale && (h.packet() instanceof ServerboundMovePlayerPacket
+                        || h.packet() instanceof ServerboundClientTickEndPacket)) {
                     dropped++;
                     continue;
                 }
@@ -324,7 +330,7 @@ public final class BlinkFeature {
         longestHoldTicks = Math.max(longestHoldTicks, ticks);
         ticksSinceRelease = 0;
         LOGGER.info("[Blink] released ({}): {} tick(s), {} packet(s) sent, {} dropped", why, ticks, sent, dropped);
-        if (BlinkConfig.getInstance().isChatMessages() || dropped > 0) {
+        if (BlinkConfig.getInstance().isChatMessages()) {
             String extra = dropped > 0 ? ", " + dropped + " stale dropped" : "";
             ModChat.send("Blink", ModChat.text("released " + ticks + " tick(s), " + sent + " packet(s) (" + why + extra + ")"));
         }
@@ -376,12 +382,14 @@ public final class BlinkFeature {
         }
     }
 
-    /** A login or respawn packet: a new world. What is held is released except its moves, and the blink ends. */
+    /** A login or respawn packet: a new world. What is held is released except its moves and tick-ends; the blink ends. */
     public static void onWorldChange() {
         serverPos = null;
         synchronized (LOCK) {
             releaseLocked("world change", true);
         }
+        // The new world's first position packet is the move into it, not a rubberband after the release.
+        ticksSinceRelease = Integer.MAX_VALUE;
         wanted = false;
         holdLatched = false;
     }
