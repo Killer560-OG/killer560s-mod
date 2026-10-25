@@ -103,6 +103,7 @@ final class CardBlurbsData {
         d.put("SecretTriggerbotTab", "Clicks secrets on aim.");
         d.put("TerminalAuraTab", "Opens terminals in range.");
         d.put("TerminalTriggerbotTab", "Opens the aimed terminal.");
+        d.put("RelicHelpersTab", "M7 relic click and look.");
         d.put("AbilityCooldownTab", "Real ability cooldowns.");
         d.put("PositionTab", "Exact X, Y and Z HUD.");
         d.put("CrosshairTab", "Design your own crosshair.");
