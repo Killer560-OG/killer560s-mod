@@ -234,7 +234,7 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
                 .bounds(at[2][0], at[2][1], fw, FOOTER_H).build();
         setUniversal.setTooltip(Tooltip.create(Component.literal(
                 "Set the proxy the Universal switch shares with every instance. While Universal is off, only this "
-                        + "instance uses it (until an account with its own proxy is swapped to).")));
+                        + "instance uses it (until an account with its own proxy is swapped to). " + PROXY_COVERS)));
         this.addRenderableWidget(setUniversal);
         this.universalButton = new UniversalSwitch(at[3][0], at[3][1], oneRow ? fw + (contentX + contentW - (at[3][0] + fw))
                 : lastW, FOOTER_H);
@@ -313,7 +313,8 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
                     .bounds(0, 0, this.proxyW, BTN_H).build();
             proxy.active = !this.busy;
             proxy.setTooltip(Tooltip.create(Component.literal("Give " + account.displayName()
-                    + " its own proxy, switched to every time you swap to it (the Universal proxy still wins while it is on).")));
+                    + " its own proxy, switched to every time you swap to it (the Universal proxy still wins while it is on). "
+                    + PROXY_COVERS)));
             // Buttons before their row: a click on a button is the button's, not the row's.
             this.addWidget(copy);
             this.addWidget(proxy);
@@ -894,6 +895,14 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
             McCompat.setScreen(Minecraft.getInstance(), this.parent);
         }, this.screenExecutor);
     }
+
+    /**
+     * What a proxy here really covers: proxy/mixin/ChannelInitializerMixin adds SOCKS to Minecraft's own server
+     * connection only, and the server and proxy host names are looked up through normal DNS first.
+     */
+    private static final String PROXY_COVERS = "Only the Minecraft server connection goes through the proxy: signing in "
+            + "(Microsoft, Xbox, Mojang), the Hypixel API, the mod's relay and every other web request still use your "
+            + "real IP, and the server and proxy names are looked up through your normal DNS.";
 
     private static boolean shiftDown() {
         try {
