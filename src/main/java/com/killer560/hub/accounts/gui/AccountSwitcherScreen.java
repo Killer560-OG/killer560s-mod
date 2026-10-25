@@ -18,6 +18,7 @@ import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.proxy.config.AccountProxyProfile;
 import com.killer560.hub.proxy.config.AccountProxyStore;
 import com.killer560.hub.proxy.config.ProxyConfig;
+import com.killer560.hub.util.KeyUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -30,6 +31,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
+import org.lwjgl.glfw.GLFW;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -289,11 +291,21 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
                     : "Click to sign in as " + account.displayName() + ".")));
             fillBanStatus(row);
 
-            SettingsButtonWidget copy = SettingsButtonWidget.builder(Component.literal("Copy ID"), btn -> onCopySessionId(account))
+            // A plain click copies the public UUID. The session token (Direct Session Login takes one) is a full login
+            // for about a day, so it only goes to the clipboard on an explicit Shift-click, with the warning below.
+            SettingsButtonWidget copy = SettingsButtonWidget.builder(Component.literal("Copy ID"), btn -> {
+                        if (shiftDown()) {
+                            onCopySessionId(account);
+                        } else {
+                            onCopyUuid(account);
+                        }
+                    })
                     .bounds(0, 0, this.copyW, BTN_H).build();
             copy.active = !this.busy;
             copy.setTooltip(Tooltip.create(Component.literal("Copy " + account.displayName()
-                    + "'s session ID to the clipboard without switching to it.")));
+                    + "'s Minecraft UUID (public, safe to share). Shift-click copies its session token instead, for "
+                    + "Direct Session Login. Warning: the token gives full access to this account for about a day, so "
+                    + "never send it to anyone, and clipboard history can keep it.")));
             SettingsButtonWidget proxy = SettingsButtonWidget.builder(proxyButtonLabel(account),
                             btn -> McCompat.setScreen(Minecraft.getInstance(), new AccountProxyConfigScreen(this, account)))
                     .bounds(0, 0, this.proxyW, BTN_H).build();
@@ -881,11 +893,31 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         }, this.screenExecutor);
     }
 
+    private static boolean shiftDown() {
+        try {
+            var window = Minecraft.getInstance().getWindow();
+            return KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_LEFT_SHIFT) || KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_SHIFT);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** Copy ID's plain click: the account's public UUID, nothing secret. */
+    private void onCopyUuid(PrismAccount account) {
+        if (this.busy) {
+            return;
+        }
+        String uuid = account.uuid() == null ? "" : account.uuid();
+        Minecraft.getInstance().keyboardHandler.setClipboard(uuid);
+        setStatus("Copied the UUID of " + account.displayName() + " to clipboard.", Kind.OK);
+        rebuild();
+    }
+
     /**
-     * Fetches a fresh Minecraft access token for {@code account} (the same refresh chain signing
-     * in as it uses) and copies it to the clipboard, WITHOUT swapping the running client's own
-     * identity - so this account's session can be handed to someone else (or pasted into Direct
-     * Session Login later) without actually switching accounts right now.
+     * Copy ID's Shift-click: fetches a fresh Minecraft access token for {@code account} (the same refresh chain
+     * signing in as it uses) and copies it to the clipboard, WITHOUT swapping the running client's own identity - so
+     * it can be pasted into Direct Session Login later. The token is a full login for about a day, which is why a plain
+     * click copies only the UUID.
      */
     private void onCopySessionId(PrismAccount account) {
         if (this.busy) {
