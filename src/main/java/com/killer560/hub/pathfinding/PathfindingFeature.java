@@ -267,17 +267,7 @@ public final class PathfindingFeature {
             return 0;
         }
         Vec3 pos = player.position();
-        IslandGraph.Node start = graph.nearest(pos.x, pos.y + 1.0, pos.z);
-        GraphPathfinder.Tree tree = GraphPathfinder.dijkstra(graph, start.index, -1);
-        IslandGraph.Node best = matches.get(0);
-        double bestCost = Double.MAX_VALUE;
-        for (IslandGraph.Node node : matches) {
-            double cost = tree.dist()[node.index];
-            if (cost < bestCost) {
-                bestCost = cost;
-                best = node;
-            }
-        }
+        IslandGraph.Node best = GraphPathfinder.closestByCost(graph, pos.x, pos.y + 1.0, pos.z, matches);
         NavigationManager.navigate(best.cleanName == null ? text : best.cleanName,
                 NavigationManager.centre(best), best.index, false, null);
         return 1;

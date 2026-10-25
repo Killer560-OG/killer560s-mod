@@ -101,6 +101,22 @@ public final class GraphPathfinder {
         return dijkstra(graph, from, to).pathTo(to);
     }
 
+    /** The candidate cheapest to reach over the graph from the node nearest (x, y, z); the first when none is reachable. */
+    public static IslandGraph.Node closestByCost(IslandGraph graph, double x, double y, double z,
+                                                 List<IslandGraph.Node> candidates) {
+        IslandGraph.Node start = graph.nearest(x, y, z);
+        double[] dist = dijkstra(graph, start.index, -1).dist();
+        IslandGraph.Node best = candidates.get(0);
+        double bestCost = Double.MAX_VALUE;
+        for (IslandGraph.Node node : candidates) {
+            if (dist[node.index] < bestCost) {
+                bestCost = dist[node.index];
+                best = node;
+            }
+        }
+        return best;
+    }
+
     /** Cost between two route stops, given the graph distance between their nodes (may be {@link #UNREACHABLE}). */
     @FunctionalInterface
     public interface LegCost {

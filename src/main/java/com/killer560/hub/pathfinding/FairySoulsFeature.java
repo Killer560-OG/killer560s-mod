@@ -174,18 +174,7 @@ public final class FairySoulsFeature {
         guiding = true;
         if (mode == PathfindingConfig.SoulMode.NEAREST || missing.size() == 1) {
             Vec3 pos = client.player.position();
-            IslandGraph.Node start = graph.nearest(pos.x, pos.y + 1.0, pos.z);
-            GraphPathfinder.Tree tree = GraphPathfinder.dijkstra(graph, start.index, -1);
-            IslandGraph.Node best = null;
-            double bestCost = Double.MAX_VALUE;
-            for (IslandGraph.Node soul : missing) {
-                double cost = tree.dist()[soul.index];
-                if (cost < bestCost) {
-                    bestCost = cost;
-                    best = soul;
-                }
-            }
-            queue.add(best == null ? missing.get(0) : best);
+            queue.add(GraphPathfinder.closestByCost(graph, pos.x, pos.y + 1.0, pos.z, missing));
             navigateToCurrent();
             return;
         }
