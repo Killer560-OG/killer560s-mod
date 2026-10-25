@@ -6,12 +6,10 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.profit.ProfitPanels;
 import com.killer560.hub.gui.profit.ProfitScopeBar;
-import com.killer560.hub.util.ModChat;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;

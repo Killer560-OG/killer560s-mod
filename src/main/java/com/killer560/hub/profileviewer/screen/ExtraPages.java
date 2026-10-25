@@ -34,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.ACCENT;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.BAD;
-import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.BAR_BG;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.DIM;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.MAXED;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.TEXT;
