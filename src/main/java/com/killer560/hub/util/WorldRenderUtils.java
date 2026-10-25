@@ -129,28 +129,63 @@ public final class WorldRenderUtils {
                                           float r, float g, float b, float a) {
         int ns = Math.max(4, stacks);
         int nl = Math.max(6, slices);
+        SphereTrig trig = sphereTrig(ns, nl);
+        final double[] sinP = trig.sinP, cosP = trig.cosP, sinT = trig.sinT, cosT = trig.cosT;
         McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
             var matrix = pose.pose();
             for (int i = 0; i < ns; i++) {
-                double p0 = Math.PI * i / ns - Math.PI / 2;
-                double p1 = Math.PI * (i + 1) / ns - Math.PI / 2;
                 float shade = 0.65f + 0.35f * (float) (i + 0.5) / ns;
                 float sr = r * shade, sg = g * shade, sb = b * shade;
-                float y0 = (float) (centre.y + Math.sin(p0) * radius);
-                float y1 = (float) (centre.y + Math.sin(p1) * radius);
-                double c0 = Math.cos(p0) * radius;
-                double c1 = Math.cos(p1) * radius;
+                float y0 = (float) (centre.y + sinP[i] * radius);
+                float y1 = (float) (centre.y + sinP[i + 1] * radius);
+                double c0 = cosP[i] * radius;
+                double c1 = cosP[i + 1] * radius;
                 for (int j = 0; j < nl; j++) {
-                    double t0 = Math.PI * 2 * j / nl;
-                    double t1 = Math.PI * 2 * (j + 1) / nl;
-                    float ax = (float) (centre.x + Math.cos(t0) * c0), az = (float) (centre.z + Math.sin(t0) * c0);
-                    float bx = (float) (centre.x + Math.cos(t1) * c0), bz = (float) (centre.z + Math.sin(t1) * c0);
-                    float cx = (float) (centre.x + Math.cos(t1) * c1), cz = (float) (centre.z + Math.sin(t1) * c1);
-                    float dx = (float) (centre.x + Math.cos(t0) * c1), dz = (float) (centre.z + Math.sin(t0) * c1);
+                    float ax = (float) (centre.x + cosT[j] * c0), az = (float) (centre.z + sinT[j] * c0);
+                    float bx = (float) (centre.x + cosT[j + 1] * c0), bz = (float) (centre.z + sinT[j + 1] * c0);
+                    float cx = (float) (centre.x + cosT[j + 1] * c1), cz = (float) (centre.z + sinT[j + 1] * c1);
+                    float dx = (float) (centre.x + cosT[j] * c1), dz = (float) (centre.z + sinT[j] * c1);
                     twoSidedQuad(buffer, matrix, ax, y0, az, bx, y0, bz, cx, y1, cz, dx, y1, dz, sr, sg, sb, a);
                 }
             }
         });
+    }
+
+    /**
+     * The sines and cosines {@link #renderFilledSphere} reads, worked out once per (stacks, slices) instead of eight
+     * trig calls per quad per frame (2,300 a frame for Door Keys' 12 x 24 ball). Each entry is the very expression
+     * the loop used to evaluate - {@code Math.PI * i / ns - Math.PI / 2} for a stack edge, {@code Math.PI * 2 * j / nl}
+     * for a slice edge, with edge {@code i + 1} / {@code j + 1} being the next entry - so every vertex is the same
+     * double before its float cast. The arrays are never written after they are built (on 26.2 the draw callback
+     * reads them later in the frame), and a new size builds a new set. Render thread only.
+     */
+    private record SphereTrig(int ns, int nl, double[] sinP, double[] cosP, double[] sinT, double[] cosT) {
+    }
+
+    private static SphereTrig sphereTrig;
+
+    private static SphereTrig sphereTrig(int ns, int nl) {
+        SphereTrig t = sphereTrig;
+        if (t != null && t.ns() == ns && t.nl() == nl) {
+            return t;
+        }
+        double[] sinP = new double[ns + 1];
+        double[] cosP = new double[ns + 1];
+        for (int i = 0; i <= ns; i++) {
+            double p = Math.PI * i / ns - Math.PI / 2;
+            sinP[i] = Math.sin(p);
+            cosP[i] = Math.cos(p);
+        }
+        double[] sinT = new double[nl + 1];
+        double[] cosT = new double[nl + 1];
+        for (int j = 0; j <= nl; j++) {
+            double a = Math.PI * 2 * j / nl;
+            sinT[j] = Math.sin(a);
+            cosT[j] = Math.cos(a);
+        }
+        t = new SphereTrig(ns, nl, sinP, cosP, sinT, cosT);
+        sphereTrig = t;
+        return t;
     }
 
     /** Draws a wireframe outline box. */
