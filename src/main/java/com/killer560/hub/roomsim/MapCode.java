@@ -11,8 +11,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * Encodes a captured {@link DungeonLayout} as a short, copy-pasteable string, and decodes it back. Killer560:
@@ -40,7 +38,6 @@ public final class MapCode {
 
     /** Room slot with no room in it (a bare connector or the border). Stored as a room-index byte of 0, since
      *  a real name-table index is stored as (index + 1) - see {@link #encode(Decoded)}. */
-    /** Cell with no room in it. Public because the map generator builds Decoded values itself. */
     public static final int NO_ROOM = -1;
 
     /**
@@ -51,58 +48,18 @@ public final class MapCode {
     public record Decoded(String[] nameTable, int[] cellRoom, int[] cellDoor, int[] cellRotation) {
     }
 
-    /**
-     * Builds a map code string from a captured layout. Room ids in {@code layout} only mean anything within
-     * that one capture, so this re-keys every cell onto a name table built fresh from
-     * {@link DungeonLayout#name(int)}, deduplicating rooms that share a name (two identical tile-set copies of
-     * the same room, which happens on several floors, must collapse to one table entry).
-     */
-    public static String encode(DungeonLayout layout) {
-        int cells = DungeonLayout.GRID * DungeonLayout.GRID;
-        Map<String, Integer> nameIndex = new LinkedHashMap<>();
-        String[] roomName = new String[layout.roomCount()];
-        for (int room = 0; room < layout.roomCount(); room++) {
-            String name = layout.name(room);
-            if (name == null) {
-                name = "Unknown";
-            }
-            roomName[room] = name;
-            nameIndex.putIfAbsent(name, nameIndex.size());
-        }
-        int[] cellRoom = new int[cells];
-        int[] cellDoor = new int[cells];
-        int[] cellRotation = new int[cells];
-        for (int idx = 0; idx < cells; idx++) {
-            int room = layout.roomOfCell(idx);
-            cellRoom[idx] = room >= 0 ? nameIndex.get(roomName[room]) : NO_ROOM;
-            cellDoor[idx] = layout.doorType(idx);
-            // Without this a rebuilt map has every room facing whichever way it was captured, which looks
-            // almost right and makes every route practiced in it wrong.
-            int[] clay = room >= 0 ? layout.clayRotation(room) : null;
-            cellRotation[idx] = clay != null && clay.length >= 3 ? ((clay[2] % 360) + 360) % 360 : 0;
-        }
-        String[] nameTable = new String[nameIndex.size()];
-        for (Map.Entry<String, Integer> e : nameIndex.entrySet()) {
-            nameTable[e.getValue()] = e.getKey();
-        }
-        return encode(new Decoded(nameTable, cellRoom, cellDoor, cellRotation));
-    }
-
-    /**
-     * Core encoder, kept separate from {@link #encode(DungeonLayout)} so {@link #selfTest()} can round-trip a
-     * synthetic {@link Decoded} without needing a live game to produce a {@code DungeonLayout}.
-     *
-     * <p>Wire form, all big-endian via {@link DataOutputStream}: 1 byte cell-grid size (so a future grid
-     * resize is at least detectable even though {@link #PREFIX} already forces a hard version check), 1 byte
-     * name-table count N, then for each of the N names a 1-byte UTF-8 length + that many bytes, then for each
-     * of GRID*GRID cells a 1-byte door type followed by a 1-byte room-index-plus-one (0 = no room). That whole
-     * byte array is URL-safe Base64 without padding, and {@link #PREFIX} is prepended in plain ASCII.
-     */
     /** Encodes a Decoded built in code rather than captured - what the map generator produces. */
     public static String encodeDecoded(Decoded decoded) {
         return encode(decoded);
     }
 
+    /**
+     * Wire form, all big-endian via {@link DataOutputStream}: 1 byte cell-grid size (so a future grid
+     * resize is at least detectable even though {@link #PREFIX} already forces a hard version check), 1 byte
+     * name-table count N, then for each of the N names a 1-byte UTF-8 length + that many bytes, then for each
+     * of GRID*GRID cells a 1-byte door type followed by a 1-byte room-index-plus-one (0 = no room). That whole
+     * byte array is URL-safe Base64 without padding, and {@link #PREFIX} is prepended in plain ASCII.
+     */
     private static String encode(Decoded decoded) {
         int cells = DungeonLayout.GRID * DungeonLayout.GRID;
         if (decoded.cellRoom().length != cells || decoded.cellDoor().length != cells
