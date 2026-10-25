@@ -71,6 +71,9 @@ public final class BridgeFeature {
     private static boolean wasInDungeon;
     private static int runEpoch;
     private static volatile boolean p3Active;
+    /** Client thread: a failure in {@link #context} / an inbound apply has already been logged at WARN. */
+    private static boolean warnedContext;
+    private static boolean warnedInbound;
 
     private BridgeFeature() {
     }
@@ -113,7 +116,11 @@ public final class BridgeFeature {
         try {
             ctx = context(client, inDungeon);
         } catch (Throwable t) {
-            LOGGER.debug("[Bridge] context failed: {}", t.toString());
+            // WARN the first time (DEBUG never reaches the log), then keep trying every tick quietly.
+            if (!warnedContext) {
+                warnedContext = true;
+                LOGGER.warn("[Bridge] context failed (logged once per session): {}", t.toString(), t);
+            }
             return;
         }
         for (SocketAdapter adapter : ADAPTERS) {
@@ -263,7 +270,11 @@ public final class BridgeFeature {
             try {
                 action.run();
             } catch (Throwable t) {
-                LOGGER.debug("[Bridge] inbound failed: {}", t.toString());
+                // WARN the first time (DEBUG never reaches the log); later messages are still applied.
+                if (!warnedInbound) {
+                    warnedInbound = true;
+                    LOGGER.warn("[Bridge] inbound failed (logged once per session): {}", t.toString(), t);
+                }
             }
         });
     }
