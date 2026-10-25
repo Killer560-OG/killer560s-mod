@@ -309,16 +309,10 @@ public final class SimFloorLayout {
      *
      * <p>If he pins the Entrance, that cell IS the entrance rather than a random edge.
      *
-     * @param pinned cell index {@code cellZ * GRID + cellX} to room name, as the map designer keys it
-     */
-    public static PinnedFloor generate(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
-                                       int puzzles, int roomsToBlood, Map<Integer, String> pinned, Random rng) {
-        return run(usable, minRooms, wantCells, puzzles, roomsToBlood, pinned, rng);
-    }
-
-    /**
-     * The same, inside the floor's own {@code across x down} rectangle at the grid's north-west corner (a real
+     * <p>The floor stays inside its own {@code across x down} rectangle at the grid's north-west corner (a real
      * floor's size, {@code MapPainter.floorRooms}); nothing is placed outside it. {@code wantCells} is capped to it.
+     *
+     * @param pinned cell index {@code cellZ * GRID + cellX} to room name, as the map designer keys it
      */
     public static PinnedFloor generate(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
                                        int puzzles, int roomsToBlood, Map<Integer, String> pinned, Random rng,
