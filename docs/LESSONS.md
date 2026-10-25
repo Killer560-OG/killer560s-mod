@@ -522,3 +522,6 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - **A setting file in `other/` was never in a profile.** `ModPaths.settingFiles` took only `<category>/<feature>/file`, and a
   name with no table row lives at `other/file`, one level up, so Zoom, Cape, Legit GFS, Streamer and Mod Users never rode in
   profiles (testkit 320 caught it as an import holding one file more than its source, 2026-10-25). It now takes `other/file` too.
+- **Match a sound packet's sound by id, not by object.** A `ClientboundSoundPacket` whose holder was sent inline (a direct
+  holder, which is what the testkit's Hx `sound` sends) decodes to a NEW `SoundEvent`, so `value() == SoundEvents.CHEST_OPEN`
+  is false for it. Mute Chest/Lever Sounds compares `value().location()` (2026-10-25); Spring Boots already did.

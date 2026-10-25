@@ -44,24 +44,27 @@ public final class LividSolverFeature {
     private enum Livid {
         // Box/line color is the Livid's own wool color, so "which one did it pick?" is answerable at a
         // glance - killer560, 2026-09-20: "the color changes at some point and ours stays red the whole time".
-        VENDETTA("Vendetta", McBlocks.WHITE_WOOL, 1.00f, 1.00f, 1.00f),
-        CROSSED("Crossed", McBlocks.MAGENTA_WOOL, 0.85f, 0.25f, 0.85f),
-        ARCADE("Arcade", McBlocks.YELLOW_WOOL, 1.00f, 0.90f, 0.20f),
-        SMILE("Smile", McBlocks.LIME_WOOL, 0.45f, 0.95f, 0.25f),
-        DOCTOR("Doctor", McBlocks.GRAY_WOOL, 0.55f, 0.55f, 0.55f),
-        PURPLE("Purple", McBlocks.PURPLE_WOOL, 0.55f, 0.25f, 0.80f),
-        SCREAM("Scream", McBlocks.BLUE_WOOL, 0.25f, 0.40f, 0.95f),
-        FROG("Frog", McBlocks.GREEN_WOOL, 0.25f, 0.65f, 0.25f),
-        HOCKEY("Hockey", McBlocks.RED_WOOL, 1.00f, 0.20f, 0.20f);
+        VENDETTA("Vendetta", McBlocks.WHITE_WOOL, 1.00f, 1.00f, 1.00f, "White"),
+        CROSSED("Crossed", McBlocks.MAGENTA_WOOL, 0.85f, 0.25f, 0.85f, "Magenta"),
+        ARCADE("Arcade", McBlocks.YELLOW_WOOL, 1.00f, 0.90f, 0.20f, "Yellow"),
+        SMILE("Smile", McBlocks.LIME_WOOL, 0.45f, 0.95f, 0.25f, "Lime"),
+        DOCTOR("Doctor", McBlocks.GRAY_WOOL, 0.55f, 0.55f, 0.55f, "Gray"),
+        PURPLE("Purple", McBlocks.PURPLE_WOOL, 0.55f, 0.25f, 0.80f, "Purple"),
+        SCREAM("Scream", McBlocks.BLUE_WOOL, 0.25f, 0.40f, 0.95f, "Blue"),
+        FROG("Frog", McBlocks.GREEN_WOOL, 0.25f, 0.65f, 0.25f, "Green"),
+        HOCKEY("Hockey", McBlocks.RED_WOOL, 1.00f, 0.20f, 0.20f, "Red");
 
         final String entityName;
         final Block wool;
         final float[] color;
+        /** The wool's color as a player would say it, for the party announcement. */
+        final String colorName;
 
-        Livid(String entityName, Block wool, float r, float g, float b) {
+        Livid(String entityName, Block wool, float r, float g, float b, String colorName) {
             this.entityName = entityName;
             this.wool = wool;
             this.color = new float[]{r, g, b};
+            this.colorName = colorName;
         }
     }
 
@@ -84,6 +87,18 @@ public final class LividSolverFeature {
     private static int invulnTicks = 0;
     private static boolean wasOnFloor5 = false;
     private static int resolveCounter = 0;
+    /** Hide Wrong Livids is live this tick (floor 5, the right Livid found): read by the entity render hook every frame,
+     *  so the off case costs one field read. */
+    private static volatile boolean hideActive = false;
+    /** Party announcement: the answer must hold this many resolves (2 s) before it is sent, so an early or changing
+     *  clue is not announced; at most {@link #MAX_ANNOUNCES} per run, and never the same Livid twice in a row. */
+    private static final int ANNOUNCE_STABLE_RESOLVES = 4;
+    private static final int MAX_ANNOUNCES = 2;
+    private static int stableResolves = 0;
+    private static Livid announced = null;
+    private static int announces = 0;
+    private static int iceSprayAlerts = 0;
+    private static String lastAnnouncement = null;
 
     private LividSolverFeature() {
     }
@@ -130,6 +145,9 @@ public final class LividSolverFeature {
 
         if (invulnTicks > 0) {
             invulnTicks--;
+            if (invulnTicks == 0) {
+                onInvulnEnded(client);
+            }
         }
 
         ClientLevel level = client.level;
@@ -144,6 +162,7 @@ public final class LividSolverFeature {
         }
         resolveCounter = 0;
         resolve(level);
+        hideActive = lividEntity != null && !lividEntity.isRemoved() && LividSolverConfig.getInstance().isHideWrong();
     }
 
     private static void resolve(ClientLevel level) {
@@ -165,10 +184,16 @@ public final class LividSolverFeature {
         if (resolved != null && resolved != currentLivid) {
             currentLivid = resolved;
             lividEntity = null;
+            stableResolves = 0;
         }
         if (currentLivid == null) {
+            hideActive = false;
             return;
         }
+        if (resolved == currentLivid) {
+            stableResolves++;
+        }
+        maybeAnnounce();
         String targetName = currentLivid.entityName + " Livid";
         if (lividEntity != null && !lividEntity.isRemoved() && lividEntity.getName().getString().equals(targetName)) {
             return;
@@ -180,6 +205,61 @@ public final class LividSolverFeature {
                 break;
             }
         }
+    }
+
+    /** Ice Spray cue (NoammAddons LividSolver "Ice Spray Livid!"): his opening invulnerability just ran out. */
+    private static void onInvulnEnded(Minecraft client) {
+        if (!LividSolverConfig.getInstance().isIceSprayAlert()) {
+            return;
+        }
+        iceSprayAlerts++;
+        com.killer560.hub.compat.McCompat.setTimes(client, 0, 30, 5);
+        com.killer560.hub.compat.McCompat.setTitle(client, Component.literal("§bIce Spray Livid!"));
+        com.killer560.hub.compat.McCompat.setSubtitle(client, Component.empty());
+        client.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 0.5f));
+    }
+
+    /** Announce Color (Skyblocker LividColor's party message): opt-in, sent below the client dispatcher. */
+    private static void maybeAnnounce() {
+        if (!LividSolverConfig.getInstance().isAnnounceColor() || currentLivid == null || currentLivid == announced
+                || announces >= MAX_ANNOUNCES || stableResolves < ANNOUNCE_STABLE_RESOLVES) {
+            return;
+        }
+        String message = "Livid is " + currentLivid.colorName + " (" + currentLivid.entityName + " Livid)";
+        if (com.killer560.hub.util.ServerCommands.toServer("pc " + message)) {
+            announced = currentLivid;
+            announces++;
+            lastAnnouncement = message;
+        }
+    }
+
+    /**
+     * Hide Wrong Livids (NoammAddons/SkyHanni): every Livid player that is not the real one, and the name tags of
+     * those clones, are not drawn. Render only: the entities stay in the world, hittable and visible to every scan.
+     * Called from the entity render hook ({@code ObjectHiderRenderMixin}) for every entity every frame.
+     */
+    public static boolean shouldHideEntity(Entity entity) {
+        if (!hideActive) {
+            return false;
+        }
+        Entity real = lividEntity;
+        if (real == null || entity == real) {
+            return false;
+        }
+        if (entity instanceof net.minecraft.client.player.RemotePlayer) {
+            String name = entity.getName().getString();
+            return name.endsWith(" Livid") && name.length() <= 20;
+        }
+        if (entity instanceof net.minecraft.world.entity.decoration.ArmorStand && entity.hasCustomName()) {
+            Component custom = entity.getCustomName();
+            if (custom != null && custom.getString().contains("Livid")) {
+                double dx = entity.getX() - real.getX();
+                double dz = entity.getZ() - real.getZ();
+                return dx * dx + dz * dz > 4.0; // the real Livid's own tag stands over him
+            }
+        }
+        return false;
     }
 
     private static void onWorldRender(LevelRenderContext context) {
@@ -221,6 +301,25 @@ public final class LividSolverFeature {
         lividEntity = null;
         invulnTicks = 0;
         resolveCounter = 0;
+        hideActive = false;
+        stableResolves = 0;
+        announced = null;
+        announces = 0;
+    }
+
+    /** For the testkit: Ice Spray titles shown since the client started. */
+    public static int iceSprayAlerts() {
+        return iceSprayAlerts;
+    }
+
+    /** For the testkit: the last party announcement sent, or null. */
+    public static String lastAnnouncement() {
+        return lastAnnouncement;
+    }
+
+    /** For the testkit: the identified Livid's entity name ("Hockey Livid"), or null. */
+    public static String currentLividName() {
+        return currentLivid == null ? null : currentLivid.entityName + " Livid";
     }
 
     public static final class InvulnTimerHudElement implements HudElement {

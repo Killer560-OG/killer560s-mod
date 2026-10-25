@@ -33,6 +33,7 @@ public class SecretsTab extends FolderTab {
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 new SecretSoundTab(),
+                new SecretClickedTab(),
                 new SecretWaypointsTab(),
                 new EtherwarpTab()
         ));

@@ -52,6 +52,27 @@ public class LividSolverTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
+        widgets.add(SettingsButtonWidget.builder(onOff("Ice Spray Alert", cfg.isIceSprayAlert()), btn -> {
+                    cfg.setIceSprayAlert(!cfg.isIceSprayAlert());
+                    cfg.save();
+                    btn.setMessage(onOff("Ice Spray Alert", cfg.isIceSprayAlert()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Hide Wrong Livids", cfg.isHideWrong()), btn -> {
+                    cfg.setHideWrong(!cfg.isHideWrong());
+                    cfg.save();
+                    btn.setMessage(onOff("Hide Wrong Livids", cfg.isHideWrong()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Announce Color", cfg.isAnnounceColor()), btn -> {
+                    cfg.setAnnounceColor(!cfg.isAnnounceColor());
+                    cfg.save();
+                    btn.setMessage(onOff("Announce Color", cfg.isAnnounceColor()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
+
         widgets.add(SettingsButtonWidget.builder(onOff("Draw Line To Livid", cfg.isShowLine()), btn -> {
                     cfg.setShowLine(!cfg.isShowLine());
                     cfg.save();

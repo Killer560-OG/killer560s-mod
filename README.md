@@ -26,11 +26,11 @@ Open the menu in game with `/killer560`: every feature is a card with its own on
 
 **HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Advanced Position, Auto Join Skyblock, Chocolate Factory Helper, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, Fairy Souls †, GIF Player, Health and Mana Bars, Map Logger, No Fire, Object Hider, Performance HUD, Quiver Display, Real Time, Screenshot Copy, Session Recorder, Smooth Teleport, Trajectories, Waypoint Routes, Video Browser
 
-**Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Waypoints, Simon Says †, Teleport Maze Solver, Terminal Solver †, Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver, Wither Doors
+**Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Clicked, Secret Waypoints, Simon Says †, Teleport Maze Solver, Terminal Solver †, Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver, Wither Doors
 
 **Dungeon: Map, Leap & Party** - Chunk Cache, Class Selection Overlay, Custom Leap Menu, Custom Party Finder, Dungeon Map, Dungeon Queue, Leap Message, Leap Order, Posmsg
 
-**Dungeon: Timers, Score & Boss** - Auto Kick, Blessings, Blood Camp, Chest Profit, Croesus (Chest Profit, Profit Logger), Custom Mage Beam, Dungeon Alerts, Dungeon Run Summary, Dungeon Score Calculator, F7 Spots (F7/M7), Goldor Frenzy Timer, M7 King Relics, M7 Wither Dragons, Mask Invincibility Timers †, Maxor's Crystals (F7/M7 P1), Mob ESP †, P3 Nav (F7/M7) †, P4 Platform Highlight, Rag Axe, RNG Meter, Run HUDs, Sharp Shooter (i4) †, Split Timers, Starred Mob Hitboxes, Terminal Timers, Thorn (F4/M4) †, Tick Timers, Wither Boss Highlight †
+**Dungeon: Timers, Score & Boss** - Auto Kick, Blessings, Blood Camp, Breaker Charges, Chest Profit, Croesus (Chest Profit, Profit Logger), Custom Mage Beam, Dungeon Alerts, Dungeon Run Summary, Dungeon Score Calculator, F7 Spots (F7/M7), Goldor Frenzy Timer, Low Health Alert, M7 King Relics, M7 Wither Dragons, Mask Invincibility Timers †, Maxor's Crystals (F7/M7 P1), Mob ESP †, P3 Nav (F7/M7) †, P4 Platform Highlight, Rag Axe, RNG Meter, Run HUDs, Score Warning, Sharp Shooter (i4) †, Split Timers, Starred Mob Hitboxes, Terminal Timers, Thorn (F4/M4) †, Tick Timers, Wither Boss Highlight †
 
 **Mining** - shelved until after the 2.0 release; not in the jar (see `shelved/mining/`)
 

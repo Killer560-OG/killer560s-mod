@@ -186,7 +186,7 @@ public final class ScoreCalculatorFeature {
      * new beyond the map's own lines.
      */
     public static boolean estimateWanted() {
-        return ScoreCalculatorConfig.getInstance().isEnabled() || mapExtraInfoWanted();
+        return ScoreCalculatorConfig.getInstance().isEnabled() || mapExtraInfoWanted() || ScoreWarnings.wanted();
     }
 
     /** Either map's Extra Info is on: the Dungeon Map HUD's (Map Extras) or the Interactive Map legend's. */
@@ -251,6 +251,7 @@ public final class ScoreCalculatorFeature {
         batKillers.clear();
         said270 = false;
         said300 = false;
+        ScoreWarnings.reset();
         loggedTabMiss = false;
         lastResult = null;
         lastInputs = null;
@@ -505,6 +506,7 @@ public final class ScoreCalculatorFeature {
         }
         if (WATCHER_DONE.matcher(plain).find()) {
             expectingBloodUpdate = true;
+            ScoreWarnings.onWatcherDone(runTicks);
             return;
         }
         Matcher party = PARTY_MESSAGE.matcher(plain);
@@ -547,8 +549,12 @@ public final class ScoreCalculatorFeature {
         ScoreCalculator.Result result = ScoreCalculator.calculate(inputs);
         lastInputs = inputs;
         lastResult = result;
-        if (!tabDataSeen || !cfg.isEnabled()) {
-            return; // never alert off an empty tab list, nor while only a map's Extra Info is tracking
+        if (!tabDataSeen) {
+            return; // never alert off an empty tab list
+        }
+        ScoreWarnings.check(cfg, inputs, result, runTicks);
+        if (!cfg.isEnabled()) {
+            return; // nor the 270/300 alerts while only a map's Extra Info (or Score Warning) is tracking
         }
         if (!said300 && result.total() >= 300) {
             said300 = true;

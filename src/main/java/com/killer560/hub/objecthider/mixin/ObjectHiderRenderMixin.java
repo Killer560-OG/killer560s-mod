@@ -31,7 +31,7 @@ public abstract class ObjectHiderRenderMixin {
     @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$objectHider$shouldRender(Entity entity, Frustum frustum, double camX, double camY,
                                                         double camZ, CallbackInfoReturnable<Boolean> cir) {
-        if (ObjectHiderFeature.shouldHideEntity(entity)) {
+        if (ObjectHiderFeature.shouldHideEntity(entity) || com.killer560.hub.boss.LividSolverFeature.shouldHideEntity(entity)) {
             cir.setReturnValue(false);
         }
     }

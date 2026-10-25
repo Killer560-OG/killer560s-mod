@@ -48,6 +48,7 @@ public final class DungeonAlertsFeature {
         SpringBootsOverlay.register();
         ClassColors.register();
         RoomAlerts.register();
+        SecretClicked.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DungeonAlertsFeature", client -> {
             if (client.level != lastLevel) {
@@ -57,8 +58,11 @@ public final class DungeonAlertsFeature {
                 ClassColors.onWorldChange();
                 RoomAlerts.onWorldChange();
                 LowHealthAlert.onWorldChange();
+                SecretClicked.onWorldChange();
+                KeySpawnAlert.onWorldChange();
             }
             LowHealthAlert.tick(client);
+            KeySpawnAlert.tick(client);
         }));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(DungeonAlertsFeature::onWorldRender);
 
@@ -73,7 +77,7 @@ public final class DungeonAlertsFeature {
     /** The lead registers these into {@link HudElementRegistry} (one call each). Same instances are looked
      *  up by id when drawing in-game, so positions come from the HUD editor. */
     public static List<HudElement> hudElements() {
-        return List.of(SpringBootsOverlay.HUD, RoomAlerts.HUD);
+        return List.of(SpringBootsOverlay.HUD, RoomAlerts.HUD, BreakerChargesHud.HUD);
     }
 
     private static void drawInGame(GuiGraphicsExtractor graphics, HudElement element) {
@@ -95,6 +99,7 @@ public final class DungeonAlertsFeature {
         TerracottaTimer.onWorldRender(context);
         SpringBootsOverlay.onWorldRender(context);
         ClassColors.onWorldRender(context);
+        SecretClicked.onWorldRender(context);
     }
 
     // ---- shared helpers ----
