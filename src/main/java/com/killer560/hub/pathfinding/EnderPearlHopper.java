@@ -45,7 +45,6 @@ public final class EnderPearlHopper {
     private static long thrownAtTick = Long.MIN_VALUE;
     private static int flightTicks;
     private static long lagMark;
-    private static int throwCount;
     /** How far the player must jump from the throw spot to count as "the pearl landed", real pearl teleports move
      *  you a real distance, so a small value here would false-positive on ordinary walking during the aim wait. */
     private static final double LANDED_DIST_SQ = 9.0;
@@ -61,15 +60,6 @@ public final class EnderPearlHopper {
 
     public static boolean isBusy() {
         return busy;
-    }
-
-    public static Vec3 expectedLanding() {
-        return expectedLanding;
-    }
-
-    /** Pearls thrown since launch (the testkit reads it). */
-    public static int throwsSent() {
-        return throwCount;
     }
 
     public static void cancel() {
@@ -240,7 +230,6 @@ public final class EnderPearlHopper {
             com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[AutoFairySouls] Pearl");
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
             thrownAtTick = waitTicks;
-            throwCount++;
             return;
         }
         // The flight the simulation predicted, plus a round trip and a half, plus the server lag since the throw.

@@ -59,16 +59,6 @@ public final class AuctionConfig {
         BazaarSortMode(String label) {
             this.label = label;
         }
-
-        public BazaarSortMode next() {
-            BazaarSortMode[] all = values();
-            return all[(ordinal() + 1) % all.length];
-        }
-
-        public BazaarSortMode previous() {
-            BazaarSortMode[] all = values();
-            return all[(all.length + ordinal() - 1) % all.length];
-        }
     }
 
     /** killer560, 2026-09-27: "make the ah viewer have an option to toggle between auctions and bins" -
@@ -83,16 +73,6 @@ public final class AuctionConfig {
 
         ListingMode(String label) {
             this.label = label;
-        }
-
-        public ListingMode next() {
-            ListingMode[] all = values();
-            return all[(ordinal() + 1) % all.length];
-        }
-
-        public ListingMode previous() {
-            ListingMode[] all = values();
-            return all[(all.length + ordinal() - 1) % all.length];
         }
     }
 
@@ -206,8 +186,7 @@ public final class AuctionConfig {
             }
             cfg.ahEnabled |= ConfigJson.getBool(ah, "reskinRealAh", false);
             ah.remove("reskinRealAh");
-            Files.writeString(ahPath, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(ah),
-                    StandardCharsets.UTF_8);
+            Files.writeString(ahPath, GSON.toJson(ah), StandardCharsets.UTF_8);
             return true;
         } catch (Exception ignored) {
             return false; // never throw out of a config load

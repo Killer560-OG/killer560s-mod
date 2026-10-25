@@ -298,10 +298,6 @@ public final class BazaarFlipFeature {
         return state != State.IDLE;
     }
 
-    public static int getCycles() {
-        return cycles;
-    }
-
     /** Why the last session stopped ("" before any); the testkit reads it. */
     public static String lastStopReason() {
         return lastStopReason;

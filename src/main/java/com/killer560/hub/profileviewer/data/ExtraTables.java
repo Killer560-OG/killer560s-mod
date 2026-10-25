@@ -16,10 +16,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -411,9 +409,5 @@ public final class ExtraTables {
 
     public static CompletableFuture<Map<String, Double>> lowestBins() {
         return LBIN.get();
-    }
-
-    public static Set<String> set(List<String> list) {
-        return new LinkedHashSet<>(list);
     }
 }

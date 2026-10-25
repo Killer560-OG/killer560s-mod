@@ -33,14 +33,6 @@ public final class CustomScoreboardConfig {
         Align(String label) {
             this.label = label;
         }
-
-        public Align next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-
-        public Align previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
     }
 
     public enum HorizontalSnap {
@@ -51,14 +43,6 @@ public final class CustomScoreboardConfig {
         HorizontalSnap(String label) {
             this.label = label;
         }
-
-        public HorizontalSnap next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-
-        public HorizontalSnap previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
     }
 
     public enum VerticalSnap {
@@ -68,14 +52,6 @@ public final class CustomScoreboardConfig {
 
         VerticalSnap(String label) {
             this.label = label;
-        }
-
-        public VerticalSnap next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-
-        public VerticalSnap previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 
@@ -99,14 +75,6 @@ public final class CustomScoreboardConfig {
         NumberFormat(String label) {
             this.label = label;
         }
-
-        public NumberFormat next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-
-        public NumberFormat previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
     }
 
     /** SkyHanni's CustomScoreboardUtils.NumberDisplayFormat. */
@@ -121,14 +89,6 @@ public final class CustomScoreboardConfig {
         NumberDisplayFormat(String label) {
             this.label = label;
         }
-
-        public NumberDisplayFormat next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-
-        public NumberDisplayFormat previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
     }
 
     /** What to show outside Skyblock / p3sim. The vanilla sidebar is never hidden there either way. */
@@ -139,14 +99,6 @@ public final class CustomScoreboardConfig {
 
         OutsideSkyblockMode(String label) {
             this.label = label;
-        }
-
-        public OutsideSkyblockMode next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-
-        public OutsideSkyblockMode previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 
@@ -175,14 +127,6 @@ public final class CustomScoreboardConfig {
         public String today() {
             return LocalDate.now().format(formatter);
         }
-
-        public DateFormat next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-
-        public DateFormat previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
     }
 
     /** SkyHanni's DisplayConfig.PowderDisplay. */
@@ -194,14 +138,6 @@ public final class CustomScoreboardConfig {
         PowderDisplay(String label) {
             this.label = label;
         }
-
-        public PowderDisplay next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-
-        public PowderDisplay previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
     }
 
     public enum ArrowDisplay {
@@ -211,14 +147,6 @@ public final class CustomScoreboardConfig {
 
         ArrowDisplay(String label) {
             this.label = label;
-        }
-
-        public ArrowDisplay next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-
-        public ArrowDisplay previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 
@@ -234,14 +162,6 @@ public final class CustomScoreboardConfig {
 
         BorderStyle(String label) {
             this.label = label;
-        }
-
-        public BorderStyle next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-
-        public BorderStyle previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 
@@ -648,22 +568,6 @@ public final class CustomScoreboardConfig {
 
     public void setLineOrder(List<ScoreboardEntry> v) {
         entries.setActive(v);
-    }
-
-    public List<ScoreboardEvent> getEventOrder() {
-        return events.active();
-    }
-
-    public void setEventOrder(List<ScoreboardEvent> v) {
-        events.setActive(v);
-    }
-
-    public List<ChunkedStat> getStatOrder() {
-        return chunkedStats.active();
-    }
-
-    public void setStatOrder(List<ChunkedStat> v) {
-        chunkedStats.setActive(v);
     }
 
     /** "current", "legacy" (migrated from the toggle lists) or "default", per list: lines/events/stats. */

@@ -94,10 +94,6 @@ public final class FairySoulsFeature {
         return queue.isEmpty() ? null : queue.get(0);
     }
 
-    public static int queuedSouls() {
-        return queue.size();
-    }
-
     public static List<IslandGraph.Node> unfound(IslandGraph graph) {
         List<IslandGraph.Node> out = new ArrayList<>();
         String profile = ProfileTracker.key();
@@ -112,7 +108,7 @@ public final class FairySoulsFeature {
     /** "12/80" style counts for the current island, or null when there is no graph yet. */
     public static int[] islandCounts() {
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (graph == null) {
             return null;
         }
@@ -144,7 +140,7 @@ public final class FairySoulsFeature {
     public static void start(PathfindingConfig.SoulMode mode) {
         Minecraft client = Minecraft.getInstance();
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (client.player == null) {
             return;
         }
@@ -178,18 +174,7 @@ public final class FairySoulsFeature {
         guiding = true;
         if (mode == PathfindingConfig.SoulMode.NEAREST || missing.size() == 1) {
             Vec3 pos = client.player.position();
-            IslandGraph.Node start = graph.nearest(pos.x, pos.y + 1.0, pos.z);
-            GraphPathfinder.Tree tree = GraphPathfinder.dijkstra(graph, start.index, -1);
-            IslandGraph.Node best = null;
-            double bestCost = Double.MAX_VALUE;
-            for (IslandGraph.Node soul : missing) {
-                double cost = tree.dist()[soul.index];
-                if (cost < bestCost) {
-                    bestCost = cost;
-                    best = soul;
-                }
-            }
-            queue.add(best == null ? missing.get(0) : best);
+            queue.add(GraphPathfinder.closestByCost(graph, pos.x, pos.y + 1.0, pos.z, missing));
             navigateToCurrent();
             return;
         }
@@ -296,7 +281,7 @@ public final class FairySoulsFeature {
     public static void markClosestFound() {
         Minecraft client = Minecraft.getInstance();
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (client.player == null || graph == null) {
             return;
         }
@@ -355,7 +340,7 @@ public final class FairySoulsFeature {
     /** Marks every soul of the current island as found (for "I already did this island by hand"). */
     public static void markIslandFound() {
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (graph == null) {
             ModChat.send(CHAT, ModChat.bad("No graph for this island (yet)."));
             return;

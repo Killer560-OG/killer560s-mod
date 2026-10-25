@@ -1930,11 +1930,6 @@ public final class BazaarView {
 
     // ---- testkit hooks --------------------------------------------------------------------------------------------
 
-    /** What the last frame showed: "{@code <mode> <content> [frozen] items=<n>}". */
-    static String frameSummary() {
-        return summary;
-    }
-
     /**
      * Every region, text, hotspot and widget of the LAST frame, one per line: {@code region <name> x y w h},
      * {@code text <region> x y w h <text>}, {@code hotspot <slot|action-key> x y w h <label>} (a slot hotspot's label
@@ -1948,6 +1943,7 @@ public final class BazaarView {
         return out;
     }
 
+    /** What the last frame showed: "{@code <mode> <content> [frozen] items=<n>}". */
     public static String frameSummaryForTest() {
         return summary;
     }
@@ -1963,11 +1959,6 @@ public final class BazaarView {
 
     public static void setQueryForTest(String q) {
         setQuery(q == null ? "" : q);
-    }
-
-    /** The same as his click on a product row or recent. */
-    public static void openProductForTest(String productId) {
-        openProduct(productId);
     }
 
     /** Shows the product view for {@code productId} without sending anything (render tests). */

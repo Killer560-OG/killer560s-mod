@@ -16,7 +16,6 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.Identifier;
@@ -138,7 +137,7 @@ public final class PathfindingFeature {
         SuggestionProvider<FabricClientCommandSource> destinations = (context, builder) -> {
             String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
             String island = IslandDetector.graphIsland();
-            IslandGraph graph = island == null ? null : GraphRepository.get(island);
+            IslandGraph graph = GraphRepository.get(island);
             if (graph != null) {
                 for (String name : graph.destinationNames()) {
                     if (name.toLowerCase(Locale.ROOT).startsWith(remaining)) {
@@ -227,7 +226,7 @@ public final class PathfindingFeature {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (player == null) {
             return 0;
         }
@@ -268,17 +267,7 @@ public final class PathfindingFeature {
             return 0;
         }
         Vec3 pos = player.position();
-        IslandGraph.Node start = graph.nearest(pos.x, pos.y + 1.0, pos.z);
-        GraphPathfinder.Tree tree = GraphPathfinder.dijkstra(graph, start.index, -1);
-        IslandGraph.Node best = matches.get(0);
-        double bestCost = Double.MAX_VALUE;
-        for (IslandGraph.Node node : matches) {
-            double cost = tree.dist()[node.index];
-            if (cost < bestCost) {
-                bestCost = cost;
-                best = node;
-            }
-        }
+        IslandGraph.Node best = GraphPathfinder.closestByCost(graph, pos.x, pos.y + 1.0, pos.z, matches);
         NavigationManager.navigate(best.cleanName == null ? text : best.cleanName,
                 NavigationManager.centre(best), best.index, false, null);
         return 1;
@@ -292,7 +281,7 @@ public final class PathfindingFeature {
 
     private static void info() {
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         ModChat.send(CHAT, ModChat.text("Island: "), ModChat.value(IslandDetector.islandName().isEmpty()
                         ? "unknown" : IslandDetector.islandName()),
                 ModChat.dim(" (" + (island == null ? "no graph" : island) + ")"));
@@ -335,7 +324,7 @@ public final class PathfindingFeature {
 
     private static String soulLine() {
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         String profile = ProfileTracker.key();
         int version = FairySoulStore.version();
         if (graph == soulLineGraph && version == soulLineVersion && java.util.Objects.equals(island, soulLineIsland)

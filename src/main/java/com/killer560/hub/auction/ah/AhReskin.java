@@ -516,7 +516,8 @@ public final class AhReskin {
         return it.name();
     }
 
-    static ItemStack tabIcon(String category) {
+    /** The icon of one Auction House category tab (shared with the API-backed AuctionHouseScreen). */
+    public static ItemStack tabIcon(String category) {
         net.minecraft.world.item.Item item = switch (category) {
             case "weapon" -> net.minecraft.world.item.Items.GOLDEN_SWORD;
             case "armor" -> net.minecraft.world.item.Items.DIAMOND_CHESTPLATE;

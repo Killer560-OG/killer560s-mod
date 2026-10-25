@@ -604,7 +604,7 @@ public final class ProfileViewerApi {
     }
 
     private static CompletableFuture<Raw> backendGet(String path, boolean allowReauth, boolean notFoundIsEmpty) {
-        return backendToken(false).thenCompose(token -> {
+        return backendToken().thenCompose(token -> {
             HttpRequest req = request(BACKEND + path)
                     .header("Authorization", token)
                     .header("X-Intent", "killer560s-mod profile viewer")
@@ -639,7 +639,6 @@ public final class ProfileViewerApi {
             String msg = switch (res.statusCode()) {
                 case 401 -> "authentication failed (401).";
                 case 403 -> "access refused (403).";
-                case 429 -> "rate limited (429) - try again shortly.";
                 default -> "HTTP " + res.statusCode() + " (Hypixel may be down or the player has no data).";
             };
             return CompletableFuture.failedFuture(new ApiException(msg));
@@ -647,9 +646,9 @@ public final class ProfileViewerApi {
     }
 
     /** Mojang session handshake -> 24h backend token (reused for 23h). */
-    private static CompletableFuture<String> backendToken(boolean force) {
+    private static CompletableFuture<String> backendToken() {
         String token = backendToken;
-        if (!force && token != null && System.currentTimeMillis() - backendTokenAt < 23L * 60 * 60 * 1000) {
+        if (token != null && System.currentTimeMillis() - backendTokenAt < 23L * 60 * 60 * 1000) {
             return CompletableFuture.completedFuture(token);
         }
         synchronized (ProfileViewerApi.class) {

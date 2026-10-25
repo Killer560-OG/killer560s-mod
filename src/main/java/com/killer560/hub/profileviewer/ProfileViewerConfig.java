@@ -185,10 +185,6 @@ public final class ProfileViewerConfig {
         return apiKey;
     }
 
-    public synchronized boolean hasApiKey() {
-        return !apiKey.isEmpty();
-    }
-
     public synchronized void setApiKey(String apiKey) {
         this.apiKey = sanitizeKey(apiKey);
     }
