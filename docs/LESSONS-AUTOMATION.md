@@ -834,3 +834,27 @@ and AOTV) and the `[AutoClear] room time:` / `trip time:` lines (`autoclear/Room
 - ActionGate's fixed settles (6 ticks after a >4-block jump, 3 after any screen change) held Breaker Aura's first dig after
   every etherwarp and leap (2026-10-22). An actor that re-picks its target each tick from his current position
   (`Actor.freshEachTick`, only BREAKER_AURA) waives both; the WORLD container rule still applies. Testkit 1022-ap3-breaker-*.
+
+## Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (blink-1025)
+- GrimAC TimerLimit caps a packet hold at about 1.1 s: the timer balance may fall at most ping-abuse-limit-threshold
+  (1000 ms) + TimerA drift (120 ms) behind real time, and every held tick the burst brings back is 50 ms. Measured: 22
+  ticks clean every time (walking, standing, 100 ms), 23 = one TimerLimit every time. It is a cap, not a pool: the
+  release gives it all back, back-to-back 22-tick holds are clean (testkit 1025-blink-sweep-*, 1025-blink-pulse-max).
+  Grim TickTimer requires a tick-end before every flying packet, so dropping or reshaping tick-ends is no way round it.
+- A sword hit is `ServerboundAttackPacket` since 26.1 (javap 26.1.2 and 26.2: `MultiPlayerGameMode.attack` sends it);
+  `ServerboundInteractPacket` is only the entity right click. Code that looks for hits by Interact misses them all - Blink
+  did; `autoroutes/mixin/RightClickSendMixin` still counts actions that way (not changed).
+- What a held burst breaks on Grim: two hits in one burst = Hitboxes (the server applied the first hit, then judged the
+  next); a dig start and finish together = FastBreak (diff), a held finish just before a live next start = FastBreak
+  (delay); a bow draw start and release together fire nothing. Blink sends hits, every dig edge and charged-use edges live.
+- GrimAC MultiActionsC flags a container click while the server has a movement key in his last input, a sprint or a
+  sneak. Inventory Walk holds such a click until a still tick has reached the server (Stop To Click).
+- Two item uses in one client tick are BadPacketsJ: each use must carry a rotation that tick's single movement packet
+  reports. "Several etherwarps per tick" is several per SERVER tick: one per client tick, held by Blink and released
+  together (Blink The Chain).
+- RouteExecutor assumed one warp in flight (one `warpLanding`, one `teleportPacketSeen`). Zero Ping Chain keeps a queue
+  of predicted landings (`inFlight`), reads `feet(player)` instead of `player.position()` while it is non-empty, and
+  matches each server packet against the queue; a packet that matches an older entry confirms it and every older one.
+  The in-flight cap must sit inside Blink's 22 ticks or a blinked chain stalls until Blink's own limit releases it.
+- The testkit's PacketTrace hooks `Connection.send` as Blink does, so with Blink holding it counts a held packet when
+  made and again on release; judge blinked runs by the mod's log and the server's counters.

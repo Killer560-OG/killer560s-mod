@@ -137,8 +137,9 @@ These are his, they are about getting banned, and they are not negotiable. Never
 directly (`setPos`, `setDeltaMovement`) and never use fractional movement input — discrete key presses only.
 A server correction is always honoured (never fought) but never stops anything: see the first lesson below. Never clamp or wrap simulated yaw at 0-360; Hypixel treats an uncapped
 running rotation value as the normal signal. Pitch is always kept within -90..+90. Anticheat *deception*
-features: inventory walk was declined in September 2026 and stays declined; blink was declined then, but on 2026-10-11 he
-put it on the post-2.0 list as a cheat-only feature (with 0-tick etherwarp, blink AP3 and blink routes). No blink work before 2.0.
+features: on 2026-10-25 he asked for Blink, Inventory Walk and Zero Ping Etherwarp and had them built and shipped
+(cheat build only, off by default; blink-1025). Zero Ping Etherwarp stays CAMERA ONLY (his decision 2026-10-25): the
+character is never moved client-side ahead of the server, so the setPos rule above stands. Blink AP3 is not built.
 
 ## Quirks and lessons
 
