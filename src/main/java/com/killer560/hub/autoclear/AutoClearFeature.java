@@ -1000,8 +1000,17 @@ public final class AutoClearFeature {
                 priced.add(r);
             }
         }
+        // A room left at its last death (pendingClears) is done for the header too: the next pick leaves it out of the
+        // order, and counting it nowhere read "0% (0/1)" after the first of two rooms until the map's clear came in
+        // (testkit 131 hud, 2026-10-25). If the map never clears it, it goes back in the order and out of this count.
+        int leftAtDeath = 0;
+        for (String name : pendingClears.keySet()) {
+            if (!names.contains(name)) {
+                leftAtDeath++;
+            }
+        }
         com.killer560.hub.autoroutes.RunPlan.publish(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_CLEAR, names, null,
-                roomsCleared, estimateSeconds(layout, priced));
+                roomsCleared + leftAtDeath, estimateSeconds(layout, priced));
     }
 
     /** Seconds a room's clear takes, travel excluded, before this run has cleared one (Dungeon Autopilot's start value). */
