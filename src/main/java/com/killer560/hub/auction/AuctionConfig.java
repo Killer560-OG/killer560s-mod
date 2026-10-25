@@ -186,8 +186,7 @@ public final class AuctionConfig {
             }
             cfg.ahEnabled |= ConfigJson.getBool(ah, "reskinRealAh", false);
             ah.remove("reskinRealAh");
-            Files.writeString(ahPath, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(ah),
-                    StandardCharsets.UTF_8);
+            Files.writeString(ahPath, GSON.toJson(ah), StandardCharsets.UTF_8);
             return true;
         } catch (Exception ignored) {
             return false; // never throw out of a config load
