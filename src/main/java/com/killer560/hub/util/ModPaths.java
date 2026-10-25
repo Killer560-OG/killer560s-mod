@@ -83,6 +83,7 @@ public final class ModPaths {
         t.put("blink", "dungeons/blink");
         t.put("invwalk", "skyblock/invwalk");
         t.put("zpew", "dungeons/autoroutes");
+        t.put("leftclickew", "dungeons/autoroutes");
         // The always-on map logger's skull log (killer560smod-maplog-<time>.log).
         t.put("maplog", "dungeons/maplog");
 
@@ -102,7 +103,7 @@ public final class ModPaths {
         }
 
         for (String boss : new String[]{"maxor", "witherdragons", "thorn", "f7spots", "p4platformhighlight",
-                "lividsolver", "bloodcamp"}) {
+                "lividsolver", "bloodcamp", "relichelpers", "bosshealth"}) {
             t.put(boss, "dungeons/bosses");
         }
 

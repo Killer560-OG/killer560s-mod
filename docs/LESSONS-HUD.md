@@ -131,3 +131,6 @@ rendering); the mod menu is [LESSONS-MENU.md](LESSONS-MENU.md).
   verify: "count 30 vs fresh 15", 2406 stale frames); counting depth fixed it (0 of 2817). The key must be every input
   compared exactly; the verify mode (paint afresh unsubmitted, compare) finds a missed one, and the paint count found
   Predictive Rooms bumping its version every tick (the map repainted every tick under ALL ON).
+- **A HUD fed by a FeatureBits-gated tick keeps its last lines after the switch goes off.** The tick stops with the switch, so
+  nothing clears the cached lines; Boss Health showed "Bonzo 250k" with the feature off (testkit 1025-bosshp-f1-gate). Gate the
+  READ on the switch (`currentLines()` returns nothing while it is off), not only the refresh.

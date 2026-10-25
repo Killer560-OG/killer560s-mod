@@ -62,6 +62,7 @@ public class DungeonTab extends FolderTab {
                 new CroesusTab(),
                 new RngMeterTab(),
                 // ---- bosses, floor order ----
+                new BossHealthTab(),
                 new ThornTab(),
                 // Its own tab, out of Puzzles (killer560, 2026-09-21).
                 new LividSolverTab(),
@@ -100,6 +101,7 @@ public class DungeonTab extends FolderTab {
             tabs.add(new AutoTerminalTab());
             tabs.add(new TerminalAuraTab());
             tabs.add(new TerminalTriggerbotTab());
+            tabs.add(new RelicHelpersTab());
             tabs.add(new DioriteGlassTab());
             tabs.add(new GoldorTriggerbotTab());
             // Out of Secret Aura's In Boss, 2026-10-15 (killer560: "It should be its own cheat").
@@ -111,6 +113,7 @@ public class DungeonTab extends FolderTab {
             tabs.add(new AutoCroesusTab());
             tabs.add(new BlinkTab());
             tabs.add(new ZeroPingEtherwarpTab());
+            tabs.add(new LeftClickEtherwarpTab());
         }
         return tabs;
     }

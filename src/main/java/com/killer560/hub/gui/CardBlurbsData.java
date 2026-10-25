@@ -38,6 +38,7 @@ final class CardBlurbsData {
         d.put("LividSolverTab", "Outlines the real Livid.");
         d.put("MaskInvincibilityTab", "Mask and Phoenix timers.");
         d.put("MaxorTab", "Maxor crystal helpers.");
+        d.put("BossHealthTab", "Every boss's health on screen.");
         d.put("P3NavTab", "Next gate, terminals, devices.");
         d.put("P4PlatformHighlightTab", "Boxes the P4 platform.");
         d.put("InteropTab", "Shares run info in party.");
@@ -103,6 +104,7 @@ final class CardBlurbsData {
         d.put("SecretTriggerbotTab", "Clicks secrets on aim.");
         d.put("TerminalAuraTab", "Opens terminals in range.");
         d.put("TerminalTriggerbotTab", "Opens the aimed terminal.");
+        d.put("RelicHelpersTab", "M7 relic click and look.");
         d.put("AbilityCooldownTab", "Real ability cooldowns.");
         d.put("PositionTab", "Exact X, Y and Z HUD.");
         d.put("CrosshairTab", "Design your own crosshair.");
@@ -175,7 +177,8 @@ final class CardBlurbsData {
         d.put("FreelookTab", "F5 rear view; hold a key to pan.");
         d.put("BlinkTab", "Hold your packets, release them in one burst.");
         d.put("InventoryWalkTab", "Keep walking while a menu is open.");
-        d.put("ZeroPingEtherwarpTab", "Camera lands your etherwarp at once.");
+        d.put("ZeroPingEtherwarpTab", "Instant etherwarp view.");
+        d.put("LeftClickEtherwarpTab", "Left click etherwarps.");
         d.put("SmoothTeleportTab", "Glides the camera.");
         d.put("SessionRecorderTab", "Logs what features do.");
         d.put("TrajectoriesTab", "Bow, shortbow and pearl flight paths.");

@@ -1777,6 +1777,11 @@ final class SettingTooltipsData {
         d.put("item rarity backgrounds/skyblock only", "Only colors items while you are on Hypixel or p3sim; OFF also colors them on other servers.");
         d.put("leap menu", "Spirit Leap settings: the custom leap menu, its Leap Order editor, and the party message sent after you leap.");
         d.put("mapping", "Dungeon-map research tools that dump the raw pixels of the map you are holding.");
+        d.put("boss health", "Shows the health of whichever Catacombs boss is up, F1 to M7, and its minions.");
+        d.put("boss health/boss health", "Shows a movable line with each boss's current health while you are in the boss room.");
+        d.put("boss health/show max health", "Adds the boss's full health after its current health.");
+        d.put("boss health/show percent", "Adds how much health is left as a percent.");
+        d.put("boss health/show minions", "Also shows the Guardians, Scarf's undead and Sadan's giants.");
         d.put("maxor's crystals", "Phase 1 crystal helpers: timers, an unplaced-crystal warning, a counter and crystal boxes.");
         d.put("object hider/object hider", "Object Hider as a whole - off, nothing here hides anything (No Fire Overlay included), whatever the switches below say.");
         d.put("object hider", "Hides clutter such as fairies, support orbs, particles and dying dragons.");
@@ -1885,6 +1890,15 @@ final class SettingTooltipsData {
         d.put("terminal triggerbot/delay", "Cheat build: how long your crosshair must stay on a terminal before it opens, 0-1000 ms.");
         d.put("terminal triggerbot/cooldown", "Cheat build: minimum time between two terminal opens, 0-2000 ms.");
         d.put("terminal triggerbot/range", "Cheat build: how far away you can open a terminal you look at, 1-4 blocks.");
+        d.put("relic triggerbot", "Cheat build: in M7 P5, clicks the relic or its own cauldron when your crosshair is already on it.");
+        d.put("relic helpers/pick up relics", "Cheat build: picks up a relic your crosshair is on, within 3 blocks.");
+        d.put("relic helpers/place relics", "Cheat build: places your relic when your crosshair is on its own cauldron.");
+        d.put("relic helpers/swap to relic", "Cheat build: holds the relic one tick before placing it.");
+        d.put("relic helpers/cooldown", "Cheat build: minimum time between two relic clicks, 0-1000 ms.");
+        d.put("relic look", "Cheat build: in M7 P5, turns you to a nearby relic, then to its cauldron once you hold it.");
+        d.put("relic helpers/look at relic", "Cheat build: turns you to the nearest relic within Look Range.");
+        d.put("relic helpers/look at cauldron", "Cheat build: turns you to your relic's cauldron once you pick it up.");
+        d.put("relic helpers/look range", "Cheat build: how close a relic must be before Relic Look turns to it, 3-20 blocks.");
         d.put("dungeon/termism", "Opens fake F7/M7 terminals to practice on anywhere; /termism opens it too.");
         d.put("thorn (f4)/thorn highlights", "Colored boxes or a glow on Thorn-fight targets during the F4/M4 boss.");
         d.put("trajectories/bows", "Draws the arrow path and landing spot while you draw a normal bow.");

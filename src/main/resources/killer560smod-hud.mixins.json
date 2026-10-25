@@ -8,7 +8,8 @@
 		"AutoScaleMouseMixin",
 		"HudTextVisualOrderMixin",
 		"RecipeBookSearchAccessor",
-		"CreativeSearchAccessor"
+		"CreativeSearchAccessor",
+		"BossHealthOverlayAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

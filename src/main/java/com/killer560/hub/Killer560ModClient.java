@@ -248,6 +248,8 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(com.killer560.hub.blessings.BlessingsFeature.HUD);
         com.killer560.hub.maxor.MaxorCrystalsFeature.register();
         HudElementRegistry.register(com.killer560.hub.maxor.MaxorCrystalsFeature.HUD);
+        com.killer560.hub.bosshealth.BossHealthFeature.register();
+        HudElementRegistry.register(com.killer560.hub.bosshealth.BossHealthFeature.HUD);
         com.killer560.hub.ragaxe.RagAxeFeature.register();
         com.killer560.hub.ragaxe.RagAxeFeature.hudElements().forEach(HudElementRegistry::register);
         com.killer560.hub.scorecalc.ScoreCalculatorFeature.register();
@@ -275,6 +277,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.lightsdevice.LightsDeviceFeature.register();
         com.killer560.hub.terminalaura.TerminalAuraFeature.register();
         com.killer560.hub.terminaltrigger.TerminalTriggerbotFeature.register();
+        com.killer560.hub.witherdragons.RelicHelpersFeature.register();
         com.killer560.hub.autoroutes.AutoRoutesFeature.register();
         com.killer560.hub.autoroutes.AutoRoutesCommands.register();
         com.killer560.hub.autoroutes.AutoRoutesKeybinds.register();
@@ -442,6 +445,7 @@ public class Killer560ModClient implements ClientModInitializer {
             com.killer560.hub.blink.BlinkFeature.register();
             com.killer560.hub.invwalk.InventoryWalkFeature.register();
             com.killer560.hub.zpew.ZeroPingEtherwarp.register();
+            com.killer560.hub.leftclickew.LeftClickEtherwarp.register();
         }
         com.killer560.hub.autoanvil.AutoAnvilFeature.register();
         com.killer560.hub.bazaarflip.BazaarFlipFeature.register();

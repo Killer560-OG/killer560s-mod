@@ -78,6 +78,11 @@ public final class McCompat {
         return client.gui.hud.getChat();
     }
 
+    /** The boss-bar overlay (Boss Health reads its live bars; javap 26.1.2 Gui.getBossOverlay, 26.2 Hud.getBossOverlay). */
+    public static net.minecraft.client.gui.components.BossHealthOverlay bossOverlay(Minecraft client) {
+        return client.gui.hud.getBossOverlay();
+    }
+
     /** The tab-list overlay. */
     public static PlayerTabOverlay tabList(Minecraft client) {
         return client.gui.hud.getTabList();
