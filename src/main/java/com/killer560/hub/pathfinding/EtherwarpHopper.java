@@ -50,40 +50,30 @@ public final class EtherwarpHopper {
 
     /** Skyblock id of an etherwarp-capable hotbar item, or null. */
     public static String hotbarItem() {
+        CompoundTag tag = hotbarTag();
+        return tag == null ? null : tag.getStringOr("id", null);
+    }
+
+    /** Etherwarp range of the hotbar item (57 + tuned transmission), or 0 when there is none. */
+    public static double range() {
+        CompoundTag tag = hotbarTag();
+        return tag == null ? 0 : 57.0 + tag.getIntOr("tuned_transmission", 0);
+    }
+
+    /** The custom data of the first etherwarp-capable hotbar item, or null. */
+    private static CompoundTag hotbarTag() {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
             return null;
         }
         for (int slot = 0; slot <= 8; slot++) {
-            ItemStack stack = player.getInventory().getItem(slot);
-            CompoundTag tag = tag(stack);
-            if (tag == null) {
-                continue;
-            }
-            String id = tag.getStringOr("id", null);
-            if (tag.getIntOr("ethermerge", 0) == 1 || "ETHERWARP_CONDUIT".equals(id)) {
-                return id;
+            CompoundTag tag = tag(player.getInventory().getItem(slot));
+            if (tag != null && (tag.getIntOr("ethermerge", 0) == 1
+                    || "ETHERWARP_CONDUIT".equals(tag.getStringOr("id", null)))) {
+                return tag;
             }
         }
         return null;
-    }
-
-    /** Etherwarp range of the hotbar item (57 + tuned transmission), or 0 when there is none. */
-    public static double range() {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) {
-            return 0;
-        }
-        for (int slot = 0; slot <= 8; slot++) {
-            CompoundTag tag = tag(player.getInventory().getItem(slot));
-            if (tag == null) {
-                continue;
-            }
-            if (tag.getIntOr("ethermerge", 0) == 1 || "ETHERWARP_CONDUIT".equals(tag.getStringOr("id", null))) {
-                return 57.0 + tag.getIntOr("tuned_transmission", 0);
-            }
-        }
-        return 0;
     }
 
     private static CompoundTag tag(ItemStack stack) {
@@ -144,18 +134,23 @@ public final class EtherwarpHopper {
             return false;
         }
         Vec3 pos = player.position();
-        expectedLanding = new Vec3(target.getX() + 0.5, target.getY() + 1.05, target.getZ() + 0.5);
-        ClearExecutor.setExternalOwner(true);
         List<ClearNode> nodes = new ArrayList<>(1);
         nodes.add(new PathEtherNode(pos, dir.yaw(), dir.pitch(), item,
                 List.of(new Vec3(pos.x, pos.y + TeleportUtils.eyeHeight(true), pos.z), Vec3.atCenterOf(target))));
+        run(target, nodes, onDone);
+        return true;
+    }
+
+    /** Hands {@code nodes} to the executor as this feature's queue; {@code onDone} fires when the last one is done. */
+    private static void run(BlockPos target, List<ClearNode> nodes, Runnable onDone) {
+        expectedLanding = new Vec3(target.getX() + 0.5, target.getY() + 1.05, target.getZ() + 0.5);
+        ClearExecutor.setExternalOwner(true);
         ClearExecutor.clearPath(nodes, () -> {
             ClearExecutor.setExternalOwner(false);
             if (onDone != null) {
                 onDone.run();
             }
         });
-        return true;
     }
 
     /**
@@ -207,14 +202,7 @@ public final class EtherwarpHopper {
                     Vec3 to = hit.pos() != null ? Vec3.atLowerCornerOf(hit.pos()) : eye.add(look);
                     nodes.add(new PathEtherNode(node.vec(), node.yaw, node.pitch, item, List.of(eye, to)));
                 }
-                expectedLanding = new Vec3(target.getX() + 0.5, target.getY() + 1.05, target.getZ() + 0.5);
-                ClearExecutor.setExternalOwner(true);
-                ClearExecutor.clearPath(nodes, () -> {
-                    ClearExecutor.setExternalOwner(false);
-                    if (onDone != null) {
-                        onDone.run();
-                    }
-                });
+                run(target, nodes, onDone);
             });
         });
     }
