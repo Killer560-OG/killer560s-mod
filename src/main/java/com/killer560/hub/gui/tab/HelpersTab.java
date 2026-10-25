@@ -37,6 +37,7 @@ public class HelpersTab extends FolderTab {
             // Helpers beside Fairy Souls, and the Chocolate Factory clicker beside it.
             tabs.add(new AutoFairySoulsTab());
             tabs.add(new AutoChocolateFactoryTab());
+            tabs.add(new InventoryWalkTab());
         }
         return tabs;
     }

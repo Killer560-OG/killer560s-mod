@@ -481,6 +481,7 @@ public final class ProfileManager {
                 com.killer560.hub.smoothtp.SmoothTeleportConfig::load,
                 com.killer560.hub.freelook.FreelookConfig::load,
                 com.killer560.hub.blink.BlinkConfig::load,
+                com.killer560.hub.invwalk.InventoryWalkConfig::load,
                 com.killer560.hub.experiments.ExperimentsConfig::load,
                 com.killer560.hub.fastleap.FastLeapConfig::load,
                 com.killer560.hub.fastleap.I4LeapConfig::load,
