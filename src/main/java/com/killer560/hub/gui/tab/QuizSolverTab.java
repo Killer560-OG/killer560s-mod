@@ -33,6 +33,14 @@ public class QuizSolverTab extends BaseTab {
             return widgets;
         }
 
+        // Only drops his own click on a wrong answer once the right one is known (nothing is sent), so legit.
+        widgets.add(SettingsButtonWidget.builder(onOff("Block Wrong Answers", cfg.isBlockWrongAnswers()), btn -> {
+                    cfg.setBlockWrongAnswers(!cfg.isBlockWrongAnswers());
+                    cfg.save();
+                    btn.setMessage(onOff("Block Wrong Answers", cfg.isBlockWrongAnswers()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.QUIZ, contentX, contentWidth, y, true);
 
         return widgets;

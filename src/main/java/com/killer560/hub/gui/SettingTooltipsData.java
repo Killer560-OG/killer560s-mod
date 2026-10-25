@@ -2060,7 +2060,14 @@ final class SettingTooltipsData {
         d.put("croesus/needs key color", "A run you claimed one chest from whose next chest is worth a Dungeon Chest Key under Auto Croesus's key settings. Never hidden.");
         d.put("croesus/opened run color", "A run you claimed one chest from, with nothing left worth a key.");
         d.put("croesus/key used color", "A run that is done: a key was used on its second chest.");
-        d.put("croesus/hide opened runs", "Runs with nothing left to do are not drawn in the Croesus menu (hovering and clicking still work); runs worth a key are never hidden.");
+        d.put("croesus/reroll protection", "Blocks your click on a reward chest's Kismet Reroll Chest button while that chest's profit is over Protect Above (or prices have not loaded). Hold Ctrl to reroll anyway.");
+        d.put("croesus/protect above", "Reroll Protection blocks a reroll when the chest's profit is over this.");
+        d.put("croesus/kismet count", "Shows the Kismet Feathers in your inventory as the number on the Reroll Chest button.");
+        d.put("croesus/croesus chests hud", "A HUD element with Croesus's unclaimed chests out of 60 (read from Hypixel's tab list) and your Kismet Feathers, in the Dungeon Hub and in dungeons.");
+        d.put("croesus/chest warning at", "Warns in chat once Croesus's unclaimed chests reach this many.");
+        d.put("quiz solver/block wrong answers", "Once the solver knows the answer, blocks your click on the other two answers; sneak to click anyway.");
+        d.put("wither dragons/block wrong relic", "In P5, blocks your click on a relic cauldron that is not the color of the relic you carry; sneak to click anyway.");
+        d.put("croesus/hide opened runs","Runs with nothing left to do are not drawn in the Croesus menu (hovering and clicking still work); runs worth a key are never hidden.");
         d.put("croesus/highlight free chest", "In a run's chest view, fills the most profitable chest green: the one to claim for free, when it makes a profit. Not shown once a chest of that run has been claimed.");
         d.put("croesus/highlight key chest", "In a run's chest view, fills orange the one chest worth coming back for with a Dungeon Chest Key.");
         d.put("croesus/free chest color", "The fill color of the free claim in a run's chest view.");

@@ -188,6 +188,7 @@ public final class QuizSolverFeature {
                 }
                 // The next question's answers aren't known yet - don't match its options against the old answers.
                 triviaAnswers = null;
+                warnedThisQuestion = false;
             }
         }
 
@@ -351,6 +352,64 @@ public final class QuizSolverFeature {
             option.correct = false;
         }
         triviaAnswers = null;
+        warnedThisQuestion = false;
+    }
+
+    // ---------------------------------------------------------------- Block Wrong Answers
+
+    private static boolean warnedThisQuestion = false;
+    private static int blockedClicks = 0;
+
+    /**
+     * Block Wrong Answers (NoammAddons {@code QuizSolver.kt}): true for his click on a block next to (Manhattan 1, which is
+     * where each pillar's four buttons are) one of the two WRONG answer pillars, once the solver knows which is right.
+     * Before the answer is known, and on the right pillar, nothing is blocked. Sneaking lets it through (the Tic Tac Toe
+     * rule). The mixin then fails the click on the client, so nothing is sent.
+     */
+    public static boolean shouldBlockClick(BlockPos pos, boolean sneaking) {
+        QuizSolverConfig cfg = QuizSolverConfig.getInstance();
+        if (pos == null || !cfg.isBlockWrongAnswers() || !cfg.isEnabled() || triviaAnswers == null) {
+            return false;
+        }
+        int correct = -1;
+        int clicked = -1;
+        for (int i = 0; i < options.length; i++) {
+            BlockPos pillar = options[i].blockPos;
+            if (pillar == null) {
+                return false;
+            }
+            if (options[i].correct) {
+                correct = i;
+            }
+            if (pillar.distManhattan(pos) <= 1) {
+                clicked = i;
+            }
+        }
+        if (correct < 0 || clicked < 0 || clicked == correct) {
+            return false;
+        }
+        if (sneaking) {
+            LOGGER.info("[QuizSolver] wrong answer {} let through at {} - sneaking overrides Block Wrong Answers",
+                    letterOf(clicked), pos.toShortString());
+            return false;
+        }
+        blockedClicks++;
+        LOGGER.info("[QuizSolver] Block Wrong Answers: click on answer {} at {} while {} is correct - not sent ({} blocked"
+                + " so far)", letterOf(clicked), pos.toShortString(), letterOf(correct), blockedClicks);
+        if (!warnedThisQuestion) {
+            warnedThisQuestion = true;
+            com.killer560.hub.util.ModChat.send("Quiz Solver", com.killer560.hub.util.ModChat.text("Blocked: "),
+                    com.killer560.hub.util.ModChat.value(letterOf(clicked)),
+                    com.killer560.hub.util.ModChat.text(" is the wrong answer, the right one is "),
+                    com.killer560.hub.util.ModChat.good(letterOf(correct)),
+                    com.killer560.hub.util.ModChat.dim(". Sneak to click it anyway."));
+        }
+        return true;
+    }
+
+    /** For the testkit: how many clicks Block Wrong Answers has dropped. */
+    public static int blockedClicks() {
+        return blockedClicks;
     }
 
     private static void reset() {
@@ -359,5 +418,6 @@ public final class QuizSolverFeature {
             option.correct = false;
         }
         triviaAnswers = null;
+        warnedThisQuestion = false;
     }
 }
