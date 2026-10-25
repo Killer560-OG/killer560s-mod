@@ -339,8 +339,6 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
         if (maxScroll() > 0) {
             // The main menu's scrollbar (ModScreen): a dark track and an amber thumb.
             int band = contentBottom - contentTop;
-            int bar = Math.max(12, band * band / contentHeight);
-            int by = contentTop + (band - bar) * scroll / maxScroll();
             int sx = panelX + panelW - PAD + 4;
             GuiRects sb = GuiRects.begin(g);
             MenuStyle.scrollbar(sb, sx, contentTop, contentBottom - contentTop, scroll, maxScroll(), band);
