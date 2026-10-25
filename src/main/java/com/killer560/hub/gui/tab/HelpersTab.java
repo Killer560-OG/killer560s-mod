@@ -40,6 +40,7 @@ public class HelpersTab extends FolderTab {
             // A stub with no switch, restored 2026-10-25 at killer560's request (removed in d990a2ee); Misc has no
             // mining folder and Helpers' cheat block already holds the other walk-and-collect automations.
             tabs.add(new AutoNucleusRunTab());
+            tabs.add(new InventoryWalkTab());
         }
         return tabs;
     }

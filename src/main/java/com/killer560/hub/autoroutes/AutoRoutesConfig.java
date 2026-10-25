@@ -112,6 +112,14 @@ public final class AutoRoutesConfig {
      *  while the map itself is open." ON: the Interactive Map's SCREEN counts as no screen (nodes fire, a route keeps
      *  running); its own warps still stop routes as before. Off by default. */
     private boolean runWhileMapOpen = false;
+    /** Zero Ping Chain (killer560, 2026-10-25: zero ping etherwarp "for auto routes and such"): consecutive etherwarp
+     *  nodes go one a tick, each aimed from the PREDICTED landing of the one before, instead of waiting a round trip for
+     *  every landing. Obvious mode, path-less routes; every landing is still checked when the server's teleport comes.
+     *  Off by default. */
+    private boolean zeroPingChain = false;
+    /** Blink The Chain: with Zero Ping Chain, Blink holds a whole chain's packets and releases them in one burst, so the
+     *  server makes every warp of it in one server tick ("multiple etherwarps per tick"). Needs Blink switched on. */
+    private boolean blinkChain = false;
     private KillMimic killMimic = KillMimic.OFF;
     private CryptWeapon cryptWeapon = CryptWeapon.HYPERION;
     /** How long a crypt node keeps attacking before the route moves on without a kill (killer560, 2026-10-05: "in
@@ -223,6 +231,8 @@ public final class AutoRoutesConfig {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
                 cfg.legitMode = ConfigJson.getBool(o, "legitMode", cfg.legitMode);
+                cfg.zeroPingChain = ConfigJson.getBool(o, "zeroPingChain", cfg.zeroPingChain);
+                cfg.blinkChain = ConfigJson.getBool(o, "blinkChain", cfg.blinkChain);
                 cfg.startFromStartNodeOnly = ConfigJson.getBool(o, "startFromStartNodeOnly", cfg.startFromStartNodeOnly);
                 cfg.runWhileMapOpen = ConfigJson.getBool(o, "runWhileMapOpen", cfg.runWhileMapOpen);
                 cfg.killMimic = ConfigJson.getEnum(o, "killMimic", KillMimic.class, cfg.killMimic);
@@ -276,6 +286,8 @@ public final class AutoRoutesConfig {
             JsonObject o = new JsonObject();
             o.addProperty("enabled", enabled);
             o.addProperty("legitMode", legitMode);
+            o.addProperty("zeroPingChain", zeroPingChain);
+            o.addProperty("blinkChain", blinkChain);
             o.addProperty("startFromStartNodeOnly", startFromStartNodeOnly);
             o.addProperty("runWhileMapOpen", runWhileMapOpen);
             o.addProperty("killMimic", killMimic.name());
@@ -337,6 +349,24 @@ public final class AutoRoutesConfig {
     /** True when the mode can be chosen at all (the Mode row exists): testing jars only. */
     public static boolean legitModeSelectable() { return com.killer560.hub.BuildVariant.TESTING; }
     public void setLegitMode(boolean v) { legitMode = v; }
+
+    /** Zero Ping Chain: cheat build, obvious mode only. */
+    public boolean isZeroPingChain() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && zeroPingChain && !isLegitMode();
+    }
+
+    public boolean getZeroPingChainSetting() { return zeroPingChain; }
+
+    public void setZeroPingChain(boolean v) { zeroPingChain = v; }
+
+    /** Blink The Chain: only with Zero Ping Chain on. */
+    public boolean isBlinkChain() {
+        return isZeroPingChain() && blinkChain;
+    }
+
+    public boolean getBlinkChainSetting() { return blinkChain; }
+
+    public void setBlinkChain(boolean v) { blinkChain = v; }
 
     /** Forced on in legit mode - "in legit mode it can only start from the start node". */
     public boolean isStartFromStartNodeOnly() { return isLegitMode() || startFromStartNodeOnly; }

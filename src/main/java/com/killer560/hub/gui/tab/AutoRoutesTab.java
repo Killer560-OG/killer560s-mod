@@ -174,6 +174,12 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(killMimicText(cfg));
                 }).bounds(contentX + half + GAP, y[0], right, 20).build());
         y[0] += 24;
+        // killer560, 2026-10-25: zero ping etherwarp "for auto routes and such" - consecutive warps from the predicted landing.
+        toggleCell(w, contentX, y[0], half, "Zero Ping Chain", cfg::getZeroPingChainSetting, cfg::setZeroPingChain, null);
+        // ... and Blink holds the whole chain, so the server makes every warp of it in one tick (needs Blink on).
+        toggleCell(w, contentX + half + GAP, y[0], right, "Blink The Chain", cfg::getBlinkChainSetting, cfg::setBlinkChain,
+                null);
+        y[0] += 24;
         // killer560, 2026-10-16: "kill mimic also needs a timeout slider" - how long the Spirit Sceptre keeps at it.
         slider(w, contentX + half + GAP, y[0], right,
                 () -> String.format(Locale.US, "Mimic Timeout: %.1fs", cfg.getMimicTimeoutTicks() / 20.0),
