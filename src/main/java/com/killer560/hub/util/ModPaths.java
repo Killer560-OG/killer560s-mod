@@ -82,6 +82,7 @@ public final class ModPaths {
         t.put("autotrap", "dungeons/autotrap");
         t.put("blink", "dungeons/blink");
         t.put("invwalk", "skyblock/invwalk");
+        t.put("zpew", "dungeons/autoroutes");
         // The always-on map logger's skull log (killer560smod-maplog-<time>.log).
         t.put("maplog", "dungeons/maplog");
 

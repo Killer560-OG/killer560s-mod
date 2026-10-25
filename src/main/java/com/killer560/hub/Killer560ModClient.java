@@ -441,6 +441,7 @@ public class Killer560ModClient implements ClientModInitializer {
             com.killer560.hub.streamer.StreamerCommands.register();
             com.killer560.hub.blink.BlinkFeature.register();
             com.killer560.hub.invwalk.InventoryWalkFeature.register();
+            com.killer560.hub.zpew.ZeroPingEtherwarp.register();
         }
         com.killer560.hub.autoanvil.AutoAnvilFeature.register();
         com.killer560.hub.bazaarflip.BazaarFlipFeature.register();

@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.zpew.mixin",
+	"client": [
+		"ZpewCameraMixin",
+		"ZpewPositionMixin",
+		"ZpewSendMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

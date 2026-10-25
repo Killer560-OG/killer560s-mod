@@ -208,6 +208,15 @@ public final class SmoothTeleport {
             cancel();
             return;
         }
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && com.killer560.hub.zpew.ZeroPingEtherwarp.claims(to)) {
+            // Zero Ping Etherwarp already drew him there; a glide from the old spot would jump the camera back.
+            if (!PENDING.isEmpty()) {
+                PENDING.removeFirst();
+            }
+            cancel();
+            lastDecision = "zero ping etherwarp already there";
+            return;
+        }
         long now = System.currentTimeMillis();
         while (!PENDING.isEmpty() && now - PENDING.peekFirst().sentMs() > PENDING_MS) {
             PENDING.removeFirst();
