@@ -2067,7 +2067,7 @@ final class SettingTooltipsData {
         d.put("croesus/chest warning at", "Warns in chat once Croesus's unclaimed chests reach this many.");
         d.put("quiz solver/block wrong answers", "Once the solver knows the answer, blocks your click on the other two answers; sneak to click anyway.");
         d.put("wither dragons/block wrong relic", "In P5, blocks your click on a relic cauldron that is not the color of the relic you carry; sneak to click anyway.");
-        d.put("croesus/hide opened runs","Runs with nothing left to do are not drawn in the Croesus menu (hovering and clicking still work); runs worth a key are never hidden.");
+        d.put("croesus/hide opened runs", "Runs with nothing left to do are not drawn in the Croesus menu (hovering and clicking still work); runs worth a key are never hidden.");
         d.put("croesus/highlight free chest", "In a run's chest view, fills the most profitable chest green: the one to claim for free, when it makes a profit. Not shown once a chest of that run has been claimed.");
         d.put("croesus/highlight key chest", "In a run's chest view, fills orange the one chest worth coming back for with a Dungeon Chest Key.");
         d.put("croesus/free chest color", "The fill color of the free claim in a run's chest view.");
