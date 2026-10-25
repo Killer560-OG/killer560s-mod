@@ -161,4 +161,7 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
 - The wiki's Guided Bat "follows your aim" (Spirit Sceptre page); the sim's bat flies straight. One-Tap Warp At Once turns
   away while the bat flies, so the sim cannot tell whether it misses on Hypixel; After Impact keeps the aim on the mob
   until the bat is due.
+- A room Auto Clear leaves at its last death (`pendingClears`) is out of the next pick's order until the map's clear
+  comes in, so the Progress HUD header must count it as done: counting it nowhere read "0% (0/1)" after the first of two
+  rooms (testkit 131 hud, 2026-10-25). `publishPlan` adds the pending rooms not still in the order.
 - Kill speed and key rooms: see "Auto Clear kill speed" and "Key rooms" in [LESSONS-AUTOMATION.md](LESSONS-AUTOMATION.md).
