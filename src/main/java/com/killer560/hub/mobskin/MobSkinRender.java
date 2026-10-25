@@ -190,6 +190,11 @@ public final class MobSkinRender {
         ms.outlineColor = ps.outlineColor;
         ms.nameTag = ps.nameTag;
         ms.scoreText = ps.scoreText;
+        // Song Tag's line rides on the state too, or it would vanish under a mob skin.
+        if ((Object) ms instanceof com.killer560.hub.spotify.SongTagState mt
+                && (Object) ps instanceof com.killer560.hub.spotify.SongTagState pt) {
+            mt.killer560smod$setSongTag(pt.killer560smod$songTag());
+        }
         ms.shadowRadius = ps.shadowRadius;
         ms.shadowPieces.clear();
         ms.shadowPieces.addAll(ps.shadowPieces);

@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
  * otherwise ordinary-looking name), but WHOLE-TOKEN ONLY for anything shorter, so a short entry can't
  * condemn every name that merely contains those few letters in a row for an unrelated reason.
  */
-final class SlurFilter {
+public final class SlurFilter {
 
     // Deliberately small: this exists to stop the obvious cases (killer560's spec), not to be a general
     // profanity filter - and every entry here is normalized once at class-init via {@link #normalise}, so it
@@ -34,7 +34,7 @@ final class SlurFilter {
 
     /** @return true if {@code rawName} (as stored - {@code &} codes and all) trips the filter and must not
      *  be shown as-is. */
-    static boolean isBlocked(String rawName) {
+    public static boolean isBlocked(String rawName) {
         if (rawName == null || rawName.isEmpty()) {
             return false;
         }

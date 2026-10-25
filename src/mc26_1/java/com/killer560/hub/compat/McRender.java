@@ -376,4 +376,16 @@ public final class McRender {
         }
     }
 
+    /**
+     * One extra nametag line, drawn exactly as vanilla draws {@code nameTag} and {@code scoreText} in
+     * {@code EntityRenderer.submitNameDisplay}: 26.1.2's {@code submitNameTag} takes the camera distance, 26.2's does not
+     * (javap, both). Song Tag (spotify/SongTagDraw) is the caller.
+     */
+    public static void submitNameTag(SubmitNodeCollector collector, PoseStack poseStack, Vec3 attachment, int yOffset,
+                                     net.minecraft.network.chat.Component text, boolean seeThrough, int light,
+                                     double distanceToCameraSq,
+                                     net.minecraft.client.renderer.state.level.CameraRenderState camera) {
+        collector.submitNameTag(poseStack, attachment, yOffset, text, seeThrough, light, distanceToCameraSq, camera);
+    }
+
 }

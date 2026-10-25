@@ -260,6 +260,16 @@ public final class LyricsEngine {
         return out;
     }
 
+    /** What the last poll saw, for Song Tag ({@link SongShare}); null before the first poll or once polling stops. */
+    private volatile NowPlaying lastNowPlaying = null;
+    /**
+     * False while only Song Tag polls: the tag shows the song name, so lrclib is not asked for lyrics. (Named apart
+     * from the {@code fetchLyrics} method that does the lrclib request.)
+     */
+    private volatile boolean wantLyrics = true;
+    /** The track lyrics were last requested for, so turning lyrics on mid-song still fetches them. */
+    private String lyricsRequestedFor = null;
+
     /**
      * Call roughly every 2 seconds. Never throws - a failed poll just keeps showing the last known lyric.
      *
@@ -275,6 +285,7 @@ public final class LyricsEngine {
         }
         try {
             NowPlaying nowPlaying = source.fetch();
+            lastNowPlaying = nowPlaying;
             long now = System.currentTimeMillis();
             SpotifyMediaSession.Timeline timeline = session == null ? null : session.latest(now);
 
@@ -330,21 +341,25 @@ public final class LyricsEngine {
                 lastEventMs = firstTrack ? 0 : now;
                 clock.start(now);
                 syncedLyrics = List.of();
-                // Fetched OFF this thread, because the clock is already running.
-                //
-                // lrclib is an HTTP round trip with a ten-second timeout, and it used to happen inline here -
-                // inside a synchronized poll - so every track change stalled the poll loop for however long
-                // the request took while the song played on. The clock is correct either way, but no line
-                // could be emitted until it returned, so the first lyrics of every song arrived late by the
-                // request time. Now the poll returns immediately and the lines appear the moment they land.
-                if (!isAd) {
-                    requestLyrics(trackKey, nowPlaying.artist(), nowPlaying.title());
-                }
+                lyricsRequestedFor = null;
                 SpotifyLyricsFeature.LOGGER.info("Now playing: artist='{}' title='{}'",
                         nowPlaying.artist(), title);
             } else if (!clock.running()) {
                 clock.resume(now);   // resumed after a pause, same track: on from the same position
                 lastEventMs = now;
+            }
+            // Fetched OFF this thread, because the clock is already running.
+            //
+            // lrclib is an HTTP round trip with a ten-second timeout, and it used to happen inline here -
+            // inside a synchronized poll - so every track change stalled the poll loop for however long
+            // the request took while the song played on. The clock is correct either way, but no line
+            // could be emitted until it returned, so the first lyrics of every song arrived late by the
+            // request time. Now the poll returns immediately and the lines appear the moment they land.
+            // Asked once per track, and only while lyrics are wanted (chat or the HUD, not while only Song Tag
+            // polls); turning either on part-way through a song still fetches that song's lyrics on the next poll.
+            if (!isAd && wantLyrics && !trackKey.equals(lyricsRequestedFor)) {
+                lyricsRequestedFor = trackKey;
+                requestLyrics(trackKey, nowPlaying.artist(), nowPlaying.title());
             }
 
             // Spotify's own clock, when Windows reports it for this track: its length, a pause the title has not
@@ -492,6 +507,19 @@ public final class LyricsEngine {
     /** What lrclib gave for one track: every version with synced lines, and the first listing's length (0 = unknown). */
     private record Fetched(List<Candidate> candidates, double durationSeconds) {
         static final Fetched NOTHING = new Fetched(List.of(), 0);
+    }
+
+    public NowPlaying lastNowPlaying() {
+        return lastNowPlaying;
+    }
+
+    /** Polling stopped: what was playing is no longer known. */
+    public void forgetNowPlaying() {
+        lastNowPlaying = null;
+    }
+
+    public void setFetchLyrics(boolean fetch) {
+        wantLyrics = fetch;
     }
 
     public synchronized String getCurrentLyric() {

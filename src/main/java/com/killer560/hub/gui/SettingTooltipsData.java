@@ -311,6 +311,8 @@ final class SettingTooltipsData {
         d.put("spotify lyrics/hud lyrics", "Shows the current lyric line in the Spotify HUD.");
         d.put("spotify lyrics/word highlight", "Lights up the word being sung in the Spotify HUD's lyric line.");
         d.put("spotify lyrics/hide when paused", "Hides the Spotify HUD while Spotify is paused.");
+        d.put("share my song", "Shows the song you play on Spotify as a line above your name to the other mod users in your relay room (your party, or your lobby with Mod Chat in Lobby mode). Supporters only, and only while Show Me As A Mod User is on. Song name only; hidden while paused or on an ad. Spotify's private session cannot be seen, so this switch is the only control. Off by default.");
+        d.put("show others' songs", "Shows the song another mod user who is a supporter shares, as a line above their name, within 16 blocks. Swear words are starred out. Off by default.");
         d.put("copy screenshots to clipboard", "Copies each screenshot you take to the clipboard so you can paste it with Ctrl+V.");
         d.put("gifs", "Shows the GIFs toggled on below as looping HUD overlays.");
         d.put("audio", "Loops the audio files toggled on below.");

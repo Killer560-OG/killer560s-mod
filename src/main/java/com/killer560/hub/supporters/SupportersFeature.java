@@ -101,6 +101,12 @@ public final class SupportersFeature {
         }
     }
 
+    /** Whether {@code id} is in the fetched supporter list at all (whatever it shares). Song Tag shares and shows only
+     *  for supporters ({@code spotify/SongShare}, {@code spotify/RemoteSongs}). One map lookup. */
+    public static boolean isSupporter(UUID id) {
+        return id != null && byUuid.containsKey(id);
+    }
+
     public static int supporterCount() {
         return byUuid.size();
     }
