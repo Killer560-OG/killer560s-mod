@@ -207,7 +207,7 @@ public final class NavigationManager {
         }
         lastPathMs = now;
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (graph == null) {
             // no graph (yet): fall back to a straight line so the target is still shown
             path = List.of(player.position(), target.pos);

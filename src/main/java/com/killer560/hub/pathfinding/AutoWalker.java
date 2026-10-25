@@ -1024,7 +1024,7 @@ public final class AutoWalker {
 
     private static boolean nearJumpPad(Vec3 pos) {
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (graph == null) {
             return false;
         }

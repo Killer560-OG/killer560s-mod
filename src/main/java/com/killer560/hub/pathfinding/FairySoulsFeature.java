@@ -108,7 +108,7 @@ public final class FairySoulsFeature {
     /** "12/80" style counts for the current island, or null when there is no graph yet. */
     public static int[] islandCounts() {
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (graph == null) {
             return null;
         }
@@ -140,7 +140,7 @@ public final class FairySoulsFeature {
     public static void start(PathfindingConfig.SoulMode mode) {
         Minecraft client = Minecraft.getInstance();
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (client.player == null) {
             return;
         }
@@ -292,7 +292,7 @@ public final class FairySoulsFeature {
     public static void markClosestFound() {
         Minecraft client = Minecraft.getInstance();
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (client.player == null || graph == null) {
             return;
         }
@@ -351,7 +351,7 @@ public final class FairySoulsFeature {
     /** Marks every soul of the current island as found (for "I already did this island by hand"). */
     public static void markIslandFound() {
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (graph == null) {
             ModChat.send(CHAT, ModChat.bad("No graph for this island (yet)."));
             return;

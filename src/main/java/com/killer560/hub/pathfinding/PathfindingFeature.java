@@ -137,7 +137,7 @@ public final class PathfindingFeature {
         SuggestionProvider<FabricClientCommandSource> destinations = (context, builder) -> {
             String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
             String island = IslandDetector.graphIsland();
-            IslandGraph graph = island == null ? null : GraphRepository.get(island);
+            IslandGraph graph = GraphRepository.get(island);
             if (graph != null) {
                 for (String name : graph.destinationNames()) {
                     if (name.toLowerCase(Locale.ROOT).startsWith(remaining)) {
@@ -226,7 +226,7 @@ public final class PathfindingFeature {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (player == null) {
             return 0;
         }
@@ -291,7 +291,7 @@ public final class PathfindingFeature {
 
     private static void info() {
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         ModChat.send(CHAT, ModChat.text("Island: "), ModChat.value(IslandDetector.islandName().isEmpty()
                         ? "unknown" : IslandDetector.islandName()),
                 ModChat.dim(" (" + (island == null ? "no graph" : island) + ")"));
@@ -334,7 +334,7 @@ public final class PathfindingFeature {
 
     private static String soulLine() {
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         String profile = ProfileTracker.key();
         int version = FairySoulStore.version();
         if (graph == soulLineGraph && version == soulLineVersion && java.util.Objects.equals(island, soulLineIsland)
