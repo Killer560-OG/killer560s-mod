@@ -999,12 +999,30 @@ public final class LiveMapFeature {
         return getHighestY(client, worldX, worldZ);
     }
 
+    /**
+     * The highest non-air block in this column at y 0..255, or 0 when there is none.
+     *
+     * <p>Section-first, the way {@code doorhelpers.DoorScanner.topLayer} reads a column: the chunk is looked up once
+     * (the level-level getBlockState redid it for every y), and a section whose palette is only air - {@code hasOnlyAir()},
+     * which counts exactly the states {@code isAir()} is true for - is skipped in one test. {@link #scan} asks this every
+     * 250 ms for every still-unknown loaded cell, and a gap cell over void stays unknown all run, so each of those
+     * used to read all 256 blocks four times a second. Same answer: a missing chunk is the empty chunk, whose sections
+     * are all air, so it still reads 0.
+     */
     private static int getHighestY(Minecraft client, int x, int z) {
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, 0, z);
-        for (int y = 255; y >= 0; y--) {
-            pos.setY(y);
-            if (!client.level.getBlockState(pos).isAir()) {
-                return y;
+        net.minecraft.world.level.chunk.LevelChunk chunk = client.level.getChunk(x >> 4, z >> 4);
+        net.minecraft.world.level.chunk.LevelChunkSection[] sections = chunk.getSections();
+        int top = Math.min(chunk.getHighestFilledSectionIndex(), sections.length - 1);
+        for (int i = top; i >= 0; i--) {
+            net.minecraft.world.level.chunk.LevelChunkSection section = sections[i];
+            if (section == null || section.hasOnlyAir()) {
+                continue;
+            }
+            int base = client.level.getSectionYFromSectionIndex(i) << 4;
+            for (int y = Math.min(base + 15, 255); y >= Math.max(base, 0); y--) {
+                if (!section.getBlockState(x & 15, y & 15, z & 15).isAir()) {
+                    return y;
+                }
             }
         }
         return 0;

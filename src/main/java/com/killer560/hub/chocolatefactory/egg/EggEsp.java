@@ -3,7 +3,6 @@ package com.killer560.hub.chocolatefactory.egg;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.chocolatefactory.ChocolateFactoryConfig;
 import com.killer560.hub.chocolatefactory.egg.HoppityCalendar.Meal;
-import com.killer560.hub.compat.McRender;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.SkyblockGate;
 import com.mojang.authlib.properties.Property;
@@ -169,35 +168,29 @@ public final class EggEsp {
             return;
         }
         boolean hideFound = ChocolateFactoryConfig.getInstance().isEggEspHideFound();
-        List<Egg> shown = new ArrayList<>(snap.size());
+        // Into two reusable batches, then one pass per render type, never interleaved - the same rule StorageSearchEsp
+        // and SecretWaypointsRenderer follow ("Not building!" otherwise). Per frame this used to build a list, two
+        // lambdas, and per egg two AABBs, a float[24] and seven float arrays; BoxBatch emits the same corners in the
+        // same order (filledBox's six faces, lineBox's twelve edges), the same colors, the same 2.5 line width.
+        FILLS.clear();
+        LINES.clear();
         for (Egg egg : snap) {
             if (!hideFound || HoppityEggs.status(egg.meal()) != HoppityEggs.Status.FOUND) {
-                shown.add(egg);
+                int rgb = MEAL_RGB[egg.meal().ordinal()];
+                // The head of a full-size armor stand sits about 1.45-2.0 blocks above its feet.
+                double x0 = egg.x() - 0.3, y0 = egg.y() + 1.4, z0 = egg.z() - 0.3;
+                double x1 = egg.x() + 0.3, y1 = egg.y() + 2.0, z1 = egg.z() + 0.3;
+                FILLS.add(x0, y0, z0, x1, y1, z1, r(rgb), g(rgb), b(rgb), 0.3f);
+                LINES.add(x0, y0, z0, x1, y1, z1, r(rgb), g(rgb), b(rgb), 1f);
             }
         }
-        if (shown.isEmpty()) {
-            return;
-        }
-        // One pass per render type, never interleaved - the same rule StorageSearchEsp and SecretWaypointsRenderer
-        // follow ("Not building!" otherwise).
-        McRender.inCameraSpace(context, ThroughWalls.FILLED, (pose, buffer) -> {
-            for (Egg egg : shown) {
-                int rgb = MEAL_RGB[egg.meal().ordinal()];
-                filledBox(pose.pose(), buffer, boxFor(egg), r(rgb), g(rgb), b(rgb), 0.3f);
-            }
-        });
-        McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
-            for (Egg egg : shown) {
-                int rgb = MEAL_RGB[egg.meal().ordinal()];
-                lineBox(pose, buffer, boxFor(egg), r(rgb), g(rgb), b(rgb), 1f, 2.5f);
-            }
-        });
+        FILLS.drawFilled(context, ThroughWalls.FILLED);
+        LINES.drawOutlines(context, ThroughWalls.LINES, 2.5f);
     }
 
-    /** The head of a full-size armor stand sits about 1.45-2.0 blocks above its feet. */
-    private static AABB boxFor(Egg egg) {
-        return new AABB(egg.x() - 0.3, egg.y() + 1.4, egg.z() - 0.3, egg.x() + 0.3, egg.y() + 2.0, egg.z() + 0.3);
-    }
+    /** Render-thread scratch for {@link #onWorldRender}, reused every frame. */
+    private static final com.killer560.hub.util.BoxBatch FILLS = new com.killer560.hub.util.BoxBatch();
+    private static final com.killer560.hub.util.BoxBatch LINES = new com.killer560.hub.util.BoxBatch();
 
     private static float r(int rgb) {
         return ((rgb >> 16) & 0xFF) / 255f;

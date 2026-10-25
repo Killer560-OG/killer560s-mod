@@ -76,10 +76,6 @@ public final class GuiOverlays {
         if (message == null) {
             return;
         }
-        String plain = ChatFormatting.stripFormatting(message);
-        if (plain == null) {
-            plain = message;
-        }
         Font font = Minecraft.getInstance().font;
         // Auto Scale: the popup is laid out on a canvas 1/f the size of the GUI area and drawn scaled by f, so it
         // is the same fraction of the window on every monitor and still centered and wrapped to two thirds.
@@ -87,7 +83,7 @@ public final class GuiOverlays {
         int canvasW = AutoScale.layoutSize(graphics.guiWidth(), f);
         int canvasH = AutoScale.layoutSize(graphics.guiHeight(), f);
         int wrapWidth = canvasW * 2 / 3;
-        List<FormattedCharSequence> lines = font.split(Component.literal(plain), wrapWidth);
+        List<FormattedCharSequence> lines = wrappedLines(font, message, wrapWidth);
         int totalHeight = lines.size() * font.lineHeight;
         int centerX = canvasW / 2;
         int startY = (canvasH - totalHeight) / 2;
@@ -101,4 +97,33 @@ public final class GuiOverlays {
             graphics.pose().popMatrix();
         }
     }
+
+    /**
+     * The message stripped of its formatting and split to {@code wrapWidth}, worked out again only when the message, the
+     * width, the font or its glyphs ({@code MapDrawCache.fontGeneration}, bumped on every font reload) change. It was
+     * redone every frame a message was up: a formatting strip, a Component and a full line-break pass. The lines are
+     * the same ones the split returns for those inputs. Render thread only.
+     */
+    private static List<FormattedCharSequence> wrappedLines(Font font, String message, int wrapWidth) {
+        int gen = com.killer560.hub.livemap.MapDrawCache.fontGeneration();
+        if (wrapLines == null || !message.equals(wrapMessage) || wrapWidth != wrapWidthUsed || font != wrapFont
+                || gen != wrapFontGen) {
+            String plain = ChatFormatting.stripFormatting(message);
+            if (plain == null) {
+                plain = message;
+            }
+            wrapLines = font.split(Component.literal(plain), wrapWidth);
+            wrapMessage = message;
+            wrapWidthUsed = wrapWidth;
+            wrapFont = font;
+            wrapFontGen = gen;
+        }
+        return wrapLines;
+    }
+
+    private static List<FormattedCharSequence> wrapLines;
+    private static String wrapMessage;
+    private static int wrapWidthUsed;
+    private static Font wrapFont;
+    private static int wrapFontGen;
 }
