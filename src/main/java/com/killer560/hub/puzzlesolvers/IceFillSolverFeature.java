@@ -3,7 +3,6 @@ package com.killer560.hub.puzzlesolvers;
 import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.Gson;
 import com.killer560.hub.livemap.LiveMapFeature;
-import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
