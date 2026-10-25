@@ -4,7 +4,6 @@ import com.killer560.hub.autosecret.AutoSecretConfig;
 import com.killer560.hub.autosecret.AutoSecretFeature;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
@@ -289,18 +288,6 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
 
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,
                                DoubleConsumer apply) {
-        w.add(new ThemedSliderButton(x, y, Math.max(1, width), 20, Component.literal(text.get()),
-                Math.max(0.0, Math.min(1.0, normalized))) {
-            @Override
-            protected void updateMessage() {
-                setMessage(Component.literal(text.get()));
-            }
-
-            @Override
-            protected void applyValue() {
-                apply.accept(this.value);
-                saveOnRelease(() -> AutoSecretConfig.getInstance().save());
-            }
-        });
+        w.add(normSlider(x, y, Math.max(1, width), 20, text, normalized, apply, () -> AutoSecretConfig.getInstance().save()));
     }
 }

@@ -425,21 +425,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
      *  the same helper PosmsgTab uses. */
     private static ThemedSliderButton slider(int x, int y, int w, Component label, double min, double max, double current,
                                              double step, DoubleConsumer apply, Supplier<Component> text, Runnable save) {
-        double span = max - min;
-        double normalized = span <= 0 ? 0 : (current - min) / span;
-        return new ThemedSliderButton(x, y, Math.max(1, w), ROW, label, Math.max(0.0, Math.min(1.0, normalized))) {
-            @Override
-            protected void updateMessage() {
-                setMessage(text.get());
-            }
-
-            @Override
-            protected void applyValue() {
-                double raw = min + this.value * span;
-                double snapped = Math.round(raw / step) * step;
-                apply.accept(Math.max(min, Math.min(max, snapped)));
-                saveOnRelease(save);
-            }
-        };
+        return steppedSlider(x, y, Math.max(1, w), ROW, label, min, max, current, step, apply, text, save);
     }
 }

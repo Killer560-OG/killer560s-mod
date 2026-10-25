@@ -1,9 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.cheatutils.CheatUtilsConfig;
-import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -80,17 +78,6 @@ public class AutoChocolateFactoryTab extends BaseTab {
 
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,
                                java.util.function.DoubleConsumer apply) {
-        w.add(new ThemedSliderButton(x, y, width, 20, Component.literal(text.get()), Math.max(0.0, Math.min(1.0, normalized))) {
-            @Override
-            protected void updateMessage() {
-                setMessage(Component.literal(text.get()));
-            }
-
-            @Override
-            protected void applyValue() {
-                apply.accept(this.value);
-                saveOnRelease(() -> CheatUtilsConfig.getInstance().save());
-            }
-        });
+        w.add(normSlider(x, y, width, 20, text, normalized, apply, () -> CheatUtilsConfig.getInstance().save()));
     }
 }

@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
@@ -8,6 +9,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
+import java.util.function.Supplier;
 
 public abstract class BaseTab {
     public final String name;
@@ -36,6 +39,50 @@ public abstract class BaseTab {
                 btn.setMessage(onOff(label, get.getAsBoolean()));
             }
         }).bounds(x, y, w, h).build();
+    }
+
+    /**
+     * A slider whose label is {@code text} and whose knob position (0..1) goes straight to {@code apply}; the setting
+     * is saved once when the drag is released.
+     */
+    protected static ThemedSliderButton normSlider(int x, int y, int w, int h, Supplier<String> text, double normalized,
+            DoubleConsumer apply, Runnable save) {
+        return new ThemedSliderButton(x, y, w, h, Component.literal(text.get()), Math.max(0.0, Math.min(1.0, normalized))) {
+            @Override
+            protected void updateMessage() {
+                setMessage(Component.literal(text.get()));
+            }
+
+            @Override
+            protected void applyValue() {
+                apply.accept(this.value);
+                saveOnRelease(save);
+            }
+        };
+    }
+
+    /**
+     * A slider from {@code min} to {@code max} that snaps to {@code step} (clamped) before {@code apply}; the label is
+     * {@code text} once the value moves, and the setting is saved once when the drag is released.
+     */
+    protected static ThemedSliderButton steppedSlider(int x, int y, int w, int h, Component label, double min,
+            double max, double current, double step, DoubleConsumer apply, Supplier<Component> text, Runnable save) {
+        double span = max - min;
+        double normalized = span <= 0 ? 0 : (current - min) / span;
+        return new ThemedSliderButton(x, y, w, h, label, Math.max(0.0, Math.min(1.0, normalized))) {
+            @Override
+            protected void updateMessage() {
+                setMessage(text.get());
+            }
+
+            @Override
+            protected void applyValue() {
+                double raw = min + this.value * span;
+                double snapped = Math.round(raw / step) * step;
+                apply.accept(Math.max(min, Math.min(max, snapped)));
+                saveOnRelease(save);
+            }
+        };
     }
 
     /** True only while the menu builds the open tab's rows to show them; false for every off-screen build (the search

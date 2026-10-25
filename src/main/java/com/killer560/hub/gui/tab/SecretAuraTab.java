@@ -3,13 +3,11 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.cheatutils.CheatUtilsConfig;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.leveraura.LeverAuraConfig;
 import com.killer560.hub.leveraura.LeverAuraFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -153,17 +151,6 @@ public class SecretAuraTab extends BaseTab {
 
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,
                                DoubleConsumer apply, Runnable save) {
-        w.add(new ThemedSliderButton(x, y, width, 20, Component.literal(text.get()), Math.max(0.0, Math.min(1.0, normalized))) {
-            @Override
-            protected void updateMessage() {
-                setMessage(Component.literal(text.get()));
-            }
-
-            @Override
-            protected void applyValue() {
-                apply.accept(this.value);
-                saveOnRelease(save);
-            }
-        });
+        w.add(normSlider(x, y, width, 20, text, normalized, apply, save));
     }
 }
