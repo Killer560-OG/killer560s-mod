@@ -41,6 +41,8 @@ public final class InventoryWalkConfig {
     private boolean sprint = true;
     /** Ticks the movement keys are let go after a slot click (0 = never). */
     private int pauseAfterClickTicks = 0;
+    /** Hold a click made while walking until a tick with no movement keys and no sprint has reached the server. */
+    private boolean stopToClick = true;
 
     private InventoryWalkConfig() {
     }
@@ -62,6 +64,7 @@ public final class InventoryWalkConfig {
                 cfg.jump = ConfigJson.getBool(obj, "jump", cfg.jump);
                 cfg.sprint = ConfigJson.getBool(obj, "sprint", cfg.sprint);
                 cfg.setPauseAfterClickTicks(ConfigJson.getInt(obj, "pauseAfterClickTicks", cfg.pauseAfterClickTicks));
+                cfg.stopToClick = ConfigJson.getBool(obj, "stopToClick", cfg.stopToClick);
             } catch (Exception e) {
                 cfg = new InventoryWalkConfig();
             }
@@ -78,6 +81,7 @@ public final class InventoryWalkConfig {
             obj.addProperty("jump", jump);
             obj.addProperty("sprint", sprint);
             obj.addProperty("pauseAfterClickTicks", pauseAfterClickTicks);
+            obj.addProperty("stopToClick", stopToClick);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -121,5 +125,13 @@ public final class InventoryWalkConfig {
 
     public void setPauseAfterClickTicks(int ticks) {
         this.pauseAfterClickTicks = Math.max(0, Math.min(MAX_PAUSE_TICKS, ticks));
+    }
+
+    public boolean isStopToClick() {
+        return stopToClick;
+    }
+
+    public void setStopToClick(boolean stopToClick) {
+        this.stopToClick = stopToClick;
     }
 }

@@ -18,10 +18,13 @@ import net.minecraft.client.gui.screens.inventory.BookEditScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
+import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -57,6 +60,11 @@ public final class InventoryWalkFeature {
     private static Vec3 lastPos;
     private static String lastKeys = "";
     private static int pauseLeft;
+    /** Clicks made while walking, held until a still tick has reached the server (Stop To Click). */
+    private static final ArrayDeque<Packet<?>> heldClicks = new ArrayDeque<>();
+    private static boolean sendingHeld;
+    private static int heldClickTicks;
+    private static long clicksHeld;
 
     /** Totals, for the testkit and the log. */
     private static long activations;
@@ -96,9 +104,15 @@ public final class InventoryWalkFeature {
         }
         activeTicks++;
 
+        if (!heldClicks.isEmpty()) {
+            heldClickTicks++;
+            if (stillToServer(player) || heldClickTicks > 10) {
+                flushClicks(client, heldClickTicks > 10 ? "gave up waiting for a still tick" : "still tick reached the server");
+            }
+        }
         List<String> held = new ArrayList<>();
-        boolean paused = pauseLeft > 0;
-        if (paused) {
+        boolean paused = pauseLeft > 0 || !heldClicks.isEmpty();
+        if (pauseLeft > 0) {
             pauseLeft--;
         }
         apply(client, client.options.keyUp, !paused, held);
@@ -164,6 +178,7 @@ public final class InventoryWalkFeature {
     }
 
     private static void deactivate(Minecraft client, String why) {
+        flushClicks(client, "Inventory Walk off: " + why);
         active = false;
         pauseLeft = 0;
         LocalPlayer player = client.player;
@@ -182,14 +197,40 @@ public final class InventoryWalkFeature {
         }
     }
 
-    /** {@code mixin/InventoryWalkSendMixin}: every packet this client sends (read-only). */
-    public static void onPacketSent(Packet<?> packet) {
+    /**
+     * {@code mixin/InventoryWalkSendMixin}: every packet this client sends. Returns true when a click is held back (Stop To
+     * Click): GrimAC's MultiActionsC flags a container click whose server-side state has a movement key in the last input
+     * packet, a sprint, or a sneak - every click made while walking drew it (testkit 1025-invwalk-inventory, 2026-10-25).
+     */
+    public static boolean onPacketSent(Packet<?> packet) {
+        if (sendingHeld) {
+            return false;
+        }
+        if (packet instanceof ServerboundContainerClosePacket && !heldClicks.isEmpty()) {
+            // The menu closes with clicks still held: they go first, in order, then the close.
+            flushClicks(Minecraft.getInstance(), "menu closing");
+            return false;
+        }
         if (!(packet instanceof ServerboundContainerClickPacket click)) {
-            return;
+            return false;
         }
         clicksTotal++;
         if (!active) {
-            return;
+            return false;
+        }
+        Minecraft mc0 = Minecraft.getInstance();
+        if (InventoryWalkConfig.getInstance().isStopToClick() && mc0.player != null && mc0.isSameThread()
+                && (!heldClicks.isEmpty() || !stillToServer(mc0.player))) {
+            heldClicks.addLast(packet);
+            clicksHeld++;
+            if (heldClicks.size() == 1) {
+                heldClickTicks = 0;
+            }
+            LOGGER.info(String.format(Locale.ROOT, "[InvWalk] click container %d slot %d button %d %s held (%d held): the "
+                            + "server's last input %s, sprinting=%s - stopping for a still tick first", click.containerId(),
+                    click.slotNum(), click.buttonNum(), click.containerInput(), heldClicks.size(),
+                    inputText(mc0.player.getLastSentInput()), mc0.player.isSprinting()));
+            return true;
         }
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
@@ -205,6 +246,57 @@ public final class InventoryWalkFeature {
                         + "sprinting=%s%s", click.containerId(), click.slotNum(), click.buttonNum(), click.containerInput(),
                 lastKeys, player == null ? "-" : fmt(player.position()), player != null && player.isSprinting(),
                 pause > 0 ? ", pausing " + pause + " tick(s)" : ""));
+        return false;
+    }
+
+    /** The server's last input from him held no movement, jump or sneak, and he is not sprinting. */
+    private static boolean stillToServer(LocalPlayer player) {
+        Input in = player.getLastSentInput();
+        boolean moving = in != null && (in.forward() || in.backward() || in.left() || in.right() || in.jump() || in.shift());
+        return !moving && !player.isSprinting();
+    }
+
+    private static String inputText(Input in) {
+        if (in == null) {
+            return "none";
+        }
+        List<String> keys = new ArrayList<>();
+        if (in.forward()) keys.add("forward");
+        if (in.backward()) keys.add("back");
+        if (in.left()) keys.add("left");
+        if (in.right()) keys.add("right");
+        if (in.jump()) keys.add("jump");
+        if (in.shift()) keys.add("sneak");
+        if (in.sprint()) keys.add("sprint");
+        return "[" + String.join(",", keys) + "]";
+    }
+
+    /** Sends every held click, in order (render thread). */
+    private static void flushClicks(Minecraft client, String why) {
+        if (heldClicks.isEmpty()) {
+            return;
+        }
+        int n = heldClicks.size();
+        LocalPlayer player = client.player;
+        LOGGER.info("[InvWalk] {} held click(s) sent after {} tick(s) ({}): server's last input {}, sprinting={}", n,
+                heldClickTicks, why, player == null ? "-" : inputText(player.getLastSentInput()),
+                player != null && player.isSprinting());
+        sendingHeld = true;
+        try {
+            while (!heldClicks.isEmpty()) {
+                Packet<?> p = heldClicks.pollFirst();
+                if (client.getConnection() != null) {
+                    client.getConnection().send(p);
+                }
+            }
+        } finally {
+            sendingHeld = false;
+        }
+        heldClickTicks = 0;
+    }
+
+    public static long clicksHeld() {
+        return clicksHeld;
     }
 
     private static String shortName(String mappingName) {

@@ -74,6 +74,12 @@ public class InventoryWalkTab extends BaseTab {
                     btn.setMessage(onOff("Sprint", cfg.isSprint()));
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
+        w.add(SettingsButtonWidget.builder(onOff("Stop To Click", cfg.isStopToClick()), btn -> {
+                    cfg.setStopToClick(!cfg.isStopToClick());
+                    cfg.save();
+                    btn.setMessage(onOff("Stop To Click", cfg.isStopToClick()));
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + 4;
         double span = InventoryWalkConfig.MAX_PAUSE_TICKS;
         w.add(new ThemedSliderButton(contentX, y, contentWidth, ROW, pauseText(cfg),
                 Math.max(0.0, Math.min(1.0, cfg.getPauseAfterClickTicks() / span))) {
