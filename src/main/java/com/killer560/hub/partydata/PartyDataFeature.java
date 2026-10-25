@@ -368,6 +368,13 @@ public final class PartyDataFeature {
         if (!inPartyRoom()) {
             return;
         }
+        // The party room is a hash of the members' public names, so anyone who knows them can join it (security
+        // audit 2026-10-24). The relay's verified sender must also be on HIS team as this client knows it (Hypixel's
+        // party list or the dungeon tab list), or the packet is dropped. The relay's own "online" list is not used:
+        // it lists whoever joined the room, an intruder included.
+        if (!com.killer560.hub.partycommands.PartyCommandsFeature.isTeammate(from)) {
+            return;
+        }
         switch (key) {
             case PartyDataProtocol.KEY_FLAG -> {
                 PartyInteropState.Flag flag = PartyDataProtocol.readFlag(value);

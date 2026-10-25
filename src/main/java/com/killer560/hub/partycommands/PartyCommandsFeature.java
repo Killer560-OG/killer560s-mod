@@ -344,7 +344,7 @@ public final class PartyCommandsFeature {
      * list, joins, leaves, party chat); or the live dungeon tab list. Anyone else - guild members, DMs, all chat,
      * Mod Chat users outside the party - is not.
      */
-    static boolean isTeammate(String name) {
+    public static boolean isTeammate(String name) {
         if (name == null || !validName(name)) {
             return false;
         }
