@@ -32,7 +32,7 @@ import com.killer560.hub.compat.McBlocks;
  * (Confirmed against the {@code StructureTemplate$1} switch-map static initializer, which is the only place the
  * enum's ordinals are pinned to those switch cases - the ordinal order alone is not enough to trust.)
  * {@link #rotateLocal} below is that same transform, specialized to a pivot at the room's own center and written
- * for plain ints so {@link #selfCheckRotation()} can exercise it with no world at all.
+ * for plain ints.
  */
 public final class RoomPlacer {
 
@@ -486,30 +486,6 @@ public final class RoomPlacer {
         };
     }
 
-    /**
-     * Rotates one local (x, z) about the room's own center, clockwise by {@code degrees} (0/90/180/270 - see
-     * {@link #paste}). Plain ints, no Minecraft classes, so {@link #selfCheckRotation()} can call this directly
-     * with no world.
-     *
-     * <p>Derived from the vanilla transform documented on the class, specialized to a pivot at the room's center
-     * instead of an arbitrary {@code BlockPos}, and worked through in center-relative doubled coordinates
-     * (X2 = 2x - (sizeX-1), so it stays exactly on the pivot with no fractions) to get back to plain array
-     * indices for a rotated room whose dimensions swap on a 90/270 turn:
-     * <pre>
-     *   0:   (x, z)
-     *   90:  (sizeZ-1-z, x)          - new bounds are sizeZ x sizeX
-     *   180: (sizeX-1-x, sizeZ-1-z)
-     *   270: (z, sizeX-1-x)          - new bounds are sizeZ x sizeX
-     * </pre>
-     * Composing the 90-degree case with itself twice reduces algebraically to the 180 case, and composing it
-     * four times returns the identity - both checked by hand when this was derived, and both exercised again at
-     * runtime by {@link #selfCheckRotation()}.
-     *
-     * @return {@code {newX, newZ}} in the rotated room's own coordinate space - on a 90/270 turn that space is
-     *     {@code sizeZ} wide by {@code sizeX} deep instead of the original {@code sizeX} by {@code sizeZ}, which
-     *     is exactly why {@link #paste} only ever adds this result to a fixed world origin rather than assuming
-     *     the room's footprint keeps its original dimensions
-     */
     /** {@code rotateLocal(...)[0]} without the array, for the per-block paste loop (fps-sim-1015). */
     static int rotatedX(int x, int z, int sizeX, int sizeZ, int degrees) {
         return switch (degrees) {
@@ -534,6 +510,28 @@ public final class RoomPlacer {
         };
     }
 
+    /**
+     * Rotates one local (x, z) about the room's own center, clockwise by {@code degrees} (0/90/180/270 - see
+     * {@link PasteJob}). Plain ints, no Minecraft classes.
+     *
+     * <p>Derived from the vanilla transform documented on the class, specialized to a pivot at the room's center
+     * instead of an arbitrary {@code BlockPos}, and worked through in center-relative doubled coordinates
+     * (X2 = 2x - (sizeX-1), so it stays exactly on the pivot with no fractions) to get back to plain array
+     * indices for a rotated room whose dimensions swap on a 90/270 turn:
+     * <pre>
+     *   0:   (x, z)
+     *   90:  (sizeZ-1-z, x)          - new bounds are sizeZ x sizeX
+     *   180: (sizeX-1-x, sizeZ-1-z)
+     *   270: (z, sizeX-1-x)          - new bounds are sizeZ x sizeX
+     * </pre>
+     * Composing the 90-degree case with itself twice reduces algebraically to the 180 case, and composing it
+     * four times returns the identity.
+     *
+     * @return {@code {newX, newZ}} in the rotated room's own coordinate space - on a 90/270 turn that space is
+     *     {@code sizeZ} wide by {@code sizeX} deep instead of the original {@code sizeX} by {@code sizeZ}, which
+     *     is exactly why {@link PasteJob} only ever adds this result to a fixed world origin rather than assuming
+     *     the room's footprint keeps its original dimensions
+     */
     static int[] rotateLocal(int x, int z, int sizeX, int sizeZ, int degrees) {
         return switch (degrees) {
             case 0 -> new int[]{x, z};
@@ -543,55 +541,5 @@ public final class RoomPlacer {
             default -> throw new IllegalArgumentException(
                     "rotation must be 0, 90, 180 or 270 degrees, got " + degrees);
         };
-    }
-
-    /**
-     * Needs no world: builds a synthetic 3x3 room in memory, marks its (0,0) corner with a distinctive palette
-     * entry, and checks {@link #rotateLocal} sends that corner where a real 90-degree-at-a-time clockwise spin
-     * must send it - NW -&gt; NE -&gt; SE -&gt; SW as rotation goes 0 -&gt; 90 -&gt; 180 -&gt; 270. That physical
-     * expectation, not just "some formula", is what is being checked.
-     *
-     * @return true if all four rotations land the corner where expected
-     */
-    public static boolean selfCheckRotation() {
-        int size = 3;
-        RoomLibrary.Room room = new RoomLibrary.Room("selfcheck", size, size);
-        String marker = "killer560smod:selfcheck_marker";
-        int markerIdx = room.paletteFor(marker);
-        room.setBlockAt(room.index(0, room.minY, 0), (short) markerIdx);
-
-        int[][] expected = {
-                {0, 0}, // 0 deg:  NW stays NW
-                {2, 0}, // 90 deg: NW -> NE
-                {2, 2}, // 180 deg: NW -> SE
-                {0, 2}, // 270 deg: NW -> SW
-        };
-        int[] degreesInOrder = {0, 90, 180, 270};
-
-        boolean allOk = true;
-        for (int i = 0; i < degreesInOrder.length; i++) {
-            int degrees = degreesInOrder[i];
-            // Cross-check via the actual room data, not just the raw formula: find where the marker landed by
-            // scanning the rotated space, the same way paste() would place it.
-            int foundX = -1;
-            int foundZ = -1;
-            for (int x = 0; x < room.sizeX && foundX < 0; x++) {
-                for (int z = 0; z < room.sizeZ; z++) {
-                    if (room.at(x, room.minY, z) == markerIdx) {
-                        int[] rotated = rotateLocal(x, z, room.sizeX, room.sizeZ, degrees);
-                        foundX = rotated[0];
-                        foundZ = rotated[1];
-                        break;
-                    }
-                }
-            }
-            boolean ok = foundX == expected[i][0] && foundZ == expected[i][1];
-            if (!ok) {
-                LOGGER.warn("selfCheckRotation: {} degrees landed the NW corner at ({},{}), expected ({},{})",
-                        degrees, foundX, foundZ, expected[i][0], expected[i][1]);
-            }
-            allOk &= ok;
-        }
-        return allOk;
     }
 }
