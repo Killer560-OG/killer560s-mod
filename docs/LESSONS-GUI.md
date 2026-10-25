@@ -654,3 +654,6 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   `SettingTooltipsData` before naming a row.
 - **A removed dimming overlay cannot be replaced by a darker one.** See the Inventory HUD note at the top of this file; item
   textures still cannot be tinted, so the Opacity slider fades the panel only.
+- **A HUD fed by a FeatureBits-gated tick keeps its last lines after the switch goes off.** The tick stops with the switch, so
+  nothing clears the cached lines; Boss Health showed "Bonzo 250k" with the feature off (testkit 1025-bosshp-f1-gate). Gate the
+  READ on the switch (`currentLines()` returns nothing while it is off), not only the refresh.
