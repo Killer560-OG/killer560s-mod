@@ -388,7 +388,7 @@ public final class MainMenuScenes {
     }
 
     /** A filled disc as horizontal spans. */
-    private static void disc(GuiRects r, double cx, double cy, double radius, int color) {
+    static void disc(GuiRects r, double cx, double cy, double radius, int color) {
         int rad = (int) Math.round(radius);
         int step = rad > 10 ? 2 : 1;
         for (int dy = -rad; dy < rad; dy += step) {
