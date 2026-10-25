@@ -221,7 +221,9 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
                         McCompat.setScreen(Minecraft.getInstance(), new DirectSessionLoginScreen(this, this.parent)))
                 .bounds(at[1][0], at[1][1], oneRow ? fw : lastW, FOOTER_H).build();
         direct.setTooltip(Tooltip.create(Component.literal(
-                "Sign in for this session only from a Minecraft session token (Copy ID gives one). Nothing is saved.")));
+                "Sign in from a Minecraft session token (Shift-click Copy ID gives one) without adding it to Prism's "
+                        + "accounts. The token IS saved, in plain text, in killer560smod-session-login.json so it "
+                        + "survives a restart; anyone who can read that file can use it until it expires.")));
         this.addRenderableWidget(direct);
         // Proxy controls (2026-09-15: moved here from the multiplayer screen). "Set Universal Proxy" (called Set Instance
         // Proxy until 2026-10-15) opens this instance's proxy editor - the proxy the Universal switch publishes to every
