@@ -69,6 +69,8 @@ public final class BlinkConfig {
     private boolean showHud = true;
     private boolean showServerBox = true;
     private boolean chatMessages = false;
+    /** Release before an attack or entity click and let that tick go out live (see BlinkFeature): GrimAC-clean. */
+    private boolean releaseOnHit = true;
 
     private BlinkConfig() {
     }
@@ -93,6 +95,7 @@ public final class BlinkConfig {
                 cfg.showHud = ConfigJson.getBool(obj, "showHud", cfg.showHud);
                 cfg.showServerBox = ConfigJson.getBool(obj, "showServerBox", cfg.showServerBox);
                 cfg.chatMessages = ConfigJson.getBool(obj, "chatMessages", cfg.chatMessages);
+                cfg.releaseOnHit = ConfigJson.getBool(obj, "releaseOnHit", cfg.releaseOnHit);
             } catch (Exception e) {
                 cfg = new BlinkConfig();
             }
@@ -112,6 +115,7 @@ public final class BlinkConfig {
             obj.addProperty("showHud", showHud);
             obj.addProperty("showServerBox", showServerBox);
             obj.addProperty("chatMessages", chatMessages);
+            obj.addProperty("releaseOnHit", releaseOnHit);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -179,5 +183,13 @@ public final class BlinkConfig {
 
     public void setChatMessages(boolean chatMessages) {
         this.chatMessages = chatMessages;
+    }
+
+    public boolean isReleaseOnHit() {
+        return releaseOnHit;
+    }
+
+    public void setReleaseOnHit(boolean releaseOnHit) {
+        this.releaseOnHit = releaseOnHit;
     }
 }
