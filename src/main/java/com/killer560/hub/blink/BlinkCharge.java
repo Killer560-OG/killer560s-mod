@@ -59,6 +59,8 @@ public final class BlinkCharge {
     private static boolean busy;
     /** Re-entry from our own sends (the stash, the shot's ticks) passes straight through. */
     private static boolean passing;
+    /** A teleport was just confirmed: the move that answers it goes out at once, never kept for the tick-end. */
+    private static boolean teleportMoveNext;
     /**
      * The answers to the server's pings, each sent {@link #ANSWER_DELAY_MS} after it was made while Charge is on (killer560,
      * 2026-10-25: the charge must never be dropped for time). GrimAC measures how far behind real time he may be from the
@@ -101,6 +103,13 @@ public final class BlinkCharge {
                 answersHeldTotal++;
                 return true;
             }
+            if (packet instanceof ServerboundMovePlayerPacket && teleportMoveNext) {
+                // The answer to a teleport goes right behind its confirm. Kept for the tick-end, the next landing's confirm
+                // overtook it when a Charged Chain's landings came back together, and GrimAC matched neither (BadPacketsN,
+                // TickTimer, Simulation 6.0 - testkit 62-argrim-1025-chargechain, 2026-10-25).
+                teleportMoveNext = false;
+                return false;
+            }
             if (packet instanceof ServerboundMovePlayerPacket) {
                 if (stash != null) {
                     // A second move in one tick (a teleport accept's answer): the first goes out as it was.
@@ -123,6 +132,13 @@ public final class BlinkCharge {
                     stash = null;
                 }
                 return false;
+            }
+            if (packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket) {
+                teleportMoveNext = true;
+                if (stash != null) {
+                    sendLocked(stash); // a move made before this confirm goes before it
+                    stash = null;
+                }
             }
             if (packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket
                     && !answers.isEmpty()) {
