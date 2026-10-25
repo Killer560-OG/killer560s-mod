@@ -370,6 +370,7 @@ public final class BlinkFeature {
     // Starting and releasing
 
     private static void start(Connection connection, String owner) {
+        BlinkCharge.flushAnswers("a hold is starting");
         synchronized (LOCK) {
             if (holding || connection == null || !connection.isConnected()) {
                 return;

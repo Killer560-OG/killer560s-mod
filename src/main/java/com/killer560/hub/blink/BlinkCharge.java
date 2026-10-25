@@ -124,6 +124,19 @@ public final class BlinkCharge {
                 }
                 return false;
             }
+            if (packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket
+                    && !answers.isEmpty()) {
+                // A server teleport (an etherwarp, a leap) is confirmed. GrimAC counts a teleport as reached by the
+                // client only once the ping sent with it is answered; with the answers still a second late it took the
+                // confirm for an unsent one and dropped every move after it - the next shot never reached the server
+                // (testkit 1025-blink-charge-warp / -far, 2026-10-25). So the waiting answers go first, in order; the
+                // bank starts again here and refills in a second.
+                int n = releaseAnswersLocked();
+                int lost = banked;
+                banked = 0;
+                LOGGER.info("[Blink] charge: server teleport - {} waiting ping answer(s) sent first; {} banked tick(s) start "
+                        + "again", n, lost);
+            }
             if (checkedAgainstLook(packet)) {
                 busy = true;
                 if (stash != null) {
@@ -343,6 +356,23 @@ public final class BlinkCharge {
 
     /** After a run of {@link #spendTick}. What is left of the bank stays: the answers keep their steady delay. */
     public static void endSpend() {
+    }
+
+    /**
+     * Sends every waiting ping answer now, in order (Blink's own hold is starting: it holds what comes next, so these must
+     * go first or the server sees answers out of order - GrimAC TransactionOrder, testkit 1025-blink-charge-double). The
+     * bank starts again.
+     */
+    public static void flushAnswers(String why) {
+        int n;
+        synchronized (LOCK) {
+            if (answers.isEmpty()) {
+                return;
+            }
+            n = releaseAnswersLocked();
+            banked = 0;
+        }
+        LOGGER.info("[Blink] charge: {} waiting ping answer(s) sent ({})", n, why);
     }
 
     public static long answersHeldTotal() {
