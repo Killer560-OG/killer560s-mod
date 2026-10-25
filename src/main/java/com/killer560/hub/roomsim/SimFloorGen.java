@@ -2,15 +2,11 @@ package com.killer560.hub.roomsim;
 
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.roomdatabase.RoomDatabase;
-import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.util.ModChat;
 
 import net.minecraft.client.Minecraft;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -623,7 +619,6 @@ public final class SimFloorGen {
         return entry == null ? null : entry.shape;
     }
 
-    /** The database's type for a room, or "NORMAL" when it does not know it. */
     /**
      * At most ONE yellow room on a floor.
      *
@@ -670,87 +665,28 @@ public final class SimFloorGen {
         return trimmed;
     }
 
+    /** The database's type for a room, or "NORMAL" when it does not know it. */
     public static String typeOf(String name) {
         var entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(name);
         return entry == null || entry.type == null ? "NORMAL" : entry.type;
     }
 
     /**
-     * Puts a door in every gap between two DIFFERENT rooms that touch.
-     *
-     * <p>Lifted out of {@link #generate} so the drawn floor and the generated one cannot drift apart. The rule
-     * that matters is the one about a room's own halves: a 2x2's four cells touch each other and must not get
-     * doors between them, or the floor fills with doorways inside single rooms.
-     */
-    /**
      * Puts a door in every gap between two DIFFERENT rooms that touch - unless it would close a LOOP.
      *
      * <p>killer560 (2026-09-30): "when it generates a map there should only be 1 way to enter a room for the
-     * first time [...] see how i can essentially make an infinate loop by running through flags into supertall
-     * into slime then back to flags."
-     *
-     * <p>The growth pass already opens one door per room as it reaches it, which is a tree by construction.
-     * This pass then doored every remaining adjacency, and every one of those extra doors closed a cycle -
-     * that is exactly what a loop is. So the rooms are tracked with a union-find seeded from the doors that
-     * already exist, and a gap is only opened when the two sides are not already connected some other way.
-     * Everything else stays walled, which is what the seal pass bricks up.
+     * first time". So the rooms are tracked with a union-find, and a gap is only opened when the two sides are
+     * not already connected some other way. Everything else stays walled, which is what the seal pass bricks up.
      *
      * <p>The rule that matters is the one about a room's own halves: a 2x2's four cells touch each other and
      * must not get doors between them, or the floor fills with doorways inside single rooms. That is handled
      * by comparing room ids, not cells, and it is also why the union-find is keyed on the room id.
+     *
+     * <p>The only caller, {@link #planExplicit}, hands in a grid with no doors yet, so nothing seeds the union-find.
      */
     private static int linkDoors(int[] cellRoom, int[] cellDoor, List<int[]> occupied, Set<Long> filled,
                                  int[] entrance, int[] blood) {
-        // The doors the growth pass already placed - and they are NOT all keepers.
-        //
-        // This used to only SEED the union-find from them, on the assumption that the growth pass produced a
-        // tree and that all this had to do was refuse to add a second way in. It does not: measured over 120
-        // planned floors (2026-09-29) EVERY floor already carried between 3 and 8 doors more than a tree, so
-        // refusing to add more left every loop in place. killer560 (2026-09-30): "there should only be 1 way
-        // to enter a room for the first time" - so a door that closes a cycle has to be REMOVED, not merely
-        // not-added.
-        //
-        // Two passes, because which door of a cycle gets dropped matters. Wither, blood and entrance doors are
-        // the run's structure: they are seeded first and always survive, so the pruning can only ever fall on
-        // an ordinary door. Interior doors - both sides the same multi-tile room - are not edges at all and
-        // are left alone.
         Map<Integer, Integer> parent = new HashMap<>();
-        for (int pass = 0; pass < 2; pass++) {
-            for (int cell = 0; cell < cellDoor.length; cell++) {
-                int type = cellDoor[cell];
-                if (type == DungeonLayout.DOOR_NONE) {
-                    continue;
-                }
-                boolean special = type != DungeonLayout.DOOR_NORMAL;
-                if (special != (pass == 0)) {
-                    continue;
-                }
-                int gx = cell % DungeonLayout.GRID;
-                int gz = cell / DungeonLayout.GRID;
-                int left = gx > 0 ? cellRoom[cell - 1] : MapCode.NO_ROOM;
-                int right = gx + 1 < DungeonLayout.GRID ? cellRoom[cell + 1] : MapCode.NO_ROOM;
-                int up = gz > 0 ? cellRoom[cell - DungeonLayout.GRID] : MapCode.NO_ROOM;
-                int down = gz + 1 < DungeonLayout.GRID ? cellRoom[cell + DungeonLayout.GRID] : MapCode.NO_ROOM;
-                int a = MapCode.NO_ROOM;
-                int b = MapCode.NO_ROOM;
-                if (left != MapCode.NO_ROOM && right != MapCode.NO_ROOM) {
-                    a = left;
-                    b = right;
-                } else if (up != MapCode.NO_ROOM && down != MapCode.NO_ROOM) {
-                    a = up;
-                    b = down;
-                }
-                if (a == MapCode.NO_ROOM || a == b) {
-                    continue; // a door into nothing, or the inside of one multi-tile room
-                }
-                if (!special && find(parent, a) == find(parent, b)) {
-                    cellDoor[cell] = DungeonLayout.DOOR_NONE;
-                    continue;
-                }
-                union(parent, a, b);
-            }
-        }
-
         int doors = 0;
         for (int[] c : occupied) {
             for (int[] step : new int[][]{{1, 0}, {0, 1}}) {
@@ -838,34 +774,6 @@ public final class SimFloorGen {
     private static int tilesAcross(int size) {
         return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
     }
-
-    /**
-     * The cells a room of this footprint would occupy starting here, or null if it does not fit.
-     *
-     * <p>It must fit entirely inside the shape that was grown and touch nothing already placed. Anchored at the
-     * top-left, which is the corner the capture measured from.
-     */
-    private static List<int[]> footprintCells(int[] at, int[] size, Set<Long> inShape, Set<Long> filled) {
-        List<int[]> cells = new ArrayList<>();
-        for (int dx = 0; dx < size[0]; dx++) {
-            for (int dz = 0; dz < size[1]; dz++) {
-                int[] c = {at[0] + dx, at[1] + dz};
-                long k = key(c);
-                if (!inShape.contains(k) || filled.contains(k)) {
-                    return null;
-                }
-                cells.add(c);
-            }
-        }
-        return cells;
-    }
-
-
-
-
-
-
-
 
     /**
      * Marks every cell a room covers, INCLUDING the connector cells between its own tiles.

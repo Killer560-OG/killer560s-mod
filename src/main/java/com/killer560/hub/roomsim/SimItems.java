@@ -54,10 +54,6 @@ public final class SimItems {
      *  Hypixel's own measured 4.5-block limit here, so this is just "close enough to be aiming at it". */
     private static final double LOOK_RANGE = 5.0;
 
-    /** How many blocks out from the targeted block Superboom TNT also clears - a real Superboom breaks a
-     *  small area of crypt wall, not just the one block it lands on. */
-    private static final int SUPERBOOM_RADIUS = 1;
-
     private SimItems() {
     }
 
@@ -212,13 +208,6 @@ public final class SimItems {
 
     private static String literalName(GiveItem item) {
         return item.name().toLowerCase(java.util.Locale.ROOT);
-    }
-
-    private static int help() {
-        ModChat.send("Sim", ModChat.text("Usage: /simitem or /item <"
-                + "aspect_of_the_void|hyperion|spirit_sceptre|superboom_tnt|ender_pearl|tactical_insertion|"
-                + "dungeon_breaker|all>"));
-        return 1;
     }
 
     /**
@@ -543,7 +532,7 @@ public final class SimItems {
             //
             // A SECTION, not a slab: a lone decorative slab is everywhere, so the run has to be at least
             // MIN_CRYPT_SLABS connected before it counts. The cracked-brick path is left exactly as it was,
-            // sealsAChamber included - widening THAT would make every decorative cracked wall on the floor pay
+            // chamberBehind included - widening THAT would make every decorative cracked wall on the floor pay
             // out the crypt bonus, and cracked brick is decoration almost everywhere (see docs/SIM.md).
             boolean slabRun = aimed.is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE_SLAB);
             java.util.List<BlockPos> slabSection = slabRun
@@ -721,25 +710,6 @@ public final class SimItems {
 
     /** How big a sealed pocket may be and still count as a crypt chamber. */
     private static final int CRYPT_CHAMBER_MAX = 48;
-
-    /**
-     * Whether this cracked brick seals an enclosed chamber, rather than being ordinary decoration.
-     *
-     * <p>killer560 (2026-09-30): "if i superboom regular cracked brick that isnt a crypt dont have it spawn a
-     * zombie." Every cracked stone brick counted as a crypt, so blowing a decorative one scored the bonus and
-     * spawned a starred zombie out of a solid wall.
-     *
-     * <p>What tells them apart is what is BEHIND the block. A crypt is a wall across a small sealed pocket;
-     * decorative cracked brick is set into solid stone with nothing behind it, or faces the open room. So this
-     * flood-fills the air on the far side, bounded at {@value #CRYPT_CHAMBER_MAX} blocks: a fill that stays
-     * inside that bound is a chamber, and one that runs out of it has escaped into the room and is not.
-     *
-     * <p>Run BEFORE anything is destroyed, deliberately - the blast opens the wall and joins the chamber to
-     * the room, so asking afterward would find every chamber connected to everything and identify none.
-     */
-    private static boolean sealsAChamber(ServerLevel level, BlockPos wall) {
-        return chamberBehind(level, wall) != null;
-    }
 
     /**
      * Blocks a Superboom is allowed to break.
@@ -1070,8 +1040,16 @@ public final class SimItems {
     }
 
     /**
-     * The crypt chamber behind a cracked brick, as its air cells, or null when the brick seals none - the same test as
-     * {@link #sealsAChamber}, keeping what it found.
+     * The crypt chamber behind a cracked brick, as its air cells, or null when the brick seals none and is
+     * ordinary decoration.
+     *
+     * <p>What tells them apart is what is BEHIND the block. A crypt is a wall across a small sealed pocket;
+     * decorative cracked brick is set into solid stone with nothing behind it, or faces the open room. So this
+     * flood-fills the air on the far side, bounded at {@value #CRYPT_CHAMBER_MAX} blocks: a fill that stays
+     * inside that bound is a chamber, and one that runs out of it has escaped into the room and is not.
+     *
+     * <p>Run BEFORE anything is destroyed, deliberately - the blast opens the wall and joins the chamber to
+     * the room, so asking afterward would find every chamber connected to everything and identify none.
      */
     private static java.util.Set<BlockPos> chamberBehind(ServerLevel level, BlockPos wall) {
         for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {

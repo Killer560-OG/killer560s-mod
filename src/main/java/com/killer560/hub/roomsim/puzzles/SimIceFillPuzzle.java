@@ -182,7 +182,6 @@ public final class SimIceFillPuzzle {
     // What happened, for a scenario to read back (the testkit's 93-solve-icefill forced-break runs). The judge is the
     // source of truth for "did the auto pause, and did it come back to the right tile", not the auto's own log.
     private static volatile int breakCount = 0;
-    private static volatile int regenCount = 0;
     private static volatile int lastBrokenSection = -1;
     private static volatile int landingCount = 0;
     private static volatile BlockPos lastLandingTile = null;
@@ -526,11 +525,6 @@ public final class SimIceFillPuzzle {
         return breakCount;
     }
 
-    /** How many broken sections have come back since the puzzle was armed. */
-    public static int regenerations() {
-        return regenCount;
-    }
-
     /** The section (0-based) that broke last, or -1 if none has. */
     public static int lastBrokenSection() {
         return lastBrokenSection;
@@ -565,7 +559,6 @@ public final class SimIceFillPuzzle {
     private static void clearHistory() {
         entryTiles = List.of();
         breakCount = 0;
-        regenCount = 0;
         lastBrokenSection = -1;
         landingCount = 0;
         lastLandingTile = null;
@@ -910,7 +903,6 @@ public final class SimIceFillPuzzle {
                 level.setBlockAndUpdate(pos, Blocks.ICE.defaultBlockState());
             }
         }
-        regenCount++;
         LOGGER.info("Sim ice fill: section {} regenerated (finished sections untouched, {} is live)", section + 1,
                 activeSection + 1);
         chat(() -> ModChat.send("Sim", ModChat.text("Ice Fill - section "),

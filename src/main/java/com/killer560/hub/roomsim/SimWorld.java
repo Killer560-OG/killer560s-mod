@@ -455,12 +455,9 @@ public final class SimWorld {
         // The saved hotbar goes back every time a dungeon opens - muscle memory for a route is partly muscle
         // memory for which slot things are in.
         SimLoadout.onSimEntered(client);
-        // NO wither key drop. This used to wire the last starred death to SimDoors.dropKeyAt, which put a Wither
-        // Key at his feet whenever the floor's last starred mob died - a mimic or a summoned zombie. killer560
-        // (2026-10-04): "Remove the wither key dropped item, we have nothing that should be dropping it right
-        // now." The floor never builds a wither door (see docs/SIM.md), and the blood door opens on a plain
-        // right-click in SimDoors, so nothing needs a key. Cleared rather than left over from a previous call.
-        SimMobs.setOnLastStarredDeath(null);
+        // NO wither key drop on the last starred death. killer560 (2026-10-04): "Remove the wither key dropped
+        // item, we have nothing that should be dropping it right now." The floor never builds a wither door (see
+        // docs/SIM.md), and the blood door opens on a plain right-click in SimDoors, so nothing needs a key.
         if (build != null) {
             // The world is real and the sim flag is on, so the builder can do its work. It takes the loading
             // screen down itself when the last block lands.
@@ -492,7 +489,7 @@ public final class SimWorld {
             // Everything per-map FIRST, then leave().
             //
             // leave() was called first, and SimMobs.clear returned early when canAct was false - so it never
-            // ran. Its hadStarred/SPAWNED/STARRED sets survived into the next session, where the first tick
+            // ran. Its SPAWNED/STARRED sets survived into the next session, where the first tick
             // saw "starred mobs all dead" and dropped a Wither Key at his feet in a fresh map. SimMobs.clear now
             // forgets its sets whatever canAct says, which matters here: on the render thread, after the
             // disconnect, client.level is usually already null.

@@ -352,14 +352,9 @@ public final class SimBuildQueue {
      * <p>Diamond because it is unmistakable. The point is not to hide the edge of the room but to mark it -
      * he should be able to tell at a glance which walls are the dungeon's and which are the sim stopping him
      * falling into the void, or he will practice a route that walks through one.
-     */
-    public static synchronized void submitSeal(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
-        submitSeal(level, minX, minZ, maxX, maxZ, null);
-    }
-
-    /**
-     * {@link #submitSeal(ServerLevel, int, int, int, int)}, leaving out the ring inside {@code skip}
-     * ({@code {minX, minZ, maxX, maxZ}}, or null) - an L room's cleared quarter, which has no wall to plug.
+     *
+     * <p>The ring inside {@code skip} ({@code {minX, minZ, maxX, maxZ}}, or null) is left out - an L room's
+     * cleared quarter, which has no wall to plug.
      */
     public static synchronized void submitSeal(ServerLevel level, int minX, int minZ, int maxX, int maxZ, int[] skip) {
         markStart();

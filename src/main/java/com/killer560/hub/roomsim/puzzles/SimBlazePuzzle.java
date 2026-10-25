@@ -66,15 +66,6 @@ public final class SimBlazePuzzle {
      */
     private static final int[] SPACINGS = {3, 2};
 
-    /** The chain for one spacing: straight up, {@code spacing} blocks apart, from the origin. */
-    private static BlockPos[] offsetsFor(int spacing) {
-        BlockPos[] out = new BlockPos[HEALTHS.length];
-        for (int i = 0; i < out.length; i++) {
-            out[i] = new BlockPos(0, i * spacing, 0);
-        }
-        return out;
-    }
-
     /** The four sides of the middle bar, two blocks out from it. */
     private static final BlockPos[] SIDES = {
             new BlockPos(2, 0, 0), new BlockPos(-2, 0, 0), new BlockPos(0, 0, 2), new BlockPos(0, 0, -2),

@@ -61,10 +61,6 @@ public final class SimLoadingScreen extends Screen implements MenuThemedScreen {
         this.detail = line == null ? "" : line;
     }
 
-    public void setWhat(String line) {
-        this.what = line == null ? "" : line;
-    }
-
     @Override
     public boolean shouldCloseOnEsc() {
         return false;

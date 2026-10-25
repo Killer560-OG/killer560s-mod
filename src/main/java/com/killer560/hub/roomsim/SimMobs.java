@@ -21,9 +21,7 @@ import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -104,66 +102,7 @@ public final class SimMobs {
     /** Dormant Fel markers not yet woken into an enderman. */
     private static final List<FelMarker> FELS = new CopyOnWriteArrayList<>();
 
-    /**
-     * Published each server tick by {@link #refreshStarred}, read directly by {@link #starredAliveIn} and
-     * {@link #anyStarredAlive}. A volatile reference to an immutable list is the whole thread-safety story: the
-     * refresh runs on the server thread (inside {@code server.execute}), those two queries are meant to be
-     * called from whichever thread the door/key logic runs on, and swapping an immutable reference needs no
-     * lock in either direction.
-     */
-    private static volatile List<StarredEntry> starredSnapshot = List.of();
-
-    /** True once any starred mob has been alive; lets {@link #refreshStarred} tell "just spawned, none yet" (0,
-     *  never fire) apart from "the last one just died" (nonzero, then 0 - fire once). Server thread only. */
-    private static boolean hadStarred;
-
-    /** Set by whichever file owns the wither-key drop and the doors - not this one; see the class prompt. */
-    private static volatile Runnable onLastStarredDeath;
-
     private SimMobs() {
-    }
-
-    /** One position snapshot of a starred mob still alive, taken on the server thread. */
-    /**
-     * Builds the next {@link #starredSnapshot} against the last one and hands the last one back when every entry came
-     * out equal (fps-sim-1015): the sim's mobs stand still, so rebuilding a record per starred mob and a list copy
-     * every tick made the same list over and over (~10 KB a tick on an F7). Equal means what the record's own equals
-     * means, so the list readers see is the same as before. Server thread, one per call.
-     */
-    private static final class SnapshotBuilder {
-        private final List<StarredEntry> prev;
-        private int n;
-        private List<StarredEntry> built;
-
-        SnapshotBuilder(List<StarredEntry> prev) {
-            this.prev = prev;
-        }
-
-        void add(UUID id, double x, double y, double z) {
-            if (built == null) {
-                if (n < prev.size()) {
-                    StarredEntry e = prev.get(n);
-                    if (e.id().equals(id) && Double.compare(e.x(), x) == 0 && Double.compare(e.y(), y) == 0
-                            && Double.compare(e.z(), z) == 0) {
-                        n++;
-                        return;
-                    }
-                }
-                built = new ArrayList<>(prev.subList(0, n));
-            }
-            built.add(new StarredEntry(id, x, y, z));
-            n++;
-        }
-
-        List<StarredEntry> finish() {
-            if (built == null) {
-                return n == prev.size() ? prev : List.copyOf(prev.subList(0, n));
-            }
-            return List.copyOf(built);
-        }
-    }
-
-    private record StarredEntry(UUID id, double x, double y, double z) {
     }
 
     /** A dormant Fel: an invisible armor stand wearing a skull. See {@link #spawnFel}. */
@@ -902,18 +841,13 @@ public final class SimMobs {
     }
 
     /**
-     * Rebuilds {@link #starredSnapshot} from whatever is still alive, and fires the last-death hook on the 0-to-
-     * nonzero-to-0 transition. A dormant, un-woken starred Fel counts as alive: on Hypixel it has not died yet
-     * either, it just has not been fought yet, and a room where it was never approached must not look like every
-     * starred mob is already dead.
+     * Marks a starred mob dead once it is gone from a ticking section (an unloaded one proves nothing), and takes
+     * its star tag down with it.
      */
     private static void refreshStarred(ServerLevel level) {
-        SnapshotBuilder alive = new SnapshotBuilder(starredSnapshot);
         for (UUID id : STARRED) {
             Entity entity = level.getEntity(id);
-            if (entity != null && entity.isAlive()) {
-                alive.add(id, entity.getX(), entity.getY(), entity.getZ());
-            } else if (!STARRED_DEAD.contains(id)) {
+            if ((entity == null || !entity.isAlive()) && !STARRED_DEAD.contains(id)) {
                 double[] at = STARRED_AT.get(id);
                 if (entity != null || (at != null
                         && level.isPositionEntityTicking(BlockPos.containing(at[0], at[1], at[2])))) {
@@ -928,43 +862,11 @@ public final class SimMobs {
                 }
             }
         }
-        for (FelMarker fel : FELS) {
-            if (fel.starred && !fel.woken && !fel.skull.isRemoved()) {
-                alive.add(fel.skull.getUUID(), fel.skull.getX(), fel.skull.getY(), fel.skull.getZ());
-            }
-        }
-        List<StarredEntry> snapshot = alive.finish();
-        starredSnapshot = snapshot;
-
-        if (!snapshot.isEmpty()) {
-            hadStarred = true;
-        } else if (hadStarred) {
-            hadStarred = false;
-            Runnable callback = onLastStarredDeath;
-            if (callback != null) {
-                callback.run();
-            }
-        }
     }
 
-    /** How many starred mobs are still alive inside {@code area}. Door/key logic owns what happens at zero. */
-    public static int starredAliveIn(AABB area) {
-        int count = 0;
-        for (StarredEntry entry : starredSnapshot) {
-            if (area.contains(entry.x(), entry.y(), entry.z())) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    /** Whether any starred mob spawned by this class is still alive, anywhere in the sim. */
     /**
-     * How many entities this class has spawned, and how many of those were starred.
-     *
-     * <p>{@link #anyStarredAlive()} reads a snapshot refreshed on tick, so it says "no" both when nothing was
-     * spawned and when the snapshot has not caught up - and a gametest cannot tell those apart. These two are
-     * written the moment the entity is added, which is the question a test actually needs answered.
+     * How many entities this class has spawned, and how many of those were starred - written the moment the entity
+     * is added, which is the question a test needs answered.
      */
     public static int spawnedCount() {
         return SPAWNED.size();
@@ -991,15 +893,6 @@ public final class SimMobs {
             }
         }
         return out;
-    }
-
-    public static boolean anyStarredAlive() {
-        return !starredSnapshot.isEmpty();
-    }
-
-    /** Registers the "last starred mob just died" hook. Does not itself drop a key or open a door. */
-    public static void setOnLastStarredDeath(Runnable callback) {
-        onLastStarredDeath = callback;
     }
 
     /** Removes every mob and Fel marker this class spawned, for a run restart. Never touches anything else. */
@@ -1066,8 +959,6 @@ public final class SimMobs {
         TAG_HEALTH.clear();
         LIVE.clear();
         FELS.clear();
-        starredSnapshot = List.of();
-        hadStarred = false;
     }
 
     /**

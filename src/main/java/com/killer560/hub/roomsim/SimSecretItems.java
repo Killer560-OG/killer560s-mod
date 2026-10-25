@@ -1,7 +1,6 @@
 package com.killer560.hub.roomsim;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -207,11 +206,6 @@ public final class SimSecretItems {
         }
         PENDING_CHESTS.put(at, trapped);
         return true;
-    }
-
-    /** Secret chests that have not appeared yet, for tests. */
-    public static List<BlockPos> pendingChests() {
-        return List.copyOf(PENDING_CHESTS.keySet());
     }
 
     /** Spawns each secret chest he has stayed within {@link #BAT_TRIGGER_RANGE} of for {@link #BAT_TRIGGER_TICKS} ticks. */

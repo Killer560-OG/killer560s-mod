@@ -80,14 +80,6 @@ public final class SimLiveMobs {
         LOGGER.info("[Sim] trap room counted cleared with all its secrets: {}", on ? "on" : "off");
     }
 
-    public static boolean isTrapCleared() {
-        return trapCleared;
-    }
-
-    public static int perTile() {
-        return perTile;
-    }
-
     public static String describe() {
         return perTile <= 0 ? "off" : String.format(Locale.US, "%d a tile, %.0f HP, %s, minibosses %s", perTile, health,
                 wander ? "walking" : "standing", minibosses ? "on" : "off");

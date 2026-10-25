@@ -895,8 +895,13 @@ public final class SimQuizPuzzle {
         return complete && !weirdosRoom;
     }
 
-    /** Clears the chests and labels if a session is still open, and always clears the in-memory state. Safe to
-     *  call with nothing built, and safe to call after the sim session has already ended. */
+    /** Non-null while this puzzle is bound to a real captured room rather than a standalone arena. */
+    private static volatile BlockPos[] boundPositions = null;
+
+    /** The bound room's own name - "Quiz" or "Three Weirdos". Both the chat label and the red square on the
+     *  map are about the ROOM, and this class stands in for two of them. */
+    private static volatile String boundRoom = null;
+
     /**
      * Drops this puzzle's bookkeeping WITHOUT touching the world.
      *
@@ -907,13 +912,6 @@ public final class SimQuizPuzzle {
      * punches a hole in it. Just as bad the other way: a stale click index left in place makes a click on some
      * unrelated block on the new floor count as a move in a puzzle that is not on it.
      */
-    /** Non-null while this puzzle is bound to a real captured room rather than a standalone arena. */
-    private static volatile BlockPos[] boundPositions = null;
-
-    /** The bound room's own name - "Quiz" or "Three Weirdos". Both the chat label and the red square on the
-     *  map are about the ROOM, and this class stands in for two of them. */
-    private static volatile String boundRoom = null;
-
     public static void forget() {
         forgetOruo();
         ORUO_IDS.clear();

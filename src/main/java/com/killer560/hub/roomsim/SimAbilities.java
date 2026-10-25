@@ -895,9 +895,4 @@ public final class SimAbilities {
         storedClicks.clear();
         heardLook.clear();
     }
-
-    /** Whether an insertion is planted. */
-    public static boolean hasInsertion() {
-        return insertion != null;
-    }
 }

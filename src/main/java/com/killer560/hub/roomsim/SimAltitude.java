@@ -36,15 +36,6 @@ public final class SimAltitude {
 
     private static int offset;
 
-    /**
-     * The offset the floor that is being REPLACED was built at.
-     *
-     * <p>The clear has to wipe the old floor, which is wherever the old offset put it - not where the new one
-     * will put the next. Getting this wrong leaves the previous map standing in a band the new one does not
-     * reach, which is the same class of bug as the touched-bounds one that left chests behind.
-     */
-    private static int previous;
-
     private SimAltitude() {
     }
 
@@ -73,18 +64,8 @@ public final class SimAltitude {
         return worldY - offset;
     }
 
-    /** The band the floor being replaced occupies. */
-    public static int previousMinWorldY() {
-        return RoomLibrary.MIN_Y + previous;
-    }
-
-    public static int previousMaxWorldY() {
-        return RoomLibrary.MAX_Y + previous;
-    }
-
     /** Drops the shift. A floor that has not been planned builds where it always did. */
     public static void reset() {
-        previous = offset;
         offset = 0;
     }
 
@@ -97,7 +78,6 @@ public final class SimAltitude {
      * @return the offset chosen
      */
     public static int plan(ServerLevel level, String[] roomNames) {
-        previous = offset;
         int lowest = Integer.MAX_VALUE;
         int highest = Integer.MIN_VALUE;
         boolean topAligned = false;

@@ -5,7 +5,6 @@ import com.killer560.hub.util.ModChat;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -255,17 +254,5 @@ public final class SimClass {
                 living.hurtServer(level, level.damageSources().playerAttack(sp), BEAM_DAMAGE);
             }
         });
-    }
-
-    /** Where the beam would stop, for anything that wants to draw it. */
-    public static BlockPos beamEnd(Minecraft client) {
-        if (client.player == null || client.level == null) {
-            return null;
-        }
-        Vec3 eye = client.player.getEyePosition();
-        Vec3 end = eye.add(client.player.getLookAngle().scale(BEAM_RANGE));
-        BlockHitResult wall = client.level.clip(new ClipContext(
-                eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));
-        return wall == null ? null : wall.getBlockPos();
     }
 }
