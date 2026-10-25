@@ -294,6 +294,12 @@ final class SettingTooltipsData {
         d.put("chat hider/hide empty chat messages", "Hides chat lines that are blank.");
         d.put("chat hider/hide actionbar", "Hides all action bar text above the hotbar.");
         d.put("chat hider/hide non-rank invites", "Hides party invites from players without a rank.");
+        d.put("chat hider/hide boss dialogue", "In dungeons: hides the bosses' [BOSS] lines (Watcher, Bonzo, Scarf, Professor, Thorn, Livid, Sadan, Maxor, Storm, Goldor, Necron, Wither King). The Watcher's 'You have proven yourself' stays.");
+        d.put("chat hider/hide mort", "In dungeons: hides Mort's [NPC] lines at the start of a run.");
+        d.put("chat hider/hide blessings", "In dungeons: hides the blessing found and picked-up lines and the stat lines under them.");
+        d.put("chat hider/hide others' pickups", "In dungeons: hides other players' 'has obtained Wither Key!', Superboom, Revive Stone and other pickup lines. Yours stay.");
+        d.put("chat hider/hide ability spam", "In dungeons: hides cooldown, ability-ready, 'Used ...!', orb and tether lines.");
+        d.put("chat hider/hide dungeon breaker spam", "In dungeons: hides the Dungeon Breaker's 'A mystical force prevents you...' and 'not enough charges' lines.");
         d.put("chat hider/hide ban announcements", "Hides Hypixel's Watchdog announcement: how many players Watchdog and staff banned in the last 7 days.");
         d.put("copy chat", "Shift or Ctrl + left-click copies a whole chat message; right-click copies one line. A plain click works as before.");
         d.put("auto meow enabled", "Replies with a random cat line when another player says meow, purr, nya or mew, in the same chat it came from: party, guild, officer, co-op, a private message (back to that player), all chat or Mod Chat.");
@@ -1593,6 +1599,17 @@ final class SettingTooltipsData {
         d.put("fps", "Shows your current frames per second.");
         d.put("cps counter", "Shows your left and right clicks per second.");
         d.put("color by value", "Colors the TPS, ping and FPS numbers by how good they are.");
+
+        // P3 Status (2026-10-25)
+        d.put("p3 status", "F7/M7 Phase 3: a HUD of the current section's terminals, device, levers and gate, and short progress titles.");
+        d.put("p3 status/p3 status", "Switches everything below on or off.");
+        d.put("p3 status/status hud", "Lists the current section's terminals, device, levers and gate, each done or not. Move it in the HUD editor.");
+        d.put("p3 status/show who is at each", "Names the player standing at an unfinished terminal, device or lever.");
+        d.put("p3 status/short progress titles", "Replaces Hypixel's 'Name activated a terminal! (3/7)' title with one short line.");
+        d.put("p3 status/device done title", "Shows a Device Done title when a device in your section is completed.");
+        d.put("p3 status/section complete title", "Shows a Section Complete title when the last objective of a section is done.");
+        d.put("p3 status/hide energy laser subtitle", "Hides the 'The Energy Laser is charging up!' subtitle in Phase 1.");
+        d.put("p3 status/title sound", "Plays a pling with the Device Done and Section Complete titles.");
 
         // P3 Nav
         d.put("p3 nav/gate highlight", "Boxes the Phase 3 gate you're heading for.");

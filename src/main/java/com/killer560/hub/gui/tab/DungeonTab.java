@@ -72,6 +72,7 @@ public class DungeonTab extends FolderTab {
                 new I4SensorsTab(),
                 new ArrowAlignTab(),
                 new P3NavTab(),
+                new P3StatusTab(),
                 new F7SpotsTab(),
                 new PosmsgTab(),
                 new P4PlatformHighlightTab(),

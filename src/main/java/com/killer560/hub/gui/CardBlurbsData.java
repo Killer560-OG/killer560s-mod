@@ -39,6 +39,7 @@ final class CardBlurbsData {
         d.put("MaskInvincibilityTab", "Mask and Phoenix timers.");
         d.put("MaxorTab", "Maxor crystal helpers.");
         d.put("P3NavTab", "Next gate, terminals, devices.");
+        d.put("P3StatusTab", "P3 progress HUD, short titles.");
         d.put("P4PlatformHighlightTab", "Boxes the P4 platform.");
         d.put("InteropTab", "Shares run info in party.");
         d.put("PosmsgTab", "Waypoint rings that post to party.");

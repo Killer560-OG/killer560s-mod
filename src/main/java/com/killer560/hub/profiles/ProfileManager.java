@@ -573,6 +573,7 @@ public final class ProfileManager {
                 com.killer560.hub.pathfinding.PathfindingConfig::load,
                 com.killer560.hub.f7spots.F7SpotsConfig::load,
                 com.killer560.hub.p3nav.P3NavConfig::load,
+                com.killer560.hub.p3status.P3StatusConfig::load,
                 com.killer560.hub.maxor.MaxorConfig::load,
                 com.killer560.hub.blessings.BlessingsConfig::load,
                 com.killer560.hub.runsummary.RunSummaryConfig::load,

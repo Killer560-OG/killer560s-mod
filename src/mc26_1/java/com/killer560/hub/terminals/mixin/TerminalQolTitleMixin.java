@@ -27,19 +27,22 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  for {@code compat/McCompat}: the mixin configs use {@code defaultRequire: 0}, so a copy left behind fails
  *  SILENTLY and the feature simply stops running with nothing in the log.
  */
+// P3 Status (2026-10-25) rewrites the P3 progress titles here too, after Hide Completion.
 @Mixin(Gui.class)
 public abstract class TerminalQolTitleMixin {
 
     @Inject(method = "setTitle", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideTerminalCompletionTitle(Component title, CallbackInfo ci) {
-        if (TerminalQolFeature.shouldHideCompletionTitle(title)) {
+        if (TerminalQolFeature.shouldHideCompletionTitle(title)
+                || com.killer560.hub.p3status.P3StatusFeature.onTitle(title, false)) {
             ci.cancel();
         }
     }
 
     @Inject(method = "setSubtitle", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideTerminalCompletionSubtitle(Component subtitle, CallbackInfo ci) {
-        if (TerminalQolFeature.shouldHideCompletionTitle(subtitle)) {
+        if (TerminalQolFeature.shouldHideCompletionTitle(subtitle)
+                || com.killer560.hub.p3status.P3StatusFeature.onTitle(subtitle, true)) {
             ci.cancel();
         }
     }

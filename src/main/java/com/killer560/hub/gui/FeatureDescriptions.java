@@ -33,6 +33,7 @@ final class FeatureDescriptions {
         // Tabs of several independent switches (no master one, so their first toggle's tooltip would describe only it).
         BY_TAB.put("DungeonAlertsTab", "Titles and sounds for a Shadow Assassin, a room cleared and its secrets done.");
         BY_TAB.put("MaxorTab", "F7/M7 Maxor crystals: highlights, place and respawn timers, unplaced-crystal alert.");
+        BY_TAB.put("P3StatusTab", "F7/M7 Phase 3: each terminal, device, lever and gate done or not, who is at each, and short progress titles.");
         BY_TAB.put("P3NavTab", "F7/M7 Phase 3: highlights the next gate, the terminals and the devices.");
         BY_TAB.put("F7SpotsTab", "Your saved F7/M7 walk-to waypoints and aim spots in the boss arena.");
         BY_TAB.put("ObjectHiderTab", "Hides fire, fog, particles, falling blocks and other screen and world clutter.");

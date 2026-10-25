@@ -55,7 +55,38 @@ public final class P3SectionTracker {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-leveraura");
 
+    /** One P3 objective line, attributed to the section it was done in (before any advance it causes). */
+    public interface ObjectiveListener {
+        void onObjective(int section, String name, String kind, int current, int total);
+    }
+
+    private static final java.util.List<ObjectiveListener> LISTENERS = new java.util.concurrent.CopyOnWriteArrayList<>();
+
     private P3SectionTracker() {
+    }
+
+    /** P3 Status (2026-10-25): told of every objective line with the section it belongs to. */
+    public static void addObjectiveListener(ObjectiveListener l) {
+        LISTENERS.add(l);
+    }
+
+    /** True while P3 is running: Goldor's line (or a first objective line) seen this world, core not yet opening. */
+    public static boolean running() {
+        return (sawGoldorStart || sectionTotal > 0 || section > 1) && section <= 4;
+    }
+
+    /** The current section's objectives done and in total, from its last "(n/m)" line (0/0 before the first). */
+    public static int sectionCurrent() {
+        return sectionCurrent;
+    }
+
+    public static int sectionTotal() {
+        return sectionTotal;
+    }
+
+    /** Whether "The gate has been destroyed!" was seen in the current section. */
+    public static boolean gateDestroyed() {
+        return sectionGate;
     }
 
     /** Subscribes to chat once (both features call it; only the first does anything). */
@@ -152,6 +183,13 @@ public final class P3SectionTracker {
             // S1 has exactly one device - Simon Says. AP3's "ss" modifier waits on this (killer560, 2026-10-18).
             ssCompleted = true;
             LOGGER.info("[LeverAura] P3 sections: Simon Says device completed");
+        }
+        for (ObjectiveListener l : LISTENERS) {
+            try {
+                l.onObjective(section, m.group(1), m.group(3), cur, tot);
+            } catch (RuntimeException e) {
+                LOGGER.error("[LeverAura] P3 objective listener threw", e);
+            }
         }
         checkSectionAdvance();
     }

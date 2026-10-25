@@ -142,15 +142,27 @@ public final class ChatTidy {
         if (source != GuiMessageSource.SYSTEM_SERVER || message == null) {
             return false;
         }
-        if (!ChatTidyConfig.getInstance().isHideDamageMessages()) {
+        ChatTidyConfig cfg = ChatTidyConfig.getInstance();
+        boolean damage = cfg.isHideDamageMessages();
+        boolean dungeon = DungeonChatHider.anyOn(cfg) && com.killer560.hub.secrets.DungeonState.isInDungeon();
+        if (!damage && !dungeon) {
             return false;
         }
         String plain = ChatObserver.strip(message);
-        boolean hide = isAbilityDamage(plain) || isIncomingHit(plain);
-        if (hide) {
+        if (damage && (isAbilityDamage(plain) || isIncomingHit(plain))) {
             hidden++;
+            return true;
         }
-        return hide;
+        if (dungeon) {
+            Minecraft client = Minecraft.getInstance();
+            String self = client.player == null ? "" : client.player.getGameProfile().name();
+            DungeonChatHider.Family family = DungeonChatHider.family(plain, self);
+            if (family != null && DungeonChatHider.on(family, cfg)) {
+                DungeonChatHider.counted(family);
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Every damage pattern ends in a full stop or an exclamation mark; most chat lines do not. */
