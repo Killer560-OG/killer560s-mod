@@ -650,22 +650,6 @@ public final class CustomScoreboardConfig {
         entries.setActive(v);
     }
 
-    public List<ScoreboardEvent> getEventOrder() {
-        return events.active();
-    }
-
-    public void setEventOrder(List<ScoreboardEvent> v) {
-        events.setActive(v);
-    }
-
-    public List<ChunkedStat> getStatOrder() {
-        return chunkedStats.active();
-    }
-
-    public void setStatOrder(List<ChunkedStat> v) {
-        chunkedStats.setActive(v);
-    }
-
     /** "current", "legacy" (migrated from the toggle lists) or "default", per list: lines/events/stats. */
     public String getLoadedFrom() {
         return loadedFrom;

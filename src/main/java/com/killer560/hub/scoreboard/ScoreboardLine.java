@@ -30,10 +30,6 @@ public record ScoreboardLine(String text, Align align, List<String> hover, Strin
         return text == null || text.isBlank();
     }
 
-    public boolean hasActions() {
-        return (hover != null && !hover.isEmpty()) || command != null;
-    }
-
     /** Copy with tooltip lines and/or a click command (either may be null). */
     public ScoreboardLine withActions(List<String> hoverLines, String clickCommand) {
         return new ScoreboardLine(text, align, hoverLines, clickCommand, popup, popupUntilMs);

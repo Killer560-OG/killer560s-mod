@@ -225,16 +225,6 @@ public final class ScoreboardData {
                 || (c >= 'A' && c <= 'F') || (c >= 'K' && c <= 'O') || c == 'R';
     }
 
-    /** {@link #lastColorCode} as the regex answers it, for the testkit's equivalence check. */
-    static String lastColorCodeRegex(String s) {
-        Matcher m = COLOR_CODES.matcher(s);
-        String last = null;
-        while (m.find()) {
-            last = m.group();
-        }
-        return last;
-    }
-
     private static void readTab(Minecraft client) {
         if (client.getConnection() == null || client.gui == null) {
             tabPlain = Collections.emptyList();
