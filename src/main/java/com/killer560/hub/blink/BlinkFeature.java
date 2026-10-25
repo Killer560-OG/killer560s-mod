@@ -16,6 +16,7 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.network.protocol.game.ServerboundAttackPacket;
 import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -133,7 +134,10 @@ public final class BlinkFeature {
                 noteSent(connection, packet);
                 return false;
             }
-            if (packet instanceof ServerboundInteractPacket && BlinkConfig.getInstance().isReleaseOnHit()) {
+            // A hit is its own packet since 26.1 (ServerboundAttackPacket, javap 26.1.2 and 26.2: MultiPlayerGameMode.attack
+            // sends it); ServerboundInteractPacket is now only the entity right click. Both count.
+            if ((packet instanceof ServerboundAttackPacket || packet instanceof ServerboundInteractPacket)
+                    && BlinkConfig.getInstance().isReleaseOnHit()) {
                 // A hit (or entity click) is never held behind other held packets: a burst carrying two hits lets the
                 // server apply the first (the kill, the knockback) and then judge the second against it, a swing the
                 // client made before it could have seen that - GrimAC's Hitboxes, every time (testkit 1025-blink-attack
