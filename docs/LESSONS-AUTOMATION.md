@@ -858,3 +858,13 @@ and AOTV) and the `[AutoClear] room time:` / `trip time:` lines (`autoclear/Room
   The in-flight cap must sit inside Blink's 22 ticks or a blinked chain stalls until Blink's own limit releases it.
 - The testkit's PacketTrace hooks `Connection.send` as Blink does, so with Blink holding it counts a held packet when
   made and again on release; judge blinked runs by the mod's log and the server's counters.
+- Grim's lag anchor (Timer/TimerLimit `lastMovementPlayerClock`, javap 2.3.74) is the send time of the last ping the
+  client had answered when its next counted tick arrived. Answered live, any tick sent while banking (an action, or a
+  normal one once the bank is full) moved it to the present and the bank was gone: Blink Charge's first run flagged
+  Timer on every shot. Charge answers every ping a steady 1050 ms late, so the anchor is always a second old and
+  TimerLimit's own floor (real time - 1120 ms) binds - a full bank whatever happens meanwhile. Answers must never be
+  reordered against a teleport confirm (Grim then drops every move after it) or against a hold's queue
+  (TransactionOrder): flush the waiting ones first. Grim counts one tick per client tick (the flying, else the
+  tick-end); a flying confirming a teleport is not counted. Nothing else resets the balance (testkit 1025-blink-charge*).
+- Testkit: a Session class (`62-argrim-session`) runs only if a -Scenario part contains the session's own name; run
+  single cases with `-Scenario '62-argrim-session+,<case>,<case>'`.
