@@ -425,6 +425,25 @@ public final class GifPlayerFeature {
         return GIF_FOLDER;
     }
 
+    /**
+     * {@code name} as a file directly inside {@link #folder()}, or null when it would land anywhere else. Names can come
+     * from a shared profile (DVD's GIF and corner-hit sound), and {@code resolve} of an absolute, {@code ..} or UNC name
+     * returns that path, so a crafted one could read outside the folder or make Windows sign in to a remote host. The
+     * same rule {@code ClickSounds.make} and {@code ThemeBackgrounds} use: normalize, then the parent must be the folder.
+     */
+    public static Path fileInFolder(String name) {
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        try {
+            Path dir = GIF_FOLDER.toAbsolutePath().normalize();
+            Path file = dir.resolve(name).normalize();
+            return dir.equals(file.getParent()) ? file : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     /** Every .gif filename currently in the folder, regardless of its enabled state - for the tab's
      *  per-file toggle list. */
     public static List<String> discoverFileNames() {
@@ -467,7 +486,11 @@ public final class GifPlayerFeature {
         if (isBuiltinLoaded(name)) {
             return decodeBuiltin();
         }
-        return GifDecoder.decode(GIF_FOLDER.resolve(name));
+        Path file = fileInFolder(name);
+        if (file == null) {
+            throw new IOException("Not a file in the GIF folder: " + name);
+        }
+        return GifDecoder.decode(file);
     }
 
     public static List<String> playingFileNames() {

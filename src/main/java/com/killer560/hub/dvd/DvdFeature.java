@@ -458,7 +458,11 @@ public final class DvdFeature {
     private static void playSound(String filename) {
         try {
             Path folder = GifPlayerFeature.folder();
-            Path file = folder.resolve(filename);
+            Path file = GifPlayerFeature.fileInFolder(filename);
+            if (file == null) {
+                LOGGER.warn("DVD corner-hit sound is not a file in the GIF folder, skipped: {}", filename);
+                return;
+            }
             Path playable = filename.toLowerCase(Locale.US).endsWith(".mp3")
                     ? Mp3Converter.convertToWav(file, folder.resolveSibling("killer560smod-gifs-cache"))
                     : file;

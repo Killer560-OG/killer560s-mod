@@ -7,6 +7,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.gifplayer.GifPlayerFeature;
 import com.killer560.hub.util.ConfigJson;
 
 import java.nio.charset.StandardCharsets;
@@ -82,6 +83,14 @@ public final class DvdConfig {
                         e.boxHeight = Math.max(4, ConfigJson.getInt(obj, "boxHeight", e.boxHeight));
                         e.scale = Math.max(0.05f, ConfigJson.getFloat(obj, "scale", e.scale));
                         e.cornerHitSoundFile = getString(obj, "cornerHitSoundFile", e.cornerHitSoundFile);
+                        // A file name from a shared profile must stay inside the GIF folder (see fileInFolder).
+                        if (!e.gifFileName.isBlank() && GifPlayerFeature.fileInFolder(e.gifFileName) == null) {
+                            e.gifFileName = "";
+                        }
+                        if (!e.cornerHitSoundFile.isBlank()
+                                && GifPlayerFeature.fileInFolder(e.cornerHitSoundFile) == null) {
+                            e.cornerHitSoundFile = "";
+                        }
                         e.cornerHitText = getString(obj, "cornerHitText", e.cornerHitText);
                         e.changeColorOnCornerHit = ConfigJson.getBool(obj, "changeColorOnCornerHit", e.changeColorOnCornerHit);
                         e.changeColorOnWallHit = ConfigJson.getBool(obj, "changeColorOnWallHit", e.changeColorOnWallHit);
