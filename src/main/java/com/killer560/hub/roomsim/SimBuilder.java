@@ -1381,13 +1381,6 @@ public final class SimBuilder {
     }
 
     /**
-     * Wipes every cell of the dungeon grid.
-     *
-     * <p>Queued like everything else, and safe to ask for because the clear now bounds how much it READS as
-     * well as how much it writes - in a void world nearly every position it visits is already air, and an
-     * unbounded scan over the whole grid is exactly the freeze the queue exists to prevent.
-     */
-    /**
      * Removes dropped items from the sim world.
      *
      * <p>killer560 (2026-09-28): "make sure you clear all floor drops on every generation of a room." They
@@ -1399,39 +1392,40 @@ public final class SimBuilder {
      * world would be unforgivable.
      */
     private static void clearFloorDrops(ServerLevel level) {
-        // COLLECT first, discard second. Never both at once.
-        //
-        // discard() removes the entity from the level's own Int2ObjectLinkedOpenHashMap, which invalidates
-        // the iterator being walked - and fastutil does not throw ConcurrentModificationException for that,
-        // it throws ArrayIndexOutOfBoundsException from deep inside MapIterator.nextEntry, which looks like
-        // anything but the bug it is. killer560 hit it on 2026-09-30: "it got to the point where it said 1
-        // room remaining then nothing loaded". The exception killed the build task before it could hand over,
-        // so the loading screen simply never came down.
-        //
-        // Every sim scenario missed this because each one builds a FRESH world with no drops in it, so the
-        // loop matched nothing and never removed anything while iterating. It needs a world that has already
-        // been played in - which is every world but a test's.
-        // The try/catch is the same one clearFloorMobs has, for the same reason: a failure to tidy up must
-        // never stop the floor being built. That guard is why the mob clear could not have caused this and
-        // the drop clear could.
+        // A failure to tidy up must never stop the floor being built.
         try {
-            java.util.List<net.minecraft.world.entity.Entity> drops = new java.util.ArrayList<>();
-            for (var entity : level.getAllEntities()) {
-                // XP orbs too: a mob killed in the last attempt leaves them, and /reset puts back the room as loaded.
-                if (entity instanceof net.minecraft.world.entity.item.ItemEntity
-                        || entity instanceof net.minecraft.world.entity.ExperienceOrb) {
-                    drops.add(entity);
-                }
-            }
-            for (var entity : drops) {
-                entity.discard();
-            }
-            if (!drops.isEmpty()) {
-                LOGGER.info("Cleared {} floor drop(s) before building", drops.size());
+            // XP orbs too: a mob killed in the last attempt leaves them, and /reset puts back the room as loaded.
+            int cleared = discardAll(level, entity -> entity instanceof net.minecraft.world.entity.item.ItemEntity
+                    || entity instanceof net.minecraft.world.entity.ExperienceOrb);
+            if (cleared > 0) {
+                LOGGER.info("Cleared {} floor drop(s) before building", cleared);
             }
         } catch (RuntimeException e) {
             LOGGER.warn("Could not clear the sim's floor drops: {}", e.getClass().getSimpleName());
         }
+    }
+
+    /**
+     * Discards every entity in the level that {@code doomed} accepts; returns how many.
+     *
+     * <p>COLLECT first, discard second, never both at once. discard() removes the entity from the level's own
+     * Int2ObjectLinkedOpenHashMap, which invalidates the iterator being walked - and fastutil does not throw
+     * ConcurrentModificationException for that, it throws ArrayIndexOutOfBoundsException from deep inside
+     * MapIterator.nextEntry, which killed the build task before it could hand over (2026-09-30: the loading
+     * screen never came down). A fresh test world has nothing to remove, so only a played-in world shows it.
+     */
+    private static int discardAll(ServerLevel level,
+                                  java.util.function.Predicate<net.minecraft.world.entity.Entity> doomed) {
+        java.util.List<net.minecraft.world.entity.Entity> found = new java.util.ArrayList<>();
+        for (net.minecraft.world.entity.Entity entity : level.getAllEntities()) {
+            if (doomed.test(entity)) {
+                found.add(entity);
+            }
+        }
+        for (net.minecraft.world.entity.Entity entity : found) {
+            entity.discard();
+        }
+        return found.size();
     }
 
     /**
@@ -1500,16 +1494,8 @@ public final class SimBuilder {
      */
     private static void clearFloorMobs(ServerLevel level) {
         try {
-            java.util.List<net.minecraft.world.entity.Entity> doomed = new java.util.ArrayList<>();
-            for (net.minecraft.world.entity.Entity entity : level.getAllEntities()) {
-                if (entity instanceof net.minecraft.world.entity.Mob
-                        || entity instanceof net.minecraft.world.entity.decoration.ArmorStand) {
-                    doomed.add(entity);
-                }
-            }
-            for (net.minecraft.world.entity.Entity entity : doomed) {
-                entity.discard();
-            }
+            discardAll(level, entity -> entity instanceof net.minecraft.world.entity.Mob
+                    || entity instanceof net.minecraft.world.entity.decoration.ArmorStand);
             SimMobs.forget();
         } catch (RuntimeException e) {
             // A failure to tidy up must never stop the floor being built.
