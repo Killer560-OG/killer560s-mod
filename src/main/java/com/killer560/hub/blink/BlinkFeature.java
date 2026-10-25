@@ -137,6 +137,9 @@ public final class BlinkFeature {
             return false;
         }
         if (!holding) {
+            if (BlinkCharge.onSend(connection, packet, listener, flush)) {
+                return true;
+            }
             noteSent(connection, packet);
             return false;
         }
@@ -243,10 +246,24 @@ public final class BlinkFeature {
             if (holding) {
                 release(cfg.isEnabled() ? "no world" : "switched off");
             }
+            BlinkCharge.reset(cfg.isEnabled() ? "no world" : "switched off");
             return;
         }
 
         readKey(client, cfg);
+
+        if (cfg.getStyle() == BlinkConfig.Style.CHARGE) {
+            // Charge has no hold and no tick limit of its own: the bank stops at Max Ticks and empties on a shot.
+            if (holding) {
+                release("style changed");
+            }
+            if (wanted && !SkyblockGate.allows()) {
+                wanted = false;
+            }
+            BlinkCharge.tick(client, wanted, listener);
+            return;
+        }
+        BlinkCharge.reset("style changed");
 
         if (holding) {
             boolean overTicks = heldTicks >= cfg.getMaxTicks();
@@ -497,6 +514,7 @@ public final class BlinkFeature {
 
     /** A login or respawn packet: a new world. What is held is released except its moves and tick-ends; the blink ends. */
     public static void onWorldChange() {
+        BlinkCharge.reset("world change");
         serverPos = null;
         synchronized (LOCK) {
             releaseLocked("world change", true);
@@ -509,6 +527,7 @@ public final class BlinkFeature {
 
     /** The server starts a configuration phase: everything held is a play packet for it, so all of it goes now. */
     public static void onConfigurationStart() {
+        BlinkCharge.reset("configuration");
         synchronized (LOCK) {
             releaseLocked("configuration", false);
         }
@@ -517,6 +536,7 @@ public final class BlinkFeature {
 
     /** Netty thread (Fabric's DISCONNECT): the queue has nowhere to go. */
     private static void onDisconnect() {
+        BlinkCharge.reset("disconnect");
         synchronized (LOCK) {
             if (holding) {
                 LOGGER.info("[Blink] disconnected while holding: {} packet(s) discarded", queue.size());
@@ -586,6 +606,9 @@ public final class BlinkFeature {
     /** One line for the HUD. */
     static Component statusLine() {
         BlinkConfig cfg = BlinkConfig.getInstance();
+        if (BlinkCharge.isActive()) {
+            return Component.literal("§cBlink charge §f" + BlinkCharge.banked() + "§7/" + cfg.getMaxTicks() + " ticks");
+        }
         return Component.literal("§cBlink §f" + heldTicks + "§7/" + cfg.getMaxTicks() + " ticks §8(" + heldPackets() + ")");
     }
 }
