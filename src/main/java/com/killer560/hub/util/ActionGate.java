@@ -182,6 +182,9 @@ public final class ActionGate {
          *  Three actors because they are three different kinds of action and the gate's rules differ per kind. */
         /** Goldor trigger bot's click. */
         GOLDOR_TRIGGER(Kind.WORLD),
+        /** Relic Triggerbot (M7 P5): picking up the aimed relic and placing it on the aimed cauldron. Wired in
+         *  {@code witherdragons.RelicHelpersFeature}, its only caller. */
+        RELIC(Kind.WORLD),
         MASK_SWAP_CMD(Kind.COMMAND),
         MASK_SWAP_MENU(Kind.SCREEN),
         MASK_SWAP_ROD(Kind.WORLD),

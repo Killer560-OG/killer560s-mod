@@ -560,6 +560,7 @@ public final class ProfileManager {
                 com.killer560.hub.lightsdevice.LightsDeviceConfig::load,
                 com.killer560.hub.terminalaura.TerminalAuraConfig::load,
                 com.killer560.hub.terminaltrigger.TerminalTriggerbotConfig::load,
+                com.killer560.hub.witherdragons.RelicHelpersConfig::load,
                 com.killer560.hub.autoroutes.AutoRoutesConfig::load,
                 com.killer560.hub.autoroutes.RouteStore::reload,
                 com.killer560.hub.ap3.Ap3Config::load,

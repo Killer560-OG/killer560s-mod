@@ -100,6 +100,7 @@ public class DungeonTab extends FolderTab {
             tabs.add(new AutoTerminalTab());
             tabs.add(new TerminalAuraTab());
             tabs.add(new TerminalTriggerbotTab());
+            tabs.add(new RelicHelpersTab());
             tabs.add(new DioriteGlassTab());
             tabs.add(new GoldorTriggerbotTab());
             // Out of Secret Aura's In Boss, 2026-10-15 (killer560: "It should be its own cheat").

@@ -103,7 +103,7 @@ public final class ModPaths {
         }
 
         for (String boss : new String[]{"maxor", "witherdragons", "thorn", "f7spots", "p4platformhighlight",
-                "lividsolver", "bloodcamp"}) {
+                "lividsolver", "bloodcamp", "relichelpers"}) {
             t.put(boss, "dungeons/bosses");
         }
 
