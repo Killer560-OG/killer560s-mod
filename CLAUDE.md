@@ -312,3 +312,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   Superboom detonated, no block picked) until its `UseBlockCallback` moved to a phase ordered before the default. The sim's
   client-side essence listener lost the same way with any ability item held, so Secret Aura never collected essences
   (2026-10-05): sim secrets are answered on the SERVER now, and the essence is Hypixel's profiled player_head (99-sim-essence-aura).
+- Titles and subtitles have ONE hook: `terminals/mixin/TerminalQolTitleMixin` (Gui.setTitle/setSubtitle on 26.1.2, Hud on 26.2, one
+  copy per version). Terminal QoL's Hide Completion and P3 Status both run there; add to it, never a second title mixin. A
+  test reads the shown text from the private `title`/`subtitle` fields of Gui (26.1.2) / Hud (26.2) (testkit 2141).
+  The dungeon-gaps survey called subtitles unhandled because it grepped for the packet class (2026-10-25).
