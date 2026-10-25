@@ -2,7 +2,6 @@ package com.killer560.hub.autopuzzles;
 
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.puzzlesolvers.PuzzleCoords;
-import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.compat.McCompat;
 import net.minecraft.client.Minecraft;

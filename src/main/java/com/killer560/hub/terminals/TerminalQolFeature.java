@@ -126,7 +126,8 @@ public final class TerminalQolFeature {
         if (title == memoTitle) {
             type = memoType;
         } else {
-            type = matchType(title.getString());
+            // TerminalType strips the § codes first: a real Hypixel title can carry them mid-word.
+            type = TerminalType.match(title.getString());
             memoTitle = title;
             memoType = type;
         }
@@ -146,15 +147,6 @@ public final class TerminalQolFeature {
 
     private static net.minecraft.network.chat.Component memoTitle;
     private static TerminalType memoType;
-
-    /** Title -> terminal type, on the shared {@link TerminalType} regexes (formatting stripped first, the same
-     *  way every other chat/title match in this mod does - a real Hypixel title can carry mid-word § codes). */
-    private static TerminalType matchType(String rawTitle) {
-        if (rawTitle == null) {
-            return null;
-        }
-        return TerminalType.match(rawTitle);
-    }
 
     // ------------------------------------------------------------------ Terminal Protection
 

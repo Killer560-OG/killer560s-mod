@@ -16,7 +16,6 @@ final class QuizPlan {
 
     private static int startTries;
     private static boolean gaveUp;
-    private static String gaveUpWhy;
 
     private QuizPlan() {
     }
@@ -24,7 +23,6 @@ final class QuizPlan {
     static void reset() {
         startTries = 0;
         gaveUp = false;
-        gaveUpWhy = null;
     }
 
     /** Quiz First is on and Auto Quiz (with its solver) can answer. */
@@ -42,13 +40,9 @@ final class QuizPlan {
         return gaveUp;
     }
 
+    /** {@code why} names the cause at the call site; the callers log it themselves. */
     static void giveUp(String why) {
         gaveUp = true;
-        gaveUpWhy = why;
-    }
-
-    static String gaveUpWhy() {
-        return gaveUpWhy;
     }
 
     /** One more try at starting it; false when the tries are used up. */

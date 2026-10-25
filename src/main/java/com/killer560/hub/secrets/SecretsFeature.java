@@ -100,10 +100,6 @@ public final class SecretsFeature {
         return !cfg.isBossOnly() || DungeonState.isBossPhaseActive();
     }
 
-    public static boolean shouldUseFullBoxButtons() {
-        return SecretsConfig.getInstance().isButtonsFullBox();
-    }
-
     public static boolean shouldExpandChests() {
         SecretsConfig cfg = SecretsConfig.getInstance();
         return cfg.isMasterEnabled() && cfg.isChestsEnabled() && isOnDungeonServer() && passesDungeonsOnlyGate(cfg);

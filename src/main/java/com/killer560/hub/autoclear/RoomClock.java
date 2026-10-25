@@ -46,10 +46,6 @@ final class RoomClock {
         return room != null;
     }
 
-    static String room() {
-        return room;
-    }
-
     /** Starts the clock for {@code name} unless it already runs for it (a different room's clock is ended first). */
     static void start(String name) {
         if (name == null) {
