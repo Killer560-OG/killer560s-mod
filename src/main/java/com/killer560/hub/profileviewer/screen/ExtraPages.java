@@ -980,7 +980,7 @@ final class ExtraPages {
             return;
         }
         ProfileViewerApi.AuxResult res = fut.getNow(null);
-        JsonObject member = res == null || res.data() == null ? null : SbProfile.asObjPublic(res.data().get(ProfileViewerApi.dashless(p.member)));
+        JsonObject member = res == null || res.data() == null ? null : SbProfile.asObj(res.data().get(ProfileViewerApi.dashless(p.member)));
         if (member == null) {
             center(g, "Museum API is disabled or nothing is donated.", s.contentX, s.contentW, DIM);
             return;
@@ -1126,10 +1126,10 @@ final class ExtraPages {
         return museumViews.computeIfAbsent(member, m -> CompletableFuture.supplyAsync(() -> {
             Map<String, List<ItemStack>> items = new LinkedHashMap<>();
             Set<String> borrowing = new LinkedHashSet<>();
-            JsonObject obj = SbProfile.asObjPublic(m.get("items"));
+            JsonObject obj = SbProfile.asObj(m.get("items"));
             if (obj != null) {
                 for (Map.Entry<String, JsonElement> e : obj.entrySet()) {
-                    JsonObject entry = SbProfile.asObjPublic(e.getValue());
+                    JsonObject entry = SbProfile.asObj(e.getValue());
                     if (entry == null) {
                         continue;
                     }
@@ -1148,7 +1148,7 @@ final class ExtraPages {
             List<ItemStack> special = new ArrayList<>();
             if (m.has("special") && m.get("special").isJsonArray()) {
                 for (JsonElement el : m.getAsJsonArray("special")) {
-                    JsonObject so = SbProfile.asObjPublic(el);
+                    JsonObject so = SbProfile.asObj(el);
                     if (so != null) {
                         for (ItemStack st : LegacyItems.decodeInventory(so.get("items"))) {
                             if (!st.isEmpty()) {
@@ -1326,13 +1326,13 @@ final class ExtraPages {
         title(g, "Garden", x, y);
         y += 12;
         if (garden != null) {
-            long xp = (long) SbProfile.numPublic(garden.get("garden_experience"));
+            long xp = (long) SbProfile.num(garden.get("garden_experience"));
             long[] levels = ExtraTables.tableCumulative(gardenTables.get("garden_level"));
             s.bar(g, x, y, w, new ItemStack(Items.SUNFLOWER), "Garden Level", thresholdLevel(levels, xp), mx, my, xp);
             y += 21;
-            JsonObject comm = SbProfile.asObjPublic(garden.get("commission_data"));
-            y = s.stat2(g, x, y, w, "Visitors Served", commas(comm == null ? 0 : SbProfile.numPublic(comm.get("unique_npcs_served"))));
-            y = s.stat2(g, x, y, w, "Offers Accepted", commas(comm == null ? 0 : SbProfile.numPublic(comm.get("total_completed"))));
+            JsonObject comm = SbProfile.asObj(garden.get("commission_data"));
+            y = s.stat2(g, x, y, w, "Visitors Served", commas(comm == null ? 0 : SbProfile.num(comm.get("unique_npcs_served"))));
+            y = s.stat2(g, x, y, w, "Offers Accepted", commas(comm == null ? 0 : SbProfile.num(comm.get("total_completed"))));
         } else if (!gf.isDone()) {
             text(g, "Loading garden" + s.dots(), x, y, VALUE);
             y += 11;
@@ -1393,7 +1393,7 @@ final class ExtraPages {
         int rw = s.contentW - lw - 6;
         s.box(g, rx, s.contentY, rw, s.contentH);
         JsonObject milestonesObj = gardenTables.has("crop_milestones") ? gardenTables.getAsJsonObject("crop_milestones") : new JsonObject();
-        JsonObject collected = garden == null ? null : SbProfile.asObjPublic(garden.get("resources_collected"));
+        JsonObject collected = garden == null ? null : SbProfile.asObj(garden.get("resources_collected"));
         int[] cols = {rx + 22, rx + (int) (rw * 0.33), rx + (int) (rw * 0.52), rx + (int) (rw * 0.69), rx + (int) (rw * 0.86)};
         int ty = s.contentY + 5;
         String[] headers = {"Crop", "Milestone", "Contests", "Bracket", "Best"};
@@ -1423,7 +1423,7 @@ final class ExtraPages {
             g.pose().popMatrix();
             text(g, f().plainSubstrByWidth(name, cols[1] - cols[0] - 4), cols[0], ty, TEXT);
             long[] cum = ExtraTables.tableCumulative(e.getValue());
-            long amount = collected == null ? -1 : (long) SbProfile.numPublic(collected.get(crop));
+            long amount = collected == null ? -1 : (long) SbProfile.num(collected.get(crop));
             int milestone = amount < 0 ? -1 : countAtOrBelow(cum, amount);
             boolean maxed = milestone >= cum.length && cum.length > 0;
             text(g, milestone < 0 ? "-" : milestone + "/" + cum.length, cols[1], ty, milestone < 0 ? DIM : maxed ? MAXED : VALUE);
@@ -1501,7 +1501,7 @@ final class ExtraPages {
         CompletableFuture<MuseumView> museumView = null;
         boolean museumSettled = museum.isDone();
         if (museum.isDone() && !museum.isCompletedExceptionally() && museum.getNow(null) != null && museum.getNow(null).data() != null) {
-            JsonObject member = SbProfile.asObjPublic(museum.getNow(null).data().get(ProfileViewerApi.dashless(p.member)));
+            JsonObject member = SbProfile.asObj(museum.getNow(null).data().get(ProfileViewerApi.dashless(p.member)));
             if (member != null) {
                 museumView = museumView(member);
                 museumSettled = museumView.isDone();
