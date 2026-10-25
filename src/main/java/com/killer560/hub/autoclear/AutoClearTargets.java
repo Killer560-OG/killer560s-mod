@@ -312,30 +312,4 @@ final class AutoClearTargets {
         }
         return out;
     }
-
-    /** The candidate fewest rooms away through unlocked doors, or -1 when none can be reached from here. */
-    static int nearest(DungeonLayout layout, List<Integer> candidates) {
-        int from = layout.currentRoom();
-        int best = -1;
-        int bestDist = Integer.MAX_VALUE;
-        for (int r : candidates) {
-            int d;
-            if (r == from) {
-                d = 0;
-            } else if (from < 0) {
-                d = 1000;
-            } else {
-                List<DungeonMapPathfinder.RoomStep> path = DungeonMapPathfinder.findPath(layout, from, r, false);
-                if (path == null) {
-                    continue;
-                }
-                d = path.size();
-            }
-            if (d < bestDist) {
-                bestDist = d;
-                best = r;
-            }
-        }
-        return best;
-    }
 }
