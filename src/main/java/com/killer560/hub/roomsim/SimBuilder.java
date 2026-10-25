@@ -288,8 +288,8 @@ public final class SimBuilder {
                     // corner toRealCoord measures from" - and the two differ by the capture's own turn
                     // (RoomCaptureRotation) in 88 of his 122 identifiable rooms.
                     //
-                    // The CORNER here was already right: the four-argument clayCorner works the database
-                    // rotation out for itself. The ROTATION published beside it was `rot`, the paste rotation.
+                    // The CORNER here was already right: it was worked out from the database rotation.
+                    // The ROTATION published beside it was `rot`, the paste rotation.
                     // So LiveMapFeature.currentRoomClayAndRotation() - which is what every puzzle solver,
                     // AutoClearUtils, Auto Routes and RouteCoords ask - handed out a correct corner with a
                     // rotation a quarter or a half turn off it, and every relative coordinate came out spun
