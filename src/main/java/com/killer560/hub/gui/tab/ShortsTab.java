@@ -117,16 +117,10 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
         });
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide Unfocused", cfg.isHideWhenUnfocused()), btn -> {
-                    cfg.setHideWhenUnfocused(!cfg.isHideWhenUnfocused());
-                    cfg.save();
-                    btn.setMessage(onOff("Hide Unfocused", cfg.isHideWhenUnfocused()));
-                }).bounds(col2aX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Pause When Hidden", cfg.isPauseWhenHidden()), btn -> {
-                    cfg.setPauseWhenHidden(!cfg.isPauseWhenHidden());
-                    cfg.save();
-                    btn.setMessage(onOff("Pause When Hidden", cfg.isPauseWhenHidden()));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Hide Unfocused", cfg::isHideWhenUnfocused, cfg::setHideWhenUnfocused, cfg::save,
+                null, col2aX, y, col2W, 18));
+        widgets.add(onOffButton("Pause When Hidden", cfg::isPauseWhenHidden, cfg::setPauseWhenHidden, cfg::save,
+                null, col2bX, y, col2W, 18));
         y += 20;
 
         // 2026-09-16, killer560: "make an option for dark or light mode. Otherwise it is perfect." Applies live
@@ -189,11 +183,8 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
 
         widgets.add(slider(col2aX, y, col2W, cfg::getZoomPercent, cfg::setZoomPercent,
                 ShortsConfig.MIN_ZOOM_PERCENT, ShortsConfig.MAX_ZOOM_PERCENT, v -> "Zoom: " + v + "% §7(next launch)", cfg));
-        widgets.add(SettingsButtonWidget.builder(onOff("Comments Scroll Guard", cfg.isCommentsScrollGuard()), btn -> {
-                    cfg.setCommentsScrollGuard(!cfg.isCommentsScrollGuard());
-                    cfg.save();
-                    btn.setMessage(onOff("Comments Scroll Guard", cfg.isCommentsScrollGuard()));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Comments Scroll Guard", cfg::isCommentsScrollGuard, cfg::setCommentsScrollGuard,
+                cfg::save, null, col2bX, y, col2W, 18));
         y += 26;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Sign in to " + cfg.getSite().label), btn -> {

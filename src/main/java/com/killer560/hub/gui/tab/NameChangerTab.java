@@ -40,11 +40,8 @@ public class NameChangerTab extends BaseTab {
         int gap = 8;
         int halfW = (contentWidth - gap) / 2;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Name Changer", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Name Changer", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -52,11 +49,8 @@ public class NameChangerTab extends BaseTab {
         }
 
         // --- own name
-        widgets.add(SettingsButtonWidget.builder(onOff("Change My Name", cfg.isOwnNameEnabled()), btn -> {
-                    cfg.setOwnNameEnabled(!cfg.isOwnNameEnabled());
-                    cfg.save();
-                    btn.setMessage(onOff("Change My Name", cfg.isOwnNameEnabled()));
-                }).bounds(contentX, y, halfW, 18).build());
+        widgets.add(onOffButton("Change My Name", cfg::isOwnNameEnabled, cfg::setOwnNameEnabled, cfg::save,
+                null, contentX, y, halfW, 18));
         widgets.add(SettingsButtonWidget.builder(Component.literal("Reset Name to Default"), btn -> {
                     cfg.resetOwnNameCosmetics();
                     cfg.save();
@@ -141,11 +135,8 @@ public class NameChangerTab extends BaseTab {
         // Only the local render sees the gradient - SupportersAutoShare only ever shares the FROM color
         // (My Name Color above), since the relay's own contract has no true-color field to carry it.
         int fadeToggleW = cfg.isOwnColorFadeEnabled() ? Math.min(100, (contentWidth - gap) / 2) : contentWidth;
-        widgets.add(SettingsButtonWidget.builder(onOff("Fade Color", cfg.isOwnColorFadeEnabled()), btn -> {
-                    cfg.setOwnColorFadeEnabled(!cfg.isOwnColorFadeEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, fadeToggleW, 18).build());
+        widgets.add(onOffButton("Fade Color", cfg::isOwnColorFadeEnabled, cfg::setOwnColorFadeEnabled, cfg::save,
+                requestRebuild, contentX, y, fadeToggleW, 18));
         if (cfg.isOwnColorFadeEnabled()) {
             widgets.add(colorButton(contentX + fadeToggleW + gap, y, contentWidth - fadeToggleW - gap,
                     "Fade To Color", cfg.getOwnColorFadeTo(), argb -> {
@@ -180,11 +171,8 @@ public class NameChangerTab extends BaseTab {
         y = buildLetterColours(widgets, cfg, contentX, y, contentWidth, font, requestRebuild);
 
         // --- manual mappings
-        widgets.add(SettingsButtonWidget.builder(onOff("Custom Renames", cfg.isMappingsEnabled()), btn -> {
-                    cfg.setMappingsEnabled(!cfg.isMappingsEnabled());
-                    cfg.save();
-                    btn.setMessage(onOff("Custom Renames", cfg.isMappingsEnabled()));
-                }).bounds(contentX, y, halfW, 18).build());
+        widgets.add(onOffButton("Custom Renames", cfg::isMappingsEnabled, cfg::setMappingsEnabled, cfg::save,
+                null, contentX, y, halfW, 18));
         widgets.add(SettingsButtonWidget.builder(Component.literal("+ Add Rename"), btn -> {
                     cfg.addMapping();
                     cfg.save();

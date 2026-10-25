@@ -30,11 +30,8 @@ public class LagDisplayTab extends BaseTab {
         int colB = contentX + half + gap;
 
         header(w, contentX, y, contentWidth, "Performance HUD");
-        w.add(SettingsButtonWidget.builder(onOff("Performance HUD", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Performance HUD", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
 
         if (!cfg.isEnabled()) {

@@ -41,11 +41,8 @@ public class PartyCommandsTab extends BaseTab {
         int colBX = contentX + colW + gap;
 
         // ------------------------------------------------------------ 1. the general toggle
-        widgets.add(SettingsButtonWidget.builder(onOff("Party Commands", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Party Commands", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {

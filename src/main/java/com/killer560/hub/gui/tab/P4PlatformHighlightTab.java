@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.p4platform.P4PlatformHighlightConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
 
@@ -22,22 +21,16 @@ public class P4PlatformHighlightTab extends BaseTab {
         int y = contentY;
         P4PlatformHighlightConfig cfg = P4PlatformHighlightConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("P4 Platform Highlight", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("P4 Platform Highlight", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Filled Box", cfg.isFilled()), btn -> {
-                    cfg.setFilled(!cfg.isFilled());
-                    cfg.save();
-                    btn.setMessage(onOff("Filled Box", cfg.isFilled()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Filled Box", cfg::isFilled, cfg::setFilled, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         // No shared Solver Highlight section here (killer560, 2026-10-18): the 3x3 highlight is the only thing this tab draws,
         // and its own switch and Filled Box are the rows above.

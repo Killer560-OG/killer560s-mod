@@ -31,11 +31,8 @@ public class PriceTooltipTab extends BaseTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Price Tooltip", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Price Tooltip", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
         if (!cfg.isEnabledRaw()) {
             return widgets;
@@ -123,11 +120,7 @@ public class PriceTooltipTab extends BaseTab {
 
     private static AbstractWidget toggle(int x, int y, int w, String label, Supplier<Boolean> get, Consumer<Boolean> set,
                                          PriceTooltipConfig cfg) {
-        return SettingsButtonWidget.builder(onOff(label, get.get()), btn -> {
-            set.accept(!get.get());
-            cfg.save();
-            btn.setMessage(onOff(label, get.get()));
-        }).bounds(x, y, w, 18).build();
+        return onOffButton(label, get::get, set, cfg::save, null, x, y, w, 18);
     }
 
     private static Component daysText(PriceTooltipConfig cfg) {

@@ -74,11 +74,8 @@ public class CrosshairTab extends BaseTab {
         int half = (sw - COL_GAP) / 2;
 
         header(w, sx, y, sw, "Crosshair");
-        w.add(SettingsButtonWidget.builder(onOff("Custom Crosshair", cfg.isEnabledRaw()), btn -> {
-            cfg.setEnabled(!cfg.isEnabledRaw());
-            cfg.save();
-            requestRebuild.run();
-        }).bounds(sx, y[0], sw, ROW).build());
+        w.add(onOffButton("Custom Crosshair", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, sx, y[0], sw, ROW));
         y[0] += STEP;
         w.add(cycle("Style", () -> cfg.getStyle().label, dir -> {
             Style[] v = Style.values();

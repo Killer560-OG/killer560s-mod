@@ -31,11 +31,8 @@ public class TrailTab extends BaseTab {
         TrailConfig cfg = TrailConfig.getInstance();
         int[] y = {contentY};
         header(w, contentX, y, contentWidth, "Trail");
-        w.add(SettingsButtonWidget.builder(onOff("Trail", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Trail", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
 
         if (!cfg.isEnabledRaw()) {

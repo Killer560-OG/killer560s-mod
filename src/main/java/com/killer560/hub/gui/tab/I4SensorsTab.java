@@ -39,11 +39,8 @@ public class I4SensorsTab extends BaseTab {
         int col2aX = contentX;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Solver", cfg.isSolverEnabled()), btn -> {
-                    cfg.setSolverEnabled(!cfg.isSolverEnabled());
-                    cfg.save();
-                    btn.setMessage(onOff("Solver", cfg.isSolverEnabled()));
-                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(onOffButton("Solver", cfg::isSolverEnabled, cfg::setSolverEnabled, cfg::save,
+                null, col2aX, y, col2W, 18));
 
         widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("Aim Marker Color", cfg.getSolverColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
@@ -62,11 +59,8 @@ public class I4SensorsTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Automation", true));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto i4", cfg.isAutoI4Enabled()), btn -> {
-                    cfg.setAutoI4Enabled(!cfg.isAutoI4Enabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Auto i4", cfg::isAutoI4Enabled, cfg::setAutoI4Enabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         if (cfg.isAutoI4Enabled()) {
@@ -103,11 +97,8 @@ public class I4SensorsTab extends BaseTab {
             if (terminator) {
                 int predX = cfg.isAutoI4Rotate() ? col2bX : contentX;
                 int predW = cfg.isAutoI4Rotate() ? col2W : contentWidth;
-                widgets.add(SettingsButtonWidget.builder(onOff("Predictions", cfg.getAutoI4PredictionsSetting()), btn -> {
-                            cfg.setAutoI4Predictions(!cfg.getAutoI4PredictionsSetting());
-                            cfg.save();
-                            btn.setMessage(onOff("Predictions", cfg.getAutoI4PredictionsSetting()));
-                        }).bounds(predX, y, predW, 18).build());
+                widgets.add(onOffButton("Predictions", cfg::getAutoI4PredictionsSetting, cfg::setAutoI4Predictions,
+                        cfg::save, null, predX, y, predW, 18));
             }
             if (cfg.isAutoI4Rotate() || terminator) {
                 y += 22;
@@ -132,11 +123,8 @@ public class I4SensorsTab extends BaseTab {
                 y += 22;
             }
 
-            widgets.add(SettingsButtonWidget.builder(onOff("Auto Swap To Bow", cfg.isAutoSwapToBow()), btn -> {
-                        cfg.setAutoSwapToBow(!cfg.isAutoSwapToBow());
-                        cfg.save();
-                        btn.setMessage(onOff("Auto Swap To Bow", cfg.isAutoSwapToBow()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Auto Swap To Bow", cfg::isAutoSwapToBow, cfg::setAutoSwapToBow, cfg::save,
+                    null, contentX, y, contentWidth, 18));
             y += 22;
 
             widgets.add(new com.killer560.hub.gui.RangeSliderWidget(contentX, y, contentWidth, 18,
@@ -169,11 +157,8 @@ public class I4SensorsTab extends BaseTab {
             });
             y += 22;
 
-            widgets.add(SettingsButtonWidget.builder(onOff("Auto Mask", cfg.isAutoMask()), btn -> {
-                        cfg.setAutoMask(!cfg.isAutoMask());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(cfg.isAutoMask() ? col2aX : contentX, y, cfg.isAutoMask() ? col2W : contentWidth, 18).build());
+            widgets.add(onOffButton("Auto Mask", cfg::isAutoMask, cfg::setAutoMask, cfg::save, requestRebuild,
+                    cfg.isAutoMask() ? col2aX : contentX, y, cfg.isAutoMask() ? col2W : contentWidth, 18));
             if (cfg.isAutoMask()) {
                 widgets.add(SettingsButtonWidget.cycling(orderText(cfg), (btn, dir) -> {
                             cfg.setMaskOrderIndex(cfg.getMaskOrderIndex() + dir);

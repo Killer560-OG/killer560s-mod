@@ -152,11 +152,7 @@ public class RagAxeTab extends BaseTab {
 
     private static void master(List<AbstractWidget> w, int x, int[] y, int width, String label, Supplier<Boolean> get,
                                Consumer<Boolean> set, RagAxeConfig cfg, Runnable requestRebuild) {
-        w.add(SettingsButtonWidget.builder(onOff(label, get.get()), btn -> {
-                    set.accept(!get.get());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(x, y[0], width, 20).build());
+        w.add(onOffButton(label, get::get, set, cfg::save, requestRebuild, x, y[0], width, 20));
         y[0] += 24;
     }
 

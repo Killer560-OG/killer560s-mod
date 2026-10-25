@@ -34,22 +34,16 @@ public class QuiverDisplayTab extends BaseTab {
         QuiverDisplayConfig cfg = QuiverDisplayConfig.getInstance();
         Minecraft mc = Minecraft.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Quiver Display", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Quiver Display", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Item Name", cfg.isShowName()), btn -> {
-                    cfg.setShowName(!cfg.isShowName());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Item Name", cfg.isShowName()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show Item Name", cfg::isShowName, cfg::setShowName, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Quiver Text Color", cfg.getTextColor()), btn ->
@@ -63,16 +57,10 @@ public class QuiverDisplayTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Low Arrow Alert", false));
         y += 14;
         int half = (contentWidth - 4) / 2;
-        widgets.add(SettingsButtonWidget.builder(onOff("Low Arrow Alert", cfg.isAlertEnabled()), btn -> {
-                    cfg.setAlertEnabled(!cfg.isAlertEnabled());
-                    cfg.save();
-                    btn.setMessage(onOff("Low Arrow Alert", cfg.isAlertEnabled()));
-                }).bounds(contentX, y, half, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Low Arrow Sound", cfg.isAlertSound()), btn -> {
-                    cfg.setAlertSound(!cfg.isAlertSound());
-                    cfg.save();
-                    btn.setMessage(onOff("Low Arrow Sound", cfg.isAlertSound()));
-                }).bounds(contentX + half + 4, y, contentWidth - half - 4, 18).build());
+        widgets.add(onOffButton("Low Arrow Alert", cfg::isAlertEnabled, cfg::setAlertEnabled, cfg::save,
+                null, contentX, y, half, 18));
+        widgets.add(onOffButton("Low Arrow Sound", cfg::isAlertSound, cfg::setAlertSound, cfg::save,
+                null, contentX + half + 4, y, contentWidth - half - 4, 18));
         y += 22;
 
         int steps = (QuiverDisplayConfig.MAX_THRESHOLD - QuiverDisplayConfig.MIN_THRESHOLD) / QuiverDisplayConfig.THRESHOLD_STEP;

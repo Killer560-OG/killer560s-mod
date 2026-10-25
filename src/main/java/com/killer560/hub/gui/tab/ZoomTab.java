@@ -53,11 +53,8 @@ public class ZoomTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         ZoomConfig cfg = ZoomConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Zoom", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Zoom", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -92,11 +89,8 @@ public class ZoomTab extends BaseTab implements KeyCaptureTab {
         });
         y += 26;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Scroll While Zoomed", cfg.isScrollWhileZoomed()), btn -> {
-                    cfg.setScrollWhileZoomed(!cfg.isScrollWhileZoomed());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Scroll While Zoomed", cfg::isScrollWhileZoomed, cfg::setScrollWhileZoomed, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         // How far one wheel notch moves the zoom, 2% to 50% (killer560, 2026-10-19: "a slider for how much the zoom changes").

@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.BoulderSolverConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
 
@@ -21,22 +20,16 @@ public class BoulderSolverTab extends BaseTab {
         int y = contentY;
         BoulderSolverConfig cfg = BoulderSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Boulder Solver", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Boulder Solver", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show All Remaining Clicks", cfg.isShowAllClicks()), btn -> {
-                    cfg.setShowAllClicks(!cfg.isShowAllClicks());
-                    cfg.save();
-                    btn.setMessage(onOff("Show All Remaining Clicks", cfg.isShowAllClicks()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show All Remaining Clicks", cfg::isShowAllClicks, cfg::setShowAllClicks, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BOULDER, contentX, contentWidth, y, true);
 

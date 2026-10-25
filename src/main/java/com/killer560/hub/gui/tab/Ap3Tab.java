@@ -9,7 +9,6 @@ import com.killer560.hub.ap3.Ap3Executor;
 import com.killer560.hub.ap3.Ap3Feature;
 import com.killer560.hub.ap3.Ap3Node;
 import com.killer560.hub.ap3.Ap3Store;
-import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SectionHeaders;
@@ -105,11 +104,8 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
         header(w, contentX, y, contentWidth, "AP3");
         // Full width (killer560, 2026-09-21: "make the ap3 on button take up the full width").
-        w.add(SettingsButtonWidget.builder(onOff("AP3", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("AP3", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
         if (!cfg.isEnabledRaw()) {
             return w;
@@ -236,11 +232,8 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         header(w, x, y, width, "Node Labels");
         // Laid out 2026-09-21 (killer560: "adjust the node labels as that section looks funny"): full-width master
         // switch, then even two-column rows - the old three narrow cells cut their text off.
-        w.add(SettingsButtonWidget.builder(onOff("Show Node Labels", cfg.isShowLabels()), btn -> {
-                    cfg.setShowLabels(!cfg.isShowLabels());
-                    cfg.save();
-                    rebuild.run();
-                }).bounds(x, y[0], width, 20).build());
+        w.add(onOffButton("Show Node Labels", cfg::isShowLabels, cfg::setShowLabels, cfg::save,
+                rebuild, x, y[0], width, 20));
         y[0] += 24;
         if (!cfg.isShowLabels()) {
             return;
@@ -400,26 +393,16 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
     /** ON/OFF toggle; a non-null {@code rebuild} rebuilds the tab (master toggles and anything that collapses). */
     private static void toggle(List<AbstractWidget> w, int x, int[] y, String name, Supplier<Boolean> getter,
                                Consumer<Boolean> setter, Runnable rebuild) {
-        w.add(SettingsButtonWidget.builder(onOff(name, getter.get()), btn -> {
-            setter.accept(!getter.get());
-            Ap3Config.getInstance().save();
-            if (rebuild != null) {
-                rebuild.run();
-            } else {
-                btn.setMessage(onOff(name, getter.get()));
-            }
-        }).bounds(x, y[0], BTN_W, 20).build());
+        w.add(onOffButton(name,
+                getter::get, setter, () -> Ap3Config.getInstance().save(), rebuild, x, y[0], BTN_W, 20));
         y[0] += 24;
     }
 
     /** A toggle sized to a grid cell (for rows of three), no rebuild - the caller advances y. */
     private static void toggleCell(List<AbstractWidget> w, int x, int y, int width, String name, Supplier<Boolean> getter,
                                    Consumer<Boolean> setter) {
-        w.add(SettingsButtonWidget.builder(onOff(name, getter.get()), btn -> {
-            setter.accept(!getter.get());
-            Ap3Config.getInstance().save();
-            btn.setMessage(onOff(name, getter.get()));
-        }).bounds(x, y, Math.max(1, width), ROW).build());
+        w.add(onOffButton(name,
+                getter::get, setter, () -> Ap3Config.getInstance().save(), null, x, y, Math.max(1, width), ROW));
     }
 
     /** Color picker button. {@code save} is what persists the picked value; null = the settings file. */

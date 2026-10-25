@@ -27,11 +27,8 @@ public class ChunkCacheTab extends BaseTab {
         ChunkCacheConfig cfg = ChunkCacheConfig.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Chunk Cache", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Chunk Cache", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         // In-panel description moved into the "Chunk Cache" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).

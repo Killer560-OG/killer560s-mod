@@ -211,11 +211,8 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         y += 16;
 
         // ---- Terminal Protection ----
-        widgets.add(SettingsButtonWidget.builder(onOff("Terminal Protection", cfg.isProtectionEnabledRaw()), btn -> {
-                    cfg.setProtectionEnabled(!cfg.isProtectionEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Terminal Protection", cfg::isProtectionEnabledRaw, cfg::setProtectionEnabled,
+                cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (cfg.isProtectionEnabledRaw()) {
@@ -234,20 +231,14 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                     saveOnRelease(() -> cfg.save());
                 }
             });
-            widgets.add(SettingsButtonWidget.builder(onOff("Subtract Ping", cfg.isProtectionSubtractPing()), btn -> {
-                        cfg.setProtectionSubtractPing(!cfg.isProtectionSubtractPing());
-                        cfg.save();
-                        btn.setMessage(onOff("Subtract Ping", cfg.isProtectionSubtractPing()));
-                    }).bounds(col2bX, y, col2W, 18).build());
+            widgets.add(onOffButton("Subtract Ping", cfg::isProtectionSubtractPing, cfg::setProtectionSubtractPing,
+                    cfg::save, null, col2bX, y, col2W, 18));
             y += 20;
         }
 
         // ---- Drop Key ----
-        widgets.add(SettingsButtonWidget.builder(onOff("Terminal Drop Key", cfg.isDropKeyEnabledRaw()), btn -> {
-                    cfg.setDropKeyEnabled(!cfg.isDropKeyEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Terminal Drop Key", cfg::isDropKeyEnabledRaw, cfg::setDropKeyEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (cfg.isDropKeyEnabledRaw()) {
@@ -259,11 +250,8 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         }
 
         // ---- Melody Keys ----
-        widgets.add(SettingsButtonWidget.builder(onOff("Melody Keys", cfg.isMelodyKeysEnabledRaw()), btn -> {
-                    cfg.setMelodyKeysEnabled(!cfg.isMelodyKeysEnabledRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Melody Keys", cfg.isMelodyKeysEnabledRaw()));
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Melody Keys", cfg::isMelodyKeysEnabledRaw, cfg::setMelodyKeysEnabled, cfg::save,
+                null, contentX, y, contentWidth, 20));
         y += 22;
 
         // ---- Terminal GUI Scale ----
@@ -297,26 +285,17 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         y += 20;
 
         // ---- Hide Completion ----
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide Completion Titles", cfg.isHideCompletionTitlesRaw()), btn -> {
-                    cfg.setHideCompletionTitles(!cfg.isHideCompletionTitlesRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Hide Completion Titles", cfg::isHideCompletionTitlesRaw, cfg::setHideCompletionTitles,
+                cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide Completion Chat", cfg.isHideCompletionChatRaw()), btn -> {
-                    cfg.setHideCompletionChat(!cfg.isHideCompletionChatRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Hide Completion Chat", cfg::isHideCompletionChatRaw, cfg::setHideCompletionChat,
+                cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 22;
 
         if (cfg.isHideCompletionTitlesRaw() || cfg.isHideCompletionChatRaw()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Only Hide Others'", cfg.isHideCompletionOnlyOthers()), btn -> {
-                        cfg.setHideCompletionOnlyOthers(!cfg.isHideCompletionOnlyOthers());
-                        cfg.save();
-                        btn.setMessage(onOff("Only Hide Others'", cfg.isHideCompletionOnlyOthers()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Only Hide Others'", cfg::isHideCompletionOnlyOthers,
+                    cfg::setHideCompletionOnlyOthers, cfg::save, null, contentX, y, contentWidth, 18));
             y += 22;
         }
 

@@ -5,7 +5,6 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.windowlayout.WindowLayoutConfig;
 import com.killer560.hub.windowlayout.WindowLayoutFeature;
 import com.killer560.hub.windowlayout.WindowMonitors;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
@@ -78,25 +77,16 @@ public class WindowLayoutTab extends BaseTab {
             }
         });
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Respect Taskbar", cfg.isRespectTaskbar()), btn -> {
-                    cfg.setRespectTaskbar(!cfg.isRespectTaskbar());
-                    cfg.save();
-                    btn.setMessage(onOff("Respect Taskbar", cfg.isRespectTaskbar()));
-                }).bounds(colBX, y, colW, 18).build());
+        widgets.add(onOffButton("Respect Taskbar", cfg::isRespectTaskbar, cfg::setRespectTaskbar, cfg::save,
+                null, colBX, y, colW, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Restore on Launch", cfg.isRestoreOnLaunch()), btn -> {
-                    cfg.setRestoreOnLaunch(!cfg.isRestoreOnLaunch());
-                    cfg.save();
-                    btn.setMessage(onOff("Restore on Launch", cfg.isRestoreOnLaunch()));
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("Restore on Launch", cfg::isRestoreOnLaunch, cfg::setRestoreOnLaunch, cfg::save,
+                null, contentX, y, colW, 18));
 
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(onOff("Full Monitor Borderless", cfg.isFullMonitorBorderless()), btn -> {
-                    cfg.setFullMonitorBorderless(!cfg.isFullMonitorBorderless());
-                    cfg.save();
-                    btn.setMessage(onOff("Full Monitor Borderless", cfg.isFullMonitorBorderless()));
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("Full Monitor Borderless", cfg::isFullMonitorBorderless, cfg::setFullMonitorBorderless,
+                cfg::save, null, contentX, y, colW, 18));
 
         y += 22;
         widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.windowlayout.WindowLayoutScreen.THEME_ID, contentX, y, colW, 18));

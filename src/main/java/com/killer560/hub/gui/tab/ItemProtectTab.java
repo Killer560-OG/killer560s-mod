@@ -75,11 +75,8 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Item Protection", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Item Protection", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
@@ -93,11 +90,8 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Protect Item", false));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Protect Item", cfg.isProtectItemEnabledRaw()), btn -> {
-                    cfg.setProtectItemEnabled(!cfg.isProtectItemEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Protect Item", cfg::isProtectItemEnabledRaw, cfg::setProtectItemEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         if (cfg.isProtectItemEnabledRaw()) {
@@ -105,18 +99,12 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                         capturing = Capturing.PROTECT;
                         btn.setMessage(Component.literal("Press any key..."));
                     }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("Lock In Place", cfg.isLockInPlace()), btn -> {
-                        cfg.setLockInPlace(!cfg.isLockInPlace());
-                        cfg.save();
-                        btn.setMessage(onOff("Lock In Place", cfg.isLockInPlace()));
-                    }).bounds(col2, y, half, 18).build());
+            widgets.add(onOffButton("Lock In Place", cfg::isLockInPlace, cfg::setLockInPlace, cfg::save,
+                    null, col2, y, half, 18));
             y += 22;
 
-            widgets.add(SettingsButtonWidget.builder(onOff("Item ID Fallback", cfg.isUseItemIdFallback()), btn -> {
-                        cfg.setUseItemIdFallback(!cfg.isUseItemIdFallback());
-                        cfg.save();
-                        btn.setMessage(onOff("Item ID Fallback", cfg.isUseItemIdFallback()));
-                    }).bounds(contentX, y, half, 18).build());
+            widgets.add(onOffButton("Item ID Fallback", cfg::isUseItemIdFallback, cfg::setUseItemIdFallback, cfg::save,
+                    null, contentX, y, half, 18));
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Star Color", cfg.getProtectedColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
                         McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Protected Item Star Color",
@@ -147,11 +135,8 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Auto-Protect Starred Items", false));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto-Protect Starred", cfg.isProtectStarredEnabledRaw()), btn -> {
-                    cfg.setProtectStarredEnabled(!cfg.isProtectStarredEnabledRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Auto-Protect Starred", cfg.isProtectStarredEnabledRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Auto-Protect Starred", cfg::isProtectStarredEnabledRaw, cfg::setProtectStarredEnabled,
+                cfg::save, null, contentX, y, contentWidth, 18));
         y += 22;
 
 
@@ -159,24 +144,15 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Prevent Hotbar Drops", false));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Prevent Hotbar Drops", cfg.isPreventHotbarDropEnabledRaw()), btn -> {
-                    cfg.setPreventHotbarDropEnabled(!cfg.isPreventHotbarDropEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Prevent Hotbar Drops", cfg::isPreventHotbarDropEnabledRaw,
+                cfg::setPreventHotbarDropEnabled, cfg::save, requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         if (cfg.isPreventHotbarDropEnabledRaw()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Confirm To Force", cfg.isConfirmToForce()), btn -> {
-                        cfg.setConfirmToForce(!cfg.isConfirmToForce());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("Block Every Drop", cfg.isBlockEveryHotbarDrop()), btn -> {
-                        cfg.setBlockEveryHotbarDrop(!cfg.isBlockEveryHotbarDrop());
-                        cfg.save();
-                        btn.setMessage(onOff("Block Every Drop", cfg.isBlockEveryHotbarDrop()));
-                    }).bounds(col2, y, half, 18).build());
+            widgets.add(onOffButton("Confirm To Force", cfg::isConfirmToForce, cfg::setConfirmToForce, cfg::save,
+                    requestRebuild, contentX, y, half, 18));
+            widgets.add(onOffButton("Block Every Drop", cfg::isBlockEveryHotbarDrop, cfg::setBlockEveryHotbarDrop,
+                    cfg::save, null, col2, y, half, 18));
             y += 22;
             if (cfg.isConfirmToForce()) {
                 int minD = ItemProtectConfig.MIN_FORCE_DROPS;
@@ -202,11 +178,8 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         }
 
         // ---------------- Feedback ----------------
-        widgets.add(SettingsButtonWidget.builder(onOff("Block Sound", cfg.isBlockSound()), btn -> {
-                    cfg.setBlockSound(!cfg.isBlockSound());
-                    cfg.save();
-                    btn.setMessage(onOff("Block Sound", cfg.isBlockSound()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Block Sound", cfg::isBlockSound, cfg::setBlockSound, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
         return widgets;

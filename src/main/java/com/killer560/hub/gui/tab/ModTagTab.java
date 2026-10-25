@@ -31,11 +31,8 @@ public class ModTagTab extends BaseTab {
         int y = contentY;
         ModUserConfig cfg = ModUserConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("See Other Mod Users", cfg.isSeeOthers()), btn -> {
-                    cfg.setSeeOthers(!cfg.isSeeOthers());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("See Other Mod Users", cfg::isSeeOthers, cfg::setSeeOthers, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Show Me As A Mod User", cfg.isShare()), btn -> {

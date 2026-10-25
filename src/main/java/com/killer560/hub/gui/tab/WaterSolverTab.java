@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.WaterSolverConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
 
@@ -25,30 +24,21 @@ public class WaterSolverTab extends BaseTab {
         int col2aX = contentX;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Water Board Solver", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Water Board Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Tracer", cfg.isShowTracer()), btn -> {
-                    cfg.setShowTracer(!cfg.isShowTracer());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Tracer", cfg.isShowTracer()));
-                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(onOffButton("Show Tracer", cfg::isShowTracer, cfg::setShowTracer, cfg::save,
+                null, col2aX, y, col2W, 18));
 
         // Renamed from "Alt. Timing" (killer560, 2026-09-20: "rename alt timing to optimized solutions") -
         // same setting, same data (Odin's alternate lever-timing set), clearer label.
-        widgets.add(SettingsButtonWidget.builder(onOff("Optimized Solutions", cfg.isOptimizedPath()), btn -> {
-                    cfg.setOptimizedPath(!cfg.isOptimizedPath());
-                    cfg.save();
-                    btn.setMessage(onOff("Optimized Solutions", cfg.isOptimizedPath()));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Optimized Solutions", cfg::isOptimizedPath, cfg::setOptimizedPath, cfg::save,
+                null, col2bX, y, col2W, 18));
 
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.WATER, contentX, contentWidth, y, true);
 

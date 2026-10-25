@@ -24,11 +24,8 @@ public class ItemRarityTab extends BaseTab {
         int y = contentY;
         ItemRarityConfig cfg = ItemRarityConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Item Rarity Backgrounds", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Item Rarity Backgrounds", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -78,18 +75,12 @@ public class ItemRarityTab extends BaseTab {
         });
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show in Hotbar", cfg.isShowInHotbar()), btn -> {
-                    cfg.setShowInHotbar(!cfg.isShowInHotbar());
-                    cfg.save();
-                    btn.setMessage(onOff("Show in Hotbar", cfg.isShowInHotbar()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show in Hotbar", cfg::isShowInHotbar, cfg::setShowInHotbar, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Skyblock Only", cfg.isSkyblockOnly()), btn -> {
-                    cfg.setSkyblockOnly(!cfg.isSkyblockOnly());
-                    cfg.save();
-                    btn.setMessage(onOff("Skyblock Only", cfg.isSkyblockOnly()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Skyblock Only", cfg::isSkyblockOnly, cfg::setSkyblockOnly, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         return widgets;
     }

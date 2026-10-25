@@ -42,75 +42,42 @@ public class TickTimersTab extends BaseTab {
         int col2 = contentX + 108;
         int col3 = contentX + 216;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Tick Timers", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Tick Timers", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, 220, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Necron Start", cfg.isNecronTimer()), btn -> {
-                    cfg.setNecronTimer(!cfg.isNecronTimer());
-                    cfg.save();
-                    btn.setMessage(onOff("Necron Start", cfg.isNecronTimer()));
-                }).bounds(col1, y, 100, 18).build());
+        widgets.add(onOffButton("Necron Start", cfg::isNecronTimer, cfg::setNecronTimer, cfg::save,
+                null, col1, y, 100, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Goldor", cfg.isGoldorTimer()), btn -> {
-                    cfg.setGoldorTimer(!cfg.isGoldorTimer());
-                    cfg.save();
-                    btn.setMessage(onOff("Goldor", cfg.isGoldorTimer()));
-                }).bounds(col2, y, 100, 18).build());
+        widgets.add(onOffButton("Goldor", cfg::isGoldorTimer, cfg::setGoldorTimer, cfg::save, null, col2, y, 100, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Storm", cfg.isStormTimer()), btn -> {
-                    cfg.setStormTimer(!cfg.isStormTimer());
-                    cfg.save();
-                    btn.setMessage(onOff("Storm", cfg.isStormTimer()));
-                }).bounds(col3, y, 108, 18).build());
+        widgets.add(onOffButton("Storm", cfg::isStormTimer, cfg::setStormTimer, cfg::save, null, col3, y, 108, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Ticks (vs Seconds)", cfg.isDisplayInTicks()), btn -> {
-                    cfg.setDisplayInTicks(!cfg.isDisplayInTicks());
-                    cfg.save();
-                    btn.setMessage(onOff("Ticks (vs Seconds)", cfg.isDisplayInTicks()));
-                }).bounds(col1, y, 160, 18).build());
+        widgets.add(onOffButton("Ticks (vs Seconds)", cfg::isDisplayInTicks, cfg::setDisplayInTicks, cfg::save,
+                null, col1, y, 160, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Symbol", cfg.isShowSymbol()), btn -> {
-                    cfg.setShowSymbol(!cfg.isShowSymbol());
-                    cfg.save();
-                    btn.setMessage(onOff("Symbol", cfg.isShowSymbol()));
-                }).bounds(col3, y, 108, 18).build());
+        widgets.add(onOffButton("Symbol", cfg::isShowSymbol, cfg::setShowSymbol, cfg::save, null, col3, y, 108, 18));
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Prefix", cfg.isShowPrefix()), btn -> {
-                    cfg.setShowPrefix(!cfg.isShowPrefix());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Prefix", cfg.isShowPrefix()));
-                }).bounds(col1, y, 160, 18).build());
+        widgets.add(onOffButton("Show Prefix", cfg::isShowPrefix, cfg::setShowPrefix, cfg::save,
+                null, col1, y, 160, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Goldor Start", cfg.isGoldorStartTimer()), btn -> {
-                    cfg.setGoldorStartTimer(!cfg.isGoldorStartTimer());
-                    cfg.save();
-                    btn.setMessage(onOff("Goldor Start", cfg.isGoldorStartTimer()));
-                }).bounds(col3, y, 108, 18).build());
+        widgets.add(onOffButton("Goldor Start", cfg::isGoldorStartTimer, cfg::setGoldorStartTimer, cfg::save,
+                null, col3, y, 108, 18));
         y += 22;
 
         // Folded in from the old Goldor Frenzy Timer tab (2026-09-20 merge) - see TickTimersFeature's class doc.
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Total", cfg.isGoldorShowTotal()), btn -> {
-                    cfg.setGoldorShowTotal(!cfg.isGoldorShowTotal());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Total", cfg.isGoldorShowTotal()));
-                }).bounds(col1, y, 108, 18).build());
+        widgets.add(onOffButton("Show Total", cfg::isGoldorShowTotal, cfg::setGoldorShowTotal, cfg::save,
+                null, col1, y, 108, 18));
 
         // NoammAddons 1.2.9 floor7/TickTimers.kt "Maxor Start" - in the slot the removed clear Death Tick had.
-        widgets.add(SettingsButtonWidget.builder(onOff("Maxor Start", cfg.isMaxorStartTimer()), btn -> {
-                    cfg.setMaxorStartTimer(!cfg.isMaxorStartTimer());
-                    cfg.save();
-                    btn.setMessage(onOff("Maxor Start", cfg.isMaxorStartTimer()));
-                }).bounds(col3, y, 108, 18).build());
+        widgets.add(onOffButton("Maxor Start", cfg::isMaxorStartTimer, cfg::setMaxorStartTimer, cfg::save,
+                null, col3, y, 108, 18));
         y += 26;
 
         // ---- Storm Crush Timer (P2) - moved in from F7 Spots 2026-09-21, see class doc ----
@@ -192,10 +159,6 @@ public class TickTimersTab extends BaseTab {
     }
 
     private static AbstractWidget toggle(int x, int y, int width, String label, BooleanSupplier getter, Consumer<Boolean> setter) {
-        return SettingsButtonWidget.builder(onOff(label, getter.getAsBoolean()), btn -> {
-            setter.accept(!getter.getAsBoolean());
-            TickTimersConfig.getInstance().save();
-            btn.setMessage(onOff(label, getter.getAsBoolean()));
-        }).bounds(x, y, width, 18).build();
+        return onOffButton(label, getter, setter, () -> TickTimersConfig.getInstance().save(), null, x, y, width, 18);
     }
 }

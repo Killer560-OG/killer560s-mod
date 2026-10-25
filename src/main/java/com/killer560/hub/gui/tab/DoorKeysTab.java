@@ -30,34 +30,22 @@ public class DoorKeysTab extends BaseTab {
         int col2aX = contentX;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Door Keys", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Door Keys", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Wither Key", cfg.isHighlightWither()), btn -> {
-                    cfg.setHighlightWither(!cfg.isHighlightWither());
-                    cfg.save();
-                    btn.setMessage(onOff("Wither Key", cfg.isHighlightWither()));
-                }).bounds(col2aX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Blood Key", cfg.isHighlightBlood()), btn -> {
-                    cfg.setHighlightBlood(!cfg.isHighlightBlood());
-                    cfg.save();
-                    btn.setMessage(onOff("Blood Key", cfg.isHighlightBlood()));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Wither Key", cfg::isHighlightWither, cfg::setHighlightWither, cfg::save,
+                null, col2aX, y, col2W, 18));
+        widgets.add(onOffButton("Blood Key", cfg::isHighlightBlood, cfg::setHighlightBlood, cfg::save,
+                null, col2bX, y, col2W, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Tracer", cfg.isShowTracer()), btn -> {
-                    cfg.setShowTracer(!cfg.isShowTracer());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(onOffButton("Show Tracer", cfg::isShowTracer, cfg::setShowTracer, cfg::save,
+                requestRebuild, col2aX, y, col2W, 18));
         if (cfg.isShowTracer()) {
             float span = DoorKeysConfig.MAX_TRACER_THICKNESS - DoorKeysConfig.MIN_TRACER_THICKNESS;
             widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, thicknessText(cfg),
@@ -138,11 +126,8 @@ public class DoorKeysTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - ESP", true));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("ESP Through Walls", cfg.isThroughWallsRaw()), btn -> {
-                    cfg.setThroughWalls(!cfg.isThroughWallsRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("ESP Through Walls", cfg.isThroughWallsRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("ESP Through Walls", cfg::isThroughWallsRaw, cfg::setThroughWalls, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         return widgets;
     }

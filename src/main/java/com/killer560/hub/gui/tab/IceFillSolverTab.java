@@ -22,22 +22,16 @@ public class IceFillSolverTab extends BaseTab {
         int y = contentY;
         IceFillSolverConfig cfg = IceFillSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Ice Fill Solver", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Ice Fill Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Alternate Path", cfg.isOptimizedPath()), btn -> {
-                    cfg.setOptimizedPath(!cfg.isOptimizedPath());
-                    cfg.save();
-                    btn.setMessage(onOff("Alternate Path", cfg.isOptimizedPath()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Alternate Path", cfg::isOptimizedPath, cfg::setOptimizedPath, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
         // killer560, 2026-09-20: "ice fill's line shouldn't be blue, hard to see - make it configurable".

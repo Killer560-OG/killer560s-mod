@@ -54,11 +54,8 @@ public class AutoBloodCampTab extends BaseTab {
             y += 16;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Trigger Bot", cfg.getTriggerBotRaw()), btn -> {
-                    cfg.setTriggerBotEnabled(!cfg.getTriggerBotRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(onOffButton("Trigger Bot", cfg::getTriggerBotRaw, cfg::setTriggerBotEnabled, cfg::save,
+                requestRebuild, col2aX, y, col2W, 18));
 
         widgets.add(SettingsButtonWidget.builder(onOff("Aura", cfg.getAuraRaw()), btn -> {
                     cfg.setAuraEnabled(!cfg.getAuraRaw());
@@ -69,11 +66,8 @@ public class AutoBloodCampTab extends BaseTab {
 
         if (cfg.getAuraRaw()) {
             // The Aura's own option, so it sits with the switches above the Attack Speed group.
-            widgets.add(SettingsButtonWidget.builder(onOff("Freecam Mode", cfg.isAuraFreecam()), btn -> {
-                        cfg.setAuraFreecam(!cfg.isAuraFreecam());
-                        cfg.save();
-                        btn.setMessage(onOff("Freecam Mode", cfg.isAuraFreecam()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Freecam Mode", cfg::isAuraFreecam, cfg::setAuraFreecam, cfg::save,
+                    null, contentX, y, contentWidth, 18));
             y += 20;
         }
 
@@ -90,11 +84,8 @@ public class AutoBloodCampTab extends BaseTab {
         // click on a mob on its way already goes at triggerTargetTicks, and every Blood Camp click waits for the kill
         // timer moved by the offset (BloodCampFeature#tick).
         if (cfg.getTriggerBotRaw() || cfg.getAuraRaw()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Auto Detect Lag", cfg.isAutoDetectLag()), btn -> {
-                        cfg.setAutoDetectLag(!cfg.isAutoDetectLag());
-                        cfg.save();
-                        btn.setMessage(onOff("Auto Detect Lag", cfg.isAutoDetectLag()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Auto Detect Lag", cfg::isAutoDetectLag, cfg::setAutoDetectLag, cfg::save,
+                    null, contentX, y, contentWidth, 18));
             y += 20;
 
             // killer560, 2026-10-15: "Have the slider go from -10 to 10 and have it default to -1" - ticks from the kill
@@ -121,11 +112,8 @@ public class AutoBloodCampTab extends BaseTab {
         if (cfg.getTriggerBotRaw() || cfg.getAuraRaw()) {
             // killer560, 2026-10-15: "add a never miss setting where it attacks the tick it detects the mob is actually
             // there not just when it thinks it will spawn".
-            widgets.add(SettingsButtonWidget.builder(onOff("Never Miss", cfg.isNeverMiss()), btn -> {
-                        cfg.setNeverMiss(!cfg.isNeverMiss());
-                        cfg.save();
-                        btn.setMessage(onOff("Never Miss", cfg.isNeverMiss()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Never Miss", cfg::isNeverMiss, cfg::setNeverMiss, cfg::save,
+                    null, contentX, y, contentWidth, 18));
             y += 20;
         }
 

@@ -25,11 +25,8 @@ public class CustomPartyFinderTab extends BaseTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         LfgConfig cfg = LfgConfig.getInstance();
         int y = contentY;
-        widgets.add(SettingsButtonWidget.builder(onOff("Custom Party Finder", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Custom Party Finder", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
         if (!cfg.isEnabledRaw()) {
             return widgets;
@@ -51,10 +48,6 @@ public class CustomPartyFinderTab extends BaseTab {
 
     private static AbstractWidget toggle(String label, BooleanSupplier get, Consumer<Boolean> set, LfgConfig cfg,
                                          int x, int y, int w) {
-        return SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {
-                    set.accept(!get.getAsBoolean());
-                    cfg.save();
-                    btn.setMessage(onOff(label, get.getAsBoolean()));
-                }).bounds(x, y, w, 18).build();
+        return onOffButton(label, get, set, cfg::save, null, x, y, w, 18);
     }
 }

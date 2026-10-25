@@ -42,11 +42,8 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         StorageSearchConfig cfg = StorageSearchConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Storage Search", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Storage Search", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 28;
 
         if (!cfg.isEnabled()) {
@@ -94,37 +91,22 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(colBX, y, colW, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Search Lore", cfg.isSearchLore()), btn -> {
-                    cfg.setSearchLore(!cfg.isSearchLore());
-                    cfg.save();
-                    btn.setMessage(onOff("Search Lore", cfg.isSearchLore()));
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("Search Lore", cfg::isSearchLore, cfg::setSearchLore, cfg::save,
+                null, contentX, y, colW, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Include Inventory", cfg.isIncludeInventory()), btn -> {
-                    cfg.setIncludeInventory(!cfg.isIncludeInventory());
-                    cfg.save();
-                    btn.setMessage(onOff("Include Inventory", cfg.isIncludeInventory()));
-                }).bounds(colBX, y, colW, 18).build());
+        widgets.add(onOffButton("Include Inventory", cfg::isIncludeInventory, cfg::setIncludeInventory, cfg::save,
+                null, colBX, y, colW, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Open on Click", cfg.isOpenOnClick()), btn -> {
-                    cfg.setOpenOnClick(!cfg.isOpenOnClick());
-                    cfg.save();
-                    btn.setMessage(onOff("Open on Click", cfg.isOpenOnClick()));
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("Open on Click", cfg::isOpenOnClick, cfg::setOpenOnClick, cfg::save,
+                null, contentX, y, colW, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Focus One Storage", cfg.isFocusSingleStorage()), btn -> {
-                    cfg.setFocusSingleStorage(!cfg.isFocusSingleStorage());
-                    cfg.save();
-                    btn.setMessage(onOff("Focus One Storage", cfg.isFocusSingleStorage()));
-                }).bounds(colBX, y, colW, 18).build());
+        widgets.add(onOffButton("Focus One Storage", cfg::isFocusSingleStorage, cfg::setFocusSingleStorage, cfg::save,
+                null, colBX, y, colW, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Search Wardrobe & Pets", cfg.isSearchExtras()), btn -> {
-                    cfg.setSearchExtras(!cfg.isSearchExtras());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("Search Wardrobe & Pets", cfg::isSearchExtras, cfg::setSearchExtras, cfg::save,
+                requestRebuild, contentX, y, colW, 18));
 
         if (cfg.isSearchExtras()) {
             widgets.add(SettingsButtonWidget.builder(
@@ -135,11 +117,8 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
         }
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Search Island Chests", cfg.isSearchChests()), btn -> {
-                    cfg.setSearchChests(!cfg.isSearchChests());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("Search Island Chests", cfg::isSearchChests, cfg::setSearchChests, cfg::save,
+                requestRebuild, contentX, y, colW, 18));
 
         if (!cfg.isSearchChests()) {
             return widgets;
@@ -153,17 +132,11 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(colBX, y, colW, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Chest ESP", cfg.isChestEsp()), btn -> {
-                    cfg.setChestEsp(!cfg.isChestEsp());
-                    cfg.save();
-                    btn.setMessage(onOff("Chest ESP", cfg.isChestEsp()));
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("Chest ESP", cfg::isChestEsp, cfg::setChestEsp, cfg::save,
+                null, contentX, y, colW, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("ESP Through Walls", cfg.isEspThroughWalls()), btn -> {
-                    cfg.setEspThroughWalls(!cfg.isEspThroughWalls());
-                    cfg.save();
-                    btn.setMessage(onOff("ESP Through Walls", cfg.isEspThroughWalls()));
-                }).bounds(colBX, y, colW, 18).build());
+        widgets.add(onOffButton("ESP Through Walls", cfg::isEspThroughWalls, cfg::setEspThroughWalls, cfg::save,
+                null, colBX, y, colW, 18));
         y += 24;
 
         int radiusRange = StorageSearchConfig.MAX_CHEST_RADIUS - StorageSearchConfig.MIN_CHEST_RADIUS;

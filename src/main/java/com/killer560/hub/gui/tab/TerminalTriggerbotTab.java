@@ -37,11 +37,8 @@ public class TerminalTriggerbotTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Terminal Triggerbot", true));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Terminal Triggerbot", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Terminal Triggerbot", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!cfg.isEnabledRaw()) {

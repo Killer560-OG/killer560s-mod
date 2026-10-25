@@ -36,11 +36,8 @@ public class AbilityCooldownTab extends BaseTab {
         int colB = contentX + half + gap;
 
         header(w, contentX, y, contentWidth, "Ability Cooldowns");
-        w.add(SettingsButtonWidget.builder(onOff("Ability Cooldowns", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Ability Cooldowns", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
 
         if (!cfg.isEnabledRaw()) {

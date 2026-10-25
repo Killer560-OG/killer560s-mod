@@ -52,11 +52,8 @@ public class CompactorPreviewTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         CompactorPreviewConfig cfg = CompactorPreviewConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Compactor Preview", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Compactor Preview", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
@@ -78,11 +75,8 @@ public class CompactorPreviewTab extends BaseTab implements KeyCaptureTab {
             y += 22;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Skyblock Only", cfg.isSkyblockOnly()), btn -> {
-                    cfg.setSkyblockOnly(!cfg.isSkyblockOnly());
-                    cfg.save();
-                    btn.setMessage(onOff("Skyblock Only", cfg.isSkyblockOnly()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Skyblock Only", cfg::isSkyblockOnly, cfg::setSkyblockOnly, cfg::save,
+                null, contentX, y, contentWidth, 18));
         return widgets;
     }
 

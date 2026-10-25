@@ -72,11 +72,8 @@ public class LeapMenuTab extends BaseTab {
         int rightW = Math.max(1, width - half - GAP);
 
         SpiritLeapOverlayConfig cfg = SpiritLeapOverlayConfig.getInstance();
-        widgets.add(SettingsButtonWidget.builder(onOff("Custom Leap Menu", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(x, y, half, ROW).build());
+        widgets.add(onOffButton("Custom Leap Menu", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, x, y, half, ROW));
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Leap Order"), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     client.setScreenAndShow(new LeapOrderScreen(McCompat.screen(client)));
@@ -96,11 +93,8 @@ public class LeapMenuTab extends BaseTab {
         // 2026-10-18, ScreenThemes.section).
 
         if (cfg.isEnabled()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Use Class Colors", cfg.isUseClassColors()), btn -> {
-                        cfg.setUseClassColors(!cfg.isUseClassColors());
-                        cfg.save();
-                        btn.setMessage(onOff("Use Class Colors", cfg.isUseClassColors()));
-                    }).bounds(x, y, half, ROW).build());
+            widgets.add(onOffButton("Use Class Colors", cfg::isUseClassColors, cfg::setUseClassColors, cfg::save,
+                    null, x, y, half, ROW));
 
             float span = SpiritLeapOverlayConfig.MAX_SCALE - SpiritLeapOverlayConfig.MIN_SCALE;
             double scaleNormalized = (cfg.getScale() - SpiritLeapOverlayConfig.MIN_SCALE) / span;
@@ -121,11 +115,8 @@ public class LeapMenuTab extends BaseTab {
             y += ROW + GAP;
 
             // 2026-10-11: each box shows the teammate's face; and the map style for the clear (boxes again in boss).
-            widgets.add(SettingsButtonWidget.builder(onOff("Show Player Heads", cfg.isShowHeads()), btn -> {
-                        cfg.setShowHeads(!cfg.isShowHeads());
-                        cfg.save();
-                        btn.setMessage(onOff("Show Player Heads", cfg.isShowHeads()));
-                    }).bounds(x, y, half, ROW).build());
+            widgets.add(onOffButton("Show Player Heads", cfg::isShowHeads, cfg::setShowHeads, cfg::save,
+                    null, x, y, half, ROW));
             widgets.add(SettingsButtonWidget.cycling(leapStyleText(cfg), (btn, dir) -> {
                         cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
                         cfg.save();

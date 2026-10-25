@@ -35,11 +35,8 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
         int colW = (contentWidth - gap) / 2;
         int colBX = contentX + colW + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auction House Browser", cfg.isAhEnabledRaw()), btn -> {
-                    cfg.setAhEnabled(!cfg.isAhEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Auction House Browser", cfg::isAhEnabledRaw, cfg::setAhEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isAhEnabledRaw()) {
@@ -59,22 +56,16 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(colBX, y, colW, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("/ah Override", cfg.isOverrideAhCommand()), btn -> {
-                    cfg.setOverrideAhCommand(!cfg.isOverrideAhCommand());
-                    cfg.save();
-                    btn.setMessage(onOff("/ah Override", cfg.isOverrideAhCommand()));
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("/ah Override", cfg::isOverrideAhCommand, cfg::setOverrideAhCommand, cfg::save,
+                null, contentX, y, colW, 18));
 
         widgets.add(SettingsButtonWidget.builder(Component.literal(AuctionHouseApi.isScanning() ? "Refreshing..." : "Refresh Now"),
                         btn -> AuctionHouseApi.refreshAsync())
                 .bounds(colBX, y, colW, 18).build());
         y += 26;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Listing Helper", cfg.isListingHelperEnabledRaw()), btn -> {
-                    cfg.setListingHelperEnabled(!cfg.isListingHelperEnabledRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Listing Helper", cfg.isListingHelperEnabledRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Listing Helper", cfg::isListingHelperEnabledRaw, cfg::setListingHelperEnabled,
+                cfg::save, null, contentX, y, contentWidth, 18));
         y += 24;
 
         // The unified Auction House (2026-10-07): Hypixel's real AH menus drawn in the browser's look - part of the
@@ -88,11 +79,8 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, colW, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Recent Searches & Items", ah.isTrackRecents()), btn -> {
-                    ah.setTrackRecents(!ah.isTrackRecents());
-                    ah.save();
-                    btn.setMessage(onOff("Recent Searches & Items", ah.isTrackRecents()));
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("Recent Searches & Items", ah::isTrackRecents, ah::setTrackRecents, ah::save,
+                null, contentX, y, colW, 18));
         widgets.add(SettingsButtonWidget.builder(Component.literal("Clear Recents"), btn -> {
                     ah.clearRecents();
                     ah.save();

@@ -55,17 +55,10 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(colBX, y, colW, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Remember Last Page", cfg.isRememberLastPage()), btn -> {
-                    cfg.setRememberLastPage(!cfg.isRememberLastPage());
-                    cfg.save();
-                    btn.setMessage(onOff("Remember Last Page", cfg.isRememberLastPage()));
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("Remember Last Page", cfg::isRememberLastPage, cfg::setRememberLastPage, cfg::save,
+                null, contentX, y, colW, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Skin", cfg.isShowSkin()), btn -> {
-                    cfg.setShowSkin(!cfg.isShowSkin());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Skin", cfg.isShowSkin()));
-                }).bounds(colBX, y, colW, 18).build());
+        widgets.add(onOffButton("Show Skin", cfg::isShowSkin, cfg::setShowSkin, cfg::save, null, colBX, y, colW, 18));
         y += 22;
 
         widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.profileviewer.screen.ProfileViewerScreen.THEME_ID, contentX, y, colW, 18));

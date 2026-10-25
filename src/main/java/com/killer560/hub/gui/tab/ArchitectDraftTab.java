@@ -2,7 +2,6 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.architect.ArchitectDraftConfig;
 import com.killer560.hub.gui.SectionHeaders;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
 
 import java.util.ArrayList;
@@ -21,20 +20,14 @@ public class ArchitectDraftTab extends BaseTab {
         List<AbstractWidget> w = new ArrayList<>();
         ArchitectDraftConfig cfg = ArchitectDraftConfig.getInstance();
         int y = contentY;
-        w.add(SettingsButtonWidget.builder(onOff("Click Message On Puzzle Fail", cfg.isClickMessageRaw()), btn -> {
-                    cfg.setClickMessage(!cfg.isClickMessageRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Click Message On Puzzle Fail", cfg.isClickMessageRaw()));
-                }).bounds(contentX, y, contentWidth, 20).build());
+        w.add(onOffButton("Click Message On Puzzle Fail", cfg::isClickMessageRaw, cfg::setClickMessage, cfg::save,
+                null, contentX, y, contentWidth, 20));
         y += 24;
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Automation", true));
             y += 16;
-            w.add(SettingsButtonWidget.builder(onOff("Auto Get From Sack", cfg.isAutoGetRaw()), btn -> {
-                        cfg.setAutoGet(!cfg.isAutoGetRaw());
-                        cfg.save();
-                        btn.setMessage(onOff("Auto Get From Sack", cfg.isAutoGetRaw()));
-                    }).bounds(contentX, y, contentWidth, 20).build());
+            w.add(onOffButton("Auto Get From Sack", cfg::isAutoGetRaw, cfg::setAutoGet, cfg::save,
+                    null, contentX, y, contentWidth, 20));
         }
         return w;
     }

@@ -142,15 +142,7 @@ public class SecretAuraTab extends BaseTab {
 
     private static void toggle(List<AbstractWidget> w, int x, int[] y, String name, Supplier<Boolean> getter,
                                Consumer<Boolean> setter, Runnable rebuild, Runnable save) {
-        w.add(SettingsButtonWidget.builder(onOff(name, getter.get()), btn -> {
-            setter.accept(!getter.get());
-            save.run();
-            if (rebuild != null) {
-                rebuild.run();
-            } else {
-                btn.setMessage(onOff(name, getter.get()));
-            }
-        }).bounds(x, y[0], BTN_W, 20).build());
+        w.add(onOffButton(name, getter::get, setter, save, rebuild, x, y[0], BTN_W, 20));
         y[0] += 24;
     }
 

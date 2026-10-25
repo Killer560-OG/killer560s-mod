@@ -33,29 +33,20 @@ public class LividSolverTab extends BaseTab {
         int y = contentY;
         LividSolverConfig cfg = LividSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Livid Solver", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Livid Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Invuln Timer", cfg.isShowTimer()), btn -> {
-                    cfg.setShowTimer(!cfg.isShowTimer());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Invuln Timer", cfg.isShowTimer()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show Invuln Timer", cfg::isShowTimer, cfg::setShowTimer, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Draw Line To Livid", cfg.isShowLine()), btn -> {
-                    cfg.setShowLine(!cfg.isShowLine());
-                    cfg.save();
-                    btn.setMessage(onOff("Draw Line To Livid", cfg.isShowLine()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Draw Line To Livid", cfg::isShowLine, cfg::setShowLine, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         // Solver Highlight, and its Style (outline or full block). The Through Walls row is cheat-only and sits at the bottom.
         SolverEspRows.append(widgets, SOLVER, contentX, contentWidth, y, true, false);

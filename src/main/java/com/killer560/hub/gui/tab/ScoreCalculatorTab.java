@@ -39,11 +39,8 @@ public class ScoreCalculatorTab extends BaseTab {
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Score Calculator", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Score Calculator", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!cfg.isEnabled()) {

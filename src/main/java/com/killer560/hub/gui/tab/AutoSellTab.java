@@ -49,11 +49,8 @@ public class AutoSellTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         AutoSellConfig cfg = AutoSellConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Sell", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Auto Sell", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {

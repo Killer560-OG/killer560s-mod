@@ -149,11 +149,7 @@ public class ThornTab extends BaseTab {
     }
 
     private static AbstractWidget toggle(int x, int y, int width, String label, BooleanSupplier getter, Consumer<Boolean> setter) {
-        return SettingsButtonWidget.builder(onOff(label, getter.getAsBoolean()), btn -> {
-                    setter.accept(!getter.getAsBoolean());
-                    ThornConfig.getInstance().save();
-                    btn.setMessage(onOff(label, getter.getAsBoolean()));
-                }).bounds(x, y, width, 18).build();
+        return onOffButton(label, getter, setter, () -> ThornConfig.getInstance().save(), null, x, y, width, 18);
     }
 
     private static void targetRow(List<AbstractWidget> widgets, int x, int col2X, int y, int width, String name,

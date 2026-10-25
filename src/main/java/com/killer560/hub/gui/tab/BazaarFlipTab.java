@@ -135,11 +135,8 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
         y += 22;
 
         // Max New Orders Per Session: a toggle; when on, the cap is the number beneath it.
-        widgets.add(SettingsButtonWidget.builder(onOff("Max New Orders Per Session", cfg.isAutopilotMaxOrdersOn()), btn -> {
-                    cfg.setAutopilotMaxOrdersOn(!cfg.isAutopilotMaxOrdersOn());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Max New Orders Per Session", cfg::isAutopilotMaxOrdersOn, cfg::setAutopilotMaxOrdersOn,
+                cfg::save, requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
         if (cfg.isAutopilotMaxOrdersOn()) {
             widgets.add(SettingsButtonWidget.cycling(orderCapText(cfg), (btn, dir) -> {

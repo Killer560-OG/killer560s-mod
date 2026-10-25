@@ -28,11 +28,8 @@ public class HeldItemTab extends BaseTab {
         int y = contentY;
         HeldItemConfig cfg = HeldItemConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Held Item Transform", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Held Item Transform", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -43,25 +40,16 @@ public class HeldItemTab extends BaseTab {
         widgets.add(label(contentX, y, contentWidth, "§6Animations"));
         y += 14;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("No Swing Animation", cfg.isNoSwing()), btn -> {
-                    cfg.setNoSwing(!cfg.isNoSwing());
-                    cfg.save();
-                    btn.setMessage(onOff("No Swing Animation", cfg.isNoSwing()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("No Swing Animation", cfg::isNoSwing, cfg::setNoSwing, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("No Equip Animation", cfg.isNoEquip()), btn -> {
-                    cfg.setNoEquip(!cfg.isNoEquip());
-                    cfg.save();
-                    btn.setMessage(onOff("No Equip Animation", cfg.isNoEquip()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("No Equip Animation", cfg::isNoEquip, cfg::setNoEquip, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("No Hand Sway", cfg.isNoHandSway()), btn -> {
-                    cfg.setNoHandSway(!cfg.isNoHandSway());
-                    cfg.save();
-                    btn.setMessage(onOff("No Hand Sway", cfg.isNoHandSway()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("No Hand Sway", cfg::isNoHandSway, cfg::setNoHandSway, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
         if (!cfg.isNoSwing()) {
@@ -77,11 +65,8 @@ public class HeldItemTab extends BaseTab {
         y += 14;
         y = addHandSliders(widgets, contentX, y, contentWidth, cfg.getMainHand(), cfg);
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Separate Off Hand", cfg.isSeparateOffHand()), btn -> {
-                    cfg.setSeparateOffHand(!cfg.isSeparateOffHand());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Separate Off Hand", cfg::isSeparateOffHand, cfg::setSeparateOffHand, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         // ---- Off hand ----

@@ -61,11 +61,8 @@ public class RunSummaryTab extends BaseTab {
         RunSummaryConfig cfg = RunSummaryConfig.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Run Summary", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Run Summary", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!cfg.isEnabledRaw()) {
@@ -75,16 +72,10 @@ public class RunSummaryTab extends BaseTab {
         widgets.add(header(contentX, y, contentWidth, "Options"));
         y += HEADER_H;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Chat Summary", cfg.isChatSummary()), btn -> {
-                    cfg.setChatSummary(!cfg.isChatSummary());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, half(contentWidth), ROW).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Announce Personal Bests", cfg.isAnnouncePersonalBests()), btn -> {
-                    cfg.setAnnouncePersonalBests(!cfg.isAnnouncePersonalBests());
-                    cfg.save();
-                    btn.setMessage(onOff("Announce Personal Bests", cfg.isAnnouncePersonalBests()));
-                }).bounds(contentX + half(contentWidth) + GAP, y, half(contentWidth), ROW).build());
+        widgets.add(onOffButton("Chat Summary", cfg::isChatSummary, cfg::setChatSummary, cfg::save,
+                requestRebuild, contentX, y, half(contentWidth), ROW));
+        widgets.add(onOffButton("Announce Personal Bests", cfg::isAnnouncePersonalBests, cfg::setAnnouncePersonalBests,
+                cfg::save, null, contentX + half(contentWidth) + GAP, y, half(contentWidth), ROW));
         y += ROW + GAP;
 
         widgets.add(SettingsButtonWidget.cycling(pbMinText(cfg), (btn, dir) -> {
@@ -96,19 +87,13 @@ public class RunSummaryTab extends BaseTab {
         y += ROW + GAP;
 
         if (cfg.isChatSummary()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Don't Repeat Split Timers", cfg.isAvoidDuplicateChat()), btn -> {
-                        cfg.setAvoidDuplicateChat(!cfg.isAvoidDuplicateChat());
-                        cfg.save();
-                        btn.setMessage(onOff("Don't Repeat Split Timers", cfg.isAvoidDuplicateChat()));
-                    }).bounds(contentX, y, contentWidth, ROW).build());
+            widgets.add(onOffButton("Don't Repeat Split Timers", cfg::isAvoidDuplicateChat, cfg::setAvoidDuplicateChat,
+                    cfg::save, null, contentX, y, contentWidth, ROW));
             y += ROW + GAP;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Record Device/Terminal Times", cfg.isRecordDeviceTimes()), btn -> {
-                    cfg.setRecordDeviceTimes(!cfg.isRecordDeviceTimes());
-                    cfg.save();
-                    btn.setMessage(onOff("Record Device/Terminal Times", cfg.isRecordDeviceTimes()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
+        widgets.add(onOffButton("Record Device/Terminal Times", cfg::isRecordDeviceTimes, cfg::setRecordDeviceTimes,
+                cfg::save, null, contentX, y, contentWidth, ROW));
         y += ROW + GAP;
 
         int range = RunSummaryConfig.MAX_RUNS - RunSummaryConfig.MIN_RUNS;

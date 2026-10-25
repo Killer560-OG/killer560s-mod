@@ -44,11 +44,8 @@ public class LeapCounterTab extends BaseTab {
         int colB = contentX + half + gap;
 
         // The switch is the tab's first row (no header above it; the tab name already says Leap Counter).
-        w.add(SettingsButtonWidget.builder(onOff("Leap Counter", cfg.getEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.getEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Leap Counter", cfg::getEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
         // Settings stay visible while the master is OFF (like F7 Spots) so the counts can be set up before a run.
 

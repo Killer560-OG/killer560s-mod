@@ -38,11 +38,8 @@ public class AutoKickTab extends BaseTab {
         int colBX = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Kick", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Auto Kick", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {

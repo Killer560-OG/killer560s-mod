@@ -23,83 +23,53 @@ public class SplitTimersTab extends BaseTab {
         int y = contentY;
         SplitTimersConfig cfg = SplitTimersConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Split Timers", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Split Timers", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, 220, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Announce In Chat", cfg.isAnnounceInChat()), btn -> {
-                    cfg.setAnnounceInChat(!cfg.isAnnounceInChat());
-                    cfg.save();
-                    btn.setMessage(onOff("Announce In Chat", cfg.isAnnounceInChat()));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(onOffButton("Announce In Chat", cfg::isAnnounceInChat, cfg::setAnnounceInChat, cfg::save,
+                null, contentX, y, 220, 18));
         y += 24;
 
         // The layout itself is fixed (killer560, 2026-10-08): Blood Open, Watcher, Portal Entry, Boss Entry, a line, the
         // boss phases and Boss, a line, Total and Lag. Only the "(lagless)" parentheses and the extra rows/blocks toggle.
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Split Layout", false));
         y += 14;
-        widgets.add(SettingsButtonWidget.builder(onOff("Lagless Times", cfg.isLaglessTimes()), btn -> {
-                    cfg.setLaglessTimes(!cfg.isLaglessTimes());
-                    cfg.save();
-                    btn.setMessage(onOff("Lagless Times", cfg.isLaglessTimes()));
-                }).bounds(contentX, y, 160, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Watcher Move", cfg.isWatcherMoveSplit()), btn -> {
-                    cfg.setWatcherMoveSplit(!cfg.isWatcherMoveSplit());
-                    cfg.save();
-                    btn.setMessage(onOff("Watcher Move", cfg.isWatcherMoveSplit()));
-                }).bounds(contentX + 168, y, 160, 18).build());
+        widgets.add(onOffButton("Lagless Times", cfg::isLaglessTimes, cfg::setLaglessTimes, cfg::save,
+                null, contentX, y, 160, 18));
+        widgets.add(onOffButton("Watcher Move", cfg::isWatcherMoveSplit, cfg::setWatcherMoveSplit, cfg::save,
+                null, contentX + 168, y, 160, 18));
         y += 26;
 
         // Core entry times (2026-09-16, killer560: "time to enter core after terms finish").
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Core Entry (F7/M7)", false));
         y += 14;
-        widgets.add(SettingsButtonWidget.builder(onOff("Core Entry Times", cfg.isCoreEntryTimes()), btn -> {
-                    cfg.setCoreEntryTimes(!cfg.isCoreEntryTimes());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(onOffButton("Core Entry Times", cfg::isCoreEntryTimes, cfg::setCoreEntryTimes, cfg::save,
+                requestRebuild, contentX, y, 220, 18));
         y += 22;
         if (cfg.isCoreEntryTimes()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Slowest To Chat", cfg.isCoreEntrySlowestChat()), btn -> {
-                        cfg.setCoreEntrySlowestChat(!cfg.isCoreEntrySlowestChat());
-                        cfg.save();
-                        btn.setMessage(onOff("Slowest To Chat", cfg.isCoreEntrySlowestChat()));
-                    }).bounds(contentX, y, 160, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("Slowest To Party", cfg.isCoreEntrySlowestParty()), btn -> {
-                        cfg.setCoreEntrySlowestParty(!cfg.isCoreEntrySlowestParty());
-                        cfg.save();
-                        btn.setMessage(onOff("Slowest To Party", cfg.isCoreEntrySlowestParty()));
-                    }).bounds(contentX + 168, y, 160, 18).build());
+            widgets.add(onOffButton("Slowest To Chat", cfg::isCoreEntrySlowestChat, cfg::setCoreEntrySlowestChat,
+                    cfg::save, null, contentX, y, 160, 18));
+            widgets.add(onOffButton("Slowest To Party", cfg::isCoreEntrySlowestParty, cfg::setCoreEntrySlowestParty,
+                    cfg::save, null, contentX + 168, y, 160, 18));
             y += 22;
             // killer560, 2026-09-20: "at the very bottom of the split timers show the slowest person into
             // core and their time" - separate from the chat/party lines above, which stay chat-only.
-            widgets.add(SettingsButtonWidget.builder(onOff("Slowest In HUD", cfg.isCoreEntrySlowestHud()), btn -> {
-                        cfg.setCoreEntrySlowestHud(!cfg.isCoreEntrySlowestHud());
-                        cfg.save();
-                        btn.setMessage(onOff("Slowest In HUD", cfg.isCoreEntrySlowestHud()));
-                    }).bounds(contentX, y, 220, 18).build());
+            widgets.add(onOffButton("Slowest In HUD", cfg::isCoreEntrySlowestHud, cfg::setCoreEntrySlowestHud,
+                    cfg::save, null, contentX, y, 220, 18));
             y += 22;
         }
 
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "M7 Phase 5 Lines", false));
         y += 14;
-        widgets.add(SettingsButtonWidget.builder(onOff("P5 Dragon Lines", cfg.isP5DragonLines()), btn -> {
-                    cfg.setP5DragonLines(!cfg.isP5DragonLines());
-                    cfg.save();
-                    btn.setMessage(onOff("P5 Dragon Lines", cfg.isP5DragonLines()));
-                }).bounds(contentX, y, 160, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("P5 Relic Lines", cfg.isP5RelicLines()), btn -> {
-                    cfg.setP5RelicLines(!cfg.isP5RelicLines());
-                    cfg.save();
-                    btn.setMessage(onOff("P5 Relic Lines", cfg.isP5RelicLines()));
-                }).bounds(contentX + 168, y, 160, 18).build());
+        widgets.add(onOffButton("P5 Dragon Lines", cfg::isP5DragonLines, cfg::setP5DragonLines, cfg::save,
+                null, contentX, y, 160, 18));
+        widgets.add(onOffButton("P5 Relic Lines", cfg::isP5RelicLines, cfg::setP5RelicLines, cfg::save,
+                null, contentX + 168, y, 160, 18));
         y += 22;
         widgets.add(SettingsButtonWidget.cycling(p5PosLabel(cfg), (btn, dir) -> {
                     cfg.setP5LinesRight(!cfg.isP5LinesRight());

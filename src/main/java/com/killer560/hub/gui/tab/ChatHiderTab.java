@@ -2,7 +2,6 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.chattidy.ChatTidyConfig;
 import com.killer560.hub.gui.SectionHeaders;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
 
 import java.util.ArrayList;
@@ -60,11 +59,7 @@ public class ChatHiderTab extends BaseTab {
 
     private static void toggle(List<AbstractWidget> widgets, int x, int width, int[] y, ChatTidyConfig cfg,
                                Runnable requestRebuild, String label, BooleanSupplier get, Consumer<Boolean> set) {
-        widgets.add(SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {
-                    set.accept(!get.getAsBoolean());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(x, y[0], width, 20).build());
+        widgets.add(onOffButton(label, get, set, cfg::save, requestRebuild, x, y[0], width, 20));
         y[0] += 24;
     }
 }

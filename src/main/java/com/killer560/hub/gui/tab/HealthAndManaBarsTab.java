@@ -405,15 +405,7 @@ public class HealthAndManaBarsTab extends BaseTab {
 
     private static void toggle(List<AbstractWidget> widgets, int x, int y, int width, String label,
                                BooleanSupplier get, Consumer<Boolean> set, Runnable save, Runnable rebuildOrNull) {
-        widgets.add(SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {
-                    set.accept(!get.getAsBoolean());
-                    save.run();
-                    if (rebuildOrNull != null) {
-                        rebuildOrNull.run();
-                    } else {
-                        btn.setMessage(onOff(label, get.getAsBoolean()));
-                    }
-                }).bounds(x, y, Math.max(1, width), ROW_H).build());
+        widgets.add(onOffButton(label, get, set, save, rebuildOrNull, x, y, Math.max(1, width), ROW_H));
     }
 
     private static void colour(List<AbstractWidget> widgets, int x, int y, int width, String label, int argb,

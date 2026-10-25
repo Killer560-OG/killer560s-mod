@@ -3,7 +3,6 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.chocolatefactory.ChocolateFactoryConfig;
 import com.killer560.hub.gui.SectionHeaders;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
 
 import java.util.ArrayList;
@@ -66,15 +65,8 @@ public class ChocolateFactoryTab extends BaseTab {
 
     private static void toggle(List<AbstractWidget> w, int x, int[] y, String name, Supplier<Boolean> getter,
                                Consumer<Boolean> setter, Runnable rebuild) {
-        w.add(SettingsButtonWidget.builder(onOff(name, getter.get()), btn -> {
-            setter.accept(!getter.get());
-            ChocolateFactoryConfig.getInstance().save();
-            if (rebuild != null) {
-                rebuild.run();
-            } else {
-                btn.setMessage(onOff(name, getter.get()));
-            }
-        }).bounds(x, y[0], BTN_W, 20).build());
+        w.add(onOffButton(name,
+                getter::get, setter, () -> ChocolateFactoryConfig.getInstance().save(), rebuild, x, y[0], BTN_W, 20));
         y[0] += 24;
     }
 }

@@ -1,7 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.dungeonbreaker.DungeonBreakerConfig;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
 
 import java.util.ArrayList;
@@ -28,30 +27,21 @@ public class DungeonBreakerTab extends BaseTab {
         int y = contentY;
         DungeonBreakerConfig cfg = DungeonBreakerConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Zero Ping", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Zero Ping", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         // Offered with Zero Ping off too: the guard also covers Breaker Aura and breaker nodes.
-        widgets.add(SettingsButtonWidget.builder(onOff("Don't break secrets", cfg.isNoBreakSecrets()), btn -> {
-                    cfg.setNoBreakSecrets(!cfg.isNoBreakSecrets());
-                    cfg.save();
-                    btn.setMessage(onOff("Don't break secrets", cfg.isNoBreakSecrets()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Don't break secrets", cfg::isNoBreakSecrets, cfg::setNoBreakSecrets, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 24;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Fatigue Only", cfg.isFatigueOnly()), btn -> {
-                    cfg.setFatigueOnly(!cfg.isFatigueOnly());
-                    cfg.save();
-                    btn.setMessage(onOff("Fatigue Only", cfg.isFatigueOnly()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Fatigue Only", cfg::isFatigueOnly, cfg::setFatigueOnly, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         return widgets;
     }

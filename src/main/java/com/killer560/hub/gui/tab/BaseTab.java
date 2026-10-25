@@ -1,10 +1,13 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 public abstract class BaseTab {
     public final String name;
@@ -16,6 +19,23 @@ public abstract class BaseTab {
     /** A switch row's label: {@code "<label>: §aON"} or {@code "<label>: §cOFF"}. */
     protected static Component onOff(String label, boolean on) {
         return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
+    }
+
+    /**
+     * An ON/OFF switch row. A click flips the setting and saves, then rebuilds the tab when {@code rebuild} is given,
+     * or else relabels the button from the getter (so a setter that refuses or clamps shows what it kept).
+     */
+    protected static SettingsButtonWidget onOffButton(String label, BooleanSupplier get, Consumer<Boolean> set,
+            Runnable save, Runnable rebuild, int x, int y, int w, int h) {
+        return SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {
+            set.accept(!get.getAsBoolean());
+            save.run();
+            if (rebuild != null) {
+                rebuild.run();
+            } else {
+                btn.setMessage(onOff(label, get.getAsBoolean()));
+            }
+        }).bounds(x, y, w, h).build();
     }
 
     /** True only while the menu builds the open tab's rows to show them; false for every off-screen build (the search

@@ -31,11 +31,8 @@ public class CustomScoreboardTab extends BaseTab {
         int y = contentY;
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Custom Scoreboard", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Custom Scoreboard", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!cfg.isEnabled()) {

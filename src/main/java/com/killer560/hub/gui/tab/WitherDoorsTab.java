@@ -32,11 +32,8 @@ public class WitherDoorsTab extends BaseTab {
         int col2aX = contentX;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Wither Doors", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Wither Doors", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -140,11 +137,8 @@ public class WitherDoorsTab extends BaseTab {
 
         // The Fairy door, both builds since 2026-10-15: without Show All Doors only once the held map and his own eyes
         // say it is the Fairy door. Both rows always built, so cycling the toggle never moves a row under the cursor.
-        widgets.add(SettingsButtonWidget.builder(onOff("Fairy Door", cfg.isFairyDoorRaw()), btn -> {
-                    cfg.setFairyDoor(!cfg.isFairyDoorRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Fairy Door", cfg.isFairyDoorRaw()));
-                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(onOffButton("Fairy Door", cfg::isFairyDoorRaw, cfg::setFairyDoor, cfg::save,
+                null, col2aX, y, col2W, 18));
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Fairy Door Color", cfg.getFairyDoorColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Fairy Door Color",
@@ -156,11 +150,8 @@ public class WitherDoorsTab extends BaseTab {
         y += 22;
 
         // Waypoint labels over the held map's doors (killer560, 2026-10-15: "it would be waypoint style").
-        widgets.add(SettingsButtonWidget.builder(onOff("Door Labels", cfg.isDoorLabels()), btn -> {
-                    cfg.setDoorLabels(!cfg.isDoorLabels());
-                    cfg.save();
-                    btn.setMessage(onOff("Door Labels", cfg.isDoorLabels()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Door Labels", cfg::isDoorLabels, cfg::setDoorLabels, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 26;
 
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
@@ -170,11 +161,8 @@ public class WitherDoorsTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - ESP", true));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show All Doors", cfg.isShowAllDoorsRaw()), btn -> {
-                    cfg.setShowAllDoors(!cfg.isShowAllDoorsRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Show All Doors", cfg.isShowAllDoorsRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show All Doors", cfg::isShowAllDoorsRaw, cfg::setShowAllDoors, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         return widgets;
     }

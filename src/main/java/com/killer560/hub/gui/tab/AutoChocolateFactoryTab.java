@@ -1,7 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.cheatutils.CheatUtilsConfig;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
@@ -74,15 +73,8 @@ public class AutoChocolateFactoryTab extends BaseTab {
     /** ON/OFF toggle button; a non-null {@code rebuild} rebuilds the tab (used by master toggles). */
     private static void toggle(List<AbstractWidget> w, int x, int[] y, String name, Supplier<Boolean> getter,
                                Consumer<Boolean> setter, Runnable rebuild) {
-        w.add(SettingsButtonWidget.builder(onOff(name, getter.get()), btn -> {
-            setter.accept(!getter.get());
-            CheatUtilsConfig.getInstance().save();
-            if (rebuild != null) {
-                rebuild.run();
-            } else {
-                btn.setMessage(onOff(name, getter.get()));
-            }
-        }).bounds(x, y[0], BTN_W, 20).build());
+        w.add(onOffButton(name,
+                getter::get, setter, () -> CheatUtilsConfig.getInstance().save(), rebuild, x, y[0], BTN_W, 20));
         y[0] += 24;
     }
 

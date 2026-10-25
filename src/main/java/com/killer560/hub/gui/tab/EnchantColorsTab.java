@@ -41,11 +41,8 @@ public class EnchantColorsTab extends BaseTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Enchant Colors", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Enchant Colors", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
@@ -128,11 +125,8 @@ public class EnchantColorsTab extends BaseTab {
         // Perfect default is an animated rainbow, not the fixed swatch above (see EnchantColorsDefaults'
         // class doc), so that's the default here too. The static "Perfect" swatch only reappears once this
         // is turned off, same pattern as "Only Known Enchantments" / "Unknown Enchants" above.
-        widgets.add(SettingsButtonWidget.builder(onOff("Perfect Chroma", cfg.isPerfectChroma()), btn -> {
-                    cfg.setPerfectChroma(!cfg.isPerfectChroma());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Perfect Chroma", cfg::isPerfectChroma, cfg::setPerfectChroma, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         // killer560, 2026-10-13: the chroma waterfalls diagonally across the whole tooltip (util/ChromaWave);
@@ -151,33 +145,24 @@ public class EnchantColorsTab extends BaseTab {
             y += 22;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Bold Perfect", cfg.isPerfectBold()), btn -> {
-                    cfg.setPerfectBold(!cfg.isPerfectBold());
-                    cfg.save();
-                    btn.setMessage(onOff("Bold Perfect", cfg.isPerfectBold()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Bold Perfect", cfg::isPerfectBold, cfg::setPerfectBold, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
         // killer560, 2026-09-27: "something like gk5 being a t7" - a Giant Killer VII (real max, see
         // EnchantColorsDefaults) is Perfect only because this is on; off falls back to never calling
         // anything above Good "Perfect" at all, the old "clamped to the table's top color" behavior, kept
         // as an escape hatch rather than removed.
-        widgets.add(SettingsButtonWidget.builder(onOff("True Max Detection", cfg.isTrueMaxDetection()), btn -> {
-                    cfg.setTrueMaxDetection(!cfg.isTrueMaxDetection());
-                    cfg.save();
-                    btn.setMessage(onOff("True Max Detection", cfg.isTrueMaxDetection()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("True Max Detection", cfg::isTrueMaxDetection, cfg::setTrueMaxDetection, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 26;
 
         // ---------------- Ultimate enchants ----------------
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Ultimate Enchants", false));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Ultimate Override", cfg.isUltimateEnabled()), btn -> {
-                    cfg.setUltimateEnabled(!cfg.isUltimateEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Ultimate Override", cfg::isUltimateEnabled, cfg::setUltimateEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         if (cfg.isUltimateEnabled()) {
@@ -189,11 +174,8 @@ public class EnchantColorsTab extends BaseTab {
                             cfg.save();
                         }));
                     }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("Bold", cfg.isUltimateBold()), btn -> {
-                        cfg.setUltimateBold(!cfg.isUltimateBold());
-                        cfg.save();
-                        btn.setMessage(onOff("Bold", cfg.isUltimateBold()));
-                    }).bounds(col2, y, half, 18).build());
+            widgets.add(onOffButton("Bold", cfg::isUltimateBold, cfg::setUltimateBold, cfg::save,
+                    null, col2, y, half, 18));
             y += 22;
         }
 

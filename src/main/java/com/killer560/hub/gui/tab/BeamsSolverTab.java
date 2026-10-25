@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.BeamsSolverConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
 
@@ -21,22 +20,16 @@ public class BeamsSolverTab extends BaseTab {
         int y = contentY;
         BeamsSolverConfig cfg = BeamsSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Creeper Beams Solver", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Creeper Beams Solver", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Tracer", cfg.isShowTracer()), btn -> {
-                    cfg.setShowTracer(!cfg.isShowTracer());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Tracer", cfg.isShowTracer()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show Tracer", cfg::isShowTracer, cfg::setShowTracer, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BEAMS, contentX, contentWidth, y, true);
 

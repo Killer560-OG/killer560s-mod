@@ -1,7 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.diorite.DioriteGlassConfig;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
 
 import java.util.ArrayList;
@@ -27,11 +26,8 @@ public class DioriteGlassTab extends BaseTab {
         int y = contentY;
         DioriteGlassConfig cfg = DioriteGlassConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("I Hate Diorite", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("I Hate Diorite", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
 
         // In-panel description moved to the toggle's hover tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
         return widgets;

@@ -283,11 +283,8 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
 
     private static void toggle(List<AbstractWidget> w, int x, int y, int width, String name, Supplier<Boolean> getter,
                                Consumer<Boolean> setter) {
-        w.add(SettingsButtonWidget.builder(onOff(name, getter.get()), btn -> {
-            setter.accept(!getter.get());
-            AutoSecretConfig.getInstance().save();
-            btn.setMessage(onOff(name, getter.get()));
-        }).bounds(x, y, Math.max(1, width), 20).build());
+        w.add(onOffButton(name,
+                getter::get, setter, () -> AutoSecretConfig.getInstance().save(), null, x, y, Math.max(1, width), 20));
     }
 
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,

@@ -51,28 +51,19 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         int col3bX = contentX + col3W + gap;
         int col3cX = contentX + (col3W + gap) * 2;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Simon Says", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Simon Says", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 28;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Highlights", cfg.isSolverEnabled()), btn -> {
-                    cfg.setSolverEnabled(!cfg.isSolverEnabled());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Highlights", cfg.isSolverEnabled()));
-                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(onOffButton("Show Highlights", cfg::isSolverEnabled, cfg::setSolverEnabled, cfg::save,
+                null, col2aX, y, col2W, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Numbers", cfg.isNumberOverlay()), btn -> {
-                    cfg.setNumberOverlay(!cfg.isNumberOverlay());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Show Numbers", cfg::isNumberOverlay, cfg::setNumberOverlay, cfg::save,
+                requestRebuild, col2bX, y, col2W, 18));
         y += 20;
 
         widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
@@ -131,24 +122,15 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(col3cX, y, col3W, 18).build());
         y += 30;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Prevent Misclicks", cfg.isPreventMisclicksEnabled()), btn -> {
-                    cfg.setPreventMisclicksEnabled(!cfg.isPreventMisclicksEnabled());
-                    cfg.save();
-                    btn.setMessage(onOff("Prevent Misclicks", cfg.isPreventMisclicksEnabled()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Prevent Misclicks", cfg::isPreventMisclicksEnabled, cfg::setPreventMisclicksEnabled,
+                cfg::save, null, contentX, y, contentWidth, 18));
         y += 28;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Announce Progress", cfg.isAnnounceProgress()), btn -> {
-                    cfg.setAnnounceProgress(!cfg.isAnnounceProgress());
-                    cfg.save();
-                    btn.setMessage(onOff("Announce Progress", cfg.isAnnounceProgress()));
-                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(onOffButton("Announce Progress", cfg::isAnnounceProgress, cfg::setAnnounceProgress, cfg::save,
+                null, col2aX, y, col2W, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Party Tracker", cfg.isPartyProgressTrackerEnabled()), btn -> {
-                    cfg.setPartyProgressTrackerEnabled(!cfg.isPartyProgressTrackerEnabled());
-                    cfg.save();
-                    btn.setMessage(onOff("Party Tracker", cfg.isPartyProgressTrackerEnabled()));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Party Tracker", cfg::isPartyProgressTrackerEnabled,
+                cfg::setPartyProgressTrackerEnabled, cfg::save, null, col2bX, y, col2W, 18));
         y += 22;
 
         Component keyLabel = capturingAnnounceKey ? Component.literal("Press any key...") : announceKeyText(cfg);
@@ -157,11 +139,8 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(col2aX, y, col2W, 18).build());
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Message", cfg.isAutoSendResetMessage()), btn -> {
-                    cfg.setAutoSendResetMessage(!cfg.isAutoSendResetMessage());
-                    cfg.save();
-                    btn.setMessage(onOff("Auto Message", cfg.isAutoSendResetMessage()));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Auto Message", cfg::isAutoSendResetMessage, cfg::setAutoSendResetMessage, cfg::save,
+                null, col2bX, y, col2W, 18));
         y += 20;
 
         EditBox resetMsgField = new EditBox(Minecraft.getInstance().font, contentX, y, contentWidth, 18,

@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.inventorysearch.InventorySearchConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -25,29 +24,20 @@ public class InventorySearchTab extends BaseTab {
         int y = contentY;
         InventorySearchConfig cfg = InventorySearchConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Inventory Search", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Inventory Search", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Search Lore", cfg.isSearchLore()), btn -> {
-                    cfg.setSearchLore(!cfg.isSearchLore());
-                    cfg.save();
-                    btn.setMessage(onOff("Search Lore", cfg.isSearchLore()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Search Lore", cfg::isSearchLore, cfg::setSearchLore, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Ignore Case", cfg.isIgnoreCase()), btn -> {
-                    cfg.setIgnoreCase(!cfg.isIgnoreCase());
-                    cfg.save();
-                    btn.setMessage(onOff("Ignore Case", cfg.isIgnoreCase()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Ignore Case", cfg::isIgnoreCase, cfg::setIgnoreCase, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 26;
 
         double scaleNormalized = (cfg.getBoxScale() - InventorySearchConfig.MIN_BOX_SCALE)

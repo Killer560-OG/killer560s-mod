@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.namechanger.NameChangerConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -27,11 +26,8 @@ public class NickhiderTab extends BaseTab {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Randomize Others", cfg.isRandomizeOthers()), btn -> {
-                    cfg.setRandomizeOthers(!cfg.isRandomizeOthers());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Randomize Others", cfg::isRandomizeOthers, cfg::setRandomizeOthers, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isRandomizeOthers()) {
@@ -39,11 +35,8 @@ public class NickhiderTab extends BaseTab {
         }
         // A style of Randomize Others, so it only shows while that is on (and pressing Randomize Others twice
         // leaves every other setting as it was).
-        widgets.add(SettingsButtonWidget.builder(onOff("Randomized Name", cfg.isRandomizedName()), btn -> {
-                    cfg.setRandomizedName(!cfg.isRandomizedName());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Randomized Name", cfg::isRandomizedName, cfg::setRandomizedName, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (cfg.isRandomizedName()) {

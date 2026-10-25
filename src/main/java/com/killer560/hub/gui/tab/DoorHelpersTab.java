@@ -37,11 +37,8 @@ public class DoorHelpersTab extends BaseTab {
         int col2bX = contentX + col2W + gap;
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Door Opener", cfg.isAutoDoorEnabledRaw()), btn -> {
-                    cfg.setAutoDoorEnabled(!cfg.isAutoDoorEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Auto Door Opener", cfg::isAutoDoorEnabledRaw, cfg::setAutoDoorEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!cfg.isAutoDoorEnabledRaw()) {
@@ -106,11 +103,8 @@ public class DoorHelpersTab extends BaseTab {
         });
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Swing Hand", cfg.isAutoDoorSwing()), btn -> {
-                    cfg.setAutoDoorSwing(!cfg.isAutoDoorSwing());
-                    cfg.save();
-                    btn.setMessage(onOff("Swing Hand", cfg.isAutoDoorSwing()));
-                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(onOffButton("Swing Hand", cfg::isAutoDoorSwing, cfg::setAutoDoorSwing, cfg::save,
+                null, contentX, y, col2W, 18));
         y += 22;
 
         return widgets;

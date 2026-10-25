@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.secrettrigger.SecretTriggerbotConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -33,11 +32,8 @@ public class SecretTriggerbotTab extends BaseTab {
         int col2W = (contentWidth - gap) / 2;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Secret Triggerbot", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Secret Triggerbot", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -72,11 +68,8 @@ public class SecretTriggerbotTab extends BaseTab {
         });
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Swap To Slot", cfg.isSwapEnabled()), btn -> {
-                    cfg.setSwapEnabled(!cfg.isSwapEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Swap To Slot", cfg::isSwapEnabled, cfg::setSwapEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         if (cfg.isSwapEnabled()) {
@@ -92,11 +85,8 @@ public class SecretTriggerbotTab extends BaseTab {
                     saveOnRelease(() -> cfg.save());
                 }
             });
-            widgets.add(SettingsButtonWidget.builder(onOff("Swap Back", cfg.isSwapBack()), btn -> {
-                        cfg.setSwapBack(!cfg.isSwapBack());
-                        cfg.save();
-                        btn.setMessage(onOff("Swap Back", cfg.isSwapBack()));
-                    }).bounds(col2bX, y, col2W, 18).build());
+            widgets.add(onOffButton("Swap Back", cfg::isSwapBack, cfg::setSwapBack, cfg::save,
+                    null, col2bX, y, col2W, 18));
         }
 
         return widgets;

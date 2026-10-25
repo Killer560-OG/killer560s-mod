@@ -57,11 +57,8 @@ public class AbilityKeybindsTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         AbilityKeybindsConfig cfg = AbilityKeybindsConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Ability Keybinds", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Ability Keybinds", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {

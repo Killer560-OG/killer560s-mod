@@ -514,15 +514,8 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
     /** An ON/OFF toggle in one cell of a row (AP3's {@code toggleCell}); the caller advances the row. */
     private static void toggleCell(List<AbstractWidget> w, int x, int y, int width, String name, Supplier<Boolean> getter,
                                    Consumer<Boolean> setter, Runnable rebuild) {
-        w.add(SettingsButtonWidget.builder(onOff(name, getter.get()), btn -> {
-            setter.accept(!getter.get());
-            AutoRoutesConfig.getInstance().save();
-            if (rebuild != null) {
-                rebuild.run();
-            } else {
-                btn.setMessage(onOff(name, getter.get()));
-            }
-        }).bounds(x, y, Math.max(1, width), 20).build());
+        w.add(onOffButton(name,
+                getter::get, setter, () -> AutoRoutesConfig.getInstance().save(), rebuild, x, y, Math.max(1, width), 20));
     }
 
     private static void colorButton(List<AbstractWidget> w, int x, int y, int width, String label, int argb, int defaultArgb,

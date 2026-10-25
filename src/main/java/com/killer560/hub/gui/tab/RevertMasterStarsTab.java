@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.revertmasterstars.RevertMasterStarsConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
 
@@ -22,11 +21,8 @@ public class RevertMasterStarsTab extends BaseTab {
         int y = contentY;
         RevertMasterStarsConfig cfg = RevertMasterStarsConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Revert Master Stars", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Revert Master Stars", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         return widgets;

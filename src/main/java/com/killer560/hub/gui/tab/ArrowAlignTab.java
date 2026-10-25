@@ -35,19 +35,13 @@ public class ArrowAlignTab extends BaseTab {
         int col2aX = contentX;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Solver", cfg.getSolverRaw()), btn -> {
-                    cfg.setSolverEnabled(!cfg.getSolverRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Solver", cfg::getSolverRaw, cfg::setSolverEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (cfg.getSolverRaw()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Highlight Frames", cfg.isHighlightFrames()), btn -> {
-                        cfg.setHighlightFrames(!cfg.isHighlightFrames());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(col2aX, y, col2W, 18).build());
+            widgets.add(onOffButton("Highlight Frames", cfg::isHighlightFrames, cfg::setHighlightFrames, cfg::save,
+                    requestRebuild, col2aX, y, col2W, 18));
 
             float minScale = ArrowAlignConfig.MIN_NUMBER_SCALE;
             float maxScale = ArrowAlignConfig.MAX_NUMBER_SCALE;
@@ -81,27 +75,18 @@ public class ArrowAlignTab extends BaseTab {
         }
         y += 6;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Prevent Misclicks", cfg.getPreventMisclicksRaw()), btn -> {
-                    cfg.setPreventMisclicksEnabled(!cfg.getPreventMisclicksRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(cfg.getPreventMisclicksRaw() ? col2aX : contentX, y,
-                cfg.getPreventMisclicksRaw() ? col2W : contentWidth, 18).build());
+        widgets.add(onOffButton("Prevent Misclicks", cfg::getPreventMisclicksRaw, cfg::setPreventMisclicksEnabled,
+                cfg::save, requestRebuild, cfg.getPreventMisclicksRaw() ? col2aX : contentX, y,
+                cfg.getPreventMisclicksRaw() ? col2W : contentWidth, 18));
 
         if (cfg.getPreventMisclicksRaw()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Crouch To Override", cfg.isCrouchOverride()), btn -> {
-                        cfg.setCrouchOverride(!cfg.isCrouchOverride());
-                        cfg.save();
-                        btn.setMessage(onOff("Crouch To Override", cfg.isCrouchOverride()));
-                    }).bounds(col2bX, y, col2W, 18).build());
+            widgets.add(onOffButton("Crouch To Override", cfg::isCrouchOverride, cfg::setCrouchOverride, cfg::save,
+                    null, col2bX, y, col2W, 18));
         }
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Solve Time", cfg.getSolveTimeRaw()), btn -> {
-                    cfg.setSolveTimeEnabled(!cfg.getSolveTimeRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Solve Time", cfg.getSolveTimeRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Solve Time", cfg::getSolveTimeRaw, cfg::setSolveTimeEnabled, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 28;
 
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
@@ -111,17 +96,11 @@ public class ArrowAlignTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Automation", true));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Trigger Bot", cfg.getTriggerBotRaw()), btn -> {
-                    cfg.setTriggerBotEnabled(!cfg.getTriggerBotRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(onOffButton("Trigger Bot", cfg::getTriggerBotRaw, cfg::setTriggerBotEnabled, cfg::save,
+                requestRebuild, col2aX, y, col2W, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Aura", cfg.getAuraRaw()), btn -> {
-                    cfg.setAuraEnabled(!cfg.getAuraRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Aura", cfg::getAuraRaw, cfg::setAuraEnabled, cfg::save,
+                requestRebuild, col2bX, y, col2W, 18));
         y += 22;
 
         if (cfg.getTriggerBotRaw()) {
@@ -140,22 +119,14 @@ public class ArrowAlignTab extends BaseTab {
                 }
             });
             y += 22;
-            widgets.add(SettingsButtonWidget.builder(onOff("Disable Trigger Bot While Crouching",
-                            cfg.isTriggerBotDisableWhileCrouching()), btn -> {
-                        cfg.setTriggerBotDisableWhileCrouching(!cfg.isTriggerBotDisableWhileCrouching());
-                        cfg.save();
-                        btn.setMessage(onOff("Disable Trigger Bot While Crouching", cfg.isTriggerBotDisableWhileCrouching()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Disable Trigger Bot While Crouching", cfg::isTriggerBotDisableWhileCrouching,
+                    cfg::setTriggerBotDisableWhileCrouching, cfg::save, null, contentX, y, contentWidth, 18));
             y += 22;
         }
 
         if (cfg.getAuraRaw()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Disable Aura While Crouching",
-                            cfg.isAuraDisableWhileCrouching()), btn -> {
-                        cfg.setAuraDisableWhileCrouching(!cfg.isAuraDisableWhileCrouching());
-                        cfg.save();
-                        btn.setMessage(onOff("Disable Aura While Crouching", cfg.isAuraDisableWhileCrouching()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Disable Aura While Crouching", cfg::isAuraDisableWhileCrouching,
+                    cfg::setAuraDisableWhileCrouching, cfg::save, null, contentX, y, contentWidth, 18));
             y += 22;
             widgets.add(SettingsButtonWidget.cycling(Component.literal("Aura Clicks Per Tick: " + cfg.getAuraClicksPerTick()),
                     (btn, dir) -> {
@@ -164,19 +135,12 @@ public class ArrowAlignTab extends BaseTab {
                         btn.setMessage(Component.literal("Aura Clicks Per Tick: " + cfg.getAuraClicksPerTick()));
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
-            widgets.add(SettingsButtonWidget.builder(onOff("Leave Last Arrow", cfg.isAuraLeaveLastArrow()), btn -> {
-                        cfg.setAuraLeaveLastArrow(!cfg.isAuraLeaveLastArrow());
-                        cfg.save();
-                        btn.setMessage(onOff("Leave Last Arrow", cfg.isAuraLeaveLastArrow()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Leave Last Arrow", cfg::isAuraLeaveLastArrow, cfg::setAuraLeaveLastArrow,
+                    cfg::save, null, contentX, y, contentWidth, 18));
             y += 22;
-            widgets.add(SettingsButtonWidget.builder(onOff("Disable Leave Last Arrow While Crouching",
-                            cfg.isLeaveLastArrowDisableWhileCrouching()), btn -> {
-                        cfg.setLeaveLastArrowDisableWhileCrouching(!cfg.isLeaveLastArrowDisableWhileCrouching());
-                        cfg.save();
-                        btn.setMessage(onOff("Disable Leave Last Arrow While Crouching",
-                                cfg.isLeaveLastArrowDisableWhileCrouching()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Disable Leave Last Arrow While Crouching",
+                    cfg::isLeaveLastArrowDisableWhileCrouching, cfg::setLeaveLastArrowDisableWhileCrouching,
+                    cfg::save, null, contentX, y, contentWidth, 18));
             y += 22;
             int minCps = ArrowAlignConfig.MIN_AURA_CPS;
             int maxCps = ArrowAlignConfig.MAX_AURA_CPS;

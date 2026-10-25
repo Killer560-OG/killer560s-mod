@@ -53,11 +53,8 @@ public class SlotTextTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         SlotTextConfig cfg = SlotTextConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Slot Text", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Slot Text", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
@@ -79,11 +76,8 @@ public class SlotTextTab extends BaseTab implements KeyCaptureTab {
             y += 22;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Skyblock Only", cfg.isSkyblockOnly()), btn -> {
-                    cfg.setSkyblockOnly(!cfg.isSkyblockOnly());
-                    cfg.save();
-                    btn.setMessage(onOff("Skyblock Only", cfg.isSkyblockOnly()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Skyblock Only", cfg::isSkyblockOnly, cfg::setSkyblockOnly, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
         for (SlotTextType type : SlotTextType.values()) {

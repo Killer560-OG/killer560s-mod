@@ -75,11 +75,8 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Pet Wheel", false));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Pet Wheel", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Pet Wheel", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!cfg.isEnabled()) {
@@ -142,24 +139,14 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
 
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide Level", cfg.isHideLevel()), btn -> {
-                    cfg.setHideLevel(!cfg.isHideLevel());
-                    cfg.save();
-                    btn.setMessage(onOff("Hide Level", cfg.isHideLevel()));
-                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(onOffButton("Hide Level", cfg::isHideLevel, cfg::setHideLevel, cfg::save,
+                null, contentX, y, col2W, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide Name", cfg.isHideName()), btn -> {
-                    cfg.setHideName(!cfg.isHideName());
-                    cfg.save();
-                    btn.setMessage(onOff("Hide Name", cfg.isHideName()));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Hide Name", cfg::isHideName, cfg::setHideName, cfg::save, null, col2bX, y, col2W, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide Pets Menu", cfg.isHideMenuWhileSummoning()), btn -> {
-                    cfg.setHideMenuWhileSummoning(!cfg.isHideMenuWhileSummoning());
-                    cfg.save();
-                    btn.setMessage(onOff("Hide Pets Menu", cfg.isHideMenuWhileSummoning()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Hide Pets Menu", cfg::isHideMenuWhileSummoning, cfg::setHideMenuWhileSummoning,
+                cfg::save, null, contentX, y, contentWidth, 18));
         y += 24;
 
         // Pages (killer560, 2026-10-18): the wheel's presets. The page shown here is the one Edit Pets edits and the

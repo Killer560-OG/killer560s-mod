@@ -86,25 +86,14 @@ public class CosmeticsTab extends BaseTab {
         // Two switches side by side (killer560, 2026-10-05: "two different things I flip one to hide names one for
         // sizes. Both hides everything"), on the one row the old single toggle used.
         int half = (contentWidth - 4) / 2;
-        widgets.add(SettingsButtonWidget.builder(onOff("Supporter Names", cfg.isShowSupporterNames()),
-                btn -> {
-                    cfg.setShowSupporterNames(!cfg.isShowSupporterNames());
-                    cfg.save();
-                    btn.setMessage(onOff("Supporter Names", cfg.isShowSupporterNames()));
-                }).bounds(contentX, y, half, 20).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Supporter Sizes", cfg.isShowSupporterSizes()),
-                btn -> {
-                    cfg.setShowSupporterSizes(!cfg.isShowSupporterSizes());
-                    cfg.save();
-                    btn.setMessage(onOff("Supporter Sizes", cfg.isShowSupporterSizes()));
-                }).bounds(contentX + half + 4, y, contentWidth - half - 4, 20).build());
+        widgets.add(onOffButton("Supporter Names", cfg::isShowSupporterNames, cfg::setShowSupporterNames, cfg::save,
+                null, contentX, y, half, 20));
+        widgets.add(onOffButton("Supporter Sizes", cfg::isShowSupporterSizes, cfg::setShowSupporterSizes, cfg::save,
+                null, contentX + half + 4, y, contentWidth - half - 4, 20));
         y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Share if Supporter", cfg.isShareIfSupporter()), btn -> {
-                    cfg.setShareIfSupporter(!cfg.isShareIfSupporter());
-                    cfg.save();
-                    btn.setMessage(onOff("Share if Supporter", cfg.isShareIfSupporter()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Share if Supporter", cfg::isShareIfSupporter, cfg::setShareIfSupporter, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 20;
         // Trails (killer560, 2026-10-13: "it should be toggleable to see in cosmetics for whether it is shared or not
         // and it can only be shared by a supporter"): Share Trail is grayed out, with the reason under it, until the
@@ -120,17 +109,11 @@ public class CosmeticsTab extends BaseTab {
                 }).bounds(contentX, y, half, 18).build();
         shareTrail.active = canShareTrail;
         widgets.add(shareTrail);
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Others' Trails", cfg.isShowOthersTrails()), btn -> {
-                    cfg.setShowOthersTrails(!cfg.isShowOthersTrails());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Others' Trails", cfg.isShowOthersTrails()));
-                }).bounds(contentX + half + 4, y, contentWidth - half - 4, 18).build());
+        widgets.add(onOffButton("Show Others' Trails", cfg::isShowOthersTrails, cfg::setShowOthersTrails, cfg::save,
+                null, contentX + half + 4, y, contentWidth - half - 4, 18));
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Others' Mobs", cfg.isShowOthersMobs()), btn -> {
-                    cfg.setShowOthersMobs(!cfg.isShowOthersMobs());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Others' Mobs", cfg.isShowOthersMobs()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show Others' Mobs", cfg::isShowOthersMobs, cfg::setShowOthersMobs, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 20;
         if (trailBlocker != null && (cfg.isShareTrail() || !canShareTrail)) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal("§7" + trailBlocker), font));
@@ -169,11 +152,8 @@ public class CosmeticsTab extends BaseTab {
         SupportersAutoShare.shareCurrent(err -> shareError = err);
 
         // My Name in F5 sits above Custom Names, outside it on purpose: it works with the Name Changer off too (your real name).
-        widgets.add(SettingsButtonWidget.builder(onOff("My Name in F5", cfg.isOwnNameInF5()), btn -> {
-                    cfg.setOwnNameInF5(!cfg.isOwnNameInF5());
-                    cfg.save();
-                    btn.setMessage(onOff("My Name in F5", cfg.isOwnNameInF5()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("My Name in F5", cfg::isOwnNameInF5, cfg::setOwnNameInF5, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
         // --- Custom Names

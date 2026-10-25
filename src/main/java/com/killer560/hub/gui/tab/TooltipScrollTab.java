@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.tooltipscroll.TooltipScrollConfig;
 import com.killer560.hub.tooltipscroll.TooltipScrollFeature;
@@ -31,11 +30,8 @@ public class TooltipScrollTab extends BaseTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Scrollable Tooltips", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Scrollable Tooltips", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -60,11 +56,8 @@ public class TooltipScrollTab extends BaseTab {
             y += 14;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Invert Scroll", cfg.isInvert()), btn -> {
-                    cfg.setInvert(!cfg.isInvert());
-                    cfg.save();
-                    btn.setMessage(onOff("Invert Scroll", cfg.isInvert()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Invert Scroll", cfg::isInvert, cfg::setInvert, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
         int min = TooltipScrollConfig.MIN_LINES_PER_SCROLL;

@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.TeleportMazeSolverConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
 
@@ -20,22 +19,16 @@ public class TeleportMazeSolverTab extends BaseTab {
         int y = contentY;
         TeleportMazeSolverConfig cfg = TeleportMazeSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Teleport Maze Solver", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Teleport Maze Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Tracer To Best Pad", cfg.isShowTracer()), btn -> {
-                    cfg.setShowTracer(!cfg.isShowTracer());
-                    cfg.save();
-                    btn.setMessage(onOff("Tracer To Best Pad", cfg.isShowTracer()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Tracer To Best Pad", cfg::isShowTracer, cfg::setShowTracer, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TELEPORT_MAZE, contentX, contentWidth, y, true);
 

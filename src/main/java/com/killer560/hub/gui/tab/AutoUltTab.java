@@ -62,15 +62,8 @@ public class AutoUltTab extends BaseTab {
     /** ON/OFF toggle button; a non-null {@code rebuild} rebuilds the tab (used by master toggles). */
     private static void toggle(List<AbstractWidget> w, int x, int[] y, String name, Supplier<Boolean> getter,
                                Consumer<Boolean> setter, Runnable rebuild) {
-        w.add(SettingsButtonWidget.builder(onOff(name, getter.get()), btn -> {
-            setter.accept(!getter.get());
-            CheatUtilsConfig.getInstance().save();
-            if (rebuild != null) {
-                rebuild.run();
-            } else {
-                btn.setMessage(onOff(name, getter.get()));
-            }
-        }).bounds(x, y[0], BTN_W, 20).build());
+        w.add(onOffButton(name,
+                getter::get, setter, () -> CheatUtilsConfig.getInstance().save(), rebuild, x, y[0], BTN_W, 20));
         y[0] += 24;
     }
 }

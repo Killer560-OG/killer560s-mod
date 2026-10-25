@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.QuizSolverConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
 
@@ -21,11 +20,8 @@ public class QuizSolverTab extends BaseTab {
         int y = contentY;
         QuizSolverConfig cfg = QuizSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Quiz Solver", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Quiz Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {

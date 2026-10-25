@@ -30,28 +30,19 @@ public class BloodCampTab extends BaseTab {
         int col2aX = contentX;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Blood Camp", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Blood Camp", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Overlay", cfg.getShowOverlayRaw()), btn -> {
-                    cfg.setShowOverlay(!cfg.getShowOverlayRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Overlay", cfg.getShowOverlayRaw()));
-                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(onOffButton("Show Overlay", cfg::getShowOverlayRaw, cfg::setShowOverlay, cfg::save,
+                null, col2aX, y, col2W, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Kill Popup", cfg.getKillPopupRaw()), btn -> {
-                    cfg.setKillPopup(!cfg.getKillPopupRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Kill Popup", cfg::getKillPopupRaw, cfg::setKillPopup, cfg::save,
+                requestRebuild, col2bX, y, col2W, 18));
         y += 22;
 
         if (cfg.getKillPopupRaw()) {
@@ -104,11 +95,8 @@ public class BloodCampTab extends BaseTab {
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
 
-            widgets.add(SettingsButtonWidget.builder(onOff("Spawn Line", cfg.getSpawnLineRaw()), btn -> {
-                        cfg.setSpawnLine(!cfg.getSpawnLineRaw());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Spawn Line", cfg::getSpawnLineRaw, cfg::setSpawnLine, cfg::save,
+                    requestRebuild, contentX, y, contentWidth, 18));
             y += 22;
 
             if (cfg.getSpawnLineRaw()) {
@@ -134,11 +122,8 @@ public class BloodCampTab extends BaseTab {
         // Kill Sound (killer560, 2026-10-07; 2026-10-18 "The sound should play only on the tick the trigger bot should
         // hit to kill a mob, not every tick while a mob is on the wall or starting to spawn"): one sound, on the hit tick.
         // The Countdown Start Sound was that "starting to spawn" sound and is gone; its saved value is still read.
-        widgets.add(SettingsButtonWidget.builder(onOff("Kill Sound", cfg.isKillSound()), btn -> {
-                    cfg.setKillSound(!cfg.isKillSound());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Kill Sound", cfg::isKillSound, cfg::setKillSound, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         if (cfg.isKillSound()) {

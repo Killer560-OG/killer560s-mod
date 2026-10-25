@@ -62,37 +62,25 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         int full = contentWidth;
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Dungeon Map", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Dungeon Map", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
         if (cfg.isEnabledRaw()) {
             // Predictive Rooms lives here, under the map's switch like every other map setting, not in a card of its own
             // (killer560, 2026-10-18: "predictive rooms should be inside of the map not its own toggle"). Same config and
             // key as before; the Special Room Guess split rides with it.
             PredictiveRoomsConfig pcfg = PredictiveRoomsConfig.getInstance();
-            widgets.add(SettingsButtonWidget.builder(onOff("Predictive Rooms", pcfg.isEnabledRaw()), btn -> {
-                        pcfg.setEnabled(!pcfg.isEnabledRaw());
-                        pcfg.save();
-                        btn.setMessage(onOff("Predictive Rooms", pcfg.isEnabledRaw()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Predictive Rooms", pcfg::isEnabledRaw, pcfg::setEnabled, pcfg::save,
+                    null, contentX, y, contentWidth, 18));
             y += 20;
-            widgets.add(SettingsButtonWidget.builder(onOff("Special Room Guess", pcfg.isSpecialGuessRaw()), btn -> {
-                        pcfg.setSpecialGuess(!pcfg.isSpecialGuessRaw());
-                        pcfg.save();
-                        btn.setMessage(onOff("Special Room Guess", pcfg.isSpecialGuessRaw()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Special Room Guess", pcfg::isSpecialGuessRaw, pcfg::setSpecialGuess, pcfg::save,
+                    null, contentX, y, contentWidth, 18));
             y += 24;
             widgets.add(cycle("Room Labels", LiveMapConfig.ROOM_LABEL_NAMES, cfg::getRoomLabels, cfg::setRoomLabels,
                     cfg, contentX, y, full));
             y += 20;
-            widgets.add(SettingsButtonWidget.builder(onOff("Show Teammates", cfg.isShowTeammates()), btn -> {
-                        cfg.setShowTeammates(!cfg.isShowTeammates());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX, y, full, 18).build());
+            widgets.add(onOffButton("Show Teammates", cfg::isShowTeammates, cfg::setShowTeammates, cfg::save,
+                    requestRebuild, contentX, y, full, 18));
             y += 20;
             if (cfg.isShowTeammates()) {
                 // killer560, 2026-10-15: "For show teammates if that is on then have it show the player heads option
@@ -124,11 +112,8 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         widgets.add(slider("Font Scale", cfg::getFontScale, v -> cfg.setFontScale((float) v), 0.5, 3, "x", cfg, contentX, y, colW));
         widgets.add(toggle("Text Shadow", cfg::isTextShadow, cfg::setTextShadow, cfg, colB, y, colW));
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Custom Checkmark Sprite", cfg.isCustomCheckmarks()), btn -> {
-                    cfg.setCustomCheckmarks(!cfg.isCustomCheckmarks());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, full, 18).build());
+        widgets.add(onOffButton("Custom Checkmark Sprite", cfg::isCustomCheckmarks, cfg::setCustomCheckmarks, cfg::save,
+                requestRebuild, contentX, y, full, 18));
         y += 20;
         if (cfg.isCustomCheckmarks()) {
             widgets.add(SettingsButtonWidget.cycling(sourceText(cfg), (btn, dir) -> {
@@ -200,11 +185,8 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Funny Map", true));
             y += 16;
-            widgets.add(SettingsButtonWidget.builder(onOff("Funny Map", cfg.isFunnyMapRaw()), btn -> {
-                        cfg.setFunnyMap(!cfg.isFunnyMapRaw());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX, y, full, 18).build());
+            widgets.add(onOffButton("Funny Map", cfg::isFunnyMapRaw, cfg::setFunnyMap, cfg::save,
+                    requestRebuild, contentX, y, full, 18));
             y += 20;
             if (cfg.isFunnyMapRaw()) {
                 widgets.add(toggle("Show Mimic Room", cfg::isShowMimicRoomRaw, cfg::setShowMimicRoom, cfg, contentX, y, colW));
@@ -245,20 +227,12 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
     }
 
     static AbstractWidget toggle(String label, BoolGetter get, BoolSetter set, LiveMapConfig cfg, int x, int y, int w) {
-        return SettingsButtonWidget.builder(onOff(label, get.get()), btn -> {
-                    set.set(!get.get());
-                    cfg.save();
-                    btn.setMessage(onOff(label, get.get()));
-                }).bounds(x, y, w, 18).build();
+        return onOffButton(label, get::get, set::set, cfg::save, null, x, y, w, 18);
     }
 
     /** Same shape as {@link #toggle}, for {@link MappingConfig}, which persists itself. */
     static AbstractWidget mappingToggle(String label, BoolGetter get, BoolSetter set, MappingConfig cfg, int x, int y, int w) {
-        return SettingsButtonWidget.builder(onOff(label, get.get()), btn -> {
-                    set.set(!get.get());
-                    cfg.save();
-                    btn.setMessage(onOff(label, get.get()));
-                }).bounds(x, y, w, 18).build();
+        return onOffButton(label, get::get, set::set, cfg::save, null, x, y, w, 18);
     }
 
     /** A setting that steps through {@code names}: left click forward, right click back, wrapping. */

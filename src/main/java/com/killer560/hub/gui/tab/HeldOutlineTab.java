@@ -32,11 +32,8 @@ public class HeldOutlineTab extends BaseTab {
         int[] y = {contentY};
 
         header(w, contentX, y, contentWidth, "Held Item Outline");
-        w.add(SettingsButtonWidget.builder(onOff("Held Item Outline", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Held Item Outline", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
 
         if (!cfg.isEnabledRaw()) {

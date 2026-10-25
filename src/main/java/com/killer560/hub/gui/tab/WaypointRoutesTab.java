@@ -46,11 +46,8 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
         int col3bX = contentX + col3W + gap;
         int col3cX = contentX + (col3W + gap) * 2;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Waypoint Routes", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Waypoint Routes", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 28;
         if (!cfg.isEnabled()) {
             return widgets;
@@ -193,33 +190,18 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
         }
 
         // --- display ---
-        widgets.add(SettingsButtonWidget.builder(onOff("Line To Next", cfg.isLineToNext()), btn -> {
-                    cfg.setLineToNext(!cfg.isLineToNext());
-                    cfg.save();
-                    btn.setMessage(onOff("Line To Next", cfg.isLineToNext()));
-                }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Route Lines", cfg.isRouteLines()), btn -> {
-                    cfg.setRouteLines(!cfg.isRouteLines());
-                    cfg.save();
-                    btn.setMessage(onOff("Route Lines", cfg.isRouteLines()));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Line To Next", cfg::isLineToNext, cfg::setLineToNext, cfg::save,
+                null, contentX, y, col2W, 18));
+        widgets.add(onOffButton("Route Lines", cfg::isRouteLines, cfg::setRouteLines, cfg::save,
+                null, col2bX, y, col2W, 18));
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Numbers", cfg.isShowNumbers()), btn -> {
-                    cfg.setShowNumbers(!cfg.isShowNumbers());
-                    cfg.save();
-                    btn.setMessage(onOff("Numbers", cfg.isShowNumbers()));
-                }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Distance", cfg.isShowDistance()), btn -> {
-                    cfg.setShowDistance(!cfg.isShowDistance());
-                    cfg.save();
-                    btn.setMessage(onOff("Distance", cfg.isShowDistance()));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Numbers", cfg::isShowNumbers, cfg::setShowNumbers, cfg::save,
+                null, contentX, y, col2W, 18));
+        widgets.add(onOffButton("Distance", cfg::isShowDistance, cfg::setShowDistance, cfg::save,
+                null, col2bX, y, col2W, 18));
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Start At Nearest", cfg.isStartAtNearest()), btn -> {
-                    cfg.setStartAtNearest(!cfg.isStartAtNearest());
-                    cfg.save();
-                    btn.setMessage(onOff("Start At Nearest", cfg.isStartAtNearest()));
-                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(onOffButton("Start At Nearest", cfg::isStartAtNearest, cfg::setStartAtNearest, cfg::save,
+                null, contentX, y, col2W, 18));
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Next Point", cfg.getTargetColor()), btn ->
                         McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Next Point Color", cfg.getTargetColor(),
                                 WaypointRoutesConfig.DEFAULT_TARGET_COLOR, argb -> {
