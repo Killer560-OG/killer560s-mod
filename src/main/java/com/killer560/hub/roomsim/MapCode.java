@@ -37,7 +37,7 @@ public final class MapCode {
     private static final String PREFIX_V1 = "MC1:";
 
     /** Room slot with no room in it (a bare connector or the border). Stored as a room-index byte of 0, since
-     *  a real name-table index is stored as (index + 1) - see {@link #encode(Decoded)}. */
+     *  a real name-table index is stored as (index + 1) - see {@link #encodeDecoded}. */
     public static final int NO_ROOM = -1;
 
     /**
@@ -48,19 +48,16 @@ public final class MapCode {
     public record Decoded(String[] nameTable, int[] cellRoom, int[] cellDoor, int[] cellRotation) {
     }
 
-    /** Encodes a Decoded built in code rather than captured - what the map generator produces. */
-    public static String encodeDecoded(Decoded decoded) {
-        return encode(decoded);
-    }
-
     /**
-     * Wire form, all big-endian via {@link DataOutputStream}: 1 byte cell-grid size (so a future grid
+     * Encodes a Decoded - what the map generator and the designer produce.
+     *
+     * <p>Wire form, all big-endian via {@link DataOutputStream}: 1 byte cell-grid size (so a future grid
      * resize is at least detectable even though {@link #PREFIX} already forces a hard version check), 1 byte
      * name-table count N, then for each of the N names a 1-byte UTF-8 length + that many bytes, then for each
      * of GRID*GRID cells a 1-byte door type followed by a 1-byte room-index-plus-one (0 = no room). That whole
      * byte array is URL-safe Base64 without padding, and {@link #PREFIX} is prepended in plain ASCII.
      */
-    private static String encode(Decoded decoded) {
+    public static String encodeDecoded(Decoded decoded) {
         int cells = DungeonLayout.GRID * DungeonLayout.GRID;
         if (decoded.cellRoom().length != cells || decoded.cellDoor().length != cells
                 || decoded.cellRotation().length != cells) {
@@ -114,7 +111,7 @@ public final class MapCode {
     /**
      * Parses a map code back into plain data. Returns {@code null} - never a partly-filled {@link Decoded} -
      * for anything that does not match {@link #PREFIX} exactly, is not valid Base64, is truncated, carries a
-     * different grid size, or has a room/door value outside the range that {@link #encode(Decoded)} could
+     * different grid size, or has a room/door value outside the range that {@link #encodeDecoded} could
      * ever have written. A corrupt or hand-edited code must come back as "no map", not as a wrong map.
      */
     public static Decoded decode(String code) {
@@ -190,7 +187,7 @@ public final class MapCode {
                 cellRotation[idx] = (idx % 4) * 90;
             }
             Decoded original = new Decoded(nameTable, cellRoom, cellDoor, cellRotation);
-            String code = encode(original);
+            String code = encodeDecoded(original);
             Decoded roundTripped = decode(code);
             return roundTripped != null
                     && Arrays.equals(original.nameTable(), roundTripped.nameTable())
