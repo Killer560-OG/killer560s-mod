@@ -109,6 +109,7 @@ public final class BlinkFeature {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> onDisconnect());
         com.killer560.hub.hud.HudElementRegistry.register(new BlinkHud());
         BlinkRender.register();
+        BlinkCommands.register();
     }
 
     // ---------------------------------------------------------------------------------------------------------------
