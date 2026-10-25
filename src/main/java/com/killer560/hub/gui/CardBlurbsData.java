@@ -173,6 +173,7 @@ final class CardBlurbsData {
         d.put("GeneralMainTab", "Runs /skyblock when you join.");
         d.put("MotionBlurTab", "Blends frames for motion blur.");
         d.put("FreelookTab", "F5 rear view; hold a key to pan.");
+        d.put("BlinkTab", "Hold your packets, release them in one burst.");
         d.put("SmoothTeleportTab", "Glides the camera.");
         d.put("SessionRecorderTab", "Logs what features do.");
         d.put("TrajectoriesTab", "Bow, shortbow and pearl flight paths.");
