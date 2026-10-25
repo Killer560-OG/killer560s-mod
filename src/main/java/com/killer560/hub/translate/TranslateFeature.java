@@ -262,6 +262,16 @@ public final class TranslateFeature {
 
     /** @param typed true for a line he typed (it goes out the way vanilla sends a command), false for a generated one. */
     private static void sendFinal(Minecraft client, String commandWord, String text, boolean typed) {
+        if (!"kc".equalsIgnoreCase(commandWord)) {
+            // A translation can come back longer than what he typed, and a line over 256 characters makes the packet
+            // encoder throw and drops the connection; a section sign or control character gets him kicked. Same rule
+            // as Spotify lyrics (chatSafe): strip those and cap the line, with "/" and the command counted.
+            text = com.killer560.hub.spotify.SpotifyLyricsFeature.chatSafe(text,
+                    commandWord == null ? "" : "/" + commandWord + " ");
+            if (text.isEmpty()) {
+                return;
+            }
+        }
         if (commandWord == null) {
             // Plain chat: while his channel is Mod Chat (/chat k), Fabric's ALLOW_CHAT hands this to the relay.
             client.player.connection.sendChat(text);

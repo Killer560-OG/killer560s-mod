@@ -243,7 +243,7 @@ public final class SpotifyLyricsFeature {
      * (with the plain destination a lyric starting with "/" would run as a command), and short enough that the
      * prefix plus the line fits the 256-character limit (a longer string makes the packet encoder throw).
      */
-    static String chatSafe(String message, String prefix) {
+    public static String chatSafe(String message, String prefix) {
         StringBuilder sb = new StringBuilder(message.length());
         for (int i = 0; i < message.length(); i++) {
             char c = message.charAt(i);
