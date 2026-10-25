@@ -8,30 +8,11 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
-/** Drop-in replacement for vanilla {@link net.minecraft.client.gui.components.Button}, matching its
- *  builder API shape exactly (same method names/chaining, a {@code Component}+{@code OnPress}
- *  constructor argument pair, {@code .bounds(x,y,w,h).build()}) so every existing
- *  {@code Button.builder(...)} call site across the mod's tab files converts to
- *  {@code SettingsButtonWidget.builder(...)} with just the class name changed - no other code needed to
- *  change, since {@code btn -> { ...; btn.setMessage(...); }} lambdas keep working unchanged (this class
- *  also extends {@link AbstractWidget} and exposes the same inherited {@code getMessage()}/
- *  {@code setMessage(Component)}) and embedded legacy "§" color codes in a label still render correctly
- *  via the {@code Component} text-draw overload, exactly like vanilla {@code Button} already did.
- *  <p>
- *  Built (2026-09-07), part 2 of the black+amber GUI overhaul: vanilla {@code Button} has no way to
- *  recolor its own fixed 9-slice texture, so once the menu chrome (phase 1) was reworked, every actual
- *  settings control still rendered as a plain gray vanilla button, clashing with the new theme - per
- *  killer560's "make those boxes a different colour, something more fitting." Deliberately styled with a
- *  DIMMER border than {@link MenuRowWidget}'s accordion headers (full amber, always) so headers still
- *  visually lead over individual controls instead of every box in the menu competing at once.
- *  <p>
- *  Extended (2026-09-27) per killer560's "for the sort buttons or any button that toggles through a
- *  bunch of options, make it so if i right click then it goes back one" - a second, optional
- *  {@code OnPress} set via {@code .secondaryPress(...)} fires on right-click instead of left. Left-click
- *  is untouched: {@code onClick(...)} below is still only ever invoked by vanilla's own left-button-only
- *  {@code mouseClicked}, so every existing call site with no {@code secondaryPress} keeps behaving
- *  exactly as before (right-click on it simply does nothing, same as pre-2026-09-27). Only call sites
- *  that opt in with {@code .secondaryPress(...)} - the enum-cycling buttons - respond to right-click. */
+/** The mod's settings button: a drop-in for vanilla {@link net.minecraft.client.gui.components.Button} with the same
+ *  builder shape ({@code builder(Component, OnPress).bounds(x, y, w, h).build()}), drawn in the menu theme because
+ *  vanilla's 9-slice texture cannot be recolored. Its border is dimmer than {@link MenuRowWidget}'s headers so the
+ *  headers lead. Right-click does nothing unless the call site opts in with {@code .secondaryPress(...)} (the
+ *  cycling buttons step back with it). */
 public final class SettingsButtonWidget extends AbstractWidget implements MenuAnim.Animated {
 
     private static final int BORDER = 0xFF663D1A;

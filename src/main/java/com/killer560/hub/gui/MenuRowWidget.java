@@ -9,12 +9,8 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
-/** A fully custom-rendered clickable row, used for both the main category sidebar (flat text, amber
- *  underline when selected - matching Skyblocker's own reference menu) and {@code FolderTab}'s
- *  accordion section headers (a bordered amber/black box instead of vanilla's gray button texture,
- *  since vanilla {@link net.minecraft.client.gui.components.Button} doesn't expose a way to recolor
- *  its own 9-slice texture). Part of the black+amber GUI overhaul (2026-09-07), per killer560's "focusing
- *  more on black with orange accents." */
+/** A custom-rendered clickable row: {@code FolderTab}'s accordion section headers (a bordered amber/black box,
+ *  since vanilla {@link net.minecraft.client.gui.components.Button} cannot recolor its 9-slice texture). */
 public final class MenuRowWidget extends AbstractWidget {
 
     static final int ACCENT = 0xFFCC6600;
