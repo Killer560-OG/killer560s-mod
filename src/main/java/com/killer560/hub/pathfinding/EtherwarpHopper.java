@@ -42,7 +42,6 @@ public final class EtherwarpHopper {
     });
 
     private static boolean planning;
-    private static boolean failed;
     private static Vec3 expectedLanding;
     private static int generation;
 
@@ -100,10 +99,6 @@ public final class EtherwarpHopper {
         return planning || ClearExecutor.isBusy();
     }
 
-    public static boolean lastFailed() {
-        return failed;
-    }
-
     public static Vec3 expectedLanding() {
         return expectedLanding;
     }
@@ -150,7 +145,6 @@ public final class EtherwarpHopper {
         }
         Vec3 pos = player.position();
         expectedLanding = new Vec3(target.getX() + 0.5, target.getY() + 1.05, target.getZ() + 0.5);
-        failed = false;
         ClearExecutor.setExternalOwner(true);
         List<ClearNode> nodes = new ArrayList<>(1);
         nodes.add(new PathEtherNode(pos, dir.yaw(), dir.pitch(), item,
@@ -183,7 +177,6 @@ public final class EtherwarpHopper {
         EtherwarpPathfinder.PathConfig cfg = pathConfig();
         int gen = ++generation;
         planning = true;
-        failed = false;
         PLANNER.submit(() -> {
             List<EtherwarpPathfinder.Node> path = null;
             try {
@@ -200,7 +193,6 @@ public final class EtherwarpHopper {
                     return;
                 }
                 if (result == null || result.isEmpty()) {
-                    failed = true;
                     if (onFail != null) {
                         onFail.run();
                     }

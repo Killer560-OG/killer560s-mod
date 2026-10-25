@@ -71,10 +71,6 @@ public final class NavigationManager {
         return path;
     }
 
-    public static String pathIsland() {
-        return pathIsland;
-    }
-
     public static void navigate(String label, Vec3 pos, int nodeIndex, boolean stayOnArrive, ArrivalListener listener) {
         target = new Target(label, pos, nodeIndex, stayOnArrive, listener);
         path = List.of();

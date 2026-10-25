@@ -277,12 +277,6 @@ public final class FairySoulStore {
         return result;
     }
 
-    /** How many souls of {@code island} are logged as found (ignoring the menu's own total). */
-    public static synchronized int foundCount(String profileKey, String island) {
-        IslandRecord record = profile(profileKey).get(island);
-        return record == null ? 0 : record.found.size();
-    }
-
     /** Clears one island (and its menu counts) for this profile. */
     public static synchronized void resetIsland(String profileKey, String island) {
         for (String key : IslandDetector.graphsForSoulGroup(IslandDetector.soulMenuGroup(island))) {

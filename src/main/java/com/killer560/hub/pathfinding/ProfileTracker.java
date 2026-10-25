@@ -98,10 +98,6 @@ public final class ProfileTracker {
         return profileName;
     }
 
-    public static String profileId() {
-        return profileId;
-    }
-
     /** Storage key: "&lt;account uuid&gt;/&lt;profile name&gt;", or ".../?" until the profile is known. */
     public static String key() {
         Minecraft client = Minecraft.getInstance();

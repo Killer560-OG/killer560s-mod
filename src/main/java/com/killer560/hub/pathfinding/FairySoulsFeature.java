@@ -94,10 +94,6 @@ public final class FairySoulsFeature {
         return queue.isEmpty() ? null : queue.get(0);
     }
 
-    public static int queuedSouls() {
-        return queue.size();
-    }
-
     public static List<IslandGraph.Node> unfound(IslandGraph graph) {
         List<IslandGraph.Node> out = new ArrayList<>();
         String profile = ProfileTracker.key();
