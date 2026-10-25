@@ -155,13 +155,27 @@ public final class CustomScoreboardFeature {
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
         if (!cfg.isEnabled()) {
             clearBoard();
-            return;
         }
         if (++tickCounter < 5) {
             return;
         }
         tickCounter = 0;
         boolean onSkyblock = SkyblockGate.isOnSkyblock();
+        if (!cfg.isEnabled()) {
+            // The sidebar and tab list readings (island, tab widgets) are shared: the staged Farming, Islands and Auto
+            // GFS features read them with Custom Scoreboard off, which is the default (staging-farming-3, 2026-10-25).
+            if (onSkyblock) {
+                try {
+                    ScoreboardData.refresh(client);
+                } catch (RuntimeException e) {
+                    if (!loggedError) {
+                        loggedError = true;
+                        LOGGER.warn("[CustomScoreboard] Reading the sidebar failed: {}", e.toString(), e);
+                    }
+                }
+            }
+            return;
+        }
         try {
             if (onSkyblock) {
                 // Off Skyblock the sidebar/tab list aren't even read.
