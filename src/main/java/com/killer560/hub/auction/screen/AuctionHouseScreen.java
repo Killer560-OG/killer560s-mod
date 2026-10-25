@@ -633,10 +633,6 @@ public final class AuctionHouseScreen extends Screen {
         return out;
     }
 
-    public String queryForTest() {
-        return query;
-    }
-
     /** The uuid (32 hex) of the n-th listing shown, or "". */
     public String listingIdForTest(int n) {
         refilterIfNeeded();

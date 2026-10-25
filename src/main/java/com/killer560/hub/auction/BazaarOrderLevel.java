@@ -6,7 +6,7 @@ package com.killer560.hub.auction;
  * Real fields, verified against the live endpoint 2026-09-29: {@code amount} (units offered at this
  * level), {@code pricePerUnit}, {@code orders} (how many separate orders make up the level).
  *
- * <p><b>Read {@link BazaarApi#fetchInstantBuyBooksAsync()} before using this.</b> Hypixel's two summaries
+ * <p><b>Read {@link BazaarApi#fetchInstantBuyBooks()} before using this.</b> Hypixel's two summaries
  * are named the opposite of how they read: {@code buy_summary} is the book you INSTANT-BUY OUT OF, and
  * {@code sell_summary} is the book you instant-sell into. Getting that backward produces fake
  * billion-coin flips.

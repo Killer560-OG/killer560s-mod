@@ -23,7 +23,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -326,21 +325,5 @@ public final class AhMarket {
             o.add(e.getKey(), arr);
         }
         return o;
-    }
-
-    // ---- testkit --------------------------------------------------------------------------------------------------
-
-    /** Adds a history point for {@code id} at {@code atMs} as a scan in that hour would (testkit sparkline data). */
-    public static synchronized void addHistoryForTest(String id, long atMs, long price) {
-        addHourly(id, atMs, price);
-    }
-
-    public static synchronized List<Point> salesForTest(String id) {
-        return sales(id);
-    }
-
-    /** Ids with any recorded sale. */
-    public static synchronized List<String> salesIdsForTest() {
-        return new ArrayList<>(SALES.keySet());
     }
 }

@@ -59,16 +59,6 @@ public final class AuctionConfig {
         BazaarSortMode(String label) {
             this.label = label;
         }
-
-        public BazaarSortMode next() {
-            BazaarSortMode[] all = values();
-            return all[(ordinal() + 1) % all.length];
-        }
-
-        public BazaarSortMode previous() {
-            BazaarSortMode[] all = values();
-            return all[(all.length + ordinal() - 1) % all.length];
-        }
     }
 
     /** killer560, 2026-09-27: "make the ah viewer have an option to toggle between auctions and bins" -
@@ -83,16 +73,6 @@ public final class AuctionConfig {
 
         ListingMode(String label) {
             this.label = label;
-        }
-
-        public ListingMode next() {
-            ListingMode[] all = values();
-            return all[(ordinal() + 1) % all.length];
-        }
-
-        public ListingMode previous() {
-            ListingMode[] all = values();
-            return all[(all.length + ordinal() - 1) % all.length];
         }
     }
 

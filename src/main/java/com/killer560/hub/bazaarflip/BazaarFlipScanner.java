@@ -21,7 +21,7 @@ import com.killer560.hub.util.ModLog;
  * clicks, no screens, no automation - {@link BazaarFlipFeature} is the half that acts on this.
  *
  * <h2>The two endpoints and the trap between them</h2>
- * Instant-buy prices come from {@link BazaarApi#fetchInstantBuyBooksAsync()} ({@code buy_summary}, which is
+ * Instant-buy prices come from {@link BazaarApi#fetchInstantBuyBooks()} ({@code buy_summary}, which is
  * the book an instant BUY consumes despite the name - read that method's doc, getting it backward produces
  * fake billion-coin flips). NPC prices come from a completely different endpoint,
  * {@code /v2/resources/skyblock/items}, already parsed by {@link SkyblockItemRepository}, whose entries
