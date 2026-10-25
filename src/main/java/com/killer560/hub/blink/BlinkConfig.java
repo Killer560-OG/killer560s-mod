@@ -29,6 +29,20 @@ public final class BlinkConfig {
         }
     }
 
+    /** What the Blink key does. */
+    public enum Style {
+        /** Hold every packet while blinking and send them together on release. */
+        HOLD_PACKETS("Hold Packets"),
+        /** Bank the ticks he stands still, then run them all at once the moment he moves (see BlinkCharge). */
+        CHARGE("Charge");
+
+        public final String label;
+
+        Style(String label) {
+            this.label = label;
+        }
+    }
+
     /** What happens when a hold reaches Max Ticks. */
     public enum LimitAction {
         /** Release everything and stop blinking until the key is pressed again. */
@@ -75,6 +89,15 @@ public final class BlinkConfig {
     private boolean releaseOnDig = true;
     /** Release before a charged item use starts or ends (bow, food, shield...; see BlinkFeature). */
     private boolean releaseOnCharge = true;
+    /** Keep holding through a server teleport (an etherwarp landing, a leap, a lag-back): its accept goes in the queue. */
+    private boolean surviveTeleports = true;
+    private Style style = Style.HOLD_PACKETS;
+    /** Charge: shoot the bank at the start of the tick a movement key is first down. */
+    private boolean shootOnMove = true;
+    /** Charge: right after a shot, a normal hold of Max Ticks starts - two blinks back to back. */
+    private boolean holdAfterShot = true;
+    /** Hold Packets: menu clicks (a terminal) go out live while everything else is held. */
+    private boolean clicksLive = true;
 
     private BlinkConfig() {
     }
@@ -102,6 +125,11 @@ public final class BlinkConfig {
                 cfg.releaseOnHit = ConfigJson.getBool(obj, "releaseOnHit", cfg.releaseOnHit);
                 cfg.releaseOnDig = ConfigJson.getBool(obj, "releaseOnDig", cfg.releaseOnDig);
                 cfg.releaseOnCharge = ConfigJson.getBool(obj, "releaseOnCharge", cfg.releaseOnCharge);
+                cfg.surviveTeleports = ConfigJson.getBool(obj, "surviveTeleports", cfg.surviveTeleports);
+                cfg.style = ConfigJson.getEnum(obj, "style", Style.class, cfg.style);
+                cfg.shootOnMove = ConfigJson.getBool(obj, "shootOnMove", cfg.shootOnMove);
+                cfg.holdAfterShot = ConfigJson.getBool(obj, "holdAfterShot", cfg.holdAfterShot);
+                cfg.clicksLive = ConfigJson.getBool(obj, "clicksLive", cfg.clicksLive);
             } catch (Exception e) {
                 cfg = new BlinkConfig();
             }
@@ -124,6 +152,11 @@ public final class BlinkConfig {
             obj.addProperty("releaseOnHit", releaseOnHit);
             obj.addProperty("releaseOnDig", releaseOnDig);
             obj.addProperty("releaseOnCharge", releaseOnCharge);
+            obj.addProperty("surviveTeleports", surviveTeleports);
+            obj.addProperty("style", style.name());
+            obj.addProperty("shootOnMove", shootOnMove);
+            obj.addProperty("holdAfterShot", holdAfterShot);
+            obj.addProperty("clicksLive", clicksLive);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -215,5 +248,45 @@ public final class BlinkConfig {
 
     public void setReleaseOnCharge(boolean releaseOnCharge) {
         this.releaseOnCharge = releaseOnCharge;
+    }
+
+    public Style getStyle() {
+        return style;
+    }
+
+    public void setStyle(Style style) {
+        this.style = style == null ? Style.HOLD_PACKETS : style;
+    }
+
+    public boolean isShootOnMove() {
+        return shootOnMove;
+    }
+
+    public void setShootOnMove(boolean shootOnMove) {
+        this.shootOnMove = shootOnMove;
+    }
+
+    public boolean isHoldAfterShot() {
+        return holdAfterShot;
+    }
+
+    public void setHoldAfterShot(boolean holdAfterShot) {
+        this.holdAfterShot = holdAfterShot;
+    }
+
+    public boolean isClicksLive() {
+        return clicksLive;
+    }
+
+    public void setClicksLive(boolean clicksLive) {
+        this.clicksLive = clicksLive;
+    }
+
+    public boolean isSurviveTeleports() {
+        return surviveTeleports;
+    }
+
+    public void setSurviveTeleports(boolean surviveTeleports) {
+        this.surviveTeleports = surviveTeleports;
     }
 }

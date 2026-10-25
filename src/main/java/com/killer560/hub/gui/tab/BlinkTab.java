@@ -100,6 +100,30 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(Component.literal("Blink Key: §ePress any key..."));
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
+        w.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
+                    cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
+                    cfg.save();
+                    btn.setMessage(styleText(cfg));
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + 4;
+        w.add(SettingsButtonWidget.builder(onOff("Charge: Shoot When You Move", cfg.isShootOnMove()), btn -> {
+                    cfg.setShootOnMove(!cfg.isShootOnMove());
+                    cfg.save();
+                    btn.setMessage(onOff("Charge: Shoot When You Move", cfg.isShootOnMove()));
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + 4;
+        w.add(SettingsButtonWidget.builder(onOff("Charge: Blink Again After Shot", cfg.isHoldAfterShot()), btn -> {
+                    cfg.setHoldAfterShot(!cfg.isHoldAfterShot());
+                    cfg.save();
+                    btn.setMessage(onOff("Charge: Blink Again After Shot", cfg.isHoldAfterShot()));
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + 4;
+        w.add(SettingsButtonWidget.builder(onOff("Menu Clicks Go Through", cfg.isClicksLive()), btn -> {
+                    cfg.setClicksLive(!cfg.isClicksLive());
+                    cfg.save();
+                    btn.setMessage(onOff("Menu Clicks Go Through", cfg.isClicksLive()));
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + 4;
         w.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
                     cfg.setMode(SettingsButtonWidget.step(cfg.getMode(), dir));
                     cfg.save();
@@ -148,6 +172,12 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Release On Bow/Eat", cfg.isReleaseOnCharge()));
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
+        w.add(SettingsButtonWidget.builder(onOff("Keep Holding Through Teleports", cfg.isSurviveTeleports()), btn -> {
+                    cfg.setSurviveTeleports(!cfg.isSurviveTeleports());
+                    cfg.save();
+                    btn.setMessage(onOff("Keep Holding Through Teleports", cfg.isSurviveTeleports()));
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + 4;
         w.add(SettingsButtonWidget.builder(onOff("Show HUD", cfg.isShowHud()), btn -> {
                     cfg.setShowHud(!cfg.isShowHud());
                     cfg.save();
@@ -178,6 +208,10 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
         }
         int code = cfg.getKeyCode();
         return Component.literal("Blink Key: " + (code == KeyUtil.NONE ? "§7Not Set" : "§e" + KeyUtil.bindDisplayName(code)));
+    }
+
+    private static Component styleText(BlinkConfig cfg) {
+        return Component.literal("Style: " + cfg.getStyle().label);
     }
 
     private static Component modeText(BlinkConfig cfg) {

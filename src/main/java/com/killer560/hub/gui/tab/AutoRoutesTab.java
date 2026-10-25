@@ -180,6 +180,9 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         toggleCell(w, contentX + half + GAP, y[0], right, "Blink The Chain", cfg::getBlinkChainSetting, cfg::setBlinkChain,
                 null);
         y[0] += 24;
+        // killer560, 2026-10-25: "multiple etherwarps in a tick for 0tick routes" - a chain spends Blink Charge's bank.
+        toggleCell(w, contentX, y[0], half, "Charged Chain", cfg::getChargedChainSetting, cfg::setChargedChain, null);
+        y[0] += 24;
         // killer560, 2026-10-16: "kill mimic also needs a timeout slider" - how long the Spirit Sceptre keeps at it.
         slider(w, contentX + half + GAP, y[0], right,
                 () -> String.format(Locale.US, "Mimic Timeout: %.1fs", cfg.getMimicTimeoutTicks() / 20.0),

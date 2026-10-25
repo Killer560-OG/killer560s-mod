@@ -55,9 +55,12 @@ final class BlinkHud implements HudElement {
     @Override
     public void render(GuiGraphicsExtractor graphics, int x, int y) {
         boolean editor = McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen;
-        if (!editor && !BlinkFeature.isHolding()) {
+        if (!editor && !BlinkFeature.isHolding() && !BlinkCharge.isActive()) {
             return;
         }
         graphics.text(Minecraft.getInstance().font, text(), x, y, 0xFFFFFFFF, true);
+        if (!editor) {
+            BlinkFeature.hudFrames++;
+        }
     }
 }

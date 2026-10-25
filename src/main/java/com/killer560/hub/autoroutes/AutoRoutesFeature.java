@@ -1137,6 +1137,7 @@ public final class AutoRoutesFeature {
         if (RouteExecutor.isRunning()) {
             addedToFire = null;
             gate("running");
+            chargedChainBurst(client);
             RouteExecutor.tick(client);
             return;
         }
@@ -1144,6 +1145,41 @@ public final class AutoRoutesFeature {
             return;
         }
         arm(client, player, frame, cfg);
+    }
+
+    /**
+     * Charged Chain (killer560, 2026-10-25: "multiple etherwarps in a tick for 0tick routes"): while a chain is mid-flight
+     * and Blink Charge has ticks banked, run the route's next ticks NOW, one banked tick each - each its own whole tick on
+     * the wire (the use, his move with its look, the tick-end), so GrimAC sees one warp per tick as ever - until the chain
+     * ends or the bank does. The chain's warps all leave in this one real tick.
+     */
+    private static void chargedChainBurst(Minecraft client) {
+        if (!AutoRoutesConfig.getInstance().isChargedChain() || !com.killer560.hub.blink.BlinkCharge.isActive()) {
+            return;
+        }
+        int fired = 0;
+        int spent = 0;
+        int idle = 0;
+        int chained0 = RouteExecutor.zeroPingChained();
+        while (RouteExecutor.isRunning() && RouteExecutor.chargedChainReady() && spent < 64) {
+            int before = RouteExecutor.zeroPingChained();
+            if (!com.killer560.hub.blink.BlinkCharge.spendTick(() -> RouteExecutor.tick(client))) {
+                break;
+            }
+            spent++;
+            if (RouteExecutor.zeroPingChained() > before) {
+                fired++;
+                idle = 0;
+            } else if (++idle >= 3) {
+                break; // the chain is waiting on something else - keep the rest of the bank
+            }
+        }
+        if (spent > 0) {
+            com.killer560.hub.blink.BlinkCharge.endSpend();
+            LOGGER.info("[AutoRoutes] Charged Chain: {} warp(s) fired in one tick from Blink's bank ({} banked tick(s) spent, "
+                            + "{} left; {} chained this burst)", fired, spent, com.killer560.hub.blink.BlinkCharge.banked(),
+                    RouteExecutor.zeroPingChained() - chained0);
+        }
     }
 
     /**
