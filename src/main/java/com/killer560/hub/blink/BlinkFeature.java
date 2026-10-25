@@ -645,7 +645,7 @@ public final class BlinkFeature {
     static Component statusLine() {
         BlinkConfig cfg = BlinkConfig.getInstance();
         if (BlinkCharge.isActive()) {
-            return Component.literal("§cBlink charge §f" + BlinkCharge.banked() + "§7/" + cfg.getMaxTicks() + " ticks");
+            return Component.literal("§cBlink charge §f" + BlinkCharge.banked() + "§7/" + BlinkCharge.cap() + " ticks");
         }
         return Component.literal("§cBlink §f" + heldTicks + "§7/" + cfg.getMaxTicks() + " ticks §8(" + heldPackets() + ")");
     }

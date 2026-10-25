@@ -145,7 +145,7 @@ public final class BlinkCharge {
                 return true;
             }
             if (packet instanceof ServerboundClientTickEndPacket) {
-                boolean bank = !busy && banked < BlinkConfig.getInstance().getMaxTicks() && stillThisTick();
+                boolean bank = !busy && banked < cap() && stillThisTick();
                 busy = false;
                 if (bank) {
                     stash = null;
@@ -273,8 +273,8 @@ public final class BlinkCharge {
                 busy = false;
                 active = true;
             }
-            LOGGER.info("[Blink] charge on (bank up to {} ticks, shoot when you move {})",
-                    BlinkConfig.getInstance().getMaxTicks(), BlinkConfig.getInstance().isShootOnMove());
+            LOGGER.info("[Blink] charge on (bank up to {} ticks + the firing tick, shoot when you move {})",
+                    cap(), BlinkConfig.getInstance().isShootOnMove());
             if (BlinkConfig.getInstance().isChatMessages()) {
                 ModChat.send("Blink", ModChat.text("charging"));
             }
@@ -475,6 +475,15 @@ public final class BlinkCharge {
     }
 
     // ---------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The most ticks Charge banks: one under Max Ticks, because the tick a shot fires in sends its own movement with the
+     * burst - a full Max Ticks of movement at once. Banking Max Ticks itself left GrimAC 20 ms of TimerLimit headroom and
+     * flagged once in a run (testkit 1025-blink-charge-actions, 2026-10-25); one fewer leaves 70 ms.
+     */
+    public static int cap() {
+        return Math.max(1, BlinkConfig.getInstance().getMaxTicks() - 1);
+    }
 
     public static boolean isActive() {
         return active;
