@@ -9,6 +9,7 @@ final class CardBlurbsData {
     }
 
     static void register(Map<String, String> d) {
+        d.put("LowHealthAlertTab", "Warns when a teammate is low.");
         d.put("HomeMainTab", "Update notice, HUD keys and scale.");
         d.put("SlotTextTab", "Levels and tiers on item slots.");
         d.put("CompactorPreviewTab", "Shows compactor contents.");

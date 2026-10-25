@@ -87,6 +87,11 @@ public final class DungeonAlertsConfig {
     public static final int DEFAULT_ROOM_ALERT_COLOR = com.killer560.hub.util.ModChat.LIGHT_ORANGE;
     public static final int DEFAULT_SHADOW_ASSASSIN_COLOR = 0xAA44FF;
 
+    // Teammate Low Health Alert (2026-10-25, SkyHanni LowHealthAlert): OFF; Healer-only and the sound default ON.
+    private boolean lowHealthEnabled = false;
+    private boolean lowHealthOnlyHealer = true;
+    private boolean lowHealthSound = true;
+
     private DungeonAlertsConfig() {
     }
 
@@ -122,6 +127,9 @@ public final class DungeonAlertsConfig {
                 cfg.roomAlertsClearedColor = ConfigJson.getInt(o, "roomAlertsClearedColor", cfg.roomAlertsClearedColor) & 0xFFFFFF;
                 cfg.roomAlertsSecretsColor = ConfigJson.getInt(o, "roomAlertsSecretsColor", cfg.roomAlertsSecretsColor) & 0xFFFFFF;
                 cfg.shadowAssassinColor = ConfigJson.getInt(o, "shadowAssassinColor", cfg.shadowAssassinColor) & 0xFFFFFF;
+                cfg.lowHealthEnabled = bool(o, "lowHealthEnabled", cfg.lowHealthEnabled);
+                cfg.lowHealthOnlyHealer = bool(o, "lowHealthOnlyHealer", cfg.lowHealthOnlyHealer);
+                cfg.lowHealthSound = bool(o, "lowHealthSound", cfg.lowHealthSound);
                 cfg.roomAlertsDisplaySeconds = clamp(flt(o, "roomAlertsDisplaySeconds", cfg.roomAlertsDisplaySeconds), 0.5f, 3.0f);
                 // A "Dungeon Alerts as a whole" switch (2026-10-13) sat over both alerts and is gone (2026-10-15): they
                 // are independent. A file saved with it OFF had both standing down, so they load OFF; saved ON (or
@@ -162,6 +170,9 @@ public final class DungeonAlertsConfig {
             o.addProperty("roomAlertsSecretsColor", roomAlertsSecretsColor);
             o.addProperty("shadowAssassinColor", shadowAssassinColor);
             o.addProperty("roomAlertsDisplaySeconds", roomAlertsDisplaySeconds);
+            o.addProperty("lowHealthEnabled", lowHealthEnabled);
+            o.addProperty("lowHealthOnlyHealer", lowHealthOnlyHealer);
+            o.addProperty("lowHealthSound", lowHealthSound);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception e) {
             LOGGER.warn("[DungeonAlerts] Failed to save config", e);
@@ -171,6 +182,30 @@ public final class DungeonAlertsConfig {
     /** Shadow Assassin Alert's switch. */
     public boolean shadowAssassinOn() {
         return shadowAssassinEnabled;
+    }
+
+    public boolean isLowHealthEnabled() {
+        return lowHealthEnabled;
+    }
+
+    public void setLowHealthEnabled(boolean v) {
+        lowHealthEnabled = v;
+    }
+
+    public boolean isLowHealthOnlyHealer() {
+        return lowHealthOnlyHealer;
+    }
+
+    public void setLowHealthOnlyHealer(boolean v) {
+        lowHealthOnlyHealer = v;
+    }
+
+    public boolean isLowHealthSound() {
+        return lowHealthSound;
+    }
+
+    public void setLowHealthSound(boolean v) {
+        lowHealthSound = v;
     }
 
     /** Room Alerts' switch. */

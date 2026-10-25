@@ -56,7 +56,9 @@ public final class DungeonAlertsFeature {
                 SpringBootsOverlay.reset();
                 ClassColors.onWorldChange();
                 RoomAlerts.onWorldChange();
+                LowHealthAlert.onWorldChange();
             }
+            LowHealthAlert.tick(client);
         }));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(DungeonAlertsFeature::onWorldRender);
 

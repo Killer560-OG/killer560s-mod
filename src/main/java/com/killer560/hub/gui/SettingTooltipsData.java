@@ -11,6 +11,9 @@ final class SettingTooltipsData {
     }
 
     static void register(Map<String, String> d) {
+        d.put("low health alert", "Shows a title and plays a sound when a teammate's health turns red on the dungeon sidebar.");
+        d.put("low health alert/only while healer", "Alerts only while you are playing Healer.");
+        d.put("low health alert/alert sound", "Plays a sound with the low health title.");
         part1(d);
         part2(d);
         part3(d);

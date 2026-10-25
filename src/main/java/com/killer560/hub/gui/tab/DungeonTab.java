@@ -58,6 +58,7 @@ public class DungeonTab extends FolderTab {
                 new RunSummaryTab(),
                 new RunStatsTab(),
                 new DungeonAlertsTab(),
+                new LowHealthAlertTab(),
                 new BlessingsTab(),
                 new CroesusTab(),
                 new RngMeterTab(),
