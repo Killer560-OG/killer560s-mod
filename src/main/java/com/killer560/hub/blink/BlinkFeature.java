@@ -318,7 +318,11 @@ public final class BlinkFeature {
             holdOwner = owner;
             holding = true;
         }
-        LOGGER.info("[Blink] hold started by {}", owner);
+        Minecraft mc = Minecraft.getInstance();
+        LOGGER.info("[Blink] hold started by {} at {} (Max Ticks {}, {}, at the limit {}); server has him at {}", owner,
+                mc.player == null ? "-" : fmt(mc.player.position()), BlinkConfig.getInstance().getMaxTicks(),
+                BlinkConfig.getInstance().getMode().label, BlinkConfig.getInstance().getLimitAction().label,
+                serverPos == null ? "-" : fmt(serverPos));
         if (BlinkConfig.getInstance().isChatMessages()) {
             ModChat.send("Blink", ModChat.text("holding packets"));
         }
@@ -369,7 +373,18 @@ public final class BlinkFeature {
         lastHoldPackets = sent;
         longestHoldTicks = Math.max(longestHoldTicks, ticks);
         ticksSinceRelease = 0;
-        LOGGER.info("[Blink] released ({}): {} tick(s), {} packet(s) sent, {} dropped", why, ticks, sent, dropped);
+        // What the burst carried, by packet type, so a test log shows exactly what the server got at once.
+        java.util.TreeMap<String, Integer> kinds = new java.util.TreeMap<>();
+        for (Held h : out) {
+            kinds.merge(h.packet().getClass().getSimpleName().replace("Serverbound", "").replace("Packet", ""), 1,
+                    Integer::sum);
+        }
+        Minecraft mc = Minecraft.getInstance();
+        LOGGER.info("[Blink] released ({}) after {} ms, owner {}: {} tick(s), {} move(s), {} packet(s) sent, {} dropped; "
+                        + "burst {}; client at {}, server now has him at {}; release #{}", why,
+                System.currentTimeMillis() - holdStartMs, holdOwner, ticks, heldMoves, sent, dropped, kinds,
+                mc.player == null ? "-" : fmt(mc.player.position()), serverPos == null ? "-" : fmt(serverPos),
+                releasedHolds);
         if (BlinkConfig.getInstance().isChatMessages()) {
             String extra = dropped > 0 ? ", " + dropped + " stale dropped" : "";
             ModChat.send("Blink", ModChat.text("released " + ticks + " tick(s), " + sent + " packet(s) (" + why + extra + ")"));
@@ -504,6 +519,10 @@ public final class BlinkFeature {
 
     public static int lastHoldPackets() {
         return lastHoldPackets;
+    }
+
+    private static String fmt(Vec3 v) {
+        return String.format(java.util.Locale.ROOT, "(%.2f, %.2f, %.2f)", v.x, v.y, v.z);
     }
 
     /** One line for the HUD. */
