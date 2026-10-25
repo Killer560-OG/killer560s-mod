@@ -49,11 +49,8 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         SlotBindsConfig cfg = SlotBindsConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Slot Binds", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Slot Binds", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -103,10 +100,6 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
         // shows nothing below the toggles above instead of an explicit "No binds set yet." placeholder.
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
     private static Component bindKeyText() {

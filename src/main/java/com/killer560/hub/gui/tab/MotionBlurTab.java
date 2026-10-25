@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.motionblur.MotionBlurConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -22,11 +21,8 @@ public class MotionBlurTab extends BaseTab {
         MotionBlurConfig cfg = MotionBlurConfig.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Motion Blur", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Motion Blur", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -49,20 +45,13 @@ public class MotionBlurTab extends BaseTab {
         });
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Blur GUI", cfg.isBlurGui()), btn -> {
-                    cfg.setBlurGui(!cfg.isBlurGui());
-                    cfg.save();
-                    btn.setMessage(onOff("Blur GUI", cfg.isBlurGui()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Blur GUI", cfg::isBlurGui, cfg::setBlurGui, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         return widgets;
     }
 
     private static Component strengthText(int strength) {
         return Component.literal("Strength: " + strength + "%");
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

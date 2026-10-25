@@ -34,17 +34,13 @@ public class ScoreCalculatorTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
-        var font = Minecraft.getInstance().font;
         int gap = 4;
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Score Calculator", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Score Calculator", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!cfg.isEnabled()) {
@@ -52,7 +48,7 @@ public class ScoreCalculatorTab extends BaseTab {
         }
 
         // ---- HUD ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("HUD", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "HUD", false));
         y += 16;
         widgets.add(toggle("Show Breakdown", cfg.isShowBreakdown(), v -> cfg.setShowBreakdown(v), cfg, contentX, y, colW));
         widgets.add(toggle("Secrets Needed", cfg.isShowSecretsNeeded(), v -> cfg.setShowSecretsNeeded(v), cfg, col2X, y, colW));
@@ -74,7 +70,7 @@ public class ScoreCalculatorTab extends BaseTab {
         y += 28;
 
         // ---- Formula ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Formula", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Formula", false));
         y += 16;
         widgets.add(SettingsButtonWidget.cycling(paulLabel(cfg), (btn, dir) -> {
                     cfg.setPaulMode(dir > 0 ? cfg.getPaulMode().next() : cfg.getPaulMode().previous());
@@ -85,7 +81,7 @@ public class ScoreCalculatorTab extends BaseTab {
         y += 28;
 
         // ---- Bonus Kill Alerts (moved from DungeonInfoTab 2026-09-21 - see class doc) ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Bonus Kill Alerts", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Bonus Kill Alerts", false));
         y += 16;
         y = alertRow(widgets, "Mimic Killed Msg", "§7Trigger: baby zombie (mimic) dies, F6/F7 clear",
                 contentX, y, contentWidth, cfg.isMimicAlertEnabled(), cfg::setMimicAlertEnabled,
@@ -99,7 +95,7 @@ public class ScoreCalculatorTab extends BaseTab {
         y += 6;
 
         // ---- 270 ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("270 Score Alert", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "270 Score Alert", false));
         y += 16;
         widgets.add(toggle("270 Title", cfg.isTitle270(), v -> cfg.setTitle270(v), cfg, contentX, y, colW));
         widgets.add(SettingsButtonWidget.builder(Component.literal("Preview 270 Title"),
@@ -114,7 +110,7 @@ public class ScoreCalculatorTab extends BaseTab {
         y += 6;
 
         // ---- 300 ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("300 Score Alert", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "300 Score Alert", false));
         y += 16;
         widgets.add(toggle("300 Title", cfg.isTitle300(), v -> cfg.setTitle300(v), cfg, contentX, y, colW));
         widgets.add(SettingsButtonWidget.builder(Component.literal("Preview 300 Title"),
@@ -193,9 +189,5 @@ public class ScoreCalculatorTab extends BaseTab {
 
     private static Component paulLabel(ScoreCalculatorConfig cfg) {
         return Component.literal("Paul (EZPZ): §6" + cfg.getPaulMode().label);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

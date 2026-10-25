@@ -44,7 +44,7 @@ public class InventoryWalkTab extends BaseTab {
         if (!cfg.isEnabled()) {
             return w;
         }
-        w.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Inventory Walk", true), font));
+        w.add(SectionHeaders.row(contentX, y, contentWidth, "Inventory Walk", true));
         y += 16;
         String[] warning = {
                 "§cKeeps your movement keys working while a menu is open. The server sees",
@@ -95,10 +95,6 @@ public class InventoryWalkTab extends BaseTab {
             }
         });
         return w;
-    }
-
-    private static Component onOff(String label, boolean on) {
-        return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
     }
 
     private static Component screensText(InventoryWalkConfig cfg) {

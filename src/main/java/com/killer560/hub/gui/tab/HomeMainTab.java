@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.hud.HudConfig;
 import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.ThemedSliderButton;
@@ -34,14 +32,12 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
-        var font = Minecraft.getInstance().font;
         int gap = 8;
         int half = (contentWidth - gap) / 2;
         int rightW = Math.max(1, contentWidth - half - gap);
         int y = contentY;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Mod", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Mod", false));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(updateNotifyText(), btn -> {
@@ -61,8 +57,7 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
         // Sweat Mode is the button at the top of Home only (killer560, 2026-10-18), not a row in Mod or HUD.
         y += 4;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("HUD", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "HUD", false));
         y += 16;
 
         Component keybindLabel = listening
@@ -111,8 +106,7 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
         // in the actual mod"). They used to be buttons on the editor screen; the same HudConfig fields, so nothing
         // saved before is lost and the editor reads them on every drag.
         y += 4;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("HUD Editor", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "HUD Editor", false));
         y += 16;
         HudConfig hc = HudConfig.getInstance();
         widgets.add(toggle("Snapping", hc::isEditorSnap, hc::setEditorSnap, contentX, y, half, false, requestRebuild));

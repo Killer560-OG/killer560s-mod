@@ -1,9 +1,7 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.maskinvincibility.MaskInvincibilityConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,48 +26,27 @@ public class MaskInvincibilityTab extends BaseTab {
         int col2 = contentX + 108;
         int col3 = contentX + 216;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Mask Invincibility", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Mask Invincibility", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, 220, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Spirit", cfg.isShowSpirit()), btn -> {
-                    cfg.setShowSpirit(!cfg.isShowSpirit());
-                    cfg.save();
-                    btn.setMessage(onOff("Spirit", cfg.isShowSpirit()));
-                }).bounds(col1, y, 100, 18).build());
+        widgets.add(onOffButton("Spirit", cfg::isShowSpirit, cfg::setShowSpirit, cfg::save, null, col1, y, 100, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Bonzo", cfg.isShowBonzo()), btn -> {
-                    cfg.setShowBonzo(!cfg.isShowBonzo());
-                    cfg.save();
-                    btn.setMessage(onOff("Bonzo", cfg.isShowBonzo()));
-                }).bounds(col2, y, 100, 18).build());
+        widgets.add(onOffButton("Bonzo", cfg::isShowBonzo, cfg::setShowBonzo, cfg::save, null, col2, y, 100, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Phoenix", cfg.isShowPhoenix()), btn -> {
-                    cfg.setShowPhoenix(!cfg.isShowPhoenix());
-                    cfg.save();
-                    btn.setMessage(onOff("Phoenix", cfg.isShowPhoenix()));
-                }).bounds(col3, y, 108, 18).build());
+        widgets.add(onOffButton("Phoenix", cfg::isShowPhoenix, cfg::setShowPhoenix, cfg::save, null, col3, y, 108, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Item Icons", cfg.isShowItemIcons()), btn -> {
-                    cfg.setShowItemIcons(!cfg.isShowItemIcons());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(col1, y, 100, 18).build());
+        widgets.add(onOffButton("Item Icons", cfg::isShowItemIcons, cfg::setShowItemIcons, cfg::save,
+                requestRebuild, col1, y, 100, 18));
 
         if (cfg.isShowItemIcons()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Hide Mask Names", cfg.isHideMaskNames()), btn -> {
-                        cfg.setHideMaskNames(!cfg.isHideMaskNames());
-                        cfg.save();
-                        btn.setMessage(onOff("Hide Mask Names", cfg.isHideMaskNames()));
-                    }).bounds(col2, y, 208, 18).build());
+            widgets.add(onOffButton("Hide Mask Names", cfg::isHideMaskNames, cfg::setHideMaskNames, cfg::save,
+                    null, col2, y, 208, 18));
         }
         y += 22;
 
@@ -77,31 +54,18 @@ public class MaskInvincibilityTab extends BaseTab {
         // Even halves of the tab's real content width, same fix as Announce In Chat/To Party just below.
         int gateGap = 8;
         int gateW = (contentWidth - gateGap) / 2;
-        widgets.add(SettingsButtonWidget.builder(onOff("Only In Dungeons", cfg.isOnlyInDungeons()), btn -> {
-                    cfg.setOnlyInDungeons(!cfg.isOnlyInDungeons());
-                    cfg.save();
-                    btn.setMessage(onOff("Only In Dungeons", cfg.isOnlyInDungeons()));
-                }).bounds(contentX, y, gateW, 18).build());
+        widgets.add(onOffButton("Only In Dungeons", cfg::isOnlyInDungeons, cfg::setOnlyInDungeons, cfg::save,
+                null, contentX, y, gateW, 18));
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Boss Only", cfg.isBossOnly()), btn -> {
-                    cfg.setBossOnly(!cfg.isBossOnly());
-                    cfg.save();
-                    btn.setMessage(onOff("Boss Only", cfg.isBossOnly()));
-                }).bounds(contentX + gateW + gateGap, y, gateW, 18).build());
+        widgets.add(onOffButton("Boss Only", cfg::isBossOnly, cfg::setBossOnly, cfg::save,
+                null, contentX + gateW + gateGap, y, gateW, 18));
         y += 22;
 
         // Announce To Party is the only announce (killer560, 2026-10-18: "remove the announce in chat option"), full width.
-        widgets.add(SettingsButtonWidget.builder(onOff("Announce To Party", cfg.isAnnounceToParty()), btn -> {
-                    cfg.setAnnounceToParty(!cfg.isAnnounceToParty());
-                    cfg.save();
-                    btn.setMessage(onOff("Announce To Party", cfg.isAnnounceToParty()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Announce To Party", cfg::isAnnounceToParty, cfg::setAnnounceToParty, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 24;
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

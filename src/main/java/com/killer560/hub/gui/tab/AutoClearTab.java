@@ -4,7 +4,6 @@ import com.killer560.hub.autosecret.AutoSecretConfig;
 import com.killer560.hub.autosecret.AutoSecretFeature;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
@@ -277,37 +276,18 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String text) {
         y[0] += 6;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(text, true), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, text, true));
         y[0] += 16;
     }
 
     private static void toggle(List<AbstractWidget> w, int x, int y, int width, String name, Supplier<Boolean> getter,
                                Consumer<Boolean> setter) {
-        w.add(SettingsButtonWidget.builder(onOff(name, getter.get()), btn -> {
-            setter.accept(!getter.get());
-            AutoSecretConfig.getInstance().save();
-            btn.setMessage(onOff(name, getter.get()));
-        }).bounds(x, y, Math.max(1, width), 20).build());
-    }
-
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
+        w.add(onOffButton(name,
+                getter::get, setter, () -> AutoSecretConfig.getInstance().save(), null, x, y, Math.max(1, width), 20));
     }
 
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,
                                DoubleConsumer apply) {
-        w.add(new ThemedSliderButton(x, y, Math.max(1, width), 20, Component.literal(text.get()),
-                Math.max(0.0, Math.min(1.0, normalized))) {
-            @Override
-            protected void updateMessage() {
-                setMessage(Component.literal(text.get()));
-            }
-
-            @Override
-            protected void applyValue() {
-                apply.accept(this.value);
-                saveOnRelease(() -> AutoSecretConfig.getInstance().save());
-            }
-        });
+        w.add(normSlider(x, y, Math.max(1, width), 20, text, normalized, apply, () -> AutoSecretConfig.getInstance().save()));
     }
 }

@@ -69,7 +69,7 @@ public abstract class ThemedSliderButton extends AbstractSliderButton implements
         return steps;
     }
 
-    /** Whether this slider snaps (a known step count, or seen snapping). Read by the testkit. */
+    /** Whether this slider snaps (a known step count, or seen snapping). */
     public boolean isStepped() {
         return stepped || stepCount() > 0;
     }

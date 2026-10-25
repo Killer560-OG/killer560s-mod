@@ -3,7 +3,6 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.croesus.CroesusConfig;
 import com.killer560.hub.croesus.CroesusProfitLog;
 import com.killer560.hub.croesus.CroesusTrackerScreen;
-import com.killer560.hub.croesus.DungeonChestValuer;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -44,34 +43,19 @@ public class CroesusTab extends BaseTab {
         int half = (contentWidth - GAP) / 2;
 
         // ---- Chest Profit ----
-        widgets.add(SettingsButtonWidget.builder(onOff("Chest Profit", cfg.isChestProfitEnabled()), btn -> {
-                    cfg.setChestProfitEnabled(!cfg.isChestProfitEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Chest Profit", cfg::isChestProfitEnabled, cfg::setChestProfitEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 22;
         if (cfg.isChestProfitEnabled()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Include Essence", cfg.isIncludeEssence()), btn -> {
-                        cfg.setIncludeEssence(!cfg.isIncludeEssence());
-                        cfg.save();
-                        btn.setMessage(onOff("Include Essence", cfg.isIncludeEssence()));
-                    }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("Highlight Free Chest", cfg.isHighlightFreeChest()), btn -> {
-                        cfg.setHighlightFreeChest(!cfg.isHighlightFreeChest());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX + half + GAP, y, half, 18).build());
+            widgets.add(onOffButton("Include Essence", cfg::isIncludeEssence, cfg::setIncludeEssence, cfg::save,
+                    null, contentX, y, half, 18));
+            widgets.add(onOffButton("Highlight Free Chest", cfg::isHighlightFreeChest, cfg::setHighlightFreeChest,
+                    cfg::save, requestRebuild, contentX + half + GAP, y, half, 18));
             y += 20;
-            widgets.add(SettingsButtonWidget.builder(onOff("Highlight Runs", cfg.isHighlightRuns()), btn -> {
-                        cfg.setHighlightRuns(!cfg.isHighlightRuns());
-                        cfg.save();
-                        btn.setMessage(onOff("Highlight Runs", cfg.isHighlightRuns()));
-                    }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("Highlight Key Chest", cfg.isHighlightKeyChest()), btn -> {
-                        cfg.setHighlightKeyChest(!cfg.isHighlightKeyChest());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX + half + GAP, y, half, 18).build());
+            widgets.add(onOffButton("Highlight Runs", cfg::isHighlightRuns, cfg::setHighlightRuns, cfg::save,
+                    null, contentX, y, half, 18));
+            widgets.add(onOffButton("Highlight Key Chest", cfg::isHighlightKeyChest, cfg::setHighlightKeyChest,
+                    cfg::save, requestRebuild, contentX + half + GAP, y, half, 18));
             y += 20;
             if (cfg.isHighlightFreeChest() || cfg.isHighlightKeyChest()) {
                 widgets.add(colourButton("Free Chest Color", cfg.getChestFreeColor(),
@@ -96,11 +80,8 @@ public class CroesusTab extends BaseTab {
                 y += 20;
                 widgets.add(colourButton("Not Looked At Color", cfg.getRunUnknownColor(),
                         CroesusConfig.DEFAULT_RUN_UNKNOWN_COLOR, rgb -> cfg.setRunUnknownColor(rgb), contentX, y, half));
-                widgets.add(SettingsButtonWidget.builder(onOff("Color Legend", cfg.isShowRunLegend()), btn -> {
-                            cfg.setShowRunLegend(!cfg.isShowRunLegend());
-                            cfg.save();
-                            btn.setMessage(onOff("Color Legend", cfg.isShowRunLegend()));
-                        }).bounds(contentX + half + GAP, y, half, 18).build());
+                widgets.add(onOffButton("Color Legend", cfg::isShowRunLegend, cfg::setShowRunLegend, cfg::save,
+                        null, contentX + half + GAP, y, half, 18));
                 y += 20;
             }
             y += 6;
@@ -108,11 +89,8 @@ public class CroesusTab extends BaseTab {
 
         // killer560, 2026-10-12: "make an option to hide opened chests". Its own row, outside Chest Profit: it hides
         // claimed runs whether or not the values are shown.
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide Opened Runs", cfg.isHideOpenedRuns()), btn -> {
-                    cfg.setHideOpenedRuns(!cfg.isHideOpenedRuns());
-                    cfg.save();
-                    btn.setMessage(onOff("Hide Opened Runs", cfg.isHideOpenedRuns()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Hide Opened Runs", cfg::isHideOpenedRuns, cfg::setHideOpenedRuns, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 24;
 
         // Price Mode (killer560, 2026-10-11): how every Croesus value is priced - the chest overlay, the logger and
@@ -130,18 +108,12 @@ public class CroesusTab extends BaseTab {
         y += 24;
 
         // ---- Profit Logger ----
-        widgets.add(SettingsButtonWidget.builder(onOff("Croesus Profit Logger", cfg.isLoggerEnabled()), btn -> {
-                    cfg.setLoggerEnabled(!cfg.isLoggerEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Croesus Profit Logger", cfg::isLoggerEnabled, cfg::setLoggerEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 22;
         if (cfg.isLoggerEnabled()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Chat Summary", cfg.isLoggerChatSummary()), btn -> {
-                        cfg.setLoggerChatSummary(!cfg.isLoggerChatSummary());
-                        cfg.save();
-                        btn.setMessage(onOff("Chat Summary", cfg.isLoggerChatSummary()));
-                    }).bounds(contentX, y, half, 18).build());
+            widgets.add(onOffButton("Chat Summary", cfg::isLoggerChatSummary, cfg::setLoggerChatSummary, cfg::save,
+                    null, contentX, y, half, 18));
             widgets.add(SettingsButtonWidget.builder(Component.literal("Open Profit Tracker"), btn -> {
                         Minecraft client = Minecraft.getInstance();
                         client.setScreenAndShow(new CroesusTrackerScreen(McCompat.screen(client), CroesusTrackerScreen.View.OVERVIEW));
@@ -168,9 +140,5 @@ public class CroesusTab extends BaseTab {
 
     private static Component priceModeText(CroesusConfig cfg) {
         return Component.literal("Price Mode: §6" + cfg.getPriceMode().label);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

@@ -52,11 +52,8 @@ public class EtherwarpTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Through Walls", cfg.isThroughWalls()), btn -> {
-                    cfg.setThroughWalls(!cfg.isThroughWalls());
-                    cfg.save();
-                    btn.setMessage(onOff("Through Walls", cfg.isThroughWalls()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Through Walls", cfg::isThroughWalls, cfg::setThroughWalls, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
         widgets.add(colorButton(contentX, y, contentWidth, "Color", cfg.getColor(),
@@ -116,9 +113,5 @@ public class EtherwarpTab extends BaseTab {
 
     private static Component masterText() {
         return Component.literal("Etherwarp Waypoints: " + (EtherwarpWaypointsConfig.getInstance().isHighlightBlocks() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

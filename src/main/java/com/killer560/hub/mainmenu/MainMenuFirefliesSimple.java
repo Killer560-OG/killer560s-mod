@@ -49,7 +49,7 @@ final class MainMenuFirefliesSimple {
         }
 
         // Leaves drifting down, tumbling side to side.
-        int leaves = scaled(w * h / 7000.0, density, 10, 44);
+        int leaves = MainMenuFireflies.scaled(w * h / 7000.0, density, 10, 44);
         int leafLight = MenuStyle.mix(accent, 0xFFFFFFFF, 0.25f);
         double travel = h + 30.0;
         for (int i = 0; i < leaves; i++) {
@@ -72,7 +72,7 @@ final class MainMenuFirefliesSimple {
         }
 
         // Fireflies: a slow looping wander, each pulsing on its own beat.
-        int flies = scaled(w * h / 6500.0, density, 12, 56);
+        int flies = MainMenuFireflies.scaled(w * h / 6500.0, density, 12, 56);
         for (int i = 0; i < flies; i++) {
             double r1 = MainMenuScenes.hash(i, 91);
             double r2 = MainMenuScenes.hash(i, 92);
@@ -90,13 +90,5 @@ final class MainMenuFirefliesSimple {
             r.fill(px - 1, py - 1, px + 2, py + 2, MenuStyle.alpha(accent, a / 4));
             r.fill(px, py, px + 1, py + 1, MenuStyle.alpha(r1 > 0.6 ? text : mint, a));
         }
-    }
-
-    private static int scaled(double perArea, float density, int min, int max) {
-        if (density <= 0f) {
-            return 0;
-        }
-        int n = (int) Math.round(perArea * density);
-        return Math.max(Math.round(min * density), Math.min(Math.round(max * density), n));
     }
 }

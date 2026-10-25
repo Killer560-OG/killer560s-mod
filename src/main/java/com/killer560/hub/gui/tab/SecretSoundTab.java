@@ -97,8 +97,4 @@ public class SecretSoundTab extends BaseTab {
     private static Component pitchLabel(DungeonAlertsConfig cfg) {
         return Component.literal(String.format(Locale.US, "Pitch: %.1f", cfg.secretSoundPitch));
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

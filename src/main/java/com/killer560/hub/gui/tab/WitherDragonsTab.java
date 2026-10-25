@@ -4,9 +4,7 @@ import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.witherdragons.WitherDragonsConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -197,23 +195,19 @@ public class WitherDragonsTab extends BaseTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 14;
     }
 
     private static void cheatHeader(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, true), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, title, true));
         y[0] += 14;
     }
 
     private static void master(List<AbstractWidget> w, int x, int[] y, int width, String label, Supplier<Boolean> get,
                                Consumer<Boolean> set, WitherDragonsConfig cfg, Runnable requestRebuild) {
-        w.add(SettingsButtonWidget.builder(onOff(label, get.get()), btn -> {
-                    set.accept(!get.get());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(x, y[0], width, 20).build());
+        w.add(onOffButton(label, get::get, set, cfg::save, requestRebuild, x, y[0], width, 20));
         y[0] += 24;
     }
 
@@ -241,9 +235,5 @@ public class WitherDragonsTab extends BaseTab {
 
     private static Component cycleLabel(String label, String value) {
         return Component.literal(label + ": §6" + value);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

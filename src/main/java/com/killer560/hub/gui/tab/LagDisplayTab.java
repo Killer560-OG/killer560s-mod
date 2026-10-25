@@ -5,8 +5,6 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.lagdisplay.LagDisplayConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,11 +30,8 @@ public class LagDisplayTab extends BaseTab {
         int colB = contentX + half + gap;
 
         header(w, contentX, y, contentWidth, "Performance HUD");
-        w.add(SettingsButtonWidget.builder(onOff("Performance HUD", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Performance HUD", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
 
         if (!cfg.isEnabled()) {
@@ -75,7 +70,7 @@ public class LagDisplayTab extends BaseTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 14;
     }
 
@@ -101,9 +96,5 @@ public class LagDisplayTab extends BaseTab {
                         cfg.save();
                     }));
         }).bounds(x, y, width, 18).build());
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

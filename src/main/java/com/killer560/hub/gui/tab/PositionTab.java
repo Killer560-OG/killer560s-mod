@@ -4,9 +4,7 @@ import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.position.PositionConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -79,7 +77,7 @@ public class PositionTab extends BaseTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 14;
     }
 
@@ -94,9 +92,5 @@ public class PositionTab extends BaseTab {
                     live.save();
                     btn.setMessage(onOff(label, now));
                 }).bounds(x, y, width, 18).build());
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

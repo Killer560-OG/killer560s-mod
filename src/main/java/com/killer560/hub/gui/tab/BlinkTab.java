@@ -81,7 +81,7 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
         if (!cfg.isEnabled()) {
             return w;
         }
-        w.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Blink", true), font));
+        w.add(SectionHeaders.row(contentX, y, contentWidth, "Blink", true));
         y += 16;
         String[] warning = {
                 "§cHolds every packet you send and releases them in one burst. To the",
@@ -166,10 +166,6 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Chat Messages", cfg.isChatMessages()));
                 }).bounds(contentX, y, contentWidth, ROW).build());
         return w;
-    }
-
-    private static Component onOff(String label, boolean on) {
-        return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
     }
 
     private Component keyText(BlinkConfig cfg) {

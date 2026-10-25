@@ -203,22 +203,7 @@ public class PosmsgTab extends BaseTab {
     private static ThemedSliderButton slider(int x, int y, int w, Component label, double min, double max,
                                              double current, double step, java.util.function.DoubleConsumer apply,
                                              java.util.function.Supplier<Component> text) {
-        double span = max - min;
-        double normalized = span <= 0 ? 0 : (current - min) / span;
-        return new ThemedSliderButton(x, y, w, ROW, label, Math.max(0.0, Math.min(1.0, normalized))) {
-            @Override
-            protected void updateMessage() {
-                setMessage(text.get());
-            }
-
-            @Override
-            protected void applyValue() {
-                double raw = min + this.value * span;
-                double snapped = Math.round(raw / step) * step;
-                apply.accept(Math.max(min, Math.min(max, snapped)));
-                saveOnRelease(() -> PosmsgConfig.getInstance().save());
-            }
-        };
+        return steppedSlider(x, y, w, ROW, label, min, max, current, step, apply, text, () -> PosmsgConfig.getInstance().save());
     }
 
     private static Component thicknessText(PosmsgEntry e) {
@@ -235,10 +220,6 @@ public class PosmsgTab extends BaseTab {
 
     private static Component textHeightText(PosmsgEntry e) {
         return Component.literal(String.format(Locale.US, "Text Height: %.2f", e.textHeightOffset));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
     private static Component masterText() {

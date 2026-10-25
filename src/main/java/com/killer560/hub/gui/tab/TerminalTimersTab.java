@@ -1,9 +1,7 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.splittimers.TerminalTimersConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,41 +20,25 @@ public class TerminalTimersTab extends BaseTab {
         int y = contentY;
         TerminalTimersConfig cfg = TerminalTimersConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Terminal Timers", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Terminal Timers", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Terminal Solve Times", cfg.getSolveTimesRaw()), btn -> {
-                    cfg.setSolveTimes(!cfg.getSolveTimesRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Terminal Solve Times", cfg.getSolveTimesRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Terminal Solve Times", cfg::getSolveTimesRaw, cfg::setSolveTimes, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Terminal/Device Splits", cfg.getSplitsRaw()), btn -> {
-                    cfg.setSplits(!cfg.getSplitsRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Terminal/Device Splits", cfg.getSplitsRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Terminal/Device Splits", cfg::getSplitsRaw, cfg::setSplits, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Simon Says Time", cfg.getSimonSaysTimeRaw()), btn -> {
-                    cfg.setSimonSaysTime(!cfg.getSimonSaysTimeRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Simon Says Time", cfg.getSimonSaysTimeRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Simon Says Time", cfg::getSimonSaysTimeRaw, cfg::setSimonSaysTime, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

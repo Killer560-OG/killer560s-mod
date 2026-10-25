@@ -57,11 +57,8 @@ public class AbilityKeybindsTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         AbilityKeybindsConfig cfg = AbilityKeybindsConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Ability Keybinds", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Ability Keybinds", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
@@ -81,10 +78,6 @@ public class AbilityKeybindsTab extends BaseTab implements KeyCaptureTab {
 
         // The three explanatory lines that used to sit here are hover tooltips now (2026-09-20 mod-wide rule).
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
     private Component keyText(String label, int key, int index) {

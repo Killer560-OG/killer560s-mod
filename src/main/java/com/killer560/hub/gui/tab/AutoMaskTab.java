@@ -75,11 +75,8 @@ public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
         int half = (contentWidth - gap) / 2;
 
         // Auto Mask as a whole (killer560, 2026-10-13) - first, so it is the card's switch even while Mask Invincibility is off.
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Mask", cfg.isAutoSwapEnabled()), btn -> {
-                    cfg.setAutoSwapEnabled(!cfg.isAutoSwapEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(col1, y, 100, 18).build());
+        widgets.add(onOffButton("Auto Mask", cfg::isAutoSwapEnabled, cfg::setAutoSwapEnabled, cfg::save,
+                requestRebuild, col1, y, 100, 18));
         y += 22;
 
         if (!cfg.isAutoSwapEnabled()) {
@@ -122,35 +119,20 @@ public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
 
         // killer560, 2026-10-18: which masks Auto Mask may swap to. Off skips that one in both modes, wherever it sits
         // in the Swap Order. Separate from the HUD Spirit/Bonzo/Phoenix rows on Mask Invincibility.
-        widgets.add(SettingsButtonWidget.builder(onOff("Swap To Spirit", cfg.isAutoSwapSpirit()), btn -> {
-                    cfg.setAutoSwapSpirit(!cfg.isAutoSwapSpirit());
-                    cfg.save();
-                    btn.setMessage(onOff("Swap To Spirit", cfg.isAutoSwapSpirit()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Swap To Spirit", cfg::isAutoSwapSpirit, cfg::setAutoSwapSpirit, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(onOff("Swap To Bonzo", cfg.isAutoSwapBonzo()), btn -> {
-                    cfg.setAutoSwapBonzo(!cfg.isAutoSwapBonzo());
-                    cfg.save();
-                    btn.setMessage(onOff("Swap To Bonzo", cfg.isAutoSwapBonzo()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Swap To Bonzo", cfg::isAutoSwapBonzo, cfg::setAutoSwapBonzo, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(onOff("Swap To Phoenix", cfg.isAutoSwapPhoenix()), btn -> {
-                    cfg.setAutoSwapPhoenix(!cfg.isAutoSwapPhoenix());
-                    cfg.save();
-                    btn.setMessage(onOff("Swap To Phoenix", cfg.isAutoSwapPhoenix()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Swap To Phoenix", cfg::isAutoSwapPhoenix, cfg::setAutoSwapPhoenix, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Dungeons Only", cfg.isAutoMaskDungeonsOnly()), btn -> {
-                    cfg.setAutoMaskDungeonsOnly(!cfg.isAutoMaskDungeonsOnly());
-                    cfg.save();
-                    btn.setMessage(onOff("Dungeons Only", cfg.isAutoMaskDungeonsOnly()));
-                }).bounds(contentX, y, half, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Boss Only", cfg.isAutoMaskBossOnly()), btn -> {
-                    cfg.setAutoMaskBossOnly(!cfg.isAutoMaskBossOnly());
-                    cfg.save();
-                    btn.setMessage(onOff("Boss Only", cfg.isAutoMaskBossOnly()));
-                }).bounds(contentX + half + gap, y, half, 18).build());
+        widgets.add(onOffButton("Dungeons Only", cfg::isAutoMaskDungeonsOnly, cfg::setAutoMaskDungeonsOnly, cfg::save,
+                null, contentX, y, half, 18));
+        widgets.add(onOffButton("Boss Only", cfg::isAutoMaskBossOnly, cfg::setAutoMaskBossOnly, cfg::save,
+                null, contentX + half + gap, y, half, 18));
         y += 22;
 
         int range = MaskInvincibilityConfig.MAX_STEP_DELAY_TICKS - MaskInvincibilityConfig.MIN_STEP_DELAY_TICKS;
@@ -181,11 +163,8 @@ public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
         // text box is gone - MaskSwapper#findRodSlot now finds whatever real fishing rod is in the hotbar on
         // its own (see its javadoc), and falls back to the /pets menu route by itself if there isn't one.
         if (cfg.getPhoenixRoute() == MaskInvincibilityConfig.PhoenixRoute.ROD) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Return To Slot", cfg.isRodReturnToPreviousSlot()), btn -> {
-                        cfg.setRodReturnToPreviousSlot(!cfg.isRodReturnToPreviousSlot());
-                        cfg.save();
-                        btn.setMessage(onOff("Return To Slot", cfg.isRodReturnToPreviousSlot()));
-                    }).bounds(contentX, y, 220, 18).build());
+            widgets.add(onOffButton("Return To Slot", cfg::isRodReturnToPreviousSlot, cfg::setRodReturnToPreviousSlot,
+                    cfg::save, null, contentX, y, 220, 18));
         }
 
         return widgets;
@@ -215,9 +194,5 @@ public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
     private static Component phoenixRouteLabel(MaskInvincibilityConfig cfg) {
         return Component.literal("Phoenix Route: §b"
                 + (cfg.getPhoenixRoute() == MaskInvincibilityConfig.PhoenixRoute.ROD ? "Rod / Autopet" : "/pets menu"));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

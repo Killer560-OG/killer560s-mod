@@ -8,7 +8,6 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.teammates.TeammatesConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -33,11 +32,8 @@ public class TeammatesTab extends BaseTab {
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Teammate Highlight", cfg.getEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.getEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Teammate Highlight", cfg::getEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, 220, 20));
         y += 26;
 
         if (!cfg.getEnabledRaw()) {
@@ -91,39 +87,22 @@ public class TeammatesTab extends BaseTab {
                 }).bounds(col2X, y, colW, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Name", cfg.isShowName()), btn -> {
-                    cfg.setShowName(!cfg.isShowName());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Name", cfg.isShowName()));
-                }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Distance", cfg.isShowDistance()), btn -> {
-                    cfg.setShowDistance(!cfg.isShowDistance());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Distance", cfg.isShowDistance()));
-                }).bounds(col2X, y, colW, 18).build());
+        widgets.add(onOffButton("Show Name", cfg::isShowName, cfg::setShowName, cfg::save,
+                null, contentX, y, colW, 18));
+        widgets.add(onOffButton("Show Distance", cfg::isShowDistance, cfg::setShowDistance, cfg::save,
+                null, col2X, y, colW, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Highlight Self", cfg.isHighlightSelf()), btn -> {
-                    cfg.setHighlightSelf(!cfg.isHighlightSelf());
-                    cfg.save();
-                    btn.setMessage(onOff("Highlight Self", cfg.isHighlightSelf()));
-                }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Skip Dead", cfg.isSkipDead()), btn -> {
-                    cfg.setSkipDead(!cfg.isSkipDead());
-                    cfg.save();
-                    btn.setMessage(onOff("Skip Dead", cfg.isSkipDead()));
-                }).bounds(col2X, y, colW, 18).build());
+        widgets.add(onOffButton("Highlight Self", cfg::isHighlightSelf, cfg::setHighlightSelf, cfg::save,
+                null, contentX, y, colW, 18));
+        widgets.add(onOffButton("Skip Dead", cfg::isSkipDead, cfg::setSkipDead, cfg::save, null, col2X, y, colW, 18));
         y += 26;
 
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    SectionHeaders.header("Cheat", true), Minecraft.getInstance().font));
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat", true));
             y += 14;
-            widgets.add(SettingsButtonWidget.builder(onOff("Through Walls", cfg.getThroughWallsRaw()), btn -> {
-                        cfg.setThroughWalls(!cfg.getThroughWallsRaw());
-                        cfg.save();
-                        btn.setMessage(onOff("Through Walls", cfg.getThroughWallsRaw()));
-                    }).bounds(contentX, y, colW, 18).build());
+            widgets.add(onOffButton("Through Walls", cfg::getThroughWallsRaw, cfg::setThroughWalls, cfg::save,
+                    null, contentX, y, colW, 18));
         }
         return widgets;
     }
@@ -138,9 +117,5 @@ public class TeammatesTab extends BaseTab {
 
     private static Component rangeText(TeammatesConfig cfg) {
         return Component.literal(String.format(Locale.US, "Range: %.0f", cfg.getRange()));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

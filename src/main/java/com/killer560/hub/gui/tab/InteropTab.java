@@ -2,10 +2,8 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.partydata.PartyDataConfig;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.interop.InteropConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,50 +22,32 @@ public class InteropTab extends BaseTab {
         int y = contentY;
         InteropConfig cfg = InteropConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Party Interop", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Party Interop", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, 220, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Work It Out Myself", cfg.isSelfDerivation()), btn -> {
-                    cfg.setSelfDerivation(!cfg.isSelfDerivation());
-                    cfg.save();
-                    btn.setMessage(onOff("Work It Out Myself", cfg.isSelfDerivation()));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(onOffButton("Work It Out Myself", cfg::isSelfDerivation, cfg::setSelfDerivation, cfg::save,
+                null, contentX, y, 220, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Read Party Chat", cfg.isChatParsing()), btn -> {
-                    cfg.setChatParsing(!cfg.isChatParsing());
-                    cfg.save();
-                    btn.setMessage(onOff("Read Party Chat", cfg.isChatParsing()));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(onOffButton("Read Party Chat", cfg::isChatParsing, cfg::setChatParsing, cfg::save,
+                null, contentX, y, 220, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Use Mod Relay", cfg.isRelayData()), btn -> {
-                    cfg.setRelayData(!cfg.isRelayData());
-                    cfg.save();
-                    btn.setMessage(onOff("Use Mod Relay", cfg.isRelayData()));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(onOffButton("Use Mod Relay", cfg::isRelayData, cfg::setRelayData, cfg::save,
+                null, contentX, y, 220, 18));
         y += 22;
         PartyDataConfig dataCfg = PartyDataConfig.getInstance();
-        widgets.add(SettingsButtonWidget.builder(onOff("Share Dungeon Data With Party", dataCfg.isShareEnabled()), btn -> {
-                    dataCfg.setShareEnabled(!dataCfg.isShareEnabled());
-                    dataCfg.save();
-                    btn.setMessage(onOff("Share Dungeon Data With Party", dataCfg.isShareEnabled()));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(onOffButton("Share Dungeon Data With Party", dataCfg::isShareEnabled, dataCfg::setShareEnabled,
+                dataCfg::save, null, contentX, y, 220, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Local Mod Bridge", cfg.isLocalBridge()), btn -> {
-                    cfg.setLocalBridge(!cfg.isLocalBridge());
-                    cfg.save();
-                    btn.setMessage(onOff("Local Mod Bridge", cfg.isLocalBridge()));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(onOffButton("Local Mod Bridge", cfg::isLocalBridge, cfg::setLocalBridge, cfg::save,
+                null, contentX, y, 220, 18));
         y += 26;
 
         // Cross-Mod Bridge (Devonian / NoammAddons / Odin party sockets) - its own block, see BridgeSettingsBlock.
@@ -77,9 +57,5 @@ public class InteropTab extends BaseTab {
         // (killer560, 2026-10-18: "hide all that extra info at the bottom of party interop").
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

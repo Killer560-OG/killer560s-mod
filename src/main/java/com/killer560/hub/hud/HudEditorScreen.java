@@ -212,6 +212,20 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
         rebuildList();
     }
 
+    /** Draws one element's live preview at its box, scaled. */
+    private static void drawPreview(GuiGraphicsExtractor graphics, HudElement element, int x, int y, float scale) {
+        graphics.pose().pushMatrix();
+        try {
+            graphics.pose().translate(x, y);
+            graphics.pose().scale(scale, scale);
+            element.render(graphics, 0, 0);
+        } catch (RuntimeException e) {
+            // One element's broken preview must not take the whole editor down with it.
+        } finally {
+            graphics.pose().popMatrix();
+        }
+    }
+
     /** The container this editor was opened over, drawn under the boxes so its overlays are placed in context: its
      *  background (the texture) and contents (slots, items, labels), never its tooltip, with the mouse off it. Its own
      *  overlays are not drawn by it here (Fabric's after-extract events are not part of these calls); their boxes are. */
@@ -368,16 +382,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             if (anchored && !dragging && element != hover) {
                 // Laid-out readouts sit a few pixels apart in rows and columns, so a name over each would cover the
                 // next row; the area says what they are, and hovering one names it.
-                graphics.pose().pushMatrix();
-                try {
-                    graphics.pose().translate(x, y);
-                    graphics.pose().scale(scale, scale);
-                    element.render(graphics, 0, 0);
-                } catch (RuntimeException e) {
-                    // as below
-                } finally {
-                    graphics.pose().popMatrix();
-                }
+                drawPreview(graphics, element, x, y, scale);
                 continue;
             }
             String label = element.displayName() + (anchored ? String.format(java.util.Locale.ROOT, " (%.1fx)", own) : sizeNote(element, own));
@@ -387,16 +392,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             }
             graphics.text(this.font, label, x, y - 10 - BOX_PAD, 0xFFFFFFFF);
 
-            graphics.pose().pushMatrix();
-            try {
-                graphics.pose().translate(x, y);
-                graphics.pose().scale(scale, scale);
-                element.render(graphics, 0, 0);
-            } catch (RuntimeException e) {
-                // One element's broken preview must not take the whole editor down with it.
-            } finally {
-                graphics.pose().popMatrix();
-            }
+            drawPreview(graphics, element, x, y, scale);
             if (dragging || element == hover) {
                 drawHandles(graphics, element, x, y, scaledW, scaledH);
             }

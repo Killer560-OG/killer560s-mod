@@ -12,7 +12,6 @@ import com.killer560.hub.maxor.MaxorCrystalsFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -52,7 +51,6 @@ public class MaxorTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         MaxorConfig cfg = MaxorConfig.getInstance();
-        Minecraft mc = Minecraft.getInstance();
         int gap = 8;
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
@@ -61,7 +59,7 @@ public class MaxorTab extends BaseTab {
         // No switch over the whole tab (killer560, 2026-10-14): every timer, the alert, the counter and the crystal boxes
         // are independent, each has its own switch, and the card is ON while any is.
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Crystal Timers (P1)", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Crystal Timers (P1)", false));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Respawn Timer", cfg::getSpawnTimerRaw, cfg::setSpawnTimer));
         widgets.add(toggle(col2X, y, colW, "Place Timer", cfg::getPlaceTimerRaw, cfg::setPlaceTimer));
@@ -72,7 +70,7 @@ public class MaxorTab extends BaseTab {
 
         y += 6;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Crystal Highlight", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Crystal Highlight", false));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Highlight Crystals", cfg::getHighlightRaw, cfg::setHighlight));
         widgets.add(colorButton(col2X, y, colW, "Highlight Color", cfg.getHighlightColor(),
@@ -99,15 +97,7 @@ public class MaxorTab extends BaseTab {
     }
 
     private static AbstractWidget toggle(int x, int y, int width, String label, BooleanSupplier getter, Consumer<Boolean> setter) {
-        return SettingsButtonWidget.builder(onOff(label, getter.getAsBoolean()), btn -> {
-            setter.accept(!getter.getAsBoolean());
-            MaxorConfig.getInstance().save();
-            btn.setMessage(onOff(label, getter.getAsBoolean()));
-        }).bounds(x, y, width, 18).build();
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
+        return onOffButton(label, getter, setter, () -> MaxorConfig.getInstance().save(), null, x, y, width, 18);
     }
 
     /**

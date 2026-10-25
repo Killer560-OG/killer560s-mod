@@ -30,8 +30,7 @@ public class AutoUpdateTab extends BaseTab {
         int y = contentY;
 
         // Home draws every section inline with no accordion header, so each one draws its own heading.
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Auto Update", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Auto Update", false));
         y += 16;
 
         // Auto Update as a whole (killer560, 2026-10-13: "make a toggle for auto update"): first, so it is the card's

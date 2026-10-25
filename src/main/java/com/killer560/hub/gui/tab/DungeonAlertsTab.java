@@ -96,12 +96,8 @@ public class DungeonAlertsTab extends BaseTab {
 
     private static void master(List<AbstractWidget> w, int x, int[] y, int width, String label, Supplier<Boolean> get,
                                Consumer<Boolean> set, Runnable requestRebuild) {
-        w.add(SettingsButtonWidget.builder(onOff(label, get.get()), btn -> {
-                    boolean now = !get.get();
-                    set.accept(now);
-                    DungeonAlertsConfig.getInstance().save();
-                    requestRebuild.run();
-                }).bounds(x, y[0], width, 20).build());
+        w.add(onOffButton(label,
+                get::get, set, () -> DungeonAlertsConfig.getInstance().save(), requestRebuild, x, y[0], width, 20));
         y[0] += 24;
     }
 
@@ -130,9 +126,5 @@ public class DungeonAlertsTab extends BaseTab {
 
     private static Component displayLabel(DungeonAlertsConfig cfg) {
         return Component.literal(String.format(Locale.US, "Display Time: %.1fs", cfg.roomAlertsDisplaySeconds));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

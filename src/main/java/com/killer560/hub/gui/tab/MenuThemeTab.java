@@ -74,8 +74,7 @@ public class MenuThemeTab extends BaseTab {
         }.steps(speeds.length - 1));
         y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Custom Colors", false),
-                Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Custom Colors", false));
         y += 16;
         int[] colours = cfg.activeColours();
         int[] presetColours = cfg.getTheme() == MenuTheme.CUSTOM ? cfg.getCustomBase().base() : colours;
@@ -98,7 +97,7 @@ public class MenuThemeTab extends BaseTab {
 
         // ---- Saved Themes ----
         var font = Minecraft.getInstance().font;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Saved Themes", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Saved Themes", false));
         y += 16;
         widgets.add(SettingsButtonWidget.builder(Component.literal("Save as New Theme"), btn -> {
                     MenuConfig c = MenuConfig.getInstance(); // a profile load replaces the instance this tab was built with

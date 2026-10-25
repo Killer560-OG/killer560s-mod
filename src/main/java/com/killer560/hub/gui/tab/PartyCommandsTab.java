@@ -6,9 +6,7 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.partycommands.PartyCommandsConfig;
 import com.killer560.hub.partycommands.PartyCommandsConfig.Channel;
 import com.killer560.hub.partycommands.PartyCommandsConfig.Command;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -43,11 +41,8 @@ public class PartyCommandsTab extends BaseTab {
         int colBX = contentX + colW + gap;
 
         // ------------------------------------------------------------ 1. the general toggle
-        widgets.add(SettingsButtonWidget.builder(onOff("Party Commands", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Party Commands", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
@@ -58,8 +53,7 @@ public class PartyCommandsTab extends BaseTab {
         y += 26;
 
         // ------------------------------------------------------------ 2. which chats can use them
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Chats", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Chats", false));
         y += 16;
         boolean left = true;
         for (Channel channel : Channel.values()) {
@@ -77,8 +71,7 @@ public class PartyCommandsTab extends BaseTab {
         y = left ? y + 6 : y + 28;
 
         // ------------------------------------------------------------ 3. the commands
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Commands", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Commands", false));
         y += 16;
         left = true;
         for (Command command : Command.values()) {
@@ -115,9 +108,5 @@ public class PartyCommandsTab extends BaseTab {
 
     private static Component delayText(PartyCommandsConfig cfg) {
         return Component.literal("Reply Delay: " + cfg.getReplyDelayMs() + " ms");
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

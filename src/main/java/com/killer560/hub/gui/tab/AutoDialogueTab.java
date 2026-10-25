@@ -1,7 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.dungeonextras.DungeonExtrasConfig;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -37,11 +36,8 @@ public class AutoDialogueTab extends BaseTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Dialogue", cfg.isAutoDialogueEnabledRaw()), btn -> {
-                    cfg.setAutoDialogueEnabled(!cfg.isAutoDialogueEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Auto Dialogue", cfg::isAutoDialogueEnabledRaw, cfg::setAutoDialogueEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!cfg.isAutoDialogueEnabledRaw()) {
@@ -74,11 +70,8 @@ public class AutoDialogueTab extends BaseTab {
         widgets.add(filter);
         y += 26;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Outside Dungeons", cfg.isAutoDialogueOutsideDungeons()), btn -> {
-                    cfg.setAutoDialogueOutsideDungeons(!cfg.isAutoDialogueOutsideDungeons());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Outside Dungeons", cfg::isAutoDialogueOutsideDungeons,
+                cfg::setAutoDialogueOutsideDungeons, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         return widgets;
@@ -86,9 +79,5 @@ public class AutoDialogueTab extends BaseTab {
 
     private static Component delayText(DungeonExtrasConfig cfg) {
         return Component.literal("Delay: " + cfg.getAutoDialogueDelayTicks() + " ticks");
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

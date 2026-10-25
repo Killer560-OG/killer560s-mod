@@ -66,11 +66,8 @@ public class AutoPuzzlesTab extends BaseTab {
                 ThemedSliderButton.saveOnRelease(() -> cfg.save());
             }));
             y += ROW_STEP;
-            widgets.add(SettingsButtonWidget.builder(onOff("Talk to NPCs", cfg.getWeirdosTalkToNpcsRaw()), btn -> {
-                        cfg.setWeirdosTalkToNpcs(!cfg.getWeirdosTalkToNpcsRaw());
-                        cfg.save();
-                        btn.setMessage(onOff("Talk to NPCs", cfg.getWeirdosTalkToNpcsRaw()));
-                    }).bounds(contentX, y, contentWidth, 20).build());
+            widgets.add(onOffButton("Talk to NPCs", cfg::getWeirdosTalkToNpcsRaw, cfg::setWeirdosTalkToNpcs, cfg::save,
+                    null, contentX, y, contentWidth, 20));
             y += ROW_STEP;
         }
 
@@ -79,11 +76,8 @@ public class AutoPuzzlesTab extends BaseTab {
         y = toggle(widgets, contentX, y, contentWidth, "Auto Blaze", cfg.isAutoBlazeEnabled(),
                 () -> cfg.setAutoBlazeEnabled(!cfg.isAutoBlazeEnabled()), cfg, requestRebuild);
         if (cfg.isAutoBlazeEnabled()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Auto Secret", cfg.getAutoBlazeSecretEnabledRaw()), btn -> {
-                        cfg.setAutoBlazeSecretEnabled(!cfg.getAutoBlazeSecretEnabledRaw());
-                        cfg.save();
-                        btn.setMessage(onOff("Auto Secret", cfg.getAutoBlazeSecretEnabledRaw()));
-                    }).bounds(contentX, y, contentWidth, 20).build());
+            widgets.add(onOffButton("Auto Secret", cfg::getAutoBlazeSecretEnabledRaw, cfg::setAutoBlazeSecretEnabled,
+                    cfg::save, null, contentX, y, contentWidth, 20));
             y += ROW_STEP;
         }
         y = toggle(widgets, contentX, y, contentWidth, "Auto Creeper Beams", cfg.isAutoBeamsEnabled(),
@@ -125,18 +119,11 @@ public class AutoPuzzlesTab extends BaseTab {
         y = toggle(widgets, contentX, y, contentWidth, "Auto Tic Tac Toe", cfg.isAutoTicTacToeEnabled(),
                 () -> cfg.setAutoTicTacToeEnabled(!cfg.isAutoTicTacToeEnabled()), cfg, requestRebuild);
         if (cfg.isAutoTicTacToeEnabled()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Grab Secret", cfg.getTicTacToeAuraChestEnabledRaw()), btn -> {
-                        cfg.setTicTacToeAuraChestEnabled(!cfg.getTicTacToeAuraChestEnabledRaw());
-                        cfg.save();
-                        btn.setMessage(onOff("Grab Secret", cfg.getTicTacToeAuraChestEnabledRaw()));
-                    }).bounds(contentX, y, contentWidth, 20).build());
+            widgets.add(onOffButton("Grab Secret", cfg::getTicTacToeAuraChestEnabledRaw,
+                    cfg::setTicTacToeAuraChestEnabled, cfg::save, null, contentX, y, contentWidth, 20));
             y += ROW_STEP;
-            widgets.add(SettingsButtonWidget.builder(onOff("Walk Out When Done",
-                    cfg.getTicTacToeWalkOutEnabledRaw()), btn -> {
-                        cfg.setTicTacToeWalkOutEnabled(!cfg.getTicTacToeWalkOutEnabledRaw());
-                        cfg.save();
-                        btn.setMessage(onOff("Walk Out When Done", cfg.getTicTacToeWalkOutEnabledRaw()));
-                    }).bounds(contentX, y, contentWidth, 20).build());
+            widgets.add(onOffButton("Walk Out When Done", cfg::getTicTacToeWalkOutEnabledRaw,
+                    cfg::setTicTacToeWalkOutEnabled, cfg::save, null, contentX, y, contentWidth, 20));
             y += ROW_STEP;
         }
 
@@ -147,11 +134,8 @@ public class AutoPuzzlesTab extends BaseTab {
         y = toggle(widgets, contentX, y, contentWidth, "Auto Ice Fill", cfg.isAutoIceFillEnabled(),
                 () -> cfg.setAutoIceFillEnabled(!cfg.isAutoIceFillEnabled()), cfg, requestRebuild);
         if (cfg.isAutoIceFillEnabled()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Adaptive Ice Fill", cfg.isIceFillAdaptive()), btn -> {
-                        cfg.setIceFillAdaptive(!cfg.isIceFillAdaptive());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX, y, contentWidth, 20).build());
+            widgets.add(onOffButton("Adaptive Ice Fill", cfg::isIceFillAdaptive, cfg::setIceFillAdaptive, cfg::save,
+                    requestRebuild, contentX, y, contentWidth, 20));
             y += ROW_STEP;
             if (!cfg.isIceFillAdaptive()) {
                 widgets.add(rangeSlider(contentX, y, contentWidth, "Ice Fill Delay", cfg.getIceFillDelayTicks(),
@@ -165,11 +149,8 @@ public class AutoPuzzlesTab extends BaseTab {
         }
 
         y = header(widgets, contentX, y, contentWidth, "Shared");
-        widgets.add(SettingsButtonWidget.builder(onOff("Etherwarp Reposition", cfg.getEtherwarpRepositionRaw()), btn -> {
-                    cfg.setEtherwarpReposition(!cfg.getEtherwarpRepositionRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Etherwarp Reposition", cfg.getEtherwarpRepositionRaw()));
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Etherwarp Reposition", cfg::getEtherwarpRepositionRaw, cfg::setEtherwarpReposition,
+                cfg::save, null, contentX, y, contentWidth, 20));
         // Both notes above already covered by the "Auto Puzzles" and "Etherwarp Reposition" tooltips.
         return widgets;
     }
@@ -188,8 +169,7 @@ public class AutoPuzzlesTab extends BaseTab {
 
     /** A small red group header (cheat tab), the same fixed height everywhere. */
     private static int header(List<AbstractWidget> widgets, int x, int y, int width, String text) {
-        widgets.add(new net.minecraft.client.gui.components.StringWidget(x, y + 4, width, 12,
-                com.killer560.hub.gui.SectionHeaders.header(text, true), net.minecraft.client.Minecraft.getInstance().font));
+        widgets.add(com.killer560.hub.gui.SectionHeaders.row(x, y + 4, width, text, true));
         return y + 18;
     }
 
@@ -240,9 +220,5 @@ public class AutoPuzzlesTab extends BaseTab {
 
     private static Component beamsModeText(AutoPuzzlesConfig cfg) {
         return Component.literal("Creeper Beams Mode: §6" + cfg.getAutoBeamsMode().label());
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

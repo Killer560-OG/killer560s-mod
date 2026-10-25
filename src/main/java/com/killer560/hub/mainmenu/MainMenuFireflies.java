@@ -416,7 +416,7 @@ final class MainMenuFireflies {
         }
     }
 
-    private static int scaled(double perArea, float density, int min, int max) {
+    static int scaled(double perArea, float density, int min, int max) {
         if (density <= 0f) {
             return 0;
         }

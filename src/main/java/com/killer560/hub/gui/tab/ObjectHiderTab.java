@@ -5,9 +5,7 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.nofire.NoFireConfig;
 import com.killer560.hub.objecthider.ObjectHiderConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -190,24 +188,15 @@ public class ObjectHiderTab extends BaseTab {
 
     static void header(List<AbstractWidget> widgets, int x, int width, int[] y, String title) {
         y[0] += 6;
-        widgets.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false),
-                Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 16;
     }
 
     /** Package-private so the sections split out of this tab (Hide Players) keep the exact same row shape instead of each re-implementing it. */
     static void toggle(List<AbstractWidget> widgets, int x, int width, int[] y, ObjectHiderConfig cfg,
                         Runnable requestRebuild, String label, BooleanSupplier get, Consumer<Boolean> set) {
-        widgets.add(SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {
-                    set.accept(!get.getAsBoolean());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(x, y[0], width, 20).build());
+        widgets.add(onOffButton(label, get, set, cfg::save, requestRebuild, x, y[0], width, 20));
         y[0] += 24;
-    }
-
-    static Component onOff(String label, boolean on) {
-        return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
     }
 
     private static Component orbRadiusText(ObjectHiderConfig cfg) {

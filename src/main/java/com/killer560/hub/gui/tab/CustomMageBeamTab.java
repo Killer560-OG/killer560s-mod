@@ -34,22 +34,16 @@ public class CustomMageBeamTab extends BaseTab {
         int col2bX = contentX + col2W + gap;
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Custom Mage Beam", cfg.isMageBeamEnabled()), btn -> {
-                    cfg.setMageBeamEnabled(!cfg.isMageBeamEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Custom Mage Beam", cfg::isMageBeamEnabled, cfg::setMageBeamEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isMageBeamEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Fade", cfg.isMageBeamFade()), btn -> {
-                    cfg.setMageBeamFade(!cfg.isMageBeamFade());
-                    cfg.save();
-                    btn.setMessage(onOff("Fade", cfg.isMageBeamFade()));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Fade", cfg::isMageBeamFade, cfg::setMageBeamFade, cfg::save,
+                null, col2bX, y, col2W, 18));
         y += 20;
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Beam Color", cfg.getMageBeamColor()), btn -> {
@@ -113,9 +107,5 @@ public class CustomMageBeamTab extends BaseTab {
 
     private static Component durationText(DungeonExtrasConfig cfg) {
         return Component.literal("Duration: " + cfg.getMageBeamDurationTicks() + " ticks");
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

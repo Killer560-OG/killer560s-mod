@@ -26,10 +26,6 @@ public final class ProfitCardWidget extends AbstractWidget {
         this.onPress = onPress;
     }
 
-    public ProfitTracker tracker() {
-        return tracker;
-    }
-
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         var font = Minecraft.getInstance().font;

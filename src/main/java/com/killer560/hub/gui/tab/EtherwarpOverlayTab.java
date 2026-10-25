@@ -31,11 +31,8 @@ public class EtherwarpOverlayTab extends BaseTab {
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Etherwarp Overlay", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Etherwarp Overlay", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -50,11 +47,8 @@ public class EtherwarpOverlayTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Full Block Box", cfg.isFullBlock()), btn -> {
-                    cfg.setFullBlock(!cfg.isFullBlock());
-                    cfg.save();
-                    btn.setMessage(onOff("Full Block Box", cfg.isFullBlock()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Full Block Box", cfg::isFullBlock, cfg::setFullBlock, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
         // Style + colors (2026-09-16, killer560's testing feedback: a color option and a filled option).
@@ -90,9 +84,5 @@ public class EtherwarpOverlayTab extends BaseTab {
 
     private static Component styleText(EtherwarpOverlayConfig cfg) {
         return Component.literal("Style: §b" + cfg.getStyle().label);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

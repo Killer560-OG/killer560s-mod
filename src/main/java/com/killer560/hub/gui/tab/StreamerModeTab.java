@@ -39,8 +39,4 @@ public class StreamerModeTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         return widgets;
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

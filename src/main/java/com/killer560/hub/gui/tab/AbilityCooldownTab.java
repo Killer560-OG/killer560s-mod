@@ -5,9 +5,7 @@ import com.killer560.hub.abilitycooldown.ItemAbility;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -38,11 +36,8 @@ public class AbilityCooldownTab extends BaseTab {
         int colB = contentX + half + gap;
 
         header(w, contentX, y, contentWidth, "Ability Cooldowns");
-        w.add(SettingsButtonWidget.builder(onOff("Ability Cooldowns", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Ability Cooldowns", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
 
         if (!cfg.isEnabledRaw()) {
@@ -148,7 +143,7 @@ public class AbilityCooldownTab extends BaseTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 14;
     }
 
@@ -160,9 +155,5 @@ public class AbilityCooldownTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff(label, now));
                 }).bounds(x, y, width, 18).build());
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

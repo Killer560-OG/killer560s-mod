@@ -8,30 +8,11 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
-/** Drop-in replacement for vanilla {@link net.minecraft.client.gui.components.Button}, matching its
- *  builder API shape exactly (same method names/chaining, a {@code Component}+{@code OnPress}
- *  constructor argument pair, {@code .bounds(x,y,w,h).build()}) so every existing
- *  {@code Button.builder(...)} call site across the mod's tab files converts to
- *  {@code SettingsButtonWidget.builder(...)} with just the class name changed - no other code needed to
- *  change, since {@code btn -> { ...; btn.setMessage(...); }} lambdas keep working unchanged (this class
- *  also extends {@link AbstractWidget} and exposes the same inherited {@code getMessage()}/
- *  {@code setMessage(Component)}) and embedded legacy "§" color codes in a label still render correctly
- *  via the {@code Component} text-draw overload, exactly like vanilla {@code Button} already did.
- *  <p>
- *  Built (2026-09-07), part 2 of the black+amber GUI overhaul: vanilla {@code Button} has no way to
- *  recolor its own fixed 9-slice texture, so once the menu chrome (phase 1) was reworked, every actual
- *  settings control still rendered as a plain gray vanilla button, clashing with the new theme - per
- *  killer560's "make those boxes a different colour, something more fitting." Deliberately styled with a
- *  DIMMER border than {@link MenuRowWidget}'s accordion headers (full amber, always) so headers still
- *  visually lead over individual controls instead of every box in the menu competing at once.
- *  <p>
- *  Extended (2026-09-27) per killer560's "for the sort buttons or any button that toggles through a
- *  bunch of options, make it so if i right click then it goes back one" - a second, optional
- *  {@code OnPress} set via {@code .secondaryPress(...)} fires on right-click instead of left. Left-click
- *  is untouched: {@code onClick(...)} below is still only ever invoked by vanilla's own left-button-only
- *  {@code mouseClicked}, so every existing call site with no {@code secondaryPress} keeps behaving
- *  exactly as before (right-click on it simply does nothing, same as pre-2026-09-27). Only call sites
- *  that opt in with {@code .secondaryPress(...)} - the enum-cycling buttons - respond to right-click. */
+/** The mod's settings button: a drop-in for vanilla {@link net.minecraft.client.gui.components.Button} with the same
+ *  builder shape ({@code builder(Component, OnPress).bounds(x, y, w, h).build()}), drawn in the menu theme because
+ *  vanilla's 9-slice texture cannot be recolored. Its border is dimmer than {@link MenuRowWidget}'s headers so the
+ *  headers lead. Right-click does nothing unless the call site opts in with {@code .secondaryPress(...)} (the
+ *  cycling buttons step back with it). */
 public final class SettingsButtonWidget extends AbstractWidget implements MenuAnim.Animated {
 
     private static final int BORDER = 0xFF663D1A;
@@ -45,7 +26,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
     private static final int PRIMARY_BORDER_HOVER = 0xFFFFA040;
     private static final int PRIMARY_BG = 0xFF4A2A08;
     private static final int PRIMARY_BG_HOVER = 0xFF63380B;
-    /** The {@link Builder#danger()} style: a red box for a destructive action waiting on its confirming click
+    /** The {@link Builder#danger(boolean)} style: a red box for a destructive action waiting on its confirming click
      *  (killer560, 2026-10-11: "if i press the reset button it then turns red when it asks if you want to reset it"). */
     private static final int DANGER_BORDER = 0xFFCC2222;
     private static final int DANGER_BORDER_HOVER = 0xFFFF4444;
@@ -98,12 +79,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         return toggled;
     }
 
-    /** Makes this a toggle chip in the given state (or an ordinary button again with null). */
-    public void setToggleState(Boolean on) {
-        this.toggled = on;
-    }
-
-    /** Whether this was built with {@link Builder#danger()} (read by the testkit). */
+    /** Whether this was built with {@link Builder#danger(boolean)} on (read by the testkit). */
     public boolean isDanger() {
         return danger;
     }
@@ -197,13 +173,8 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
             return this;
         }
 
-        /** Draws this red: a destructive action asking for its confirming click. Wins over {@link #primary()}. */
-        public Builder danger() {
-            this.danger = true;
-            return this;
-        }
-
-        /** {@link #danger()} when {@code on}, so a two-click button can pass its armed state straight in. */
+        /** Draws this red when {@code on}: a destructive action asking for its confirming click (a two-click button
+         *  passes its armed state straight in). Wins over {@link #primary()}. */
         public Builder danger(boolean on) {
             this.danger = on;
             return this;
@@ -575,18 +546,6 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         graphics.outline(x0, y0, getWidth(), getHeight(), faded(border));
         graphics.centeredText(Minecraft.getInstance().font, getMessage(), x0 + getWidth() / 2,
                 y0 + (getHeight() - 8) / 2, faded(TEXT));
-    }
-
-    /**
-     * Draws a box in this button's style, for a widget that has to be its own class but must look like one of these
-     * (the sim's filter chips, which carry a row and a selected state). {@code selected} is the mod's "this one is
-     * chosen" look: the full-amber border this button shows on hover, kept on, with the label in §6 by the caller.
-     */
-    public static void drawBox(GuiGraphicsExtractor graphics, int x, int y, int w, int h, boolean hovered,
-            boolean selected) {
-        int border = selected ? (hovered ? PRIMARY_BORDER_HOVER : BORDER_HOVER) : (hovered ? BORDER_HOVER : BORDER);
-        graphics.fill(x, y, x + w, y + h, hovered ? BG_HOVER : BG);
-        graphics.outline(x, y, w, h, border);
     }
 
     /**

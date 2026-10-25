@@ -27,11 +27,8 @@ public class ChunkCacheTab extends BaseTab {
         ChunkCacheConfig cfg = ChunkCacheConfig.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Chunk Cache", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Chunk Cache", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         // In-panel description moved into the "Chunk Cache" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
@@ -39,8 +36,7 @@ public class ChunkCacheTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Memory", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Memory", false));
         y += 16;
 
         int range = ChunkCacheConfig.MAX_CHUNKS - ChunkCacheConfig.MIN_CHUNKS;
@@ -91,9 +87,5 @@ public class ChunkCacheTab extends BaseTab {
 
     private static StringWidget label(int x, int y, int width, String text) {
         return new StringWidget(x, y, width, 12, Component.literal(text), Minecraft.getInstance().font);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

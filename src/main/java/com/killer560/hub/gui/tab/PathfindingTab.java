@@ -9,7 +9,6 @@ import com.killer560.hub.pathfinding.FairySoulsFeature;
 import com.killer560.hub.pathfinding.PathfindingConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -55,28 +54,18 @@ public class PathfindingTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Waypoints", cfg.isSoulWaypoints()), btn -> {
-                    cfg.setSoulWaypoints(!cfg.isSoulWaypoints());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Waypoints", cfg.isSoulWaypoints()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show Waypoints", cfg::isSoulWaypoints, cfg::setSoulWaypoints, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Path", cfg.isShowPath()), btn -> {
-                    cfg.setShowPath(!cfg.isShowPath());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Path", cfg.isShowPath()));
-                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(onOffButton("Show Path", cfg::isShowPath, cfg::setShowPath, cfg::save,
+                null, contentX, y, col2W, 18));
         widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
                     cfg.setSoulMode(SettingsButtonWidget.step(cfg.getSoulMode(), dir));
                     cfg.save();
                     btn.setMessage(modeText(cfg));
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Dim Path", cfg.isDimPath()), btn -> {
-                    cfg.setDimPath(!cfg.isDimPath());
-                    cfg.save();
-                    btn.setMessage(onOff("Dim Path", cfg.isDimPath()));
-                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(onOffButton("Dim Path", cfg::isDimPath, cfg::setDimPath, cfg::save, null, contentX, y, col2W, 18));
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Path Color", cfg.getPathColor()), btn ->
                         McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Path Color", cfg.getPathColor(),
                                 PathfindingConfig.DEFAULT_PATH_COLOR, argb -> {
@@ -138,26 +127,16 @@ public class PathfindingTab extends BaseTab {
             }
         });
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("HUD", cfg.isSoulHud()), btn -> {
-                    cfg.setSoulHud(!cfg.isSoulHud());
-                    cfg.save();
-                    btn.setMessage(onOff("HUD", cfg.isSoulHud()));
-                }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Start On Island Join", cfg.isAutoStartOnIsland()), btn -> {
-                    cfg.setAutoStartOnIsland(!cfg.isAutoStartOnIsland());
-                    cfg.save();
-                    btn.setMessage(onOff("Start On Island Join", cfg.isAutoStartOnIsland()));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("HUD", cfg::isSoulHud, cfg::setSoulHud, cfg::save, null, contentX, y, col2W, 18));
+        widgets.add(onOffButton("Start On Island Join", cfg::isAutoStartOnIsland, cfg::setAutoStartOnIsland, cfg::save,
+                null, col2bX, y, col2W, 18));
         y += 26;
 
         // ---------------------------------------------------------------- the rest: label, chat, the found-soul log
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("More", false), client.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "More", false));
         y += 16;
-        widgets.add(SettingsButtonWidget.builder(onOff("Target Label", cfg.isShowTargetLabel()), btn -> {
-                    cfg.setShowTargetLabel(!cfg.isShowTargetLabel());
-                    cfg.save();
-                    btn.setMessage(onOff("Target Label", cfg.isShowTargetLabel()));
-                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(onOffButton("Target Label", cfg::isShowTargetLabel, cfg::setShowTargetLabel, cfg::save,
+                null, contentX, y, col2W, 18));
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Target Color", cfg.getTargetColor()), btn ->
                         McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Target Color", cfg.getTargetColor(),
                                 PathfindingConfig.DEFAULT_TARGET_COLOR, argb -> {
@@ -166,11 +145,8 @@ public class PathfindingTab extends BaseTab {
                                 })))
                 .bounds(col2bX, y, col2W, 18).build());
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Chat Feedback", cfg.isChatFeedback()), btn -> {
-                    cfg.setChatFeedback(!cfg.isChatFeedback());
-                    cfg.save();
-                    btn.setMessage(onOff("Chat Feedback", cfg.isChatFeedback()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 20;
         widgets.add(SettingsButtonWidget.builder(Component.literal("Mark All Found (This Island)"), btn -> {
                     FairySoulsFeature.markIslandFound();
@@ -218,9 +194,5 @@ public class PathfindingTab extends BaseTab {
 
     private static Component modeText(PathfindingConfig cfg) {
         return Component.literal("Path Mode: §6" + cfg.getSoulMode().label);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

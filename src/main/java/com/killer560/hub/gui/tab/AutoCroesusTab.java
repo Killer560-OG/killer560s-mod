@@ -106,11 +106,8 @@ public class AutoCroesusTab extends BaseTab {
 
             // Chest keys, then kismets, each toggle on its own row with its settings directly under it (killer560,
             // 2026-10-13: the chest key settings sit right below Use Chest Keys, Kismets not in between).
-            widgets.add(SettingsButtonWidget.builder(onOff("Use Chest Keys", cfg.isAutoUseChestKeys()), btn -> {
-                        cfg.setAutoUseChestKeys(!cfg.isAutoUseChestKeys());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Use Chest Keys", cfg::isAutoUseChestKeys, cfg::setAutoUseChestKeys, cfg::save,
+                    requestRebuild, contentX, y, contentWidth, 18));
             y += 22;
             if (cfg.isAutoUseChestKeys()) {
                 // killer560 (2026-09-27): "have an option for it to use based off of key insta buy
@@ -142,11 +139,8 @@ public class AutoCroesusTab extends BaseTab {
                 });
                 y += 24;
             }
-            widgets.add(SettingsButtonWidget.builder(onOff("Use Kismets", cfg.isAutoUseKismets()), btn -> {
-                        cfg.setAutoUseKismets(!cfg.isAutoUseKismets());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            widgets.add(onOffButton("Use Kismets", cfg::isAutoUseKismets, cfg::setAutoUseKismets, cfg::save,
+                    requestRebuild, contentX, y, contentWidth, 18));
             y += 22;
             if (cfg.isAutoUseKismets()) {
                 widgets.add(new ThemedSliderButton(contentX + INDENT, y, contentWidth - INDENT, 20, rerollBelowText(),
@@ -214,9 +208,5 @@ public class AutoCroesusTab extends BaseTab {
 
     private static StringWidget label(int x, int y, int width, String text) {
         return new StringWidget(x, y, width, 12, Component.literal(text), Minecraft.getInstance().font);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

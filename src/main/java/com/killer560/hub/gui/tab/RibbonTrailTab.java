@@ -54,11 +54,8 @@ public class RibbonTrailTab extends BaseTab {
             SupportersAutoShare.shareCurrent(null);
             header(w, contentX, y, contentWidth, "Ribbon Trail");
         }
-        w.add(SettingsButtonWidget.builder(onOff("Ribbon Trail", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Ribbon Trail", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
 
         if (cfg.isEnabledRaw()) {
@@ -182,11 +179,8 @@ public class RibbonTrailTab extends BaseTab {
                 }).bounds(x, y[0], half, 18).build();
         share.active = canShare;
         w.add(share);
-        w.add(SettingsButtonWidget.builder(onOff("Show Others' Trails", sc.isShowOthersTrails()), btn -> {
-                    sc.setShowOthersTrails(!sc.isShowOthersTrails());
-                    sc.save();
-                    btn.setMessage(onOff("Show Others' Trails", sc.isShowOthersTrails()));
-                }).bounds(x + half + 4, y[0], width - half - 4, 18).build());
+        w.add(onOffButton("Show Others' Trails", sc::isShowOthersTrails, sc::setShowOthersTrails, sc::save,
+                null, x + half + 4, y[0], width - half - 4, 18));
         y[0] += 20;
         String blocker = SupportersAutoShare.trailShareBlocker();
         if (blocker != null && (sc.isShareTrail() || !canShare)) {
@@ -233,7 +227,7 @@ public class RibbonTrailTab extends BaseTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 14;
     }
 
@@ -244,9 +238,5 @@ public class RibbonTrailTab extends BaseTab {
                     set.accept(now);
                     btn.setMessage(onOff(label, now));
                 }).bounds(x, y, width, 18).build());
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

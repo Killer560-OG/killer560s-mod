@@ -9,7 +9,6 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.heldoutline.HeldOutlineConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -33,11 +32,8 @@ public class HeldOutlineTab extends BaseTab {
         int[] y = {contentY};
 
         header(w, contentX, y, contentWidth, "Held Item Outline");
-        w.add(SettingsButtonWidget.builder(onOff("Held Item Outline", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Held Item Outline", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
 
         if (!cfg.isEnabledRaw()) {
@@ -126,7 +122,7 @@ public class HeldOutlineTab extends BaseTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 14;
     }
 
@@ -138,9 +134,5 @@ public class HeldOutlineTab extends BaseTab {
             set.accept(state[0]);
             btn.setMessage(onOff(label, state[0]));
         }).bounds(x, y, width, 18).build());
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

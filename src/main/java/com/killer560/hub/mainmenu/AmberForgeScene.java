@@ -40,8 +40,8 @@ final class AmberForgeScene {
         double sunX = w * 0.67 + Math.sin(t * 0.045) * w * 0.03;
         double sunR = Math.max(20, Math.min(64, h * 0.1));
         MainMenuScenes.glow(r, (int) sunX, hy - (int) (sunR * 0.3), w * 0.5, h * 0.42, hot, (int) (0x44 * breathe), 8);
-        disc(r, sunX, hy - sunR * 0.35, sunR, MenuStyle.alpha(warm, 0xB8));
-        disc(r, sunX, hy - sunR * 0.35, sunR * 0.62, MenuStyle.alpha(hot, 0xC8));
+        MainMenuScenes.disc(r, sunX, hy - sunR * 0.35, sunR, MenuStyle.alpha(warm, 0xB8));
+        MainMenuScenes.disc(r, sunX, hy - sunR * 0.35, sunR * 0.62, MenuStyle.alpha(hot, 0xC8));
         // Haze lying on the horizon.
         r.gradient(0, hy - (int) (h * 0.13), w, hy, MenuStyle.alpha(hot, 0), MenuStyle.alpha(hot, 0x40));
 
@@ -163,21 +163,6 @@ final class AmberForgeScene {
                     r.fill((int) px, (int) py, (int) px + 1, (int) py + 1, MenuStyle.alpha(j % 2 == 0 ? hot : warm, a));
                 }
             }
-        }
-    }
-
-    private static void disc(GuiRects r, double cx, double cy, double radius, int color) {
-        int rad = (int) Math.round(radius);
-        int step = rad > 10 ? 2 : 1;
-        for (int dy = -rad; dy < rad; dy += step) {
-            double mid = dy + step * 0.5;
-            double q = radius * radius - mid * mid;
-            if (q <= 0) {
-                continue;
-            }
-            int half = (int) Math.round(Math.sqrt(q));
-            int y = (int) Math.round(cy + dy);
-            r.fill((int) Math.round(cx) - half, y, (int) Math.round(cx) + half, y + step, color);
         }
     }
 
