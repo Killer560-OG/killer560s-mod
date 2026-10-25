@@ -144,9 +144,6 @@ public final class BloodCampFeature {
 
     /** One sound of a kind per this many ticks: a wave settling over two or three ticks is one sound. */
     private static final long SOUND_MIN_GAP_TICKS = 4L;
-    /** A kill moment more than this far in the past when first seen is not announced. */
-    private static final double SOUND_STALE_TICKS = 10.0;
-    private static long lastStartSoundTick = Long.MIN_VALUE / 2;
     private static long lastKillSoundTick = Long.MIN_VALUE / 2;
     private static int countdownStartSoundsPlayed;
     private static int killSoundsPlayed;
@@ -448,7 +445,6 @@ public final class BloodCampFeature {
             reportedYaw = Float.NaN;
             reportedPitch = Float.NaN;
             // a new level's game time can be behind the old one's; never let that hold a sound off
-            lastStartSoundTick = Long.MIN_VALUE / 2;
             lastKillSoundTick = Long.MIN_VALUE / 2;
             lastLineOfFireLogTick = Long.MIN_VALUE / 2;
         }

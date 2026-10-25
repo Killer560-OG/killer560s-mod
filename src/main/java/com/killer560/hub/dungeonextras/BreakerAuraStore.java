@@ -484,10 +484,6 @@ public final class BreakerAuraStore {
         return n;
     }
 
-    public boolean lastLoadFailed() {
-        return parseFailed;
-    }
-
     // ------------------------------------------------------------------------------------------- helpers
 
     /** {@code "x,y,z"} -> the same string re-normalized (trimmed, no leading zeros/whitespace quirks), or null for
