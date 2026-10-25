@@ -39,19 +39,6 @@ public final class RoomPlacer {
     private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
 
     /**
-     * Bulk-placement flag, verified against vanilla's own usage rather than guessed.
-     *
-     * <p>{@code javap -c} on {@code StructureTemplate.placeInWorld} shows its main block-writing pass calls
-     * {@code setBlock(pos, state, 820)}, where 820 = {@link Block#UPDATE_SKIP_ALL_SIDEEFFECTS} (816: skip
-     * on-place, skip block-entity side effects, suppress drops, known-shape) plus {@link Block#UPDATE_INVISIBLE}
-     * (4). Neither that flag nor any other {@code UPDATE_*} constant in this version includes
-     * {@link Block#UPDATE_NEIGHBORS} (1) - that bit is what would cascade into one shape recalculation per
-     * neighbor for every one of a room's ~78,000 blocks (31 x 31 x 81) and hang the server, so it stays off here
-     * too. But vanilla's 820 also drops {@link Block#UPDATE_CLIENTS} (2), which is fine for world-gen (the chunk
-     * has not been sent to anyone yet) and wrong here: this runs on a level a player is already standing in, so
-     * the client must be told. Flag used: {@code UPDATE_CLIENTS | UPDATE_SKIP_ALL_SIDEEFFECTS}.
-     */
-    /**
      * Flags for a bulk build.
      *
      * <p>{@link Block#UPDATE_CLIENTS} is deliberately NOT here, and that is the single biggest reason a floor
@@ -62,6 +49,9 @@ public final class RoomPlacer {
      * were never the problem - sixteen ticks of clearing and fifty of pasting is three seconds - the per-block
      * cost was, and almost all of it was telling the client about a block it was about to be told about anyway.
      * The chunks are sent once at the end instead: about two hundred packets in place of two million.
+     *
+     * <p>{@link Block#UPDATE_NEIGHBORS} stays off as well: it would cascade into one shape recalculation per
+     * neighbor for every one of a room's ~78,000 blocks and hang the server.
      */
     private static final int PLACE_FLAGS = Block.UPDATE_SKIP_ALL_SIDEEFFECTS;
 
@@ -189,27 +179,6 @@ public final class RoomPlacer {
     /** Dungeon floors sit here, so a placeholder at this height lines up with the real ones either side. */
     private static final int MARKER_Y = 69;
 
-    /**
-     * The wall margin a captured room was taken with, read off its own size.
-     *
-     * <p>Captures made before the wall fix are a whole number of 31-block tiles; ones made after carry an extra
-     * column each side, so their size is a multiple of 31 plus 2. Deriving it per room rather than assuming the
-     * current format is what lets old captures and the synthetic test room keep placing exactly where they
-     * always did - assuming it shifted every one of them a block west, which the sim gametest caught by
-     * finding the orientation marker one block off.
-     */
-    /**
-     * The room's own recorded margin.
-     *
-     * <p>Was inferred from the size with {@code size % TILE == WALL_MARGIN * 2}. That inference was only ever
-     * right by accident - see {@link RoomLibrary#footprint} - and once the footprint was corrected a 97-wide
-     * three-tile room would have failed it and pasted a block off. {@code RoomLibrary} writes the margin into
-     * the file now and fills it in for older ones on load, so this just reads it.
-     */
-    private static int marginOf(RoomLibrary.Room room) {
-        return room.margin;
-    }
-
     /** Palette strings already warned about this JVM run, so a renamed/removed block warns once, not per block. */
     private static final Set<String> WARNED_UNRESOLVED = new HashSet<>();
 
@@ -278,8 +247,8 @@ public final class RoomPlacer {
             BlockPos origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
             // The same offset capture used, including the wall margin. If these two ever disagree every room
             // lands a block off its neighbors and the seams stop lining up.
-            this.worldX0 = origin.getX() - RoomLibrary.TILE / 2 - marginOf(room);
-            this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - marginOf(room);
+            this.worldX0 = origin.getX() - RoomLibrary.TILE / 2 - room.margin;
+            this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - room.margin;
             // Hypixel's door piece for the side each doorway faces at THIS turn (RoomDoorPieces).
             java.util.Map<Long, BlockState> pieces = doorOverrides(room, rotation);
             this.doorPieces = pieces.isEmpty() ? null : pieces;
