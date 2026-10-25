@@ -73,6 +73,8 @@ public final class BlinkConfig {
     private boolean releaseOnHit = true;
     /** Release before a dig starts and let that tick go out live (see BlinkFeature): GrimAC-clean. */
     private boolean releaseOnDig = true;
+    /** Release before a charged item use starts or ends (bow, food, shield...; see BlinkFeature). */
+    private boolean releaseOnCharge = true;
 
     private BlinkConfig() {
     }
@@ -99,6 +101,7 @@ public final class BlinkConfig {
                 cfg.chatMessages = ConfigJson.getBool(obj, "chatMessages", cfg.chatMessages);
                 cfg.releaseOnHit = ConfigJson.getBool(obj, "releaseOnHit", cfg.releaseOnHit);
                 cfg.releaseOnDig = ConfigJson.getBool(obj, "releaseOnDig", cfg.releaseOnDig);
+                cfg.releaseOnCharge = ConfigJson.getBool(obj, "releaseOnCharge", cfg.releaseOnCharge);
             } catch (Exception e) {
                 cfg = new BlinkConfig();
             }
@@ -120,6 +123,7 @@ public final class BlinkConfig {
             obj.addProperty("chatMessages", chatMessages);
             obj.addProperty("releaseOnHit", releaseOnHit);
             obj.addProperty("releaseOnDig", releaseOnDig);
+            obj.addProperty("releaseOnCharge", releaseOnCharge);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -203,5 +207,13 @@ public final class BlinkConfig {
 
     public void setReleaseOnDig(boolean releaseOnDig) {
         this.releaseOnDig = releaseOnDig;
+    }
+
+    public boolean isReleaseOnCharge() {
+        return releaseOnCharge;
+    }
+
+    public void setReleaseOnCharge(boolean releaseOnCharge) {
+        this.releaseOnCharge = releaseOnCharge;
     }
 }

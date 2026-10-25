@@ -21,6 +21,7 @@ import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 
@@ -147,13 +148,21 @@ public final class BlinkFeature {
                 releaseLocked("hit", false);
                 return false;
             }
-            if (packet instanceof ServerboundPlayerActionPacket action
-                    && action.getAction() == ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK
+            if (packet instanceof ServerboundPlayerActionPacket action && isDigEdge(action.getAction())
                     && BlinkConfig.getInstance().isReleaseOnDig()) {
-                // GrimAC times a break from the start packet's arrival to the finish's. Held together they arrive
-                // together, and a stone block mined in ~300 ms read as instant: FastBreak (testkit 1025-blink-dig,
-                // 2026-10-25). The start goes live; the finish may still be held - it then only ever arrives later.
+                // GrimAC times every break on arrival: start to finish (held together, a ~300 ms stone break read as
+                // instant - FastBreak diff=300ms) and finish to the next start (a held finish landed 49 ms before the
+                // live next start - FastBreak delay=49ms), testkit 1025-blink-dig 2026-10-25. So every dig edge (start,
+                // finish, abort) goes out live, on real time, after what was held.
                 releaseLocked("dig", false);
+                return false;
+            }
+            if (BlinkConfig.getInstance().isReleaseOnCharge() && isChargeEdge(packet)) {
+                // The server times a charged use (a bow draw, eating, a shield) by its own ticks between the start and
+                // the release. Held together they arrived together and a 25-tick bow draw fired nothing - the server
+                // drops a shot under 0.1 charge (testkit 1025-blink-bow, 2026-10-25: 3 of 5 arrows). Both edges go live.
+                // An instant right click (an ability, an etherwarp) is not a charged use and stays held.
+                releaseLocked("item use", false);
                 return false;
             }
             queue.addLast(new Held(packet, listener, flush));
@@ -171,6 +180,27 @@ public final class BlinkFeature {
             }
             return true;
         }
+    }
+
+    /** The start of a use whose item charges (use duration above 0), or the release of one. Render thread. */
+    private static boolean isChargeEdge(Packet<?> packet) {
+        if (packet instanceof ServerboundPlayerActionPacket action) {
+            return action.getAction() == ServerboundPlayerActionPacket.Action.RELEASE_USE_ITEM;
+        }
+        if (!(packet instanceof ServerboundUseItemPacket use)) {
+            return false;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || use.getHand() == null) {
+            return false;
+        }
+        return client.player.getItemInHand(use.getHand()).getUseDuration(client.player) > 0;
+    }
+
+    private static boolean isDigEdge(ServerboundPlayerActionPacket.Action a) {
+        return a == ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK
+                || a == ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK
+                || a == ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK;
     }
 
     /** A packet that really left: a move updates where the server thinks he is. */
