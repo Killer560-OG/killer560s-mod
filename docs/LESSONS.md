@@ -2,53 +2,70 @@
 
 Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, then fix; verified only.
 
-- The gametest client runs as **java.exe**, not javaw.exe. `run-scenario.ps1` filtered on javaw only, so every
-  safeguard in it was inert — the freeze watcher never saw an unresponsive client and the deadline cleanup
-  killed nothing, while the script reported success. That is why "it still doesn't close out on freeze"
-  survived two rounds of fixes to the watching logic.
+The rest of the feature lessons are split by topic:
+- [LESSONS-MINECRAFT.md](LESSONS-MINECRAFT.md): vanilla, Fabric and Java behavior - packet order in a tick, hotbar swaps
+  and `ensureHasSentCarriedItem`, `AttackBlockCallback` per tick, swallowing a click, `ClientLevel.hasChunk`, entity
+  subclasses on reload, PEACEFUL on 26.2, `MODIFY_GAME`/`ALLOW_GAME`, chat click styles, color codes in number patterns,
+  Brigadier live commands, javac constant-pool entries, Windows file replace, `ServerTickClock`, `Set.of(null)`.
+- [LESSONS-PERF.md](LESSONS-PERF.md): measuring FPS and per-feature cost (95-fps-bench, PerfProbe, JFR, mixin
+  allocation), FeatureGuard/FeatureBits, chat-line garbage, memoized tab text, a cache that is never clean.
+- [LESSONS-DUNGEONS.md](LESSONS-DUNGEONS.md): the live map grid and map corner, Fairy's wither door, blue terracotta
+  markers, Predictive Rooms, CryptScanner, item pickups, lever waypoints, per-run done sets, the Murkbat bonus, wiped-run
+  PBs, insta-clear observations, Blood Camp, terminals and Tic Tac Toe, and the feature side of routes, the Interactive
+  Map and the puzzle autos.
+
+GUI, HUD and rendering lessons are in [LESSONS-GUI.md](LESSONS-GUI.md), [LESSONS-HUD.md](LESSONS-HUD.md) and
+[LESSONS-MENU.md](LESSONS-MENU.md). Code comments cite some of them as "docs/LESSONS.md": "Every GUI fill costs more than
+its pixels" is in LESSONS-GUI.md, "Two mod-menu rows on one rectangle" in LESSONS-MENU.md, and the HUD element `width()`
+lesson and Storage Overlay unclampable in LESSONS-HUD.md. The 26.2 `Gui.extractRenderState` signature crash is in the
+project CLAUDE.md. Compiling lessons
+(API names across versions, the cloud-session javac filter) are in [COMPILING.md](COMPILING.md).
+
+## Items and Hypixel data
+
 - Instant Transmission is 8 blocks on Aspect of the End, Aspect of the Void AND the Etherwarp Conduit alike.
   What changes the range is the item's own `tuned_transmission` tag - a Transmission Tuner adds a block, four
   maximum - so a fully tuned one of any of them goes 12, and killer560 plays fully tuned ("nearly no one plays
   with less"). AOTV is NOT 12 by nature; assuming that got AOTE and AOTV wrongly split in the route matcher
   once already. `EtherwarpHopper` reads the same tag for the 57-block etherwarp.
-- `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armor Dye and the mining profit tracker (shelved until after 2.0).
-  Widening it to make two items equal makes "sell my Hyperion" sell an Astraea. Loose matching belongs in
-  `matches()`, which only a route's USE_ITEM node reaches.
+- `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armor Dye and the mining profit tracker (shelved
+  until after 2.0). Widening it to make two items equal makes "sell my Hyperion" sell an Astraea. Loose matching belongs
+  in `matches()`, which only a route's USE_ITEM node reaches.
 - A shift-click in Hypixel's Trades menu sells the clicked STACK only, not every item of that kind. Auto Sell marked an
   identity done after one click, so three Dreadlord Swords took three visits and two Training Weights stacks two
   (log, 2026-10-20). `AutoSellVisit` tracks clicks per slot, capped per identity at the most stacks seen in one scan.
 - Custom Items' `DataComponentHolder#get` override must never reach `getHoverName`: on a player head that is
   `PlayerHeadItem.getName`, which reads the overridden `minecraft:profile`, so an id-less head (one on an armor stand)
   overflowed the render thread (2026-10-18). `ArmourDye.identityOf` reads the name with `entryFor` switched off per thread.
-- **The live map's world scan must stay inside the floor's room grid.** Floor 1's boss arena stands in slots
-  (4..5, 5) of the 6x6 footprint; scanning all 121 cells read its roof as two ROOM tiles, which widened the map's
-  fit to 6x6 (his "doesn't rescale for other floors") and kept the boss latch off until he was deep in the arena.
-  `scan()` and `insideGridFootprint` now use `MapPainter.currentFloorRooms()` (2026-10-07).
-- **Superpairs powerups come in two kinds, told apart by lore.** "Instant powerup!" (the `+479,095 XP` lapis
-  block, "Gained +3 Clicks") applies on the spot; only "Powerup for next click!" (Instant Find) matches the next
-  click. Arming on both spent a lone click on an Enchanted Book and reserved it, blocking its pair (2026-10-01).
-  Turning a powerup over is all it takes (killer560, 2026-10-05): it never uses a turn's click slot (the open tile
-  stays up), Instant Finds stack ("insta find into an insta find then your next two clicks are insta finds"), and
-  there is no activation click - the solver's old second click on the face-up tile did nothing but wait out 1s.
-  XP reward tiles are recognized by NAME (`... Enchanting Exp`): the item varies, and cocoa beans were missed.
-  Clicking a tile that is already uncovered does not use a click (killer560, 2026-10-01). A pair's first click
-  can fail to land (tile still covered, others still read "Click any button!"); clicking the partner anyway lost
-  Experiment the Fish, so the first tile is now re-clicked before its partner. **Superpairs is played in turns of
-  two clicks**: a pair started while a tile is turned over matches against that tile and both pairs are lost, and
-  a chance match that is not recognized as claimed gets re-queued and clicked as no-ops forever. The solver reads
-  both off the board each decision (two face-up tiles of a kind = claimed, one = the turn's open tile; 2026-10-05,
-  `ExperimentSolver.readBoard`). An offline port of the testkit's Hx table driving the solver class found both: in it,
-  main's solver never finished 207 of 300 random boards (how often real Hypixel boards hit it is unmeasured).
-- **A "first" rule in Superpairs has to cover the Instant Find too.** With the Nadeshiko Dye as the turn's open tile and
-  an Instant Find turned over as its second click, the match went on a known Sharpness V while the dye waited; and
-  Explore Before Claiming's held-back kinds, left out of `anyMoneySingle`, let a known XP pair go ahead of a Titanic
-  (2026-10-20, a 2,400-board offline check of the solver class; both fixed in `armedTarget` and `firstClickOfTurn`).
-- `ServerTickClock.now()` counts ticks since client LAUNCH, so `now() % N` has no relation to any server cycle. Tick
-  Timers' clear "Death Tick" was `20 - now() % 20` and so never lined up with anything; removed 2026-10-06. A phase needs
-  a server anchor (NoammAddons used `ClientboundSetTimePacket.gameTime`).
-- `ServerTickClock`'s subscribers cannot measure a lag spike: a real stall drops the ping rate under 15/s,
-  the clock flips to client-tick fallback, and what it fires is the client's own ticks. Anything measuring
-  server stalls subscribes to `subscribeRawPing` instead (as `util/ServerLag` does).
+- **Skyblock price ids differ by source.** hysky.de (Skyblocker's keyless lists, Price Tooltip) keys pets
+  `LVL_1_LEGENDARY_GOLDEN_DRAGON` and runes `MUSIC_RUNE_3`; Coflnet and moulberry use NEU ids (`GOLDEN_DRAGON;4`); the
+  Bazaar keys books `ENCHANTMENT_SHARPNESS_6`. moulberry.codes answered 525 on 2026-10-15. Item `timestamp` is a long of
+  epoch ms on 867 of 867 live auctions checked.
+- **Hypixel's public item list has no dyes.** `/v2/resources/skyblock/items` (the item browser cache, 5,680 items on
+  2026-10-19) has no `DYE_*` id, and its `color` field is only on leather armor, so a dye list built from it is empty.
+  `armourdye/HypixelDyes` holds the 69 dyes with the hex each one's lore prints, copied from the NotEnoughUpdates-REPO
+  `items/DYE_*.json` files.
+- Vitality is NOT a Rift stat: it is a combat resource (healing abilities, Wither Shield, Creeper Veil - "Not enough vitality!
+  Creeper Veil De-activated!" is in his own logs) shown on the action bar as `current/max` + U+E028 (hypixelskyblock wiki),
+  which the generic Other readout caught until 2026-10-07. `PlayerStatsFeature.VITALITY_REGEX` reads it and Other skips U+E028.
+- Hypixel SkyBlock has no command that summons a named pet. `/pets`, `/pet`, `/petmenu`, `/petsmenu`, `/viewpets`
+  and `/viewpetsmenu` are all argument-less aliases that open the Pets menu (hypixelskyblock.minecraft.wiki
+  Command page, checked 2026-10-04), and Autopet rules fire only on game events, never on demand. A pet summon
+  must go through the menu, which is why Pet Wheel opens it (headless when Hide Pets Menu is on).
+- **Hypixel's SkyBlock resource pack is required**: the 0.26 announcement (hypixel.net thread 6117801) says it is
+  force-enabled and SkyBlock cannot be joined without loading it, and players who declined report being kicked with
+  "failed to load resource pack". Noamm's PackDisabler gets round that by answering ACCEPTED + SUCCESSFULLY_LOADED and
+  canceling the push, i.e. reporting a pack it never applied. Our Pack Disabler leaves the push to vanilla (the pack
+  really loads) and only swaps the model each SkyBlock item is drawn with, at `ItemModelResolver.appendItemLayers`.
+  Hypixel's pack overrides no vanilla item textures, so a vanilla look still comes from his own packs.
+- NotEnoughUpdates moved items onto Hypixel's pack models in SEVERAL commits on 2026-07-09 (Auction House, Other,
+  Bazaar Items, Recipe, More), so the parent of the Bazaar one (26169fe) already had 299 items on pack models. The
+  pre-pack look comes from the newest snapshot where an item was not yet a pack model: 26169fe, then 0046933 (the
+  parent of the first conversion), then 60e030e (April). With those, 95 of the 1,366 pack-model items have no old
+  look anywhere (`tools/items/gen_item_looks.py`); they are the ones with our own textures.
+
+## Bazaar and Croesus
+
 - **Hypixel's Bazaar summaries are named the opposite of how they read.** In
   `api.hypixel.net/v2/skyblock/bazaar`, `buy_summary` is the book you INSTANT-BUY OUT OF and `sell_summary` is
   the one you instant-sell into. Verified on `VIBRANT_CORAL` (2026-09-29): `quick_status.buyPrice` 3324220.9
@@ -73,6 +90,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   ("" / "^^^^^^^^^^^^^^^" / "Enter amount" / "to order"). Fill it through the screen itself - `charTyped(new
   CharacterEvent(c))` per digit, then its Done button, whose `removed()` sends `ServerboundSignUpdatePacket` - in one
   tick, so a stray Escape never sends a half-typed number (`AbstractSignEditScreen`, same on 26.1.2 and 26.2; testkit 2761).
+- **A wait that ends on "the confirm page is open" must not end on the one it just clicked.** That page stays open until the
+  server answers, so the Bazaar Flip autopilot read its own clicked Confirm Instant Buy as a new question, dropped its
+  wait, and bought from the reopened Instant Buy page a second time (testkit 2762, 2026-10-22). Key such a wait on the
+  clicked page's container id.
 - A Croesus chest's Spirit Stone was worth 0: `DungeonChestValuer.priceLine` asked `RngItemNames.BY_NAME` (every RNG meter's
   names) before its own replacement table, and the Wolf slayer's entry said "Spirit Stone" -> `SPIRIT_STONE`, an id that
   does not exist (Hypixel's items API and the Bazaar both say `SPIRIT_DECOY`). killer560's M4 chest read ~35k instead
@@ -81,133 +102,84 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - Auto Croesus never spent a key because Hypixel closes Croesus after a claim and the reopened head no longer reads
   "No chests opened yet!", the only thing the menu scan opened. It now decides before the first claim whether another
   chest is worth a key and walks back into that run (page:slot, same floor) after the reopen (testkit 766/767).
-- A hotbar swap sent as `setSelectedSlot` + a hand-made `ServerboundSetCarriedItemPacket` goes out TWICE:
-  `MultiPlayerGameMode.tick()` calls `ensureHasSentCarriedItem()`, which compares against its own `carriedIndex`
-  (never updated by the hand-made packet) and sends the same slot again (javap, 26.1.2 and 26.2). Swap through
-  `MultiPlayerGameModeInvoker.killer560smod$invokeEnsureHasSentCarriedItem()` instead, as `RouteExecutor.select`
-  does since 2026-10-04. AutoI4, Breaker Aura, ClearExecutor, AP3, Secret Triggerbot, MaskSwapper and Auto Debuff
-  still use the hand-made form.
-- Packet order inside one client tick (javap, 26.1.2): `START_CLIENT_TICK`, `gameMode.tick()`, `handleKeybinds`
-  (vanilla clicks), the player tick (`ServerboundPlayerInputPacket` if the input changed, then `sendPosition`),
-  `ServerboundClientTickEndPacket`, then `END_CLIENT_TICK`. The server applies the input packet's shift on arrival
-  and `handleUseItem` snaps to the use packet's own yaw/pitch before using, so a sneak installed by the input mixin
-  is in force for a use sent at the next START - no round trip to wait for.
-- Chained Auto Routes etherwarps each logged "acted 1 tick(s) ... sneak went out in the firing tick's input packet"
-  (his maplogger-latest2.log, 2026-10-04) because the executor kept sneak only for a next etherwarp in the SAME
-  stack; the interact-delay settle ticks after a landing then sent shift up and the next warp re-sneaked. Held
-  sneak is now decided after every node by `RouteExecutor.planSneak` from the node that actually fires next.
-- A test script that pipes its runner into `grep` exits with grep's status, so it passes when the runner cannot even
-  compile. `tools/bench/regress.sh` did exactly that after the 2026-10-04 path-to-blood merge (two javac errors,
-  exit 0). Write the run to a file, check its exit status, and require a line only a finished run prints.
-- A client `UseItemCallback` that returns SUCCESS skips vanilla's `ensureHasSentCarriedItem`: Fabric's hook sits on
-  `MultiPlayerGameMode.useItem` before that call and cancels there (fabric-events-interaction 5.2.2, javap). A slot
-  change made in the same tick then reaches the server AFTER the use packet, so the server uses the previous item.
-  Send the slot first (`MultiPlayerGameModeInvoker.killer560smod$invokeEnsureHasSentCarriedItem`) before answering
-  SUCCESS - `SimAbilities.sendHeldSlotFirst` does (2026-10-04).
-- An entity of a mod SUBCLASS is saved under its vanilla type and comes back as the vanilla class when its chunk
-  reloads, losing every override. The sim's blazes and silverfish override `checkDespawn` to survive PEACEFUL; reloaded,
-  they are discarded on their first tick. Anything the sim spawns that matters must be put back when it goes missing
-  from a section the server is showing (`isPositionEntityTicking`), and "missing" must never be read as "killed".
-- Fabric's `MODIFY_GAME` chains: each listener gets the previous one's return, and `GAME` plus
-  `Gui.setOverlayMessage` get the final result (javap, fabric-message-api-v1 7.0.5 and 7.0.8). Stat Bars returned
-  `Component.empty()` for the HP/mana action bar, which blanked it for Ability Cooldown, the live map, Auto Routes,
-  interop room secrets and the Custom Scoreboard's "x/y Secrets". Hide a line at `setOverlayMessage`
-  (`CustomScoreboardGuiMixin` now cancels via `PlayerStatsFeature.shouldHideActionBar`), never by blanking it there.
-- Hypixel SkyBlock has no command that summons a named pet. `/pets`, `/pet`, `/petmenu`, `/petsmenu`, `/viewpets`
-  and `/viewpetsmenu` are all argument-less aliases that open the Pets menu (hypixelskyblock.minecraft.wiki
-  Command page, checked 2026-10-04), and Autopet rules fire only on game events, never on demand. A pet summon
-  must go through the menu, which is why Pet Wheel opens it (headless when Hide Pets Menu is on).
-- The SkyBlockPV backend's `/authenticate` hands ANY caller a guest token (checked 2026-10-07: a made-up username and
-  an unjoined server id got a JWT with `sub` all zeros), and its source (meowdding/skyblock-pv-backend) shows that is
-  the "authentication disabled" branch. So `ProfileViewerApi.backendToken` no longer gives up when Mojang's
-  `joinServer` fails; the backend decides. Hypixel's `fastest_time_s`/`_s_plus` are MILLISECONDS (263003 = 4:23).
-- The SkyBlockPV backend rate-limits `/profiles`: 3-4 requests pass, then 429 "Retry-After: 10" (measured 2026-10-07 on 25
-  real players: 4 answered, 19 x 429 inside two seconds). Party Finder stats cached each 429 as a 3-minute failure, so a
-  full menu showed about four players. A 429 is now `ProfileViewerApi.RateLimitedException`; the PF worker waits out
-  `backendRetryAtMs()` and requeues the name. Also: Hypixel records no S/S+ on Entrance (every real player's Entrance
-  time is `fastest_time` only), so S/S+-only PBs never show there. The PF parser now also accepts "Floor: Entrance"
-  (floor 0); that lore wording is assumed, not yet seen in a real menu.
-  By 2026-10-12..15 (his Mod Only Test logs) it was 2-6 per window then "Retry-After: 30" every time, and 53 of 126
-  answers were HTTP 500s that the relay fetched fine later: treat a backend 5xx as transient (retry in seconds), never
-  as a 3-minute failure. The relay's own Hypixel key still answers 403 "Invalid API key" (checked 2026-10-15), so the
-  relay runs on SkyBlockPV too and its `etaMs` (3.3 s per queue place) is 3-8x optimistic; trust it only briefly.
-- A Minecraft color code can be a DIGIT (`§3` is dark aqua), so `([\d,]+)` with optional codes BEFORE it reads
-  Hypixel's overflow mana `§3200ʬ` as 3200. Start the match where a number cannot continue and let the pattern take
-  the codes itself: `(?<![§\d,])(?:§.)*([\d,]+)` (`PlayerStatsFeature.NUMBER_START`, 2026-10-04, found by a scratch
-  run against a sample line). The health/mana/defense patterns did NOT escape it: with absorption Hypixel colors health
-  GOLD, `§6`, and "§612,000/10,464" read as 612,000 - a nearly all-absorption bar (his "absorption breaks the health one",
-  2026-10-07). Every stat pattern now starts with `NUMBER_START`; testkit 442 sends the gold line through the real path.
-- `IslandDetector.graphIsland()` is null off any known island (sim, lobby, singleplayer), and `Set.of(...).contains(null)`
-  throws. MiningProfitTracker (shelved since 2026-10-07) did that every tick once trackers went on by default; null-check before any `Set.of` lookup.
-- Measure FPS work with the testkit's `95-fps-bench` (sim F7, ON/OFF alternated, frame and tick CPU time, JFR dumps;
-  `tools/fps-jfr.py` attributes samples to mod code). Compare the ON-OFF DELTA within one run: absolute numbers
-  drifted ~0.06 ms between identical runs, which is larger than most single fixes. 95 is a dungeon; a hub (80-entry
-  tab list, ~180 entities, chat, an open chest, an Ender Chest page) is `403-perf-hub` (testkit docs/fps-bench.md).
-  Per FEATURE, use `95-perf-features` (the debug-only `perfprobe/PerfProbe` times every mod listener and HUD element)
-  and gate a change with `95-perf-gate`. On a machine running other work, wall time per callback carries a ~1.5 us
-  per-call floor and +-15 us of noise per key between phases, and whole-frame CPU means swing +-0.3 ms, so a single
-  feature's cost is only trustworthy as the mean of long ALL ON phases or as ALLOCATION, which is deterministic
-  (2026-10-15: the first "each feature alone" table ranked switches by noise until it compared only their own keys).
-- **PerfProbe cannot see a mixin; JFR can, under the VANILLA class's name.** A handler is merged into its target, so its
-  frame is `net.minecraft...handler$abc000$killer560smod$name` and a `com.killer560.` filter misses all of them (the
-  testkit's `tools/fps-jfr.py` counts them since 2026-10-15). Per-call cost and allocation of the hooks into vanilla hot
-  paths are testkit `95-mixin-bench` (vs a `-NoMod` run) and `95-mixin-fixes`. What that pass found: the mod-wide
-  per-call waste was not in the hooks' own guards but in what they called - a title, name or address turned into a
-  String on every call (Storage Overlay 432 B and RNG Meter 184 B per frame in every container, Revert Master Stars 920 B
-  per `getHoverName`, the protect star 312 B per slot, Secrets 80 B per `getShape`, Click Sound 80 B per sound), and an
-  identity-hash lookup per glyph in `ChromaWave` because the Enchant Colors spec keeps its map non-empty.
-- A mixin's `CallbackInfo(Returnable)` is 24 B per call only when the JIT leaves the handler out of line. JFR of real
-  frames (hub, menu, 2026-10-15) showed almost none, but the same jar measured 0 or 24 B for `DataComponentHolder.get` in
-  two runs of a tight test loop. Keep hot handlers tiny and judge allocation tests with a budget above 24 B.
-- **That ~1.5 us per tick handler is real, not the probe.** With every switch off, the testkit's unwrapped
-  `harness/EventSpan` (no probe) read START+END ~570-620 us a tick, the same as the probe's total, and a no-probe JFR
-  put 14% of render-thread samples under the tick invokers, the trivial handlers' samples landing on static-field loads
-  like `XConfig.getInstance`'s `instance == null`: cold cache misses, one handler at a time (fps-idle-1015). A dispatcher
-  that skips switched-off features cannot be exact as the code stands: only 2 of 105 method-ref tick handlers begin with
-  a bare `if (!cfg.isEnabled()) return;` - the rest reset edge state, watch for a level change or tick a helper first.
-- **A switched-off listener can be skipped for one boolean read, if the skip is provably the same** (fps-idle-2-1016):
-  `FeatureGuard.start/end(name, bit, handler)` and `FeatureGuard.afterFeatures/afterTerrain(bit, listener)` read a
-  `util/FeatureBits` bit whose gate reads only STORED switches (`isEnabledRaw()`, never `SkyblockGate.allows()` or the
-  dungeon state), recomputed only after `FeatureBits.changed()`. So every setter of a gated field and the config's
-  `load()` (wrapped as `load(){ load0(); changed(); }`, which covers profile apply) must call it; a gated tick wrapper
-  still runs the handler once on its first switched-off tick, so an off branch that resets state does so exactly once. (`afterFeaturesFlush` does the same for a render listener that clears its last frame: Blood Camp.)
-  Gate only a handler whose off branch is a bare return or a reset nothing else writes while off; a handler that ticks a
-  helper, watches the world or checks a key first is not gated. A forgotten `changed()` is caught by a 1-in-64 re-check
-  that logs ERROR and turns the bit on; testkit 95-perf-bits drives every bit through its setters and `load()`.
-- **Every chat line was ~52 KB of garbage with every switch off** (95-perf-idle): each of ~55 ChatObserver subscribers
-  and ~20 raw listeners walked the component with `getString()` again and built its own `Matcher`s (Matcher + groups +
-  `IntHashSet[]`, ~200 B each, ~60 a line). `ChatObserver.raw`/`strip(Component)` now hand every reader of one delivered
-  line the same String (inside a ChatObserver dispatch or between the open/close phases it adds to Fabric's CHAT, GAME
-  and MODIFY_GAME), and the always-on handlers test a literal their patterns require before `matcher()`. 15.5 KB a line
-  is left, ~14 KB of it vanilla's (ICU Bidi, wrapping). A new chat handler: read the text through ChatObserver, and put
-  a `startsWith`/`contains` the pattern needs in front of it.
-- **Server-sent text can be memoized by object identity.** A tab entry's display name, a team's prefix/suffix and an
-  entry's display are REPLACED with a new `Component` when the server updates them, never edited, so "same object (and
-  same `Language`), same string" is exact. `util/TabText` and `DungeonState.readSidebarText` key on that (2026-10-07):
-  a dozen tab readers had each re-flattened and regex-stripped all ~80 entries, and the sidebar was rebuilt every tick
-  in every world. In a weak-keyed cache never store the key itself as its value (Name Changer stores `NO_MATCH`): a
-  strong value that names its key keeps the entry alive forever.
-- A cache that is never clean costs the whole save every time: `PlayerNameCache.put` treated a newer timestamp as a
-  change, so the 500 ms tab-list scan made it dirty on every pass and the whole name file was rewritten every two
-  seconds in any lobby (found 2026-10-07; a sighting now refreshes an unchanged name at most once per ten minutes).
-- **On 26.2 a PEACEFUL level hides every hostile mob from the client.** `ClientPacketListener.handleAddEntity` goes
-  through `EntityType.create` -> `canSpawn`, which refuses a type not `isAllowedInPeaceful` while the level reads
-  PEACEFUL ("Skipping Entity with id entity.minecraft.silverfish"; javap 26.2). The server has the mob, the client never
-  does. The sim world is EASY since 2026-10-05 for this; it keeps him fed itself (`SimSurvival`).
-- `ClearExecutor.etherPath` / `AutoPuzzleUtil.pathIfMapOn` want the block to LAND ON (solid, two air above), the same
-  position `AutoReposition.start` takes - not `.above()`. Given the air the planner logs "is not etherwarpable ...
-  Nothing searched" and the map says "Failed after 0ms". Auto Blaze and Auto Ice Path both passed `.above()` until
-  2026-10-05.
+
+## Experiments and containers
+
+- **Superpairs powerups come in two kinds, told apart by lore.** "Instant powerup!" (the `+479,095 XP` lapis
+  block, "Gained +3 Clicks") applies on the spot; only "Powerup for next click!" (Instant Find) matches the next
+  click. Arming on both spent a lone click on an Enchanted Book and reserved it, blocking its pair (2026-10-01).
+  Turning a powerup over is all it takes (killer560, 2026-10-05): it never uses a turn's click slot (the open tile
+  stays up), Instant Finds stack ("insta find into an insta find then your next two clicks are insta finds"), and
+  there is no activation click - the solver's old second click on the face-up tile did nothing but wait out 1s.
+  XP reward tiles are recognized by NAME (`... Enchanting Exp`): the item varies, and cocoa beans were missed.
+- Clicking a tile that is already uncovered does not use a click (killer560, 2026-10-01). A pair's first click
+  can fail to land (tile still covered, others still read "Click any button!"); clicking the partner anyway lost
+  Experiment the Fish, so the first tile is now re-clicked before its partner.
+- **Superpairs is played in turns of two clicks**: a pair started while a tile is turned over matches against that tile
+  and both pairs are lost, and a chance match that is not recognized as claimed gets re-queued and clicked as no-ops
+  forever. The solver reads both off the board each decision (two face-up tiles of a kind = claimed, one = the turn's open
+  tile; `ExperimentSolver.readBoard`). An offline port of the testkit's Hx table driving the solver class found both: in
+  it, main's solver never finished 207 of 300 random boards (how often real Hypixel boards hit it is unmeasured).
+- **A "first" rule in Superpairs has to cover the Instant Find too.** With the Nadeshiko Dye as the turn's open tile and
+  an Instant Find turned over as its second click, the match went on a known Sharpness V while the dye waited; and
+  Explore Before Claiming's held-back kinds, left out of `anyMoneySingle`, let a known XP pair go ahead of a Titanic
+  (2026-10-20, a 2,400-board offline check of the solver class; both fixed in `armedTarget` and `firstClickOfTurn`).
+- **A finished Superpairs board stays open on Hypixel** until it is closed; Escape takes you to the rewards (killer560,
+  2026-10-11). Auto E-Table presses Escape once when Remaining Clicks reads 0; Hx's `holdOnOut` emulates it (testkit 735).
 - A step that closes a menu and sends a command must time out if the screen it waits for never opens. Auto E-Table's
   Guardian swap closed the table, sent /pets, and waited forever when nothing opened; it now gives up after 10 s.
-- Melody's Custom GUI picked the moving piece as the one pane COLOR appearing exactly once; a board with a second
-  lime pane (a finished row keeping its marker, which Odin handles with indexOfLast) has none, so after a row or an
-  auto terminal's skip nothing was drawn as moving (killer560, 2026-10-05). Find a terminal's piece by position from
-  the current slots (`findMelodyMovingSlot`), never by color counts; testkit 218 fails 5/16 on the old rule.
-- Terminal and device SIZES are read off the board/device, never constants (SkyBlock 0.27.2: Melody 3 rows, Click in
-  order 10, Simon Says 4 rounds; `terminals/TerminalLayouts`). The old Melody code was row-generic only by accident
-  (`MELODY_CLAY_SLOTS[r-1] == r*9+7` for rows 1-4), so a 3-row board still auto-clicked; what broke was indexing past
-  the last row - Melody Keys' key 4 pressed slot 43, the bottom marker row (testkit 290 fails on main 5813cb91).
+- **A container scan that commits once must keep reading while the menu is open.** The RNG Meter overlay committed after
+  three identical frames (~50 ms, under one server tick) and never read that title again, so rewards Hypixel sent after the
+  window were never logged: his item log had 32 Experimentation Table rewards, none from page 1 (2026-10-11). It now re-reads
+  every 250 ms and merges anything new (testkit 736 adds a reward to an already-scanned page).
+- Container automation must not treat a cursor stack mid-click as the player's. On 26.2 Auto Anvil's first build stopped with
+  "something is on your cursor" in the first pair of testkit 292 and 293 (2026-10-07, not on 26.1.2, not on a rerun); the
+  item was not captured. It now waits a cursor stack out mid-pair and gates each step on the menu's state id changing
+  (`AbstractContainerMenu.getStateId`, which only the server's slot/content packets move), so a client prediction is never
+  read as the server's answer. 292-297 then passed twice on 26.2.
+
+## Settings, profiles and migrations
+
+- A migration that reads an old file must decide from the OLD file's keys, never from the new config's fields after the
+  carry-over: those already hold the new file's own values wherever an old key is missing. Score Calculator's legacy
+  alert migration tested its own `mimicAlertEnabled`/... and so switched `enabled` on when nothing legacy was on
+  (testkit 310 caught it once another case had left Score Calculator on, 2026-10-07).
+- **A one-time migration marker is a setting's opposite.** The blank profile (2026-10-08) set every boolean false, and
+  `breakerAuraMultiBreakDefaulted` false made the next load switch Multi Break back on (testkit 617). `BlankProfile` sets
+  `*Migrated`/`*Defaulted`/`*Seeded` fields TRUE. The same walk found `AutoTrap` (own file, own switch, no `*Config`
+  class) missing from `ProfileManager.reloadAllConfigs`. And reloading configs from disk drops anything changed in memory
+  and not saved (nine network configs after testkit's Quiet profile), so the blank profile saves every config first.
+- **A setting file in `other/` was never in a profile.** `ModPaths.settingFiles` took only `<category>/<feature>/file`, and a
+  name with no table row lives at `other/file`, one level up, so Zoom, Cape, Legit GFS, Streamer and Mod Users never rode in
+  profiles (testkit 320 caught it as an import holding one file more than its source, 2026-10-25). It now takes `other/file` too.
+- **Class picks live in the Leap Order's file** (leap-queue-1015): the Class Overrides tab and
+  `killer560smod-classoverrides.json` are gone; picks are the `classPicks` array of `killer560smod-leapmenu.json`
+  (`LeapMenuConfig.pickOf/setPick/clearPick/allPicks`), and `dungeonclass/ClassOverrides` is only the static front every
+  feature already read through (no `getInstance()`, no `load()`, nothing of its own in `reloadAllConfigs`).
+  `LeapMenuConfig.load()` moves an old file in (a pick already there wins, saved first, then the old file is deleted);
+  a profile saved before that puts the file back and the next `LeapMenuConfig.load()` migrates it again, so applying a
+  profile must keep reloading `LeapMenuConfig`. A pick stored with a UUID that `PlayerNames` cannot map back to its
+  name is invisible to `classOf(name)` (the lookup is UUID first, then the typed name) - testkit 1072 calls
+  `PlayerNames.noteKnown` for its uuid entry.
+- `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default could never be
+  restored once the setter ran; the SLIDER driving it still mapped onto 1-20 and was fixed separately (2026-09-30). A clamp
+  has two halves - the setter and whatever widget feeds it - and a slider whose start position computes negative
+  (`(0 - 1) / 19`) is the tell. Every other numeric setter in the repo was swept on 2026-09-30 and has its field default
+  inside its clamp.
+- **A running total that is checkpointed must be SHOWN live and STORED without truncation.** Best Friends added whole
+  seconds at each 30 s checkpoint and restarted the segment at "now", so every checkpoint dropped its fraction, and the
+  menu read only the checkpointed total, so the clock sat still for up to 30 s ("it doesn't count up every second",
+  killer560 2026-10-08). It now stores ms from `System.nanoTime` with the remainder carried in the segment start, and
+  the menu reads `BestFriendsTracker.liveTotalMs`. Testkit 593 (120.5 s of wall clock): old jar stored -2528 ms and
+  showed -3028 ms; new jar +19 ms stored, +48 ms shown.
+- **The Universal proxy is a file in Prism's SHARED folder** (`%APPDATA%/PrismLauncher/prismaccountswitcher/universal-proxy.json`),
+  not in the instance, so a test client that presses Swap Accounts' Universal switch writes the proxy every one of his
+  instances connects through (testkit 1851 on main read that real path, 2026-10-15). `-Dprismaccountswitcher.universalProxyFile`
+  moves it ([TESTING-HOOKS.md](TESTING-HOOKS.md)); the testkit sets it, and 1851 refuses to press the switch on a jar that
+  ignores it.
+
+## Rendering pitfall cited from code
+
 - On 26.2 `McRender.inCameraSpace` runs its callback LATER in the frame (`submitCustomGeometry`, built in
   `CustomFeatureRenderer.buildGroup`), after the tick may have rebuilt whatever list the callback reads. Secret
   Waypoints indexed its live list there and crashed the client ("Index 6 out of bounds for length 6", Render Frame)
@@ -217,166 +189,30 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `SolverEspRender`: callers pass live path lists). Safe because the lambda captures only an immutable `AABB`/`Vec3`
   and a fresh local `float[]`: DoorKeys, MageBeam, EtherwarpWaypoints (fresh per-frame entry list), mobesp
   `EspRenderer`, `P3NavRenderer`, Teammates/Thorn ESP, the box methods of `SolverEspRender`/`WorldRenderUtils`.
-- Crypts and princes have no positions anywhere (room database and every installed mod's rooms.json: a count), and
-  their undead do not exist until the tomb is blown, so `secretwaypoints/CryptScanner` finds them from blocks. The
-  rule was fitted against the captures vs the database count (121/134 rooms exact since 2026-10-19: a crown needs air
-  above, a slab staircase, a covered wall panel and a ledge 3+ blocks over the floor are not lids). Re-run
-  killer560s-mod-logs/crypt-census/crypt_scan_port.py (a full port of CryptScanner; `--new` tries crypt_new_rule.py)
-  before changing the rule; crypt_rule_b.py there is the stale 2026-10-05 version.
-- An item pickup reaches the client a round trip after the server took it, by which time an etherwarp or a chest grab has
-  carried the player away; Secret Waypoints missed pickups by checking a 3-block box around the player (2026-10-19).
-  Watch the item entity by id and count its REMOVAL from the level, not its leaving a box around the player.
-- **Canceling a block break makes `AttackBlockCallback` fire every TICK, not once per click.**
-  `MultiPlayerGameMode.continueDestroyBlock` only continues an existing break when `isDestroying` is set, and
-  that field is set inside `startDestroyBlock` - which is where the callback lives and which a cancel returns
-  from first. So holding the button re-enters the callback twenty times a second (verified by `javap -c`:
-  `continueDestroyBlock` calls `startDestroyBlock` on its fallback path). The sim's Dungeon Breaker spent its
-  whole twenty-charge bar in one second this way. Anything that consumes that callback needs its own
-  edge-detection - track the block and clear it when `keyAttack` comes up.
-- `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default
-  could never be restored once the setter ran. Fixed 2026-09-27; the SLIDER driving it still mapped onto
-  1-20 and was fixed 2026-09-30. A clamp has two halves - the setter and whatever widget feeds it - and a
-  slider whose start position computes negative (`(0 - 1) / 19`) is the tell. Every other numeric setter in
-  the repo was swept on 2026-09-30 and has its field default inside its clamp.
-- `MazeWalk` plans on ONE feet level, so it cannot take a staircase; Auto Boulder used to drop through a hole in the
-  roof instead ("struggles going down the stairs", 2026-10-06). `autopuzzles/BoulderPath` plans across heights (stairs
-  climbed from their low side, ledges cost extra). And a walk planned on the tick of a Boulder button press plans round
-  the box's OLD position (the move reaches the client ticks later: "no walk", 223 nodes) - wait ~400 ms after a press.
-- An etherwarp aim verified at its exact float yaw is not verified (2026-10-06, 95-sim-map-warp): the use packet carries
-  the RUNNING yaw (player yaw + wrapped turn, ~900 degrees here), which keeps fewer fraction bits, so the server read
-  173.65979 where 173.65981 was planned and the ray caught a block corner the plan cleared by millionths of a block.
-  Rays at lattice slopes (yaw 18.43495 = atan(1/3)) pass exactly through block corners, so this is common, and a replan
-  from the same spot picks the same cached edge. `WarpGraph.plan` now runs every hop through `EtherSearch.holds`
-  (lands for yaw/pitch +-0.01 degrees), re-aims a fragile one with `aimFirm`, else drops that edge and plans again.
-  The diagnosis that found it: log the server's refusal, then cast the server's exact ray through the client planner's
-  grid - BLOCKED on both sides meant the worlds agreed and the aim was the fault.
 
-- A standalone sim puzzle builds IN PLACE of the room's floor (its floor sits at the player's feet minus one), so its
-  reset must put back what was there, not air. The Teleport Maze reset aired its 52 floor blocks and the player fell
-  into the void (testkit 78: "[Sim] back to the middle of the room", then "icepath: built nothing"; 26.1.2 and 26.2
-  alike, only when he stood on the arena). It now records the prior states on the server and restores them
-  (2026-10-06). Tic Tac Toe's reset still leaves 1-3 blocks fewer than before (78's "arena after reset"; not traced).
+## Network services and accounts
 
-- `AutoRoutesFeature.warpToStartNode` called on its own (not through a map press) leaves the last route's
-  `justFinished` latch set, so the next start node lands "latched" and never arms - Auto Secret did this for every room
-  after the first (102-sim-autosecret, 2026-10-06). A map press clears it in `InteractiveMapFeature.queue` via
-  `cancelForInteractiveMap`; anything that drives the start-node warp must call that first, as Auto Secret now does.
-
-- **Dungeon Autopilot sim finds (2026-10-06).** `canPath` refuses Maze/Boulder by NAME and nothing walks: autopilot2 lifts it
-  once the room is done (map/tab, or `permitLeave` after our step); a TRAP room always refuses and `ClearExecutor` fires no hop
-  inside one (no ability works there - killer560). A doorway's connector cell reads as no room (`currentRoom` -1): decide
-  from the last room. A dropped key leaves the CLIENT at ~100 blocks - gone is not picked up. `WitherDoorOpener` clicked a door
-  with the AOTV in hand and the sim fired Instant Transmission; it now uses the key item or an empty slot.
-
-- Secret Waypoints' lever waypoints never hid on a click (2026-10-06): the click listener marked the lever in `COLLECTED`,
-  but `scanLevers` builds its waypoints outside `addGroup` and never asked `COLLECTED`, so the next rebuild (<= 1 s) put it
-  back. Any waypoint group added outside `addGroup` must apply the same collected filter.
-- To swallow his left click before vanilla acts on it, consume it at START_CLIENT_TICK: `while (keyAttack.consumeClick())`
-  then `keyAttack.setDown(false)`. `handleKeybinds` runs later in the same tick and only calls `startAttack` per queued
-  click and `continueAttack(true)` while the key reads down (javap 26.1.2 and 26.2), so nothing is swung or dug
-  (`RouteExecutor.takeSkipClick`, 96-ar-awaitskip / 62-argrim-awaitskip).
-- The Interactive Map's floor graph (2x2 buckets) misses ledge landings: asked for a block beside Higher Blaze's chest it
-  landed up to five blocks off ("near"), or called him "already there", and from that ledge it "proved" no way back down
-  the room the room-by-room planner had just walked him up (2026-10-06). When the block itself matters, use
-  `ClearExecutor.etherPathExact` (room by room before a near landing or a graph "no way"), and filter goals with
-  `EtherwarpPathfinder.isEtherwarpable`: a carpet-topped spot he stood on is not one, and the planner searches nothing.
-  The graph's "proof of no way" is only about its own landings and aims: from Atlas's ledge it proved no way to a block
-  three warps off, because the hop down past the ledge's lip clears it only between the 18 face aim points (testkit
-  404-sim-planner-gaps, 2026-10-07). On any graph "no way" `EtherwarpPathfinder.finePlan` now searches every landing of
-  his and the goal's rooms with the off-lattice points too (~30 ms, at most 200). Judge a "no way" against real casts
-  (404's ground truth) before calling it a planner bug: 131's two "no way by a wall" spots were a one-block floor in the
-  open seam between two rooms' walls, sealed except to the roof - correct answers (404-sim-planner-cracks).
-- `ClearExecutor.isActive()` goes false two ticks after the last hop is SENT (`compDelay`), before its landing comes back,
-  so anything asking "is the Interactive Map moving him?" at the landing must use `isBusy()` (true through the arrival
-  sync), and read it when the position packet arrives. The insta-clear recorder used `isActive` on the next tick and
-  logged every map path's final landing as "teleport by manual" (Mage, Hall, his live F7 runs 2026-10-06).
-- An insta-clear observation must know whether he STOPPED in the room. A map path lands in rooms on the way for a tick
-  each; the v1 recorder judged them like stops, so they closed NO_CLEAR (one failure blocks an entry for good), or NO_STARS
-  when the room flipped ~200 ms after landing, before its mobs had loaded (Duncan, a real insta). Now: left within 3 s and
-  no flip by 1.5 s after leaving is PASS_THROUGH; a flip with no starred mob in sight waits (up to 60 s) to see the mobs,
-  which Hypixel leaves standing in an insta-cleared room. 98-sim-insta-clear-live replays both on a sim floor.
-- A per-position "done" set must reset on a new RUN, not only a new world. Secret Aura, the Secret Triggerbot and Secret
-  Waypoints' collected set cleared on world change / leaving the dungeon; a sim rebuild of the same room is neither and puts
-  every secret back on the same blocks, so after run 1 the aura clicked nothing (his Museum, Map Logger, 2026-10-06). All
-  three now also reset when `LiveMapFeature.resetGeneration()` changes (world change, dungeon entered, sim floor published).
-  99-sim-aura-rebuild rebuilds Museum three times in one world and fails on 5008e4d6.
-
-- Container automation must not treat a cursor stack mid-click as the player's. On 26.2 Auto Anvil's first build stopped with
-  "something is on your cursor" in the first pair of testkit 292 and 293 (2026-10-07, not on 26.1.2, not on a rerun); the
-  item was not captured. It now waits a cursor stack out mid-pair and gates each step on the menu's state id changing
-  (`AbstractContainerMenu.getStateId`, which only the server's slot/content packets move), so a client prediction is never
-  read as the server's answer. 292-297 then passed twice on 26.2.
-- Blood Camp's prediction is NoammAddons' (killer560 asked for it, 2026-10-07), including a Kotlin quirk: Noamm sums
-  `packet.xa / 4096` with a Short and an Int, which is INTEGER division, so a blood mob's sub-block step adds nothing and the
-  trip starts at the skull's spot in the wall. Ours divided by 4096.0, started one packet out of the wall, and landed the
-  predicted spot one step (0.215 blocks in test 392) too far along. Keep the integer division; it is the model, not a typo.
-- **A gap in an entity's move packets is not the end of its movement.** Blood Camp restarted a blood mob's trip after any
-  10-tick gap, which is also exactly what a server or network stall looks like, so a lag spike threw the path away and
-  re-fitted it from mid-air (killer560: "can break and not show the path if the server lags for a tick"). A gap now starts
-  a new trip only when the stand had reached its predicted spot, the gap passes 5 s, or it reverses (testkit 552: a
-  15-tick stall, path drawn on every tick, trip kept).
-- A chat line dropped through Fabric's `ALLOW_GAME`/`ALLOW_CHAT` never reaches `ChatObserver` either: a cancel there skips both
-  the GAME event and `ChatComponent.addMessage`, its two sources. To hide a line only from the WINDOW, cancel inside `addMessage`
-  after the clicktranslate HEAD hook has dispatched it - Chat Tidy injects at that method's `Predicate.test` call (2026-10-07;
-  testkit 87 checks every hidden line still reached `ChatObserver`). Chat Hider's other six hides (Object Hider's old
-  Chat Replacements) still use `ALLOW_GAME`.
-
-- **Moving the camera does not move the crosshair.** `GameRenderer.pick` -> `LocalPlayer.raycastHitResult` casts from
-  `Entity.getEyePosition`, never from `Camera.position()` (javap 26.1.2 and 26.2), so a `Camera.setPosition` at the TAIL of
-  `Camera.alignWithEntity` changes only where the frame is drawn from (chunks, culling, every renderer reading the camera).
-  Smooth Teleport (`smoothtp/`, 2026-10-07) relies on it; testkit 396-sim-smooth-tp hits a wall 2.5 blocks past the landing on
-  the first frame while the camera is still 14.5 blocks back.
-- Vitality is NOT a Rift stat: it is a combat resource (healing abilities, Wither Shield, Creeper Veil - "Not enough vitality!
-  Creeper Veil De-activated!" is in his own logs) shown on the action bar as `current/max` + U+E028 (hypixelskyblock wiki),
-  which the generic Other readout caught until 2026-10-07. `PlayerStatsFeature.VITALITY_REGEX` reads it and Other skips U+E028.
-- A migration that reads an old file must decide from the OLD file's keys, never from the new config's fields after the
-  carry-over: those already hold the new file's own values wherever an old key is missing. Score Calculator's legacy
-  alert migration tested its own `mimicAlertEnabled`/... and so switched `enabled` on when nothing legacy was on
-  (testkit 310 caught it once another case had left Score Calculator on, 2026-10-07).
-- **A running total that is checkpointed must be SHOWN live and STORED without truncation.** Best Friends added whole
-  seconds at each 30 s checkpoint and restarted the segment at "now", so every checkpoint dropped its fraction, and the
-  menu read only the checkpointed total, so the clock sat still for up to 30 s ("it doesn't count up every second",
-  killer560 2026-10-08). It now stores ms from `System.nanoTime` with the remainder carried in the segment start, and
-  the menu reads `BestFriendsTracker.liveTotalMs`. Testkit 593 (120.5 s of wall clock): old jar stored -2528 ms and
-  showed -3028 ms; new jar +19 ms stored, +48 ms shown.
-GUI, HUD and rendering lessons are in [LESSONS-GUI.md](LESSONS-GUI.md).
-Compiling lessons (API names across versions, the cloud-session javac filter) are in [COMPILING.md](COMPILING.md).
-
+- The SkyBlockPV backend's `/authenticate` hands ANY caller a guest token (checked 2026-10-07: a made-up username and
+  an unjoined server id got a JWT with `sub` all zeros), and its source (meowdding/skyblock-pv-backend) shows that is
+  the "authentication disabled" branch. So `ProfileViewerApi.backendToken` no longer gives up when Mojang's
+  `joinServer` fails; the backend decides. Hypixel's `fastest_time_s`/`_s_plus` are MILLISECONDS (263003 = 4:23).
+- The SkyBlockPV backend rate-limits `/profiles`: 3-4 requests pass, then 429 "Retry-After: 10" (measured 2026-10-07 on 25
+  real players: 4 answered, 19 x 429 inside two seconds); by 2026-10-12..15 (his Mod Only Test logs) it was 2-6 per window
+  then "Retry-After: 30" every time, and 53 of 126 answers were HTTP 500s that the relay fetched fine later. A 429 is
+  `ProfileViewerApi.RateLimitedException`; the Party Finder worker waits out `backendRetryAtMs()` and requeues the name
+  (it had cached each 429 as a 3-minute failure, so a full menu showed about four players). Treat a backend 5xx as
+  transient (retry in seconds), never as a 3-minute failure. The relay's own Hypixel key still answers 403 "Invalid API
+  key" (checked 2026-10-15), so the relay runs on SkyBlockPV too and its `etaMs` (3.3 s per queue place) is 3-8x
+  optimistic; trust it only briefly.
+- Hypixel records no S/S+ on Entrance (every real player's Entrance time is `fastest_time` only), so S/S+-only PBs never
+  show there. The Party Finder parser also accepts "Floor: Entrance" (floor 0); that lore wording is assumed, not yet
+  seen in a real menu.
 - `api.docilelm.top` (Devonian's Party Finder stats) answers HTTP 200 `{"result":{}}` to every User-Agent except Devonian's own
   (`Mozilla/5.0 (Devonian)`, checked 2026-10-07), so an empty result is an access refusal, not "player not found". Do not
   impersonate Devonian; Party Finder uses SkyBlockPV (or his own Hypixel key) instead.
-
-- javac folds `if (SomeClass.CONSTANT)` away but still writes a `CONSTANT_Class` entry naming `SomeClass` into the using
-  class's constant pool (seen with javap -v, 2026-10-07). So gating normal code on a flag that lives in a package left out of
-  a jar (`com.killer560.hub.testing`) still puts that package's name in every gated class; the testing build gates on
-  `BuildVariant.TESTING` instead, and a byte grep of the normal jars for `hub/testing` comes back empty.
-
-- **Hypixel's SkyBlock resource pack is required**: the 0.26 announcement (hypixel.net thread 6117801) says it is
-  force-enabled and SkyBlock cannot be joined without loading it, and players who declined report being kicked with
-  "failed to load resource pack". Noamm's PackDisabler gets round that by answering ACCEPTED + SUCCESSFULLY_LOADED and
-  canceling the push, i.e. reporting a pack it never applied. Our Pack Disabler leaves the push to vanilla (the pack
-  really loads) and only swaps the model each SkyBlock item is drawn with, at `ItemModelResolver.appendItemLayers`
-  (2026-10-07). Hypixel's pack overrides no vanilla item textures, so a vanilla look still comes from his own packs.
-- NotEnoughUpdates moved items onto Hypixel's pack models in SEVERAL commits on 2026-07-09 (Auction House, Other,
-  Bazaar Items, Recipe, More), so the parent of the Bazaar one (26169fe) already had 299 items on pack models. The
-  pre-pack look comes from the newest snapshot where an item was not yet a pack model: 26169fe, then 0046933 (the
-  parent of the first conversion), then 60e030e (April). With those, 95 of the 1,366 pack-model items have no old
-  look anywhere (`tools/items/gen_item_looks.py`); they are the ones with our own textures.
-- **The Murkbat bat bonus is one per PLAYER, not one per run like the Prince** (2026-10-07). The shard's Rekindle
-  attribute says "+1 Bonus Score", "Limit of +1 Score per run" (hypixelskyblock wiki, Murkbat_Shard), but the wiki's
-  Dungeon Score page says it works out as one per player, up to 5, and Odin counts it that way (833e0533). Hypixel's
-  line is `A Bat has been slain. +1 Bonus Score` (Odin `Mimic.kt`, Skyblocker `DungeonScore.java`; color codes unknown).
-  `ScoreCalculatorFeature` keys each bat on a name (his own line, a mate's "Bat Killed!") and `ScoreCalculator.BAT_BONUS_CAP`
-  is the one number to set to 1 if Hypixel makes it per run. The dungeon sim does not model attributes, so it never sends it.
-
-- A parent `Style`'s `ClickEvent` is only inherited where the child sets none, so a whole-line click action wrapped round a
-  Hypixel line (Copy Chat's old whole-message copy, via Click Translate's wrap) is dead on every name, link or invite in it,
-  and past the end of the text vanilla finds no style at all. Find the clicked chat row from the layout instead
-  (`ChatComponent.captureClickableText` with a recording collector) and take `GuiMessage.Line.parent()` (2026-10-08, testkit 561-563).
-- A fixed RMS threshold is not a voice detector: room noise on an open mic sat above Voice To Text's 500, so no pause was
-  ever seen and Open Mic never sent anything. `voicetotext/OpenMicSegmenter` compares against the quietest chunk of the last
-  3 s; testkit 564 feeds noise at RMS 700 (2026-10-08).
-
+- Custom Party Finder: "the auto accept didnt work" (2026-10-18) was the LEADER's side - his Untested Cheat log shows a request
+  sitting 47 s with nothing sent, because only a click on Accept answered one; the joiner's invite accept was already there.
+  Read the leader's log before blaming the joiner's chat pattern (Hypixel's framed invite line matched INVITE as written).
 - **An in-game account swap must fetch the chat key with the NEW account's token.** `ProfileKeyPairManager.create(service,
   user, dir)` keeps `user` only for the cache file name; the key comes from `service.getKeyPair()`, and Minecraft's
   `userApiService` carries the LAUNCH account's token (javap 26.1.2/26.2: `AccountProfileKeyPairManager.fetchProfileKeyPair`).
@@ -384,141 +220,32 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   refused it ("not issued by Mojang for that UUID": his alts, 2026-10-08; Mod Only Test log, launched as Killer560, playing
   as 9878981). It now builds a fresh `YggdrasilAuthenticationService(...).createUserApiService(token)` (testkit 579 replays
   the swap against a fake Mojang and relay). The relay's embedded Mojang keys were identical to the live set.
-- Brigadier can add a root to a live dispatcher but cannot remove one, and Fabric fires `ClientCommandRegistrationCallback`
-  only on join, into a fresh dispatcher (`ClientPacketListenerMixin.onGameJoin`, fabric-command-api-v2 3.0.5 javap). A
-  node whose `requires()` fails does not parse, which Fabric reads as "unknown command" and hands the line to the server
-  (`ClientCommandInternals.isIgnoredException`). So live-editable client commands (custom Command Shortcuts, 2026-10-07)
-  are added to `getActiveDispatcher()` behind `requires(isLive(name))`: removing or renaming one is instant, adding one
-  registers it a moment after typing stops, and only its tab completion lingers until the next join.
-- Blood Camp's Trigger Bot tested "crosshair on the landing box" with the ATTACK reach (3 blocks), so from anywhere you
-  actually camp blood it never clicked, and its mob search skipped every `Player` - the Watcher's summons are player-model
-  NPCs (v2 UUID). Aim is line of sight (48 blocks); only the attack is reach-limited, else the click is a plain swing
-  (2026-10-09, testkit 686: 16 blocks out it now swings once, 2.7 out it attacks and the mob loses health).
-- On Hypixel the vanilla map draws the door into Fairy as a WITHER door while the doorway has no coal (killer560's
-  2026-10-08_15.48.34 F1), so anything that finds wither doors by their coal never sees it. Fairy Door takes it from the
-  map grid; only a door the scan really finds shut (coal) is left to the wither highlight (testkit 678).
-- Tic Tac Toe's prediction skipped the computer's own square when testing "safe whatever it plays", so the square the
-  computer was about to take always qualified and was what got shown. The prediction now takes every computer reply with
-  its best outcome and shows his best move after them, never one of those squares (testkit 679, all 2,423 positions).
 
-- **A one-time migration marker is a setting's opposite.** The blank profile (2026-10-08) set every boolean false, and
-  `breakerAuraMultiBreakDefaulted` false made the next load switch Multi Break back on (testkit 617). `BlankProfile` sets
-  `*Migrated`/`*Defaulted`/`*Seeded` fields TRUE. The same walk found `AutoTrap` (own file, own switch, no `*Config`
-  class) missing from `ProfileManager.reloadAllConfigs`. And reloading configs from disk drops anything changed in memory
-  and not saved (nine network configs after testkit's Quiet profile), so the blank profile saves every config first.
-- **A container scan that commits once must keep reading while the menu is open.** The RNG Meter overlay committed after
-  three identical frames (~50 ms, under one server tick) and never read that title again, so rewards Hypixel sent after the
-  window were never logged: his item log had 32 Experimentation Table rewards, none from page 1 (2026-10-11). It now re-reads
-  every 250 ms and merges anything new (testkit 736 adds a reward to an already-scanned page).
-- **A finished Superpairs board stays open on Hypixel** until it is closed; Escape takes you to the rewards (killer560,
-  2026-10-11). Auto E-Table presses Escape once when Remaining Clicks reads 0; Hx's `holdOnOut` emulates it (testkit 735).
-- **Class picks live in the Leap Order's file** (leap-queue-1015, 2026-10-15): the Class Overrides tab and
-  `killer560smod-classoverrides.json` are gone; picks are the `classPicks` array of `killer560smod-leapmenu.json`
-  (`LeapMenuConfig.pickOf/setPick/clearPick/allPicks`), and `dungeonclass/ClassOverrides` is only the static front every
-  feature already read through (no `getInstance()`, no `load()`, nothing of its own in `reloadAllConfigs`).
-  `LeapMenuConfig.load()` moves an old file in (a pick already there wins, saved first, then the old file is deleted);
-  a profile saved before that puts the file back and the next `LeapMenuConfig.load()` migrates it again, so applying a
-  profile must keep reloading `LeapMenuConfig`. A pick stored with a UUID that `PlayerNames` cannot map back to its
-  name is invisible to `classOf(name)` (the lookup is UUID first, then the typed name) - testkit 1072 calls
-  `PlayerNames.noteKnown` for its uuid entry.
-- **`ClientLevel.hasChunk(x, z)` is hard-wired to `true`** (javap 26.1.2: `iconst_1; ireturn`), and a chunk the client
-  does not have reads as an empty chunk, all air. So "is this chunk loaded?" on the client must ask the chunk SOURCE:
-  `level.getChunkSource().hasChunk(x, z)` (vanilla's answer even with the Chunk Cache on, `ChunkCacheChunkSourceMixin`).
-  `/mage`'s first version asked the level and captured a forgotten chunk as a hole, which its own tile check then called
-  "matches no room" (testkit 1490, 2026-10-15). `DoorScanner`, `SecretWaypointsFeature`, `CryptScanner` and
-  `AutoPuzzleUtil` still ask `level.hasChunk` on the client.
-- `ClientPacketListener.getListedOnlinePlayers()` is a `ReferenceOpenHashSet` (javap, 26.1.2 and 26.2): its order is
-  identity-hash order, not tab order. `PartyTracker` built the party from it, so the Dungeon Map paired far teammates'
-  map markers with names in a random order (testkit 1015-noamm-map: party read `[Bravo, Charlie, Delta, Alpha]`, 0 of 4
-  on their own marker). Anything that relies on the tab's order reads `util/TabOrder.listed`, the overlay's comparator.
-- The dungeon map item's start corner is fixed per floor; measuring it from the first 16-pixel run of color 30 (as
-  NoammAddons does for F4+) read (16,5) on two of his M5 runs (2026-10-08 log) and shifted the whole map for the run.
-  `DungeonMapScanner.knownCorner` holds every floor; the run is only a size check and the fallback for an unknown floor.
-- **`ClientLevel.hasChunk(x, z)` is hard-wired to `true`** (javap 26.1.2 and 26.2: `iconst_1; ireturn`), and so is
-  `LevelReader.hasChunkAt` on it; a chunk the client does not have reads as an empty chunk, all air. (`Level.isLoaded(BlockPos)`
-  is fine: it asks the chunk source.) Ask `util/ClientChunks.isLoaded` (a block read here returns real blocks: live, or held
-  by the Chunk Cache) or `isLive` (vanilla's answer, never a cached snapshot - `/mage`), once per chunk, and make a missing
-  chunk mean UNKNOWN, not absent: chunk-loaded-1015 found it reading a shut wither door as opened, a crypt as opened (then
-  done for the run), half a lid as a crypt, a box with no chest, and a wall the etherwarp ray flew through (testkit 1491).
+## Other features
 
-- **Hypixel prints the score block ("Team Score: N" and "> EXTRA STATS <") when a run is WIPED too**, so those lines do not mean the run was finished. Run Summary stored a 21 s wipe (score 2, D) as the fastest F7 and announced a personal best (killer560, 2026-10-15). The only line that proves a boss kill is "☠ Defeated X in ..." (`RunRecord.hypixelTime`); a PB now needs that plus Hypixel's own score at or above the PB Minimum Score. Personal bests are derived from stored runs, so the check lives in `RunRecord.countsForPb` and every best reads through it. Testkit 107-hx-runsummary-pb.
+- **Spotify's local sources name only the FIRST artist.** The window title and Windows' media session both said "Rosa
+  Walton" for a track Spotify credits to "Rosa Walton, Hallie Coggins" (2026-10-20), and lrclib's search returned another
+  recording (3:59 against Spotify's 4:06) whose line times were all wrong. Lyrics are matched by title, artist containment
+  and Spotify's length within 2 s (`LyricsEngine.pickVersion`, plus lrclib's `/api/get` with the duration); the length and
+  position come from `spotify/SpotifyMediaSession`, a PowerShell reader of the System Media Transport Controls, because
+  the window title has no clock.
+- A fixed RMS threshold is not a voice detector: room noise on an open mic sat above Voice To Text's 500, so no pause was
+  ever seen and Open Mic never sent anything. `voicetotext/OpenMicSegmenter` compares against the quietest chunk of the last
+  3 s; testkit 564 feeds noise at RMS 700 (2026-10-08).
+- The Egglocator's particle trail does not reach the egg (SkyHanni's fitter is built on this; not yet checked in our logs): it
+  is the start of a cubic Bezier from the player. Its last particle is not the egg; fit the curve and extrapolate
+  (`chocolatefactory/egg/TrailFitter`, SkyHanni's ParticlePathBezierFitter).
 
-- `getUseItemRemainingTicks()` is 0 when NOTHING is being used, so a draw read as `72000 - remaining` calls an idle bow fully
-  drawn: Trajectories drew a full-power arc for any bow merely held (testkit 1082 on main: 885 arc px). Gate on
-  `isUsingItem()` in the main hand first. Shortbows (lore "Shortbow: Instantly shoots!") are `BowItem`s too; test them first.
-- **The Universal proxy is a file in Prism's SHARED folder** (`%APPDATA%/PrismLauncher/prismaccountswitcher/universal-proxy.json`), not in the
-  instance, so a test client that presses Swap Accounts' Universal switch writes the proxy every one of his instances
-  connects through (testkit 1851 on main read that real path, 2026-10-15). `-Dprismaccountswitcher.universalProxyFile`
-  moves it (docs/TESTING-HOOKS.md); the testkit sets it, and 1851 refuses to press the switch on a jar that ignores it.
-- **Skyblock price ids differ by source.** hysky.de (Skyblocker's keyless lists, Price Tooltip) keys pets `LVL_1_LEGENDARY_GOLDEN_DRAGON`
-  and runes `MUSIC_RUNE_3`; Coflnet and moulberry use NEU ids (`GOLDEN_DRAGON;4`); the Bazaar keys books `ENCHANTMENT_SHARPNESS_6`.
-  moulberry.codes answered 525 on 2026-10-15. Item `timestamp` is a long of epoch ms on 867 of 867 live auctions checked.
+## Testing and debugging
+
+- The gametest client runs as **java.exe**, not javaw.exe. `run-scenario.ps1` filtered on javaw only, so every
+  safeguard in it was inert — the freeze watcher never saw an unresponsive client and the deadline cleanup
+  killed nothing, while the script reported success. That is why "it still doesn't close out on freeze"
+  survived two rounds of fixes to the watching logic.
+- A test script that pipes its runner into `grep` exits with grep's status, so it passes when the runner cannot even
+  compile. `tools/bench/regress.sh` did exactly that (two javac errors, exit 0). Write the run to a file, check its exit
+  status, and require a line only a finished run prints.
 - **Check which mod sent a command before fixing it.** The 2026-10-15 p3sim screenshot of repeated "Unknown or incomplete
   command ... gfs ender_pearl 16<--[HERE]" was not ours: his Auto GFS was off and the log had no "[Cheat Utils] Auto GFS:"
   echo (every send of ours prints one); QUOI and NoammAddons both had Auto GFS on. Ours had the same hole anyway (fixed in
   `util/SackCommands`, testkit 115-hx-autogfs-unknown-command). Grep his log for our echo line first.
-- **Predictive Rooms named almost nothing on Hypixel because it waited for 120 seen blocks a tile** (to-do item 22, 2026-10-18).
-  A player glancing through doorways gives a tile 50-120, by which time every room but the right one is ruled out; 1726 never
-  saw it because it stares from fifteen spots for 150 ticks and calls `settle()`. Now 40 seen and 30 matches per standing
-  placement (testkit 1018-predict-hypixel: a sim floor walked like a player, 12 rooms named right on the fix, 2 on main). A
-  `[Predict] tile x,z closed:` line says, per tile he looked into, what it named or why not. Measure a sight feature with
-  the looks a player makes, not the best case. His in-game "about 20 s in a corridor" (Mod Only Test, 2026-10-18) was a
-  main jar (f0a61ba4): the tile's first block at 18:01:41, named at 18:01:50 at exactly 120 seen, one candidate build, so
-  gathering blocks was the wait, not rebuilding or queueing. A doorway seen from a corridor is a slot a handful of the 336
-  grid rays reach; the sweep now adds eight rays round each grid ray that met an unopened room (at most 336 more) and
-  sweeps every 2 ticks instead of 4 while it sees one (1018-predict-hypixel-corridor: named at ticks 2-3; tick 35 without them; never on main, stuck at 73 seen).
-- Custom Party Finder: "the auto accept didnt work" (2026-10-18) was the LEADER's side - his Untested Cheat log shows a request
-  sitting 47 s with nothing sent, because only a click on Accept answered one; the joiner's invite accept was already there.
-  Read the leader's log before blaming the joiner's chat pattern (Hypixel's framed invite line matched INVITE as written).
-- **Predictive Rooms never named Water Board on Hypixel: "every placement ruled out - 330 block(s) seen, 0 of 412"** (his
-  Mod Only Test log, 2026-10-18 19:25:02). Glass has no visual shape, so a look into the room mostly meets the board behind
-  the front glass, and Hypixel's board differs every run (four layouts, 27 piston gates the levers move); every Water Board
-  capture there is (bundled, Mod Only Test's - the same rotated 90 degrees - and Map Logger's) is the same frame of board 0.
-  `RoomPredictor.VOLATILE` leaves the board planes and the color columns out of the comparison. Write such boxes in
-  ROOM-RELATIVE coordinates and turn them through each capture's own `RoomCaptureRotation`: the first version held capture
-  boxes decoded off the bundled file, and his disk capture (which wins) is turned a quarter, so they covered the wrong
-  wall. The sim's own board matched the capture, so it named the room on main too; testkit 1018-waterboard-predict-board
-  mirrors the board planes first (main: 0 placements standing, as on Hypixel; `RoomPredictor.disagreements` lists what a
-  placement disagreed on).
-- **Predictive Rooms' speed was the sweep cadence and its one wrong name a soft match** (testkit 1020-predict-matrix,
-  2026-10-20: every doorway of 15 sim floors from 2-27 blocks back, the predictor ticked from a given eye through
-  `RoomPredictor.tickFrom`, variants paired through `tune`). Sweeping every 2/1 ticks, a second focus round (1024 extra rays)
-  and 20 seen / 15 matched took a name from 8.0 ticks mean to 2.2 and the furthest named from 14.0 to 19.0 blocks back.
-  The sim's blocks ARE the captures, so a clean matrix never names wrong; `tune("TEST_NOISE", 0.05)` reads that share of seen
-  blocks as random others, and it alone found Water Board named on Mines (4-6 glances a run, on main too): its board planes'
-  palette matches any stone, so with Mines ruled out by noise they made up Water Board's matches. Soft matches no longer
-  count toward MIN_MATCHES. The comparison budget charged every seen block in a candidate's span, ruled out or not, so
-  more rays queued ticks of work that took a few (1018-predict-hypixel-fresh named at tick 20: 3506 placements, 1712 seen);
-  it now charges a compared block 1, a block in another tile 1/16, and nothing after a candidate is ruled out.
-- A `@Inject` at HEAD of a `ClientPacketListener.handleX` runs TWICE per packet: first on the Netty thread, where
-  `PacketUtils.ensureRunningOnSameThread` re-queues the packet and throws, then on the render thread (javap, 26.1.2 and 26.2).
-  The Egglocator trail recorded every particle twice, half off-thread (2026-10-19). Inject `AFTER` that invoke, as SkyHanni does.
-- The Egglocator's particle trail does not reach the egg (SkyHanni's fitter is built on this; not yet checked in our logs): it
-  is the start of a cubic Bezier from the player. Its last particle is not the egg; fit the curve and extrapolate (`chocolatefactory/egg/TrailFitter`, SkyHanni's ParticlePathBezierFitter).
-- **Hypixel's public item list has no dyes.** `/v2/resources/skyblock/items` (the item browser cache, 5,680 items on 2026-10-19)
-  has no `DYE_*` id, and its `color` field is only on leather armor, so a dye list built from it is empty. `armourdye/HypixelDyes`
-  holds the 69 dyes with the hex each one's lore prints, copied from the NotEnoughUpdates-REPO `items/DYE_*.json` files.
-- Blue terracotta at a tile corner is not always the clay marker. Hallway, Mossy, Pipes, Pit, Quartz Knight and Waterfall
-  have a blue roof stripe crossing a tile join, so the per-tile fallback (room not fully on the map yet) took a join for the
-  corner and put routes and waypoints a tile off; the map never re-checks a found rotation (2026-10-19). `RoomDatabase.
-  findRotationAndCorner` now needs air one block outward on both axes (all 133 real markers in `rooms/` have it).
-- **A client sees an entity's server position only in bursts, and `InterpolationHandler.position()` is not it between them.** It
-  returns the DRAWN position once the lerp steps run out (javap 26.1.2), and a vanilla bat flaps on the client in between, so
-  BatLog's first sim run summed those steps and read 0.53-0.84 b/t for a bat flying 1.02, and "curved" for straight shots
-  (2026-10-20). Keep the last target yourself, sample only new positions, and fit speed over them (`autoclear/BatLog`).
-- **Spotify's local sources name only the FIRST artist.** The window title and Windows' media session both said "Rosa Walton" for a track Spotify credits to "Rosa Walton, Hallie Coggins" (2026-10-20), and lrclib's search returned another recording (3:59 against Spotify's 4:06) whose line times were all wrong. Lyrics are matched by title, artist containment and Spotify's length within 2 s (`LyricsEngine.pickVersion`, plus lrclib's `/api/get` with the duration); the length and position come from `spotify/SpotifyMediaSession`, a PowerShell reader of the System Media Transport Controls, because the window title has no clock.
-- **The instance `SoundManager.play` is handed is not resolved yet, so its `getPitch()` and `getVolume()` throw** (null
-  `Sound`, javap 26.1.2). Sound Effects read `at.getPitch()` there, the catch handed back the game's sound, and no effect ever
-  played (2026-10-20). Call `resolve(soundManager)` on it first, or read neither. Proof that a swap reached the engine: a
-  `SoundEventListener` (testkit 99-sim-sound-effects) is told before the muted client's zero-volume skip.
-- **On Windows a tmp-then-`Files.move(REPLACE_EXISTING)` save fails while anything else has the target open**
-  (FileAlreadyExistsException), and a writer that only logs that has lost the save. The Croesus run file lost pages 2 and
-  3 across a restart that way (testkit 890, 2026-10-22). `CroesusRunMemory.replace` writes the file in place when the
-  replace is refused; other savers with the same pattern (RunHistoryStore, BestFriendsStore, GraphRepository...) still drop it.
-- **A wait that ends on "the confirm page is open" must not end on the one it just clicked.** That page stays open until the
-  server answers, so the Bazaar Flip autopilot read its own clicked Confirm Instant Buy as a new question, dropped its
-  wait, and bought from the reopened Instant Buy page a second time (testkit 2762, 2026-10-22). Key such a wait on the
-  clicked page's container id.
-- **A setting file in `other/` was never in a profile.** `ModPaths.settingFiles` took only `<category>/<feature>/file`, and a
-  name with no table row lives at `other/file`, one level up, so Zoom, Cape, Legit GFS, Streamer and Mod Users never rode in
-  profiles (testkit 320 caught it as an import holding one file more than its source, 2026-10-25). It now takes `other/file` too.
