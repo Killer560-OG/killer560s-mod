@@ -60,17 +60,20 @@ public final class BlinkCharge {
     /** Re-entry from our own sends (the stash, the shot's ticks) passes straight through. */
     private static boolean passing;
     /**
-     * The answers to the server's pings, held while charging (2026-10-25). GrimAC measures how far behind real time he is
-     * from the last ping he answered when a tick next arrives (Timer/TimerLimit lastMovementPlayerClock, javap): answered
+     * The answers to the server's pings, each sent {@link #ANSWER_DELAY_MS} after it was made while Charge is on (killer560,
+     * 2026-10-25: the charge must never be dropped for time). GrimAC measures how far behind real time he may be from the
+     * last ping he answered when a tick next arrives (Timer / TimerLimit lastMovementPlayerClock, javap 2.3.74): answered
      * live, every tick sent while charging - a lever's, a dig's, or a normal one once the bank is full - brought that clock
-     * to the present and the bank was gone (testkit 1025-blink-charge, first run: every shot flagged Timer). Held, the
-     * clock stays where the charge began, the bank survives those ticks, and he is never more than Max Ticks behind. They go
-     * out, in order, right after the shot. Grim kicks at 60 s of unanswered pings (max-transaction-time), so past
-     * {@link #ANSWER_HOLD_MAX_MS} they go out and the bank starts again.
+     * to the present and the bank was gone (testkit 1025-blink-charge, first run: every shot flagged Timer). With every
+     * answer a steady second late, that clock is always a second old, so TimerLimit's own floor (real time - 1000 ms
+     * ping-abuse-limit - 120 ms drift) is what binds and a full bank is always allowed; every answer still goes within a
+     * second, far inside Grim's 60 s max-transaction-time. To Grim he is a player with a second of ping. In order, always.
      */
-    private static final ArrayDeque<Held> answers = new ArrayDeque<>();
-    private static long answersSinceMs;
-    private static final long ANSWER_HOLD_MAX_MS = 30_000L;
+    private record Answer(Held held, long madeMs) {
+    }
+
+    private static final ArrayDeque<Answer> answers = new ArrayDeque<>();
+    static final long ANSWER_DELAY_MS = 1050L;
     private static long answersHeldTotal;
 
     private static long shots;
@@ -94,10 +97,7 @@ public final class BlinkCharge {
                 return false;
             }
             if (packet instanceof net.minecraft.network.protocol.common.ServerboundPongPacket) {
-                if (answers.isEmpty()) {
-                    answersSinceMs = System.currentTimeMillis();
-                }
-                answers.addLast(new Held(packet, listener, flush));
+                answers.addLast(new Answer(new Held(packet, listener, flush), System.currentTimeMillis()));
                 answersHeldTotal++;
                 return true;
             }
@@ -155,17 +155,32 @@ public final class BlinkCharge {
         return dx * dx + dy * dy + dz * dz < 1.0E-8;
     }
 
-    /** Sends the held ping answers in order. The bank is spent with them: the server's clock now sees the present. */
+    /** Sends every held ping answer, in order (Charge switching off). */
     private static int releaseAnswersLocked() {
         int n = 0;
         if (connection != null && connection.isConnected()) {
             while (!answers.isEmpty()) {
-                sendLocked(answers.pollFirst());
+                sendLocked(answers.pollFirst().held());
                 n++;
             }
         }
         answers.clear();
         return n;
+    }
+
+    /** Sends the answers that have waited their second, in order. Render thread, each tick start. */
+    private static void releaseDueAnswersLocked(long now) {
+        if (connection == null || !connection.isConnected()) {
+            return;
+        }
+        boolean any = false;
+        while (!answers.isEmpty() && now - answers.peekFirst().madeMs() >= ANSWER_DELAY_MS) {
+            sendLocked(answers.pollFirst().held());
+            any = true;
+        }
+        if (any) {
+            connection.flushChannel();
+        }
     }
 
     private static void sendLocked(Held h) {
@@ -217,16 +232,8 @@ public final class BlinkCharge {
             reset("new connection");
             return false;
         }
-        if (!answers.isEmpty() && System.currentTimeMillis() - answersSinceMs > ANSWER_HOLD_MAX_MS) {
-            int n;
-            int lost;
-            synchronized (LOCK) {
-                lost = banked;
-                banked = 0;
-                n = releaseAnswersLocked();
-            }
-            LOGGER.info("[Blink] charge: {} ping answer(s) held {} s - sent before GrimAC's 60 s timeout; {} banked tick(s) "
-                    + "start again", n, ANSWER_HOLD_MAX_MS / 1000, lost);
+        synchronized (LOCK) {
+            releaseDueAnswersLocked(System.currentTimeMillis());
         }
         boolean moveKey = movementKeyDown(client);
         boolean shootNow = banked > 0 && (!want || (BlinkConfig.getInstance().isShootOnMove() && moveKey
@@ -276,9 +283,6 @@ public final class BlinkCharge {
                 player.tick();
                 connection.send(ServerboundClientTickEndPacket.INSTANCE);
                 ran++;
-            }
-            synchronized (LOCK) {
-                releaseAnswersLocked();
             }
             connection.flushChannel();
         } finally {
@@ -337,15 +341,8 @@ public final class BlinkCharge {
 
     private static long spentTicks;
 
-    /** After a run of {@link #spendTick}: the held ping answers go and what is left of the bank is spent with them. */
+    /** After a run of {@link #spendTick}. What is left of the bank stays: the answers keep their steady delay. */
     public static void endSpend() {
-        synchronized (LOCK) {
-            if (!active) {
-                return;
-            }
-            releaseAnswersLocked();
-            banked = 0;
-        }
     }
 
     public static long answersHeldTotal() {
