@@ -45,7 +45,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
     private static final int PRIMARY_BORDER_HOVER = 0xFFFFA040;
     private static final int PRIMARY_BG = 0xFF4A2A08;
     private static final int PRIMARY_BG_HOVER = 0xFF63380B;
-    /** The {@link Builder#danger()} style: a red box for a destructive action waiting on its confirming click
+    /** The {@link Builder#danger(boolean)} style: a red box for a destructive action waiting on its confirming click
      *  (killer560, 2026-10-11: "if i press the reset button it then turns red when it asks if you want to reset it"). */
     private static final int DANGER_BORDER = 0xFFCC2222;
     private static final int DANGER_BORDER_HOVER = 0xFFFF4444;
@@ -98,12 +98,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         return toggled;
     }
 
-    /** Makes this a toggle chip in the given state (or an ordinary button again with null). */
-    public void setToggleState(Boolean on) {
-        this.toggled = on;
-    }
-
-    /** Whether this was built with {@link Builder#danger()} (read by the testkit). */
+    /** Whether this was built with {@link Builder#danger(boolean)} on (read by the testkit). */
     public boolean isDanger() {
         return danger;
     }
@@ -197,13 +192,8 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
             return this;
         }
 
-        /** Draws this red: a destructive action asking for its confirming click. Wins over {@link #primary()}. */
-        public Builder danger() {
-            this.danger = true;
-            return this;
-        }
-
-        /** {@link #danger()} when {@code on}, so a two-click button can pass its armed state straight in. */
+        /** Draws this red when {@code on}: a destructive action asking for its confirming click (a two-click button
+         *  passes its armed state straight in). Wins over {@link #primary()}. */
         public Builder danger(boolean on) {
             this.danger = on;
             return this;
@@ -575,18 +565,6 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         graphics.outline(x0, y0, getWidth(), getHeight(), faded(border));
         graphics.centeredText(Minecraft.getInstance().font, getMessage(), x0 + getWidth() / 2,
                 y0 + (getHeight() - 8) / 2, faded(TEXT));
-    }
-
-    /**
-     * Draws a box in this button's style, for a widget that has to be its own class but must look like one of these
-     * (the sim's filter chips, which carry a row and a selected state). {@code selected} is the mod's "this one is
-     * chosen" look: the full-amber border this button shows on hover, kept on, with the label in §6 by the caller.
-     */
-    public static void drawBox(GuiGraphicsExtractor graphics, int x, int y, int w, int h, boolean hovered,
-            boolean selected) {
-        int border = selected ? (hovered ? PRIMARY_BORDER_HOVER : BORDER_HOVER) : (hovered ? BORDER_HOVER : BORDER);
-        graphics.fill(x, y, x + w, y + h, hovered ? BG_HOVER : BG);
-        graphics.outline(x, y, w, h, border);
     }
 
     /**

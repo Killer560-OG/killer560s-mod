@@ -206,12 +206,6 @@ public final class MainMenuChrome {
                 textA), MenuStyle.TEXT_SHADOW);
     }
 
-    /** The footer's "Killer560's Mod <version>" color (accent) and the version line's (dim). */
-    public static int modTagColour() {
-        usePalette();
-        return (MenuStyle.LIGHT ? MenuStyle.OR_DARK : MenuStyle.OR) & 0xFFFFFF;
-    }
-
     public static int dimColour() {
         usePalette();
         return MenuStyle.DIM & 0xFFFFFF;

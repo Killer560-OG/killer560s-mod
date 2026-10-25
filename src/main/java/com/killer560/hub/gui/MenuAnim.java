@@ -93,7 +93,6 @@ public final class MenuAnim {
     /** How many times the clock has moved, and its count when the last input came. */
     private static long clockMoves;
     private static long eventMove = -10L; // no input yet (never MIN_VALUE: the difference would overflow)
-    private static long frames;
 
     /** Samples the clock for this frame. Call once at the top of a frame that draws animated parts. */
     public static void frame() {
@@ -103,7 +102,6 @@ public final class MenuAnim {
             frameNanos = now;
             clockMoves++;
         }
-        frames++;
     }
 
     /**
@@ -132,11 +130,6 @@ public final class MenuAnim {
     /** The current frame's time in nanoseconds (only differences mean anything). */
     public static long now() {
         return frameNanos;
-    }
-
-    /** How many frames have sampled the clock (for the testkit's per-frame allocation measure). */
-    public static long frames() {
-        return frames;
     }
 
     /** Fixes the clock at {@code ms} milliseconds (any origin), or back to the real clock with a negative value. Also
@@ -263,11 +256,6 @@ public final class MenuAnim {
 
         public float target() {
             return to;
-        }
-
-        /** True while it is still on its way. */
-        public boolean moving() {
-            return duration > 0L && frameNanos - start < duration && from != to;
         }
 
         /** Heads for {@code target} from wherever it is now (no-op when that is already the target). The first call

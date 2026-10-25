@@ -344,9 +344,6 @@ public class ModScreen extends Screen {
             paletteScroll = 0;
             computeResults();
         });
-        if (!searchQuery.isBlank()) {
-            computeResults();
-        }
         rebuild();
     }
 
@@ -1203,8 +1200,8 @@ public class ModScreen extends Screen {
     private void keepPaletteSelVisible() {
         if (paletteSel < paletteScroll) {
             paletteScroll = paletteSel;
-        } else if (paletteRowsShown() > 0 && paletteSel >= paletteScroll + paletteRowsShown()) {
-            paletteScroll = paletteSel - paletteRowsShown() + 1;
+        } else if (palRows > 0 && paletteSel >= paletteScroll + palRows) {
+            paletteScroll = paletteSel - palRows + 1;
         }
     }
 
@@ -1734,10 +1731,6 @@ public class ModScreen extends Screen {
         navigateTo(r.tab());
         rebuild();
         scrollGridTo(r.tab());
-    }
-
-    private int paletteRowsShown() {
-        return palRows;
     }
 
     private boolean paletteClick(double mx, double my, int button) {
@@ -2521,7 +2514,6 @@ public class ModScreen extends Screen {
         }
     }
 
-    private AbstractWidget tooltipWidget = null;
     private Object tooltipKey = null;
     private long tooltipHoverSinceMs = 0L;
 
@@ -2559,7 +2551,6 @@ public class ModScreen extends Screen {
         long now = System.currentTimeMillis();
         if (key != tooltipKey) {
             tooltipKey = key;
-            tooltipWidget = hovered;
             tooltipHoverSinceMs = now;
             tooltipShownAt = Long.MIN_VALUE;
         }
@@ -2771,7 +2762,6 @@ public class ModScreen extends Screen {
     private record HomeButton(String label, Runnable action) {
     }
 
-    private static final String HOME_PROFILES = "Profiles";
     private static final String HOME_SWEAT = "Sweat Mode";
 
     /** Home's quick button label under the mouse, or null. Its tooltip is SettingTooltipsData's "home button/<label>". */

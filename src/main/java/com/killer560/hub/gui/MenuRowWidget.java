@@ -33,10 +33,6 @@ public final class MenuRowWidget extends AbstractWidget {
     private final boolean cheatOnly;
     private final Runnable onClick;
 
-    public MenuRowWidget(int x, int y, int width, int height, String label, boolean selected, boolean boxed, Runnable onClick) {
-        this(x, y, width, height, label, selected, boxed, false, onClick);
-    }
-
     /** @param cheatOnly draw the label as a bold red title (see {@link SectionHeaders}) - for tabs that only exist in
      *  the cheat jar. The widget's message stays the plain label, so search/tooltips/narration are unaffected. */
     public MenuRowWidget(int x, int y, int width, int height, String label, boolean selected, boolean boxed, boolean cheatOnly,
