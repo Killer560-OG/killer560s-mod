@@ -18,18 +18,30 @@ final class BlinkRender {
 
     private static void onWorldRender(LevelRenderContext context) {
         try {
-            if (!BlinkFeature.isHolding() || !BlinkConfig.getInstance().isShowServerBox()) {
+            if (!BlinkFeature.isHolding()) {
+                return;
+            }
+            if (!BlinkConfig.getInstance().isShowServerBox()) {
+                BlinkFeature.boxSkip = "Show Server Position is off";
                 return;
             }
             Vec3 p = BlinkFeature.serverPosition();
             if (p == null) {
+                BlinkFeature.boxSkip = "no server position known yet";
                 return;
             }
             AABB box = new AABB(p.x - 0.3, p.y, p.z - 0.3, p.x + 0.3, p.y + 1.8, p.z + 0.3);
             WorldRenderUtils.renderFilledBox(context, box, 1f, 0.2f, 0.2f, 0.18f);
             WorldRenderUtils.renderOutlineBox(context, box, 1f, 0.25f, 0.25f, 0.9f, 2f);
-        } catch (RuntimeException ignored) {
-            // A drawing problem never matters to the hold.
+            BlinkFeature.boxFrames++;
+            BlinkFeature.boxSkip = "drawn";
+        } catch (RuntimeException e) {
+            // A drawing problem never matters to the hold; say what it was once per message.
+            String why = "threw " + e;
+            if (!why.equals(BlinkFeature.boxSkip)) {
+                com.killer560.hub.util.ModLog.get("killer560smod-blink").error("[Blink] server box draw threw", e);
+            }
+            BlinkFeature.boxSkip = why;
         }
     }
 }

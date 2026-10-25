@@ -59,5 +59,8 @@ final class BlinkHud implements HudElement {
             return;
         }
         graphics.text(Minecraft.getInstance().font, text(), x, y, 0xFFFFFFFF, true);
+        if (!editor) {
+            BlinkFeature.hudFrames++;
+        }
     }
 }

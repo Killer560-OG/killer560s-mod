@@ -148,6 +148,12 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Release On Bow/Eat", cfg.isReleaseOnCharge()));
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
+        w.add(SettingsButtonWidget.builder(onOff("Keep Holding Through Teleports", cfg.isSurviveTeleports()), btn -> {
+                    cfg.setSurviveTeleports(!cfg.isSurviveTeleports());
+                    cfg.save();
+                    btn.setMessage(onOff("Keep Holding Through Teleports", cfg.isSurviveTeleports()));
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + 4;
         w.add(SettingsButtonWidget.builder(onOff("Show HUD", cfg.isShowHud()), btn -> {
                     cfg.setShowHud(!cfg.isShowHud());
                     cfg.save();

@@ -96,6 +96,15 @@ public final class BlinkFeature {
 
     /** Where the server last heard he was (the last move packet that actually left), for the box. */
     private static volatile Vec3 serverPos;
+    /** Where the server had him when the current (or last) hold started: a teleport back here is the server refusing it. */
+    private static volatile Vec3 holdStartServerPos;
+    /** Teleports held through, and holds the server refused (set back to where they started), for the testkit and log. */
+    private static long teleportsHeld;
+    private static long refused;
+    /** Frames the HUD line and the server box were actually drawn, and why the box last was not (diagnostics). */
+    static volatile long hudFrames;
+    static volatile long boxFrames;
+    static volatile String boxSkip = "never asked";
     private static int ticksSinceRelease = Integer.MAX_VALUE;
 
     /** Totals since the game started, for the testkit and the log. */
@@ -316,6 +325,7 @@ public final class BlinkFeature {
             heldMoves = 0;
             holdStartMs = System.currentTimeMillis();
             holdOwner = owner;
+            holdStartServerPos = serverPos;
             holding = true;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -423,18 +433,66 @@ public final class BlinkFeature {
      */
     public static void onServerPosition(Vec3 from, Vec3 to) {
         boolean wasHolding = holding;
-        if (wasHolding) {
-            release("server teleport");
-        }
         double dist = from == null || to == null ? 0 : from.distanceTo(to);
+        // The server putting him back where a blink started is the server refusing that blink: what is held is no use
+        // to it (it ignores moves until its teleport is accepted), so the blink is dropped, honored, never fought.
+        Vec3 start = holdStartServerPos;
+        boolean backToStart = start != null && to != null && dist > RUBBERBAND_BLOCKS && to.distanceTo(start) < 0.5;
+        if (wasHolding && BlinkConfig.getInstance().isSurviveTeleports() && !backToStart) {
+            // An etherwarp landing, a leap, a lag-back to somewhere new: keep holding. The accept vanilla answers with goes
+            // into the queue in its place, so on release the server sees a client that got the teleport late - every
+            // held move before the accept is ignored by it, every one after starts from the new spot.
+            teleportsHeld++;
+            LOGGER.info(String.format(java.util.Locale.ROOT, "[Blink] server moved him %.2f blocks to %s while holding (%d "
+                    + "tick(s) in) - kept holding, the accept goes out in order; teleport #%d held through", dist, fmt(to),
+                    heldTicks, teleportsHeld));
+            if (to != null) {
+                serverPos = to;
+            }
+            return;
+        }
         if (wasHolding) {
+            // A refusal drops the held moves and tick-ends (the server ignores moves until its setback is accepted, and
+            // sent they would still count against the timer); everything else still goes, in order.
+            synchronized (LOCK) {
+                releaseLocked(backToStart ? "server set him back to the blink's start - blink dropped" : "server teleport",
+                        backToStart);
+            }
+        }
+        if (backToStart) {
+            refused++;
+            ServerCorrections.report("Blink", "the server refused a blink and put you back where it started - dropped, "
+                    + "carrying on", dist);
+        } else if (wasHolding) {
             ServerCorrections.report("Blink", "while holding - released, carrying on", dist);
         } else if (ticksSinceRelease <= RUBBERBAND_WATCH_TICKS && dist > RUBBERBAND_BLOCKS) {
-            ServerCorrections.report("Blink", ticksSinceRelease + " tick(s) after a release - carrying on", dist);
+            // A teleport soon after a release that is not back to the blink's start: an etherwarp landing, a leap. Logged.
+            LOGGER.info(String.format(java.util.Locale.ROOT, "[Blink] server moved him %.2f blocks to %s %d tick(s) after a "
+                    + "release - not back to the blink's start, not a refusal", dist, fmt(to), ticksSinceRelease));
         }
         if (to != null) {
             serverPos = to;
         }
+    }
+
+    public static long teleportsHeld() {
+        return teleportsHeld;
+    }
+
+    public static long refused() {
+        return refused;
+    }
+
+    public static long hudFrames() {
+        return hudFrames;
+    }
+
+    public static long boxFrames() {
+        return boxFrames;
+    }
+
+    public static String boxSkip() {
+        return boxSkip;
     }
 
     /** A login or respawn packet: a new world. What is held is released except its moves and tick-ends; the blink ends. */

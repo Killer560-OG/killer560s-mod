@@ -75,6 +75,8 @@ public final class BlinkConfig {
     private boolean releaseOnDig = true;
     /** Release before a charged item use starts or ends (bow, food, shield...; see BlinkFeature). */
     private boolean releaseOnCharge = true;
+    /** Keep holding through a server teleport (an etherwarp landing, a leap, a lag-back): its accept goes in the queue. */
+    private boolean surviveTeleports = true;
 
     private BlinkConfig() {
     }
@@ -102,6 +104,7 @@ public final class BlinkConfig {
                 cfg.releaseOnHit = ConfigJson.getBool(obj, "releaseOnHit", cfg.releaseOnHit);
                 cfg.releaseOnDig = ConfigJson.getBool(obj, "releaseOnDig", cfg.releaseOnDig);
                 cfg.releaseOnCharge = ConfigJson.getBool(obj, "releaseOnCharge", cfg.releaseOnCharge);
+                cfg.surviveTeleports = ConfigJson.getBool(obj, "surviveTeleports", cfg.surviveTeleports);
             } catch (Exception e) {
                 cfg = new BlinkConfig();
             }
@@ -124,6 +127,7 @@ public final class BlinkConfig {
             obj.addProperty("releaseOnHit", releaseOnHit);
             obj.addProperty("releaseOnDig", releaseOnDig);
             obj.addProperty("releaseOnCharge", releaseOnCharge);
+            obj.addProperty("surviveTeleports", surviveTeleports);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -215,5 +219,13 @@ public final class BlinkConfig {
 
     public void setReleaseOnCharge(boolean releaseOnCharge) {
         this.releaseOnCharge = releaseOnCharge;
+    }
+
+    public boolean isSurviveTeleports() {
+        return surviveTeleports;
+    }
+
+    public void setSurviveTeleports(boolean surviveTeleports) {
+        this.surviveTeleports = surviveTeleports;
     }
 }
