@@ -102,11 +102,6 @@ public final class SimDoors {
         return CARVED.contains(at);
     }
 
-    /** How many positions the carves opened on this floor. */
-    public static int carvedCount() {
-        return CARVED.size();
-    }
-
     private static final List<Door> DOORS = new CopyOnWriteArrayList<>();
 
     /** Reverse lookup so a right-click on any one of a door's blocks finds the whole door in O(1). */
