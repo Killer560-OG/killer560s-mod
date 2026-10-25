@@ -541,7 +541,7 @@ final class ExperimentSolver {
         return m.group(1) + " " + level;
     }
 
-    private static final java.util.regex.Pattern SECTION_CODE = java.util.regex.Pattern.compile("§.");
+    static final java.util.regex.Pattern SECTION_CODE = java.util.regex.Pattern.compile("§.");
     private static final java.util.regex.Pattern XP_AMOUNT =
             java.util.regex.Pattern.compile("^([\\d.,]+[kKmM]?)\\b");
 
