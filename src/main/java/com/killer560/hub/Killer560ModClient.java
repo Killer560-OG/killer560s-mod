@@ -248,6 +248,8 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(com.killer560.hub.blessings.BlessingsFeature.HUD);
         com.killer560.hub.maxor.MaxorCrystalsFeature.register();
         HudElementRegistry.register(com.killer560.hub.maxor.MaxorCrystalsFeature.HUD);
+        com.killer560.hub.bosshealth.BossHealthFeature.register();
+        HudElementRegistry.register(com.killer560.hub.bosshealth.BossHealthFeature.HUD);
         com.killer560.hub.ragaxe.RagAxeFeature.register();
         com.killer560.hub.ragaxe.RagAxeFeature.hudElements().forEach(HudElementRegistry::register);
         com.killer560.hub.scorecalc.ScoreCalculatorFeature.register();

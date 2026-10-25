@@ -1777,6 +1777,11 @@ final class SettingTooltipsData {
         d.put("item rarity backgrounds/skyblock only", "Only colors items while you are on Hypixel or p3sim; OFF also colors them on other servers.");
         d.put("leap menu", "Spirit Leap settings: the custom leap menu, its Leap Order editor, and the party message sent after you leap.");
         d.put("mapping", "Dungeon-map research tools that dump the raw pixels of the map you are holding.");
+        d.put("boss health", "Shows the health of whichever Catacombs boss is up, F1 to M7, and its minions.");
+        d.put("boss health/boss health", "Shows a movable line with each boss's current health while you are in the boss room.");
+        d.put("boss health/show max health", "Adds the boss's full health after its current health.");
+        d.put("boss health/show percent", "Adds how much health is left as a percent.");
+        d.put("boss health/show minions", "Also shows the Guardians, Scarf's undead and Sadan's giants.");
         d.put("maxor's crystals", "Phase 1 crystal helpers: timers, an unplaced-crystal warning, a counter and crystal boxes.");
         d.put("object hider/object hider", "Object Hider as a whole - off, nothing here hides anything (No Fire Overlay included), whatever the switches below say.");
         d.put("object hider", "Hides clutter such as fairies, support orbs, particles and dying dragons.");
