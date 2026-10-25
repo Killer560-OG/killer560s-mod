@@ -226,15 +226,6 @@ public final class SimTerminator {
         tickCounter++;
     }
 
-    public static boolean isSalvationArmed() {
-        return salvationArmed;
-    }
-
-    /** Distinct mobs hit since Salvation last fired. For tests, which cannot see the set itself. */
-    public static int mobsHit() {
-        return MOBS_HIT.size();
-    }
-
     /** Arrow entities put in the world since {@link #reset}. A shot that fired nothing cannot hide behind this. */
     public static int arrowsFired() {
         return arrowsFired;
