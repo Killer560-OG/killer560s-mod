@@ -356,14 +356,6 @@ public final class SimFloorLayout {
      */
     private static final long RETRY_BUDGET_NANOS = 400_000_000L;
 
-    /** Blind carves (a door through a wall with no walkable floor behind it) the fill pass wanted and was refused - only
-     *  goes up; read by the testkit, which also counts the "NOT a walkable cut" note that must never appear again. */
-    private static final java.util.concurrent.atomic.AtomicInteger BLIND_REFUSED = new java.util.concurrent.atomic.AtomicInteger();
-
-    public static int blindCarvesRefused() {
-        return BLIND_REFUSED.get();
-    }
-
     /** The one attempt loop both {@link #generate} overloads use. {@code pinned} may be null or empty. */
     private static PinnedFloor run(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
                                    int puzzles, int roomsToBlood, Map<Integer, String> pinned, Random rng) {
@@ -562,7 +554,7 @@ public final class SimFloorLayout {
             // need be (an Entrance floor whose long path is all big rooms reaches its 19 cells with no 1x1 left).
             Filler f = new Filler(floor, pool, 0, best.reached(), rng);
             f.only = c -> isTrap(c.name(), c.type());
-            if (f.strictOnce() || f.carveOnce() || f.carveOnce(false)) {
+            if (f.strictOnce() || f.carveOnce()) {
                 LOGGER.info("Sim floor: the trap went into an empty cell");
                 floor = new Floor(f.rooms, f.links, f.open, floor.bloodDepth(), floor.spine());
             } else {
@@ -750,8 +742,6 @@ public final class SimFloorLayout {
                 carved++;
             } else if (f.rewireOnce(true)) {
                 rewired++;
-            } else if (f.carveOnce(false)) {
-                carved++;
             } else {
                 break;
             }
@@ -977,9 +967,12 @@ public final class SimFloorLayout {
         /**
          * Step 3: a 1x1 whose own doorway faces a neighbor, the door carved through that neighbor's wall - only
          * where the cut lands on floor he can walk (RoomDoors.carvable), and of every such wall on the floor the one
-         * with the least wall behind its plane ({@link RoomDoors#carveCost}). {@link #carveOnce(boolean)} with false is
-         * the last resort that carves anyway, so the cell, trap and puzzle guarantees hold as they did. Never into a
-         * room {@link #isDeadEnd} - that cut would be its second door.
+         * with the least wall behind its plane ({@link RoomDoors#carveCost}). Never into a room {@link #isDeadEnd} -
+         * that cut would be its second door.
+         *
+         * <p>Never a door he cannot walk through. A blind carve once put Cell's only door into a wall, no warp or walk
+         * reached it, and Auto Secret skipped the room. A floor that needed one is laid out again (run's
+         * FLOOR_RETRIES), and if none can do without, the floor is kept a room short instead.
          *
          * <p>Thinnest first because every carve is a doorway the capture does not have, and a thick one is a tunnel through
          * a decorated wall: Quad Lava's east wall is three thick behind a red terracotta panel, and the first walkable
@@ -987,21 +980,6 @@ public final class SimFloorLayout {
          * four carves in five (1,302 of 1,658 over a 2,240-floor sweep) cut more than a one-thick wall.
          */
         boolean carveOnce() {
-            return carveOnce(true);
-        }
-
-        /** How many doors were carved without a walkable floor behind them (the unchecked last resort). */
-        int carvedBlind;
-
-        boolean carveOnce(boolean checked) {
-            if (!checked) {
-                // Never a door he cannot walk through. The blind carve put Cell at 5,5 "through Scaffolding (NOT a
-                // walkable cut - nothing else fitted)": Cell's only door led into a wall, no warp or walk reached it,
-                // and Auto Secret skipped the room (fullclear-1016 run 017). A floor that needed one is laid out again
-                // (run's FLOOR_RETRIES), and if none can do without, the floor is kept a room short instead.
-                BLIND_REFUSED.incrementAndGet();
-                return false;
-            }
             int bestCost = Integer.MAX_VALUE;
             int bestCell = -1;
             int bestTry = -1;
@@ -1022,7 +1000,7 @@ public final class SimFloorLayout {
                         // of the back of it, only the one entrance").
                         continue;
                     }
-                    int cost = checked ? carveCostFrom(nb, cx, cz, side) : 0;
+                    int cost = carveCostFrom(nb, cx, cz, side);
                     if (cost < 0) {
                         continue;   // the cut would open onto a wall, a platform or a drop - RoomDoors.carvable
                     }
@@ -1048,11 +1026,8 @@ public final class SimFloorLayout {
                             break;
                         }
                     }
-                    if (!checked && bestRoom != null) {
-                        break;   // the blind carve keeps its old order: the first that fits
-                    }
                 }
-                if ((!checked || bestCost == 0) && bestRoom != null) {
+                if (bestCost == 0 && bestRoom != null) {
                     break;   // nothing beats a wall the cut comes straight through
                 }
             }
@@ -1065,9 +1040,7 @@ public final class SimFloorLayout {
             Placement nb = at(cx + RoomDoors.DX[side], cz + RoomDoors.DZ[side]);
             commitFill(bestRoom, bestRotation, cx, cz, side);
             carvedNotes.add(bestRoom.name() + " at " + cx + "," + cz + " through " + nb.name()
-                    + (checked ? (bestCost == 0 ? "" : " (" + bestCost + " blocks behind its wall)")
-                    : " (NOT a walkable cut - nothing else fitted)"));
-            carvedBlind += checked ? 0 : 1;
+                    + (bestCost == 0 ? "" : " (" + bestCost + " blocks behind its wall)"));
             return true;
         }
 
@@ -1293,7 +1266,7 @@ public final class SimFloorLayout {
             Filler f = new Filler(out, pool, wanted, pinnedNames, rng);
             f.only = c -> "PUZZLE".equalsIgnoreCase(c.type());
             int added = 0;
-            while (f.puzzlesOwed > 0 && (f.strictOnce() || f.carveOnce() || f.carveOnce(false))) {
+            while (f.puzzlesOwed > 0 && (f.strictOnce() || f.carveOnce())) {
                 added++;
             }
             have += added;
