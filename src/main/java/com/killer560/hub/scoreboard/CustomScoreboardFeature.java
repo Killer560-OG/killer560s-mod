@@ -306,9 +306,7 @@ public final class CustomScoreboardFeature {
                     String.valueOf(client.getConnection().getListedOnlinePlayers().size()), "§a")));
         }
         out.add(ScoreboardLine.of(""));
-        for (String part : cfg.getCustomFooter().replace("&&", "§").split("\\\\n")) {
-            out.add(new ScoreboardLine(part, cfg.getFooterAlignment()));
-        }
+        ScoreboardLine.addCustomText(out, cfg.getCustomFooter(), cfg.getFooterAlignment());
         List<ScoreboardLine> trimmed = trimBlankEdges(out);
         titleRows[0] = leadingTitleRows(trimmed, title);
         return trimmed;

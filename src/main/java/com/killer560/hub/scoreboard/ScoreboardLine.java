@@ -26,6 +26,13 @@ public record ScoreboardLine(String text, Align align, List<String> hover, Strin
         return new ScoreboardLine(text, CustomScoreboardConfig.getInstance().getTextAlignment());
     }
 
+    /** Adds one line per {@code \n}-separated part of a custom title or footer, with {@code &&} as the color sign. */
+    static void addCustomText(List<ScoreboardLine> out, String raw, Align align) {
+        for (String part : raw.replace("&&", "§").split("\\\\n")) {
+            out.add(new ScoreboardLine(part, align));
+        }
+    }
+
     public boolean isBlank() {
         return text == null || text.isBlank();
     }
