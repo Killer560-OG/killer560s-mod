@@ -502,7 +502,6 @@ public final class RoomLibrary {
         synchronized (RoomLibrary.class) {
             loaded = false;
             loading = false;
-            readSoFar = 0;
         }
         // The measured doorways belong to the rooms that are about to be replaced, so they go too - a mask
         // that outlived its room would lay the next floor out against geometry that is no longer there.
@@ -517,12 +516,6 @@ public final class RoomLibrary {
     /** Whether the library has finished loading. */
     public static synchronized boolean isReady() {
         return loaded;
-    }
-
-    /** Rooms read so far, for a progress line while it loads. */
-    /** Reads a volatile counter rather than the map, so a progress line never waits on the loader. */
-    public static int loadedSoFar() {
-        return readSoFar;
     }
 
     private static volatile boolean loading;
@@ -565,7 +558,6 @@ public final class RoomLibrary {
                         Room r = fromJson(json);
                         if (r != null) {
                             fresh.put(r.name, r);
-                            readSoFar = fresh.size();
                         }
                     } catch (Exception e) {
                         // The exception CLASS, not the exception. Gson puts the text it failed to parse into
@@ -696,7 +688,6 @@ public final class RoomLibrary {
                 b.fromJar = true;
                 if (disk == null) {
                     fresh.put(b.name, b);
-                    readSoFar = fresh.size();
                 } else if (b.usable()) {
                     // The measured case: an old-footprint or half-captured local room was hiding a good one.
                     fresh.put(b.name, b);
@@ -719,9 +710,6 @@ public final class RoomLibrary {
         }
     }
 
-    /** Rooms read so far by an in-progress load, for a progress line. Written by the loader thread only. */
-    private static volatile int readSoFar;
-
     /**
      * Rooms built in code, kept apart from captured ones.
      *
@@ -737,11 +725,6 @@ public final class RoomLibrary {
         Room r = new Room(name, sizeX, sizeZ);
         TEST_ROOMS.put(name, r);
         return r;
-    }
-
-    /** Forgets every synthetic room. One call, for when the real scanning starts. */
-    public static synchronized void clearTestRooms() {
-        TEST_ROOMS.clear();
     }
 
     /** Whether a room of this name is known, captured or synthetic. */
@@ -838,11 +821,6 @@ public final class RoomLibrary {
             }
         }
         return n;
-    }
-
-    /** The user library folder, where a disk capture beats the shipped copy of the same room. */
-    public static Path libraryDir() {
-        return DIR;
     }
 
     /** A room's file name in the library, the shape every capture has been saved under ({@code Arrow_Trap.json}). */
