@@ -5,9 +5,7 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.livemap.LiveMapConfig;
 import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -102,8 +100,7 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             // ---------------------------------------------------------------- automation (was "Teleport Pathing")
             // killer560: "the entire portion of interactive map is the teleport pathing" - no on/off of its own
             // any more; these settings run whenever Interactive Map itself is on.
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    SectionHeaders.header("Automation", true), Minecraft.getInstance().font));
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Automation", true));
             y += 16;
             // killer560: "The button prebound as lmb and rmb should be customizable in settings, those are the
             // ones currently under start key and locked door key" - both now take a mouse button (see
@@ -148,8 +145,7 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             y += 24;
 
             // ---------------------------------------------------------------- etherwarp path preview
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    SectionHeaders.header("Etherwarp Path", true), Minecraft.getInstance().font));
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Etherwarp Path", true));
             y += 16;
             widgets.add(LiveMapTab.toggle("Show Etherwarp Path", cfg::isShowEtherwarpPathRaw, cfg::setShowEtherwarpPath,
                     cfg, contentX, y, contentWidth));
@@ -158,8 +154,7 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
 
         // ---------------------------------------------------------------- auto blood rush (killer560: "Move auto
         // blood rush into its own section")
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Auto Blood Rush", true), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Auto Blood Rush", true));
         y += 16;
         widgets.add(SettingsButtonWidget.builder(LiveMapTab.onOff("Auto Blood Rush", cfg.isBloodRushEnabledRaw()), btn -> {
                     cfg.setBloodRushEnabled(!cfg.isBloodRushEnabledRaw());

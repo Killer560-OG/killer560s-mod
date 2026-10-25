@@ -26,12 +26,15 @@ public record ScoreboardLine(String text, Align align, List<String> hover, Strin
         return new ScoreboardLine(text, CustomScoreboardConfig.getInstance().getTextAlignment());
     }
 
-    public boolean isBlank() {
-        return text == null || text.isBlank();
+    /** Adds one line per {@code \n}-separated part of a custom title or footer, with {@code &&} as the color sign. */
+    static void addCustomText(List<ScoreboardLine> out, String raw, Align align) {
+        for (String part : raw.replace("&&", "§").split("\\\\n")) {
+            out.add(new ScoreboardLine(part, align));
+        }
     }
 
-    public boolean hasActions() {
-        return (hover != null && !hover.isEmpty()) || command != null;
+    public boolean isBlank() {
+        return text == null || text.isBlank();
     }
 
     /** Copy with tooltip lines and/or a click command (either may be null). */

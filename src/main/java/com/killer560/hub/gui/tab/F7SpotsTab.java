@@ -17,7 +17,6 @@ import com.killer560.hub.util.ModChat;
 import com.killer560.hub.witherdragons.P5State;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -79,7 +78,7 @@ public class F7SpotsTab extends BaseTab {
         // its own switch, and the card is ON while either is.
 
         // ---- Walk-to waypoints ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Walk-To Waypoints", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Walk-To Waypoints", false));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Walk Waypoints", cfg::getWalkWaypointsRaw, cfg::setWalkWaypoints));
         widgets.add(colorButton(col2X, y, colW, "Waypoint Color", cfg.getWalkColor(), F7SpotsConfig.DEFAULT_WALK_COLOR,
@@ -126,7 +125,7 @@ public class F7SpotsTab extends BaseTab {
         y += 28;
 
         // ---- Aim spots ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Last Breath Aim Spots", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Last Breath Aim Spots", false));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Aim Spots", cfg::getAimSpotsRaw, cfg::setAimSpots));
         widgets.add(colorButton(col2X, y, colW, "Aim Spot Color", cfg.getAimColor(), F7SpotsConfig.DEFAULT_AIM_COLOR,
@@ -269,14 +268,6 @@ public class F7SpotsTab extends BaseTab {
     }
 
     private static AbstractWidget toggle(int x, int y, int width, String label, BooleanSupplier getter, Consumer<Boolean> setter) {
-        return SettingsButtonWidget.builder(onOff(label, getter.getAsBoolean()), btn -> {
-            setter.accept(!getter.getAsBoolean());
-            F7SpotsConfig.getInstance().save();
-            btn.setMessage(onOff(label, getter.getAsBoolean()));
-        }).bounds(x, y, width, 18).build();
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
+        return onOffButton(label, getter, setter, () -> F7SpotsConfig.getInstance().save(), null, x, y, width, 18);
     }
 }

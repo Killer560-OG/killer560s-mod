@@ -2,7 +2,6 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.lightsdevice.LightsDeviceConfig;
 import com.killer560.hub.lightsdevice.LightsDeviceFeature;
 import net.minecraft.client.Minecraft;
@@ -103,42 +102,20 @@ public class LightsDeviceTab extends BaseTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String text) {
         y[0] += 6;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(text, true), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, text, true));
         y[0] += 16;
     }
 
     /** ON/OFF toggle button; a non-null {@code rebuild} rebuilds the tab (used by the two switches). */
     private static void toggle(List<AbstractWidget> w, int x, int[] y, String name, Supplier<Boolean> getter,
                                Consumer<Boolean> setter, Runnable rebuild) {
-        w.add(SettingsButtonWidget.builder(onOff(name, getter.get()), btn -> {
-            setter.accept(!getter.get());
-            LightsDeviceConfig.getInstance().save();
-            if (rebuild != null) {
-                rebuild.run();
-            } else {
-                btn.setMessage(onOff(name, getter.get()));
-            }
-        }).bounds(x, y[0], BTN_W, 20).build());
+        w.add(onOffButton(name,
+                getter::get, setter, () -> LightsDeviceConfig.getInstance().save(), rebuild, x, y[0], BTN_W, 20));
         y[0] += 24;
-    }
-
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
     }
 
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,
                                DoubleConsumer apply) {
-        w.add(new ThemedSliderButton(x, y, width, 20, Component.literal(text.get()), Math.max(0.0, Math.min(1.0, normalized))) {
-            @Override
-            protected void updateMessage() {
-                setMessage(Component.literal(text.get()));
-            }
-
-            @Override
-            protected void applyValue() {
-                apply.accept(this.value);
-                saveOnRelease(() -> LightsDeviceConfig.getInstance().save());
-            }
-        });
+        w.add(normSlider(x, y, width, 20, text, normalized, apply, () -> LightsDeviceConfig.getInstance().save()));
     }
 }

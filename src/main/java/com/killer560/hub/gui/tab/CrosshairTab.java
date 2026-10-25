@@ -74,11 +74,8 @@ public class CrosshairTab extends BaseTab {
         int half = (sw - COL_GAP) / 2;
 
         header(w, sx, y, sw, "Crosshair");
-        w.add(SettingsButtonWidget.builder(onOff("Custom Crosshair", cfg.isEnabledRaw()), btn -> {
-            cfg.setEnabled(!cfg.isEnabledRaw());
-            cfg.save();
-            requestRebuild.run();
-        }).bounds(sx, y[0], sw, ROW).build());
+        w.add(onOffButton("Custom Crosshair", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, sx, y[0], sw, ROW));
         y[0] += STEP;
         w.add(cycle("Style", () -> cfg.getStyle().label, dir -> {
             Style[] v = Style.values();
@@ -291,12 +288,8 @@ public class CrosshairTab extends BaseTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 14;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
     /** An ON/OFF row. {@code rebuild} non-null when the switch shows or hides other rows. */

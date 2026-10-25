@@ -85,8 +85,4 @@ public class SmoothTeleportTab extends BaseTab {
     private static Component durationText(SmoothTeleportConfig cfg) {
         return Component.literal("Duration: " + cfg.getDurationMs() + " ms");
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

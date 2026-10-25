@@ -66,11 +66,8 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         LoadoutKeybindsConfig cfg = LoadoutKeybindsConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Loadout Keybinds", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Loadout Keybinds", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         // killer560, 2026-10-13: "a button to open loadouts (the button should run /loadouts)". Hypixel's command, sent
@@ -136,10 +133,6 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
     /** Sends {@code /loadouts} to the server; true if it went (false with no connection). */
     public static boolean openLoadouts() {
         return com.killer560.hub.util.ServerCommands.toServer("loadouts");
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
     /** A slot's mode button's label; the testkit finds it by "Slot N Mode". */

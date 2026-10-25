@@ -392,8 +392,7 @@ public class HealthAndManaBarsTab extends BaseTab {
 
     private static void header(List<AbstractWidget> widgets, int x, int width, int[] y, String title) {
         y[0] += 4;
-        widgets.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false),
-                Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 16;
     }
 
@@ -406,15 +405,7 @@ public class HealthAndManaBarsTab extends BaseTab {
 
     private static void toggle(List<AbstractWidget> widgets, int x, int y, int width, String label,
                                BooleanSupplier get, Consumer<Boolean> set, Runnable save, Runnable rebuildOrNull) {
-        widgets.add(SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {
-                    set.accept(!get.getAsBoolean());
-                    save.run();
-                    if (rebuildOrNull != null) {
-                        rebuildOrNull.run();
-                    } else {
-                        btn.setMessage(onOff(label, get.getAsBoolean()));
-                    }
-                }).bounds(x, y, Math.max(1, width), ROW_H).build());
+        widgets.add(onOffButton(label, get, set, save, rebuildOrNull, x, y, Math.max(1, width), ROW_H));
     }
 
     private static void colour(List<AbstractWidget> widgets, int x, int y, int width, String label, int argb,
@@ -453,9 +444,5 @@ public class HealthAndManaBarsTab extends BaseTab {
             s.steps(steps);
         }
         widgets.add(s);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

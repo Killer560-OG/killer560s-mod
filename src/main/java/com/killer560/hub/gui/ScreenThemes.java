@@ -23,7 +23,6 @@ import java.util.Map;
  * {@link #DEFAULT} ("Theme Default": follows the mod menu's theme, what every screen starts on) or to one of the menu's
  * presets, Custom being the menu's saved Custom colors. {@link MenuTheme#forScreen} resolves an id to its five base
  * colors and {@link MenuStyle#use} applies them while that screen is open, so nothing else changes per screen.
- * <p>
  * <p>The choices (killer560, 2026-10-15: "if i make a new custom theme it would show up there"): Theme Default, the four
  * presets, Custom (the menu's live Custom colors), then every theme he has SAVED, read live from {@link MenuConfig} each
  * time the list is used - a theme saved a second ago is on the next press. A saved theme is stored by its stable id

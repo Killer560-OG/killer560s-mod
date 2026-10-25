@@ -31,11 +31,8 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
         int col2aX = contentX;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Voice To Text", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Voice To Text", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -104,11 +101,8 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
         }
         // Show Status On HUD (killer560, 2026-10-18): off hides Listening / Transcribing / download percent / the
         // sent line above the hotbar. A failure still shows.
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Status On HUD", cfg.isShowStatusHud()), btn -> {
-                    cfg.setShowStatusHud(!cfg.isShowStatusHud());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Status On HUD", cfg.isShowStatusHud()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show Status On HUD", cfg::isShowStatusHud, cfg::setShowStatusHud, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
         y += 2;
 
@@ -137,10 +131,6 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
         String name = cfg.getPushToTalkKeyCode() < 0 ? "Not Set"
                 : InputConstants.Type.KEYSYM.getOrCreate(cfg.getPushToTalkKeyCode()).getDisplayName().getString();
         return Component.literal("Push-to-Talk Key: §b" + name);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
     @Override

@@ -6,8 +6,6 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 import java.io.InputStream;
-import java.net.URI;
-import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

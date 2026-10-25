@@ -58,11 +58,8 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         InventorySorterConfig cfg = InventorySorterConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Inventory Sorter", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Auto Inventory Sorter", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
@@ -128,9 +125,5 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
 
     private static Component tickLabel(String label, int ticks) {
         return Component.literal(label + ": " + ticks + (ticks == 1 ? " tick" : " ticks"));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

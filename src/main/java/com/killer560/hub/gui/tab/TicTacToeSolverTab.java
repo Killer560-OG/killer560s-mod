@@ -21,28 +21,19 @@ public class TicTacToeSolverTab extends BaseTab {
         int y = contentY;
         TicTacToeSolverConfig cfg = TicTacToeSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Tic Tac Toe Solver", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Tic Tac Toe Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Prediction", cfg.isShowPrediction()), btn -> {
-                    cfg.setShowPrediction(!cfg.isShowPrediction());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Prediction", cfg.isShowPrediction()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show Prediction", cfg::isShowPrediction, cfg::setShowPrediction, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(onOff("Prevent Misclicks", cfg.isPreventMisclicks()), btn -> {
-                    cfg.setPreventMisclicks(!cfg.isPreventMisclicks());
-                    cfg.save();
-                    btn.setMessage(onOff("Prevent Misclicks", cfg.isPreventMisclicks()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Prevent Misclicks", cfg::isPreventMisclicks, cfg::setPreventMisclicks, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
         widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
                     cfg.setFill(!cfg.isFill());
@@ -57,9 +48,5 @@ public class TicTacToeSolverTab extends BaseTab {
 
     private static Component styleText(TicTacToeSolverConfig cfg) {
         return Component.literal("Highlight Style: \u00a76" + (cfg.isFill() ? "Fill" : "Outline"));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

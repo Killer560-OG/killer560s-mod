@@ -25,11 +25,8 @@ public class FriendsListTab extends BaseTab {
         FriendsListConfig cfg = FriendsListConfig.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Use Our /fl", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Use Our /fl", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, 220, 20));
         y += 26;
         widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.social.FriendsListScreen.THEME_ID, contentX, y, 220, 20));
         y += 26;
@@ -41,9 +38,5 @@ public class FriendsListTab extends BaseTab {
                     McCompat.setScreen(client, new FriendsListScreen(McCompat.screen(client)));
                 }).bounds(contentX, y, contentWidth, 20).build());
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

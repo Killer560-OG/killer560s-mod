@@ -222,11 +222,6 @@ public final class CroesusProfitLog {
         saveAsync();
     }
 
-    /** Resets everything, every account and profile. */
-    public static synchronized void resetTotals() {
-        reset(new ProfitScope.Filter());
-    }
-
     /** Hides every claim {@code filter} selects from the totals, graph and loot log; other accounts and profiles
      *  are untouched and the entries stay in the file. */
     public static synchronized void reset(ProfitScope.Filter filter) {
@@ -506,20 +501,6 @@ public final class CroesusProfitLog {
                     values.getOrDefault(key, 0L), floors.get(key), notable.get(key)));
         }
         out.sort((a, b) -> Long.compare(b.value(), a.value()));
-        return out;
-    }
-
-    /** Every big drop in the log, newest first - the "run number for master stars / handle / mask" view. */
-    public static List<Object[]> notableDrops() {
-        List<Object[]> out = new java.util.ArrayList<>();
-        for (Claim claim : claims()) {
-            for (LoggedItem item : claim.items()) {
-                if (isNotable(item.id(), item.total())) {
-                    out.add(new Object[]{claim.run(), claim.floor(), item.name(), item.total(), claim.timestampMs()});
-                }
-            }
-        }
-        java.util.Collections.reverse(out);
         return out;
     }
 

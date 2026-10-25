@@ -37,9 +37,7 @@ public enum ScoreboardEntry {
             Align align = cfg.getTitleAlignment();
             List<ScoreboardLine> out = new ArrayList<>();
             if (cfg.isUseCustomTitle()) {
-                for (String part : cfg.getCustomTitle().replace("&&", "§").split("\\\\n")) {
-                    out.add(new ScoreboardLine(part, align));
-                }
+                ScoreboardLine.addCustomText(out, cfg.getCustomTitle(), align);
             } else if (!ScoreboardData.objectiveTitle().isEmpty()) {
                 out.add(new ScoreboardLine(ScoreboardData.objectiveTitle(), align));
             }
@@ -774,9 +772,7 @@ public enum ScoreboardEntry {
             String hypixel = firstMatches(ScoreboardPattern.FOOTER, sidebar());
             String footer = hypixel != null && hypixel.contains("alpha") ? cfg.getCustomAlphaFooter() : cfg.getCustomFooter();
             List<ScoreboardLine> out = new ArrayList<>();
-            for (String part : footer.replace("&&", "§").split("\\\\n")) {
-                out.add(new ScoreboardLine(part, cfg.getFooterAlignment()));
-            }
+            ScoreboardLine.addCustomText(out, footer, cfg.getFooterAlignment());
             return out;
         }
 

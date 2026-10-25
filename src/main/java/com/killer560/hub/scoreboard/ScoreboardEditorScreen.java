@@ -311,8 +311,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
             }
             case QUIVER -> {
                 rows.add(cycle(() -> "Arrow Amount: §6" + cfg.getArrowDisplay().label,
-                        () -> cfg.setArrowDisplay(cfg.getArrowDisplay().next()),
-                        () -> cfg.setArrowDisplay(cfg.getArrowDisplay().previous()), x, 0, w));
+                        cfg::getArrowDisplay, cfg::setArrowDisplay, x, 0, w));
                 rows.add(toggle("Color Arrow Amount", cfg::isColorArrowAmount, cfg::setColorArrowAmount, x, 0, w));
             }
             case PLAYER_AMOUNT -> rows.add(toggle("Max Island Players", cfg::isShowMaxIslandPlayers,
@@ -325,8 +324,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
             }
             case BITS -> rows.add(toggle("Unclaimed Bits", cfg::isShowUnclaimedBits, cfg::setShowUnclaimedBits, x, 0, w));
             case POWDER -> rows.add(cycle(() -> "Powder Display: §6" + cfg.getPowderDisplay().label,
-                    () -> cfg.setPowderDisplay(cfg.getPowderDisplay().next()),
-                    () -> cfg.setPowderDisplay(cfg.getPowderDisplay().previous()), x, 0, w));
+                    cfg::getPowderDisplay, cfg::setPowderDisplay, x, 0, w));
             case PURSE -> rows.add(toggle("Hide Purse In Dungeons", cfg::isHidePurseInDungeons,
                     cfg::setHidePurseInDungeons, x, 0, w));
             case PROFILE -> rows.add(toggle("Show Profile Name", cfg::isShowProfileName, cfg::setShowProfileName, x, 0, w));
@@ -346,15 +344,13 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
                             cfg::setUseCustomTitleOutsideSkyblock, x, 0, w));
                 }
                 rows.add(cycle(() -> "Title Align: §6" + cfg.getTitleAlignment().label,
-                        () -> cfg.setTitleAlignment(cfg.getTitleAlignment().next()),
-                        () -> cfg.setTitleAlignment(cfg.getTitleAlignment().previous()), x, 0, w));
+                        cfg::getTitleAlignment, cfg::setTitleAlignment, x, 0, w));
             }
             case FOOTER -> {
                 rows.add(textBox("Footer", cfg.getCustomFooter(), cfg::setCustomFooter, x, 0, w));
                 rows.add(textBox("Alpha Footer", cfg.getCustomAlphaFooter(), cfg::setCustomAlphaFooter, x, 0, w));
                 rows.add(cycle(() -> "Footer Align: §6" + cfg.getFooterAlignment().label,
-                        () -> cfg.setFooterAlignment(cfg.getFooterAlignment().next()),
-                        () -> cfg.setFooterAlignment(cfg.getFooterAlignment().previous()), x, 0, w));
+                        cfg::getFooterAlignment, cfg::setFooterAlignment, x, 0, w));
             }
             default -> {
             }
@@ -378,8 +374,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         y += STEP;
         // 2. Text Align, 3. Reset Position.
         out.add(cycle(() -> "Text Align: §6" + cfg.getTextAlignment().label,
-                () -> cfg.setTextAlignment(cfg.getTextAlignment().next()),
-                () -> cfg.setTextAlignment(cfg.getTextAlignment().previous()), x, y, colW));
+                cfg::getTextAlignment, cfg::setTextAlignment, x, y, colW));
         out.add(SettingsButtonWidget.builder(Component.literal("Reset Position"), btn -> {
                     cfg.resetAnchor();
                     cfg.save();
@@ -393,11 +388,9 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         y += STEP;
         // 6. Number style.
         out.add(cycle(() -> "Numbers: §6" + cfg.getNumberFormat().label,
-                () -> cfg.setNumberFormat(cfg.getNumberFormat().next()),
-                () -> cfg.setNumberFormat(cfg.getNumberFormat().previous()), x, y, colW));
+                cfg::getNumberFormat, cfg::setNumberFormat, x, y, colW));
         out.add(cycle(() -> "Number Style: " + cfg.getNumberDisplayFormat().label,
-                () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().next()),
-                () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().previous()), colBX, y, colW));
+                cfg::getNumberDisplayFormat, cfg::setNumberDisplayFormat, colBX, y, colW));
         y += STEP;
         // 7. Line spacing, 8. Text shadow.
         out.add(slider(x, y, colW, cfg.getLineSpacing(), 0, 10, v -> "Line Spacing: " + v, cfg::setLineSpacing));
@@ -424,13 +417,11 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         // 10. 24-hour clock (the sidebar's time line), 11. Date format (the lobby code's date).
         out.add(toggle("24h SkyBlock Time", cfg::isTime24h, cfg::setTime24h, x, y, colW));
         out.add(cycle(() -> "Date Format: §6" + cfg.getDateFormat().pattern,
-                () -> cfg.setDateFormat(cfg.getDateFormat().next()),
-                () -> cfg.setDateFormat(cfg.getDateFormat().previous()), colBX, y, colW));
+                cfg::getDateFormat, cfg::setDateFormat, colBX, y, colW));
         y += STEP;
         // Not in the list above, kept on the page: what the board does outside SkyBlock, and clicking lines.
         out.add(cycle(() -> "Outside Skyblock: §6" + cfg.getOutsideSkyblockMode().label,
-                () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().next()),
-                () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().previous()), x, y, colW));
+                cfg::getOutsideSkyblockMode, cfg::setOutsideSkyblockMode, x, y, colW));
         out.add(toggle("Clickable Lines", cfg::isLineActions, cfg::setLineActions, colBX, y, colW));
         y += STEP;
         hint(out, x, y, width, "Move it in Edit HUD. Title and footer text: click them on the Board.");
@@ -499,8 +490,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         y += STEP;
         // Default: the menu's accent. Custom: the colors below (killer560, 2026-10-18).
         out.add(cycle(() -> "Border Style: §6" + cfg.getBorderStyle().label,
-                () -> cfg.setBorderStyle(cfg.getBorderStyle().next()),
-                () -> cfg.setBorderStyle(cfg.getBorderStyle().previous()), x, y, colW));
+                cfg::getBorderStyle, cfg::setBorderStyle, x, y, colW));
         out.add(slider(colBX, y, colW, cfg.getBorderSoftness(), 0, 10, v -> "Border Softness: " + v, cfg::setBorderSoftness));
         y += STEP;
         if (cfg.getBorderStyle() == CustomScoreboardConfig.BorderStyle.CUSTOM) {
@@ -999,10 +989,11 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
                 }).bounds(x, y, w, ROW).build();
     }
 
-    private AbstractWidget cycle(Supplier<String> label, Runnable advance, Runnable regress, int x, int y, int w) {
+    private <E extends Enum<E>> AbstractWidget cycle(Supplier<String> label, Supplier<E> getter,
+                                                     java.util.function.Consumer<E> setter, int x, int y, int w) {
         return SettingsButtonWidget.cycling(Component.literal(label.get()), (btn, dir) -> {
                     // killer560, 2026-09-27: "if i right click then it goes back one".
-                    (dir > 0 ? advance : regress).run();
+                    setter.accept(SettingsButtonWidget.step(getter.get(), dir));
                     cfg.save();
                     btn.setMessage(Component.literal(label.get()));
                 }).bounds(x, y, w, ROW).build();

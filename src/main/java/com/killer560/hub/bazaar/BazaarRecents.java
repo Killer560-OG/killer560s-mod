@@ -1,5 +1,6 @@
 package com.killer560.hub.bazaar;
 
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -27,6 +28,7 @@ public final class BazaarRecents {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bazaar");
     private static final Path PATH = ModPaths.config("killer560smod-bazaar-recent.json");
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     /** How many each profile keeps. */
     public static final int MAX = 16;
 
@@ -104,7 +106,7 @@ public final class BazaarRecents {
                 root.add(e.getKey(), a);
             }
             Files.createDirectories(PATH.getParent());
-            Files.writeString(PATH, new GsonBuilder().setPrettyPrinting().create().toJson(root), StandardCharsets.UTF_8);
+            Files.writeString(PATH, GSON.toJson(root), StandardCharsets.UTF_8);
         } catch (Exception ex) {
             LOGGER.warn("[Bazaar] could not save recent products", ex);
         }

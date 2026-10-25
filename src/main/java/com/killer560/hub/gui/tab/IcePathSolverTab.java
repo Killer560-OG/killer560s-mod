@@ -1,9 +1,7 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.IcePathSolverConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,29 +19,19 @@ public class IcePathSolverTab extends BaseTab {
         int y = contentY;
         IcePathSolverConfig cfg = IcePathSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Ice Path Solver", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Ice Path Solver", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Outline Next Stop", cfg.isShowNextBox()), btn -> {
-                    cfg.setShowNextBox(!cfg.isShowNextBox());
-                    cfg.save();
-                    btn.setMessage(onOff("Outline Next Stop", cfg.isShowNextBox()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Outline Next Stop", cfg::isShowNextBox, cfg::setShowNextBox, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.ICE_PATH, contentX, contentWidth, y, true);
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

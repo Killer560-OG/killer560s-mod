@@ -193,7 +193,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     record Hotspot(int x, int y, int w, int h, Runnable action) {
         boolean contains(double mx, double my) {
-            return mx >= x && mx < x + w && my >= y && my < y + h;
+            return inside(mx, my, x, y, w, h);
         }
     }
 
@@ -812,7 +812,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         box(g, sidebarX, sidebarY, sidebarW, sidebarH);
         int x = sidebarX + 4;
         int y = sidebarY + 4;
-        text(g, "Switch", x, y, DIM);
+        tx(g, "Switch", x, y, DIM);
         // The EditBox widget itself renders/handles input; just leave its row clear and add the button.
         y += 30;
         int btnY = y;
@@ -823,7 +823,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         MenuStyle.separator(sep, sidebarX + 4, sidebarX + sidebarW - 4, y);
         sep.submit();
         y += 4;
-        text(g, "Recent", x, y, DIM);
+        tx(g, "Recent", x, y, DIM);
         y += SIDEBAR_ROW_H;
 
         ProfileViewerFeature.Target self = ProfileViewerFeature.self();
@@ -852,10 +852,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         tx(g, this.font.plainSubstrByWidth(name, sidebarW - 22), x + 18, y + 3, hover ? VALUE : TEXT);
         hotspots.add(new Hotspot(x - 2, y - 1, sidebarW - 4, SIDEBAR_ROW_H, onClick));
         return y + SIDEBAR_ROW_H;
-    }
-
-    private void text(GuiGraphicsExtractor g, String str, int x, int y, int color) {
-        tx(g, str, x, y, color);
     }
 
     /** A player-head icon for the sidebar, fetched (and cached process-wide) from the session service the
@@ -949,26 +945,26 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 ? Math.min(120, contentH - 90) + 4 : 0);
         int y = Math.max(skinBottom, contentY + 6);
         int lx = contentX + 6;
-        y = stat(g, lx, y, "SB Level", p.sbLevel + (p.sbLevelProgress > 0 ? "." + String.format(Locale.ROOT, "%02d", p.sbLevelProgress) : ""));
-        y = stat(g, lx, y, "Fairy Souls", String.valueOf(p.fairySouls));
-        y = stat(g, lx, y, "Purse", shorten(p.purse));
+        y = stat2(g, lx, y, 106, "SB Level", p.sbLevel + (p.sbLevelProgress > 0 ? "." + String.format(Locale.ROOT, "%02d", p.sbLevelProgress) : ""));
+        y = stat2(g, lx, y, 106, "Fairy Souls", String.valueOf(p.fairySouls));
+        y = stat2(g, lx, y, 106, "Purse", shorten(p.purse));
         if (p.bank >= 0) {
             int by = y;
-            y = stat(g, lx, y, "Bank", shorten(p.bank) + (p.personalBank > 0 ? " / " + shorten(p.personalBank) : ""));
+            y = stat2(g, lx, y, 106, "Bank", shorten(p.bank) + (p.personalBank > 0 ? " / " + shorten(p.personalBank) : ""));
             if (inside(mx, my, lx, by, leftW - 12, 10)) {
                 pendingTooltip = List.of(
                         Component.literal("Co-op bank: " + commas(p.bank)).withStyle(style(VALUE)),
                         Component.literal("Personal bank: " + commas(p.personalBank)).withStyle(style(VALUE)));
             }
         } else {
-            y = stat(g, lx, y, "Bank", "API off");
+            y = stat2(g, lx, y, 106, "Bank", "API off");
         }
         // killer560, 2026-10-08: "a line below the bank that says the networth". The same estimate as the
         // Networth page (shared cache), and a click opens that page.
         ExtraPages.NetworthState nw = extraPages.networthState(p);
         int ny = y;
         lastBasicNetworth = nw.result() == null ? null : nw.result().total();
-        y = stat(g, lx, y, "Networth", nw.result() != null ? shorten(nw.result().total()) : nw.failed() ? "-" : "...");
+        y = stat2(g, lx, y, 106, "Networth", nw.result() != null ? shorten(nw.result().total()) : nw.failed() ? "-" : "...");
         if (inside(mx, my, lx, ny, leftW - 12, 10) && !dropdownOpen) {
             pendingTooltip = List.of(
                     Component.literal(nw.result() != null ? commas(nw.result().total()) + " coins (estimate)"
@@ -977,14 +973,14 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
         hotspots.add(new Hotspot(lx, ny, leftW - 12, 10, () -> setPage(PAGE_NETWORTH)));
         if (p.motes > 0) {
-            y = stat(g, lx, y, "Motes", shorten(p.motes));
+            y = stat2(g, lx, y, 106, "Motes", shorten(p.motes));
         }
         if (p.firstJoin > 0) {
-            y = stat(g, lx, y, "Joined", JOINED_FORMAT
+            y = stat2(g, lx, y, 106, "Joined", JOINED_FORMAT
                     .format(Instant.ofEpochMilli(p.firstJoin).atZone(ZoneId.systemDefault())));
         }
         if (p.memberCount > 1) {
-            stat(g, lx, y, "Co-op", p.memberCount + " members");
+            stat2(g, lx, y, 106, "Co-op", p.memberCount + " members");
         }
 
         int rx = contentX + leftW + 6;
@@ -1061,12 +1057,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
         String total = "Total XP " + commas(totalXp);
         tx(g, total, rx + rw - 6 - this.font.width(total), sy, VALUE);
-    }
-
-    private int stat(GuiGraphicsExtractor g, int x, int y, String label, String value) {
-        tx(g, label, x, y, DIM);
-        tx(g, value, x + 106 - this.font.width(value), y, VALUE);
-        return y + 11;
     }
 
     /** Icon + "Name Level" + progress bar, NEU style. Hover shows XP numbers. */

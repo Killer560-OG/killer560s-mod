@@ -306,9 +306,7 @@ public final class CustomScoreboardFeature {
                     String.valueOf(client.getConnection().getListedOnlinePlayers().size()), "§a")));
         }
         out.add(ScoreboardLine.of(""));
-        for (String part : cfg.getCustomFooter().replace("&&", "§").split("\\\\n")) {
-            out.add(new ScoreboardLine(part, cfg.getFooterAlignment()));
-        }
+        ScoreboardLine.addCustomText(out, cfg.getCustomFooter(), cfg.getFooterAlignment());
         List<ScoreboardLine> trimmed = trimBlankEdges(out);
         titleRows[0] = leadingTitleRows(trimmed, title);
         return trimmed;
@@ -526,9 +524,6 @@ public final class CustomScoreboardFeature {
         } finally {
             graphics.pose().popMatrix();
         }
-        lastDrawnX = pos[0];
-        lastDrawnY = pos[1];
-        lastDrawnScale = scale;
         if (!chatOpen) {
             return; // hover and click only exist while chat is open; nothing to lay out for them
         }
@@ -546,22 +541,8 @@ public final class CustomScoreboardFeature {
         }
     }
 
-    /** Where and at what scale the real board was last drawn in game, and how many frames drew it (testkit). */
-    private static int lastDrawnX = Integer.MIN_VALUE;
-    private static int lastDrawnY = Integer.MIN_VALUE;
-    private static float lastDrawnScale = 0f;
+    /** How many frames drew the real board in game (testkit). */
     private static long drawnFrames = 0L;
-
-    /** {x, y, w, h} of the board as last drawn in game (scaled GUI pixels), or null if it never drew. */
-    public static int[] lastDrawnBox() {
-        if (lastDrawnX == Integer.MIN_VALUE || current.isEmpty()) {
-            return null;
-        }
-        Font font = Minecraft.getInstance().font;
-        CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
-        return new int[]{lastDrawnX, lastDrawnY, Math.round(boxWidth(font, current, cfg) * lastDrawnScale),
-                Math.round(boxHeight(font, current, cfg) * lastDrawnScale)};
-    }
 
     public static long drawnFrames() {
         return drawnFrames;

@@ -31,11 +31,8 @@ public class PriceTooltipTab extends BaseTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Price Tooltip", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Price Tooltip", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
         if (!cfg.isEnabledRaw()) {
             return widgets;
@@ -44,7 +41,7 @@ public class PriceTooltipTab extends BaseTab {
         int half = (contentWidth - 8) / 2;
         int col2 = contentX + half + 8;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Lines", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Lines", false));
         y += 16;
         widgets.add(toggle(contentX, y, half, "NPC Sell Price", cfg::isNpcPrice, cfg::setNpcPrice, cfg));
         widgets.add(toggle(col2, y, half, "Bazaar Buy/Sell", cfg::isBazaar, cfg::setBazaar, cfg));
@@ -64,7 +61,7 @@ public class PriceTooltipTab extends BaseTab {
                 }).bounds(col2, y, half, 18).build());
         y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Display", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Display", false));
         y += 16;
         widgets.add(SettingsButtonWidget.cycling(stackText(cfg), (btn, dir) -> {
                     cfg.setStackPrice(SettingsButtonWidget.step(cfg.getStackPrice(), dir));
@@ -123,11 +120,7 @@ public class PriceTooltipTab extends BaseTab {
 
     private static AbstractWidget toggle(int x, int y, int w, String label, Supplier<Boolean> get, Consumer<Boolean> set,
                                          PriceTooltipConfig cfg) {
-        return SettingsButtonWidget.builder(onOff(label, get.get()), btn -> {
-            set.accept(!get.get());
-            cfg.save();
-            btn.setMessage(onOff(label, get.get()));
-        }).bounds(x, y, w, 18).build();
+        return onOffButton(label, get::get, set, cfg::save, null, x, y, w, 18);
     }
 
     private static Component daysText(PriceTooltipConfig cfg) {
@@ -152,9 +145,5 @@ public class PriceTooltipTab extends BaseTab {
 
     private static Component refreshText(PriceTooltipConfig cfg) {
         return Component.literal("Refresh Every: " + cfg.getRefreshMinutes() + " min");
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

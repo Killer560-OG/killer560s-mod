@@ -30,11 +30,8 @@ public class SecretWaypointsTab extends BaseTab {
         int y = contentY;
         SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Secret Waypoints", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Secret Waypoints", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, 220, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -55,33 +52,21 @@ public class SecretWaypointsTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Through Walls", cfg.isThroughWalls()), btn -> {
-                    cfg.setThroughWalls(!cfg.isThroughWalls());
-                    cfg.save();
-                    btn.setMessage(onOff("Through Walls", cfg.isThroughWalls()));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(onOffButton("Through Walls", cfg::isThroughWalls, cfg::setThroughWalls, cfg::save,
+                null, contentX, y, 220, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Names", cfg.isShowNames()), btn -> {
-                    cfg.setShowNames(!cfg.isShowNames());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Names", cfg.isShowNames()));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(onOffButton("Show Names", cfg::isShowNames, cfg::setShowNames, cfg::save,
+                null, contentX, y, 220, 18));
         y += 22;
 
         // killer560, 2026-10-05: "There should be a toggle to show princes and a toggle to show crypts."
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Crypts", cfg.isShowCrypts()), btn -> {
-                    cfg.setShowCrypts(!cfg.isShowCrypts());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Crypts", cfg.isShowCrypts()));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(onOffButton("Show Crypts", cfg::isShowCrypts, cfg::setShowCrypts, cfg::save,
+                null, contentX, y, 220, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Princes", cfg.isShowPrinces()), btn -> {
-                    cfg.setShowPrinces(!cfg.isShowPrinces());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Princes", cfg.isShowPrinces()));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(onOffButton("Show Princes", cfg::isShowPrinces, cfg::setShowPrinces, cfg::save,
+                null, contentX, y, 220, 18));
         y += 26;
 
         // Per-type colors (killer560, 2026-09-27: "You can choose the colour for levers" - and there was no
@@ -131,9 +116,5 @@ public class SecretWaypointsTab extends BaseTab {
     private static Component boxSizeText(SecretWaypointsConfig cfg) {
         return Component.literal("Waypoint Box: "
                 + (cfg.getBoxSize() == SecretWaypointsConfig.BoxSize.FULL_BLOCK ? "Full Block" : "Hitbox Only"));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

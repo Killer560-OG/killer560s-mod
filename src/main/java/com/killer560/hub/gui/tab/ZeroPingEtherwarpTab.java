@@ -44,7 +44,7 @@ public class ZeroPingEtherwarpTab extends BaseTab {
         if (!cfg.isEnabled()) {
             return w;
         }
-        w.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Zero Ping Etherwarp", true), font));
+        w.add(SectionHeaders.row(contentX, y, contentWidth, "Zero Ping Etherwarp", true));
         y += 16;
         String[] help = {
                 "§7Your view jumps to where an etherwarp lands the moment you use it,",
@@ -84,10 +84,6 @@ public class ZeroPingEtherwarpTab extends BaseTab {
             }
         });
         return w;
-    }
-
-    private static Component onOff(String label, boolean on) {
-        return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
     }
 
     private static Component timeoutText(ZeroPingEtherwarpConfig cfg) {

@@ -344,9 +344,6 @@ public class ModScreen extends Screen {
             paletteScroll = 0;
             computeResults();
         });
-        if (!searchQuery.isBlank()) {
-            computeResults();
-        }
         rebuild();
     }
 
@@ -948,9 +945,9 @@ public class ModScreen extends Screen {
             int added = 0;
             for (String fav : MenuConfig.getInstance().getFavourites()) {
                 for (BaseTab leaf : leaves) {
-            if (leaf.isCheatOnly() && com.killer560.hub.streamer.StreamerMode.hidesCheatUi()) {
-                continue; // streamer mode: no cheat tab in search
-            }
+                    if (hiddenByStreamer(leaf)) {
+                        continue;
+                    }
                     if (id(leaf).equals(fav)) {
                         items.add(new Item(ItemKind.CARD, leaf, null, false, null));
                         added++;
@@ -977,8 +974,8 @@ public class ModScreen extends Screen {
             if (cat instanceof HomeTab && s instanceof com.killer560.hub.gui.tab.MenuThemeTab) {
                 continue; // killer560, 2026-10-13: set from Home's Menu Theme row; Customize... still opens its drawer
             }
-            if (s.isCheatOnly() && com.killer560.hub.streamer.StreamerMode.hidesCheatUi()) {
-                continue; // streamer mode: the cheat parts of the GUI are not shown
+            if (hiddenByStreamer(s)) {
+                continue;
             }
             (s.isCheatOnly() ? cheat : legit).add(s);
         }
@@ -1203,8 +1200,8 @@ public class ModScreen extends Screen {
     private void keepPaletteSelVisible() {
         if (paletteSel < paletteScroll) {
             paletteScroll = paletteSel;
-        } else if (paletteRowsShown() > 0 && paletteSel >= paletteScroll + paletteRowsShown()) {
-            paletteScroll = paletteSel - paletteRowsShown() + 1;
+        } else if (palRows > 0 && paletteSel >= paletteScroll + palRows) {
+            paletteScroll = paletteSel - palRows + 1;
         }
     }
 
@@ -1670,8 +1667,8 @@ public class ModScreen extends Screen {
         List<BaseTab> leaves = allLeaves();
         Set<BaseTab> named = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
         for (BaseTab leaf : leaves) {
-            if (leaf.isCheatOnly() && com.killer560.hub.streamer.StreamerMode.hidesCheatUi()) {
-                continue; // streamer mode: no cheat tab in search
+            if (hiddenByStreamer(leaf)) {
+                continue;
             }
             for (String q : variants) {
                 if (SearchAliases.nameMatches(leaf.name, q)) {
@@ -1683,8 +1680,8 @@ public class ModScreen extends Screen {
         }
         List<Result> settings = new ArrayList<>();
         for (BaseTab leaf : leaves) {
-            if (leaf.isCheatOnly() && com.killer560.hub.streamer.StreamerMode.hidesCheatUi()) {
-                continue; // streamer mode: no cheat tab in search
+            if (hiddenByStreamer(leaf)) {
+                continue;
             }
             String hit = null;
             for (String q : variants) {
@@ -1734,10 +1731,6 @@ public class ModScreen extends Screen {
         navigateTo(r.tab());
         rebuild();
         scrollGridTo(r.tab());
-    }
-
-    private int paletteRowsShown() {
-        return palRows;
     }
 
     private boolean paletteClick(double mx, double my, int button) {
@@ -2426,8 +2419,12 @@ public class ModScreen extends Screen {
         }
     }
 
-    /** Section header bands behind the drawer's "§6§l" / "§c§l" headings, and the search flash. Drawn under nothing:
-     *  the bands are translucent and sit below the heading text's own pixels only because the text is brighter. */
+    /** Streamer mode hides every cheat-only tab from the menu: sections, Favorites and search. */
+    private static boolean hiddenByStreamer(BaseTab tab) {
+        return tab.isCheatOnly() && com.killer560.hub.streamer.StreamerMode.hidesCheatUi();
+    }
+
+    /** The search flash around the setting a search result jumped to. */
     private void drawContentDecor(GuiGraphicsExtractor g) {
         if (contentPane == null) {
             return;
@@ -2521,7 +2518,6 @@ public class ModScreen extends Screen {
         }
     }
 
-    private AbstractWidget tooltipWidget = null;
     private Object tooltipKey = null;
     private long tooltipHoverSinceMs = 0L;
 
@@ -2559,7 +2555,6 @@ public class ModScreen extends Screen {
         long now = System.currentTimeMillis();
         if (key != tooltipKey) {
             tooltipKey = key;
-            tooltipWidget = hovered;
             tooltipHoverSinceMs = now;
             tooltipShownAt = Long.MIN_VALUE;
         }
@@ -2771,7 +2766,6 @@ public class ModScreen extends Screen {
     private record HomeButton(String label, Runnable action) {
     }
 
-    private static final String HOME_PROFILES = "Profiles";
     private static final String HOME_SWEAT = "Sweat Mode";
 
     /** Home's quick button label under the mouse, or null. Its tooltip is SettingTooltipsData's "home button/<label>". */

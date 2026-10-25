@@ -56,7 +56,6 @@ public final class SbProfile {
 
     public final boolean inventoryApi;
     private final JsonObject inventoryJson;
-    private final JsonObject sharedInventoryJson;
     private CompletableFuture<Inventories> inventories;
     private final JsonObject profileJson;
     private final JsonObject memberJson;
@@ -205,7 +204,6 @@ public final class SbProfile {
         petScore = (int) num(path(memberObj, "leveling.highest_pet_score"));
 
         inventoryJson = asObj(memberObj.get("inventory"));
-        sharedInventoryJson = asObj(memberObj.get("shared_inventory"));
         inventoryApi = inventoryJson != null && inventoryJson.has("inv_contents");
     }
 
@@ -458,14 +456,6 @@ public final class SbProfile {
 
     // ------------------------------------------------------------------ json helpers
 
-    public static JsonObject asObjPublic(JsonElement el) {
-        return asObj(el);
-    }
-
-    public static double numPublic(JsonElement el) {
-        return num(el);
-    }
-
     static JsonElement path(JsonObject root, String dotted) {
         JsonElement cur = root;
         for (String part : dotted.split("\\.")) {
@@ -481,7 +471,7 @@ public final class SbProfile {
         return o == null ? null : asObj(o.get(key));
     }
 
-    static JsonObject asObj(JsonElement el) {
+    public static JsonObject asObj(JsonElement el) {
         return el != null && el.isJsonObject() ? el.getAsJsonObject() : null;
     }
 
@@ -489,7 +479,7 @@ public final class SbProfile {
         return el != null && el.isJsonArray() ? el.getAsJsonArray() : null;
     }
 
-    static double num(JsonElement el) {
+    public static double num(JsonElement el) {
         try {
             return el != null && el.isJsonPrimitive() ? el.getAsDouble() : 0;
         } catch (Exception e) {

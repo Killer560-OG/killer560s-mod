@@ -151,11 +151,6 @@ public final class MainMenuScenes {
         testClockMs = ms < 0 ? -1 : ms; // unrounded: a 120 fps recording steps 8.33 ms
     }
 
-    /** Test hook: draws the old embers ({@code true}) or the constant's choice ({@code false}) for Amber. */
-    public static void setOldEmbersForTest(boolean old) {
-        amberScene = old ? AmberScene.EMBERS : null;
-    }
-
     /** Test hook (testkit 1568/1569/1695): draws the named Amber scene ({@code "NEW"}, {@code "EMBERS"}, {@code "SIMPLE"},
      *  {@code "AURORA"}); null or empty goes back to the default. */
     public static void setAmberSceneForTest(String name) {
@@ -393,7 +388,7 @@ public final class MainMenuScenes {
     }
 
     /** A filled disc as horizontal spans. */
-    private static void disc(GuiRects r, double cx, double cy, double radius, int color) {
+    static void disc(GuiRects r, double cx, double cy, double radius, int color) {
         int rad = (int) Math.round(radius);
         int step = rad > 10 ? 2 : 1;
         for (int dy = -rad; dy < rad; dy += step) {

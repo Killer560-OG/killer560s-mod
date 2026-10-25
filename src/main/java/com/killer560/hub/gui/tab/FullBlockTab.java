@@ -171,10 +171,6 @@ public class FullBlockTab extends BaseTab {
         };
     }
 
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "\u00a7aON" : "\u00a7cOFF"));
-    }
-
     /** One Normal-to-Full slider: far left is the normal button size, far right a full block along that axis. */
     private static int sizeSlider(List<AbstractWidget> widgets, int x, int y, String name,
                                   java.util.function.IntSupplier get, java.util.function.IntConsumer set) {

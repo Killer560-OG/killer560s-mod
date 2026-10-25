@@ -19,7 +19,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,8 +82,7 @@ public final class BazaarOrders {
                 return;
             }
             String title = BazaarOrderParser.strip(screen.getTitle().getString());
-            boolean full = ORDERS_TITLE.matcher(title).matches();
-            if (!full && !OPTIONS_TITLE.matcher(title).matches()) {
+            if (!ORDERS_TITLE.matcher(title).matches() && !OPTIONS_TITLE.matcher(title).matches()) {
                 return;
             }
             List<ItemStack> stacks = new ArrayList<>();
@@ -297,9 +295,5 @@ public final class BazaarOrders {
     public static List<BazaarOrderParser.Order> currentOrders() {
         Snapshot s = current();
         return s == null ? List.of() : s.orders();
-    }
-
-    static Map<String, Snapshot> all() {
-        return new HashMap<>(BY_PROFILE);
     }
 }

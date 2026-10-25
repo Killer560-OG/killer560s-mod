@@ -42,7 +42,7 @@ public final class ProfileExtras {
     public record ForgeSlot(int slot, String type, String id, long startTime) {
     }
 
-    public record Mining(boolean present, long hotmXp, int selectedSlot, Map<String, Integer> nodes, String selectedAbility,
+    public record Mining(boolean present, long hotmXp, Map<String, Integer> nodes, String selectedAbility,
                          long[] powderTotal, long[] powderAvailable, Map<String, Crystal> crystals, List<ForgeSlot> forge,
                          long oresMined, int mineshafts, List<String> fossils, Map<String, Integer> corpses) {
     }
@@ -173,7 +173,7 @@ public final class ProfileExtras {
                 corpses.put(e.getKey(), (int) num(e.getValue()));
             }
         }
-        return new Mining(core != null || tree != null, (long) num(path(member, "skill_tree.experience.mining")), slot, nodes, ability,
+        return new Mining(core != null || tree != null, (long) num(path(member, "skill_tree.experience.mining")), nodes, ability,
                 total, available, crystals, forge, (long) num(path(member, "player_stats.pets.milestone.ores_mined")),
                 glacite == null ? 0 : (int) num(glacite.get("mineshafts_entered")), fossils, corpses);
     }

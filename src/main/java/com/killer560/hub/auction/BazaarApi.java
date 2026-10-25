@@ -129,6 +129,17 @@ public final class BazaarApi {
     }
 
     /**
+     * Every product's instant-buy book together with the response's own {@code lastUpdated} (epoch ms, when Hypixel
+     * built that snapshot; 0 when absent or on failure). The request asks every cache on the way not to answer from a
+     * stored copy ({@code Cache-Control: no-cache} and a never-repeated query parameter): the API sits behind Cloudflare
+     * with {@code s-maxage=300} (response headers, 2026-10-17), so a cached snapshot could be minutes old. A cache that
+     * ignores both still cannot fool the caller, which judges {@code lastUpdated} itself (Bazaar Flip refuses one older
+     * than 60 s).
+     */
+    public record InstantBuyBooks(Map<String, List<BazaarOrderLevel>> books, long lastUpdatedMs) {
+    }
+
+    /**
      * One on-demand GET that returns every product's real <b>instant-buy</b> order book, cheapest level
      * first. Used by the Bazaar-to-NPC Flipper, which has to walk the book level by level to price a real
      * purchase. Deliberately <b>not</b> wired into {@link #ensureAutoStarted()}'s five-minute loop and it
@@ -154,25 +165,11 @@ public final class BazaarApi {
      * top orders, and it matched the exact top price on only 628 of 1833 products with a book (measured
      * 2026-09-29). Anything sizing a real purchase must walk the levels, not read that average.
      *
+     * <p>Blocking; call off the render thread.
+     *
      * @return product id -&gt; levels sorted ascending by {@code pricePerUnit} (cheapest first, i.e. the
-     * order a real instant-buy consumes them in). Empty map on any failure - never null, never partial.
+     * order a real instant-buy consumes them in). Never null; an empty map on any failure, never partial.
      */
-    public static CompletableFuture<Map<String, List<BazaarOrderLevel>>> fetchInstantBuyBooksAsync() {
-        return CompletableFuture.supplyAsync(() -> fetchInstantBuyBooks().books());
-    }
-
-    /**
-     * Every product's instant-buy book together with the response's own {@code lastUpdated} (epoch ms, when Hypixel
-     * built that snapshot; 0 when absent or on failure). The request asks every cache on the way not to answer from a
-     * stored copy ({@code Cache-Control: no-cache} and a never-repeated query parameter): the API sits behind Cloudflare
-     * with {@code s-maxage=300} (response headers, 2026-10-17), so a cached snapshot could be minutes old. A cache that
-     * ignores both still cannot fool the caller, which judges {@code lastUpdated} itself (Bazaar Flip refuses one older
-     * than 60 s).
-     */
-    public record InstantBuyBooks(Map<String, List<BazaarOrderLevel>> books, long lastUpdatedMs) {
-    }
-
-    /** Blocking; call off the render thread. Never null; an empty map on any failure. */
     public static InstantBuyBooks fetchInstantBuyBooks() {
         try {
             String url = BAZAAR_URL + (BAZAAR_URL.contains("?") ? "&" : "?") + "_=" + System.currentTimeMillis();

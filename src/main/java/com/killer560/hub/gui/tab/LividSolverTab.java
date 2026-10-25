@@ -10,7 +10,6 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.compat.McCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -34,37 +33,27 @@ public class LividSolverTab extends BaseTab {
         int y = contentY;
         LividSolverConfig cfg = LividSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Livid Solver", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Livid Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Invuln Timer", cfg.isShowTimer()), btn -> {
-                    cfg.setShowTimer(!cfg.isShowTimer());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Invuln Timer", cfg.isShowTimer()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show Invuln Timer", cfg::isShowTimer, cfg::setShowTimer, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Draw Line To Livid", cfg.isShowLine()), btn -> {
-                    cfg.setShowLine(!cfg.isShowLine());
-                    cfg.save();
-                    btn.setMessage(onOff("Draw Line To Livid", cfg.isShowLine()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Draw Line To Livid", cfg::isShowLine, cfg::setShowLine, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         // Solver Highlight, and its Style (outline or full block). The Through Walls row is cheat-only and sits at the bottom.
         SolverEspRows.append(widgets, SOLVER, contentX, contentWidth, y, true, false);
         y = below(widgets, y);
 
         // killer560, 2026-10-18: the color of the highlight and the tracer - the Livid's own, or the two set here.
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Livid Color", false),
-                Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Livid Color", false));
         y += 16;
         widgets.add(SettingsButtonWidget.cycling(colourModeText(cfg), (btn, dir) -> {
                     cfg.setColourMode(SettingsButtonWidget.step(cfg.getColourMode(), dir));
@@ -112,8 +101,7 @@ public class LividSolverTab extends BaseTab {
 
         // Cheat only (killer560, 2026-10-18): a legit build never draws Livid's highlight through blocks. Red header, bottom of the tab.
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Through Walls", true),
-                    Minecraft.getInstance().font));
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Through Walls", true));
             y += 16;
             SolverEspRows.throughWallsRow(widgets, SOLVER, contentX, contentWidth, y);
         }
@@ -136,9 +124,5 @@ public class LividSolverTab extends BaseTab {
 
     private static Component thicknessText(LividSolverConfig cfg) {
         return Component.literal(String.format(Locale.US, "Tracer Thickness: %.1f", cfg.getTracerThickness()));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

@@ -75,11 +75,8 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
         int col2bX = contentX + col2W + gap;
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Breaker Aura", cfg.isBreakerAuraEnabledRaw()), btn -> {
-                    cfg.setBreakerAuraEnabled(!cfg.isBreakerAuraEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Breaker Aura", cfg::isBreakerAuraEnabledRaw, cfg::setBreakerAuraEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         // Swappable configs (killer560: "breaker aura also needs an option to swap between breaker auras just
@@ -165,11 +162,8 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
         });
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Zero Ping", cfg.isBreakerAuraZeroPingRaw()), btn -> {
-                    cfg.setBreakerAuraZeroPing(!cfg.isBreakerAuraZeroPingRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Zero Ping", cfg.isBreakerAuraZeroPingRaw()));
-                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(onOffButton("Zero Ping", cfg::isBreakerAuraZeroPingRaw, cfg::setBreakerAuraZeroPing, cfg::save,
+                null, contentX, y, col2W, 18));
         widgets.add(SettingsButtonWidget.builder(onOff("Multi Break", cfg.isBreakerAuraMultiBreak()),
                 btn -> {
                     cfg.setBreakerAuraMultiBreak(!cfg.isBreakerAuraMultiBreak());
@@ -186,11 +180,8 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Edit Mode", cfg.isBreakerAuraEditMode()));
                 }).bounds(contentX, y, col2W, 18)
                 .build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Pause In Edit Mode", cfg.isBreakerAuraRespectEditMode()), btn -> {
-                    cfg.setBreakerAuraRespectEditMode(!cfg.isBreakerAuraRespectEditMode());
-                    cfg.save();
-                    btn.setMessage(onOff("Pause In Edit Mode", cfg.isBreakerAuraRespectEditMode()));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(onOffButton("Pause In Edit Mode", cfg::isBreakerAuraRespectEditMode,
+                cfg::setBreakerAuraRespectEditMode, cfg::save, null, col2bX, y, col2W, 18));
         y += 20;
 
         // How the picks are drawn (2026-10-06): Highlight (the original, depth-tested) or Waypoint (through walls,
@@ -207,11 +198,8 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Swap", cfg.isBreakerAuraAutoSwap()), btn -> {
-                    cfg.setBreakerAuraAutoSwap(!cfg.isBreakerAuraAutoSwap());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Auto Swap", cfg::isBreakerAuraAutoSwap, cfg::setBreakerAuraAutoSwap, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 20;
 
         if (cfg.isBreakerAuraAutoSwap()) {
@@ -228,11 +216,8 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                     saveOnRelease(() -> cfg.save());
                 }
             });
-            widgets.add(SettingsButtonWidget.builder(onOff("Swap Back", cfg.isBreakerAuraSwapBack()), btn -> {
-                        cfg.setBreakerAuraSwapBack(!cfg.isBreakerAuraSwapBack());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(col2bX, y, col2W, 18).build());
+            widgets.add(onOffButton("Swap Back", cfg::isBreakerAuraSwapBack, cfg::setBreakerAuraSwapBack, cfg::save,
+                    requestRebuild, col2bX, y, col2W, 18));
             y += 20;
 
             if (cfg.isBreakerAuraSwapBack()) {
@@ -280,10 +265,6 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
 
     private static Component styleText(DungeonExtrasConfig cfg) {
         return Component.literal("Box Style: §6" + cfg.getBreakerAuraStyle().label);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
     /** Mirrors {@code Ap3Tab#openFolder} - a fresh install has no folder yet, and opening a missing directory

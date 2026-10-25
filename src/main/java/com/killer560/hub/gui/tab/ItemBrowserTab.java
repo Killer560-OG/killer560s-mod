@@ -4,9 +4,7 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.itembrowser.ItemBrowserConfig;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -45,11 +43,8 @@ public class ItemBrowserTab extends BaseTab {
 
         y += 4;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Only In Inventory", cfg.isInventoryOnly()), btn -> {
-                    cfg.setInventoryOnly(!cfg.isInventoryOnly());
-                    cfg.save();
-                    btn.setMessage(onOff("Only In Inventory", cfg.isInventoryOnly()));
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Only In Inventory", cfg::isInventoryOnly, cfg::setInventoryOnly, cfg::save,
+                null, contentX, y, contentWidth, 20));
         y += 26;
 
         int columnRange = ItemBrowserConfig.MAX_COLUMNS - ItemBrowserConfig.MIN_COLUMNS;
@@ -117,10 +112,6 @@ public class ItemBrowserTab extends BaseTab {
         // category on 2026-10-15 (pricetooltip/); its saved value seeds that feature's switch once.
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
     private static Component columnsText(ItemBrowserConfig cfg) {

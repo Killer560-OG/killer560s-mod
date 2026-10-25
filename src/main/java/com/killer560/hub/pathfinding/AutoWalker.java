@@ -118,11 +118,9 @@ public final class AutoWalker {
     private static int climbTicks;
     private static int failsafes;
     private static String lastFailsafe = "";
-    private static int brakeTicks;
     private static int rescuesPlanned;
     private static int rescuesDone;
     private static String lastRescue = "";
-    private static int rescuesFailed;
 
     private AutoWalker() {
     }
@@ -245,14 +243,6 @@ public final class AutoWalker {
         }
         bestRemaining = Double.MAX_VALUE;
         bestRemainingAtMs = System.currentTimeMillis();
-    }
-
-    public static boolean isWalking() {
-        return walking;
-    }
-
-    public static boolean isStuck() {
-        return stuck;
     }
 
     /** Forget the last applied rotation after a server-driven one (the etherwarp teleport reply). */
@@ -743,9 +733,6 @@ public final class AutoWalker {
         wantLeft = st > 0;
         wantRight = st < 0;
         wantSprint = bestSprint;
-        if (wantBack && model.speed() > 0.05) {
-            brakeTicks++;
-        }
     }
 
     // ------------------------------------------------------------------ the way back onto the route
@@ -821,16 +808,16 @@ public final class AutoWalker {
         LOGGER.info("[AutoWalker] {} at {} - {} step(s) back to {} ({} us)", why, start, cells.size(), cells.get(cells.size() - 1), us);
     }
 
-    /**
-     * Where a way back may end: route points (feet cells he can stand in, not water or lava) and the soul. Blocked or
-     * stuck, only points AHEAD of where he is on the route and not right beside him count, or the nearest goal would
-     * be the spot he is stuck on.
-     */
     /** The route's feet cells around {@code start} and the soul (an escape's landing must reach one of them). */
     static List<BlockPos> routeGoals(Level level, Vec3 pos, BlockPos start) {
         return rescueGoals(level, pos, start, false);
     }
 
+    /**
+     * Where a way back may end: route points (feet cells he can stand in, not water or lava) and the soul. Blocked or
+     * stuck, only points AHEAD of where he is on the route and not right beside him count, or the nearest goal would
+     * be the spot he is stuck on.
+     */
     private static List<BlockPos> rescueGoals(Level level, Vec3 pos, BlockPos start, boolean aheadOnly) {
         List<BlockPos> goals = new ArrayList<>();
         List<Vec3> path = NavigationManager.path();
@@ -871,7 +858,6 @@ public final class AutoWalker {
         rescuePath = null;
         needsEscape = true;
         escapeWhy = why;
-        rescuesFailed++;
         clearKeys();
     }
 
@@ -1038,7 +1024,7 @@ public final class AutoWalker {
 
     private static boolean nearJumpPad(Vec3 pos) {
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (graph == null) {
             return false;
         }
@@ -1159,20 +1145,12 @@ public final class AutoWalker {
         return lastFailsafe;
     }
 
-    public static int brakeTicks() {
-        return brakeTicks;
-    }
-
     public static int rescuesPlanned() {
         return rescuesPlanned;
     }
 
     public static int rescuesDone() {
         return rescuesDone;
-    }
-
-    public static int rescuesFailed() {
-        return rescuesFailed;
     }
 
     public static String lastRescue() {

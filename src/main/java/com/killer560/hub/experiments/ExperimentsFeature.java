@@ -562,7 +562,7 @@ public final class ExperimentsFeature {
         if (name == null) {
             return null;
         }
-        String stripped = name.replaceAll("§.", "").trim();
+        String stripped = ExperimentSolver.SECTION_CODE.matcher(name).replaceAll("").trim();
         if (stripped.isEmpty()) {
             return null;
         }

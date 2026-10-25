@@ -8,7 +8,6 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.mobesp.MobEspConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -54,14 +53,13 @@ public class MobEspTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         MobEspConfig cfg = MobEspConfig.getInstance();
-        Minecraft mc = Minecraft.getInstance();
         int gap = 8;
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
         int y = contentY;
 
         // ---- Starred Mob Hitboxes (legit) ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Starred Mob Hitboxes", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Starred Mob Hitboxes", false));
         y += 16;
         targetRow(widgets, contentX, col2X, y, colW, "Starred Mobs", cfg::getStarredMobsRaw, cfg::setStarredMobs,
                 "Starred Mob", cfg::getStarredColor, cfg::setStarredColor, MobEspConfig.DEFAULT_STARRED_COLOR);
@@ -98,11 +96,8 @@ public class MobEspTab extends BaseTab {
         }
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Room Scoped", cfg.isRoomScoped()), btn -> {
-                    cfg.setRoomScoped(!cfg.isRoomScoped());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("Room Scoped", cfg::isRoomScoped, cfg::setRoomScoped, cfg::save,
+                requestRebuild, contentX, y, colW, 18));
         if (cfg.isRoomScoped()) {
             double minMargin = MobEspConfig.MIN_ROOM_MARGIN;
             double maxMargin = MobEspConfig.MAX_ROOM_MARGIN;
@@ -139,7 +134,7 @@ public class MobEspTab extends BaseTab {
 
         // ---- Wither Boss Highlight (legit, its own section since 2026-09-20; renamed 2026-10-09, killer560: "make it
         // 'wither boss highlight' instead of 'wither highlight' for the name") ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Wither Boss Highlight", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Wither Boss Highlight", false));
         y += 16;
         targetRow(widgets, contentX, col2X, y, colW, "Wither Boss Highlight", cfg::getWitherHighlightRaw,
                 cfg::setWitherHighlight, "Wither Boss Highlight", cfg::getWitherHighlightColor,
@@ -154,11 +149,8 @@ public class MobEspTab extends BaseTab {
         // killer560, 2026-09-21: "for the esp also have an option to have a tracer line to him"; 2026-10-15: "for legit
         // have the tracer option there but only have tracers appear for the bosses if the boss can be seen legitly."
         // One Tracer for both modes: the legit highlight draws it only to a wither it can see, the cheat ESP to every one.
-        widgets.add(SettingsButtonWidget.builder(onOff("Tracer", cfg.getWitherTracerRaw()), btn -> {
-                    cfg.setWitherTracer(!cfg.getWitherTracerRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("Tracer", cfg::getWitherTracerRaw, cfg::setWitherTracer, cfg::save,
+                requestRebuild, contentX, y, colW, 18));
         if (cfg.getWitherTracerRaw()) {
             float minT = MobEspConfig.MIN_LINE_WIDTH;
             float maxT = MobEspConfig.MAX_LINE_WIDTH;
@@ -187,13 +179,10 @@ public class MobEspTab extends BaseTab {
         // The old Through Walls and Wither Bosses toggles are gone. The wither color and the tracer are the Wither Boss
         // Highlight's above (killer560, 2026-10-15), so the ESP has no color or tracer of its own.
         y += 6;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("ESP", true), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "ESP", true));
         y += 16;
-        widgets.add(SettingsButtonWidget.builder(onOff("ESP", cfg.isEspRaw()), btn -> {
-                    cfg.setEsp(!cfg.isEspRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("ESP", cfg::isEspRaw, cfg::setEsp, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         return widgets;
     }
 
@@ -237,9 +226,5 @@ public class MobEspTab extends BaseTab {
 
     private static Component roomMarginText(MobEspConfig cfg) {
         return Component.literal(String.format(Locale.US, "Room Margin: %.0f", cfg.getRoomMargin()));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

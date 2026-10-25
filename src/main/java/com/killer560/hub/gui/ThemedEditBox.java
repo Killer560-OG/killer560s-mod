@@ -57,10 +57,6 @@ public class ThemedEditBox extends EditBox {
         return new int[]{ox, oy, ow, oh};
     }
 
-    public String themedHint() {
-        return themedHint;
-    }
-
     /** Moves the drawn box (and the text line inside it) so its left edge is at {@code x} (screen sweep C: the
      *  scoreboard editor lays its rows out after building them). */
     @Override

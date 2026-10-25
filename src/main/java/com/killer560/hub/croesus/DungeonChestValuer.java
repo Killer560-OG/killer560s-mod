@@ -1,10 +1,8 @@
 package com.killer560.hub.croesus;
 
 import com.google.gson.JsonParser;
-import com.killer560.hub.rngmeter.RngItem;
 import com.killer560.hub.rngmeter.RngItemNames;
 import com.killer560.hub.rngmeter.RngMeterEngine;
-import com.killer560.hub.rngmeter.RngSource;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;

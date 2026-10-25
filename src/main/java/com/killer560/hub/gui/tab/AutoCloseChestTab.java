@@ -1,9 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.autoclosechest.AutoCloseChestConfig;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,16 +31,9 @@ public class AutoCloseChestTab extends BaseTab {
         int y = contentY;
         AutoCloseChestConfig cfg = AutoCloseChestConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Close Chest", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Auto Close Chest", cfg.isEnabledRaw()));
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Auto Close Chest", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                null, contentX, y, contentWidth, 20));
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

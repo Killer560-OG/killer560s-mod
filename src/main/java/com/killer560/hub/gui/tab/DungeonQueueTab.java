@@ -8,7 +8,6 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.partyfinder.PartyFinderOverlay;
 import com.killer560.hub.partyfinder.PartyFinderOverlayConfig;
 import com.killer560.hub.partyfinder.PartyFinderOverlayConfig.CompactMode;
-import com.killer560.hub.partyfinder.PartyFinderOverlayConfig.PbMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -48,11 +47,8 @@ public class DungeonQueueTab extends BaseTab {
 
         // ---------------------------------------------------------------- Auto Requeue
         DungeonQueueConfig queue = DungeonQueueConfig.getInstance();
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Requeue", queue.isEnabledRaw()), btn -> {
-                    queue.setEnabled(!queue.isEnabledRaw());
-                    queue.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Auto Requeue", queue::isEnabledRaw, queue::setEnabled, queue::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (queue.isEnabledRaw()) {
@@ -77,11 +73,8 @@ public class DungeonQueueTab extends BaseTab {
 
         // ---------------------------------------------------------------- Party Finder Overlay
         PartyFinderOverlayConfig pf = PartyFinderOverlayConfig.getInstance();
-        widgets.add(SettingsButtonWidget.builder(onOff("Party Finder Overlay", pf.isEnabledRaw()), btn -> {
-                    pf.setEnabled(!pf.isEnabledRaw());
-                    pf.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Party Finder Overlay", pf::isEnabledRaw, pf::setEnabled, pf::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!pf.isEnabledRaw()) {
@@ -326,20 +319,12 @@ public class DungeonQueueTab extends BaseTab {
 
     private static AbstractWidget toggle(String label, BoolGetter getter, BoolSetter setter, Runnable save,
                                          int x, int y, int w) {
-        return SettingsButtonWidget.builder(onOff(label, getter.get()), btn -> {
-                    setter.set(!getter.get());
-                    save.run();
-                    btn.setMessage(onOff(label, getter.get()));
-                }).bounds(x, y, w, 18).build();
+        return onOffButton(label, getter::get, setter::set, save, null, x, y, w, 18);
     }
 
     private static AbstractWidget rebuildToggle(String label, BoolGetter getter, BoolSetter setter, Runnable save,
                                                 Runnable requestRebuild, int x, int y, int w) {
-        return SettingsButtonWidget.builder(onOff(label, getter.get()), btn -> {
-                    setter.set(!getter.get());
-                    save.run();
-                    requestRebuild.run();
-                }).bounds(x, y, w, 18).build();
+        return onOffButton(label, getter::get, setter::set, save, requestRebuild, x, y, w, 18);
     }
 
     private static AbstractWidget colorButton(String label, IntSupplier getter, IntConsumer setter, int defaultArgb,
@@ -359,9 +344,5 @@ public class DungeonQueueTab extends BaseTab {
 
     private static Component valueText(String label, String value) {
         return Component.literal(label + ": §6" + value);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

@@ -1,9 +1,7 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.WeirdosSolverConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,29 +20,19 @@ public class WeirdosSolverTab extends BaseTab {
         int y = contentY;
         WeirdosSolverConfig cfg = WeirdosSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Weirdos Solver", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Weirdos Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Ruled-Out Chests", cfg.isShowWrongChests()), btn -> {
-                    cfg.setShowWrongChests(!cfg.isShowWrongChests());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Ruled-Out Chests", cfg.isShowWrongChests()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show Ruled-Out Chests", cfg::isShowWrongChests, cfg::setShowWrongChests, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.WEIRDOS, contentX, contentWidth, y, true);
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

@@ -31,11 +31,8 @@ public class CustomScoreboardTab extends BaseTab {
         int y = contentY;
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Custom Scoreboard", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Custom Scoreboard", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!cfg.isEnabled()) {
@@ -48,9 +45,5 @@ public class CustomScoreboardTab extends BaseTab {
                 }).primary().bounds(contentX, y, contentWidth, 20).build());
         // The themes (the board's and the editor's) moved into the Visual Editor's Settings page (killer560, 2026-10-18).
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

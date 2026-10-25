@@ -34,10 +34,6 @@ public class LegitGfsTab extends BaseTab implements KeyCaptureTab {
         capturing = null;
     }
 
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
-    }
-
     @Override
     public boolean supportsMouseCapture() {
         return true;

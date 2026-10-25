@@ -43,11 +43,8 @@ public class RealTimeTab extends BaseTab {
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Real Time", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Real Time", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -59,23 +56,13 @@ public class RealTimeTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(formatLabel(cfg));
                 }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Seconds", cfg.isShowSeconds()), btn -> {
-                    cfg.setShowSeconds(!cfg.isShowSeconds());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Seconds", cfg.isShowSeconds()));
-                }).bounds(col2X, y, colW, 18).build());
+        widgets.add(onOffButton("Show Seconds", cfg::isShowSeconds, cfg::setShowSeconds, cfg::save,
+                null, col2X, y, colW, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Label", cfg.isShowLabel()), btn -> {
-                    cfg.setShowLabel(!cfg.isShowLabel());
-                    cfg.save();
-                    btn.setMessage(onOff("Label", cfg.isShowLabel()));
-                }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Zone Abbreviation", cfg.isShowZoneAbbreviation()), btn -> {
-                    cfg.setShowZoneAbbreviation(!cfg.isShowZoneAbbreviation());
-                    cfg.save();
-                    btn.setMessage(onOff("Zone Abbreviation", cfg.isShowZoneAbbreviation()));
-                }).bounds(col2X, y, colW, 18).build());
+        widgets.add(onOffButton("Label", cfg::isShowLabel, cfg::setShowLabel, cfg::save, null, contentX, y, colW, 18));
+        widgets.add(onOffButton("Zone Abbreviation", cfg::isShowZoneAbbreviation, cfg::setShowZoneAbbreviation,
+                cfg::save, null, col2X, y, colW, 18));
         y += 22;
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Text Color", cfg.getTextColor()), btn -> {
@@ -86,11 +73,8 @@ public class RealTimeTab extends BaseTab {
                         cfg.save();
                     }));
                 }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Text Shadow", cfg.isTextShadow()), btn -> {
-                    cfg.setTextShadow(!cfg.isTextShadow());
-                    cfg.save();
-                    btn.setMessage(onOff("Text Shadow", cfg.isTextShadow()));
-                }).bounds(col2X, y, colW, 18).build());
+        widgets.add(onOffButton("Text Shadow", cfg::isTextShadow, cfg::setTextShadow, cfg::save,
+                null, col2X, y, colW, 18));
         y += 28;
 
         boolean custom = cfg.getZoneMode() == RealTimeConfig.ZoneMode.CUSTOM;
@@ -249,9 +233,5 @@ public class RealTimeTab extends BaseTab {
 
     private static Component formatLabel(RealTimeConfig cfg) {
         return Component.literal("Format: §6" + (cfg.isUse24Hour() ? "24 Hour" : "12 Hour"));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

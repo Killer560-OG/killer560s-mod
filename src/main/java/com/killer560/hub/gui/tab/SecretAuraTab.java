@@ -3,13 +3,11 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.cheatutils.CheatUtilsConfig;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.leveraura.LeverAuraConfig;
 import com.killer560.hub.leveraura.LeverAuraFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -130,7 +128,7 @@ public class SecretAuraTab extends BaseTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String text) {
         y[0] += 6;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(text, true), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, text, true));
         y[0] += 16;
     }
 
@@ -142,20 +140,8 @@ public class SecretAuraTab extends BaseTab {
 
     private static void toggle(List<AbstractWidget> w, int x, int[] y, String name, Supplier<Boolean> getter,
                                Consumer<Boolean> setter, Runnable rebuild, Runnable save) {
-        w.add(SettingsButtonWidget.builder(onOff(name, getter.get()), btn -> {
-            setter.accept(!getter.get());
-            save.run();
-            if (rebuild != null) {
-                rebuild.run();
-            } else {
-                btn.setMessage(onOff(name, getter.get()));
-            }
-        }).bounds(x, y[0], BTN_W, 20).build());
+        w.add(onOffButton(name, getter::get, setter, save, rebuild, x, y[0], BTN_W, 20));
         y[0] += 24;
-    }
-
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
     }
 
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,
@@ -165,17 +151,6 @@ public class SecretAuraTab extends BaseTab {
 
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,
                                DoubleConsumer apply, Runnable save) {
-        w.add(new ThemedSliderButton(x, y, width, 20, Component.literal(text.get()), Math.max(0.0, Math.min(1.0, normalized))) {
-            @Override
-            protected void updateMessage() {
-                setMessage(Component.literal(text.get()));
-            }
-
-            @Override
-            protected void applyValue() {
-                apply.accept(this.value);
-                saveOnRelease(save);
-            }
-        });
+        w.add(normSlider(x, y, width, 20, text, normalized, apply, save));
     }
 }

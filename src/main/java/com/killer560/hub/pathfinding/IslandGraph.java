@@ -82,11 +82,6 @@ public final class IslandGraph {
             return dx * dx + dy * dy + dz * dz;
         }
 
-        /** Stable key for a soul/position ("x:y:z", integer block coords). */
-        public String posKey() {
-            return (int) Math.floor(x) + ":" + (int) Math.floor(y) + ":" + (int) Math.floor(z);
-        }
-
         @Override
         public String toString() {
             return (cleanName == null ? "#" + id : cleanName) + " (" + (int) x + ", " + (int) y + ", " + (int) z + ")";
@@ -193,10 +188,6 @@ public final class IslandGraph {
         } catch (NumberFormatException e) {
             return null;
         }
-    }
-
-    public Node byId(int id) {
-        return byId.get(id);
     }
 
     /** Closest node by straight-line distance, or null for an empty graph. */

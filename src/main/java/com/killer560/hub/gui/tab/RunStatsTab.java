@@ -1,12 +1,9 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SectionHeaders;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.runstats.RunStatsConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -28,11 +25,8 @@ public class RunStatsTab extends BaseTab {
         int colBX = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Run Stats", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Run Stats", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!cfg.isEnabledRaw()) {
@@ -75,7 +69,7 @@ public class RunStatsTab extends BaseTab {
     }
 
     private static AbstractWidget header(String title, int x, int y, int width) {
-        return new StringWidget(x, y, width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font);
+        return SectionHeaders.row(x, y, width, title, false);
     }
 
     private interface BoolGetter {
@@ -88,18 +82,10 @@ public class RunStatsTab extends BaseTab {
 
     private static AbstractWidget toggle(String label, BoolGetter getter, BoolSetter setter, Runnable save,
                                          int x, int y, int w) {
-        return SettingsButtonWidget.builder(onOff(label, getter.get()), btn -> {
-                    setter.set(!getter.get());
-                    save.run();
-                    btn.setMessage(onOff(label, getter.get()));
-                }).bounds(x, y, w, 18).build();
+        return onOffButton(label, getter::get, setter::set, save, null, x, y, w, 18);
     }
 
     private static Component delayText(RunStatsConfig cfg) {
         return Component.literal("Summary Delay: " + cfg.getDelaySeconds() + "s");
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

@@ -25,11 +25,8 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         InventoryHudConfig cfg = InventoryHudConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Inventory HUD", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Inventory HUD", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 28;
 
         if (!cfg.isEnabled()) {
@@ -40,16 +37,8 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
         int colW = (contentWidth - gap) / 2;
         int colBX = contentX + colW + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Vertical", cfg.isVertical()), btn -> {
-                    cfg.setVertical(!cfg.isVertical());
-                    cfg.save();
-                    btn.setMessage(onOff("Vertical", cfg.isVertical()));
-                }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Mini Mode", cfg.isMiniMode()), btn -> {
-                    cfg.setMiniMode(!cfg.isMiniMode());
-                    cfg.save();
-                    btn.setMessage(onOff("Mini Mode", cfg.isMiniMode()));
-                }).bounds(colBX, y, colW, 18).build());
+        widgets.add(onOffButton("Vertical", cfg::isVertical, cfg::setVertical, cfg::save, null, contentX, y, colW, 18));
+        widgets.add(onOffButton("Mini Mode", cfg::isMiniMode, cfg::setMiniMode, cfg::save, null, colBX, y, colW, 18));
         y += 22;
 
         widgets.add(SettingsButtonWidget.cycling(backgroundText(cfg), (btn, dir) -> {
@@ -67,35 +56,20 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
                 contentX, y, colW, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Item Counts", cfg.isShowCounts()), btn -> {
-                    cfg.setShowCounts(!cfg.isShowCounts());
-                    cfg.save();
-                    btn.setMessage(onOff("Item Counts", cfg.isShowCounts()));
-                }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Durability Bars", cfg.isShowDurability()), btn -> {
-                    cfg.setShowDurability(!cfg.isShowDurability());
-                    cfg.save();
-                    btn.setMessage(onOff("Durability Bars", cfg.isShowDurability()));
-                }).bounds(colBX, y, colW, 18).build());
+        widgets.add(onOffButton("Item Counts", cfg::isShowCounts, cfg::setShowCounts, cfg::save,
+                null, contentX, y, colW, 18));
+        widgets.add(onOffButton("Durability Bars", cfg::isShowDurability, cfg::setShowDurability, cfg::save,
+                null, colBX, y, colW, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Pickup Animation", cfg.isPickupAnimation()), btn -> {
-                    cfg.setPickupAnimation(!cfg.isPickupAnimation());
-                    cfg.save();
-                    btn.setMessage(onOff("Pickup Animation", cfg.isPickupAnimation()));
-                }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide When Empty", cfg.isHideWhenEmpty()), btn -> {
-                    cfg.setHideWhenEmpty(!cfg.isHideWhenEmpty());
-                    cfg.save();
-                    btn.setMessage(onOff("Hide When Empty", cfg.isHideWhenEmpty()));
-                }).bounds(colBX, y, colW, 18).build());
+        widgets.add(onOffButton("Pickup Animation", cfg::isPickupAnimation, cfg::setPickupAnimation, cfg::save,
+                null, contentX, y, colW, 18));
+        widgets.add(onOffButton("Hide When Empty", cfg::isHideWhenEmpty, cfg::setHideWhenEmpty, cfg::save,
+                null, colBX, y, colW, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide in Screens", cfg.isHideInScreens()), btn -> {
-                    cfg.setHideInScreens(!cfg.isHideInScreens());
-                    cfg.save();
-                    btn.setMessage(onOff("Hide in Screens", cfg.isHideInScreens()));
-                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(onOffButton("Hide in Screens", cfg::isHideInScreens, cfg::setHideInScreens, cfg::save,
+                null, contentX, y, colW, 18));
         widgets.add(SettingsButtonWidget.cycling(visibilityText(cfg), (btn, dir) -> {
                     cfg.setVisibility(dir > 0 ? cfg.getVisibility().next() : cfg.getVisibility().previous());
                     cfg.save();
@@ -166,10 +140,6 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
         String name = cfg.getKeyCode() < 0 ? "Not Set"
                 : InputConstants.Type.KEYSYM.getOrCreate(cfg.getKeyCode()).getDisplayName().getString();
         return Component.literal("Key: §b" + name);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
     @Override

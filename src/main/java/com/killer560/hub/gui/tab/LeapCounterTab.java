@@ -44,11 +44,8 @@ public class LeapCounterTab extends BaseTab {
         int colB = contentX + half + gap;
 
         // The switch is the tab's first row (no header above it; the tab name already says Leap Counter).
-        w.add(SettingsButtonWidget.builder(onOff("Leap Counter", cfg.getEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.getEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Leap Counter", cfg::getEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
         // Settings stay visible while the master is OFF (like F7 Spots) so the counts can be set up before a run.
 
@@ -153,7 +150,7 @@ public class LeapCounterTab extends BaseTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 14;
     }
 
@@ -165,9 +162,5 @@ public class LeapCounterTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff(label, now));
                 }).bounds(x, y, width, 18).build());
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

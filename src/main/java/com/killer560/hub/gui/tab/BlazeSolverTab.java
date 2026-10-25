@@ -1,9 +1,7 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.BlazeSolverConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,36 +20,23 @@ public class BlazeSolverTab extends BaseTab {
         int y = contentY;
         BlazeSolverConfig cfg = BlazeSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Blaze Solver", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Blaze Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Order Lines", cfg.isShowLines()), btn -> {
-                    cfg.setShowLines(!cfg.isShowLines());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Order Lines", cfg.isShowLines()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show Order Lines", cfg::isShowLines, cfg::setShowLines, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Fill Box", cfg.isFillBox()), btn -> {
-                    cfg.setFillBox(!cfg.isFillBox());
-                    cfg.save();
-                    btn.setMessage(onOff("Fill Box", cfg.isFillBox()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Fill Box", cfg::isFillBox, cfg::setFillBox, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BLAZE, contentX, contentWidth, y, false);
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

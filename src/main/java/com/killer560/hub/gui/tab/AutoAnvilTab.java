@@ -1,10 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.autoanvil.AutoAnvilConfig;
-import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,35 +56,13 @@ public class AutoAnvilTab extends BaseTab {
 
     private static void toggle(List<AbstractWidget> w, int x, int[] y, String name, Supplier<Boolean> getter,
                                Consumer<Boolean> setter, Runnable rebuild) {
-        w.add(SettingsButtonWidget.builder(onOff(name, getter.get()), btn -> {
-            setter.accept(!getter.get());
-            AutoAnvilConfig.getInstance().save();
-            if (rebuild != null) {
-                rebuild.run();
-            } else {
-                btn.setMessage(onOff(name, getter.get()));
-            }
-        }).bounds(x, y[0], BTN_W, 20).build());
+        w.add(onOffButton(name,
+                getter::get, setter, () -> AutoAnvilConfig.getInstance().save(), rebuild, x, y[0], BTN_W, 20));
         y[0] += 24;
-    }
-
-    private static Component onOff(String name, boolean on) {
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
     }
 
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,
                                java.util.function.DoubleConsumer apply) {
-        w.add(new ThemedSliderButton(x, y, width, 20, Component.literal(text.get()), Math.max(0.0, Math.min(1.0, normalized))) {
-            @Override
-            protected void updateMessage() {
-                setMessage(Component.literal(text.get()));
-            }
-
-            @Override
-            protected void applyValue() {
-                apply.accept(this.value);
-                saveOnRelease(() -> AutoAnvilConfig.getInstance().save());
-            }
-        });
+        w.add(normSlider(x, y, width, 20, text, normalized, apply, () -> AutoAnvilConfig.getInstance().save()));
     }
 }

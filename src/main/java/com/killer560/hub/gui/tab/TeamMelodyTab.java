@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.melody.MelodyHudConfig;
@@ -33,20 +32,14 @@ public class TeamMelodyTab extends BaseTab {
         int y = contentY;
         MelodyHudConfig cfg = MelodyHudConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Team Melody HUD", cfg.isHudEnabledRaw()), btn -> {
-                    cfg.setHudEnabled(!cfg.isHudEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Team Melody HUD", cfg::isHudEnabledRaw, cfg::setHudEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         // Share My Progress is independent of the HUD (the tracker reads and publishes with the HUD off), so it
         // stays reachable while the HUD is off; only the HUD's own Scale slider needs the HUD on.
-        widgets.add(SettingsButtonWidget.builder(onOff("Share My Progress", cfg.isShareProgress()), btn -> {
-                    cfg.setShareProgress(!cfg.isShareProgress());
-                    cfg.save();
-                    btn.setMessage(onOff("Share My Progress", cfg.isShareProgress()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Share My Progress", cfg::isShareProgress, cfg::setShareProgress, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 24;
 
         if (!cfg.isHudEnabledRaw()) {
@@ -95,9 +88,5 @@ public class TeamMelodyTab extends BaseTab {
     private static Component sliderLabel(String name, float value, String unit, int decimals) {
         String num = String.format(Locale.US, "%." + decimals + "f", value);
         return Component.literal(name + ": " + num + unit);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

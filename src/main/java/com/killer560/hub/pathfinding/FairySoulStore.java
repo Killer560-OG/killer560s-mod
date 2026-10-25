@@ -209,14 +209,18 @@ public final class FairySoulStore {
             return false;
         }
         for (int[] pos : record.found) {
-            double dx = pos[0] - x;
-            double dy = pos[1] - y;
-            double dz = pos[2] - z;
-            if (dx * dx + dy * dy + dz * dz <= MATCH_DISTANCE_SQ) {
+            if (near(pos, x, y, z)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static boolean near(int[] pos, double x, double y, double z) {
+        double dx = pos[0] - x;
+        double dy = pos[1] - y;
+        double dz = pos[2] - z;
+        return dx * dx + dy * dy + dz * dz <= MATCH_DISTANCE_SQ;
     }
 
     /** @return true when this is a new record (i.e. something actually changed). */
@@ -232,10 +236,7 @@ public final class FairySoulStore {
 
     private static boolean addIfNew(IslandRecord record, int[] pos) {
         for (int[] existing : record.found) {
-            double dx = existing[0] - pos[0];
-            double dy = existing[1] - pos[1];
-            double dz = existing[2] - pos[2];
-            if (dx * dx + dy * dy + dz * dz <= MATCH_DISTANCE_SQ) {
+            if (near(existing, pos[0], pos[1], pos[2])) {
                 return false;
             }
         }
@@ -275,12 +276,6 @@ public final class FairySoulStore {
         }
         save();
         return result;
-    }
-
-    /** How many souls of {@code island} are logged as found (ignoring the menu's own total). */
-    public static synchronized int foundCount(String profileKey, String island) {
-        IslandRecord record = profile(profileKey).get(island);
-        return record == null ? 0 : record.found.size();
     }
 
     /** Clears one island (and its menu counts) for this profile. */

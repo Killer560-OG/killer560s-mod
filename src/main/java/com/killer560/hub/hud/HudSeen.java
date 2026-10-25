@@ -81,12 +81,6 @@ public final class HudSeen {
         slot[0] = System.currentTimeMillis();
     }
 
-    /** True once this element has drawn at least once this session. Distinguishes "you have not been
-     *  anywhere that shows it" from "it is switched off", which the editor tells the player apart. */
-    public static boolean everDrawn(String id) {
-        return LAST_DRAWN.containsKey(id);
-    }
-
     /** Milliseconds since the element last drew, or {@link Long#MAX_VALUE} if it never has. */
     public static long msSince(String id, long asOfMs) {
         long[] slot = LAST_DRAWN.get(id);

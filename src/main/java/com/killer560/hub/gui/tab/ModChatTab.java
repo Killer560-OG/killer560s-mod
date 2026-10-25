@@ -22,11 +22,8 @@ public class ModChatTab extends BaseTab {
         int y = contentY;
         ModChatConfig cfg = ModChatConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Mod Chat", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Mod Chat", cfg::isEnabled, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, 220, 20));
         y += 26;
 
         if (!cfg.isEnabled()) {
@@ -41,19 +38,12 @@ public class ModChatTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Log To Chat", cfg.isLogToChat()), btn -> {
-                    cfg.setLogToChat(!cfg.isLogToChat());
-                    cfg.save();
-                    btn.setMessage(onOff("Log To Chat", cfg.isLogToChat()));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(onOffButton("Log To Chat", cfg::isLogToChat, cfg::setLogToChat, cfg::save,
+                null, contentX, y, 220, 18));
         y += 26;
 
         // The live Relay / Room / Mod users lines are no longer drawn on this tab (killer560, 2026-10-18).
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

@@ -208,8 +208,7 @@ public class AutoTerminalTab extends BaseTab {
         // click-sending automation Auto Terminals is, it reuses that feature's own click path and pending-
         // click bookkeeping, and the two directly interact (auto takes precedence - see
         // HoverTerminalFeature). Keeping them on one screen is what makes that relationship visible.
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Hover Terminals", true), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Hover Terminals", true));
         y += 16;
         // Description already covered by the "Hover Terminals" tooltip.
 
@@ -337,9 +336,5 @@ public class AutoTerminalTab extends BaseTab {
     private static Component melodySkipModeText() {
         return Component.literal("Melody Skip Mode: "
                 + (TerminalSolverConfig.getInstance().getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.ALL ? "All" : "Edges"));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

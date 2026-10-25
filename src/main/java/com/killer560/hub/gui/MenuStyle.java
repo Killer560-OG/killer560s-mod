@@ -546,12 +546,7 @@ public final class MenuStyle {
         hGradient(r, x, y + 1, x + w, y + h, c, alpha(c, 0), 12);
     }
 
-    /** Slider track (recessed) with the filled part orange and a beveled white knob. */
-    public static void sliderTrack(GuiRects r, int x0, int x1, int cy, double t, boolean hover) {
-        sliderTrack(r, x0, x1, cy, t, hover ? 1f : 0f);
-    }
-
-    /** {@link #sliderTrack} with an eased knob hover. */
+    /** Slider track (recessed) with the filled part orange and a beveled white knob, with an eased knob hover. */
     public static void sliderTrack(GuiRects r, int x0, int x1, int cy, double t, float hover) {
         int h = 4;
         int y = cy - h / 2;
@@ -565,12 +560,7 @@ public final class MenuStyle {
         knob(r, kx - 4, cy - 4, hover);
     }
 
-    /** An 8x8 rounded white knob with a black edge. */
-    public static void knob(GuiRects r, int x, int y, boolean hover) {
-        knob(r, x, y, hover ? 1f : 0f);
-    }
-
-    /** {@link #knob} with an eased hover. */
+    /** An 8x8 rounded white knob with a black edge, with an eased hover. */
     public static void knob(GuiRects r, int x, int y, float hover) {
         int s = 8;
         r.fill(x + 2, y, x + s - 2, y + s, BLACK);
@@ -582,12 +572,6 @@ public final class MenuStyle {
         r.fill(x + 2, y + s - 2, x + s - 2, y + s - 1, KNOB_EDGE);
         r.fill(x + 1, y + s - 3, x + 2, y + s - 2, KNOB_EDGE);
         r.fill(x + s - 2, y + s - 3, x + s - 1, y + s - 2, KNOB_EDGE);
-    }
-
-    /** A tiny orange dot with a glow (the "changed from default" marker). */
-    public static void dot(GuiRects r, int x, int y) {
-        r.fill(x - 1, y - 1, x + 4, y + 4, alpha(OR, 0x30));
-        r.fill(x, y, x + 3, y + 3, OR);
     }
 
     // ---- text -----------------------------------------------------------------------------------------------------

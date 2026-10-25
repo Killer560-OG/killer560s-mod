@@ -12,40 +12,16 @@ import java.util.Locale;
  * skills in the future but just dungeons for now" - so nothing in here knows what a dungeon is. Everything
  * arrives as plain numbers and strings, and a mining or fishing tracker can draw the same screen by handing over
  * its own.
- *
- * <p>Colors are the mod's amber, not the blue and purple of the mockup these were drawn from.
  */
 public final class ProfitPanels {
 
     public static final int ACCENT = 0xFFCC6600;
-    public static final int BORDER = 0xFF553311;
-    public static final int PANEL_BG = 0xFF0D0D0D;
-    public static final int INNER_BG = 0xFF080808;
     public static final int DIM = 0xFF7A7A7A;
     public static final int TEXT = 0xFFE8E8E8;
     public static final int GOOD = 0xFF4ADE80;
     public static final int BAD = 0xFFEF4444;
 
     private ProfitPanels() {
-    }
-
-    /**
-     * One headline figure: a small label, a large value, and a quieter line underneath.
-     *
-     * <p>The left edge is a solid bar in {@code stripe}, which is what carries the good/bad read at a glance -
-     * the mockup's cards are told apart by that stripe rather than by coloring the whole box, and a full box of
-     * red over a losing session is a lot to look at.
-     */
-    public static void card(GuiGraphicsExtractor g, Font font, int x, int y, int w, int h,
-                            String label, String value, int valueColor, String sub, int stripe) {
-        g.fill(x, y, x + w, y + h, PANEL_BG);
-        g.outline(x, y, w, h, BORDER);
-        g.fill(x, y, x + 2, y + h, stripe);
-        g.text(font, label.toUpperCase(Locale.ROOT), x + 10, y + 8, DIM, false);
-        g.text(font, value, x + 10, y + 22, valueColor, false);
-        if (sub != null && !sub.isEmpty()) {
-            g.text(font, font.plainSubstrByWidth(sub, w - 16), x + 10, y + h - 14, DIM, false);
-        }
     }
 
     /**
@@ -86,7 +62,7 @@ public final class ProfitPanels {
     }
 
     /**
-     * Net-per-run bars, newest on the right, with a zero line.
+     * Net-per-run bars, newest on the right, with a zero line, in the menu's active theme in a recessed well.
      *
      * <p>Drawn straight rather than averaged because the shape of this data is the point: dungeon profit is a
      * long flat run of small chests with occasional enormous spikes, and any smoothing turns the one thing worth
@@ -95,13 +71,6 @@ public final class ProfitPanels {
      *
      * @param values net profit per run, oldest first; may be empty
      */
-    public static void barGraph(GuiGraphicsExtractor g, Font font, int x, int y, int w, int h, long[] values) {
-        g.fill(x, y, x + w, y + h, INNER_BG);
-        g.outline(x, y, w, h, BORDER);
-        bars(g, font, x, y, w, h, values, ACCENT, BAD, DIM, 0xFF2A2A2A, false);
-    }
-
-    /** {@link #barGraph} in the menu's active theme, in a recessed well (the themed profit screens). */
     public static void themedBarGraph(GuiGraphicsExtractor g, Font font, int x, int y, int w, int h, long[] values) {
         com.killer560.hub.gui.ScreenChrome.well(g, x, y, w, h);
         bars(g, font, x, y, w, h, values, com.killer560.hub.gui.MenuStyle.OR, com.killer560.hub.gui.ScreenChrome.bad(),

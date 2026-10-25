@@ -10,7 +10,6 @@ import com.killer560.hub.thorn.ThornFeature;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -53,7 +52,7 @@ public class ThornTab extends BaseTab {
         // independent, each has its own switch, and the card is ON while any is.
 
         // ---- Spirit Bear counter ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Spirit Bear Counter", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Spirit Bear Counter", false));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Spirit Bear HUD", cfg::getBearHudRaw, cfg::setBearHud));
         widgets.add(toggle(col2X, y, colW, "Show Overkill", cfg::getShowOverkillRaw, cfg::setShowOverkill));
@@ -63,7 +62,7 @@ public class ThornTab extends BaseTab {
         y += 28;
 
         // ---- Thorn Highlights (depth-tested unless the cheat-only Through Walls is on) ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Thorn Highlights", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Thorn Highlights", false));
         y += 16;
         targetRow(widgets, contentX, col2X, y, colW, "Thorn Highlight", cfg::getThornEspRaw, cfg::setThornEsp,
                 "Thorn", cfg::getThornColor, cfg::setThornColor, ThornConfig.DEFAULT_THORN_COLOR);
@@ -101,7 +100,7 @@ public class ThornTab extends BaseTab {
         y += 28;
 
         // ---- Stun spots ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Stun Spots", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Stun Spots", false));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Stun Spot Waypoints", cfg::getStunSpotsRaw, cfg::setStunSpots));
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Stun Spot Color", cfg.getStunSpotColor()), btn ->
@@ -139,7 +138,7 @@ public class ThornTab extends BaseTab {
         // Cheat build: at the bottom of the tab, below every legit section (killer560, 2026-10-07: cheat settings go at
         // the bottom, not right under the setting they belong with). It sat between Thorn Highlights and Stun Spots.
         if (cheat) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Cheat Build - Thorn ESP", true), mc.font));
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Thorn ESP", true));
             y += 16;
             widgets.add(toggle(contentX, y, colW, "Thorn ESP Through Walls", cfg::getThroughWallsRaw, cfg::setThroughWalls));
             y += 22;
@@ -150,11 +149,7 @@ public class ThornTab extends BaseTab {
     }
 
     private static AbstractWidget toggle(int x, int y, int width, String label, BooleanSupplier getter, Consumer<Boolean> setter) {
-        return SettingsButtonWidget.builder(onOff(label, getter.getAsBoolean()), btn -> {
-                    setter.accept(!getter.getAsBoolean());
-                    ThornConfig.getInstance().save();
-                    btn.setMessage(onOff(label, getter.getAsBoolean()));
-                }).bounds(x, y, width, 18).build();
+        return onOffButton(label, getter, setter, () -> ThornConfig.getInstance().save(), null, x, y, width, 18);
     }
 
     private static void targetRow(List<AbstractWidget> widgets, int x, int col2X, int y, int width, String name,
@@ -173,9 +168,5 @@ public class ThornTab extends BaseTab {
 
     private static Component lineWidthText(ThornConfig cfg) {
         return Component.literal(String.format(Locale.US, "Thorn ESP Line Width: %.1f", cfg.getLineWidth()));
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

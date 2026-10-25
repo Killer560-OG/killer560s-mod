@@ -1,7 +1,6 @@
 package com.killer560.hub.pathfinding;
 
 import com.killer560.hub.util.ChatObserver;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
@@ -97,10 +96,6 @@ public final class ProfileTracker {
 
     public static String profileName() {
         return profileName;
-    }
-
-    public static String profileId() {
-        return profileId;
     }
 
     /** Storage key: "&lt;account uuid&gt;/&lt;profile name&gt;", or ".../?" until the profile is known. */

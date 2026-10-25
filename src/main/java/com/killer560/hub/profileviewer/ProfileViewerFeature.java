@@ -4,7 +4,6 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import com.killer560.hub.profileviewer.screen.ProfileViewerScreen;
 import com.killer560.hub.util.ModChat;
-import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.suggestion.SuggestionProvider;

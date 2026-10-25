@@ -71,10 +71,6 @@ public final class NavigationManager {
         return path;
     }
 
-    public static String pathIsland() {
-        return pathIsland;
-    }
-
     public static void navigate(String label, Vec3 pos, int nodeIndex, boolean stayOnArrive, ArrivalListener listener) {
         target = new Target(label, pos, nodeIndex, stayOnArrive, listener);
         path = List.of();
@@ -211,7 +207,7 @@ public final class NavigationManager {
         }
         lastPathMs = now;
         String island = IslandDetector.graphIsland();
-        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        IslandGraph graph = GraphRepository.get(island);
         if (graph == null) {
             // no graph (yet): fall back to a straight line so the target is still shown
             path = List.of(player.position(), target.pos);

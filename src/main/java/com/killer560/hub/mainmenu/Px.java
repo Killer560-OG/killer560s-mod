@@ -63,43 +63,6 @@ interface Px {
         return t * t * (3 - 2 * t);
     }
 
-    /** Value noise on an integer lattice, 0..1, smooth. */
-    static double noise(double x, double y, int salt) {
-        int ix = (int) Math.floor(x);
-        int iy = (int) Math.floor(y);
-        double fx = x - ix;
-        double fy = y - iy;
-        double ux = fx * fx * (3 - 2 * fx);
-        double uy = fy * fy * (3 - 2 * fy);
-        double a = lattice(ix, iy, salt);
-        double b = lattice(ix + 1, iy, salt);
-        double c = lattice(ix, iy + 1, salt);
-        double d = lattice(ix + 1, iy + 1, salt);
-        return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
-    }
-
-    private static double lattice(int x, int y, int salt) {
-        int h = x * 374761393 + y * 668265263 + salt * 1442695041;
-        h = (h ^ (h >>> 13)) * 1274126177;
-        h ^= h >>> 16;
-        return (h & 0xFFFFFF) / (double) 0xFFFFFF;
-    }
-
-    /** Fractal value noise, 0..1. */
-    static double fbm(double x, double y, int octaves, int salt) {
-        double sum = 0;
-        double amp = 0.5;
-        double norm = 0;
-        for (int o = 0; o < octaves; o++) {
-            sum += noise(x, y, salt + o * 17) * amp;
-            norm += amp;
-            x = x * 2.03 + 11.7;
-            y = y * 2.03 + 3.1;
-            amp *= 0.5;
-        }
-        return sum / norm;
-    }
-
     /**
      * A soft round glow: Gaussian falloff drawn as narrow columns, each a few piecewise-linear vertical gradients, so it has
      * no rings. {@code a} is the peak alpha 0..1.

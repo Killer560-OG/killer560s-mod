@@ -67,8 +67,4 @@ public class SpringBootsTab extends BaseTab {
     private static Component styleLabel(DungeonAlertsConfig cfg) {
         return Component.literal("Height Box Style: §b" + cfg.springBootsBoxStyle.label);
     }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

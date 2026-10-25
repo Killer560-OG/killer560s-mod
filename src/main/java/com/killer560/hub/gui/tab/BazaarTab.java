@@ -1,7 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.auction.AuctionConfig;
-import com.killer560.hub.auction.BazaarApi;
 import com.killer560.hub.bazaar.BazaarFeature;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -27,11 +26,8 @@ public class BazaarTab extends BaseTab {
         int colW = (contentWidth - gap) / 2;
         int colBX = contentX + colW + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Bazaar Browser", cfg.isBazaarEnabledRaw()), btn -> {
-                    cfg.setBazaarEnabled(!cfg.isBazaarEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Bazaar Browser", cfg::isBazaarEnabledRaw, cfg::setBazaarEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isBazaarEnabledRaw()) {
@@ -44,31 +40,18 @@ public class BazaarTab extends BaseTab {
                 .bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Track My Orders", cfg.isTrackBazaarOrders()), btn -> {
-                    cfg.setTrackBazaarOrders(!cfg.isTrackBazaarOrders());
-                    cfg.save();
-                    btn.setMessage(onOff("Track My Orders", cfg.isTrackBazaarOrders()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Track My Orders", cfg::isTrackBazaarOrders, cfg::setTrackBazaarOrders, cfg::save,
+                null, contentX, y, contentWidth, 18));
         y += 22;
 
         com.killer560.hub.bazaar.BazaarConfig bz = com.killer560.hub.bazaar.BazaarConfig.getInstance();
-        widgets.add(SettingsButtonWidget.builder(onOff("Follow-up Click", bz.isFollowUpClick()), btn -> {
-                    bz.setFollowUpClick(!bz.isFollowUpClick());
-                    bz.save();
-                    btn.setMessage(onOff("Follow-up Click", bz.isFollowUpClick()));
-                }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide HUDs in Bazaar", bz.isHideHuds()), btn -> {
-                    bz.setHideHuds(!bz.isHideHuds());
-                    bz.save();
-                    btn.setMessage(onOff("Hide HUDs in Bazaar", bz.isHideHuds()));
-                }).bounds(colBX, y, colW, 18).build());
+        widgets.add(onOffButton("Follow-up Click", bz::isFollowUpClick, bz::setFollowUpClick, bz::save,
+                null, contentX, y, colW, 18));
+        widgets.add(onOffButton("Hide HUDs in Bazaar", bz::isHideHuds, bz::setHideHuds, bz::save,
+                null, colBX, y, colW, 18));
         y += 26;
 
         return widgets;
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
 }

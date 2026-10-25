@@ -47,11 +47,8 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
 
         // Auto Simon Says as a whole (killer560, 2026-10-13: a toggle for the portion as a whole) - first, so the card's
         // switch is this one, and shown even while Simon Says itself is off.
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Simon Says", cfg.isAutoSimonSaysEnabled()), btn -> {
-                    cfg.setAutoSimonSaysEnabled(!cfg.isAutoSimonSaysEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Auto Simon Says", cfg::isAutoSimonSaysEnabled, cfg::setAutoSimonSaysEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 24;
         if (!cfg.isAutoSimonSaysEnabled()) {
             return widgets;
@@ -70,15 +67,11 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         // cheatOnly=true), same convention MaskInvincibilityTab/ObjectHiderTab use for cheat-only content.
 
         // --- Trigger Bot ---
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Trigger Bot", true), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Trigger Bot", true));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Trigger Bot", cfg.isTriggerBotEnabled()), btn -> {
-                    cfg.setTriggerBotEnabled(!cfg.isTriggerBotEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Trigger Bot", cfg::isTriggerBotEnabled, cfg::setTriggerBotEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         if (cfg.isTriggerBotEnabled()) {
@@ -100,15 +93,11 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         }
 
         // --- Auto Start (its own category, directly below Trigger Bot per killer560's request above) ---
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Auto Start", true), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Auto Start", true));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Start", cfg.isAutoStartEnabled()), btn -> {
-                    cfg.setAutoStartEnabled(!cfg.isAutoStartEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Auto Start", cfg::isAutoStartEnabled, cfg::setAutoStartEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 20;
 
         if (cfg.isAutoStartEnabled()) {
@@ -158,15 +147,11 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         }
 
         // --- Auto Solve ("autoss") ---
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Auto Solve", true), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Auto Solve", true));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Solve", cfg.isAutoSolveEnabled()), btn -> {
-                    cfg.setAutoSolveEnabled(!cfg.isAutoSolveEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Auto Solve", cfg::isAutoSolveEnabled, cfg::setAutoSolveEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         if (cfg.isAutoSolveEnabled()) {
@@ -247,11 +232,8 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
 
             // Stim and Momentum (killer560's to-do, 2026-10-18) - they only move Rotate mode's aim, so only shown there.
             if (cfg.isAutoSolveRotate()) {
-                widgets.add(SettingsButtonWidget.builder(onOff("Stim", cfg.isAutoSolveStim()), btn -> {
-                            cfg.setAutoSolveStim(!cfg.isAutoSolveStim());
-                            cfg.save();
-                            requestRebuild.run();
-                        }).bounds(col2aX, y, col2W, 18).build());
+                widgets.add(onOffButton("Stim", cfg::isAutoSolveStim, cfg::setAutoSolveStim, cfg::save,
+                        requestRebuild, col2aX, y, col2W, 18));
                 if (cfg.isAutoSolveStim()) {
                     widgets.add(SettingsButtonWidget.cycling(stimButtonsText(cfg), (btn, dir) -> {
                                 int span = SimonSaysConfig.MAX_STIM_BUTTONS - SimonSaysConfig.MIN_STIM_BUTTONS + 1;
@@ -287,11 +269,8 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
             // auto restart is on.") - this changes only where/when the ROW draws; the underlying autoRestart
             // trigger (SS-failure detection + the manual Restart Key press) still fires independently of Auto
             // Start's own on/off state, same as before this change.
-            widgets.add(SettingsButtonWidget.builder(onOff("Auto Restart SS", cfg.getAutoRestartRaw()), btn -> {
-                        cfg.setAutoRestartEnabled(!cfg.getAutoRestartRaw());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(col2aX, y, col2W, 18).build());
+            widgets.add(onOffButton("Auto Restart SS", cfg::getAutoRestartRaw, cfg::setAutoRestartEnabled, cfg::save,
+                    requestRebuild, col2aX, y, col2W, 18));
 
             if (cfg.getAutoRestartRaw()) {
                 Component restartKeyLabel = capturingRestartKey ? Component.literal("Press any key...") : restartKeyText(cfg);
@@ -327,10 +306,6 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         String name = cfg.getRestartKeyCode() < 0 ? "Not Set"
                 : InputConstants.Type.KEYSYM.getOrCreate(cfg.getRestartKeyCode()).getDisplayName().getString();
         return Component.literal("Restart Key: \u00a7b" + name);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "\u00a7aON" : "\u00a7cOFF"));
     }
 
     @Override

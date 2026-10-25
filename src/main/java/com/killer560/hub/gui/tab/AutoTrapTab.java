@@ -43,7 +43,7 @@ public class AutoTrapTab extends BaseTab {
         int third = (contentWidth - 2 * GAP) / 3;
         int last = Math.max(1, contentWidth - 2 * third - 2 * GAP);
         int y = contentY + 6;
-        w.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Auto Trap", true), font));
+        w.add(SectionHeaders.row(contentX, y, contentWidth, "Auto Trap", true));
         y += 16;
         w.add(SettingsButtonWidget.builder(Component.literal("Auto Trap: " + (AutoTrap.isEnabledRaw() ? "§aON" : "§cOFF")),
                 btn -> {

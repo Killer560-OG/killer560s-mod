@@ -3,7 +3,6 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.social.BestFriendsConfig;
 import com.killer560.hub.social.BestFriendsScreen;
-import com.killer560.hub.social.BestFriendsStore;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
@@ -29,11 +28,8 @@ public class BestFriendsTab extends BaseTab {
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Track Party Time", cfg.getEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.getEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Track Party Time", cfg::getEnabledRaw, cfg::setEnabled, cfg::save,
+                requestRebuild, contentX, y, 220, 20));
         y += 26;
 
         if (!cfg.getEnabledRaw()) {
@@ -59,9 +55,5 @@ public class BestFriendsTab extends BaseTab {
 
     private static Component sortText(BestFriendsConfig cfg) {
         return Component.literal("Sort: §b" + cfg.getSortMode().label);
-    }
-
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }
