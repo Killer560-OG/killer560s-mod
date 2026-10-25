@@ -129,10 +129,6 @@ final class ExtraPages {
         return s.font();
     }
 
-    private void text(GuiGraphicsExtractor g, String str, int x, int y, int color) {
-        tx(g, str, x, y, color);
-    }
-
     private void title(GuiGraphicsExtractor g, String str, int x, int y) {
         tx(g, str, x, y, ACCENT);
     }
@@ -300,10 +296,6 @@ final class ExtraPages {
         return n;
     }
 
-    private static String perkName(String id) {
-        return SbProfile.titleCase(id);
-    }
-
     // ------------------------------------------------------------------ collections
 
     // The Collections page's category names and maxed counts, worked out once per (profile extras, category list)
@@ -364,9 +356,9 @@ final class ExtraPages {
         int totalMaxed = collTotalMaxed;
         int totalCount = collTotalCount;
         int ny = s.contentY + 8 + names.length * 19;
-        text(g, "Maxed", s.contentX + 6, ny, DIM);
+        tx(g, "Maxed", s.contentX + 6, ny, DIM);
         ny += 10;
-        text(g, totalMaxed + " / " + totalCount, s.contentX + 6, ny, totalMaxed == totalCount ? MAXED : VALUE);
+        tx(g, totalMaxed + " / " + totalCount, s.contentX + 6, ny, totalMaxed == totalCount ? MAXED : VALUE);
 
         ExtraTables.CollectionCategory cat = cats.get(sel);
         int rx = s.contentX + navW + 6;
@@ -403,7 +395,7 @@ final class ExtraPages {
             String tierText = tier + "/" + max;
             int tx = x + 19;
             int tw = colW - 19;
-            text(g, f().plainSubstrByWidth(it.name(), tw - f().width(tierText) - 4), tx, y, amount > 0 ? TEXT : DIM);
+            tx(g, f().plainSubstrByWidth(it.name(), tw - f().width(tierText) - 4), tx, y, amount > 0 ? TEXT : DIM);
             rightText(g, tierText, tx + tw, y, isMaxed ? MAXED : VALUE);
             progressBar(g, tx, y + 11, tw, progress, isMaxed);
             if (hover(mx, my, x, y, colW, rowH - 2)) {
@@ -470,7 +462,7 @@ final class ExtraPages {
         String[] names = {"Mithril", "Gemstone", "Glacite"};
         int[] colors = {0xFF00AA00, 0xFFFF55FF, 0xFF55FFFF};
         for (int i = 0; i < 3; i++) {
-            text(g, names[i], x, y, colors[i]);
+            tx(g, names[i], x, y, colors[i]);
             rightText(g, shorten(m.powderAvailable()[i]) + " / " + shorten(m.powderTotal()[i]), x + w, y, VALUE);
             if (hover(mx, my, x, y, w, 10)) {
                 tip(List.of(line(names[i] + " Powder", colors[i]), line("Available: " + commas(m.powderAvailable()[i]), TEXT),
@@ -492,20 +484,20 @@ final class ExtraPages {
             tip(List.of(line("Ores Mined: " + commas(m.oresMined()), TEXT)));
         }
         if (m.selectedAbility() != null && !m.selectedAbility().isEmpty()) {
-            y = s.stat2(g, x, y, w, "Ability", f().plainSubstrByWidth(perkName(m.selectedAbility()), 90));
+            y = s.stat2(g, x, y, w, "Ability", f().plainSubstrByWidth(SbProfile.titleCase(m.selectedAbility()), 90));
         }
         y += 4;
         title(g, "Forge", x, y);
         y += 11;
         if (m.forge().isEmpty()) {
-            text(g, "Empty", x, y, DIM);
+            tx(g, "Empty", x, y, DIM);
         }
         for (ProfileExtras.ForgeSlot slot : m.forge()) {
             if (y > s.contentY + s.contentH - 10) {
                 break;
             }
             String label = "Slot " + slot.slot();
-            text(g, label, x, y, DIM);
+            tx(g, label, x, y, DIM);
             String item = f().plainSubstrByWidth(SbProfile.titleCase(slot.id()), w - f().width(label) - 6);
             rightText(g, item, x + w, y, VALUE);
             if (hover(mx, my, x, y, w, 10)) {
@@ -551,11 +543,11 @@ final class ExtraPages {
             Map.Entry<String, Integer> e = list.get(i);
             int ly = y + (i - scroll) * 10;
             String lv = String.valueOf(e.getValue());
-            text(g, f().plainSubstrByWidth(perkName(e.getKey()), w - f().width(lv) - 8), x, ly, TEXT);
+            tx(g, f().plainSubstrByWidth(SbProfile.titleCase(e.getKey()), w - f().width(lv) - 8), x, ly, TEXT);
             rightText(g, lv, x + w - 4, ly, VALUE);
         }
         if (list.isEmpty()) {
-            text(g, "None", x, y, DIM);
+            tx(g, "None", x, y, DIM);
         }
         scrollbar(g, x + w - 2, y, visible * 10, list.size(), visible);
     }
@@ -620,7 +612,7 @@ final class ExtraPages {
             JsonObject fo = e.getValue().isJsonObject() ? e.getValue().getAsJsonObject() : new JsonObject();
             boolean have = donated.contains(e.getKey());
             String name = fo.has("name") ? fo.get("name").getAsString() : SbProfile.titleCase(e.getKey());
-            text(g, name, fx, fy, have ? TEXT : DIM);
+            tx(g, name, fx, fy, have ? TEXT : DIM);
             rightText(g, have ? "✔" : "✘", fx + w, fy, have ? GOOD : BAD);
             if (hover(mx, my, fx, fy, w, 10) && fo.has("pet")) {
                 tip(List.of(line(name, VALUE), line("Pet: " + SbProfile.titleCase(fo.get("pet").getAsString()), DIM)));
@@ -704,7 +696,7 @@ final class ExtraPages {
         title(g, f().plainSubstrByWidth(cat.name(), rw - 12), rx + 6, s.contentY + 5);
         String summary = "Milestone " + (totalTiers / 10) + " · Tiers " + commas(totalTiers) + " · Maxed " + maxed + " / "
                 + families + " · Kills " + shorten(kills);
-        text(g, f().plainSubstrByWidth(summary, rw - 12), rx + 6, s.contentY + 16, DIM);
+        tx(g, f().plainSubstrByWidth(summary, rw - 12), rx + 6, s.contentY + 16, DIM);
         if (hover(mx, my, rx + 6, s.contentY + 15, rw - 12, 10)) {
             tip(List.of(line("Milestone: " + (totalTiers / 10), VALUE), line("Family Tiers: " + commas(totalTiers), TEXT),
                     line("Maxed: " + maxed + " / " + families, TEXT), line("Total Kills: " + commas(kills), TEXT)));
@@ -849,7 +841,7 @@ final class ExtraPages {
         String[] names = {"Mage", "Barbarian"};
         int[] colors = {0xFFAA00AA, 0xFFFF5555};
         for (int i = 0; i < 2; i++) {
-            text(g, names[i], x, y, colors[i]);
+            tx(g, names[i], x, y, colors[i]);
             rightText(g, commas(reps[i]), x + w, y, VALUE);
             y += 10;
             rightText(g, ExtraTables.threshold(tables.get("faction_reputation"), "name", reps[i]), x + w, y, DIM);
@@ -922,7 +914,7 @@ final class ExtraPages {
             int pts = e.getValue();
             String name = dojoNames.has(e.getKey()) ? dojoNames.get(e.getKey()).getAsString() : SbProfile.titleCase(e.getKey());
             String grade = pts < 0 ? "-" : ExtraTables.threshold(tables.get("dojo_grades"), "grade", pts);
-            text(g, name, x, y, pts < 0 ? DIM : TEXT);
+            tx(g, name, x, y, pts < 0 ? DIM : TEXT);
             String val = pts < 0 ? "-" : commas(pts);
             rightText(g, grade, x + w, y, gradeColor(grade));
             rightText(g, val, x + w - 12, y, VALUE);
@@ -1225,7 +1217,7 @@ final class ExtraPages {
                     }
                 }
                 g.item(new ItemStack(got != null ? Items.CLOCK : McItems.GRAY_DYE), tx, ty);
-                text(g, f().plainSubstrByWidth(name, tw - 20), tx + 19, ty + 4, got != null ? TEXT : DIM);
+                tx(g, f().plainSubstrByWidth(name, tw - 20), tx + 19, ty + 4, got != null ? TEXT : DIM);
                 if (hover(mx, my, tx, ty, tw, 17)) {
                     tip(got == null ? List.of(line(name, DIM), line("Not found", BAD))
                             : List.of(line(name, VALUE), line("Found after " + got.visits() + " visits", TEXT), line(dateTime(got.timestamp()), DIM)));
@@ -1334,11 +1326,11 @@ final class ExtraPages {
             y = s.stat2(g, x, y, w, "Visitors Served", commas(comm == null ? 0 : SbProfile.num(comm.get("unique_npcs_served"))));
             y = s.stat2(g, x, y, w, "Offers Accepted", commas(comm == null ? 0 : SbProfile.num(comm.get("total_completed"))));
         } else if (!gf.isDone()) {
-            text(g, "Loading garden" + s.dots(), x, y, VALUE);
+            tx(g, "Loading garden" + s.dots(), x, y, VALUE);
             y += 11;
         } else {
             int ly = y;
-            text(g, gf.isCompletedExceptionally() ? "Garden unavailable" : "No garden", x, y, DIM);
+            tx(g, gf.isCompletedExceptionally() ? "Garden unavailable" : "No garden", x, y, DIM);
             if (gf.isCompletedExceptionally() && hover(mx, my, x, ly, w, 10)) {
                 String msg = "";
                 try {
@@ -1365,7 +1357,7 @@ final class ExtraPages {
         title(g, "Jacob's Contests", x, y);
         y += 12;
         if (!fa.present()) {
-            text(g, "No contest data", x, y, DIM);
+            tx(g, "No contest data", x, y, DIM);
         } else {
             y = s.stat2(g, x, y, w, "Contests Entered", commas(fa.contests()));
             int my0 = y;
@@ -1398,7 +1390,7 @@ final class ExtraPages {
         int ty = s.contentY + 5;
         String[] headers = {"Crop", "Milestone", "Contests", "Bracket", "Best"};
         for (int i = 0; i < headers.length; i++) {
-            text(g, headers[i], cols[i], ty, ACCENT);
+            tx(g, headers[i], cols[i], ty, ACCENT);
         }
         ty += 12;
         int rowH = Math.max(11, Math.min(15, (s.contentH - 20) / Math.max(1, milestonesObj.size())));
@@ -1421,13 +1413,13 @@ final class ExtraPages {
             g.pose().scale(0.7f, 0.7f);
             g.item(icon, 0, 0);
             g.pose().popMatrix();
-            text(g, f().plainSubstrByWidth(name, cols[1] - cols[0] - 4), cols[0], ty, TEXT);
+            tx(g, f().plainSubstrByWidth(name, cols[1] - cols[0] - 4), cols[0], ty, TEXT);
             long[] cum = ExtraTables.tableCumulative(e.getValue());
             long amount = collected == null ? -1 : (long) SbProfile.num(collected.get(crop));
             int milestone = amount < 0 ? -1 : countAtOrBelow(cum, amount);
             boolean maxed = milestone >= cum.length && cum.length > 0;
-            text(g, milestone < 0 ? "-" : milestone + "/" + cum.length, cols[1], ty, milestone < 0 ? DIM : maxed ? MAXED : VALUE);
-            text(g, commas(fa.contestsPerCrop().getOrDefault(crop, 0)), cols[2], ty, VALUE);
+            tx(g, milestone < 0 ? "-" : milestone + "/" + cum.length, cols[1], ty, milestone < 0 ? DIM : maxed ? MAXED : VALUE);
+            tx(g, commas(fa.contestsPerCrop().getOrDefault(crop, 0)), cols[2], ty, VALUE);
             String bracket = "-";
             for (String medal : MEDALS) {
                 List<String> crops = fa.uniqueBrackets().get(medal);
@@ -1436,9 +1428,9 @@ final class ExtraPages {
                     break;
                 }
             }
-            text(g, bracket, cols[3], ty, medalColor(bracket));
+            tx(g, bracket, cols[3], ty, medalColor(bracket));
             long pb = fa.personalBests().getOrDefault(crop, 0L);
-            text(g, pb > 0 ? shorten(pb) : "-", cols[4], ty, pb > 0 ? VALUE : DIM);
+            tx(g, pb > 0 ? shorten(pb) : "-", cols[4], ty, pb > 0 ? VALUE : DIM);
             if (hover(mx, my, rx + 2, ty - 2, rw - 4, rowH)) {
                 List<Component> t = new ArrayList<>();
                 t.add(line(name, VALUE));
@@ -1577,7 +1569,7 @@ final class ExtraPages {
             Networth.Category c = cats.get(i);
             int cy = top + (i - scroll) * rowH;
             int cw = rw - 20;
-            text(g, c.name(), rx + 6, cy, c.total() > 0 ? TEXT : DIM);
+            tx(g, c.name(), rx + 6, cy, c.total() > 0 ? TEXT : DIM);
             String val = shorten(c.total()) + (r.total() > 0 ? String.format(Locale.ROOT, "  %.1f%%", 100.0 * c.total() / r.total()) : "");
             rightText(g, val, rx + 6 + cw, cy, VALUE);
             progressBar(g, rx + 6, cy + 10, (int) Math.max(0, (long) cw * c.total() / maxCat), 1, false);
@@ -1646,7 +1638,7 @@ final class ExtraPages {
         int y = s.contentY + 5;
         title(g, "Player", x, y);
         y += 12;
-        text(g, "Rank", x, y, DIM);
+        tx(g, "Rank", x, y, DIM);
         CompletableFuture<ProfileViewerApi.AuxResult> pf = aux(ProfileViewerApi.AuxKind.PLAYER, p.member.toString());
         if (!pf.isDone()) {
             rightText(g, "..." , x + w, y, DIM);
@@ -1688,7 +1680,7 @@ final class ExtraPages {
         title(g, "Essence", ex0, ey);
         ey += 12;
         if (m.essence().isEmpty()) {
-            text(g, "None", ex0, ey, DIM);
+            tx(g, "None", ex0, ey, DIM);
             ey += 11;
         }
         for (Map.Entry<String, Long> e : m.essence().entrySet()) {
@@ -1698,7 +1690,7 @@ final class ExtraPages {
         title(g, "Auctions", ex0, ey);
         ey += 12;
         if (m.auctions().isEmpty()) {
-            text(g, "None", ex0, ey, DIM);
+            tx(g, "None", ex0, ey, DIM);
         }
         for (String key : List.of("created", "completed", "bids", "won", "gold_spent", "gold_earned", "highest_bid")) {
             if (ey > s.contentY + s.contentH - 11) {
@@ -1748,7 +1740,7 @@ final class ExtraPages {
             }
             String val = shorten(e.getValue());
             String name = SbProfile.titleCase(e.getKey());
-            text(g, f().plainSubstrByWidth(name, x + colW - tx - f().width(val) - 6), tx, y, TEXT);
+            tx(g, f().plainSubstrByWidth(name, x + colW - tx - f().width(val) - 6), tx, y, TEXT);
             rightText(g, val, x + colW, y, VALUE);
             if (hover(mx, my, x, top + row * rowH, colW, rowH)) {
                 tip(List.of(line(name, VALUE), line(commas(e.getValue()), TEXT)));
