@@ -30,7 +30,9 @@ public final class HudInGameRenderer {
             // Advanced Position (2026-09-21) - missing from this list at first, so it never drew in game.
             "advanced_position",
             // Spotify HUD (2026-10-20).
-            "spotify_hud");
+            "spotify_hud",
+            // Blink's "Blink 12/22 ticks" line (2026-10-25) - missing at first, so it never drew in game (the demo video).
+            "blink");
 
     private HudInGameRenderer() {
     }
