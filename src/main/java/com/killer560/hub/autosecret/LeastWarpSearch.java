@@ -34,9 +34,6 @@ public final class LeastWarpSearch {
      * @param method how the order was found (and, once proven, how)
      */
     public record Snapshot(int[] order, double travel, boolean proven, String method) {
-        public int first() {
-            return order.length == 0 ? -1 : order[0];
-        }
     }
 
     /** Solved on the calling thread, exactly, at or under this many rooms (2^12 x 12 x 12 steps, about a millisecond). */
