@@ -44,7 +44,8 @@ import java.util.regex.Pattern;
  * <li><b>The teammate gate</b> - the one rule killer560 asked to keep (2026-09-21): a {@link Kind#PARTY} command (it
  *     changes the party or the run) only runs for someone actually in his party or his current dungeon run, whatever
  *     chat it came from ({@link #isTeammate}). The single exception is Odin's own: a DM'd {@code !invite} invites the
- *     person who sent it, who by definition is not on the team yet.</li>
+ *     person who sent it, who by definition is not on the team yet - but only when that person is on his friends list
+ *     ({@link #isFriend}). Every other command, info replies included, answers only a teammate or a friend.</li>
  * <li><b>A reply delay</b> ({@link PartyCommandsConfig#getReplyDelayMs}, 200 ms by default): every reply and every
  *     party command is scheduled that long after the line that asked for it and sent from the client tick - never from
  *     inside the chat packet's handler. Hypixel answered "You are sending commands too fast" to a command sent in the
@@ -189,9 +190,17 @@ public final class PartyCommandsFeature {
         // THE gate (killer560, 2026-09-21: "the one thing to keep"): anything that changes the party or the run only
         // for someone actually on the team, from whichever chat. A DM'd !invite invites the sender, Odin's one
         // exception, since inviting them is how they would become a teammate.
+        // Security audit 2026-10-24: a DM'd !invite only for someone on his Hypixel friends list, and no command at all
+        // (info replies included: !coords, !location, !time and !holding say where he is and his time zone) for
+        // anyone who is neither a teammate nor a friend, whatever chat it came from.
         boolean dmInvite = command == Command.INVITE && channel == Channel.PRIVATE;
-        if (command.kind() == Kind.PARTY && !dmInvite && !isTeammate(sender)) {
+        boolean teammate = isTeammate(sender);
+        if (command.kind() == Kind.PARTY && !(teammate || (dmInvite && isFriend(sender)))) {
             LOGGER.info("[PartyCommands] Ignored \"!{}\" from {} in {} - not a party/dungeon teammate", word, sender, channel);
+            return false;
+        }
+        if (!teammate && !isFriend(sender)) {
+            LOGGER.info("[PartyCommands] Ignored \"!{}\" from {} in {} - not a teammate or friend", word, sender, channel);
             return false;
         }
         if (needsLeader(command) && PartyLeaderTracker.knownNotLeader()) {
@@ -317,6 +326,18 @@ public final class PartyCommandsFeature {
     }
 
     // ------------------------------------------------------------------ teammate gate
+
+    /** On his Hypixel friends list, as last mirrored from {@code /fl} ({@link com.killer560.hub.social.FriendsListConfig}). */
+    static boolean isFriend(String name) {
+        if (name == null || !validName(name)) {
+            return false;
+        }
+        try {
+            return com.killer560.hub.social.FriendsListConfig.getInstance().byName(name) != null;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
 
     /**
      * Is {@code name} really on your team right now? Yourself; {@link PartyTracker#teammates()} (Hypixel's party
