@@ -86,7 +86,8 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
         String[] warning = {
                 "§cHolds every packet you send and releases them in one burst. To the",
                 "§cserver it is a lag spike; anticheats look for exactly that. Ban risk.",
-                "§7Tested against GrimAC only - that says nothing about Watchdog."
+                "§7Tested against GrimAC only - that says nothing about Watchdog.",
+                "§7GrimAC accepts holds up to 22 ticks; every tick past that is a flag."
         };
         for (String line : warning) {
             w.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal(line), font));
@@ -170,7 +171,9 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component ticksText(BlinkConfig cfg) {
-        return Component.literal(String.format(Locale.US, "Max Ticks: %d (%.2fs)", cfg.getMaxTicks(),
-                cfg.getMaxTicks() / 20.0));
+        int t = cfg.getMaxTicks();
+        String note = t > BlinkConfig.GRIM_MAX_TICKS ? " §c- over GrimAC's " + BlinkConfig.GRIM_MAX_TICKS
+                : t == BlinkConfig.GRIM_MAX_TICKS ? " §7- GrimAC's max" : "";
+        return Component.literal(String.format(Locale.US, "Max Ticks: %d (%.2fs)", t, t / 20.0) + note);
     }
 }

@@ -46,7 +46,14 @@ public final class BlinkConfig {
     /** Smallest and largest Max Ticks the slider offers. */
     public static final int MIN_TICKS = 1;
     public static final int MAX_TICKS = 200;
-    public static final int DEFAULT_TICKS = 17;
+    /**
+     * The longest hold GrimAC accepts, measured (testkit 1025-blink-sweep-walk/-still/-latency, 2026-10-25: 22 clean every
+     * time walking, standing and at 100 ms; 23 draws one TimerLimit every time). Grim's TimerLimit lets the timer balance
+     * fall at most ping-abuse-limit-threshold (1000 ms) + TimerA drift (120 ms) behind real time, and each held tick
+     * the burst brings back is 50 ms of it: 1120 / 50 = 22.4.
+     */
+    public static final int GRIM_MAX_TICKS = 22;
+    public static final int DEFAULT_TICKS = GRIM_MAX_TICKS;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-blink.json");
