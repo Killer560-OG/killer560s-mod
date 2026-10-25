@@ -1,7 +1,5 @@
 package com.killer560.hub.roomsim;
 
-import com.killer560.hub.util.ModChat;
-
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -82,10 +80,6 @@ public final class SimBreakerState {
 
     public static synchronized int charges() {
         return charges;
-    }
-
-    public static synchronized int maxCharges() {
-        return MAX_CHARGES;
     }
 
     /**
@@ -192,11 +186,6 @@ public final class SimBreakerState {
         PENDING.add(new Broken(level, at, state, tickCounter + RESTORE_TICKS));
     }
 
-    /** Restores still waiting to run (the testkit reads it). */
-    public static synchronized int pendingRestores() {
-        return PENDING.size();
-    }
-
     private static void tick(net.minecraft.server.MinecraftServer server) {
         // Allocated only when a block is due (fps-sim-1015): this runs every tick of every singleplayer world.
         java.util.List<Broken> due = java.util.List.of();
@@ -273,11 +262,5 @@ public final class SimBreakerState {
                 }
             }
         }
-    }
-
-    /** Tells him where he stands, the way the real item's lore does. */
-    public static void announce() {
-        ModChat.send("Sim", ModChat.text("Dungeonbreaker charges: "),
-                ModChat.value(charges() + "/" + maxCharges()));
     }
 }

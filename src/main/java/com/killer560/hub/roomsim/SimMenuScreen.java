@@ -701,8 +701,6 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         // The menu theme (screen sweep, 2026-10-13): the menu's panel and header bar, lists in a recessed well with
-        // hover / selected rows, every color from the active theme.
-        // The menu theme (screen sweep, 2026-10-13): the menu's panel and header bar, lists in a recessed well with
         // hover / selected rows, every color from the active theme. No page name at the right of the bar any more
         // (killer560, 2026-10-15): the lit entry in the left column already says which page this is.
         themedBounds = new int[]{panelX, panelY, panelW, panelH};

@@ -109,10 +109,6 @@ public final class SimRoomFilter {
         this.file = file;
     }
 
-    public Use use() {
-        return use;
-    }
-
     // ------------------------------------------------------------------------------------------- storage
 
     private synchronized Data data() {

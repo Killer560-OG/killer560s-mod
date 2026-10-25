@@ -1,12 +1,10 @@
 package com.killer560.hub.roomsim;
 
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
@@ -237,47 +235,14 @@ public final class SimMimic {
         }
     }
 
-    // mimicCell() is gone (2026-10-13). The map painted the sim's mimic room from it, a sim-only branch, because the
-    // sim's mimic was once an ordinary chest; it has been a real trapped chest at a secret position since, which the
-    // map's own check reads. It also picked the NEAREST cell center, which for a chest more than 8 blocks off its tile
-    // center was a doorway cell outside the room, so that branch missed many mimic rooms anyway.
-
-    public static boolean hasMimic() {
-        return mimic != null;
-    }
-
-    public static int candidateCount() {
-        return CANDIDATES.size();
-    }
-
-    /** Every chest that could have been the mimic, for the highlighter. */
-    public static Set<BlockPos> candidates() {
-        return Set.copyOf(CANDIDATES);
-    }
-
-    public static boolean isCandidate(BlockPos pos) {
-        return CANDIDATES.contains(pos);
-    }
-
     /**
-     * Called when a chest is opened. Returns whether it was the mimic.
+     * The chest at {@code pos} was opened, on the server thread: when it is the mimic, it bites, in the same tick.
      *
      * <p>As on Hypixel: the trapped chest goes and a baby zombie - the mimic - stands where it was. The mimic counts
      * toward the score's bonus (the same two points it is worth on a real floor) when it DIES, not when the chest
-     * opens ({@link #tickServer}); until 2026-10-05 opening the chest was the kill, which left nothing to fight and
-     * nothing for a client feature that watches the mimic die (the score calculator, Auto Routes' Kill Mimic) to see.
+     * opens ({@link #tickServer}), so a client feature that watches the mimic die (the score calculator, Auto Routes'
+     * Kill Mimic) has something to see.
      */
-    public static boolean onChestOpened(Minecraft client, BlockPos pos) {
-        var server = client.getSingleplayerServer();
-        if (server == null || found || mimic == null || !mimic.equals(pos)) {
-            return false;
-        }
-        BlockPos at = pos.immutable();
-        server.execute(() -> openOnServer(server.overworld(), at));
-        return true;
-    }
-
-    /** The chest at {@code pos} was opened, on the server thread: when it is the mimic, it bites, in the same tick. */
     static boolean openOnServer(net.minecraft.server.level.ServerLevel level, BlockPos pos) {
         if (found || mimic == null || !mimic.equals(pos)) {
             return false;
@@ -326,8 +291,4 @@ public final class SimMimic {
     public static BlockPos position() {
         return mimic;
     }
-
-    // candidatesNear() is gone with SimMimicRenderer. It fed the only thing that ever drew the candidates, and
-    // that highlighter was removed on 2026-09-30 because it outlined every secret chest on the floor with no
-    // regard for the Secret Waypoints setting. The candidate SET stays - the picker is what needs it.
 }

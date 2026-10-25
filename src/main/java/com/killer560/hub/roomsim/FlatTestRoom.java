@@ -134,11 +134,6 @@ public final class FlatTestRoom {
         return r;
     }
 
-    /** Deletes it. One call, for when real scanning starts - see {@link RoomLibrary#clearTestRooms()}. */
-    public static void remove() {
-        RoomLibrary.clearTestRooms();
-    }
-
     /** Builds it only if it is not already present, so repeated sim entries do not rebuild it every time. */
     public static RoomLibrary.Room ensure() {
         RoomLibrary.Room existing = RoomLibrary.get(NAME);

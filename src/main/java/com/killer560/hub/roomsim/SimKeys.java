@@ -104,22 +104,9 @@ public final class SimKeys {
         return head;
     }
 
-    /** The team's wither keys (picked up, not yet used on a door). */
-    public static int witherKeys() {
-        return witherKeys;
-    }
-
-    public static boolean bloodKey() {
-        return bloodKey;
-    }
-
     /** Who picked up the last key and how far from it, for tests: "name|distance", or null. */
     public static String lastPickup() {
         return lastPickup;
-    }
-
-    public static int droppedCount() {
-        return DROPPED.size();
     }
 
     /** Spends one team wither key; false when there is none. */

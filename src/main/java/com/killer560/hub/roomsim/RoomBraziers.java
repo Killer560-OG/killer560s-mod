@@ -28,7 +28,6 @@ public final class RoomBraziers {
     /** Exactly the state 372 lit braziers were captured in. */
     static final String FIRE = "minecraft:fire[age=0,east=false,north=false,south=false,up=false,west=false]";
 
-    private static volatile int lastLit;
     private static volatile int lastRooms;
 
     private RoomBraziers() {
@@ -45,16 +44,11 @@ public final class RoomBraziers {
                 touched++;
             }
         }
-        lastLit = lit;
         lastRooms = touched;
         return lit;
     }
 
-    /** How many braziers the last library load lit, and in how many rooms. */
-    public static int lastLit() {
-        return lastLit;
-    }
-
+    /** How many rooms the last library load lit braziers in. */
     public static int lastRooms() {
         return lastRooms;
     }

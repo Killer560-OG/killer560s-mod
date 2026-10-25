@@ -306,9 +306,4 @@ public final class SimItemLore {
         }
         return true;
     }
-
-    /** Whether there is a tooltip for this id at all - for tests, which should not assert on a typo. */
-    public static boolean knows(String skyblockId) {
-        return skyblockId != null && LORE.containsKey(skyblockId.toUpperCase(Locale.ROOT));
-    }
 }

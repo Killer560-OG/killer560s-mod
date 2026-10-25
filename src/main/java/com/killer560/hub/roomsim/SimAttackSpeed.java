@@ -48,20 +48,6 @@ public final class SimAttackSpeed {
     public static final int SHORTBOW_INTERVAL_TICKS =
             (int) Math.ceil(10.0 / (1.0 + ATTACK_SPEED / 100.0));
 
-    /** Ticks between Spirit Shortbow shots: {@code ceil(15 / (1 + AS/100))}. Eight at 100 Attack Speed. */
-    public static final int SPIRIT_SHORTBOW_INTERVAL_TICKS =
-            (int) Math.ceil(15.0 / (1.0 + ATTACK_SPEED / 100.0));
-
     private SimAttackSpeed() {
-    }
-
-    /** Whether enough ticks have passed since {@code lastUseTick} for another melee swing. */
-    public static boolean ready(int nowTick, int lastUseTick) {
-        return nowTick - lastUseTick >= BASE_ATTACK_INTERVAL_TICKS;
-    }
-
-    /** Whether enough ticks have passed since {@code lastShotTick} for another shortbow shot. */
-    public static boolean shortbowReady(int nowTick, int lastShotTick) {
-        return nowTick - lastShotTick >= SHORTBOW_INTERVAL_TICKS;
     }
 }

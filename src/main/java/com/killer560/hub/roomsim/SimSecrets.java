@@ -7,7 +7,6 @@ import com.killer560.hub.util.ModChat;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.Blocks;
 
 import org.slf4j.Logger;
@@ -279,16 +278,6 @@ public final class SimSecrets {
         return placed;
     }
 
-    /**
-     * The corner a room's database coordinates are measured from, for a room placed at this cell and rotation.
-     *
-     * <p>Public and shared, because {@link SimRoomIndex} hands the same corner to Secret Waypoints. If the
-     * waypoints computed their own, a waypoint could be drawn where the secret is not - and the waypoints are
-     * the thing being practiced against.
-     *
-     * @param gridX the 11x11 grid coordinates of the room's top-left cell
-     * @return {@code {clayX, clayZ}}
-     */
     /** A database coordinate in the world the floor was built into - the floor's shift applies to y. */
     private static BlockPos world(BlockPos at) {
         return new BlockPos(at.getX(), SimAltitude.toWorld(at.getY()), at.getZ());
@@ -300,18 +289,19 @@ public final class SimSecrets {
         LOGGER.info("Sim secret placed: {} at {}", kind, at.toShortString());
     }
 
-    public static int[] clayCorner(RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
-        return clayCorner(room, gridX, gridZ, rotation, Math.floorMod(rotation + RoomCaptureRotation.of(room), 360));
-    }
-
     /**
-     * The clay corner, with the paste rotation and the database rotation given separately.
+     * The corner a room's database coordinates are measured from, for a room placed at this cell, with the paste
+     * rotation and the database rotation given separately.
      *
      * <p>They are different numbers and they are used for different things. The room's FOOTPRINT - how many
      * tiles it covers along x and along z - follows the rotation it was physically pasted at. WHICH CORNER the
      * marker stands in follows the database rotation, because that is the corner {@code toRealCoord} measures
      * from. Collapsing the two into one value is what put whole rooms' secrets in the wrong corner for every
      * capture that was not canonical, which is 88 of his 122 identifiable rooms.
+     *
+     * <p>Public and shared, because {@link SimRoomIndex} hands the same corner to Secret Waypoints. If the
+     * waypoints computed their own, a waypoint could be drawn where the secret is not - and the waypoints are
+     * the thing being practiced against.
      */
     public static int[] clayCorner(RoomLibrary.Room room, int gridX, int gridZ, int rotation, int dbRotation) {
         int tilesX = (rotation == 90 || rotation == 270) ? tiles(room.sizeZ) : tiles(room.sizeX);

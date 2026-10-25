@@ -137,9 +137,4 @@ public final class SimRoomState {
 
     /** {@code DungeonMapScanner.STATE_GREEN} - the green checkmark. Literal for the same reason as {@link #STATE_FAILED}. */
     private static final int STATE_GREEN = 0;
-
-    /** Whether the map paints this sim room with the green checkmark (its puzzle solved). */
-    public static boolean isGreen(String roomName) {
-        return stateFor(roomName) == STATE_GREEN;
-    }
 }

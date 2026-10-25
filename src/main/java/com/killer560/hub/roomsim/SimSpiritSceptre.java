@@ -74,14 +74,10 @@ public final class SimSpiritSceptre {
     /**
      * The radius the explosion damages in: 6, Hypixel's own number - hypixelskyblock.minecraft.wiki, Spirit Sceptre
      * (2026-10-06): "Upon hitting a mob or block, the bat creates an explosion with a radius of 6 blocks". It was 3
-     * here, which made Auto Clear's sceptre plan (built on the wiki's 6) miss in the sim and nowhere else. Public for
-     * the testkit; Auto Clear keeps its own copy of the wiki figure ({@code autoclear.WeaponReach}).
+     * here, which made Auto Clear's sceptre plan (built on the wiki's 6) miss in the sim and nowhere else. Auto Clear
+     * keeps its own copy of the wiki figure ({@code autoclear.WeaponReach}).
      */
     public static final double BLAST_RADIUS = 6.0;
-
-    /** How far a bat flies before it explodes in the air - the sim's measured-in-code range, {@code SPEED * MAX_FLIGHT_TICKS}.
-     *  The wiki gives no range for the Guided Bat. */
-    public static final double RANGE = SPEED * MAX_FLIGHT_TICKS;
 
     /**
      * Damage one bat's explosion does.
@@ -292,8 +288,8 @@ public final class SimSpiritSceptre {
                 from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));
         boolean wallFirst = wall != null && wall.getType() != HitResult.Type.MISS
                 && (hitEntity == null || from.distanceToSqr(wall.getLocation()) < nearest);
-
-        trail(client, from, to);
+        // No particle trail: the bat entity is the thing to watch, and particles behind it read as the "beam" he
+        // asked twice to be rid of.
 
         if (hitEntity != null && !wallFirst) {
             removeBatEntity(client, bat);
@@ -313,18 +309,6 @@ public final class SimSpiritSceptre {
             return false;
         }
         return true;
-    }
-
-    /**
-     * A wisp at the bat, not a line through where it has been.
-     *
-     * <p>This drew a soul-fire flame every 0.3 blocks of the step, which at 1.2 blocks a tick is a solid rod
-     * of fire - the "beam" killer560 saw instead of a bat. One particle at the leading edge reads as a trail
-     * behind something that is itself visible now, which is the bat entity's job.
-     */
-    private static void trail(Minecraft client, Vec3 from, Vec3 to) {
-        // NOTHING. The bat is a real entity now and it is the thing to watch; every particle behind it is
-        // another frame of the beam he asked twice to be rid of.
     }
 
     /**
