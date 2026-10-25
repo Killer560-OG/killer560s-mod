@@ -94,6 +94,10 @@ public final class BlinkConfig {
     private Style style = Style.HOLD_PACKETS;
     /** Charge: shoot the bank at the start of the tick a movement key is first down. */
     private boolean shootOnMove = true;
+    /** Charge: right after a shot, a normal hold of Max Ticks starts - two blinks back to back. */
+    private boolean holdAfterShot = true;
+    /** Hold Packets: menu clicks (a terminal) go out live while everything else is held. */
+    private boolean clicksLive = true;
 
     private BlinkConfig() {
     }
@@ -124,6 +128,8 @@ public final class BlinkConfig {
                 cfg.surviveTeleports = ConfigJson.getBool(obj, "surviveTeleports", cfg.surviveTeleports);
                 cfg.style = ConfigJson.getEnum(obj, "style", Style.class, cfg.style);
                 cfg.shootOnMove = ConfigJson.getBool(obj, "shootOnMove", cfg.shootOnMove);
+                cfg.holdAfterShot = ConfigJson.getBool(obj, "holdAfterShot", cfg.holdAfterShot);
+                cfg.clicksLive = ConfigJson.getBool(obj, "clicksLive", cfg.clicksLive);
             } catch (Exception e) {
                 cfg = new BlinkConfig();
             }
@@ -149,6 +155,8 @@ public final class BlinkConfig {
             obj.addProperty("surviveTeleports", surviveTeleports);
             obj.addProperty("style", style.name());
             obj.addProperty("shootOnMove", shootOnMove);
+            obj.addProperty("holdAfterShot", holdAfterShot);
+            obj.addProperty("clicksLive", clicksLive);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -256,6 +264,22 @@ public final class BlinkConfig {
 
     public void setShootOnMove(boolean shootOnMove) {
         this.shootOnMove = shootOnMove;
+    }
+
+    public boolean isHoldAfterShot() {
+        return holdAfterShot;
+    }
+
+    public void setHoldAfterShot(boolean holdAfterShot) {
+        this.holdAfterShot = holdAfterShot;
+    }
+
+    public boolean isClicksLive() {
+        return clicksLive;
+    }
+
+    public void setClicksLive(boolean clicksLive) {
+        this.clicksLive = clicksLive;
     }
 
     public boolean isSurviveTeleports() {

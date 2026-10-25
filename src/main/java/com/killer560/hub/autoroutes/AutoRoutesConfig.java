@@ -120,6 +120,9 @@ public final class AutoRoutesConfig {
     /** Blink The Chain: with Zero Ping Chain, Blink holds a whole chain's packets and releases them in one burst, so the
      *  server makes every warp of it in one server tick ("multiple etherwarps per tick"). Needs Blink switched on. */
     private boolean blinkChain = false;
+    /** Charged Chain (killer560, 2026-10-25: "multiple etherwarps in a tick for 0tick routes"): with Zero Ping Chain and
+     *  Blink charging, a chain spends Blink's banked ticks to fire all its warps inside one real tick. */
+    private boolean chargedChain = false;
     private KillMimic killMimic = KillMimic.OFF;
     private CryptWeapon cryptWeapon = CryptWeapon.HYPERION;
     /** How long a crypt node keeps attacking before the route moves on without a kill (killer560, 2026-10-05: "in
@@ -233,6 +236,7 @@ public final class AutoRoutesConfig {
                 cfg.legitMode = ConfigJson.getBool(o, "legitMode", cfg.legitMode);
                 cfg.zeroPingChain = ConfigJson.getBool(o, "zeroPingChain", cfg.zeroPingChain);
                 cfg.blinkChain = ConfigJson.getBool(o, "blinkChain", cfg.blinkChain);
+                cfg.chargedChain = ConfigJson.getBool(o, "chargedChain", cfg.chargedChain);
                 cfg.startFromStartNodeOnly = ConfigJson.getBool(o, "startFromStartNodeOnly", cfg.startFromStartNodeOnly);
                 cfg.runWhileMapOpen = ConfigJson.getBool(o, "runWhileMapOpen", cfg.runWhileMapOpen);
                 cfg.killMimic = ConfigJson.getEnum(o, "killMimic", KillMimic.class, cfg.killMimic);
@@ -288,6 +292,7 @@ public final class AutoRoutesConfig {
             o.addProperty("legitMode", legitMode);
             o.addProperty("zeroPingChain", zeroPingChain);
             o.addProperty("blinkChain", blinkChain);
+            o.addProperty("chargedChain", chargedChain);
             o.addProperty("startFromStartNodeOnly", startFromStartNodeOnly);
             o.addProperty("runWhileMapOpen", runWhileMapOpen);
             o.addProperty("killMimic", killMimic.name());
@@ -367,6 +372,15 @@ public final class AutoRoutesConfig {
     public boolean getBlinkChainSetting() { return blinkChain; }
 
     public void setBlinkChain(boolean v) { blinkChain = v; }
+
+    /** Charged Chain: only with Zero Ping Chain on. */
+    public boolean isChargedChain() {
+        return isZeroPingChain() && chargedChain;
+    }
+
+    public boolean getChargedChainSetting() { return chargedChain; }
+
+    public void setChargedChain(boolean v) { chargedChain = v; }
 
     /** Forced on in legit mode - "in legit mode it can only start from the start node". */
     public boolean isStartFromStartNodeOnly() { return isLegitMode() || startFromStartNodeOnly; }

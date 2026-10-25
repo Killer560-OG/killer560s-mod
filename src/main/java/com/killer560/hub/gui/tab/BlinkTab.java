@@ -112,6 +112,18 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Charge: Shoot When You Move", cfg.isShootOnMove()));
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
+        w.add(SettingsButtonWidget.builder(onOff("Charge: Blink Again After Shot", cfg.isHoldAfterShot()), btn -> {
+                    cfg.setHoldAfterShot(!cfg.isHoldAfterShot());
+                    cfg.save();
+                    btn.setMessage(onOff("Charge: Blink Again After Shot", cfg.isHoldAfterShot()));
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + 4;
+        w.add(SettingsButtonWidget.builder(onOff("Menu Clicks Go Through", cfg.isClicksLive()), btn -> {
+                    cfg.setClicksLive(!cfg.isClicksLive());
+                    cfg.save();
+                    btn.setMessage(onOff("Menu Clicks Go Through", cfg.isClicksLive()));
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + 4;
         w.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
                     cfg.setMode(SettingsButtonWidget.step(cfg.getMode(), dir));
                     cfg.save();

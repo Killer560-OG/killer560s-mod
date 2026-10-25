@@ -6235,6 +6235,16 @@ public final class RouteExecutor {
         return true;
     }
 
+    /**
+     * Charged Chain: a warp of a chain is in flight and the next node is a bare etherwarp, so one more executor tick fires
+     * the next warp from the predicted landing (Zero Ping Chain). AutoRoutesFeature then spends a banked Blink tick on it.
+     */
+    public static boolean chargedChainReady() {
+        return running && route != null && step == Step.CONFIRM && activeNode != null && hopIndex < 0
+                && activeNode.type == RouteNode.Type.ETHERWARP && route.path().isEmpty() && stackQueue.isEmpty()
+                && bareEtherwarpNext(activeNode) != null && AutoRoutesConfig.getInstance().isChargedChain();
+    }
+
     /** The next node in order after {@code node} when it is a bare etherwarp (no await, nothing stacked), else null. */
     private static RouteNode bareEtherwarpNext(RouteNode node) {
         if (route == null || ordered.isEmpty()) {
@@ -6259,6 +6269,9 @@ public final class RouteExecutor {
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
         if (!cfg.isBlinkChain() || !chainNext || blinkChainOwned || !route.path().isEmpty() || !stackQueue.isEmpty()) {
             return;
+        }
+        if (cfg.isChargedChain() && com.killer560.hub.blink.BlinkCharge.isActive()) {
+            return; // Charged Chain spends the bank instead of holding
         }
         if (com.killer560.hub.blink.BlinkFeature.isHolding()) {
             return; // his own hold: it is his to release

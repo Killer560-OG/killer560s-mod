@@ -245,6 +245,50 @@ public final class BlinkCharge {
         if (BlinkConfig.getInstance().isChatMessages()) {
             ModChat.send("Blink", ModChat.text(String.format(java.util.Locale.ROOT, "shot %d tick(s), %.1f blocks", ran, blocks)));
         }
+        if (BlinkConfig.getInstance().isHoldAfterShot() && ran > 0) {
+            // The shot brought him level with real time again, so a full blink fits straight after it.
+            BlinkFeature.startFollowUp();
+        }
+    }
+
+    /**
+     * Spends one banked tick now, for a caller that needs a whole tick of its own inside this one (Auto Routes' Charged
+     * Chain: one etherwarp per tick, BadPacketsJ). Runs {@code first} (the caller's tick - its use goes out here), then his
+     * movement tick and its tick-end, exactly as a client tick orders them. Render thread, at a tick's start.
+     *
+     * @return false when nothing is banked (nothing was run)
+     */
+    public static boolean spendTick(Runnable first) {
+        Minecraft client = Minecraft.getInstance();
+        LocalPlayer player = client.player;
+        synchronized (LOCK) {
+            if (!active || banked <= 0 || player == null || connection == null || !connection.isConnected()) {
+                return false;
+            }
+            banked--;
+            if (stash != null) {
+                sendLocked(stash);
+                stash = null;
+            }
+        }
+        passing = true;
+        try {
+            first.run();
+            player.setOldPosAndRot();
+            player.tickCount++;
+            player.tick();
+            connection.send(ServerboundClientTickEndPacket.INSTANCE);
+        } finally {
+            passing = false;
+        }
+        spentTicks++;
+        return true;
+    }
+
+    private static long spentTicks;
+
+    public static long spentTicks() {
+        return spentTicks;
     }
 
     /** Ends charging. What is banked is simply not owed: the server only saw a client a little behind. */

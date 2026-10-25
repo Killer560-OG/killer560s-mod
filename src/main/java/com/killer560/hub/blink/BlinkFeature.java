@@ -177,6 +177,12 @@ public final class BlinkFeature {
                 releaseLocked("item use", false);
                 return false;
             }
+            if (BlinkConfig.getInstance().isClicksLive() && isMenuClick(packet)) {
+                // A menu click (a terminal's) does not depend on where he stands: it goes out now and the hold carries
+                // on, so a terminal works during a blink (killer560, 2026-10-25).
+                clicksLive++;
+                return false;
+            }
             queue.addLast(new Held(packet, listener, flush));
             if (packet instanceof ServerboundClientTickEndPacket) {
                 heldTicks++;
@@ -192,6 +198,28 @@ public final class BlinkFeature {
             }
             return true;
         }
+    }
+
+    private static long clicksLive;
+
+    private static boolean isMenuClick(Packet<?> packet) {
+        return packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClickPacket
+                || packet instanceof net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket;
+    }
+
+    public static long clicksLive() {
+        return clicksLive;
+    }
+
+    /** The hold Charge starts right after a shot (Hold After Shot): a second blink straight after the first. */
+    static final String FOLLOW_UP = "charge follow-up";
+
+    static void startFollowUp() {
+        Minecraft client = Minecraft.getInstance();
+        if (holding || client.getConnection() == null) {
+            return;
+        }
+        start(client.getConnection().getConnection(), FOLLOW_UP);
     }
 
     /** The start of a use whose item charges (use duration above 0), or the release of one. Render thread. */
@@ -253,9 +281,15 @@ public final class BlinkFeature {
         readKey(client, cfg);
 
         if (cfg.getStyle() == BlinkConfig.Style.CHARGE) {
-            // Charge has no hold and no tick limit of its own: the bank stops at Max Ticks and empties on a shot.
+            // Charge's own bank stops at Max Ticks and empties on a shot. A hold here is the follow-up blink after a shot
+            // (or an Auto Routes chain's): it ends at Max Ticks like any other; one of the key's is from the old style.
             if (holding) {
-                release("style changed");
+                boolean over = heldTicks >= cfg.getMaxTicks() || System.currentTimeMillis() - holdStartMs > MAX_HOLD_MS;
+                if (over) {
+                    release(FOLLOW_UP.equals(holdOwner) ? "follow-up blink: tick limit" : "tick limit");
+                } else if ("key".equals(holdOwner)) {
+                    release("style changed");
+                }
             }
             if (wanted && !SkyblockGate.allows()) {
                 wanted = false;
