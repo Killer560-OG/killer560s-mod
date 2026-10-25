@@ -778,13 +778,15 @@ public final class PartyFinderStatsApi {
         for (Want w : batch) {
             String name = w.name;
             JsonObject r = results.get(name) instanceof JsonObject o ? o : null;
-            String status = r != null && r.get("status") != null && r.get("status").isJsonPrimitive()
-                    ? r.get("status").getAsString() : "error";
-            long eta = r != null && r.get("etaMs") != null && r.get("etaMs").isJsonPrimitive()
-                    ? (long) r.get("etaMs").getAsDouble() : 2000;
             boolean background = w.tier(now) == Tier.BACKGROUND;
             w.relayAnsweredAt = now;
             try {
+                // Read inside the per-name try: a non-numeric etaMs used to throw here, outside it, and drop the
+                // whole batch. Now only that name is treated as malformed (fetched direct); the rest stand.
+                String status = r != null && r.get("status") != null && r.get("status").isJsonPrimitive()
+                        ? r.get("status").getAsString() : "error";
+                long eta = r != null && r.get("etaMs") != null && r.get("etaMs").isJsonPrimitive()
+                        ? (long) r.get("etaMs").getAsDouble() : 2000;
                 switch (status) {
                     case "ok" -> {
                         PlayerStats stats = fromRelay(r.getAsJsonObject("stats"), now);

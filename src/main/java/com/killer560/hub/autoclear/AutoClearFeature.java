@@ -942,10 +942,6 @@ public final class AutoClearFeature {
             skip.addAll(pending);
         }
         List<Integer> candidates = AutoClearTargets.candidates(layout, cfg.getMode(), skip);
-        if (candidates == null) {
-            stop("the blood door is not on the map yet (Blood Rush Split)");
-            return -1;
-        }
         if (candidates.isEmpty() && !pending.isEmpty()) {
             action = "waiting for the map to clear " + String.join(", ", pending);
             return -1;   // nothing else to do: the room left at its last death is counted, or taken again, shortly
@@ -1174,7 +1170,7 @@ public final class AutoClearFeature {
         }
         doorTarget = -1;
         List<Integer> candidates = AutoClearTargets.candidates(layout, cfg.getMode(), skippedRooms);
-        publishPlan(layout, b, candidates == null ? List.of() : AutoClearTargets.ordered(layout, candidates));
+        publishPlan(layout, b, AutoClearTargets.ordered(layout, candidates));
         LOGGER.info("[AutoClear] next room {} (come back while near - the chest rule) - before {}", back,
                 next < 0 ? "nothing else" : layout.name(next));
         return b;
@@ -4470,10 +4466,6 @@ public final class AutoClearFeature {
         }
     }
 
-    private static Cover cover(List<Entity> list, AutoClearConfig.Weapon weapon) {
-        return cover(list, weapon, null, -1);
-    }
-
     private static Cover cover(List<Entity> list, AutoClearConfig.Weapon weapon, DungeonLayout layout, int room) {
         java.util.Map<Long, Long> masks = new java.util.LinkedHashMap<>();
         for (int i = 0; i < list.size(); i++) {
@@ -4585,7 +4577,7 @@ public final class AutoClearFeature {
         if (all) {
             return new double[]{ESTIMATE_USE_TICKS, from.x, from.y, from.z, list.size()};
         }
-        Cover cover = cover(list, weapon);
+        Cover cover = cover(list, weapon, null, -1);
         RepositionPlanner.Plan plan = cover.reachable() == 0 ? null : RepositionPlanner.plan(cover.trimmed(),
                 cover.reachable(), cover.spots(), new double[]{from.x, from.y, from.z}, 3_000_000L);
         if (plan == null || plan.spots().length == 0) {

@@ -85,29 +85,29 @@ public final class AutoPuzzlesFeature {
         return com.killer560.hub.util.SessionRecorderSink.tick();
     }
 
-    /** The auto that owns {@code roomName} and whether it is on, for the dispatcher's line; null for a room with none. */
-    private static String autoFor(String roomName) {
+    /** The auto that owns a puzzle room, by its name in the dispatcher's line, and whether its toggle is on. */
+    private record Owner(String label, boolean on) {
+    }
+
+    /** The auto that owns {@code roomName}, or null for a room with none. */
+    private static Owner ownerOf(String roomName) {
         if (roomName == null) {
             return null;
         }
         AutoPuzzlesConfig c = AutoPuzzlesConfig.getInstance();
         return switch (roomName) {
-            case QUIZ_ROOM -> "Auto Quiz " + onOff(c.isAutoQuizEnabled());
-            case WEIRDOS_ROOM -> "Auto Three Weirdos " + onOff(c.isAutoWeirdosEnabled());
-            case "Water Board" -> "Auto Water Board " + onOff(c.isAutoWaterEnabled());
-            case "Teleport Maze" -> "Auto Teleport Maze " + onOff(c.isAutoTeleportMazeEnabled());
-            case "Boulder" -> "Auto Boulder " + onOff(c.isAutoBoulderEnabled());
-            case "Tic Tac Toe" -> "Auto Tic Tac Toe " + onOff(c.isAutoTicTacToeEnabled());
-            case "Ice Fill" -> "Auto Ice Fill " + onOff(c.isAutoIceFillEnabled());
-            case "Ice Path" -> "Auto Ice Path " + onOff(c.isAutoIcePathEnabled());
-            case "Creeper Beams" -> "Auto Creeper Beams " + onOff(c.isAutoBeamsEnabled());
-            case "Higher Blaze", "Lower Blaze" -> "Auto Blaze " + onOff(c.isAutoBlazeEnabled());
+            case QUIZ_ROOM -> new Owner("Auto Quiz", c.isAutoQuizEnabled());
+            case WEIRDOS_ROOM -> new Owner("Auto Three Weirdos", c.isAutoWeirdosEnabled());
+            case "Water Board" -> new Owner("Auto Water Board", c.isAutoWaterEnabled());
+            case "Teleport Maze" -> new Owner("Auto Teleport Maze", c.isAutoTeleportMazeEnabled());
+            case "Boulder" -> new Owner("Auto Boulder", c.isAutoBoulderEnabled());
+            case "Tic Tac Toe" -> new Owner("Auto Tic Tac Toe", c.isAutoTicTacToeEnabled());
+            case "Ice Fill" -> new Owner("Auto Ice Fill", c.isAutoIceFillEnabled());
+            case "Ice Path" -> new Owner("Auto Ice Path", c.isAutoIcePathEnabled());
+            case "Creeper Beams" -> new Owner("Auto Creeper Beams", c.isAutoBeamsEnabled());
+            case "Higher Blaze", "Lower Blaze" -> new Owner("Auto Blaze", c.isAutoBlazeEnabled());
             default -> null;
         };
-    }
-
-    private static String onOff(boolean on) {
-        return on ? "on" : "off";
     }
 
     private static void logDispatch(String state) {
@@ -129,7 +129,8 @@ public final class AutoPuzzlesFeature {
     private static void noteDispatch(boolean inDungeon, boolean inBoss, String roomName) {
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         boolean master = cfg.isAutoPuzzlesMasterEnabled();
-        boolean autoOn = autoIsOn(roomName);
+        Owner auto = ownerOf(roomName);
+        boolean autoOn = auto != null && auto.on();
         if (noteValid && dispatchLogged != null && inDungeon == noteInDungeon && inBoss == noteInBoss
                 && java.util.Objects.equals(roomName, noteRoom) && autoOn == noteAutoOn && master == noteMaster) {
             return;
@@ -140,33 +141,12 @@ public final class AutoPuzzlesFeature {
         noteRoom = roomName;
         noteAutoOn = autoOn;
         noteMaster = master;
-        String owner = autoFor(roomName);
+        String owner = auto == null ? null : auto.label() + (auto.on() ? " on" : " off");
         logDispatch(!inDungeon ? "idle - not in a dungeon"
                 : inBoss ? "idle - in the boss"
                 : roomName == null ? "idle - the live map has no room for where he stands"
                 : owner == null ? "room '" + roomName + "' - no puzzle auto for it"
                 : "room '" + roomName + "' - " + owner + (master ? "" : " (Auto Puzzles master switch off or not in Skyblock)"));
-    }
-
-    /** Whether the toggle of the auto that owns {@code roomName} is on (false for a room with none). */
-    private static boolean autoIsOn(String roomName) {
-        if (roomName == null) {
-            return false;
-        }
-        AutoPuzzlesConfig c = AutoPuzzlesConfig.getInstance();
-        return switch (roomName) {
-            case QUIZ_ROOM -> c.isAutoQuizEnabled();
-            case WEIRDOS_ROOM -> c.isAutoWeirdosEnabled();
-            case "Water Board" -> c.isAutoWaterEnabled();
-            case "Teleport Maze" -> c.isAutoTeleportMazeEnabled();
-            case "Boulder" -> c.isAutoBoulderEnabled();
-            case "Tic Tac Toe" -> c.isAutoTicTacToeEnabled();
-            case "Ice Fill" -> c.isAutoIceFillEnabled();
-            case "Ice Path" -> c.isAutoIcePathEnabled();
-            case "Creeper Beams" -> c.isAutoBeamsEnabled();
-            case "Higher Blaze", "Lower Blaze" -> c.isAutoBlazeEnabled();
-            default -> false;
-        };
     }
 
     /** Auto Ice Fill's own "done" (the finish tile is packed ice), for Auto Secret waiting on it in the room. */

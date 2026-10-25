@@ -42,7 +42,7 @@ final class DevonianAdapter extends SocketAdapter {
     /** Answer the server's "3002" re-announce request at most this often - a misbehaving server must not be
      *  able to make us loop. */
     private static final long REANNOUNCE_MIN_MS = 30_000L;
-    private static final String TARGET_PREFIX = "party:";
+    static final String TARGET_PREFIX = "party:";
 
     // client thread -> worker
     private volatile String selfName;
@@ -172,7 +172,8 @@ final class DevonianAdapter extends SocketAdapter {
             }
             return;
         }
-        BridgeFeature.applyOnClientThread(() -> BridgeFeature.applyDevonian(msg));
+        String target = currentTarget(); // the party hash this frame was announced to, checked against the team
+        BridgeFeature.applyOnClientThread(() -> BridgeFeature.applyDevonian(msg, target));
     }
 
     @Override

@@ -102,7 +102,8 @@ public final class MapDrawCache {
         fontGeneration++;
     }
 
-    static int fontGeneration() {
+    /** Bumped on every {@code FontSet.reload}; also keys the overlay message's wrapped lines (hud/GuiOverlays). */
+    public static int fontGeneration() {
         return fontGeneration;
     }
 

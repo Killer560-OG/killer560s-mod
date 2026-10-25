@@ -1,7 +1,6 @@
 package com.killer560.hub.autosecret;
 
 import com.killer560.hub.autoroutes.ItemIdentity;
-import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.BlockHits;
 import com.killer560.hub.util.BodyAim;
@@ -38,7 +37,6 @@ final class WitherDoorOpener {
     private static BlockPos lock;
     /** The door is the blood door: no wither key item is selected for it (the blood key is the team's, not an item). */
     private static boolean blood;
-    private static int clicks;
     private static String lastResult;
     /** When the world border began refusing the pending click (ms), or -1. */
     private static long borderHeldSinceMs = -1;
@@ -50,12 +48,10 @@ final class WitherDoorOpener {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("WitherDoorOpener.tick", WitherDoorOpener::tick));
     }
 
-    /** Asks for one click on {@code lockBlock}, sent over the next two START ticks. */
-    static void click(BlockPos lockBlock) {
-        click(lockBlock, false);
-    }
-
-    /** As {@link #click(BlockPos)}; {@code bloodDoor} clicks the blood door, holding whatever is in hand. */
+    /**
+     * Asks for one click on {@code lockBlock}, sent over the next two START ticks; {@code bloodDoor} clicks the blood
+     * door, holding whatever is in hand.
+     */
     static void click(BlockPos lockBlock, boolean bloodDoor) {
         lock = lockBlock;
         blood = bloodDoor;
@@ -71,11 +67,6 @@ final class WitherDoorOpener {
 
     static boolean isBusy() {
         return step != Step.IDLE;
-    }
-
-    /** Clicks sent since start (for the log and the testkit). */
-    static int clicks() {
-        return clicks;
     }
 
     /** Why the last click was not sent, or null. */
@@ -208,7 +199,6 @@ final class WitherDoorOpener {
             return;
         }
         player.swing(InteractionHand.MAIN_HAND);
-        clicks++;
         LOGGER.info("[AutoSecret] right-clicked the {} door at {} (face {}, from {})", blood ? "blood" : "wither",
                 lock.toShortString(),
                 hit.getDirection(), String.format(java.util.Locale.US, "%.2f %.2f %.2f", eye.x, eye.y, eye.z));

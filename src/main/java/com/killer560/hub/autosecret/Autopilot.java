@@ -399,9 +399,8 @@ final class Autopilot {
     /** Keys on the ground it has given up on (twice not picked up from as close as it could stand), by entity id. */
     private static final Set<Integer> keysGivenUp = new HashSet<>();
     private static final java.util.Map<Integer, Integer> keyTries = new java.util.HashMap<>();
-    /** The decision's dropped keys and the room each lies in, from {@link #candidates}. */
+    /** The decision's dropped keys, from {@link #candidates}. */
     private static List<DungeonKeys.Dropped> lyingKeys = List.of();
-    private static Map<Integer, Integer> keyRoom = new java.util.HashMap<>();
     private static Map<Integer, Integer> lastDist = Map.of();
 
     /** A dropped key of that kind in a room it can reach, nearest first, or null. */
@@ -659,7 +658,6 @@ final class Autopilot {
         // the next door of its kind for everyone. Worth two rooms while the team has none of that kind (it is what stands
         // between it and the rooms behind a door), half a room as a spare; the trip is a warp onto the nearest block.
         lyingKeys = DungeonKeys.dropped(Minecraft.getInstance());
-        keyRoom = new java.util.HashMap<>();
         Minecraft client = Minecraft.getInstance();
         for (DungeonKeys.Dropped k : lyingKeys) {
             int room = layout.roomAtWorld(k.x(), k.z());
@@ -667,7 +665,6 @@ final class Autopilot {
             if (keysGivenUp.contains(k.id()) || steps == null || client.player == null) {
                 continue;
             }
-            keyRoom.put(k.id(), room);
             boolean none = k.blood() ? DungeonKeys.bloodKey() != 1 : DungeonKeys.witherKeys() <= 0;
             // Only as far as the pickup range from it (base + the 0.27.2 +5, no talisman, AutoSecretConfig.keyPickupRange).
             double d = client.player.position().distanceTo(new net.minecraft.world.phys.Vec3(k.x(), k.y(), k.z()))

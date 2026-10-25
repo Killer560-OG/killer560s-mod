@@ -123,7 +123,8 @@ public final class KeyRooms {
                 }
                 int dr = r == a ? da : db;
                 int other = r == a ? db : da;
-                if (dr > other || isClearedOnMap(layout, r) || !mayHoldKey(layout, r)) {
+                // Cleared on the map only: the chest rule does not count, since the room's mobs may still stand.
+                if (dr > other || AutoClearTargets.isClearedOnMap(layout, r) || !mayHoldKey(layout, r)) {
                     continue;
                 }
                 out.add(new Guard(r, idx, type == DungeonLayout.DOOR_BLOOD));
@@ -242,11 +243,6 @@ public final class KeyRooms {
         }
         String t = e.type.toUpperCase(Locale.ROOT);
         return !t.equals("ENTRANCE") && !t.equals("PUZZLE") && !t.equals("BLOOD") && !t.equals("FAIRY");
-    }
-
-    /** Cleared on the map (or the sim's own state) - the chest rule does not count: the room's mobs may still stand. */
-    private static boolean isClearedOnMap(DungeonLayout layout, int room) {
-        return AutoClearTargets.isClearedOnMap(layout, room);
     }
 
     // ---- test hooks (testkit, reflection) ----

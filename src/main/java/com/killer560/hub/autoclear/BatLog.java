@@ -99,14 +99,11 @@ public final class BatLog {
         final List<Sample> samples = new ArrayList<>();
         /** Degrees between the launch look and the line the bat flew (first seen to last seen); NaN under two points. */
         public double flightOffDeg = Double.NaN;
-        /** The most any seen position lies off that line (blocks): how far the flight bowed. */
-        public double bowBlocks = Double.NaN;
         Vec3 last;
         /** The last position the server sent for the bat. */
         Vec3 lastServer;
         Vec3 batStart;
         double flown;
-        double maxOffLaunch;
         double endOffLaunch;
         double endOffNow;
         double closestToTarget = Double.MAX_VALUE;
@@ -207,14 +204,6 @@ public final class BatLog {
 
         public String how() {
             return how;
-        }
-
-        public double maxOffLaunch() {
-            return maxOffLaunch;
-        }
-
-        public double closestToTarget() {
-            return closestToTarget;
         }
     }
 
@@ -422,7 +411,6 @@ public final class BatLog {
             s.samples.add(new Sample(now, at));
         }
         double offLaunch = offRay(s.eye, s.look, at);
-        s.maxOffLaunch = Math.max(s.maxOffLaunch, offLaunch);
         s.endOffLaunch = offLaunch;
         LocalPlayer player = client.player;
         Vec3 lookNow = TeleportUtils.getLook(player.getYRot(), player.getXRot());
@@ -501,7 +489,7 @@ public final class BatLog {
 
     /**
      * How the bat flew, from its seen positions: the line from the first to the last ({@link Shot#flightOffDeg} off the
-     * launch look) and how far the flight bowed off that line ({@link Shot#bowBlocks}). A flight within
+     * launch look) and how far the flight bowed off that line (the most any seen position lies off it). A flight within
      * {@link #STRAIGHT_BLOCKS} of its line is straight - along the look when the line is within {@link #ALONG_DEG} of it;
      * otherwise it curved, toward the target when it passed the target's center nearer than a straight bat along the look
      * would have.
@@ -525,7 +513,6 @@ public final class BatLog {
         for (Sample p : s.samples) {
             bow = Math.max(bow, offRay(first, dir, p.pos()));
         }
-        s.bowBlocks = bow;
         boolean toward = s.targetId >= 0 && s.closestToTarget < s.rayMissBlocks - STRAIGHT_BLOCKS;
         String towardText = toward ? String.format(Locale.US, ", toward the target (passed its center at %.2f, a straight"
                 + " bat along the look %.2f)", s.closestToTarget, s.rayMissBlocks) : "";

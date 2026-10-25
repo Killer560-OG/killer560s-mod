@@ -34,9 +34,6 @@ public final class TourPlanner {
      * @param exact  the branch and bound finished: no order is cheaper
      */
     public record Result(int[] order, double cost, double ticks, boolean exact) {
-        public int first() {
-            return order.length == 0 ? -1 : order[0];
-        }
     }
 
     /** {@code sum(w * done)} and the finishing tick of {@code order}. */

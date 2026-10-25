@@ -475,10 +475,6 @@ public final class AutoPuzzleUtil {
         return visible == null ? null : direction(from, visible);
     }
 
-    public static float[] etherwarpDirection(Level level, LocalPlayer player, BlockPos to) {
-        return etherwarpDirection(level, eyePosition(player, true), to, 61.0);
-    }
-
     /**
      * The aim for an etherwarp that will actually LAND on {@code to}, for {@link AutoReposition}.
      *

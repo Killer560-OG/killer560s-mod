@@ -189,10 +189,6 @@ final class RoomTour {
                   boolean[] fromSearched) {
     }
 
-    static Matrix matrix(Vec3 from, List<Site> sites) {
-        return matrix(from, sites, false, DungeonLayout.capture());
-    }
-
     /**
      * @param travelOnly the trips' warp ticks only, without the {@link #TRIP_FIXED_TICKS} every trip pays alike - Auto
      *                   Secret's "secrets per tick of travel"; Dungeon Autopilot weighs whole seconds (work included)
