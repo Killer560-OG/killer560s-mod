@@ -143,8 +143,20 @@ public final class BlinkCharge {
 
     // ---------------------------------------------------------------------------------------------------------------
 
-    /** Blink's START_CLIENT_TICK, when Charge is the style. {@code want} is the key's (or a caller's) wish. */
-    static void tick(Minecraft client, boolean want, ClientPacketListener listener) {
+    /**
+     * Blink's START_CLIENT_TICK, when Charge is the style. {@code want} is the key's (or a caller's) wish. Returns true when
+     * charging goes on although the key said stop: in Toggle, a press with ticks banked is the shot, not "off" (killer560,
+     * 2026-10-25: charge, run about, fire when he likes); a press with nothing banked switches Charge off.
+     */
+    static boolean tick(Minecraft client, boolean want, ClientPacketListener listener) {
+        if (!want && active && banked > 0 && BlinkConfig.getInstance().getMode() == BlinkConfig.Mode.TOGGLE) {
+            shoot(client, client.player, "key");
+            return true;
+        }
+        return tickInner(client, want, listener);
+    }
+
+    private static boolean tickInner(Minecraft client, boolean want, ClientPacketListener listener) {
         LocalPlayer player = client.player;
         Connection conn = listener.getConnection();
         if (want && !active) {
@@ -160,14 +172,14 @@ public final class BlinkCharge {
             if (BlinkConfig.getInstance().isChatMessages()) {
                 ModChat.send("Blink", ModChat.text("charging"));
             }
-            return;
+            return false;
         }
         if (!active) {
-            return;
+            return false;
         }
         if (conn != connection) {
             reset("new connection");
-            return;
+            return false;
         }
         boolean moveKey = movementKeyDown(client);
         boolean shootNow = banked > 0 && (!want || (BlinkConfig.getInstance().isShootOnMove() && moveKey
@@ -178,6 +190,7 @@ public final class BlinkCharge {
         if (!want) {
             reset("charge off");
         }
+        return false;
     }
 
     private static boolean movementKeyDown(Minecraft client) {

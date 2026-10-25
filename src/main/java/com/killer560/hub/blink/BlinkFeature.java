@@ -260,7 +260,10 @@ public final class BlinkFeature {
             if (wanted && !SkyblockGate.allows()) {
                 wanted = false;
             }
-            BlinkCharge.tick(client, wanted, listener);
+            if (BlinkCharge.tick(client, wanted, listener)) {
+                wanted = true;
+                wantedBy = "key";
+            }
             return;
         }
         BlinkCharge.reset("style changed");
