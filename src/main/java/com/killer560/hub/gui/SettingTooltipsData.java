@@ -1040,6 +1040,7 @@ final class SettingTooltipsData {
         d.put("mod & hud/equal spacing", "Snap a box so the gap to its neighbor matches a gap already between two others.");
         d.put("auto scale (monitor)", "Keeps this mod's HUD elements and menus the same size relative to your window on any monitor and GUI Scale (on by default).");
         d.put("borderless fullscreen", "Stretches the window over the whole monitor without borders.");
+        d.put("confine mouse in menus", "In borderless fullscreen, keeps the mouse inside the game window while a menu or chest is open. Chat, alt-tab and closing the menu let it go. On by default while borderless is on.");
         d.put("fullbright", "Renders the world at full brightness in any light.");
         d.put("profile viewer/theme", "The colors /pv draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
         d.put("friends list/theme", "The colors the custom Friends List draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");

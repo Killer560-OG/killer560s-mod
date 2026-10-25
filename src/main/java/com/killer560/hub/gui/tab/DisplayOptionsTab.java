@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.fullbright.FullbrightConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.mainmenu.MainMenuThemeConfig;
+import com.killer560.hub.window.ConfineMouseConfig;
 import com.killer560.hub.window.WindowModeConfig;
 import com.killer560.hub.window.WindowModeFeature;
 import net.minecraft.client.Minecraft;
@@ -40,6 +41,15 @@ public class DisplayOptionsTab extends BaseTab {
                 }).bounds(contentX, y, 220, 20).build());
         y += 22;
 
+        // Confine Mouse In Menus (2026-10-24): only acts in borderless fullscreen; its default follows that switch.
+        widgets.add(SettingsButtonWidget.builder(confineMouseText(), btn -> {
+                    ConfineMouseConfig cfg = ConfineMouseConfig.getInstance();
+                    cfg.setEnabled(!cfg.isEnabled());
+                    cfg.save();
+                    btn.setMessage(confineMouseText());
+                }).bounds(contentX, y, 220, 20).build());
+        y += 22;
+
         widgets.add(SettingsButtonWidget.builder(fullbrightText(), btn -> {
                     FullbrightConfig cfg = FullbrightConfig.getInstance();
                     cfg.setEnabled(!cfg.isEnabled());
@@ -74,6 +84,11 @@ public class DisplayOptionsTab extends BaseTab {
     private static Component borderlessText() {
         return Component.literal("Borderless Fullscreen: "
                 + (WindowModeConfig.getInstance().isBorderlessFullscreenEnabled() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component confineMouseText() {
+        return Component.literal("Confine Mouse In Menus: "
+                + (ConfineMouseConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
     }
 
     private static Component themedMainMenuText() {

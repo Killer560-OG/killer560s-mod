@@ -582,6 +582,7 @@ public final class ProfileManager {
                 com.killer560.hub.translate.TranslateConfig::load,
                 com.killer560.hub.voicetotext.VoiceToTextConfig::load,
                 com.killer560.hub.window.WindowModeConfig::load,
+                com.killer560.hub.window.ConfineMouseConfig::load,
                 // Missing until the blank profile's all-configs walk (2026-10-08): its own file, its own enabled
                 // switch, and no *Config class for anyone to notice.
                 com.killer560.hub.autotrap.AutoTrap::load,
