@@ -86,7 +86,7 @@ public final class RoomPlacer {
      *
      * <p>The catch is real and is handled at the end of the build rather than ignored: nothing here updates
      * lighting or heightmaps, so a build that stopped after this would be a correctly-shaped room in the dark.
-     * {@link #finishChunks} does that pass.
+     * {@code SimBuildQueue.FinishJob} does that pass.
      */
     static final class SectionWriter {
 
@@ -182,30 +182,6 @@ public final class RoomPlacer {
         }
     }
 
-    /**
-     * Puts right everything the fast path skipped, once per chunk.
-     *
-     * <p>Block counts first, because a section that was written behind its own back does not know how many
-     * non-air blocks it holds, and an empty-looking section is not sent to the client at all - which would
-     * show up as half a room missing rather than as a lighting bug.
-     */
-    static void finishChunks(ServerLevel level, java.util.Collection<Long> chunkKeys) {
-        for (long key : chunkKeys) {
-            int cx = (int) (key >> 32);
-            int cz = (int) key;
-            var chunk = level.getChunkSource().getChunkNow(cx, cz);
-            if (chunk == null) {
-                continue;
-            }
-            for (var section : chunk.getSections()) {
-                section.recalcBlockCounts();
-            }
-            chunk.markUnsaved();
-            level.getChunkSource().getLightEngine()
-                    .propagateLightSources(new net.minecraft.world.level.ChunkPos(cx, cz));
-        }
-    }
-
     /** Stand-in floor for a column the recorder has not seen yet, and the height it goes at. */
     private static final net.minecraft.world.level.block.state.BlockState MARKER =
             McBlocks.RED_CONCRETE.defaultBlockState();
@@ -241,7 +217,9 @@ public final class RoomPlacer {
     }
 
     /**
-     * Pastes {@code room} into {@code level} with its (unrotated) top-left corner anchored at grid cell
+     * A paste, done a slice at a time (in one go it froze the game - see {@link SimBuildQueue}).
+     *
+     * <p>Pastes {@code room} into {@code level} with its (unrotated) top-left corner anchored at grid cell
      * {@code (gridX, gridZ)} - the same {@code DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX)}
      * minus half a tile that {@link RoomLibrary#capture} used to establish that corner in the first place, so
      * pasting at the room's own capture coordinates with {@code rotation == 0} reproduces the original position
@@ -249,28 +227,13 @@ public final class RoomPlacer {
      *
      * <p>{@code rotation} is degrees clockwise (viewed from above, +X east / +Z south), one of 0/90/180/270 -
      * matching {@link Rotation#CLOCKWISE_90}'s own sense, verified above. It is applied about the room's center,
-     * to BOTH the block positions (via {@link #rotateLocal}) and each block's facing/rotation properties (via
-     * vanilla {@link BlockState#rotate(Rotation)}, which already knows how to turn a stair, door, lever, sign or
-     * banner without needing to be told which properties exist). Any other value throws.
+     * to BOTH the block positions (via {@link #rotatedX}/{@link #rotatedZ}) and each block's facing/rotation
+     * properties (via vanilla {@link BlockState#rotate(Rotation)}, which already knows how to turn a stair, door,
+     * lever, sign or banner without needing to be told which properties exist). Any other value throws.
      *
      * <p>Palette index -1 ("never read") is skipped, not written as air, so an incomplete capture never punches
      * a hole in whatever is already there. A palette entry that no longer resolves to a real block (renamed since
      * capture) is skipped too, with one warning for that string rather than one per block.
-     *
-     * <p><b>Known limitation, not something this method can fix:</b> {@link RoomLibrary#capture} only ever
-     * stored {@code BuiltInRegistries.BLOCK.getKey(state.getBlock())} - the block's registry id, not its
-     * {@link BlockState} - so every placed block starts from {@code Block.defaultBlockState()}. Rotation is
-     * still applied correctly to that default state, but a captured stair/door's original facing was already
-     * discarded before it ever reached the palette; this method has nothing left to reproduce it from.
-     *
-     * @return how many blocks were actually written (excludes skipped -1 columns and unresolved palette entries)
-     */
-    /**
-     * A paste in progress, so it can be done a slice at a time.
-     *
-     * <p>Exists because doing it in one go froze the game - see {@link SimBuildQueue}. The placement itself is
-     * unchanged and still lives in {@link #paste}; this only remembers how far through it is, by keeping the
-     * three loop counters as fields instead of on the stack.
      */
     public static final class PasteJob implements SimBuildQueue.Job {
 
@@ -435,7 +398,7 @@ public final class RoomPlacer {
                         placed++;
                     }
                 }
-                // Same iteration order as paste(): z fastest, then x, then y.
+                // z fastest, then x, then y.
                 if (++z >= room.sizeZ) {
                     z = 0;
                     if (++x >= room.sizeX) {
@@ -483,46 +446,6 @@ public final class RoomPlacer {
             DeucesChestDoorway.pastedAt(new BlockPos(worldX0 + rotatedX(x, z, room.sizeX, room.sizeZ, rotation),
                     SimAltitude.toWorld(y), worldZ0 + rotatedZ(x, z, room.sizeX, room.sizeZ, rotation)));
         }
-    }
-
-    public static int paste(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
-        if (room == null) {
-            throw new IllegalArgumentException("room is null");
-        }
-        Rotation vanillaRotation = toVanillaRotation(rotation);
-
-        BlockPos origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
-        int worldX0 = origin.getX() - RoomLibrary.TILE / 2 - marginOf(room);
-        int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - marginOf(room);
-
-        int sizeX = room.sizeX;
-        int sizeZ = room.sizeZ;
-        int placed = 0;
-        java.util.Map<Long, BlockState> pieces = doorOverrides(room, rotation);
-        if (DeucesChestDoorway.isRoom(room)) {
-            markDeucesDoorway(room, rotation, worldX0, worldZ0);
-        }
-        for (int y = room.minY; y <= room.maxY; y++) {
-            for (int x = 0; x < sizeX; x++) {
-                for (int z = 0; z < sizeZ; z++) {
-                    short paletteIdx = room.at(x, y, z);
-                    if (paletteIdx < 0) {
-                        continue; // never read at capture time - leave whatever is already there
-                    }
-                    BlockState state = pieces.getOrDefault(RoomDoorPieces.key(x, y, z),
-                            resolve(room.palette.get(paletteIdx)));
-                    if (state == null) {
-                        continue; // unresolved palette entry - already warned once in resolve()
-                    }
-                    int[] local = rotateLocal(x, z, sizeX, sizeZ, rotation);
-                    BlockPos pos = new BlockPos(worldX0 + local[0],
-                            SimAltitude.toWorld(y), worldZ0 + local[1]);
-                    level.setBlock(pos, state.rotate(vanillaRotation), PLACE_FLAGS);
-                    placed++;
-                }
-            }
-        }
-        return placed;
     }
 
     /**

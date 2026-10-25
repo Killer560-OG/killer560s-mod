@@ -115,7 +115,7 @@ public final class SimFloorLayout {
         return inside(cell % GRID, cell / GRID);
     }
 
-    /** One room, placed. {@code rotation} is degrees clockwise, as {@link RoomPlacer#paste} takes it. */
+    /** One room, placed. {@code rotation} is degrees clockwise, as {@link RoomPlacer.PasteJob} takes it. */
     public record Placement(String name, int rotation, int originX, int originZ,
                             int cellsX, int cellsZ, int depth, String type) {
     }
