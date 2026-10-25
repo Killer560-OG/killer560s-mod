@@ -1175,6 +1175,7 @@ public final class AutoRoutesFeature {
             }
         }
         if (spent > 0) {
+            com.killer560.hub.blink.BlinkCharge.endSpend();
             LOGGER.info("[AutoRoutes] Charged Chain: {} warp(s) fired in one tick from Blink's bank ({} banked tick(s) spent, "
                             + "{} left; {} chained this burst)", fired, spent, com.killer560.hub.blink.BlinkCharge.banked(),
                     RouteExecutor.zeroPingChained() - chained0);

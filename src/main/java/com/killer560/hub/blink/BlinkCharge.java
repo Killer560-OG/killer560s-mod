@@ -19,6 +19,8 @@ import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import org.slf4j.Logger;
 
+import java.util.ArrayDeque;
+
 /**
  * Blink's Charge style (killer560, 2026-10-25: "I can stand still and do a terminal then once it is done I start walking
  * and release it so I shoot 22 packets forward the instant it finishes"; "During a blink going off I should be able to
@@ -57,6 +59,19 @@ public final class BlinkCharge {
     private static boolean busy;
     /** Re-entry from our own sends (the stash, the shot's ticks) passes straight through. */
     private static boolean passing;
+    /**
+     * The answers to the server's pings, held while charging (2026-10-25). GrimAC measures how far behind real time he is
+     * from the last ping he answered when a tick next arrives (Timer/TimerLimit lastMovementPlayerClock, javap): answered
+     * live, every tick sent while charging - a lever's, a dig's, or a normal one once the bank is full - brought that clock
+     * to the present and the bank was gone (testkit 1025-blink-charge, first run: every shot flagged Timer). Held, the
+     * clock stays where the charge began, the bank survives those ticks, and he is never more than Max Ticks behind. They go
+     * out, in order, right after the shot. Grim kicks at 60 s of unanswered pings (max-transaction-time), so past
+     * {@link #ANSWER_HOLD_MAX_MS} they go out and the bank starts again.
+     */
+    private static final ArrayDeque<Held> answers = new ArrayDeque<>();
+    private static long answersSinceMs;
+    private static final long ANSWER_HOLD_MAX_MS = 30_000L;
+    private static long answersHeldTotal;
 
     private static long shots;
     private static long shotTicks;
@@ -77,6 +92,14 @@ public final class BlinkCharge {
         synchronized (LOCK) {
             if (!active || passing || c != connection) {
                 return false;
+            }
+            if (packet instanceof net.minecraft.network.protocol.common.ServerboundPongPacket) {
+                if (answers.isEmpty()) {
+                    answersSinceMs = System.currentTimeMillis();
+                }
+                answers.addLast(new Held(packet, listener, flush));
+                answersHeldTotal++;
+                return true;
             }
             if (packet instanceof ServerboundMovePlayerPacket) {
                 if (stash != null) {
@@ -132,6 +155,19 @@ public final class BlinkCharge {
         return dx * dx + dy * dy + dz * dz < 1.0E-8;
     }
 
+    /** Sends the held ping answers in order. The bank is spent with them: the server's clock now sees the present. */
+    private static int releaseAnswersLocked() {
+        int n = 0;
+        if (connection != null && connection.isConnected()) {
+            while (!answers.isEmpty()) {
+                sendLocked(answers.pollFirst());
+                n++;
+            }
+        }
+        answers.clear();
+        return n;
+    }
+
     private static void sendLocked(Held h) {
         passing = true;
         try {
@@ -181,6 +217,17 @@ public final class BlinkCharge {
             reset("new connection");
             return false;
         }
+        if (!answers.isEmpty() && System.currentTimeMillis() - answersSinceMs > ANSWER_HOLD_MAX_MS) {
+            int n;
+            int lost;
+            synchronized (LOCK) {
+                lost = banked;
+                banked = 0;
+                n = releaseAnswersLocked();
+            }
+            LOGGER.info("[Blink] charge: {} ping answer(s) held {} s - sent before GrimAC's 60 s timeout; {} banked tick(s) "
+                    + "start again", n, ANSWER_HOLD_MAX_MS / 1000, lost);
+        }
         boolean moveKey = movementKeyDown(client);
         boolean shootNow = banked > 0 && (!want || (BlinkConfig.getInstance().isShootOnMove() && moveKey
                 && McCompat.screen(client) == null));
@@ -229,6 +276,9 @@ public final class BlinkCharge {
                 player.tick();
                 connection.send(ServerboundClientTickEndPacket.INSTANCE);
                 ran++;
+            }
+            synchronized (LOCK) {
+                releaseAnswersLocked();
             }
             connection.flushChannel();
         } finally {
@@ -287,6 +337,27 @@ public final class BlinkCharge {
 
     private static long spentTicks;
 
+    /** After a run of {@link #spendTick}: the held ping answers go and what is left of the bank is spent with them. */
+    public static void endSpend() {
+        synchronized (LOCK) {
+            if (!active) {
+                return;
+            }
+            releaseAnswersLocked();
+            banked = 0;
+        }
+    }
+
+    public static long answersHeldTotal() {
+        return answersHeldTotal;
+    }
+
+    public static int answersHeld() {
+        synchronized (LOCK) {
+            return answers.size();
+        }
+    }
+
     public static long spentTicks() {
         return spentTicks;
     }
@@ -305,6 +376,7 @@ public final class BlinkCharge {
                 sendLocked(stash);
             }
             stash = null;
+            releaseAnswersLocked();
             connection = null;
         }
         if (was) {
