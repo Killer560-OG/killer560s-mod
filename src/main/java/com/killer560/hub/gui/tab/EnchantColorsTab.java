@@ -83,8 +83,7 @@ public class EnchantColorsTab extends BaseTab {
         y += 26;
 
         // ---------------- Tier colors ----------------
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Tier Colors", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Tier Colors", false));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Poor", cfg.getPoorColor()), btn -> {
@@ -171,8 +170,7 @@ public class EnchantColorsTab extends BaseTab {
         y += 26;
 
         // ---------------- Ultimate enchants ----------------
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Ultimate Enchants", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Ultimate Enchants", false));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Ultimate Override", cfg.isUltimateEnabled()), btn -> {

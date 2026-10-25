@@ -5,9 +5,7 @@ import com.killer560.hub.gui.RangeSliderWidget;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -36,13 +34,11 @@ public class GoldorTriggerbotTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         GoldorTriggerbotConfig cfg = GoldorTriggerbotConfig.getInstance();
-        var font = Minecraft.getInstance().font;
         int y = contentY;
         int halfW = (contentWidth - GAP) / 2;
         int rightW = Math.max(1, contentWidth - halfW - GAP);
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Goldor Triggerbot", true), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Goldor Triggerbot", true));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Goldor Triggerbot", cfg.isEnabledRaw()), btn -> {

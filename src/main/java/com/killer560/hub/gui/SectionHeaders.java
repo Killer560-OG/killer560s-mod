@@ -1,5 +1,7 @@
 package com.killer560.hub.gui;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 /** Section/feature header styling for the settings GUI (2026-09-15, killer560: "if something is added in the cheat
@@ -24,6 +26,11 @@ public final class SectionHeaders {
 
     public static Component header(String title, boolean cheatOnly) {
         return Component.literal(prefix(cheatOnly) + title);
+    }
+
+    /** A 12-pixel-tall header row in a settings tab. */
+    public static StringWidget row(int x, int y, int width, String title, boolean cheatOnly) {
+        return new StringWidget(x, y, width, 12, header(title, cheatOnly), Minecraft.getInstance().font);
     }
 
     public static int color(boolean cheatOnly) {

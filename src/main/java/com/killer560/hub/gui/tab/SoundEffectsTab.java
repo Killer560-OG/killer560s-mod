@@ -69,7 +69,7 @@ public class SoundEffectsTab extends BaseTab {
         }
         y += 4;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Import", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Import", false));
         y += 16;
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Sound Folder"), btn ->
                 ExternalOpen.path(ClickSounds.importDir())).bounds(contentX, y, half, 18).build());

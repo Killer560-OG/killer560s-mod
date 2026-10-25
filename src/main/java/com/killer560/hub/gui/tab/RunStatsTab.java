@@ -4,9 +4,7 @@ import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.runstats.RunStatsConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -75,7 +73,7 @@ public class RunStatsTab extends BaseTab {
     }
 
     private static AbstractWidget header(String title, int x, int y, int width) {
-        return new StringWidget(x, y, width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font);
+        return SectionHeaders.row(x, y, width, title, false);
     }
 
     private interface BoolGetter {

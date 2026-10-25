@@ -8,7 +8,6 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.witherdoors.WitherDoorsConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -168,8 +167,7 @@ public class WitherDoorsTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Cheat Build - ESP", true), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - ESP", true));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Show All Doors", cfg.isShowAllDoorsRaw()), btn -> {

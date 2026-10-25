@@ -60,8 +60,7 @@ public class SessionRecorderTab extends BaseTab {
         w.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(status), Minecraft.getInstance().font));
         y += 16;
 
-        w.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Files", false),
-                Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(contentX, y, contentWidth, "Files", false));
         y += 14;
         w.add(SettingsButtonWidget.builder(Component.literal("Open Diagnostics Folder"), btn -> {
                     try {

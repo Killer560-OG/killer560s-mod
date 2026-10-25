@@ -8,7 +8,6 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.mobesp.MobEspConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -54,14 +53,13 @@ public class MobEspTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         MobEspConfig cfg = MobEspConfig.getInstance();
-        Minecraft mc = Minecraft.getInstance();
         int gap = 8;
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
         int y = contentY;
 
         // ---- Starred Mob Hitboxes (legit) ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Starred Mob Hitboxes", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Starred Mob Hitboxes", false));
         y += 16;
         targetRow(widgets, contentX, col2X, y, colW, "Starred Mobs", cfg::getStarredMobsRaw, cfg::setStarredMobs,
                 "Starred Mob", cfg::getStarredColor, cfg::setStarredColor, MobEspConfig.DEFAULT_STARRED_COLOR);
@@ -139,7 +137,7 @@ public class MobEspTab extends BaseTab {
 
         // ---- Wither Boss Highlight (legit, its own section since 2026-09-20; renamed 2026-10-09, killer560: "make it
         // 'wither boss highlight' instead of 'wither highlight' for the name") ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Wither Boss Highlight", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Wither Boss Highlight", false));
         y += 16;
         targetRow(widgets, contentX, col2X, y, colW, "Wither Boss Highlight", cfg::getWitherHighlightRaw,
                 cfg::setWitherHighlight, "Wither Boss Highlight", cfg::getWitherHighlightColor,
@@ -187,7 +185,7 @@ public class MobEspTab extends BaseTab {
         // The old Through Walls and Wither Bosses toggles are gone. The wither color and the tracer are the Wither Boss
         // Highlight's above (killer560, 2026-10-15), so the ESP has no color or tracer of its own.
         y += 6;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("ESP", true), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "ESP", true));
         y += 16;
         widgets.add(SettingsButtonWidget.builder(onOff("ESP", cfg.isEspRaw()), btn -> {
                     cfg.setEsp(!cfg.isEspRaw());

@@ -1,10 +1,9 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.splittimers.SplitTimersConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -44,8 +43,7 @@ public class SplitTimersTab extends BaseTab {
 
         // The layout itself is fixed (killer560, 2026-10-08): Blood Open, Watcher, Portal Entry, Boss Entry, a line, the
         // boss phases and Boss, a line, Total and Lag. Only the "(lagless)" parentheses and the extra rows/blocks toggle.
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                com.killer560.hub.gui.SectionHeaders.header("Split Layout", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Split Layout", false));
         y += 14;
         widgets.add(SettingsButtonWidget.builder(onOff("Lagless Times", cfg.isLaglessTimes()), btn -> {
                     cfg.setLaglessTimes(!cfg.isLaglessTimes());
@@ -60,8 +58,7 @@ public class SplitTimersTab extends BaseTab {
         y += 26;
 
         // Core entry times (2026-09-16, killer560: "time to enter core after terms finish").
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                com.killer560.hub.gui.SectionHeaders.header("Core Entry (F7/M7)", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Core Entry (F7/M7)", false));
         y += 14;
         widgets.add(SettingsButtonWidget.builder(onOff("Core Entry Times", cfg.isCoreEntryTimes()), btn -> {
                     cfg.setCoreEntryTimes(!cfg.isCoreEntryTimes());
@@ -91,8 +88,7 @@ public class SplitTimersTab extends BaseTab {
             y += 22;
         }
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                com.killer560.hub.gui.SectionHeaders.header("M7 Phase 5 Lines", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "M7 Phase 5 Lines", false));
         y += 14;
         widgets.add(SettingsButtonWidget.builder(onOff("P5 Dragon Lines", cfg.isP5DragonLines()), btn -> {
                     cfg.setP5DragonLines(!cfg.isP5DragonLines());

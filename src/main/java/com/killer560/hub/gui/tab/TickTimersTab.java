@@ -117,7 +117,7 @@ public class TickTimersTab extends BaseTab {
         int gap = 8;
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Storm Crush Timer (P2)", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Storm Crush Timer (P2)", false));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Pad Cycle Timer", cfg::isPadCycleTimer, cfg::setPadCycleTimer));
         widgets.add(toggle(col2X, y, colW, "Crush Timer HUD", cfg::isCrushTimerEnabled, cfg::setCrushTimer));

@@ -39,8 +39,7 @@ public class ChunkCacheTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Memory", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Memory", false));
         y += 16;
 
         int range = ChunkCacheConfig.MAX_CHUNKS - ChunkCacheConfig.MIN_CHUNKS;

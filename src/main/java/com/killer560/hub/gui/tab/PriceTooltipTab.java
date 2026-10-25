@@ -44,7 +44,7 @@ public class PriceTooltipTab extends BaseTab {
         int half = (contentWidth - 8) / 2;
         int col2 = contentX + half + 8;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Lines", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Lines", false));
         y += 16;
         widgets.add(toggle(contentX, y, half, "NPC Sell Price", cfg::isNpcPrice, cfg::setNpcPrice, cfg));
         widgets.add(toggle(col2, y, half, "Bazaar Buy/Sell", cfg::isBazaar, cfg::setBazaar, cfg));
@@ -64,7 +64,7 @@ public class PriceTooltipTab extends BaseTab {
                 }).bounds(col2, y, half, 18).build());
         y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Display", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Display", false));
         y += 16;
         widgets.add(SettingsButtonWidget.cycling(stackText(cfg), (btn, dir) -> {
                     cfg.setStackPrice(SettingsButtonWidget.step(cfg.getStackPrice(), dir));

@@ -90,7 +90,7 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         int col2 = contentX + half + 8;
 
         // ---------------- Protect Item ----------------
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Protect Item", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Protect Item", false));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Protect Item", cfg.isProtectItemEnabledRaw()), btn -> {
@@ -144,8 +144,7 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         }
 
         // ---------------- Starred ----------------
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Auto-Protect Starred Items", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Auto-Protect Starred Items", false));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto-Protect Starred", cfg.isProtectStarredEnabledRaw()), btn -> {
@@ -157,8 +156,7 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
 
 
         // ---------------- Hotbar drops ----------------
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Prevent Hotbar Drops", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Prevent Hotbar Drops", false));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Prevent Hotbar Drops", cfg.isPreventHotbarDropEnabledRaw()), btn -> {

@@ -4,9 +4,7 @@ import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.util.CorrectionAlarmConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -40,8 +38,7 @@ public class CorrectionAlarmTab extends BaseTab {
         int y = contentY;
 
         // Home draws every section inline with no accordion header, so each one draws its own heading.
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Correction Alarm", true), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Correction Alarm", true));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(alarmText(), btn -> {

@@ -218,7 +218,7 @@ public class LeapMenuTab extends BaseTab {
     }
 
     private static StringWidget sectionHeader(int x, int y, int width, String title, boolean cheatOnly) {
-        return new StringWidget(x, y, width, 12, SectionHeaders.header(title, cheatOnly), Minecraft.getInstance().font);
+        return SectionHeaders.row(x, y, width, title, cheatOnly);
     }
 
     private static Component scaleText(SpiritLeapOverlayConfig cfg) {

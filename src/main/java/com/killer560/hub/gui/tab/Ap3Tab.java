@@ -20,7 +20,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.nio.file.Files;
@@ -394,7 +393,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String text) {
         y[0] += 6;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(text, true), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, text, true));
         y[0] += 16;
     }
 

@@ -392,8 +392,7 @@ public class HealthAndManaBarsTab extends BaseTab {
 
     private static void header(List<AbstractWidget> widgets, int x, int width, int[] y, String title) {
         y[0] += 4;
-        widgets.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false),
-                Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 16;
     }
 

@@ -72,7 +72,7 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
         var font = Minecraft.getInstance().font;
         int y = contentY;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Pet Wheel", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Pet Wheel", false));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Pet Wheel", cfg.isEnabled()), btn -> {
@@ -164,7 +164,7 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
 
         // Pages (killer560, 2026-10-18): the wheel's presets. The page shown here is the one Edit Pets edits and the
         // wheel opens on; on the wheel itself, scroll or Left/Right changes it.
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Pages", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Pages", false));
         y += 16;
         // One row as a group: Previous, "Page N of M", Next, then the page's name (the name is saved as it is typed).
         int sideW = contentWidth / 5;

@@ -3,9 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.architect.ArchitectDraftConfig;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,8 +28,7 @@ public class ArchitectDraftTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            w.add(new StringWidget(contentX, y, contentWidth, 12,
-                    SectionHeaders.header("Cheat Build - Automation", true), Minecraft.getInstance().font));
+            w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Automation", true));
             y += 16;
             w.add(SettingsButtonWidget.builder(onOff("Auto Get From Sack", cfg.isAutoGetRaw()), btn -> {
                         cfg.setAutoGet(!cfg.isAutoGetRaw());

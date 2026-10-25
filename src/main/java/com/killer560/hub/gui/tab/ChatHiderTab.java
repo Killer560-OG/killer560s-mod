@@ -3,9 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.chattidy.ChatTidyConfig;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,8 +54,7 @@ public class ChatHiderTab extends BaseTab {
 
     private static void header(List<AbstractWidget> widgets, int x, int width, int[] y, String title) {
         y[0] += 2;
-        widgets.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false),
-                Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 16;
     }
 

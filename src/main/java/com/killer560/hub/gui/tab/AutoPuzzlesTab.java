@@ -188,8 +188,7 @@ public class AutoPuzzlesTab extends BaseTab {
 
     /** A small red group header (cheat tab), the same fixed height everywhere. */
     private static int header(List<AbstractWidget> widgets, int x, int y, int width, String text) {
-        widgets.add(new net.minecraft.client.gui.components.StringWidget(x, y + 4, width, 12,
-                com.killer560.hub.gui.SectionHeaders.header(text, true), net.minecraft.client.Minecraft.getInstance().font));
+        widgets.add(com.killer560.hub.gui.SectionHeaders.row(x, y + 4, width, text, true));
         return y + 18;
     }
 

@@ -1,12 +1,11 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.spotify.SongShareConfig;
 import com.killer560.hub.spotify.SpotifyHudConfig;
 import com.killer560.hub.spotify.SpotifyLyricsFeature;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -52,8 +51,7 @@ public class SpotifyTab extends BaseTab {
         // No status line at all: the "Reading Spotify" line went on 2026-09-30 and the "Spotify is not running"
         // one on 2026-10-18 (killer560).
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                com.killer560.hub.gui.SectionHeaders.header("Chat Lyrics", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Chat Lyrics", false));
         y += 14;
         widgets.add(SettingsButtonWidget.cycling(destText(), (btn, dir) -> {
                     SpotifyLyricsFeature.chatDestination = dir > 0 ? SpotifyLyricsFeature.chatDestination.next()
@@ -77,8 +75,7 @@ public class SpotifyTab extends BaseTab {
         y += 26;
 
         // The Spotify HUD's own options; its switch is the second row at the top, independent of chat sending.
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                com.killer560.hub.gui.SectionHeaders.header("Spotify HUD", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Spotify HUD", false));
         y += 14;
         widgets.add(SettingsButtonWidget.builder(onOff("HUD Lyrics", hud().isShowLyrics()), btn -> {
                     hud().setShowLyrics(!hud().isShowLyrics());
@@ -99,8 +96,7 @@ public class SpotifyTab extends BaseTab {
         y += 26;
 
         // Song Tag (2026-10-24): the song as a line above your name for other mod users. Its own two switches.
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                com.killer560.hub.gui.SectionHeaders.header("Song Tag", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Song Tag", false));
         y += 14;
         widgets.add(SettingsButtonWidget.builder(onOff("Share My Song", tag().isShareSong()), btn -> {
                     tag().setShareSong(!tag().isShareSong());

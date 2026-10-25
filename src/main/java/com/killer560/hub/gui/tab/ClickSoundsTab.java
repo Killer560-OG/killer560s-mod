@@ -80,7 +80,7 @@ public class ClickSoundsTab extends BaseTab {
         y += 26;
 
         var font = Minecraft.getInstance().font;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Import", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Import", false));
         y += 16;
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Sound Folder"), btn ->
                 ExternalOpen.path(ClickSounds.importDir())).bounds(contentX, y, half, 18).build());

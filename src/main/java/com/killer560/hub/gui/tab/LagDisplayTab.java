@@ -5,7 +5,6 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.lagdisplay.LagDisplayConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +73,7 @@ public class LagDisplayTab extends BaseTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
-        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], width, title, false));
         y[0] += 14;
     }
 

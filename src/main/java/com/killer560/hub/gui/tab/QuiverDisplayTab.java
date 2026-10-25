@@ -60,7 +60,7 @@ public class QuiverDisplayTab extends BaseTab {
                         }))).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Low Arrow Alert", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Low Arrow Alert", false));
         y += 14;
         int half = (contentWidth - 4) / 2;
         widgets.add(SettingsButtonWidget.builder(onOff("Low Arrow Alert", cfg.isAlertEnabled()), btn -> {

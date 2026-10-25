@@ -3,9 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.SolverEspConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
@@ -38,8 +36,7 @@ final class SolverEspRows {
             y = Math.max(y, w.getY() + w.getHeight() + 6);
         }
         SolverEspConfig cfg = SolverEspConfig.getInstance();
-        widgets.add(new StringWidget(x, y, width, 12, SectionHeaders.header("Solver Highlight", false),
-                Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(x, y, width, "Solver Highlight", false));
         y += 16;
         widgets.add(SettingsButtonWidget.builder(BaseTab.onOff("Solver Highlight", cfg.isEnabled(solver)), btn -> {
                     cfg.setEnabled(solver, !cfg.isEnabled(solver));

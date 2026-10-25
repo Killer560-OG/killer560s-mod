@@ -14,7 +14,6 @@ import com.killer560.hub.mapping.MappingConfig;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -57,7 +56,6 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         LiveMapConfig cfg = LiveMapConfig.getInstance();
         MappingConfig mapping = MappingConfig.getInstance();
-        var font = Minecraft.getInstance().font;
         int gap = 8;
         int colW = (contentWidth - gap) / 2;
         int colB = contentX + colW + gap;
@@ -117,7 +115,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         }
 
         // ---------------------------------------------------------------- how both maps look
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Map Appearance", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Map Appearance", false));
         y += 16;
         widgets.add(toggle("Color Rooms by Type", cfg::isColourByType, cfg::setColourByType, cfg, contentX, y, colW));
         widgets.add(slider("Darken Unexplored", cfg::getDarkenUnopened, v -> cfg.setDarkenUnopened((float) v), 0, 0.9, "",
@@ -151,7 +149,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         y += 4;
 
         // ---------------------------------------------------------------- theme
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Map Theme", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Map Theme", false));
         y += 16;
         widgets.add(SettingsButtonWidget.cycling(themeText(cfg), (btn, dir) -> {
                     cfg.setMapTheme(SettingsButtonWidget.step(cfg.getMapTheme(), dir));
@@ -192,7 +190,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         y += 24;
 
         // ---------------------------------------------------------------- extras
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Map Extras", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Map Extras", false));
         y += 16;
         widgets.add(mappingToggle("Extra Info Overlay", mapping::isExtraInfoEnabled, mapping::setExtraInfoEnabled, mapping,
                 contentX, y, full));
@@ -200,8 +198,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
 
         // ---------------------------------------------------------------- cheat build: Funny Map, at the bottom
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Cheat Build - Funny Map", true),
-                    font));
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Funny Map", true));
             y += 16;
             widgets.add(SettingsButtonWidget.builder(onOff("Funny Map", cfg.isFunnyMapRaw()), btn -> {
                         cfg.setFunnyMap(!cfg.isFunnyMapRaw());

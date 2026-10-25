@@ -8,7 +8,6 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.p3nav.P3NavConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -41,7 +40,6 @@ public class P3NavTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         P3NavConfig cfg = P3NavConfig.getInstance();
-        Minecraft mc = Minecraft.getInstance();
         boolean cheat = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
         int gap = 8;
         int colW = (contentWidth - gap) / 2;
@@ -52,7 +50,7 @@ public class P3NavTab extends BaseTab {
         // each has its own switch, and the card is ON while any is.
 
         // ---- Gate Highlight ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Gate Highlight", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Gate Highlight", false));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Gate Highlight", cfg.getGateHighlightRaw()), btn -> {
@@ -87,8 +85,7 @@ public class P3NavTab extends BaseTab {
         y += 30;
 
         // ---- Terminal / Device Highlight (depth-tested; "ESP" was inaccurate AND cheat-sounding) ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Terminal / Device Highlight", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Terminal / Device Highlight", false));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Terminal Highlight", cfg.getTerminalEspRaw()), btn -> {
@@ -134,8 +131,7 @@ public class P3NavTab extends BaseTab {
         y += 30;
 
         if (cheat) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    SectionHeaders.header("Through Walls", true), mc.font));
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Through Walls", true));
             y += 16;
             widgets.add(SettingsButtonWidget.builder(onOff("Through Walls", cfg.getTerminalThroughWallsRaw()), btn -> {
                         cfg.setTerminalThroughWalls(!cfg.getTerminalThroughWallsRaw());

@@ -252,7 +252,7 @@ public class RunSummaryTab extends BaseTab {
     }
 
     private static StringWidget header(int x, int y, int width, String title) {
-        return new StringWidget(x, y, width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font);
+        return SectionHeaders.row(x, y, width, title, false);
     }
 
     private static StringWidget label(int x, int y, int width, String text) {

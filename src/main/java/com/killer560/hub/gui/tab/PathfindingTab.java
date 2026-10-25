@@ -9,7 +9,6 @@ import com.killer560.hub.pathfinding.FairySoulsFeature;
 import com.killer560.hub.pathfinding.PathfindingConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -151,7 +150,7 @@ public class PathfindingTab extends BaseTab {
         y += 26;
 
         // ---------------------------------------------------------------- the rest: label, chat, the found-soul log
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("More", false), client.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "More", false));
         y += 16;
         widgets.add(SettingsButtonWidget.builder(onOff("Target Label", cfg.isShowTargetLabel()), btn -> {
                     cfg.setShowTargetLabel(!cfg.isShowTargetLabel());

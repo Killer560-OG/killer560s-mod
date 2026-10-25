@@ -6,7 +6,6 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -136,8 +135,7 @@ public class DoorKeysTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Cheat Build - ESP", true), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - ESP", true));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("ESP Through Walls", cfg.isThroughWallsRaw()), btn -> {

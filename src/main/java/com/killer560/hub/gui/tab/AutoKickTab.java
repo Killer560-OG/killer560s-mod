@@ -12,7 +12,6 @@ import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -53,8 +52,7 @@ public class AutoKickTab extends BaseTab {
         // ---------------------------------------------------------------- Action
         // killer560, 2026-10-09: Party Finder only, and the "this can remove real ...", "0 = disabled" and "ships ..."
         // notes are gone. 2026-10-14: no Action Mode (Warn Only was removed); a joiner who misses the time is kicked.
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Action", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Action", false));
         y += 16;
         widgets.add(SettingsButtonWidget.cycling(timeModeText(cfg.getTimeMode()), (btn, dir) -> {
                     cycleTimeMode(cfg, dir);
@@ -75,8 +73,7 @@ public class AutoKickTab extends BaseTab {
         y += 26;
 
         // ---------------------------------------------------------------- Per-floor S+ times
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Slowest Time Allowed", false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Slowest Time Allowed", false));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Populate My Times From API"), btn -> {

@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.bloodcamp.BloodCampConfig;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -81,9 +82,7 @@ public class AutoBloodCampTab extends BaseTab {
         // tab, so the red SectionHeaders style.
         if (cfg.getTriggerBotRaw() || cfg.getAuraRaw()) {
             y += 2;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    com.killer560.hub.gui.SectionHeaders.header(ATTACK_SPEED_HEADER, true),
-                    net.minecraft.client.Minecraft.getInstance().font));
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, ATTACK_SPEED_HEADER, true));
             y += 14;
         }
 

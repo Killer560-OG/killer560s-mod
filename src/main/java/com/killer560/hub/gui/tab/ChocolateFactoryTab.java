@@ -4,9 +4,7 @@ import com.killer560.hub.BuildVariant;
 import com.killer560.hub.chocolatefactory.ChocolateFactoryConfig;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,8 +50,7 @@ public class ChocolateFactoryTab extends BaseTab {
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Cheat-only settings go at the bottom of the tab under a red header (CLAUDE.md menu placement).
             y[0] += 6;
-            w.add(new StringWidget(contentX, y[0], BTN_W, 12, SectionHeaders.header("Cheat", true),
-                    Minecraft.getInstance().font));
+            w.add(SectionHeaders.row(contentX, y[0], BTN_W, "Cheat", true));
             y[0] += 16;
             toggle(w, contentX, y, "Egg ESP", cfg::isEggEsp, cfg::setEggEsp, null);
             toggle(w, contentX, y, "Hide Found Eggs", cfg::isEggEspHideFound, cfg::setEggEspHideFound, null);
@@ -63,7 +60,7 @@ public class ChocolateFactoryTab extends BaseTab {
 
     /** A plain section label above a group of switches; takes one row of height. */
     private static void section(List<AbstractWidget> w, int x, int[] y, String title) {
-        w.add(new StringWidget(x, y[0], BTN_W, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        w.add(SectionHeaders.row(x, y[0], BTN_W, title, false));
         y[0] += 16;
     }
 

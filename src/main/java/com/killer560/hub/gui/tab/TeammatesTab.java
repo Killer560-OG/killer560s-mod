@@ -8,7 +8,6 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.teammates.TeammatesConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -116,8 +115,7 @@ public class TeammatesTab extends BaseTab {
         y += 26;
 
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    SectionHeaders.header("Cheat", true), Minecraft.getInstance().font));
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat", true));
             y += 14;
             widgets.add(SettingsButtonWidget.builder(onOff("Through Walls", cfg.getThroughWallsRaw()), btn -> {
                         cfg.setThroughWalls(!cfg.getThroughWallsRaw());

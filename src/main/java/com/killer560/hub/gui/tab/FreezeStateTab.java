@@ -75,7 +75,7 @@ public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
         if (!cfg.isFreezeStateEnabled()) {
             return w;
         }
-        w.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Freeze State", true), font));
+        w.add(SectionHeaders.row(contentX, y, contentWidth, "Freeze State", true));
         y += 16;
         String[] warning = {
                 "§4§l!! NEVER USE THIS ON HYPIXEL - INSTANT BAN !!",

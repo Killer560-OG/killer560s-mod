@@ -70,8 +70,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         // cheatOnly=true), same convention MaskInvincibilityTab/ObjectHiderTab use for cheat-only content.
 
         // --- Trigger Bot ---
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Trigger Bot", true), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Trigger Bot", true));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Trigger Bot", cfg.isTriggerBotEnabled()), btn -> {
@@ -100,8 +99,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         }
 
         // --- Auto Start (its own category, directly below Trigger Bot per killer560's request above) ---
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Auto Start", true), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Auto Start", true));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Start", cfg.isAutoStartEnabled()), btn -> {
@@ -158,8 +156,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         }
 
         // --- Auto Solve ("autoss") ---
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Auto Solve", true), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Auto Solve", true));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Solve", cfg.isAutoSolveEnabled()), btn -> {

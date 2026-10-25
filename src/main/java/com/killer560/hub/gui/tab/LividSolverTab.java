@@ -10,7 +10,6 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.compat.McCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -63,8 +62,7 @@ public class LividSolverTab extends BaseTab {
         y = below(widgets, y);
 
         // killer560, 2026-10-18: the color of the highlight and the tracer - the Livid's own, or the two set here.
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Livid Color", false),
-                Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Livid Color", false));
         y += 16;
         widgets.add(SettingsButtonWidget.cycling(colourModeText(cfg), (btn, dir) -> {
                     cfg.setColourMode(SettingsButtonWidget.step(cfg.getColourMode(), dir));
@@ -112,8 +110,7 @@ public class LividSolverTab extends BaseTab {
 
         // Cheat only (killer560, 2026-10-18): a legit build never draws Livid's highlight through blocks. Red header, bottom of the tab.
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Through Walls", true),
-                    Minecraft.getInstance().font));
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Through Walls", true));
             y += 16;
             SolverEspRows.throughWallsRow(widgets, SOLVER, contentX, contentWidth, y);
         }

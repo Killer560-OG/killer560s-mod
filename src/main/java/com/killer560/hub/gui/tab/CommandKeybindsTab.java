@@ -133,7 +133,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
     private int binds(List<AbstractWidget> widgets, CommandKeybindsConfig cfg, int contentX, int y, int contentWidth,
                       Runnable requestRebuild) {
         var font = Minecraft.getInstance().font;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Key Binds", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Key Binds", false));
         y += 16;
         widgets.add(SettingsButtonWidget.builder(Component.literal("+ Add Bind"), btn -> {
                     cfg.addBind();
@@ -188,8 +188,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
 
     private int section(List<AbstractWidget> widgets, String title, List<Group> groups,
                         CommandShortcutsConfig sc, int contentX, int y, int contentWidth) {
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, title, false));
         y += 16;
         for (Group g : groups) {
             widgets.add(SettingsButtonWidget.builder(onOff(g.label, sc.isGroupOn(g)), btn -> {
@@ -206,8 +205,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
                         int contentWidth, Runnable requestRebuild) {
         var font = Minecraft.getInstance().font;
         CommandShortcutsConfig sc = cfg.shortcuts();
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Custom Shortcuts", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Custom Shortcuts", false));
         y += 16;
 
         refusedName.keySet().retainAll(sc.customs());

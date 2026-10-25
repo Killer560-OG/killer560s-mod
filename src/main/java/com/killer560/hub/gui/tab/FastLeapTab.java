@@ -4,7 +4,6 @@ import com.killer560.hub.BuildVariant;
 import com.killer560.hub.fastleap.FastLeapSection;
 import com.killer560.hub.gui.SectionHeaders;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
 
@@ -115,6 +114,6 @@ public class FastLeapTab extends BaseTab {
     }
 
     private static StringWidget header(int x, int y, int width, String title) {
-        return new StringWidget(x, y, width, 12, SectionHeaders.header(title, true), Minecraft.getInstance().font);
+        return SectionHeaders.row(x, y, width, title, true);
     }
 }

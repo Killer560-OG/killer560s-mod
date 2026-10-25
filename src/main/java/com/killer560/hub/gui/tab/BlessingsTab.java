@@ -9,7 +9,6 @@ import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,19 +33,18 @@ public class BlessingsTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         BlessingsConfig cfg = BlessingsConfig.getInstance();
-        Minecraft mc = Minecraft.getInstance();
         int gap = 8;
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Blessings HUD", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Blessings HUD", false));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Blessings HUD", cfg::getHudRaw, cfg::setHud));
         widgets.add(toggle(col2X, y, colW, "Roman Numerals", cfg::isRomanNumerals, cfg::setRomanNumerals));
         y += 28;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Shown Blessings", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Shown Blessings", false));
         y += 16;
         boolean left = true;
         for (Blessing blessing : Blessing.values()) {
@@ -63,7 +61,7 @@ public class BlessingsTab extends BaseTab {
         }
         y += 6;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Colors", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Colors", false));
         y += 16;
         left = true;
         for (Blessing blessing : Blessing.values()) {

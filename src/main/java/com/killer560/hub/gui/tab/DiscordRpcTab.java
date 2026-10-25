@@ -29,8 +29,7 @@ public class DiscordRpcTab extends BaseTab {
         int gap = 8;
         int halfW = (contentWidth - gap) / 2;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Discord Rich Presence", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Discord Rich Presence", false));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Discord Rich Presence", cfg.isEnabled()), btn -> {
@@ -51,8 +50,7 @@ public class DiscordRpcTab extends BaseTab {
         y += 18;
 
         // --- what to show
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("What To Show", false), font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "What To Show", false));
         y += 14;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Hide Details", cfg.isHideDetails()), btn -> {

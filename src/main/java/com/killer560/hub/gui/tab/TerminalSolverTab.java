@@ -204,8 +204,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         int col2W = (contentWidth - gap) / 2;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Terminal QoL", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Terminal QoL", false));
         y += 14;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("Works with the solver above on or off."), mc.font));
@@ -357,8 +356,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                                          Runnable requestRebuild) {
         Minecraft mc = Minecraft.getInstance();
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Overlay Colors", false), mc.font));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Overlay Colors", false));
         y += 14;
 
         TerminalSolverConfig.OverlayColor[] order = {
