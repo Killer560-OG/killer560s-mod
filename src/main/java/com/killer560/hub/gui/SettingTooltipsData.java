@@ -283,6 +283,8 @@ final class SettingTooltipsData {
         d.put("chat destination", "Which chat the lyrics are sent to: Party, All, Guild, Co-op / Plain, or Mod Chat.");
         d.put("lyrics mode", "Sends every lyric line, or only announces the song when it changes.");
         d.put("profanity filter", "Stars out swear words in the lyrics you send.");
+        d.put("share my song", "Shows the song you play on Spotify as a line above your name to the other mod users in your relay room (your party, or your lobby with Mod Chat in Lobby mode). Supporters only, and only while Show Me As A Mod User is on. Song name only; hidden while paused or on an ad. Spotify's private session cannot be seen, so this switch is the only control. Off by default.");
+        d.put("show others' songs", "Shows the song another mod user who is a supporter shares, as a line above their name, within 16 blocks. Swear words are starred out. Off by default.");
         d.put("lyric offset", "Shifts lyric timing earlier by 0-15 seconds; raise it if lyrics lag behind the music.");
         d.put("last.fm setup ->", "Opens the page to enter your Last.fm API key and username.");
         d.put("instructions", "Opens a step-by-step guide to connect Spotify to Last.fm.");

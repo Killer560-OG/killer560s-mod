@@ -144,10 +144,18 @@ public final class SpotifyLyricsFeature {
         // Feature off: do nothing at all. Previously poll() ran before this guard, so once Last.fm
         // credentials were entered the key + username were sent to ws.audioscrobbler.com every 2 s for
         // the whole session even with the feature disabled (2026-09-16 audit).
+        // Song Tag's Share My Song reads the same poll, so it keeps the poll running on its own; lrclib is asked for
+        // lyrics only while sending to chat is on, because the tag shows the song name alone.
+        boolean sharing = SongShareConfig.getInstance().isShareSong();
+        if (!enabled && !sharing) {
+            ENGINE.forgetNowPlaying();
+            return;
+        }
+        ENGINE.setFetchLyrics(enabled);
+        ENGINE.poll(DESKTOP, fullLyrics);
         if (!enabled) {
             return;
         }
-        ENGINE.poll(DESKTOP, fullLyrics);
 
         // The sim counts as a place lyrics may play.
         //
@@ -188,6 +196,11 @@ public final class SpotifyLyricsFeature {
     /** Why Spotify cannot be read right now, or an empty string when it can (nothing to show then). */
     public static String sourceProblem() {
         return DESKTOP.available() ? "" : DESKTOP.unavailableReason();
+    }
+
+    /** What the last poll saw Spotify doing, or null when nothing polls (Send Lyrics and Share My Song both off). */
+    public static NowPlaying nowPlaying() {
+        return ENGINE.lastNowPlaying();
     }
 
     private static void sendToChat(String message, boolean localOnly) {
@@ -268,11 +281,17 @@ public final class SpotifyLyricsFeature {
     private static final Pattern WORD_PATTERN = Pattern.compile("[\\w']+|[^\\w']+");
 
     private static String applyProfanityFilter(String input) {
-        if (profanityLevel == ProfanityLevel.NONE) {
-            return input;
+        return filterProfanity(input, profanityLevel);
+    }
+
+    /** Stars out every word {@code level} bans after its first letter. Song Tag runs other players' text through it at
+     *  {@link ProfanityLevel#ALL}. */
+    public static String filterProfanity(String input, ProfanityLevel level) {
+        if (input == null || input.isEmpty() || level == ProfanityLevel.NONE) {
+            return input == null ? "" : input;
         }
 
-        Set<String> banned = (profanityLevel == ProfanityLevel.MINIMAL) ? MINIMAL_BANNED_WORDS : ALL_BANNED_WORDS;
+        Set<String> banned = (level == ProfanityLevel.MINIMAL) ? MINIMAL_BANNED_WORDS : ALL_BANNED_WORDS;
 
         StringBuilder out = new StringBuilder(input.length());
         Matcher m = WORD_PATTERN.matcher(input);

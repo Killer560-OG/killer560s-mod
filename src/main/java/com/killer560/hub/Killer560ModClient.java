@@ -210,6 +210,7 @@ public class Killer560ModClient implements ClientModInitializer {
         AutoJoinSkyblockFeature.register();
         ProxyConfig.load();
         SpotifyLyricsFeature.init();
+        com.killer560.hub.spotify.SongShare.register();
         MagicFindTracker.register();
         RngMeterOverlay.register();
         RngMeterEngine.PRICES.startAutoRefresh();

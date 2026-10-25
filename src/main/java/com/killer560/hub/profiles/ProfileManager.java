@@ -456,6 +456,7 @@ public final class ProfileManager {
                 com.killer560.hub.auction.AuctionHouseConfig::load,
                 com.killer560.hub.bazaar.BazaarConfig::load,
                 com.killer560.hub.supporters.SupportersConfig::load,
+                com.killer560.hub.spotify.SongShareConfig::load,
                 com.killer560.hub.commandshortcuts.CommandShortcutsConfig::load,
                 com.killer560.hub.autojoinskyblock.AutoJoinSkyblockConfig::load,
                 com.killer560.hub.automeow.AutoMeowConfig::load,

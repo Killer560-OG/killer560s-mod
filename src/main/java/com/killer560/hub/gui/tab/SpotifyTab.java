@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.spotify.SongShareConfig;
 import com.killer560.hub.spotify.SpotifyLyricsFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -68,7 +69,35 @@ public class SpotifyTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
+        // Song Tag (2026-10-24): the song as a line above your name for other mod users. Its own two switches.
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                com.killer560.hub.gui.SectionHeaders.header("Song Tag", false), Minecraft.getInstance().font));
+        y += 14;
+        SongShareConfig tag = SongShareConfig.getInstance();
+        widgets.add(SettingsButtonWidget.builder(onOff("Share My Song", tag.isShareSong()), btn -> {
+                    tag.setShareSong(!tag.isShareSong());
+                    tag.save();
+                    btn.setMessage(onOff("Share My Song", tag.isShareSong()));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        widgets.add(SettingsButtonWidget.builder(onOff("Show Others' Songs", tag.isShowOthers()), btn -> {
+                    tag.setShowOthers(!tag.isShowOthers());
+                    tag.save();
+                    btn.setMessage(onOff("Show Others' Songs", tag.isShowOthers()));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+
         return widgets;
+    }
+
+    /** Sending lyrics to chat and the two Song Tag switches are separate features: the card is ON while any is on. */
+    @Override
+    public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Mod Enabled", "Share My Song", "Show Others' Songs");
+    }
+
+    private static Component onOff(String label, boolean value) {
+        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
     private static Component enabledText() {

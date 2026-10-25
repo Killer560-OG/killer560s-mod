@@ -559,6 +559,13 @@ public final class RelayClient {
                 }
             }
             case "data" -> {
+                if (com.killer560.hub.spotify.RemoteSongs.KEY.equals(str(packet, "key"))) {
+                    // Song Tag needs the relay-stamped uuid as well as the name (supporters are keyed by uuid), which
+                    // RelayListener.onData does not carry. onRelayData catches everything itself.
+                    com.killer560.hub.spotify.RemoteSongs.onRelayData(str(packet, "from"), str(packet, "uuid"),
+                            packet.get("value"));
+                    return;
+                }
                 target.onData(str(packet, "from"), str(packet, "key"), packet.get("value"));
                 for (RelayListener extra : extraListeners) {
                     extra.onData(str(packet, "from"), str(packet, "key"), packet.get("value"));
