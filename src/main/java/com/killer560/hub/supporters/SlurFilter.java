@@ -13,7 +13,8 @@ import java.util.stream.Collectors;
  * never hides the player or drops their scale.
  * <p>
  * Normalization: lower-case, common leetspeak digits/symbols folded back to letters, everything that isn't
- * {@code a-z} stripped (color codes, spaces, punctuation, digits that weren't leetspeak), then runs of the
+ * {@code a-z} stripped (spaces, punctuation, digits that weren't leetspeak; formatting codes are dropped
+ * whole, code letter included, in the second pass of {@link #isBlocked}), then runs of the
  * same letter collapsed to one - so "n1gg3r", "n-i-g-g-e-r" and "niiiggeerrr" all normalize identically.
  * Matching is "contains" for anything that normalizes to 4+ letters (a slur can be buried inside an
  * otherwise ordinary-looking name), but WHOLE-TOKEN ONLY for anything shorter, so a short entry can't
@@ -33,12 +34,22 @@ public final class SlurFilter {
     }
 
     /** @return true if {@code rawName} (as stored - {@code &} codes and all) trips the filter and must not
-     *  be shown as-is. */
+     *  be shown as-is. Checked twice: on the raw text, and on the text the name actually paints - its
+     *  {@code &} codes turned into {@code §} the way {@link SupportersFeature#colorize} does and every
+     *  formatting code then dropped ({@code NameColor.plain}). Without the second check "nig&rger" passed:
+     *  the raw text normalizes to "nigrger", but {@code &r} is a reset code, so the visible text is the slur. */
     public static boolean isBlocked(String rawName) {
         if (rawName == null || rawName.isEmpty()) {
             return false;
         }
-        String norm = normalise(rawName);
+        if (hits(normalise(rawName))) {
+            return true;
+        }
+        String visible = com.killer560.hub.namechanger.NameColor.plain(SupportersFeature.colorize(rawName));
+        return hits(normalise(visible));
+    }
+
+    private static boolean hits(String norm) {
         if (norm.isEmpty()) {
             return false;
         }

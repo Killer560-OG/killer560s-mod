@@ -57,6 +57,8 @@ final class NoammAdapter extends SocketAdapter {
     private volatile NoammCodec.Token token;
     private long lastPingMs;
     private volatile boolean startSent;
+    /** Self + teammates as the last dungeon_start sent them (client thread writes, worker reads). */
+    private volatile List<String> announcedMembers;
     private volatile String socketInfo = "";
 
     // client thread only
@@ -275,7 +277,11 @@ final class NoammAdapter extends SocketAdapter {
             refreshConnectedDetail();
             return;
         }
-        BridgeFeature.applyOnClientThread(() -> BridgeFeature.applyNoamm(msg));
+        // NoammAddons frames carry no sender, so the team check is on the group: the server code and the
+        // member list this connection's dungeon_start announced, compared with the current team on the client thread.
+        String target = currentTarget();
+        List<String> members = startSent ? announcedMembers : null;
+        BridgeFeature.applyOnClientThread(() -> BridgeFeature.applyNoamm(msg, target, members));
     }
 
     // ------------------------------------------------------------------ client thread: outbound
@@ -303,6 +309,7 @@ final class NoammAdapter extends SocketAdapter {
                 return;
             }
             sent.put("start", start);
+            announcedMembers = List.copyOf(members);
             startSent = true;
         }
         for (PartyDataFeature.SelfFact fact : ctx.selfFacts()) {
