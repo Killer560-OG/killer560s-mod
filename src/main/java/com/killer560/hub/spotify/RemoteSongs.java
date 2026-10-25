@@ -53,7 +53,8 @@ public final class RemoteSongs {
     /** When each sender's last packet was accepted, for the rate limit (kept after an "off" so off/on spam is limited too). */
     private static final Map<String, Long> LAST_ACCEPT = new ConcurrentHashMap<>();
 
-    // Test hooks (read by the testkit).
+    // Test hooks (read by the testkit). testConnected stands in for a live relay socket, which an offline client lacks.
+    static volatile boolean testConnected;
     private static volatile long accepted;
     private static volatile long rejected;
     private static volatile String lastReject = "";
@@ -145,7 +146,7 @@ public final class RemoteSongs {
      */
     public static Component tagFor(String name, UUID entityId) {
         if (name == null || entityId == null || SONGS.isEmpty() || !SongShareConfig.getInstance().isShowOthers()
-                || !RelayClient.isConnected()) {
+                || !(testConnected || RelayClient.isConnected())) {
             return null;
         }
         Entry e = SONGS.get(name);
