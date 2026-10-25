@@ -56,7 +56,6 @@ public final class SbProfile {
 
     public final boolean inventoryApi;
     private final JsonObject inventoryJson;
-    private final JsonObject sharedInventoryJson;
     private CompletableFuture<Inventories> inventories;
     private final JsonObject profileJson;
     private final JsonObject memberJson;
@@ -205,7 +204,6 @@ public final class SbProfile {
         petScore = (int) num(path(memberObj, "leveling.highest_pet_score"));
 
         inventoryJson = asObj(memberObj.get("inventory"));
-        sharedInventoryJson = asObj(memberObj.get("shared_inventory"));
         inventoryApi = inventoryJson != null && inventoryJson.has("inv_contents");
     }
 
