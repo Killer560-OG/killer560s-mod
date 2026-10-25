@@ -207,7 +207,7 @@ public final class AuctionHouseScreen extends Screen {
         List<AhUi.Tab> tabs = new ArrayList<>();
         for (String[] t : AhUi.API_TABS) {
             String cat = t[1];
-            tabs.add(new AhUi.Tab(t[0], tabIcon(cat), cat.equals(cfg.getLastCategoryFilter()), -1, ItemStack.EMPTY,
+            tabs.add(new AhUi.Tab(t[0], AhReskin.tabIcon(cat), cat.equals(cfg.getLastCategoryFilter()), -1, ItemStack.EMPTY,
                     b -> selectCategory(cat)));
         }
         boolean busy = opening != null && System.currentTimeMillis() - openingAtMs < AhNav.PENDING_MS
@@ -463,18 +463,6 @@ public final class AuctionHouseScreen extends Screen {
 
     private static String nice(String rarity) {
         return SkyblockItemStackFactory.niceCategory(rarity);
-    }
-
-    private static ItemStack tabIcon(String category) {
-        return switch (category) {
-            case "weapon" -> new ItemStack(Items.GOLDEN_SWORD);
-            case "armor" -> new ItemStack(Items.DIAMOND_CHESTPLATE);
-            case "accessories" -> new ItemStack(Items.EMERALD);
-            case "consumables" -> new ItemStack(Items.APPLE);
-            case "blocks" -> new ItemStack(Items.COBBLESTONE);
-            case "*misc" -> new ItemStack(Items.STICK);
-            default -> new ItemStack(Items.NETHER_STAR);
-        };
     }
 
     /** What a recently viewed item searches for: its SkyBlock id as words (matches every listing of that item, whatever
