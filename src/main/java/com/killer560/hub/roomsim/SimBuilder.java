@@ -331,11 +331,9 @@ public final class SimBuilder {
             // The score's denominators come from the map that was actually built, not from a guess. Without
             // them "explore" divides by zero and the whole score is meaningless - and a score screen that
             // invents its own totals is worse than one that says it does not know.
-            // Secrets: the sum of what the room database says each placed room HOLDS. This was
-            // SimMimic.candidateCount(), which is the number of chests that could have been the mimic - a
-            // different quantity entirely, and one that ignores bats, essences, items and levers. It made the
-            // sim's secret counter wrong in both directions, which matters now that it feeds the Dungeon Info
-            // HUD and the Score Calculator as well as the sim's own sidebar (see SimScore's getters).
+            // Secrets: the sum of what the room database says each placed room HOLDS - not the mimic's candidate
+            // chests, which leave out bats, essences, items and levers. It feeds the Dungeon Info HUD and the
+            // Score Calculator as well as the sim's own sidebar (see SimScore's getters).
             SimScore.reset(secretsPlaced[0], roomsPlaced[0]);
             final int m = missing;
             final String names = missingNames.toString();
