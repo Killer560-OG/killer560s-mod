@@ -274,8 +274,58 @@ public final class BridgeFeature {
                 && DungeonState.isInDungeon() && !DungeonState.isSimOverrideActive();
     }
 
-    static void applyDevonian(DevonianCodec.Message msg) {
-        if (!acceptInbound()) {
+    /** The signed-in account's own UUID when it is the player in the world (as {@link #context} reads it), else null. */
+    private static UUID selfUuid(Minecraft client) {
+        if (client.player == null || client.getUser() == null || client.getUser().getName() == null
+                || !client.getUser().getName().equals(client.player.getGameProfile().name())) {
+            return null;
+        }
+        return client.getUser().getProfileId();
+    }
+
+    /**
+     * Team check for a Devonian frame: Devonian's {@code RoomSecrets} carries no sender, so the frame counts only
+     * if it came in on the group whose party hash is exactly this team's right now (self plus every current
+     * teammate). A frame from a group left behind by a party change, or with no party, is dropped.
+     */
+    private static boolean devonianGroupIsTeam(String target) {
+        Minecraft client = Minecraft.getInstance();
+        List<String> teammates = List.copyOf(PartyTracker.teammates());
+        if (target == null || teammates.isEmpty()) {
+            return false;
+        }
+        Integer hash = devonianPartyHash(client, selfUuid(client), teammates);
+        return hash != null && target.equals(DevonianAdapter.TARGET_PREFIX + hash);
+    }
+
+    /**
+     * Team check for a NoammAddons frame: they carry no sender at all, so the frame counts only if it came in on
+     * the group this client joined with its current team - the same server code as the sidebar shows now, and a
+     * {@code dungeon_start} whose member list is exactly self plus the current teammates.
+     */
+    private static boolean noammGroupIsTeam(String target, List<String> announced) {
+        Minecraft client = Minecraft.getInstance();
+        List<String> teammates = List.copyOf(PartyTracker.teammates());
+        if (target == null || announced == null || teammates.isEmpty() || selfUuid(client) == null
+                || !target.equals(serverCode)) {
+            return false;
+        }
+        Set<String> now = new HashSet<>();
+        now.add(client.getUser().getName().toLowerCase(Locale.ROOT));
+        for (String name : teammates) {
+            now.add(name.toLowerCase(Locale.ROOT));
+        }
+        Set<String> then = new HashSet<>();
+        for (String name : announced) {
+            if (name != null) {
+                then.add(name.toLowerCase(Locale.ROOT));
+            }
+        }
+        return now.equals(then);
+    }
+
+    static void applyDevonian(DevonianCodec.Message msg, String target) {
+        if (!acceptInbound() || !devonianGroupIsTeam(target)) {
             return;
         }
         if (msg instanceof DevonianCodec.RoomSecrets rs) {
@@ -320,8 +370,8 @@ public final class BridgeFeature {
         return match;
     }
 
-    static void applyNoamm(NoammCodec.Message msg) {
-        if (!acceptInbound()) {
+    static void applyNoamm(NoammCodec.Message msg, String target, List<String> announced) {
+        if (!acceptInbound() || !noammGroupIsTeam(target, announced)) {
             return;
         }
         String who = "NoammAddons";
@@ -336,6 +386,12 @@ public final class BridgeFeature {
                 case "bat" -> PartyInteropState.Flag.BAT_KILLED;
                 default -> null;
             };
+            // No mimic exists below floor 6 (the same rule as the party-chat path, InteropChatParser), so a
+            // mimic flag there is wrong and must not latch the score's mimic bonus.
+            if (flag == PartyInteropState.Flag.MIMIC_KILLED
+                    && com.killer560.hub.scorecalc.ScoreCalculator.floorNumber(DungeonState.getFloor()) < 6) {
+                flag = null;
+            }
             if (flag != null) {
                 PartyInteropState.offerFlag(flag, InteropSource.SOCKET, who);
             }
