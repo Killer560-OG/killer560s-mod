@@ -233,6 +233,10 @@ public final class RouteExecutor {
     }
 
     private static void clearZeroPing(String why) {
+        if (blinkChainOwned) {
+            blinkChainOwned = false;
+            com.killer560.hub.blink.BlinkFeature.end("Auto Routes chain cleared: " + why);
+        }
         if (!inFlight.isEmpty() || zpFeet != null) {
             LOGGER.info("[AutoRoutes] Zero Ping Chain cleared ({}): {} warp(s) were still in flight, predicted feet {}", why,
                     inFlight.size(), fmt(zpFeet));
@@ -3654,7 +3658,10 @@ public final class RouteExecutor {
             teleportPacketSeen = false;
             int eatenBefore = com.killer560.hub.util.RightClick.barePairedUses();
             int seqBefore = com.killer560.hub.util.RightClick.lastUseSequence();
+            boolean chainNext = hopIndex < 0 && bareEtherwarpNext(node) != null;
+            blinkChainBefore(node, chainNext);
             useHeldItem(client, player, warpYaw, warpPitch, false);
+            blinkChainAfter(node, chainNext);
             warpEaten = com.killer560.hub.util.RightClick.barePairedUses() > eatenBefore;
             int seqAfter = com.killer560.hub.util.RightClick.lastUseSequence();
             warpUseSeq = seqAfter != seqBefore ? seqAfter : -1;
@@ -6216,6 +6223,55 @@ public final class RouteExecutor {
         clearZeroPing("server put him off the predicted landing");
         letGoAfterCorrection(client, player);
         return true;
+    }
+
+    /** The next node in order after {@code node} when it is a bare etherwarp (no await, nothing stacked), else null. */
+    private static RouteNode bareEtherwarpNext(RouteNode node) {
+        if (route == null || ordered.isEmpty()) {
+            return null;
+        }
+        int at = stackTrigger == null ? ordered.indexOf(node) : ordered.indexOf(stackTrigger);
+        int n = (at >= 0 ? at : nextNode) + 1;
+        while (n < ordered.size() && firedInRun.contains(ordered.get(n))) {
+            n++;
+        }
+        if (n >= ordered.size()) {
+            return null;
+        }
+        RouteNode next = ordered.get(n);
+        return next.type == RouteNode.Type.ETHERWARP && !next.awaitEnabled && route.stackOf(next).size() == 1 ? next : null;
+    }
+
+    /** Blink The Chain: the hold starts just before the first warp of a chain is sent (so its use is in the burst). */
+    private static boolean blinkChainOwned;
+
+    private static void blinkChainBefore(RouteNode node, boolean chainNext) {
+        AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
+        if (!cfg.isBlinkChain() || !chainNext || blinkChainOwned || !route.path().isEmpty() || !stackQueue.isEmpty()) {
+            return;
+        }
+        if (com.killer560.hub.blink.BlinkFeature.isHolding()) {
+            return; // his own hold: it is his to release
+        }
+        com.killer560.hub.blink.BlinkFeature.begin("Auto Routes chain");
+        blinkChainOwned = com.killer560.hub.blink.BlinkFeature.isHolding();
+        LOGGER.info("[AutoRoutes] Blink The Chain: {} - hold {} before the chain's first warp", nodeTag(node),
+                blinkChainOwned ? "started" : "not started (Blink is off)");
+    }
+
+    /** ... and is released right after the chain's last warp is sent: every warp of it reaches the server at once. */
+    private static void blinkChainAfter(RouteNode node, boolean chainNext) {
+        if (!blinkChainOwned) {
+            return;
+        }
+        if (chainNext && com.killer560.hub.blink.BlinkFeature.isHolding()) {
+            return;
+        }
+        blinkChainOwned = false;
+        int ticks = com.killer560.hub.blink.BlinkFeature.heldTicks();
+        com.killer560.hub.blink.BlinkFeature.end("Auto Routes chain sent");
+        LOGGER.info("[AutoRoutes] Blink The Chain: {} was the chain's last warp - released {} held tick(s) in one burst",
+                nodeTag(node), ticks);
     }
 
     /** Every tick: a warp in flight the server never answered is a correction (reported, chain dropped, never fought). */
