@@ -146,6 +146,23 @@ public final class LividSolverFeature {
         resolve(level);
     }
 
+    /** The real Livid's entity name ("Hockey Livid") read from the wool clue right now, or null when no clue is placed or
+     *  loaded. Works whether or not the solver is switched on (Boss Health picks the real Livid's name tag with it). */
+    public static String realLividName(ClientLevel level) {
+        if (level == null) {
+            return null;
+        }
+        for (BlockPos woolPos : WOOL_LOCATIONS) {
+            Block block = level.getBlockState(woolPos).getBlock();
+            for (Livid livid : Livid.values()) {
+                if (livid.wool == block) {
+                    return livid.entityName + " Livid";
+                }
+            }
+        }
+        return null;
+    }
+
     private static void resolve(ClientLevel level) {
         Livid resolved = null;
         for (BlockPos woolPos : WOOL_LOCATIONS) {

@@ -62,6 +62,7 @@ public class DungeonTab extends FolderTab {
                 new CroesusTab(),
                 new RngMeterTab(),
                 // ---- bosses, floor order ----
+                new BossHealthTab(),
                 new ThornTab(),
                 // Its own tab, out of Puzzles (killer560, 2026-09-21).
                 new LividSolverTab(),

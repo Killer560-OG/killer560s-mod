@@ -32,7 +32,9 @@ public final class HudInGameRenderer {
             // Spotify HUD (2026-10-20).
             "spotify_hud",
             // Blink's "Blink 12/22 ticks" line (2026-10-25) - missing at first, so it never drew in game (the demo video).
-            "blink");
+            "blink",
+            // Boss Health (2026-10-25).
+            "boss_health");
 
     private HudInGameRenderer() {
     }
