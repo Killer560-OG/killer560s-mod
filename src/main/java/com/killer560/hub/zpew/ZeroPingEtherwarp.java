@@ -24,7 +24,7 @@ import java.util.ArrayDeque;
 import java.util.Locale;
 
 /**
- * Zero Ping Etherwarp (cheat build only; killer560, 2026-10-25: "0 ping etherwarping", and "I want 0 ping etherwarp to
+ * Zero Ping Etherwarp (both builds since 2026-10-26, being camera only; killer560, 2026-10-25: "0 ping etherwarping", and "I want 0 ping etherwarp to
  * work with multiple etherwarps per tick"). The moment an etherwarp is SENT, the camera is drawn from where it will land,
  * instead of waiting a round trip for the server's teleport. RSM's 1.21 "Zpew" works the same way, camera only.
  *
@@ -94,7 +94,7 @@ public final class ZeroPingEtherwarp {
     }
 
     private static boolean on() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && ZeroPingEtherwarpConfig.getInstance().isEnabled();
+        return ZeroPingEtherwarpConfig.getInstance().isEnabled();
     }
 
     // ---- outbound ---------------------------------------------------------------------------------------------
