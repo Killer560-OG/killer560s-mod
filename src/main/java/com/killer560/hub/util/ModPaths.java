@@ -53,6 +53,13 @@ public final class ModPaths {
             LEGACY_AP3_DIR
     );
 
+    /**
+     * Folders a file may have been put in by an older build, before its row moved. A file looked up through
+     * {@link #config} that is missing from its folder but present in one of these is moved over, and
+     * {@link #migrateAll} sweeps these folders of every file that now belongs elsewhere.
+     */
+    static final List<String> FORMER_FOLDERS = List.of("dungeons/autoroutes");
+
     /** Where anything with no entry in the table goes. */
     static final String OTHER = "other";
 
@@ -72,8 +79,11 @@ public final class ModPaths {
         t.put(LEGACY_AP3_DIR, "dungeons/ap3");
 
         t.put("autoroutes", "dungeons/autoroutes");
-        t.put("waypointroutes", "dungeons/autoroutes");
-        t.put("etherwarp", "dungeons/autoroutes");
+        // Each its own folder since 2026-10-25 (killer560: the autoroutes folder "should only hold my autoroutes settings
+        // and the auto routes"); files already in dungeons/autoroutes are moved by FORMER_FOLDERS.
+        t.put("waypointroutes", "dungeons/waypointroutes");
+        t.put("etherwarp", "dungeons/etherwarp");
+        t.put("etherwarpoverlay", "dungeons/etherwarpoverlay");
 
         t.put("autoclear", "dungeons/autoclear");
         // Auto Secret, and its insta-clear evidence (killer560smod-autosecret/insta-clear.json).
@@ -82,8 +92,8 @@ public final class ModPaths {
         t.put("autotrap", "dungeons/autotrap");
         t.put("blink", "dungeons/blink");
         t.put("invwalk", "skyblock/invwalk");
-        t.put("zpew", "dungeons/autoroutes");
-        t.put("leftclickew", "dungeons/autoroutes");
+        t.put("zpew", "dungeons/zpew");
+        t.put("leftclickew", "dungeons/leftclickew");
         // The always-on map logger's skull log (killer560smod-maplog-<time>.log).
         t.put("maplog", "dungeons/maplog");
 
@@ -343,6 +353,24 @@ public final class ModPaths {
             if (Files.exists(target)) {
                 return target;
             }
+            String tail = legacyName.substring(legacyName.indexOf('/') + 1);
+            for (String former : FORMER_FOLDERS) {
+                Path old = root().resolve(former).resolve(tail);
+                if (!old.equals(target) && Files.exists(old)) {
+                    synchronized (ModPaths.class) {
+                        if (!Files.exists(target) && Files.exists(old)) {
+                            Path parent = target.getParent();
+                            if (parent != null) {
+                                Files.createDirectories(parent);
+                            }
+                            if (!move(old, target)) {
+                                return old;
+                            }
+                        }
+                    }
+                    return target;
+                }
+            }
             Path legacy = configDir().resolve(legacyName);
             if (Files.exists(legacy)) {
                 synchronized (ModPaths.class) {
@@ -467,9 +495,44 @@ public final class ModPaths {
                 Log.LOGGER.warn("[ModPaths] could not migrate {}", name, e);
             }
         }
+        moved += sweepFormerFolders();
         if (moved > 0) {
             Log.LOGGER.info("[ModPaths] moved {} config file(s)/folder(s) into {}", moved, root());
         }
+    }
+
+    /** Moves every file in a {@link #FORMER_FOLDERS} folder whose row now points elsewhere. Never throws. */
+    private static int sweepFormerFolders() {
+        int moved = 0;
+        for (String former : FORMER_FOLDERS) {
+            Path dir = root().resolve(former);
+            if (!Files.isDirectory(dir)) {
+                continue;
+            }
+            List<String> names = new ArrayList<>();
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+                for (Path entry : stream) {
+                    names.add(entry.getFileName().toString());
+                }
+            } catch (Exception e) {
+                Log.LOGGER.warn("[ModPaths] could not list {}", dir, e);
+                continue;
+            }
+            for (String name : names) {
+                try {
+                    if (!name.startsWith(PREFIX) || folderFor(name).equals(former)) {
+                        continue;
+                    }
+                    Path old = dir.resolve(name);
+                    if (!config(name).equals(old) && !Files.exists(old)) {
+                        moved++;
+                    }
+                } catch (Exception e) {
+                    Log.LOGGER.warn("[ModPaths] could not move {} out of {}", name, former, e);
+                }
+            }
+        }
+        return moved;
     }
 
     /** {@code config/killer560smod/<file>} -> {@code dungeons/ap3/<file>}, then the emptied folder is removed. */
