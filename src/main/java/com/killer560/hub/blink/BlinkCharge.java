@@ -460,7 +460,7 @@ public final class BlinkCharge {
             return forced;
         }
         int code = cfg.getChargeKeyCode();
-        if (code == com.killer560.hub.util.KeyUtil.NONE || McCompat.screen(client) != null || client.getWindow() == null) {
+        if (code == com.killer560.hub.util.KeyUtil.NONE || !BlinkFeature.keysReadUnder(client) || client.getWindow() == null) {
             return false;
         }
         return com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), code);

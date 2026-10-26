@@ -271,10 +271,21 @@ public final class BlinkFeature {
             return forced;
         }
         int code = cfg.getHoldKeyCode();
-        if (code == KeyUtil.NONE || McCompat.screen(client) != null || client.getWindow() == null) {
+        if (code == KeyUtil.NONE || !keysReadUnder(client) || client.getWindow() == null) {
             return false;
         }
         return KeyUtil.isBindDown(client.getWindow(), code);
+    }
+
+    /**
+     * Whether Blink's keys are read with the current screen up: none, or a container menu (a terminal, a chest). Inside a
+     * menu the Hold key must keep holding and the Charge key keep its state (killer560, 2026-10-25: a blink "while being in a
+     * terminal menu and clicking"); before 2026-10-26 any screen read as the key up, so opening a terminal mid-hold released
+     * it. Chat, signs and the mod's own screens still read as up (the key is a letter typed there).
+     */
+    static boolean keysReadUnder(Minecraft client) {
+        Object screen = McCompat.screen(client);
+        return screen == null || screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>;
     }
 
     // ---------------------------------------------------------------------------------------------------------------
