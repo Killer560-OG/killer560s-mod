@@ -12,14 +12,23 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted Blink settings - see {@link BlinkFeature}. Off and the key unbound by default, like every new feature. */
+/**
+ * Persisted Blink settings - see {@link BlinkFeature} (Hold) and {@link BlinkCharge} (Charge). Off and both keys unbound
+ * by default, like every new feature.
+ *
+ * <p>Since 2026-10-25 (killer560's rework): Charge and Hold are two sections with a key and a tick slider each, instead
+ * of one key with a Style. Both sliders run 1-20: past 20 ticks Hypixel sets the blink back (his test, and his log:
+ * 21 and 22 tick holds were set back part way). Gone at his request: Style, Shoot When You Move, Blink Again After Shot,
+ * Menu Clicks Go Through (always on now), At Max Ticks, Release On Hit/Dig/Bow-Eat (a blink is released only when he
+ * releases it) and Keep Holding Through Teleports (always on now). An old file is migrated on load.
+ */
 public final class BlinkConfig {
 
-    /** How the Blink key drives the hold. */
+    /** How the Charge key drives charging. */
     public enum Mode {
-        /** Each press starts a hold; the next press (or the tick limit) releases it. */
+        /** A press starts charging; the next press fires the bank (and charging goes on). */
         TOGGLE("Toggle"),
-        /** The hold lasts while the key is down (or until the tick limit). */
+        /** Charging lasts while the key is down; letting go fires the bank. */
         HOLD("Hold");
 
         public final String label;
@@ -29,45 +38,10 @@ public final class BlinkConfig {
         }
     }
 
-    /** What the Blink key does. */
-    public enum Style {
-        /** Hold every packet while blinking and send them together on release. */
-        HOLD_PACKETS("Hold Packets"),
-        /** Bank the ticks he stands still, then run them all at once the moment he moves (see BlinkCharge). */
-        CHARGE("Charge");
-
-        public final String label;
-
-        Style(String label) {
-            this.label = label;
-        }
-    }
-
-    /** What happens when a hold reaches Max Ticks. */
-    public enum LimitAction {
-        /** Release everything and stop blinking until the key is pressed again. */
-        RELEASE("Release and stop"),
-        /** Release everything and start a new hold straight away, for as long as the key says so. */
-        PULSE("Release and keep going");
-
-        public final String label;
-
-        LimitAction(String label) {
-            this.label = label;
-        }
-    }
-
-    /** Smallest and largest Max Ticks the slider offers. */
+    /** Smallest and largest tick count either slider offers. More than 20 does not go off on Hypixel. */
     public static final int MIN_TICKS = 1;
-    public static final int MAX_TICKS = 200;
-    /**
-     * The longest hold GrimAC accepts, measured (testkit 1025-blink-sweep-walk/-still/-latency, 2026-10-25: 22 clean every
-     * time walking, standing and at 100 ms; 23 draws one TimerLimit every time). Grim's TimerLimit lets the timer balance
-     * fall at most ping-abuse-limit-threshold (1000 ms) + TimerA drift (120 ms) behind real time, and each held tick
-     * the burst brings back is 50 ms of it: 1120 / 50 = 22.4.
-     */
-    public static final int GRIM_MAX_TICKS = 22;
-    public static final int DEFAULT_TICKS = GRIM_MAX_TICKS;
+    public static final int MAX_TICKS = 20;
+    public static final int DEFAULT_TICKS = MAX_TICKS;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-blink.json");
@@ -75,29 +49,16 @@ public final class BlinkConfig {
     private static BlinkConfig instance;
 
     private boolean enabled = false;
-    private Mode mode = Mode.TOGGLE;
-    private LimitAction limitAction = LimitAction.RELEASE;
     /** A GLFW key or a {@link KeyUtil} mouse code; {@link KeyUtil#NONE} when unbound. */
-    private int keyCode = KeyUtil.NONE;
-    private int maxTicks = DEFAULT_TICKS;
+    private int chargeKeyCode = KeyUtil.NONE;
+    private Mode chargeMode = Mode.TOGGLE;
+    private int chargeTicks = DEFAULT_TICKS;
+    /** The Hold key: packets are held while it is down and released when it comes up. */
+    private int holdKeyCode = KeyUtil.NONE;
+    private int holdTicks = DEFAULT_TICKS;
     private boolean showHud = true;
     private boolean showServerBox = true;
     private boolean chatMessages = false;
-    /** Release before an attack or entity click and let that tick go out live (see BlinkFeature): GrimAC-clean. */
-    private boolean releaseOnHit = true;
-    /** Release before a dig starts and let that tick go out live (see BlinkFeature): GrimAC-clean. */
-    private boolean releaseOnDig = true;
-    /** Release before a charged item use starts or ends (bow, food, shield...; see BlinkFeature). */
-    private boolean releaseOnCharge = true;
-    /** Keep holding through a server teleport (an etherwarp landing, a leap, a lag-back): its accept goes in the queue. */
-    private boolean surviveTeleports = true;
-    private Style style = Style.HOLD_PACKETS;
-    /** Charge: shoot the bank at the start of the tick a movement key is first down. */
-    private boolean shootOnMove = true;
-    /** Charge: right after a shot, a normal hold of Max Ticks starts - two blinks back to back. */
-    private boolean holdAfterShot = true;
-    /** Hold Packets: menu clicks (a terminal) go out live while everything else is held. */
-    private boolean clicksLive = true;
 
     private BlinkConfig() {
     }
@@ -115,21 +76,29 @@ public final class BlinkConfig {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.mode = ConfigJson.getEnum(obj, "mode", Mode.class, cfg.mode);
-                cfg.limitAction = ConfigJson.getEnum(obj, "limitAction", LimitAction.class, cfg.limitAction);
-                cfg.keyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "keyCode", cfg.keyCode));
-                cfg.setMaxTicks(ConfigJson.getInt(obj, "maxTicks", cfg.maxTicks));
+                if (obj.has("chargeKeyCode") || obj.has("holdKeyCode")) {
+                    cfg.chargeKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "chargeKeyCode", cfg.chargeKeyCode));
+                    cfg.holdKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "holdKeyCode", cfg.holdKeyCode));
+                    cfg.chargeMode = ConfigJson.getEnum(obj, "chargeMode", Mode.class, cfg.chargeMode);
+                    cfg.setChargeTicks(ConfigJson.getInt(obj, "chargeTicks", cfg.chargeTicks));
+                    cfg.setHoldTicks(ConfigJson.getInt(obj, "holdTicks", cfg.holdTicks));
+                } else {
+                    // The one-key file from before the rework: its key goes to the section its Style was.
+                    int key = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "keyCode", KeyUtil.NONE));
+                    boolean charge = "CHARGE".equals(ConfigJson.getString(obj, "style", "HOLD_PACKETS"));
+                    int ticks = ConfigJson.getInt(obj, "maxTicks", DEFAULT_TICKS);
+                    if (charge) {
+                        cfg.chargeKeyCode = key;
+                        cfg.chargeMode = ConfigJson.getEnum(obj, "mode", Mode.class, cfg.chargeMode);
+                    } else {
+                        cfg.holdKeyCode = key;
+                    }
+                    cfg.setChargeTicks(ticks);
+                    cfg.setHoldTicks(ticks);
+                }
                 cfg.showHud = ConfigJson.getBool(obj, "showHud", cfg.showHud);
                 cfg.showServerBox = ConfigJson.getBool(obj, "showServerBox", cfg.showServerBox);
                 cfg.chatMessages = ConfigJson.getBool(obj, "chatMessages", cfg.chatMessages);
-                cfg.releaseOnHit = ConfigJson.getBool(obj, "releaseOnHit", cfg.releaseOnHit);
-                cfg.releaseOnDig = ConfigJson.getBool(obj, "releaseOnDig", cfg.releaseOnDig);
-                cfg.releaseOnCharge = ConfigJson.getBool(obj, "releaseOnCharge", cfg.releaseOnCharge);
-                cfg.surviveTeleports = ConfigJson.getBool(obj, "surviveTeleports", cfg.surviveTeleports);
-                cfg.style = ConfigJson.getEnum(obj, "style", Style.class, cfg.style);
-                cfg.shootOnMove = ConfigJson.getBool(obj, "shootOnMove", cfg.shootOnMove);
-                cfg.holdAfterShot = ConfigJson.getBool(obj, "holdAfterShot", cfg.holdAfterShot);
-                cfg.clicksLive = ConfigJson.getBool(obj, "clicksLive", cfg.clicksLive);
             } catch (Exception e) {
                 cfg = new BlinkConfig();
             }
@@ -142,24 +111,21 @@ public final class BlinkConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("mode", mode.name());
-            obj.addProperty("limitAction", limitAction.name());
-            obj.addProperty("keyCode", keyCode);
-            obj.addProperty("maxTicks", maxTicks);
+            obj.addProperty("chargeKeyCode", chargeKeyCode);
+            obj.addProperty("chargeMode", chargeMode.name());
+            obj.addProperty("chargeTicks", chargeTicks);
+            obj.addProperty("holdKeyCode", holdKeyCode);
+            obj.addProperty("holdTicks", holdTicks);
             obj.addProperty("showHud", showHud);
             obj.addProperty("showServerBox", showServerBox);
             obj.addProperty("chatMessages", chatMessages);
-            obj.addProperty("releaseOnHit", releaseOnHit);
-            obj.addProperty("releaseOnDig", releaseOnDig);
-            obj.addProperty("releaseOnCharge", releaseOnCharge);
-            obj.addProperty("surviveTeleports", surviveTeleports);
-            obj.addProperty("style", style.name());
-            obj.addProperty("shootOnMove", shootOnMove);
-            obj.addProperty("holdAfterShot", holdAfterShot);
-            obj.addProperty("clicksLive", clicksLive);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
+    }
+
+    private static int clampTicks(int t) {
+        return Math.max(MIN_TICKS, Math.min(MAX_TICKS, t));
     }
 
     public boolean isEnabled() {
@@ -170,36 +136,44 @@ public final class BlinkConfig {
         this.enabled = enabled;
     }
 
-    public Mode getMode() {
-        return mode;
+    public int getChargeKeyCode() {
+        return chargeKeyCode;
     }
 
-    public void setMode(Mode mode) {
-        this.mode = mode == null ? Mode.TOGGLE : mode;
+    public void setChargeKeyCode(int keyCode) {
+        this.chargeKeyCode = KeyUtil.sanitizeBind(keyCode);
     }
 
-    public LimitAction getLimitAction() {
-        return limitAction;
+    public Mode getChargeMode() {
+        return chargeMode;
     }
 
-    public void setLimitAction(LimitAction limitAction) {
-        this.limitAction = limitAction == null ? LimitAction.RELEASE : limitAction;
+    public void setChargeMode(Mode mode) {
+        this.chargeMode = mode == null ? Mode.TOGGLE : mode;
     }
 
-    public int getKeyCode() {
-        return keyCode;
+    public int getChargeTicks() {
+        return chargeTicks;
     }
 
-    public void setKeyCode(int keyCode) {
-        this.keyCode = KeyUtil.sanitizeBind(keyCode);
+    public void setChargeTicks(int ticks) {
+        this.chargeTicks = clampTicks(ticks);
     }
 
-    public int getMaxTicks() {
-        return maxTicks;
+    public int getHoldKeyCode() {
+        return holdKeyCode;
     }
 
-    public void setMaxTicks(int maxTicks) {
-        this.maxTicks = Math.max(MIN_TICKS, Math.min(MAX_TICKS, maxTicks));
+    public void setHoldKeyCode(int keyCode) {
+        this.holdKeyCode = KeyUtil.sanitizeBind(keyCode);
+    }
+
+    public int getHoldTicks() {
+        return holdTicks;
+    }
+
+    public void setHoldTicks(int ticks) {
+        this.holdTicks = clampTicks(ticks);
     }
 
     public boolean isShowHud() {
@@ -224,69 +198,5 @@ public final class BlinkConfig {
 
     public void setChatMessages(boolean chatMessages) {
         this.chatMessages = chatMessages;
-    }
-
-    public boolean isReleaseOnHit() {
-        return releaseOnHit;
-    }
-
-    public void setReleaseOnHit(boolean releaseOnHit) {
-        this.releaseOnHit = releaseOnHit;
-    }
-
-    public boolean isReleaseOnDig() {
-        return releaseOnDig;
-    }
-
-    public void setReleaseOnDig(boolean releaseOnDig) {
-        this.releaseOnDig = releaseOnDig;
-    }
-
-    public boolean isReleaseOnCharge() {
-        return releaseOnCharge;
-    }
-
-    public void setReleaseOnCharge(boolean releaseOnCharge) {
-        this.releaseOnCharge = releaseOnCharge;
-    }
-
-    public Style getStyle() {
-        return style;
-    }
-
-    public void setStyle(Style style) {
-        this.style = style == null ? Style.HOLD_PACKETS : style;
-    }
-
-    public boolean isShootOnMove() {
-        return shootOnMove;
-    }
-
-    public void setShootOnMove(boolean shootOnMove) {
-        this.shootOnMove = shootOnMove;
-    }
-
-    public boolean isHoldAfterShot() {
-        return holdAfterShot;
-    }
-
-    public void setHoldAfterShot(boolean holdAfterShot) {
-        this.holdAfterShot = holdAfterShot;
-    }
-
-    public boolean isClicksLive() {
-        return clicksLive;
-    }
-
-    public void setClicksLive(boolean clicksLive) {
-        this.clicksLive = clicksLive;
-    }
-
-    public boolean isSurviveTeleports() {
-        return surviveTeleports;
-    }
-
-    public void setSurviveTeleports(boolean surviveTeleports) {
-        this.surviveTeleports = surviveTeleports;
     }
 }

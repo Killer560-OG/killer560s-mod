@@ -33,14 +33,18 @@ import java.util.ArrayDeque;
  * terminal clicks, levers, mining and abilities all work while charging; a tick with such an action goes out whole (its
  * move carries the look the action is checked against) and simply is not banked.
  *
- * <p><b>Shooting.</b> At the start of the tick he first presses a movement key (Shoot When You Move), or when Charge is
- * switched off, the client runs the banked ticks of his own movement - the vanilla player tick, driven by the keys he is
+ * <p><b>Shooting.</b> Only when he says so (killer560, 2026-10-25): the Charge key's release (a second press in Toggle,
+ * letting go in Hold). If no movement key is down at that moment the shot is armed and fires the first tick one is, so a
+ * shot never goes off standing still and moves him nowhere (his 2026-10-25 log: a dozen 0.00-block shots). The client runs the banked ticks of his own movement - the vanilla player tick, driven by the keys he is
  * really holding - one after another, each followed by its tick-end, before this tick's own. The server receives them
  * together and moves him that far in one go, and so does his screen. Nothing writes position or velocity: every one of
  * those ticks is the game's own physics on real key presses.
  *
- * <p><b>Never runs out.</b> The bank is empty after a shot and fills again whenever he stands still. A server teleport
- * (an etherwarp, a leap) goes out live and leaves the bank as it is.
+ * <p><b>Never runs out.</b> The bank is empty after a shot and fills again whenever he stands still. A full bank stays
+ * full until he fires it. A server teleport that does not move him (Hypixel re-syncs a charging player about once a
+ * second - his 2026-10-25 log, 89 of them - and each one emptied the bank) keeps the bank. One that moves him (an
+ * etherwarp, a leap, a pearl) starts it again: GrimAC only takes the teleport once the ping sent with it is answered, and
+ * answering it brings the lag clock to the present (see {@link #ANSWER_DELAY_MS}).
  */
 public final class BlinkCharge {
 
@@ -92,6 +96,48 @@ public final class BlinkCharge {
 
     private static final ArrayDeque<Answer> answers = new ArrayDeque<>();
     static final long ANSWER_DELAY_MS = 1050L;
+
+    /**
+     * The delay actually used: just what a full bank needs, so the answers are no later than they must be. GrimAC clamps the
+     * timer balance up to (that answer's ping time - 120 ms drift), and a full bank of B ticks needs the balance 50 B + 50 ms
+     * behind: D >= 50 B - 70. Twenty ticks: 930 ms; 60 ms of headroom on top.
+     */
+    static long answerDelayMs() {
+        return Math.min(ANSWER_DELAY_MS, Math.max(0L, 50L * cap() - 10L));
+    }
+
+    /** The last server teleport did not move him (an in-place re-sync): its confirm leaves the bank alone. */
+    private static volatile boolean teleportInPlace;
+    private static long inPlaceTeleports;
+    private static long movingTeleports;
+
+    /** Blink's server-position hook, before vanilla answers it: how far the teleport moves him. Render thread. */
+    static void noteServerTeleport(double dist) {
+        teleportInPlace = dist < 0.1;
+        if (active) {
+            LOGGER.info(String.format(java.util.Locale.ROOT, "[Blink] charge: server teleport moving him %.2f blocks with %d "
+                    + "banked, %d answer(s) waiting - %s", dist, banked, answers.size(),
+                    teleportInPlace ? "in place, bank kept" : "moved, bank starts again"));
+        }
+    }
+
+    public static long inPlaceTeleports() {
+        return inPlaceTeleports;
+    }
+
+    public static long movingTeleports() {
+        return movingTeleports;
+    }
+
+    /** A shot is waiting for a movement key (the release came while he stood still). */
+    private static boolean armed;
+    /** The armed shot ends charging when it fires (Hold mode's release). */
+    private static boolean offAfterShot;
+    private static boolean keyWasDown;
+
+    public static boolean isArmed() {
+        return armed;
+    }
     private static long answersHeldTotal;
 
     /**
@@ -222,8 +268,13 @@ public final class BlinkCharge {
                     stash = null;
                 }
             }
-            if (packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket
-                    && !answers.isEmpty()) {
+            boolean accept = packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
+            if (accept && teleportInPlace) {
+                inPlaceTeleports++;
+            } else if (accept) {
+                movingTeleports++;
+            }
+            if (accept && !teleportInPlace && !answers.isEmpty()) {
                 // A server teleport (an etherwarp, a leap) is confirmed. GrimAC counts a teleport as reached by the
                 // client only once the ping sent with it is answered; with the answers still a second late it took the
                 // confirm for an unsent one and dropped every move after it - the next shot never reached the server
@@ -285,7 +336,8 @@ public final class BlinkCharge {
             return;
         }
         boolean any = false;
-        while (!answers.isEmpty() && now - answers.peekFirst().madeMs() >= ANSWER_DELAY_MS) {
+        long delay = answerDelayMs();
+        while (!answers.isEmpty() && now - answers.peekFirst().madeMs() >= delay) {
             sendLocked(answers.pollFirst().held());
             any = true;
         }
@@ -306,42 +358,47 @@ public final class BlinkCharge {
     // ---------------------------------------------------------------------------------------------------------------
 
     /**
-     * Blink's START_CLIENT_TICK, when Charge is the style. {@code want} is the key's (or a caller's) wish. Returns true when
-     * charging goes on although the key said stop: in Toggle, a press with ticks banked is the shot, not "off" (killer560,
-     * 2026-10-25: charge, run about, fire when he likes); a press with nothing banked switches Charge off.
+     * Blink's START_CLIENT_TICK. Reads the Charge key (Toggle: a press starts charging, the next fires the bank, a press with
+     * nothing banked or a shot already waiting switches Charge off; Hold: charging while the key is down, letting go fires
+     * and ends it) and runs what is due. {@code allowed} is the Skyblock gate.
      */
-    static boolean tick(Minecraft client, boolean want, ClientPacketListener listener) {
-        if (!want && active && banked > 0 && BlinkConfig.getInstance().getMode() == BlinkConfig.Mode.TOGGLE) {
-            shoot(client, client.player, "key");
-            return true;
+    static void tick(Minecraft client, boolean allowed, ClientPacketListener listener) {
+        BlinkConfig cfg = BlinkConfig.getInstance();
+        boolean down = chargeKeyDown(client, cfg);
+        boolean pressed = down && !keyWasDown;
+        boolean letGo = !down && keyWasDown;
+        keyWasDown = down;
+        if (!allowed) {
+            reset("not allowed here");
+            return;
         }
-        return tickInner(client, want, listener);
-    }
-
-    private static boolean tickInner(Minecraft client, boolean want, ClientPacketListener listener) {
-        LocalPlayer player = client.player;
-        Connection conn = listener.getConnection();
-        if (want && !active) {
-            synchronized (LOCK) {
-                connection = conn;
-                banked = 0;
-                stash = null;
-                busy = false;
-                active = true;
+        if (cfg.getChargeMode() == BlinkConfig.Mode.TOGGLE) {
+            if (pressed) {
+                if (!active) {
+                    turnOn(listener.getConnection());
+                } else if (banked > 0 && !armed) {
+                    fire(client, false);
+                } else {
+                    reset("key");
+                }
             }
-            LOGGER.info("[Blink] charge on (bank up to {} ticks + the firing tick, shoot when you move {})",
-                    cap(), BlinkConfig.getInstance().isShootOnMove());
-            if (BlinkConfig.getInstance().isChatMessages()) {
-                ModChat.send("Blink", ModChat.text("charging"));
+        } else {
+            if (down && !active) {
+                turnOn(listener.getConnection());
+            } else if (letGo && active) {
+                if (banked > 0) {
+                    fire(client, true);
+                } else {
+                    reset("key up");
+                }
             }
-            return false;
         }
         if (!active) {
-            return false;
+            return;
         }
-        if (conn != connection) {
+        if (listener.getConnection() != connection) {
             reset("new connection");
-            return false;
+            return;
         }
         synchronized (LOCK) {
             if (!tickOpen) {
@@ -353,18 +410,60 @@ public final class BlinkCharge {
                 banked += shotLeft;
                 shotLeft = 0;
             }
-            shoot(client, player, shotLeftWhy + ", continued");
+            shoot(client, client.player, shotLeftWhy + ", continued");
         }
-        boolean moveKey = movementKeyDown(client);
-        boolean shootNow = banked > 0 && (!want || (BlinkConfig.getInstance().isShootOnMove() && moveKey
-                && McCompat.screen(client) == null));
-        if (shootNow) {
-            shoot(client, player, want ? "you moved" : "charge off");
+        if (armed && movementKeyDown(client) && McCompat.screen(client) == null) {
+            armed = false;
+            shoot(client, client.player, "key, fired as he moved");
         }
-        if (!want) {
-            reset("charge off");
+        if (offAfterShot && !armed && shotLeft == 0) {
+            offAfterShot = false;
+            reset("fired");
         }
-        return false;
+    }
+
+    /** The release: now if a movement key is down, else as soon as one is. */
+    private static void fire(Minecraft client, boolean thenOff) {
+        offAfterShot = thenOff;
+        if (movementKeyDown(client) && McCompat.screen(client) == null) {
+            armed = false;
+            shoot(client, client.player, "key");
+            return;
+        }
+        armed = true;
+        LOGGER.info("[Blink] charge: released standing still - the shot of {} tick(s) waits for a movement key", banked);
+    }
+
+    private static void turnOn(Connection conn) {
+        synchronized (LOCK) {
+            connection = conn;
+            banked = 0;
+            stash = null;
+            busy = false;
+            armed = false;
+            offAfterShot = false;
+            active = true;
+        }
+        LOGGER.info("[Blink] charge on (bank up to {} ticks + the firing tick, answers {} ms late, {})", cap(),
+                answerDelayMs(), BlinkConfig.getInstance().getChargeMode().label);
+        if (BlinkConfig.getInstance().isChatMessages()) {
+            ModChat.send("Blink", ModChat.text("charging"));
+        }
+    }
+
+    /** Test hook: stands in for the Charge key. Null in play. */
+    public static volatile Boolean keyHeldForTest;
+
+    private static boolean chargeKeyDown(Minecraft client, BlinkConfig cfg) {
+        Boolean forced = keyHeldForTest;
+        if (forced != null) {
+            return forced;
+        }
+        int code = cfg.getChargeKeyCode();
+        if (code == com.killer560.hub.util.KeyUtil.NONE || McCompat.screen(client) != null || client.getWindow() == null) {
+            return false;
+        }
+        return com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), code);
     }
 
     private static boolean movementKeyDown(Minecraft client) {
@@ -439,10 +538,6 @@ public final class BlinkCharge {
                         + "(the server takes at most 10 blocks a tick)" : ""));
         if (BlinkConfig.getInstance().isChatMessages()) {
             ModChat.send("Blink", ModChat.text(String.format(java.util.Locale.ROOT, "shot %d tick(s), %.1f blocks", ran, blocks)));
-        }
-        if (BlinkConfig.getInstance().isHoldAfterShot() && ran > 0) {
-            // The shot brought him level with real time again, so a full blink fits straight after it.
-            BlinkFeature.startFollowUp();
         }
     }
 
@@ -527,6 +622,8 @@ public final class BlinkCharge {
             active = false;
             banked = 0;
             shotLeft = 0;
+            armed = false;
+            offAfterShot = false;
             tickOpen = false;
             busy = false;
             if (stash != null && connection != null && connection.isConnected()) {
@@ -544,12 +641,38 @@ public final class BlinkCharge {
     // ---------------------------------------------------------------------------------------------------------------
 
     /**
-     * The most ticks Charge banks: one under Max Ticks, because the tick a shot fires in sends its own movement with the
-     * burst - a full Max Ticks of movement at once. Banking Max Ticks itself left GrimAC 20 ms of TimerLimit headroom and
-     * flagged once in a run (testkit 1025-blink-charge-actions, 2026-10-25); one fewer leaves 70 ms.
+     * The most ticks Charge banks: Charge Ticks, 1-20 (killer560, 2026-10-25: set to 20 it must bank 20, and past 20
+     * Hypixel sets the shot back). The firing tick goes out with the burst, so a full shot is 21 ticks of movement: 1050 ms,
+     * inside GrimAC's 1120 (22 banked + 1 flagged, testkit 1025-blink-charge-sweep).
      */
     public static int cap() {
-        return Math.max(1, BlinkConfig.getInstance().getMaxTicks() - 1);
+        return Math.max(1, BlinkConfig.getInstance().getChargeTicks());
+    }
+
+    /**
+     * Where a shot would put him if he fired now and kept doing what he is doing: his last tick's movement repeated for
+     * every banked tick, stopping at the first block in the way. An estimate (no jump arcs, no speed changes); null when
+     * nothing is banked or he is standing still.
+     */
+    public static net.minecraft.world.phys.Vec3 landingEstimate() {
+        LocalPlayer p = Minecraft.getInstance().player;
+        int n = banked + shotLeft;
+        if (!active || n <= 0 || p == null) {
+            return null;
+        }
+        net.minecraft.world.phys.Vec3 step = new net.minecraft.world.phys.Vec3(p.getX() - p.xo, 0, p.getZ() - p.zo);
+        if (step.lengthSqr() < 1.0E-4) {
+            return null;
+        }
+        net.minecraft.world.phys.AABB box = p.getBoundingBox();
+        for (int i = 0; i < n; i++) {
+            net.minecraft.world.phys.AABB next = box.move(step);
+            if (!p.level().noCollision(p, next)) {
+                break;
+            }
+            box = next;
+        }
+        return new net.minecraft.world.phys.Vec3((box.minX + box.maxX) / 2, box.minY, (box.minZ + box.maxZ) / 2);
     }
 
     public static boolean isActive() {

@@ -6,7 +6,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import com.killer560.hub.util.ModChat;
 
 /**
- * {@code /blink} starts a hold (or releases the one running), {@code /blink <ticks>} starts one with that Max Ticks,
+ * {@code /blink} starts a hold (or releases the one running), {@code /blink <ticks>} starts one with that many Hold Ticks,
  * {@code /blink release} releases, {@code /blink status} says what the last hold was. Cheat build only (registered from
  * {@link BlinkFeature#register}).
  */
@@ -27,7 +27,7 @@ final class BlinkCommands {
                         .then(ClientCommands.argument("ticks", IntegerArgumentType.integer(BlinkConfig.MIN_TICKS,
                                 BlinkConfig.MAX_TICKS)).executes(c -> {
                             BlinkConfig cfg = BlinkConfig.getInstance();
-                            cfg.setMaxTicks(IntegerArgumentType.getInteger(c, "ticks"));
+                            cfg.setHoldTicks(IntegerArgumentType.getInteger(c, "ticks"));
                             cfg.save();
                             return start();
                         }))));
@@ -53,7 +53,7 @@ final class BlinkCommands {
     private static int status() {
         BlinkConfig cfg = BlinkConfig.getInstance();
         ModChat.send("Blink", ModChat.text((BlinkFeature.isHolding() ? "holding " + BlinkFeature.heldTicks() + " tick(s), "
-                + BlinkFeature.heldPackets() + " packet(s)" : "not holding") + "; Max Ticks " + cfg.getMaxTicks()
+                + BlinkFeature.heldPackets() + " packet(s)" : "not holding") + "; Hold Ticks " + cfg.getHoldTicks()
                 + "; last hold " + BlinkFeature.lastHoldTicks() + " tick(s) / " + BlinkFeature.lastHoldPackets()
                 + " packet(s); longest " + BlinkFeature.longestHoldTicks() + " tick(s)"));
         return 1;

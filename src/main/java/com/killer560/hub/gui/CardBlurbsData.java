@@ -175,7 +175,7 @@ final class CardBlurbsData {
         d.put("GeneralMainTab", "Runs /skyblock when you join.");
         d.put("MotionBlurTab", "Blends frames for motion blur.");
         d.put("FreelookTab", "F5 rear view; hold a key to pan.");
-        d.put("BlinkTab", "Hold your packets, release them in one burst.");
+        d.put("BlinkTab", "Charge ticks standing still, then shoot ahead.");
         d.put("InventoryWalkTab", "Keep walking while a menu is open.");
         d.put("ZeroPingEtherwarpTab", "Instant etherwarp view.");
         d.put("LeftClickEtherwarpTab", "Left click etherwarps.");

@@ -42,15 +42,15 @@ import java.util.List;
  * own serverbound connection is held; the integrated server's connections pass untouched.
  *
  * <p><b>How long.</b> A hold is counted in client ticks: one {@code ServerboundClientTickEndPacket} held is one tick. At
- * {@link BlinkConfig#getMaxTicks()} the hold is released at the next tick boundary, and then either stops or starts again
- * ({@link BlinkConfig.LimitAction}). Holds start and end only at START_CLIENT_TICK, so every burst is made of whole ticks.
+ * {@link BlinkConfig#getHoldTicks()} the hold is released at the next tick boundary and the key has to come up before the
+ * next one. Holds start and end only at START_CLIENT_TICK, so every burst is made of whole ticks.
  * A hold that somehow sends no tick-ends is still released after {@link #MAX_HOLD_MS}, and one that grows past
  * {@link #MAX_HELD_PACKETS} is released at once.
  *
- * <p><b>The server's word is final.</b> A server position packet while holding releases everything first (the server
- * ignores moves until its teleport is accepted, so the held ones do no harm) and lets the accept and the move after it go
- * straight out; the hold starts again next tick if the key still says so - the correction is honored, reported through
- * {@link ServerCorrections} when it moved him, and nothing stops. A world change (login or respawn packet) releases what is
+ * <p><b>The server's word is final.</b> A server teleport while holding (an etherwarp landing, a leap, a pearl) is held
+ * through: its accept goes in the queue in its place. One that puts him back where the hold started is the server
+ * refusing the blink: what is held is released without its moves and tick-ends, reported through
+ * {@link ServerCorrections}, and nothing stops. A world change (login or respawn packet) releases what is
  * held but drops the held moves and tick-ends, which belong to the world he just left; a configuration switch releases everything; a
  * disconnect throws the queue away (there is nothing to send it on). After a world change or a disconnect the blink is
  * off until pressed again.
@@ -104,6 +104,8 @@ public final class BlinkFeature {
     /** Frames the HUD line and the server box were actually drawn, and why the box last was not (diagnostics). */
     static volatile long hudFrames;
     static volatile long boxFrames;
+    /** Frames the charge landing box was drawn (diagnostics). */
+    static volatile long landingFrames;
     static volatile String boxSkip = "never asked";
     private static int ticksSinceRelease = Integer.MAX_VALUE;
 
@@ -148,38 +150,10 @@ public final class BlinkFeature {
                 noteSent(connection, packet);
                 return false;
             }
-            // A hit is its own packet since 26.1 (ServerboundAttackPacket, javap 26.1.2 and 26.2: MultiPlayerGameMode.attack
-            // sends it); ServerboundInteractPacket is now only the entity right click. Both count.
-            if ((packet instanceof ServerboundAttackPacket || packet instanceof ServerboundInteractPacket)
-                    && BlinkConfig.getInstance().isReleaseOnHit()) {
-                // A hit (or entity click) is never held behind other held packets: a burst carrying two hits lets the
-                // server apply the first (the kill, the knockback) and then judge the second against it, a swing the
-                // client made before it could have seen that - GrimAC's Hitboxes, every time (testkit 1025-blink-attack
-                // against its no-Blink control, 2026-10-25). Release what is held, let this tick go out live (the hit,
-                // its swing, the move), and hold again from the next tick.
-                releaseLocked("hit", false);
-                return false;
-            }
-            if (packet instanceof ServerboundPlayerActionPacket action && isDigEdge(action.getAction())
-                    && BlinkConfig.getInstance().isReleaseOnDig()) {
-                // GrimAC times every break on arrival: start to finish (held together, a ~300 ms stone break read as
-                // instant - FastBreak diff=300ms) and finish to the next start (a held finish landed 49 ms before the
-                // live next start - FastBreak delay=49ms), testkit 1025-blink-dig 2026-10-25. So every dig edge (start,
-                // finish, abort) goes out live, on real time, after what was held.
-                releaseLocked("dig", false);
-                return false;
-            }
-            if (BlinkConfig.getInstance().isReleaseOnCharge() && isChargeEdge(packet)) {
-                // The server times a charged use (a bow draw, eating, a shield) by its own ticks between the start and
-                // the release. Held together they arrived together and a 25-tick bow draw fired nothing - the server
-                // drops a shot under 0.1 charge (testkit 1025-blink-bow, 2026-10-25: 3 of 5 arrows). Both edges go live.
-                // An instant right click (an ability, an etherwarp) is not a charged use and stays held.
-                releaseLocked("item use", false);
-                return false;
-            }
-            if (BlinkConfig.getInstance().isClicksLive() && isMenuClick(packet)) {
-                // A menu click (a terminal's) does not depend on where he stands: it goes out now and the hold carries
-                // on, so a terminal works during a blink (killer560, 2026-10-25).
+            // Nothing releases a hold but the key (killer560, 2026-10-25: "it should only release when you choose to
+            // release it"); hits, digs and item uses are held with everything else. Menu clicks are the one exception:
+            // a click (a terminal's) does not depend on where he stands, so it goes out now and the hold carries on.
+            if (isMenuClick(packet)) {
                 clicksLive++;
                 return false;
             }
@@ -194,7 +168,7 @@ public final class BlinkFeature {
                 // holding off. Hold mode waits for the key to come up before starting again.
                 releaseLocked("packet limit", false);
                 holdLatched = true;
-                wanted = wanted && BlinkConfig.getInstance().getLimitAction() == BlinkConfig.LimitAction.PULSE;
+                wanted = false;
             }
             return true;
         }
@@ -209,38 +183,6 @@ public final class BlinkFeature {
 
     public static long clicksLive() {
         return clicksLive;
-    }
-
-    /** The hold Charge starts right after a shot (Hold After Shot): a second blink straight after the first. */
-    static final String FOLLOW_UP = "charge follow-up";
-
-    static void startFollowUp() {
-        Minecraft client = Minecraft.getInstance();
-        if (holding || client.getConnection() == null) {
-            return;
-        }
-        start(client.getConnection().getConnection(), FOLLOW_UP);
-    }
-
-    /** The start of a use whose item charges (use duration above 0), or the release of one. Render thread. */
-    private static boolean isChargeEdge(Packet<?> packet) {
-        if (packet instanceof ServerboundPlayerActionPacket action) {
-            return action.getAction() == ServerboundPlayerActionPacket.Action.RELEASE_USE_ITEM;
-        }
-        if (!(packet instanceof ServerboundUseItemPacket use)) {
-            return false;
-        }
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || use.getHand() == null) {
-            return false;
-        }
-        return client.player.getItemInHand(use.getHand()).getUseDuration(client.player) > 0;
-    }
-
-    private static boolean isDigEdge(ServerboundPlayerActionPacket.Action a) {
-        return a == ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK
-                || a == ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK
-                || a == ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK;
     }
 
     /** A packet that really left: a move updates where the server thinks he is. */
@@ -280,36 +222,16 @@ public final class BlinkFeature {
 
         readKey(client, cfg);
 
-        if (cfg.getStyle() == BlinkConfig.Style.CHARGE) {
-            // Charge's own bank stops at Max Ticks and empties on a shot. A hold here is the follow-up blink after a shot
-            // (or an Auto Routes chain's): it ends at Max Ticks like any other; one of the key's is from the old style.
-            if (holding) {
-                boolean over = heldTicks >= cfg.getMaxTicks() || System.currentTimeMillis() - holdStartMs > MAX_HOLD_MS;
-                if (over) {
-                    release(FOLLOW_UP.equals(holdOwner) ? "follow-up blink: tick limit" : "tick limit");
-                } else if ("key".equals(holdOwner)) {
-                    release("style changed");
-                }
-            }
-            if (wanted && !SkyblockGate.allows()) {
-                wanted = false;
-            }
-            if (BlinkCharge.tick(client, wanted, listener)) {
-                wanted = true;
-                wantedBy = "key";
-            }
-            return;
-        }
-        BlinkCharge.reset("style changed");
-
         if (holding) {
-            boolean overTicks = heldTicks >= cfg.getMaxTicks();
+            boolean overTicks = heldTicks >= cfg.getHoldTicks();
             boolean overTime = System.currentTimeMillis() - holdStartMs > MAX_HOLD_MS;
             if (overTicks || overTime) {
+                // Past 20 ticks Hypixel sets the blink back, so a full hold goes now; the key has to come up before
+                // the next one.
                 release(overTicks ? "tick limit" : "time limit");
-                if (cfg.getLimitAction() == BlinkConfig.LimitAction.RELEASE) {
+                if ("key".equals(wantedBy)) {
                     wanted = false;
-                    holdLatched = "key".equals(wantedBy);
+                    holdLatched = true;
                 }
             }
         }
@@ -319,28 +241,17 @@ public final class BlinkFeature {
         if (!holding && wanted) {
             if (!SkyblockGate.allows()) {
                 wanted = false;
-                return;
+            } else {
+                start(listener.getConnection(), wantedBy);
             }
-            start(listener.getConnection(), wantedBy);
         }
+        BlinkCharge.tick(client, SkyblockGate.allows(), listener);
     }
 
+    /** The Hold key: held, a hold; up, the release. A limit release waits for the key to come up. */
     private static void readKey(Minecraft client, BlinkConfig cfg) {
         boolean down = keyDown(client, cfg);
-        boolean pressed = down && !keyWasDown;
         keyWasDown = down;
-        if (cfg.getMode() == BlinkConfig.Mode.TOGGLE) {
-            if (pressed) {
-                if (wanted || holding) {
-                    wanted = false;
-                } else {
-                    wanted = true;
-                    wantedBy = "key";
-                }
-            }
-            return;
-        }
-        // Hold: the key's state is the want, except that a limit release waits for the key to come up.
         if (!down) {
             holdLatched = false;
             if ("key".equals(wantedBy)) {
@@ -359,7 +270,7 @@ public final class BlinkFeature {
         if (forced != null) {
             return forced;
         }
-        int code = cfg.getKeyCode();
+        int code = cfg.getHoldKeyCode();
         if (code == KeyUtil.NONE || McCompat.screen(client) != null || client.getWindow() == null) {
             return false;
         }
@@ -384,9 +295,8 @@ public final class BlinkFeature {
             holding = true;
         }
         Minecraft mc = Minecraft.getInstance();
-        LOGGER.info("[Blink] hold started by {} at {} (Max Ticks {}, {}, at the limit {}); server has him at {}", owner,
-                mc.player == null ? "-" : fmt(mc.player.position()), BlinkConfig.getInstance().getMaxTicks(),
-                BlinkConfig.getInstance().getMode().label, BlinkConfig.getInstance().getLimitAction().label,
+        LOGGER.info("[Blink] hold started by {} at {} (Hold Ticks {}); server has him at {}", owner,
+                mc.player == null ? "-" : fmt(mc.player.position()), BlinkConfig.getInstance().getHoldTicks(),
                 serverPos == null ? "-" : fmt(serverPos));
         if (BlinkConfig.getInstance().isChatMessages()) {
             ModChat.send("Blink", ModChat.text("holding packets"));
@@ -493,7 +403,8 @@ public final class BlinkFeature {
         // to it (it ignores moves until its teleport is accepted), so the blink is dropped, honored, never fought.
         Vec3 start = holdStartServerPos;
         boolean backToStart = start != null && to != null && dist > RUBBERBAND_BLOCKS && to.distanceTo(start) < 0.5;
-        if (wasHolding && BlinkConfig.getInstance().isSurviveTeleports() && !backToStart) {
+        BlinkCharge.noteServerTeleport(dist);
+        if (wasHolding && !backToStart) {
             // An etherwarp landing, a leap, a lag-back to somewhere new: keep holding. The accept vanilla answers with goes
             // into the queue in its place, so on release the server sees a client that got the teleport late - every
             // held move before the accept is ignored by it, every one after starts from the new spot.
@@ -540,6 +451,10 @@ public final class BlinkFeature {
 
     public static long hudFrames() {
         return hudFrames;
+    }
+
+    public static long landingFrames() {
+        return landingFrames;
     }
 
     public static long boxFrames() {
@@ -641,12 +556,22 @@ public final class BlinkFeature {
         return String.format(java.util.Locale.ROOT, "(%.2f, %.2f, %.2f)", v.x, v.y, v.z);
     }
 
-    /** One line for the HUD. */
+    /** The HUD line: the charge bank when Charge is on, the hold while one runs. Null when there is nothing to show. */
     static Component statusLine() {
         BlinkConfig cfg = BlinkConfig.getInstance();
+        StringBuilder sb = new StringBuilder();
         if (BlinkCharge.isActive()) {
-            return Component.literal("§cBlink charge §f" + BlinkCharge.banked() + "§7/" + BlinkCharge.cap() + " ticks");
+            sb.append("§cCharge §f").append(BlinkCharge.banked()).append("§7/").append(BlinkCharge.cap());
+            if (BlinkCharge.isArmed()) {
+                sb.append(" §e(move to fire)");
+            }
         }
-        return Component.literal("§cBlink §f" + heldTicks + "§7/" + cfg.getMaxTicks() + " ticks §8(" + heldPackets() + ")");
+        if (holding) {
+            if (sb.length() > 0) {
+                sb.append("  ");
+            }
+            sb.append("§cHold §f").append(heldTicks).append("§7/").append(cfg.getHoldTicks());
+        }
+        return sb.length() == 0 ? null : Component.literal(sb.toString());
     }
 }

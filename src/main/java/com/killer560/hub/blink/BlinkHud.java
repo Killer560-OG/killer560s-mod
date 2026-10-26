@@ -3,14 +3,19 @@ package com.killer560.hub.blink;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
-/** "Blink 12/17 ticks (140)" while a hold is on; movable in the HUD editor. */
+/**
+ * "Charge 12/20" while charging, "Hold 5/20" while holding; movable in the HUD editor. It marks itself drawn
+ * ({@link HudSeen}), which the editor needs to list it without Show Unseen: before 2026-10-25 it never did, so it could
+ * not be moved (killer560: "moving the blink hud doesnt work with the normal hud editor").
+ */
 final class BlinkHud implements HudElement {
 
-    private static final Component EXAMPLE = Component.literal("§cBlink §f12§7/17 ticks §8(140)");
+    private static final Component EXAMPLE = Component.literal("§cCharge §f12§7/20  §cHold §f5§7/20");
 
     @Override
     public String id() {
@@ -33,7 +38,11 @@ final class BlinkHud implements HudElement {
     }
 
     private static Component text() {
-        return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen ? EXAMPLE : BlinkFeature.statusLine();
+        if (McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen) {
+            return EXAMPLE;
+        }
+        Component line = BlinkFeature.statusLine();
+        return line == null ? EXAMPLE : line;
     }
 
     @Override
@@ -55,11 +64,13 @@ final class BlinkHud implements HudElement {
     @Override
     public void render(GuiGraphicsExtractor graphics, int x, int y) {
         boolean editor = McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen;
-        if (!editor && !BlinkFeature.isHolding() && !BlinkCharge.isActive()) {
+        Component line = editor ? EXAMPLE : BlinkFeature.statusLine();
+        if (line == null) {
             return;
         }
-        graphics.text(Minecraft.getInstance().font, text(), x, y, 0xFFFFFFFF, true);
+        graphics.text(Minecraft.getInstance().font, line, x, y, 0xFFFFFFFF, true);
         if (!editor) {
+            HudSeen.markDrawn(id());
             BlinkFeature.hudFrames++;
         }
     }

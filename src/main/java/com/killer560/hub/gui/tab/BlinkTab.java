@@ -14,17 +14,21 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 
 /**
- * Blink - cheat-only (see {@link com.killer560.hub.blink.BlinkFeature}). The switch, the key, Toggle/Hold, Max Ticks,
- * what the limit does, and the HUD line, server box and chat lines. Only added to its category behind
+ * Blink - cheat-only (see {@link com.killer560.hub.blink.BlinkFeature} and {@link com.killer560.hub.blink.BlinkCharge}).
+ * The switch and the display rows, then a Charge section (key, Toggle/Hold, ticks) and a Hold section (key, ticks), each
+ * with a line saying what it does (killer560, 2026-10-25). Only added to its category behind
  * {@code BuildVariant.CHEAT_FEATURES_ENABLED}.
  */
 public class BlinkTab extends BaseTab implements KeyCaptureTab {
 
     private static final int ROW = 18;
 
-    private boolean capturing;
+    /** Which key is being captured: 0 none, 1 Charge, 2 Hold. */
+    private int capturing;
 
     public BlinkTab() {
         super("Blink");
@@ -37,7 +41,7 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public boolean isListeningForKey() {
-        return capturing;
+        return capturing != 0;
     }
 
     @Override
@@ -57,9 +61,13 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
 
     private void apply(int code) {
         BlinkConfig cfg = BlinkConfig.getInstance();
-        cfg.setKeyCode(code);
+        if (capturing == 1) {
+            cfg.setChargeKeyCode(code);
+        } else if (capturing == 2) {
+            cfg.setHoldKeyCode(code);
+        }
         cfg.save();
-        capturing = false;
+        capturing = 0;
     }
 
     @Override
@@ -81,151 +89,109 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
         if (!cfg.isEnabled()) {
             return w;
         }
-        w.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Blink", true), font));
-        y += 16;
-        String[] warning = {
-                "§cHolds every packet you send and releases them in one burst. To the",
-                "§cserver it is a lag spike; anticheats look for exactly that. Ban risk.",
-                "§7Tested against GrimAC only - that says nothing about Watchdog.",
-                "§7GrimAC accepts holds up to 22 ticks; every tick past that is a flag."
-        };
-        for (String line : warning) {
-            w.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal(line), font));
-            y += 11;
-        }
+        y = toggle(w, contentX, y, contentWidth, "Show HUD", cfg::isShowHud, v -> cfg.setShowHud(v), cfg);
+        y = toggle(w, contentX, y, contentWidth, "Show Server Position", cfg::isShowServerBox,
+                v -> cfg.setShowServerBox(v), cfg);
+        y = note(w, font, contentX, y, contentWidth, "§7Red box: where the server has you during a hold. Green box: where a");
+        y = note(w, font, contentX, y, contentWidth, "§7charge shot would land you if you fired now.");
+        y += 4;
+        y = toggle(w, contentX, y, contentWidth, "Chat Messages", cfg::isChatMessages, v -> cfg.setChatMessages(v), cfg);
         y += 6;
 
-        w.add(SettingsButtonWidget.builder(keyText(cfg), btn -> {
-                    capturing = true;
-                    btn.setMessage(Component.literal("Blink Key: §ePress any key..."));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-        w.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
-                    cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
-                    cfg.save();
-                    btn.setMessage(styleText(cfg));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Charge: Shoot When You Move", cfg.isShootOnMove()), btn -> {
-                    cfg.setShootOnMove(!cfg.isShootOnMove());
-                    cfg.save();
-                    btn.setMessage(onOff("Charge: Shoot When You Move", cfg.isShootOnMove()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Charge: Blink Again After Shot", cfg.isHoldAfterShot()), btn -> {
-                    cfg.setHoldAfterShot(!cfg.isHoldAfterShot());
-                    cfg.save();
-                    btn.setMessage(onOff("Charge: Blink Again After Shot", cfg.isHoldAfterShot()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Menu Clicks Go Through", cfg.isClicksLive()), btn -> {
-                    cfg.setClicksLive(!cfg.isClicksLive());
-                    cfg.save();
-                    btn.setMessage(onOff("Menu Clicks Go Through", cfg.isClicksLive()));
+        // ---- Charge
+        w.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Charge", true), font));
+        y += 16;
+        y = note(w, font, contentX, y, contentWidth, "§7Stand still to bank ticks (a terminal, levers, mining all work). Fire it");
+        y = note(w, font, contentX, y, contentWidth, "§7and you shoot that many ticks of running forward at once. A full bank");
+        y = note(w, font, contentX, y, contentWidth, "§7waits for you. Fired while standing still, it goes off when you move.");
+        y += 4;
+        w.add(SettingsButtonWidget.builder(keyText("Charge Key", cfg.getChargeKeyCode(), capturing == 1), btn -> {
+                    capturing = 1;
+                    btn.setMessage(Component.literal("Charge Key: §ePress any key..."));
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
         w.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
-                    cfg.setMode(SettingsButtonWidget.step(cfg.getMode(), dir));
+                    cfg.setChargeMode(SettingsButtonWidget.step(cfg.getChargeMode(), dir));
                     cfg.save();
                     btn.setMessage(modeText(cfg));
                 }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
+        y += ROW + 2;
+        y = note(w, font, contentX, y, contentWidth, "§7Toggle: press to charge, press again to fire. Hold: charge while held,");
+        y = note(w, font, contentX, y, contentWidth, "§7fire when you let go.");
+        y += 4;
+        y = slider(w, contentX, y, contentWidth, "Charge Ticks", cfg::getChargeTicks, cfg::setChargeTicks, cfg);
+        y += 6;
 
+        // ---- Hold
+        w.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Hold", true), font));
+        y += 16;
+        y = note(w, font, contentX, y, contentWidth, "§7Hold the key: everything you send waits. Let go: it all goes at once.");
+        y = note(w, font, contentX, y, contentWidth, "§7Menu clicks always go through. At Hold Ticks it lets go on its own.");
+        y += 4;
+        w.add(SettingsButtonWidget.builder(keyText("Hold Key", cfg.getHoldKeyCode(), capturing == 2), btn -> {
+                    capturing = 2;
+                    btn.setMessage(Component.literal("Hold Key: §ePress any key..."));
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + 4;
+        slider(w, contentX, y, contentWidth, "Hold Ticks", cfg::getHoldTicks, cfg::setHoldTicks, cfg);
+        return w;
+    }
+
+    private static int note(List<AbstractWidget> w, net.minecraft.client.gui.Font font, int x, int y, int width, String text) {
+        w.add(new StringWidget(x, y, width, 10, Component.literal(text), font));
+        return y + 11;
+    }
+
+    private interface BoolSetter {
+        void set(boolean v);
+    }
+
+    private static int toggle(List<AbstractWidget> w, int x, int y, int width, String label,
+                              java.util.function.BooleanSupplier get, BoolSetter set, BlinkConfig cfg) {
+        w.add(SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {
+                    set.set(!get.getAsBoolean());
+                    cfg.save();
+                    btn.setMessage(onOff(label, get.getAsBoolean()));
+                }).bounds(x, y, width, ROW).build());
+        return y + ROW + 4;
+    }
+
+    private static int slider(List<AbstractWidget> w, int x, int y, int width, String label, IntSupplier get,
+                              IntConsumer set, BlinkConfig cfg) {
         double min = BlinkConfig.MIN_TICKS;
         double span = BlinkConfig.MAX_TICKS - min;
-        w.add(new ThemedSliderButton(contentX, y, contentWidth, ROW, ticksText(cfg),
-                Math.max(0.0, Math.min(1.0, (cfg.getMaxTicks() - min) / span))) {
+        w.add(new ThemedSliderButton(x, y, width, ROW, ticksText(label, get.getAsInt()),
+                Math.max(0.0, Math.min(1.0, (get.getAsInt() - min) / span))) {
             @Override
             protected void updateMessage() {
-                setMessage(ticksText(cfg));
+                setMessage(ticksText(label, get.getAsInt()));
             }
 
             @Override
             protected void applyValue() {
-                cfg.setMaxTicks((int) Math.round(min + this.value * span));
+                set.accept((int) Math.round(min + this.value * span));
                 saveOnRelease(() -> cfg.save());
             }
         });
-        y += ROW + 4;
-        w.add(SettingsButtonWidget.cycling(limitText(cfg), (btn, dir) -> {
-                    cfg.setLimitAction(SettingsButtonWidget.step(cfg.getLimitAction(), dir));
-                    cfg.save();
-                    btn.setMessage(limitText(cfg));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-
-        w.add(SettingsButtonWidget.builder(onOff("Release On Hit", cfg.isReleaseOnHit()), btn -> {
-                    cfg.setReleaseOnHit(!cfg.isReleaseOnHit());
-                    cfg.save();
-                    btn.setMessage(onOff("Release On Hit", cfg.isReleaseOnHit()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Release On Dig", cfg.isReleaseOnDig()), btn -> {
-                    cfg.setReleaseOnDig(!cfg.isReleaseOnDig());
-                    cfg.save();
-                    btn.setMessage(onOff("Release On Dig", cfg.isReleaseOnDig()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Release On Bow/Eat", cfg.isReleaseOnCharge()), btn -> {
-                    cfg.setReleaseOnCharge(!cfg.isReleaseOnCharge());
-                    cfg.save();
-                    btn.setMessage(onOff("Release On Bow/Eat", cfg.isReleaseOnCharge()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Keep Holding Through Teleports", cfg.isSurviveTeleports()), btn -> {
-                    cfg.setSurviveTeleports(!cfg.isSurviveTeleports());
-                    cfg.save();
-                    btn.setMessage(onOff("Keep Holding Through Teleports", cfg.isSurviveTeleports()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Show HUD", cfg.isShowHud()), btn -> {
-                    cfg.setShowHud(!cfg.isShowHud());
-                    cfg.save();
-                    btn.setMessage(onOff("Show HUD", cfg.isShowHud()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Show Server Position", cfg.isShowServerBox()), btn -> {
-                    cfg.setShowServerBox(!cfg.isShowServerBox());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Server Position", cfg.isShowServerBox()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Chat Messages", cfg.isChatMessages()), btn -> {
-                    cfg.setChatMessages(!cfg.isChatMessages());
-                    cfg.save();
-                    btn.setMessage(onOff("Chat Messages", cfg.isChatMessages()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        return w;
+        return y + ROW + 4;
     }
 
     private static Component onOff(String label, boolean on) {
         return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
     }
 
-    private Component keyText(BlinkConfig cfg) {
+    private static Component keyText(String label, int code, boolean capturing) {
         if (capturing) {
-            return Component.literal("Blink Key: §ePress any key...");
+            return Component.literal(label + ": §ePress any key...");
         }
-        int code = cfg.getKeyCode();
-        return Component.literal("Blink Key: " + (code == KeyUtil.NONE ? "§7Not Set" : "§e" + KeyUtil.bindDisplayName(code)));
-    }
-
-    private static Component styleText(BlinkConfig cfg) {
-        return Component.literal("Style: " + cfg.getStyle().label);
+        return Component.literal(label + ": " + (code == KeyUtil.NONE ? "§7Not Set" : "§e" + KeyUtil.bindDisplayName(code)));
     }
 
     private static Component modeText(BlinkConfig cfg) {
-        return Component.literal("Mode: " + cfg.getMode().label);
+        return Component.literal("Charge Mode: " + cfg.getChargeMode().label);
     }
 
-    private static Component limitText(BlinkConfig cfg) {
-        return Component.literal("At Max Ticks: " + cfg.getLimitAction().label);
-    }
-
-    private static Component ticksText(BlinkConfig cfg) {
-        int t = cfg.getMaxTicks();
-        String note = t > BlinkConfig.GRIM_MAX_TICKS ? " §c- over GrimAC's " + BlinkConfig.GRIM_MAX_TICKS
-                : t == BlinkConfig.GRIM_MAX_TICKS ? " §7- GrimAC's max" : "";
-        return Component.literal(String.format(Locale.US, "Max Ticks: %d (%.2fs)", t, t / 20.0) + note);
+    private static Component ticksText(String label, int t) {
+        return Component.literal(String.format(Locale.US, "%s: %d (%.2fs)", label, t, t / 20.0));
     }
 }
