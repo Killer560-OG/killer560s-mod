@@ -61,10 +61,14 @@ public final class RoutePathPlanner {
      * Every saved warp is within THIS player's etherwarp range. Warps are planned with the range of the etherwarp item of
      * whoever planned them (57 + Transmission Tuners), and a routes file shared with a friend who has fewer tuners kept
      * hops his item cannot reach: the warp did nothing and the route stopped "not at path #19 - 9.0 blocks away"
-     * (killer560's friend, 2026-10-26). A hop longer than the current range makes the pair stale, so it is planned again
-     * with his range. Distances are taken in the route's own frame, which a rotation or move of the room does not change.
+     * (killer560's friend, 2026-10-26). With Replan For My Range on, a hop longer than the current range makes the pair
+     * stale, so it is planned again with his range. Distances are taken in the route's own frame, which a rotation or move of the room does not change.
      */
     static boolean withinReach(RouteNode src) {
+        if (!AutoRoutesConfig.getInstance().isReplanForRange()) {
+            // Off by default (killer560, 2026-10-26): routes are planned with Transmission Tuners, which everyone has.
+            return true;
+        }
         if (com.killer560.hub.pathfinding.EtherwarpHopper.range() <= 0) {
             // No etherwarp item in the hotbar: his range is unknown, and judging by the 56-block default would replan
             // (and save over) every longer hop of his own routes. Only a known, shorter range makes a pair stale.

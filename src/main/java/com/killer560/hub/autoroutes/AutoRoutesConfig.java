@@ -123,6 +123,9 @@ public final class AutoRoutesConfig {
     /** Charged Chain (killer560, 2026-10-25: "multiple etherwarps in a tick for 0tick routes"): with Zero Ping Chain and
      *  Blink charging, a chain spends Blink's banked ticks to fire all its warps inside one real tick. */
     private boolean chargedChain = false;
+    /** Replan For My Range (killer560, 2026-10-26): saved path warps longer than this player's etherwarp reaches are
+     *  planned again for his range. Off: everyone flies the saved warps as planned (planned with Transmission Tuners). */
+    private boolean replanForRange = false;
     private KillMimic killMimic = KillMimic.OFF;
     private CryptWeapon cryptWeapon = CryptWeapon.HYPERION;
     /** How long a crypt node keeps attacking before the route moves on without a kill (killer560, 2026-10-05: "in
@@ -237,6 +240,7 @@ public final class AutoRoutesConfig {
                 cfg.zeroPingChain = ConfigJson.getBool(o, "zeroPingChain", cfg.zeroPingChain);
                 cfg.blinkChain = ConfigJson.getBool(o, "blinkChain", cfg.blinkChain);
                 cfg.chargedChain = ConfigJson.getBool(o, "chargedChain", cfg.chargedChain);
+                cfg.replanForRange = ConfigJson.getBool(o, "replanForRange", cfg.replanForRange);
                 cfg.startFromStartNodeOnly = ConfigJson.getBool(o, "startFromStartNodeOnly", cfg.startFromStartNodeOnly);
                 cfg.runWhileMapOpen = ConfigJson.getBool(o, "runWhileMapOpen", cfg.runWhileMapOpen);
                 cfg.killMimic = ConfigJson.getEnum(o, "killMimic", KillMimic.class, cfg.killMimic);
@@ -293,6 +297,7 @@ public final class AutoRoutesConfig {
             o.addProperty("zeroPingChain", zeroPingChain);
             o.addProperty("blinkChain", blinkChain);
             o.addProperty("chargedChain", chargedChain);
+            o.addProperty("replanForRange", replanForRange);
             o.addProperty("startFromStartNodeOnly", startFromStartNodeOnly);
             o.addProperty("runWhileMapOpen", runWhileMapOpen);
             o.addProperty("killMimic", killMimic.name());
@@ -381,6 +386,14 @@ public final class AutoRoutesConfig {
     public boolean getChargedChainSetting() { return chargedChain; }
 
     public void setChargedChain(boolean v) { chargedChain = v; }
+
+    public boolean isReplanForRange() {
+        return replanForRange;
+    }
+
+    public void setReplanForRange(boolean v) {
+        replanForRange = v;
+    }
 
     /** Forced on in legit mode - "in legit mode it can only start from the start node". */
     public boolean isStartFromStartNodeOnly() { return isLegitMode() || startFromStartNodeOnly; }
