@@ -866,5 +866,22 @@ and AOTV) and the `[AutoClear] room time:` / `trip time:` lines (`autoclear/Room
   reordered against a teleport confirm (Grim then drops every move after it) or against a hold's queue
   (TransactionOrder): flush the waiting ones first. Grim counts one tick per client tick (the flying, else the
   tick-end); a flying confirming a teleport is not counted. Nothing else resets the balance (testkit 1025-blink-charge*).
+- Rework (blink-rework-1025, 2026-10-26), measured on GrimAC 2.3.74 with nothing released early: one sword hit, two
+  swings (only the first did damage: both reach the server in the same tick and the second lands in hurt time), one stone
+  block mined start to finish, towering with cobblestone and five bow shots, each inside a 20-tick hold, were all CLEAN
+  (testkit 1025-blink-hold-hit-1/-2, -hold-dig, -place, -bow; frozen dummy). The Hitboxes/FastBreak above were with the
+  old 22-tick holds and a moving target; re-measure before relying on either.
+- A banked Charge tick drops its move, and when that move was a turn of the camera vanilla never reports the look again
+  (it counts it as sent). The next shot then ran every tick with the server on the old look: GrimAC Simulation 0.13-0.34
+  on all 20 ticks after a 180 turn. `BlinkCharge` now owes the look and puts it on the next move sent (testkit 1025-blink-charge).
+- Releasing a hold with its moves and tick-ends dropped (the old refusal and world-change path) leaves a held sprint
+  command after his last flying with a ping answer behind it and no flying between: GrimAC Post "entity action" (Post
+  flags a post packet followed by a transaction answer while a flying is the last tick packet). Release everything, in order.
+- An in-place server teleport while charging (Hypixel's re-sync) keeps the bank by design (killer560, 2026-10-25), but on
+  GrimAC its confirm then reaches the server before the answer to the ping GrimAC sent with the teleport (answers wait
+  990 ms): GroundSpoof, BadPacketsN, AimDuplicateLook, TickTimer, and the next shot was set back (testkit
+  1025-blink-charge-inplace). Answering early resets the lag anchor and the bank with it. OPEN: his call.
+- A menu click while the server still has him sneaking or moving is MultiActionsC and GrimAC drops the click. During a
+  hold the click goes out live but the input change (stopping the sneak) is held, so stop sneaking before the hold.
 - Testkit: a Session class (`62-argrim-session`) runs only if a -Scenario part contains the session's own name; run
   single cases with `-Scenario '62-argrim-session+,<case>,<case>'`.
