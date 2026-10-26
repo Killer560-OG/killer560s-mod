@@ -315,3 +315,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - A reference mod's feature can already be here under another name: OdinClient's "Secret Hitboxes" is this mod's Full Block
   (Secrets folder, cheat build, testkit 62-full-block-reach / 1025-fullblock-*), though reference-mods-1018 said "no
   equivalent" and a duplicate was half built on 2026-10-25. Grep docs/FEATURES.md for the behavior, not the name, first.
+- Blink's keys are read under a container menu (a terminal) since 2026-10-26; before, opening one mid-hold read as the
+  key coming up and released the hold. Rework Grim findings (banked turns, Post on dropped releases, the in-place
+  teleport conflict) are in docs/LESSONS-AUTOMATION.md, Blink section.
