@@ -50,8 +50,8 @@ import java.util.List;
  * <p><b>The server's word is final.</b> A server teleport while holding (an etherwarp landing, a leap, a pearl) is held
  * through: its accept goes in the queue in its place. One that puts him back where the hold started is the server
  * refusing the blink: what is held is released at once (all of it, in order, ahead of the setback's accept), reported
- * through {@link ServerCorrections}, and nothing stops. A world change (login or respawn packet) releases what is
- * held but drops the held moves and tick-ends, which belong to the world he just left; a configuration switch releases everything; a
+ * through {@link ServerCorrections}, and nothing stops. A world change (login or respawn packet) releases everything held,
+ * in order, before the new world's packets; a configuration switch releases everything; a
  * disconnect throws the queue away (there is nothing to send it on). After a world change or a disconnect the blink is
  * off until pressed again.
  *
@@ -322,9 +322,10 @@ public final class BlinkFeature {
     }
 
     /**
-     * @param dropStale a world change: the held moves and tick-ends belong to the world he left, so they are dropped (the
-     *                  tick-ends too: sent, they would still count against GrimAC's timer, and a hold longer than 22 ticks
-     *                  ending in a world change drew TimerLimit, testkit 1025-blink-world 2026-10-25); everything else goes
+     * @param dropStale drop the held moves and tick-ends and send the rest. No caller does since 2026-10-26: what is left
+     *                  then (a sprint command with a ping answer behind it and no flying between) is GrimAC Post (testkit
+     *                  1025-blink-refused and -world). It was for holds past 22 ticks, which drew TimerLimit; Hold Ticks
+     *                  stops at 20 now.
      */
     private static void releaseLocked(String why, boolean dropStale) {
         if (!holding) {
@@ -479,12 +480,15 @@ public final class BlinkFeature {
         return boxSkip;
     }
 
-    /** A login or respawn packet: a new world. What is held is released except its moves and tick-ends; the blink ends. */
+    /** A login or respawn packet: a new world. What is held is released, all of it, in order; the blink ends. */
     public static void onWorldChange() {
         BlinkCharge.reset("world change");
         serverPos = null;
         synchronized (LOCK) {
-            releaseLocked("world change", true);
+            // Everything, in order, before the new world's packets: dropping the moves and tick-ends left a held sprint
+            // command after his last flying with a ping answer behind it, GrimAC Post (testkit 1025-blink-world,
+            // 2026-10-26). The answers in the burst tell GrimAC those moves came before the world change.
+            releaseLocked("world change", false);
         }
         // The new world's first position packet is the move into it, not a rubberband after the release.
         ticksSinceRelease = Integer.MAX_VALUE;
