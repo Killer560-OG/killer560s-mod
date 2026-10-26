@@ -205,6 +205,23 @@ public final class BlinkCharge {
 
     /** Blink's send hook, before its own hold. True when the packet is not to be sent now. Any thread. */
     static boolean onSend(Connection c, Packet<?> packet, ChannelFutureListener listener, boolean flush) {
+        if (rotationOwed && packet instanceof ServerboundMovePlayerPacket move) {
+            // A banked tick took a turn of the camera with it (its move was not sent), and vanilla, having "sent" it,
+            // will not report that look again until he turns once more. The next move that goes out carries it, or
+            // the server keeps the old look and every tick of the next shot runs the wrong way for GrimAC
+            // (Simulation 0.13-0.34 on each of 20 ticks after a 180 turn, testkit 1025-blink-charge 2026-10-25).
+            rotationOwed = false;
+            if (!move.hasRotation()) {
+                Packet<?> withLook = move.hasPosition()
+                        ? new ServerboundMovePlayerPacket.PosRot(move.getX(0), move.getY(0), move.getZ(0), owedYaw,
+                        owedPitch, move.isOnGround(), move.horizontalCollision())
+                        : new ServerboundMovePlayerPacket.Rot(owedYaw, owedPitch, move.isOnGround(),
+                        move.horizontalCollision());
+                rotationsCarried++;
+                c.send(withLook, listener, flush);
+                return true;
+            }
+        }
         if (!active) {
             return false;
         }
@@ -250,6 +267,11 @@ public final class BlinkCharge {
                 boolean bank = !busy && banked < cap() && stillThisTick();
                 busy = false;
                 if (bank) {
+                    if (stash != null && stash.packet() instanceof ServerboundMovePlayerPacket m && m.hasRotation()) {
+                        rotationOwed = true;
+                        owedYaw = m.getYRot(0f);
+                        owedPitch = m.getXRot(0f);
+                    }
                     stash = null;
                     banked++;
                     bankedTotal++;
@@ -303,6 +325,17 @@ public final class BlinkCharge {
                 || p instanceof ServerboundAttackPacket || p instanceof ServerboundInteractPacket
                 || p instanceof ServerboundPlayerActionPacket || p instanceof ServerboundPlayerInputPacket
                 || p instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
+    }
+
+    /** A banked tick's move carried a new look that has not reached the server yet; the next move sent carries it. */
+    private static volatile boolean rotationOwed;
+    private static float owedYaw;
+    private static float owedPitch;
+    private static long rotationsCarried;
+
+    /** Moves that had a banked tick's look added to them (testkit and log). */
+    public static long rotationsCarried() {
+        return rotationsCarried;
     }
 
     /** He did not move this tick (render thread: the tick-end is sent at the end of the client tick). */

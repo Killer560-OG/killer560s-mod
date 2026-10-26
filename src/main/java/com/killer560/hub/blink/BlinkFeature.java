@@ -49,8 +49,8 @@ import java.util.List;
  *
  * <p><b>The server's word is final.</b> A server teleport while holding (an etherwarp landing, a leap, a pearl) is held
  * through: its accept goes in the queue in its place. One that puts him back where the hold started is the server
- * refusing the blink: what is held is released without its moves and tick-ends, reported through
- * {@link ServerCorrections}, and nothing stops. A world change (login or respawn packet) releases what is
+ * refusing the blink: what is held is released at once (all of it, in order, ahead of the setback's accept), reported
+ * through {@link ServerCorrections}, and nothing stops. A world change (login or respawn packet) releases what is
  * held but drops the held moves and tick-ends, which belong to the world he just left; a configuration switch releases everything; a
  * disconnect throws the queue away (there is nothing to send it on). After a world change or a disconnect the blink is
  * off until pressed again.
@@ -429,11 +429,14 @@ public final class BlinkFeature {
             return;
         }
         if (wasHolding) {
-            // A refusal drops the held moves and tick-ends (the server ignores moves until its setback is accepted, and
-            // sent they would still count against the timer); everything else still goes, in order.
+            // A refusal releases everything held, moves and tick-ends included, in order and before the setback's accept:
+            // to the server they are moves made before he heard of the setback, which it ignores until the accept. Until
+            // 2026-10-26 the moves and tick-ends were dropped, which left the held sprint/sneak commands after his last
+            // flying with a ping answer behind them and no flying between: GrimAC Post "entity action" (testkit
+            // 1025-blink-refused). Holds are 20 ticks at most since the rework, so the tick-ends no longer reach TimerLimit.
             synchronized (LOCK) {
-                releaseLocked(backToStart ? "server set him back to the blink's start - blink dropped" : "server teleport",
-                        backToStart);
+                releaseLocked(backToStart ? "server set him back to the blink's start - blink refused" : "server teleport",
+                        false);
             }
         }
         if (backToStart) {
@@ -486,7 +489,9 @@ public final class BlinkFeature {
         // The new world's first position packet is the move into it, not a rubberband after the release.
         ticksSinceRelease = Integer.MAX_VALUE;
         wanted = false;
-        holdLatched = false;
+        // Off until the key is pressed again (a key still down from the old world waits for it to come up): a hold that
+        // started on the new world's first tick held its loading packets and drew GrimAC Post (testkit 1025-blink-world).
+        holdLatched = keyWasDown;
     }
 
     /** The server starts a configuration phase: everything held is a play packet for it, so all of it goes now. */
