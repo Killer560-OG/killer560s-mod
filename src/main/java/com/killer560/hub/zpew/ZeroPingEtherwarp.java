@@ -139,7 +139,10 @@ public final class ZeroPingEtherwarp {
             try {
                 BODY.tick(client.player, false);
                 pollClicks();
-                aimedBurst(client);
+                aimedPending(client);
+                if (pendingLooks == null) {
+                    aimedBurst(client);
+                }
             } catch (RuntimeException e) {
                 LOGGER.error("[ZPEW] Aimed Warps threw - the clicks go to vanilla", e);
             }
@@ -415,13 +418,71 @@ public final class ZeroPingEtherwarp {
             return;
         }
         java.util.List<ClickLook> looks = new java.util.ArrayList<>(CLICKS);
-        int n = Math.min(looks.size(), bank + 1);
-        int dropped = looks.size() - n;
         key.killer560smod$setClickCount(0);
         CLICKS.clear();
         if ((Object) mc instanceof com.killer560.hub.zpew.mixin.ZpewMinecraftAccessor m) {
             m.killer560smod$setRightClickDelay(4); // as startUseItem does: a held button repeats only after 4 ticks
         }
+        if (!com.killer560.hub.blink.BlinkCharge.shotCovered()) {
+            // GrimAC does not back the kept bank yet (a teleport's confirm still held behind its ping answer, or ticks
+            // unbacked since): spending it now draws TimerLimit (1027-zpewlk-0, n=5 after a burst). Wait for cover, as
+            // Blink's own shot does.
+            pendingLooks = looks;
+            pendingAtMs = System.currentTimeMillis();
+            aimedWaited++;
+            LOGGER.info("[ZPEW] Aimed Warps: {} press(es) wait for Blink's bank to be covered (bank {})", looks.size(), bank);
+            return;
+        }
+        fireAimed(mc, player, invoker, hand, looks);
+    }
+
+    /** Presses waiting for Blink's bank to be covered, and since when. */
+    private static java.util.List<ClickLook> pendingLooks;
+    private static long pendingAtMs;
+    private static long aimedWaited;
+    /** The longest presses wait for cover; past it they are dropped (never sent where GrimAC would flag them). */
+    private static final long AIMED_WAIT_MAX_MS = 3000L;
+
+    /** At a tick's start: waiting presses fire once the bank is covered (conditions checked again), or go after 3 s. */
+    static void aimedPending(Minecraft mc) {
+        java.util.List<ClickLook> looks = pendingLooks;
+        if (looks == null) {
+            return;
+        }
+        // Presses made while these wait join them, in order (never fired by vanilla ahead of the ones before them).
+        if (!CLICKS.isEmpty() && (Object) mc.options.keyUse instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor key) {
+            looks.addAll(CLICKS);
+            CLICKS.clear();
+            key.killer560smod$setClickCount(0);
+        }
+        LocalPlayer player = mc.player;
+        boolean stillOk = player != null && mc.level != null && on()
+                && ZeroPingEtherwarpConfig.getInstance().effectiveAimedWarps()
+                && com.killer560.hub.blink.BlinkCharge.isActive() && com.killer560.hub.blink.BlinkCharge.banked() >= 1
+                && etherwarpRange(player.getItemInHand(InteractionHand.MAIN_HAND)) > 0 && player.getLastSentInput().shift()
+                && mc.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker;
+        if (!stillOk || System.currentTimeMillis() - pendingAtMs > AIMED_WAIT_MAX_MS) {
+            pendingLooks = null;
+            aimedDropped += looks.size();
+            LOGGER.info("[ZPEW] Aimed Warps: {} waiting press(es) dropped ({})", looks.size(),
+                    stillOk ? "the bank was not covered within " + AIMED_WAIT_MAX_MS + " ms" : "sneak, item, Charge or bank gone");
+            return;
+        }
+        if (!com.killer560.hub.blink.BlinkCharge.shotCovered()) {
+            return;
+        }
+        pendingLooks = null;
+        LOGGER.info("[ZPEW] Aimed Warps: the bank is covered after {} ms - firing", System.currentTimeMillis() - pendingAtMs);
+        fireAimed(mc, player, (com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker) mc.gameMode,
+                InteractionHand.MAIN_HAND, looks);
+    }
+
+    private static void fireAimed(Minecraft mc, LocalPlayer player,
+                                  com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker, InteractionHand hand,
+                                  java.util.List<ClickLook> looks) {
+        int bank = com.killer560.hub.blink.BlinkCharge.banked();
+        int n = Math.min(looks.size(), bank + 1);
+        int dropped = looks.size() - n;
         int sent = 0;
         ZpewSource prev = sending(ZpewSource.MANUAL);
         extraSending = true; // chained from the last landing, and owes no Warps Per Tick extras
@@ -674,6 +735,11 @@ public final class ZeroPingEtherwarp {
 
     public static long aimedUnfunded() {
         return aimedUnfunded;
+    }
+
+    /** Bursts that waited for Blink's bank to be covered before firing (or being dropped). */
+    public static long aimedWaited() {
+        return aimedWaited;
     }
 
     public static int lastAimedBurst() {
