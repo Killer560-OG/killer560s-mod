@@ -320,9 +320,10 @@ public final class ArrowAlignConfig {
 
     /**
      * Turn And Click Same Tick (aafast-1027): the body turns to a frame off the look and the click goes out in the same
-     * START_CLIENT_TICK, before that tick's movement packet carries the turn. GrimAC 2.3.74 judges an entity interact when
-     * the NEXT tick packet arrives, against that packet's look (Reach.tickBetterReachCheckWithAngle, javap), so it is
-     * clean; a frame then costs one tick instead of two. Off (the default) keeps turn one tick, click the next.
+     * START_CLIENT_TICK, before that tick's movement packet carries the turn, so a frame costs one tick instead of two.
+     * Clean on GrimAC 2.3.74 (testkit 1027-aafast-same*, 0-300 ms, experimental checks on and off): Grim judges a living
+     * entity's interact at the NEXT tick packet against that packet's look, and an item frame's not at all (javap). Off
+     * (the default): turn one tick, click the next, so a server that judges the look at the click sees it on the frame.
      */
     public boolean isAuraSameTickTurn() {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && auraSameTickTurn;

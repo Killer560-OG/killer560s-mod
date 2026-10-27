@@ -53,6 +53,20 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   `util/TurnFirst` (or BodyAim), camera held, and send only after a movement packet has carried the turn: an AP3 Term Aura
   click sent at the START right after an END turn preceded every packet facing the stand, and after an earlier flag GrimAC
   let none through (testkit 416). Digs are not judged this way (54: behind and through a wall, 0 lines).
+- **GrimAC 2.3.74 never judges the look or reach of an interact on a NON-LIVING entity** (javap, aafast-1027): `Reach.
+  checkReach` returns NONE unless the target is living or an end crystal, so an item frame (Arrow Align) draws neither
+  Hitboxes nor Reach whatever the look. An armor stand IS living (Terminal Aura, 415/418). For a living target the interact
+  is queued (`playerAttackQueue`, one entry per entity id) and judged at the NEXT update packet (flying, client_tick_end or
+  pong) after that packet's look is applied, against (yaw, pitch), (lastYaw, pitch) and (lastYaw, lastPitch): so a body
+  turn written at START before the click, carried by the same tick's movement packet, is the look it is judged by. That
+  ordering is javap only; it was measured on item frames, where Grim does not look, so it is unproven for armor stands.
+- **Interacts on two different entities in one tick are GrimAC MultiInteractA; several on ONE entity are not** (javap +
+  testkit 1027-aafast). MultiInteractA flags a second entity id (or a sneak change) before the next tick packet;
+  MultiInteractB flags interact-at packets in one tick with different hit vectors. Both are EXPERIMENTAL in 2.3.74 and only
+  report with `experimental-checks: true` (the testkit's server has it off). A second "tick" inside a client tick needs an
+  extra flying packet, and Grim's Timer counts every tick packet (client_tick_end too, 1.21.2+) with only 120 ms of
+  fall-behind (`clockDrift`), so that cannot be banked. Arrow Align Aura therefore does one frame a tick, all its clicks
+  (Clicks Per Tick up to 7), and RSA's and QUOI's auras do the same (one frame, every click, then `break`).
 - **A use-on-block (block place) has no rotation of its own: GrimAC 2.3.74 lends it the NEXT movement packet's only when
   that packet arrives within 15 ms** (`CheckManagerListener.handleQueuedPlaces`, javap), else judges it by the rotation
   before - RotationPlace "post-flying", then "pre-flying" on every later place (the buffer never drains). AP3 placed at

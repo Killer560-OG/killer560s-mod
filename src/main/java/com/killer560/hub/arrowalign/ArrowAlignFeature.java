@@ -459,14 +459,16 @@ public final class ArrowAlignFeature {
         Vec3 hit = box.clip(eye, box.getCenter())
                 .orElse(new Vec3(box.maxX, (box.minY + box.maxY) / 2.0, (box.minZ + box.maxZ) / 2.0));
         // Aura picks frames by range in any direction: one the reported look does not reach gets the BODY turned to it
-        // this tick and is clicked on the next, the camera held (util/TurnFirst) - an interact the look misses is
-        // GrimAC Hitboxes (testkit 415/418). False is the callers' "retry".
+        // this tick and is clicked on the next (or this one, Turn And Click Same Tick), the camera held (util/TurnFirst),
+        // so the movement packets always show him looking at the frame he clicks. GrimAC 2.3.74 itself never judges the
+        // look on an item frame (Reach returns NONE for a non-living entity, javap aafast-1027; the Hitboxes flags of
+        // testkit 415/418 were armor stands); the turn is for a server that does. False is the callers' "retry".
         double turnReach = eye.distanceTo(hit) + 1.0;
         if (!TURN.readyBox(client.player, box, hit, turnReach)
                 // Turn And Click Same Tick (aafast-1027): the turn just written goes out in THIS tick's movement packet,
-                // after this interact. GrimAC 2.3.74 queues an entity interact and judges it when the next tick packet
-                // arrives, against that packet's look (Reach: playerAttackQueue, tickBetterReachCheckWithAngle, javap), so
-                // the turned look is the one it is judged by. Asking again clears TurnFirst's pending wait (it hits now).
+                // right after this interact. GrimAC 2.3.74 judges a (living) entity interact at the next tick packet against
+                // that packet's look (Reach.tickBetterReachCheckWithAngle, javap), and an item frame not at all; testkit
+                // 1027-aafast-same* are clean. Asking again clears TurnFirst's pending wait (the look hits now).
                 && !(sameTickTurn && TURN.isTurned() && TURN.readyBox(client.player, box, hit, turnReach))) {
             sendClickTurned = true;
             LOGGER.info("[ArrowAlign] turning body to frame {} first (reported look does not reach it) tick={}", index,
