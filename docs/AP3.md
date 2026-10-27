@@ -147,4 +147,49 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   the sprint kept, so `TurnFirst.registerYawConstraint` (AP3: `Ap3Executor.walkKeyedYaws`) lets an aura turn only to one
   of those, with any pitch whose ray meets the target from the eye after this tick's move; none this tick = no turn, the
   click waits. A/D/back yaws were allowed first and dropped the sprint, which bent the path after the next node by 0.65.
+- **#34 on main 3011406a (2026-10-27).** (1) The "no stepping down unless the point is lower" rule stranded an align that
+  had to cross a stair's low half: his 09:25:55 Fast Align #34 started on the low half, stepped up, then refused every
+  press for 50 ticks at rest 0.78 from the point. A press may now cross a lower floor down to start - 0.5 when the fall
+  onto it (3 air ticks, velocity x 0.91, no push) stays over floor; at rest with the plan refused, a sneak-held step toward
+  the point goes first. (2) RUN #33's line passes 1.4-1.9 blocks beside #34's 1x1 box and never enters it, so the run
+  went on to the floor's edge (testkit 1027-ap3-s2ee3-run-* on the shipped jar: every entry fell 56 blocks). A held walk
+  that passes within 2.5 of the route's next place (the next walk/align/stop/path/leap/terminal, skipping looks, uses,
+  booms and blink nodes) and is getting farther away begins that align; and a held walk stops at an edge more than 0.5
+  below its start unless that next place is lower, then brakes (sneak + key against velocity) until still - AP3 counts as
+  running while it brakes, or the input hook would not install the sneak.
+- **The `close` suffix (2026-10-27).** Any node; saved as "termClose" (the old "close" key of the 2026-10-06-removed gate
+  stays unread so stale flags do not wake up). Held by the leapcounter: gate (only aligns run, a left click skips) until a
+  container whose title `terminals/TerminalType.match` accepts goes from open to closed after the node was reached - a
+  terminal finished while he stood in the box before the node's turn counts. While it holds, a terminal screen does not
+  stop AP3 (screenAllowed).
+- **`sectiondone:<n>` (2026-10-27).** Any node; saved as "sectionDone" (1-4). Held by the leapcounter: gate until
+  `leveraura.P3SectionTracker.sectionDone(n)`: the tracker's section is past n, or it is n and its last "(n/m)" line read
+  n == m. No position check (his "any section not just the one I am actively standing in"). The tracker clears its count
+  on every section change, so a finished S1 count cannot answer for S2; it resets on Goldor's line and a world change, and
+  reads only F7/M7 lines whose name group is `[A-Za-z0-9_]{1,16}` (a forged "[VIP] Bob: a activated a terminal! (7/7)"
+  does nothing - testkit 1027-ap3-section-s1..s4).
+- **Left click on a wait (2026-10-27).** His 09:22:39 log: leapcounter #37 held, he opened chat, "dropped (a screen
+  opened)", and the node - he was standing in its box - could not fire again until he walked off and back on; a click had
+  no gate to skip. A screen no longer stops AP3 while the only thing running is a gate (gateOnlyWaiting), and a stop that
+  does drop a gate remembers it: a left click while he still stands in its box fires it (takeDroppedGateClick). The click
+  is taken at START by consumeClick, so no swing or dig goes out (testkit 1027-ap3-gate-click-repeat).
+- **Held walk edge stop needs the slide (2026-10-27).** Checking only pos + v + 0.35 stopped a 0.5-speed run with its
+  feet already over the edge, and he fell 28 blocks under sneak and brake (1027-ap3-s2ee3-run-0.5-+0.45 on jar c). The
+  probe is pos + 2.2 v + 0.35 (ground friction 0.546 slides 1.2 v after the keys let go). A walk with a jump / edge
+  modifier, or a JUMP / EDGE node before the next place, is exempt: that walk leaves the floor on purpose.
+- **Charge, release and run in one block (2026-10-27).** Co-located nodes are ordered by type priority (charge 4, run 6,
+  release 7), not by the order they were added, so all six orders behave the same (testkit 1027-ap3-blink-combo-*). The
+  charge freezes him the tick after his first END in the box. But it finishes inside tickNode, after that END's
+  fireInstant and begin, so the Run and the Release used to wait a whole real tick (he walked 0.28 between the full bank
+  and the shot). A charge that finishes now gives the queue a second pass in the same END (chargeDoneThisTick): the Run
+  sets the hold, the Release asks for the shot along it, and the shot fires at the next tick start.
+- **No step-up on the first moving tick from rest (2026-10-27, GrimAC Simulation on #34's half-low start).** At rest the
+  client sends no position packets, so GrimAC checks the first moving tick as a possibly skipped tick (consoledebug
+  "t-0.03-t"). It passes on uncertainty, but GrimAC's own guess of that tick neither stepped up nor moved the full press
+  (P -0.050 0.0004 -0.414 vs A -0.151 0.5 -0.414), so the next tick starts from the wrong velocity: Simulation 0.43-0.53,
+  17 of 24 runs. It was not the sneak (dropping it left 14 of 24). Now, at rest, a press whose first move would hit a
+  higher floor (box moved one tick at the same y collides) is swapped for the nearest key whose first move does not;
+  the step-up then comes on a tick GrimAC sees whole and predicts exactly (O 1e-15). 24 of 24 clean (1027-ap3-lowrep).
+  Get GrimAC's own numbers with `grim consoledebug <player>` from the test server console (toggle; P/A/O per tick in the
+  server log) before guessing at a Simulation flag.
 

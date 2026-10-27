@@ -265,12 +265,16 @@ public final class Ap3Feature {
         public boolean precise;
         /** {@code ss}: fire only once Simon Says is done (killer560, 2026-10-18). */
         public boolean ssGate;
+        /** {@code close}: fire only after a terminal is closed (2026-10-27). */
+        public boolean closeGate;
         public Ap3Node.LeapMode leapMode;
         public DungeonClass leapClass;
         public String leapIgn;
         public Integer leapCount;
         /** The {@code leapcounter:<n>} suffix, any type (2026-10-26). */
         public Integer leapCounter;
+        /** {@code sectiondone:<n>}: fire only once P3 section n (1-4) is complete (2026-10-27). */
+        public Integer sectionDone;
         /** BLINK_CHARGE / BLINK_RELEASE: the tick count typed after the type, null = the max. */
         public Integer blinkTicks;
         /** BLINK_CHARGE {@code stop}: a plain stop instead of frozen momentum. */
@@ -304,6 +308,7 @@ public final class Ap3Feature {
             }
             node.precise = precise;
             node.ssGate = ssGate;
+            node.closeGate = closeGate;
             if (node.type == Ap3Node.Type.LEAP) {
                 node.leapMode = leapMode == null ? Ap3Node.LeapMode.DEFAULT : leapMode;
                 node.leapClass = node.leapMode == Ap3Node.LeapMode.CLASS ? leapClass : null;
@@ -311,6 +316,9 @@ public final class Ap3Feature {
             }
             if (node.type == Ap3Node.Type.LEAP_COUNTER && leapCount != null) {
                 node.setLeapCount(leapCount);
+            }
+            if (sectionDone != null) {
+                node.sectionDone = Math.max(0, Math.min(4, sectionDone));
             }
             if (leapCounter != null) {
                 node.setLeapCounter(leapCounter);

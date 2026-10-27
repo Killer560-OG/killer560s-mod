@@ -326,6 +326,7 @@ public final class Ap3Executor {
      *  queue. Nodes stay ARMED regardless - this is "busy", not "armed". */
     public static boolean isRunning() {
         return activeNode != null || holdDir != null || !queue.isEmpty() || actNode != null || leapGate != null
+                || edgeBrakeTicks > 0
                 || jumpPendingTicks > 0 || edgeArmedTicks > 0 || wantJump;
     }
 
@@ -386,9 +387,11 @@ public final class Ap3Executor {
         if (leapGate != null) {
             LOGGER.info("[AP3] leap gate: {} #{} dropped ({}) at {}/{} leaps", leapGate.type.label(), number(leapGate),
                     reason, leapGateArrived, leapGate.leapCounter);
+            droppedGate = leapGate; // a left click while he still stands in its box fires it (takeLeapGateClick)
         }
         leapGate = null;
         leapCleared.clear();
+        triggeredAt.clear();
         if (com.killer560.hub.blink.BlinkCharge.inShotLoop() && wasBusy) {
             shotAbort = reason == null ? "stopped" : reason; // the shot under this stop ends at its next tick
             shotAbortSerial = com.killer560.hub.blink.BlinkCharge.shotSerial();
@@ -765,6 +768,7 @@ public final class Ap3Executor {
      */
     static void tick(Minecraft client, Ap3Chain current, boolean arrival) {
         tickCounter++;
+        trackTerminalClose(client);
         LocalPlayer player = client.player;
         if (player == null || client.level == null) {
             disarm("world change");
@@ -799,7 +803,7 @@ public final class Ap3Executor {
         boolean busy = isRunning();
         boolean screenOpen = McCompat.screen(client) != null;
         if (busy) {
-            if (screenOpen && !screenAllowed()) {
+            if (screenOpen && !screenAllowed() && !gateOnlyWaiting()) {
                 stop("a screen opened");
                 return;
             }
@@ -872,8 +876,28 @@ public final class Ap3Executor {
             if (activeNode != null) {
                 tickNode(client, player);
             }
+            if (chargeDoneThisTick) {
+                // killer560 (2026-10-27): charge, release and run in one block - "the tick it is charged it should release
+                // while holding the run". The charge finished in tickNode above, after this END's fireInstant and begin:
+                // without a second pass the Run and the Release waited for the next END, and a whole real tick went by
+                // between the full bank and the shot (testkit 1027-ap3-blink-combo-*, jar s2ee3-d).
+                chargeDoneThisTick = false;
+                if (activeNode == null && canAct && leapGate == null) {
+                    fireInstant(client, player);
+                    if (activeNode == null && !queue.isEmpty() && actNode == null) {
+                        Ap3Node next = nextToBegin(player);
+                        if (next != null) {
+                            beginNode(next, player);
+                            if (activeNode != null) {
+                                tickNode(client, player);
+                            }
+                        }
+                    }
+                }
+            }
             applyJumps(player); // first: the held walk faces straight ahead on a jump tick (see applyHoldRealYaw)
             applyHold(player);
+            tickEdgeBrake(player);
             if (activeNode == null && chain != null && prePlanAfterAlign) {
                 // The align that just finished is the best possible moment to start the search.
                 prePlanAfterAlign = false;
@@ -1033,6 +1057,7 @@ public final class Ap3Executor {
         }
         queue.add(at, node);
         triggeredThisTick.add(node);
+        triggeredAt.put(node, tickCounter);
     }
 
     /** The nodes triggered this tick that did NOT fire this tick - say so, so a boom that fires "late" is
@@ -1095,6 +1120,9 @@ public final class Ap3Executor {
         if (termAuraScreenOpen()) {
             return true;
         }
+        if (leapGate != null && leapGate.closeGate) {
+            return true; // the terminal the close gate is waiting on
+        }
         if (activeNode == null) {
             return false;
         }
@@ -1140,7 +1168,8 @@ public final class Ap3Executor {
             jumpPendingTicks = 0;
             edgeArmedTicks = 0;
         }
-        step = node.closeGate && !testMode ? Step.GATE : Step.PREP;
+        // The close suffix is held by the node gate before the node begins (nextToBegin), not by a step of its own.
+        step = Step.PREP;
     }
 
     /**
@@ -1214,7 +1243,8 @@ public final class Ap3Executor {
         boolean movementOwned = activeNode != null && activeNode.ownsMovementNow();
         for (int i = 0; i < queue.size(); ) {
             Ap3Node node = queue.get(i);
-            boolean gated = (node.closeGate && !testMode) || (node.leapCounter > 0 && !leapCleared.contains(node));
+            boolean gated = ((node.closeGate || node.sectionDone > 0) && !testMode)
+                    || (node.leapCounter > 0 && !leapCleared.contains(node));
             boolean fire = !gated && switch (node.type) {
                 case STOPWATCH -> true;
                 case LOOK -> !boomAiming(); // it would turn him off the boom's look before its use: it waits its turn
@@ -1249,6 +1279,8 @@ public final class Ap3Executor {
                     jumpPendingTicks = 0;
                     edgeArmedTicks = 0;
                     holdDir = node.dir();
+                    holdNode = node;
+                    holdStartY = player.getY();
                     holdSprint = node.type == Ap3Node.Type.RUN;
                 }
                 case JUMP -> jumpPendingTicks = JUMP_WAIT_TICKS;
@@ -1306,7 +1338,11 @@ public final class Ap3Executor {
      * does not also skip whatever begins next.
      */
     private static void takeLeapGateClick(Minecraft client) {
-        if (leapGate == null || McCompat.screen(client) != null || client.options == null) {
+        if (McCompat.screen(client) != null || client.options == null) {
+            return;
+        }
+        if (leapGate == null) {
+            takeDroppedGateClick(client);
             return;
         }
         boolean clicked = false;
@@ -1320,10 +1356,122 @@ public final class Ap3Executor {
         clickLatch = false;
         leftWasDown = true;
         leapGateArrived = Math.max(leapGateArrived, leapGate.leapCounter);
-        LOGGER.info("[AP3] leap gate: {} #{} leap counter skipped by left click ({}/{} counted)", leapGate.type.label(),
-                number(leapGate), leapGateCountedReal, leapGate.leapCounter);
+        gateCloseDone = true;
+        gateSectionSkipped = true;
+        if (leapGate.sectionDone > 0) {
+            LOGGER.info("[AP3] section gate: {} #{} sectiondone:{} skipped by left click", leapGate.type.label(),
+                    number(leapGate), leapGate.sectionDone);
+        }
+        if (leapGate.leapCounter > 0) {
+            LOGGER.info("[AP3] leap gate: {} #{} leap counter skipped by left click ({}/{} counted)", leapGate.type.label(),
+                    number(leapGate), leapGateCountedReal, leapGate.leapCounter);
+        }
+        if (leapGate.closeGate) {
+            LOGGER.info("[AP3] close gate: {} #{} close skipped by left click", leapGate.type.label(), number(leapGate));
+        }
         if (Ap3Config.getInstance().isChatFeedback()) {
-            chat(ModChat.text("Leap counter skipped"), ModChat.dim(" - you clicked (#" + number(leapGate) + ")"));
+            chat(ModChat.text("Wait skipped"), ModChat.dim(" - you clicked (#" + number(leapGate) + ")"));
+        }
+    }
+
+    // ---- the close suffix (killer560, 2026-10-27: "ap3 needs a close suffix to only go after a terminal is closed") ----
+    //
+    // A node carrying `close` is held by the same gate as leapcounter: (only aligns run meanwhile, a left click skips)
+    // until a terminal screen - matched by title the way the terminal solver matches it (terminals/TerminalType.match) -
+    // goes from open to closed AFTER the node was reached. A terminal he finished while standing in the node's box before
+    // its turn came counts too. So "walk close" at a terminal: he walks in, does the terminal, closes it, and goes.
+
+    /** tickCounter at the last END a terminal screen had just closed; -1 = never. */
+    private static long lastTerminalCloseTick = -1L;
+    private static boolean terminalWasOpen;
+    /** When each queued node was reached (triggered). */
+    private static final java.util.Map<Ap3Node, Long> triggeredAt = new java.util.IdentityHashMap<>();
+    private static boolean gateCloseDone;
+    private static long gateSinceTick;
+
+    /** Every END, AP3 running or not: notes the tick a terminal screen closed. */
+    private static void trackTerminalClose(Minecraft client) {
+        net.minecraft.client.gui.screens.Screen sc = McCompat.screen(client);
+        boolean open = sc instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>
+                && com.killer560.hub.terminals.TerminalType.match(sc.getTitle().getString()) != null;
+        if (terminalWasOpen && !open) {
+            lastTerminalCloseTick = tickCounter;
+            if (leapGate != null && leapGate.closeGate) {
+                LOGGER.info("[AP3] close gate: a terminal closed at tick {}", tickCounter);
+            }
+        }
+        terminalWasOpen = open;
+    }
+
+    // ---- the sectiondone:<n> suffix (killer560, 2026-10-27: "add a suffix for leap on section end ... it should be any
+    // section not just the one I am actively standing in") ----
+    //
+    // Held by the same gate until P3 section n (1-4) is complete this run, read from leveraura.P3SectionTracker, which
+    // follows Hypixel's own "(n/m)" objective lines (name group [A-Za-z0-9_]{1,16}, anchored), the gate line and the core
+    // line, resets on Goldor's opening line and on a world change, and clears its count when the section changes - so a
+    // finished S1 count can never answer for S2. No position check: he can wait in S4 for S3 to end.
+    private static boolean gateSectionSkipped;
+    private static boolean gateSectionLogged;
+
+    /** The gate a stop dropped while it waited (a screen, a movement key...). He is often still standing in its box,
+     *  where nothing re-fires until he re-enters: a left click there fires it (2026-10-27, "sometimes left clicking
+     *  didn't make it skip and I would have to walk off the node and back onto it"). */
+    private static Ap3Node droppedGate;
+
+    /** True while the only thing AP3 is doing is a gate waiting: nothing moves, aims or uses for it. */
+    private static boolean gateOnlyWaiting() {
+        return leapGate != null && activeNode == null && holdDir == null && actNode == null;
+    }
+
+    private static String gateKind(Ap3Node node) {
+        return node.leapCounter > 0 ? "leap" : node.closeGate ? "close" : node.sectionDone > 0 ? "section" : "leap";
+    }
+
+    /** What a gate waits for, in words: "2 leaps", "a terminal to close", "section 3 to be done", joined by "and". */
+    private static String waitWords(Ap3Node node) {
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        if (node.leapCounter > 0) {
+            parts.add(node.leapCounter + (node.leapCounter == 1 ? " leap" : " leaps"));
+        }
+        if (node.closeGate) {
+            parts.add("a terminal to close");
+        }
+        if (node.sectionDone > 0) {
+            parts.add("section " + node.sectionDone + " to be done");
+        }
+        return parts.isEmpty() ? "nothing" : String.join(" and ", parts);
+    }
+
+    /** START with no gate holding: a left click while he stands in the box of a gate a stop dropped fires that node. */
+    private static void takeDroppedGateClick(Minecraft client) {
+        Ap3Node node = droppedGate;
+        if (node == null) {
+            return;
+        }
+        if (chain == null || !chain.nodes().contains(node) || !inside.contains(node)) {
+            droppedGate = null; // he left it (or the route changed): an ordinary re-entry fires it again
+            return;
+        }
+        if (activeNode != null || holdDir != null || actNode != null || !queue.isEmpty()) {
+            return; // something else is running: this click is not for the dropped gate
+        }
+        boolean clicked = false;
+        while (client.options.keyAttack.consumeClick()) {
+            clicked = true;
+        }
+        if (!clicked) {
+            return;
+        }
+        client.options.keyAttack.setDown(false);
+        clickLatch = false;
+        leftWasDown = true;
+        droppedGate = null;
+        leapCleared.add(node);
+        queue.add(0, node);
+        LOGGER.info("[AP3] leap gate: {} #{} (dropped earlier, you are still in its box) fired by left click",
+                node.type.label(), number(node));
+        if (Ap3Config.getInstance().isChatFeedback()) {
+            chat(ModChat.text("Wait skipped"), ModChat.dim(" - you clicked (#" + number(node) + ")"));
         }
     }
 
@@ -1341,8 +1489,17 @@ public final class Ap3Executor {
             return null;
         }
         Ap3Node next = queue.remove(0);
-        if (next.leapCounter > 0 && !leapCleared.remove(next)) {
+        if ((next.leapCounter > 0 || ((next.closeGate || next.sectionDone > 0) && !testMode)) && !leapCleared.remove(next)) {
             engageLeapGate(next, player);
+            // A wait already met as he arrives (the section already done, a terminal already closed in the box) goes on
+            // this tick, not the next: the owner's "if section N is already complete when he steps on the node, fire at
+            // once" (testkit 1027-ap3-section-already released one tick late before this).
+            tickLeapGate(Minecraft.getInstance(), player);
+            if (leapGate == null && !queue.isEmpty() && queue.get(0) == next) {
+                queue.remove(0);
+                leapCleared.remove(next);
+                return next;
+            }
             return null;
         }
         return next;
@@ -1350,8 +1507,14 @@ public final class Ap3Executor {
 
     private static void engageLeapGate(Ap3Node node, LocalPlayer player) {
         leapGate = node;
+        gateSinceTick = tickCounter;
         leapGateArrived = 0;
         leapGateCountedReal = 0;
+        // close: a terminal that closed after the node was reached (he stood in its box doing it) already counts.
+        Long reached = triggeredAt.get(node);
+        gateCloseDone = node.closeGate && reached != null && lastTerminalCloseTick >= reached;
+        gateSectionSkipped = false;
+        gateSectionLogged = false;
         lastPositions.clear();
         counted.clear();
         Minecraft client = Minecraft.getInstance();
@@ -1364,11 +1527,17 @@ public final class Ap3Executor {
             endHold(); // he waits where he is
             releaseKeys();
         }
-        LOGGER.info("[AP3] leap gate: {} #{} holds for leapcounter:{} - only aligns run until then ({} queued behind it)",
-                node.type.label(), number(node), node.leapCounter, queue.size());
+        String what = waitWords(node);
+        LOGGER.info("[AP3] {} gate: {} #{} holds for {} - only aligns run until then ({} queued behind it){}{}",
+                gateKind(node), node.type.label(), number(node), what, queue.size(),
+                gateCloseDone ? "; a terminal already closed while you were in its box" : "",
+                node.sectionDone > 0 ? String.format(Locale.US, "; P3 tracker: section %d %d/%d, section %d done %s",
+                        com.killer560.hub.leveraura.P3SectionTracker.section(),
+                        com.killer560.hub.leveraura.P3SectionTracker.sectionCurrent(),
+                        com.killer560.hub.leveraura.P3SectionTracker.sectionTotal(), node.sectionDone,
+                        com.killer560.hub.leveraura.P3SectionTracker.sectionDone(node.sectionDone)) : "");
         if (Ap3Config.getInstance().isChatFeedback()) {
-            chat(ModChat.text("Waiting for "), ModChat.value(node.leapCounter + (node.leapCounter == 1 ? " leap" : " leaps")),
-                    ModChat.dim(" - #" + number(node)));
+            chat(ModChat.text("Waiting for "), ModChat.value(what), ModChat.dim(" - #" + number(node)));
         }
     }
 
@@ -1378,9 +1547,15 @@ public final class Ap3Executor {
             return;
         }
         Ap3Node node = leapGate;
+        if (node.closeGate && !gateCloseDone && lastTerminalCloseTick >= gateSinceTick) {
+            gateCloseDone = true;
+            LOGGER.info("[AP3] close gate: {} #{} - the terminal closed", node.type.label(), number(node));
+        }
         if (testMode) {
             leapGateArrived = node.leapCounter; // test mode waits on nothing the arena would provide
-        } else {
+            gateCloseDone = true;
+            gateSectionSkipped = true;
+        } else if (node.leapCounter > 0) {
             double radius = Ap3Config.getInstance().getLeapDetectRadius();
             Vec3 me = player.position();
             String self = Teammates.selfName();
@@ -1408,18 +1583,199 @@ public final class Ap3Executor {
                 }
             }
         }
-        if (leapGateArrived >= node.leapCounter) {
+        boolean sectionOk = node.sectionDone == 0 || gateSectionSkipped
+                || com.killer560.hub.leveraura.P3SectionTracker.sectionDone(node.sectionDone);
+        if (node.sectionDone > 0 && sectionOk && !gateSectionSkipped && !gateSectionLogged) {
+            gateSectionLogged = true;
+            LOGGER.info("[AP3] section gate: {} #{} - section {} is done (tracker section {} {}/{})", node.type.label(),
+                    number(node), node.sectionDone, com.killer560.hub.leveraura.P3SectionTracker.section(),
+                    com.killer560.hub.leveraura.P3SectionTracker.sectionCurrent(),
+                    com.killer560.hub.leveraura.P3SectionTracker.sectionTotal());
+        }
+        if (leapGateArrived >= node.leapCounter && (!node.closeGate || gateCloseDone) && sectionOk) {
             leapGate = null;
+            droppedGate = null;
             leapCleared.add(node);
             queue.add(0, node);
-            LOGGER.info("[AP3] leap gate: released - {} #{} runs now, then the {} node(s) behind it", node.type.label(),
-                    number(node), queue.size() - 1);
+            LOGGER.info("[AP3] {} gate: released - {} #{} runs now, then the {} node(s) behind it",
+                    gateKind(node), node.type.label(), number(node), queue.size() - 1);
         }
+    }
+
+    /** The WALK / RUN that set the current held walk, and his feet height when it did. */
+    private static Ap3Node holdNode;
+    private static double holdStartY = Double.NaN;
+
+    /**
+     * The held-walk half of the ledge rule (killer560, 2026-10-27: "sometimes the ap3 will walk off still"): a WALK / RUN
+     * may take him down only where the route itself goes down. Each tick, if the next tick's position (his velocity
+     * plus a full push along the walk) has no floor within 0.5 below where the walk began AND the route's next node
+     * after the walk's own is not lower than that, the walk stops at the edge (no keys, sneak) and says so once. When
+     * that next node is an align within reach, it is begun from there - his "it needs to pull me back into it" for
+     * align #34, whose 1x1 box the RUN #33 line passes beside rather than through.
+     * True when it stopped the walk.
+     */
+    private static boolean walkLedgeGuard(LocalPlayer player) {
+        if (holdNode == null || chain == null || Double.isNaN(holdStartY)) {
+            return false;
+        }
+        Ap3Node next = nextInChain(holdNode);
+        if (next != null && next.type.isAlign() && !inside.contains(next) && passedBeside(player, next)) {
+            return true;
+        }
+        if (!player.onGround()) {
+            return false;
+        }
+        if (next != null && next.y < holdStartY - MAX_LEDGE_DROP) {
+            return false; // the route goes down from here on purpose
+        }
+        if (jumpAhead(holdNode) || jumpPendingTicks > 0 || edgeArmedTicks > 0 || wantJump) {
+            return false; // a jump / edge jump the route asks for leaves the floor on purpose
+        }
+        Vec3 pos = player.position();
+        Vec3 v = player.getDeltaMovement();
+        double len = Math.hypot(holdDir.x, holdDir.z);
+        if (len < 1.0e-6) {
+            return false;
+        }
+        double push = 0.35; // more than one tick's push at any walking speed he uses
+        // Where he would come to rest if the keys let go now: this tick's move, then the ground slide (friction
+        // 0.546 per tick sums to 1.2 x the velocity). Looking only one tick ahead stopped a 0.5-speed run too late to
+        // hold at the edge (testkit 1027-ap3-s2ee3-run-0.5-+0.45 fell 28 blocks on jar s2ee3-c).
+        double ahead = 1.0 + SLIDE_FACTOR;
+        double nx = pos.x + v.x * ahead + holdDir.x / len * push;
+        double nz = pos.z + v.z * ahead + holdDir.z / len * push;
+        if (supportedAt(player, nx, pos.y, nz, holdStartY) && !hazardAt(player, nx, pos.y, nz)) {
+            return false;
+        }
+        Ap3Node from = holdNode;
+        endHold();
+        clearMovement();
+        wantSneak = true;
+        edgeBrakeTicks = EDGE_BRAKE_TICKS; // keep braking at the edge until he has stopped (one tick of sneak was not enough)
+        LOGGER.info("[AP3] held walk from {} #{}: the next step at ({}, {}) leaves the floor more than {} below where it began"
+                        + " (y {}) and the route's next node{} is not lower - stopped at the edge", from.type.label(),
+                number(from), String.format(Locale.US, "%.2f", nx), String.format(Locale.US, "%.2f", nz), MAX_LEDGE_DROP,
+                String.format(Locale.US, "%.3f", holdStartY), next == null ? "" : " #" + number(next));
+        if (next != null && next.type.isAlign() && next.horizontalDistance(pos) <= ALIGN_REACH) {
+            LOGGER.info("[AP3] held walk: pulling you into align #{} ({} blocks away) from the edge", number(next),
+                    String.format(Locale.US, "%.2f", next.horizontalDistance(pos)));
+            trigger(next);
+        }
+        return true;
+    }
+
+    /** Ground slide after the keys let go, as a multiple of the current velocity: 0.546 / (1 - 0.546). */
+    private static final double SLIDE_FACTOR = 1.2;
+
+    /** True when the route has a JUMP / EDGE node, or the walk itself a jump / edge modifier, before its next place. */
+    private static boolean jumpAhead(Ap3Node hold) {
+        if (hold.jumpMod != Ap3Node.JumpMod.NONE) {
+            return true;
+        }
+        java.util.List<Ap3Node> nodes = chain.nodes();
+        int i = nodes.indexOf(hold);
+        for (int k = i + 1; i >= 0 && k < nodes.size(); k++) {
+            Ap3Node n = nodes.get(k);
+            if (n.type == Ap3Node.Type.JUMP || n.type == Ap3Node.Type.EDGE || n.jumpMod != Ap3Node.JumpMod.NONE) {
+                return true;
+            }
+            if (n.type.isMover() || n.type.isAlign() || n.type == Ap3Node.Type.STOP || n.type == Ap3Node.Type.PATH
+                    || n.type == Ap3Node.Type.LEAP || n.type == Ap3Node.Type.TERMINAL) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    /** Ticks left of braking at an edge a held walk was stopped at: sneak, and the key against his velocity. */
+    private static int edgeBrakeTicks;
+    private static final int EDGE_BRAKE_TICKS = 20;
+
+    /** Each tick after the walk stopped at an edge: until he is still, sneak (vanilla's clip holds him at a drop of
+     *  0.6 or more) and press the key against his velocity. Ends as soon as anything else drives him. */
+    private static void tickEdgeBrake(LocalPlayer player) {
+        if (edgeBrakeTicks <= 0) {
+            return;
+        }
+        if (driving || holdDir != null || (activeNode != null && activeNode.type.ownsMovement())) {
+            edgeBrakeTicks = 0;
+            return;
+        }
+        Vec3 v = player.getDeltaMovement();
+        if (Math.hypot(v.x, v.z) < 0.003 && player.onGround()) {
+            edgeBrakeTicks = 0;
+            return;
+        }
+        edgeBrakeTicks--;
+        int[] k = nearestKey8(-v.x, -v.z, player.getYRot());
+        writeDiscrete(player, k[0], k[1], true, false, player.getYRot(), modelFor(player, false), lastSneakSent);
+    }
+
+    /** Closest the current held walk has come to its route's next align, and to which align. */
+    private static double passMin = Double.MAX_VALUE;
+    private static Ap3Node passAlign;
+    /** A walk passing within this of its next align without entering the box pulls him into it. */
+    private static final double PASS_PULL_DISTANCE = 2.5;
+
+    /**
+     * killer560, 2026-10-27, align #34: "it needs to pull me back into it ... if i walk into it then it works". A RUN
+     * line that passes BESIDE its next align's small box (his RUN #33 at yaw 140 misses the 1x1 box of #34 by about 1.4
+     * blocks) never triggers it, and the run goes on. When the held walk has come within {@link #PASS_PULL_DISTANCE} of
+     * the next align and is now getting farther away, it has passed it: the walk ends and the align is begun from where he
+     * is (it pulls him back within ALIGN_REACH). True when it did.
+     */
+    private static boolean passedBeside(LocalPlayer player, Ap3Node align) {
+        if (passAlign != align) {
+            passAlign = align;
+            passMin = Double.MAX_VALUE;
+        }
+        double d = align.horizontalDistance(player.position());
+        if (d < passMin) {
+            passMin = d;
+            return false;
+        }
+        if (passMin > PASS_PULL_DISTANCE || d < passMin + 0.05 || Math.abs(player.getY() - align.y) > Ap3Node.BOX_Y_TOLERANCE) {
+            return false;
+        }
+        Ap3Node from = holdNode;
+        endHold();
+        clearMovement();
+        LOGGER.info("[AP3] held walk from {} #{} passed beside align #{} (closest {} blocks, not in its box) - pulling you into"
+                        + " it", from == null ? "?" : from.type.label(), from == null ? 0 : number(from), number(align),
+                String.format(Locale.US, "%.2f", passMin));
+        passAlign = null;
+        trigger(align);
+        return true;
+    }
+
+    /** The next node after {@code node} in the chain's order that he goes TO (see the loop). */
+    private static Ap3Node nextInChain(Ap3Node node) {
+        java.util.List<Ap3Node> nodes = chain.nodes();
+        int i = nodes.indexOf(node);
+        if (i < 0) {
+            return null;
+        }
+        for (int k = i + 1; k < nodes.size(); k++) {
+            Ap3Node n = nodes.get(k);
+            // The next place the route takes him: a walk, an align, a stop, a path, a leap or a terminal. Nodes that
+            // act where he already is (a look, a use, a boom, a block, a blink release or charge, a jump, a stopwatch)
+            // are passed over - his Blink route has a release between RUN #33 and align #34.
+            boolean place = n.type.isMover() || n.type.isAlign() || n.type == Ap3Node.Type.STOP
+                    || n.type == Ap3Node.Type.PATH || n.type == Ap3Node.Type.LEAP || n.type == Ap3Node.Type.TERMINAL;
+            if (!place) {
+                continue;
+            }
+            return n;
+        }
+        return null;
     }
 
     /** The held walk ends (a STOP / align was hit): the run, and the jump / edge its modifier armed. */
     private static void endHold() {
         holdDir = null;
+        holdNode = null;
+        passAlign = null;
         jumpPendingTicks = 0;
         edgeArmedTicks = 0;
     }
@@ -1455,6 +1811,8 @@ public final class Ap3Executor {
             case WALK, RUN -> {
                 // The direction and speed persist until any other node fires - the node itself is done at once.
                 holdDir = node.dir();
+                holdNode = node;
+                holdStartY = player.getY();
                 holdSprint = node.type == Ap3Node.Type.RUN;
                 finishNode();
             }
@@ -2035,6 +2393,7 @@ public final class Ap3Executor {
                 driveDiscrete(player, ex, ez, method);
             }
             ledgeGuard(player, node);
+            stepUpUnsneaked(player, node); // a rest start that would step up on its first tick (GrimAC's skipped tick)
         } finally {
             Ap3DiscretePlanner.endBudget();
         }
@@ -2177,29 +2536,55 @@ public final class Ap3Executor {
                 a = Ap3DiscretePlanner.NONE;
             }
             Ap3DiscretePlanner.step(s, a, yaw, m);
-            out[i] = new double[]{-s.ex, -s.ez};
+            out[i] = new double[]{-s.ex, -s.ez, s.vx, s.vz};
         }
         return out;
     }
 
-    /** Whether pressing (fw, st, sneak) now keeps every predicted position over a floor no lower than start - 0.5. */
+    /**
+     * Whether pressing (fw, st, sneak) now keeps every predicted position over a floor no lower than start - 0.5
+     * (killer560's rule), AND - wherever a predicted position is over a LOWER floor than his feet - whether the fall onto
+     * it stays over that floor too. Stepping down is a short fall: three ticks in the air where no key can brake him, so
+     * a stair's half-block-wide low half can pass under him before he reaches its height (his 2026-10-26 23:15:14 and
+     * 23:17:06 falls). Those ticks are predicted as the air does them (velocity times 0.91 a tick, no push) and each must
+     * still have a floor.
+     * <p>
+     * Until 2026-10-27 the rule was stricter - no stepping down at all unless the point was lower - and it stranded him
+     * (his 09:25:55 align #34: started on the stair's low half, stepped up, then every press toward the point crossed the
+     * low half and was refused; he stood 0.78 from the point for 50 ticks). Crossing a low half that he lands on is fine.
+     */
     private static boolean ledgeSafe(LocalPlayer player, int fw, int st, boolean sneak, float yaw) {
         Vec3 pos = player.position();
-        // Stepping DOWN is a fall: off even a half step he is in the air for three ticks, where no key can brake him,
-        // and the step's far edge can pass under him before he lands (a stair's low half is only half a block wide -
-        // his 23:15:14 and 23:17:06 falls). So unless the align's point is itself lower than where he stands, a press
-        // may not take him onto any lower floor at all; with a lower point, never below start - 0.5.
-        double floorLine = ledgeTargetY < pos.y - 0.05 ? ledgeStartY : pos.y - 0.05 + MAX_LEDGE_DROP;
-        floorLine = Math.max(floorLine, ledgeStartY);
-        floorLine = Math.min(floorLine, pos.y + MAX_LEDGE_DROP); // never ask for a floor above his feet
+        double floorLine = ledgeStartY; // a floor no lower than start - 0.5
         for (double[] d : ledgePredict(player, fw, st, sneak, yaw, LEDGE_LOOKAHEAD)) {
-            if (!supportedAt(player, pos.x + d[0], pos.y, pos.z + d[1], floorLine)
-                    || hazardAt(player, pos.x + d[0], pos.y, pos.z + d[1])) {
+            double x = pos.x + d[0];
+            double z = pos.z + d[1];
+            if (!supportedAt(player, x, pos.y, z, floorLine) || hazardAt(player, x, pos.y, z)) {
                 return false;
+            }
+            if (!supportedAt(player, x, pos.y, z, pos.y)) {
+                // Over a lower floor here: he drops onto it. Follow the drift through the fall.
+                double vx = d[2];
+                double vz = d[3];
+                for (int k = 0; k < LEDGE_FALL_TICKS; k++) {
+                    vx *= AIR_DRAG;
+                    vz *= AIR_DRAG;
+                    x += vx;
+                    z += vz;
+                    if (!supportedAt(player, x, pos.y, z, floorLine) || hazardAt(player, x, pos.y, z)) {
+                        return false;
+                    }
+                }
+                return true; // landed: the presses after the landing are planned from there
             }
         }
         return true;
     }
+
+    /** Ticks a 0.5 step down keeps him in the air (0.078 + 0.155 + 0.230 > 0.5). */
+    private static final int LEDGE_FALL_TICKS = 3;
+    /** Horizontal drag in the air per tick. */
+    private static final double AIR_DRAG = 0.91;
 
     /** This tick plus the braking after it: a press that is fine now but leaves too much speed to stop is not fine. */
     private static final int LEDGE_LOOKAHEAD = 3;
@@ -2226,7 +2611,16 @@ public final class Ap3Executor {
         // over the floor: no keys with sneak, then the key combination against his velocity with sneak, then without.
         Vec3 v = player.getDeltaMovement();
         int[] brake = Math.hypot(v.x, v.z) > 1.0e-3 ? nearestKey8(-v.x, -v.z, yaw) : new int[]{0, 0};
-        int[][] tries = {{0, 0, 1}, {brake[0], brake[1], 1}, {brake[0], brake[1], 0}};
+        int[][] tries;
+        if (Math.hypot(v.x, v.z) < 0.02 && node != null) {
+            // Standing still with the planner's press refused: no keys would keep him there forever (his 09:25:55 align #34
+            // stood 50 ticks). A sneak-held step toward the point goes first - slow, and checked like any press.
+            Vec3 pos = player.position();
+            int[] toward = nearestKey8(node.x - pos.x, node.z - pos.z, yaw);
+            tries = new int[][]{{toward[0], toward[1], 1}, {0, 0, 1}};
+        } else {
+            tries = new int[][]{{0, 0, 1}, {brake[0], brake[1], 1}, {brake[0], brake[1], 0}};
+        }
         int[] pick = null;
         for (int[] t : tries) {
             if (ledgeSafe(player, t[0], t[1], t[2] == 1, yaw)) {
@@ -2254,6 +2648,80 @@ public final class Ap3Executor {
         }
         alignPhase = alignPhase + " [ledge guard]";
     }
+
+    /**
+     * No step-up on the first moving tick from rest (killer560's #34 from the stair's low half, 2026-10-27). GrimAC 2.3.74's
+     * own per-tick debug (grim consoledebug, testkit 1027-ap3-lowrep: 17 of 24 runs flagged before this) shows why: a
+     * player at rest sends no position packets, so GrimAC checks the first moving tick as a possibly skipped tick
+     * ("t-0.03-t", couldSkipTick / skippedTickInActualMovement). That tick passes on uncertainty, but its own prediction
+     * of it neither stepped up nor moved the full press ("P: -0.0500 0.0004 -0.4144 / A: -0.1508 0.5 -0.4144"), so the
+     * next tick starts from the wrong velocity: Simulation 0.43-0.53 and setbacks. Taking the sneak off the press changed
+     * nothing (jar s2ee3-g: same P and A, 14 of 24 still flagged). Once he is moving GrimAC predicts the step-up exactly
+     * (O 1e-15 on the later step-up ticks). So: at rest, a press whose first move would run into a higher floor is
+     * replaced by the nearest key (no sneak) whose first move does not - he starts along the low half, and the step-up
+     * comes on a later tick that GrimAC sees whole. If every key would, nothing is pressed this tick.
+     */
+    private static void stepUpUnsneaked(LocalPlayer player, Ap3Node node) {
+        if (node == null || !player.onGround()) {
+            return;
+        }
+        Vec3 v = player.getDeltaMovement();
+        if (Math.hypot(v.x, v.z) >= 0.003) {
+            return; // moving: his position packets go out every tick and GrimAC predicts a step-up exactly
+        }
+        int fw = (wantForward ? 1 : 0) - (wantBackward ? 1 : 0);
+        int st = (wantLeft ? 1 : 0) - (wantRight ? 1 : 0);
+        if (fw == 0 && st == 0) {
+            return;
+        }
+        float yaw = player.getYRot();
+        if (!firstMoveStepsUp(player, fw, st, yaw)) {
+            return;
+        }
+        double want = Math.atan2(-st, fw);
+        int[] pick = null;
+        double best = Double.MAX_VALUE;
+        for (int kf = -1; kf <= 1; kf++) {
+            for (int ks = -1; ks <= 1; ks++) {
+                if (kf == 0 && ks == 0) {
+                    continue;
+                }
+                double diff = Math.abs(Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-ks, kf) - want)));
+                if (diff < best && !firstMoveStepsUp(player, kf, ks, yaw) && ledgeSafe(player, kf, ks, false, yaw)) {
+                    best = diff;
+                    pick = new int[]{kf, ks};
+                }
+            }
+        }
+        if (pick == null || best > 100.0) {
+            clearMovement(); // no key starts him without the step: a still tick
+            wantSneak = false;
+        } else {
+            writeDiscrete(player, pick[0], pick[1], false, false, yaw, modelFor(player, true), lastSneakSent);
+        }
+        pushPending = false;
+        predictedSprintValid = false;
+        alignPredValid = false;
+        if (stepUpTicks++ == 0) {
+            LOGGER.info("[AP3] Align #{}: at rest below a step - the first press goes {} so the step-up is not on GrimAC's"
+                    + " skipped-tick check", number(node), pick == null || best > 100.0 ? "nowhere (a still tick)"
+                    : String.format(Locale.US, "%.0f degrees off the plan, along the low floor", best));
+        }
+        alignPhase = alignPhase + " [rest step]";
+    }
+
+    /** Whether the first tick of keys (fw, st) from rest would run his box into something (a step up, or a wall). */
+    private static boolean firstMoveStepsUp(LocalPlayer player, int fw, int st, float yaw) {
+        double rel = Math.atan2(-st, fw);
+        double dirYaw = Math.toRadians(yaw) + rel;
+        // From rest the first tick moves about speed x 1.0 on the ground (0.44 at speed 0.45 in the testkit trace).
+        double d = Math.max(0.1, player.getSpeed()) * 1.05;
+        double dx = -Math.sin(dirYaw) * d;
+        double dz = Math.cos(dirYaw) * d;
+        return !player.level().noCollision(player, player.getBoundingBox().move(dx, 0.0, dz));
+    }
+
+    private static int stepUpTicks;
 
     /**
      * An align whose target has no floor within half a block under it can never land without the drop: once the guard
@@ -2293,6 +2761,7 @@ public final class Ap3Executor {
     private static void ledgeInit(LocalPlayer player, Ap3Node node) {
         Vec3 pos = player.position();
         ledgeGuardTicks = 0;
+        stepUpTicks = 0;
         ledgeHoldTicks = 0;
         ledgeLastX = pos.x;
         ledgeLastZ = pos.z;
@@ -3790,6 +4259,7 @@ public final class Ap3Executor {
                         ModChat.dim(" - #" + number(node)));
             }
             finishNode();
+            chargeDoneThisTick = true; // what waits behind it begins in this same END (tick())
             return;
         }
         if (!node.blinkStop) {
@@ -3813,6 +4283,8 @@ public final class Ap3Executor {
         }
     }
 
+    /** A Blink Charge finished in this END's tickNode: tick() gives the queue a second pass in the same END. */
+    private static boolean chargeDoneThisTick;
     /** A momentum-keeping Blink Charge skips his next physics tick (consumed by Ap3FreezeMixin). */
     private static boolean blinkFreezeNext;
     /** The charge brakes this tick (Blink cannot bank yet): the held walk presses nothing. */
@@ -4622,6 +5094,9 @@ public final class Ap3Executor {
             // tickBlockWatch.)
             clearMovement();
             return;
+        }
+        if (walkLedgeGuard(player)) {
+            return; // the walk would take him off a drop its route does not go down: it stopped there
         }
         if (!WALK_USES_SENT_YAW) {
             applyHoldRealYaw(player);

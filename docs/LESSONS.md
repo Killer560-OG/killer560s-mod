@@ -293,3 +293,7 @@ project CLAUDE.md. Compiling lessons
   command ... gfs ender_pearl 16<--[HERE]" was not ours: his Auto GFS was off and the log had no "[Cheat Utils] Auto GFS:"
   echo (every send of ours prints one); QUOI and NoammAddons both had Auto GFS on. Ours had the same hole anyway (fixed in
   `util/SackCommands`, testkit 115-hx-autogfs-unknown-command). Grep his log for our echo line first.
+- `util/ChatObserver` drops a line identical to one it saw in the last 250 ms (the dedupe for a mod re-adding Hypixel's
+  line). A test that sends the same server line twice back to back loses the second: two "The gate has been destroyed!"
+  lines 0.2 s apart left P3SectionTracker one section behind (testkit 1027-ap3-section-s3, 2026-10-27). Space them.
+

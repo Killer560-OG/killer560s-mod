@@ -102,6 +102,8 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
     private boolean precise;
     /** The {@code ss} modifier: fire only once Simon Says is done. */
     private boolean ssGate;
+    /** The {@code close} suffix: fire only after a terminal is closed. */
+    private boolean closeGate;
     /** USE: the Skyblock id to swap to, or null for "use whatever is held". */
     private String itemId;
     private boolean typeOpen;
@@ -153,6 +155,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             jumpMod = n.jumpMod == null ? Ap3Node.JumpMod.NONE : n.jumpMod;
             precise = n.precise;
             ssGate = n.ssGate;
+            closeGate = n.closeGate;
             blinkStop = n.blinkStop;
             itemId =n.useItemId == null || n.useItemId.isBlank() ? null : n.useItemId;
             pending.put("X", fmt(n.x));
@@ -162,6 +165,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             pending.put("Length", fmt(n.length));
             pending.put("Wait ms", String.valueOf(n.waitAfterMs));
             pending.put("Leap counter", String.valueOf(n.leapCounter));
+            pending.put("Section done", String.valueOf(n.sectionDone));
             pending.put("Blink ticks", n.blinkTicks > 0 ? String.valueOf(n.blinkTicks) : "");
             pending.put("Name", n.name == null ? "" : n.name);
             yawKnown = type.usesYaw();
@@ -236,8 +240,15 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             ssButton(x + half + GAP, y, w - half - GAP);
         }
         y += LINE;
-        // The leapcounter: suffix (2026-10-26): 0 = none; any node type.
+        // The leapcounter: suffix (2026-10-26): 0 = none; any node type. Beside it the close suffix (2026-10-27).
         addField(x, y, half, "Leap counter", 70);
+        button(onOff("After terminal", closeGate).getString(), b -> {
+            closeGate = !closeGate;
+            b.setMessage(onOff("After terminal", closeGate));
+        }, x + half + GAP, y, w - half - GAP, ROW);
+        y += LINE;
+        // The sectiondone:<n> suffix (2026-10-27): 0 = none, 1-4 = wait for that P3 section to be done.
+        addField(x, y, half, "Section done", 70);
         if (type.usesBlinkTicks()) {
             // Blink Charge / Blink Release: the ticks to bank or fire, 1-20; blank (or 0) = the max.
             addField(x + half + GAP, y, w - half - GAP, "Blink ticks", 58);
@@ -512,6 +523,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
         Double nwid = num("Width");
         Double nwait = num("Wait ms");
         Double nleap = get("Leap counter").isBlank() ? Double.valueOf(0) : num("Leap counter");
+        Double nsection = get("Section done").isBlank() ? Double.valueOf(0) : num("Section done");
         Double nblink = !type.usesBlinkTicks() || get("Blink ticks").isBlank() ? Double.valueOf(0) : num("Blink ticks");
         Double nyaw = type.usesYaw() ? num("Yaw") : Double.valueOf(0);
         Double npitch = type.usesPitch() ? num("Pitch") : Double.valueOf(0);
@@ -542,11 +554,13 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             node.setWidth(nwid);
             node.setWaitAfterMs((int) Math.round(nwait));
             node.setLeapCounter((int) Math.round(nleap));
+            node.sectionDone = nsection == null ? 0 : (int) Math.max(0, Math.min(4, Math.round(nsection)));
             node.setBlinkTicks(newType.usesBlinkTicks() ? (int) Math.round(nblink) : 0);
             node.blinkStop = newType == Ap3Node.Type.BLINK_CHARGE && blinkStop;
             node.type = newType;
             node.jumpMod = jumpMod;
             node.ssGate = ssGate;
+            node.closeGate = closeGate;
             if (newType.usesPrecise()) {
                 node.precise = precise;
             }
