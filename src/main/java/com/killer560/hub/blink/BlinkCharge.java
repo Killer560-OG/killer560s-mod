@@ -105,21 +105,6 @@ public final class BlinkCharge {
         return Math.min(ANSWER_DELAY_MS, Math.max(0L, 50L * cap() - 10L));
     }
 
-    /**
-     * After a moving teleport is confirmed, pings are answered live for this long. The ping GrimAC sends with a teleport can
-     * reach the client just after the position packet, so at the confirm it was not yet waiting to be flushed, and held its
-     * 990 ms it told GrimAC the teleport was taken a second late: Simulation 0.10 decaying over 8 ticks and the next shot
-     * set back (testkit 1026-blink-setback-shot, 2026-10-26; the same tp after a plain sprint is clean). A moving teleport
-     * drops the bank anyway, so answering on time costs nothing; the delay resumes after the window.
-     */
-    static final long LIVE_AFTER_TELEPORT_MS = 250L;
-    private static long liveAnswersUntilMs;
-    private static long liveAnswers;
-
-    public static long liveAnswers() {
-        return liveAnswers;
-    }
-
     /** The last server teleport did not move him (an in-place re-sync): its confirm leaves the bank alone. */
     private static volatile boolean teleportInPlace;
     private static long inPlaceTeleports;
@@ -312,11 +297,6 @@ public final class BlinkCharge {
             if (passing) {
                 return false;
             }
-            if (answer && answers.isEmpty() && System.currentTimeMillis() < liveAnswersUntilMs) {
-                // Just after a moving teleport: answered live, as without Blink (see liveAnswersUntilMs).
-                liveAnswers++;
-                return false;
-            }
             if (answer) {
                 answers.addLast(new Answer(new Held(packet, listener, flush), System.currentTimeMillis()));
                 answersHeldTotal++;
@@ -376,9 +356,6 @@ public final class BlinkCharge {
             } else if (accept) {
                 movingTeleports++;
             }
-            if (accept && !teleportInPlace) {
-                liveAnswersUntilMs = System.currentTimeMillis() + LIVE_AFTER_TELEPORT_MS;
-            }
             if (accept && !teleportInPlace && !answers.isEmpty()) {
                 // A server teleport (an etherwarp, a leap) is confirmed. GrimAC counts a teleport as reached by the
                 // client only once the ping sent with it is answered; with the answers still a second late it took the
@@ -390,8 +367,7 @@ public final class BlinkCharge {
                 banked = 0;
                 bankEmptySinceMs = System.currentTimeMillis();
                 BlinkLog.event("charge: moving teleport confirmed - %d waiting ping answer(s) sent first; %d banked tick(s) "
-                        + "dropped, the bank starts again; pings answered live for the next %d ms", n, lost,
-                        LIVE_AFTER_TELEPORT_MS);
+                        + "dropped, the bank starts again", n, lost);
             }
             if (checkedAgainstLook(packet)) {
                 busy = true;
