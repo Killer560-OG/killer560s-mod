@@ -180,6 +180,28 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, 220, 20).build());
         y += 24;
 
+        // Hold To Click (killer560, 2026-10-26, legit: "make drop terms in the legit version not cheat"). It repeats his
+        // own held left click on the slot under his cursor, and only when the solver marks that slot correct.
+        widgets.add(SettingsButtonWidget.builder(holdToClickText(), btn -> {
+                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+                    cfg.setHoldToClickEnabled(!cfg.isHoldToClickEnabledRaw());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, 220, 20).build());
+        y += 24;
+        if (TerminalSolverConfig.getInstance().isHoldToClickEnabledRaw()) {
+            int half = (contentWidth - 8) / 2;
+            widgets.add(holdSlider(contentX, y, half, TerminalSolverConfig.MIN_HOLD_FIRST_DELAY_MS, TerminalSolverConfig.MAX_HOLD_FIRST_DELAY_MS,
+                    () -> TerminalSolverConfig.getInstance().getHoldToClickFirstDelayMs(),
+                    v -> TerminalSolverConfig.getInstance().setHoldToClickFirstDelayMs(v),
+                    () -> Component.literal("Hold First Delay: " + TerminalSolverConfig.getInstance().getHoldToClickFirstDelayMs() + "ms")));
+            widgets.add(holdSlider(contentX + half + 8, y, half, TerminalSolverConfig.MIN_HOLD_REPEAT_MS, TerminalSolverConfig.MAX_HOLD_REPEAT_MS,
+                    () -> TerminalSolverConfig.getInstance().getHoldToClickRepeatMs(),
+                    v -> TerminalSolverConfig.getInstance().setHoldToClickRepeatMs(v),
+                    () -> Component.literal("Hold Repeat: " + TerminalSolverConfig.getInstance().getHoldToClickRepeatMs() + "ms")));
+            y += 24;
+        }
+
         widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.TERMINAL_SOLVER,
                 contentX, y, 220, 20));
         y += 26;
@@ -191,6 +213,27 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         y = buildQolSection(widgets, contentX, y, contentWidth, requestRebuild);
 
         return widgets;
+    }
+
+    private static Component holdToClickText() {
+        return Component.literal("Hold To Click: " + (TerminalSolverConfig.getInstance().isHoldToClickEnabledRaw() ? "§aON" : "§cOFF"));
+    }
+
+    /** An integer slider over [min, max] that saves on release. */
+    private static ThemedSliderButton holdSlider(int x, int y, int width, int min, int max, java.util.function.IntSupplier get,
+                                                 java.util.function.IntConsumer set, java.util.function.Supplier<Component> text) {
+        return new ThemedSliderButton(x, y, width, 20, text.get(), (get.getAsInt() - min) / (double) (max - min)) {
+            @Override
+            protected void updateMessage() {
+                setMessage(text.get());
+            }
+
+            @Override
+            protected void applyValue() {
+                set.accept((int) Math.round(min + this.value * (max - min)));
+                saveOnRelease(() -> TerminalSolverConfig.getInstance().save());
+            }
+        };
     }
 
     /** Terminal QoL - Protection / Drop Key / Melody Keys / GUI Scale / Hide Completion. Each master toggle

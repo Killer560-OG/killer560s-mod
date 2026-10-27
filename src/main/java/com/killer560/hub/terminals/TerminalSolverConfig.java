@@ -30,7 +30,23 @@ public final class TerminalSolverConfig {
     public static final int MIN_AUTO_CLICK_DELAY_MS = 80;
     public static final int MAX_AUTO_CLICK_DELAY_MS = 500;
     public static final int MIN_MELODY_LOOKAHEAD = 0;
-    public static final int MAX_MELODY_LOOKAHEAD = 4;
+    /** Extra rows clicked after the one proper click (killer560, 2026-10-26: "max of 2 ... look ahead should just be the
+     *  click plus that number so 2 would still click all 3"). 0 = only the proper click. */
+    public static final int MAX_MELODY_LOOKAHEAD = 2;
+    /** Saved files without this marker counted the lookahead as TOTAL clicks (the proper click included); they are
+     *  moved to the extra-clicks meaning on load, so an old 1 (one click) stays one click. */
+    private static final int MELODY_LOOKAHEAD_FORMAT = 2;
+
+    // Hold To Click (legit and cheat, killer560 2026-10-26: "if you hold left click it keeps spam clicking like you are holding
+    // your drop key"). First delay then repeat, like a held key; each repeat only ever clicks a correct slot.
+    public static final int MIN_HOLD_FIRST_DELAY_MS = 0;
+    public static final int MAX_HOLD_FIRST_DELAY_MS = 1000;
+    /** One client tick: ActionGate allows one interaction a tick, so a shorter repeat could not go out anyway. */
+    public static final int MIN_HOLD_REPEAT_MS = 50;
+    public static final int MAX_HOLD_REPEAT_MS = 500;
+    /** Fake Cursor speed, percent of a human hand's speed (FakeCursor's motion model). */
+    public static final int MIN_FAKE_CURSOR_SPEED = 50;
+    public static final int MAX_FAKE_CURSOR_SPEED = 300;
 
     // Hover Terminals (2026-09-16, killer560: "make hover terms... if you hover a button that needs to be
     // pressed it'll press it. Add a delay option as well in ms.") - a real macro like Auto Terminals, and
@@ -189,12 +205,10 @@ public final class TerminalSolverConfig {
     // took 1.8s to complete' ect." Defaults on, matching that request being a definite ask, not
     // conditional.
     private boolean announceCompletionTime = true;
-    // Per killer560's explicit request (2026-09-09): "a configurable amount of first row clicks... 0-4
-    // max" - when Melody's real-time detection finds a correct match at some row, this many TOTAL
-    // consecutive rows (starting from that one) get clicked in one burst instead of just the one that
-    // actually matched - e.g. 2 means click the matched row AND immediately also the next one down,
-    // gambling that the same column repeats. 0 (default, safest) means no lookahead at all - only ever
-    // clicks the row that's actually confirmed correct right now. See TerminalSolverFeature's own
+    // How many EXTRA rows get clicked after a real Melody match (killer560, 2026-10-26: "look ahead should just be
+    // the click plus that number so 2 would still click all 3", max 2): 0 clicks only the matched row, 1 also the next
+    // row down, 2 the next two - gambling that the same column repeats. Until 2026-10-26 this counted the matched
+    // click too (1 and 0 both meant none), max 4; see MELODY_LOOKAHEAD_FORMAT for the load-time move. See TerminalSolverFeature's own
     // Melody auto-click doc for the real mechanic this is built on.
     private int melodyLookaheadClicks = 0;
     // Per killer560's explicit "add a skip on edges or skip on all section" request (2026-09-10) - gates
@@ -216,9 +230,18 @@ public final class TerminalSolverConfig {
     private int hoverJitterMs = 0;
     // Melody is the one type where a hover click can't be driven by the solver's highlights (it has no
     // solved/correct set at all) - the dwell only ARMS the row button and the click fires the frame its
-    // indicator lines up. That's a different enough behavior from the other five to be its own toggle,
-    // and it ships off.
-    private boolean hoverMelodyEnabled = false;
+    // indicator lines up. Its own toggle, ON since 2026-10-26: it shipped off, below the hover sliders, and
+    // killer560's "hover terms doesn't work in melody" was Hover Terminals on (delay 50) with this still off in his
+    // config and profile. Hover Terminals itself still ships off, so nothing clicks until that is turned on.
+    private boolean hoverMelodyEnabled = true;
+    /** Saved files without this marker were written while Hover Melody defaulted OFF and was easy to miss; they load ON. */
+    private static final int HOVER_MELODY_FORMAT = 2;
+    // ---- Hold To Click (2026-10-26) - see HoldToClickFeature. Off by default, both builds. ----
+    private boolean holdToClickEnabled = false;
+    private int holdToClickFirstDelayMs = 250;
+    private int holdToClickRepeatMs = 75;
+    /** Fake Cursor speed in percent of a human hand (100 = human). */
+    private int fakeCursorSpeed = 100;
     /** Never null and always fully populated - see the constructor. */
     private final Map<OverlayColor, Integer> overlayColors = new EnumMap<>(OverlayColor.class);
 
@@ -278,12 +301,22 @@ public final class TerminalSolverConfig {
             }
             cfg.blockInputWhileAutoClicking = ConfigJson.getBool(obj, "blockInputWhileAutoClicking", true);
             cfg.announceCompletionTime = ConfigJson.getBool(obj, "announceCompletionTime", true);
-            cfg.melodyLookaheadClicks = clampMelodyLookahead(ConfigJson.getInt(obj, "melodyLookaheadClicks", 0));
+            int lookahead = ConfigJson.getInt(obj, "melodyLookaheadClicks", 0);
+            if (ConfigJson.getInt(obj, "melodyLookaheadFormat", 1) < MELODY_LOOKAHEAD_FORMAT) {
+                // Old meaning: total clicks in the burst, the proper one included (1 and 0 both meant no burst).
+                lookahead = Math.max(0, lookahead - 1);
+            }
+            cfg.melodyLookaheadClicks = clampMelodyLookahead(lookahead);
             cfg.melodySkipMode = ConfigJson.getEnum(obj, "melodySkipMode", MelodySkipMode.class, MelodySkipMode.EDGES);
             cfg.hoverTerminalsEnabled = ConfigJson.getBool(obj, "hoverTerminalsEnabled", false);
             cfg.hoverDelayMs = clampHoverDelay(ConfigJson.getInt(obj, "hoverDelayMs", 100));
             cfg.hoverJitterMs = clampHoverJitter(ConfigJson.getInt(obj, "hoverJitterMs", 0));
-            cfg.hoverMelodyEnabled = ConfigJson.getBool(obj, "hoverMelodyEnabled", false);
+            cfg.hoverMelodyEnabled = ConfigJson.getInt(obj, "hoverMelodyFormat", 1) < HOVER_MELODY_FORMAT
+                    || ConfigJson.getBool(obj, "hoverMelodyEnabled", true);
+            cfg.holdToClickEnabled = ConfigJson.getBool(obj, "holdToClickEnabled", false);
+            cfg.holdToClickFirstDelayMs = clampHoldFirstDelay(ConfigJson.getInt(obj, "holdToClickFirstDelayMs", 250));
+            cfg.holdToClickRepeatMs = clampHoldRepeat(ConfigJson.getInt(obj, "holdToClickRepeatMs", 75));
+            cfg.fakeCursorSpeed = clampFakeCursorSpeed(ConfigJson.getInt(obj, "fakeCursorSpeed", 100));
             // Per-key reads (ConfigJson) so one bad/missing color falls back to just that color's
             // default instead of resetting every other setting in the file.
             for (OverlayColor c : OverlayColor.values()) {
@@ -325,11 +358,17 @@ public final class TerminalSolverConfig {
             obj.addProperty("blockInputWhileAutoClicking", blockInputWhileAutoClicking);
             obj.addProperty("announceCompletionTime", announceCompletionTime);
             obj.addProperty("melodyLookaheadClicks", melodyLookaheadClicks);
+            obj.addProperty("melodyLookaheadFormat", MELODY_LOOKAHEAD_FORMAT);
             obj.addProperty("melodySkipMode", melodySkipMode.name());
             obj.addProperty("hoverTerminalsEnabled", hoverTerminalsEnabled);
             obj.addProperty("hoverDelayMs", hoverDelayMs);
             obj.addProperty("hoverJitterMs", hoverJitterMs);
             obj.addProperty("hoverMelodyEnabled", hoverMelodyEnabled);
+            obj.addProperty("hoverMelodyFormat", HOVER_MELODY_FORMAT);
+            obj.addProperty("holdToClickEnabled", holdToClickEnabled);
+            obj.addProperty("holdToClickFirstDelayMs", holdToClickFirstDelayMs);
+            obj.addProperty("holdToClickRepeatMs", holdToClickRepeatMs);
+            obj.addProperty("fakeCursorSpeed", fakeCursorSpeed);
             for (OverlayColor c : OverlayColor.values()) {
                 obj.addProperty(c.key(), getOverlayColor(c));
             }
@@ -348,6 +387,18 @@ public final class TerminalSolverConfig {
 
     private static int clampMelodyLookahead(int value) {
         return Math.max(MIN_MELODY_LOOKAHEAD, Math.min(MAX_MELODY_LOOKAHEAD, value));
+    }
+
+    private static int clampHoldFirstDelay(int value) {
+        return Math.max(MIN_HOLD_FIRST_DELAY_MS, Math.min(MAX_HOLD_FIRST_DELAY_MS, value));
+    }
+
+    private static int clampHoldRepeat(int value) {
+        return Math.max(MIN_HOLD_REPEAT_MS, Math.min(MAX_HOLD_REPEAT_MS, value));
+    }
+
+    private static int clampFakeCursorSpeed(int value) {
+        return Math.max(MIN_FAKE_CURSOR_SPEED, Math.min(MAX_FAKE_CURSOR_SPEED, value));
     }
 
     private static int clampHoverDelay(int value) {
@@ -640,6 +691,45 @@ public final class TerminalSolverConfig {
 
     public void setHoverMelodyEnabled(boolean hoverMelodyEnabled) {
         this.hoverMelodyEnabled = hoverMelodyEnabled;
+    }
+
+    /** Hold To Click: legit and cheat (killer560, 2026-10-26: "make drop terms in the legit version not cheat") - it
+     *  only repeats HIS held click on the slot under his own cursor, and only when the solver marks it correct. Needs the
+     *  Terminal Solver on (it has no solving of its own) and Skyblock. */
+    public boolean isHoldToClickEnabled() {
+        return holdToClickEnabled && isEnabled() && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    public boolean isHoldToClickEnabledRaw() {
+        return holdToClickEnabled;
+    }
+
+    public void setHoldToClickEnabled(boolean holdToClickEnabled) {
+        this.holdToClickEnabled = holdToClickEnabled;
+    }
+
+    public int getHoldToClickFirstDelayMs() {
+        return holdToClickFirstDelayMs;
+    }
+
+    public void setHoldToClickFirstDelayMs(int ms) {
+        this.holdToClickFirstDelayMs = clampHoldFirstDelay(ms);
+    }
+
+    public int getHoldToClickRepeatMs() {
+        return holdToClickRepeatMs;
+    }
+
+    public void setHoldToClickRepeatMs(int ms) {
+        this.holdToClickRepeatMs = clampHoldRepeat(ms);
+    }
+
+    public int getFakeCursorSpeed() {
+        return fakeCursorSpeed;
+    }
+
+    public void setFakeCursorSpeed(int percent) {
+        this.fakeCursorSpeed = clampFakeCursorSpeed(percent);
     }
 
     /** @return the live ARGB for {@code key}, already sanitized (see {@link OverlayColor#sanitize}).

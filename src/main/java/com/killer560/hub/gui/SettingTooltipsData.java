@@ -281,7 +281,7 @@ final class SettingTooltipsData {
         d.put("max delay", "Longest random wait in milliseconds between automated clicks (cheat build only).");
         d.put("block input while auto-clicking", "Ignores your own clicks and keys in a terminal while it is being auto-clicked (cheat build only).");
         d.put("melody skip mode", "Edges: extra rows are clicked in a burst only when the match is on the first or last row; All: every remaining row is clicked (cheat build only).");
-        d.put("melody lookahead clicks", "Rows clicked in one burst after an edge-row match, 0-4 (cheat build only).");
+        d.put("melody lookahead", "Extra rows clicked right after a proper Melody click, 0-2: 0 clicks only that row, 2 clicks all 3 (cheat build only).");
         d.put("experiment solver enabled", "Turns on the Experimentation Table solver for Chronomatron, Ultrasequencer and Superpairs.");
         d.put("auto-solve superpairs", "Lets the bot play Superpairs too (cheat build, Autonomous mode). Off also hides the Superpairs highlights.");
         d.put("superpairs pairs", "Every Pair matches all revealed pairs; Skip Plain XP saves clicks for other rewards (cheat build, Autonomous mode).");
@@ -1687,7 +1687,10 @@ final class SettingTooltipsData {
         d.put("hover terminals", "Cheat build only. Resting the mouse on a correct terminal slot clicks it for you.");
         d.put("hover delay", "Cheat build only. How long the mouse must rest on a slot before it clicks, 0-1000 ms.");
         d.put("hover jitter", "Cheat build only. Adds a random extra delay to each hover click.");
-        d.put("hover melody", "Cheat build only. Hovering a Melody row button clicks it as the pane lines up.");
+        d.put("hover melody", "Cheat build only. Rest the mouse on a Melody row button and it clicks once when the moving pane reaches the right column.");
+        d.put("hold to click", "Hold left click in a terminal and the slot under the mouse is clicked again and again, like holding the drop key, but only when it is a correct click.");
+        d.put("hold first delay", "How long left click is held before the repeat starts, 0-1000 ms.");
+        d.put("hold repeat", "Time between repeat clicks while left click stays held, 50-500 ms.");
         d.put("run summary", "Records a summary of each finished dungeon run (splits, secrets, deaths, score) that you can reopen later.");
         d.put("don't repeat split timers", "Leaves the per-phase lines out of the summary when Split Timers already announces them.");
         d.put("announce personal bests", "Tells you in your own chat when a run beats your best time or score for that floor.");
@@ -2640,7 +2643,8 @@ final class SettingTooltipsData {
         d.put("sell speed", "How fast the flipper shift-clicks items into the /trades NPC, 1 to 10. Same scale as Menu Speed, but much faster at every step.");
         d.put("bazaar flipper", "Buys items from the Bazaar and sells them to the /trades NPC.");
         d.put("hide mouse cursor", "While auto terminal clicks are landing, the real mouse pointer is hidden, so a screen share shows no pointer moving on its own. It comes back as soon as the clicks stop.");
-        d.put("fake cursor", "Draws a pointer that travels to each auto click and shows a short click ripple, so the clicks look like a person's.");
+        d.put("fake cursor", "Draws a mouse pointer that starts at the center and moves to each auto click the way a hand moves a mouse, arriving before the click.");
+        d.put("fake cursor speed", "How fast the fake pointer moves, in percent of a person's hand. Auto clicks wait for it to arrive, so a slow pointer slows the clicks.");
         d.put("streamer mode", "Run /streamer to turn it on, and again to turn it off. The option below says what it does while it is on: Disable cheats stops every automated action, and either option hides the cheat parts of the menu.");
         d.put("streamer mode/option", "What Streamer Mode does while it is on: Disable cheats refuses every automated action, Hide cheat UI only hides them.");
         d.put("zoom", "Hold the zoom key to narrow the view. While it is held, the mouse wheel changes the zoom.");
