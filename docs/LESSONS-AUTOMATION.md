@@ -423,3 +423,13 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
 - A banked tick passes no game time for the server, so a driver may skip his physics on exactly those ticks and keep his
   momentum (AP3's Blink Charge, `noteFrozenTick`): measured on GrimAC, sprinting and mid-jump, 10 ticks paused, velocity
   unchanged, and the run afterwards equal tick for tick (0.000000) to the same route without the charge; clean.
+- The vanilla server's 10 blocks are per SERVER tick, measured from where that tick began, and include every move
+  packet in it - the run before a shot as well as the shot. A server that cannot keep up takes several client ticks in
+  one of its own, so a split shot's second part (sent the next client tick) and the run ahead of the first part all
+  landed together: "Player0 moved too quickly! -6.66,0,-7.94" (2.2 of run + 8.2 of shot), a vanilla setback, and GrimAC
+  saw the 2.17-block jump (Simulation 2.166, GroundSpoof, TickTimer; 1027-ap3-s2ee3-blink-0.5 on 26.2 under load,
+  2026-10-27). BlinkCharge now notes his position at each server ping (GrimAC pings every tick): a part's budget is 9.5
+  less what he moved since the ping before the latest (while pings come at tick rate), and a split's second part waits
+  for two new pings (at most 300 ms). Lowering the cap alone (8.5) did not help. `grim consoledebug <player>` plus the
+  server log's "moved too quickly" line told the two apart: GrimAC predicted every shot tick exactly.
+
