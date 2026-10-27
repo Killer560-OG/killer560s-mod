@@ -454,9 +454,16 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   most 3 s); AP3's Blink Release holds on its node meanwhile and finishes the tick the bank is covered, so the shot runs
   along the next node. Measured on GrimAC 2.3.74 (1027-ap3-blink-leap-now/-10): released at the leap the shot waited 1.95 s,
   10 ticks after it 1.51 s, both landed the full 5.39 blocks, clean; on c9521191 both were set back (TimerLimit). The wait
-  needs him still, and walking can never cover it: GrimAC's floor after a teleport is that teleport's ping send time - 120 ms,
-  so he may be behind real time only by the ticks he did NOT send since the teleport, and a walking tick is always sent. A shot
-  still uncovered after 10 s is not fired (bank kept, logged); it used to fire uncovered after 3 s and be set back. Tried and reverted: skipping his physics through the hold so its ticks cost nothing (the first ticks
+  needed him still. SUPERSEDED (blink-fastcover-1027): the floor is NOT the teleport's ping. GrimAC's Timer moves its floor
+  (`lastMovementPlayerClock`) only on the FIRST transaction answer after a move packet (`Timer.onPrePredictionPacketReceive`,
+  `hasGottenMovementAfterTransaction`), to the newest answered ping's send time at that moment. So at a teleport every waiting
+  answer up to the teleport's ping goes back to back, the confirm right behind (GrimAC needs exactly that answer last:
+  `SetbackTeleportUtil.checkTeleportQueue`), and the floor lands on the OLDEST withheld ping: the cover survives the leap and
+  the shot waits one tick (40-54 ms, clean at 0-300 ms, 26.1.2 and 26.2). The cover kept is that oldest answer's age, so a
+  second teleport right after the first (only young answers left) cannot keep it: that one takes the old hold. Backing the
+  shortfall on still ticks right after the confirm drew Simulation on the shot (fc3). `TimerLimit.limitFallBehind` also caps
+  the floor at now - 1000 ms (`limitAbuseOverPing`), which is why a bank is 20 ticks at most. A shot still uncovered after 10 s
+  is not fired (bank kept, logged). Tried and reverted: skipping his physics through the hold so its ticks cost nothing (the first ticks
   after still drew Simulation 0.025 decaying, even with input changes carried to the next sent tick).
 - The same lag allowance is shared by a hold and the bank: a hold while charging sends the waiting answers (TransactionOrder)
   and its own in its burst, so after it GrimAC covers only ~2 ticks of the kept bank. Before campaign-blink-1027 the shot after
