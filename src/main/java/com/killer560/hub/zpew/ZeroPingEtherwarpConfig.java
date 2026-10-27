@@ -34,6 +34,9 @@ public final class ZeroPingEtherwarpConfig {
     /** Warps Per Tick (cheat build only): each of your own etherwarps becomes this many in the same tick, at the same
      *  look, each from the last one's predicted landing (see {@link ZeroPingEtherwarp#flushExtraWarps}). 1 = off. */
     private int warpsPerTick = 1;
+    /** Aimed Warps (cheat build only): several clicks of his inside one tick, each at the look it was clicked at, all go
+     *  out in that tick - one banked Blink Charge tick per extra look (see {@link ZeroPingEtherwarp#aimedBurst}). Off. */
+    private boolean aimedWarps = false;
     /** Works For: which senders' etherwarps are predicted (see {@link ZpewSource}). All on by default - before the list
      *  existed every etherwarp use was predicted, whoever sent it. Saved as {"worksFor": {"MANUAL": true, ...}}. */
     private final java.util.EnumMap<ZpewSource, Boolean> worksFor = new java.util.EnumMap<>(ZpewSource.class);
@@ -64,6 +67,7 @@ public final class ZeroPingEtherwarpConfig {
                 cfg.chain = ConfigJson.getBool(obj, "chain", cfg.chain);
                 cfg.overlayFromPrediction = ConfigJson.getBool(obj, "overlayFromPrediction", cfg.overlayFromPrediction);
                 cfg.setWarpsPerTick(ConfigJson.getInt(obj, "warpsPerTick", cfg.warpsPerTick));
+                cfg.aimedWarps = ConfigJson.getBool(obj, "aimedWarps", cfg.aimedWarps);
                 if (obj.has("worksFor") && obj.get("worksFor").isJsonObject()) {
                     JsonObject wf = obj.getAsJsonObject("worksFor");
                     for (ZpewSource s : ZpewSource.values()) {
@@ -86,6 +90,7 @@ public final class ZeroPingEtherwarpConfig {
             obj.addProperty("chain", chain);
             obj.addProperty("overlayFromPrediction", overlayFromPrediction);
             obj.addProperty("warpsPerTick", warpsPerTick);
+            obj.addProperty("aimedWarps", aimedWarps);
             JsonObject wf = new JsonObject();
             for (ZpewSource s : ZpewSource.values()) {
                 wf.addProperty(s.name(), worksFor.get(s));
@@ -135,6 +140,20 @@ public final class ZeroPingEtherwarpConfig {
 
     public void setWarpsPerTick(int warpsPerTick) {
         this.warpsPerTick = Math.max(1, Math.min(MAX_WARPS_PER_TICK, warpsPerTick));
+    }
+
+    /** The saved Aimed Warps switch, whatever the build. */
+    public boolean isAimedWarps() {
+        return aimedWarps;
+    }
+
+    public void setAimedWarps(boolean aimedWarps) {
+        this.aimedWarps = aimedWarps;
+    }
+
+    /** Aimed Warps as it applies: never in a legit build. */
+    public boolean effectiveAimedWarps() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && aimedWarps;
     }
 
     /** Warps Per Tick as it applies: always 1 in a legit build (nothing extra is ever sent there). */

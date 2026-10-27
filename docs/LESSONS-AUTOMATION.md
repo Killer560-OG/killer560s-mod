@@ -327,6 +327,21 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   So differently aimed warps (Auto Routes' nodes) go one per client tick (or several per SERVER tick through Blink The
   Chain), while same-look warps can go N in one tick: ZPEW Warps Per Tick, testkit 1027-zpewmt-* (2, 3, 5, 10 and 20 in a
   tick, 0-300 ms, 26.1.2 and 26.2, GrimAC clean; the server casts each from the previous landing).
+- Different looks in ONE real tick (owner 2026-10-27, testkit 1027-zpewlk-*, javap GrimAC 2.3.74): every look needs its own
+  tick packet, and only a whole extra client tick will do. BadPacketsJ resets at each tick packet and compares the last
+  use's look with that packet's UPDATED look (`canSkipTicks` is false for 1.21.2+ clients, so no lastYaw fallback): the
+  order is use, then the tick packet reporting its look. Measured: RSA's shape (n uses at n looks, nothing between) =
+  BadPacketsJ; look packet BEFORE each use (a 1.8 server's way) = BadPacketsJ + TickTimer; use then a look-only packet =
+  TickTimer (a flying needs a tick-end before it) and Timer/TimerLimit (each tick packet is +50 ms on the timer balance,
+  whose floor is the last answered ping - 120 ms, so the headroom is about a ping plus 120 ms and does not come back while
+  the client ticks normally). The 1.17 duplicate-packet exemption is for 1.17-1.20 clients only. What works is Blink
+  Charge's bank: `BlinkCharge.spendTick` runs a whole tick (use, his movement tick with the body at that look, tick-end)
+  per extra look - Auto Routes' Charged Chain and ZPEW Aimed Warps. It needs the campaign-blink-1027 fixes (a teleport's
+  confirm held behind its ping answer): on 3011406a the same burst drew AimDuplicateLook, GroundSpoof, Simulation and
+  TickTimer at every landing. Spend only while `BlinkCharge.shotCovered()` (a burst right after a kept teleport drew
+  TimerLimit), and turn the first look from the yaw that last went ON THE WIRE (Charge keeps turn-only ticks off it, so
+  the running yaw can be a whole turn away; a look jump over 320 is AimModulo360). The test's first path, a square
+  (+x, +z, -x, -z, +x), spun the client a full 360 between two ticks and drew AimModulo360 with or without the burst.
 - RouteExecutor assumed one warp in flight (one `warpLanding`, one `teleportPacketSeen`). Zero Ping Chain keeps a queue
   of predicted landings (`inFlight`), reads `feet(player)` instead of `player.position()` while it is non-empty, and
   matches each server packet against the queue; a packet that matches an older entry confirms it and every older one.
