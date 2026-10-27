@@ -942,6 +942,7 @@ public final class Ap3Feature {
             // Whoever caused the leap (a node, Fast Leap / Auto Leap, a manual click), Hypixel prints this line;
             // the executor's own-position jump check catches it too, so p3sim is covered without the line.
             if (SELF_LEAP.matcher(plain).matches()) {
+                Ap3Executor.onLeapLine();
                 Ap3Executor.onLeapHappened("you leapt");
                 return;
             }

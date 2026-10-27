@@ -713,6 +713,24 @@ public final class Ap3Executor {
      * more. The one exception is AP3's own LEAP node waiting to confirm its landing: that IS this leap, so it is left
      * to finish. Nothing here touches Fast Leap: AP3 observes the leap, it never cancels, delays or re-triggers it.
      */
+    /** When Hypixel's "You have teleported to Name!" (your own leap) last arrived. */
+    static volatile long lastLeapLineMs;
+
+    /** Hypixel said YOU leapt (Ap3Feature's anchored line). */
+    static void onLeapLine() {
+        lastLeapLineMs = System.currentTimeMillis();
+    }
+
+    /** True when another player stands within 1.5 blocks of him: a leap lands on its target. */
+    private static boolean landedOnPlayer(LocalPlayer player) {
+        for (net.minecraft.world.entity.player.Player other : player.level().players()) {
+            if (other != player && other.distanceToSqr(player) <= 1.5 * 1.5) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static void onLeapHappened(String why) {
         RouteRotation.rebase(); // the teleport's own camera change is not the player's mouse
         // The server just set our rotation itself (a teleport carries one), so the running server-side yaw is
@@ -794,8 +812,13 @@ public final class Ap3Executor {
         }
         if (lastSelfPos != null && jumped) {
             onLeapHappened("you leapt");
-            arrivalPullTicks = ARRIVAL_PULL_TICKS; // landed: an align he came down beside (not in its box) pulls him in
-            arrivalPullWhy = "a leap or teleport";
+            // Only a LEAP pulls him into an align beside the landing (killer560, 2026-10-27: "only have leaps pull me
+            // to aligns not the others"): Hypixel's own leap line just now, or a landing on another player (a leap
+            // always puts you on one; p3sim prints no line). Other teleports and Blink releases do not pull.
+            if (System.currentTimeMillis() - lastLeapLineMs < 3000L || landedOnPlayer(player)) {
+                arrivalPullTicks = ARRIVAL_PULL_TICKS;
+                arrivalPullWhy = "a leap";
+            }
         }
         lastSelfPos = pos;
         tickReleaseWatch(client, player);
@@ -1645,8 +1668,11 @@ public final class Ap3Executor {
             return false;
         }
         Ap3Node next = nextInChain(holdNode);
-        if (next != null && (next.type.isAlign() || next.type == Ap3Node.Type.WALK || next.type == Ap3Node.Type.RUN)
-                && !inside.contains(next) && passedBeside(player, next)) {
+        // No pass-beside takeover (killer560, 2026-10-27): a run passing near the next run or align without entering
+        // its box changed his run nodes ("dont do that"), and only a leap pulls him into an align. Nodes fire only
+        // from their own boxes. passedBeside stays for reference but is not called.
+        if (PASS_BESIDE_TAKEOVER && next != null && (next.type.isAlign() || next.type == Ap3Node.Type.WALK
+                || next.type == Ap3Node.Type.RUN) && !inside.contains(next) && passedBeside(player, next)) {
             return true;
         }
         if (!WALK_EDGE_STOP || !player.onGround()) {
@@ -1810,7 +1836,7 @@ public final class Ap3Executor {
     /** A BOOM whose use has gone out and whose gate check runs in the background while an align goes; null = none. */
     private static Ap3Node boomBg;
     private static int boomBgTicks;
-    /** Ticks after a landing (leap, teleport, Blink release) in which an align beside him pulls him in. */
+    /** Ticks after a LEAP landing in which an align beside him pulls him in (only leaps, killer560 2026-10-27). */
     private static int arrivalPullTicks;
     private static String arrivalPullWhy = "";
     private static final int ARRIVAL_PULL_TICKS = 5;
@@ -2624,6 +2650,9 @@ public final class Ap3Executor {
      * tick. Runs go where he placed them again; the pull into a passed align stays.
      */
     static final boolean WALK_EDGE_STOP = false;
+
+    /** Off for good (killer560, 2026-10-27): a run never hands over to, or pulls into, a node whose box it missed. */
+    static final boolean PASS_BESIDE_TAKEOVER = false;
 
     /** A held walk stops only where the floor ahead is more than this far below where the walk began. */
     static final double WALK_FALL_GUARD = 3.0;
@@ -4628,8 +4657,6 @@ public final class Ap3Executor {
     private static void endReleaseWatch(int left) {
         releaseWatch = null;
         releaseResumeBy = -1L;
-        arrivalPullTicks = ARRIVAL_PULL_TICKS; // the shot landed him: an align beside him (not in its box) pulls him in
-        arrivalPullWhy = "a Blink release";
         if (left <= 0) {
             // The bank is spent: AP3's charge ends, so the server's pings are answered on time again.
             com.killer560.hub.blink.BlinkCharge.endFor(BLINK_OWNER, "the bank is spent");

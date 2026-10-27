@@ -195,6 +195,11 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   the step-up then comes on a tick GrimAC sees whole and predicts exactly (O 1e-15). 24 of 24 clean (1027-ap3-lowrep).
   Get GrimAC's own numbers with `grim consoledebug <player>` from the test server console (toggle; P/A/O per tick in the
   server log) before guessing at a Simulation flag.
+- **Only a LEAP pulls him into an align, and nodes fire only from their own boxes** (killer560, 2026-10-27: "only have
+  leaps pull me to aligns not the others"; "something you just did changed some of my run nodes and dont do that").
+  The pass-beside takeover (a run near the next run/align hands over) and the Blink-release / plain-teleport landing
+  pull are OFF (`PASS_BESIDE_TAKEOVER = false`). A leap is Hypixel's "You have teleported to" line or a landing within
+  1.5 of another player (p3sim prints no line). The paragraph below is the history.
 - **What pulls him into an align (2026-10-27, his 15:11 live #34).** (1) A held walk passing within 2.5 of its route's
   next align (any align type) and moving away begins it; passing beside its next WALK / RUN hands the hold to that node
   (a lead-in that missed RUN #33's 1x1 box ran on past #34). (2) For 5 ticks after a leap, a teleport or the end of a
