@@ -123,3 +123,13 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   him up to 9.5 blocks in a tick, past AP3's 8-block "you leapt" line: `BlinkCharge.shotThisTick()` exempts it, or the
   first long shot would drop the walk and the queue. AP3 stopping (any reason) ends a charge AP3 started; a release that
   spends the bank ends it too, so ping answers go back to live. Testkit 1026-ap3-blink-*, 1026-ui-ap3-blink-nodes.
+- **An aura may turn him during an AP3 walk only to a walk-keyed yaw (2026-10-27).** GrimAC 2.3.74's RotationPlace
+  (javap: `didRayTraceHit`, a ray from the reported yaw/pitch - and lastYaw - against the clicked block's FULL block box)
+  covers lever clicks too: measured in testkit 1027-ap3-lever-noturn-*, a no-turn click 0 or 10 degrees off is clean and
+  30, 60, 90 or 180 degrees off is one RotationPlace flag and the lever does not toggle. A click-only look cannot exist:
+  one rotation per movement packet, and Grim judges the click and the movement by the same one. Movement depends only on
+  the yaw, and at the yaws walkYaw + 45 / walkYaw - 45 / walkYaw the keys W+D / W+A / W walk exactly along the walk with
+  the sprint kept, so `TurnFirst.registerYawConstraint` (AP3: `Ap3Executor.walkKeyedYaws`) lets an aura turn only to one
+  of those, with any pitch whose ray meets the target from the eye after this tick's move; none this tick = no turn, the
+  click waits. A/D/back yaws were allowed first and dropped the sprint, which bent the path after the next node by 0.65.
+
