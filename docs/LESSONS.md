@@ -297,3 +297,6 @@ project CLAUDE.md. Compiling lessons
   line). A test that sends the same server line twice back to back loses the second: two "The gate has been destroyed!"
   lines 0.2 s apart left P3SectionTracker one section behind (testkit 1027-ap3-section-s3, 2026-10-27). Space them.
 
+- **Your own dungeon class is `leapmenu/PartyTracker.selfClass()`** (tab list, plus Party Finder lines, with the
+  `ClassOverrides` pick on your own IGN already applied by `classOf`). Fast Leap's Class Targets (2026-10-27) read it;
+  `Ap3Feature.selfClass()` wraps it in `ClassOverrides` a second time, which is harmless. Do not write another tab parser.
