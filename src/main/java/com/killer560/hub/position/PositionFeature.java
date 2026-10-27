@@ -123,6 +123,21 @@ public final class PositionFeature {
         float bodyPitch = player.getXRot();
         float heldYaw = ViewFreeze.viewYaw();
         float heldPitch = ViewFreeze.viewPitch();
+        if (com.killer560.hub.ap3.Ap3FreezeState.isFrozen()) {
+            // Freeze State keeps its own free camera (Ap3FreezeState.turnView), not ViewFreeze's, so the HUD sat on the
+            // frozen character's angles (killer560, 2026-10-26: "make it so yaw on advanced pos ... updates while i am in
+            // freeze state", "same with pitch"). Its view is the one he is looking along and the one /ap3 add records.
+            heldYaw = com.killer560.hub.ap3.Ap3FreezeState.viewYaw();
+            heldPitch = com.killer560.hub.ap3.Ap3FreezeState.viewPitch();
+        } else if (Float.isNaN(heldYaw)) {
+            // AP3's own free camera while a walk or align turns the real body (Ap3Executor.frozenViewYaw/Pitch).
+            float apYaw = com.killer560.hub.ap3.Ap3Executor.frozenViewYaw();
+            float apPitch = com.killer560.hub.ap3.Ap3Executor.frozenViewPitch();
+            if (!Float.isNaN(apYaw) && !Float.isNaN(apPitch)) {
+                heldYaw = apYaw;
+                heldPitch = apPitch;
+            }
+        }
         boolean frozen = !Float.isNaN(heldYaw) && !Float.isNaN(heldPitch);
         float yaw = frozen ? heldYaw : bodyYaw;
         float pitch = frozen ? heldPitch : bodyPitch;
