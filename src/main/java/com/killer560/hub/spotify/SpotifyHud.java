@@ -217,6 +217,10 @@ public final class SpotifyHud implements HudElement {
         if (paused) {
             String label = "Paused";
             graphics.text(font, label, x + W - PAD - font.width(label), y + 28, p.faint(), true);
+        } else if (snap.versionMismatch() && !snap.lines().isEmpty()) {
+            // The closest lrclib version is shown, but it is not Spotify's length: its timing may be off.
+            String label = "other version";
+            graphics.text(font, label, x + W - PAD - font.width(label), y + 28, p.faint(), true);
         }
 
         if (cfg.isShowLyrics() && !ad) {
@@ -238,6 +242,7 @@ public final class SpotifyHud implements HudElement {
         }
         if (!editor) {
             HudSeen.markDrawn(id());
+            SpotifyHudControls.draw(graphics, font, p, W, h, paused);   // chat open + mouse over: the control row
         }
     }
 
