@@ -310,6 +310,16 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   (delay); a bow draw start and release together fire nothing. Blink sends hits, every dig edge and charged-use edges live.
 - GrimAC MultiActionsC flags a container click while the server has a movement key in his last input, a sprint or a
   sneak. Inventory Walk holds such a click until a still tick has reached the server (Stop To Click).
+- MultiActionsD is the same check on the menu CLOSE packet (javap 2.3.74), and GrimAC 2.3.74 has no InventoryA-D: MultiActions
+  C/D and PacketOrder are its inventory checks. Both cancel the packet they flag, so a flagged click is never applied and
+  the item snaps back. Until campaign-invwalk-1027 every close made while walking with Inventory Walk drew D, a click the
+  frame a menu opened (before the feature's tick saw the screen) and clicks + close in one frame drew C and D, and with a
+  Blink hold running every click drew C: Blink sends menu clicks live, so the server judged them on the moving input it
+  had before the hold (testkit 1027-iw-*, shipped jar 3011406a). Fix: closes and button clicks are held with the clicks,
+  in order; a held packet forces an all-keys-up input that tick (`invwalk/mixin/InventoryWalkInputMixin`, priority 2000,
+  after every automation's input mixin); "still" is judged on what LEFT the connection (`InventoryWalkFeature.noteLeft`
+  from Blink's send hook); during a hold the clicks join the hold behind the still tick (`BlinkFeature.clicksJoinHold`).
+  Test helpers that close a menu with `setScreen(null)` send no close packet at all - `onClose()` does, as Escape does.
 - Two item uses in one client tick are BadPacketsJ: each use must carry a rotation that tick's single movement packet
   reports. "Several etherwarps per tick" is several per SERVER tick: one per client tick, held by Blink and released
   together (Blink The Chain).
