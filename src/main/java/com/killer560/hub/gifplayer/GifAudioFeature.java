@@ -95,7 +95,7 @@ public final class GifAudioFeature {
 
     private static void reloadNow() {
         List<Path> found;
-        try (Stream<Path> stream = Files.list(GifPlayerFeature.folder())) {
+        try (Stream<Path> stream = GifPlayerFeature.list(GifPlayerFeature.folder())) {
             found = stream.filter(Files::isRegularFile)
                     .filter(GifAudioFeature::isSupportedAudio)
                     .sorted((a, b) -> a.getFileName().toString().compareToIgnoreCase(b.getFileName().toString()))
@@ -195,7 +195,7 @@ public final class GifAudioFeature {
     /** Every supported audio filename currently in the folder, regardless of its enabled state -
      *  for the tab's per-file toggle list. */
     public static List<String> discoverFileNames() {
-        try (Stream<Path> stream = Files.list(GifPlayerFeature.folder())) {
+        try (Stream<Path> stream = GifPlayerFeature.list(GifPlayerFeature.folder())) {
             return stream.filter(Files::isRegularFile)
                     .filter(GifAudioFeature::isSupportedAudio)
                     .map(p -> p.getFileName().toString())

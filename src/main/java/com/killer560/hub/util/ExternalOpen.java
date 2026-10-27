@@ -37,6 +37,15 @@ public final class ExternalOpen {
 
     /** {@code Util.getPlatform().openPath(path)}, or a log line under the test property. */
     public static void path(Path path) {
+        // Every caller opens a folder, and a feature's folder is only made by its first save (2026-10-26): make it
+        // here so "Open Folder" never opens nothing.
+        try {
+            if (path != null && !java.nio.file.Files.exists(path)) {
+                java.nio.file.Files.createDirectories(path);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Could not create {}", path, e);
+        }
         if (suppress(String.valueOf(path))) return;
         Util.getPlatform().openPath(path);
     }

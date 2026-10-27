@@ -52,7 +52,8 @@ import java.util.Set;
  *
  * <p>Dev builds only ({@link BuildVariant#DEV_TOOLS}): a release jar does not write files into friends' folders. The
  * file is {@code killer560smod-maplog-<time>.log} under {@code dungeons/maplog/}; the {@code .log} name keeps it out of
- * profiles. It runs with no setting and no command.
+ * profiles. It runs with no setting and no command. Only the newest {@link #KEEP_LOGS} of those files are kept: older
+ * ones are deleted at startup (2026-10-26; one a session had grown to 19 in a week on his play instance).
  */
 public final class MapLogger {
 
@@ -68,10 +69,15 @@ public final class MapLogger {
     private static int ticks;
     private static BufferedWriter out;
 
+    /** How many map logs are kept: a count, not an age, since he goes back to them for room captures. */
+    static final int KEEP_LOGS = 20;
+    private static final String LOG_PREFIX = "killer560smod-maplog-";
+
     private MapLogger() {
     }
 
     public static void register() {
+        pruneOldLogs();
         if (!BuildVariant.DEV_TOOLS) {
             return;
         }
@@ -219,6 +225,44 @@ public final class MapLogger {
         } catch (IOException e) {
             LOGGER.warn("Map logger could not write: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Deletes all but the newest {@link #KEEP_LOGS} map logs (by the time in the name, which sorts as it reads) and
+     * logs how many went. Only {@code killer560smod-maplog-*.log} files in the map log folder are ever touched. Runs at
+     * startup, before this session's log exists. Never throws, and never creates the folder.
+     */
+    static int pruneOldLogs() {
+        Path dir = ModPaths.root().resolve(ModPaths.folderFor(LOG_PREFIX));
+        if (!Files.isDirectory(dir)) {
+            return 0;
+        }
+        java.util.List<Path> logs = new java.util.ArrayList<>();
+        try (var stream = Files.newDirectoryStream(dir, LOG_PREFIX + "*.log")) {
+            for (Path p : stream) {
+                if (Files.isRegularFile(p)) {
+                    logs.add(p);
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Map logger could not list {}: {}", dir, e.toString());
+            return 0;
+        }
+        if (logs.size() <= KEEP_LOGS) {
+            return 0;
+        }
+        logs.sort(java.util.Comparator.comparing((Path p) -> p.getFileName().toString()).reversed());
+        int deleted = 0;
+        for (Path old : logs.subList(KEEP_LOGS, logs.size())) {
+            try {
+                Files.delete(old);
+                deleted++;
+            } catch (Exception e) {
+                LOGGER.warn("Map logger could not delete old log {}: {}", old.getFileName(), e.toString());
+            }
+        }
+        LOGGER.info("Map logger kept the newest {} logs and deleted {} older one(s) in {}", KEEP_LOGS, deleted, dir);
+        return deleted;
     }
 
     private static void open() throws IOException {
