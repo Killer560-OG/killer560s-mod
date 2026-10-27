@@ -1957,7 +1957,13 @@ public final class Ap3Executor {
         }
         Ap3DiscretePlanner.startBudget();
         try {
-            if (!(fast && driveFast(player, ex, ez))) {
+            boolean done = fast && driveFast(player, ex, ez);
+            if (!done) {
+                // Fast Align found nothing (or spent the budget looking): the regular planner gets a budget of its own,
+                // so the tick always ends with a plan. Until 2026-10-27 it inherited a spent budget and its search
+                // returned before scoring anything - "coarse best 1.8e+308", no keys, the align stalled 0.5 off its point
+                // and ended after 20 ticks (testkit 1026-boss-ap3-lights-run on a loaded machine).
+                Ap3DiscretePlanner.startBudget();
                 driveDiscrete(player, ex, ez, method);
             }
             ledgeGuard(player, node);
