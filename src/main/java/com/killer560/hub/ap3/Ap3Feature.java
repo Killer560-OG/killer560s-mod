@@ -273,6 +273,8 @@ public final class Ap3Feature {
         public Integer leapCount;
         /** The {@code leapcounter:<n>} suffix, any type (2026-10-26). */
         public Integer leapCounter;
+        /** {@code sectiondone:<n>}: fire only once P3 section n (1-4) is complete (2026-10-27). */
+        public Integer sectionDone;
         /** BLINK_CHARGE / BLINK_RELEASE: the tick count typed after the type, null = the max. */
         public Integer blinkTicks;
         /** BLINK_CHARGE {@code stop}: a plain stop instead of frozen momentum. */
@@ -314,6 +316,9 @@ public final class Ap3Feature {
             }
             if (node.type == Ap3Node.Type.LEAP_COUNTER && leapCount != null) {
                 node.setLeapCount(leapCount);
+            }
+            if (sectionDone != null) {
+                node.sectionDone = Math.max(0, Math.min(4, sectionDone));
             }
             if (leapCounter != null) {
                 node.setLeapCounter(leapCounter);

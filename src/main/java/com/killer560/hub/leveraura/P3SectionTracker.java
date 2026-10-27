@@ -84,6 +84,16 @@ public final class P3SectionTracker {
         return sectionTotal;
     }
 
+    /**
+     * AP3's {@code sectiondone} suffix (2026-10-27): true once section {@code s} (1..4) has all its objectives done this
+     * run - its last "(n/m)" line read n == m, or the tracker has since moved past it (gate line, a missed-gate advance,
+     * the core opening). A count left from an earlier section never answers for a later one: {@link #setSection} clears
+     * the count when the section changes, so a section that has not seen its own line yet reads 0/0, not done.
+     */
+    public static boolean sectionDone(int s) {
+        return section > s || (section == s && sectionTotal > 0 && sectionCurrent >= sectionTotal);
+    }
+
     /** Whether "The gate has been destroyed!" was seen in the current section. */
     public static boolean gateDestroyed() {
         return sectionGate;

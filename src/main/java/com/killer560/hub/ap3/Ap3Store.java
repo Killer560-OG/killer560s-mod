@@ -604,6 +604,7 @@ public final class Ap3Store {
         n.useItemId = cleanString(ConfigJson.getString(o, "useItemId", null), 64);
         n.setLeapCount(ConfigJson.getInt(o, "leapCount", 1));
         n.setLeapCounter(ConfigJson.getInt(o, "leapCounter", 0));
+        n.sectionDone = Math.max(0, Math.min(4, ConfigJson.getInt(o, "sectionDone", 0)));
         n.setBlinkTicks(ConfigJson.getInt(o, "blinkTicks", 0));
         n.blinkStop = type == Ap3Node.Type.BLINK_CHARGE && ConfigJson.getBool(o, "blinkStop", false);
         if (type == Ap3Node.Type.PATH) {
@@ -694,6 +695,9 @@ public final class Ap3Store {
         }
         if (n.closeGate) {
             o.addProperty("termClose", true);
+        }
+        if (n.sectionDone > 0) {
+            o.addProperty("sectionDone", n.sectionDone);
         }
         if (n.leapCounter > 0) {
             o.addProperty("leapCounter", n.leapCounter);

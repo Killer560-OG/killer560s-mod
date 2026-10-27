@@ -162,4 +162,25 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   container whose title `terminals/TerminalType.match` accepts goes from open to closed after the node was reached - a
   terminal finished while he stood in the box before the node's turn counts. While it holds, a terminal screen does not
   stop AP3 (screenAllowed).
+- **`sectiondone:<n>` (2026-10-27).** Any node; saved as "sectionDone" (1-4). Held by the leapcounter: gate until
+  `leveraura.P3SectionTracker.sectionDone(n)`: the tracker's section is past n, or it is n and its last "(n/m)" line read
+  n == m. No position check (his "any section not just the one I am actively standing in"). The tracker clears its count
+  on every section change, so a finished S1 count cannot answer for S2; it resets on Goldor's line and a world change, and
+  reads only F7/M7 lines whose name group is `[A-Za-z0-9_]{1,16}` (a forged "[VIP] Bob: a activated a terminal! (7/7)"
+  does nothing - testkit 1027-ap3-section-s1..s4).
+- **Left click on a wait (2026-10-27).** His 09:22:39 log: leapcounter #37 held, he opened chat, "dropped (a screen
+  opened)", and the node - he was standing in its box - could not fire again until he walked off and back on; a click had
+  no gate to skip. A screen no longer stops AP3 while the only thing running is a gate (gateOnlyWaiting), and a stop that
+  does drop a gate remembers it: a left click while he still stands in its box fires it (takeDroppedGateClick). The click
+  is taken at START by consumeClick, so no swing or dig goes out (testkit 1027-ap3-gate-click-repeat).
+- **Held walk edge stop needs the slide (2026-10-27).** Checking only pos + v + 0.35 stopped a 0.5-speed run with its
+  feet already over the edge, and he fell 28 blocks under sneak and brake (1027-ap3-s2ee3-run-0.5-+0.45 on jar c). The
+  probe is pos + 2.2 v + 0.35 (ground friction 0.546 slides 1.2 v after the keys let go). A walk with a jump / edge
+  modifier, or a JUMP / EDGE node before the next place, is exempt: that walk leaves the floor on purpose.
+- **Charge, release and run in one block (2026-10-27).** Co-located nodes are ordered by type priority (charge 4, run 6,
+  release 7), not by the order they were added, so all six orders behave the same (testkit 1027-ap3-blink-combo-*). The
+  charge freezes him the tick after his first END in the box. But it finishes inside tickNode, after that END's
+  fireInstant and begin, so the Run and the Release used to wait a whole real tick (he walked 0.28 between the full bank
+  and the shot). A charge that finishes now gives the queue a second pass in the same END (chargeDoneThisTick): the Run
+  sets the hold, the Release asks for the shot along it, and the shot fires at the next tick start.
 

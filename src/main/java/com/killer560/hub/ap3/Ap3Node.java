@@ -276,10 +276,14 @@ public final class Ap3Node {
     public Direction wallDir;
     /** Modifier ({@code wait:1000}): milliseconds to hold the chain after this node before the next one; 0 = none. */
     public int waitAfterMs;
-    /** REMOVED modifier ({@code close}, 2026-10-06 - killer560: "I dont know what close gate does but I dont think
-     *  that is ever needed"): it held a node until a manual left click or a closed GUI. Always false now - neither
-     *  loaded nor saved ({@code Ap3Store}) - and kept only so the executor's old check reads false. */
+    /** Modifier on ANY node ({@code close}, 2026-10-27 - killer560: "ap3 needs a close suffix to only go after a
+     *  terminal is closed"): held by the node gate until a terminal screen closes after the node was reached. Saved as
+     *  "termClose" ({@code Ap3Store}); the old "close" key of the gate removed on 2026-10-06 stays unread. */
     public boolean closeGate;
+    /** Modifier on ANY node ({@code sectiondone:<n>}, 2026-10-27 - killer560: "add a suffix for leap on section end"):
+     *  1-4 = held by the node gate until P3 section n is complete this run (leveraura.P3SectionTracker#sectionDone),
+     *  wherever he stands; 0 = none. */
+    public int sectionDone;
     /**
      * Modifier on ANY node ({@code ss}): the node fires only once Simon Says is done this run. killer560 (2026-10-18):
      * "For ap3 add a ss trailer that will only trigger that node after ss finishes just like close is after a term
@@ -739,6 +743,9 @@ public final class Ap3Node {
         if (closeGate) {
             sb.append(" close");
         }
+        if (sectionDone > 0) {
+            sb.append(" sectiondone:").append(sectionDone);
+        }
         if (leapCounter > 0) {
             sb.append(" leapcounter:").append(leapCounter);
         }
@@ -791,6 +798,7 @@ public final class Ap3Node {
         leapIgn = o.leapIgn;
         leapCount = o.leapCount;
         leapCounter = o.leapCounter;
+        sectionDone = o.sectionDone;
         blinkTicks = o.blinkTicks;
         blinkStop = o.blinkStop;
         pathIndex = o.pathIndex;
@@ -812,7 +820,7 @@ public final class Ap3Node {
                 && waitAfterMs == o.waitAfterMs && closeGate == o.closeGate && ssGate == o.ssGate && jumpMod == o.jumpMod
                 && java.util.Objects.equals(useItemId, o.useItemId) && java.util.Objects.equals(name, o.name)
                 && leapMode == o.leapMode && leapClass == o.leapClass && java.util.Objects.equals(leapIgn, o.leapIgn)
-                && leapCount == o.leapCount && leapCounter == o.leapCounter && blinkTicks == o.blinkTicks && blinkStop == o.blinkStop && pathIndex == o.pathIndex && pathStart == o.pathStart
+                && leapCount == o.leapCount && leapCounter == o.leapCounter && sectionDone == o.sectionDone && blinkTicks == o.blinkTicks && blinkStop == o.blinkStop && pathIndex == o.pathIndex && pathStart == o.pathStart
                 && pathEnd == o.pathEnd && minSpeed == o.minSpeed && maxSpeed == o.maxSpeed && hasDir == o.hasDir
                 && dirDeg == o.dirDeg && dirTolDeg == o.dirTolDeg && termWait == o.termWait
                 && java.util.Objects.equals(colour, o.colour);
@@ -834,6 +842,7 @@ public final class Ap3Node {
         n.leapIgn = leapIgn;
         n.leapCount = leapCount;
         n.leapCounter = leapCounter;
+        n.sectionDone = sectionDone;
         n.blinkTicks = blinkTicks;
         n.blinkStop = blinkStop;
         n.colour = colour;
