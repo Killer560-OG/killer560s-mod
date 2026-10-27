@@ -63,6 +63,7 @@ public abstract class Ap3InputMixin extends ClientInput {
         }
         // Overridden but not driving (the align settling on its point): the record is all-off, so held keys move
         // nothing - the sprint key included, the record carries AP3's own sprint flag.
+        Ap3Executor.beforeInputInstall(); // a held walk's keys re-picked if the body was turned since they were chosen
         this.keyPresses = Ap3Executor.drivenInput();
         this.moveVector = new Vec2(Ap3Executor.moveVectorX(), Ap3Executor.moveVectorY());
     }

@@ -160,6 +160,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             pending.put("Width", fmt(n.width));
             pending.put("Length", fmt(n.length));
             pending.put("Wait ms", String.valueOf(n.waitAfterMs));
+            pending.put("Leap counter", String.valueOf(n.leapCounter));
             pending.put("Name", n.name == null ? "" : n.name);
             yawKnown = type.usesYaw();
             pitchKnown = type.usesPitch();
@@ -171,7 +172,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
         int typeRows = (Ap3Node.Type.values().length + TYPE_COLS - 1) / TYPE_COLS;
         int itemRows = (choices.size() + ITEM_COLS - 1) / ITEM_COLS;
         int rows = 1 + (typeOpen ? typeRows : 0) + 1 /* xyz */ + 1 /* box */ + (type.usesYaw() ? 1 : 0)
-                + 1 /* wait, name */ + (type.usesItem() ? 1 + itemRows : 0) + 1 /* jump, precise */ + 1 /* from me */;
+                + 1 /* wait, name */ + 1 /* leap counter */ + (type.usesItem() ? 1 + itemRows : 0) + 1 /* jump, precise */ + 1 /* from me */;
         panelW = PANEL_W;
         panelH = 32 + rows * LINE + 12 /* status */ + 20 + PAD;
         panelX = (this.width - panelW) / 2;
@@ -231,6 +232,9 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             addField(x, y, half, "Wait ms", 46);
             ssButton(x + half + GAP, y, w - half - GAP);
         }
+        y += LINE;
+        // The leapcounter: suffix (2026-10-26): 0 = none; any node type.
+        addField(x, y, half, "Leap counter", 70);
         y += LINE;
 
         if (type.usesItem()) {
@@ -485,10 +489,11 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
         Double nlen = num("Length");
         Double nwid = num("Width");
         Double nwait = num("Wait ms");
+        Double nleap = get("Leap counter").isBlank() ? Double.valueOf(0) : num("Leap counter");
         Double nyaw = type.usesYaw() ? num("Yaw") : Double.valueOf(0);
         Double npitch = type.usesPitch() ? num("Pitch") : Double.valueOf(0);
         if (nx == null || ny == null || nz == null || nyaw == null || npitch == null
-                || nlen == null || nwid == null || nwait == null) {
+                || nlen == null || nwid == null || nwait == null || nleap == null) {
             status = "§cOne of the numbers is not a number - nothing was changed.";
             return;
         }
@@ -513,6 +518,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             node.setLength(nlen);
             node.setWidth(nwid);
             node.setWaitAfterMs((int) Math.round(nwait));
+            node.setLeapCounter((int) Math.round(nleap));
             node.type = newType;
             node.jumpMod = jumpMod;
             node.ssGate = ssGate;
@@ -580,6 +586,11 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
      * dropped the sixth decimal the file has kept since 2026-10-05. Trailing zeros are trimmed so an ordinary value
      * still reads as "3" and not "3.000000".
      */
+    /** A float angle (yaw, pitch) at the decimal it was typed as - see {@link Ap3Node#savedAngle}. */
+    private static String fmt(float v) {
+        return fmt(Ap3Node.savedAngle(v));
+    }
+
     private static String fmt(double v) {
         String out = String.format(Locale.US, "%." + Ap3Node.SAVED_DECIMALS + "f", v);
         if (out.contains(".")) {

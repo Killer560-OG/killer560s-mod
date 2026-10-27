@@ -157,3 +157,9 @@ from changed. `-Dkiller560.livemap.verifyCache=true` (or `MapDrawCache.setVerify
 frame afresh, unsubmitted, and compares the two element by element; `MapDrawCache.stats()` is {replays, paints,
 compared, differed within the paint's own tick, differed after it}, `lastMismatch()` names the last stale element.
 Testkit 95-perf-livemap runs it.
+
+## AP3 leap counting (`ap3/Ap3Executor`)
+
+`Ap3Executor.setLeapCountAnyPlayerForTest(boolean)` (static, called by reflection): the leap counter and the
+`leapcounter:` gate count a teleporting player whatever its UUID version. The testkit's fake players have name-based
+(version 3) UUIDs, which the counter otherwise skips as NPCs. Used by testkit 1026-ap3-leapgate, which sets it back to false.
