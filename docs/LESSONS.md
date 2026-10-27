@@ -235,6 +235,17 @@ project CLAUDE.md. Compiling lessons
   1000 ms jump threshold never fixed it. Now the first reading of a track always sets the clock and any NEW reading (its
   LastUpdatedTime changed) more than 60 ms off corrects it; over 300 ms is logged. Measured on his PC: Spotify refreshes
   LastUpdatedTime about every 4.5 s even while paused (same position), and at once on a seek (130 ms later). Testkit 2840.
+- **Word-timed lyrics without an account (2026-10-27): only Kugou works.** Kugou KRC (`lyrics.kugou.com/search` +
+  `/download?fmt=krc`, XOR key + zlib) matched 40 of 50 popular songs within 2 s; NetEase gave no `yrc` anonymously (web
+  and eapi endpoints both), Musixmatch's anonymous `token.get` returns an all-zero token and then decoy data ("NOKIA",
+  gibberish lines), QQ's QRC needs a custom triple-DES decoder (not built). Kugou line starts run a median +166 ms after
+  lrclib's for the same lines (38 songs; Kugou stamps the first sung word, lrclib the line early).
+- **Hearing the audio does not place words in a full mix** (2026-10-27, 30 iTunes previews against Kugou word times):
+  true word starts meet a detected onset within 50 ms 35 % of the time against 32 % by chance (40 % / 38 % with a
+  harmonic-only split), onset snapping did not beat the syllable estimate (354 ms median), and Vosk with a lyric-only
+  grammar matched 2-4 % of sung words. The algorithm itself works on synthetic sung tones (offset recovered 380 of
+  400 ms), so the limit is the mix; it would need vocal source separation. Code and data:
+  `killer560s-mod-logs/words-research/`.
 - **"Nowhere near the right word" (2026-10-27) was not a clock or word-path regression.** `LyricTiming` is unchanged
   since before the Spotify branches and the HUD's word call is the same expression moved into `SpotifyHud.sungWord`;
   a 60 s simulation (testkit 2849) holds the clock within 6 ms and lights the right word on every frame with exact
