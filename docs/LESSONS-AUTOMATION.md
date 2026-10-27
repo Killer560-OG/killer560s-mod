@@ -408,6 +408,9 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
 - A Hold key down across a world change started its new hold on the new world's first tick, holding the spawn teleport's
   confirm: GrimAC Simulation 0.03-0.065 on 19-20 ticks (1026-blink-death (a), on 3011406a too). The new hold now waits for
   the spawn teleport (`BlinkFeature.spawnWaitTicks`, at most 40 ticks).
+- Charge's answer delay followed the cap (50 x Charge Ticks - 10 ms), so a bank kept when Charge Ticks was lowered (owner:
+  the bank is kept) was bigger than what that delay lets GrimAC cover: with Charge Ticks 2 and 17 banked the delay was 90 ms
+  and the shot drew Timer however long he stood (1027-blink-c-mixed). The delay now covers max(cap, banked).
 - The same lag allowance is shared by a hold and the bank: a hold while charging sends the waiting answers (TransactionOrder)
   and its own in its burst, so after it GrimAC covers only ~2 ticks of the kept bank. Before campaign-blink-1027 the shot after
   a kept hold drew Timer/TimerLimit and was half set back however long he waited (the bank was full, so nothing re-banked:
