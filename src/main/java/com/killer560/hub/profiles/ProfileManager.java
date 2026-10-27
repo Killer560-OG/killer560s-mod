@@ -106,7 +106,8 @@ public final class ProfileManager {
         return fileName != null
                 && fileName.startsWith("killer560smod-")
                 && fileName.endsWith(".json")
-                && !EXCLUDED_FILES.contains(fileName);
+                && !EXCLUDED_FILES.contains(fileName)
+                && !ModPaths.isRetired(fileName);
     }
 
     /**
@@ -171,7 +172,8 @@ public final class ProfileManager {
                     incoming.add(field, current.get(field));
                 }
             }
-            Files.writeString(live, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(incoming),
+            Files.writeString(ModPaths.forWrite(live),
+                    new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(incoming),
                     StandardCharsets.UTF_8);
             return true;
         } catch (Exception e) {
@@ -282,7 +284,8 @@ public final class ProfileManager {
                     }
                     inProfile.add(file.getFileName().toString());
                     // The name decides the folder, exactly as it does for the feature that reads the file.
-                    Path live = ModPaths.config(file.getFileName().toString());
+                    // Its folder may not exist yet: a feature's folder is made by its first save (2026-10-26).
+                    Path live = ModPaths.forWrite(ModPaths.config(file.getFileName().toString()));
                     if (!copyPreservingSecrets(file, live)) {
                         Files.copy(file, live, StandardCopyOption.REPLACE_EXISTING);
                     }
@@ -322,7 +325,7 @@ public final class ProfileManager {
             // Everything else it carries (GIFs, presets, routes...): replaced as a set. A profile from before the
             // data folder existed leaves the live data alone (null).
             int[] data = ProfileData.apply(dir);
-            Files.writeString(ACTIVE_MARKER, name, StandardCharsets.UTF_8);
+            Files.writeString(ModPaths.forWrite(ACTIVE_MARKER), name, StandardCharsets.UTF_8);
             // The live files now ARE this profile; its auto-save starts from here.
             lastLiveNames = null;
             lastLiveData = null;
@@ -781,7 +784,7 @@ public final class ProfileManager {
             boolean wasActive = oldName.equals(getActiveProfile());
             Files.move(from, to);
             if (wasActive) {
-                Files.writeString(ACTIVE_MARKER, newName, StandardCharsets.UTF_8);
+                Files.writeString(ModPaths.forWrite(ACTIVE_MARKER), newName, StandardCharsets.UTF_8);
                 lastSyncedProfile = newName;
             }
             LOGGER.info("[Profiles] Renamed \"{}\" to \"{}\"{}", oldName, newName, wasActive ? " (active)" : "");

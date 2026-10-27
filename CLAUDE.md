@@ -90,7 +90,12 @@ tag "(chat)"). The sim says only what Hypixel says, at Hypixel's pace.
 Every config path goes through `util/ModPaths.config("killer560smod-<name>")`, never `FabricLoader.getConfigDir()`
 directly: files live in `config/killer560/<category>/<feature>/` under their unchanged names, and the folder is
 picked from the prefix table in `ModPaths` (add a row for a new feature, or it lands in `other/`). Code that lists
-setting files uses `ModPaths.settingFiles()`. The client entrypoint's `ModPaths.migrateAll()` moves old root files in.
+setting files uses `ModPaths.settingFiles()`. The client entrypoint's `ModPaths.migrateAll()` moves old root files in. `ModPaths.config()` does NOT
+create the folder (since 2026-10-26): a save creates its parent first (`Files.createDirectories(path.getParent())` or
+`ModPaths.forWrite(path)`), and a folder lister treats a missing folder as empty. `migrateAll` also moves
+`ModPaths.RETIRED_NAMES` (removed features' files) into `retired/` (never deleted, never in a profile), sweeps
+`FORMER_FOLDERS` (now including `other/`) with a WARN for a stale copy it cannot move, and removes empty category and
+feature folders. `MapLogger` keeps the newest 20 map logs.
 
 Every setting must survive a restart: add the field, load it, save it, and expose a getter and setter. A new config
 class's `load` also goes in `ProfileManager.reloadAllConfigs`, or applying a profile is undone by its next save (testkit
@@ -318,3 +323,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Blink's keys are read under a container menu (a terminal) since 2026-10-26; before, opening one mid-hold read as the
   key coming up and released the hold. Rework Grim findings (banked turns, Post on dropped releases, the in-place
   teleport conflict) are in docs/LESSONS-AUTOMATION.md, Blink section.
+- `ModPaths.config()` made the parent folder on every lookup, and most features look up from a static initializer, so
+  each boot made ~85 empty folders (cheat ones in legit instances). Since layout-fixes-1026 only a write makes a folder;
+  a new writer must create its parent, and an "Open Folder" button gets it from `ExternalOpen.path` (testkit 1026-layout-empty).

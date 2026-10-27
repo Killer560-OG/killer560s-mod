@@ -45,7 +45,7 @@ public final class SharingDefaults {
             com.killer560.hub.modchat.ModChatConfig chat = com.killer560.hub.modchat.ModChatConfig.getInstance();
             chat.setEnabled(true);
             chat.save();
-            Files.writeString(MARKER_V2, "{\"applied\":\"2026-09-21\"}", StandardCharsets.UTF_8);
+            Files.writeString(ModPaths.forWrite(MARKER_V2), "{\"applied\":\"2026-09-21\"}", StandardCharsets.UTF_8);
             LOGGER.info("[Interop] Mod Chat switched on once (new default)");
         } catch (Exception e) {
             LOGGER.warn("[Interop] Could not apply Mod Chat default: {}", e.toString());
@@ -77,7 +77,7 @@ public final class SharingDefaults {
             melody.setShareProgress(true);
             melody.save();
 
-            Files.writeString(MARKER, "{\"applied\":\"2026-09-21\"}", StandardCharsets.UTF_8);
+            Files.writeString(ModPaths.forWrite(MARKER), "{\"applied\":\"2026-09-21\"}", StandardCharsets.UTF_8);
             LOGGER.info("[Interop] Sharing/receiving settings switched on once (new default)");
         } catch (Exception e) {
             // Leave the marker unwritten so the next launch tries again.

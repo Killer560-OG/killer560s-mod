@@ -102,14 +102,10 @@ public final class BreakerAuraStore {
         return version;
     }
 
-    /** The folder every config file lives in (the tab's "Open Folder" button); created if missing. */
+    /** The folder every config file lives in (the tab's "Open Folder" button). Not created here (2026-10-26: it was
+     *  made at every boot, empty for anyone who never picked a block); each write makes it. */
     public static Path directory() {
-        Path dir = ModPaths.config(FOLDER_NAME);
-        try {
-            Files.createDirectories(dir);
-        } catch (Exception ignored) {
-        }
-        return dir;
+        return ModPaths.config(FOLDER_NAME);
     }
 
     /** The config file in use: {@link DungeonExtrasConfig#getBreakerAuraConfigFile()} inside {@link #directory()}. */
@@ -128,7 +124,7 @@ public final class BreakerAuraStore {
      *  including the one in use even when it is not on disk yet (it is written on the first pick/save). */
     public static List<String> listConfigNames() {
         List<String> out = new ArrayList<>();
-        try (var stream = Files.list(directory())) {
+        try (var stream = Files.isDirectory(directory()) ? Files.list(directory()) : java.util.stream.Stream.<Path>empty()) {
             stream.forEach(p -> {
                 String name = p.getFileName().toString();
                 if (Files.isRegularFile(p) && name.toLowerCase(Locale.ROOT).endsWith(JSON)
@@ -213,6 +209,7 @@ public final class BreakerAuraStore {
             return "A file called " + name + " already exists.";
         }
         try {
+            Files.createDirectories(file.getParent());
             Files.writeString(file, GSON.toJson(emptyRoot()), StandardCharsets.UTF_8);
         } catch (Exception e) {
             LOGGER.warn("[BreakerAura] Could not create {}", file, e);
@@ -326,6 +323,7 @@ public final class BreakerAuraStore {
                 }
             }
             root.add("picked", arr);
+            Files.createDirectories(target.getParent());
             Files.writeString(target, GSON.toJson(root), StandardCharsets.UTF_8);
             LOGGER.info("[BreakerAura] Migrated {} pick(s) from the old settings file into {}/{}",
                     n, FOLDER_NAME, DEFAULT_CONFIG_NAME);

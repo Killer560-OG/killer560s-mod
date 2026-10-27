@@ -109,11 +109,8 @@ public final class GifPlayerFeature {
     }
 
     public static void register() {
-        try {
-            Files.createDirectories(GIF_FOLDER);
-        } catch (IOException e) {
-            LOGGER.error("Failed to create GIF folder", e);
-        }
+        // The folder is not made here (2026-10-26: one empty folder per boot for everyone who never adds a GIF); the
+        // tab's Open Folder button makes it (ExternalOpen.path), and a missing folder lists as empty.
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("GifPlayerFeature",
                 client -> GifAudioFeature.tickSkyblockGate()));
     }
@@ -142,7 +139,7 @@ public final class GifPlayerFeature {
     private static void loadGifs() {
         gifsRequested = true;
         List<Path> found;
-        try (Stream<Path> stream = Files.list(GIF_FOLDER)) {
+        try (Stream<Path> stream = list(GIF_FOLDER)) {
             found = stream.filter(Files::isRegularFile)
                     .filter(GifDecoder::isGif)
                     .sorted((a, b) -> a.getFileName().toString().compareToIgnoreCase(b.getFileName().toString()))
@@ -425,6 +422,11 @@ public final class GifPlayerFeature {
         return GIF_FOLDER;
     }
 
+    /** {@code Files.list(dir)}, or nothing when the folder does not exist yet (it is made when he opens it). */
+    static Stream<Path> list(Path dir) throws IOException {
+        return Files.isDirectory(dir) ? Files.list(dir) : Stream.empty();
+    }
+
     /**
      * {@code name} as a file directly inside {@link #folder()}, or null when it would land anywhere else. Names can come
      * from a shared profile (DVD's GIF and corner-hit sound), and {@code resolve} of an absolute, {@code ..} or UNC name
@@ -447,7 +449,7 @@ public final class GifPlayerFeature {
     /** Every .gif filename currently in the folder, regardless of its enabled state - for the tab's
      *  per-file toggle list. */
     public static List<String> discoverFileNames() {
-        try (Stream<Path> stream = Files.list(GIF_FOLDER)) {
+        try (Stream<Path> stream = list(GIF_FOLDER)) {
             return stream.filter(Files::isRegularFile)
                     .filter(GifDecoder::isGif)
                     .map(p -> p.getFileName().toString())

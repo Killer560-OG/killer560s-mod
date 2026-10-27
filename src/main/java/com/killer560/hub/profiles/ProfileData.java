@@ -111,7 +111,7 @@ public final class ProfileData {
             return false;
         }
         String key = name.substring(ModPaths.PREFIX.length());
-        if (EXCLUDED_NAMES.contains(key)) {
+        if (EXCLUDED_NAMES.contains(key) || ModPaths.isRetired(name)) {
             return false;
         }
         for (String prefix : EXCLUDED_NAME_PREFIXES) {
@@ -146,7 +146,9 @@ public final class ProfileData {
             return out;
         }
         try (var walk = Files.walk(root, 3)) {
-            walk.filter(p -> root.relativize(p).getNameCount() == 3).forEach(p -> {
+            // Never retired/ (a removed feature's leftovers, ModPaths.RETIRED_NAMES): a profile must not carry it.
+            walk.filter(p -> root.relativize(p).getNameCount() == 3
+                    && !root.relativize(p).getName(0).toString().equals(ModPaths.RETIRED)).forEach(p -> {
                 String name = p.getFileName().toString();
                 if (!isDataName(name, Files.isDirectory(p))) {
                     return;

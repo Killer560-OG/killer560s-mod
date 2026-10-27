@@ -58,10 +58,40 @@ public final class ModPaths {
      * {@link #config} that is missing from its folder but present in one of these is moved over, and
      * {@link #migrateAll} sweeps these folders of every file that now belongs elsewhere.
      */
-    static final List<String> FORMER_FOLDERS = List.of("dungeons/autoroutes");
+    static final List<String> FORMER_FOLDERS = List.of("dungeons/autoroutes", "other");
 
     /** Where anything with no entry in the table goes. */
     static final String OTHER = "other";
+
+    /** Where {@link #RETIRED_NAMES} are put: kept, never deleted, never read, never carried by a profile. */
+    public static final String RETIRED = "retired";
+
+    /**
+     * Files and folders of features that were removed (2026-10-26 instance audit). {@link #migrateAll} moves any it
+     * finds - in the config root, in {@code other/} or in a feature folder - into {@code config/killer560/retired/},
+     * so an instance's tree holds only what a current feature uses while nothing he had is deleted.
+     */
+    public static final Set<String> RETIRED_NAMES = Set.of(
+            "killer560smod-ambience", "killer560smod-ambience-cache",          // Ambience, removed 6a03925f
+            "killer560smod-jumpscare", "killer560smod-jumpscare-cache",        // Ambience's older name
+            "killer560smod-proximityvoice.json",                               // Proximity Voice, removed 495c33de
+            "killer560smod-teleports.log", "killer560smod-teleportlog.json",   // Teleport Logger, removed 40911091
+            "killer560smod-termlog.json", "killer560smod-termlog-attempts.jsonl", // Terminal Open Logger, removed 7a43a11d
+            "killer560smod-termlog-attempts.1.jsonl",
+            "killer560smod-chat-log.txt",                                      // no code in history writes it
+            "killer560smod-abilitytimers.json",                                // Ability Timers, removed 805ca633
+            "killer560smod-autoleap.json",                                     // Auto Leap Out, replaced by Fast Leap
+            "killer560smod-betterpartyfinder.json",                            // Better Party Finder
+            "killer560smod-lavalab", "killer560smod-lavalab.json",             // AP3 lava lab, removed c81ff762
+            "killer560smod-sim-roompicker.txt",                                // sim room picker, replaced by filters
+            "killer560smod-sim-runs",                                          // sim runs, now the run history
+            "killer560smod-spotify-setup-guide.txt"                            // generated guide, no longer written
+    );
+
+    /** Whether {@code name} is one of {@link #RETIRED_NAMES}. */
+    public static boolean isRetired(String name) {
+        return name != null && RETIRED_NAMES.contains(name);
+    }
 
     /**
      * Name (with {@link #PREFIX} stripped) -> folder under {@link #root()}. Matched by PREFIX, longest key wins, so
@@ -173,6 +203,10 @@ public final class ModPaths {
         t.put("chocolatefactory", "skyblock/chocolatefactory");
         // Egg spots the Egglocator snaps to, per island (killer560smod-eggpositions.json), 2026-10-19.
         t.put("eggpositions", "skyblock/chocolatefactory");
+        // Hoppity's egg tracker (killer560smod-eggtracker.json): in other/ until 2026-10-26.
+        t.put("eggtracker", "skyblock/chocolatefactory");
+        // Legit GFS, a Misc helper (killer560smod-legitgfs.json): in other/ until 2026-10-26.
+        t.put("legitgfs", "skyblock/legitgfs");
         t.put("autokick", "skyblock/autokick");
         t.put("autojoinskyblock", "skyblock/autojoinskyblock");
 
@@ -244,6 +278,11 @@ public final class ModPaths {
         t.put("armourdye", "interface/armourdye");
         t.put("diorite", "interface/dioriteglass");
         t.put("notify", "interface/notify");
+        // Cosmetics: Cape and Mod Tag (killer560smod-cape.json, -modusers.json); Misc: Zoom (-zoom.json). Each was in
+        // other/ until 2026-10-26.
+        t.put("cape", "interface/cape");
+        t.put("modusers", "interface/modusers");
+        t.put("zoom", "interface/zoom");
 
         // ---- system ----------------------------------------------------------------------------------------------
         t.put("configversion", "system/configversion");
@@ -273,6 +312,10 @@ public final class ModPaths {
         t.put("relay", "system/relay");
         t.put("commandkeybinds", "system/commands");
         t.put("commandshortcuts", "system/commands");
+        // Streamer Mode, a Home tab (killer560smod-streamer.json), and the testing build's Mark-tested list
+        // (killer560smod-tested-<variant>.json). Both were in other/ until 2026-10-26.
+        t.put("streamer", "system/streamer");
+        t.put("tested-", "system/testing");
         return t;
     }
 
@@ -342,7 +385,12 @@ public final class ModPaths {
     /**
      * The path of this mod's config file or folder {@code legacyName} - the name it has always had, e.g.
      * {@code "killer560smod-hud.json"} or {@code "killer560smod-ap3"}. Returns
-     * {@code config/killer560/<category>/<feature>/<legacyName>}, with its parent folders created.
+     * {@code config/killer560/<category>/<feature>/<legacyName>}.
+     *
+     * <p>The parent folder is NOT created (since 2026-10-26): features look their path up from a static initializer
+     * whether they ever save or not, and creating it here left one empty folder per loaded feature on every boot (85 in
+     * one instance). Whoever writes creates the parent first - {@code Files.createDirectories(path.getParent())}, or
+     * {@link #forWrite}.
      *
      * <p>If the old {@code config/<legacyName>} still exists and the new one does not, it is moved first. Never
      * throws; if the move fails it logs a WARN and returns the OLD path, so a setting is never lost to a failed move.
@@ -350,10 +398,13 @@ public final class ModPaths {
     public static Path config(String legacyName) {
         Path target = root().resolve(relativeFor(legacyName));
         try {
+            String tail = legacyName.substring(legacyName.indexOf('/') + 1);
             if (Files.exists(target)) {
+                if (STALE_CHECKED.add(legacyName)) {
+                    reportStaleCopies(legacyName, tail, target);
+                }
                 return target;
             }
-            String tail = legacyName.substring(legacyName.indexOf('/') + 1);
             for (String former : FORMER_FOLDERS) {
                 Path old = root().resolve(former).resolve(tail);
                 if (!old.equals(target) && Files.exists(old)) {
@@ -381,14 +432,53 @@ public final class ModPaths {
                     }
                 }
             }
-            Path parent = target.getParent();
-            if (parent != null && !Files.isDirectory(parent)) {
-                Files.createDirectories(parent);
-            }
         } catch (Exception e) {
             Log.LOGGER.warn("[ModPaths] could not prepare {}", target, e);
         }
         return target;
+    }
+
+    /** Creates {@code path}'s parent folders and returns {@code path}, for a save about to write it. Never throws: a
+     *  failure is logged and the write that follows reports its own error. */
+    public static Path forWrite(Path path) {
+        try {
+            Path parent = path.getParent();
+            if (parent != null && !Files.isDirectory(parent)) {
+                Files.createDirectories(parent);
+            }
+        } catch (Exception e) {
+            Log.LOGGER.warn("[ModPaths] could not create the folder for {}", path, e);
+        }
+        return path;
+    }
+
+    /** Names {@link #config} has already looked for leftovers of (once a session each: it is called per save). */
+    private static final Set<String> STALE_CHECKED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Warns about a copy of {@code legacyName} still in the config root or a former folder while {@code target}
+     *  is the one in use. */
+    private static void reportStaleCopies(String legacyName, String tail, Path target) {
+        for (String former : FORMER_FOLDERS) {
+            Path old = root().resolve(former).resolve(tail);
+            if (!old.equals(target) && Files.exists(old)) {
+                warnStale(old, target);
+            }
+        }
+        Path legacy = configDir().resolve(legacyName);
+        if (!legacy.equals(target) && Files.exists(legacy)) {
+            warnStale(legacy, target);
+        }
+    }
+
+    /** Pairs already reported by {@link #warnStale}, so each leftover is said once a session. */
+    private static final Set<String> WARNED_STALE = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** A copy left at an old spot because the new spot already holds one: neither is touched, but say so. */
+    private static void warnStale(Path stale, Path live) {
+        if (WARNED_STALE.add(stale + "|" + live)) {
+            Log.LOGGER.warn("[ModPaths] stale copy left at {} - {} already exists and is the one in use; neither was "
+                    + "changed", stale, live);
+        }
     }
 
     /** Moves {@code legacy} to {@code target}, falling back to copy-then-delete (e.g. across volumes). Never throws.
@@ -468,6 +558,11 @@ public final class ModPaths {
      * even for features never touched this session. Called first thing in the client entrypoint. Never throws.
      */
     public static void migrateAll() {
+        int retired = retireRemovedFeatures();
+        if (retired > 0) {
+            Log.LOGGER.info("[ModPaths] moved {} removed feature file(s)/folder(s) into {}", retired,
+                    root().resolve(RETIRED));
+        }
         List<String> names = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir())) {
             for (Path entry : stream) {
@@ -488,8 +583,13 @@ public final class ModPaths {
                     continue;
                 }
                 Path legacy = configDir().resolve(name);
-                if (!config(name).equals(legacy) && !Files.exists(legacy)) {
-                    moved++;
+                Path now = config(name);
+                if (!now.equals(legacy)) {
+                    if (!Files.exists(legacy)) {
+                        moved++;
+                    } else {
+                        warnStale(legacy, now);
+                    }
                 }
             } catch (Exception e) {
                 Log.LOGGER.warn("[ModPaths] could not migrate {}", name, e);
@@ -499,6 +599,95 @@ public final class ModPaths {
         if (moved > 0) {
             Log.LOGGER.info("[ModPaths] moved {} config file(s)/folder(s) into {}", moved, root());
         }
+        removeEmptyFolders();
+    }
+
+    /**
+     * Moves every {@link #RETIRED_NAMES} entry found in the config root, directly in a top folder ({@code other/}) or
+     * in a feature folder into {@code retired/}. A name already in {@code retired/} is left where it was and logged.
+     * Never deletes, never throws.
+     */
+    static int retireRemovedFeatures() {
+        List<Path> found = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir())) {
+            for (Path entry : stream) {
+                if (isRetired(entry.getFileName().toString())) {
+                    found.add(entry);
+                }
+            }
+        } catch (Exception e) {
+            Log.LOGGER.warn("[ModPaths] could not list the config folder for retired files", e);
+        }
+        Path r = root();
+        if (Files.isDirectory(r)) {
+            try (var walk = Files.walk(r, 3)) {
+                walk.filter(p -> {
+                    Path rel = r.relativize(p);
+                    int n = rel.getNameCount();
+                    return n >= 2 && n <= 3 && !rel.getName(0).toString().equals(RETIRED)
+                            && isRetired(p.getFileName().toString());
+                }).forEach(found::add);
+            } catch (Exception e) {
+                Log.LOGGER.warn("[ModPaths] could not list {} for retired files", r, e);
+            }
+        }
+        int moved = 0;
+        for (Path old : found) {
+            if (!Files.exists(old)) {
+                continue; // inside a retired folder moved a moment ago
+            }
+            Path target = r.resolve(RETIRED).resolve(old.getFileName().toString());
+            if (Files.exists(target)) {
+                warnStale(old, target);
+                continue;
+            }
+            if (move(old, target)) {
+                moved++;
+                Log.LOGGER.info("[ModPaths] retired {} (a removed feature's file) to {}", old, target);
+            }
+        }
+        return moved;
+    }
+
+    /**
+     * Deletes every EMPTY folder directly under {@link #root()} or one level below it (a category or a feature
+     * folder), which builds before 2026-10-26 created for every feature at boot whether it saved or not. A folder
+     * with anything in it - a file, or a folder of its own - is never touched. Never throws.
+     */
+    static int removeEmptyFolders() {
+        Path r = root();
+        if (!Files.isDirectory(r)) {
+            return 0;
+        }
+        List<Path> folders = new ArrayList<>();
+        try (var walk = Files.walk(r, 2)) {
+            walk.filter(p -> !p.equals(r) && Files.isDirectory(p, java.nio.file.LinkOption.NOFOLLOW_LINKS))
+                    .forEach(folders::add);
+        } catch (Exception e) {
+            Log.LOGGER.warn("[ModPaths] could not list {} for empty folders", r, e);
+            return 0;
+        }
+        // Deepest first, so a category emptied by its feature folders going is removed too.
+        folders.sort((a, b) -> Integer.compare(b.getNameCount(), a.getNameCount()));
+        int removed = 0;
+        for (Path dir : folders) {
+            try {
+                boolean empty;
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+                    empty = !stream.iterator().hasNext();
+                }
+                if (empty) {
+                    Files.delete(dir); // refuses a folder that gained an entry since the look above
+                    removed++;
+                }
+            } catch (Exception ignored) {
+                // In use, or no longer empty: leave it.
+            }
+        }
+        if (removed > 0) {
+            Log.LOGGER.info("[ModPaths] removed {} empty folder(s) under {}", removed, r);
+        }
+        return removed;
     }
 
     /** Moves every file in a {@link #FORMER_FOLDERS} folder whose row now points elsewhere. Never throws. */
@@ -524,8 +713,13 @@ public final class ModPaths {
                         continue;
                     }
                     Path old = dir.resolve(name);
-                    if (!config(name).equals(old) && !Files.exists(old)) {
-                        moved++;
+                    Path now = config(name);
+                    if (!now.equals(old)) {
+                        if (!Files.exists(old)) {
+                            moved++;
+                        } else {
+                            warnStale(old, now);
+                        }
                     }
                 } catch (Exception e) {
                     Log.LOGGER.warn("[ModPaths] could not move {} out of {}", name, former, e);
@@ -600,10 +794,13 @@ public final class ModPaths {
      *  (Zoom, Cape, Legit GFS, Streamer, Mod Users) out of profiles. */
     private static boolean isFeatureFolderDepth(Path relative) {
         int n = relative.getNameCount();
+        if (n >= 1 && relative.getName(0).toString().equals(RETIRED)) {
+            return false;
+        }
         return n == 3 || (n == 2 && relative.getName(0).toString().equals(OTHER));
     }
 
     private static boolean isSettingName(String name) {
-        return name.startsWith(PREFIX) && name.endsWith(".json");
+        return name.startsWith(PREFIX) && name.endsWith(".json") && !isRetired(name);
     }
 }
