@@ -2173,7 +2173,8 @@ final class SettingTooltipsData {
         d.put("arrow align/highlight color", "Color of the box drawn on frames that still need clicking.");
         d.put("arrow align/disable trigger bot while crouching", "Cheat build only. On: Trigger Bot sends no click while you hold the crouch key. Off: it keeps clicking while you crouch.");
         d.put("arrow align/disable aura while crouching", "Cheat build only. On: the Aura sends no click while you hold the crouch key. Off: it keeps clicking while you crouch.");
-        d.put("arrow align/aura clicks per tick", "Cheat build only. How many clicks the Aura sends on one frame within a single game tick, 1-4. 1 is the normal one click per tick. Tested against GrimAC with no flags, but a different server may not like it.");
+        d.put("arrow align/aura clicks per tick", "Cheat build only. How many clicks the Aura may send to one frame in a single tick, 1-7; at 7 every frame is finished in one tick.");
+        d.put("arrow align/turn and click same tick", "Cheat build only. Turns your body to a frame and clicks it in the same tick instead of turning one tick and clicking the next, so each frame costs one tick.");
         d.put("arrow align/leave last arrow", "Cheat build only. Until stage S3 starts (the Predev stretch) the Aura takes the lowest, leftmost arrow that still needs clicks to one click from done and stops there, so a single click finishes the device once S3 begins.");
         d.put("arrow align/disable leave last arrow while crouching", "Cheat build only. On: Leave Last Arrow is suspended while you hold the crouch key, so the Aura may click that arrow (if the Aura itself is not disabled by crouching). Off: it keeps holding the arrow back.");
         d.put("arrow align/trigger bot cps", "Cheat build only: Trigger Bot clicks per second, 1 to 20, a fresh random value between the two ends for every click.");
