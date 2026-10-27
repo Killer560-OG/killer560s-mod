@@ -364,3 +364,11 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
 - A feature drives Charge through `BlinkCharge.beginFor(owner, n)` / `shootFor(owner, n)` / `endFor` (AP3's Blink nodes):
   the key is ignored while an owner holds it, `cap()` is the owner's n, and a partial shot leaves the rest banked. The shot
   runs at Blink's START with the input a driver installed at the END before, which is how AP3's release fires along its walk.
+- A shot replays banked ticks inside one real tick, so a feature that steers him per tick must run inside it: a 20-tick AP3
+  release on the keys chosen at the END before ran him 18.75 blocks straight off S2's platform (Mod Only Test log
+  2026-10-27 00:15:34). `BlinkCharge.addShotTickEndHook` runs after each shot tick's movement and tick-end, and
+  `addShotGuard` can end a shot before a tick (the rest stays banked). An `endFor` from inside the loop is deferred
+  (`pendingEnd`): a reset under the loop would null the connection the loop sends on.
+- A banked tick passes no game time for the server, so a driver may skip his physics on exactly those ticks and keep his
+  momentum (AP3's Blink Charge, `noteFrozenTick`): measured on GrimAC, sprinting and mid-jump, 10 ticks paused, velocity
+  unchanged, and the run afterwards equal tick for tick (0.000000) to the same route without the charge; clean.
