@@ -161,6 +161,12 @@ features: on 2026-10-25 he asked for Blink, Inventory Walk and Zero Ping Etherwa
 (cheat build only, off by default; blink-1025). Zero Ping Etherwarp stays CAMERA ONLY (his decision 2026-10-25; in both builds since 2026-10-26): the
 character is never moved client-side ahead of the server, so the setPos rule above stands. Blink AP3 is not built.
 
+A setting that flags is not shipped with that value (killer560, 2026-10-27: "if a setting is flagging then it shouldnt be
+pushed with that setting. SImple as that."). Test every new cheat setting at its HIGHEST value on GrimAC's default config
+AND with `experimental-checks: true` (testkit: a checkout whose `run/testserver/config/GrimAC/config.yml` says so); a value
+that flags is capped below or the setting removed (Arrow Align Frames Per Tick was dropped for MultiInteractA/B,
+2026-10-27). Kept-teleport Blink flags are his one accepted exception.
+
 (Added 2026-10-20: the working rules that now apply. Each is in the handoff file too, which is the fuller record.)
 
 (Added 2026-10-26, killer560:)
@@ -326,6 +332,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   SimWorld leaves a flag its END_CLIENT_TICK drains (5a1afa62; 97-sim-leave-build lost 5 of 5 resets to the task alone).
 - A spelling sweep can merge map keys: six British/American tooltip key pairs ("color", "border color", ...) became one key
   each and the later entry silently replaced the earlier (a92e0357). After renaming text, check keyed maps for duplicates.
+  A branch can do it too: aafast-1027 added a new "arrow align/aura clicks per tick" tooltip (1-7) above the old one (1-4),
+  and the old one, later in `SettingTooltipsData`, won (2026-10-27). After a merge: `grep -o 'd\.put("[^"]*"' | sort | uniq -d`.
 - Merging branches that each edit `docs/FEATURES.md` left 11 features listed twice, each copy holding a change the other
   lacked (2026-10-24, fixed in 8dcac505). After such a merge, check FEATURES.md for a feature named twice before the Doc regen.
 - **No secret ever goes in this repo or a jar** (security audit 2026-10-27, `killer560s-mod-logs/security-audit-1027.md`).
