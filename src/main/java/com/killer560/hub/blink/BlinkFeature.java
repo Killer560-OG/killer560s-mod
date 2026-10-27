@@ -286,7 +286,17 @@ public final class BlinkFeature {
         if (spawnWaitTicks > 0) {
             spawnWaitTicks--;
         }
-        if (!holding && wanted && spawnWaitTicks > 0) {
+        if (spawnSettle) {
+            // After the spawn teleport he drops the 0.1 the server spawns him above the ground; held, those first ticks
+            // drew GrimAC Simulation 0.029 decaying x8 on 26.2 (1026-blink-death (a), 1 run in 2). The new hold waits until
+            // he stands on the ground (at most 60 ticks after the world change).
+            spawnSettleTicks++;
+            if ((spawnWaitTicks == 0 && client.player.onGround() && client.player.getY() == client.player.yo)
+                    || spawnSettleTicks > 60) {
+                spawnSettle = false;
+            }
+        }
+        if (!holding && wanted && (spawnWaitTicks > 0 || spawnSettle)) {
             // A new world: the hold waits until the server's spawn teleport has been confirmed (campaign-blink-1027).
         } else if (!holding && wanted) {
             if (!SkyblockGate.allows()) {
@@ -496,6 +506,8 @@ public final class BlinkFeature {
      * moves: GrimAC Simulation 0.03-0.065 on ~20 ticks (1026-blink-death (a), on 3011406a too).
      */
     private static int spawnWaitTicks;
+    private static boolean spawnSettle;
+    private static int spawnSettleTicks;
 
     public static void onServerPosition(Vec3 from, Vec3 to) {
         if (spawnWaitTicks > 2) {
@@ -598,6 +610,8 @@ public final class BlinkFeature {
         // key to come up, because a hold on the new world's first tick drew GrimAC Post (testkit 1025-blink-world).
         holdLatched = false;
         spawnWaitTicks = 40;
+        spawnSettle = true;
+        spawnSettleTicks = 0;
         if (keyWasDown) {
             BlinkLog.event("Hold key still down across the world change - a new hold goes on in the new world");
         }

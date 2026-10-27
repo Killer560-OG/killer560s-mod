@@ -719,7 +719,7 @@ public final class BlinkCharge {
     private static int deferredCount;
     private static long deferredAtMs;
     /** The longest a shot waits for cover; after it, it fires anyway (logged). */
-    private static final long SHOT_WAIT_MAX_MS = 3000L;
+    private static final long SHOT_WAIT_MAX_MS = 10000L;
 
     /** GrimAC's lag allowance covers the whole bank now: no teleport held, nothing unbacked. */
     private static boolean covered() {
@@ -895,13 +895,22 @@ public final class BlinkCharge {
             long waited = System.currentTimeMillis() - deferredAtMs;
             boolean ok = covered();
             deferredWhy = null;
-            BlinkLog.event("charge: the shot (%s) waited %d ms %s", why, waited, ok ? "for the bank to be covered - firing"
-                    : "and the bank is still not covered (he kept moving) - firing anyway, GrimAC may set it back");
-            if (why.startsWith("released by")) {
-                requestFrom = client.player == null ? null : client.player.position();
-                requestTicks = 0;
+            if (ok) {
+                BlinkLog.event("charge: the shot (%s) waited %d ms for the bank to be covered - firing", why, waited);
+                if (why.startsWith("released by")) {
+                    requestFrom = client.player == null ? null : client.player.position();
+                    requestTicks = 0;
+                }
+                shoot(client, client.player, why, c);
+            } else {
+                // Moving ticks can never cover it (each one spends the real time it takes), and fired uncovered the shot is
+                // set back with TimerLimit: not fired, the bank kept for his next release (campaign-blink-1027).
+                BlinkLog.event("charge: the shot (%s) was not fired - after %d ms the bank is still not covered (he kept "
+                        + "moving; it needs about a second standing still after a teleport); bank kept (%d)", why, waited, banked);
+                if (BlinkConfig.getInstance().isChatMessages()) {
+                    ModChat.send("Blink", ModChat.text("shot not fired - stand still a second after a teleport, bank kept"));
+                }
             }
-            shoot(client, client.player, ok ? why : why + ", continued", c);
         }
         if (shotLeft > 0) {
             if (tickStamp >= shotLeftAt + 2) {
@@ -1029,7 +1038,7 @@ public final class BlinkCharge {
             // ping's answer, or the ticks sent since then are not backed again. Fired now the shot is set back (the
             // owner's leap then release, 1027-ap3-blink-leap-now/-10, TimerLimit). killer560 2026-10-27: fire the kept
             // bank on the first tick the server will accept it, automatically - never drop it. It fires the tick the bank
-            // is covered (about 2 s after a teleport if he stands still; at most SHOT_WAIT_MAX_MS).
+            // is covered (about 2 s after a teleport if he stands still; after SHOT_WAIT_MAX_MS it is not fired, bank kept).
             deferredWhy = why;
             deferredCount = count;
             deferredAtMs = System.currentTimeMillis();
