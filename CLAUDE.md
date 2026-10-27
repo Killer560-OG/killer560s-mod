@@ -360,3 +360,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - `ModPaths.config()` made the parent folder on every lookup, and most features look up from a static initializer, so
   each boot made ~85 empty folders (cheat ones in legit instances). Since layout-fixes-1026 only a write makes a folder;
   a new writer must create its parent, and an "Open Folder" button gets it from `ExternalOpen.path` (testkit 1026-layout-empty).
+- Blink Charge keeps its bank through every teleport by the owner's decision (2026-10-27); GrimAC flags the next shot; do
+  not revert. Wider (same day): "it should never drop blink if possible except if i release it" - Charge also survives
+  respawns, dimension changes, a configuration phase, a hold starting, the Skyblock gate flipping, screens (keys keep their
+  state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
+  release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
+  `Rows.addKept`).
