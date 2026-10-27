@@ -934,6 +934,12 @@ public final class Ap3Feature {
     private static void onChat(Component message) {
         try {
             if (!Ap3Executor.isRunning()) {
+                // The leap line is remembered even with nothing running: an armed route that is idle (standing at a
+                // terminal, between sections) when Fast/Auto Leap fires must still know the landing was a LEAP, the
+                // one landing that pulls him into an align beside it (ship3-1027: the line was dropped here).
+                if (SELF_LEAP.matcher(ChatObserver.strip(message)).matches()) {
+                    Ap3Executor.onLeapLine();
+                }
                 return;
             }
             String plain = ChatObserver.strip(message);
