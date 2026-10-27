@@ -158,9 +158,9 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   the point goes first. (2) RUN #33's line passes 1.4-1.9 blocks beside #34's 1x1 box and never enters it, so the run
   went on to the floor's edge (testkit 1027-ap3-s2ee3-run-* on the shipped jar: every entry fell 56 blocks). A held walk
   that passes within 2.5 of the route's next place (the next walk/align/stop/path/leap/terminal, skipping looks, uses,
-  booms and blink nodes) and is getting farther away begins that align; and a held walk stops at an edge more than 0.5
-  below its start unless that next place is lower, then brakes (sneak + key against velocity) until still - AP3 counts as
-  running while it brakes, or the input hook would not install the sneak.
+  booms and blink nodes) and is getting farther away begins that align (or, since the afternoon, hands the hold to that
+  walk / run). The held-walk edge stop that came with it is OFF for good (owner: runs may walk off ledges; see the entry
+  above): only aligns keep a ledge rule.
 - **The `close` suffix (2026-10-27).** Any node; saved as "termClose" (the old "close" key of the 2026-10-06-removed gate
   stays unread so stale flags do not wake up). Held by the leapcounter: gate (only aligns run, a left click skips) until a
   container whose title `terminals/TerminalType.match` accepts goes from open to closed after the node was reached - a
@@ -177,10 +177,9 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   no gate to skip. A screen no longer stops AP3 while the only thing running is a gate (gateOnlyWaiting), and a stop that
   does drop a gate remembers it: a left click while he still stands in its box fires it (takeDroppedGateClick). The click
   is taken at START by consumeClick, so no swing or dig goes out (testkit 1027-ap3-gate-click-repeat).
-- **Held walk edge stop needs the slide (2026-10-27).** Checking only pos + v + 0.35 stopped a 0.5-speed run with its
-  feet already over the edge, and he fell 28 blocks under sneak and brake (1027-ap3-s2ee3-run-0.5-+0.45 on jar c). The
-  probe is pos + 2.2 v + 0.35 (ground friction 0.546 slides 1.2 v after the keys let go). A walk with a jump / edge
-  modifier, or a JUMP / EDGE node before the next place, is exempt: that walk leaves the floor on purpose.
+- **Held walk edge stop (2026-10-27, now OFF).** It looked 2.2 v + 0.35 ahead and exempted jump / edge walks, but it read
+  a gap a run crosses as "no floor" and jiggled him at the edge; the owner ruled runs may walk off ledges, so
+  `WALK_EDGE_STOP` is false and stays false.
 - **Charge, release and run in one block (2026-10-27).** Co-located nodes are ordered by type priority (charge 4, run 6,
   release 7), not by the order they were added, so all six orders behave the same (testkit 1027-ap3-blink-combo-*). The
   charge freezes him the tick after his first END in the box. But it finishes inside tickNode, after that END's
@@ -196,4 +195,15 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   the step-up then comes on a tick GrimAC sees whole and predicts exactly (O 1e-15). 24 of 24 clean (1027-ap3-lowrep).
   Get GrimAC's own numbers with `grim consoledebug <player>` from the test server console (toggle; P/A/O per tick in the
   server log) before guessing at a Simulation flag.
+- **What pulls him into an align (2026-10-27, his 15:11 live #34).** (1) A held walk passing within 2.5 of its route's
+  next align (any align type) and moving away begins it; passing beside its next WALK / RUN hands the hold to that node
+  (a lead-in that missed RUN #33's 1x1 box ran on past #34). (2) For 5 ticks after a leap, a teleport or the end of a
+  Blink release's shot, an align he is beside (2.5, within a block of its height, not in its box, not on its point)
+  begins (alignBeside). (3) A BOOM whose use has gone out and is only waiting to see its gate break gives way to a queued
+  align: the gate check carries on in the background, is logged and said, and stops nothing. In his log #34 sat queued
+  behind boom #39's 40-tick wait, and the boom's "superboom didn't break anything" stopped AP3 and dropped #34
+  (15:11:04, 15:11:40). (4) A Blink Charge about to start (no bank, no freeze yet) with an unfinished align beside it, or
+  whose box he stands in off its point, sends that align first and queues behind it, once per align per run (owner: "for
+  blink make sure the align takes priority over it charging"). Testkit 1027-ap3-live34-*: all six fail on live-blink
+  e5d9a683 and pass on 531e0e83.
 
