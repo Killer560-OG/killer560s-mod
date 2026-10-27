@@ -310,6 +310,12 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Agent worktrees are cut from `main`, not from the branch checked out here. On 2026-10-04 six were started
   while work sat on a feature branch 26 commits ahead of `main`, and every one began on stale code. Get the
   work onto `main` (or tell each agent its base) before fanning out.
+- An agent "started in" the parent's batch worktree must not branch or build there: on 2026-10-27 the etable agent ran
+  `git checkout -b` in `worktrees/batch-1026` while the parent used it, so the parent's merge landed on the agent's branch
+  and its build compiled the agent's edits. An agent makes its own `git worktree add` before its first edit.
+- A run's output piped through `| tr -d '\r' > file` never ends: the Gradle daemon run-scenario starts inherits the pipe,
+  so `tr` waits forever and the script never reaches its next line (2026-10-27). Redirect straight to the file instead.
+  A menu case is selected with its session first: `-Scenario '200-menu-session:,2783-menu-...'`; without it 0 cases run.
 - **Fabric's `ClientPlayConnectionEvents.DISCONNECT` runs on the NETTY thread** (`Connection.channelInactive`, both
   Fabric API versions), concurrently with the render thread's `clearLevel`, where Fabric walks every loaded chunk's
   block-entity map. The Chunk Cache released chunks from that listener and crashed 26.2 on leaving the sim (NPE "this.wrapped
