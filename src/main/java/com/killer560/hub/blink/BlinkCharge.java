@@ -80,6 +80,28 @@ public final class BlinkCharge {
      * 1025-blink-charge-far, 2026-10-25). Past this the rest of the shot runs the next tick.
      */
     private static final double SHOT_BLOCKS_PER_TICK = 9.5;
+    /*
+     * 2026-10-27 (ap3-s2ee3-262-1027): the 10 blocks are per SERVER tick, measured from where its tick began, and a server
+     * that falls behind ("Can't keep up") takes two or more client ticks in one of its own. A split shot's second part
+     * then landed in the same server tick as the first: "Player0 moved too quickly! -6.66,0,-7.94" (8.2 + 2.2 blocks),
+     * the vanilla server put him back, and GrimAC saw the 2.17-block jump (Simulation 2.166, GroundSpoof, TickTimer -
+     * testkit 1027-ap3-s2ee3-blink-0.5 on 26.2 under load). So the second part waits until the server has visibly ticked
+     * since the first: two of its pings have arrived (GrimAC and vanilla send one per tick), or SPLIT_WAIT_MAX_MS passed.
+     * And the real ticks before a shot share its server tick too: the 10.37 blocks were 8.2 of shot on top of 2.2 of run
+     * sent since that server tick began. So a shot part's budget is 9.5 less how far he has come since the server tick
+     * before last (where he was when the ping before the latest one arrived) - known only while the server pings every
+     * tick; with no ping in the last PING_FRESH_MS the budget is the plain 9.5.
+     */
+    private static net.minecraft.world.phys.Vec3 lastPingPos;
+    private static long lastPingMs;
+    private static net.minecraft.world.phys.Vec3 prevPingPos;
+    private static long prevPingMs;
+    private static final long PING_FRESH_MS = 250L;
+    private static long pongsAtSplit;
+    private static long splitAtMs;
+    private static boolean splitWaitSaid;
+    private static final long SPLIT_WAIT_MAX_MS = 300L;
+    private static final int SPLIT_WAIT_PINGS = 2;
     /**
      * The answers to the server's pings, each sent {@link #ANSWER_DELAY_MS} after it was made while Charge is on (killer560,
      * 2026-10-25: the charge must never be dropped for time). GrimAC measures how far behind real time he may be from the
@@ -399,6 +421,13 @@ public final class BlinkCharge {
                 return false;
             }
             if (answer) {
+                LocalPlayer me = Minecraft.getInstance().player;
+                if (me != null) {
+                    prevPingPos = lastPingPos;
+                    prevPingMs = lastPingMs;
+                    lastPingPos = me.position();
+                    lastPingMs = System.currentTimeMillis();
+                }
                 answers.addLast(new Answer(new Held(packet, listener, flush), System.currentTimeMillis()));
                 answersHeldTotal++;
                 maxAnswersWaiting = Math.max(maxAnswersWaiting, answers.size());
@@ -639,13 +668,23 @@ public final class BlinkCharge {
                 releaseDueAnswersLocked(System.currentTimeMillis());
             }
         }
-        if (shotLeft > 0) {
+        boolean splitWaiting = shotLeft > 0 && answersHeldTotal - pongsAtSplit < SPLIT_WAIT_PINGS
+                && System.currentTimeMillis() - splitAtMs < SPLIT_WAIT_MAX_MS;
+        if (splitWaiting) {
+            if (!splitWaitSaid) {
+                splitWaitSaid = true;
+                LOGGER.info("[Blink] charge SHOT split: the other {} tick(s) wait for the server's next tick ({} of {} pings"
+                        + " since the first part)", shotLeft, answersHeldTotal - pongsAtSplit, SPLIT_WAIT_PINGS);
+            }
+        } else if (shotLeft > 0) {
             int c;
             synchronized (LOCK) {
                 c = shotLeft;
                 banked += c;
                 shotLeft = 0;
             }
+            LOGGER.info("[Blink] charge SHOT split: continuing after {} ms, {} ping(s) since the first part",
+                    System.currentTimeMillis() - splitAtMs, answersHeldTotal - pongsAtSplit);
             shoot(client, client.player, shotLeftWhy + ", continued", c);
         } else if (shotWanted > 0) {
             // A feature's release (shootFor): this many of the bank, the rest stays banked.
@@ -772,6 +811,13 @@ public final class BlinkCharge {
             return;
         }
         net.minecraft.world.phys.Vec3 from = player.position();
+        // This part's share of the server tick it lands in: 9.5 less what he moved since the ping before the latest one,
+        // while the server is pinging at about its tick rate (else the plain 9.5).
+        double budget = SHOT_BLOCKS_PER_TICK;
+        long nowMs = System.currentTimeMillis();
+        if (prevPingPos != null && nowMs - lastPingMs < PING_FRESH_MS && lastPingMs - prevPingMs < PING_FRESH_MS) {
+            budget = Math.max(0.0, SHOT_BLOCKS_PER_TICK - prevPingPos.distanceTo(from));
+        }
         long t0 = System.nanoTime();
         int shotPacketsAtStart = shotPacketsSent;
         int ran = 0;
@@ -797,9 +843,12 @@ public final class BlinkCharge {
                     break;
                 }
                 double sofar = from.distanceTo(player.position());
-                if (i > 0 && sofar + lastStep > SHOT_BLOCKS_PER_TICK) {
+                if (i > 0 && sofar + lastStep > budget) {
                     shotLeft = n - i;
                     shotLeftWhy = why;
+                    pongsAtSplit = answersHeldTotal;
+                    splitAtMs = System.currentTimeMillis();
+                    splitWaitSaid = false;
                     break;
                 }
                 net.minecraft.world.phys.Vec3 before = player.position();
@@ -1168,7 +1217,7 @@ public final class BlinkCharge {
 
     /**
      * Fires {@code n} banked ticks (all of them when {@code n <= 0}) at the next tick start, along whatever movement is
-     * being made then; the rest stays banked. The shot keeps every rule a key shot has (9.5 blocks a tick, the shot-tick
+     * being made then; the rest stays banked. The shot keeps every rule a key shot has (8.5 blocks a server tick, the shot-tick
      * aura hooks). Render thread.
      *
      * @return the ticks that will fire (0: nothing banked, or not charging - nothing is fired)
