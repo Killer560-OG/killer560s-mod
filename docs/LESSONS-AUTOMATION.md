@@ -400,6 +400,15 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   `ZpewSource prev = ZeroPingEtherwarp.sending(ZpewSource.X); try { send } finally { ZeroPingEtherwarp.done(prev); }`.
   A new feature that sends an etherwarp use without it is counted as Manual Etherwarps. The map's executor
   (`ClearExecutor.hopSource`) picks Pathfinding, Auto Secret, Auto Clear or Interactive Map from who is running.
+- When a feature moves from the cheat build to both, grep the OTHER features for `CHEAT_FEATURES_ENABLED && <it>`: ZPEW's
+  move (bc3a43d1) left two such gates, so in a legit jar Overlay From Prediction did nothing and Smooth Teleport glided
+  every predicted warp from where he was - the camera jumped back up to 8 blocks and slid forward (fixed 41c51fc5;
+  testkit 1027-zpewc-overlay, -smoothtp fail on the shipped 3011406a legit jar and pass after).
+- ZPEW measured (zpew campaign 2026-10-27, testkit 1027-zpewc-*): packet for packet the same as a ZPEW-off run, and no
+  packet ever sent from a zpew frame; against the testkit's etherwarp every shape it models the same way is exact (error
+  0.000, 0/50/150/300 ms, tuners 0-4 to the last block in range and not one past it, falling, jumping, walking, chains
+  of 5 and two uses in one tick). When the server just ignores a use (no teleport at all), the camera stays on the
+  predicted landing for Give Up After (1000 ms default) and then snaps back; any position packet ends it at once.
 - A shot replays banked ticks inside one real tick, so a feature that steers him per tick must run inside it: a 20-tick AP3
   release on the keys chosen at the END before ran him 18.75 blocks straight off S2's platform (Mod Only Test log
   2026-10-27 00:15:34). `BlinkCharge.addShotTickEndHook` runs after each shot tick's movement and tick-end, and

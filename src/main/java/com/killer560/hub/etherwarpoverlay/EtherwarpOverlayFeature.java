@@ -136,8 +136,9 @@ public final class EtherwarpOverlayFeature {
 
         double distance = 57.0 + etherData.getIntOr("tuned_transmission", 0);
         // While Zero Ping Etherwarp has a warp pending, cast from where it will land (chained warps aim from there).
-        Vec3 zpewFeet = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
-                ? com.killer560.hub.zpew.ZeroPingEtherwarp.predictedFeet() : null;
+        // Both builds: ZPEW moved to the legit build on 2026-10-26 and this gate was left behind, so Overlay From
+        // Prediction did nothing in a legit jar (zpew campaign 1027, testkit 1027-zpewc-overlay).
+        Vec3 zpewFeet = com.killer560.hub.zpew.ZeroPingEtherwarp.predictedFeet();
         EtherPos etherPos = getEtherPos(client.level, zpewFeet != null ? zpewFeet : client.player.position(), client.player,
                 distance);
         if (!etherPos.succeeded() && !cfg.isShowWhenFailed()) {
