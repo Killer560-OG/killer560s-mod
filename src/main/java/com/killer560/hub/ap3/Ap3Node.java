@@ -489,8 +489,8 @@ public final class Ap3Node {
         if (type != Type.BLINK_CHARGE) {
             blinkStop = false;
         }
-        // The close gate was removed on 2026-10-06 (killer560: "I dont think that is ever needed"); nothing sets it.
-        closeGate = false;
+        // closeGate is the `close` suffix again since 2026-10-27 (killer560: "ap3 needs a close suffix to only go after a
+        // terminal is closed"); any node type takes it, so nothing to drop here.
     }
     public double length() { return length; }
     public double width() { return width; }
@@ -735,6 +735,9 @@ public final class Ap3Node {
         }
         if (ssGate) {
             sb.append(" ss");
+        }
+        if (closeGate) {
+            sb.append(" close");
         }
         if (leapCounter > 0) {
             sb.append(" leapcounter:").append(leapCounter);

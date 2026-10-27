@@ -326,6 +326,7 @@ public final class Ap3Executor {
      *  queue. Nodes stay ARMED regardless - this is "busy", not "armed". */
     public static boolean isRunning() {
         return activeNode != null || holdDir != null || !queue.isEmpty() || actNode != null || leapGate != null
+                || edgeBrakeTicks > 0
                 || jumpPendingTicks > 0 || edgeArmedTicks > 0 || wantJump;
     }
 
@@ -389,6 +390,7 @@ public final class Ap3Executor {
         }
         leapGate = null;
         leapCleared.clear();
+        triggeredAt.clear();
         if (com.killer560.hub.blink.BlinkCharge.inShotLoop() && wasBusy) {
             shotAbort = reason == null ? "stopped" : reason; // the shot under this stop ends at its next tick
             shotAbortSerial = com.killer560.hub.blink.BlinkCharge.shotSerial();
@@ -765,6 +767,7 @@ public final class Ap3Executor {
      */
     static void tick(Minecraft client, Ap3Chain current, boolean arrival) {
         tickCounter++;
+        trackTerminalClose(client);
         LocalPlayer player = client.player;
         if (player == null || client.level == null) {
             disarm("world change");
@@ -1034,6 +1037,7 @@ public final class Ap3Executor {
         }
         queue.add(at, node);
         triggeredThisTick.add(node);
+        triggeredAt.put(node, tickCounter);
     }
 
     /** The nodes triggered this tick that did NOT fire this tick - say so, so a boom that fires "late" is
@@ -1096,6 +1100,9 @@ public final class Ap3Executor {
         if (termAuraScreenOpen()) {
             return true;
         }
+        if (leapGate != null && leapGate.closeGate) {
+            return true; // the terminal the close gate is waiting on
+        }
         if (activeNode == null) {
             return false;
         }
@@ -1141,7 +1148,8 @@ public final class Ap3Executor {
             jumpPendingTicks = 0;
             edgeArmedTicks = 0;
         }
-        step = node.closeGate && !testMode ? Step.GATE : Step.PREP;
+        // The close suffix is held by the node gate before the node begins (nextToBegin), not by a step of its own.
+        step = Step.PREP;
     }
 
     /**
@@ -1323,11 +1331,46 @@ public final class Ap3Executor {
         clickLatch = false;
         leftWasDown = true;
         leapGateArrived = Math.max(leapGateArrived, leapGate.leapCounter);
-        LOGGER.info("[AP3] leap gate: {} #{} leap counter skipped by left click ({}/{} counted)", leapGate.type.label(),
-                number(leapGate), leapGateCountedReal, leapGate.leapCounter);
+        gateCloseDone = true;
+        if (leapGate.leapCounter > 0) {
+            LOGGER.info("[AP3] leap gate: {} #{} leap counter skipped by left click ({}/{} counted)", leapGate.type.label(),
+                    number(leapGate), leapGateCountedReal, leapGate.leapCounter);
+        }
+        if (leapGate.closeGate) {
+            LOGGER.info("[AP3] close gate: {} #{} close skipped by left click", leapGate.type.label(), number(leapGate));
+        }
         if (Ap3Config.getInstance().isChatFeedback()) {
             chat(ModChat.text("Leap counter skipped"), ModChat.dim(" - you clicked (#" + number(leapGate) + ")"));
         }
+    }
+
+    // ---- the close suffix (killer560, 2026-10-27: "ap3 needs a close suffix to only go after a terminal is closed") ----
+    //
+    // A node carrying `close` is held by the same gate as leapcounter: (only aligns run meanwhile, a left click skips)
+    // until a terminal screen - matched by title the way the terminal solver matches it (terminals/TerminalType.match) -
+    // goes from open to closed AFTER the node was reached. A terminal he finished while standing in the node's box before
+    // its turn came counts too. So "walk close" at a terminal: he walks in, does the terminal, closes it, and goes.
+
+    /** tickCounter at the last END a terminal screen had just closed; -1 = never. */
+    private static long lastTerminalCloseTick = -1L;
+    private static boolean terminalWasOpen;
+    /** When each queued node was reached (triggered). */
+    private static final java.util.Map<Ap3Node, Long> triggeredAt = new java.util.IdentityHashMap<>();
+    private static boolean gateCloseDone;
+    private static long gateSinceTick;
+
+    /** Every END, AP3 running or not: notes the tick a terminal screen closed. */
+    private static void trackTerminalClose(Minecraft client) {
+        net.minecraft.client.gui.screens.Screen sc = McCompat.screen(client);
+        boolean open = sc instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>
+                && com.killer560.hub.terminals.TerminalType.match(sc.getTitle().getString()) != null;
+        if (terminalWasOpen && !open) {
+            lastTerminalCloseTick = tickCounter;
+            if (leapGate != null && leapGate.closeGate) {
+                LOGGER.info("[AP3] close gate: a terminal closed at tick {}", tickCounter);
+            }
+        }
+        terminalWasOpen = open;
     }
 
     /** Leaps really counted for the gate (the log line's "k/n", unchanged by a click). */
@@ -1344,7 +1387,7 @@ public final class Ap3Executor {
             return null;
         }
         Ap3Node next = queue.remove(0);
-        if (next.leapCounter > 0 && !leapCleared.remove(next)) {
+        if ((next.leapCounter > 0 || (next.closeGate && !testMode)) && !leapCleared.remove(next)) {
             engageLeapGate(next, player);
             return null;
         }
@@ -1353,8 +1396,12 @@ public final class Ap3Executor {
 
     private static void engageLeapGate(Ap3Node node, LocalPlayer player) {
         leapGate = node;
+        gateSinceTick = tickCounter;
         leapGateArrived = 0;
         leapGateCountedReal = 0;
+        // close: a terminal that closed after the node was reached (he stood in its box doing it) already counts.
+        Long reached = triggeredAt.get(node);
+        gateCloseDone = node.closeGate && reached != null && lastTerminalCloseTick >= reached;
         lastPositions.clear();
         counted.clear();
         Minecraft client = Minecraft.getInstance();
@@ -1367,10 +1414,15 @@ public final class Ap3Executor {
             endHold(); // he waits where he is
             releaseKeys();
         }
-        LOGGER.info("[AP3] leap gate: {} #{} holds for leapcounter:{} - only aligns run until then ({} queued behind it)",
-                node.type.label(), number(node), node.leapCounter, queue.size());
+        String what = (node.leapCounter > 0 ? "leapcounter:" + node.leapCounter : "")
+                + (node.leapCounter > 0 && node.closeGate ? " and " : "") + (node.closeGate ? "a terminal to close" : "");
+        LOGGER.info("[AP3] {} gate: {} #{} holds for {} - only aligns run until then ({} queued behind it){}",
+                node.closeGate ? "close" : "leap", node.type.label(), number(node), what, queue.size(),
+                gateCloseDone ? "; a terminal already closed while you were in its box" : "");
         if (Ap3Config.getInstance().isChatFeedback()) {
-            chat(ModChat.text("Waiting for "), ModChat.value(node.leapCounter + (node.leapCounter == 1 ? " leap" : " leaps")),
+            chat(ModChat.text("Waiting for "), ModChat.value(node.leapCounter > 0
+                            ? node.leapCounter + (node.leapCounter == 1 ? " leap" : " leaps") + (node.closeGate ? " and a terminal" : "")
+                            : "a terminal to close"),
                     ModChat.dim(" - #" + number(node)));
         }
     }
@@ -1381,9 +1433,14 @@ public final class Ap3Executor {
             return;
         }
         Ap3Node node = leapGate;
+        if (node.closeGate && !gateCloseDone && lastTerminalCloseTick >= gateSinceTick) {
+            gateCloseDone = true;
+            LOGGER.info("[AP3] close gate: {} #{} - the terminal closed", node.type.label(), number(node));
+        }
         if (testMode) {
             leapGateArrived = node.leapCounter; // test mode waits on nothing the arena would provide
-        } else {
+            gateCloseDone = true;
+        } else if (node.leapCounter > 0) {
             double radius = Ap3Config.getInstance().getLeapDetectRadius();
             Vec3 me = player.position();
             String self = Teammates.selfName();
@@ -1411,12 +1468,12 @@ public final class Ap3Executor {
                 }
             }
         }
-        if (leapGateArrived >= node.leapCounter) {
+        if (leapGateArrived >= node.leapCounter && (!node.closeGate || gateCloseDone)) {
             leapGate = null;
             leapCleared.add(node);
             queue.add(0, node);
-            LOGGER.info("[AP3] leap gate: released - {} #{} runs now, then the {} node(s) behind it", node.type.label(),
-                    number(node), queue.size() - 1);
+            LOGGER.info("[AP3] {} gate: released - {} #{} runs now, then the {} node(s) behind it",
+                    node.closeGate ? "close" : "leap", node.type.label(), number(node), queue.size() - 1);
         }
     }
 
@@ -1537,7 +1594,7 @@ public final class Ap3Executor {
         return true;
     }
 
-    /** The node after {@code node} in the chain's order, skipping nodes that never move him (stopwatches, No Go). */
+    /** The next node after {@code node} in the chain's order that he goes TO (see the loop). */
     private static Ap3Node nextInChain(Ap3Node node) {
         java.util.List<Ap3Node> nodes = chain.nodes();
         int i = nodes.indexOf(node);
@@ -1546,7 +1603,12 @@ public final class Ap3Executor {
         }
         for (int k = i + 1; k < nodes.size(); k++) {
             Ap3Node n = nodes.get(k);
-            if (n.type == Ap3Node.Type.STOPWATCH || n.type == Ap3Node.Type.NO_GO) {
+            // The next place the route takes him: a walk, an align, a stop, a path, a leap or a terminal. Nodes that
+            // act where he already is (a look, a use, a boom, a block, a blink release or charge, a jump, a stopwatch)
+            // are passed over - his Blink route has a release between RUN #33 and align #34.
+            boolean place = n.type.isMover() || n.type.isAlign() || n.type == Ap3Node.Type.STOP
+                    || n.type == Ap3Node.Type.PATH || n.type == Ap3Node.Type.LEAP || n.type == Ap3Node.Type.TERMINAL;
+            if (!place) {
                 continue;
             }
             return n;

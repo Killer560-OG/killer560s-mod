@@ -589,6 +589,9 @@ public final class Ap3Store {
         // is dropped here, so the node simply fires when it is walked into.
         n.jumpMod = ConfigJson.getEnum(o, "jump", Ap3Node.JumpMod.class, Ap3Node.JumpMod.NONE);
         n.ssGate = ConfigJson.getBool(o, "ss", false);
+        // The `close` suffix (2026-10-27) is saved as "termClose". The old "close" key of the gate removed on 2026-10-06
+        // stays unread, so a stale flag in an old file does not come back to life.
+        n.closeGate = ConfigJson.getBool(o, "termClose", false);
         if (o.has("name") && o.get("name").isJsonPrimitive()) {
             String nm = o.get("name").getAsString().trim();
             n.name = nm.isEmpty() ? null : nm.substring(0, Math.min(16, nm.length()));
@@ -688,6 +691,9 @@ public final class Ap3Store {
         }
         if (n.ssGate) {
             o.addProperty("ss", true);
+        }
+        if (n.closeGate) {
+            o.addProperty("termClose", true);
         }
         if (n.leapCounter > 0) {
             o.addProperty("leapCounter", n.leapCounter);

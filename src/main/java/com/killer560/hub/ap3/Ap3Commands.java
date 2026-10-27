@@ -141,7 +141,7 @@ public final class Ap3Commands {
             "leapcounter", "terminal", "stop", "look", "boom", "stopwatch", "jump", "edge", "block", "use", "blinkcharge",
             "blinkrelease");
     /** Modifiers offered after any {@code /ap3 add <type>}. */
-    private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "precise", "jump", "edge", "ss",
+    private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "precise", "jump", "edge", "ss", "close",
             "leapcounter:");
     /** Extra words {@code /ap3 add path} takes: the speed window, the heading and the terminal stop. */
     private static final List<String> PATH_MODS =
@@ -622,7 +622,7 @@ public final class Ap3Commands {
         for (String[] line : EDIT_HELP) {
             ModChat.send(FEATURE, ModChat.value(line[0]), ModChat.dim(" - " + line[1]));
         }
-        ModChat.send(FEATURE, ModChat.dim("Modifiers after any /ap3 add: w<n> l<n> (trigger box in blocks), wait:<ms>, precise, ss,"
+        ModChat.send(FEATURE, ModChat.dim("Modifiers after any /ap3 add: w<n> l<n> (trigger box in blocks), wait:<ms>, precise, ss, close (after a terminal is closed),"
                 + " leapcounter:<n> (wait for n leaps; only aligns run meanwhile)."));
         ModChat.send(FEATURE, ModChat.dim("<n> is the node's number from /ap3 list and its world label (first node = 1)."));
     }
@@ -714,6 +714,9 @@ public final class Ap3Commands {
                     spec.jumpMod = Ap3Node.JumpMod.EDGE;
                 } else if (t.equals("precise") || t.equals("exact")) {
                     spec.precise = true;
+                } else if (t.equals("close") || t.equals("afterterm") || t.equals("afterterminal")) {
+                    // killer560 (2026-10-27): the node goes only after a terminal is closed.
+                    spec.closeGate = true;
                 } else if (t.equals("ss") || t.equals("aftersimon") || t.equals("simonsays")) {
                     // killer560 (2026-10-18): the node fires only once Simon Says is done.
                     spec.ssGate = true;
@@ -812,7 +815,7 @@ public final class Ap3Commands {
                     spec.name = raw;
                 } else {
                     ModChat.send(FEATURE, ModChat.bad("Unknown modifier "), ModChat.value(raw),
-                            ModChat.text(" for " + type.label() + " - w<n> l<n>, wait:<ms>, precise, ss, leapcounter:<n>"
+                            ModChat.text(" for " + type.label() + " - w<n> l<n>, wait:<ms>, precise, ss, close, leapcounter:<n>"
                                     + (type == Ap3Node.Type.LEAP ? ", a class, ign <name>" : "")
                                     + (type == Ap3Node.Type.LEAP_COUNTER ? ", a count" : "")
                                     + (type.usesBlinkTicks() ? ", a tick count 1-" + Ap3Node.MAX_BLINK_TICKS : "")
@@ -1192,6 +1195,9 @@ public final class Ap3Commands {
         }
         if (node.jumpMod != Ap3Node.JumpMod.NONE) {
             sb.append(node.jumpMod == Ap3Node.JumpMod.EDGE ? " edge" : " jump");
+        }
+        if (node.closeGate) {
+            sb.append(" close");
         }
         if (node.ssGate) {
             sb.append(" ss");

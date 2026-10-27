@@ -102,6 +102,8 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
     private boolean precise;
     /** The {@code ss} modifier: fire only once Simon Says is done. */
     private boolean ssGate;
+    /** The {@code close} suffix: fire only after a terminal is closed. */
+    private boolean closeGate;
     /** USE: the Skyblock id to swap to, or null for "use whatever is held". */
     private String itemId;
     private boolean typeOpen;
@@ -153,6 +155,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             jumpMod = n.jumpMod == null ? Ap3Node.JumpMod.NONE : n.jumpMod;
             precise = n.precise;
             ssGate = n.ssGate;
+            closeGate = n.closeGate;
             blinkStop = n.blinkStop;
             itemId =n.useItemId == null || n.useItemId.isBlank() ? null : n.useItemId;
             pending.put("X", fmt(n.x));
@@ -236,8 +239,12 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             ssButton(x + half + GAP, y, w - half - GAP);
         }
         y += LINE;
-        // The leapcounter: suffix (2026-10-26): 0 = none; any node type.
+        // The leapcounter: suffix (2026-10-26): 0 = none; any node type. Beside it the close suffix (2026-10-27).
         addField(x, y, half, "Leap counter", 70);
+        button(onOff("After terminal", closeGate).getString(), b -> {
+            closeGate = !closeGate;
+            b.setMessage(onOff("After terminal", closeGate));
+        }, x + half + GAP, y, w - half - GAP, ROW);
         if (type.usesBlinkTicks()) {
             // Blink Charge / Blink Release: the ticks to bank or fire, 1-20; blank (or 0) = the max.
             addField(x + half + GAP, y, w - half - GAP, "Blink ticks", 58);
@@ -547,6 +554,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             node.type = newType;
             node.jumpMod = jumpMod;
             node.ssGate = ssGate;
+            node.closeGate = closeGate;
             if (newType.usesPrecise()) {
                 node.precise = precise;
             }

@@ -265,6 +265,8 @@ public final class Ap3Feature {
         public boolean precise;
         /** {@code ss}: fire only once Simon Says is done (killer560, 2026-10-18). */
         public boolean ssGate;
+        /** {@code close}: fire only after a terminal is closed (2026-10-27). */
+        public boolean closeGate;
         public Ap3Node.LeapMode leapMode;
         public DungeonClass leapClass;
         public String leapIgn;
@@ -304,6 +306,7 @@ public final class Ap3Feature {
             }
             node.precise = precise;
             node.ssGate = ssGate;
+            node.closeGate = closeGate;
             if (node.type == Ap3Node.Type.LEAP) {
                 node.leapMode = leapMode == null ? Ap3Node.LeapMode.DEFAULT : leapMode;
                 node.leapClass = node.leapMode == Ap3Node.LeapMode.CLASS ? leapClass : null;

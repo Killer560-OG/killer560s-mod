@@ -147,4 +147,19 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   the sprint kept, so `TurnFirst.registerYawConstraint` (AP3: `Ap3Executor.walkKeyedYaws`) lets an aura turn only to one
   of those, with any pitch whose ray meets the target from the eye after this tick's move; none this tick = no turn, the
   click waits. A/D/back yaws were allowed first and dropped the sprint, which bent the path after the next node by 0.65.
+- **#34 on main 3011406a (2026-10-27).** (1) The "no stepping down unless the point is lower" rule stranded an align that
+  had to cross a stair's low half: his 09:25:55 Fast Align #34 started on the low half, stepped up, then refused every
+  press for 50 ticks at rest 0.78 from the point. A press may now cross a lower floor down to start - 0.5 when the fall
+  onto it (3 air ticks, velocity x 0.91, no push) stays over floor; at rest with the plan refused, a sneak-held step toward
+  the point goes first. (2) RUN #33's line passes 1.4-1.9 blocks beside #34's 1x1 box and never enters it, so the run
+  went on to the floor's edge (testkit 1027-ap3-s2ee3-run-* on the shipped jar: every entry fell 56 blocks). A held walk
+  that passes within 2.5 of the route's next place (the next walk/align/stop/path/leap/terminal, skipping looks, uses,
+  booms and blink nodes) and is getting farther away begins that align; and a held walk stops at an edge more than 0.5
+  below its start unless that next place is lower, then brakes (sneak + key against velocity) until still - AP3 counts as
+  running while it brakes, or the input hook would not install the sneak.
+- **The `close` suffix (2026-10-27).** Any node; saved as "termClose" (the old "close" key of the 2026-10-06-removed gate
+  stays unread so stale flags do not wake up). Held by the leapcounter: gate (only aligns run, a left click skips) until a
+  container whose title `terminals/TerminalType.match` accepts goes from open to closed after the node was reached - a
+  terminal finished while he stood in the box before the node's turn counts. While it holds, a terminal screen does not
+  stop AP3 (screenAllowed).
 
