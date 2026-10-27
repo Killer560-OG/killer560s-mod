@@ -183,4 +183,13 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   fireInstant and begin, so the Run and the Release used to wait a whole real tick (he walked 0.28 between the full bank
   and the shot). A charge that finishes now gives the queue a second pass in the same END (chargeDoneThisTick): the Run
   sets the hold, the Release asks for the shot along it, and the shot fires at the next tick start.
+- **No step-up on the first moving tick from rest (2026-10-27, GrimAC Simulation on #34's half-low start).** At rest the
+  client sends no position packets, so GrimAC checks the first moving tick as a possibly skipped tick (consoledebug
+  "t-0.03-t"). It passes on uncertainty, but GrimAC's own guess of that tick neither stepped up nor moved the full press
+  (P -0.050 0.0004 -0.414 vs A -0.151 0.5 -0.414), so the next tick starts from the wrong velocity: Simulation 0.43-0.53,
+  17 of 24 runs. It was not the sneak (dropping it left 14 of 24). Now, at rest, a press whose first move would hit a
+  higher floor (box moved one tick at the same y collides) is swapped for the nearest key whose first move does not;
+  the step-up then comes on a tick GrimAC sees whole and predicts exactly (O 1e-15). 24 of 24 clean (1027-ap3-lowrep).
+  Get GrimAC's own numbers with `grim consoledebug <player>` from the test server console (toggle; P/A/O per tick in the
+  server log) before guessing at a Simulation flag.
 

@@ -2393,6 +2393,7 @@ public final class Ap3Executor {
                 driveDiscrete(player, ex, ez, method);
             }
             ledgeGuard(player, node);
+            stepUpUnsneaked(player, node); // a rest start that would step up on its first tick (GrimAC's skipped tick)
         } finally {
             Ap3DiscretePlanner.endBudget();
         }
@@ -2649,6 +2650,80 @@ public final class Ap3Executor {
     }
 
     /**
+     * No step-up on the first moving tick from rest (killer560's #34 from the stair's low half, 2026-10-27). GrimAC 2.3.74's
+     * own per-tick debug (grim consoledebug, testkit 1027-ap3-lowrep: 17 of 24 runs flagged before this) shows why: a
+     * player at rest sends no position packets, so GrimAC checks the first moving tick as a possibly skipped tick
+     * ("t-0.03-t", couldSkipTick / skippedTickInActualMovement). That tick passes on uncertainty, but its own prediction
+     * of it neither stepped up nor moved the full press ("P: -0.0500 0.0004 -0.4144 / A: -0.1508 0.5 -0.4144"), so the
+     * next tick starts from the wrong velocity: Simulation 0.43-0.53 and setbacks. Taking the sneak off the press changed
+     * nothing (jar s2ee3-g: same P and A, 14 of 24 still flagged). Once he is moving GrimAC predicts the step-up exactly
+     * (O 1e-15 on the later step-up ticks). So: at rest, a press whose first move would run into a higher floor is
+     * replaced by the nearest key (no sneak) whose first move does not - he starts along the low half, and the step-up
+     * comes on a later tick that GrimAC sees whole. If every key would, nothing is pressed this tick.
+     */
+    private static void stepUpUnsneaked(LocalPlayer player, Ap3Node node) {
+        if (node == null || !player.onGround()) {
+            return;
+        }
+        Vec3 v = player.getDeltaMovement();
+        if (Math.hypot(v.x, v.z) >= 0.003) {
+            return; // moving: his position packets go out every tick and GrimAC predicts a step-up exactly
+        }
+        int fw = (wantForward ? 1 : 0) - (wantBackward ? 1 : 0);
+        int st = (wantLeft ? 1 : 0) - (wantRight ? 1 : 0);
+        if (fw == 0 && st == 0) {
+            return;
+        }
+        float yaw = player.getYRot();
+        if (!firstMoveStepsUp(player, fw, st, yaw)) {
+            return;
+        }
+        double want = Math.atan2(-st, fw);
+        int[] pick = null;
+        double best = Double.MAX_VALUE;
+        for (int kf = -1; kf <= 1; kf++) {
+            for (int ks = -1; ks <= 1; ks++) {
+                if (kf == 0 && ks == 0) {
+                    continue;
+                }
+                double diff = Math.abs(Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-ks, kf) - want)));
+                if (diff < best && !firstMoveStepsUp(player, kf, ks, yaw) && ledgeSafe(player, kf, ks, false, yaw)) {
+                    best = diff;
+                    pick = new int[]{kf, ks};
+                }
+            }
+        }
+        if (pick == null || best > 100.0) {
+            clearMovement(); // no key starts him without the step: a still tick
+            wantSneak = false;
+        } else {
+            writeDiscrete(player, pick[0], pick[1], false, false, yaw, modelFor(player, true), lastSneakSent);
+        }
+        pushPending = false;
+        predictedSprintValid = false;
+        alignPredValid = false;
+        if (stepUpTicks++ == 0) {
+            LOGGER.info("[AP3] Align #{}: at rest below a step - the first press goes {} so the step-up is not on GrimAC's"
+                    + " skipped-tick check", number(node), pick == null || best > 100.0 ? "nowhere (a still tick)"
+                    : String.format(Locale.US, "%.0f degrees off the plan, along the low floor", best));
+        }
+        alignPhase = alignPhase + " [rest step]";
+    }
+
+    /** Whether the first tick of keys (fw, st) from rest would run his box into something (a step up, or a wall). */
+    private static boolean firstMoveStepsUp(LocalPlayer player, int fw, int st, float yaw) {
+        double rel = Math.atan2(-st, fw);
+        double dirYaw = Math.toRadians(yaw) + rel;
+        // From rest the first tick moves about speed x 1.0 on the ground (0.44 at speed 0.45 in the testkit trace).
+        double d = Math.max(0.1, player.getSpeed()) * 1.05;
+        double dx = -Math.sin(dirYaw) * d;
+        double dz = Math.cos(dirYaw) * d;
+        return !player.level().noCollision(player, player.getBoundingBox().move(dx, 0.0, dz));
+    }
+
+    private static int stepUpTicks;
+
+    /**
      * An align whose target has no floor within half a block under it can never land without the drop: once the guard
      * has stopped him at the edge and he is at rest, the align ends there, as close as was safe, and says so.
      */
@@ -2686,6 +2761,7 @@ public final class Ap3Executor {
     private static void ledgeInit(LocalPlayer player, Ap3Node node) {
         Vec3 pos = player.position();
         ledgeGuardTicks = 0;
+        stepUpTicks = 0;
         ledgeHoldTicks = 0;
         ledgeLastX = pos.x;
         ledgeLastZ = pos.z;
