@@ -262,11 +262,11 @@ final class BlinkHud implements HudElement {
             if (charging) {
                 int c = armed ? ARMED_TOP : p.accentHover();
                 graphics.text(font, armed ? "Armed" : "Charge", x, chargeRowY, c, true);
-                graphics.text(font, count(bank, cap), barX1 + 3, chargeRowY, full ? 0xFFFFFFFF : p.text(), true);
+                graphics.text(font, count(bank, cap), barX1 + 4, chargeRowY, full ? 0xFFFFFFFF : p.text(), true);
             }
             if (holding) {
                 graphics.text(font, "Hold", x, holdRowY, HOLD_TOP, true);
-                graphics.text(font, count(held, holdCap), barX1 + 3, holdRowY, p.text(), true);
+                graphics.text(font, count(held, holdCap), barX1 + 4, holdRowY, p.text(), true);
             }
         }
         markDrawn(editor);
