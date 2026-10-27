@@ -402,11 +402,15 @@ public final class BlinkCharge {
                 }
                 tickOpen = !(packet instanceof ServerboundClientTickEndPacket);
             }
-            if (!tpSegs.isEmpty() && !answer && !flushingTp
+            if (!tpSegs.isEmpty() && !answer && !flushingTp && !passing
                     && (packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClickPacket
-                    || packet instanceof net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket)) {
-                // A menu click does not depend on where he stands: it goes now, as through a hold (a terminal click held a
-                // second behind a teleport missed its moment - testkit 1025-blink-charge-rapid).
+                    || packet instanceof net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket
+                    || packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClosePacket)
+                    && com.killer560.hub.invwalk.InventoryWalkFeature.serverHasStillInput()) {
+                // A menu click does not depend on where he stands: it goes now when the server already has him still (a
+                // terminal click held a second behind a teleport missed its moment - testkit 1025-blink-charge-rapid).
+                // When the input the server last had moves, it waits in the hold in order, or GrimAC MultiActionsC/D drops
+                // it (the same rule as a Blink hold since campaign-invwalk-1027).
                 return false;
             }
             if (!tpSegs.isEmpty() && !answer && !flushingTp) {
