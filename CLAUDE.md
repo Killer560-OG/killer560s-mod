@@ -378,7 +378,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   week. Report: killer560s-mod-logs/preexisting-1026-report.md.
 - Blink Charge keeps its bank through every teleport by the owner's decision (2026-10-27); do not revert. Since
   campaign-blink-1027 a teleport's confirm waits behind the answer to the ping GrimAC sent with it (else GrimAC ignored every
-  move after it), so only a shot in the first ~1.5 s after a teleport, or within a second of a hold, is set back. Wider (same day): "it should never drop blink if possible except if i release it" - Charge also survives
+  move after it), and a shot GrimAC would not cover yet (after a teleport, during or after a hold) waits for cover on its own (~2 s after a
+  leap standing still) - the owner's choice, 2026-10-27. Wider (same day): "it should never drop blink if possible except if i release it" - Charge also survives
   respawns, dimension changes, a configuration phase, a hold starting, the Skyblock gate flipping, screens (keys keep their
   state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
   release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,

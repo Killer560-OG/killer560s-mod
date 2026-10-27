@@ -411,6 +411,16 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
 - Charge's answer delay followed the cap (50 x Charge Ticks - 10 ms), so a bank kept when Charge Ticks was lowered (owner:
   the bank is kept) was bigger than what that delay lets GrimAC cover: with Charge Ticks 2 and 17 banked the delay was 90 ms
   and the shot drew Timer however long he stood (1027-blink-c-mixed). The delay now covers max(cap, banked).
+- OWNER DECISION (killer560, 2026-10-27, after his p3sim field test "if I teleport to someone up there (a leap) that's when it
+  tends to fail"): after a kept teleport fire the kept bank on the first tick the server will accept it, automatically,
+  never dropping it. `BlinkCharge.shoot` defers a shot while the bank is not covered (a teleport confirm held behind its
+  answer, a Blink hold running, or ticks sent since not backed again) and fires it the tick it is (`covered()`, logged; at
+  most 3 s); AP3's Blink Release holds on its node meanwhile and finishes the tick the bank is covered, so the shot runs
+  along the next node. Measured on GrimAC 2.3.74 (1027-ap3-blink-leap-now/-10): released at the leap the shot waited 1.95 s,
+  10 ticks after it 1.51 s, both landed the full 5.39 blocks, clean; on c9521191 both were set back (TimerLimit). The wait
+  needs him still: moving ticks are not covered, so a key shot fired while walking straight after a warp waits the 3 s and
+  then fires uncovered. Tried and reverted: skipping his physics through the hold so its ticks cost nothing (the first ticks
+  after still drew Simulation 0.025 decaying, even with input changes carried to the next sent tick).
 - The same lag allowance is shared by a hold and the bank: a hold while charging sends the waiting answers (TransactionOrder)
   and its own in its burst, so after it GrimAC covers only ~2 ticks of the kept bank. Before campaign-blink-1027 the shot after
   a kept hold drew Timer/TimerLimit and was half set back however long he waited (the bank was full, so nothing re-banked:
