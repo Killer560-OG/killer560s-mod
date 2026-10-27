@@ -1277,6 +1277,39 @@ public final class Ap3Executor {
         return leapGate;
     }
 
+    /**
+     * START: his real left click while a leapcounter: node waits means "fire now" (killer560, 2026-10-26: "on a
+     * leapcounter node if i left click it should fire as well"). Taken the way Auto Routes takes a skip click
+     * (RouteExecutor.takeSkipClick): the attack key's queued clicks are consumed before vanilla's handleKeybinds sees
+     * them, never under a screen, so no swing or dig goes out. The count is treated as met; tickLeapGate releases the
+     * node at END and the nodes held behind it follow in order. The GLFW click latch is cleared too, so the same press
+     * does not also skip whatever begins next.
+     */
+    private static void takeLeapGateClick(Minecraft client) {
+        if (leapGate == null || McCompat.screen(client) != null || client.options == null) {
+            return;
+        }
+        boolean clicked = false;
+        while (client.options.keyAttack.consumeClick()) {
+            clicked = true;
+        }
+        if (!clicked) {
+            return;
+        }
+        client.options.keyAttack.setDown(false);
+        clickLatch = false;
+        leftWasDown = true;
+        leapGateArrived = Math.max(leapGateArrived, leapGate.leapCounter);
+        LOGGER.info("[AP3] leap gate: {} #{} leap counter skipped by left click ({}/{} counted)", leapGate.type.label(),
+                number(leapGate), leapGateCountedReal, leapGate.leapCounter);
+        if (Ap3Config.getInstance().isChatFeedback()) {
+            chat(ModChat.text("Leap counter skipped"), ModChat.dim(" - you clicked (#" + number(leapGate) + ")"));
+        }
+    }
+
+    /** Leaps really counted for the gate (the log line's "k/n", unchanged by a click). */
+    private static int leapGateCountedReal;
+
     /** The node to begin this tick: aligns only while the gate holds; a node with an uncounted leapcounter: engages it. */
     private static Ap3Node nextToBegin(LocalPlayer player) {
         if (leapGate != null) {
@@ -1298,6 +1331,7 @@ public final class Ap3Executor {
     private static void engageLeapGate(Ap3Node node, LocalPlayer player) {
         leapGate = node;
         leapGateArrived = 0;
+        leapGateCountedReal = 0;
         lastPositions.clear();
         counted.clear();
         Minecraft client = Minecraft.getInstance();
@@ -1345,6 +1379,7 @@ public final class Ap3Executor {
                 if (teleported && now.distanceTo(me) <= radius) {
                     counted.add(id);
                     leapGateArrived++;
+                    leapGateCountedReal++;
                     LOGGER.info("[AP3] leap gate: {} leapt to you ({}/{})", name, leapGateArrived, node.leapCounter);
                     if (Ap3Config.getInstance().isChatFeedback()) {
                         chat(ModChat.value(name), ModChat.text(" leapt to you "),
@@ -1530,6 +1565,7 @@ public final class Ap3Executor {
      * Term Aura click goes out here.
      */
     static void tickStart(Minecraft client) {
+        takeLeapGateClick(client);
         if (actNode == null || actFired || Ap3FreezeState.isFrozen()) {
             return;
         }
@@ -2030,8 +2066,8 @@ public final class Ap3Executor {
     }
 
     /**
-     * Where (dx, dz) the next {@code ticks} ticks take him from here: the first with these keys, the rest coasting with
-     * sneak - the planner's own movement model (the same one alignPredX/Z come from), at the frame yaw the keys go out at.
+     * Where (dx, dz) the next {@code ticks} ticks take him from here: the first with these keys, the rest braking as
+     * hard as a key can - i.e. whether he can still stop short after this press - the planner's own movement model (the same one alignPredX/Z come from), at the frame yaw the keys go out at.
      */
     private static double[][] ledgePredict(LocalPlayer player, int fw, int st, boolean sneak, float yaw, int ticks) {
         Ap3DiscretePlanner.Model m = modelFor(player, true);
@@ -2046,8 +2082,17 @@ public final class Ap3Executor {
         s.sentYaw = yaw;
         double[][] out = new double[ticks][];
         for (int i = 0; i < ticks; i++) {
-            Ap3DiscretePlanner.Action a = i == 0 ? new Ap3DiscretePlanner.Action(fw, st, sneak)
-                    : new Ap3DiscretePlanner.Action(0, 0, true);
+            Ap3DiscretePlanner.Action a;
+            if (i == 0) {
+                a = new Ap3DiscretePlanner.Action(fw, st, sneak);
+            } else if (Math.hypot(s.vx, s.vz) > 1.0e-3) {
+                // After this press: the hardest stop a key can make (the key against his velocity), not a coast - the
+                // planner brakes on its next ticks, and a coast refused every press near an edge (lava beside, 1026).
+                int[] k = nearestKey8(-s.vx, -s.vz, yaw);
+                a = new Ap3DiscretePlanner.Action(k[0], k[1], false);
+            } else {
+                a = Ap3DiscretePlanner.NONE;
+            }
             Ap3DiscretePlanner.step(s, a, yaw, m);
             out[i] = new double[]{-s.ex, -s.ez};
         }
@@ -2066,7 +2111,7 @@ public final class Ap3Executor {
         return true;
     }
 
-    /** This tick plus the coast after it: a press that is fine now but leaves too much speed to stop is not fine. */
+    /** This tick plus the braking after it: a press that is fine now but leaves too much speed to stop is not fine. */
     private static final int LEDGE_LOOKAHEAD = 3;
 
     private static void ledgeGuard(LocalPlayer player, Ap3Node node) {
