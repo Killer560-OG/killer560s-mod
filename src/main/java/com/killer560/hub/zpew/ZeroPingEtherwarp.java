@@ -436,6 +436,13 @@ public final class ZeroPingEtherwarp {
         fireAimed(mc, player, invoker, hand, looks);
     }
 
+    /** The yaw of the last move with a look that really went on the wire ({@code mixin/ZpewWireMixin}), NaN before one. */
+    private static volatile float wireYaw = Float.NaN;
+
+    public static void onWireYaw(float yaw) {
+        wireYaw = yaw;
+    }
+
     /** Presses waiting for Blink's bank to be covered, and since when. */
     private static java.util.List<ClickLook> pendingLooks;
     private static long pendingAtMs;
@@ -490,11 +497,16 @@ public final class ZeroPingEtherwarp {
             for (int i = 0; i < n; i++) {
                 ClickLook l = looks.get(i);
                 float pitch = Mth.clamp(l.pitch(), -90f, 90f);
+                final boolean first = i == 0;
                 Runnable use = () -> {
-                    // The same direction as the press, as a turn of at most 180 from where the body is now: the presses'
-                    // running yaws can span a whole circle (+x, +z, -x, -z, +x), and turning straight back from the last
-                    // to the first is a 360 that GrimAC flags as AimModulo360 (1027-zpewlk n=5, b10ae6c9).
-                    float yaw = player.getYRot() + Mth.wrapDegrees(l.yaw() - player.getYRot());
+                    // The same direction as the press, as a turn of at most 180 from the yaw the SERVER has: the first
+                    // from the yaw that last went on the wire (Blink Charge keeps turn-only ticks off it, so his running
+                    // yaw can be a whole turn away - a 360 jump is GrimAC AimModulo360, 1027-zpewlk n=5), the rest from
+                    // the one before (which went out in its spent tick).
+                    float from = first && !Float.isNaN(wireYaw) ? wireYaw : player.getYRot();
+                    float yaw = from + Mth.wrapDegrees(l.yaw() - from);
+                    LOGGER.info(String.format(Locale.ROOT, "[ZPEW] Aimed Warps: press at yaw %.2f pitch %.2f sent as yaw %.2f "
+                            + "(turned from %.2f%s)", l.yaw(), pitch, yaw, from, first ? ", the yaw on the wire" : ""));
                     BODY.turn(player, yaw, pitch);
                     invoker.killer560smod$invokeStartPrediction(mc.level,
                             sequence -> new ServerboundUseItemPacket(hand, sequence, yaw, pitch));

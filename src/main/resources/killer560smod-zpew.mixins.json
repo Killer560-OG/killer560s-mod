@@ -9,7 +9,8 @@
 		"ZpewMinecraftAccessor",
 		"ZpewPositionMixin",
 		"ZpewSendMixin",
-		"ZpewUseItemMixin"
+		"ZpewUseItemMixin",
+		"ZpewWireMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
