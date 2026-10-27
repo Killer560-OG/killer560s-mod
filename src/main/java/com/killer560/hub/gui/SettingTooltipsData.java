@@ -1316,6 +1316,7 @@ final class SettingTooltipsData {
         d.put("custom scoreboard/advanced", "Every other Custom Scoreboard setting: the line rules, and the box (background, padding, corners, border, blur).");
         d.put("custom scoreboard/theme", "The board's Menu Theme: Default follows the mod menu's theme, or pick a theme or a saved one. Left click goes forward, right click back.");
         d.put("custom scoreboard/date format", "The date on the Lobby Code line (today's real date). The SkyBlock date line is Hypixel's own text, so it is shown as it is.");
+        d.put("custom scoreboard/background opacity", "How solid the board's background is, 0-100%: the opacity of the Background Color.");
         d.put("custom scoreboard/image opacity", "How solid the background image is, 5-100%. Only used with Image Background on.");
         d.put("custom scoreboard/bottom color", "Bottom color of the border gradient (used with Gradient Border). Used when Border Style is Custom.");
         d.put("custom scoreboard/blur (restart)", "Blurs the game behind the scoreboard box (restart Minecraft to apply).");
