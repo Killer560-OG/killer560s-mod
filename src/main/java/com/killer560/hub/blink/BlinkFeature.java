@@ -283,7 +283,12 @@ public final class BlinkFeature {
         if (holding && !wanted) {
             release("key".equals(holdOwner) ? "key up" : "ended by " + holdOwner);
         }
-        if (!holding && wanted) {
+        if (spawnWaitTicks > 0) {
+            spawnWaitTicks--;
+        }
+        if (!holding && wanted && spawnWaitTicks > 0) {
+            // A new world: the hold waits until the server's spawn teleport has been confirmed (campaign-blink-1027).
+        } else if (!holding && wanted) {
             if (!SkyblockGate.allows()) {
                 if (!gateRefusalLogged) {
                     gateRefusalLogged = true;
@@ -485,7 +490,17 @@ public final class BlinkFeature {
      * {@code mixin/BlinkPacketListenerMixin}: a server position packet, render thread, before vanilla applies it (so the
      * accept and the move vanilla answers with go out after everything held).
      */
+    /**
+     * Ticks a Hold key still down across a world change waits before its new hold: until the new world's spawn teleport is
+     * confirmed (then 2 more ticks), at most 40. A hold started on the new world's first tick held that confirm and the first
+     * moves: GrimAC Simulation 0.03-0.065 on ~20 ticks (1026-blink-death (a), on 3011406a too).
+     */
+    private static int spawnWaitTicks;
+
     public static void onServerPosition(Vec3 from, Vec3 to) {
+        if (spawnWaitTicks > 2) {
+            spawnWaitTicks = 2;
+        }
         boolean wasHolding = holding;
         double dist = from == null || to == null ? 0 : from.distanceTo(to);
         // The server putting him back where a blink started is the server refusing that blink: what is held is no use
@@ -582,6 +597,7 @@ public final class BlinkFeature {
         // there (killer560 2026-10-27: never drop a blink he did not release). From 2026-10-26 to then it waited for the
         // key to come up, because a hold on the new world's first tick drew GrimAC Post (testkit 1025-blink-world).
         holdLatched = false;
+        spawnWaitTicks = 40;
         if (keyWasDown) {
             BlinkLog.event("Hold key still down across the world change - a new hold goes on in the new world");
         }
