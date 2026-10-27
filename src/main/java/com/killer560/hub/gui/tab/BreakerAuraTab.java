@@ -108,12 +108,35 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, col2W, 18)
                 .build());
         int picked = BreakerAuraStore.getInstance().pickedKeys().size();
+        // A second screen asks first (killer560, 2026-10-26: "make sure the clear picked if clicked opens a second menu
+        // that makes you confirm you want to clear all"); one stray click used to wipe a whole wall of picks.
         widgets.add(SettingsButtonWidget.builder(
                 Component.literal("Clear Picked: " + picked), btn -> {
-                    com.killer560.hub.dungeonextras.BreakerAuraFeature.clearSelection();
-                    requestRebuild.run();
+                    Minecraft client = Minecraft.getInstance();
+                    net.minecraft.client.gui.screens.Screen parent = McCompat.screen(client);
+                    McCompat.setScreen(client, new net.minecraft.client.gui.screens.ConfirmScreen(yes -> {
+                        if (yes) {
+                            com.killer560.hub.dungeonextras.BreakerAuraFeature.clearSelection();
+                        }
+                        McCompat.setScreen(client, parent);
+                    }, Component.literal("Clear all picked breaker blocks?"),
+                            Component.literal("This removes all " + picked + " picked block(s) in "
+                                    + cfg.getBreakerAuraConfigFile() + ". It cannot be undone.")));
                 }).bounds(col2bX, y, col2W, 18)
                 .build());
+        y += 22;
+
+        // Edit Mode right after the pick key (killer560, 2026-10-26): picking and editing go together, so it is offered
+        // with the aura off too, like the key above.
+        widgets.add(SettingsButtonWidget.builder(onOff("Edit Mode", cfg.isBreakerAuraEditMode()),
+                btn -> {
+                    cfg.setBreakerAuraEditMode(!cfg.isBreakerAuraEditMode());
+                    cfg.save();
+                    btn.setMessage(onOff("Edit Mode", cfg.isBreakerAuraEditMode()));
+                }).bounds(contentX, y, col2W, 18)
+                .build());
+        widgets.add(onOffButton("Pause In Edit Mode", cfg::isBreakerAuraRespectEditMode,
+                cfg::setBreakerAuraRespectEditMode, cfg::save, null, col2bX, y, col2W, 18));
         y += 22;
 
         if (!cfg.isBreakerAuraEnabledRaw()) {
@@ -171,17 +194,6 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Multi Break", cfg.isBreakerAuraMultiBreak()));
                 }).bounds(col2bX, y, col2W, 18)
                 .build());
-        y += 20;
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Edit Mode", cfg.isBreakerAuraEditMode()),
-                btn -> {
-                    cfg.setBreakerAuraEditMode(!cfg.isBreakerAuraEditMode());
-                    cfg.save();
-                    btn.setMessage(onOff("Edit Mode", cfg.isBreakerAuraEditMode()));
-                }).bounds(contentX, y, col2W, 18)
-                .build());
-        widgets.add(onOffButton("Pause In Edit Mode", cfg::isBreakerAuraRespectEditMode,
-                cfg::setBreakerAuraRespectEditMode, cfg::save, null, col2bX, y, col2W, 18));
         y += 20;
 
         // How the picks are drawn (2026-10-06): Highlight (the original, depth-tested) or Waypoint (through walls,
