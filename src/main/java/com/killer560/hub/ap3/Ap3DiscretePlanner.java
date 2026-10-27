@@ -44,6 +44,41 @@ final class Ap3DiscretePlanner {
     static final double STRAIGHT = Ap3AlignMath.INPUT_SCALE;
     /** Coarse joint look-ahead depth (17^3 leaves). */
     static final int COARSE_DEPTH = 3;
+
+    /**
+     * A hard wall-clock budget for one tick's planning (2026-10-26, killer560: "if an align walks into lava or something it
+     * lags my game to death"). The searches are bounded in count but not in time: off the ground (falling, a lava bounce)
+     * nothing lands, so Fast Align's solve walks its whole schedule space and the coarse look-ahead coasts every leaf for
+     * up to 60 ticks - 60-180 ms a tick in his 2026-10-26 23:15 and 23:17 logs. {@link #startBudget} arms it, the searches
+     * stop when it is spent and keep the best found, and {@link #budgetSpent} says so.
+     */
+    static final long PLAN_BUDGET_NANOS = 10_000_000L;
+    private static long deadline = Long.MAX_VALUE;
+    private static boolean spent;
+
+    static void startBudget() {
+        deadline = System.nanoTime() + PLAN_BUDGET_NANOS;
+        spent = false;
+    }
+
+    static void endBudget() {
+        deadline = Long.MAX_VALUE;
+    }
+
+    static boolean budgetSpent() {
+        return spent;
+    }
+
+    /** True (and remembered) once this tick's planning time is gone. */
+    static boolean outOfTime() {
+        if (spent) {
+            return true;
+        }
+        if (System.nanoTime() > deadline) {
+            spent = true;
+        }
+        return spent;
+    }
     /** Newton iterations for the two-tap solve. */
     static final int NEWTON_ITERATIONS = 14;
     /** Angle samples for the one-tap solve. */
@@ -508,6 +543,9 @@ final class Ap3DiscretePlanner {
     /** Exhaustive joint search over all 17 combinations for {@code depth} ticks at the current yaw, scored by the rest
      *  error; equal errors go to the sequence that comes to rest sooner (so a needed press is never deferred). */
     private static void jointSearch(State s, Model m, int depth, int k, Action first, JointResult out) {
+        if (k > 0 && out.first != null && outOfTime()) {
+            return; // the tick's budget is gone: keep the best found so far
+        }
         if (k == depth) {
             State r = s.copy();
             int ticks = k + coast(r, m);
@@ -551,6 +589,9 @@ final class Ap3DiscretePlanner {
      * what the other key-based mods get), re-planned every tick. Honest: the plan says the error it expects.
      */
     private static void keysFineSearch(State s, Model m, int depth, int k, Action first, JointResult out) {
+        if (k > 0 && out.first != null && outOfTime()) {
+            return;
+        }
         if (k == depth) {
             State r = s.copy();
             int ticks = k + coast(r, m);

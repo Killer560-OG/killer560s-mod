@@ -207,6 +207,9 @@ final class Ap3FastAlign {
             return r;
         }
         for (int total = 1; total <= MAX_TICKS; total++) {
+            if (Ap3DiscretePlanner.outOfTime()) {
+                return null; // the tick's planning budget is spent (see Ap3DiscretePlanner.PLAN_BUDGET_NANOS)
+            }
             // Coasting alone lands and stops in this many ticks: pressing anything can only be slower or equal.
             double coast = evaluate(s, m, NO_ACTS, NO_YAWS, total, null);
             if (coast <= tol) {
@@ -220,6 +223,9 @@ final class Ap3FastAlign {
             for (int k = 1; k <= Math.min(MAX_PRESSES, total); k++) {
                 int combos = pow(ACTS.length, k);
                 for (int c = 0; c < combos; c++) {
+                    if ((c & 63) == 0 && Ap3DiscretePlanner.outOfTime()) {
+                        return null;
+                    }
                     Ap3DiscretePlanner.Action[] acts = decode(c, k);
                     if (acts[k - 1].none()) {
                         continue; // a trailing "nothing" is just a shorter schedule with one more coast tick

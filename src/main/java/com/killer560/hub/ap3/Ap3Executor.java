@@ -1898,13 +1898,90 @@ public final class Ap3Executor {
             alignPhase = "waiting for the sent yaw to reach the camera";
             return;
         }
+        if (player.isInLava() || hazardAt(player, pos.x, pos.y, pos.z)) {
+            // Already in it: no plan can be trusted here (lava's own drag and Hypixel's lava bounce), and fighting it is
+            // what lagged him (2026-10-26 23:15:15-18 and 23:17:07-18: 60-180 ms ticks, ten of them per frame). The align
+            // lets go, says so once, and he gets himself out.
+            clearMovement();
+            String what = player.isInLava() ? "lava" : "a hazard (fire, cactus, berry bush, magma or powder snow)";
+            LOGGER.info("[AP3] Align #{}: you are in {} - the align stops here and leaves getting out to you", number(node), what);
+            ModChat.log("AP3", ModChat.text("Align #" + number(node) + ": you are in " + what + " - stopped aligning"));
+            finishNode();
+            return;
+        }
         if (ledgeSettle(player, node, pos, still)) {
             return;
         }
-        if (!(fast && driveFast(player, ex, ez))) {
-            driveDiscrete(player, ex, ez, method);
+        Ap3DiscretePlanner.startBudget();
+        try {
+            if (!(fast && driveFast(player, ex, ez))) {
+                driveDiscrete(player, ex, ez, method);
+            }
+            ledgeGuard(player, node);
+        } finally {
+            Ap3DiscretePlanner.endBudget();
         }
-        ledgeGuard(player, node);
+        if (Ap3DiscretePlanner.budgetSpent()) {
+            budgetSpentTicks++;
+            if (budgetSpentTicks == 1) {
+                LOGGER.info("[AP3] Align #{}: planning ran out of its {} ms on tick {} - using the best found", number(node),
+                        Ap3DiscretePlanner.PLAN_BUDGET_NANOS / 1_000_000L, stepTicks);
+            }
+            if (budgetSpentTicks >= BUDGET_GIVE_UP) {
+                clearMovement();
+                String msg = String.format(Locale.US, "Align #%d: no plan converged in %d ticks (%.3f off) - stopped aligning",
+                        number(node), budgetSpentTicks, err);
+                LOGGER.info("[AP3] {}", msg);
+                ModChat.log("AP3", ModChat.text(msg));
+                finishNode();
+            }
+        } else {
+            budgetSpentTicks = 0;
+        }
+    }
+
+    /** Ticks in a row the align's planning ran out of time; at {@link #BUDGET_GIVE_UP} the align ends. */
+    private static int budgetSpentTicks;
+    private static final int BUDGET_GIVE_UP = 20;
+
+    /**
+     * Whether a player standing at (x, feetY, z) would be touching something that hurts: lava, fire, soul fire, a lit
+     * campfire, cactus, a sweet berry bush, powder snow (any of them overlapping his box, grown a hair as vanilla's
+     * contact check is), or magma under his feet. Read straight off the blocks; nothing is sent.
+     */
+    static boolean hazardAt(LocalPlayer player, double x, double feetY, double z) {
+        net.minecraft.world.level.Level level = player.level();
+        double hw = player.getBbWidth() / 2.0;
+        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(x - hw, feetY, z - hw, x + hw,
+                feetY + player.getBbHeight(), z + hw).inflate(0.001);
+        int x0 = net.minecraft.util.Mth.floor(box.minX), x1 = net.minecraft.util.Mth.floor(box.maxX);
+        int y0 = net.minecraft.util.Mth.floor(box.minY), y1 = net.minecraft.util.Mth.floor(box.maxY);
+        int z0 = net.minecraft.util.Mth.floor(box.minZ), z1 = net.minecraft.util.Mth.floor(box.maxZ);
+        net.minecraft.core.BlockPos.MutableBlockPos bp = new net.minecraft.core.BlockPos.MutableBlockPos();
+        for (int bx = x0; bx <= x1; bx++) {
+            for (int bz = z0; bz <= z1; bz++) {
+                for (int by = y0; by <= y1; by++) {
+                    net.minecraft.world.level.block.state.BlockState st = level.getBlockState(bp.set(bx, by, bz));
+                    if (st.getFluidState().is(net.minecraft.tags.FluidTags.LAVA)
+                            || st.is(net.minecraft.world.level.block.Blocks.FIRE)
+                            || st.is(net.minecraft.world.level.block.Blocks.SOUL_FIRE)
+                            || st.is(net.minecraft.world.level.block.Blocks.CACTUS)
+                            || st.is(net.minecraft.world.level.block.Blocks.SWEET_BERRY_BUSH)
+                            || st.is(net.minecraft.world.level.block.Blocks.POWDER_SNOW)
+                            || (st.is(net.minecraft.world.level.block.Blocks.CAMPFIRE)
+                                && st.getValue(net.minecraft.world.level.block.CampfireBlock.LIT))) {
+                        return true;
+                    }
+                }
+                // Magma burns from under the feet.
+                net.minecraft.world.level.block.state.BlockState below = level.getBlockState(
+                        bp.set(bx, net.minecraft.util.Mth.floor(feetY - 0.01), bz));
+                if (below.is(net.minecraft.world.level.block.Blocks.MAGMA_BLOCK)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     // ---- the ledge guard (killer560, 2026-10-26: "sometimes align will send me flying off of a small ledge that I am on
@@ -1925,32 +2002,120 @@ public final class Ap3Executor {
     private static int ledgeGuardTicks;
     private static boolean ledgeTargetUnsupported;
 
-    /** Whether a player standing at (x, feetY, z) has a floor within {@link #MAX_LEDGE_DROP} under his footprint. */
-    static boolean supportedAt(LocalPlayer player, double x, double feetY, double z) {
-        double hw = player.getBbWidth() / 2.0;
-        net.minecraft.world.phys.AABB probe = new net.minecraft.world.phys.AABB(
-                x - hw, feetY - MAX_LEDGE_DROP, z - hw, x + hw, feetY - 1.0e-4, z + hw);
+    /**
+     * The feet height the current align started from (its first tick on the ground), or NaN until then. Every floor test
+     * is against THIS, not the feet of the tick: a staircase of half steps would otherwise pass "a floor within 0.5" on
+     * every tick and add up to any drop (killer560, 2026-10-26: "sometimes fastalign still goes off of stairs").
+     */
+    private static double ledgeStartY = Double.NaN;
+
+    /**
+     * Whether a player at (x, z) has a floor no lower than {@code startY - MAX_LEDGE_DROP} under his footprint: some
+     * collision box reaching into [startY - 0.5, feetY). The bottom edge is inclusive (a half step exactly 0.5 down is
+     * allowed), which the first cut's open bottom was not.
+     */
+    static boolean supportedAt(LocalPlayer player, double x, double feetY, double z, double startY) {
+        double hw = player.getBbWidth() / 2.0 - 1.0e-7;
+        double bottom = startY - MAX_LEDGE_DROP - 1.0e-3;
+        double top = Math.max(feetY, startY) - 1.0e-4;
+        if (top <= bottom) {
+            return false;
+        }
+        net.minecraft.world.phys.AABB probe = new net.minecraft.world.phys.AABB(x - hw, bottom, z - hw, x + hw, top, z + hw);
         return !player.level().noCollision(player, probe);
     }
 
-    private static void ledgeGuard(LocalPlayer player, Ap3Node node) {
-        if (!alignPredValid || !player.onGround()) {
-            return; // nothing predicted, or already in the air - a press can no longer change where he lands
+    static boolean supportedAt(LocalPlayer player, double x, double feetY, double z) {
+        return supportedAt(player, x, feetY, z, feetY);
+    }
+
+    /**
+     * Where (dx, dz) the next {@code ticks} ticks take him from here: the first with these keys, the rest coasting with
+     * sneak - the planner's own movement model (the same one alignPredX/Z come from), at the frame yaw the keys go out at.
+     */
+    private static double[][] ledgePredict(LocalPlayer player, int fw, int st, boolean sneak, float yaw, int ticks) {
+        Ap3DiscretePlanner.Model m = modelFor(player, true);
+        Ap3DiscretePlanner.State s = new Ap3DiscretePlanner.State();
+        Vec3 vel = player.getDeltaMovement();
+        s.ex = 0;
+        s.ez = 0;
+        s.vx = vel.x;
+        s.vz = vel.z;
+        s.sprinting = sprintLikely(player);
+        s.crouching = lastSneakSent;
+        s.sentYaw = yaw;
+        double[][] out = new double[ticks][];
+        for (int i = 0; i < ticks; i++) {
+            Ap3DiscretePlanner.Action a = i == 0 ? new Ap3DiscretePlanner.Action(fw, st, sneak)
+                    : new Ap3DiscretePlanner.Action(0, 0, true);
+            Ap3DiscretePlanner.step(s, a, yaw, m);
+            out[i] = new double[]{-s.ex, -s.ez};
         }
-        double feet = player.getY();
-        if (supportedAt(player, alignPredX, feet, alignPredZ)) {
+        return out;
+    }
+
+    /** Whether pressing (fw, st, sneak) now keeps every predicted position over a floor no lower than start - 0.5. */
+    private static boolean ledgeSafe(LocalPlayer player, int fw, int st, boolean sneak, float yaw) {
+        Vec3 pos = player.position();
+        for (double[] d : ledgePredict(player, fw, st, sneak, yaw, LEDGE_LOOKAHEAD)) {
+            if (!supportedAt(player, pos.x + d[0], pos.y, pos.z + d[1], ledgeStartY)
+                    || hazardAt(player, pos.x + d[0], pos.y, pos.z + d[1])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** This tick plus the coast after it: a press that is fine now but leaves too much speed to stop is not fine. */
+    private static final int LEDGE_LOOKAHEAD = 3;
+
+    private static void ledgeGuard(LocalPlayer player, Ap3Node node) {
+        if (!player.onGround()) {
+            return; // in the air a press can no longer change where he lands
+        }
+        if (Double.isNaN(ledgeStartY)) {
+            ledgeStartY = player.getY(); // the align began in the air: its start is where it first stood
+        }
+        if (player.getY() < ledgeStartY - MAX_LEDGE_DROP - 1.0e-3) {
+            return; // already below the line (a server correction, a ledge the guard never saw): nothing to keep
+        }
+        float yaw = player.getYRot();
+        int fw = (wantForward ? 1 : 0) - (wantBackward ? 1 : 0);
+        int st = (wantLeft ? 1 : 0) - (wantRight ? 1 : 0);
+        if (ledgeSafe(player, fw, st, wantSneak, yaw)) {
             return;
         }
-        // The press (or the coast) would carry him over the edge: same keys, sneak held.
-        wantSneak = true;
-        // The planner's push expectation assumed no sneak; do not let this tick teach it a wrong push scale.
+        // The planner's press (or its coast) leads off the edge. Sneak alone is not enough: vanilla's edge back-off
+        // (Player.maybeBackOffFromEdge) only stops a drop of maxUpStep (0.6) or more, so it lets him onto a half step and
+        // off the far side of it - his 2026-10-26 23:15:14 fall. Take the first replacement whose predicted path stays
+        // over the floor: no keys with sneak, then the key combination against his velocity with sneak, then without.
+        Vec3 v = player.getDeltaMovement();
+        int[] brake = Math.hypot(v.x, v.z) > 1.0e-3 ? nearestKey8(-v.x, -v.z, yaw) : new int[]{0, 0};
+        int[][] tries = {{0, 0, 1}, {brake[0], brake[1], 1}, {brake[0], brake[1], 0}};
+        int[] pick = null;
+        for (int[] t : tries) {
+            if (ledgeSafe(player, t[0], t[1], t[2] == 1, yaw)) {
+                pick = t;
+                break;
+            }
+        }
+        if (pick == null) {
+            pick = new int[]{brake[0], brake[1], 1}; // nothing predicted safe: brake as hard as a key can, sneak down
+        }
+        writeDiscrete(player, pick[0], pick[1], pick[2] == 1, false, yaw, modelFor(player, true), lastSneakSent);
+        if (pick[0] == 0 && pick[1] == 0) {
+            clearMovement();
+            wantSneak = pick[2] == 1;
+        }
+        // The planner's push expectation was for its own press; do not let this tick teach it a wrong push scale.
         pushPending = false;
         predictedSprintValid = false;
+        alignPredValid = false;
         if (ledgeGuardTicks++ == 0) {
-            LOGGER.info("[AP3] Align #{}: the next tick would take you off a ledge at ({}, {}) - no floor within {} under"
-                            + " your feet - sneak held so the game stops you at the edge",
-                    number(node), String.format(Locale.US, "%.3f", alignPredX), String.format(Locale.US, "%.3f", alignPredZ),
-                    MAX_LEDGE_DROP);
+            LOGGER.info("[AP3] Align #{}: the planned press would take you more than {} below where the align started (y {})"
+                            + " or into a hazard - pressing {}{}{}{}{} instead", number(node), MAX_LEDGE_DROP,
+                    String.format(Locale.US, "%.3f", ledgeStartY), wantForward ? "W" : "", wantBackward ? "S" : "",
+                    wantLeft ? "A" : "", wantRight ? "D" : "", wantSneak ? " sneak" : " nothing");
         }
         alignPhase = alignPhase + " [ledge guard]";
     }
@@ -1970,9 +2135,11 @@ public final class Ap3Executor {
             return false; // still closing in along the edge
         }
         // At the edge: no more presses, sneak kept down while friction takes the speed the planner built up (the
-        // edge clip stops the move, not the velocity), then done.
+        // edge clip stops the move, not the velocity), then done. The guard still checks that coast (a half step's
+        // edge is no edge to vanilla's clip) and brakes instead when it would carry him off.
         clearMovement();
         wantSneak = true;
+        ledgeGuard(player, node);
         ledgeHoldTicks++;
         if (!still && ledgeHoldTicks < 40) {
             return true;
@@ -1994,7 +2161,10 @@ public final class Ap3Executor {
         ledgeHoldTicks = 0;
         ledgeLastX = pos.x;
         ledgeLastZ = pos.z;
-        ledgeTargetUnsupported = player.onGround() && !supportedAt(player, node.x, pos.y, node.z);
+        ledgeStartY = player.onGround() ? pos.y : Double.NaN;
+        ledgeTargetUnsupported = player.onGround() && (!supportedAt(player, node.x, pos.y, node.z, pos.y)
+                || hazardAt(player, node.x, pos.y, node.z));
+        budgetSpentTicks = 0;
         if (ledgeTargetUnsupported) {
             LOGGER.info("[AP3] Align #{}: its point ({}, {}) has no floor within {} under it - it will stop as close as"
                             + " is safe", number(node), String.format(Locale.US, "%.3f", node.x),

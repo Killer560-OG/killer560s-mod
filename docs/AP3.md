@@ -100,3 +100,19 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   LEAP_COUNTER type stays in the enum only so old files and the old command load: both become a Stop with the suffix.
   The testkit's fake players have version-3 UUIDs, which the counter skips as NPCs; `setLeapCountAnyPlayerForTest` lifts
   that for 1026-ap3-leapgate.
+- **The ledge guard measures from the align's start, inclusive, and does not rely on sneak.** The first cut (2026-10-26)
+  probed (feet-0.5, feet) per tick and held Sneak when it found nothing; vanilla's edge back-off
+  (`Player.maybeBackOffFromEdge` / `canFallAtLeast`, javap 26.1.2) only clips a drop of `maxUpStep` = 0.6 or more, so a
+  half step 0.5 down was "no floor" to the guard and "ground" to vanilla - the move was not clipped (his 23:15:14 and
+  23:17:06 Fast Align #34: the sneak-held move landed exactly on the unclipped prediction, then he was airborne and slid
+  off the far side of the step, 3 blocks down). Now every predicted position for this press and the coast after it
+  (`LEDGE_LOOKAHEAD`) must have a collision box reaching up to at least start - 0.5 (bottom inclusive); a press that
+  fails is replaced by no keys + sneak, then the key against his velocity (+ sneak, then without), so a staircase of half
+  steps cannot add up past 0.5.
+- **Align planning has a wall-clock budget.** Off the ground nothing lands, so Fast Align's solve walks its whole schedule
+  space and the coarse look-ahead coasts every leaf: a headless timing of the planner on his 23:15 airborne state took
+  61-78 ms a tick against 4-7 ms on the ground (killer560s-mod-logs/ap3-stairs/bench), and his stutter log shows 60-180 ms
+  ticks, ten per frame, while an align fought a lava bounce. `Ap3DiscretePlanner.startBudget` gives a tick 10 ms; the
+  searches keep the best found; 20 spent ticks in a row end the align. Standing in lava or a hazard ends the align at once
+  (logged once); presses into lava, fire, cactus, berry bush, powder snow or onto magma are refused like a drop.
+
