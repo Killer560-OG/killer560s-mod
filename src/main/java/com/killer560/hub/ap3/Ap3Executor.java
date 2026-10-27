@@ -392,6 +392,7 @@ public final class Ap3Executor {
         leapGate = null;
         leapCleared.clear();
         triggeredAt.clear();
+        chargeAlignPulled.clear();
         if (com.killer560.hub.blink.BlinkCharge.inShotLoop() && wasBusy) {
             shotAbort = reason == null ? "stopped" : reason; // the shot under this stop ends at its next tick
             shotAbortSerial = com.killer560.hub.blink.BlinkCharge.shotSerial();
@@ -769,6 +770,7 @@ public final class Ap3Executor {
      */
     static void tick(Minecraft client, Ap3Chain current, boolean arrival) {
         tickCounter++;
+        tickBoomBackground(client);
         trackTerminalClose(client);
         LocalPlayer player = client.player;
         if (player == null || client.level == null) {
@@ -792,6 +794,8 @@ public final class Ap3Executor {
         }
         if (lastSelfPos != null && jumped) {
             onLeapHappened("you leapt");
+            arrivalPullTicks = ARRIVAL_PULL_TICKS; // landed: an align he came down beside (not in its box) pulls him in
+            arrivalPullWhy = "a leap or teleport";
         }
         lastSelfPos = pos;
         tickReleaseWatch(client, player);
@@ -863,6 +867,26 @@ public final class Ap3Executor {
             if (canAct && leapGate == null) {
                 // LOOK, STOPWATCH, WALK / RUN, JUMP, EDGE and USE do not wait for the executor - see fireInstant.
                 fireInstant(client, player);
+            }
+            if (canAct && activeNode != null && activeNode.type == Ap3Node.Type.BOOM && step == Step.CONFIRM
+                    && queuedAlign() != null) {
+                // His live log (2026-10-27 15:11:04 and 15:11:40): Fast Align #34 queued while boom #39 waited 40 ticks for
+                // its gate, then the boom's "didn't break anything" stopped AP3 and the align went with it. The use has
+                // gone out; waiting to see the gate break aims at nothing - it goes on in the background.
+                boomToBackground(queuedAlign());
+            }
+            if (canAct && arrivalPullTicks > 0) {
+                arrivalPullTicks--;
+                if (activeNode == null && holdDir == null && actNode == null && leapGate == null) {
+                    Ap3Node near = alignBeside(player);
+                    if (near != null && !queue.contains(near)) {
+                        arrivalPullTicks = 0;
+                        LOGGER.info("[AP3] {} landed you {} blocks beside align #{} (not in its box) - pulling you into it",
+                                arrivalPullWhy, String.format(Locale.US, "%.2f", near.horizontalDistance(player.position())),
+                                number(near));
+                        trigger(near);
+                    }
+                }
             }
             if (activeNode == null && !queue.isEmpty() && canAct && actNode == null) {
                 // ONE node per tick, highest priority first; the rest wait for the following ticks. Not while a USE
@@ -1621,7 +1645,8 @@ public final class Ap3Executor {
             return false;
         }
         Ap3Node next = nextInChain(holdNode);
-        if (next != null && next.type.isAlign() && !inside.contains(next) && passedBeside(player, next)) {
+        if (next != null && (next.type.isAlign() || next.type == Ap3Node.Type.WALK || next.type == Ap3Node.Type.RUN)
+                && !inside.contains(next) && passedBeside(player, next)) {
             return true;
         }
         if (!WALK_EDGE_STOP || !player.onGround()) {
@@ -1743,11 +1768,16 @@ public final class Ap3Executor {
             return false;
         }
         Ap3Node from = holdNode;
-        endHold();
-        clearMovement();
-        LOGGER.info("[AP3] held walk from {} #{} passed beside align #{} (closest {} blocks, not in its box) - pulling you into"
-                        + " it", from == null ? "?" : from.type.label(), from == null ? 0 : number(from), number(align),
-                String.format(Locale.US, "%.2f", passMin));
+        boolean mover = !align.type.isAlign();
+        if (!mover) {
+            endHold();
+            clearMovement();
+        }
+        // A WALK / RUN the run passed beside (2026-10-27, walk stop off: a lead-in that missed #33's 1x1 box ran on off
+        // the floor - testkit 1027-ap3-s2ee3-run-0.5-+-0.45): it takes over the hold from here, as if entered.
+        LOGGER.info("[AP3] held walk from {} #{} passed beside {} #{} (closest {} blocks, not in its box) - {}",
+                from == null ? "?" : from.type.label(), from == null ? 0 : number(from), align.type.label(), number(align),
+                String.format(Locale.US, "%.2f", passMin), mover ? "it takes over from here" : "pulling you into it");
         passAlign = null;
         trigger(align);
         return true;
@@ -1773,6 +1803,87 @@ public final class Ap3Executor {
             return n;
         }
         return null;
+    }
+
+    // ---- a boom's gate check in the background, and the pull into an align he lands beside (2026-10-27) ----
+
+    /** A BOOM whose use has gone out and whose gate check runs in the background while an align goes; null = none. */
+    private static Ap3Node boomBg;
+    private static int boomBgTicks;
+    /** Ticks after a landing (leap, teleport, Blink release) in which an align beside him pulls him in. */
+    private static int arrivalPullTicks;
+    private static String arrivalPullWhy = "";
+    private static final int ARRIVAL_PULL_TICKS = 5;
+
+    /** The first align waiting in the queue, or null. */
+    private static Ap3Node queuedAlign() {
+        for (Ap3Node n : queue) {
+            if (n.type.isAlign()) {
+                return n;
+            }
+        }
+        return null;
+    }
+
+    private static void boomToBackground(Ap3Node align) {
+        boomBg = activeNode;
+        boomBgTicks = stepTicks;
+        boomLog(boomBg, "use sent, gate check goes on in the background - align #" + number(align) + " goes now");
+        activeNode = null;
+        step = null;
+    }
+
+    /** Every END: the background boom's gate check; its result is logged and said, and stops nothing. */
+    private static void tickBoomBackground(Minecraft client) {
+        Ap3Node node = boomBg;
+        if (node == null || client.level == null) {
+            return;
+        }
+        boolean changed = boomChatConfirmed;
+        if (!changed) {
+            for (Map.Entry<BlockPos, BlockState> e : boomBefore.entrySet()) {
+                if (client.level.getBlockState(e.getKey()) != e.getValue()) {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        if (changed) {
+            boomLog(node, "result: the gate broke (checked in the background)");
+        } else if (++boomBgTicks > BOOM_TIMEOUT) {
+            boomLog(node, "result: nothing broke in " + BOOM_TIMEOUT + " ticks (checked in the background; the route went on)");
+            chat(ModChat.value("#" + number(node) + " Boom"), ModChat.bad(" - the superboom didn't break anything"));
+        } else {
+            return;
+        }
+        boomBg = null;
+        boomBefore.clear();
+        boomChatConfirmed = false;
+    }
+
+    /**
+     * The align he is beside but not in: within {@link #PASS_PULL_DISTANCE} of its point, within a block of its height,
+     * not already at it. killer560 (2026-10-27): "that 34 fast align still isnt pulling me in" - any align type, after a
+     * leap, a teleport or a Blink release lands him next to it.
+     */
+    private static Ap3Node alignBeside(LocalPlayer player) {
+        if (chain == null) {
+            return null;
+        }
+        Vec3 pos = player.position();
+        Ap3Node best = null;
+        double bestD = Double.MAX_VALUE;
+        for (Ap3Node n : chain.nodes()) {
+            if (!n.type.isAlign() || inside.contains(n) || Math.abs(n.y - pos.y) > 1.0) {
+                continue;
+            }
+            double d = n.horizontalDistance(pos);
+            if (d > 1.0e-3 && d <= PASS_PULL_DISTANCE && d < bestD) {
+                best = n;
+                bestD = d;
+            }
+        }
+        return best;
     }
 
     /** The held walk ends (a STOP / align was hit): the run, and the jump / edge its modifier armed. */
@@ -4235,6 +4346,30 @@ public final class Ap3Executor {
         }
         int want = blinkChargeTarget(node);
         if (step == Step.PREP) {
+            Ap3Node align = alignBeside(player);
+            if (align == null) {
+                for (Ap3Node n : inside) {
+                    // Only an align of this chain whose box he really stands in (inside can hold a stale node: a
+                    // test's earlier chain sent the charge after "align #0", 11 blocks off).
+                    if (n.type.isAlign() && chain != null && chain.nodes().contains(n) && n.contains(player.position())
+                            && n.horizontalDistance(player.position()) > 1.0e-3) {
+                        align = n; // standing in its box, not yet on its point
+                        break;
+                    }
+                }
+            }
+            if (align != null && chargeAlignPulled.add(align)) {
+                // killer560 (2026-10-27): "for blink make sure the align takes priority over it charging". The align
+                // lands on its point first; the charge (back in the queue behind it) begins after, from the point.
+                LOGGER.info("[AP3] blinkcharge #{}: align #{} is not done ({} blocks from its point) - it goes first, the"
+                        + " charge after", number(node), number(align),
+                        String.format(Locale.US, "%.3f", align.horizontalDistance(player.position())));
+                activeNode = null;
+                step = null;
+                trigger(align);
+                trigger(node);
+                return;
+            }
             String why = com.killer560.hub.blink.BlinkCharge.beginFor(BLINK_OWNER, want);
             if (why != null) {
                 blinkWait(node, why);
@@ -4311,6 +4446,9 @@ public final class Ap3Executor {
 
     /** A Blink Charge finished in this END's tickNode: tick() gives the queue a second pass in the same END. */
     private static boolean chargeDoneThisTick;
+    /** Aligns a charge already sent ahead of itself this run (once each, so an align that cannot land never loops). */
+    private static final java.util.Set<Ap3Node> chargeAlignPulled =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
     /** A momentum-keeping Blink Charge skips his next physics tick (consumed by Ap3FreezeMixin). */
     private static boolean blinkFreezeNext;
     /** The charge brakes this tick (Blink cannot bank yet): the held walk presses nothing. */
@@ -4490,6 +4628,8 @@ public final class Ap3Executor {
     private static void endReleaseWatch(int left) {
         releaseWatch = null;
         releaseResumeBy = -1L;
+        arrivalPullTicks = ARRIVAL_PULL_TICKS; // the shot landed him: an align beside him (not in its box) pulls him in
+        arrivalPullWhy = "a Blink release";
         if (left <= 0) {
             // The bank is spent: AP3's charge ends, so the server's pings are answered on time again.
             com.killer560.hub.blink.BlinkCharge.endFor(BLINK_OWNER, "the bank is spent");
