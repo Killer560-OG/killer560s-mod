@@ -351,7 +351,9 @@ public final class FrameStats {
         sb.append(" | screen ").append(screen == null ? "none" : screen.getClass().getSimpleName());
         sb.append(", world ").append(mc.level == null ? "none" : mc.level.dimension().identifier().toString());
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            sb.append(" | Blink ").append(onOff(blinkRunning()))
+            boolean blink = com.killer560.hub.blink.BlinkFeature.isHolding()
+                    || com.killer560.hub.blink.BlinkCharge.isActive();
+            sb.append(" | Blink ").append(onOff(blink))
                     .append(", Auto Routes ").append(onOff(com.killer560.hub.autoroutes.RouteExecutor.isRunning()))
                     .append(", AP3 ").append(onOff(com.killer560.hub.ap3.Ap3Executor.isRunning()));
         }
@@ -511,10 +513,6 @@ public final class FrameStats {
             }
             return max;
         }
-    }
-
-    private static boolean blinkRunning() {
-        return com.killer560.hub.blink.BlinkFeature.isHolding() || com.killer560.hub.blink.BlinkCharge.isActive();
     }
 
     private static String onOff(boolean b) {
