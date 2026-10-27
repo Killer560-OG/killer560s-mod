@@ -568,6 +568,38 @@ public final class BlinkCharge {
                 // ping it sent before the teleport (SetbackTeleportUtil.checkTeleportQueue, javap 2.3.74): that ping's
                 // answer is the newest one waiting now. Earlier, the confirm waits; later, BadPacketsN and a setback.
                 Answer mark = answers.peekLast();
+                // The floor lands on the oldest waiting ping, so the cover kept is that answer's age: a full one after a
+                // charge, a short one when a second teleport comes soon after the first (its batch left only young answers:
+                // testkit 1027-ap3-blink-leap-route, a 3-block teleport 150 ms after the leap, 108 ms of cover, Timer x31 on
+                // the shot). Backing the lack again on still ticks right after the confirm drew Simulation on the shot
+                // (1027-blink-c-keep-delay, fc3), so a teleport whose oldest answer is short of the bank takes the hold below.
+                long oldestAge = mark == null ? 0L : System.currentTimeMillis() - answers.peekFirst().madeMs();
+                boolean coverKept = oldestAge >= 50L * (banked + shotLeft + 1) - TP_BATCH_SLACK_MS;
+                if (mark != null && TP_BATCH && tpSegs.isEmpty() && coverKept) {
+                    // The cover survives the teleport (killer560 2026-10-27: "keep them through a leap truly"). Every
+                    // waiting answer up to the teleport's ping goes now, back to back with no move between them, and the
+                    // confirm right behind. GrimAC's Timer moves its lag floor (lastMovementPlayerClock) only on the FIRST
+                    // answer after a move packet (Timer.onPrePredictionPacketReceive, hasGottenMovementAfterTransaction,
+                    // javap 2.3.74), so the floor lands on the OLDEST waiting ping, not the teleport's: what was withheld
+                    // before the leap still counts, nothing is held after the confirm, and the bank stays backed.
+                    int sent = 0;
+                    if (connection != null && connection.isConnected()) {
+                        while (!answers.isEmpty()) {
+                            Answer a = answers.pollFirst();
+                            maxAnswerWaitMs = Math.max(maxAnswerWaitMs, System.currentTimeMillis() - a.madeMs());
+                            sendLocked(a.held());
+                            sent++;
+                            if (a == mark) {
+                                break;
+                            }
+                        }
+                    }
+                    tpBatches++;
+                    BlinkLog.event("charge: %s teleport confirmed - bank kept (%d) and still covered; %d answer(s) sent back "
+                            + "to back with the confirm right behind (oldest %d ms)", teleportInPlace ? "in-place" : "moving",
+                            banked, sent, oldestAge);
+                    return false;
+                }
                 if (mark != null) {
                     ArrayDeque<Held> q = new ArrayDeque<>();
                     q.addLast(new Held(packet, listener, flush));
@@ -654,6 +686,15 @@ public final class BlinkCharge {
     }
 
     private static final ArrayDeque<TpSeg> tpSegs = new ArrayDeque<>();
+    /** A teleport while charging sends the waiting answers back to back with its confirm (the cover is kept). */
+    private static final boolean TP_BATCH = !"false".equals(System.getProperty("killer560smod.blink.tpBatch"));
+    private static long tpBatches;
+    /** How far short of the bank's ticks the oldest answer may be and still cover it (the shot is a tick later at least). */
+    private static final long TP_BATCH_SLACK_MS = 160L;
+
+    public static long teleportBatches() {
+        return tpBatches;
+    }
     private static boolean flushingTp;
     private static long tpHolds;
     private static long tpHeldTotal;
@@ -1092,7 +1133,11 @@ public final class BlinkCharge {
                 // Room for this tick, the firing tick's own move after the shot and one more tick that latency can put
                 // into the same server tick (campaign-blink-1027: a 9.49-block Speed IV shot plus two ticks of his own
                 // arrived as 10.50 in one server tick at 50 and 150 ms - "moved too quickly", GrimAC Simulation).
-                if (i > 0 && sofar + 3 * lastStep > SHOT_BLOCKS_PER_TICK) {
+                // The cap is vanilla's "moved too quickly" (ServerGamePacketListenerImpl.handleMovePlayer: more than 5
+                // moves in one server tick allow 10 blocks from where the tick began). Vanilla skips that check for the
+                // singleplayer owner (shouldCheckPlayerMovement -> isSingleplayerOwner, javap 26.1.2), so in a singleplayer
+                // world (the sim) the whole bank goes in one tick.
+                if (i > 0 && !client.hasSingleplayerServer() && sofar + 3 * lastStep > SHOT_BLOCKS_PER_TICK) {
                     shotLeft = n - i;
                     shotLeftWhy = why;
                     shotLeftAt = tickStamp;
