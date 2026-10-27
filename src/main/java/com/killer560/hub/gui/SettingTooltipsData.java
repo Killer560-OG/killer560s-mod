@@ -44,6 +44,21 @@ final class SettingTooltipsData {
         slotTextAndCompactor(d);
         priceTooltip(d);
         settingsSweep(d);
+        blink(d);
+    }
+
+    /** Blink's rows (killer560, 2026-10-26: no explanation lines in the tab, just the settings and short hovers). */
+    private static void blink(Map<String, String> d) {
+        d.put("blink/blink", "Turns Blink on: Charge and Hold, each on its own key.");
+        d.put("blink/show hud", "Shows \"Charge 12/20\" while charging and \"Hold 5/20\" while holding; move it in the HUD editor.");
+        d.put("blink/show server position", "Red box: where the server has you during a hold. Green box: where a charge shot would land you now.");
+        d.put("blink/chat messages", "Says in chat when a hold starts and ends and when Charge starts, fires and stops.");
+        d.put("blink/debug log", "Writes every blink to latest.log on a GitHub build too (your own builds always do); /blink debug shows the state now.");
+        d.put("blink/charge key", "Standing still banks ticks; firing runs them all at once and shoots you forward. Fired standing, it goes off when you move.");
+        d.put("blink/charge mode", "Toggle: press to charge, press again to fire. Hold: charge while held, fire when you let go.");
+        d.put("blink/charge ticks", "The most ticks Charge banks, so how far a shot goes. Past 20, Hypixel sets it back.");
+        d.put("blink/hold key", "While held, everything you send waits; let go and it all goes at once. Menu clicks always go through.");
+        d.put("blink/hold ticks", "A hold lets go on its own after this many ticks. Past 20, Hypixel sets it back.");
     }
 
     private static void priceTooltip(Map<String, String> d) {

@@ -49,6 +49,87 @@ public final class ModLog {
     }
 
     /**
+     * Like {@link #get}, but in a release its INFO and WARN lines still reach the log while {@code keep} says so (a
+     * feature's own "Debug Log" setting). For a cheat feature whose log is how he finds out what happened on Hypixel when
+     * a friend running the GitHub (release) jar sends one: Blink, 2026-10-26. Dev and cheat builds log as {@link #get}.
+     */
+    public static Logger keptWhen(String name, java.util.function.BooleanSupplier keep) {
+        Logger real = LoggerFactory.getLogger(name);
+        Logger base = BuildVariant.DEV_TOOLS ? real : new OptInLogger(real, keep);
+        String recorded = SessionRecorderSink.featureFor(name);
+        return recorded == null ? base : new RecordingLogger(base, recorded);
+    }
+
+    /** A release logger that forwards INFO and WARN too while {@code keep} is true; ERROR always; never DEBUG/TRACE. */
+    private static final class OptInLogger extends LegacyAbstractLogger {
+
+        private final transient Logger delegate;
+        private final transient java.util.function.BooleanSupplier keep;
+
+        OptInLogger(Logger delegate, java.util.function.BooleanSupplier keep) {
+            this.delegate = delegate;
+            this.keep = keep;
+            this.name = delegate.getName();
+        }
+
+        @Override
+        protected String getFullyQualifiedCallerName() {
+            return OptInLogger.class.getName();
+        }
+
+        private boolean kept() {
+            try {
+                return keep.getAsBoolean();
+            } catch (RuntimeException e) {
+                return false;
+            }
+        }
+
+        @Override
+        protected void handleNormalizedLoggingCall(Level level, Marker marker, String pattern,
+                                                   Object[] arguments, Throwable throwable) {
+            if (level != Level.ERROR && !((level == Level.INFO || level == Level.WARN) && kept())) {
+                return;
+            }
+            Object[] args = arguments == null ? new Object[0] : arguments;
+            if (throwable != null) {
+                args = Arrays.copyOf(args, args.length + 1);
+                args[args.length - 1] = throwable;
+            }
+            switch (level) {
+                case ERROR -> delegate.error(pattern, args);
+                case WARN -> delegate.warn(pattern, args);
+                default -> delegate.info(pattern, args);
+            }
+        }
+
+        @Override
+        public boolean isTraceEnabled() {
+            return false;
+        }
+
+        @Override
+        public boolean isDebugEnabled() {
+            return false;
+        }
+
+        @Override
+        public boolean isInfoEnabled() {
+            return kept() && delegate.isInfoEnabled();
+        }
+
+        @Override
+        public boolean isWarnEnabled() {
+            return kept() && delegate.isWarnEnabled();
+        }
+
+        @Override
+        public boolean isErrorEnabled() {
+            return delegate.isErrorEnabled();
+        }
+    }
+
+    /**
      * Passes every call to {@code delegate} unchanged, and while {@link SessionRecorderSink#active()} also hands the
      * INFO, WARN and ERROR lines to the recorder. INFO counts as enabled while recording even where the delegate drops
      * it (a release jar), so those lines still reach the session file without reaching the log.

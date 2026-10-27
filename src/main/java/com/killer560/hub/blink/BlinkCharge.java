@@ -2,7 +2,6 @@ package com.killer560.hub.blink;
 
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.util.ModChat;
-import com.killer560.hub.util.ModLog;
 import io.netty.channel.ChannelFutureListener;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -48,7 +47,7 @@ import java.util.ArrayDeque;
  */
 public final class BlinkCharge {
 
-    private static final Logger LOGGER = ModLog.get("killer560smod-blink");
+    private static final Logger LOGGER = BlinkLog.LOGGER;
 
     private record Held(Packet<?> packet, ChannelFutureListener listener, boolean flush) {
     }
@@ -106,19 +105,76 @@ public final class BlinkCharge {
         return Math.min(ANSWER_DELAY_MS, Math.max(0L, 50L * cap() - 10L));
     }
 
+    /**
+     * After a moving teleport is confirmed nothing is banked until the answers have caught up with it (the answer delay
+     * plus this margin). A shot fired the moment the bank had refilled - about 1.04 s after the confirm - drew GrimAC
+     * Simulation 0.10 decaying over 8 ticks and was set back; the same shot 60 ticks later was clean (testkit
+     * 1026-blink-setback-variants, 2026-10-26). The ping GrimAC sends with a teleport can come just after the position
+     * packet, so its answer is still waiting its 990 ms then. Answering it early instead (a live window) drew Timer on
+     * back-to-back warps. Ticks in this window go out normally.
+     */
+    static final long SETTLE_MARGIN_MS = 150L;
+    private static long bankBlockedUntilMs;
+
+    /** Banking is paused after a moving teleport (see {@link #SETTLE_MARGIN_MS}). */
+    public static boolean settling() {
+        return System.currentTimeMillis() < bankBlockedUntilMs;
+    }
+
     /** The last server teleport did not move him (an in-place re-sync): its confirm leaves the bank alone. */
     private static volatile boolean teleportInPlace;
     private static long inPlaceTeleports;
     private static long movingTeleports;
 
     /** Blink's server-position hook, before vanilla answers it: how far the teleport moves him. Render thread. */
-    static void noteServerTeleport(double dist) {
+    static void noteServerTeleport(net.minecraft.world.phys.Vec3 from, net.minecraft.world.phys.Vec3 to, double dist) {
         teleportInPlace = dist < 0.1;
         if (active) {
-            LOGGER.info(String.format(java.util.Locale.ROOT, "[Blink] charge: server teleport moving him %.2f blocks with %d "
-                    + "banked, %d answer(s) waiting - %s", dist, banked, answers.size(),
-                    teleportInPlace ? "in place, bank kept" : "moved, bank starts again"));
+            BlinkLog.event("charge: server teleport %.2f blocks, client at %s, server put him at %s, bank %d, %d answer(s) "
+                    + "waiting (oldest %d ms) - %s", dist, BlinkLog.fmt(from), BlinkLog.fmt(to), banked, answers.size(),
+                    oldestAnswerAgeMs(), teleportInPlace ? "in place (re-sync), bank kept" : "moved, bank starts again");
         }
+        // A teleport soon after a shot that puts him back where the shot started is the server refusing the shot.
+        if (ticksSinceShot <= 40 && lastShotFrom != null && to != null && dist > 0.5 && to.distanceTo(lastShotFrom) < 0.75) {
+            shotsSetBack++;
+            BlinkLog.event("SHOT SET BACK: %d tick(s) after shot #%d the server put him at %s (where the shot started), the "
+                    + "client was at %s (the shot had ended at %s); setback #%d", ticksSinceShot, shots, BlinkLog.fmt(to),
+                    BlinkLog.fmt(from), BlinkLog.fmt(lastShotTo), shotsSetBack);
+            com.killer560.hub.util.ServerCorrections.report("Blink", "the server set back a charge shot - carrying on", dist);
+        } else if (ticksSinceShot <= 40 && dist > 0.5) {
+            BlinkLog.event("server teleport %d tick(s) after shot #%d: %.2f blocks, client at %s, server put him at %s - not "
+                    + "back to the shot's start", ticksSinceShot, shots, dist, BlinkLog.fmt(from), BlinkLog.fmt(to));
+        }
+    }
+
+    /** Ticks since the last shot (capped), the shot's start and end: a setback after a shot is told apart from a warp. */
+    private static int ticksSinceShot = Integer.MAX_VALUE;
+    private static net.minecraft.world.phys.Vec3 lastShotFrom;
+    private static net.minecraft.world.phys.Vec3 lastShotTo;
+    private static long shotsSetBack;
+
+    public static long shotsSetBack() {
+        return shotsSetBack;
+    }
+
+    /** How long the oldest waiting ping answer has waited, ms (0 when none). */
+    public static long oldestAnswerAgeMs() {
+        synchronized (LOCK) {
+            Answer a = answers.peekFirst();
+            return a == null ? 0 : System.currentTimeMillis() - a.madeMs();
+        }
+    }
+
+    /** The longest any answer has waited when it was sent, ms, and the most waiting at once (for the status line). */
+    private static long maxAnswerWaitMs;
+    private static int maxAnswersWaiting;
+
+    public static long maxAnswerWaitMs() {
+        return maxAnswerWaitMs;
+    }
+
+    public static int maxAnswersWaiting() {
+        return maxAnswersWaiting;
     }
 
     public static long inPlaceTeleports() {
@@ -205,6 +261,19 @@ public final class BlinkCharge {
 
     /** Blink's send hook, before its own hold. True when the packet is not to be sent now. Any thread. */
     static boolean onSend(Connection c, Packet<?> packet, ChannelFutureListener listener, boolean flush) {
+        if (!active) {
+            return false;
+        }
+        synchronized (LOCK) {
+            return onSendLocked(c, packet, listener, flush);
+        }
+    }
+
+    /**
+     * Blink's send hook, first of all (Charge or a hold): a move that goes out while a banked tick's look is owed is sent
+     * with that look instead. True when the move was re-sent (the original is not to be sent).
+     */
+    static boolean carryOwedLook(Connection c, Packet<?> packet, ChannelFutureListener listener, boolean flush) {
         if (rotationOwed && packet instanceof ServerboundMovePlayerPacket move) {
             // A banked tick took a turn of the camera with it (its move was not sent), and vanilla, having "sent" it,
             // will not report that look again until he turns once more. The next move that goes out carries it, or
@@ -222,10 +291,11 @@ public final class BlinkCharge {
                 return true;
             }
         }
-        if (!active) {
-            return false;
-        }
-        synchronized (LOCK) {
+        return false;
+    }
+
+    private static boolean onSendLocked(Connection c, Packet<?> packet, ChannelFutureListener listener, boolean flush) {
+        {
             if (!active || c != connection) {
                 return false;
             }
@@ -246,6 +316,7 @@ public final class BlinkCharge {
             if (answer) {
                 answers.addLast(new Answer(new Held(packet, listener, flush), System.currentTimeMillis()));
                 answersHeldTotal++;
+                maxAnswersWaiting = Math.max(maxAnswersWaiting, answers.size());
                 return true;
             }
             if (packet instanceof ServerboundMovePlayerPacket && teleportMoveNext) {
@@ -264,7 +335,8 @@ public final class BlinkCharge {
                 return true;
             }
             if (packet instanceof ServerboundClientTickEndPacket) {
-                boolean bank = !busy && banked < cap() && stillThisTick();
+                boolean settling = System.currentTimeMillis() < bankBlockedUntilMs;
+                boolean bank = !busy && !settling && banked < cap() && stillThisTick();
                 busy = false;
                 if (bank) {
                     if (stash != null && stash.packet() instanceof ServerboundMovePlayerPacket m && m.hasRotation()) {
@@ -275,6 +347,11 @@ public final class BlinkCharge {
                     stash = null;
                     banked++;
                     bankedTotal++;
+                    if (banked >= cap()) {
+                        BlinkLog.event("charge: bank full (%d tick(s)) after %d ms since it was last empty; %d answer(s) "
+                                + "waiting (oldest %d ms)", banked, System.currentTimeMillis() - bankEmptySinceMs,
+                                answers.size(), oldestAnswerAgeMs());
+                    }
                     return true;
                 }
                 if (stash != null) {
@@ -296,6 +373,9 @@ public final class BlinkCharge {
             } else if (accept) {
                 movingTeleports++;
             }
+            if (accept && !teleportInPlace) {
+                bankBlockedUntilMs = System.currentTimeMillis() + answerDelayMs() + SETTLE_MARGIN_MS;
+            }
             if (accept && !teleportInPlace && !answers.isEmpty()) {
                 // A server teleport (an etherwarp, a leap) is confirmed. GrimAC counts a teleport as reached by the
                 // client only once the ping sent with it is answered; with the answers still a second late it took the
@@ -305,8 +385,9 @@ public final class BlinkCharge {
                 int n = releaseAnswersLocked();
                 int lost = banked;
                 banked = 0;
-                LOGGER.info("[Blink] charge: server teleport - {} waiting ping answer(s) sent first; {} banked tick(s) start "
-                        + "again", n, lost);
+                bankEmptySinceMs = System.currentTimeMillis();
+                BlinkLog.event("charge: moving teleport confirmed - %d waiting ping answer(s) sent first; %d banked tick(s) "
+                        + "dropped; banking starts again in %d ms", n, lost, answerDelayMs() + SETTLE_MARGIN_MS);
             }
             if (checkedAgainstLook(packet)) {
                 busy = true;
@@ -371,7 +452,9 @@ public final class BlinkCharge {
         boolean any = false;
         long delay = answerDelayMs();
         while (!answers.isEmpty() && now - answers.peekFirst().madeMs() >= delay) {
-            sendLocked(answers.pollFirst().held());
+            Answer a = answers.pollFirst();
+            maxAnswerWaitMs = Math.max(maxAnswerWaitMs, now - a.madeMs());
+            sendLocked(a.held());
             any = true;
         }
         if (any) {
@@ -401,33 +484,53 @@ public final class BlinkCharge {
         boolean pressed = down && !keyWasDown;
         boolean letGo = !down && keyWasDown;
         keyWasDown = down;
+        if (ticksSinceShot < Integer.MAX_VALUE) {
+            ticksSinceShot++;
+        }
+        if (!down) {
+            latched = false;
+        }
         if (!allowed) {
+            if (pressed) {
+                BlinkLog.event("Charge key pressed but not used: Skyblock Only is on and this is not Skyblock");
+            }
             reset("not allowed here");
             return;
         }
         if (cfg.getChargeMode() == BlinkConfig.Mode.TOGGLE) {
             if (pressed) {
                 if (!active) {
+                    BlinkLog.event("Charge key pressed (Toggle): charge on");
                     turnOn(listener.getConnection());
                 } else if (banked > 0 && !armed) {
+                    BlinkLog.event("Charge key pressed (Toggle): fire %d banked tick(s)", banked);
                     fire(client, false);
                 } else {
+                    BlinkLog.event("Charge key pressed (Toggle): charge off (%s)", armed ? "a shot of " + banked
+                            + " tick(s) was armed - not fired" : "nothing banked");
                     reset("key");
                 }
             }
         } else {
-            if (down && !active) {
+            if (down && !active && !latched) {
+                BlinkLog.event("Charge key down (Hold): charge on");
                 turnOn(listener.getConnection());
             } else if (letGo && active) {
                 if (banked > 0) {
+                    BlinkLog.event("Charge key up (Hold): fire %d banked tick(s), then charge off", banked);
                     fire(client, true);
                 } else {
+                    BlinkLog.event("Charge key up (Hold): nothing banked, charge off");
                     reset("key up");
                 }
             }
         }
         if (!active) {
             return;
+        }
+        if (++statusTicks >= STATUS_EVERY_TICKS) {
+            statusTicks = 0;
+            status();
         }
         if (listener.getConnection() != connection) {
             reset("new connection");
@@ -464,7 +567,30 @@ public final class BlinkCharge {
             return;
         }
         armed = true;
-        LOGGER.info("[Blink] charge: released standing still - the shot of {} tick(s) waits for a movement key", banked);
+        BlinkLog.event("charge: ARMED - fired %s, the shot of %d tick(s) waits for a movement key%s",
+                McCompat.screen(client) == null ? "standing still" : "with a screen open", banked,
+                McCompat.screen(client) == null ? "" : " and the screen to close");
+    }
+
+    /** Hold mode: the key was down across a world change; charging waits for it to come up (as a hold does). */
+    private static boolean latched;
+    private static final int STATUS_EVERY_TICKS = 200;
+    private static int statusTicks;
+    private static long bankEmptySinceMs;
+    private static long statusInPlace;
+    private static long statusMoving;
+    private static long statusBanked;
+
+    /** Every 10 s while charging: the bank, the answers waiting and how late, what the server did meanwhile. */
+    private static void status() {
+        BlinkLog.event("charge status: bank %d/%d%s, %d answer(s) waiting (oldest %d ms, delay %d ms, longest wait so far %d "
+                        + "ms, most waiting %d), last 10 s: %d tick(s) banked, %d in-place re-sync(s), %d moving teleport(s); "
+                        + "%d shot(s) so far, %d set back", banked, cap(), armed ? " ARMED" : "", answersHeld(),
+                oldestAnswerAgeMs(), answerDelayMs(), maxAnswerWaitMs, maxAnswersWaiting, bankedTotal - statusBanked,
+                inPlaceTeleports - statusInPlace, movingTeleports - statusMoving, shots, shotsSetBack);
+        statusBanked = bankedTotal;
+        statusInPlace = inPlaceTeleports;
+        statusMoving = movingTeleports;
     }
 
     private static void turnOn(Connection conn) {
@@ -477,8 +603,13 @@ public final class BlinkCharge {
             offAfterShot = false;
             active = true;
         }
-        LOGGER.info("[Blink] charge on (bank up to {} ticks + the firing tick, answers {} ms late, {})", cap(),
-                answerDelayMs(), BlinkConfig.getInstance().getChargeMode().label);
+        bankEmptySinceMs = System.currentTimeMillis();
+        statusTicks = 0;
+        statusBanked = bankedTotal;
+        statusInPlace = inPlaceTeleports;
+        statusMoving = movingTeleports;
+        BlinkLog.event("charge on: bank up to %d tick(s) + the firing tick, answers %d ms late; %s", cap(), answerDelayMs(),
+                BlinkLog.settings());
         if (BlinkConfig.getInstance().isChatMessages()) {
             ModChat.send("Blink", ModChat.text("charging"));
         }
@@ -517,10 +648,13 @@ public final class BlinkCharge {
             }
         }
         if (n <= 0 || player == null || connection == null || !connection.isConnected()) {
+            BlinkLog.event("charge: shot (%s) skipped - %s", why, n <= 0 ? "nothing banked" : player == null ? "no player"
+                    : "no connection");
             return;
         }
         net.minecraft.world.phys.Vec3 from = player.position();
         long t0 = System.nanoTime();
+        int shotPacketsAtStart = shotPacketsSent;
         int ran = 0;
         double lastStep = 0;
         passing = true;
@@ -565,10 +699,17 @@ public final class BlinkCharge {
         shotTicks += ran;
         lastShotTicks = ran;
         lastShotBlocks = blocks;
-        LOGGER.info(String.format(java.util.Locale.ROOT, "[Blink] charge shot (%s): %d banked tick(s) run in %.1f ms, moved "
-                        + "%.2f blocks from %s to %s; shot #%d%s", why, ran, (System.nanoTime() - t0) / 1e6, blocks,
-                fmt(from), fmt(player.position()), shots, shotLeft > 0 ? "; " + shotLeft + " tick(s) left for next tick "
-                        + "(the server takes at most 10 blocks a tick)" : ""));
+        ticksSinceShot = 0;
+        if (!why.endsWith(", continued")) {
+            lastShotFrom = from;
+        }
+        lastShotTo = player.position();
+        bankEmptySinceMs = System.currentTimeMillis();
+        BlinkLog.event("charge SHOT (%s): %d banked tick(s) run in %.1f ms, moved %.2f blocks from %s to %s, %d action "
+                        + "packet(s) inside it; %d answer(s) waiting (oldest %d ms); shot #%d%s", why, ran,
+                (System.nanoTime() - t0) / 1e6, blocks, fmt(from), fmt(player.position()), shotPacketsSent - shotPacketsAtStart,
+                answersHeld(), oldestAnswerAgeMs(), shots, shotLeft > 0 ? "; SPLIT: " + shotLeft + " tick(s) left for next "
+                        + "tick (the server takes at most 10 blocks a tick)" : "");
         if (BlinkConfig.getInstance().isChatMessages()) {
             ModChat.send("Blink", ModChat.text(String.format(java.util.Locale.ROOT, "shot %d tick(s), %.1f blocks", ran, blocks)));
         }
@@ -628,7 +769,32 @@ public final class BlinkCharge {
             n = releaseAnswersLocked();
             banked = 0;
         }
-        LOGGER.info("[Blink] charge: {} waiting ping answer(s) sent ({})", n, why);
+        BlinkLog.event("charge: %d waiting ping answer(s) sent (%s)", n, why);
+    }
+
+    /**
+     * A hold is starting: the waiting answers go first, in order (TransactionOrder, testkit 1025-blink-charge-double), and
+     * the bank is dropped even when none were waiting (before 2026-10-26 it was kept then, so a shot after the hold sent
+     * the bank's ticks on top of the hold's). Returns a note for the hold's log line ("" when not charging).
+     */
+    static String dropForHold() {
+        if (!active) {
+            return "";
+        }
+        int n;
+        int lost;
+        boolean wasArmed;
+        synchronized (LOCK) {
+            n = releaseAnswersLocked();
+            lost = banked;
+            banked = 0;
+            shotLeft = 0;
+            wasArmed = armed;
+            armed = false;
+            bankEmptySinceMs = System.currentTimeMillis();
+        }
+        return String.format(java.util.Locale.ROOT, "; charging: %d waiting answer(s) sent first, %d banked tick(s) dropped%s",
+                n, lost, wasArmed ? ", the armed shot dropped" : "");
     }
 
     public static long answersHeldTotal() {
@@ -667,7 +833,18 @@ public final class BlinkCharge {
             connection = null;
         }
         if (was) {
-            LOGGER.info("[Blink] charge off ({}), {} banked tick(s) left unused", why, left);
+            BlinkLog.event("charge off (%s), %d banked tick(s) left unused; %d shot(s), %d set back, %d tick(s) banked in all",
+                    why, left, shots, shotsSetBack, bankedTotal);
+        }
+        if ("world change".equals(why) || "disconnect".equals(why) || "no world".equals(why)
+                || "configuration".equals(why)) {
+            // Hold mode: a key still down from the old world waits for it to come up, as a hold does.
+            if (keyWasDown) {
+                latched = true;
+            }
+            // A teleport into the next world is not a setback of a shot made in the last one.
+            ticksSinceShot = Integer.MAX_VALUE;
+            lastShotFrom = null;
         }
     }
 
