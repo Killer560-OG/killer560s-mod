@@ -75,6 +75,38 @@ public abstract class BlinkPacketListenerMixin {
         }
     }
 
+    /** An explosion that pushes him (javap 26.1.2 and 26.2: same head; {@code playerKnockback()} is an Optional). */
+    @Inject(method = "handleExplosion", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER))
+    private void killer560smod$blinkExplosion(net.minecraft.network.protocol.game.ClientboundExplodePacket packet,
+            CallbackInfo ci) {
+        try {
+            if (packet != null && packet.playerKnockback().isPresent()
+                    && packet.playerKnockback().get().lengthSqr() > 0.01) {
+                com.killer560.hub.blink.BlinkCharge.onServerPush("explosion " + packet.playerKnockback().get());
+            }
+        } catch (Throwable t) {
+            killer560smod$blink$threw(t);
+        }
+    }
+
+    /** A velocity for the local player (record accessors {@code id()}, as PathMotionPacketMixin reads them). */
+    @Inject(method = "handleSetEntityMotion", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD,
+            shift = At.Shift.AFTER))
+    private void killer560smod$blinkMotion(net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket packet,
+            CallbackInfo ci) {
+        try {
+            LocalPlayer player = Minecraft.getInstance().player;
+            // A velocity under 0.1 blocks a tick (the server sends one after a teleport; gravity is 0.08) moves him no more than his own physics; releasing the answers for it only
+            // cost the bank its cover (testkit 1027-blink-c-keep-delay on 26.2, ts1).
+            if (player != null && packet != null && packet.id() == player.getId()
+                    && packet.movement().lengthSqr() > 0.01) {
+                com.killer560.hub.blink.BlinkCharge.onServerPush("velocity " + packet.movement());
+            }
+        } catch (Throwable t) {
+            killer560smod$blink$threw(t);
+        }
+    }
+
     @Unique
     private static void killer560smod$blink$threw(Throwable t) {
         ModLog.get("killer560smod-blink").error("[Blink] packet hook threw", t);
