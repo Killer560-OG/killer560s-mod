@@ -44,9 +44,16 @@ public final class TerminalSolverConfig {
     /** One client tick: ActionGate allows one interaction a tick, so a shorter repeat could not go out anyway. */
     public static final int MIN_HOLD_REPEAT_MS = 50;
     public static final int MAX_HOLD_REPEAT_MS = 500;
-    /** Fake Cursor speed, percent of a human hand's speed (FakeCursor's motion model). */
+    /** Stream Safe's Cursor Speed, percent of a practiced hand (FakeCursor's motion model, 100 = typical). */
     public static final int MIN_FAKE_CURSOR_SPEED = 50;
-    public static final int MAX_FAKE_CURSOR_SPEED = 300;
+    public static final int MAX_FAKE_CURSOR_SPEED = 200;
+    /** Stream Safe's Reaction Time: the median pause before each move, ms. Not a simple reaction test (~200 ms): the next
+     *  slot is already in view while the hand is moving, so a practiced player's pause between clicks is shorter. */
+    public static final int MIN_CURSOR_REACTION_MS = 60;
+    public static final int MAX_CURSOR_REACTION_MS = 400;
+    /** Stream Safe's Miss Chance and Overshoot Chance, percent of moves. */
+    public static final int MAX_CURSOR_MISS_CHANCE = 30;
+    public static final int MAX_CURSOR_OVERSHOOT_CHANCE = 50;
 
     // Hover Terminals (2026-09-16, killer560: "make hover terms... if you hover a button that needs to be
     // pressed it'll press it. Add a delay option as well in ms.") - a real macro like Auto Terminals, and
@@ -194,8 +201,13 @@ public final class TerminalSolverConfig {
     private int autoClickMaxDelayMs = 200;
     /** Hides the real mouse pointer while auto clicks are landing (screen-share privacy, killer560 2026-10-19). */
     private boolean hideMouseCursor = false;
-    /** Draws a fake pointer that travels to each auto click and shows a click ripple. */
-    private boolean fakeCursor = false;
+    /** Stream Safe (killer560, 2026-10-27): Auto Terminals clicks through a drawn human cursor and only when it has
+     *  arrived and pressed; the Min/Max delays are replaced by the cursor's Speed / Reaction Time. Off: the Min/Max timing,
+     *  and no cursor is ever drawn (Hide Mouse Cursor may hide the real one). Replaces the 2026-10-26 Fake Cursor toggle. */
+    private boolean autoStreamSafe = false;
+    private int cursorReactionMs = 130;
+    private int cursorMissChance = 6;
+    private int cursorOvershootChance = 18;
     // Per killer560's explicit "add a toggle on by default" (2026-09-09) - a stray real click/keypress
     // while the bot is mid-click could otherwise fight it, same real risk ExperimentsConfig's own
     // Block Input toggle protects against (that one defaults off; this one defaults ON per killer560's
@@ -295,14 +307,20 @@ public final class TerminalSolverConfig {
             cfg.autoClickMaxDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMaxDelayMs", 200));
             // Same min <= max invariant the setters enforce (a hand-edited file could otherwise load min > max).
             cfg.hideMouseCursor = ConfigJson.getBool(obj, "hideMouseCursor", false);
-            cfg.fakeCursor = ConfigJson.getBool(obj, "fakeCursor", false);
+            cfg.autoStreamSafe = ConfigJson.getBool(obj, "autoStreamSafe", false);
+            cfg.cursorReactionMs = clamp(ConfigJson.getInt(obj, "cursorReactionMs", 130), MIN_CURSOR_REACTION_MS, MAX_CURSOR_REACTION_MS);
+            cfg.cursorMissChance = clamp(ConfigJson.getInt(obj, "cursorMissChance", 6), 0, MAX_CURSOR_MISS_CHANCE);
+            cfg.cursorOvershootChance = clamp(ConfigJson.getInt(obj, "cursorOvershootChance", 18), 0, MAX_CURSOR_OVERSHOOT_CHANCE);
             if (cfg.autoClickMaxDelayMs < cfg.autoClickMinDelayMs) {
                 cfg.autoClickMaxDelayMs = cfg.autoClickMinDelayMs;
             }
             cfg.blockInputWhileAutoClicking = ConfigJson.getBool(obj, "blockInputWhileAutoClicking", true);
             cfg.announceCompletionTime = ConfigJson.getBool(obj, "announceCompletionTime", true);
             int lookahead = ConfigJson.getInt(obj, "melodyLookaheadClicks", 0);
-            if (ConfigJson.getInt(obj, "melodyLookaheadFormat", 1) < MELODY_LOOKAHEAD_FORMAT) {
+            // "...Version" since 2026-10-27 (testkit 310 leaves *Version keys alone as file-format numbers; it flipped the
+            // 2026-10-26 "...Format" key and so re-ran the migration); files saved with the Format key still count.
+            if (Math.max(ConfigJson.getInt(obj, "melodyLookaheadVersion", 1), ConfigJson.getInt(obj, "melodyLookaheadFormat", 1))
+                    < MELODY_LOOKAHEAD_FORMAT) {
                 // Old meaning: total clicks in the burst, the proper one included (1 and 0 both meant no burst).
                 lookahead = Math.max(0, lookahead - 1);
             }
@@ -311,7 +329,8 @@ public final class TerminalSolverConfig {
             cfg.hoverTerminalsEnabled = ConfigJson.getBool(obj, "hoverTerminalsEnabled", false);
             cfg.hoverDelayMs = clampHoverDelay(ConfigJson.getInt(obj, "hoverDelayMs", 100));
             cfg.hoverJitterMs = clampHoverJitter(ConfigJson.getInt(obj, "hoverJitterMs", 0));
-            cfg.hoverMelodyEnabled = ConfigJson.getInt(obj, "hoverMelodyFormat", 1) < HOVER_MELODY_FORMAT
+            cfg.hoverMelodyEnabled = Math.max(ConfigJson.getInt(obj, "hoverMelodyVersion", 1), ConfigJson.getInt(obj, "hoverMelodyFormat", 1))
+                    < HOVER_MELODY_FORMAT
                     || ConfigJson.getBool(obj, "hoverMelodyEnabled", true);
             cfg.holdToClickEnabled = ConfigJson.getBool(obj, "holdToClickEnabled", false);
             cfg.holdToClickFirstDelayMs = clampHoldFirstDelay(ConfigJson.getInt(obj, "holdToClickFirstDelayMs", 250));
@@ -354,17 +373,20 @@ public final class TerminalSolverConfig {
             obj.addProperty("autoClickMinDelayMs", autoClickMinDelayMs);
             obj.addProperty("autoClickMaxDelayMs", autoClickMaxDelayMs);
             obj.addProperty("hideMouseCursor", hideMouseCursor);
-            obj.addProperty("fakeCursor", fakeCursor);
+            obj.addProperty("autoStreamSafe", autoStreamSafe);
+            obj.addProperty("cursorReactionMs", cursorReactionMs);
+            obj.addProperty("cursorMissChance", cursorMissChance);
+            obj.addProperty("cursorOvershootChance", cursorOvershootChance);
             obj.addProperty("blockInputWhileAutoClicking", blockInputWhileAutoClicking);
             obj.addProperty("announceCompletionTime", announceCompletionTime);
             obj.addProperty("melodyLookaheadClicks", melodyLookaheadClicks);
-            obj.addProperty("melodyLookaheadFormat", MELODY_LOOKAHEAD_FORMAT);
+            obj.addProperty("melodyLookaheadVersion", MELODY_LOOKAHEAD_FORMAT);
             obj.addProperty("melodySkipMode", melodySkipMode.name());
             obj.addProperty("hoverTerminalsEnabled", hoverTerminalsEnabled);
             obj.addProperty("hoverDelayMs", hoverDelayMs);
             obj.addProperty("hoverJitterMs", hoverJitterMs);
             obj.addProperty("hoverMelodyEnabled", hoverMelodyEnabled);
-            obj.addProperty("hoverMelodyFormat", HOVER_MELODY_FORMAT);
+            obj.addProperty("hoverMelodyVersion", HOVER_MELODY_FORMAT);
             obj.addProperty("holdToClickEnabled", holdToClickEnabled);
             obj.addProperty("holdToClickFirstDelayMs", holdToClickFirstDelayMs);
             obj.addProperty("holdToClickRepeatMs", holdToClickRepeatMs);
@@ -395,6 +417,10 @@ public final class TerminalSolverConfig {
 
     private static int clampHoldRepeat(int value) {
         return Math.max(MIN_HOLD_REPEAT_MS, Math.min(MAX_HOLD_REPEAT_MS, value));
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private static int clampFakeCursorSpeed(int value) {
@@ -609,12 +635,37 @@ public final class TerminalSolverConfig {
         this.hideMouseCursor = hideMouseCursor;
     }
 
-    public boolean isFakeCursor() {
-        return fakeCursor;
+    /** Stream Safe: Auto Terminals clicks through the drawn human cursor (see {@link #autoStreamSafe}). */
+    public boolean isAutoStreamSafe() {
+        return autoStreamSafe;
     }
 
-    public void setFakeCursor(boolean fakeCursor) {
-        this.fakeCursor = fakeCursor;
+    public void setAutoStreamSafe(boolean autoStreamSafe) {
+        this.autoStreamSafe = autoStreamSafe;
+    }
+
+    public int getCursorReactionMs() {
+        return cursorReactionMs;
+    }
+
+    public void setCursorReactionMs(int ms) {
+        this.cursorReactionMs = clamp(ms, MIN_CURSOR_REACTION_MS, MAX_CURSOR_REACTION_MS);
+    }
+
+    public int getCursorMissChance() {
+        return cursorMissChance;
+    }
+
+    public void setCursorMissChance(int percent) {
+        this.cursorMissChance = clamp(percent, 0, MAX_CURSOR_MISS_CHANCE);
+    }
+
+    public int getCursorOvershootChance() {
+        return cursorOvershootChance;
+    }
+
+    public void setCursorOvershootChance(int percent) {
+        this.cursorOvershootChance = clamp(percent, 0, MAX_CURSOR_OVERSHOOT_CHANCE);
     }
 
     public boolean isBlockInputWhileAutoClicking() {

@@ -53,27 +53,46 @@ public class AutoTerminalTab extends BaseTab {
         // (Hover Terminals) must stay reachable - hover is most useful precisely when auto-clicking is
         // OFF, so it can no longer live behind an early return on this toggle.
         if (TerminalSolverConfig.getInstance().isAutoTerminalsEnabled()) {
-            // Screen-share privacy (killer560, 2026-10-19): hide the real pointer while clicks land, and show a fake one instead.
-            widgets.add(SettingsButtonWidget.builder(onOff("Hide Mouse Cursor", TerminalSolverConfig.getInstance().isHideMouseCursor()), btn -> {
+            // Stream Safe (killer560, 2026-10-27): ON = clicks through a drawn human cursor, timed by it; OFF = the Min/Max
+            // delays, no cursor drawn, and the real one can be hidden.
+            boolean streamSafe = TerminalSolverConfig.getInstance().isAutoStreamSafe();
+            widgets.add(SettingsButtonWidget.builder(onOff("Stream Safe", streamSafe), btn -> {
                         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                        cfg.setHideMouseCursor(!cfg.isHideMouseCursor());
+                        cfg.setAutoStreamSafe(!cfg.isAutoStreamSafe());
                         cfg.save();
                         requestRebuild.run();
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
-            widgets.add(SettingsButtonWidget.builder(onOff("Fake Cursor", TerminalSolverConfig.getInstance().isFakeCursor()), btn -> {
-                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                        cfg.setFakeCursor(!cfg.isFakeCursor());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX, y, contentWidth, 18).build());
-            y += 22;
-            if (TerminalSolverConfig.getInstance().isFakeCursor()) {
+            if (streamSafe) {
                 widgets.add(intSlider(contentX, y, 220, TerminalSolverConfig.MIN_FAKE_CURSOR_SPEED, TerminalSolverConfig.MAX_FAKE_CURSOR_SPEED,
                         () -> TerminalSolverConfig.getInstance().getFakeCursorSpeed(),
                         v -> TerminalSolverConfig.getInstance().setFakeCursorSpeed(v),
-                        () -> Component.literal("Fake Cursor Speed: " + TerminalSolverConfig.getInstance().getFakeCursorSpeed() + "%")));
+                        () -> Component.literal("Cursor Speed: " + TerminalSolverConfig.getInstance().getFakeCursorSpeed() + "%")));
                 y += 24;
+                widgets.add(intSlider(contentX, y, 220, TerminalSolverConfig.MIN_CURSOR_REACTION_MS, TerminalSolverConfig.MAX_CURSOR_REACTION_MS,
+                        () -> TerminalSolverConfig.getInstance().getCursorReactionMs(),
+                        v -> TerminalSolverConfig.getInstance().setCursorReactionMs(v),
+                        () -> Component.literal("Reaction Time: " + TerminalSolverConfig.getInstance().getCursorReactionMs() + "ms")));
+                y += 24;
+                widgets.add(intSlider(contentX, y, 220, 0, TerminalSolverConfig.MAX_CURSOR_MISS_CHANCE,
+                        () -> TerminalSolverConfig.getInstance().getCursorMissChance(),
+                        v -> TerminalSolverConfig.getInstance().setCursorMissChance(v),
+                        () -> Component.literal("Miss Chance: " + TerminalSolverConfig.getInstance().getCursorMissChance() + "%")));
+                y += 24;
+                widgets.add(intSlider(contentX, y, 220, 0, TerminalSolverConfig.MAX_CURSOR_OVERSHOOT_CHANCE,
+                        () -> TerminalSolverConfig.getInstance().getCursorOvershootChance(),
+                        v -> TerminalSolverConfig.getInstance().setCursorOvershootChance(v),
+                        () -> Component.literal("Overshoot Chance: " + TerminalSolverConfig.getInstance().getCursorOvershootChance() + "%")));
+                y += 24;
+            } else {
+                // Screen-share privacy (killer560, 2026-10-19): hide the real pointer while clicks land.
+                widgets.add(SettingsButtonWidget.builder(onOff("Hide Mouse Cursor", TerminalSolverConfig.getInstance().isHideMouseCursor()), btn -> {
+                            TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+                            cfg.setHideMouseCursor(!cfg.isHideMouseCursor());
+                            cfg.save();
+                            requestRebuild.run();
+                        }).bounds(contentX, y, contentWidth, 18).build());
+                y += 22;
             }
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                     Component.literal("Terminals to auto-click:"), Minecraft.getInstance().font));
@@ -128,42 +147,44 @@ public class AutoTerminalTab extends BaseTab {
             y += 30;
 
             int half = (contentWidth - 8) / 2;
-            double minNormalized = (TerminalSolverConfig.getInstance().getAutoClickMinDelayMs() - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS)
-                    / (double) (TerminalSolverConfig.MAX_AUTO_CLICK_DELAY_MS - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS);
-            widgets.add(new ThemedSliderButton(contentX, y, half, 20, minDelayText(), minNormalized) {
-                @Override
-                protected void updateMessage() {
-                    setMessage(minDelayText());
-                }
+            if (!streamSafe) {
+                double minNormalized = (TerminalSolverConfig.getInstance().getAutoClickMinDelayMs() - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS)
+                        / (double) (TerminalSolverConfig.MAX_AUTO_CLICK_DELAY_MS - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS);
+                widgets.add(new ThemedSliderButton(contentX, y, half, 20, minDelayText(), minNormalized) {
+                    @Override
+                    protected void updateMessage() {
+                        setMessage(minDelayText());
+                    }
 
-                @Override
-                protected void applyValue() {
-                    TerminalSolverConfig c = TerminalSolverConfig.getInstance();
-                    int newDelay = (int) Math.round(TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS
-                            + this.value * (TerminalSolverConfig.MAX_AUTO_CLICK_DELAY_MS - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS));
-                    c.setAutoClickMinDelayMs(newDelay);
-                    saveOnRelease(() -> c.save());
-                }
-            });
+                    @Override
+                    protected void applyValue() {
+                        TerminalSolverConfig c = TerminalSolverConfig.getInstance();
+                        int newDelay = (int) Math.round(TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS
+                                + this.value * (TerminalSolverConfig.MAX_AUTO_CLICK_DELAY_MS - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS));
+                        c.setAutoClickMinDelayMs(newDelay);
+                        saveOnRelease(() -> c.save());
+                    }
+                });
 
-            double maxNormalized = (TerminalSolverConfig.getInstance().getAutoClickMaxDelayMs() - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS)
-                    / (double) (TerminalSolverConfig.MAX_AUTO_CLICK_DELAY_MS - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS);
-            widgets.add(new ThemedSliderButton(contentX + half + 8, y, half, 20, maxDelayText(), maxNormalized) {
-                @Override
-                protected void updateMessage() {
-                    setMessage(maxDelayText());
-                }
+                double maxNormalized = (TerminalSolverConfig.getInstance().getAutoClickMaxDelayMs() - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS)
+                        / (double) (TerminalSolverConfig.MAX_AUTO_CLICK_DELAY_MS - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS);
+                widgets.add(new ThemedSliderButton(contentX + half + 8, y, half, 20, maxDelayText(), maxNormalized) {
+                    @Override
+                    protected void updateMessage() {
+                        setMessage(maxDelayText());
+                    }
 
-                @Override
-                protected void applyValue() {
-                    TerminalSolverConfig c = TerminalSolverConfig.getInstance();
-                    int newDelay = (int) Math.round(TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS
-                            + this.value * (TerminalSolverConfig.MAX_AUTO_CLICK_DELAY_MS - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS));
-                    c.setAutoClickMaxDelayMs(newDelay);
-                    saveOnRelease(() -> c.save());
-                }
-            });
-            y += 26;
+                    @Override
+                    protected void applyValue() {
+                        TerminalSolverConfig c = TerminalSolverConfig.getInstance();
+                        int newDelay = (int) Math.round(TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS
+                                + this.value * (TerminalSolverConfig.MAX_AUTO_CLICK_DELAY_MS - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS));
+                        c.setAutoClickMaxDelayMs(newDelay);
+                        saveOnRelease(() -> c.save());
+                    }
+                });
+                y += 26;
+            }
 
             widgets.add(SettingsButtonWidget.builder(blockInputText(), btn -> {
                         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();

@@ -2654,9 +2654,12 @@ final class SettingTooltipsData {
         d.put("menu speed", "How fast the flipper clicks through Bazaar and Instant Buy menus, 1 (cautious) to 10 (fastest).");
         d.put("sell speed", "How fast the flipper shift-clicks items into the /trades NPC, 1 to 10. Same scale as Menu Speed, but much faster at every step.");
         d.put("bazaar flipper", "Buys items from the Bazaar and sells them to the /trades NPC.");
-        d.put("hide mouse cursor", "While auto terminal clicks are landing, the real mouse pointer is hidden, so a screen share shows no pointer moving on its own. It comes back as soon as the clicks stop.");
-        d.put("fake cursor", "Draws a mouse pointer that starts at the center and moves to each auto click the way a hand moves a mouse, arriving before the click.");
-        d.put("fake cursor speed", "How fast the fake pointer moves, in percent of a person's hand. Auto clicks wait for it to arrive, so a slow pointer slows the clicks.");
+        d.put("hide mouse cursor", "With Stream Safe off: while auto terminal clicks are landing, the real mouse pointer is hidden and no pointer is drawn, so a screen share shows nothing moving. It comes back as soon as the clicks stop.");
+        d.put("stream safe", "On: auto terminal clicks come from a drawn mouse pointer that moves like a hand (curves, misses, overshoots, a varied order) and clicks only once it is on the slot, so a stream looks like you playing. Off: the Min and Max delays, and no pointer is drawn.");
+        d.put("cursor speed", "How fast the Stream Safe pointer moves, in percent of a typical hand, 50-200%. Clicks wait for it, so slower is slower.");
+        d.put("reaction time", "The usual pause before the Stream Safe pointer starts each move, 60-400 ms (130 by default); each pause varies round it.");
+        d.put("miss chance", "How often a Stream Safe move lands a little off (the slot edge or the next slot) and corrects before clicking, 0-30%. A wrong click is never sent.");
+        d.put("overshoot chance", "How often a Stream Safe move carries past the slot and comes back before clicking, 0-50%.");
         d.put("streamer mode", "Run /streamer to turn it on, and again to turn it off. The option below says what it does while it is on: Disable cheats stops every automated action, and either option hides the cheat parts of the menu.");
         d.put("streamer mode/option", "What Streamer Mode does while it is on: Disable cheats refuses every automated action, Hide cheat UI only hides them.");
         d.put("zoom", "Hold the zoom key to narrow the view. While it is held, the mouse wheel changes the zoom.");

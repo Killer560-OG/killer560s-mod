@@ -542,7 +542,7 @@ public final class TerminalSolverFeature {
         checkPendingClicks(items, now);
         maybeClearAccidentalCarriedItem(screen);
         boolean autoThisType = cfg.isAutoTerminalsEnabled() && isAutoTypeEnabled(type, cfg);
-        FakeCursor.setShowing(cfg.isFakeCursor() && autoThisType);
+        FakeCursor.setShowing(cfg.isAutoStreamSafe() && autoThisType);
         if (hasStabilizedOnce && clickContentStabilized) {
             tickAutoClick(screen, type, items);
             // Hover Terminals (2026-09-16) - same frame-driven loop and the same two gates Auto
@@ -619,6 +619,8 @@ public final class TerminalSolverFeature {
         // reopen, tracking ended) - a dwell must never survive the terminal it was started in.
         HoverTerminalFeature.reset();
         HoldToClickFeature.reset();
+        HumanClickOrder.resetClicks();
+        stickySlot = -1;
     }
 
     /** Auto Terminals - real auto-clicking, cheat build only (see {@link TerminalSolverConfig
@@ -669,20 +671,38 @@ public final class TerminalSolverFeature {
         if (currentHighlights.isEmpty()) {
             return;
         }
-        long now = System.currentTimeMillis();
-        if (FakeCursor.active()) {
-            // Head for the next slot while the click delay runs, so the pointer is there by the time the click may go.
-            AutoClickTarget next = pickAutoClickTarget(type, currentHighlights, pendingClicks.keySet());
-            if (next != null) {
-                FakeCursor.aim(screen, next.slot());
-            }
+        if (cfg.isAutoStreamSafe()) {
+            // Stream Safe (2026-10-27): the human cursor is the clock; the Min/Max delays do not apply.
+            tickHumanAutoClick(screen, type, items, cfg);
+            return;
         }
+        long now = System.currentTimeMillis();
         if (now < nextAutoClickAllowedAtMs) {
             return;
         }
         long retryTimeout = retryTimeoutMs(cfg);
-        AutoClickTarget target = pickAutoClickTarget(type, currentHighlights, pendingClicks.keySet());
+        AutoClickTarget target = null;
         PendingClick retryOf = null;
+        if (stickySlot >= 0) {
+            // A slot that still needs clicks (a Rubix pane needing 2) is finished before anything else: wait for the
+            // server's answer to its last click, then click it again (killer560, 2026-10-27).
+            SlotHighlight sticky = currentHighlights.get(stickySlot);
+            PendingClick waiting = pendingClicks.get(stickySlot);
+            boolean unanswered = waiting != null && now - waiting.sentAtMs() < retryTimeout;
+            if (unanswered) {
+                // Its last click is not answered yet (a Rubix click can even leave the slot reading empty until then).
+                return;
+            }
+            if (sticky == null) {
+                stickySlot = -1;
+            } else {
+                target = pickAutoClickTarget(type, Map.of(stickySlot, sticky), Set.of());
+                retryOf = waiting;
+            }
+        }
+        if (target == null) {
+            target = pickAutoClickTarget(type, currentHighlights, pendingClicks.keySet());
+        }
         if (target == null) {
             // Every clickable highlight is still awaiting its server confirm (for Numbers: its one
             // in-order slot is). Only an overdue one gets re-sent - the oldest, if several are.
@@ -699,11 +719,6 @@ public final class TerminalSolverFeature {
             }
         }
         if (target == null) {
-            return;
-        }
-        // Fake Cursor: the click waits for the pointer to reach its slot, never the other way round.
-        FakeCursor.aim(screen, target.slot());
-        if (!FakeCursor.ready(target.slot())) {
             return;
         }
         // Mod-wide one-interaction-per-tick gate. tickAutoClick runs per RENDER FRAME (see refreshState), so
@@ -728,7 +743,74 @@ public final class TerminalSolverFeature {
             pendingClicks.remove(target.slot());
             return;
         }
+        stickySlot = needsMoreClicks(type, currentHighlights.get(target.slot())) ? target.slot() : -1;
         noteAutoClick(target.slot(), now);
+    }
+
+    /** Auto Terminals' slot that still needs clicks after its last one (Min/Max mode), or -1. */
+    private static int stickySlot = -1;
+
+    /** @return whether {@code highlight}'s slot needs another click after the one about to be sent: a Rubix pane whose
+     *  remaining count is 2 or more. Every other type takes one click per slot. */
+    static boolean needsMoreClicks(TerminalType type, SlotHighlight highlight) {
+        if (type != TerminalType.RUBIX || highlight == null || highlight.label() == null) {
+            return false;
+        }
+        try {
+            return Math.abs(Integer.parseInt(highlight.label().trim())) > 1;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Stream Safe Auto Terminals (killer560, 2026-10-27). {@link HumanClickOrder} picks the slot the way a person would
+     * (always among valid, unanswered highlights, so any order it makes is a valid solve), the {@link FakeCursor} travels
+     * there with a human hand, and the click goes out only when it has arrived and pressed. Everything else is Auto
+     * Terminals' own: the single-slot correctness check, one click a tick through ActionGate, the pending set (a slot with
+     * an unanswered click is not clicked again until the answer or the retry timeout).
+     */
+    private static void tickHumanAutoClick(ContainerScreen screen, TerminalType type, List<ItemStack> items, TerminalSolverConfig cfg) {
+        long now = System.currentTimeMillis();
+        long retryTimeout = retryTimeoutMs(cfg);
+        int slot = HumanClickOrder.next(type, currentHighlights, s -> {
+            PendingClick p = pendingClicks.get(s);
+            return p != null && now - p.sentAtMs() < retryTimeout;
+        });
+        if (slot < 0) {
+            return;
+        }
+        FakeCursor.aim(screen, slot);
+        SlotHighlight highlight = currentHighlights.get(slot);
+        if (highlight == null) {
+            return;
+        }
+        AutoClickTarget target = pickAutoClickTarget(type, Map.of(slot, highlight), Set.of());
+        if (target == null) {
+            // Numbers: the cursor is reading ahead to the next number while the current one's click is answered.
+            return;
+        }
+        PendingClick waiting = pendingClicks.get(slot);
+        if (waiting != null && now - waiting.sentAtMs() < retryTimeout) {
+            return;
+        }
+        if (!FakeCursor.ready(slot)) {
+            return;
+        }
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
+            return;
+        }
+        ItemStack snapshot = slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY;
+        pendingClicks.put(slot, waiting != null
+                ? new PendingClick(slot, waiting.firstSentAtMs(), now, waiting.snapshot(), waiting.attempt() + 1)
+                : new PendingClick(slot, now, now, snapshot, 1));
+        if (!sendTerminalClick(screen, slot, target.button(), target.clickType())) {
+            pendingClicks.remove(slot);
+            return;
+        }
+        boolean more = needsMoreClicks(type, highlight);
+        noteAutoClick(slot, now);
+        HumanClickOrder.clicked(slot, more);
     }
 
     public static boolean isAutoTypeEnabled(TerminalType type, TerminalSolverConfig cfg) {
