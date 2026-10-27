@@ -356,3 +356,11 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   and the latch, so a rejoin with the key still down started a hold during the join (1026-blink-disconnect).
 - A setback right after a shot is told from a warp by where it puts him: back within 0.75 of the shot's start is "SHOT SET
   BACK" (logged and reported); the watch is cleared on a world change, or the next world's join position reads as one.
+- Charge's "a tick is open" flag must move only on the client's own sends. A tick that is not banked sends its kept move
+  from inside the tick-end's hook; counted as the client's, that re-send re-opened the tick, so while he moved with Charge
+  on no ping answer was ever sent at a tick start (AP3 blinkcharge 3, then running: 18 answers waiting, the oldest 1660 ms
+  at a 140 ms delay; standing still hid it because a banked tick drops the move; at a 990 ms delay the oldest reached 2501 ms
+  after a short run, and nothing bounded it). Testkit 1026-ap3-blink-* checks the oldest answer while he runs charged (2026-10-26).
+- A feature drives Charge through `BlinkCharge.beginFor(owner, n)` / `shootFor(owner, n)` / `endFor` (AP3's Blink nodes):
+  the key is ignored while an owner holds it, `cap()` is the owner's n, and a partial shot leaves the rest banked. The shot
+  runs at Blink's START with the input a driver installed at the END before, which is how AP3's release fires along its walk.

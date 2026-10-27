@@ -116,3 +116,10 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   searches keep the best found; 20 spent ticks in a row end the align. Standing in lava or a hazard ends the align at once
   (logged once); presses into lava, fire, cactus, berry bush, powder snow or onto magma are refused like a drop.
 
+- **Blink Charge / Blink Release nodes (2026-10-26).** AP3 drives Blink Charge through `BlinkCharge.beginFor(owner, n)` /
+  `shootFor(owner, n)` / `endFor`, never the Charge key: while an owner is set the key is ignored (logged), `cap()` is the
+  node's n, and a shot of k < bank runs k ticks and leaves the rest banked. The shot runs at Blink's START from AP3's input
+  of the END before (the mixin installs AP3's keys in every shot tick), so a release fires along the held walk. A shot moves
+  him up to 9.5 blocks in a tick, past AP3's 8-block "you leapt" line: `BlinkCharge.shotThisTick()` exempts it, or the
+  first long shot would drop the walk and the queue. AP3 stopping (any reason) ends a charge AP3 started; a release that
+  spends the bank ends it too, so ping answers go back to live. Testkit 1026-ap3-blink-*, 1026-ui-ap3-blink-nodes.

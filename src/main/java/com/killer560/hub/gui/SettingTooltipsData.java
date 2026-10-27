@@ -56,7 +56,7 @@ final class SettingTooltipsData {
         d.put("blink/debug log", "Writes every blink to latest.log on a GitHub build too (your own builds always do); /blink debug shows the state now.");
         d.put("blink/charge key", "Standing still banks ticks; firing runs them all at once and shoots you forward. Fired standing, it goes off when you move.");
         d.put("blink/charge mode", "Toggle: press to charge, press again to fire. Hold: charge while held, fire when you let go.");
-        d.put("blink/charge ticks", "The most ticks Charge banks, so how far a shot goes. Past 20, Hypixel sets it back.");
+        d.put("blink/charge ticks", "The most ticks Charge banks, so how far a shot goes; also what an AP3 Blink Charge node with no number banks. Past 20, Hypixel sets it back.");
         d.put("blink/hold key", "While held, everything you send waits; let go and it all goes at once. Menu clicks always go through.");
         d.put("blink/hold ticks", "A hold lets go on its own after this many ticks. Past 20, Hypixel sets it back.");
     }
@@ -2555,6 +2555,8 @@ final class SettingTooltipsData {
         d.put("ap3 block color", "Marker color for Block nodes.");
         d.put("add block node", "Places a Block node (/ap3 add block) that places a block where you were looking.");
         d.put("ap3 stopwatch color", "Marker color for Stopwatch nodes.");
+        d.put("ap3 blink charge color", "Marker color for Blink Charge nodes (stop and bank Blink ticks).");
+        d.put("ap3 blink release color", "Marker color for Blink Release nodes (fire banked Blink ticks).");
         d.put("label color", "Node's Color draws each label in its node's color; Fixed uses one color for all labels.");
         d.put("fixed label color", "The one color every AP3 node label uses while Label Color is Fixed.");
         d.put("ap3/stop ap3", "Stops whatever AP3 is doing and releases every key (same as /ap3 stop).");

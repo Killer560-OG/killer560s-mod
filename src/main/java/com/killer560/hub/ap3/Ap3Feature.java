@@ -260,6 +260,8 @@ public final class Ap3Feature {
         public Integer leapCount;
         /** The {@code leapcounter:<n>} suffix, any type (2026-10-26). */
         public Integer leapCounter;
+        /** BLINK_CHARGE / BLINK_RELEASE: the tick count typed after the type, null = the max. */
+        public Integer blinkTicks;
         /** PATH: the speed window and heading the route must cross this node at, and whether it waits for a term. */
         public Double minSpeed;
         public Double maxSpeed;
@@ -299,6 +301,9 @@ public final class Ap3Feature {
             }
             if (leapCounter != null) {
                 node.setLeapCounter(leapCounter);
+            }
+            if (blinkTicks != null && node.type.usesBlinkTicks()) {
+                node.setBlinkTicks(blinkTicks);
             }
             if (node.type == Ap3Node.Type.PATH) {
                 if (pathIndex != null) {

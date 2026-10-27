@@ -315,6 +315,9 @@ public final class Ap3Config {
             case PATH -> 0xFFFFB347;
             case NO_GO -> 0xFFFF3355;
             case TERM_AURA -> 0xFFA855F7;
+            // Blink's red: a charge is a stop that banks, a release is the shot.
+            case BLINK_CHARGE -> 0xFFE11D48;
+            case BLINK_RELEASE -> 0xFFFB7185;
         };
     }
 
