@@ -124,6 +124,11 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
   6-tick wait is gone. That 6-tick wait had hidden that secret chests spawn in only after he has been near them a moment
   (like bats), so at a route's end the aura's scan can see air where the chest will be; `takingHere` also counts a database
   chest in the aura's reach that is not there yet (up to `ITEM_APPEAR_TICKS`, as an item).
+- A start node on a block no etherwarp lands on exactly is skipped ("landed, but its start node did not arm"): the
+  start-node warp asks for the block itself, the planner logs "the block itself cannot be reached" and flies its NEAR
+  landing (up to ~5 blocks off), and the node arms only inside its ring. Seen in testkit 147 when its stand was under a sim
+  chest that had not spawned yet (2026-10-26); a recorded route's start, etherwarped onto, does not hit it. Not changed in
+  the mod: walking from a near landing onto the node would be a new behavior for him to decide.
 - **Deciding the next trip inside the wait overwrote the wait's own count.** `onRouteDone` calls `decide`, which sets
   `routeStartClock`/`routeFoundAtStart` for the NEXT room, and the wait then counted the room it was leaving from that
   room's found count ("every secret counted after 1 tick" with the room still 4/5). The wait keeps the leaving room's own
