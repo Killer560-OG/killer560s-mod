@@ -407,7 +407,10 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   (campaign-invwalk-1027, `InventoryWalkFeature.serverHasStillInput`).
 - A Hold key down across a world change started its new hold on the new world's first tick, holding the spawn teleport's
   confirm: GrimAC Simulation 0.03-0.065 on 19-20 ticks (1026-blink-death (a), on 3011406a too). The new hold now waits for
-  the spawn teleport (`BlinkFeature.spawnWaitTicks`, at most 40 ticks).
+  the spawn teleport (`BlinkFeature.spawnWaitTicks`, at most 40 ticks) and then for him to stand on the ground: he spawns 0.1
+  above it, and a hold over that drop drew Simulation 0.029 decaying in 1 run of 2 on 26.2 (`spawnSettle`, at most 60 ticks).
+- A server teleport that lands while he is sprinting draws GrimAC Simulation 0.196 with Blink idle (1027-blink-c-tpsprint,
+  Charge off, 26.1.2 3 of 6 rows, 26.2 4 of 6; the same rate with Charge on). GrimAC's, not Blink's; compare against that control.
 - Charge's answer delay followed the cap (50 x Charge Ticks - 10 ms), so a bank kept when Charge Ticks was lowered (owner:
   the bank is kept) was bigger than what that delay lets GrimAC cover: with Charge Ticks 2 and 17 banked the delay was 90 ms
   and the shot drew Timer however long he stood (1027-blink-c-mixed). The delay now covers max(cap, banked).
@@ -418,8 +421,9 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   most 3 s); AP3's Blink Release holds on its node meanwhile and finishes the tick the bank is covered, so the shot runs
   along the next node. Measured on GrimAC 2.3.74 (1027-ap3-blink-leap-now/-10): released at the leap the shot waited 1.95 s,
   10 ticks after it 1.51 s, both landed the full 5.39 blocks, clean; on c9521191 both were set back (TimerLimit). The wait
-  needs him still: moving ticks are not covered, so a key shot fired while walking straight after a warp waits the 3 s and
-  then fires uncovered. Tried and reverted: skipping his physics through the hold so its ticks cost nothing (the first ticks
+  needs him still, and walking can never cover it: GrimAC's floor after a teleport is that teleport's ping send time - 120 ms,
+  so he may be behind real time only by the ticks he did NOT send since the teleport, and a walking tick is always sent. A shot
+  still uncovered after 10 s is not fired (bank kept, logged); it used to fire uncovered after 3 s and be set back. Tried and reverted: skipping his physics through the hold so its ticks cost nothing (the first ticks
   after still drew Simulation 0.025 decaying, even with input changes carried to the next sent tick).
 - The same lag allowance is shared by a hold and the bank: a hold while charging sends the waiting answers (TransactionOrder)
   and its own in its burst, so after it GrimAC covers only ~2 ticks of the kept bank. Before campaign-blink-1027 the shot after
