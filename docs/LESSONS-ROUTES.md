@@ -36,6 +36,12 @@ and Auto Clear are in [LESSONS-AUTOCLEAR.md](LESSONS-AUTOCLEAR.md). Problem, the
   (`RouteExecutor.jumpCooldownLeft`, gate line "jump cooldown N.Ns left"), then the latch rules apply; testkit
   96-ar-1014-jumpcd / 62-argrim-1014-jumpcd measure 3.04-3.10 s between fires, and a jump -> etherwarp route goes on at once.
 
+- **A path arrival on a stack tile must fire before the nodes that move him** (pre1026-ar, 2026-10-26). It was ranked as an
+  etherwarp, so on his Bridges route the stack "#3 ETHERWARP, #16 PATH" warped him away first and the arrival then ran 7 blocks
+  off its tile; since 60920921 that stops the route ("not at path #16"): 96-ar-1017-bridges failed on the batch jar
+  (batch1026-c-ar-1, unreported) and on bad234a8. `Route.fireRank` puts an arrival (second PATH of a pair) after every
+  standing-still node and before etherwarp, path, jump and walk; every other node keeps its place.
+
 ## Aiming a node
 
 - **An etherwarp node's recorded look is right from the node's own spot and nowhere else** (his Museum #10 armed 0.6 off
