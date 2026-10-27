@@ -129,9 +129,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     // pinned on top) that you can click back into, plus a box to type someone else's name.
 
     /** The sidebar's narrowest; it widens toward {@link #SIDEBAR_W_WANTED} when the window has the room, so a
-     *  16-character name fits in the box (killer560, 2026-10-08: "make that slightly larger for longer names"). */
+     *  16-character name fits in the box (killer560, 2026-10-08: "make that slightly larger for longer names").
+     *  120: the themed box's text line is its width minus 10 (ThemedEditBox), so 112 left 94 px for a 96 px
+     *  "WWWWWWWWWWWWWWWW"; 120 leaves 102 (the name and its cursor), and a recent-views row's name 98. */
     private static final int SIDEBAR_W = 78;
-    private static final int SIDEBAR_W_WANTED = 112;
+    private static final int SIDEBAR_W_WANTED = 120;
     private static final int SUGGESTION_ROWS = 6;
     private static final int SUGGESTION_ROW_H = 11;
     private static final int SIDEBAR_GAP = 6;
