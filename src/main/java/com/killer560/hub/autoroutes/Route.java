@@ -67,7 +67,11 @@ public final class Route {
      * a crypt and a boom fire boom, boom, crypt (killer560, 2026-10-06: "if i make a boom a crypt then a boom, it should
      * do the first boom then the second then the crypt"). Whether a node is the {@code start} node no longer moves it
      * ahead of an earlier node of its own type. A lone node is a stack of one. Recomputed from the live list each time,
-     * so a delete, an undo or a renumber is simply what the next stack sees.
+     * so a delete, an undo or a renumber is simply what the next stack sees. A path ARRIVAL (the second PATH of a pair)
+     * fires nothing itself and is only real where he stands, so it goes just before the nodes that move him
+     * ({@link #fireRank}): ranked as an etherwarp it fired after the tile's etherwarp had moved him, and since
+     * 60920921 that stopped the route "not at path #16" (testkit 96-ar-1017-bridges, his Bridges route, #3 ETHERWARP
+     * and #16 PATH on one tile).
      */
     public List<RouteNode> stackOf(RouteNode trigger) {
         List<RouteNode> stack = new ArrayList<>();
@@ -82,12 +86,22 @@ public final class Route {
         if (!stack.contains(trigger)) {
             stack.add(trigger); // not (or no longer) in the list: it still fires itself
         }
-        stack.sort(Comparator.comparingInt(RouteNode::stackRank)
+        stack.sort(Comparator.comparingInt(this::fireRank)
                 .thenComparingInt(n -> {
                     int i = nodes.indexOf(n);
                     return i < 0 ? Integer.MAX_VALUE : i;
                 }));
         return stack;
+    }
+
+    /** {@link RouteNode#stackRank} doubled, except a path arrival, which fires nothing and goes in between: after
+     *  everything that acts standing still (its await then still holds only the movers), before the etherwarp, path,
+     *  jump and walk that move him off its tile. */
+    int fireRank(RouteNode node) {
+        if (node.type == RouteNode.Type.PATH && pathOrdinal(node) >= 0 && !isPathSource(node)) {
+            return 2 * RouteNode.MOVER_RANK - 1;
+        }
+        return 2 * node.stackRank();
     }
 
     /**

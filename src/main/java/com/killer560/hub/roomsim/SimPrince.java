@@ -63,7 +63,10 @@ public final class SimPrince {
      * useless, which is the same trap the gold-alone rule fell into.
      *
      * <p>Stairs is an inference, not his word - he only named Leaves. It is reported in the build log by room,
-     * so a wrong second room is visible rather than silently worth a bonus point.
+     * so a wrong second room is visible rather than silently worth a bonus point. Since 2026-10-19 (mod 4f4231bb,
+     * killer560 of Pirate's three such tables: "these are not princes in pirates") a crown needs air above it
+     * ({@code CryptScanner.isPrinceCrown}), and Stairs' 3x3 at capture y 89 has a light gray carpet on its lantern, so
+     * Leaves is the only lantern prince left (testkit 1018-sim-prince-stairs checks Stairs' is not one).
      */
     private static final net.minecraft.world.level.block.Block LANTERN = Blocks.SEA_LANTERN;
     private static final net.minecraft.world.level.block.Block LANTERN_WALL = Blocks.POLISHED_ANDESITE;
@@ -345,7 +348,8 @@ public final class SimPrince {
      *
      * <p>killer560, 2026-10-18 (Dungeons item 9): "those smooth andesite blocks shouldnt be there", and of the census in
      * the sim-secrets report, "yes fix all of them". Census over the 135 captures of {@link #tombOf} with this ring (and
-     * without it): it adds blocks to five princes and no others - Stairs 11 (the polished andesite round its 3x3 lantern
+     * without it, 2026-10-18 - before Stairs' carpeted lantern stopped being a prince): it adds blocks to five princes and
+     * no others - Stairs 11 (the polished andesite round its 3x3 lantern
      * prince on the same layer, capture y 89), Withermancer 12 (the 4x4 course two under its obsidian top, y 71, over the
      * ladder shaft), Sloth 27 (the alcove's lining round its gold plinth, x 11 and x 15 and z 31, y 71..73), Red Blue 4
      * (x 61, y 83, z 6..9, under the alcove's back) and Grass Ruin 2 (the alcove's posts at (3, 96, 14) and (3, 96, 19)).

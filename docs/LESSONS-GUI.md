@@ -287,3 +287,7 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
 - An entity made with `EntityType.create` and never added to a level needs `setId` before any renderer sees it: on 26.2
   `getId()` throws "Tried to access entity ID before ID assignment" (26.1.2 does not). Play as Mob's stand-ins drew nothing on
   26.2 until they got negative ids (testkit 1018-mob-all: 78 of 78 broken, then 0).
+- `ThemedEditBox` (the menu-theme text box) is an unbordered EditBox placed 5 px inside the box it was given, so its text line
+  is the given width minus 10 and `getWidth()` reports that line. A box sized for a vanilla bordered box loses 2 px: the
+  Profile Viewer's name box went 96 -> 94 px and no longer held a 16-character name until its sidebar widened to 120
+  (testkit 693, 2026-10-26).

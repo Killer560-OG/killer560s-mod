@@ -371,3 +371,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - `ModPaths.config()` made the parent folder on every lookup, and most features look up from a static initializer, so
   each boot made ~85 empty folders (cheat ones in legit instances). Since layout-fixes-1026 only a write makes a folder;
   a new writer must create its parent, and an "Open Folder" button gets it from `ExternalOpen.path` (testkit 1026-layout-empty).
+- A failure that "fails the same on merge-train" is not proof the mod is right: of the 2026-10-26 pre-existing list, two
+  were real mod bugs (Profile Viewer name box 94 px for a 96 px name; a Custom Scoreboard row with no tooltip) and the
+  96-ar run turned up a third (a path arrival ranked as an etherwarp in a stack); the rest were tests left behind by the
+  owner's redesigns or measuring under load. Two testkit fixes (91af48ec, 7d854287) had sat unmerged on old branches for a
+  week. Report: killer560s-mod-logs/preexisting-1026-report.md.

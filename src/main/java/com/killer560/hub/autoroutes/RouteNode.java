@@ -427,6 +427,9 @@ public final class RouteNode {
                 && Math.floor(y + 0.001) == Math.floor(other.y + 0.001);
     }
 
+    /** {@link #stackRank} of the first types that move him off the tile (etherwarp and path). */
+    public static final int MOVER_RANK = 9;
+
     /**
      * Where this node fires within a stack of nodes on one tile (killer560, 2026-10-04, approved order): breaker,
      * superboom, crypt, use, command, rotate, unsneak, etherwarp, walk - the things that need you standing still and
@@ -450,7 +453,7 @@ public final class RouteNode {
             case UNSNEAK -> 8;
             // A path is etherwarps, and fires in the etherwarp slot (killer560, 2026-10-05: "have the same priority
             // of an etherwarp in the ranking").
-            case ETHERWARP, PATH -> 9;
+            case ETHERWARP, PATH -> MOVER_RANK;
             // A jump moves you, like a walk; ahead of the walk so a jump-and-sprint stack leaves the ground first.
             case JUMP -> 10;
             case WALK -> 11;
