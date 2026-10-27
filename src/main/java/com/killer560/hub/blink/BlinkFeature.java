@@ -237,6 +237,12 @@ public final class BlinkFeature {
         }
         BlinkConfig cfg = BlinkConfig.getInstance();
         ClientPacketListener listener = client.getConnection();
+        if (client.player != null && client.level != null) {
+            // Counted whether Blink is on or not (ship3-1027): counted only while it was on, the settle after a world change
+            // stayed pending with Blink off, and switching it on later made the first hold wait for him to land - a hold
+            // pressed mid-jump began only on landing (testkit 1025-blink-jump: 2.4 of 6.9 blocks held).
+            tickSpawnWait(client);
+        }
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || !cfg.isEnabled() || listener == null) {
             // Blink switched off, or no connection: the only ends besides his own release (killer560 2026-10-27).
             wanted = false;
@@ -282,19 +288,6 @@ public final class BlinkFeature {
         }
         if (holding && !wanted) {
             release("key".equals(holdOwner) ? "key up" : "ended by " + holdOwner);
-        }
-        if (spawnWaitTicks > 0) {
-            spawnWaitTicks--;
-        }
-        if (spawnSettle) {
-            // After the spawn teleport he drops the 0.1 the server spawns him above the ground; held, those first ticks
-            // drew GrimAC Simulation 0.029 decaying x8 on 26.2 (1026-blink-death (a), 1 run in 2). The new hold waits until
-            // he stands on the ground (at most 60 ticks after the world change).
-            spawnSettleTicks++;
-            if ((spawnWaitTicks == 0 && client.player.onGround() && client.player.getY() == client.player.yo)
-                    || spawnSettleTicks > 60) {
-                spawnSettle = false;
-            }
         }
         if (!holding && wanted && (spawnWaitTicks > 0 || spawnSettle)) {
             // A new world: the hold waits until the server's spawn teleport has been confirmed (campaign-blink-1027).
@@ -508,6 +501,23 @@ public final class BlinkFeature {
     private static int spawnWaitTicks;
     private static boolean spawnSettle;
     private static int spawnSettleTicks;
+
+    /** The wait for the spawn teleport and the settle onto the ground after a world change, one tick of each. */
+    private static void tickSpawnWait(Minecraft client) {
+        if (spawnWaitTicks > 0) {
+            spawnWaitTicks--;
+        }
+        if (spawnSettle) {
+            // After the spawn teleport he drops the 0.1 the server spawns him above the ground; held, those first ticks
+            // drew GrimAC Simulation 0.029 decaying x8 on 26.2 (1026-blink-death (a), 1 run in 2). The new hold waits until
+            // he stands on the ground (at most 60 ticks after the world change).
+            spawnSettleTicks++;
+            if ((spawnWaitTicks == 0 && client.player.onGround() && client.player.getY() == client.player.yo)
+                    || spawnSettleTicks > 60) {
+                spawnSettle = false;
+            }
+        }
+    }
 
     public static void onServerPosition(Vec3 from, Vec3 to) {
         if (spawnWaitTicks > 2) {
