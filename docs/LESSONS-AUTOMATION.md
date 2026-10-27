@@ -363,6 +363,11 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   sent first), a hold starting, the Skyblock gate, screens and AP3 stopping. GrimAC flags the next shot after a kept
   teleport (BadPacketsN / Simulation / a setback - see the in-place and setback-variants findings above); he accepts it.
   Do not revert. Impossible to keep: a hold's packets across a world change (old-world moves), anything across a disconnect.
+- What keeping the bank costs on GrimAC (blink-keep-1027, testkit 1026-blink-keep-warp, 1026-ap3-blink-leap): at the kept
+  teleport itself Simulation = the teleport's distance, GroundSpoof, TickTimer, BadPacketsN; then the next shot is SET BACK
+  (the server never moves; client/server gap = the shot's length). Later in the same session, a teleport held through a
+  plain Hold draws BadPacketsN too (items-a / lcew hold rows; the same holds are clean in a fresh session). A hold started
+  while charging sends the waiting answers, and the kept bank's shot then draws Timer (keep-misc 4b).
 - Charge's "a tick is open" flag must move only on the client's own sends. A tick that is not banked sends its kept move
   from inside the tick-end's hook; counted as the client's, that re-send re-opened the tick, so while he moved with Charge
   on no ping answer was ever sent at a tick start (AP3 blinkcharge 3, then running: 18 answers waiting, the oldest 1660 ms
