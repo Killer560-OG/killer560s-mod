@@ -296,8 +296,16 @@ public final class Ap3Node {
     public LeapMode leapMode = LeapMode.DEFAULT;
     public DungeonClass leapClass;
     public String leapIgn;
-    /** {@link Type#LEAP_COUNTER}: how many teammates must leap to you. */
+    /** {@link Type#LEAP_COUNTER}: how many teammates must leap to you. A legacy type since 2026-10-26: files and the
+     *  {@code /ap3 add leapcounter} command turn it into a Stop carrying the {@link #leapCounter} suffix. */
     public int leapCount = 1;
+    /**
+     * The {@code leapcounter:<n>} suffix (killer560, 2026-10-26: "if i have a leapcounter on a node then it shouldnt be
+     * able to fire any node other than align till that counter goes off. also the leapcounter should be a suffix
+     * option"): when this node is reached it first waits for n teammates to leap to him, and until they have, no node
+     * but an align fires. 0 = none.
+     */
+    public int leapCounter;
     /**
      * {@link Type#PATH}: which step of the route this node is - killer560 (2026-09-22): "allow me to do add path one,
      * add path four etc. so that way it knows what number in the path it should be. It should always default such
@@ -387,6 +395,20 @@ public final class Ap3Node {
     }
 
     /**
+     * A FLOAT angle (yaw, pitch) as the decimal it was typed or recorded as: the shortest decimal that reads back as this
+     * float ({@link Float#toString}), at most {@link #SAVED_DECIMALS} places. Widening the float to double first is what
+     * wrote and showed 167.9 as 167.899994 (killer560, 2026-10-26: "it tends to round of digits after editing to be
+     * something like 167.899994 instead of .9 flat"). Never wraps; a file that already holds 167.899994 loads as the same
+     * float as 167.9 and is shown and saved as 167.9 from then on.
+     */
+    public static double savedAngle(float v) {
+        if (!Float.isFinite(v)) {
+            return 0.0;
+        }
+        return roundSaved(Double.parseDouble(Float.toString(v)));
+    }
+
+    /**
      * Rounds this node to exactly what the file will hold, so a node behaves the same the moment it is placed or
      * edited as it will after a reload (killer560, 2026-10-05: "if I place a node then hit it again without
      * reloading it is still that truncated value"). Called wherever a node gets new values.
@@ -395,8 +417,8 @@ public final class Ap3Node {
         x = roundSaved(x);
         y = roundSaved(y);
         z = roundSaved(z);
-        yaw = (float) roundSaved(yaw);
-        pitch = (float) roundSaved(pitch);
+        yaw = (float) savedAngle(yaw);
+        pitch = (float) savedAngle(pitch);
         width = roundSaved(width);
         length = roundSaved(length);
         clearUnusedFields();
@@ -463,6 +485,11 @@ public final class Ap3Node {
 
     public void setLeapCount(int n) {
         leapCount = Math.max(1, Math.min(MAX_LEAP_COUNT, n));
+    }
+
+    /** The {@code leapcounter:} suffix, 0 (none) to {@link #MAX_LEAP_COUNT}. */
+    public void setLeapCounter(int n) {
+        leapCounter = Math.max(0, Math.min(MAX_LEAP_COUNT, n));
     }
 
     public Vec3 pos() {
@@ -653,6 +680,9 @@ public final class Ap3Node {
         if (ssGate) {
             sb.append(" ss");
         }
+        if (leapCounter > 0) {
+            sb.append(" leapcounter:").append(leapCounter);
+        }
         sb.append(String.format(Locale.US, " @ %.2f, %.1f, %.2f", x, y, z));
         return sb.toString();
     }
@@ -701,6 +731,7 @@ public final class Ap3Node {
         leapClass = o.leapClass;
         leapIgn = o.leapIgn;
         leapCount = o.leapCount;
+        leapCounter = o.leapCounter;
         pathIndex = o.pathIndex;
         pathStart = o.pathStart;
         pathEnd = o.pathEnd;
@@ -720,7 +751,7 @@ public final class Ap3Node {
                 && waitAfterMs == o.waitAfterMs && closeGate == o.closeGate && ssGate == o.ssGate && jumpMod == o.jumpMod
                 && java.util.Objects.equals(useItemId, o.useItemId) && java.util.Objects.equals(name, o.name)
                 && leapMode == o.leapMode && leapClass == o.leapClass && java.util.Objects.equals(leapIgn, o.leapIgn)
-                && leapCount == o.leapCount && pathIndex == o.pathIndex && pathStart == o.pathStart
+                && leapCount == o.leapCount && leapCounter == o.leapCounter && pathIndex == o.pathIndex && pathStart == o.pathStart
                 && pathEnd == o.pathEnd && minSpeed == o.minSpeed && maxSpeed == o.maxSpeed && hasDir == o.hasDir
                 && dirDeg == o.dirDeg && dirTolDeg == o.dirTolDeg && termWait == o.termWait
                 && java.util.Objects.equals(colour, o.colour);
@@ -741,6 +772,7 @@ public final class Ap3Node {
         n.leapClass = leapClass;
         n.leapIgn = leapIgn;
         n.leapCount = leapCount;
+        n.leapCounter = leapCounter;
         n.colour = colour;
         return n;
     }

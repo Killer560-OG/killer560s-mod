@@ -83,7 +83,7 @@ public final class Ap3Commands {
         ADD_WALK("add_walk", "Add Walk (No Turn) Node", "/ap3 add walk [w<n> l<n>]"),
         ADD_RUN("add_run", "Add Run (No Turn) Node", "/ap3 add run [w<n> l<n>]"),
         ADD_LEAP("add_leap", "Add Leap Node", "/ap3 add leap [mage|archer|bers|tank|healer|ign <name>]"),
-        ADD_LEAP_COUNTER("add_leapdetector", "Add Leap Counter Node", "/ap3 add leapcounter [<count>]"),
+        ADD_LEAP_COUNTER("add_leapdetector", "Add Leap Counter Stop", "/ap3 add stop leapcounter:<count>"),
         ADD_TERMINAL("add_terminal", "Add Terminal Node", "/ap3 add terminal"),
         ADD_STOP("add_stop", "Add Stop Node", "/ap3 add stop"),
         ADD_LOOK("add_look", "Add Look Node", "/ap3 add look"),
@@ -140,7 +140,8 @@ public final class Ap3Commands {
     private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "fastalign", "path", "nogo", "termaura", "walk", "run", "leap",
             "leapcounter", "terminal", "stop", "look", "boom", "stopwatch", "jump", "edge", "block", "use");
     /** Modifiers offered after any {@code /ap3 add <type>}. */
-    private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "precise", "jump", "edge");
+    private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "precise", "jump", "edge", "ss",
+            "leapcounter:");
     /** Extra words {@code /ap3 add path} takes: the speed window, the heading and the terminal stop. */
     private static final List<String> PATH_MODS =
             List.of("start", "end", "1", "2", "3", "4", "exact", "speed:", "dir:", "dirtol:", "term");
@@ -416,6 +417,11 @@ public final class Ap3Commands {
                                                         IntegerArgumentType.getInteger(context, "n") - 1, true) ? 1 : 0))
                                                 .then(ClientCommands.literal("off").executes(context -> setPrecise(
                                                         IntegerArgumentType.getInteger(context, "n") - 1, false) ? 1 : 0)))
+                                        .then(ClientCommands.literal("leapcounter")
+                                                .then(ClientCommands.argument("k", IntegerArgumentType.integer(0, Ap3Node.MAX_LEAP_COUNT))
+                                                        .executes(context -> setLeapCounter(
+                                                                IntegerArgumentType.getInteger(context, "n") - 1,
+                                                                IntegerArgumentType.getInteger(context, "k")) ? 1 : 0)))
                                         .then(ClientCommands.literal("count")
                                                 .then(ClientCommands.argument("k", IntegerArgumentType.integer(1, Ap3Node.MAX_LEAP_COUNT))
                                                         .executes(context -> setLeapCount(
@@ -539,7 +545,12 @@ public final class Ap3Commands {
             case ADD_WALK -> add(Ap3Node.Type.WALK);
             case ADD_RUN -> add(Ap3Node.Type.RUN);
             case ADD_LEAP -> add(Ap3Node.Type.LEAP);
-            case ADD_LEAP_COUNTER -> add(Ap3Node.Type.LEAP_COUNTER);
+            case ADD_LEAP_COUNTER -> {
+                // A suffix since 2026-10-26: the key adds a Stop waiting for one leap.
+                Ap3Feature.NodeSpec spec = new Ap3Feature.NodeSpec();
+                spec.leapCounter = 1;
+                Ap3Feature.addNode(Ap3Node.Type.STOP, spec);
+            }
             case ADD_TERMINAL -> add(Ap3Node.Type.TERMINAL);
             case ADD_STOP -> add(Ap3Node.Type.STOP);
             case ADD_LOOK -> add(Ap3Node.Type.LOOK);
@@ -595,7 +606,8 @@ public final class Ap3Commands {
         for (String[] line : EDIT_HELP) {
             ModChat.send(FEATURE, ModChat.value(line[0]), ModChat.dim(" - " + line[1]));
         }
-        ModChat.send(FEATURE, ModChat.dim("Modifiers after any /ap3 add: w<n> l<n> (trigger box in blocks), wait:<ms>, precise."));
+        ModChat.send(FEATURE, ModChat.dim("Modifiers after any /ap3 add: w<n> l<n> (trigger box in blocks), wait:<ms>, precise, ss,"
+                + " leapcounter:<n> (wait for n leaps; only aligns run meanwhile)."));
         ModChat.send(FEATURE, ModChat.dim("<n> is the node's number from /ap3 list and its world label (first node = 1)."));
     }
 
@@ -640,8 +652,27 @@ public final class Ap3Commands {
             if (spec == null) {
                 return; // parseSpec said what was wrong
             }
+            if (type == Ap3Node.Type.LEAP_COUNTER) {
+                // The Leap Counter is a suffix now (killer560, 2026-10-26): the old command adds a Stop that waits for
+                // the count, which is what the node did.
+                type = Ap3Node.Type.STOP;
+                spec.leapCounter = spec.leapCounter != null ? spec.leapCounter : spec.leapCount != null ? spec.leapCount : 1;
+                spec.leapCount = null;
+                ModChat.send(FEATURE, ModChat.dim("Leap Counter is a suffix now: added a Stop with "),
+                        ModChat.value("leapcounter:" + spec.leapCounter), ModChat.dim(" (any node takes it)."));
+            }
             Ap3Feature.addNode(type, spec);
         });
+    }
+
+    /** A leapcounter count, 1 to {@link Ap3Node#MAX_LEAP_COUNT}; null (after saying why) otherwise. */
+    private static Integer clampLeapCounter(int n, String raw) {
+        if (n < 1 || n > Ap3Node.MAX_LEAP_COUNT) {
+            ModChat.send(FEATURE, ModChat.bad("Leap counter out of range "), ModChat.value(raw),
+                    ModChat.text(" - 1 to " + Ap3Node.MAX_LEAP_COUNT + "."));
+            return null;
+        }
+        return n;
     }
 
     /**
@@ -694,6 +725,18 @@ public final class Ap3Commands {
                     spec.dirDeg = Double.parseDouble(t.substring(4));
                 } else if (type == Ap3Node.Type.PATH && (t.startsWith("dirtol:") || t.startsWith("dirtol="))) {
                     spec.dirTolDeg = Double.parseDouble(t.substring(7));
+                } else if (t.matches("(leapcounter|leap_counter|lc)[:=]\\d+")) {
+                    // The leap counter suffix (2026-10-26): this node waits for n leaps, and nothing but an align fires
+                    // until they come.
+                    spec.leapCounter = clampLeapCounter(Integer.parseInt(t.substring(t.indexOf(t.contains(":") ? ':' : '=') + 1)), raw);
+                    if (spec.leapCounter == null) {
+                        return null;
+                    }
+                } else if ((t.equals("leapcounter") || t.equals("lc")) && i + 1 < tokens.length && tokens[i + 1].matches("\\d+")) {
+                    spec.leapCounter = clampLeapCounter(Integer.parseInt(tokens[++i]), raw);
+                    if (spec.leapCounter == null) {
+                        return null;
+                    }
                 } else if (t.startsWith("wait:") || t.startsWith("wait=")) {
                     spec.waitMs = clampWait(Integer.parseInt(t.substring(5)));
                 } else if (t.startsWith("width:") || t.startsWith("width=")) {
@@ -740,7 +783,7 @@ public final class Ap3Commands {
                     spec.name = raw;
                 } else {
                     ModChat.send(FEATURE, ModChat.bad("Unknown modifier "), ModChat.value(raw),
-                            ModChat.text(" for " + type.label() + " - w<n> l<n>, wait:<ms>, precise, ss"
+                            ModChat.text(" for " + type.label() + " - w<n> l<n>, wait:<ms>, precise, ss, leapcounter:<n>"
                                     + (type == Ap3Node.Type.LEAP ? ", a class, ign <name>" : "")
                                     + (type == Ap3Node.Type.LEAP_COUNTER ? ", a count" : "")
                                     + (type == Ap3Node.Type.STOPWATCH ? ", a name (one word)" : "") + "."));
@@ -903,8 +946,13 @@ public final class Ap3Commands {
     }
 
     public static boolean setLeapCount(int index, int k) {
-        return edit(index, "count " + k, n -> n.type() == Ap3Node.Type.LEAP_COUNTER,
-                "count applies to Leap Counter nodes", n -> n.setLeapCount(k));
+        // The Leap Counter node is the leapcounter: suffix since 2026-10-26: "count" sets it on any node.
+        return setLeapCounter(index, k);
+    }
+
+    /** {@code /ap3 set <n> leapcounter <k>}: the suffix on any node, 0 removes it. */
+    public static boolean setLeapCounter(int index, int k) {
+        return edit(index, k == 0 ? "no leap counter" : "leapcounter:" + k, n -> true, "", n -> n.setLeapCounter(k));
     }
 
     /** {@code /ap3 set <n> leap default | class <c> | ign <name>} - the same three modes a leap node is added with. */

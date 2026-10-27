@@ -542,6 +542,15 @@ public final class Ap3Store {
                         continue;
                     }
                     Ap3Node node = readNode(o, version);
+                    if (node != null && node.type == Ap3Node.Type.LEAP_COUNTER) {
+                        // The Leap Counter NODE became the leapcounter: suffix (2026-10-26): the same box now a Stop that
+                        // waits for the same count - he stands still there, aligns still run, nothing else fires.
+                        node.type = Ap3Node.Type.STOP;
+                        node.setLeapCounter(node.leapCount);
+                        node.clearUnusedFields();
+                        migrationNotes.add(chain.label() + ": Leap Counter #" + position + " is now a Stop with leapcounter:"
+                                + node.leapCounter);
+                    }
                     if (node != null) {
                         if (version < 2 && !typeKey.equals(node.type.name().toLowerCase(Locale.ROOT))) {
                             migrationNotes.add(chain.label() + ": #" + position + " " + rawType + " loaded as " + node.type.label());
@@ -591,6 +600,7 @@ public final class Ap3Store {
         // hand-editable, so an absurd value is trimmed rather than trusted.
         n.useItemId = cleanString(ConfigJson.getString(o, "useItemId", null), 64);
         n.setLeapCount(ConfigJson.getInt(o, "leapCount", 1));
+        n.setLeapCounter(ConfigJson.getInt(o, "leapCounter", 0));
         if (type == Ap3Node.Type.PATH) {
             n.pathIndex = Math.max(1, Math.min(999, ConfigJson.getInt(o, "pathIndex", 1)));
             n.pathStart = ConfigJson.getBool(o, "pathStart", false);
@@ -658,10 +668,10 @@ public final class Ap3Store {
         // Only for a type that reads them (killer560, 2026-10-06: "For nodes like align i do not need yaw or pitch so
         // dont have it saved"); a missing yaw / pitch loads as 0, which is what Ap3Node.clearUnusedFields holds.
         if (n.type.usesYaw()) {
-            o.addProperty("yaw", Ap3Node.roundSaved(n.yaw));
+            o.addProperty("yaw", Ap3Node.savedAngle(n.yaw));
         }
         if (n.type.usesPitch()) {
-            o.addProperty("pitch", Ap3Node.roundSaved(n.pitch));
+            o.addProperty("pitch", Ap3Node.savedAngle(n.pitch));
         }
         o.addProperty("width", Ap3Node.roundSaved(n.width));
         o.addProperty("length", Ap3Node.roundSaved(n.length));
@@ -676,6 +686,9 @@ public final class Ap3Store {
         }
         if (n.ssGate) {
             o.addProperty("ss", true);
+        }
+        if (n.leapCounter > 0) {
+            o.addProperty("leapCounter", n.leapCounter);
         }
         if (n.name != null && n.type.usesName()) {
             o.addProperty("name", n.name);

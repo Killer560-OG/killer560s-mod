@@ -39,6 +39,29 @@ public final class TurnFirst {
     /** The one owner with a turn out, mod-wide: a second aura waits for it rather than turning the body under it. */
     private static TurnFirst current;
 
+    /**
+     * Something that is steering the body itself right now and must not have it turned under it: AP3 while an align
+     * plans its key presses against the body's yaw, and while a Boom / Use / Block is aimed (killer560, 2026-10-26: Lights
+     * Device's pre-flick turned him mid-align and walked him off the ledge; "if boom is actively looking dont let other
+     * nodes override it"). An aura asked to turn while any of these answers true waits (asks again next tick) instead.
+     */
+    private static final java.util.List<java.util.function.BooleanSupplier> BODY_OWNERS =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public static void registerBodyOwner(java.util.function.BooleanSupplier owner) {
+        BODY_OWNERS.add(owner);
+    }
+
+    /** Whether some feature owns the body's rotation right now (see {@link #registerBodyOwner}). */
+    public static boolean bodyOwned() {
+        for (java.util.function.BooleanSupplier o : BODY_OWNERS) {
+            if (o.getAsBoolean()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private final Runnable onWrite;
     /** True while the camera hold is this owner's own (an auto puzzle's free camera): no foreign wait then. */
     private final java.util.function.BooleanSupplier ownHold;
@@ -171,6 +194,9 @@ public final class TurnFirst {
         }
         if (current != null && current != this) {
             return false; // another aura's turn is out: wait for its hand-back instead of turning him under it
+        }
+        if (!turned && bodyOwned()) {
+            return false; // AP3 is aligning or aiming with this body: the turn waits for it to let go
         }
         if (!turned && ViewFreeze.isHeld() && !ownHold.getAsBoolean() && ++foreignWait <= FOREIGN_WAIT) {
             // Somebody else holds the camera, so somebody else is turning his body - Auto Boulder walks him to the bars

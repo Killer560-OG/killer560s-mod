@@ -324,7 +324,7 @@ public final class Ap3Executor {
     /** True while AP3 is doing something: performing a node, holding a walk, or holding triggered nodes in the
      *  queue. Nodes stay ARMED regardless - this is "busy", not "armed". */
     public static boolean isRunning() {
-        return activeNode != null || holdDir != null || !queue.isEmpty() || actNode != null
+        return activeNode != null || holdDir != null || !queue.isEmpty() || actNode != null || leapGate != null
                 || jumpPendingTicks > 0 || edgeArmedTicks > 0 || wantJump;
     }
 
@@ -368,6 +368,12 @@ public final class Ap3Executor {
     public static void stop(String reason) {
         boolean wasBusy = isRunning();
         stopReason = reason;
+        Ap3Node boom = actNode != null && actNode.type == Ap3Node.Type.BOOM ? actNode
+                : activeNode != null && activeNode.type == Ap3Node.Type.BOOM ? activeNode : null;
+        if (boom != null) {
+            boomLog(boom, (actNode == boom && !actFired ? "cancelled before its use went out" : "ended") + " by: " + reason);
+        }
+        pendingUserStop = null;
         traceEnd();
         activeNode = null;
         step = null;
@@ -376,6 +382,12 @@ public final class Ap3Executor {
         holdDir = null;
         waitUntilMs = 0L;
         queue.clear();
+        if (leapGate != null) {
+            LOGGER.info("[AP3] leap gate: {} #{} dropped ({}) at {}/{} leaps", leapGate.type.label(), number(leapGate),
+                    reason, leapGateArrived, leapGate.leapCounter);
+        }
+        leapGate = null;
+        leapCleared.clear();
         Ap3RouteRunner.stop();
         restoreSlotOnStop(Minecraft.getInstance().player);
         endAim(Minecraft.getInstance().player);
@@ -558,9 +570,34 @@ public final class Ap3Executor {
     /** From the input mixin: the player pressed a movement key themselves. Ends whatever AP3 is doing - the player
      *  taking the controls back always wins. Nodes stay armed; the ones you stand in re-fire only on re-entry. */
     public static void onUserMovementInput() {
-        if (isRunning()) {
-            stop("you moved");
+        if (!isRunning()) {
+            return;
         }
+        if (actNode != null && actNode.type == Ap3Node.Type.BOOM && !actFired) {
+            // A boom that is turning / about to use runs to its use (killer560, 2026-10-26: "if boom is actively looking
+            // dont let other nodes override it"). His keys are his - the input hook leaves them alone - and the stop he
+            // asked for comes the moment the use has gone out (finishAct).
+            if (pendingUserStop == null) {
+                boomLog(actNode, "you moved while it was aiming: your keys move you, the use still goes out, then AP3 stops");
+            }
+            pendingUserStop = "you moved";
+            return;
+        }
+        stop("you moved");
+    }
+
+    /** A stop he asked for (a movement key) while a boom was aiming, carried out once its use has gone out. */
+    private static String pendingUserStop;
+
+    /** Whether a boom has started and its use has not gone out yet: nothing else may turn him meanwhile. */
+    private static boolean boomAiming() {
+        return (actNode != null && actNode.type == Ap3Node.Type.BOOM && !actFired)
+                || (activeNode != null && activeNode.type == Ap3Node.Type.BOOM && step != Step.CONFIRM);
+    }
+
+    /** One line per boom event, so a boom that did nothing says where it stopped (2026-10-26). */
+    private static void boomLog(Ap3Node node, String what) {
+        LOGGER.info("[AP3] boom #{}: {}", number(node), what);
     }
 
     /** Driving the player this tick (the mixin asks this). Sneak alone (braking / the last bit of an alignment)
@@ -797,7 +834,8 @@ public final class Ap3Executor {
                 }
                 waitUntilMs = 0L;
             }
-            if (canAct) {
+            tickLeapGate(client, player);
+            if (canAct && leapGate == null) {
                 // LOOK, STOPWATCH, WALK / RUN, JUMP, EDGE and USE do not wait for the executor - see fireInstant.
                 fireInstant(client, player);
             }
@@ -805,7 +843,10 @@ public final class Ap3Executor {
                 // ONE node per tick, highest priority first; the rest wait for the following ticks. Not while a USE
                 // aimed this tick is waiting for its START: a BLOCK / BOOM / align beginning now would turn him away
                 // from the rotation the use is about to carry.
-                beginNode(queue.remove(0), player);
+                Ap3Node next = nextToBegin(player);
+                if (next != null) {
+                    beginNode(next, player);
+                }
             }
             reportQueued();
             if (activeNode != null) {
@@ -1153,9 +1194,10 @@ public final class Ap3Executor {
         boolean movementOwned = activeNode != null && activeNode.type.ownsMovement();
         for (int i = 0; i < queue.size(); ) {
             Ap3Node node = queue.get(i);
-            boolean gated = node.closeGate && !testMode;
+            boolean gated = (node.closeGate && !testMode) || (node.leapCounter > 0 && !leapCleared.contains(node));
             boolean fire = !gated && switch (node.type) {
-                case LOOK, STOPWATCH -> true;
+                case STOPWATCH -> true;
+                case LOOK -> !boomAiming(); // it would turn him off the boom's look before its use: it waits its turn
                 case WALK, RUN, JUMP, EDGE -> !movementOwned;
                 case USE -> !aimBusy(client);
                 default -> false;
@@ -1204,6 +1246,119 @@ public final class Ap3Executor {
             if (waitUntilMs > 0L) {
                 return; // its wait: holds whatever is behind it
             }
+        }
+    }
+
+    // ---- the leapcounter: suffix (killer560, 2026-10-26) ----------------------------------------------------------
+    //
+    // "if i have a leapcounter on a node then it shouldnt be able to fire any node other than align till that counter
+    // goes off": a node carrying leapcounter:<n> is taken off the queue when its turn comes and held (leapGate) until n
+    // teammates have leapt to him, counted the way the Leap Counter node always counted (a teammate who moves 8+ blocks
+    // in one tick and lands within the Leap Detect Radius). While it holds, his walk is ended (he stays where he is),
+    // nothing fires on entry, and only aligns are begun; every other node reached meanwhile waits in the queue, in its
+    // order. On the count the held node goes back to the front of the queue and runs, then the rest.
+
+    /** The node holding everything for its leap count, or null. */
+    private static Ap3Node leapGate;
+    private static int leapGateArrived;
+    /** Nodes whose count has come: they begin normally (once). */
+    private static final java.util.Set<Ap3Node> leapCleared =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+    /** Test hook (testkit 1026-ap3-leapgate-*): count a teleporting player whatever its UUID version - the testkit's fake
+     *  players have name-based (version 3) UUIDs, which the counter otherwise skips as NPCs. */
+    private static boolean leapCountAnyPlayer;
+
+    public static void setLeapCountAnyPlayerForTest(boolean any) {
+        leapCountAnyPlayer = any;
+    }
+
+    /** The node the leap gate is holding, or null (testkit). */
+    public static Ap3Node leapGateNode() {
+        return leapGate;
+    }
+
+    /** The node to begin this tick: aligns only while the gate holds; a node with an uncounted leapcounter: engages it. */
+    private static Ap3Node nextToBegin(LocalPlayer player) {
+        if (leapGate != null) {
+            for (int i = 0; i < queue.size(); i++) {
+                if (queue.get(i).type.isAlign()) {
+                    return queue.remove(i);
+                }
+            }
+            return null;
+        }
+        Ap3Node next = queue.remove(0);
+        if (next.leapCounter > 0 && !leapCleared.remove(next)) {
+            engageLeapGate(next, player);
+            return null;
+        }
+        return next;
+    }
+
+    private static void engageLeapGate(Ap3Node node, LocalPlayer player) {
+        leapGate = node;
+        leapGateArrived = 0;
+        lastPositions.clear();
+        counted.clear();
+        Minecraft client = Minecraft.getInstance();
+        if (client.level != null) {
+            for (AbstractClientPlayer p : client.level.players()) {
+                lastPositions.put(p.getUUID(), p.position());
+            }
+        }
+        if (holdDir != null) {
+            endHold(); // he waits where he is
+            releaseKeys();
+        }
+        LOGGER.info("[AP3] leap gate: {} #{} holds for leapcounter:{} - only aligns run until then ({} queued behind it)",
+                node.type.label(), number(node), node.leapCounter, queue.size());
+        if (Ap3Config.getInstance().isChatFeedback()) {
+            chat(ModChat.text("Waiting for "), ModChat.value(node.leapCounter + (node.leapCounter == 1 ? " leap" : " leaps")),
+                    ModChat.dim(" - #" + number(node)));
+        }
+    }
+
+    /** Every END while the gate holds: count the leaps; on the count the held node goes back to the front. */
+    private static void tickLeapGate(Minecraft client, LocalPlayer player) {
+        if (leapGate == null) {
+            return;
+        }
+        Ap3Node node = leapGate;
+        if (testMode) {
+            leapGateArrived = node.leapCounter; // test mode waits on nothing the arena would provide
+        } else {
+            double radius = Ap3Config.getInstance().getLeapDetectRadius();
+            Vec3 me = player.position();
+            String self = Teammates.selfName();
+            for (AbstractClientPlayer p : client.level.players()) {
+                UUID id = p.getUUID();
+                Vec3 now = p.position();
+                Vec3 prev = lastPositions.put(id, now);
+                if (p == player || counted.contains(id) || (id.version() != 4 && !leapCountAnyPlayer)) {
+                    continue;
+                }
+                String name = ChatObserver.strip(p.getGameProfile().name());
+                if (name.equalsIgnoreCase(self) || (Teammates.isKnown() && Teammates.byName(name) == null)) {
+                    continue;
+                }
+                boolean teleported = prev != null && prev.distanceTo(now) >= TELEPORT_JUMP;
+                if (teleported && now.distanceTo(me) <= radius) {
+                    counted.add(id);
+                    leapGateArrived++;
+                    LOGGER.info("[AP3] leap gate: {} leapt to you ({}/{})", name, leapGateArrived, node.leapCounter);
+                    if (Ap3Config.getInstance().isChatFeedback()) {
+                        chat(ModChat.value(name), ModChat.text(" leapt to you "),
+                                ModChat.dim("(" + leapGateArrived + "/" + node.leapCounter + ")"));
+                    }
+                }
+            }
+        }
+        if (leapGateArrived >= node.leapCounter) {
+            leapGate = null;
+            leapCleared.add(node);
+            queue.add(0, node);
+            LOGGER.info("[AP3] leap gate: released - {} #{} runs now, then the {} node(s) behind it", node.type.label(),
+                    number(node), queue.size() - 1);
         }
     }
 
@@ -1409,11 +1564,22 @@ public final class Ap3Executor {
         HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
         BlockHitResult b = hit instanceof BlockHitResult bh && hit.getType() == HitResult.Type.BLOCK ? bh : null;
-        if (b == null && (node.type == Ap3Node.Type.BLOCK || node.type == Ap3Node.Type.BOOM)) {
-            actFired = true;
-            failNode((node.type == Ap3Node.Type.BLOCK ? "block #" + number(node) + " isn't looking at a block to place against"
-                    : "boom #" + number(node) + " isn't looking at a block"));
+        if (b == null && node.type == Ap3Node.Type.BOOM) {
+            // Its look meets no block from here: aim again at END (from where he is then) and try at the next START;
+            // finishAct gives up after SWAP_TIMEOUT ticks.
+            boomLog(node, String.format(Locale.US, "look %.2f/%.2f from (%.2f, %.2f, %.2f) meets no block in %.1f - re-aiming",
+                    player.getYRot(), player.getXRot(), eye.x, eye.y, eye.z, reach));
+            actReaim = true;
             return;
+        }
+        if (b == null && node.type == Ap3Node.Type.BLOCK) {
+            actFired = true;
+            failNode("block #" + number(node) + " isn't looking at a block to place against");
+            return;
+        }
+        if (node.type == Ap3Node.Type.BOOM) {
+            boomLog(node, String.format(Locale.US, "turn done: look %.2f/%.2f meets %s (%s face)", player.getYRot(),
+                    player.getXRot(), b.getBlockPos().toShortString(), b.getDirection().getName()));
         }
         if (rotationMixinApplied) {
             // Sent from beforeSendPosition, right ahead of this tick's movement packet - see actPending.
@@ -1494,6 +1660,9 @@ public final class Ap3Executor {
                 player.connection.send(new ServerboundPlayerActionPacket(
                         ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, boomTarget, Direction.DOWN));
                 player.swing(InteractionHand.MAIN_HAND);
+                boomLog(node, String.format(Locale.US, "use sent: Superboom tap on %s from (%.2f, %.2f, %.2f) at look %.2f/%.2f",
+                        boomTarget.toShortString(), player.getX(), player.getY(), player.getZ(), player.getYRot(),
+                        player.getXRot()));
             }
             default -> {
                 // USE: a block under the ray gets useItemOn at the real hit (a lever, a chest); nothing under it gets a
@@ -1523,13 +1692,33 @@ public final class Ap3Executor {
         }
         if (!actFired) {
             if (++actWaitTicks > SWAP_TIMEOUT) {
-                failNode("use #" + number(node) + " couldn't go out");
+                failNode(node.type == Ap3Node.Type.BOOM
+                        ? "boom #" + number(node) + " couldn't go out (no block on its look for " + SWAP_TIMEOUT + " ticks)"
+                        : "use #" + number(node) + " couldn't go out");
+                return;
+            }
+            if (actReaim && player != null) {
+                actReaim = false;
+                aimAt(player, node);
+                if (node.type == Ap3Node.Type.BOOM) {
+                    boomLog(node, String.format(Locale.US, "turn start (again): to %.2f/%.2f", aimYaw, aimPitch));
+                }
             }
             return;
         }
+        actReaim = false;
         actNode = null;
         actFired = false;
         endAim(player);
+        if (pendingUserStop != null) {
+            String why = pendingUserStop;
+            pendingUserStop = null;
+            if (node.type == Ap3Node.Type.BOOM) {
+                boomLog(node, "its use is out; now stopping for the key you pressed");
+            }
+            stop(why);
+            return;
+        }
         if (node.type == Ap3Node.Type.TERM_AURA) {
             return; // the node itself waits for the terminal to open, or retries (tickTermAura)
         }
@@ -1662,6 +1851,7 @@ public final class Ap3Executor {
             alignEntryDist = dist;
             alignEntrySpeed = Math.hypot(entryVel.x, entryVel.z);
             startAlignClock(node);
+            ledgeInit(player, node);
             if (method == Ap3Config.AlignMethod.SENT_YAW) {
                 // The sent yaw is the keys' frame for the whole align: take it over now (seeded from the live yaw).
                 engageYawLock(player);
@@ -1708,11 +1898,113 @@ public final class Ap3Executor {
             alignPhase = "waiting for the sent yaw to reach the camera";
             return;
         }
-        if (fast && driveFast(player, ex, ez)) {
+        if (ledgeSettle(player, node, pos, still)) {
             return;
         }
-        driveDiscrete(player, ex, ez, method);
+        if (!(fast && driveFast(player, ex, ez))) {
+            driveDiscrete(player, ex, ez, method);
+        }
+        ledgeGuard(player, node);
     }
+
+    // ---- the ledge guard (killer560, 2026-10-26: "sometimes align will send me flying off of a small ledge that I am on
+    // while trying to align me. it should never be able to take me off of more than half a block height wise from my
+    // position") ---------------------------------------------------------------------------------------------------
+    //
+    // After the planner has chosen this tick's keys, the position they lead to (its own one-step model, alignPredX/Z)
+    // is checked for a floor: some collision box within MAX_LEDGE_DROP under the feet anywhere under his footprint. None
+    // there while he stands on the ground: Sneak goes down with the same keys. Vanilla's own edge protection
+    // (Player.maybeBackOffFromEdge, on isShiftKeyDown - which LocalPlayer reads from this tick's input, javap 26.1.2)
+    // then clips the move at the edge, momentum included, exactly as it does for a player holding shift - so the guard
+    // never writes a position and the server sees an ordinary sneak. A target that itself has no floor under it is
+    // aligned to as close as is safe and then left (ledgeSettle), with a log line.
+
+    /** The largest drop below his feet an align may take him off (killer560's half block). */
+    static final double MAX_LEDGE_DROP = 0.5;
+    /** Ticks the guard has held him at an edge in the current align, and whether it was said in the log. */
+    private static int ledgeGuardTicks;
+    private static boolean ledgeTargetUnsupported;
+
+    /** Whether a player standing at (x, feetY, z) has a floor within {@link #MAX_LEDGE_DROP} under his footprint. */
+    static boolean supportedAt(LocalPlayer player, double x, double feetY, double z) {
+        double hw = player.getBbWidth() / 2.0;
+        net.minecraft.world.phys.AABB probe = new net.minecraft.world.phys.AABB(
+                x - hw, feetY - MAX_LEDGE_DROP, z - hw, x + hw, feetY - 1.0e-4, z + hw);
+        return !player.level().noCollision(player, probe);
+    }
+
+    private static void ledgeGuard(LocalPlayer player, Ap3Node node) {
+        if (!alignPredValid || !player.onGround()) {
+            return; // nothing predicted, or already in the air - a press can no longer change where he lands
+        }
+        double feet = player.getY();
+        if (supportedAt(player, alignPredX, feet, alignPredZ)) {
+            return;
+        }
+        // The press (or the coast) would carry him over the edge: same keys, sneak held.
+        wantSneak = true;
+        // The planner's push expectation assumed no sneak; do not let this tick teach it a wrong push scale.
+        pushPending = false;
+        predictedSprintValid = false;
+        if (ledgeGuardTicks++ == 0) {
+            LOGGER.info("[AP3] Align #{}: the next tick would take you off a ledge at ({}, {}) - no floor within {} under"
+                            + " your feet - sneak held so the game stops you at the edge",
+                    number(node), String.format(Locale.US, "%.3f", alignPredX), String.format(Locale.US, "%.3f", alignPredZ),
+                    MAX_LEDGE_DROP);
+        }
+        alignPhase = alignPhase + " [ledge guard]";
+    }
+
+    /**
+     * An align whose target has no floor within half a block under it can never land without the drop: once the guard
+     * has stopped him at the edge and he is at rest, the align ends there, as close as was safe, and says so.
+     */
+    private static boolean ledgeSettle(LocalPlayer player, Ap3Node node, Vec3 pos, boolean still) {
+        double moved = Math.hypot(pos.x - ledgeLastX, pos.z - ledgeLastZ);
+        ledgeLastX = pos.x;
+        ledgeLastZ = pos.z;
+        if (!ledgeTargetUnsupported || ledgeGuardTicks == 0 || !player.onGround()) {
+            return false;
+        }
+        if (ledgeHoldTicks == 0 && moved > 0.003 && ledgeGuardTicks < 3) {
+            return false; // still closing in along the edge
+        }
+        // At the edge: no more presses, sneak kept down while friction takes the speed the planner built up (the
+        // edge clip stops the move, not the velocity), then done.
+        clearMovement();
+        wantSneak = true;
+        ledgeHoldTicks++;
+        if (!still && ledgeHoldTicks < 40) {
+            return true;
+        }
+        double off = Math.max(Math.abs(pos.x - node.x), Math.abs(pos.z - node.z));
+        String msg = String.format(Locale.US, "Align #%d: settled as close as is safe, %.3f from its point (the point is"
+                + " past a drop of more than %.1f)", number(node), off, MAX_LEDGE_DROP);
+        LOGGER.info("[AP3] {}", msg);
+        ModChat.log("AP3", ModChat.text(msg));
+        reportAlignTimer(node, pos.x - node.x, pos.z - node.z, null);
+        finishNode();
+        return true;
+    }
+
+    /** The align's first tick: forget the last align's edge, and find out whether this one's point has a floor. */
+    private static void ledgeInit(LocalPlayer player, Ap3Node node) {
+        Vec3 pos = player.position();
+        ledgeGuardTicks = 0;
+        ledgeHoldTicks = 0;
+        ledgeLastX = pos.x;
+        ledgeLastZ = pos.z;
+        ledgeTargetUnsupported = player.onGround() && !supportedAt(player, node.x, pos.y, node.z);
+        if (ledgeTargetUnsupported) {
+            LOGGER.info("[AP3] Align #{}: its point ({}, {}) has no floor within {} under it - it will stop as close as"
+                            + " is safe", number(node), String.format(Locale.US, "%.3f", node.x),
+                    String.format(Locale.US, "%.3f", node.z), MAX_LEDGE_DROP);
+        }
+    }
+
+    private static int ledgeHoldTicks;
+    private static double ledgeLastX;
+    private static double ledgeLastZ;
 
     /**
      * Fast Align (killer560, 2026-09-22: "one more attempt at making a faster align node... the sole focus is making it
@@ -3014,7 +3306,7 @@ public final class Ap3Executor {
             UUID id = p.getUUID();
             Vec3 now = p.position();
             Vec3 prev = lastPositions.put(id, now);
-            if (p == player || counted.contains(id) || id.version() != 4) {
+            if (p == player || counted.contains(id) || (id.version() != 4 && !leapCountAnyPlayer)) {
                 continue;
             }
             String name = ChatObserver.strip(p.getGameProfile().name());
@@ -3299,13 +3591,26 @@ public final class Ap3Executor {
         aimYaw = node.yaw;
         aimPitch = Mth.clamp(node.pitch, -90f, 90f);
         aimKey = null;
-        if (holdDir == null || player.level() == null) {
+        if (player.level() == null) {
+            return;
+        }
+        boolean boom = node.type == Ap3Node.Type.BOOM;
+        if (holdDir == null) {
+            if (boom) {
+                BlockHitResult ref = boomRef(player, node);
+                if (ref != null) {
+                    aimStraightAt(player, player.getEyePosition(), ref);
+                }
+            }
             return;
         }
         // The click goes out at the next START, before that tick's move: from the eye where it is now. (Until
         // 2026-10-06 it went out after the move and this predicted the eye one push ahead.)
         Vec3 eye = player.getEyePosition();
-        BlockHitResult ref = rayAt(player, eye, node.yaw, node.pitch);
+        // A boom's block is the one its angle meets from where the node was MADE: entered at the box's edge at sprint
+        // speed, or a little above it while falling in, the same angle from his own eye can pass the gate and meet
+        // nothing ("boom #31 isn't looking at a block", killer560's 2026-10-26 log, five times).
+        BlockHitResult ref = boom ? boomRef(player, node) : rayAt(player, eye, node.yaw, node.pitch);
         float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
         // Fallback when nothing lines up exactly (killer560: "it slows down way too much now. It needs to keep moving
         // no slow down"): coasting cost almost half the speed in one ground tick, so hold the key combination closest to
@@ -3332,7 +3637,56 @@ public final class Ap3Executor {
                 }
             }
         }
+        if (boom) {
+            aimStraightAt(player, eye, ref);
+        }
     }
+
+    /**
+     * The block a Boom is for: what the node's own yaw and pitch meet from where it was made (its point, at his eye
+     * height), else - a node made against nothing from there - what they meet from his eye now. Null: neither meets a block.
+     */
+    private static BlockHitResult boomRef(LocalPlayer player, Ap3Node node) {
+        Vec3 made = new Vec3(node.x, node.y + player.getEyeHeight(), node.z);
+        BlockHitResult ref = rayAt(player, made, node.yaw, node.pitch);
+        return ref != null ? ref : rayAt(player, player.getEyePosition(), node.yaw, node.pitch);
+    }
+
+    /** Whether a look from his eye now can strike the boom's block: the node's own angle does, or a point on its surface
+     *  is in reach. */
+    private static boolean boomReachable(LocalPlayer player, Ap3Node node, BlockHitResult ref) {
+        Vec3 eye = player.getEyePosition();
+        BlockHitResult own = rayAt(player, eye, node.yaw, node.pitch);
+        if (own != null && own.getBlockPos().equals(ref.getBlockPos())) {
+            return true;
+        }
+        BlockHitResult s = com.killer560.hub.util.BlockHits.surface(player.level(), ref.getBlockPos(), eye);
+        return s != null && eye.distanceTo(s.getLocation()) <= BOOM_REACH - 0.05;
+    }
+
+    /** No key line-up found for the boom's block: aim straight at a point on its surface from {@code eye} (unless the
+     *  angle already chosen meets it), keys nearest the walk at that yaw. */
+    private static void aimStraightAt(LocalPlayer player, Vec3 eye, BlockHitResult ref) {
+        BlockHitResult cur = rayAt(player, eye, aimYaw, aimPitch);
+        if (cur != null && cur.getBlockPos().equals(ref.getBlockPos())) {
+            return;
+        }
+        BlockHitResult s = com.killer560.hub.util.BlockHits.surface(player.level(), ref.getBlockPos(), eye);
+        if (s == null || eye.distanceTo(s.getLocation()) > BOOM_REACH) {
+            return;
+        }
+        Vec3 d = s.getLocation().subtract(eye);
+        aimYaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));
+        aimPitch = Mth.clamp((float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z))), -90f, 90f);
+        if (holdDir != null) {
+            aimKey = nearestKey8(holdDir.x, holdDir.z, aimYaw);
+        }
+    }
+
+    /** Ticks a triggered Boom keeps trying to get its block into reach before it gives up. */
+    private static final int BOOM_REACH_WAIT = 20;
+    /** A boom's look met no block at START: aim again at END. */
+    private static boolean actReaim;
 
     /** A Block node places into hit.pos + face: any ray that ends in the same placement spot is as good (a different
      *  face of a neighboring block included). A Boom needs the same block. */
@@ -3445,7 +3799,23 @@ public final class Ap3Executor {
             case PREP, SWAP, AIM -> {
                 // Armed here, the Superboom tap goes out at the next START (tickStart); finishAct moves it to CONFIRM.
                 boomChatConfirmed = false;
+                if (stepTicks == 1) {
+                    boomLog(node, String.format(Locale.US, "triggered at (%.2f, %.2f, %.2f)", player.getX(), player.getY(),
+                            player.getZ()));
+                }
+                BlockHitResult ref = boomRef(player, node);
+                if (ref == null || !boomReachable(player, node, ref)) {
+                    // Its block is not on any look from here yet (entered at the box's far edge, or still falling into
+                    // it): keep going and try every tick rather than fail on the entry tick.
+                    if (stepTicks > BOOM_REACH_WAIT) {
+                        failNode(ref == null ? "boom #" + number(node) + " isn't looking at a block"
+                                : "boom #" + number(node) + "'s block " + ref.getBlockPos().toShortString() + " is out of reach");
+                    }
+                    return;
+                }
                 if (armAct(node, player)) {
+                    boomLog(node, String.format(Locale.US, "turn start: to %.2f/%.2f for %s", aimYaw, aimPitch,
+                            ref.getBlockPos().toShortString()));
                     step = Step.DO;
                     stepTicks = 0;
                 }
@@ -3461,10 +3831,12 @@ public final class Ap3Executor {
                     }
                 }
                 if (changed) {
+                    boomLog(node, "result: the gate broke");
                     boomBefore.clear();
                     boomChatConfirmed = false;
                     finishNode();
                 } else if (stepTicks > BOOM_TIMEOUT) {
+                    boomLog(node, "result: nothing broke in " + BOOM_TIMEOUT + " ticks");
                     if (testMode) {
                         skipForTest(node);
                     } else {
@@ -3617,6 +3989,15 @@ public final class Ap3Executor {
         if (applyAimedHold(player)) {
             return; // a Block / Boom owns the yaw this tick - keys chosen to stay on the walk line
         }
+        if (com.killer560.hub.util.TurnFirst.anyTurnOut()) {
+            // An aura (Lights Device, Lever Aura, Secret Aura...) has the body turned to something it is about to click.
+            // Snapping back to the walk's yaw here undid that turn every tick, so the aura turned him again at the next
+            // START - and the keys picked for the walk's yaw then moved him along the AURA's yaw: backwards at his nodes
+            // 16/17 beside the Lights levers (killer560, 2026-10-26: "it makes me run backwards"). Leave the turn alone
+            // and press the keys that go along the walk at the yaw he has; the aura gives the body back after its click.
+            writeHeldKeysAt(player, player.getYRot());
+            return;
+        }
         float yaw = player.getYRot();
         float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
         float target;
@@ -3642,9 +4023,75 @@ public final class Ap3Executor {
             player.setYRot(yaw + delta);
             RouteRotation.rebase();
         }
-        int[] key = nearestKey8(holdDir.x, holdDir.z, player.getYRot());
+        writeHeldKeysAt(player, player.getYRot());
+    }
+
+    /** The held walk's keys: the real key combination nearest the walk at {@code yaw} (the body's), remembered so the
+     *  input hook can tell when the body was turned after they were picked ({@link #beforeInputInstall}). */
+    private static void writeHeldKeysAt(LocalPlayer player, float yaw) {
+        int[] key = nearestKey8(holdDir.x, holdDir.z, yaw);
         boolean sprint = holdSprint && key[0] > 0 && !player.isInWater();
-        writeDiscrete(player, key[0], key[1], false, sprint, player.getYRot(), modelFor(player, false), lastSneakSent);
+        writeDiscrete(player, key[0], key[1], false, sprint, yaw, modelFor(player, false), lastSneakSent);
+        heldKeysYaw = yaw;
+        heldKeysValid = true;
+    }
+
+    /** The yaw the held walk's keys were picked at this tick; valid only while {@link #heldKeysValid}. */
+    private static float heldKeysYaw;
+    private static boolean heldKeysValid;
+
+    /**
+     * From {@code mixin/Ap3InputMixin}, inside the player's own tick, just before AP3's keys are installed: the keys of a
+     * held walk were picked at END of the last tick against the body's yaw then. A feature that turns the body at START
+     * (an aura's turn-first) changes the yaw the move is made at, and the same keys then push somewhere else - straight
+     * backwards when the turn is about 180 degrees (the 2026-10-26 nodes 16/17 report, traced to Lights Device). Re-pick
+     * them at the yaw the move will really use, so he always moves along the walk; the record the server sees is those
+     * real keys at that real yaw.
+     */
+    public static void beforeInputInstall() {
+        if (!heldKeysValid || holdDir == null || aimLock) {
+            return;
+        }
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) {
+            return;
+        }
+        float yaw = player.getYRot();
+        if (Math.abs(yaw - heldKeysYaw) < 1e-4f) {
+            return;
+        }
+        float was = heldKeysYaw;
+        writeHeldKeysAt(player, yaw);
+        LOGGER.info("[AP3] held walk: the body was turned from {} to {} before the move (another feature's turn) - keys"
+                        + " re-picked for that yaw: {}{}{}{}",
+                String.format(Locale.US, "%.2f", was), String.format(Locale.US, "%.2f", yaw),
+                wantForward ? "W" : "", wantBackward ? "S" : "", wantLeft ? "A" : "", wantRight ? "D" : "");
+    }
+
+    /**
+     * Whether AP3 is steering the body's rotation itself right now, so another feature must not turn it
+     * ({@code util/TurnFirst.registerBodyOwner}): an align (active, or queued and already holding the keys) plans every
+     * press against the body's yaw, and an aimed Boom / Use / Block must keep its look until its use has gone out. A
+     * held walk does NOT own it - an aura may turn him for a click mid-run; the walk yields (see applyHoldRealYaw).
+     */
+    public static boolean ownsBodyRotation() {
+        if (!isRunning()) {
+            return false;
+        }
+        if (actNode != null || aiming || aimLock) {
+            return true;
+        }
+        if (isInputOverridden()) {
+            return true; // an align, active or queued
+        }
+        if (activeNode != null) {
+            return switch (activeNode.type) {
+                case BOOM -> step != Step.CONFIRM;
+                case BLOCK, USE, LOOK -> true;
+                default -> false;
+            };
+        }
+        return false;
     }
 
     /**
@@ -3723,6 +4170,7 @@ public final class Ap3Executor {
 
     private static void clearMovement() {
         lastSneakSent = wantSneak;
+        heldKeysValid = false;
         driving = false;
         moveX = 0f;
         moveY = 0f;
