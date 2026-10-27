@@ -17,8 +17,14 @@ import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen;
 import net.minecraft.client.gui.screens.inventory.BookEditScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
+import net.minecraft.network.protocol.game.ServerboundInteractPacket;
+import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
+import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.glfw.GLFW;
@@ -60,11 +66,26 @@ public final class InventoryWalkFeature {
     private static Vec3 lastPos;
     private static String lastKeys = "";
     private static int pauseLeft;
-    /** Clicks made while walking, held until a still tick has reached the server (Stop To Click). */
+    /**
+     * Clicks and menu closes made while moving, in order, held until a still tick has reached the server (Stop To Click).
+     * GrimAC MultiActionsC flags a click, and MultiActionsD a close, while the server has a movement key in his last input,
+     * a sprint or a sneak - and drops the click, so its item move is lost (testkit 1027-iw-timing, 2026-10-27).
+     */
     private static final ArrayDeque<Packet<?>> heldClicks = new ArrayDeque<>();
     private static boolean sendingHeld;
     private static int heldClickTicks;
     private static long clicksHeld;
+    private static long closesHeld;
+    private static long gaveUp;
+    /** Ticks to wait for a still tick before sending anyway (the still tick is forced, so it takes one). */
+    private static final int GIVE_UP_TICKS = 10;
+    /**
+     * The last input and sprint state that really LEFT the connection ({@link #noteLeft}, from Blink's send hook, which
+     * sees what Blink and Charge keep back). {@code getLastSentInput} is what the client handed to the connection; with a
+     * Blink hold running the server has not seen it yet.
+     */
+    private static volatile Input serverInput;
+    private static volatile Boolean serverSprinting;
 
     /** Totals, for the testkit and the log. */
     private static long activations;
@@ -83,6 +104,23 @@ public final class InventoryWalkFeature {
         InventoryWalkConfig cfg = InventoryWalkConfig.getInstance();
         LocalPlayer player = client.player;
         Screen screen = McCompat.screen(client);
+        if (player == null || client.getConnection() == null) {
+            serverInput = null;
+            serverSprinting = null;
+            if (!heldClicks.isEmpty()) {
+                LOGGER.info("[InvWalk] {} held packet(s) dropped: no connection", heldClicks.size());
+                heldClicks.clear();
+            }
+        } else if (!heldClicks.isEmpty()) {
+            // Before the screen check: a close is held after its screen has gone, and still needs its still tick.
+            heldClickTicks++;
+            if (readyToSend(player)) {
+                flushClicks(client, "still tick reached the server");
+            } else if (heldClickTicks > GIVE_UP_TICKS) {
+                gaveUp++;
+                flushClicks(client, "gave up waiting for a still tick");
+            }
+        }
         boolean eligible = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && cfg.isEnabled() && player != null
                 && screen != null && client.getWindow() != null && eligible(screen, cfg) && SkyblockGate.allows();
         if (!eligible) {
@@ -104,12 +142,6 @@ public final class InventoryWalkFeature {
         }
         activeTicks++;
 
-        if (!heldClicks.isEmpty()) {
-            heldClickTicks++;
-            if (stillToServer(player) || heldClickTicks > 10) {
-                flushClicks(client, heldClickTicks > 10 ? "gave up waiting for a still tick" : "still tick reached the server");
-            }
-        }
         List<String> held = new ArrayList<>();
         boolean paused = pauseLeft > 0 || !heldClicks.isEmpty();
         if (pauseLeft > 0) {
@@ -178,7 +210,10 @@ public final class InventoryWalkFeature {
     }
 
     private static void deactivate(Minecraft client, String why) {
-        flushClicks(client, "Inventory Walk off: " + why);
+        if (!InventoryWalkConfig.getInstance().isEnabled() || !InventoryWalkConfig.getInstance().isStopToClick()) {
+            flushClicks(client, "Inventory Walk off: " + why);
+        }
+        // Otherwise a click or close still held keeps waiting for its still tick (the tick handles it with no screen).
         active = false;
         pauseLeft = 0;
         LocalPlayer player = client.player;
@@ -206,32 +241,44 @@ public final class InventoryWalkFeature {
         if (sendingHeld) {
             return false;
         }
-        if (packet instanceof ServerboundContainerClosePacket && !heldClicks.isEmpty()) {
-            // The menu closes with clicks still held: they go first, in order, then the close.
-            flushClicks(Minecraft.getInstance(), "menu closing");
+        boolean isClick = packet instanceof ServerboundContainerClickPacket;
+        boolean isClose = packet instanceof ServerboundContainerClosePacket;
+        boolean isButton = packet instanceof ServerboundContainerButtonClickPacket;
+        if (!heldClicks.isEmpty() && (packet instanceof ServerboundUseItemOnPacket || packet instanceof ServerboundUseItemPacket
+                || packet instanceof ServerboundInteractPacket)) {
+            // A use can open a new menu: a close still held must not reach the server after it (it would close that one).
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.isSameThread()) {
+                flushClicks(mc, "a use is going out");
+            }
             return false;
         }
-        if (!(packet instanceof ServerboundContainerClickPacket click)) {
+        if (!isClick && !isClose && !isButton) {
             return false;
         }
-        clicksTotal++;
-        if (!active) {
-            return false;
+        if (isClick) {
+            clicksTotal++;
         }
         Minecraft mc0 = Minecraft.getInstance();
-        if (InventoryWalkConfig.getInstance().isStopToClick() && mc0.player != null && mc0.isSameThread()
-                && (!heldClicks.isEmpty() || !stillToServer(mc0.player))) {
+        if (holdsMenuPackets(mc0) && (!heldClicks.isEmpty() || !readyToSend(mc0.player))) {
             heldClicks.addLast(packet);
-            clicksHeld++;
+            if (isClose) {
+                closesHeld++;
+            } else {
+                clicksHeld++;
+            }
             if (heldClicks.size() == 1) {
                 heldClickTicks = 0;
             }
-            LOGGER.info(String.format(Locale.ROOT, "[InvWalk] click container %d slot %d button %d %s held (%d held): the "
-                            + "server's last input %s, sprinting=%s - stopping for a still tick first", click.containerId(),
-                    click.slotNum(), click.buttonNum(), click.containerInput(), heldClicks.size(),
-                    inputText(mc0.player.getLastSentInput()), mc0.player.isSprinting()));
+            LOGGER.info(String.format(Locale.ROOT, "[InvWalk] %s held (%d held): his last input %s (the server's %s), "
+                            + "sprinting=%s - stopping for a still tick first", describe(packet), heldClicks.size(),
+                    inputText(mc0.player.getLastSentInput()), inputText(serverInput), mc0.player.isSprinting()));
             return true;
         }
+        if (!isClick || !active) {
+            return false;
+        }
+        ServerboundContainerClickPacket click = (ServerboundContainerClickPacket) packet;
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         boolean moving = !lastKeys.isEmpty() && !lastKeys.endsWith("(paused)");
@@ -249,11 +296,79 @@ public final class InventoryWalkFeature {
         return false;
     }
 
-    /** The server's last input from him held no movement, jump or sneak, and he is not sprinting. */
-    private static boolean stillToServer(LocalPlayer player) {
-        Input in = player.getLastSentInput();
-        boolean moving = in != null && (in.forward() || in.backward() || in.left() || in.right() || in.jump() || in.shift());
-        return !moving && !player.isSprinting();
+    /**
+     * Stop To Click applies: the cheat build, on, Stop To Click on, the render thread, and either walking in a screen now,
+     * packets already held, or a screen it walks in is up (a click the very frame it opened, before this tick saw it).
+     */
+    private static boolean holdsMenuPackets(Minecraft mc) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || mc.player == null || !mc.isSameThread()) {
+            return false;
+        }
+        InventoryWalkConfig cfg = InventoryWalkConfig.getInstance();
+        if (!cfg.isEnabled() || !cfg.isStopToClick()) {
+            return false;
+        }
+        if (active || !heldClicks.isEmpty()) {
+            return true;
+        }
+        Screen screen = McCompat.screen(mc);
+        return screen != null && eligible(screen, cfg) && SkyblockGate.allows();
+    }
+
+    /**
+     * The held packets may go: his last input handed to the connection holds no movement, jump or sneak and he is not
+     * sprinting, and the server has that input too - or a Blink hold has it queued, and they join the hold behind it.
+     */
+    private static boolean readyToSend(LocalPlayer player) {
+        if (moving(player.getLastSentInput()) || player.isSprinting()) {
+            return false;
+        }
+        return serverStill() || com.killer560.hub.blink.BlinkFeature.isHolding();
+    }
+
+    private static boolean serverStill() {
+        return !moving(serverInput) && !Boolean.TRUE.equals(serverSprinting);
+    }
+
+    /** The last input and sprint state that LEFT the connection hold no movement (Blink Charge's teleport hold asks). */
+    public static boolean serverHasStillInput() {
+        return serverStill();
+    }
+
+    private static boolean moving(Input in) {
+        return in != null && (in.forward() || in.backward() || in.left() || in.right() || in.jump() || in.shift());
+    }
+
+    /** {@code mixin/InventoryWalkInputMixin}: this tick's input is all keys up while a click or close is held. */
+    public static boolean wantsStillTick() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !heldClicks.isEmpty();
+    }
+
+    /** Every packet that really left the connection (Blink's send hook): the server's view of his input and sprint. */
+    public static void noteLeft(Packet<?> packet) {
+        if (packet instanceof ServerboundPlayerInputPacket in) {
+            serverInput = in.input();
+        } else if (packet instanceof ServerboundPlayerCommandPacket cmd) {
+            if (cmd.getAction() == ServerboundPlayerCommandPacket.Action.START_SPRINTING) {
+                serverSprinting = true;
+            } else if (cmd.getAction() == ServerboundPlayerCommandPacket.Action.STOP_SPRINTING) {
+                serverSprinting = false;
+            }
+        }
+    }
+
+    private static String describe(Packet<?> p) {
+        if (p instanceof ServerboundContainerClickPacket c) {
+            return String.format(Locale.ROOT, "click container %d slot %d button %d %s", c.containerId(), c.slotNum(),
+                    c.buttonNum(), c.containerInput());
+        }
+        if (p instanceof ServerboundContainerClosePacket c) {
+            return "close of container " + c.getContainerId();
+        }
+        if (p instanceof ServerboundContainerButtonClickPacket b) {
+            return "button " + b.buttonId() + " in container " + b.containerId();
+        }
+        return p.getClass().getSimpleName();
     }
 
     private static String inputText(Input in) {
@@ -278,10 +393,13 @@ public final class InventoryWalkFeature {
         }
         int n = heldClicks.size();
         LocalPlayer player = client.player;
-        LOGGER.info("[InvWalk] {} held click(s) sent after {} tick(s) ({}): server's last input {}, sprinting={}", n,
-                heldClickTicks, why, player == null ? "-" : inputText(player.getLastSentInput()),
-                player != null && player.isSprinting());
+        boolean joinHold = !serverStill() && com.killer560.hub.blink.BlinkFeature.isHolding();
+        LOGGER.info("[InvWalk] {} held packet(s) sent after {} tick(s) ({}): his last input {} (the server's {}), "
+                        + "sprinting={}{}", n, heldClickTicks, why, player == null ? "-" : inputText(player.getLastSentInput()),
+                inputText(serverInput), player != null && player.isSprinting(), joinHold ? " - into the Blink hold, behind "
+                        + "his still tick" : "");
         sendingHeld = true;
+        com.killer560.hub.blink.BlinkFeature.clicksJoinHold = joinHold;
         try {
             while (!heldClicks.isEmpty()) {
                 Packet<?> p = heldClicks.pollFirst();
@@ -291,12 +409,25 @@ public final class InventoryWalkFeature {
             }
         } finally {
             sendingHeld = false;
+            com.killer560.hub.blink.BlinkFeature.clicksJoinHold = false;
         }
         heldClickTicks = 0;
     }
 
     public static long clicksHeld() {
         return clicksHeld;
+    }
+
+    public static long closesHeld() {
+        return closesHeld;
+    }
+
+    public static long gaveUp() {
+        return gaveUp;
+    }
+
+    public static int heldNow() {
+        return heldClicks.size();
     }
 
     private static String shortName(String mappingName) {

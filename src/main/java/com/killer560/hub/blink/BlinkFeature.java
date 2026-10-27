@@ -158,7 +158,7 @@ public final class BlinkFeature {
             // Nothing releases a hold but the key (killer560, 2026-10-25: "it should only release when you choose to
             // release it"); hits, digs and item uses are held with everything else. Menu clicks are the one exception:
             // a click (a terminal's) does not depend on where he stands, so it goes out now and the hold carries on.
-            if (isMenuClick(packet)) {
+            if (isMenuClick(packet) && !clicksJoinHold) {
                 clicksLive++;
                 return false;
             }
@@ -197,6 +197,13 @@ public final class BlinkFeature {
         return peakQueue;
     }
 
+    /**
+     * Inventory Walk's held clicks, sent while a hold runs and the server has not yet seen his still tick (it is in the
+     * hold): they join the hold behind it instead of going out live, or the server would take them with the moving input
+     * it had before the hold (GrimAC MultiActionsC, testkit 1027-iw-interop). Render thread, only around that send.
+     */
+    public static boolean clicksJoinHold;
+
     private static boolean isMenuClick(Packet<?> packet) {
         return packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClickPacket
                 || packet instanceof net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket;
@@ -208,6 +215,7 @@ public final class BlinkFeature {
 
     /** A packet that really left: a move updates where the server thinks he is. */
     private static void noteSent(Connection connection, Packet<?> packet) {
+        com.killer560.hub.invwalk.InventoryWalkFeature.noteLeft(packet);
         if (!(packet instanceof ServerboundMovePlayerPacket move) || connection.getSending() != PacketFlow.SERVERBOUND) {
             return;
         }
@@ -275,7 +283,12 @@ public final class BlinkFeature {
         if (holding && !wanted) {
             release("key".equals(holdOwner) ? "key up" : "ended by " + holdOwner);
         }
-        if (!holding && wanted) {
+        if (spawnWaitTicks > 0) {
+            spawnWaitTicks--;
+        }
+        if (!holding && wanted && spawnWaitTicks > 0) {
+            // A new world: the hold waits until the server's spawn teleport has been confirmed (campaign-blink-1027).
+        } else if (!holding && wanted) {
             if (!SkyblockGate.allows()) {
                 if (!gateRefusalLogged) {
                     gateRefusalLogged = true;
@@ -416,6 +429,11 @@ public final class BlinkFeature {
         } else {
             dropped = out.size();
         }
+        if (sent > 0 && BlinkCharge.isActive()) {
+            // The hold sent Charge's waiting answers at its start and its own in the burst: the kept bank is no longer
+            // covered by GrimAC's lag allowance and is backed again on the next still ticks (BlinkCharge.unbacked).
+            BlinkCharge.answersWentEarly("a hold was released while charging");
+        }
         releasedHolds++;
         releasedPackets += sent;
         lastHoldTicks = ticks;
@@ -472,7 +490,17 @@ public final class BlinkFeature {
      * {@code mixin/BlinkPacketListenerMixin}: a server position packet, render thread, before vanilla applies it (so the
      * accept and the move vanilla answers with go out after everything held).
      */
+    /**
+     * Ticks a Hold key still down across a world change waits before its new hold: until the new world's spawn teleport is
+     * confirmed (then 2 more ticks), at most 40. A hold started on the new world's first tick held that confirm and the first
+     * moves: GrimAC Simulation 0.03-0.065 on ~20 ticks (1026-blink-death (a), on 3011406a too).
+     */
+    private static int spawnWaitTicks;
+
     public static void onServerPosition(Vec3 from, Vec3 to) {
+        if (spawnWaitTicks > 2) {
+            spawnWaitTicks = 2;
+        }
         boolean wasHolding = holding;
         double dist = from == null || to == null ? 0 : from.distanceTo(to);
         // The server putting him back where a blink started is the server refusing that blink: what is held is no use
@@ -569,6 +597,7 @@ public final class BlinkFeature {
         // there (killer560 2026-10-27: never drop a blink he did not release). From 2026-10-26 to then it waited for the
         // key to come up, because a hold on the new world's first tick drew GrimAC Post (testkit 1025-blink-world).
         holdLatched = false;
+        spawnWaitTicks = 40;
         if (keyWasDown) {
             BlinkLog.event("Hold key still down across the world change - a new hold goes on in the new world");
         }
