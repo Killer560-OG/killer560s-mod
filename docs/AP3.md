@@ -75,3 +75,28 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   (`Ap3RouteRunner.Snap`) needs a `ClientLevel`; a port of it over a room capture's blocks (capture index = route-relative
   + margin 1 for New Trap, captured unturned) replayed the New Trap path pair on 2026-10-20: 15 ticks at speed 400 and 600,
   and a tick-by-tick search of the same model found no walk in 14 (and found 15 when allowed, the control).
+- **A turn-first aura moves an AP3 walk along ITS yaw.** `util/TurnFirst` turns the body at START, AP3 picks a held walk's
+  keys at the END before, and the move uses the turned yaw: killer560's "nodes 16/17 make me run backwards" (2026-10-26,
+  Mod Only Test log 21:00:52 and 21:02:22-30) was Lights Device pre-flicking levers 58,133,142 beside those nodes - the
+  measured push pointed at about yaw -30, the lever's yaw (~-75) plus W+D's 45. AP3 then snapped the body back at END, so
+  the aura turned it again every tick and only flicked once AP3 stopped. Now: an align or an aimed Boom / Use / Block /
+  Look registers as the body's owner (`TurnFirst.registerBodyOwner`) and auras wait; a held walk leaves an aura's turn
+  alone and re-picks its keys at the live yaw in the input hook (`Ap3Executor.beforeInputInstall`). The same aura turns
+  mid-align were what walked him off the ledge at align #13 (21:09:35, 21:43:23, flicks interleaved with the align trace).
+- **Ledge guard (aligns).** Each align press's predicted position (the planner's own one-step model) needs a collision box
+  within 0.5 under the footprint; if not, Sneak goes down with the same keys and vanilla's `maybeBackOffFromEdge` (it
+  reads `isShiftKeyDown`, i.e. this tick's input, javap 26.1.2) clips the move at the edge. The edge clip stops the move,
+  not the velocity, so a point past the drop settles by holding sneak with no keys until the speed is gone.
+- **A Boom aims at its block, not at its angle.** Its block is what the node's angle meets from where the node was made
+  (point + eye height); from the entry eye (box edge at sprint, or up to 1.5 above while falling in - `BOX_Y_TOLERANCE`)
+  the same angle can meet nothing, which failed the node on the spot ("boom #31 isn't looking at a block", five times in
+  his 2026-10-26 log). It now turns to the block from wherever he is, waits up to 20 ticks for it to come into reach,
+  and re-aims instead of failing when the look at START meets nothing. A LOOK waits while a boom aims.
+- **Float angles print through `Float.toString`.** Widening a float yaw to double and printing six decimals turned
+  167.9 into 167.899994 (and wrote it to the file). `Ap3Node.savedAngle` gives the shortest decimal that reads back as the
+  same float; files holding the noisy value load as the same float and save clean.
+- **leapcounter: is a suffix and a gate.** The node is taken off the queue when its turn comes and held (`leapGate`);
+  meanwhile nothing fires on entry and only aligns begin; on the count it goes back to the front of the queue. The old
+  LEAP_COUNTER type stays in the enum only so old files and the old command load: both become a Stop with the suffix.
+  The testkit's fake players have version-3 UUIDs, which the counter skips as NPCs; `setLeapCountAnyPlayerForTest` lifts
+  that for 1026-ap3-leapgate.
