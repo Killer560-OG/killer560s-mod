@@ -232,10 +232,14 @@ public final class BlinkFeature {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || !cfg.isEnabled() || client.player == null
                 || client.level == null || listener == null) {
             wanted = false;
-            holdLatched = false;
+            // A Hold key that was down when the world went (a disconnect, leaving) waits for it to come up on the next one:
+            // before 2026-10-26 this forgot it, and a key still down after a rejoin started a hold during the join.
+            if (keyWasDown) {
+                holdLatched = true;
+            }
             keyWasDown = false;
             if (holding) {
-                release(cfg.isEnabled() ? "no world" : "switched off");
+                release(cfg.isEnabled() ? "no world - leaving or loading" : "switched off");
             }
             BlinkCharge.reset(cfg.isEnabled() ? "no world" : "switched off");
             return;
@@ -578,7 +582,6 @@ public final class BlinkFeature {
             queue.clear();
         }
         wanted = false;
-        holdLatched = false;
         serverPos = null;
     }
 
