@@ -83,6 +83,12 @@ final class ExperimentSolver {
     private boolean chronomatronRevealLatched;
     private int chronomatronClickIndex;
     private long chronomatronRoundReadyAtMs;
+    /** Chronomatron rounds the server has ACCEPTED in full: set when slot 49 turns back to glowstone (the next
+     *  sequence starts playing) after every click of the latched round went out - Hypixel only moves on once the
+     *  last note of a round is right. The chain itself only grows when the NEXT round's playback ends, so a stop
+     *  check on the chain length waited out a whole extra sequence (killer560, 2026-10-27: "every time it says
+     *  10/9. it is just wasting time"). */
+    private int chronomatronRoundsCompleted;
     private final Map<Integer, Integer> ultrasequencer = new HashMap<>();
     private int ultrasequencerClickIndex;
     private boolean ultrasequencerReady;
@@ -271,6 +277,12 @@ final class ExperimentSolver {
             case ULTRASEQUENCER -> ultrasequencer.size();
             case SUPERPAIRS, NONE -> 0;
         };
+    }
+
+    /** Chronomatron rounds whose every click the server accepted (0 for the other games) - see
+     *  {@link #chronomatronRoundsCompleted}. */
+    int chronomatronRoundsCompleted() {
+        return mode == Mode.CHRONOMATRON ? chronomatronRoundsCompleted : 0;
     }
 
     /** Updates internal knowledge from the current game state only - never decides on or returns a
@@ -613,6 +625,9 @@ final class ExperimentSolver {
         Cell control = cell(cells, 49);
         if (control == null) return;
         if (control.itemId().equals("minecraft:glowstone")) {
+            if (chronomatronRevealLatched && !chronomatron.isEmpty() && chronomatronClickIndex >= chronomatron.size()) {
+                chronomatronRoundsCompleted = Math.max(chronomatronRoundsCompleted, chronomatron.size());
+            }
             chronomatronRevealLatched = false;
             chronomatronClickIndex = 0;
             return;
@@ -1956,6 +1971,7 @@ final class ExperimentSolver {
         chronomatronRevealLatched = false;
         chronomatronClickIndex = 0;
         chronomatronRoundReadyAtMs = 0;
+        chronomatronRoundsCompleted = 0;
         ultrasequencer.clear();
         ultrasequencerClickIndex = 0;
         ultrasequencerReady = false;

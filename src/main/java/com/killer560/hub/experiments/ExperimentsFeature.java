@@ -1186,8 +1186,16 @@ public final class ExperimentsFeature {
         if (activeRoundsNeeded <= 0) {
             return false;
         }
-        int threshold = mode == ExperimentSolver.Mode.CHRONOMATRON ? activeRoundsNeeded + 1 : activeRoundsNeeded;
-        return SOLVER.currentChainLength() >= threshold;
+        if (mode == ExperimentSolver.Mode.CHRONOMATRON) {
+            // killer560, 2026-10-27: "every time after getting its 9th click it'll wait for the full 10th to go off
+            // ... it says 10/9". The chain only reaches roundsNeeded + 1 when the NEXT round's playback has ended,
+            // a whole sequence after the round that earned the clicks was accepted. Stop the moment the server
+            // accepts round roundsNeeded's last click (the next playback starting); the chain check stays as the
+            // fallback for a glowstone tick that was never seen.
+            return SOLVER.chronomatronRoundsCompleted() >= activeRoundsNeeded
+                    || SOLVER.currentChainLength() >= activeRoundsNeeded + 1;
+        }
+        return SOLVER.currentChainLength() >= activeRoundsNeeded;
     }
 
     /** Solver Only has no stop condition of its own - it never backs out of anything - so per

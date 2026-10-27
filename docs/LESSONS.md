@@ -126,6 +126,12 @@ project CLAUDE.md. Compiling lessons
   (2026-10-20, a 2,400-board offline check of the solver class; both fixed in `armedTarget` and `firstClickOfTurn`).
 - **A finished Superpairs board stays open on Hypixel** until it is closed; Escape takes you to the rewards (killer560,
   2026-10-11). Auto E-Table presses Escape once when Remaining Clicks reads 0; Hx's `holdOnOut` emulates it (testkit 735).
+- **Chronomatron's chain grows only when a round's playback ENDS**: the solver latches the new note when slot 49 turns
+  to the clock. A stop that waits for chain >= roundsNeeded + 1 therefore sits through the whole next sequence after the
+  round that earned the clicks: 10/9 every run, about 10 s at round 10 (killer560, 2026-10-27). A round is done when
+  glowstone returns after all its clicks went out (`ExperimentSolver.chronomatronRoundsCompleted`), and the stop uses that
+  (testkit 2783: closed 3 ticks after the last accepted click, counter 3/3; the old jar took 33 ticks and read 4/3). Ultrasequencer shows its whole series when a round
+  starts, so its size check does not wait for anything (2784).
 - A step that closes a menu and sends a command must time out if the screen it waits for never opens. Auto E-Table's
   Guardian swap closed the table, sent /pets, and waited forever when nothing opened; it now gives up after 10 s.
 - **A container scan that commits once must keep reading while the menu is open.** The RNG Meter overlay committed after
