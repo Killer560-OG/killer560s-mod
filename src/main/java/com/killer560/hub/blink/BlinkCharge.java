@@ -109,7 +109,11 @@ public final class BlinkCharge {
      * behind: D >= 50 B - 70. Twenty ticks: 930 ms; 60 ms of headroom on top.
      */
     static long answerDelayMs() {
-        return Math.min(ANSWER_DELAY_MS, Math.max(0L, 50L * cap() - 10L));
+        // The bank to cover, not just the cap: a bank kept when Charge Ticks was lowered (or an owner's smaller cap) is
+        // larger than the cap, and with the cap's shorter delay GrimAC never covered it - the shot after a hold drew Timer
+        // however long he stood (1027-blink-c-mixed: "C2 (bank 17)", campaign-blink-1027).
+        int need = Math.max(cap(), banked + shotLeft);
+        return Math.min(ANSWER_DELAY_MS, Math.max(0L, 50L * need - 10L));
     }
 
     /**
