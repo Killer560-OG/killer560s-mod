@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.croesus.CroesusConfig;
 import com.killer560.hub.croesus.CroesusProfitLog;
 import com.killer560.hub.croesus.CroesusTrackerScreen;
+import com.killer560.hub.croesus.DungeonChestValuer;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
