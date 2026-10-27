@@ -333,6 +333,11 @@ final class SettingTooltipsData {
         d.put("chat hider/hide ability spam", "In dungeons: hides cooldown, ability-ready, 'Used ...!', orb and tether lines.");
         d.put("chat hider/hide dungeon breaker spam", "In dungeons: hides the Dungeon Breaker's 'A mystical force prevents you...' and 'not enough charges' lines.");
         d.put("chat hider/hide ban announcements", "Hides Hypixel's Watchdog announcement: how many players Watchdog and staff banned in the last 7 days.");
+        d.put("image preview", "With chat open, hovering a link to a picture (imgur, Discord, any .png/.jpg/.gif/.webp link) shows it beside the cursor. The wheel steps through an imgur album; a middle click opens a bigger view. A left click still asks to open the link.");
+        d.put("image preview/max preview size", "The longest side of the floating preview, in screen units. Pictures are never shown larger than their own size, except tiny ones.");
+        d.put("image preview/hosts", "Trusted Hosts Only fetches only imgur and Discord links. Any Host fetches pictures from any site (and reads a page's preview picture), which tells that site your IP address when you hover. Local network addresses are never fetched.");
+        d.put("image preview/play gifs", "Plays animated GIFs in the preview. Off shows the first frame.");
+        d.put("image preview/cache size", "How much disk the downloaded pictures may use. The least recently shown are deleted first.");
         d.put("copy chat", "Shift or Ctrl + left-click copies a whole chat message; right-click copies one line. A plain click works as before.");
         d.put("auto meow enabled", "Replies with a random cat line when another player says meow, purr, nya or mew, in the same chat it came from: party, guild, officer, co-op, a private message (back to that player), all chat or Mod Chat.");
         d.put("play cat noises", "Plays a cat sound each time Auto Meow replies.");
