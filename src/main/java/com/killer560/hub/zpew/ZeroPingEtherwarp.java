@@ -14,6 +14,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
@@ -49,6 +50,11 @@ import java.util.Locale;
  * <p><b>Works For</b> (2026-10-27): every sender of an etherwarp marks its use with {@link #sending} around the send, and
  * a use is predicted only when its {@link ZpewSource}'s switch is on (an unmarked use is {@link ZpewSource#MANUAL}). The
  * master switch still turns all of it off.
+ *
+ * <p><b>Warps Per Tick</b> (cheat build only, 2026-10-27; killer560: "did you find a way to get multiple ether warps done in a
+ * single tick?"): the one thing here that SENDS. With it above 1, each of his own predicted warps (right click or Left
+ * Click Etherwarp) is followed in the same tick by N - 1 more use packets at the same look, each cast by the server from
+ * the last one's landing ({@link #flushExtraWarps}). Default 1: nothing extra, and in a legit build always 1.
  *
  * <p>Everything is logged (logger killer560smod-zpew): every use seen and why it was or was not predicted, every
  * prediction, every server answer with its error and latency, every drop.
@@ -91,12 +97,29 @@ public final class ZeroPingEtherwarp {
     private static long lastLatencyMs = -1;
     private static int maxChained;
 
+    // ---- Warps Per Tick (cheat build) ----
+    /** Extra warps the last predicted use of his owes, sent when its {@code useItem} returns (same tick only). */
+    private static int owed;
+    private static InteractionHand owedHand;
+    private static float owedYaw;
+    private static float owedPitch;
+    private static long owedTick = -1;
+    /** True while {@link #flushExtraWarps} sends: the tap chains them from the last landing and owes nothing for them. */
+    private static boolean extraSending;
+    private static long extraSent;
+    private static long extraStopped;
+    /** Etherwarp uses seen in the current client tick, and the most ever seen in one tick. */
+    private static long usesTick = -1;
+    private static int usesThisTick;
+    private static int maxUsesInOneTick;
+
     private ZeroPingEtherwarp() {
     }
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             clientTick++;
+            owed = 0; // owed warps never go in a later tick
             expire();
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
@@ -154,6 +177,12 @@ public final class ZeroPingEtherwarp {
             return;
         }
         usesSeen++;
+        if (usesTick != clientTick) {
+            usesTick = clientTick;
+            usesThisTick = 0;
+        }
+        usesThisTick++;
+        maxUsesInOneTick = Math.max(maxUsesInOneTick, usesThisTick);
         ZpewSource source = current == null ? ZpewSource.MANUAL : current;
         SEEN[source.ordinal()]++;
         if (!ZeroPingEtherwarpConfig.getInstance().worksFor(source)) {
@@ -170,7 +199,8 @@ public final class ZeroPingEtherwarp {
         synchronized (PENDING) {
             last = PENDING.peekLast();
         }
-        boolean chained = last != null && ZeroPingEtherwarpConfig.getInstance().isChain();
+        // An extra warp of Warps Per Tick is always cast from the one before it: that is where the server will cast it from.
+        boolean chained = last != null && (ZeroPingEtherwarpConfig.getInstance().isChain() || extraSending);
         Vec3 from = chained ? last.landing() : player.position();
         Vec3 eye = new Vec3(from.x, from.y + TeleportUtils.eyeHeight(true), from.z);
         float yaw = use.getYRot();
@@ -196,6 +226,93 @@ public final class ZeroPingEtherwarp {
                         + "(%.1f blocks); %d pending, tick %d", predictions, source.label(), fmt(from), chained ? " (chained)" : "",
                 Mth.wrapDegrees(yaw), pitch, shot.pos().toShortString(), fmt(landing), from.distanceTo(landing), depth,
                 clientTick));
+        // Warps Per Tick: his own warp (a right click or Left Click Etherwarp) owes N - 1 more, this tick, at this look.
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !extraSending
+                && (source == ZpewSource.MANUAL || source == ZpewSource.LEFT_CLICK)) {
+            int n = ZeroPingEtherwarpConfig.getInstance().effectiveWarpsPerTick();
+            if (n > 1) {
+                owed = n - 1;
+                owedHand = use.getHand();
+                owedYaw = use.getYRot();
+                owedPitch = use.getXRot();
+                owedTick = clientTick;
+            }
+        }
+    }
+
+    /**
+     * Warps Per Tick (cheat build; {@code mixin/ZpewUseItemMixin}, when his use's {@code useItem} returns): sends the extra
+     * warps his last use owes, right now, in the same client tick - each a {@code use_item} with the SAME yaw and pitch as
+     * his own, through vanilla's sequenced send. The server casts each from where the one before put him, so they walk on
+     * along his look. Same look on purpose: GrimAC BadPacketsJ (javap 2.3.74) flags a second use in a tick whose rotation
+     * differs from the first, and checks every use's rotation against the tick's one movement packet - which a vanilla
+     * client also sends after two clicks in one tick ({@code Minecraft.handleKeybinds}: {@code while (keyUse.consumeClick())
+     * startUseItem()}). Each extra is cast here first from the last predicted landing; one that would land nowhere is not
+     * sent and ends the burst (the server would do nothing with it but spend his mana).
+     */
+    public static void flushExtraWarps() {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || owed <= 0 || extraSending) {
+            return;
+        }
+        int n = owed;
+        owed = 0;
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (owedTick != clientTick || !on() || player == null || mc.level == null || !mc.isSameThread()
+                || !(mc.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker)) {
+            return;
+        }
+        int sent = 0;
+        String stop = null;
+        extraSending = true;
+        try {
+            for (int i = 0; i < n; i++) {
+                double range = etherwarpRange(player.getItemInHand(owedHand));
+                if (range <= 0) {
+                    stop = "the etherwarp item is no longer in hand";
+                    break;
+                }
+                if (!player.getLastSentInput().shift()) {
+                    stop = "the server no longer has him sneaking";
+                    break;
+                }
+                Prediction last;
+                synchronized (PENDING) {
+                    last = PENDING.peekLast();
+                }
+                if (last == null) {
+                    stop = "nothing pending to chain from";
+                    break;
+                }
+                Vec3 eye = new Vec3(last.landing().x, last.landing().y + TeleportUtils.eyeHeight(true), last.landing().z);
+                TeleportUtils.RaycastResult shot = TeleportUtils.getEtherPos(eye, owedYaw, Mth.clamp(owedPitch, -90f, 90f),
+                        range);
+                if (shot == null || !shot.succeeded() || shot.pos() == null) {
+                    stop = "the next warp from " + fmt(last.landing()) + " would land nowhere";
+                    break;
+                }
+                long before = predictions;
+                final InteractionHand hand = owedHand;
+                final float yaw = owedYaw;
+                final float pitch = owedPitch;
+                invoker.killer560smod$invokeStartPrediction(mc.level,
+                        sequence -> new ServerboundUseItemPacket(hand, sequence, yaw, pitch));
+                sent++;
+                extraSent++;
+                if (predictions == before) {
+                    stop = "the extra warp was not predicted";
+                    break;
+                }
+            }
+        } finally {
+            extraSending = false;
+        }
+        if (stop != null) {
+            extraStopped++;
+        }
+        LOGGER.info(String.format(Locale.ROOT, "[ZPEW] Warps Per Tick: %d extra warp(s) sent in tick %d at yaw %.2f pitch %.2f "
+                        + "(%d owed)%s; %d etherwarp use(s) this tick", sent, clientTick, Mth.wrapDegrees(owedYaw), owedPitch, n,
+                stop == null ? "" : " - stopped: " + stop, usesThisTick));
     }
 
     /** 57 + tuners for an etherwarp-capable item, 0 for anything else. */
@@ -383,6 +500,19 @@ public final class ZeroPingEtherwarp {
 
     public static int maxChained() {
         return maxChained;
+    }
+
+    /** Warps Per Tick, for the testkit: extra warps sent, bursts cut short, and the most etherwarp uses seen in one tick. */
+    public static long extraWarpsSent() {
+        return extraSent;
+    }
+
+    public static long extraWarpsStopped() {
+        return extraStopped;
+    }
+
+    public static int maxUsesInOneTick() {
+        return maxUsesInOneTick;
     }
 
     private static String fmt(Vec3 v) {

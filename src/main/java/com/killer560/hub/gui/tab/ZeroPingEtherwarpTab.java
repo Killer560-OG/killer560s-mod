@@ -85,9 +85,32 @@ public class ZeroPingEtherwarpTab extends BaseTab {
             y += 6;
             w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Works For", true));
             y += 16;
-            sourceRows(w, cfg, contentX, y, contentWidth, true);
+            y = sourceRows(w, cfg, contentX, y, contentWidth, true);
+            // Warps Per Tick (killer560, 2026-10-27: "multiple ether warps done in a single tick"): sends extra warps.
+            y += 6;
+            w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Warps Per Tick", true));
+            y += 16;
+            String[] wptHelp = {
+                    "§7Each of your own etherwarps becomes this many in the same tick, at the",
+                    "§7same look, each from where the last one lands. 1 = off. Each costs mana."
+            };
+            for (String line : wptHelp) {
+                w.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal(line), font));
+                y += 11;
+            }
+            y += 4;
+            w.add(SettingsButtonWidget.cycling(warpsPerTickText(cfg), (btn, dir) -> {
+                        cfg.setWarpsPerTick((int) SettingsButtonWidget.step(cfg.getWarpsPerTick(), 1, 1,
+                                ZeroPingEtherwarpConfig.MAX_WARPS_PER_TICK, dir));
+                        cfg.save();
+                        btn.setMessage(warpsPerTickText(cfg));
+                    }).bounds(contentX, y, contentWidth, ROW).build());
         }
         return w;
+    }
+
+    private static Component warpsPerTickText(ZeroPingEtherwarpConfig cfg) {
+        return Component.literal("Warps Per Tick: " + cfg.getWarpsPerTick());
     }
 
     /** The Works For switches of one kind, two to a row. @return the y under them */
