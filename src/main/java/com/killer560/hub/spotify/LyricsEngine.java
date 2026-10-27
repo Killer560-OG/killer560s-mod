@@ -419,6 +419,9 @@ public final class LyricsEngine {
             if (nowPlaying.kind() == NowPlaying.Kind.PAUSED) {
                 // The clock stops; the track is REMEMBERED. Forgetting it would announce the same song again
                 // as a brand new track every time he paused and un-paused.
+                if (clock.running()) {
+                    resyncPending = true;   // Spotify's reading of the pause is exact: take the next one as it is
+                }
                 clock.pause(now);
                 // A scrub while paused: Spotify's paused position is believed, so the line shown is where it resumes.
                 if (timeline != null && !lastWasAd && timeline.paused() && timeline.matches(lastArtist, lastTitle)
@@ -474,6 +477,7 @@ public final class LyricsEngine {
             } else if (!clock.running()) {
                 clock.resume(now);   // resumed after a pause, same track: on from the same position
                 lastEventMs = now;
+                resyncPending = true;   // the resume was seen up to a poll late: Spotify's reading of it fixes that
             }
             // Fetched OFF this thread, because the clock is already running.
             //
@@ -499,6 +503,9 @@ public final class LyricsEngine {
                     choose();
                 }
                 if (timeline.paused()) {
+                    if (clock.running()) {
+                        resyncPending = true;
+                    }
                     clock.pause(now);
                     pausedBySession = true;
                     // Spotify paused before this poll saw it: its paused position is where the line is held.
@@ -589,8 +596,17 @@ public final class LyricsEngine {
                     lyricsAnswered = true;
                     choose();
                     publish(snapshot.kind());
-                    SpotifyLyricsFeature.LOGGER.info("Lyrics for '{}': {} version(s) with synced lines, using {} line(s){}",
-                            title, candidates.size(), syncedLyrics.size(), versionMismatch ? " (none is Spotify's length)" : "");
+                    int timed = 0;
+                    for (LyricLine l : syncedLyrics) {
+                        if (l.parsed().timed()) {
+                            timed++;
+                        }
+                    }
+                    SpotifyLyricsFeature.LOGGER.info("Lyrics for '{}': {} version(s) with synced lines, using {} line(s){}, {}",
+                            title, candidates.size(), syncedLyrics.size(), versionMismatch ? " (none is Spotify's length)" : "",
+                            syncedLyrics.isEmpty() ? "no words" : timed == 0
+                                    ? "line times only (the lit word is an estimate within each line)"
+                                    : timed + " line(s) with real word times");
                 }
             }
         });
@@ -641,8 +657,10 @@ public final class LyricsEngine {
      * <ul>
      *   <li>on the first reading of a track (the stopwatch started when the title change was SEEN, up to a poll late);</li>
      *   <li>on any disagreement over {@link PlaybackClock#JUMP_MS} (a seek, a restart);</li>
-     *   <li>on a disagreement over {@link PlaybackClock#DRIFT_MS} when the reading is a NEW one (its {@code updatedMs}
-     *       differs from the last one this corrected from), which is drift. Spotify refreshes its reading every few
+     *   <li>on Spotify's first new reading after a pause or resume this engine saw (those readings are exact);</li>
+     *   <li>for drift, when the median of the last three NEW readings (a changed {@code updatedMs}) is over
+     *       {@link PlaybackClock#DRIFT_MS} off, eased in by at most {@link #SLEW_MS} a poll (2026-10-27: it used to step
+     *       on any single reading over 60 ms, so one odd reading moved the lit word back and forth). Spotify refreshes its reading every few
      *       seconds while playing and at once on a seek, pause or resume (measured 2026-10-26: a seek's reading arrived
      *       130 ms after it), so the clock is re-synced that often.</li>
      * </ul>
@@ -658,21 +676,105 @@ public final class LyricsEngine {
         long diff = real - before;
         boolean fresh = timeline.updatedMs() != lastSyncUpdatedMs;
         boolean first = !positionFromSpotify;
-        if (first || Math.abs(diff) > PlaybackClock.JUMP_MS || (fresh && Math.abs(diff) > PlaybackClock.DRIFT_MS)) {
-            clock.set(real, now);
+        if (fresh) {
             lastSyncUpdatedMs = timeline.updatedMs();
+        }
+        if (first || Math.abs(diff) > PlaybackClock.JUMP_MS || (fresh && resyncPending)) {
+            // A new track, a seek, or Spotify's own reading of a pause or resume: those readings are exact, so the
+            // clock is SET to them at once, and the drift history starts over.
+            clock.set(real, now);
+            resyncPending = false;
+            recentCount = 0;
+            slewLeftMs = 0;
             corrections++;
             lastCorrectionMs = diff;
             if (Math.abs(diff) > LOG_DRIFT_MS) {
                 String why = first ? "first reading of the track" : Math.abs(diff) > PlaybackClock.JUMP_MS
-                        ? "seek" : "drift";
+                        ? "seek" : "pause or resume seen late";
                 SpotifyLyricsFeature.LOGGER.info("Spotify lyric clock corrected by {} ms ({}): {} -> {}",
                         (diff > 0 ? "+" : "") + diff, why, mmss(before), mmss(real));
             }
-        } else if (fresh) {
-            lastSyncUpdatedMs = timeline.updatedMs();
+        } else {
+            if (fresh) {
+                // Drift: only when the MEDIAN of the last three new readings is off by more than DRIFT_MS, so one odd
+                // reading never moves the clock, and then by at most SLEW_MS a poll, so the lit word never jumps.
+                noteOffset(diff, now);
+                recent[recentCount % recent.length] = diff;
+                recentCount++;
+                long med = median();
+                if (recentCount >= 2 && Math.abs(med) > PlaybackClock.DRIFT_MS) {
+                    slewLeftMs = med;
+                    driftTotalMs = med;
+                }
+            }
+            if (slewLeftMs != 0 && clock.running()) {
+                long step = Math.max(-SLEW_MS, Math.min(SLEW_MS, slewLeftMs));
+                clock.set(clock.elapsedMs(now) + step, now);
+                slewLeftMs -= step;
+                for (int i = 0; i < recent.length; i++) {
+                    recent[i] -= step;   // the stored offsets were measured against the clock before this step
+                }
+                if (slewLeftMs == 0) {
+                    corrections++;
+                    lastCorrectionMs = driftTotalMs;
+                    if (Math.abs(driftTotalMs) > LOG_DRIFT_MS) {
+                        SpotifyLyricsFeature.LOGGER.info("Spotify lyric clock eased {} ms back onto Spotify (drift)",
+                                (driftTotalMs > 0 ? "+" : "") + driftTotalMs);
+                    }
+                }
+            }
         }
         positionFromSpotify = true;
+    }
+
+    /** Drift is eased in by at most this much a poll (250 ms), so a lit word never jumps back more than this. */
+    static final long SLEW_MS = 30;
+    /** A pause, resume or track start was just seen: the next new reading is taken exactly, not filtered. */
+    private boolean resyncPending;
+    private final long[] recent = new long[3];
+    private int recentCount;
+    private long slewLeftMs;
+    private long driftTotalMs;
+
+    private long median() {
+        int n = Math.min(recentCount, recent.length);
+        if (n == 0) {
+            return 0;
+        }
+        long a = recent[0];
+        long b = n > 1 ? recent[1] : a;
+        long c = n > 2 ? recent[2] : b;
+        return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
+    }
+
+    // ---- what Spotify's readings looked like, for his log (2026-10-27: "it's now nowhere near the right word") -----
+    private long checkSinceMs;
+    private int checkReadings;
+    private long checkMaxAbs;
+    private long checkSumAbs;
+
+    /**
+     * Every new reading's disagreement with the clock is gathered, and once a minute, if any was over 40 ms, one line
+     * says how far off they were. The word highlight is only as good as these readings, so his next log shows whether
+     * Spotify's position is steady (offsets near 0) or noisy.
+     */
+    private void noteOffset(long diff, long now) {
+        if (checkSinceMs == 0) {
+            checkSinceMs = now;
+        }
+        checkReadings++;
+        checkMaxAbs = Math.max(checkMaxAbs, Math.abs(diff));
+        checkSumAbs += Math.abs(diff);
+        if (now - checkSinceMs >= 60_000) {
+            if (checkMaxAbs > 40) {
+                SpotifyLyricsFeature.LOGGER.info("Spotify clock check: {} reading(s) in {} s, off by {} ms on average, {} ms at most",
+                        checkReadings, (now - checkSinceMs) / 1000, checkSumAbs / Math.max(1, checkReadings), checkMaxAbs);
+            }
+            checkSinceMs = now;
+            checkReadings = 0;
+            checkMaxAbs = 0;
+            checkSumAbs = 0;
+        }
     }
 
     /** Corrections at least this big are logged. */

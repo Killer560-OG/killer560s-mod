@@ -23,7 +23,7 @@ final class PlaybackClock {
      * alone, so the highlight does not twitch. Before 2026-10-26 only {@link #JUMP_MS} corrected anything, so an error
      * under a second (a track change seen a poll late, a resume seen late) stayed for the rest of the track.
      */
-    static final long DRIFT_MS = 60;
+    static final long DRIFT_MS = 40;
 
     private long playedMs;
     /** Wall time playback last resumed, or -1 while paused. */
