@@ -4453,8 +4453,12 @@ public final class Ap3Executor {
             return null;
         }
         float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
-        float[] out = new float[AIM_KEYS.length];
-        for (int i = 0; i < AIM_KEYS.length; i++) {
+        // Only the combinations with W in them (W+A, W+D, W - the first three of AIM_KEYS): any other drops the sprint for
+        // that tick, which slows him, moves where he enters the next node's box and so bends the path after it (testkit
+        // 1027-boss-ap3-lights-path, 2026-10-27: 0.65 blocks off at the end with D allowed). None of these meets the
+        // target this tick: the click waits for one that does.
+        float[] out = new float[3];
+        for (int i = 0; i < 3; i++) {
             out[i] = walkYaw - AIM_KEYS[i][2];
         }
         return out;
