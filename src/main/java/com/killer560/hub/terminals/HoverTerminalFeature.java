@@ -61,8 +61,12 @@ public final class HoverTerminalFeature {
     /** Rolled once per dwell, not per frame (see {@link #rollDelayMs}) - so the jitter varies click to
      *  click instead of the threshold itself jittering underneath a hover that is already in progress. */
     private static int armedDelayMs;
+    /** Melody's once-per-row guard, shared with Hold To Click: the button last clicked, when, and where the moving pane
+     *  was then. The same button is not clicked again while the pane has not moved off that slot (a click's answer can
+     *  take longer than any fixed guard on a slow connection) or within {@link #MELODY_SAME_ROW_GUARD_MS}. */
     private static int lastMelodyClickedSlot = -1;
     private static long lastMelodyClickAtMs;
+    private static int lastMelodyClickLimeSlot = -1;
 
     private HoverTerminalFeature() {
     }
@@ -76,6 +80,20 @@ public final class HoverTerminalFeature {
         armedDelayMs = 0;
         lastMelodyClickedSlot = -1;
         lastMelodyClickAtMs = 0;
+        lastMelodyClickLimeSlot = -1;
+    }
+
+    /** @return whether a Melody click on {@code slot} now would be a second click for the same pass of the pane. */
+    static boolean melodyGuardBlocks(int slot, long now) {
+        return slot == lastMelodyClickedSlot && (now - lastMelodyClickAtMs < MELODY_SAME_ROW_GUARD_MS
+                || TerminalSolverFeature.melodyLastLimeSlot == lastMelodyClickLimeSlot);
+    }
+
+    /** Records a Melody click on {@code slot} (hover, hold, or his own press under Hold To Click). */
+    static void noteMelodyClick(int slot, long now) {
+        lastMelodyClickedSlot = slot;
+        lastMelodyClickAtMs = now;
+        lastMelodyClickLimeSlot = TerminalSolverFeature.melodyLastLimeSlot;
     }
 
     /** One frame of hover handling. Called from {@link TerminalSolverFeature#refreshState()} only after
@@ -167,7 +185,7 @@ public final class HoverTerminalFeature {
         if (TerminalSolverFeature.melodyMatchedButtonSlot(items) != slot) {
             return;
         }
-        if (slot == lastMelodyClickedSlot && now - lastMelodyClickAtMs < MELODY_SAME_ROW_GUARD_MS) {
+        if (melodyGuardBlocks(slot, now)) {
             return;
         }
         // Gate before the same-row guard fields move - a denied frame must not consume this row's one
@@ -175,8 +193,7 @@ public final class HoverTerminalFeature {
         if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
             return;
         }
-        lastMelodyClickedSlot = slot;
-        lastMelodyClickAtMs = now;
+        noteMelodyClick(slot, now);
         TerminalSolverFeature.sendTerminalClick(screen, slot, 0, ContainerInput.CLONE);
     }
 
@@ -195,7 +212,7 @@ public final class HoverTerminalFeature {
      *  {@code Slot.index} is assigned by {@code AbstractContainerMenu.addSlot} as the slot's position in
      *  {@code menu.slots} (verified via javap), so the terminal grid is exactly indices
      *  {@code [0, terminalSlotCount)} and the player's own 36 slots are all above it. */
-    private static int resolveHoveredSlot(AbstractContainerScreen<?> screen) {
+    static int resolveHoveredSlot(AbstractContainerScreen<?> screen) {
         int terminalSlots = TerminalSolverFeature.getCurrentTerminalSlotCount();
         if (terminalSlots <= 0) {
             return -1;

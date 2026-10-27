@@ -68,6 +68,13 @@ public class AutoTerminalTab extends BaseTab {
                         requestRebuild.run();
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
+            if (TerminalSolverConfig.getInstance().isFakeCursor()) {
+                widgets.add(intSlider(contentX, y, 220, TerminalSolverConfig.MIN_FAKE_CURSOR_SPEED, TerminalSolverConfig.MAX_FAKE_CURSOR_SPEED,
+                        () -> TerminalSolverConfig.getInstance().getFakeCursorSpeed(),
+                        v -> TerminalSolverConfig.getInstance().setFakeCursorSpeed(v),
+                        () -> Component.literal("Fake Cursor Speed: " + TerminalSolverConfig.getInstance().getFakeCursorSpeed() + "%")));
+                y += 24;
+            }
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                     Component.literal("Terminals to auto-click:"), Minecraft.getInstance().font));
             y += 16;
@@ -197,7 +204,7 @@ public class AutoTerminalTab extends BaseTab {
                         }
                     });
                     y += 26;
-                    // Already covered by the "Melody Lookahead Clicks" tooltip.
+                    // Already covered by the "Melody Lookahead" tooltip.
                 }
             }
         }
@@ -220,10 +227,31 @@ public class AutoTerminalTab extends BaseTab {
                 }).bounds(contentX, y, 220, 20).build());
         y += 26;
 
-        if (!TerminalSolverConfig.getInstance().isHoverTerminalsEnabledRaw()) {
-            return widgets;
+        if (TerminalSolverConfig.getInstance().isHoverTerminalsEnabledRaw()) {
+            buildHoverRows(widgets, contentX, y);
         }
+        return widgets;
+    }
 
+    /** An integer slider over [min, max] that saves on release. */
+    private ThemedSliderButton intSlider(int x, int y, int width, int min, int max, java.util.function.IntSupplier get,
+                                         java.util.function.IntConsumer set, java.util.function.Supplier<Component> text) {
+        return new ThemedSliderButton(x, y, width, 20, text.get(), (get.getAsInt() - min) / (double) (max - min)) {
+            @Override
+            protected void updateMessage() {
+                setMessage(text.get());
+            }
+
+            @Override
+            protected void applyValue() {
+                set.accept((int) Math.round(min + this.value * (max - min)));
+                saveOnRelease(() -> TerminalSolverConfig.getInstance().save());
+            }
+        };
+    }
+
+    /** Hover Terminals' rows under its switch. @return the next y. */
+    private int buildHoverRows(List<AbstractWidget> widgets, int contentX, int y) {
         double hoverDelayNormalized = (TerminalSolverConfig.getInstance().getHoverDelayMs() - TerminalSolverConfig.MIN_HOVER_DELAY_MS)
                 / (double) (TerminalSolverConfig.MAX_HOVER_DELAY_MS - TerminalSolverConfig.MIN_HOVER_DELAY_MS);
         widgets.add(new ThemedSliderButton(contentX, y, 220, 20, hoverDelayText(), hoverDelayNormalized) {
@@ -269,7 +297,7 @@ public class AutoTerminalTab extends BaseTab {
         y += 24;
 
         // Already covered by the "Hover Melody" tooltip.
-        return widgets;
+        return y;
     }
 
     private static Component autoEnabledText() {
@@ -313,7 +341,8 @@ public class AutoTerminalTab extends BaseTab {
     }
 
     private static Component melodyLookaheadText() {
-        return Component.literal("Melody Lookahead Clicks: " + TerminalSolverConfig.getInstance().getMelodyLookaheadClicks());
+        int extra = TerminalSolverConfig.getInstance().getMelodyLookaheadClicks();
+        return Component.literal("Melody Lookahead: " + extra + " (clicks " + (extra + 1) + ")");
     }
 
     private static Component hoverEnabledText() {

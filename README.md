@@ -26,7 +26,7 @@ Open the menu in game with `/killer560` or the Open Menu Key (backslash by defau
 
 **HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Advanced Position, Auto Join Skyblock, Chocolate Factory Helper, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, Fairy Souls †, GIF Player, Health and Mana Bars, Map Logger, No Fire, Object Hider, Performance HUD, Quiver Display, Real Time, Screenshot Copy, Session Recorder, Smooth Teleport, Trajectories, Waypoint Routes, Video Browser
 
-**Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Clicked, Secret Waypoints, Simon Says †, Teleport Maze Solver, Terminal Solver †, Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver, Wither Doors
+**Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Clicked, Secret Waypoints, Simon Says †, Teleport Maze Solver, Terminal Solver † (with Hold To Click), Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver, Wither Doors
 
 **Dungeon: Map, Leap & Party** - Chunk Cache, Class Selection Overlay, Custom Leap Menu, Custom Party Finder, Dungeon Map, Dungeon Queue, Leap Message, Leap Order, Posmsg, Zero Ping Etherwarp
 

@@ -128,6 +128,20 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 - Tic Tac Toe's prediction skipped the computer's own square when testing "safe whatever it plays", so the square the
   computer was about to take always qualified and was what got shown. The prediction now takes every computer reply with
   its best outcome and shows his best move after them, never one of those squares (testkit 679, all 2,423 positions).
+- "Hover terms doesn't work in melody" (killer560, 2026-10-26) was not the click logic: on the base jar, Hover Melody
+  clicks each row once at the right column (testkit 271/272 pass on 97527a55). It was a second switch, Hover Melody,
+  shipped OFF under the hover sliders: his config and Full Toggle profile had Hover Terminals' delay set to 50 and
+  `hoverMelodyEnabled: false`. It now defaults ON and old files load ON (`hoverMelodyFormat`). A sub-feature behind its
+  own default-off switch reads as broken; check the saved config before the code.
+- `MouseHandler.isLeftPressed()` only changes while NO screen is open (javap 26.1.2 `onButton`: the write sits behind
+  `screen == null`), so inside a terminal it never goes true. Hold To Click tracks the button with
+  `ScreenMouseEvents.allowMouseClick/allowMouseRelease` on the container screen (testkit 273/274 timed out without it).
+- The Fake Cursor aimed at vanilla slot coordinates, which under Custom GUI are hidden slots nowhere near the drawn
+  panel (killer560: "doesn't match the terminal gui"). Anything that points at a terminal slot asks
+  `TerminalSolverFeature.slotCenterGui`, which uses the panel layout the render and click hit test use.
+- Melody Lookahead counted the proper click (1 and 0 both meant none); since 2026-10-26 N is the EXTRA rows, max 2,
+  old files move by one on load (`melodyLookaheadFormat`). A lookahead click for a row the live match already clicked
+  is dropped, and the live match skips a row with a lookahead queued, so no row is clicked twice (testkit 275-277).
 
 ## Routes, the Interactive Map and puzzle autos (feature side)
 

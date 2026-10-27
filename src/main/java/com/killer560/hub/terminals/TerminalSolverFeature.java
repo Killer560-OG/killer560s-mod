@@ -205,6 +205,11 @@ public final class TerminalSolverFeature {
     private static Integer melodyCurrentColumn;
     private static Integer melodyCorrectColumn;
     private static int lastMelodyClickedRow = -1;
+    /** Rows (bit per index into melodyButtons) Auto Melody has clicked on this board. A lookahead click for a row the
+     *  live match already clicked is dropped, so no row is ever clicked twice by one burst (2026-10-26). */
+    private static int melodyRowsClicked;
+    /** Lookahead clicks actually sent since the game started. Read by the testkit (275-277); nothing in the mod reads it. */
+    static int melodyLookaheadFired;
     private static long lastMelodyClickAtMs;
     // Lookahead clicks queued by #tickMelodyAutoClick (see TerminalSolverConfig#getMelodyLookaheadClicks)
     // - each fires once real time reaches its slot, re-validated against the terminal still being open
@@ -360,6 +365,7 @@ public final class TerminalSolverFeature {
         wasHoldingCarriedItem = false;
         numbersCountNoted = false;
         resetAutoClickState();
+        FakeCursor.beginTerminal();
         diagContainerId = screen.getMenu().containerId;
         diagScreenIdentity = System.identityHashCode(screen);
         if (type == TerminalType.MELODY) {
@@ -535,6 +541,8 @@ public final class TerminalSolverFeature {
         }
         checkPendingClicks(items, now);
         maybeClearAccidentalCarriedItem(screen);
+        boolean autoThisType = cfg.isAutoTerminalsEnabled() && isAutoTypeEnabled(type, cfg);
+        FakeCursor.setShowing(cfg.isFakeCursor() && autoThisType);
         if (hasStabilizedOnce && clickContentStabilized) {
             tickAutoClick(screen, type, items);
             // Hover Terminals (2026-09-16) - same frame-driven loop and the same two gates Auto
@@ -543,8 +551,9 @@ public final class TerminalSolverFeature {
             // about to be replaced. Stands fully down whenever Auto Terminals is actually running for
             // this type - see HoverTerminalFeature's own precedence doc for why auto wins.
             if (now - stabilizedAtMs >= INITIAL_CLICK_SETTLE_MS && !foreignClickFailed) {
-                HoverTerminalFeature.tick(screen, type, items, currentHighlights,
-                        cfg.isAutoTerminalsEnabled() && isAutoTypeEnabled(type, cfg));
+                HoverTerminalFeature.tick(screen, type, items, currentHighlights, autoThisType);
+                // Hold To Click (2026-10-26, both builds): same gates and the same stand-down as hover.
+                HoldToClickFeature.tick(screen, type, items, currentHighlights, autoThisType);
             }
         }
     }
@@ -602,12 +611,14 @@ public final class TerminalSolverFeature {
         melodyCurrentColumn = null;
         melodyCorrectColumn = null;
         lastMelodyClickedRow = -1;
+        melodyRowsClicked = 0;
         lastMelodyClickAtMs = 0;
         scheduledMelodyClicks.clear();
         hoverMelodyCorrectColumn = null;
         // Hover Terminals shares every one of this method's real reset points (new terminal, quick
         // reopen, tracking ended) - a dwell must never survive the terminal it was started in.
         HoverTerminalFeature.reset();
+        HoldToClickFeature.reset();
     }
 
     /** Auto Terminals - real auto-clicking, cheat build only (see {@link TerminalSolverConfig
@@ -659,6 +670,13 @@ public final class TerminalSolverFeature {
             return;
         }
         long now = System.currentTimeMillis();
+        if (FakeCursor.active()) {
+            // Head for the next slot while the click delay runs, so the pointer is there by the time the click may go.
+            AutoClickTarget next = pickAutoClickTarget(type, currentHighlights, pendingClicks.keySet());
+            if (next != null) {
+                FakeCursor.aim(screen, next.slot());
+            }
+        }
         if (now < nextAutoClickAllowedAtMs) {
             return;
         }
@@ -683,6 +701,11 @@ public final class TerminalSolverFeature {
         if (target == null) {
             return;
         }
+        // Fake Cursor: the click waits for the pointer to reach its slot, never the other way round.
+        FakeCursor.aim(screen, target.slot());
+        if (!FakeCursor.ready(target.slot())) {
+            return;
+        }
         // Mod-wide one-interaction-per-tick gate. tickAutoClick runs per RENDER FRAME (see refreshState), so
         // without this a 200+ FPS client could send several clicks inside one client tick once the rolled
         // delay is short. Checked after the target is picked but before ANY state moves - the rolled delay
@@ -705,6 +728,7 @@ public final class TerminalSolverFeature {
             pendingClicks.remove(target.slot());
             return;
         }
+        noteAutoClick(target.slot(), now);
     }
 
     public static boolean isAutoTypeEnabled(TerminalType type, TerminalSolverConfig cfg) {
@@ -785,7 +809,6 @@ public final class TerminalSolverFeature {
         if (!invokeSlotClicked(screen, slot, button, clickType)) {
             return false;
         }
-        FakeCursor.clickAt(slotIndex);
         if (clickType == ContainerInput.PICKUP) {
             // Same real-click carried-item flash Rubix's own manual click path already guards against
             // (see #handleCustomGuiClick's matching comment) - a real PICKUP predicts the pickup locally
@@ -897,7 +920,21 @@ public final class TerminalSolverFeature {
         if (buttonRow < 0 || buttonRow >= melodyButtons.length) {
             return;
         }
+        if (scheduledMelodyClicks.isEmpty()) {
+            // Fake Cursor rests on the row being played, ready for its match.
+            FakeCursor.aim(screen, melodyButtons[buttonRow]);
+        }
         if (!melodyCurrentColumn.equals(melodyCorrectColumn)) {
+            return;
+        }
+        for (ScheduledMelodyClick queued : scheduledMelodyClicks) {
+            if (queued.row() == buttonRow) {
+                // A lookahead click for this row is already on its way (due within a tick or two): clicking it live too
+                // would click the row twice.
+                return;
+            }
+        }
+        if (!FakeCursor.ready(melodyButtons[buttonRow])) {
             return;
         }
         long now = System.currentTimeMillis();
@@ -911,7 +948,10 @@ public final class TerminalSolverFeature {
         }
         lastMelodyClickedRow = buttonRow;
         lastMelodyClickAtMs = now;
-        sendTerminalClick(screen, melodyButtons[buttonRow], 0, ContainerInput.CLONE);
+        melodyRowsClicked |= 1 << buttonRow;
+        if (sendTerminalClick(screen, melodyButtons[buttonRow], 0, ContainerInput.CLONE)) {
+            noteAutoClick(melodyButtons[buttonRow], now);
+        }
         queueMelodyLookaheadClicks(buttonRow);
     }
 
@@ -935,7 +975,7 @@ public final class TerminalSolverFeature {
      *  <p>Per killer560's explicit "add a skip on edges or skip on all section" request (2026-09-10):
      *  {@link TerminalSolverConfig.MelodySkipMode#EDGES} (default) only allows this burst at all when
      *  {@code matchedRow} is the first or the last row - the two physical ends of the track - and even
-     *  then stays capped at {@link TerminalSolverConfig#getMelodyLookaheadClicks}; a match on a middle row
+     *  then stays capped at {@link TerminalSolverConfig#getMelodyLookaheadClicks} extra rows; a match on a middle row
      *  just clicks live, one row at a time, no burst. {@link TerminalSolverConfig.MelodySkipMode#ALL}
      *  fires from a match at ANY row and - per killer560's explicit "click through the whole row anytime
      *  it gets a proper click" - ignores the lookahead count entirely, bursting every remaining row down
@@ -951,11 +991,12 @@ public final class TerminalSolverFeature {
             if (!isEdgeRow) {
                 return;
             }
+            // Lookahead N = the proper click plus N more rows (2026-10-26), so N is the extra row count itself.
             int lookahead = cfg.getMelodyLookaheadClicks();
-            if (lookahead <= 1) {
+            if (lookahead <= 0) {
                 return;
             }
-            extraRows = Math.min(lookahead - 1, lastRow - matchedRow);
+            extraRows = Math.min(lookahead, lastRow - matchedRow);
         }
         if (extraRows <= 0) {
             return;
@@ -973,10 +1014,15 @@ public final class TerminalSolverFeature {
         long now = System.currentTimeMillis();
         while (!scheduledMelodyClicks.isEmpty() && scheduledMelodyClicks.peekFirst().fireAtMs() <= now) {
             ScheduledMelodyClick due = scheduledMelodyClicks.peekFirst();
-            if (currentType != TerminalType.MELODY || due.row() < 0 || due.row() >= melodyButtons.length) {
+            if (currentType != TerminalType.MELODY || due.row() < 0 || due.row() >= melodyButtons.length
+                    || (melodyRowsClicked & (1 << due.row())) != 0) {
                 // Not an interaction, just housekeeping - drop it without asking the gate for a slot.
                 scheduledMelodyClicks.pollFirst();
                 continue;
+            }
+            FakeCursor.aim(screen, melodyButtons[due.row()]);
+            if (!FakeCursor.ready(melodyButtons[due.row()])) {
+                break;
             }
             // Mod-wide one-interaction-per-tick gate. This drain used to send EVERY click whose scheduled
             // time had passed in a single pass - the one place in this class that could put several
@@ -989,7 +1035,11 @@ public final class TerminalSolverFeature {
             scheduledMelodyClicks.pollFirst();
             lastMelodyClickedRow = due.row();
             lastMelodyClickAtMs = now;
-            sendTerminalClick(screen, melodyButtons[due.row()], 0, ContainerInput.CLONE);
+            melodyRowsClicked |= 1 << due.row();
+            melodyLookaheadFired++;
+            if (sendTerminalClick(screen, melodyButtons[due.row()], 0, ContainerInput.CLONE)) {
+                noteAutoClick(melodyButtons[due.row()], now);
+            }
             break; // one interaction per call - anything else still due fires on a later tick
         }
     }
@@ -1427,6 +1477,7 @@ public final class TerminalSolverFeature {
         if (targetSlot != null) {
             hoverMelodyCorrectColumn = targetSlot % 9 - 1;
         }
+        melodyLastLimeSlot = limeSlot == null ? -1 : limeSlot;
         if (limeSlot == null || hoverMelodyCorrectColumn == null) {
             return -1;
         }
@@ -1442,6 +1493,50 @@ public final class TerminalSolverFeature {
     }
 
     private static Integer hoverMelodyCorrectColumn;
+    /** The lime pane's slot the last time {@link #melodyMatchedButtonSlot} looked, or -1. */
+    static int melodyLastLimeSlot = -1;
+
+    private static long lastAutoClickAtMs;
+
+    /** An Auto Terminals click went out: Fake Cursor records where it was, Hide Mouse Cursor counts from now. */
+    private static void noteAutoClick(int slot, long now) {
+        lastAutoClickAtMs = now;
+        FakeCursor.clicked(slot);
+    }
+
+    /** @return whether Auto Terminals clicked within the last 3 s (Hide Mouse Cursor's window). */
+    static boolean autoClickedRecently(long now) {
+        return lastAutoClickAtMs > 0 && now - lastAutoClickAtMs <= 3000L;
+    }
+
+    /** Where {@code slotIndex} of the open terminal is DRAWN right now, in GUI units: {@code out[0]}/{@code out[1]} the
+     *  center, {@code out[2]} the drawn cell width. The Custom GUI panel when it is showing (the same layout its render
+     *  and click hit test use), the vanilla slot otherwise. Fake Cursor aims with it.
+     *  @return false when the slot cannot be placed (no layout yet, or out of range). */
+    static boolean slotCenterGui(AbstractContainerScreen<?> screen, int slotIndex, float[] out) {
+        if (isCustomGuiActive()) {
+            CustomGuiLayout layout = computeCustomGuiLayout(screen);
+            if (layout == null) {
+                return false;
+            }
+            int col = slotIndex % GRID_COLUMNS - layout.minCol();
+            int row = slotIndex / GRID_COLUMNS - layout.minRow();
+            out[0] = layout.originX() + (col * CELL_SIZE + SLOT_SIZE / 2f) * layout.scale();
+            out[1] = layout.originY() + (row * CELL_SIZE + SLOT_SIZE / 2f) * layout.scale();
+            out[2] = SLOT_SIZE * layout.scale();
+            return true;
+        }
+        List<Slot> slots = screen.getMenu().slots;
+        if (slotIndex < 0 || slotIndex >= slots.size()) {
+            return false;
+        }
+        AbstractContainerScreenAccessor acc = (AbstractContainerScreenAccessor) screen;
+        Slot slot = slots.get(slotIndex);
+        out[0] = acc.killer560smod$getLeftPos() + slot.x + 8f;
+        out[1] = acc.killer560smod$getTopPos() + slot.y + 8f;
+        out[2] = SLOT_SIZE;
+        return true;
+    }
 
     private record CustomGuiLayout(int originX, int originY, float scale, int panelWidth, int panelHeight, int minCol, int minRow) {
     }
