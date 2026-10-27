@@ -235,6 +235,13 @@ project CLAUDE.md. Compiling lessons
   1000 ms jump threshold never fixed it. Now the first reading of a track always sets the clock and any NEW reading (its
   LastUpdatedTime changed) more than 60 ms off corrects it; over 300 ms is logged. Measured on his PC: Spotify refreshes
   LastUpdatedTime about every 4.5 s even while paused (same position), and at once on a seek (130 ms later). Testkit 2840.
+- **"Nowhere near the right word" (2026-10-27) was not a clock or word-path regression.** `LyricTiming` is unchanged
+  since before the Spotify branches and the HUD's word call is the same expression moved into `SpotifyHud.sungWord`;
+  a 60 s simulation (testkit 2849) holds the clock within 6 ms and lights the right word on every frame with exact
+  readings, on the deployed code too. The song (High Forever remix) had shown NO lyrics before the version fix, and all
+  ten lrclib listings of it have line times only, so its words are an estimate. lrclib word timing is rare (1 of ~380
+  listings searched). The clock now takes a median of three readings and eases drift in (no backward word steps under
+  noisy readings), and the log says when lyrics are line-only.
 - **"Lyrics found are for another version" was a title spelling, not a version** (2026-10-26): Spotify says "High
   Forever - Marlon Hoffstadt Remix", lrclib lists "High Forever (Marlon Hoffstadt Remix)" eight times at 229-230 s, and
   the exact-title test refused all of them. `LyricsEngine.titleKey` normalizes both sides (dash vs brackets, feat.,
