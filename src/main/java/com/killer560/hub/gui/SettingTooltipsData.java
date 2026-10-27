@@ -11,6 +11,23 @@ final class SettingTooltipsData {
     }
 
     static void register(Map<String, String> d) {
+        d.put("secret clicked", "Draws a short box on each secret you collect; the box turns red when the chest was locked.");
+        d.put("locked chest sound", "Plays an anvil sound when the chest you clicked was locked.");
+        d.put("mute chest sounds", "In dungeons, silences chest open and close sounds.");
+        d.put("mute lever sounds", "In dungeons, silences lever click sounds.");
+        d.put("breaker charges", "Shows your Dungeon Breaker's charges as a HUD line in dungeons. Move it in the HUD editor.");
+        d.put("key spawn alert", "Shows a title and plays a sound when a Wither Key or Blood Key appears.");
+        d.put("pre-boss warning", "When the Watcher lets you pass, lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
+        d.put("crypt reminder", "Once the run clock passes the set time with fewer than 5 crypts, shows the crypt count. Outside the boss only, once a run.");
+        d.put("remind at", "The run time at which the Crypt Reminder checks your crypts.");
+        d.put("score warning/tell party", "Also sends the crypt count to party chat.");
+        d.put("warning sound", "Plays a sound with the Score Warning titles.");
+        d.put("ice spray alert", "Shows an \"Ice Spray Livid!\" title and a sound the moment Livid's opening invulnerability ends.");
+        d.put("hide wrong livids", "Stops drawing every Livid clone and its name tag once the real one is known. Render only: they stay hittable.");
+        d.put("livid solver/announce color", "Sends the real Livid's color to party chat once per answer (at most twice a run).");
+        d.put("low health alert", "Shows a title and plays a sound when a teammate's health turns red on the dungeon sidebar.");
+        d.put("low health alert/only while healer", "Alerts only while you are playing Healer.");
+        d.put("low health alert/alert sound", "Plays a sound with the low health title.");
         part1(d);
         part2(d);
         part3(d);

@@ -56,6 +56,10 @@ public final class LividSolverConfig {
     private ColourMode colourMode = ColourMode.MATCH;
     private int highlightColour = DEFAULT_CUSTOM_COLOUR;
     private int tracerColour = DEFAULT_CUSTOM_COLOUR;
+    // 2026-10-25 extras, all OFF: Hide Wrong Livids, the Ice Spray title, the party color announcement.
+    private boolean hideWrong = false;
+    private boolean iceSprayAlert = false;
+    private boolean announceColor = false;
 
     private LividSolverConfig() {
     }
@@ -89,6 +93,9 @@ public final class LividSolverConfig {
             cfg.colourMode = ConfigJson.getEnum(obj, "colourMode", ColourMode.class, ColourMode.MATCH);
             cfg.highlightColour = ConfigJson.getInt(obj, "highlightColour", DEFAULT_CUSTOM_COLOUR);
             cfg.tracerColour = ConfigJson.getInt(obj, "tracerColour", DEFAULT_CUSTOM_COLOUR);
+            cfg.hideWrong = ConfigJson.getBool(obj, "hideWrong", false);
+            cfg.iceSprayAlert = ConfigJson.getBool(obj, "iceSprayAlert", false);
+            cfg.announceColor = ConfigJson.getBool(obj, "announceColor", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new LividSolverConfig();
@@ -106,6 +113,9 @@ public final class LividSolverConfig {
             obj.addProperty("colourMode", colourMode.name());
             obj.addProperty("highlightColour", highlightColour);
             obj.addProperty("tracerColour", tracerColour);
+            obj.addProperty("hideWrong", hideWrong);
+            obj.addProperty("iceSprayAlert", iceSprayAlert);
+            obj.addProperty("announceColor", announceColor);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -171,6 +181,30 @@ public final class LividSolverConfig {
 
     public void setTracerColour(int argb) {
         this.tracerColour = argb;
+    }
+
+    public boolean isHideWrong() {
+        return hideWrong;
+    }
+
+    public void setHideWrong(boolean v) {
+        hideWrong = v;
+    }
+
+    public boolean isIceSprayAlert() {
+        return iceSprayAlert;
+    }
+
+    public void setIceSprayAlert(boolean v) {
+        iceSprayAlert = v;
+    }
+
+    public boolean isAnnounceColor() {
+        return announceColor;
+    }
+
+    public void setAnnounceColor(boolean v) {
+        announceColor = v;
     }
 
     private static float clampThickness(float v) {

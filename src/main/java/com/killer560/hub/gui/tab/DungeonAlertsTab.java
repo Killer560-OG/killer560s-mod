@@ -32,7 +32,7 @@ public class DungeonAlertsTab extends BaseTab {
     /** The card is ON while either alert is, OFF only when both are. */
     @Override
     public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Shadow Assassin Alert", "Room Alerts");
+        return switchRows(built, "Shadow Assassin Alert", "Room Alerts", "Key Spawn Alert");
     }
 
     @Override
@@ -82,6 +82,10 @@ public class DungeonAlertsTab extends BaseTab {
             });
             y[0] += 24;
         }
+
+        // --- Key Spawn Alert (2026-10-25) --- a title when a Wither or Blood Key appears; see KeySpawnAlert.
+        header(w, contentX, y, contentWidth, "Key Spawn Alert");
+        master(w, contentX, y, contentWidth, "Key Spawn Alert", cfg::isKeySpawnAlert, cfg::setKeySpawnAlert, requestRebuild);
 
         return w;
     }

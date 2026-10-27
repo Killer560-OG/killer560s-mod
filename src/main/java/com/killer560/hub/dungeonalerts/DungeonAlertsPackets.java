@@ -25,6 +25,15 @@ public final class DungeonAlertsPackets {
         guard("border", ShadowAssassinAlert::onInitializeBorder);
     }
 
+    /** True to cancel this sound packet (Mute Chest/Lever Sounds). */
+    public static boolean muteSound(ClientboundSoundPacket packet) {
+        try {
+            return SecretClicked.shouldMute(packet);
+        } catch (RuntimeException e) {
+            return false; // never let a sound packet throw on the packet path
+        }
+    }
+
     public static void onSound(ClientboundSoundPacket packet) {
         guard("sound/secret", SecretSound::onSoundPacket, packet);
         guard("sound/springboots", SpringBootsOverlay::onSoundPacket, packet);

@@ -80,6 +80,14 @@ public final class ScoreCalculatorConfig {
     private String party300Message = "300 Score!";
     private boolean chatNote = false;
     private boolean alertSound = true;
+    // Score Warning (2026-10-25, its own tab): the pre-boss warning and the crypt reminder, both OFF.
+    public static final int MIN_CRYPT_REMINDER_SECONDS = 30;
+    public static final int MAX_CRYPT_REMINDER_SECONDS = 600;
+    private boolean preBossWarning = false;
+    private boolean cryptReminder = false;
+    private int cryptReminderSeconds = 180;
+    private boolean cryptReminderParty = false;
+    private boolean scoreWarningSound = true;
     // Bonus-kill party alerts (moved from DungeonInfoConfig 2026-09-21 - see class doc). Same default
     // messages as before the move; detection stays in ScoreCalculatorFeature (self-kill only - a kill
     // another mod already announced in party chat is never re-announced, same as before the move).
@@ -133,6 +141,11 @@ public final class ScoreCalculatorConfig {
                 cfg.party300Message = ConfigJson.getString(obj, "party300Message", cfg.party300Message);
                 cfg.chatNote = ConfigJson.getBool(obj, "chatNote", cfg.chatNote);
                 cfg.alertSound = ConfigJson.getBool(obj, "alertSound", cfg.alertSound);
+                cfg.preBossWarning = ConfigJson.getBool(obj, "preBossWarning", cfg.preBossWarning);
+                cfg.cryptReminder = ConfigJson.getBool(obj, "cryptReminder", cfg.cryptReminder);
+                cfg.setCryptReminderSeconds(ConfigJson.getInt(obj, "cryptReminderSeconds", cfg.cryptReminderSeconds));
+                cfg.cryptReminderParty = ConfigJson.getBool(obj, "cryptReminderParty", cfg.cryptReminderParty);
+                cfg.scoreWarningSound = ConfigJson.getBool(obj, "scoreWarningSound", cfg.scoreWarningSound);
                 cfg.mimicAlertEnabled = ConfigJson.getBool(obj, "mimicAlertEnabled", cfg.mimicAlertEnabled);
                 cfg.mimicAlertMessage = ConfigJson.getString(obj, "mimicAlertMessage", cfg.mimicAlertMessage);
                 cfg.princeAlertEnabled = ConfigJson.getBool(obj, "princeAlertEnabled", cfg.princeAlertEnabled);
@@ -208,6 +221,11 @@ public final class ScoreCalculatorConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
+            obj.addProperty("preBossWarning", preBossWarning);
+            obj.addProperty("cryptReminder", cryptReminder);
+            obj.addProperty("cryptReminderSeconds", cryptReminderSeconds);
+            obj.addProperty("cryptReminderParty", cryptReminderParty);
+            obj.addProperty("scoreWarningSound", scoreWarningSound);
             obj.addProperty("showBreakdown", showBreakdown);
             obj.addProperty("showSecretsNeeded", showSecretsNeeded);
             obj.addProperty("showCrypts", showCrypts);
@@ -409,6 +427,46 @@ public final class ScoreCalculatorConfig {
 
     public void setChatNote(boolean v) {
         chatNote = v;
+    }
+
+    public boolean isPreBossWarning() {
+        return preBossWarning;
+    }
+
+    public void setPreBossWarning(boolean v) {
+        preBossWarning = v;
+    }
+
+    public boolean isCryptReminder() {
+        return cryptReminder;
+    }
+
+    public void setCryptReminder(boolean v) {
+        cryptReminder = v;
+    }
+
+    public int getCryptReminderSeconds() {
+        return cryptReminderSeconds;
+    }
+
+    public void setCryptReminderSeconds(int v) {
+        cryptReminderSeconds = Math.max(MIN_CRYPT_REMINDER_SECONDS, Math.min(MAX_CRYPT_REMINDER_SECONDS, v));
+    }
+
+    public boolean isCryptReminderParty() {
+        return cryptReminderParty;
+    }
+
+    public void setCryptReminderParty(boolean v) {
+        cryptReminderParty = v;
+    }
+
+    public boolean isScoreWarningSound() {
+        return scoreWarningSound;
+    }
+
+    public void setScoreWarningSound(boolean v) {
+        scoreWarningSound = v;
     }
 
     public boolean isAlertSound() {

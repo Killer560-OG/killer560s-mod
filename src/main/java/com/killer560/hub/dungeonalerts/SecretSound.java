@@ -107,7 +107,7 @@ public final class SecretSound {
     }
 
     private static void onInteract(BlockPos pos) {
-        if (!DungeonAlertsConfig.getInstance().secretSoundEnabled || !DungeonState.isInDungeon() || !com.killer560.hub.util.SkyblockGate.allows()) {
+        if (!detecting() || !DungeonState.isInDungeon() || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         long now = System.currentTimeMillis();
@@ -146,7 +146,7 @@ public final class SecretSound {
     }
 
     static void onSoundPacket(ClientboundSoundPacket packet) {
-        if (!DungeonAlertsConfig.getInstance().secretSoundEnabled || !DungeonState.isInDungeon() || DungeonAlertsFeature.inBoss()) {
+        if (!detecting() || !DungeonState.isInDungeon() || DungeonAlertsFeature.inBoss()) {
             return;
         }
         if (packet.getSound().value() != SoundEvents.BAT_DEATH) {
@@ -156,14 +156,14 @@ public final class SecretSound {
     }
 
     static void onTakeItem(ClientboundTakeItemEntityPacket packet, ClientLevel level) {
-        if (!DungeonAlertsConfig.getInstance().secretSoundEnabled || level == null || !DungeonState.isInDungeon()) {
+        if (!detecting() || level == null || !DungeonState.isInDungeon()) {
             return;
         }
         checkItemEntity(level.getEntity(packet.getItemId()));
     }
 
     static void onRemoveEntities(ClientboundRemoveEntitiesPacket packet, ClientLevel level) {
-        if (!DungeonAlertsConfig.getInstance().secretSoundEnabled || level == null || !DungeonState.isInDungeon()) {
+        if (!detecting() || level == null || !DungeonState.isInDungeon()) {
             return;
         }
         packet.getEntityIds().forEach(id -> checkItemEntity(level.getEntity(id)));
@@ -187,7 +187,16 @@ public final class SecretSound {
         onSecret(SecretType.ITEM, item.blockPosition());
     }
 
+    /** The detections run for Secret Sound or for Secret Clicked's boxes. */
+    private static boolean detecting() {
+        return DungeonAlertsConfig.getInstance().secretSoundEnabled || SecretClicked.wanted();
+    }
+
     private static void onSecret(SecretType type, BlockPos pos) {
+        SecretClicked.onSecret(pos);
+        if (!DungeonAlertsConfig.getInstance().secretSoundEnabled) {
+            return;
+        }
         long now = System.currentTimeMillis();
         if (type == SecretType.ITEM && now - lastChestMs < 2000) {
             return;

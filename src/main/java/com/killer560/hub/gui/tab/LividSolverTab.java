@@ -45,6 +45,18 @@ public class LividSolverTab extends BaseTab {
                 null, contentX, y, contentWidth, 18));
         y += 24;
 
+        widgets.add(onOffButton("Ice Spray Alert", cfg::isIceSprayAlert, cfg::setIceSprayAlert, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 24;
+
+        widgets.add(onOffButton("Hide Wrong Livids", cfg::isHideWrong, cfg::setHideWrong, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 24;
+
+        widgets.add(onOffButton("Announce Color", cfg::isAnnounceColor, cfg::setAnnounceColor, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 24;
+
         widgets.add(onOffButton("Draw Line To Livid", cfg::isShowLine, cfg::setShowLine, cfg::save,
                 null, contentX, y, contentWidth, 18));
 

@@ -125,3 +125,6 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
 - `IslandDetector.graphIsland()` is null off any known island (sim, lobby, singleplayer), and `Set.of(...).contains(null)`
   throws. MiningProfitTracker (shelved since 2026-10-07) did that every tick once trackers went on by default; null-check
   before any `Set.of` lookup.
+- **Match a sound packet's sound by id, not by object.** A `ClientboundSoundPacket` whose holder was sent inline (a direct
+  holder, which is what the testkit's Hx `sound` sends) decodes to a NEW `SoundEvent`, so `value() == SoundEvents.CHEST_OPEN`
+  is false for it. Mute Chest/Lever Sounds compares `value().location()` (2026-10-25); Spring Boots already did.

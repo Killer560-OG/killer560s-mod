@@ -87,6 +87,20 @@ public final class DungeonAlertsConfig {
     public static final int DEFAULT_ROOM_ALERT_COLOR = com.killer560.hub.util.ModChat.LIGHT_ORANGE;
     public static final int DEFAULT_SHADOW_ASSASSIN_COLOR = 0xAA44FF;
 
+    // Teammate Low Health Alert (2026-10-25, SkyHanni LowHealthAlert): OFF; Healer-only and the sound default ON.
+    private boolean lowHealthEnabled = false;
+    private boolean lowHealthOnlyHealer = true;
+    private boolean lowHealthSound = true;
+    // Secret Clicked and the sound mutes (2026-10-25), all OFF; the locked-chest sound defaults ON.
+    private boolean secretClickedEnabled = false;
+    private boolean secretClickedLockedSound = true;
+    private boolean muteChestSounds = false;
+    private boolean muteLeverSounds = false;
+    // Key Spawn Alert (2026-10-25, Odin DoorHighlight's "Wither Key spawned!"): OFF.
+    private boolean keySpawnAlert = false;
+    // Breaker Charges HUD (2026-10-25): OFF.
+    private boolean breakerChargesHud = false;
+
     private DungeonAlertsConfig() {
     }
 
@@ -122,6 +136,15 @@ public final class DungeonAlertsConfig {
                 cfg.roomAlertsClearedColor = ConfigJson.getInt(o, "roomAlertsClearedColor", cfg.roomAlertsClearedColor) & 0xFFFFFF;
                 cfg.roomAlertsSecretsColor = ConfigJson.getInt(o, "roomAlertsSecretsColor", cfg.roomAlertsSecretsColor) & 0xFFFFFF;
                 cfg.shadowAssassinColor = ConfigJson.getInt(o, "shadowAssassinColor", cfg.shadowAssassinColor) & 0xFFFFFF;
+                cfg.lowHealthEnabled = bool(o, "lowHealthEnabled", cfg.lowHealthEnabled);
+                cfg.lowHealthOnlyHealer = bool(o, "lowHealthOnlyHealer", cfg.lowHealthOnlyHealer);
+                cfg.lowHealthSound = bool(o, "lowHealthSound", cfg.lowHealthSound);
+                cfg.secretClickedEnabled = bool(o, "secretClickedEnabled", cfg.secretClickedEnabled);
+                cfg.secretClickedLockedSound = bool(o, "secretClickedLockedSound", cfg.secretClickedLockedSound);
+                cfg.muteChestSounds = bool(o, "muteChestSounds", cfg.muteChestSounds);
+                cfg.muteLeverSounds = bool(o, "muteLeverSounds", cfg.muteLeverSounds);
+                cfg.keySpawnAlert = bool(o, "keySpawnAlert", cfg.keySpawnAlert);
+                cfg.breakerChargesHud = bool(o, "breakerChargesHud", cfg.breakerChargesHud);
                 cfg.roomAlertsDisplaySeconds = clamp(flt(o, "roomAlertsDisplaySeconds", cfg.roomAlertsDisplaySeconds), 0.5f, 3.0f);
                 // A "Dungeon Alerts as a whole" switch (2026-10-13) sat over both alerts and is gone (2026-10-15): they
                 // are independent. A file saved with it OFF had both standing down, so they load OFF; saved ON (or
@@ -162,6 +185,15 @@ public final class DungeonAlertsConfig {
             o.addProperty("roomAlertsSecretsColor", roomAlertsSecretsColor);
             o.addProperty("shadowAssassinColor", shadowAssassinColor);
             o.addProperty("roomAlertsDisplaySeconds", roomAlertsDisplaySeconds);
+            o.addProperty("lowHealthEnabled", lowHealthEnabled);
+            o.addProperty("lowHealthOnlyHealer", lowHealthOnlyHealer);
+            o.addProperty("lowHealthSound", lowHealthSound);
+            o.addProperty("secretClickedEnabled", secretClickedEnabled);
+            o.addProperty("secretClickedLockedSound", secretClickedLockedSound);
+            o.addProperty("muteChestSounds", muteChestSounds);
+            o.addProperty("muteLeverSounds", muteLeverSounds);
+            o.addProperty("keySpawnAlert", keySpawnAlert);
+            o.addProperty("breakerChargesHud", breakerChargesHud);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception e) {
             LOGGER.warn("[DungeonAlerts] Failed to save config", e);
@@ -171,6 +203,78 @@ public final class DungeonAlertsConfig {
     /** Shadow Assassin Alert's switch. */
     public boolean shadowAssassinOn() {
         return shadowAssassinEnabled;
+    }
+
+    public boolean isLowHealthEnabled() {
+        return lowHealthEnabled;
+    }
+
+    public void setLowHealthEnabled(boolean v) {
+        lowHealthEnabled = v;
+    }
+
+    public boolean isLowHealthOnlyHealer() {
+        return lowHealthOnlyHealer;
+    }
+
+    public void setLowHealthOnlyHealer(boolean v) {
+        lowHealthOnlyHealer = v;
+    }
+
+    public boolean isLowHealthSound() {
+        return lowHealthSound;
+    }
+
+    public void setLowHealthSound(boolean v) {
+        lowHealthSound = v;
+    }
+
+    public boolean isSecretClickedEnabled() {
+        return secretClickedEnabled;
+    }
+
+    public void setSecretClickedEnabled(boolean v) {
+        secretClickedEnabled = v;
+    }
+
+    public boolean isSecretClickedLockedSound() {
+        return secretClickedLockedSound;
+    }
+
+    public void setSecretClickedLockedSound(boolean v) {
+        secretClickedLockedSound = v;
+    }
+
+    public boolean isMuteChestSounds() {
+        return muteChestSounds;
+    }
+
+    public void setMuteChestSounds(boolean v) {
+        muteChestSounds = v;
+    }
+
+    public boolean isMuteLeverSounds() {
+        return muteLeverSounds;
+    }
+
+    public void setMuteLeverSounds(boolean v) {
+        muteLeverSounds = v;
+    }
+
+    public boolean isKeySpawnAlert() {
+        return keySpawnAlert;
+    }
+
+    public void setKeySpawnAlert(boolean v) {
+        keySpawnAlert = v;
+    }
+
+    public boolean isBreakerChargesHud() {
+        return breakerChargesHud;
+    }
+
+    public void setBreakerChargesHud(boolean v) {
+        breakerChargesHud = v;
     }
 
     /** Room Alerts' switch. */

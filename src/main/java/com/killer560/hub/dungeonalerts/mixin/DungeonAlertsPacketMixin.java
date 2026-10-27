@@ -33,6 +33,15 @@ public abstract class DungeonAlertsPacketMixin {
         DungeonAlertsPackets.onSound(packet);
     }
 
+    /** Mute Chest/Lever Sounds: the one hook here that cancels - only a chest or lever sound, only with its mute on. */
+    @Inject(method = "handleSoundEvent", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER),
+            cancellable = true, require = 0)
+    private void killer560smod$dungeonAlerts$muteSound(ClientboundSoundPacket packet, CallbackInfo ci) {
+        if (DungeonAlertsPackets.muteSound(packet)) {
+            ci.cancel();
+        }
+    }
+
     @Inject(method = "handleTakeItemEntity", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER), require = 0)
     private void killer560smod$dungeonAlerts$onTakeItem(ClientboundTakeItemEntityPacket packet, CallbackInfo ci) {
         DungeonAlertsPackets.onTakeItem(packet, ((ClientPacketListener) (Object) this).getLevel());
