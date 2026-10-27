@@ -2134,12 +2134,36 @@ public final class ClearExecutor {
         if (hopSendTicks.size() > 200) {
             hopSendTicks.remove(0);
         }
-        if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
-            invoker.killer560smod$invokeStartPrediction(client.level,
-                    sequence -> new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch));
-        } else {
-            client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+        // Zero Ping Etherwarp's Works For: whose trip this hop is.
+        com.killer560.hub.zpew.ZpewSource zpew = com.killer560.hub.zpew.ZeroPingEtherwarp.sending(hopSource());
+        try {
+            if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
+                invoker.killer560smod$invokeStartPrediction(client.level,
+                        sequence -> new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch));
+            } else {
+                client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+            }
+        } finally {
+            com.killer560.hub.zpew.ZeroPingEtherwarp.done(zpew);
         }
+    }
+
+    /**
+     * Which feature this hop's trip belongs to, for Zero Ping Etherwarp's Works For list: the etherwarp hopper's own
+     * nodes, then Auto Secret / Dungeon Autopilot while either runs, then Auto Clear while it runs, else the Interactive
+     * Map (its presses, Go + Secret, Auto Blood Rush, Auto Routes' Go To and start-node trips, puzzle walk-ins).
+     */
+    static com.killer560.hub.zpew.ZpewSource hopSource() {
+        if (com.killer560.hub.pathfinding.EtherwarpHopper.owns(activeNode)) {
+            return com.killer560.hub.zpew.ZpewSource.PATHFINDING;
+        }
+        if (com.killer560.hub.autosecret.AutoSecretFeature.isRunning()) {
+            return com.killer560.hub.zpew.ZpewSource.AUTO_SECRET;
+        }
+        if (com.killer560.hub.autoclear.AutoClearFeature.isBusy()) {
+            return com.killer560.hub.zpew.ZpewSource.AUTO_CLEAR;
+        }
+        return com.killer560.hub.zpew.ZpewSource.INTERACTIVE_MAP;
     }
 
     /** The client tick (this class's own count) each hop's use packet went out on, newest last - the testkit measures

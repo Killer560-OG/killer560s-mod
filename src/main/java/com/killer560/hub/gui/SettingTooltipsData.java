@@ -1446,6 +1446,15 @@ final class SettingTooltipsData {
                 + " An ordinary doorway leaves your camera as it was.");
         d.put("keep chunks loaded", "Cheat build: holds onto unloaded chunks so pathing can still route through rooms you left.");
         d.put("interactive map/ticks between etherwarps", "Cheat build: client ticks from one etherwarp of a map path to the next; 1 warps every tick.");
+        d.put("zero ping etherwarp/manual etherwarps", "Predicts the etherwarps you use yourself (your own right click).");
+        d.put("zero ping etherwarp/left click etherwarp", "Cheat build: predicts Left Click Etherwarp's warps.");
+        d.put("zero ping etherwarp/auto routes", "Cheat build: predicts Auto Routes' etherwarp nodes, path hops and chains. The camera only; Zero Ping Chain in Auto Routes is separate.");
+        d.put("zero ping etherwarp/interactive map", "Cheat build: predicts the Interactive Map's warps: map presses, Go + Secret, Auto Blood Rush and Auto Routes' Go To.");
+        d.put("zero ping etherwarp/auto secret / autopilot", "Cheat build: predicts the warps of Auto Secret and Dungeon Autopilot trips.");
+        d.put("zero ping etherwarp/auto clear", "Cheat build: predicts Auto Clear's etherwarp trips.");
+        d.put("zero ping etherwarp/auto puzzles", "Cheat build: predicts Auto Puzzles' etherwarps (Ice Path's Etherwarp Reposition and the like).");
+        d.put("zero ping etherwarp/ap3", "Cheat build: predicts an AP3 use node's warp when it holds an etherwarp item.");
+        d.put("zero ping etherwarp/pathfinding hopper", "Cheat build: predicts the etherwarp hopper's warps (Auto Fairy Souls).");
         d.put("path timeout", "Cheat build: how long the pathfinder may search before giving up, 200-1000 ms.");
         d.put("retarget mid-path", "Cheat build: pressing another room or door mid-path re-plans to the new goal.");
         d.put("double-press secrets", "Cheat build: pressing the Start Key twice quickly paths to the room's Auto Routes start node.");

@@ -5973,10 +5973,13 @@ public final class RouteExecutor {
                             boolean blockInteraction) {
         // The route's own use: the send tap must not take it for his right click (onUseSent), even with his button down.
         routeUsing = true;
+        // Zero Ping Etherwarp's Works For: this use is Auto Routes'.
+        com.killer560.hub.zpew.ZpewSource zpew = com.killer560.hub.zpew.ZeroPingEtherwarp.sending(com.killer560.hub.zpew.ZpewSource.AUTO_ROUTES);
         try {
             sendHeldItemUse(client, player, targetYaw, targetPitch, blockInteraction);
         } finally {
             routeUsing = false;
+            com.killer560.hub.zpew.ZeroPingEtherwarp.done(zpew);
         }
     }
 

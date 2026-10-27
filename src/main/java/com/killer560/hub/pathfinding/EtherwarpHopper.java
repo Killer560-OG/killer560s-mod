@@ -89,6 +89,11 @@ public final class EtherwarpHopper {
         return planning || ClearExecutor.isBusy();
     }
 
+    /** Whether {@code node} is one of this hopper's own hops (Zero Ping Etherwarp's Works For asks). */
+    public static boolean owns(ClearNode node) {
+        return node instanceof PathEtherNode;
+    }
+
     public static Vec3 expectedLanding() {
         return expectedLanding;
     }

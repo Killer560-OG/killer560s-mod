@@ -46,6 +46,10 @@ import java.util.Locale;
  * and every pending prediction is dropped - the camera is where he really is on the next frame. A prediction with no
  * answer after the timeout is dropped the same way.
  *
+ * <p><b>Works For</b> (2026-10-27): every sender of an etherwarp marks its use with {@link #sending} around the send, and
+ * a use is predicted only when its {@link ZpewSource}'s switch is on (an unmarked use is {@link ZpewSource#MANUAL}). The
+ * master switch still turns all of it off.
+ *
  * <p>Everything is logged (logger killer560smod-zpew): every use seen and why it was or was not predicted, every
  * prediction, every server answer with its error and latency, every drop.
  */
@@ -56,8 +60,17 @@ public final class ZeroPingEtherwarp {
     /** A server teleport within this of the predicted landing is the warp we predicted. */
     public static final double MATCH_BLOCKS = 1.0;
 
-    private record Prediction(long sentMs, long sentTick, Vec3 from, Vec3 landing, BlockPos block, float yaw, float pitch) {
+    private record Prediction(long sentMs, long sentTick, Vec3 from, Vec3 landing, BlockPos block, float yaw, float pitch,
+                              ZpewSource source) {
     }
+
+    /** The sender marking the use packets it sends right now (render thread only), or null: the player's own click. */
+    private static ZpewSource current;
+    /** Per source: uses seen with an etherwarp item, predictions made, server hits, and uses skipped by Works For. */
+    private static final long[] SEEN = new long[ZpewSource.values().length];
+    private static final long[] PREDICTED = new long[ZpewSource.values().length];
+    private static final long[] HIT = new long[ZpewSource.values().length];
+    private static final long[] SKIPPED = new long[ZpewSource.values().length];
 
     private static final ArrayDeque<Prediction> PENDING = new ArrayDeque<>();
     private static long clientTick;
@@ -97,6 +110,21 @@ public final class ZeroPingEtherwarp {
         return ZeroPingEtherwarpConfig.getInstance().isEnabled();
     }
 
+    /**
+     * Marks every use packet sent until {@link #done} as {@code source}'s. Call it around the send, in a try/finally:
+     * {@code ZpewSource prev = ZeroPingEtherwarp.sending(ZpewSource.AUTO_ROUTES); try { ...send... } finally {
+     * ZeroPingEtherwarp.done(prev); }}. Nests (the previous marker comes back).
+     */
+    public static ZpewSource sending(ZpewSource source) {
+        ZpewSource prev = current;
+        current = source;
+        return prev;
+    }
+
+    public static void done(ZpewSource previous) {
+        current = previous;
+    }
+
     // ---- outbound ---------------------------------------------------------------------------------------------
 
     /** {@code mixin/ZpewSendMixin}: every packet this client makes, read-only, render thread. */
@@ -126,6 +154,13 @@ public final class ZeroPingEtherwarp {
             return;
         }
         usesSeen++;
+        ZpewSource source = current == null ? ZpewSource.MANUAL : current;
+        SEEN[source.ordinal()]++;
+        if (!ZeroPingEtherwarpConfig.getInstance().worksFor(source)) {
+            SKIPPED[source.ordinal()]++;
+            LOGGER.info("[ZPEW] etherwarp use by {} - not predicted (Works For: {} is off)", source.label(), source.label());
+            return;
+        }
         boolean sneaking = player.getLastSentInput().shift();
         if (!sneaking) {
             LOGGER.info("[ZPEW] etherwarp item used without the server having sneak (Instant Transmission) - not predicted");
@@ -151,13 +186,14 @@ public final class ZeroPingEtherwarp {
         Vec3 landing = new Vec3(shot.pos().getX() + 0.5, standY + 0.05, shot.pos().getZ() + 0.5);
         int depth;
         synchronized (PENDING) {
-            PENDING.addLast(new Prediction(System.currentTimeMillis(), clientTick, from, landing, shot.pos(), yaw, pitch));
+            PENDING.addLast(new Prediction(System.currentTimeMillis(), clientTick, from, landing, shot.pos(), yaw, pitch, source));
             depth = PENDING.size();
         }
         predictions++;
+        PREDICTED[source.ordinal()]++;
         maxChained = Math.max(maxChained, depth);
-        LOGGER.info(String.format(Locale.ROOT, "[ZPEW] predicted #%d: from %s%s yaw %.2f pitch %.2f -> block %s, land %s "
-                        + "(%.1f blocks); %d pending, tick %d", predictions, fmt(from), chained ? " (chained)" : "",
+        LOGGER.info(String.format(Locale.ROOT, "[ZPEW] predicted #%d (%s): from %s%s yaw %.2f pitch %.2f -> block %s, land %s "
+                        + "(%.1f blocks); %d pending, tick %d", predictions, source.label(), fmt(from), chained ? " (chained)" : "",
                 Mth.wrapDegrees(yaw), pitch, shot.pos().toShortString(), fmt(landing), from.distanceTo(landing), depth,
                 clientTick));
     }
@@ -197,6 +233,7 @@ public final class ZeroPingEtherwarp {
                 PENDING.removeFirst();
                 left = PENDING.size();
                 hits++;
+                HIT[head.source().ordinal()]++;
                 lastErrorBlocks = err;
                 lastLatencyMs = latency;
                 lastMatchedLanding = to;
@@ -325,6 +362,23 @@ public final class ZeroPingEtherwarp {
 
     public static long lastLatencyMs() {
         return lastLatencyMs;
+    }
+
+    /** Per-source counters by {@link ZpewSource} name, for the testkit: uses seen, predicted, hit, skipped by Works For. */
+    public static long seenBy(String source) {
+        return SEEN[ZpewSource.valueOf(source).ordinal()];
+    }
+
+    public static long predictedBy(String source) {
+        return PREDICTED[ZpewSource.valueOf(source).ordinal()];
+    }
+
+    public static long hitsBy(String source) {
+        return HIT[ZpewSource.valueOf(source).ordinal()];
+    }
+
+    public static long skippedBy(String source) {
+        return SKIPPED[ZpewSource.valueOf(source).ordinal()];
     }
 
     public static int maxChained() {

@@ -218,7 +218,12 @@ public final class AutoPuzzleUtil {
         LOGGER.info("[PuzzleUtil] use sent: item={} yaw={} pitch={} (was {}/{}) from {} sneaking={} tick={}",
                 heldName(player), fmt2(yaw), fmt2(pitch), fmt2(realYaw), fmt2(realPitch), fmt3(player.position()),
                 player.isShiftKeyDown(), logTick());
-        client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+        com.killer560.hub.zpew.ZpewSource zpew = com.killer560.hub.zpew.ZeroPingEtherwarp.sending(com.killer560.hub.zpew.ZpewSource.AUTO_PUZZLES);
+        try {
+            client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+        } finally {
+            com.killer560.hub.zpew.ZeroPingEtherwarp.done(zpew);
+        }
         return true;
     }
 

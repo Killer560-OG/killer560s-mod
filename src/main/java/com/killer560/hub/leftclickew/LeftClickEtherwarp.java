@@ -165,7 +165,12 @@ public final class LeftClickEtherwarp {
                         + "look %.2f / %.2f, from %.2f %.2f %.2f, %s held", warps, clientTick, waited, why,
                 Mth.wrapDegrees(player.getYRot()), player.getXRot(), player.getX(), player.getY(), player.getZ(),
                 ItemIdentity.skyblockId(player.getMainHandItem())));
-        ((LeftClickUseInvoker) mc).killer560smod$startUseItem();
+        com.killer560.hub.zpew.ZpewSource zpew = com.killer560.hub.zpew.ZeroPingEtherwarp.sending(com.killer560.hub.zpew.ZpewSource.LEFT_CLICK);
+        try {
+            ((LeftClickUseInvoker) mc).killer560smod$startUseItem();
+        } finally {
+            com.killer560.hub.zpew.ZeroPingEtherwarp.done(zpew);
+        }
     }
 
     private static void drop(String why) {

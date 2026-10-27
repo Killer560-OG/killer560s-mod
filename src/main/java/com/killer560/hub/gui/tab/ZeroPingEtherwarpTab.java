@@ -75,7 +75,42 @@ public class ZeroPingEtherwarpTab extends BaseTab {
                 saveOnRelease(() -> cfg.save());
             }
         });
+        y += ROW + 6;
+        // Works For (killer560, 2026-10-27: "make an option like things that zpew works for with a list of everything"):
+        // one switch per sender of an etherwarp. The legit ones here, the cheat ones under the red header at the bottom.
+        w.add(SectionHeaders.row(contentX, y, contentWidth, "Works For", false));
+        y += 16;
+        y = sourceRows(w, cfg, contentX, y, contentWidth, false);
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            y += 6;
+            w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Works For", true));
+            y += 16;
+            sourceRows(w, cfg, contentX, y, contentWidth, true);
+        }
         return w;
+    }
+
+    /** The Works For switches of one kind, two to a row. @return the y under them */
+    private static int sourceRows(List<AbstractWidget> w, ZeroPingEtherwarpConfig cfg, int x, int y, int width,
+                                  boolean cheat) {
+        int gap = 8;
+        int colW = (width - gap) / 2;
+        int col = 0;
+        for (com.killer560.hub.zpew.ZpewSource s : com.killer560.hub.zpew.ZpewSource.values()) {
+            if (s.cheatOnly() != cheat) {
+                continue;
+            }
+            w.add(SettingsButtonWidget.builder(onOff(s.label(), cfg.getWorksForSetting(s)), btn -> {
+                        cfg.setWorksFor(s, !cfg.getWorksForSetting(s));
+                        cfg.save();
+                        btn.setMessage(onOff(s.label(), cfg.getWorksForSetting(s)));
+                    }).bounds(x + col * (colW + gap), y, colW, ROW).build());
+            if (++col == 2) {
+                col = 0;
+                y += ROW + 2;
+            }
+        }
+        return col == 0 ? y : y + ROW + 2;
     }
 
     private static Component timeoutText(ZeroPingEtherwarpConfig cfg) {

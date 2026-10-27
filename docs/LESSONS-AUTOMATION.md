@@ -364,3 +364,7 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
 - A feature drives Charge through `BlinkCharge.beginFor(owner, n)` / `shootFor(owner, n)` / `endFor` (AP3's Blink nodes):
   the key is ignored while an owner holds it, `cap()` is the owner's n, and a partial shot leaves the rest banked. The shot
   runs at Blink's START with the input a driver installed at the END before, which is how AP3's release fires along its walk.
+- Zero Ping Etherwarp's Works For (2026-10-27) knows a warp's sender only by the marker set around its send:
+  `ZpewSource prev = ZeroPingEtherwarp.sending(ZpewSource.X); try { send } finally { ZeroPingEtherwarp.done(prev); }`.
+  A new feature that sends an etherwarp use without it is counted as Manual Etherwarps. The map's executor
+  (`ClearExecutor.hopSource`) picks Pathfinding, Auto Secret, Auto Clear or Interactive Map from who is running.

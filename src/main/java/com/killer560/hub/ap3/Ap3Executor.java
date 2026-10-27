@@ -1710,9 +1710,15 @@ public final class Ap3Executor {
             default -> {
                 // USE: a block under the ray gets useItemOn at the real hit (a lever, a chest); nothing under it gets a
                 // plain useItem (a wand or a pearl at the sky).
-                net.minecraft.world.InteractionResult r = b != null
-                        ? client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, b)
-                        : client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+                net.minecraft.world.InteractionResult r;
+                com.killer560.hub.zpew.ZpewSource zpew = com.killer560.hub.zpew.ZeroPingEtherwarp.sending(com.killer560.hub.zpew.ZpewSource.AP3);
+                try {
+                    r = b != null
+                            ? client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, b)
+                            : client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+                } finally {
+                    com.killer560.hub.zpew.ZeroPingEtherwarp.done(zpew);
+                }
                 if (r.consumesAction()) {
                     player.swing(InteractionHand.MAIN_HAND);
                 }

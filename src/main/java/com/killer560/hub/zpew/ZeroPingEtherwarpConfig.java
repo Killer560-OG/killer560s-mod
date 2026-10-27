@@ -29,6 +29,15 @@ public final class ZeroPingEtherwarpConfig {
     private boolean chain = true;
     /** The Etherwarp Overlay highlights from the predicted landing while a warp is pending. */
     private boolean overlayFromPrediction = true;
+    /** Works For: which senders' etherwarps are predicted (see {@link ZpewSource}). All on by default - before the list
+     *  existed every etherwarp use was predicted, whoever sent it. Saved as {"worksFor": {"MANUAL": true, ...}}. */
+    private final java.util.EnumMap<ZpewSource, Boolean> worksFor = new java.util.EnumMap<>(ZpewSource.class);
+
+    {
+        for (ZpewSource s : ZpewSource.values()) {
+            worksFor.put(s, true);
+        }
+    }
 
     private ZeroPingEtherwarpConfig() {
     }
@@ -49,6 +58,12 @@ public final class ZeroPingEtherwarpConfig {
                 cfg.setTimeoutMs(ConfigJson.getInt(obj, "timeoutMs", cfg.timeoutMs));
                 cfg.chain = ConfigJson.getBool(obj, "chain", cfg.chain);
                 cfg.overlayFromPrediction = ConfigJson.getBool(obj, "overlayFromPrediction", cfg.overlayFromPrediction);
+                if (obj.has("worksFor") && obj.get("worksFor").isJsonObject()) {
+                    JsonObject wf = obj.getAsJsonObject("worksFor");
+                    for (ZpewSource s : ZpewSource.values()) {
+                        cfg.worksFor.put(s, ConfigJson.getBool(wf, s.name(), true));
+                    }
+                }
             } catch (Exception e) {
                 cfg = new ZeroPingEtherwarpConfig();
             }
@@ -64,6 +79,11 @@ public final class ZeroPingEtherwarpConfig {
             obj.addProperty("timeoutMs", timeoutMs);
             obj.addProperty("chain", chain);
             obj.addProperty("overlayFromPrediction", overlayFromPrediction);
+            JsonObject wf = new JsonObject();
+            for (ZpewSource s : ZpewSource.values()) {
+                wf.addProperty(s.name(), worksFor.get(s));
+            }
+            obj.add("worksFor", wf);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -99,5 +119,31 @@ public final class ZeroPingEtherwarpConfig {
 
     public void setOverlayFromPrediction(boolean overlayFromPrediction) {
         this.overlayFromPrediction = overlayFromPrediction;
+    }
+
+    /** Whether ZPEW predicts this sender's etherwarps: its Works For switch, and a cheat source only in a cheat build. */
+    public boolean worksFor(ZpewSource source) {
+        if (source.cheatOnly() && !com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return false;
+        }
+        return worksFor.get(source);
+    }
+
+    /** The saved switch, whatever the build (the tab and the testkit read this). */
+    public boolean getWorksForSetting(ZpewSource source) {
+        return worksFor.get(source);
+    }
+
+    public void setWorksFor(ZpewSource source, boolean on) {
+        worksFor.put(source, on);
+    }
+
+    /** By name, for the testkit's reflection. */
+    public boolean getWorksForByName(String source) {
+        return getWorksForSetting(ZpewSource.valueOf(source));
+    }
+
+    public void setWorksForByName(String source, boolean on) {
+        setWorksFor(ZpewSource.valueOf(source), on);
     }
 }
