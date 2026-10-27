@@ -140,6 +140,12 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
                     hud().save();
                     btn.setMessage(onOff("Smooth Lyric Scroll", hud().isSmoothScroll()));
                 }).bounds(contentX + half + 8, y, half, 20).build());
+        y += 24;
+        widgets.add(SettingsButtonWidget.builder(onOff("Word-Timed Lyrics", hud().isWordTimedLyrics()), btn -> {
+                    hud().setWordTimedLyrics(!hud().isWordTimedLyrics());
+                    hud().save();
+                    btn.setMessage(onOff("Word-Timed Lyrics", hud().isWordTimedLyrics()));
+                }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
         // Song Tag (2026-10-24): the song as a line above your name for other mod users. Its own two switches.

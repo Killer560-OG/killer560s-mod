@@ -176,6 +176,15 @@ public final class LyricsEngine {
      * match is used as before, since there is nothing to check it against.
      */
     private void choose() {
+        if (wordTimedLines != null) {
+            // Word-timed lyrics of Spotify's own recording (Kugou KRC, matched on title, artist and length): every word
+            // has its real start, so they win over lrclib's line times.
+            syncedLyrics = wordTimedLines;
+            durationSeconds = spotifyDurationSeconds;
+            versionMismatch = false;
+            mismatchSeconds = 0;
+            return;
+        }
         Choice c = chooseFrom(candidates, lastArtist, lastTitle, spotifyDurationSeconds);
         syncedLyrics = c.pick() == null ? List.of() : c.pick().lines();
         if (c.pick() != null || !candidates.isEmpty()) {
@@ -189,6 +198,72 @@ public final class LyricsEngine {
             SpotifyLyricsFeature.LOGGER.info("Lyrics versions for '{}' by '{}' (Spotify {} s): {}", lastTitle, lastArtist,
                     spotifyDurationSeconds > 0 ? Math.round(spotifyDurationSeconds * 10) / 10.0 : "unknown", c.why());
         }
+    }
+
+    /** This track's word-timed lines (Kugou), or null when none were found (yet). */
+    private List<LyricLine> wordTimedLines = null;
+    private boolean wordLookupTried = false;
+
+    /**
+     * Word-timed lyrics per track, the last 64, misses included (an empty list): a song played again asks nobody, and a
+     * song Kugou does not have is not asked about again this session.
+     */
+    private static final java.util.Map<String, List<LyricLine>> WORD_CACHE = new java.util.LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, List<LyricLine>> eldest) {
+            return size() > 64;
+        }
+    };
+
+    /**
+     * Once Spotify's length is known (the match needs it), asks Kugou once for word-timed lyrics of this recording, off
+     * this thread. Caller holds the lock. Never blocks; a miss or a failure leaves lrclib's lines in place.
+     */
+    private void maybeLookUpWordTimed(String forTrackKey, String artist, String title) {
+        if (wordLookupTried || !wantLyrics || spotifyDurationSeconds <= 0 || lastWasAd
+                || !SpotifyHudConfig.getInstance().isWordTimedLyrics()) {
+            return;
+        }
+        wordLookupTried = true;
+        double seconds = spotifyDurationSeconds;
+        LYRIC_FETCH.submit(() -> {
+            List<LyricLine> found;
+            boolean cached;
+            synchronized (WORD_CACHE) {
+                found = WORD_CACHE.get(forTrackKey);
+            }
+            cached = found != null;
+            String why = "cached";
+            if (found == null) {
+                List<LyricLine> got = null;
+                for (String t : titleSpellings(title)) {
+                    if (got == null) {
+                        got = KugouLyrics.fetch(artist, t, seconds);
+                    }
+                }
+                why = KugouLyrics.lastResult();
+                found = got == null ? List.of() : List.copyOf(got);
+                if (!why.startsWith("failed") && !why.endsWith("failed")) {
+                    synchronized (WORD_CACHE) {
+                        WORD_CACHE.put(forTrackKey, found);   // a network failure is not cached: next play tries again
+                    }
+                }
+            }
+            synchronized (this) {
+                if (!forTrackKey.equals(lastTrackKey)) {
+                    return;
+                }
+                if (!found.isEmpty()) {
+                    wordTimedLines = found;
+                    lyricsAnswered = true;
+                    choose();
+                    publish(snapshot.kind());
+                }
+                SpotifyLyricsFeature.LOGGER.info("Word times for '{}': {}", title, found.isEmpty()
+                        ? "none from Kugou (" + why + "), lrclib's line times are used"
+                        : "Kugou KRC, " + found.size() + " lines" + (cached ? " (cached)" : ", " + why));
+            }
+        });
     }
 
     /** The last choice logged, so a re-choose with nothing new does not log again. */
@@ -465,6 +540,8 @@ public final class LyricsEngine {
                 versionMismatch = false;
                 mismatchSeconds = 0;
                 durationLookupTried = false;
+                wordTimedLines = null;
+                wordLookupTried = false;
                 positionFromSpotify = false;
                 // The first track of the session may have been playing for minutes: any reading about it is
                 // believed. After a real change, only a reading Spotify took since the change is.
@@ -515,6 +592,7 @@ public final class LyricsEngine {
                 } else if (timeline.playing() && timeline.updatedMs() >= lastEventMs - EVENT_SLACK_MS) {
                     follow(timeline, now);
                 }
+                maybeLookUpWordTimed(trackKey, nowPlaying.artist(), nowPlaying.title());
                 maybeLookUpByLength(trackKey, nowPlaying.artist(), nowPlaying.title());
             }
             if (pausedBySession) {

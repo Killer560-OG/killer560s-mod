@@ -32,6 +32,12 @@ public final class SpotifyHudConfig {
     private boolean hideWhenPaused = false;
     /** Smooth Lyric Scroll (2026-10-26): the lyric rows slide up when a line ends instead of jumping. */
     private boolean smoothScroll = true;
+    /**
+     * Word-Timed Lyrics (2026-10-27): ask Kugou's public lyrics service for lyrics with a time per word (the artist, title
+     * and length only, as lrclib gets). On by default: it is what makes the lit word exact. Volatile: the lyrics thread
+     * reads it.
+     */
+    private volatile boolean wordTimedLyrics = true;
 
     private SpotifyHudConfig() {
     }
@@ -56,6 +62,7 @@ public final class SpotifyHudConfig {
                 cfg.wordHighlight = ConfigJson.getBool(obj, "wordHighlight", cfg.wordHighlight);
                 cfg.hideWhenPaused = ConfigJson.getBool(obj, "hideWhenPaused", cfg.hideWhenPaused);
                 cfg.smoothScroll = ConfigJson.getBool(obj, "smoothScroll", cfg.smoothScroll);
+                cfg.wordTimedLyrics = ConfigJson.getBool(obj, "wordTimedLyrics", cfg.wordTimedLyrics);
             } catch (Exception e) {
                 SpotifyLyricsFeature.LOGGER.warn("Could not read Spotify HUD config: {}", e.getMessage());
             }
@@ -72,6 +79,7 @@ public final class SpotifyHudConfig {
             obj.addProperty("wordHighlight", wordHighlight);
             obj.addProperty("hideWhenPaused", hideWhenPaused);
             obj.addProperty("smoothScroll", smoothScroll);
+            obj.addProperty("wordTimedLyrics", wordTimedLyrics);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception e) {
             SpotifyLyricsFeature.LOGGER.warn("Could not save Spotify HUD config: {}", e.getMessage());
@@ -116,5 +124,13 @@ public final class SpotifyHudConfig {
 
     public void setSmoothScroll(boolean smoothScroll) {
         this.smoothScroll = smoothScroll;
+    }
+
+    public boolean isWordTimedLyrics() {
+        return wordTimedLyrics;
+    }
+
+    public void setWordTimedLyrics(boolean wordTimedLyrics) {
+        this.wordTimedLyrics = wordTimedLyrics;
     }
 }
