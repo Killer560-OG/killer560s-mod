@@ -32,7 +32,8 @@ public class CroesusTab extends BaseTab {
     /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): Chest Profit, the Profit Logger and Hide Opened Runs are separate features. */
     @Override
     public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Chest Profit", "Croesus Profit Logger", "Hide Opened Runs");
+        return switchRows(built, "Chest Profit", "Croesus Profit Logger", "Hide Opened Runs", "Reroll Protection",
+                "Kismet Count", "Croesus Chests HUD");
     }
 
     @Override
@@ -93,6 +94,63 @@ public class CroesusTab extends BaseTab {
                 null, contentX, y, contentWidth, 18));
         y += 24;
 
+        // ---- Reroll Protection, Kismet Count, Croesus Chests HUD (2026-10-25): each only drops his own click or shows a
+        // number, so legit ----
+        widgets.add(SettingsButtonWidget.builder(onOff("Reroll Protection", cfg.isRerollProtectionRaw()), btn -> {
+                    cfg.setRerollProtection(!cfg.isRerollProtectionRaw());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
+        if (cfg.isRerollProtectionRaw()) {
+            widgets.add(new com.killer560.hub.gui.ThemedSliderButton(contentX, y, contentWidth, 18, protectAboveText(),
+                    cfg.getRerollProtectAboveK() / (double) CroesusConfig.MAX_MIN_PROFIT_K) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(protectAboveText());
+                }
+
+                @Override
+                protected void applyValue() {
+                    int k = (int) Math.round(this.value * CroesusConfig.MAX_MIN_PROFIT_K / 250.0) * 250;
+                    CroesusConfig c = CroesusConfig.getInstance();
+                    c.setRerollProtectAboveK(k);
+                    saveOnRelease(() -> c.save());
+                }
+            });
+            y += 20;
+        }
+        widgets.add(SettingsButtonWidget.builder(onOff("Kismet Count", cfg.isKismetCountRaw()), btn -> {
+                    cfg.setKismetCount(!cfg.isKismetCountRaw());
+                    cfg.save();
+                    btn.setMessage(onOff("Kismet Count", cfg.isKismetCountRaw()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
+        widgets.add(SettingsButtonWidget.builder(onOff("Croesus Chests HUD", cfg.isChestCountHudRaw()), btn -> {
+                    cfg.setChestCountHud(!cfg.isChestCountHudRaw());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
+        if (cfg.isChestCountHudRaw()) {
+            widgets.add(new com.killer560.hub.gui.ThemedSliderButton(contentX, y, contentWidth, 18, warnAtText(),
+                    (cfg.getChestWarnAt() - 1) / (double) (CroesusConfig.MAX_CHEST_WARN_AT - 1)) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(warnAtText());
+                }
+
+                @Override
+                protected void applyValue() {
+                    CroesusConfig c = CroesusConfig.getInstance();
+                    c.setChestWarnAt(1 + (int) Math.round(this.value * (CroesusConfig.MAX_CHEST_WARN_AT - 1)));
+                    saveOnRelease(() -> c.save());
+                }
+            });
+            y += 20;
+        }
+        y += 4;
+
         // Price Mode (killer560, 2026-10-11): how every Croesus value is priced - the chest overlay, the logger and
         // Auto Croesus's decisions. Left click steps forward, right click back.
         widgets.add(SettingsButtonWidget.cycling(priceModeText(cfg), (btn, dir) -> {
@@ -136,6 +194,15 @@ public class CroesusTab extends BaseTab {
                         CroesusConfig.getInstance().save();
                     }));
                 }).bounds(x, y, w, 18).build();
+    }
+
+    private static Component protectAboveText() {
+        return Component.literal("Protect Above: §6"
+                + DungeonChestValuer.formatCoins(CroesusConfig.getInstance().getRerollProtectAboveK() * 1000L));
+    }
+
+    private static Component warnAtText() {
+        return Component.literal("Chest Warning At: §6" + CroesusConfig.getInstance().getChestWarnAt() + "/60");
     }
 
     private static Component priceModeText(CroesusConfig cfg) {

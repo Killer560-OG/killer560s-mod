@@ -146,6 +146,18 @@ public final class CroesusConfig {
     /** Spend a Kismet Feather on a Bedrock chest whose profit is below {@link #autoRerollBelowK}. */
     private boolean autoUseKismets = false;
     private int autoRerollBelowK = 1_000;
+    /** Reroll Protection (NoammAddons ChestProfit.kt "Reroll Value"): his click on a reward chest's Kismet "Reroll Chest"
+     *  button is dropped while the chest's profit is above {@link #rerollProtectAboveK}. Ctrl lets it through. */
+    private boolean rerollProtection = false;
+    /** NoammAddons' default, 5M. */
+    private int rerollProtectAboveK = 5_000;
+    /** The Kismet Feathers he carries, drawn as the reroll button's stack number (SkyHanni "Kismet Amount"). */
+    private boolean kismetCount = false;
+    /** Croesus Chests HUD: Hypixel's tab line " Unclaimed chests: N" as "N/60", and his Kismet Feathers, outside the menu. */
+    private boolean chestCountHud = false;
+    /** A chat warning once the unclaimed count reaches this (Odin Croesus.kt "Chest Warning Threshold", 55). */
+    private int chestWarnAt = 55;
+    public static final int MAX_CHEST_WARN_AT = 60;
 
     private CroesusConfig() {
     }
@@ -211,6 +223,11 @@ public final class CroesusConfig {
             }
             cfg.autoUseKismets = ConfigJson.getBool(obj, "autoUseKismets", cfg.autoUseKismets);
             cfg.autoRerollBelowK = clamp(ConfigJson.getInt(obj, "autoRerollBelowK", cfg.autoRerollBelowK), 0, MAX_MIN_PROFIT_K);
+            cfg.rerollProtection = ConfigJson.getBool(obj, "rerollProtection", cfg.rerollProtection);
+            cfg.rerollProtectAboveK = clamp(ConfigJson.getInt(obj, "rerollProtectAboveK", cfg.rerollProtectAboveK), 0, MAX_MIN_PROFIT_K);
+            cfg.kismetCount = ConfigJson.getBool(obj, "kismetCount", cfg.kismetCount);
+            cfg.chestCountHud = ConfigJson.getBool(obj, "chestCountHud", cfg.chestCountHud);
+            cfg.chestWarnAt = clamp(ConfigJson.getInt(obj, "chestWarnAt", cfg.chestWarnAt), 1, MAX_CHEST_WARN_AT);
             // Same min <= max invariant the setters enforce (a hand-edit could otherwise load min > max).
             if (cfg.autoMaxDelayMs < cfg.autoMinDelayMs) {
                 cfg.autoMaxDelayMs = cfg.autoMinDelayMs;
@@ -252,6 +269,11 @@ public final class CroesusConfig {
             obj.addProperty("chestKeyModeDefaulted", chestKeyModeDefaulted);
             obj.addProperty("autoUseKismets", autoUseKismets);
             obj.addProperty("autoRerollBelowK", autoRerollBelowK);
+            obj.addProperty("rerollProtection", rerollProtection);
+            obj.addProperty("rerollProtectAboveK", rerollProtectAboveK);
+            obj.addProperty("kismetCount", kismetCount);
+            obj.addProperty("chestCountHud", chestCountHud);
+            obj.addProperty("chestWarnAt", chestWarnAt);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -495,5 +517,57 @@ public final class CroesusConfig {
 
     public void setAutoRerollBelowK(int v) {
         this.autoRerollBelowK = clamp(v, 0, MAX_MIN_PROFIT_K);
+    }
+
+    public boolean isRerollProtection() {
+        return rerollProtection && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    public boolean isRerollProtectionRaw() {
+        return rerollProtection;
+    }
+
+    public void setRerollProtection(boolean v) {
+        this.rerollProtection = v;
+    }
+
+    public int getRerollProtectAboveK() {
+        return rerollProtectAboveK;
+    }
+
+    public void setRerollProtectAboveK(int v) {
+        this.rerollProtectAboveK = clamp(v, 0, MAX_MIN_PROFIT_K);
+    }
+
+    public boolean isKismetCount() {
+        return kismetCount && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    public boolean isKismetCountRaw() {
+        return kismetCount;
+    }
+
+    public void setKismetCount(boolean v) {
+        this.kismetCount = v;
+    }
+
+    public boolean isChestCountHud() {
+        return chestCountHud && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    public boolean isChestCountHudRaw() {
+        return chestCountHud;
+    }
+
+    public void setChestCountHud(boolean v) {
+        this.chestCountHud = v;
+    }
+
+    public int getChestWarnAt() {
+        return chestWarnAt;
+    }
+
+    public void setChestWarnAt(int v) {
+        this.chestWarnAt = clamp(v, 1, MAX_CHEST_WARN_AT);
     }
 }

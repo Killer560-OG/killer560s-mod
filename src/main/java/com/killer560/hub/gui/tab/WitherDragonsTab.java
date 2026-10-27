@@ -134,6 +134,10 @@ public class WitherDragonsTab extends BaseTab {
 
             toggle(w, contentX, y[0], half, "Send Place Time", cfg::isRelicPlaceTime, cfg::setRelicPlaceTime, cfg);
             toggle(w, colB, y[0], half, "Party Relic Summary", cfg::isRelicSummary, cfg::setRelicSummary, cfg);
+            y[0] += 22;
+
+            // Only drops his own click on another relic's cauldron (nothing is sent), so legit.
+            toggle(w, contentX, y[0], half, "Block Wrong Relic", cfg::isBlockWrongRelic, cfg::setBlockWrongRelic, cfg);
             y[0] += 26;
         }
 

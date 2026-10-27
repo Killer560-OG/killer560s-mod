@@ -82,6 +82,7 @@ public final class KingRelicsFeature {
     private static final Map<KingRelic, String> PICKERS = new EnumMap<>(KingRelic.class);
     private static final Map<KingRelic, Double> PLACED = new EnumMap<>(KingRelic.class);
     private static boolean summarySent = false;
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-witherdragons");
     private static Object lastLevel = null;
 
     private KingRelicsFeature() {
@@ -93,13 +94,21 @@ public final class KingRelicsFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("KingRelicsFeature", client -> onClientTick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
                 com.killer560.hub.util.FeatureBits.register("King Relics render", () -> WitherDragonsConfig.getInstance().isRelicsEnabledRaw() && WitherDragonsConfig.getInstance().isRelicHighlightRaw()), KingRelicsFeature::onWorldRender));
+        // FAIL from a client UseBlockCallback/AttackBlockCallback sends nothing (see AutoRoutesEditInput): Block Wrong Relic
+        // drops the click before onBlockClick could record it as a placement.
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             if (hit != null) {
+                if (shouldBlockRelicClick(player, level, hit.getBlockPos())) {
+                    return InteractionResult.FAIL;
+                }
                 onBlockClick(player, level, hit.getBlockPos());
             }
             return InteractionResult.PASS;
         });
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
+            if (shouldBlockRelicClick(player, level, pos)) {
+                return InteractionResult.FAIL;
+            }
             onBlockClick(player, level, pos);
             return InteractionResult.PASS;
         });
@@ -125,6 +134,7 @@ public final class KingRelicsFeature {
         PICKERS.clear();
         PLACED.clear();
         summarySent = false;
+        warnedRelic = null;
     }
 
     // ------------------------------------------------------------------ events
@@ -272,6 +282,56 @@ public final class KingRelicsFeature {
         pendingRelic = held;
         pendingTick = ServerTickClock.now();
         pendingMs = System.currentTimeMillis();
+    }
+
+    // ------------------------------------------------------------------ Block Wrong Relic
+
+    /** The relic the last "blocked" chat line was about: one line per relic carried, not one per click. */
+    private static KingRelic warnedRelic = null;
+    private static int blockedRelicClicks = 0;
+
+    /**
+     * Block Wrong Relic (NoammAddons {@code M7Relics.kt}): true for his click (left or right) on one of the five relic
+     * cauldrons that is not the one of the relic he carries, in P5. Only the cauldrons themselves (their x/z, within a
+     * block of their height), so every other block, and his own cauldron, is untouched. Sneaking lets it through.
+     */
+    static boolean shouldBlockRelicClick(Player player, Level level, BlockPos pos) {
+        WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
+        Minecraft client = Minecraft.getInstance();
+        if (!cfg.isRelicsEnabled() || !cfg.isBlockWrongRelic() || pos == null || level == null || !level.isClientSide()
+                || player != client.player || player.isShiftKeyDown()) {
+            return false;
+        }
+        KingRelic clicked = null;
+        for (KingRelic r : KingRelic.values()) {
+            BlockPos c = r.cauldronPos;
+            if (c.getX() == pos.getX() && c.getZ() == pos.getZ() && Math.abs(c.getY() - pos.getY()) <= 1) {
+                clicked = r;
+                break;
+            }
+        }
+        if (clicked == null || !P5State.inP5()) {
+            return false;
+        }
+        KingRelic held = heldRelic();
+        if (held == null || held == clicked) {
+            return false;
+        }
+        blockedRelicClicks++;
+        LOGGER.info("[KingRelics] Block Wrong Relic: click on the {} cauldron at {} while carrying the {} relic - not sent"
+                + " ({} blocked so far)", clicked.colourName, pos.toShortString(), held.colourName, blockedRelicClicks);
+        if (warnedRelic != held) {
+            warnedRelic = held;
+            ModChat.send("King Relics", ModChat.text("Blocked: that is the "), Component.literal(clicked.colored()),
+                    ModChat.text(" cauldron, your relic is "), Component.literal(held.colored()),
+                    ModChat.dim(". Sneak to place it anyway."));
+        }
+        return true;
+    }
+
+    /** For the testkit: how many cauldron clicks Block Wrong Relic has dropped. */
+    public static int blockedRelicClicks() {
+        return blockedRelicClicks;
     }
 
     private static void placeYours(KingRelic relic) {

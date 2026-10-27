@@ -152,6 +152,9 @@ public final class WitherDragonsConfig {
     private boolean relicTracer = false;
     private boolean relicPlaceTime = true;
     private boolean relicSummary = true;
+    /** Block Wrong Relic (NoammAddons M7Relics.kt "Block Wrong Relic"): a click on another relic's cauldron while
+     *  carrying a relic is dropped before it is sent. Off by default. */
+    private boolean blockWrongRelic = false;
 
     private WitherDragonsConfig() {
     }
@@ -219,6 +222,7 @@ public final class WitherDragonsConfig {
                 cfg.relicTracer = ConfigJson.getBool(o, "relicTracer", false);
                 cfg.relicPlaceTime = ConfigJson.getBool(o, "relicPlaceTime", true);
                 cfg.relicSummary = ConfigJson.getBool(o, "relicSummary", true);
+                cfg.blockWrongRelic = ConfigJson.getBool(o, "blockWrongRelic", false);
             } catch (Exception ignored) {
                 // unreadable file - defaults (ConfigJson already covers per-key malformed values)
             }
@@ -260,6 +264,7 @@ public final class WitherDragonsConfig {
             o.addProperty("relicTracer", relicTracer);
             o.addProperty("relicPlaceTime", relicPlaceTime);
             o.addProperty("relicSummary", relicSummary);
+            o.addProperty("blockWrongRelic", blockWrongRelic);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -348,4 +353,6 @@ public final class WitherDragonsConfig {
     public void setRelicPlaceTime(boolean v) { relicPlaceTime = v; }
     public boolean isRelicSummary() { return relicSummary; }
     public void setRelicSummary(boolean v) { relicSummary = v; }
+    public boolean isBlockWrongRelic() { return blockWrongRelic; }
+    public void setBlockWrongRelic(boolean v) { blockWrongRelic = v; }
 }

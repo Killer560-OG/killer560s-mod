@@ -35,6 +35,7 @@ public abstract class CroesusSlotMixin {
     private void killer560smod$drawRunGlyph(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY,
                                             CallbackInfo ci) {
         ChestProfitFeature.drawRunGlyph(graphics, (AbstractContainerScreen<?>) (Object) this, slot);
+        com.killer560.hub.croesus.CroesusExtras.drawKismetCount(graphics, (AbstractContainerScreen<?>) (Object) this, slot);
     }
 
     @Inject(method = "extractSlot(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/inventory/Slot;II)V",

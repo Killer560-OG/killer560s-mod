@@ -23,6 +23,8 @@ public final class QuizSolverConfig {
     private static QuizSolverConfig instance;
 
     private boolean enabled = false;
+    /** Block Wrong Answers: once the solver knows the answer, his click on a wrong answer's button is dropped. */
+    private boolean blockWrongAnswers = false;
 
     private QuizSolverConfig() {
     }
@@ -50,6 +52,7 @@ public final class QuizSolverConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             QuizSolverConfig cfg = new QuizSolverConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.blockWrongAnswers = ConfigJson.getBool(obj, "blockWrongAnswers", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new QuizSolverConfig();
@@ -61,6 +64,7 @@ public final class QuizSolverConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
+            obj.addProperty("blockWrongAnswers", blockWrongAnswers);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -73,6 +77,14 @@ public final class QuizSolverConfig {
     /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
     public boolean isEnabledRaw() {
         return enabled;
+    }
+
+    public boolean isBlockWrongAnswers() {
+        return blockWrongAnswers;
+    }
+
+    public void setBlockWrongAnswers(boolean blockWrongAnswers) {
+        this.blockWrongAnswers = blockWrongAnswers;
     }
 
     public void setEnabled(boolean enabled) {

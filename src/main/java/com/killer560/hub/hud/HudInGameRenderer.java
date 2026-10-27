@@ -36,7 +36,9 @@ public final class HudInGameRenderer {
             // Boss Health (2026-10-25).
             "boss_health",
             // P3 Status (2026-10-25).
-            "p3_status");
+            "p3_status",
+            // Croesus Chests (2026-10-25): unclaimed chests from the tab and Kismet Feathers, outside the menu.
+            "croesus_chests");
 
     private HudInGameRenderer() {
     }
