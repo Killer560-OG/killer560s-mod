@@ -874,6 +874,7 @@ public final class Ap3Executor {
             }
             applyJumps(player); // first: the held walk faces straight ahead on a jump tick (see applyHoldRealYaw)
             applyHold(player);
+            tickEdgeBrake(player);
             if (activeNode == null && chain != null && prePlanAfterAlign) {
                 // The align that just finished is the best possible moment to start the search.
                 prePlanAfterAlign = false;
@@ -1462,6 +1463,7 @@ public final class Ap3Executor {
         endHold();
         clearMovement();
         wantSneak = true;
+        edgeBrakeTicks = EDGE_BRAKE_TICKS; // keep braking at the edge until he has stopped (one tick of sneak was not enough)
         LOGGER.info("[AP3] held walk from {} #{}: the next step at ({}, {}) leaves the floor more than {} below where it began"
                         + " (y {}) and the route's next node{} is not lower - stopped at the edge", from.type.label(),
                 number(from), String.format(Locale.US, "%.2f", nx), String.format(Locale.US, "%.2f", nz), MAX_LEDGE_DROP,
@@ -1474,11 +1476,35 @@ public final class Ap3Executor {
         return true;
     }
 
+    /** Ticks left of braking at an edge a held walk was stopped at: sneak, and the key against his velocity. */
+    private static int edgeBrakeTicks;
+    private static final int EDGE_BRAKE_TICKS = 20;
+
+    /** Each tick after the walk stopped at an edge: until he is still, sneak (vanilla's clip holds him at a drop of
+     *  0.6 or more) and press the key against his velocity. Ends as soon as anything else drives him. */
+    private static void tickEdgeBrake(LocalPlayer player) {
+        if (edgeBrakeTicks <= 0) {
+            return;
+        }
+        if (driving || holdDir != null || (activeNode != null && activeNode.type.ownsMovement())) {
+            edgeBrakeTicks = 0;
+            return;
+        }
+        Vec3 v = player.getDeltaMovement();
+        if (Math.hypot(v.x, v.z) < 0.003 && player.onGround()) {
+            edgeBrakeTicks = 0;
+            return;
+        }
+        edgeBrakeTicks--;
+        int[] k = nearestKey8(-v.x, -v.z, player.getYRot());
+        writeDiscrete(player, k[0], k[1], true, false, player.getYRot(), modelFor(player, false), lastSneakSent);
+    }
+
     /** Closest the current held walk has come to its route's next align, and to which align. */
     private static double passMin = Double.MAX_VALUE;
     private static Ap3Node passAlign;
     /** A walk passing within this of its next align without entering the box pulls him into it. */
-    private static final double PASS_PULL_DISTANCE = 1.5;
+    private static final double PASS_PULL_DISTANCE = 2.5;
 
     /**
      * killer560, 2026-10-27, align #34: "it needs to pull me back into it ... if i walk into it then it works". A RUN
