@@ -153,6 +153,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             jumpMod = n.jumpMod == null ? Ap3Node.JumpMod.NONE : n.jumpMod;
             precise = n.precise;
             ssGate = n.ssGate;
+            blinkStop = n.blinkStop;
             itemId =n.useItemId == null || n.useItemId.isBlank() ? null : n.useItemId;
             pending.put("X", fmt(n.x));
             pending.put("Y", fmt(n.y));
@@ -173,7 +174,8 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
         int typeRows = (Ap3Node.Type.values().length + TYPE_COLS - 1) / TYPE_COLS;
         int itemRows = (choices.size() + ITEM_COLS - 1) / ITEM_COLS;
         int rows = 1 + (typeOpen ? typeRows : 0) + 1 /* xyz */ + 1 /* box */ + (type.usesYaw() ? 1 : 0)
-                + 1 /* wait, name */ + 1 /* leap counter */ + (type.usesItem() ? 1 + itemRows : 0) + 1 /* jump, precise */ + 1 /* from me */;
+                + 1 /* wait, name */ + 1 /* leap counter */
+                + (type == Ap3Node.Type.BLINK_CHARGE ? 1 : 0) /* momentum */ + (type.usesItem() ? 1 + itemRows : 0) + 1 /* jump, precise */ + 1 /* from me */;
         panelW = PANEL_W;
         panelH = 32 + rows * LINE + 12 /* status */ + 20 + PAD;
         panelX = (this.width - panelW) / 2;
@@ -241,6 +243,14 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             addField(x + half + GAP, y, w - half - GAP, "Blink ticks", 58);
         }
         y += LINE;
+        if (type == Ap3Node.Type.BLINK_CHARGE) {
+            // Momentum kept (default): his physics pauses while the charge banks; Stop: he brakes, then banks standing.
+            button(momentumLabel(), b -> {
+                blinkStop = !blinkStop;
+                b.setMessage(Component.literal(momentumLabel()));
+            }, x, y, w, ROW);
+            y += LINE;
+        }
 
         if (type.usesItem()) {
             ItemStack shown = hotbarStack(itemId);
@@ -442,6 +452,13 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
                 .bounds(x, y, w, h).build());
     }
 
+    /** BLINK_CHARGE: the plain stop instead of frozen momentum ({@link Ap3Node#blinkStop}). */
+    private boolean blinkStop;
+
+    private String momentumLabel() {
+        return "Momentum: " + (blinkStop ? "\u00a76stop first" : "\u00a76kept (frozen while charging)");
+    }
+
     private void addField(int x, int y, int w, String label, int labelW) {
         addField(x, y, w, label, label, labelW);
     }
@@ -526,6 +543,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             node.setWaitAfterMs((int) Math.round(nwait));
             node.setLeapCounter((int) Math.round(nleap));
             node.setBlinkTicks(newType.usesBlinkTicks() ? (int) Math.round(nblink) : 0);
+            node.blinkStop = newType == Ap3Node.Type.BLINK_CHARGE && blinkStop;
             node.type = newType;
             node.jumpMod = jumpMod;
             node.ssGate = ssGate;

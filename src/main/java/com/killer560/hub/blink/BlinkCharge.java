@@ -210,6 +210,73 @@ public final class BlinkCharge {
         SHOT_TICK_HOOKS.add(hook);
     }
 
+    /**
+     * Run at the END of each shot tick, after its movement and tick-end (2026-10-27): a feature that steers him tick by
+     * tick (AP3) does its END work here, so the next shot tick moves on the keys and rotation it chose for that tick, not
+     * on one set frozen for the whole shot. Before this a 20-tick AP3 release replayed the run's keys straight off a
+     * platform in his S2 (Mod Only Test log 00:15:34).
+     */
+    private static final java.util.List<java.util.function.Consumer<Minecraft>> SHOT_TICK_END_HOOKS =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+    /** Asked before each shot tick: a reason ends the shot there, and the rest stays banked. Null = go on. */
+    private static final java.util.List<java.util.function.Function<Minecraft, String>> SHOT_GUARDS =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+    /** The shot loop is running (a driver's END work is inside it). */
+    private static volatile boolean inShotLoop;
+    /** An endFor that came while the shot loop ran: done once the loop is out. */
+    private static volatile String pendingEnd;
+    private static volatile String lastShotStoppedBy;
+
+    public static void addShotTickEndHook(java.util.function.Consumer<Minecraft> hook) {
+        SHOT_TICK_END_HOOKS.add(hook);
+    }
+
+    public static void addShotGuard(java.util.function.Function<Minecraft, String> guard) {
+        SHOT_GUARDS.add(guard);
+    }
+
+    /** Why the last shot ended before its count (a guard), or null when it ran out. */
+    public static String lastShotStoppedBy() {
+        return lastShotStoppedBy;
+    }
+
+    /** The shot loop is running now (a hook asking from inside it). */
+    public static boolean inShotLoop() {
+        return inShotLoop;
+    }
+
+    /** Counts shot loops started (a feature's note about "this shot" goes stale with the next). */
+    public static long shotSerial() {
+        return shotSerial;
+    }
+
+    private static volatile long shotSerial;
+
+    private static void runShotTickEndHooks(Minecraft client) {
+        for (java.util.function.Consumer<Minecraft> hook : SHOT_TICK_END_HOOKS) {
+            try {
+                hook.accept(client);
+            } catch (RuntimeException e) {
+                LOGGER.error("[Blink] a shot-tick end hook threw", e);
+            }
+        }
+    }
+
+    private static String shotGuardReason(Minecraft client) {
+        for (java.util.function.Function<Minecraft, String> guard : SHOT_GUARDS) {
+            try {
+                String r = guard.apply(client);
+                if (r != null) {
+                    return r;
+                }
+            } catch (RuntimeException e) {
+                LOGGER.error("[Blink] a shot guard threw", e);
+                return "a shot guard threw";
+            }
+        }
+        return null;
+    }
+
     private static int shotTickActions;
     private static int shotPacketsSent;
     /** True while a shot's ticks are running (Breaker Aura predicts its breaks then: see {@link #inShot}). */
@@ -225,6 +292,26 @@ public final class BlinkCharge {
      */
     public static long nowMs() {
         return System.currentTimeMillis() + shotMsAhead;
+    }
+
+    /** Set for one tick by a driver that skipped his physics this tick (AP3's momentum-keeping charge). */
+    private static volatile boolean frozenTick;
+    private static long frozenTicksSent;
+
+    /** A driver skipped his physics this tick: its tick-end banks wherever he is (mid-air too). Render thread. */
+    public static void noteFrozenTick() {
+        frozenTick = true;
+    }
+
+    /** Frozen ticks that could not be banked and went out (a mismatch the server may see), for the log and the testkit. */
+    public static long frozenTicksSent() {
+        return frozenTicksSent;
+    }
+
+    /** This tick's tick-end would bank (charging, not settling after a teleport, room in the bank). */
+    public static boolean canBankNow() {
+        return active && !shotPending() && System.currentTimeMillis() >= bankBlockedUntilMs && banked < cap()
+                && connection != null && connection.isConnected();
     }
 
     /** A shot's ticks are running now (render thread). */
@@ -341,7 +428,16 @@ public final class BlinkCharge {
             }
             if (packet instanceof ServerboundClientTickEndPacket) {
                 boolean settling = System.currentTimeMillis() < bankBlockedUntilMs;
-                boolean bank = !busy && !settling && banked < cap() && stillThisTick();
+                boolean frozen = frozenTick;
+                frozenTick = false;
+                // A tick whose physics a driver skipped (AP3's momentum-keeping charge) banks in mid-air too: he did not
+                // move because no game time passed for him, which is exactly what a banked tick tells the server.
+                boolean bank = !busy && !settling && banked < cap() && (frozen || stillThisTick());
+                if (frozen && !bank) {
+                    frozenTicksSent++;
+                    BlinkLog.event("charge: a tick with his physics skipped could not be banked (%s) - sent as it was",
+                            busy ? "an action went out in it" : settling ? "settling after a teleport" : "the bank is full");
+                }
                 busy = false;
                 if (bank) {
                     if (stash != null && stash.packet() instanceof ServerboundMovePlayerPacket m && m.hasRotation()) {
@@ -685,11 +781,25 @@ public final class BlinkCharge {
         long t0 = System.nanoTime();
         int shotPacketsAtStart = shotPacketsSent;
         int ran = 0;
+        int kept = 0;
+        String stoppedBy = null;
         double lastStep = 0;
         passing = true;
         try {
+            shotSerial++;
+            inShotLoop = true;
             for (int i = 0; i < n; i++) {
                 if (player.isRemoved() || client.level == null) {
+                    break;
+                }
+                // A driver whose next tick needs the server or the real clock ends the shot here; the rest stays banked.
+                String stop = pendingEnd != null ? pendingEnd : shotGuardReason(client);
+                if (stop != null) {
+                    kept = n - i;
+                    synchronized (LOCK) {
+                        banked += kept;
+                    }
+                    stoppedBy = stop;
                     break;
                 }
                 double sofar = from.distanceTo(player.position());
@@ -718,10 +828,24 @@ public final class BlinkCharge {
                 connection.send(ServerboundClientTickEndPacket.INSTANCE);
                 lastStep = before.distanceTo(player.position());
                 ran++;
+                // The END of this shot tick: a driver's own per-tick work (AP3 steers the next shot tick from here,
+                // exactly as its END_CLIENT_TICK does between real ticks).
+                runShotTickEndHooks(client);
             }
             connection.flushChannel();
         } finally {
             passing = false;
+            inShotLoop = false;
+        }
+        if (ran == 0 && stoppedBy != null) {
+            lastShotStoppedBy = stoppedBy;
+            BlinkLog.event("charge: shot (%s) not started - %s; %d tick(s) kept banked", why, stoppedBy, kept);
+            if (pendingEnd != null) {
+                String why2 = pendingEnd;
+                pendingEnd = null;
+                reset(why2);
+            }
+            return;
         }
         double blocks = from.distanceTo(player.position());
         shots++;
@@ -743,6 +867,16 @@ public final class BlinkCharge {
                 (System.nanoTime() - t0) / 1e6, blocks, fmt(from), fmt(player.position()), shotPacketsSent - shotPacketsAtStart,
                 answersHeld(), oldestAnswerAgeMs(), shots, shotLeft > 0 ? "; SPLIT: " + shotLeft + " tick(s) left for next "
                         + "tick (the server takes at most 10 blocks a tick)" : "", banked);
+        lastShotStoppedBy = stoppedBy;
+        if (stoppedBy != null) {
+            BlinkLog.event("charge SHOT ended early after %d of %d tick(s): %s - %d tick(s) kept banked", ran, n, stoppedBy,
+                    kept);
+        }
+        if (pendingEnd != null) {
+            String why2 = pendingEnd;
+            pendingEnd = null;
+            reset(why2);
+        }
         if (BlinkConfig.getInstance().isChatMessages()) {
             ModChat.send("Blink", ModChat.text(String.format(java.util.Locale.ROOT, "shot %d tick(s), %.1f blocks", ran, blocks)));
         }
@@ -966,6 +1100,10 @@ public final class BlinkCharge {
         if (who == null || !who.equals(owner)) {
             return;
         }
+        if (inShotLoop) {
+            pendingEnd = who + ": " + why; // never reset under the shot loop: it ends the shot, then charging
+            return;
+        }
         reset(who + ": " + why);
     }
 
@@ -994,7 +1132,7 @@ public final class BlinkCharge {
 
     /** A {@link #shootFor} release has not run to its end yet (asked, or split over two ticks). */
     public static boolean shotPending() {
-        return shotWanted > 0 || shotLeft > 0;
+        return shotWanted > 0 || shotLeft > 0 || inShotLoop;
     }
 
     /** A shot ran in the current tick (a feature that reads an 8-block move as a teleport must not here). */

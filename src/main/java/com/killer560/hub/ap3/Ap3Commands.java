@@ -164,6 +164,9 @@ public final class Ap3Commands {
                 opts.addAll(PATH_MODS);
             } else if (t != null && t.usesBlinkTicks()) {
                 opts.addAll(List.of("1", "3", "5", "10", "20"));
+                if (t == Ap3Node.Type.BLINK_CHARGE) {
+                    opts.add("stop");
+                }
             }
         } catch (Exception ignored) {
             // no type yet - just offer the common modifiers
@@ -482,7 +485,7 @@ public final class Ap3Commands {
     /** The node types that have no keybind of their own, for {@link #help()}. */
     private static final String[][] ADD_HELP = {
             {"/ap3 add use", "Use the held item at the angle you look"},
-            {"/ap3 add blinkcharge [ticks]", "Stop here and bank that many Blink ticks (none = Charge Ticks, max 20)"},
+            {"/ap3 add blinkcharge [ticks] [stop]", "Bank that many Blink ticks here with your momentum frozen (none = Charge Ticks, max 20); stop = brake to a stand first"},
             {"/ap3 add blinkrelease [ticks]", "Fire that many banked ticks along AP3's movement (none = all)"},
     };
 
@@ -792,6 +795,9 @@ public final class Ap3Commands {
                     spec.leapCount = Integer.parseInt(t.startsWith("x") ? t.substring(1) : t);
                 } else if (type == Ap3Node.Type.LEAP_COUNTER && t.startsWith("count:")) {
                     spec.leapCount = Integer.parseInt(t.substring(6));
+                } else if (type == Ap3Node.Type.BLINK_CHARGE && (t.equals("stop") || t.equals("brake"))) {
+                    // The plain stop (the walk ends, he brakes, then banks standing) instead of frozen momentum.
+                    spec.blinkStop = true;
                 } else if (type.usesBlinkTicks() && t.matches("[0-9]{1,3}")) {
                     // "/ap3 add blinkcharge 3": the ticks to bank (or fire); no number = the max.
                     int k = Integer.parseInt(t);

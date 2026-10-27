@@ -114,6 +114,14 @@ public final class Ap3Feature {
                 Ap3Executor.tickStart(client);
             }
         }));
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // A Blink shot's ticks are AP3 ticks (killer560, 2026-10-27: a 20-tick release ran him off S2's platform on
+            // keys frozen for the whole shot): each shot tick ends with AP3's own END work, and AP3 may end the shot
+            // before a tick whose node needs the server or the real clock (Ap3Executor.shotStopReason).
+            com.killer560.hub.blink.BlinkCharge.addShotTickEndHook(Ap3Feature::tick);
+            com.killer560.hub.blink.BlinkCharge.addShotGuard(client -> Ap3Config.getInstance().isEnabled()
+                    ? Ap3Executor.shotStopReason(client) : null);
+        }
         // Recording is deliberately outside the AP3 tick: he may want to record a movement he makes BY HAND,
         // with the mod driving nothing at all, which is the whole point of it.
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Ap3Trajectory.onClientTick", Ap3Trajectory::onClientTick));
@@ -262,6 +270,8 @@ public final class Ap3Feature {
         public Integer leapCounter;
         /** BLINK_CHARGE / BLINK_RELEASE: the tick count typed after the type, null = the max. */
         public Integer blinkTicks;
+        /** BLINK_CHARGE {@code stop}: a plain stop instead of frozen momentum. */
+        public boolean blinkStop;
         /** PATH: the speed window and heading the route must cross this node at, and whether it waits for a term. */
         public Double minSpeed;
         public Double maxSpeed;
@@ -305,6 +315,7 @@ public final class Ap3Feature {
             if (blinkTicks != null && node.type.usesBlinkTicks()) {
                 node.setBlinkTicks(blinkTicks);
             }
+            node.blinkStop = node.type == Ap3Node.Type.BLINK_CHARGE && blinkStop;
             if (node.type == Ap3Node.Type.PATH) {
                 if (pathIndex != null) {
                     node.pathIndex = pathIndex;

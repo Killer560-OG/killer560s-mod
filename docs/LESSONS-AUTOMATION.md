@@ -368,3 +368,11 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   `ZpewSource prev = ZeroPingEtherwarp.sending(ZpewSource.X); try { send } finally { ZeroPingEtherwarp.done(prev); }`.
   A new feature that sends an etherwarp use without it is counted as Manual Etherwarps. The map's executor
   (`ClearExecutor.hopSource`) picks Pathfinding, Auto Secret, Auto Clear or Interactive Map from who is running.
+- A shot replays banked ticks inside one real tick, so a feature that steers him per tick must run inside it: a 20-tick AP3
+  release on the keys chosen at the END before ran him 18.75 blocks straight off S2's platform (Mod Only Test log
+  2026-10-27 00:15:34). `BlinkCharge.addShotTickEndHook` runs after each shot tick's movement and tick-end, and
+  `addShotGuard` can end a shot before a tick (the rest stays banked). An `endFor` from inside the loop is deferred
+  (`pendingEnd`): a reset under the loop would null the connection the loop sends on.
+- A banked tick passes no game time for the server, so a driver may skip his physics on exactly those ticks and keep his
+  momentum (AP3's Blink Charge, `noteFrozenTick`): measured on GrimAC, sprinting and mid-jump, 10 ticks paused, velocity
+  unchanged, and the run afterwards equal tick for tick (0.000000) to the same route without the charge; clean.
