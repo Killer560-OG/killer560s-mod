@@ -337,3 +337,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Blink's keys are read under a container menu (a terminal) since 2026-10-26; before, opening one mid-hold read as the
   key coming up and released the hold. Rework Grim findings (banked turns, Post on dropped releases, the in-place
   teleport conflict) are in docs/LESSONS-AUTOMATION.md, Blink section.
+- A failure that "fails the same on merge-train" is not proof the mod is right: of the 2026-10-26 pre-existing list, two
+  were real mod bugs (Profile Viewer name box 94 px for a 96 px name; a Custom Scoreboard row with no tooltip) and the
+  96-ar run turned up a third (a path arrival ranked as an etherwarp in a stack); the rest were tests left behind by the
+  owner's redesigns or measuring under load. Two testkit fixes (91af48ec, 7d854287) had sat unmerged on old branches for a
+  week. Report: killer560s-mod-logs/preexisting-1026-report.md.
