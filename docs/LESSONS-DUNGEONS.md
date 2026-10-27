@@ -144,7 +144,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 - "Hover terms doesn't work in melody" (killer560, 2026-10-26) was not the click logic: on the base jar, Hover Melody
   clicks each row once at the right column (testkit 271/272 pass on 97527a55). It was a second switch, Hover Melody,
   shipped OFF under the hover sliders: his config and Full Toggle profile had Hover Terminals' delay set to 50 and
-  `hoverMelodyEnabled: false`. It now defaults ON and old files load ON (`hoverMelodyFormat`). A sub-feature behind its
+  `hoverMelodyEnabled: false`. It now defaults ON and old files load ON (`hoverMelodyVersion`). A sub-feature behind its
   own default-off switch reads as broken; check the saved config before the code.
 - `MouseHandler.isLeftPressed()` only changes while NO screen is open (javap 26.1.2 `onButton`: the write sits behind
   `screen == null`), so inside a terminal it never goes true. Hold To Click tracks the button with
@@ -153,8 +153,17 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   panel (killer560: "doesn't match the terminal gui"). Anything that points at a terminal slot asks
   `TerminalSolverFeature.slotCenterGui`, which uses the panel layout the render and click hit test use.
 - Melody Lookahead counted the proper click (1 and 0 both meant none); since 2026-10-26 N is the EXTRA rows, max 2,
-  old files move by one on load (`melodyLookaheadFormat`). A lookahead click for a row the live match already clicked
+  old files move by one on load (`melodyLookaheadVersion`). A lookahead click for a row the live match already clicked
   is dropped, and the live match skips a row with a lookahead queued, so no row is clicked twice (testkit 275-277).
+- A migration marker key must end in `Version` (or match testkit 310's marker pattern: seeded, migrated, defaulted, V2,
+  a year). 310 flips every other number in a saved file and reloads; it flipped terms-1026's `hoverMelodyFormat` 2 -> 1,
+  the load re-ran the migration and `hoverMelodyEnabled` came back ON (found by another agent, 2026-10-27). The keys are
+  now `hoverMelodyVersion` / `melodyLookaheadVersion`, and files saved with the old `...Format` keys still count.
+- A Rubix click is a real PICKUP, which the client predicts by lifting the pane: the slot reads EMPTY until the server
+  answers, so its highlight vanishes for that moment. Anything that keeps working a slot "while it is highlighted" lets
+  go there and comes back after the answer - the Auto Terminals cursor did exactly that (killer560, 2026-10-27: "if
+  rubix is a 2 it'll go off of it and come back"). Keep the slot while its click is unanswered (`HumanClickOrder.next`,
+  `stickySlot`); testkit 1027-menu-term-human-rubix checks each pane's clicks come back to back.
 
 ## Routes, the Interactive Map and puzzle autos (feature side)
 
