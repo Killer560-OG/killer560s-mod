@@ -237,6 +237,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   built fine and crashed every 26.2 launch (26.2's is `(DeltaTracker, boolean, boolean)`). Seven overlays did it until
   2026-10-04; they are now Fabric HUD layers in `hud/GuiOverlays`. A 26.2 change is not done until a 26.2 boot ran:
   the testkit's `run-scenario.ps1 -Scenario smoke -Minecraft 26.2` does it unattended.
+- A mixin class that is not listed in its `*.mixins.json` compiles, ships in the jar and never runs - no warning at all.
+  On 2026-10-26 a Bash heredoc that should have added six FrameStats mixins to `killer560smod-lagdisplay.mixins.json` aborted
+  on a quoting error and the jar measured nothing; testkit 1026-stutter-hooks caught it by asserting every hook fired.
+  After adding a mixin, check the json in the built jar (`unzip -p <jar> <name>.mixins.json`) or a test that it acted.
 - A class placed inside a mixin-owned package throws `IllegalClassLoadError` and crashes the game at boot.
   Keep helper classes out of `mixin` packages.
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
