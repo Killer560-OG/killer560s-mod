@@ -327,3 +327,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   copy per version). Terminal QoL's Hide Completion and P3 Status both run there; add to it, never a second title mixin. A
   test reads the shown text from the private `title`/`subtitle` fields of Gui (26.1.2) / Hud (26.2) (testkit 2141).
   The dungeon-gaps survey called subtitles unhandled because it grepped for the packet class (2026-10-25).
+- Blink's keys are read under a container menu (a terminal) since 2026-10-26; before, opening one mid-hold read as the
+  key coming up and released the hold. Rework Grim findings (banked turns, Post on dropped releases, the in-place
+  teleport conflict) are in docs/LESSONS-AUTOMATION.md, Blink section.
