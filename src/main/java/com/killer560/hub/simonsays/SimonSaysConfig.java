@@ -94,7 +94,8 @@ public final class SimonSaysConfig {
     // aim retraces the newest buttons of the round it just finished, look only - it never clicks - and ends back on
     // the round's first button. Stim Buttons is how many of the newest it retraces.
     public static final int MIN_STIM_BUTTONS = 1;
-    public static final int MAX_STIM_BUTTONS = 5;
+    // 4 since Hypixel's 4-round device (killer560, 2026-10-27: "4 max clicks now instead of 5"); a saved 5 loads as 4.
+    public static final int MAX_STIM_BUTTONS = 4;
     private boolean autoSolveStim = false;
     private int autoSolveStimButtons = 2;
     // Same request: "can you have it carry more momentum through clicks". 0 = off (the aim behaves exactly as before),
