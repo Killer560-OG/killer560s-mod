@@ -75,7 +75,9 @@ public final class MapLogger {
         if (!BuildVariant.DEV_TOOLS) {
             return;
         }
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        // Through FeatureGuard so the Performance HUD's stutter line can name it (stutter-1026: his logs show ~250-line
+        // bursts from here on entering a room).
+        ClientTickEvents.END_CLIENT_TICK.register(com.killer560.hub.util.FeatureGuard.end("MapLogger", client -> {
             if (++ticks % SCAN_EVERY_TICKS != 0) {
                 return;
             }
@@ -85,7 +87,7 @@ public final class MapLogger {
                 // A logger must never take the client down with it: say so once and keep going.
                 LOGGER.error("Map logger scan failed", e);
             }
-        });
+        }));
     }
 
     private static void scan(Minecraft client) {
