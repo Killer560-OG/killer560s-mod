@@ -402,6 +402,13 @@ public final class BlinkCharge {
                 }
                 tickOpen = !(packet instanceof ServerboundClientTickEndPacket);
             }
+            if (!tpSegs.isEmpty() && !answer && !flushingTp
+                    && (packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClickPacket
+                    || packet instanceof net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket)) {
+                // A menu click does not depend on where he stands: it goes now, as through a hold (a terminal click held a
+                // second behind a teleport missed its moment - testkit 1025-blink-charge-rapid).
+                return false;
+            }
             if (!tpSegs.isEmpty() && !answer && !flushingTp) {
                 // A moving teleport is waiting for its ping's answer: everything after its confirm waits behind it.
                 Held h = new Held(packet, listener, flush);
