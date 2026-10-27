@@ -405,12 +405,22 @@ public final class BlinkCharge {
             if (!tpSegs.isEmpty() && !answer && !flushingTp && !passing
                     && (packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClickPacket
                     || packet instanceof net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket
-                    || packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClosePacket)
-                    && com.killer560.hub.invwalk.InventoryWalkFeature.serverHasStillInput()) {
-                // A menu click does not depend on where he stands: it goes now when the server already has him still (a
-                // terminal click held a second behind a teleport missed its moment - testkit 1025-blink-charge-rapid).
-                // When the input the server last had moves, it waits in the hold in order, or GrimAC MultiActionsC/D drops
-                // it (the same rule as a Blink hold since campaign-invwalk-1027).
+                    || packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClosePacket)) {
+                // A menu click must not wait a second behind a teleport (a terminal right after a leap; testkit
+                // 1025-blink-charge-rapid), and must not go out while the server still has the moving or sneaking input
+                // from before the teleport (GrimAC MultiActionsC/D cancels it - campaign-invwalk-1027). When the server
+                // has him still it goes now; otherwise every waiting answer and everything the teleport held go first, in
+                // order (each confirm right behind its own ping's answer, so GrimAC takes the teleports), then the click.
+                // The bank is kept; answered early, it is backed again on the next still ticks.
+                if (!com.killer560.hub.invwalk.InventoryWalkFeature.serverHasStillInput()) {
+                    int sent = releaseAnswersLocked();
+                    BlinkLog.event("charge: a menu click during a teleport hold - %d answer(s) and the held teleport(s) sent "
+                            + "first so the server has his still input; bank kept (%d), backed again on still ticks", sent, banked);
+                    if (banked + shotLeft > 0) {
+                        unbacked = banked + shotLeft;
+                        rebackRun = 0;
+                    }
+                }
                 return false;
             }
             if (!tpSegs.isEmpty() && !answer && !flushingTp) {
