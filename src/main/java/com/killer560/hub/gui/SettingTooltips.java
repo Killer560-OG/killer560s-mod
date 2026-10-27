@@ -74,9 +74,25 @@ public final class SettingTooltips {
         return widget == null ? null : SCOPES.get(widget);
     }
 
+    /**
+     * Hovers worked out when shown: why a grayed-out control cannot work right now (Spotify Controls, 2026-10-26). The
+     * supplier's text, when it gives one, is shown instead of the widget's fixed description; null falls back to it.
+     * Cleared with the scopes on every rebuild.
+     */
+    private static final java.util.Map<net.minecraft.client.gui.components.AbstractWidget, java.util.function.Supplier<String>>
+            LIVE = new java.util.IdentityHashMap<>();
+
+    public static void live(net.minecraft.client.gui.components.AbstractWidget widget,
+                            java.util.function.Supplier<String> text) {
+        if (widget != null && text != null) {
+            LIVE.put(widget, text);
+        }
+    }
+
     /** Called by {@code ModScreen} before a rebuild - the widgets themselves are thrown away each time. */
     public static void clearScopes() {
         SCOPES.clear();
+        LIVE.clear();
     }
 
     /** {@link #describe(String, net.minecraft.client.gui.components.AbstractWidget, String)} for a label with no widget:
@@ -114,6 +130,13 @@ public final class SettingTooltips {
      */
     public static String describe(String tabName, net.minecraft.client.gui.components.AbstractWidget widget,
                                    String label) {
+        java.util.function.Supplier<String> live = widget == null ? null : LIVE.get(widget);
+        if (live != null) {
+            String text = live.get();
+            if (text != null && !text.isBlank()) {
+                return text;
+            }
+        }
         String k = key(label);
         if (k.isEmpty()) {
             return null;

@@ -25,6 +25,11 @@ public final class SongShareConfig {
 
     private volatile boolean shareSong = false;
     private volatile boolean showOthers = false;
+    /**
+     * My Lyrics In F5 (2026-10-26): the lyric line being sung, over your own head in third person. Local only, never
+     * sent. Off by default, because turning it on starts the Spotify reader and the lyric lookups.
+     */
+    private volatile boolean lyricsOverHead = false;
 
     private SongShareConfig() {
     }
@@ -45,6 +50,7 @@ public final class SongShareConfig {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.shareSong = ConfigJson.getBool(obj, "shareSong", false);
                 cfg.showOthers = ConfigJson.getBool(obj, "showOthers", false);
+                cfg.lyricsOverHead = ConfigJson.getBool(obj, "lyricsOverHead", false);
             } catch (Exception ignored) {
                 // a broken file loads as the defaults
             }
@@ -58,6 +64,7 @@ public final class SongShareConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("shareSong", shareSong);
             obj.addProperty("showOthers", showOthers);
+            obj.addProperty("lyricsOverHead", lyricsOverHead);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -77,5 +84,13 @@ public final class SongShareConfig {
 
     public void setShowOthers(boolean showOthers) {
         this.showOthers = showOthers;
+    }
+
+    public boolean isLyricsOverHead() {
+        return lyricsOverHead;
+    }
+
+    public void setLyricsOverHead(boolean lyricsOverHead) {
+        this.lyricsOverHead = lyricsOverHead;
     }
 }

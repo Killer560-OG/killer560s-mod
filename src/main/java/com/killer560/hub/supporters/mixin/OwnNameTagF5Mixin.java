@@ -25,12 +25,17 @@ public abstract class OwnNameTagF5Mixin {
     @Inject(method = "shouldShowName(Lnet/minecraft/world/entity/Avatar;D)Z", at = @At("RETURN"), cancellable = true,
             require = 0)
     private void killer560smod$ownNameInF5(Avatar entity, double distanceSq, CallbackInfoReturnable<Boolean> cir) {
-        if (cir.getReturnValueZ() || !SupportersConfig.getInstance().isOwnNameInF5()) {
+        if (cir.getReturnValueZ()) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
         if (entity == null || entity != mc.player || mc.options.getCameraType().isFirstPerson()
                 || McCompat.hudHidden(mc)) {
+            return;
+        }
+        // Song Tag / My Lyrics In F5 (2026-10-26): your own song or lyric line hangs over your name, so the name is shown
+        // in third person while one is up, even with My Name in F5 off.
+        if (!SupportersConfig.getInstance().isOwnNameInF5() && !com.killer560.hub.spotify.SongTagDraw.hasOwnLine()) {
             return;
         }
         cir.setReturnValue(true);

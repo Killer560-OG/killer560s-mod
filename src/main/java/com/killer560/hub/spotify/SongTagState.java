@@ -13,4 +13,9 @@ public interface SongTagState {
     Component killer560smod$songTag();
 
     void killer560smod$setSongTag(Component tag);
+
+    /** My Lyrics In F5: the lyric line drawn above the song line (or above the name), only ever on your own state. */
+    Component killer560smod$lyricTag();
+
+    void killer560smod$setLyricTag(Component tag);
 }

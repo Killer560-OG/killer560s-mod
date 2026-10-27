@@ -229,6 +229,22 @@ project CLAUDE.md. Compiling lessons
   and Spotify's length within 2 s (`LyricsEngine.pickVersion`, plus lrclib's `/api/get` with the duration); the length and
   position come from `spotify/SpotifyMediaSession`, a PowerShell reader of the System Media Transport Controls, because
   the window title has no clock.
+- **The lyric clock only corrected errors over a second, so smaller ones stayed for the whole track** (killer560,
+  2026-10-26: "sometimes the highlighted lyric still gets off by a bit"). The stopwatch starts when the title change is
+  SEEN (a 250 ms poll), and a resume restarts it the same way, so a few hundred ms of error was normal and `PlaybackClock`'s
+  1000 ms jump threshold never fixed it. Now the first reading of a track always sets the clock and any NEW reading (its
+  LastUpdatedTime changed) more than 60 ms off corrects it; over 300 ms is logged. Measured on his PC: Spotify refreshes
+  LastUpdatedTime about every 4.5 s even while paused (same position), and at once on a seek (130 ms later). Testkit 2840.
+- **Spotify Song Tag never showed in F5 for its owner** (2026-10-26): `SongShare.ownTag()` was set only after the relay took
+  the packet, and his Mod Only Test has no `killer560smod-modusers.json` (Show Me As A Mod User defaults off, so every
+  packet was blocked) and his account is not in the supporter list; nothing said so. A local line must not wait for a
+  network send. Also: vanilla never draws the camera entity's name, so a line over your own name needs the name forced on
+  (`OwnNameTagF5Mixin` now also asks `SongTagDraw.hasOwnLine`).
+- The media-session helper's stdin is the control channel (`SpotifyMediaSession.send`): the script waits on
+  `StreamReader.ReadLineAsync` from `OpenStandardInput()`, not `[Console]::In` (its ReadLineAsync is synchronous on .NET
+  Framework), and exits when stdin closes. Per-app volume is Core Audio `ISimpleAudioVolume` compiled by `Add-Type` on
+  first use (0.4 s). `TryChangePlaybackPositionAsync` takes 100 ns ticks (a zero seek on his Spotify returned True and
+  kept the position, 2026-10-26).
 - A fixed RMS threshold is not a voice detector: room noise on an open mic sat above Voice To Text's 500, so no pause was
   ever seen and Open Mic never sent anything. `voicetotext/OpenMicSegmenter` compares against the quietest chunk of the last
   3 s; testkit 564 feeds noise at RMS 700 (2026-10-08).

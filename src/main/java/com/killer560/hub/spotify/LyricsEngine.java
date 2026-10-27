@@ -285,9 +285,25 @@ public final class LyricsEngine {
         }
         try {
             NowPlaying nowPlaying = source.fetch();
-            lastNowPlaying = nowPlaying;
             long now = System.currentTimeMillis();
-            SpotifyMediaSession.Timeline timeline = session == null ? null : session.latest(now);
+            pollAt(nowPlaying, session == null ? null : session.latest(now), now, fullLyricsMode);
+        } catch (Exception e) {
+            SpotifyLyricsFeature.LOGGER.warn("Poll failed: {}", String.valueOf(e), e);
+        }
+    }
+
+    /**
+     * One poll with what the window title and the media session said, at wall time {@code now}. {@link #poll} calls it
+     * with the real readings; the testkit calls it with made-up ones (a drifting, seeking, pausing Spotify) and checks
+     * {@link #snapshot()} against the true position.
+     */
+    public synchronized void pollAt(NowPlaying nowPlaying, SpotifyMediaSession.Timeline timeline, long now,
+                                    boolean fullLyricsMode) {
+        {
+            lastNowPlaying = nowPlaying;
+            if (timeline != null) {
+                lastSeenUpdatedMs = timeline.updatedMs();
+            }
 
             if (nowPlaying.kind() == NowPlaying.Kind.PAUSED) {
                 // The clock stops; the track is REMEMBERED. Forgetting it would announce the same song again
@@ -374,6 +390,10 @@ public final class LyricsEngine {
                 if (timeline.paused()) {
                     clock.pause(now);
                     pausedBySession = true;
+                    // Spotify paused before this poll saw it: its paused position is where the line is held.
+                    if (timeline.updatedMs() >= lastEventMs - EVENT_SLACK_MS) {
+                        follow(timeline, now);
+                    }
                 } else if (timeline.playing() && timeline.updatedMs() >= lastEventMs - EVENT_SLACK_MS) {
                     follow(timeline, now);
                 }
@@ -406,8 +426,6 @@ public final class LyricsEngine {
                 currentIsTransition = false;
             }
             publish(nowPlaying.kind());
-        } catch (Exception e) {
-            SpotifyLyricsFeature.LOGGER.warn("Poll failed: {}", String.valueOf(e), e);
         }
     }
 
@@ -482,15 +500,77 @@ public final class LyricsEngine {
         });
     }
 
-    /** Snaps the clock to Spotify's position on a jump. Caller holds the lock. */
+    /**
+     * Keeps the clock on Spotify's own position (caller holds the lock). The position is Spotify's at the reading's own
+     * time ({@code updatedMs}, Windows' LastUpdatedTime) carried forward to {@code now}, never "the position when we read
+     * it", so a reading that sat in the pipe for half a second is still exact. The clock is set to it:
+     * <ul>
+     *   <li>on the first reading of a track (the stopwatch started when the title change was SEEN, up to a poll late);</li>
+     *   <li>on any disagreement over {@link PlaybackClock#JUMP_MS} (a seek, a restart);</li>
+     *   <li>on a disagreement over {@link PlaybackClock#DRIFT_MS} when the reading is a NEW one (its {@code updatedMs}
+     *       differs from the last one this corrected from), which is drift. Spotify refreshes its reading every few
+     *       seconds while playing and at once on a seek, pause or resume (measured 2026-10-26: a seek's reading arrived
+     *       130 ms after it), so the clock is re-synced that often.</li>
+     * </ul>
+     * A correction over {@value #LOG_DRIFT_MS} ms is logged with its size, so his log shows when and how far it drifted.
+     * Right after a seek this mod asked for ({@link #nudge}) a reading Spotify took before the seek is not believed.
+     */
     private void follow(SpotifyMediaSession.Timeline timeline, long now) {
+        if (now < nudgeUntilMs && timeline.updatedMs() <= nudgeBeforeUpdatedMs) {
+            return;   // taken before the seek we just asked for: it would undo the seek on screen until the next reading
+        }
         long before = clock.elapsedMs(now);
         long real = timeline.positionAt(now);
-        if (clock.follow(real, now) && positionFromSpotify) {
-            SpotifyLyricsFeature.LOGGER.info("Spotify position jumped {} -> {}", mmss(before),
-                    mmss(real));
+        long diff = real - before;
+        boolean fresh = timeline.updatedMs() != lastSyncUpdatedMs;
+        boolean first = !positionFromSpotify;
+        if (first || Math.abs(diff) > PlaybackClock.JUMP_MS || (fresh && Math.abs(diff) > PlaybackClock.DRIFT_MS)) {
+            clock.set(real, now);
+            lastSyncUpdatedMs = timeline.updatedMs();
+            corrections++;
+            lastCorrectionMs = diff;
+            if (Math.abs(diff) > LOG_DRIFT_MS) {
+                String why = first ? "first reading of the track" : Math.abs(diff) > PlaybackClock.JUMP_MS
+                        ? "seek" : "drift";
+                SpotifyLyricsFeature.LOGGER.info("Spotify lyric clock corrected by {} ms ({}): {} -> {}",
+                        (diff > 0 ? "+" : "") + diff, why, mmss(before), mmss(real));
+            }
+        } else if (fresh) {
+            lastSyncUpdatedMs = timeline.updatedMs();
         }
         positionFromSpotify = true;
+    }
+
+    /** Corrections at least this big are logged. */
+    static final long LOG_DRIFT_MS = 300;
+    /** How long after a {@link #nudge} readings from before it are ignored. */
+    private static final long NUDGE_HOLD_MS = 2000;
+
+    private long lastSyncUpdatedMs = Long.MIN_VALUE;
+    private long lastSeenUpdatedMs = Long.MIN_VALUE;
+    private long nudgeBeforeUpdatedMs = Long.MIN_VALUE;
+    private long nudgeUntilMs = 0;
+    // Test hooks (read by the testkit).
+    private volatile long corrections;
+    private volatile long lastCorrectionMs;
+
+    /**
+     * Moves the clock by {@code deltaMs} at once, for a Rewind or Skip Ahead this mod just sent to Spotify, so the lyric
+     * jumps with the press instead of a reading later; Spotify's own reading of the seek (about 130 ms later) then
+     * corrects it to the exact spot. Readings taken before the press are ignored for {@value #NUDGE_HOLD_MS} ms.
+     */
+    public synchronized void nudge(long deltaMs, long now) {
+        if (lastTrackKey == null || lastWasAd) {
+            return;
+        }
+        long target = Math.max(0, clock.elapsedMs(now) + deltaMs);
+        if (spotifyDurationSeconds > 0) {
+            target = Math.min(target, Math.max(0, (long) (spotifyDurationSeconds * 1000) - 1000));
+        }
+        clock.set(target, now);
+        nudgeBeforeUpdatedMs = lastSeenUpdatedMs;
+        nudgeUntilMs = now + NUDGE_HOLD_MS;
+        publish(snapshot.kind());
     }
 
     private static String mmss(long ms) {

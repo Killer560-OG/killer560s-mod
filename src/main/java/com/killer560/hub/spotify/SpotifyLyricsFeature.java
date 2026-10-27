@@ -194,13 +194,21 @@ public final class SpotifyLyricsFeature {
         // reads the window title's track and pause state, which needs no helper process).
         boolean hud = SpotifyHudConfig.getInstance().isHudEnabled();
         boolean sharing = SongShareConfig.getInstance().isShareSong();
-        boolean lyricsWanted = enabled || hud;
+        // My Lyrics In F5 (2026-10-26) shows the lyric being sung over your own head, so it needs the lyrics too.
+        boolean lyricsWanted = enabled || hud || SongShareConfig.getInstance().isLyricsOverHead();
+        // Spotify Controls (2026-10-26) talk to Spotify through the same helper: it stays up while a control key is bound,
+        // and for two minutes after a control or the tab was used.
+        boolean controls = SpotifyControls.sessionWanted(System.currentTimeMillis());
         if (!lyricsWanted && !sharing) {
-            MEDIA.stop();   // no helper process while nothing reads it
+            if (controls) {
+                MEDIA.ensureRunning();
+            } else {
+                MEDIA.stop();   // no helper process while nothing reads it
+            }
             ENGINE.forgetNowPlaying();
             return;
         }
-        if (lyricsWanted) {
+        if (lyricsWanted || controls) {
             MEDIA.ensureRunning();
         } else {
             MEDIA.stop();
@@ -277,9 +285,34 @@ public final class SpotifyLyricsFeature {
         return s;
     }
 
+    /** Test hook: what {@link #snapshot()} answers instead of the engine's (null = the engine's). */
+    static volatile LyricsEngine.Snapshot testSnapshot;
+
     /** What the Spotify HUD draws: the last poll's state, safe to read from the render thread. */
     public static LyricsEngine.Snapshot snapshot() {
-        return ENGINE.snapshot();
+        LyricsEngine.Snapshot t = testSnapshot;
+        return t != null ? t : ENGINE.snapshot();
+    }
+
+    /** The Windows media-session helper, which Spotify Controls also send through. */
+    static SpotifyMediaSession media() {
+        return MEDIA;
+    }
+
+    /** Runs {@code task} on the Spotify poll thread, so a pipe write or a process start never stalls a frame. */
+    static void runOffThread(Runnable task) {
+        SCHEDULER.execute(() -> {
+            try {
+                task.run();
+            } catch (Throwable t) {
+                LOGGER.warn("Spotify task failed: {}", String.valueOf(t));
+            }
+        });
+    }
+
+    /** Moves the lyric clock by {@code deltaMs} at once, for a seek a control just sent. */
+    static void nudge(long deltaMs) {
+        runOffThread(() -> ENGINE.nudge(deltaMs, System.currentTimeMillis()));
     }
 
     /** The current track's cover from Windows' media controls, or null; any thread. */

@@ -30,6 +30,8 @@ public final class SpotifyHudConfig {
     private boolean showLyrics = true;
     private boolean wordHighlight = true;
     private boolean hideWhenPaused = false;
+    /** Smooth Lyric Scroll (2026-10-26): the lyric rows slide up when a line ends instead of jumping. */
+    private boolean smoothScroll = true;
 
     private SpotifyHudConfig() {
     }
@@ -53,6 +55,7 @@ public final class SpotifyHudConfig {
                 cfg.showLyrics = ConfigJson.getBool(obj, "showLyrics", cfg.showLyrics);
                 cfg.wordHighlight = ConfigJson.getBool(obj, "wordHighlight", cfg.wordHighlight);
                 cfg.hideWhenPaused = ConfigJson.getBool(obj, "hideWhenPaused", cfg.hideWhenPaused);
+                cfg.smoothScroll = ConfigJson.getBool(obj, "smoothScroll", cfg.smoothScroll);
             } catch (Exception e) {
                 SpotifyLyricsFeature.LOGGER.warn("Could not read Spotify HUD config: {}", e.getMessage());
             }
@@ -68,6 +71,7 @@ public final class SpotifyHudConfig {
             obj.addProperty("showLyrics", showLyrics);
             obj.addProperty("wordHighlight", wordHighlight);
             obj.addProperty("hideWhenPaused", hideWhenPaused);
+            obj.addProperty("smoothScroll", smoothScroll);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception e) {
             SpotifyLyricsFeature.LOGGER.warn("Could not save Spotify HUD config: {}", e.getMessage());
@@ -104,5 +108,13 @@ public final class SpotifyHudConfig {
 
     public void setHideWhenPaused(boolean hideWhenPaused) {
         this.hideWhenPaused = hideWhenPaused;
+    }
+
+    public boolean isSmoothScroll() {
+        return smoothScroll;
+    }
+
+    public void setSmoothScroll(boolean smoothScroll) {
+        this.smoothScroll = smoothScroll;
     }
 }
