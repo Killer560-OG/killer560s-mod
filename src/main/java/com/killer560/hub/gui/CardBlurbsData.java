@@ -131,6 +131,7 @@ final class CardBlurbsData {
         d.put("ChatHistoryTab", "Keeps all of your chat.");
         d.put("CommandKeybindsTab", "Chat keys and shortcuts.");
         d.put("ClickTranslateTab", "Click chat to translate.");
+        d.put("ImagePreviewTab", "Shows pictures from chat links.");
         d.put("CopyChatTab", "Shift or Ctrl click copies chat.");
         d.put("CringeTab", "The /cringe command.");
         d.put("ModChatTab", "Private chat with mod users.");

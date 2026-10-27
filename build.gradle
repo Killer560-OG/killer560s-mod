@@ -82,6 +82,17 @@ dependencies {
 	//
 	// JNA stays bundled: the downloaded Vosk resolves com.sun.jna through the mod's loader.
 	include(implementation("net.java.dev.jna:jna:5.14.0"))
+
+	// WebP for Image Preview (imagepreview/ImageDecoding): the JDK's ImageIO has no WebP reader, and Discord and imgur
+	// serve many pictures as WebP. TwelveMonkeys is pure Java (no natives) and BSD-3 licensed; the reader is created
+	// directly (WebPImageReaderSpi), not found through ImageIO's plugin registry. About 580 KB for the six jars, which
+	// are listed one by one because include is not transitive.
+	include(implementation("com.twelvemonkeys.imageio:imageio-webp:3.12.0"))
+	include(implementation("com.twelvemonkeys.imageio:imageio-core:3.12.0"))
+	include(implementation("com.twelvemonkeys.imageio:imageio-metadata:3.12.0"))
+	include(implementation("com.twelvemonkeys.common:common-lang:3.12.0"))
+	include(implementation("com.twelvemonkeys.common:common-io:3.12.0"))
+	include(implementation("com.twelvemonkeys.common:common-image:3.12.0"))
 }
 
 processResources {

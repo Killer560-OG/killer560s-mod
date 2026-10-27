@@ -74,6 +74,8 @@ public final class ProfileData {
             "sim-map-history.json",
             // The Price Tooltip's downloaded prices and item facts (re-fetched every few minutes).
             "pricetooltip-cache",
+            // Image Preview's downloaded pictures (fetched again on hover, size-capped).
+            "imagepreview-cache",
             // The Session Recorder's "never record here" marker: it belongs to one instance (his dungeon instance) and
             // must not travel to, or be dropped from, another by a profile.
             "session-recorder-disabled",

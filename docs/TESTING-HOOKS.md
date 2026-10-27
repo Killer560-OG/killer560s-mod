@@ -35,6 +35,18 @@ are fed with `LfgFeature.onMeForTest(json)`, `onListingsForTest(category, json)`
 clears it all. `LfgCommandGate.sent()` / `refused()` are every party command let through or refused, `resetForTest()` clears
 the limits (testkit 1018-pf-*).
 
+## Image Preview (`imagepreview/`)
+
+- `-Dkiller560.test.imagePreviewHosts=127.0.0.1:PORT,...` (read on every fetch, so a case may set it at run time) makes
+  those hosts count as trusted and lets them be private addresses, which are otherwise never fetched. Under
+  `killer560.net.offline` a host is still refused unless a service override names it.
+- Service keys `imgur-api` (api.imgur.com, album and page lookups), `imgur-i` (i.imgur.com), `imgur` (imgur.com),
+  `discord-cdn`, `discord-media`: read on every request.
+- `ImagePreviewFeature.lastDrawnForTest()` (box, picture size, frame, "1/N" or error caption), `sampleForTest(link, fx,
+  fy)` (decoded ARGB), `entryStateForTest(link)`, `requestsForTest()` (HTTP requests sent), `texturesForTest()`,
+  `workForTest()` / `resetWorkForTest()` (ns of feature work per chat frame), `resetForTest()` (drops memory and
+  textures, keeps the disk cache), `clearLastDrawnForTest()`, `clearDiskCacheForTest()` (testkit 1071-1081).
+
 ## Price Tooltip (`pricetooltip/`)
 
 No property beyond the `hypixel` and `hysky` service overrides above, which it reads at every fetch. `PriceData.

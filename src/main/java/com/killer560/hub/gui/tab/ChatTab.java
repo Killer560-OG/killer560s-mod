@@ -22,6 +22,8 @@ public class ChatTab extends FolderTab {
                 new PeekChatTab(),
                 // Chat History (2026-10-18, killer560): an unlimited chat limit.
                 new ChatHistoryTab(),
+                // Image Preview (2026-10-27, killer560: "reimplement imgur... it lets you see pictures and things through links").
+                new ImagePreviewTab(),
                 new AutoMeowTab(),
                 new CringeTab(),
                 new SpotifyTab(),

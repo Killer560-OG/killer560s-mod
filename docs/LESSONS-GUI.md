@@ -219,6 +219,13 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   preview always was. Both go through `PartyFinderOverlay.styleLines` (missing stats render as `?`; testkit
   236-menu-partyfinder-style). Stats now come from `ProfileViewerApi` (SkyBlockPV backend); docilelm is no longer called
   (400-menu-partyfinder-stats serves real trimmed answers through a loopback fake).
+- **Vanilla's chat hover only finds links the server made clickable.** `ActiveTextCollector.ClickableStyleFinder` (what
+  `ChatScreen.mouseClicked` uses, javap 26.1.2 and 26.2) returns a style only when it carries a click event, and players'
+  links on Hypixel arrive as plain text. Image Preview (2026-10-27) tries the finder first, then records each placed row
+  (pose, x, text) through the same `captureClickableText`, sums per-code-point widths (`FormattedCharSequence.codepoint`) to
+  get the character under the cursor, and searches the WHOLE message (`GuiMessage.Line.parent()`, rows located in
+  `parent.content()` in order), so a long URL wrapped over two rows is found from either row (testkit 1072). A URL regex
+  whose host must end in letters misses `127.0.0.1` (the first 1072 run): allow an IPv4 host alternative.
 
 ## World rendering
 
