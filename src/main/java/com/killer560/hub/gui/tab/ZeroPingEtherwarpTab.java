@@ -36,7 +36,7 @@ public class ZeroPingEtherwarpTab extends BaseTab {
         if (!cfg.isEnabled()) {
             return w;
         }
-        w.add(SectionHeaders.row(contentX, y, contentWidth, "Zero Ping Etherwarp", true));
+        w.add(SectionHeaders.row(contentX, y, contentWidth, "Zero Ping Etherwarp", false));
         y += 16;
         String[] help = {
                 "§7Your view jumps to where an etherwarp lands the moment you use it,",
