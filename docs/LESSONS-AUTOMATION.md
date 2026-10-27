@@ -44,7 +44,10 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   movement packet. Goldor Triggerbot, Arrow Align's Trigger Bot and Aura, Simon Says' Trigger Bot and Rotate Mode click, and
   Auto i4's shots all clicked from `LevelRenderEvents` for millisecond timing (testkit 786-788 recorded one Post per
   click). They send at START_CLIENT_TICK now; only camera turns stay per frame. Delays are `ActionGate.delayTicks` (rounded
-  UP to 50 ms). Testkit 786-788 and 831-835 require clean.
+  UP to 50 ms). Testkit 786-788 and 831-835 require clean. Secret Triggerbot and the Auto Door Opener were already on the
+  tick and still time their delay with `System.currentTimeMillis`, so on a slow client their delay is fewer ticks than
+  ms/50 while the P3 trigger bots' is exactly that many ticks; the testkit judges each in its own unit (preexisting-1026).
+  Arrow Align's Trigger Bot has had a CPS range instead of a delay since b4b6e44f (the first click waits one gap).
 - **An aura's click is judged against the rotation the movement packets report, not the camera.** A block use the reported
   look misses is GrimAC RotationPlace (and dropped); an entity interact is Hitboxes. Turn the BODY first with
   `util/TurnFirst` (or BodyAim), camera held, and send only after a movement packet has carried the turn: an AP3 Term Aura
