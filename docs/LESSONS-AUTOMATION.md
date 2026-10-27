@@ -320,9 +320,13 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   after every automation's input mixin); "still" is judged on what LEFT the connection (`InventoryWalkFeature.noteLeft`
   from Blink's send hook); during a hold the clicks join the hold behind the still tick (`BlinkFeature.clicksJoinHold`).
   Test helpers that close a menu with `setScreen(null)` send no close packet at all - `onClose()` does, as Escape does.
-- Two item uses in one client tick are BadPacketsJ: each use must carry a rotation that tick's single movement packet
-  reports. "Several etherwarps per tick" is several per SERVER tick: one per client tick, held by Blink and released
-  together (Blink The Chain).
+- Two item uses in one client tick with DIFFERENT looks are BadPacketsJ: each use must carry a rotation that tick's single
+  movement packet reports (javap 2.3.74: a use whose yaw/pitch differs from the tick's previous use flags, and at the tick
+  packet the uses' look must equal the movement packet's). Uses at the SAME look are clean in any number: a vanilla client
+  sends them itself (`Minecraft.handleKeybinds`: `while (keyUse.consumeClick()) startUseItem()`, two clicks inside 50 ms).
+  So differently aimed warps (Auto Routes' nodes) go one per client tick (or several per SERVER tick through Blink The
+  Chain), while same-look warps can go N in one tick: ZPEW Warps Per Tick, testkit 1027-zpewmt-* (2, 3, 5, 10 and 20 in a
+  tick, 0-300 ms, 26.1.2 and 26.2, GrimAC clean; the server casts each from the previous landing).
 - RouteExecutor assumed one warp in flight (one `warpLanding`, one `teleportPacketSeen`). Zero Ping Chain keeps a queue
   of predicted landings (`inFlight`), reads `feet(player)` instead of `player.position()` while it is non-empty, and
   matches each server packet against the queue; a packet that matches an older entry confirms it and every older one.
@@ -407,7 +411,9 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
 - ZPEW measured (zpew campaign 2026-10-27, testkit 1027-zpewc-*): packet for packet the same as a ZPEW-off run, and no
   packet ever sent from a zpew frame; against the testkit's etherwarp every shape it models the same way is exact (error
   0.000, 0/50/150/300 ms, tuners 0-4 to the last block in range and not one past it, falling, jumping, walking, chains
-  of 5 and two uses in one tick). When the server just ignores a use (no teleport at all), the camera stays on the
+  of 5 and two uses on consecutive ticks - the campaign's "two uses in one tick" case pressed the key twice with
+  `pressKey`, which holds each press a tick (ZPEW log: predictions at ticks 1991 and 1992); 1027-zpewmt-* has the real
+  same-tick case). When the server just ignores a use (no teleport at all), the camera stays on the
   predicted landing for Give Up After (1000 ms default) and then snaps back; any position packet ends it at once.
 - A shot replays banked ticks inside one real tick, so a feature that steers him per tick must run inside it: a 20-tick AP3
   release on the keys chosen at the END before ran him 18.75 blocks straight off S2's platform (Mod Only Test log

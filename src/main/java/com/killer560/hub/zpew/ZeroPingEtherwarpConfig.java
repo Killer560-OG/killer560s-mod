@@ -16,6 +16,8 @@ public final class ZeroPingEtherwarpConfig {
 
     public static final int MIN_TIMEOUT_MS = 250;
     public static final int MAX_TIMEOUT_MS = 3000;
+    /** Warps Per Tick (cheat build): 1 = off, up to this many etherwarps sent in one client tick per use. */
+    public static final int MAX_WARPS_PER_TICK = 10;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-zpew.json");
@@ -29,6 +31,9 @@ public final class ZeroPingEtherwarpConfig {
     private boolean chain = true;
     /** The Etherwarp Overlay highlights from the predicted landing while a warp is pending. */
     private boolean overlayFromPrediction = true;
+    /** Warps Per Tick (cheat build only): each of your own etherwarps becomes this many in the same tick, at the same
+     *  look, each from the last one's predicted landing (see {@link ZeroPingEtherwarp#flushExtraWarps}). 1 = off. */
+    private int warpsPerTick = 1;
     /** Works For: which senders' etherwarps are predicted (see {@link ZpewSource}). All on by default - before the list
      *  existed every etherwarp use was predicted, whoever sent it. Saved as {"worksFor": {"MANUAL": true, ...}}. */
     private final java.util.EnumMap<ZpewSource, Boolean> worksFor = new java.util.EnumMap<>(ZpewSource.class);
@@ -58,6 +63,7 @@ public final class ZeroPingEtherwarpConfig {
                 cfg.setTimeoutMs(ConfigJson.getInt(obj, "timeoutMs", cfg.timeoutMs));
                 cfg.chain = ConfigJson.getBool(obj, "chain", cfg.chain);
                 cfg.overlayFromPrediction = ConfigJson.getBool(obj, "overlayFromPrediction", cfg.overlayFromPrediction);
+                cfg.setWarpsPerTick(ConfigJson.getInt(obj, "warpsPerTick", cfg.warpsPerTick));
                 if (obj.has("worksFor") && obj.get("worksFor").isJsonObject()) {
                     JsonObject wf = obj.getAsJsonObject("worksFor");
                     for (ZpewSource s : ZpewSource.values()) {
@@ -79,6 +85,7 @@ public final class ZeroPingEtherwarpConfig {
             obj.addProperty("timeoutMs", timeoutMs);
             obj.addProperty("chain", chain);
             obj.addProperty("overlayFromPrediction", overlayFromPrediction);
+            obj.addProperty("warpsPerTick", warpsPerTick);
             JsonObject wf = new JsonObject();
             for (ZpewSource s : ZpewSource.values()) {
                 wf.addProperty(s.name(), worksFor.get(s));
@@ -119,6 +126,20 @@ public final class ZeroPingEtherwarpConfig {
 
     public void setOverlayFromPrediction(boolean overlayFromPrediction) {
         this.overlayFromPrediction = overlayFromPrediction;
+    }
+
+    /** The saved Warps Per Tick (1..{@link #MAX_WARPS_PER_TICK}), whatever the build (the tab and the testkit read this). */
+    public int getWarpsPerTick() {
+        return warpsPerTick;
+    }
+
+    public void setWarpsPerTick(int warpsPerTick) {
+        this.warpsPerTick = Math.max(1, Math.min(MAX_WARPS_PER_TICK, warpsPerTick));
+    }
+
+    /** Warps Per Tick as it applies: always 1 in a legit build (nothing extra is ever sent there). */
+    public int effectiveWarpsPerTick() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? warpsPerTick : 1;
     }
 
     /** Whether ZPEW predicts this sender's etherwarps: its Works For switch, and a cheat source only in a cheat build. */

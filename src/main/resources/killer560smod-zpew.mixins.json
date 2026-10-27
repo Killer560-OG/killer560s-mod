@@ -6,7 +6,8 @@
 	"client": [
 		"ZpewCameraMixin",
 		"ZpewPositionMixin",
-		"ZpewSendMixin"
+		"ZpewSendMixin",
+		"ZpewUseItemMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
