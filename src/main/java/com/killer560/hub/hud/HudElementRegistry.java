@@ -242,6 +242,8 @@ public final class HudElementRegistry {
         if (com.killer560.hub.perfprobe.PerfProbe.ENABLED) {
             com.killer560.hub.perfprobe.PerfProbe.enterHud(); // debug-only per-element timer (testkit 95-perf-*)
         }
+        // Stutter attribution (Performance HUD, stutter-1026): this element's share of the frame, only while measured.
+        long stutterT0 = com.killer560.hub.lagdisplay.ModCallbackTimes.active ? System.nanoTime() : 0L;
         int[] pos = resolvePosition(element);
         float scale = resolveScale(element);
         graphics.pose().pushMatrix();
@@ -255,6 +257,10 @@ public final class HudElementRegistry {
             graphics.pose().popMatrix();
             if (com.killer560.hub.perfprobe.PerfProbe.ENABLED) {
                 com.killer560.hub.perfprobe.PerfProbe.exitHud(element, element.id());
+            }
+            if (stutterT0 != 0L) {
+                com.killer560.hub.lagdisplay.ModCallbackTimes.add(
+                        com.killer560.hub.lagdisplay.ModCallbackTimes.hudSlot(element, element.id()), stutterT0);
             }
         }
     }

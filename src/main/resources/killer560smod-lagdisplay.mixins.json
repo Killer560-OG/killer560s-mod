@@ -4,7 +4,13 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.lagdisplay.mixin",
 	"client": [
-		"PingPongMixin"
+		"PingPongMixin",
+		"FrameStatsMinecraftMixin",
+		"FrameStatsGameRendererMixin",
+		"FrameStatsChunkMixin",
+		"FrameStatsLevelRendererAccessor",
+		"FrameStatsSectionMixin",
+		"FrameStatsUploadMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -76,7 +76,9 @@ public final class ProfileData {
             "pricetooltip-cache",
             // The Session Recorder's "never record here" marker: it belongs to one instance (his dungeon instance) and
             // must not travel to, or be dropped from, another by a profile.
-            "session-recorder-disabled"
+            "session-recorder-disabled",
+            // The Performance HUD's stutter log and its rolled copy (stutter-1026): diagnostics of one PC.
+            "lagdisplay-stutters.log", "lagdisplay-stutters.1.log"
     );
 
     /** Name prefixes (after {@link ModPaths#PREFIX}) that never go in: bug report zips, route-file broken backups. */
