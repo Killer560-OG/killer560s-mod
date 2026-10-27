@@ -855,7 +855,33 @@ public class Killer560ModClient implements ClientModInitializer {
         return 1;
     }
 
+    private static boolean openMenuKeyWasDown = false;
+    private static boolean openMenuTypingLastTick = false;
+
+    /**
+     * The Open Menu key (killer560, 2026-10-26: "a keybind to open our mod ... default to the \ key", backslash): opens the mod's
+     * menu like /killer560, in game with no screen open and not while typing (the same typing rule as the Edit HUD key).
+     */
+    private static void checkOpenMenuKey(Minecraft client) {
+        int code = HudConfig.getInstance().getOpenMenuKeyCode();
+        if (code < 0 || client.getWindow() == null) {
+            openMenuKeyWasDown = false;
+            return;
+        }
+        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
+        boolean typing = com.killer560.hub.util.TypingDetector.isTyping(client);
+        boolean typedLastTick = openMenuTypingLastTick;
+        openMenuTypingLastTick = typing;
+        if (down && !openMenuKeyWasDown && McCompat.screen(client) == null && !typing && !typedLastTick
+                && client.level != null) {
+            client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
+            McCompat.setScreen(client, new ModScreen(null));
+        }
+        openMenuKeyWasDown = down;
+    }
+
     private static void checkHudEditKeybind(Minecraft client) {
+        checkOpenMenuKey(client);
         int code = HudConfig.getInstance().getEditKeyCode();
         if (code < 0) {
             editKeyWasDown = false;

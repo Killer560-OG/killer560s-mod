@@ -16,7 +16,8 @@ import java.util.List;
  *  they live elsewhere - the header's round buttons and Home's quick buttons). */
 public class HomeMainTab extends BaseTab implements KeyCaptureTab {
 
-    private boolean listening = false;
+    /** Which key is being captured: 0 none, 1 Edit HUD, 2 Open Menu. */
+    private int listening = 0;
 
     public HomeMainTab() {
         super("Mod & HUD");
@@ -54,17 +55,25 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
+        // Open Menu key (killer560, 2026-10-26): backslash by default; click, then press a key (Esc unbinds).
+        widgets.add(SettingsButtonWidget.builder(listening == 2 ? Component.literal("Press any key...") : openMenuText(),
+                btn -> {
+                    listening = 2;
+                    btn.setMessage(Component.literal("Press any key..."));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
+
         // Sweat Mode is the button at the top of Home only (killer560, 2026-10-18), not a row in Mod or HUD.
         y += 4;
 
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "HUD", false));
         y += 16;
 
-        Component keybindLabel = listening
+        Component keybindLabel = listening == 1
                 ? Component.literal("Press any key...")
                 : keybindText();
         widgets.add(SettingsButtonWidget.builder(keybindLabel, btn -> {
-                    listening = true;
+                    listening = 1;
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
@@ -174,14 +183,26 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
     }
 
     public boolean isListeningForKey() {
-        return listening;
+        return listening != 0;
     }
 
     public void onKeyCaptured(int keyCode) {
-        listening = false;
+        int code = keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode;
         // Escape unbinds (-1), same convention as every other KeyCaptureTab - it used to bind Escape itself.
-        HudConfig.getInstance().setEditKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        if (listening == 2) {
+            HudConfig.getInstance().setOpenMenuKeyCode(code);
+        } else {
+            HudConfig.getInstance().setEditKeyCode(code);
+        }
+        listening = 0;
         HudConfig.getInstance().save();
+    }
+
+    private static Component openMenuText() {
+        int code = HudConfig.getInstance().getOpenMenuKeyCode();
+        String name = code < 0 ? "Not Set"
+                : InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
+        return Component.literal("Open Menu Key: §b" + name);
     }
 
     private static Component keybindText() {

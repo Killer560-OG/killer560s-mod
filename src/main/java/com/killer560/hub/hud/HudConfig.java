@@ -26,6 +26,9 @@ public final class HudConfig {
     private final Map<String, Float> scales = new HashMap<>();
     /** GLFW key code for opening the HUD editor, or -1 if unbound. */
     private int editKeyCode = -1;
+    /** GLFW key code that opens the mod's menu, or -1 if unbound (killer560, 2026-10-26: default backslash). Kept here
+     *  beside the Edit HUD key, which Home's Mod section shows with it. */
+    private int openMenuKeyCode = org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSLASH;
     /** HUD editor "Show Unseen" toggle: make every element whose setting is ON draggable, not just the ones
      *  that were actually on screen within {@link HudSeen#GRACE_MS} of the editor opening. A switched-off
      *  element is never listed either way (see {@link HudElement#isEnabledInSettings()}). Persisted like
@@ -86,6 +89,8 @@ public final class HudConfig {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
                 cfg.editKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "editKeyCode", -1));
+                cfg.openMenuKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "openMenuKeyCode",
+                        cfg.openMenuKeyCode));
                 cfg.editorShowAll = ConfigJson.getBool(obj, "editorShowAll", false);
                 cfg.globalScale = clampGlobalScale(ConfigJson.getFloat(obj, "globalScale", 1.0f));
                 cfg.autoScale = ConfigJson.getBool(obj, "autoScale", true);
@@ -127,6 +132,7 @@ public final class HudConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("editKeyCode", editKeyCode);
+            obj.addProperty("openMenuKeyCode", openMenuKeyCode);
             obj.addProperty("editorShowAll", editorShowAll);
             obj.addProperty("globalScale", globalScale);
             obj.addProperty("autoScale", autoScale);
@@ -204,6 +210,14 @@ public final class HudConfig {
 
     public void setEditKeyCode(int editKeyCode) {
         this.editKeyCode = editKeyCode;
+    }
+
+    public int getOpenMenuKeyCode() {
+        return openMenuKeyCode;
+    }
+
+    public void setOpenMenuKeyCode(int openMenuKeyCode) {
+        this.openMenuKeyCode = openMenuKeyCode;
     }
 
     public float getGlobalScale() {
