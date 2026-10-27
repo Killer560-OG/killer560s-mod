@@ -71,7 +71,7 @@ final class BlinkCommands {
         out.add(String.format(r, "Charge: %s, bank %d/%d%s; answers waiting %d (oldest %d ms, delay %d ms; longest wait %d ms, "
                         + "most waiting %d, %d held in all); %d shot(s) / %d tick(s), %d set back, last %d tick(s) %.2f "
                         + "blocks; %d tick(s) banked in all; %d look(s) carried", BlinkCharge.isActive() ? "CHARGING" : "off",
-                BlinkCharge.banked(), BlinkCharge.cap(), BlinkCharge.isArmed() ? " ARMED" : "", BlinkCharge.answersHeld(),
+                BlinkCharge.banked(), BlinkCharge.cap(), BlinkCharge.isArmed() ? " ARMED" : BlinkCharge.settling() ? " (settling after a teleport)" : "", BlinkCharge.answersHeld(),
                 BlinkCharge.oldestAnswerAgeMs(), BlinkCharge.answerDelayMs(), BlinkCharge.maxAnswerWaitMs(),
                 BlinkCharge.maxAnswersWaiting(), BlinkCharge.answersHeldTotal(), BlinkCharge.shots(), BlinkCharge.shotTicks(),
                 BlinkCharge.shotsSetBack(), BlinkCharge.lastShotTicks(), BlinkCharge.lastShotBlocks(), BlinkCharge.bankedTotal(),
