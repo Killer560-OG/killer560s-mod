@@ -1,0 +1,83 @@
+# Secret scan rules for killer560's Mod (gitleaks 8.x). Used by CI (.github/workflows/secret-scan.yml) and by
+# hand: gitleaks git --config .gitleaks.toml . The default ruleset (GitHub, Slack, AWS, PEM keys, generic
+# api keys, JWTs...) stays on; the rules below add the services this mod and its relay actually touch.
+title = "killer560s-mod secrets"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "hypixel-api-key"
+description = "Hypixel API key (a UUID next to a Hypixel/API-Key mention)"
+regex = '''(?i)(?:hypixel|api[-_ ]?key|x-api-key|apikey)[^\n]{0,40}?\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b'''
+secretGroup = 1
+keywords = ["hypixel", "api-key", "api_key", "apikey", "api key"]
+
+[[rules]]
+id = "discord-bot-token"
+description = "Discord bot token"
+regex = '''\b([MNO][A-Za-z0-9_-]{23,27}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,40})\b'''
+secretGroup = 1
+entropy = 3.5
+
+[[rules]]
+id = "discord-webhook"
+description = "Discord webhook URL"
+regex = '''https://(?:ptb\.|canary\.)?discord(?:app)?\.com/api/webhooks/[0-9]{15,22}/[A-Za-z0-9_-]{50,80}'''
+keywords = ["discord"]
+
+[[rules]]
+id = "cloudflare-api-token"
+description = "Cloudflare API token"
+regex = '''(?i)(?:cloudflare|cf[_-]?api|CLOUDFLARE_API_TOKEN)[^\n]{0,40}?['"=: ]([A-Za-z0-9_-]{40})\b'''
+secretGroup = 1
+entropy = 3.5
+keywords = ["cloudflare", "cf_api", "cf-api"]
+
+[[rules]]
+id = "microsoft-msa-token"
+description = "Microsoft account access token (EwA...) or refresh token (M.C/M.R)"
+# EwA... only next to a token field: bare, it matches the middle of skull-texture base64 in the room files.
+regex = '''(?i)(?:(?:access_?token|refresh_?token|bearer)["':= ]{1,4}EwA[A-Za-z0-9+/_=-]{100,}|\bM\.(?:C|R)[0-9]{1,3}_[A-Za-z0-9!*$_.-]{40,})'''
+
+[[rules]]
+id = "minecraft-session-id"
+description = "Minecraft legacy session id (token:<access>:<uuid>)"
+regex = '''token:[A-Za-z0-9._-]{30,}:[0-9a-f]{32}'''
+keywords = ["token:"]
+
+[[rules]]
+id = "spotify-client-secret"
+description = "Spotify client secret"
+regex = '''(?i)spotify[^\n]{0,40}?(?:secret|client)[^\n]{0,20}?['"=: ]([0-9a-f]{32})\b'''
+secretGroup = 1
+keywords = ["spotify"]
+
+[[rules]]
+id = "connection-string"
+description = "Database / broker connection string with a password"
+regex = '''(?i)\b(?:mongodb(?:\+srv)?|postgres(?:ql)?|mysql|mariadb|redis|rediss|amqps?|mssql|sqlserver)://[^:/\s'"]+:[^@\s'"]{3,}@[^\s'"]+'''
+keywords = ["://"]
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API key"
+regex = '''\bsk-ant-[A-Za-z0-9_-]{20,}'''
+keywords = ["sk-ant-"]
+
+[[rules]]
+id = "openai-style-key"
+description = "OpenAI-style sk- key"
+regex = '''\bsk-(?:proj-)?[A-Za-z0-9_-]{40,}'''
+keywords = ["sk-"]
+
+[allowlist]
+description = "Known public values and test fixtures"
+paths = [
+  '''(?i)\.gitleaks\.toml$''',
+  '''(?i)(^|/)gradle/wrapper/gradle-wrapper\.jar$''',
+]
+regexes = [
+  # Discord application public key (public by design) and placeholder UUIDs in docs.
+  '''00000000-0000-0000-0000-000000000000''',
+]

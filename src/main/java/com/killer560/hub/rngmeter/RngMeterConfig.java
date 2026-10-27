@@ -50,6 +50,12 @@ public final class RngMeterConfig {
             cfg.setRefreshIntervalMinutes(ConfigJson.getInt(obj, "refreshIntervalMinutes", 10));
             cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
             instance = cfg;
+            // v1.0.0 and v1.1.0 wrote the mod's old built-in Hypixel key into this file as "hypixelApiKey". Nothing
+            // reads it since that key was removed (2026-09-16), but the file kept it until the next save, and a
+            // profile save copied it out verbatim. Rewrite the file without it (security audit 2026-10-27).
+            if (obj.has("hypixelApiKey")) {
+                cfg.save();
+            }
         } catch (Exception e) {
             instance = new RngMeterConfig();
         }

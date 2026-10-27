@@ -3,7 +3,7 @@
 // Ocean's Cavern Falls main menu (killer560smod, mainmenu/OceanFallsScene). Sampler0 is textures/gui/ocean_falls.png,
 // 2560x2880 (two 2560x1440 halves; everything here is in 1920x1080 units), sampled LINEAR: the PLATE on top (his picture with most of its streak lines lifted out where water falls) and
 // its maps below (r: where water falls, g: the picture's own streaks, b: where the water lands, a: the lake). The quad
-// covers the screen with v 0..0.5. Built by killer560s-mod-logs/waterfall-picture/make_waterfall_maps.py.
+// covers the screen with v 0..0.5. Built by a local script (make_waterfall_maps.py).
 //
 // The scene clock rides in the vertex colour: rgb is a 24-bit fraction of the 600 s loop (alpha 255). The sines below turn
 // a whole number of times a loop (W(k)); the falling noise does not wrap, so the water's pattern changes once a loop, in

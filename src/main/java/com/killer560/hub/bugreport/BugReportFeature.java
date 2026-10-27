@@ -87,6 +87,37 @@ public final class BugReportFeature {
     private static final Pattern BARE_KEYWORD_PATTERN =
             Pattern.compile("(?i)\\b(token|secret|password|passwd|cookie|session|auth)\\b");
 
+    // Credential SHAPES, redacted wherever they appear in a log line or a config value, whatever the key or word
+    // next to them (security audit 2026-10-27: a "key=<uuid>" query string, an "API-Key: <uuid>" header line, a
+    // Microsoft refresh token or a Discord token passed every check above).
+    private static final Pattern[] TOKEN_SHAPES = {
+            // A query parameter that carries a credential: ?key=..., &client_id=..., &access_token=..., &sig=...
+            Pattern.compile("(?i)([?&](?:key|api_?key|token|access_token|refresh_token|client_id|client_secret|sig|signature|auth)=)[^&\\s\"']+"),
+            // A Hypixel-style key after an API-Key header or "key" word.
+            Pattern.compile("(?i)((?:api[-_ ]?key|x-api-key)[\"']?\\s*[:=]\\s*[\"']?)[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}"),
+            // Microsoft account refresh / access tokens.
+            Pattern.compile("()\\bM\\.[CR][0-9]{1,3}_[A-Za-z0-9!*$_.-]{40,}"),
+            Pattern.compile("()\\bEwA[A-Za-z0-9+/_=-]{200,}"),
+            // Discord bot tokens.
+            Pattern.compile("()\\b[MNO][A-Za-z0-9_-]{23,27}\\.[A-Za-z0-9_-]{6}\\.[A-Za-z0-9_-]{27,40}\\b"),
+            // A Minecraft legacy session id.
+            Pattern.compile("()token:[A-Za-z0-9._-]{30,}:[0-9a-f]{32}"),
+    };
+
+    /** The player's home folder (C:\Users\<name>, /home/<name>, /Users/<name>): the account name in it is personal and
+     *  says nothing about the bug, so it becomes {@code <home>} everywhere in the report. */
+    private static final Pattern HOME_PATH = Pattern.compile(
+            "(?i)(?:[A-Z]:[\\\\/]+Users[\\\\/]+|/home/|/Users/)[^\\\\/\\s\"':]{1,64}");
+
+    /** Applies {@link #TOKEN_SHAPES} and {@link #HOME_PATH} to any text going into the zip. */
+    static String redactShapes(String text) {
+        String out = JWT_PATTERN.matcher(text).replaceAll("[redacted]");
+        for (Pattern p : TOKEN_SHAPES) {
+            out = p.matcher(out).replaceAll("$1[redacted]");
+        }
+        return HOME_PATH.matcher(out).replaceAll("<home>");
+    }
+
     private BugReportFeature() {
     }
 
@@ -137,7 +168,8 @@ public final class BugReportFeature {
 
     private static void writeEntry(ZipOutputStream zos, String name, String content) throws Exception {
         zos.putNextEntry(new ZipEntry(name));
-        zos.write(content.getBytes(StandardCharsets.UTF_8));
+        // Every entry, whatever produced it, goes through the credential-shape and home-folder pass last.
+        zos.write(redactShapes(content).getBytes(StandardCharsets.UTF_8));
         zos.closeEntry();
     }
 

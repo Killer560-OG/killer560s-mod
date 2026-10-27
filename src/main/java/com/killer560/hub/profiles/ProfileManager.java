@@ -118,7 +118,10 @@ public final class ProfileManager {
      * is saved (and therefore exported) and the user's live value is kept when a profile is applied.
      */
     private static final java.util.Map<String, Set<String>> SECRET_FIELDS = java.util.Map.of(
-            "killer560smod-profileviewer.json", Set.of("apiKey")
+            "killer560smod-profileviewer.json", Set.of("apiKey"),
+            // The old built-in Hypixel key that v1.0.0/v1.1.0 wrote here (RngMeterConfig now scrubs it on load; this
+            // covers a file not yet loaded by a current build, and profiles saved before it).
+            "killer560smod-rngmeter.json", Set.of("hypixelApiKey")
     );
 
     /** Copies {@code source} to {@code target} with that file's secret fields blanked. Returns false (and

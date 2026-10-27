@@ -45,3 +45,20 @@ HANDOFF.md
 # Agent worktrees are separate checkouts of this repo; never track them.
 .claude/worktrees/
 __pycache__/
+
+# Secrets never belong in this public repo (security audit 2026-10-27). tools/verify-artifact.py and the
+# secret-scan workflow catch what slips past these.
+.env
+.env.*
+.dev.vars
+*.pem
+*.p12
+*.pfx
+*.keystore
+*.jks
+id_rsa*
+id_ed25519*
+secrets/
+*-token*.txt
+*api-key*.txt
+secret-fingerprints.json

@@ -181,6 +181,18 @@ def describe_hash(jar, variant):
     return "md5 %s (%s)%s" % (h, tag, flag)
 
 
+def verify_jars(jars_dir):
+    """Security audit 2026-10-27: no jar is deployed until tools/verify-artifact.py has found no secret, owner-secret
+    fingerprint or local path in it. Runs on a dry run too, so a dry run shows the result."""
+    jars = sorted(glob.glob(os.path.join(jars_dir, "killer560smod*.jar")))
+    if not jars:
+        return
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools", "verify-artifact.py")
+    r = subprocess.run([sys.executable, "-I", script, "-q"] + jars, stdin=subprocess.DEVNULL)
+    if r.returncode != 0:
+        sys.exit("verify-artifact.py failed (exit %d) on %s - nothing deployed" % (r.returncode, jars_dir))
+
+
 def main():
     global INSTANCES
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -207,6 +219,7 @@ def main():
     jars_dir = os.path.abspath(args.jars_dir)
     if not os.path.isdir(jars_dir):
         sys.exit("jars dir does not exist: %s" % jars_dir)
+    verify_jars(jars_dir)
     mod = mod_version()
 
     live = running_instances()
