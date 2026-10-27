@@ -77,6 +77,9 @@ public class DungeonTab extends FolderTab {
                 new PosmsgTab(),
                 new P4PlatformHighlightTab(),
                 new WitherDragonsTab(),
+                // Camera only, so legit since 2026-10-26 (killer560: "the camera movement only one ... will go in the legit
+                // version").
+                new ZeroPingEtherwarpTab(),
                 // ---- the sim ----
                 new SimSettingsTab(),
                 new SimKeybindsTab()
@@ -112,7 +115,6 @@ public class DungeonTab extends FolderTab {
             // Out of the Croesus tab, 2026-10-12 (killer560: "just like etable and auto etable").
             tabs.add(new AutoCroesusTab());
             tabs.add(new BlinkTab());
-            tabs.add(new ZeroPingEtherwarpTab());
             tabs.add(new LeftClickEtherwarpTab());
         }
         return tabs;

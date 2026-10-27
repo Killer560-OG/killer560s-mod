@@ -12,7 +12,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Zero Ping Etherwarp - cheat-only (see {@link com.killer560.hub.zpew.ZeroPingEtherwarp}). Dungeons' cheat block. */
+/** Zero Ping Etherwarp - both builds since 2026-10-26: camera only (see {@link com.killer560.hub.zpew.ZeroPingEtherwarp}). */
 public class ZeroPingEtherwarpTab extends BaseTab {
 
     private static final int ROW = 18;
@@ -22,16 +22,8 @@ public class ZeroPingEtherwarpTab extends BaseTab {
     }
 
     @Override
-    public boolean isCheatOnly() {
-        return true;
-    }
-
-    @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return w;
-        }
         var font = Minecraft.getInstance().font;
         ZeroPingEtherwarpConfig cfg = ZeroPingEtherwarpConfig.getInstance();
         int y = contentY;
