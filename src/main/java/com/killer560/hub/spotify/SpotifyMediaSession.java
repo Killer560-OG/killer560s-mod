@@ -218,6 +218,7 @@ public final class SpotifyMediaSession {
             } catch (NumberFormatException ignored) {
                 // keep the last volume
             }
+            album = f.length >= 11 ? f[10].trim() : "";
             String flags = f[9].trim();
             if (flags.length() == 4) {
                 boolean[] a = new boolean[4];
@@ -227,6 +228,13 @@ public final class SpotifyMediaSession {
                 allowed = a;
             }
         }
+    }
+
+    /** The current track's album as Windows reports it (lrclib's /api/get can match on it), or "". */
+    private volatile String album = "";
+
+    public String album() {
+        return album;
     }
 
     /** Spotify's mixer volume (0-100), -1 when it has no audio session, -2 when not read yet. Any thread. */
@@ -444,7 +452,7 @@ public final class SpotifyMediaSession {
                   if ($audioReady -and ($i % 4) -eq 0) { try { $vol = [K560.SpotifyVolume]::Get() } catch { $vol = -1 } }
                   $c = $pb.Controls
                   $flags = '' + [int]$c.IsPlayPauseToggleEnabled + [int]$c.IsNextEnabled + [int]$c.IsPreviousEnabled + [int]$c.IsPlaybackPositionEnabled
-                  $line = $line + "`t" + $vol + "`t" + $flags
+                  $line = $line + "`t" + $vol + "`t" + $flags + "`t" + (Clean $props.AlbumTitle)
                 }
               } catch { $line = 'E' }
               [Console]::Out.WriteLine($line)

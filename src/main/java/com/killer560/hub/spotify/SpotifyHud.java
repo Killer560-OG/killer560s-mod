@@ -128,7 +128,7 @@ public final class SpotifyHud implements HudElement {
         int h = height();
         boolean ad = snap.kind() == NowPlaying.Kind.AD;
 
-        long now = System.currentTimeMillis();
+        long now = SpotifyLyricsFeature.nowMs();
         double elapsed = snap == DEMO ? DEMO_PLAYED_MS / 1000.0 : snap.elapsedSeconds(now);
         double total = snap.durationSeconds();
         if (total > 0) {
@@ -217,6 +217,10 @@ public final class SpotifyHud implements HudElement {
         if (paused) {
             String label = "Paused";
             graphics.text(font, label, x + W - PAD - font.width(label), y + 28, p.faint(), true);
+        } else if (snap.versionMismatch() && !snap.lines().isEmpty()) {
+            // The closest lrclib version is shown, but it is not Spotify's length: its timing may be off.
+            String label = "other version";
+            graphics.text(font, label, x + W - PAD - font.width(label), y + 28, p.faint(), true);
         }
 
         if (cfg.isShowLyrics() && !ad) {
@@ -238,6 +242,7 @@ public final class SpotifyHud implements HudElement {
         }
         if (!editor) {
             HudSeen.markDrawn(id());
+            SpotifyHudControls.draw(graphics, font, p, W, h, paused);   // chat open + mouse over: the control row
         }
     }
 
@@ -324,6 +329,32 @@ public final class SpotifyHud implements HudElement {
         }
     }
 
+    // Test hook: the word index the HUD lit on its last frame (-1 = none).
+    private static volatile int lastSungWord = -1;
+
+    /**
+     * The word being sung in line {@code idx} at {@code elapsed} seconds: the one source for the HUD and for My Lyrics In
+     * F5's highlighted word, so the two always light the same word.
+     */
+    static int sungWord(LyricsEngine.Snapshot snap, int idx, double elapsed) {
+        LyricsEngine.LyricLine line = snap.lines().get(idx);
+        return LyricTiming.wordAt(line.parsed(), line.timeSeconds(), snap.lineEnd(idx), elapsed);
+    }
+
+    /**
+     * Word {@code i}'s color: sung words bright, the word being sung in the bright accent, the rest dimmed; all one color
+     * while paused (held) or with the highlight off ({@code sung < 0}). Shared by the HUD and My Lyrics In F5.
+     */
+    static int wordColor(OverlayPalette p, int i, int sung, boolean paused) {
+        if (paused) {
+            return p.text();          // held, nothing moving
+        }
+        if (sung < 0) {
+            return p.textHover();     // highlight off
+        }
+        return i < sung ? p.textHover() : i == sung ? p.accentHover() : p.faint();
+    }
+
     /** What the lyric rows will draw, worked out before the fill batch so the sung word's chip goes under its text. */
     private static final class LyricPlan {
         LyricsEngine.LyricLine line;
@@ -347,8 +378,9 @@ public final class SpotifyHud implements HudElement {
             return plan;
         }
         List<String> words = plan.line.parsed().words();
-        int at = LyricTiming.wordAt(plan.line.parsed(), plan.line.timeSeconds(), snap.lineEnd(plan.lineIdx), elapsed);
+        int at = sungWord(snap, plan.lineIdx, elapsed);
         plan.sung = highlight ? at : -1;
+        lastSungWord = plan.sung;
         // Paused: hold the line where it was, rows and all; only the moving highlight goes.
         plan.rows = wrap(font, snap.lines(), plan.lineIdx, words, lw);
         int currentRow = 0;
@@ -409,14 +441,7 @@ public final class SpotifyHud implements HudElement {
             int wx = lx;
             for (int i = row[0]; i < row[1]; i++) {
                 String word = clean(words.get(i));
-                int colour;
-                if (paused) {
-                    colour = p.text();                                    // held, nothing moving
-                } else if (plan.sung < 0) {
-                    colour = p.textHover();                               // Word Highlight off
-                } else {
-                    colour = i < plan.sung ? p.textHover() : i == plan.sung ? p.accentHover() : p.faint();
-                }
+                int colour = wordColor(p, i, plan.sung, paused);
                 graphics.text(font, word, wx, ly + drawn * ROW_H, colour, true);
                 wx += font.width(word) + space;
             }

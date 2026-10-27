@@ -176,56 +176,166 @@ public final class LyricsEngine {
      * match is used as before, since there is nothing to check it against.
      */
     private void choose() {
-        List<LyricLine> lines = List.of();
-        double length = 0;
-        boolean mismatch = false;
-        double nearest = 0;
-        if (!candidates.isEmpty()) {
-            if (spotifyDurationSeconds <= 0) {
-                lines = candidates.get(0).lines();
-                length = candidates.get(0).durationSeconds();
-            } else {
-                Candidate pick = pickVersion(candidates, lastArtist, lastTitle, spotifyDurationSeconds);
-                if (pick != null) {
-                    lines = pick.lines();
-                    length = pick.durationSeconds();
-                } else {
-                    mismatch = true;
-                    double best = Double.MAX_VALUE;
-                    for (Candidate c : candidates) {
-                        double d = Math.abs(c.durationSeconds() - spotifyDurationSeconds);
-                        if (c.durationSeconds() > 0 && d < best) {
-                            best = d;
-                            nearest = c.durationSeconds();
-                        }
-                    }
-                }
-            }
+        Choice c = chooseFrom(candidates, lastArtist, lastTitle, spotifyDurationSeconds);
+        syncedLyrics = c.pick() == null ? List.of() : c.pick().lines();
+        if (c.pick() != null || !candidates.isEmpty()) {
+            durationSeconds = c.pick() == null ? 0 : c.pick().durationSeconds();
         }
-        syncedLyrics = lines;
-        if (length > 0 || !candidates.isEmpty()) {
-            durationSeconds = length;
+        versionMismatch = c.mismatch();
+        mismatchSeconds = c.nearestSeconds();
+        String logKey = lastTrackKey + "|" + Math.round(spotifyDurationSeconds) + "|" + candidates.size();
+        if (!candidates.isEmpty() && !logKey.equals(lastChoiceLog)) {
+            lastChoiceLog = logKey;
+            SpotifyLyricsFeature.LOGGER.info("Lyrics versions for '{}' by '{}' (Spotify {} s): {}", lastTitle, lastArtist,
+                    spotifyDurationSeconds > 0 ? Math.round(spotifyDurationSeconds * 10) / 10.0 : "unknown", c.why());
         }
-        versionMismatch = mismatch;
-        mismatchSeconds = nearest;
     }
 
-    /** The first candidate (best name match first) that is the same recording as Spotify's, or null. */
-    static Candidate pickVersion(List<Candidate> candidates, String artist, String title, double spotifySeconds) {
+    /** The last choice logged, so a re-choose with nothing new does not log again. */
+    private String lastChoiceLog = "";
+
+    /**
+     * Which lrclib listing to use, and why (killer560, 2026-10-26: "it says lyrics found are for another version. make it
+     * find the right version").
+     *
+     * @param pick           the listing whose lines are used, or null for none
+     * @param mismatch       no listing is Spotify's length: the HUD says the lyrics are for another version
+     * @param nearestSeconds the length of the nearest listing (for that note), 0 when none
+     * @param why            every candidate considered and the reason the pick won, for the log
+     */
+    record Choice(Candidate pick, boolean mismatch, double nearestSeconds, String why) {
+    }
+
+    /**
+     * Scores every candidate instead of taking the first that passes. A candidate is the SAME SONG when its title,
+     * normalized ({@link #titleKey}: "Song - X Remix" and "Song (X Remix)" alike, "(feat. ...)", "- Remastered 2011",
+     * "Explicit" and the like dropped), equals Spotify's, and its artist credit names Spotify's artist. Among those, one
+     * within {@link #SAME_VERSION_SECONDS} of Spotify's length is the same RECORDING, the closest length winning. With
+     * none that close, the closest same-song listing is still used, with the other-version note kept; with no same-song
+     * listing at all, nothing is used. Without Spotify's length, the best name match (exact title first) is used.
+     *
+     * <p>Found on his log (2026-10-26): Spotify's "High Forever - Marlon Hoffstadt Remix" against lrclib's eight "High
+     * Forever (Marlon Hoffstadt Remix)" listings, all 229-230 s: the old exact-title test refused every one, so the
+     * right recording was there and the HUD still said "another version".
+     */
+    static Choice chooseFrom(List<Candidate> candidates, String artist, String title, double spotifySeconds) {
+        if (candidates.isEmpty()) {
+            return new Choice(null, false, 0, "no listings with synced lyrics");
+        }
+        String want = titleKey(title);
+        StringBuilder why = new StringBuilder();
+        Candidate bestSame = null;
+        double bestSameDiff = Double.MAX_VALUE;
+        Candidate closest = null;
+        double closestDiff = Double.MAX_VALUE;
+        double nearestAny = 0;
+        double nearestAnyDiff = Double.MAX_VALUE;
+        Candidate byName = null;
+        int n = 0;
         for (Candidate c : candidates) {
-            if (c.durationSeconds() <= 0 || Math.abs(c.durationSeconds() - spotifySeconds) > SAME_VERSION_SECONDS) {
+            boolean titleOk = want.isEmpty() || titleKey(c.title()).equals(want);
+            boolean artistOk = artistListHas(c.artist(), artist);
+            double diff = spotifySeconds > 0 && c.durationSeconds() > 0 ? Math.abs(c.durationSeconds() - spotifySeconds)
+                    : Double.MAX_VALUE;
+            if (n++ < 12) {
+                why.append(n == 1 ? "" : "; ").append('\'').append(c.title()).append("' / '").append(c.artist())
+                        .append("' ").append(c.durationSeconds()).append(" s")
+                        .append(titleOk ? "" : " (other title)").append(artistOk ? "" : " (other artist)");
+            }
+            if (diff < nearestAnyDiff) {
+                nearestAnyDiff = diff;
+                nearestAny = c.durationSeconds();
+            }
+            if (!titleOk || !artistOk) {
                 continue;
             }
-            if (!sameTitle(c.title(), title) || !artistListHas(c.artist(), artist)) {
-                continue;
+            if (byName == null) {
+                byName = c;
             }
-            return c;
+            if (diff <= SAME_VERSION_SECONDS && diff < bestSameDiff) {
+                bestSameDiff = diff;
+                bestSame = c;
+            }
+            if (diff < closestDiff) {
+                closestDiff = diff;
+                closest = c;
+            }
         }
-        return null;
+        if (candidates.size() > 12) {
+            why.append("; and ").append(candidates.size() - 12).append(" more");
+        }
+        if (spotifySeconds <= 0) {
+            Candidate pick = byName != null ? byName : candidates.get(0);
+            return new Choice(pick, false, 0, why + " -> '" + pick.title() + "' " + pick.durationSeconds()
+                    + " s: the best name match (Spotify's length not known)");
+        }
+        if (bestSame != null) {
+            return new Choice(bestSame, false, 0, why + " -> '" + bestSame.title() + "' " + bestSame.durationSeconds()
+                    + " s: same song, " + Math.round(bestSameDiff * 10) / 10.0 + " s from Spotify's length");
+        }
+        if (closest != null && closestDiff != Double.MAX_VALUE) {
+            return new Choice(closest, true, closest.durationSeconds(), why + " -> '" + closest.title() + "' "
+                    + closest.durationSeconds() + " s: same song but no listing within " + SAME_VERSION_SECONDS
+                    + " s; the closest is used and the HUD says it is another version");
+        }
+        return new Choice(null, true, nearestAny, why + " -> none: no listing is this song by this artist");
     }
 
-    private static boolean sameTitle(String listed, String want) {
-        return want == null || want.isBlank() || (listed != null && listed.trim().equalsIgnoreCase(want.trim()));
+    /** The title as Spotify gives it, and with a trailing " - X" written as " (X)" when it has one. */
+    static List<String> titleSpellings(String title) {
+        int dash = title == null ? -1 : title.lastIndexOf(" - ");
+        if (dash <= 0 || dash + 3 >= title.length()) {
+            return title == null ? List.of() : List.of(title);
+        }
+        return List.of(title, title.substring(0, dash) + " (" + title.substring(dash + 3).trim() + ")");
+    }
+
+    /** The current track's album from Windows' media session, or "" (set by {@link #poll}). */
+    private volatile String lastAlbum = "";
+
+    /** The first candidate that is the same recording as Spotify's, or null (see {@link #chooseFrom}). */
+    static Candidate pickVersion(List<Candidate> candidates, String artist, String title, double spotifySeconds) {
+        Choice c = chooseFrom(candidates, artist, title, spotifySeconds);
+        return c.mismatch() ? null : c.pick();
+    }
+
+    private static final Pattern FEAT = Pattern.compile(
+            "[(\\[]\\s*(?:feat\\.?|ft\\.?|featuring|with)\\s[^)\\]]{0,120}[)\\]]|\\s-\\s*(?:feat\\.?|ft\\.?|featuring)\\s.{0,120}$"
+                    + "|\\s(?:feat\\.?|ft\\.?|featuring)\\s.{0,120}$");
+    /** Tags that name the same recording (a remaster, an explicit or clean label, a year), dropped before comparing. */
+    private static final Pattern SAME_RECORDING_TAG = Pattern.compile(
+            "\\b(?:\\d{4}\\s+)?(?:digital(?:ly)?\\s+)?remaster(?:ed)?(?:\\s+(?:version|edition))?(?:\\s+\\d{4})?\\b"
+                    + "|\\b(?:explicit|clean)(?:\\s+version)?\\b|\\balbum version\\b|\\bmono\\b|\\bstereo\\b");
+
+    /**
+     * A title reduced to what tells songs and recordings apart: lower case, any "(feat. X)" / "feat. X" dropped, remaster,
+     * explicit, clean, album-version, mono and stereo tags dropped, then only letters and digits kept as single-spaced
+     * words. So "Song - Remastered 2011", "Song (Remastered)" and "Song" are one key, and "Song - X Remix" and
+     * "Song (X Remix)" are one key, but "Song (Sped Up)", "Song - Live" and "Song (X Remix)" each stay apart from "Song".
+     */
+    static String titleKey(String title) {
+        if (title == null) {
+            return "";
+        }
+        String lower = title.toLowerCase(java.util.Locale.ROOT);
+        String key = words(SAME_RECORDING_TAG.matcher(FEAT.matcher(lower).replaceAll(" ")).replaceAll(" "));
+        return key.isEmpty() ? words(lower) : key;   // a song CALLED "Clean" keeps its name
+    }
+
+    private static String words(String t) {
+        StringBuilder b = new StringBuilder(t.length());
+        boolean space = true;
+        for (int i = 0; i < t.length(); i++) {
+            char ch = t.charAt(i);
+            if (Character.isLetterOrDigit(ch)) {
+                b.append(ch);
+                space = false;
+            } else if (!space) {
+                b.append(' ');
+                space = true;
+            }
+        }
+        return b.toString().trim();
     }
 
     /**
@@ -286,6 +396,7 @@ public final class LyricsEngine {
         try {
             NowPlaying nowPlaying = source.fetch();
             long now = System.currentTimeMillis();
+            lastAlbum = session == null ? "" : session.album();
             pollAt(nowPlaying, session == null ? null : session.latest(now), now, fullLyricsMode);
         } catch (Exception e) {
             SpotifyLyricsFeature.LOGGER.warn("Poll failed: {}", String.valueOf(e), e);
@@ -458,11 +569,23 @@ public final class LyricsEngine {
      */
     private void requestLyrics(String forTrackKey, String artist, String title) {
         LYRIC_FETCH.submit(() -> {
-            Fetched fetched = fetchLyrics(artist, title);
+            Fetched fetched;
+            synchronized (FETCH_CACHE) {
+                fetched = FETCH_CACHE.get(forTrackKey);
+            }
+            if (fetched == null) {
+                fetched = fetchLyrics(artist, title);
+                if (!fetched.candidates().isEmpty()) {
+                    synchronized (FETCH_CACHE) {
+                        FETCH_CACHE.put(forTrackKey, fetched);
+                    }
+                }
+            }
+            final Fetched result = fetched;
             synchronized (this) {
                 if (forTrackKey.equals(lastTrackKey)) {
-                    candidates = fetched.candidates();
-                    durationSeconds = fetched.durationSeconds();
+                    candidates = result.candidates();
+                    durationSeconds = result.durationSeconds();
                     lyricsAnswered = true;
                     choose();
                     publish(snapshot.kind());
@@ -484,8 +607,19 @@ public final class LyricsEngine {
         }
         durationLookupTried = true;
         long seconds = Math.round(spotifyDurationSeconds);
+        String album = lastAlbum;
         LYRIC_FETCH.submit(() -> {
-            Candidate found = fetchByLength(artist, title, seconds);
+            // lrclib's /api/get matches artist, title, album and length; Spotify's "Song - X Remix" is listed there as
+            // "Song (X Remix)", so that spelling is tried too, and the album only when Windows gave one.
+            Candidate found = null;
+            for (String t : titleSpellings(title)) {
+                if (found == null && !album.isBlank()) {
+                    found = fetchByLength(artist, t, album, seconds);
+                }
+                if (found == null) {
+                    found = fetchByLength(artist, t, "", seconds);
+                }
+            }
             synchronized (this) {
                 if (found != null && forTrackKey.equals(lastTrackKey)) {
                     List<Candidate> more = new ArrayList<>(candidates);
@@ -583,6 +717,18 @@ public final class LyricsEngine {
      * title is read every 250 ms, so the change is seen a little after Spotify made it.
      */
     private static final long EVENT_SLACK_MS = 1000;
+
+    /**
+     * lrclib's answers per track (artist and title), the last 64: playing a song again, or the same song coming round in
+     * a playlist, asks lrclib nothing (his log showed one song looked up three times in a minute, 2026-10-26). The
+     * by-length lookups land in the same entry. A failed lookup is not cached, so the next play tries again.
+     */
+    private static final java.util.Map<String, Fetched> FETCH_CACHE = new java.util.LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, Fetched> eldest) {
+            return size() > 64;
+        }
+    };
 
     /** What lrclib gave for one track: every version with synced lines, and the first listing's length (0 = unknown). */
     private record Fetched(List<Candidate> candidates, double durationSeconds) {
@@ -695,10 +841,10 @@ public final class LyricsEngine {
     }
 
     /** lrclib's {@code /api/get}, which matches a recording by artist, title and length (within two seconds). */
-    private Candidate fetchByLength(String artist, String title, long seconds) {
+    private Candidate fetchByLength(String artist, String title, String album, long seconds) {
         try {
             String url = LRCLIB_GET_URL + "?artist_name=" + urlEncode(artist) + "&track_name=" + urlEncode(title)
-                    + "&duration=" + seconds;
+                    + (album.isBlank() ? "" : "&album_name=" + urlEncode(album)) + "&duration=" + seconds;
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                     .timeout(java.time.Duration.ofSeconds(10)).GET().build();
             HttpResponse<String> response = ModNet.send(http, request, HttpResponse.BodyHandlers.ofString());
