@@ -49,14 +49,19 @@ public final class FeatureGuard {
         // allocated a capturing lambda per handler per tick and put a second megamorphic call in front of every
         // one of the ~150 guarded handlers (95-fps-bench JFR, 2026-10-05: about 2% of render-thread samples sat
         // in the wrapper itself).
+        int slot = com.killer560.hub.lagdisplay.ModCallbackTimes.slot(name);
         return client -> {
             if (anyDisabled && DISABLED.contains(name)) {
                 return;
             }
+            long t0 = com.killer560.hub.lagdisplay.ModCallbackTimes.active ? System.nanoTime() : 0L;
             try {
                 handler.onStartTick(client);
             } catch (Throwable t) {
                 failed(name, t);
+            }
+            if (t0 != 0L) {
+                com.killer560.hub.lagdisplay.ModCallbackTimes.add(slot, t0);
             }
         };
     }
@@ -64,14 +69,19 @@ public final class FeatureGuard {
     /** Wraps an END_CLIENT_TICK handler. */
     public static ClientTickEvents.EndTick end(String name, ClientTickEvents.EndTick guarded) {
         ClientTickEvents.EndTick handler = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.EndTick.class, guarded);
+        int slot = com.killer560.hub.lagdisplay.ModCallbackTimes.slot(name);
         return client -> {
             if (anyDisabled && DISABLED.contains(name)) {
                 return;
             }
+            long t0 = com.killer560.hub.lagdisplay.ModCallbackTimes.active ? System.nanoTime() : 0L;
             try {
                 handler.onEndTick(client);
             } catch (Throwable t) {
                 failed(name, t);
+            }
+            if (t0 != 0L) {
+                com.killer560.hub.lagdisplay.ModCallbackTimes.add(slot, t0);
             }
         };
     }
@@ -87,6 +97,7 @@ public final class FeatureGuard {
     public static ClientTickEvents.StartTick start(String name, int bit, ClientTickEvents.StartTick guarded) {
         ClientTickEvents.StartTick handler = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.StartTick.class, guarded);
         boolean[] ranOn = {true};
+        int slot = com.killer560.hub.lagdisplay.ModCallbackTimes.slot(name);
         return client -> {
             if (!FeatureBits.on(bit)) {
                 if (!ranOn[0]) {
@@ -100,10 +111,14 @@ public final class FeatureGuard {
             if (anyDisabled && DISABLED.contains(name)) {
                 return;
             }
+            long t0 = com.killer560.hub.lagdisplay.ModCallbackTimes.active ? System.nanoTime() : 0L;
             try {
                 handler.onStartTick(client);
             } catch (Throwable t) {
                 failed(name, t);
+            }
+            if (t0 != 0L) {
+                com.killer560.hub.lagdisplay.ModCallbackTimes.add(slot, t0);
             }
         };
     }
@@ -113,6 +128,7 @@ public final class FeatureGuard {
     public static ClientTickEvents.EndTick end(String name, int bit, ClientTickEvents.EndTick guarded) {
         ClientTickEvents.EndTick handler = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.EndTick.class, guarded);
         boolean[] ranOn = {true};
+        int slot = com.killer560.hub.lagdisplay.ModCallbackTimes.slot(name);
         return client -> {
             if (!FeatureBits.on(bit)) {
                 if (!ranOn[0]) {
@@ -126,10 +142,14 @@ public final class FeatureGuard {
             if (anyDisabled && DISABLED.contains(name)) {
                 return;
             }
+            long t0 = com.killer560.hub.lagdisplay.ModCallbackTimes.active ? System.nanoTime() : 0L;
             try {
                 handler.onEndTick(client);
             } catch (Throwable t) {
                 failed(name, t);
+            }
+            if (t0 != 0L) {
+                com.killer560.hub.lagdisplay.ModCallbackTimes.add(slot, t0);
             }
         };
     }
@@ -200,15 +220,23 @@ public final class FeatureGuard {
             handlers[i] = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.EndTick.class, guarded[i]);
         }
         String[] ns = names.clone();
+        int[] slots = new int[ns.length];
+        for (int i = 0; i < ns.length; i++) {
+            slots[i] = com.killer560.hub.lagdisplay.ModCallbackTimes.slot(ns[i]);
+        }
         return client -> {
             for (int i = 0; i < handlers.length; i++) {
                 if (anyDisabled && DISABLED.contains(ns[i])) {
                     continue;
                 }
+                long t0 = com.killer560.hub.lagdisplay.ModCallbackTimes.active ? System.nanoTime() : 0L;
                 try {
                     handlers[i].onEndTick(client);
                 } catch (Throwable t) {
                     failed(ns[i], t);
+                }
+                if (t0 != 0L) {
+                    com.killer560.hub.lagdisplay.ModCallbackTimes.add(slots[i], t0);
                 }
             }
         };
@@ -225,7 +253,9 @@ public final class FeatureGuard {
      */
     public static ClientTickEvents.StartTick criticalStart(String name, ClientTickEvents.StartTick guarded) {
         ClientTickEvents.StartTick handler = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.StartTick.class, guarded);
+        int slot = com.killer560.hub.lagdisplay.ModCallbackTimes.slot(name);
         return client -> {
+            long t0 = com.killer560.hub.lagdisplay.ModCallbackTimes.active ? System.nanoTime() : 0L;
             try {
                 handler.onStartTick(client);
             } catch (Throwable t) {
@@ -239,6 +269,9 @@ public final class FeatureGuard {
                     notifyUser("§c" + name + " is erroring every tick. Automation is not safe right now - "
                             + "turn the cheat features off and send a bug report.");
                 }
+            }
+            if (t0 != 0L) {
+                com.killer560.hub.lagdisplay.ModCallbackTimes.add(slot, t0);
             }
         };
     }

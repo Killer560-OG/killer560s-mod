@@ -1612,12 +1612,19 @@ final class SettingTooltipsData {
         d.put("performance hud/bad color", "Color of a value that is poor, with Color By Value on.");
         d.put("performance hud/awful color", "Color of a value that is very bad, with Color By Value on.");
         d.put("performance hud/text color", "Color of every line when Color By Value is off, and of the CPS line.");
-        d.put("performance hud", "Shows TPS, ping, FPS and a click counter in one movable HUD element.");
+        d.put("performance hud", "Shows TPS, ping, FPS, frame times and a click counter in one movable HUD element.");
         d.put("tps", "Shows the server's ticks per second, capped at 20.");
         d.put("ping", "Shows your ping, colored from green to red.");
         d.put("fps", "Shows your current frames per second.");
         d.put("cps counter", "Shows your left and right clicks per second.");
         d.put("color by value", "Colors the TPS, ping and FPS numbers by how good they are.");
+        d.put("performance hud/frame time", "Shows the longest frame of the last 5 seconds and how many stutters there were"
+                + " in the last minute. FPS is a count per second, so one long freeze barely moves it; this catches it.");
+        d.put("performance hud/1% low fps", "Shows the FPS of your slowest 1% of frames over the last 5 seconds.");
+        d.put("performance hud/stutter threshold", "A frame at least this long counts as a stutter. Left click for more,"
+                + " right click for less.");
+        d.put("performance hud/log stutters", "Writes each stutter, with what the frame was spent on and whether your PC"
+                + " rather than the game held it up, to the log and to a stutter log file. /lag stutters lists the last ones.");
 
         // P3 Status (2026-10-25)
         d.put("p3 status", "F7/M7 Phase 3: a HUD of the current section's terminals, device, levers and gate, and short progress titles.");

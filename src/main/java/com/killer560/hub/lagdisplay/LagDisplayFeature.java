@@ -21,7 +21,9 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * Performance HUD (renamed from "Lag Display", killer560 2026-09-27) - gap-analysis item 1.5 ("Lag /
- * server-tick display"). One movable HUD element with up to four lines: TPS, ping, FPS and CPS.
+ * server-tick display"). One movable HUD element with up to six lines: TPS, ping, FPS, CPS, Frame (worst frame time in
+ * the last five seconds and stutters in the last minute) and 1% Low; the last two and the stutter log are
+ * {@link FrameStats} (stutter-1026), which times individual frames because the FPS count hides a single long one.
  *
  * <p>Ported from Devonian {@code misc/{PingDisplay,FPSDisplay}.kt} plus NoammAddons
  * {@code features/impl/visual/InfoDisplay.kt} (local source, a local NoammAddons checkout) for the CPS
@@ -90,6 +92,7 @@ public final class LagDisplayFeature {
                 Identifier.fromNamespaceAndPath("killer560smod", "lag_display_click_sampler"),
                 (graphics, deltaTracker) -> sampleClicks());
 
+        StutterCommand.register();
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
     }
@@ -271,15 +274,27 @@ public final class LagDisplayFeature {
         private static long cachedKey = Long.MIN_VALUE;
         private static int cachedFlags = -1;
         private static long cachedColours = Long.MIN_VALUE;
+        private static long cachedFrameKey = Long.MIN_VALUE;
 
         private static List<Line> lines() {
             LagDisplayConfig cfg = LagDisplayConfig.getInstance();
             boolean colored = cfg.isColorByValue();
             int flags = (cfg.isShowTps() ? 1 : 0) | (cfg.isShowPing() ? 2 : 0) | (cfg.isShowFps() ? 4 : 0)
-                    | (cfg.isShowCps() ? 8 : 0) | (colored ? 16 : 0);
+                    | (cfg.isShowCps() ? 8 : 0) | (colored ? 16 : 0) | (cfg.isShowFrame() ? 32 : 0)
+                    | (cfg.isShowLowFps() ? 64 : 0);
             // TPS in tenths (what is shown), or -1; the other values are small whole numbers.
             long colours = ((long) cfg.getColorGood() * 31 + cfg.getColorOk()) * 31 + cfg.getColorBad();
             colours = ((colours * 31 + cfg.getColorAwful()) * 31) + cfg.getColorText();
+            colours = colours * 31 + cfg.getStutterThresholdMs();
+            // Frame line: worst frame (tenths of a ms) and stutters in the last minute; 1% Low line: FPS (FrameStats
+            // refreshes them four times a second, so this changes at most that often).
+            long frameKey = 0;
+            if ((flags & 32) != 0) {
+                frameKey = ((long) FrameStats.worstTenthsMs() + 1) << 20 | Math.min(FrameStats.stuttersLastMinute(), 0xFFFFF);
+            }
+            if ((flags & 64) != 0) {
+                frameKey = frameKey * 10007 + FrameStats.lowFps() + 1;
+            }
             long tpsTenths = (flags & 1) != 0 ? tenths(tps()) : 0;
             long ping = (flags & 2) != 0 ? ping() : 0;
             long fps = (flags & 4) != 0 ? Minecraft.getInstance().getFps() : 0;
@@ -288,7 +303,8 @@ public final class LagDisplayFeature {
             // Packed key: tps 10 bits, ping 16, fps 16, cps 2 x 8 (each clamped; a clamp only costs a rebuild).
             long key = (Math.min(tpsTenths + 1, 1023)) | (Math.min(ping + 1, 65535) << 10)
                     | (Math.min(fps, 65535) << 26) | (Math.min(cpsL, 255) << 42) | (Math.min(cpsR, 255) << 50);
-            if (key == cachedKey && flags == cachedFlags && colours == cachedColours && tpsTenths < 1022 && ping < 65534 && fps < 65535
+            if (key == cachedKey && flags == cachedFlags && colours == cachedColours && frameKey == cachedFrameKey
+                    && tpsTenths < 1022 && ping < 65534 && fps < 65535
                     && cpsL < 255 && cpsR < 255) {
                 return cachedLines;
             }
@@ -312,10 +328,24 @@ public final class LagDisplayFeature {
             if ((flags & 8) != 0) {
                 out.add(new Line("CPS: " + cpsL + " | " + cpsR, COLOR_PLAIN));
             }
+            if ((flags & 32) != 0) {
+                int worst = FrameStats.worstTenthsMs();
+                int stutters = FrameStats.stuttersLastMinute();
+                String text = worst < 0 ? "Frame: -" : "Frame: " + worst / 10 + "." + worst % 10 + "ms max";
+                text += stutters == 1 ? " | 1 stutter" : " | " + stutters + " stutters";
+                int thresholdTenths = cfg.getStutterThresholdMs() * 10;
+                out.add(new Line(text, colored && worst >= 0 ? frameColor(worst, thresholdTenths) : COLOR_PLAIN));
+            }
+            if ((flags & 64) != 0) {
+                int low = FrameStats.lowFps();
+                out.add(new Line(low < 0 ? "1% Low: -" : "1% Low: " + low + " FPS",
+                        colored && low >= 0 ? fpsColor(low) : COLOR_PLAIN));
+            }
             cachedLines = out;
             cachedKey = key;
             cachedFlags = flags;
             cachedColours = colours;
+            cachedFrameKey = frameKey;
             return out;
         }
 
@@ -345,6 +375,26 @@ public final class LagDisplayFeature {
                 return COLOR_OK;
             }
             return ping < 200 ? COLOR_BAD : COLOR_AWFUL;
+        }
+
+        /** The worst recent frame against the Stutter Threshold: under half of it good, under it okay, under twice it bad. */
+        private static int frameColor(int worstTenths, int thresholdTenths) {
+            if (worstTenths < thresholdTenths / 2) {
+                return COLOR_GOOD;
+            }
+            if (worstTenths < thresholdTenths) {
+                return COLOR_OK;
+            }
+            return worstTenths < thresholdTenths * 2 ? COLOR_BAD : COLOR_AWFUL;
+        }
+
+        /** The lines as drawn, for the testkit (render thread). */
+        public static List<String> currentLines() {
+            List<String> out = new ArrayList<>();
+            for (Line l : lines()) {
+                out.add(l.text());
+            }
+            return out;
         }
 
         private static int fpsColor(int fps) {

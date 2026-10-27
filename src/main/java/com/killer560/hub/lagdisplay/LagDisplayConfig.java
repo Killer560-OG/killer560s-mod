@@ -45,6 +45,15 @@ public final class LagDisplayConfig {
     private boolean showFps = true;
     private boolean showCps = false;
     private boolean colorByValue = true;
+    // Frame times (stutter-1026, killer560: "large frame stutters but the fps thing isn't picking it up"). The FPS line
+    // is a count per second, so one 300 ms hitch barely moves it; these read individual frames (FrameStats).
+    private boolean showFrame = true;
+    private boolean showLowFps = false;
+    private boolean logStutters = true;
+    public static final int DEFAULT_STUTTER_MS = 50;
+    /** The cycling button's steps (ms). A saved value off the list is kept as it is. */
+    public static final int[] STUTTER_STEPS = {25, 33, 50, 75, 100, 150, 200, 300, 500};
+    private int stutterThresholdMs = DEFAULT_STUTTER_MS;
     // Custom colors (killer560, 2026-10-18). Good/Ok/Bad/Awful color a value when Color By Value is on; Text is
     // every line when it is off and the CPS line always. Opaque ARGB.
     public static final int DEFAULT_GOOD = 0xFF55FF55;
@@ -80,6 +89,10 @@ public final class LagDisplayConfig {
                 cfg.showFps = ConfigJson.getBool(root, "showFps", cfg.showFps);
                 cfg.showCps = ConfigJson.getBool(root, "showCps", cfg.showCps);
                 cfg.colorByValue = ConfigJson.getBool(root, "colorByValue", cfg.colorByValue);
+                cfg.showFrame = ConfigJson.getBool(root, "showFrame", cfg.showFrame);
+                cfg.showLowFps = ConfigJson.getBool(root, "showLowFps", cfg.showLowFps);
+                cfg.logStutters = ConfigJson.getBool(root, "logStutters", cfg.logStutters);
+                cfg.stutterThresholdMs = clampThreshold(ConfigJson.getInt(root, "stutterThresholdMs", cfg.stutterThresholdMs));
                 cfg.colorGood = ConfigJson.getInt(root, "colorGood", cfg.colorGood);
                 cfg.colorOk = ConfigJson.getInt(root, "colorOk", cfg.colorOk);
                 cfg.colorBad = ConfigJson.getInt(root, "colorBad", cfg.colorBad);
@@ -105,6 +118,10 @@ public final class LagDisplayConfig {
             root.addProperty("showFps", showFps);
             root.addProperty("showCps", showCps);
             root.addProperty("colorByValue", colorByValue);
+            root.addProperty("showFrame", showFrame);
+            root.addProperty("showLowFps", showLowFps);
+            root.addProperty("logStutters", logStutters);
+            root.addProperty("stutterThresholdMs", stutterThresholdMs);
             root.addProperty("colorGood", colorGood);
             root.addProperty("colorOk", colorOk);
             root.addProperty("colorBad", colorBad);
@@ -162,6 +179,48 @@ public final class LagDisplayConfig {
 
     public void setColorByValue(boolean v) {
         colorByValue = v;
+    }
+
+    public boolean isShowFrame() {
+        return showFrame;
+    }
+
+    public void setShowFrame(boolean v) {
+        showFrame = v;
+    }
+
+    public boolean isShowLowFps() {
+        return showLowFps;
+    }
+
+    public void setShowLowFps(boolean v) {
+        showLowFps = v;
+    }
+
+    public boolean isLogStutters() {
+        return logStutters;
+    }
+
+    public void setLogStutters(boolean v) {
+        logStutters = v;
+    }
+
+    public int getStutterThresholdMs() {
+        return stutterThresholdMs;
+    }
+
+    public void setStutterThresholdMs(int ms) {
+        stutterThresholdMs = clampThreshold(ms);
+    }
+
+    /** Whether anything needs individual frame times: the Performance HUD on with the Frame or 1% Low line, or Log
+     *  Stutters. {@link FrameStats} measures only while this is true. */
+    public boolean wantsFrameTimes() {
+        return enabled && (showFrame || showLowFps || logStutters);
+    }
+
+    private static int clampThreshold(int ms) {
+        return Math.max(10, Math.min(5000, ms));
     }
 
     public int getColorGood() {

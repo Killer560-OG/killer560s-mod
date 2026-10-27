@@ -5,6 +5,7 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.lagdisplay.LagDisplayConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +51,26 @@ public class LagDisplayTab extends BaseTab {
         toggle(w, contentX, y[0], contentWidth, "Color By Value", cfg::isColorByValue, cfg::setColorByValue, cfg);
         y[0] += 24;
 
+        // Frame times (stutter-1026): one long frame barely moves the FPS line, so these time each frame.
+        header(w, contentX, y, contentWidth, "Stutters");
+        toggle(w, contentX, y[0], half, "Frame Time", cfg::isShowFrame, cfg::setShowFrame, cfg);
+        toggle(w, colB, y[0], half, "1% Low FPS", cfg::isShowLowFps, cfg::setShowLowFps, cfg);
+        y[0] += 22;
+        w.add(SettingsButtonWidget.cycling(thresholdLabel(cfg.getStutterThresholdMs()), (btn, dir) -> {
+            int[] steps = LagDisplayConfig.STUTTER_STEPS;
+            int idx = 0; // the nearest step to the current value (a saved value off the list snaps to it)
+            for (int i = 1; i < steps.length; i++) {
+                if (Math.abs(steps[i] - cfg.getStutterThresholdMs()) < Math.abs(steps[idx] - cfg.getStutterThresholdMs())) {
+                    idx = i;
+                }
+            }
+            cfg.setStutterThresholdMs(steps[SettingsButtonWidget.step(idx, dir, steps.length)]);
+            cfg.save();
+            btn.setMessage(thresholdLabel(cfg.getStutterThresholdMs()));
+        }).bounds(contentX, y[0], half, 18).build());
+        toggle(w, colB, y[0], half, "Log Stutters", cfg::isLogStutters, cfg::setLogStutters, cfg);
+        y[0] += 24;
+
         // Custom colors (killer560, 2026-10-18). The four value colors only matter with Color By Value on.
         header(w, contentX, y, contentWidth, "Colors");
         color(w, contentX, y[0], half, "Good Color", cfg::getColorGood, cfg::setColorGood,
@@ -66,6 +87,10 @@ public class LagDisplayTab extends BaseTab {
                 LagDisplayConfig.DEFAULT_TEXT, cfg);
         y[0] += 24;
         return w;
+    }
+
+    private static Component thresholdLabel(int ms) {
+        return Component.literal("Stutter Threshold: " + ms + " ms");
     }
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {

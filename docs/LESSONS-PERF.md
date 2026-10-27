@@ -62,3 +62,24 @@ How to measure the mod's frame and tick cost, and the per-call waste that measur
 - A cache that is never clean costs the whole save every time: `PlayerNameCache.put` treated a newer timestamp as a
   change, so the 500 ms tab-list scan made it dirty on every pass and the whole name file was rewritten every two
   seconds in any lobby (a sighting now refreshes an unchanged name at most once per ten minutes).
+
+## Frame times and stutters (stutter-1026)
+
+- **The FPS line cannot show a stutter.** `Minecraft.getFps()` is frames counted in the last second, so one 300 ms hitch
+  in a 120 fps second reads ~85 and is gone the next second. `lagdisplay/FrameStats` times each `Minecraft.runTick`
+  (HEAD to HEAD) and its phases; the Frame line and the stutter test use that minus the FPS limiter's sleep (the
+  unfocused-window cap is not lag).
+- **A frame's wall time splits into the game's phases, the swap and "outside".** Outside every phase the render thread
+  runs only small vanilla work (sound, toasts, mouse), so a large outside share with little render-thread CPU means the
+  thread was not running: the PC (testkit 1026-stutter-outside sleeps 200 ms in a toast's update and reads "likely your
+  PC"). A daemon thread that only sleeps 10 ms tells a whole-PC stall from a busy render thread; it stalls in a GC pause
+  too (188 ms of a 193 ms System.gc(), 1026-stutter-gc), so GC is judged first. Windows counts thread CPU in ~15.6 ms
+  steps: a CPU figure is only meaningful for frames far longer than that.
+- **Cost:** with measuring on, the hooks are ~13 `System.nanoTime()` pairs and three GC counter reads a frame plus a pair
+  per FeatureGuard tick handler, no allocation: 95-perf-stutter (2026-10-26) measured frameStart 0.54 us, a phase
+  begin+end 0.045 us, a callback add 0.044 us, all 0 B, so 1.1 us a frame + 8.3 us a tick (189 handlers) = 2.3 us a frame at
+  144 fps / 20 tps. Its whole-frame ON/OFF rounds swung -68..+504 us with other test clients running, i.e. noise far above
+  that; off, each hook is one static boolean.
+- In a gametest client quiet frames reached 51.5 ms in 200 ticks (1026-stutter-hooks, 2026-10-26, other clients running),
+  so the "nothing fires on quiet frames" check uses a 500 ms threshold.
+

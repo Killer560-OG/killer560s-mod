@@ -119,7 +119,7 @@ final class CardBlurbsData {
         d.put("HealthAndManaBarsTab", "Health and mana bars.");
         d.put("HidePlayersTab", "Hides other players by rule.");
         d.put("ObjectHiderTab", "Hides fire and other clutter.");
-        d.put("LagDisplayTab", "TPS, ping and FPS HUD.");
+        d.put("LagDisplayTab", "TPS, ping, FPS and stutter HUD.");
         d.put("QuiverDisplayTab", "Arrows left, as a HUD.");
         d.put("RealTimeTab", "A HUD clock of real time.");
         d.put("SpringBootsTab", "Spring Boots jump height.");
