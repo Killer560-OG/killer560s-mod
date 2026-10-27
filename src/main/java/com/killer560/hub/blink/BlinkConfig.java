@@ -59,6 +59,8 @@ public final class BlinkConfig {
     private boolean showHud = true;
     private boolean showServerBox = true;
     private boolean chatMessages = false;
+    /** A release jar writes Blink's log lines only while this is on (dev and cheat jars always do). */
+    private boolean debugLog = false;
 
     private BlinkConfig() {
     }
@@ -99,6 +101,7 @@ public final class BlinkConfig {
                 cfg.showHud = ConfigJson.getBool(obj, "showHud", cfg.showHud);
                 cfg.showServerBox = ConfigJson.getBool(obj, "showServerBox", cfg.showServerBox);
                 cfg.chatMessages = ConfigJson.getBool(obj, "chatMessages", cfg.chatMessages);
+                cfg.debugLog = ConfigJson.getBool(obj, "debugLog", cfg.debugLog);
             } catch (Exception e) {
                 cfg = new BlinkConfig();
             }
@@ -119,6 +122,7 @@ public final class BlinkConfig {
             obj.addProperty("showHud", showHud);
             obj.addProperty("showServerBox", showServerBox);
             obj.addProperty("chatMessages", chatMessages);
+            obj.addProperty("debugLog", debugLog);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -198,5 +202,13 @@ public final class BlinkConfig {
 
     public void setChatMessages(boolean chatMessages) {
         this.chatMessages = chatMessages;
+    }
+
+    public boolean isDebugLog() {
+        return debugLog;
+    }
+
+    public void setDebugLog(boolean debugLog) {
+        this.debugLog = debugLog;
     }
 }

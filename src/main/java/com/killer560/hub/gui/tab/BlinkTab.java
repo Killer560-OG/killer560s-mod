@@ -96,6 +96,9 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
         y = note(w, font, contentX, y, contentWidth, "§7charge shot would land you if you fired now.");
         y += 4;
         y = toggle(w, contentX, y, contentWidth, "Chat Messages", cfg::isChatMessages, v -> cfg.setChatMessages(v), cfg);
+        y = toggle(w, contentX, y, contentWidth, "Debug Log", cfg::isDebugLog, v -> cfg.setDebugLog(v), cfg);
+        y = note(w, font, contentX, y, contentWidth, "§7Writes every blink to latest.log on a GitHub build too. /blink debug");
+        y = note(w, font, contentX, y, contentWidth, "§7shows the current state and the last events.");
         y += 6;
 
         // ---- Charge

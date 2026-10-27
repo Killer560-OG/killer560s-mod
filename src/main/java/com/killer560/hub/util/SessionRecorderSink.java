@@ -67,6 +67,7 @@ public final class SessionRecorderSink {
             Map.entry("killer560smod-mapping", "map"),
             Map.entry("killer560smod-interactivemap", "autoclear"),
             Map.entry("killer560smod-autoclear", "autoclear"),
+            Map.entry("killer560smod-blink", "blink"),
             Map.entry("killer560smod-corrections", "corrections"),
             Map.entry("killer560smod-chat", "chat")
     );

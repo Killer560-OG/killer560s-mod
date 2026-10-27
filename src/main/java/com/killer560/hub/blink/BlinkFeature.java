@@ -4,7 +4,6 @@ import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
-import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ServerCorrections;
 import com.killer560.hub.util.SkyblockGate;
 import io.netty.channel.ChannelFutureListener;
@@ -23,7 +22,6 @@ import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -60,7 +58,6 @@ import java.util.List;
  */
 public final class BlinkFeature {
 
-    private static final Logger LOGGER = ModLog.get("killer560smod-blink");
 
     /** A hold that sends no tick-end at all (the game frozen, a world loading) is released after this long. */
     public static final long MAX_HOLD_MS = 15_000L;
@@ -138,8 +135,16 @@ public final class BlinkFeature {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || packet == null) {
             return false;
         }
+        // A look a banked Charge tick took with it rides on the next move, held or not: before 2026-10-26 a hold started
+        // right after a banked turn held its moves without it (the hold skipped Charge's hook), so the server ran every
+        // held tick on the old look.
+        if (BlinkCharge.carryOwedLook(connection, packet, listener, flush)) {
+            return true;
+        }
         if (!holding) {
-            if (BlinkCharge.onSend(connection, packet, listener, flush)) {
+            // A released burst is sent as it was held: before 2026-10-26 it went through Charge's hook when Charge was on,
+            // which banked its tick-ends (dropping their moves) and kept its ping answers back out of order.
+            if (releasingThread != Thread.currentThread() && BlinkCharge.onSend(connection, packet, listener, flush)) {
                 return true;
             }
             noteSent(connection, packet);
@@ -163,6 +168,9 @@ public final class BlinkFeature {
             } else if (packet instanceof ServerboundMovePlayerPacket) {
                 heldMoves++;
             }
+            if (queue.size() > peakQueue) {
+                peakQueue = queue.size();
+            }
             if (queue.size() >= MAX_HELD_PACKETS) {
                 // Released right here, this packet included: the queue is in order, and the send below re-enters with
                 // holding off. Hold mode waits for the key to come up before starting again.
@@ -175,6 +183,19 @@ public final class BlinkFeature {
     }
 
     private static long clicksLive;
+    /** The thread sending a released burst right now: its sends skip Charge's hook. */
+    private static volatile Thread releasingThread;
+    private static long clicksAtStart;
+    /** The largest the held queue has been (the testkit's leak check and {@code /blink debug}). */
+    private static int peakQueue;
+    /** Where the client was when the current (or last) hold started, for the release line's distance. */
+    private static Vec3 holdStartClientPos;
+    /** A hold was wanted and the Skyblock gate said no; logged once until the key comes up. */
+    private static boolean gateRefusalLogged;
+
+    public static int peakQueue() {
+        return peakQueue;
+    }
 
     private static boolean isMenuClick(Packet<?> packet) {
         return packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClickPacket
@@ -232,14 +253,22 @@ public final class BlinkFeature {
                 if ("key".equals(wantedBy)) {
                     wanted = false;
                     holdLatched = true;
+                    BlinkLog.event("Hold key still down after the limit - the next hold waits for it to come up");
+                } else if ("command".equals(wantedBy)) {
+                    // /blink is one hold: before 2026-10-26 it started again every tick after its limit, forever.
+                    wanted = false;
                 }
             }
         }
         if (holding && !wanted) {
-            release("key");
+            release("key".equals(holdOwner) ? "key up" : "ended by " + holdOwner);
         }
         if (!holding && wanted) {
             if (!SkyblockGate.allows()) {
+                if (!gateRefusalLogged) {
+                    gateRefusalLogged = true;
+                    BlinkLog.event("hold wanted by %s but not started: Skyblock Only is on and this is not Skyblock", wantedBy);
+                }
                 wanted = false;
             } else {
                 start(listener.getConnection(), wantedBy);
@@ -253,6 +282,7 @@ public final class BlinkFeature {
         boolean down = keyDown(client, cfg);
         keyWasDown = down;
         if (!down) {
+            gateRefusalLogged = false;
             holdLatched = false;
             if ("key".equals(wantedBy)) {
                 wanted = false;
@@ -292,9 +322,18 @@ public final class BlinkFeature {
     // Starting and releasing
 
     private static void start(Connection connection, String owner) {
-        BlinkCharge.flushAnswers("a hold is starting");
+        if (holding) {
+            return;
+        }
+        if (connection == null || !connection.isConnected()) {
+            BlinkLog.event("hold wanted by %s but not started: no connection", owner);
+            return;
+        }
+        // Charging: the waiting answers go first (TransactionOrder) and the bank is dropped whether or not any were
+        // waiting - a bank kept through a hold and fired after it adds its ticks to the hold's (more than GrimAC allows).
+        String charge = BlinkCharge.dropForHold();
         synchronized (LOCK) {
-            if (holding || connection == null || !connection.isConnected()) {
+            if (holding || !connection.isConnected()) {
                 return;
             }
             holdConnection = connection;
@@ -303,12 +342,13 @@ public final class BlinkFeature {
             holdStartMs = System.currentTimeMillis();
             holdOwner = owner;
             holdStartServerPos = serverPos;
+            clicksAtStart = clicksLive;
             holding = true;
         }
         Minecraft mc = Minecraft.getInstance();
-        LOGGER.info("[Blink] hold started by {} at {} (Hold Ticks {}); server has him at {}", owner,
-                mc.player == null ? "-" : fmt(mc.player.position()), BlinkConfig.getInstance().getHoldTicks(),
-                serverPos == null ? "-" : fmt(serverPos));
+        holdStartClientPos = mc.player == null ? null : mc.player.position();
+        BlinkLog.event("hold started by %s at %s; server has him at %s; %s%s", owner, BlinkLog.fmt(holdStartClientPos),
+                BlinkLog.fmt(serverPos), BlinkLog.settings(), charge);
         if (BlinkConfig.getInstance().isChatMessages()) {
             ModChat.send("Blink", ModChat.text("holding packets"));
         }
@@ -346,8 +386,13 @@ public final class BlinkFeature {
                     dropped++;
                     continue;
                 }
-                // holding is off, so this send passes our hook (and notes the move for the box).
-                connection.send(h.packet(), h.listener(), false);
+                // holding is off, so this send passes our hook (and notes the move for the box), and Charge's too.
+                releasingThread = Thread.currentThread();
+                try {
+                    connection.send(h.packet(), h.listener(), false);
+                } finally {
+                    releasingThread = null;
+                }
                 sent++;
             }
             connection.flushChannel();
@@ -367,11 +412,13 @@ public final class BlinkFeature {
                     Integer::sum);
         }
         Minecraft mc = Minecraft.getInstance();
-        LOGGER.info("[Blink] released ({}) after {} ms, owner {}: {} tick(s), {} move(s), {} packet(s) sent, {} dropped; "
-                        + "burst {}; client at {}, server now has him at {}; release #{}", why,
-                System.currentTimeMillis() - holdStartMs, holdOwner, ticks, heldMoves, sent, dropped, kinds,
-                mc.player == null ? "-" : fmt(mc.player.position()), serverPos == null ? "-" : fmt(serverPos),
-                releasedHolds);
+        Vec3 now = mc.player == null ? null : mc.player.position();
+        double moved = now == null || holdStartClientPos == null ? 0 : now.distanceTo(holdStartClientPos);
+        BlinkLog.event("released (%s) after %d ms, owner %s: %d tick(s), %d move(s), %d packet(s) sent, %d dropped, %d "
+                        + "menu click(s) went live during it; client moved %.2f blocks during the hold, %s -> %s; server now has "
+                        + "him at %s; burst %s; release #%d", why, System.currentTimeMillis() - holdStartMs, holdOwner, ticks,
+                heldMoves, sent, dropped, clicksLive - clicksAtStart, moved, BlinkLog.fmt(holdStartClientPos),
+                BlinkLog.fmt(now), BlinkLog.fmt(serverPos), kinds, releasedHolds);
         if (BlinkConfig.getInstance().isChatMessages()) {
             String extra = dropped > 0 ? ", " + dropped + " stale dropped" : "";
             ModChat.send("Blink", ModChat.text("released " + ticks + " tick(s), " + sent + " packet(s) (" + why + extra + ")"));
@@ -415,15 +462,15 @@ public final class BlinkFeature {
         // to it (it ignores moves until its teleport is accepted), so the blink is dropped, honored, never fought.
         Vec3 start = holdStartServerPos;
         boolean backToStart = start != null && to != null && dist > RUBBERBAND_BLOCKS && to.distanceTo(start) < 0.5;
-        BlinkCharge.noteServerTeleport(dist);
+        BlinkCharge.noteServerTeleport(from, to, dist);
         if (wasHolding && !backToStart) {
             // An etherwarp landing, a leap, a lag-back to somewhere new: keep holding. The accept vanilla answers with goes
             // into the queue in its place, so on release the server sees a client that got the teleport late - every
             // held move before the accept is ignored by it, every one after starts from the new spot.
             teleportsHeld++;
-            LOGGER.info(String.format(java.util.Locale.ROOT, "[Blink] server moved him %.2f blocks to %s while holding (%d "
-                    + "tick(s) in) - kept holding, the accept goes out in order; teleport #%d held through", dist, fmt(to),
-                    heldTicks, teleportsHeld));
+            BlinkLog.event("server teleport while holding: %.2f blocks, client at %s, server put him at %s (%d tick(s) "
+                    + "into the hold) - kept holding, the accept goes out in order; teleport #%d held through", dist,
+                    BlinkLog.fmt(from), BlinkLog.fmt(to), heldTicks, teleportsHeld);
             if (to != null) {
                 serverPos = to;
             }
@@ -442,14 +489,18 @@ public final class BlinkFeature {
         }
         if (backToStart) {
             refused++;
+            BlinkLog.event("REFUSED: the server put him back at the hold's start %s (%.2f blocks) while the client was at %s "
+                    + "- everything held was sent in order ahead of the setback's accept; refusal #%d", BlinkLog.fmt(to), dist,
+                    BlinkLog.fmt(from), refused);
             ServerCorrections.report("Blink", "the server refused a blink and put you back where it started - dropped, "
                     + "carrying on", dist);
         } else if (wasHolding) {
             ServerCorrections.report("Blink", "while holding - released, carrying on", dist);
         } else if (ticksSinceRelease <= RUBBERBAND_WATCH_TICKS && dist > RUBBERBAND_BLOCKS) {
             // A teleport soon after a release that is not back to the blink's start: an etherwarp landing, a leap. Logged.
-            LOGGER.info(String.format(java.util.Locale.ROOT, "[Blink] server moved him %.2f blocks to %s %d tick(s) after a "
-                    + "release - not back to the blink's start, not a refusal", dist, fmt(to), ticksSinceRelease));
+            BlinkLog.event("server teleport %d tick(s) after a release: %.2f blocks, client at %s, server put him at %s - "
+                    + "not back to the hold's start, not a refusal", ticksSinceRelease, dist, BlinkLog.fmt(from),
+                    BlinkLog.fmt(to));
         }
         if (to != null) {
             serverPos = to;
@@ -482,6 +533,10 @@ public final class BlinkFeature {
 
     /** A login or respawn packet: a new world. What is held is released, all of it, in order; the blink ends. */
     public static void onWorldChange() {
+        if (holding || BlinkCharge.isActive()) {
+            BlinkLog.event("world change (login or respawn packet): holding %s (%d packet(s)), charging %s (bank %d)", holding,
+                    heldPackets(), BlinkCharge.isActive(), BlinkCharge.banked());
+        }
         BlinkCharge.reset("world change");
         serverPos = null;
         synchronized (LOCK) {
@@ -496,6 +551,9 @@ public final class BlinkFeature {
         // Off until the key is pressed again (a key still down from the old world waits for it to come up): a hold that
         // started on the new world's first tick held its loading packets and drew GrimAC Post (testkit 1025-blink-world).
         holdLatched = keyWasDown;
+        if (holdLatched) {
+            BlinkLog.event("Hold key still down across the world change - the next hold waits for it to come up");
+        }
     }
 
     /** The server starts a configuration phase: everything held is a play packet for it, so all of it goes now. */
@@ -512,7 +570,8 @@ public final class BlinkFeature {
         BlinkCharge.reset("disconnect");
         synchronized (LOCK) {
             if (holding) {
-                LOGGER.info("[Blink] disconnected while holding: {} packet(s) discarded", queue.size());
+                BlinkLog.event("disconnected while holding: %d packet(s) (%d tick(s)) discarded - nothing to send them on",
+                        queue.size(), heldTicks);
             }
             holding = false;
             holdConnection = null;
@@ -572,8 +631,21 @@ public final class BlinkFeature {
         return lastHoldPackets;
     }
 
-    private static String fmt(Vec3 v) {
-        return String.format(java.util.Locale.ROOT, "(%.2f, %.2f, %.2f)", v.x, v.y, v.z);
+    /** Ticks since the last release (capped), for {@code /blink debug}. */
+    static int ticksSinceRelease() {
+        return ticksSinceRelease;
+    }
+
+    static boolean holdLatched() {
+        return holdLatched;
+    }
+
+    static String wantedBy() {
+        return wanted ? wantedBy : "-";
+    }
+
+    static long clicksLiveTotal() {
+        return clicksLive;
     }
 
     /** The HUD line: the charge bank when Charge is on, the hold while one runs. Null when there is nothing to show. */
