@@ -1048,6 +1048,7 @@ final class SettingTooltipsData {
         d.put("auto update/channel", "Which release Auto Update follows: Full Release (the newest numbered release) or Beta (the rolling dev build, newer and less tested). Left click forward, right click back.");
         d.put("check now", "Checks your Auto Update channel right now and downloads the update if there is one. It installs when you close the game.");
         d.put("this build", "The commit this jar was built from, and its Minecraft version and variant. Auto Update compares the commit with the release's.");
+        d.put("open menu key", "Key that opens this menu in game, when no screen is open and you are not typing. Click, then press a key; Esc unbinds.");
         d.put("edit hud keybind", "Key that opens the HUD editor, over any screen (a chest, Croesus, this menu) so its overlays can be placed where they sit. It does nothing while you are typing: chat, a rename, a sign or book, any search box.");
         d.put("correction alarm", "Plays a siren when the server corrects your position during an automation. Nothing is stopped; the mod carries on from the corrected position.");
         d.put("alarm volume", "How loud the Correction Alarm plays, 0-100%.");

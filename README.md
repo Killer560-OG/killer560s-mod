@@ -12,7 +12,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 
 **Full descriptions of every feature: [Killer560's Mod - Features](https://docs.google.com/document/d/e/2PACX-1vQsLEy_hlz-Dv518bH7AgYjyoGgdNl2jSAF4T8vzQHawmkg0f56q6Yrp67Zqncc8h9N-pdAvFLC5_D-/pub)**
 
-Open the menu in game with `/killer560`: every feature is a card with its own on/off switch in its category (Dungeons, HUD, Chat, Items, Social, Cosmetics, Misc), clicking a card opens its settings, and Ctrl F searches every feature and setting. Features marked † have extra automation or through-walls options in the cheat build.
+Open the menu in game with `/killer560` or the Open Menu Key (backslash by default, set in Home > Mod & HUD): every feature is a card with its own on/off switch in its category (Dungeons, HUD, Chat, Items, Social, Cosmetics, Misc), clicking a card opens its settings, and Ctrl F searches every feature and setting. Features marked † have extra automation or through-walls options in the cheat build.
 
 **Chat** - Auto Correct, Auto Meow, Chat Emotes, Chat Hider, Chat History, Chat Keybinds, Click Translate, Command Auto Correct, Copy Chat, Cringe, Mod Chat, Party Commands, Peek Chat, Song Tag, Spotify Lyrics, Translate, Voice To Text
 
