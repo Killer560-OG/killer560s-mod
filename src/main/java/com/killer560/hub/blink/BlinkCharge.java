@@ -728,6 +728,11 @@ public final class BlinkCharge {
         return tpSegs.isEmpty() && unbacked <= 0 && !BlinkFeature.isHolding();
     }
 
+    /** GrimAC's lag allowance covers the bank now (AP3's release node finishes on it, so the shot fires next tick). */
+    public static boolean shotCovered() {
+        return covered();
+    }
+
     /** A shot is waiting for the bank to be covered (testkit, HUD). */
     public static boolean shotWaiting() {
         return deferredWhy != null;
