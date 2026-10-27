@@ -120,6 +120,16 @@ public final class FastLeapConfig {
         String keywords;
         /** Which of the two the Target button picked: the class (true) or the name. */
         boolean byClass = true;
+        /** Per-class targets (killer560, 2026-10-27: "change who it leaps to based on what class you are playing"): the
+         *  class YOU play this run -> who this leap goes to instead. A class missing from the map uses the Target above. */
+        final Map<DungeonClass, ClassPick> byPlayerClass = new EnumMap<>(DungeonClass.class);
+    }
+
+    /** One per-class target: a class (the teammate who has it) or a party member's name - exactly one is set. */
+    public record ClassPick(DungeonClass clazz, String name) {
+        public boolean byClass() {
+            return clazz != null;
+        }
     }
 
     private static FastLeapConfig instance;
@@ -208,6 +218,22 @@ public final class FastLeapConfig {
                             s.byClass = o.has("byClass") ? bool(o, "byClass", true)
                                     : "CLASS".equalsIgnoreCase(oldMode)
                                     || ("POSMSG".equalsIgnoreCase(oldMode) && s.name.isBlank());
+                            if (o.has("classTargets") && o.get("classTargets").isJsonObject()) {
+                                JsonObject ct = o.getAsJsonObject("classTargets");
+                                for (DungeonClass mine : DungeonClass.values()) {
+                                    if (!ct.has(mine.name()) || !ct.get(mine.name()).isJsonObject()) {
+                                        continue;
+                                    }
+                                    JsonObject p = ct.getAsJsonObject(mine.name());
+                                    DungeonClass pc = DungeonClass.byName(str(p, "class", ""));
+                                    String pn = str(p, "name", "").trim();
+                                    if (pc != null) {
+                                        s.byPlayerClass.put(mine, new ClassPick(pc, null));
+                                    } else if (!pn.isEmpty()) {
+                                        s.byPlayerClass.put(mine, new ClassPick(null, pn));
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -248,6 +274,17 @@ public final class FastLeapConfig {
                 o.addProperty("class", s.clazz == null ? "" : s.clazz.name());
                 o.addProperty("keywords", s.keywords);
                 o.addProperty("byClass", s.byClass);
+                JsonObject ct = new JsonObject();
+                for (Map.Entry<DungeonClass, ClassPick> e : s.byPlayerClass.entrySet()) {
+                    JsonObject p = new JsonObject();
+                    if (e.getValue().byClass()) {
+                        p.addProperty("class", e.getValue().clazz().name());
+                    } else {
+                        p.addProperty("name", e.getValue().name());
+                    }
+                    ct.add(e.getKey().name(), p);
+                }
+                o.add("classTargets", ct);
                 t.add(target.name(), o);
             }
             obj.add("targets", t);
@@ -421,5 +458,54 @@ public final class FastLeapConfig {
 
     public void setTargetKeywords(LeapTarget target, String keywords) {
         targets.get(target).keywords = keywords == null ? "" : keywords;
+    }
+
+    // ---- per-class targets ----------------------------------------------------------------------------------------
+
+    /** Who this leap goes to while YOU play {@code mine}, or null when that class has no target of its own (the leap's
+     *  Target applies). */
+    public ClassPick getClassTarget(LeapTarget target, DungeonClass mine) {
+        return mine == null ? null : targets.get(target).byPlayerClass.get(mine);
+    }
+
+    /** While you play {@code mine}, this leap goes to the teammate with class {@code clazz} (null clears it). */
+    public void setClassTargetClass(LeapTarget target, DungeonClass mine, DungeonClass clazz) {
+        if (mine == null) {
+            return;
+        }
+        if (clazz == null) {
+            targets.get(target).byPlayerClass.remove(mine);
+        } else {
+            targets.get(target).byPlayerClass.put(mine, new ClassPick(clazz, null));
+        }
+    }
+
+    /** While you play {@code mine}, this leap goes to the party member {@code name} (blank clears it). */
+    public void setClassTargetName(LeapTarget target, DungeonClass mine, String name) {
+        if (mine == null) {
+            return;
+        }
+        String n = name == null ? "" : name.trim();
+        if (n.isEmpty()) {
+            targets.get(target).byPlayerClass.remove(mine);
+        } else {
+            targets.get(target).byPlayerClass.put(mine, new ClassPick(null, n));
+        }
+    }
+
+    /** Clears this leap's target for {@code mine}: the leap's Target applies again. */
+    public void clearClassTarget(LeapTarget target, DungeonClass mine) {
+        if (mine != null) {
+            targets.get(target).byPlayerClass.remove(mine);
+        }
+    }
+
+    /** How many per-class targets are set across every leap (the Class Targets button shows it). */
+    public int classTargetCount() {
+        int n = 0;
+        for (TargetSettings s : targets.values()) {
+            n += s.byPlayerClass.size();
+        }
+        return n;
     }
 }

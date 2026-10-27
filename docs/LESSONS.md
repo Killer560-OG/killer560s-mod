@@ -293,3 +293,6 @@ project CLAUDE.md. Compiling lessons
   command ... gfs ender_pearl 16<--[HERE]" was not ours: his Auto GFS was off and the log had no "[Cheat Utils] Auto GFS:"
   echo (every send of ours prints one); QUOI and NoammAddons both had Auto GFS on. Ours had the same hole anyway (fixed in
   `util/SackCommands`, testkit 115-hx-autogfs-unknown-command). Grep his log for our echo line first.
+- **Your own dungeon class is `leapmenu/PartyTracker.selfClass()`** (tab list, plus Party Finder lines, with the
+  `ClassOverrides` pick on your own IGN already applied by `classOf`). Fast Leap's Class Targets (2026-10-27) read it;
+  `Ap3Feature.selfClass()` wraps it in `ClassOverrides` a second time, which is harmless. Do not write another tab parser.
