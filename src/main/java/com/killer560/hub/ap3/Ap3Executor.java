@@ -3853,7 +3853,7 @@ public final class Ap3Executor {
             // The release waits for GrimAC to cover the kept bank (after a leap / teleport, campaign-blink-1027): he stands
             // on the node; the tick the bank is covered the node finishes, the next node's walk goes in, and the shot fires
             // along it at the next tick start.
-            if (!com.killer560.hub.blink.BlinkCharge.shotWaiting() || com.killer560.hub.blink.BlinkCharge.shotCovered()) {
+            if (com.killer560.hub.blink.BlinkCharge.shotCovered() || !com.killer560.hub.blink.BlinkCharge.shotPending()) {
                 releaseWaiting = false;
                 blinkHoldPaused = false;
                 LOGGER.info("[AP3] blinkrelease #{}: the bank is covered after {} tick(s) on the node - the shot fires now",
@@ -3899,7 +3899,8 @@ public final class Ap3Executor {
             releaseFired = 0;
             releaseResumeBy = -1L;
             releaseWatchFrom = blinkReleaseFrom;
-            if (com.killer560.hub.blink.BlinkCharge.shotWaiting()) {
+            if (k > 0 && !com.killer560.hub.blink.BlinkCharge.shotCovered()) {
+                // The shot will wait for cover at the next tick start (BlinkCharge.shoot): hold here meanwhile.
                 releaseWaiting = true;
                 blinkHoldPaused = true;
                 clearMovement();
