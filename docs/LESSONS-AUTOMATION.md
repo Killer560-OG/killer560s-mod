@@ -374,7 +374,10 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   teleport (BadPacketsN / Simulation / a setback - see the in-place and setback-variants findings above); he accepts it.
   Do not revert. Impossible to keep: a hold's packets across a world change (old-world moves), anything across a disconnect.
 - What keeping the bank costs on GrimAC (blink-keep-1027, testkit 1026-blink-keep-warp, 1026-ap3-blink-leap): at the kept
-  teleport itself Simulation = the teleport's distance, GroundSpoof, TickTimer, BadPacketsN; then the next shot is SET BACK
+  teleport itself Simulation = the teleport's distance, GroundSpoof, TickTimer, BadPacketsN, AimDuplicateLook (one per kept
+  teleport, 12 for Charged Chain's 12: the vanilla answer to a teleport is a move with the unchanged look, and GrimAC takes
+  it as the teleport only once the ping sent with it is answered, which Charge holds ~1 s; answering it first is exactly
+  what dropped the bank, so it cannot be clean while the bank is kept - campaign-blink-1027); then the next shot is SET BACK
   (the server never moves; client/server gap = the shot's length). Later in the same session, a teleport held through a
   plain Hold draws BadPacketsN too (items-a / lcew hold rows; the same holds are clean in a fresh session). A hold started
   while charging sends the waiting answers, and the kept bank's shot then draws Timer (keep-misc 4b).

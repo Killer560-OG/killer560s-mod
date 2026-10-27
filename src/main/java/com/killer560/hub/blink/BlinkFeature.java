@@ -416,6 +416,11 @@ public final class BlinkFeature {
         } else {
             dropped = out.size();
         }
+        if (sent > 0 && BlinkCharge.isActive()) {
+            // The hold sent Charge's waiting answers at its start and its own in the burst: the kept bank is no longer
+            // covered by GrimAC's lag allowance and is backed again on the next still ticks (BlinkCharge.unbacked).
+            BlinkCharge.answersWentEarly("a hold was released while charging");
+        }
         releasedHolds++;
         releasedPackets += sent;
         lastHoldTicks = ticks;
