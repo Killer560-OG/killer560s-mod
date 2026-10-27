@@ -88,7 +88,7 @@ public class ZeroPingEtherwarpTab extends BaseTab {
             y = sourceRows(w, cfg, contentX, y, contentWidth, true);
             // Warps Per Tick (killer560, 2026-10-27: "multiple ether warps done in a single tick"): sends extra warps.
             y += 6;
-            w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Warps Per Tick", true));
+            w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Warps In One Tick", true));
             y += 16;
             String[] wptHelp = {
                     "§7Each of your own etherwarps becomes this many in the same tick, at the",
@@ -104,6 +104,22 @@ public class ZeroPingEtherwarpTab extends BaseTab {
                                 ZeroPingEtherwarpConfig.MAX_WARPS_PER_TICK, dir));
                         cfg.save();
                         btn.setMessage(warpsPerTickText(cfg));
+                    }).bounds(contentX, y, contentWidth, ROW).build());
+            y += ROW + 6;
+            // Aimed Warps (killer560, 2026-10-27: "Can you make it etherwarp different directions during the same tick?")
+            String[] aimedHelp = {
+                    "§7Clicks inside one tick at different looks each warp their own way, all",
+                    "§7in that tick. Each extra look spends one banked Blink Charge tick."
+            };
+            for (String line : aimedHelp) {
+                w.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal(line), font));
+                y += 11;
+            }
+            y += 4;
+            w.add(SettingsButtonWidget.builder(onOff("Aimed Warps In One Tick", cfg.isAimedWarps()), btn -> {
+                        cfg.setAimedWarps(!cfg.isAimedWarps());
+                        cfg.save();
+                        btn.setMessage(onOff("Aimed Warps In One Tick", cfg.isAimedWarps()));
                     }).bounds(contentX, y, contentWidth, ROW).build());
         }
         return w;

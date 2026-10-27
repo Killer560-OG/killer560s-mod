@@ -5,6 +5,8 @@
 	"package": "com.killer560.hub.zpew.mixin",
 	"client": [
 		"ZpewCameraMixin",
+		"ZpewKeyMappingAccessor",
+		"ZpewMinecraftAccessor",
 		"ZpewPositionMixin",
 		"ZpewSendMixin",
 		"ZpewUseItemMixin"
