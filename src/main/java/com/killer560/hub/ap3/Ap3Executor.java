@@ -1972,7 +1972,13 @@ public final class Ap3Executor {
         }
         Ap3DiscretePlanner.startBudget();
         try {
-            if (!(fast && driveFast(player, ex, ez))) {
+            boolean done = fast && driveFast(player, ex, ez);
+            if (!done) {
+                // Fast Align found nothing (or spent the budget looking): the regular planner gets a budget of its own,
+                // so the tick always ends with a plan. Until 2026-10-27 it inherited a spent budget and its search
+                // returned before scoring anything - "coarse best 1.8e+308", no keys, the align stalled 0.5 off its point
+                // and ended after 20 ticks (testkit 1026-boss-ap3-lights-run on a loaded machine).
+                Ap3DiscretePlanner.startBudget();
                 driveDiscrete(player, ex, ez, method);
             }
             ledgeGuard(player, node);
@@ -4646,6 +4652,32 @@ public final class Ap3Executor {
         writeDiscrete(player, key[0], key[1], false, sprint, yaw, modelFor(player, false), lastSneakSent);
         heldKeysYaw = yaw;
         heldKeysValid = true;
+    }
+
+    /**
+     * For {@code util/TurnFirst.registerYawConstraint}: while a held walk drives (and nothing of AP3's own is aiming or
+     * aligning - those own the body outright), the yaws at which one of the eight key combinations walks exactly along
+     * the walk, fastest first (W+A, W+D, W keep the sprint). An aura turning him to one of these for a click leaves the
+     * path unchanged: the walk re-picks that combination for the turned yaw (beforeInputInstall / applyHoldRealYaw).
+     * Null = no constraint.
+     */
+    public static float[] walkKeyedYaws() {
+        if (!isRunning() || holdDir == null || aiming || aimLock || actNode != null || isInputOverridden()) {
+            return null;
+        }
+        if (activeNode != null && activeNode.type.ownsMovement()) {
+            return null;
+        }
+        float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+        // Only the combinations with W in them (W+A, W+D, W - the first three of AIM_KEYS): any other drops the sprint for
+        // that tick, which slows him, moves where he enters the next node's box and so bends the path after it (testkit
+        // 1027-boss-ap3-lights-path, 2026-10-27: 0.65 blocks off at the end with D allowed). None of these meets the
+        // target this tick: the click waits for one that does.
+        float[] out = new float[3];
+        for (int i = 0; i < 3; i++) {
+            out[i] = walkYaw - AIM_KEYS[i][2];
+        }
+        return out;
     }
 
     /** The yaw the held walk's keys were picked at this tick; valid only while {@link #heldKeysValid}. */

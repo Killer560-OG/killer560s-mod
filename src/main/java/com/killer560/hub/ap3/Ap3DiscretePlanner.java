@@ -543,8 +543,8 @@ final class Ap3DiscretePlanner {
     /** Exhaustive joint search over all 17 combinations for {@code depth} ticks at the current yaw, scored by the rest
      *  error; equal errors go to the sequence that comes to rest sooner (so a needed press is never deferred). */
     private static void jointSearch(State s, Model m, int depth, int k, Action first, JointResult out) {
-        if (k > 0 && out.first != null && outOfTime()) {
-            return; // the tick's budget is gone: keep the best found so far
+        if (k > 0 && out.restErr < Double.MAX_VALUE && outOfTime()) {
+            return; // the tick's budget is gone: keep the best found so far (never before one leaf was scored)
         }
         if (k == depth) {
             State r = s.copy();
@@ -589,7 +589,7 @@ final class Ap3DiscretePlanner {
      * what the other key-based mods get), re-planned every tick. Honest: the plan says the error it expects.
      */
     private static void keysFineSearch(State s, Model m, int depth, int k, Action first, JointResult out) {
-        if (k > 0 && out.first != null && outOfTime()) {
+        if (k > 0 && out.restErr < Double.MAX_VALUE && outOfTime()) {
             return;
         }
         if (k == depth) {
