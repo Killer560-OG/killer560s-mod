@@ -1,0 +1,9 @@
+# Reviewed false positives (security audit 2026-10-27): test names, skull-texture constants and comments that
+# the generic-api-key rule reads as keys. One gitleaks fingerprint per line (commit:file:rule:line).
+df0e0a0b13eae3828fc090e64d31ea92f5a0d8d7:docs/SIM-SECRETS.md:generic-api-key:250
+df0e0a0b13eae3828fc090e64d31ea92f5a0d8d7:docs/SIM-SECRETS.md:generic-api-key:251
+1765614baeb6c2b00005e06eda47783349828d95:docs/SIM.md:generic-api-key:3353
+3f0befdde8589084d4efb8f738d5a8a45efbe6fe:src/main/java/com/killer560/hub/autopuzzles/AutoPuzzleUtil.java:generic-api-key:716
+03c4ac5b1f350d96441adeeadee36af65f38caef:src/main/java/com/killer560/hub/roomsim/SimKeys.java:generic-api-key:95
+03c4ac5b1f350d96441adeeadee36af65f38caef:src/main/java/com/killer560/hub/roomsim/SimKeys.java:generic-api-key:96
+320b99bf7fe286efac17eefb87949f4d35cd2a90:src/main/java/com/killer560/hub/roomsim/SimSecretItems.java:generic-api-key:92

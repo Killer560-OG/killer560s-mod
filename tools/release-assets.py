@@ -71,6 +71,13 @@ def main():
     if len(commits) != 1:
         sys.exit("the jars were built from different commits: %s" % ", ".join(sorted(commits)))
     commit = commits.pop()
+    # No release without a clean secret scan (security audit 2026-10-27): secrets, owner-secret fingerprints, local paths.
+    import subprocess
+    verify = os.path.join(os.path.dirname(os.path.abspath(__file__)), "verify-artifact.py")
+    r = subprocess.run([sys.executable, "-I", verify, "-q"] + [os.path.join(dist, n) for n in jars],
+                       stdin=subprocess.DEVNULL)
+    if r.returncode != 0:
+        sys.exit("verify-artifact.py failed (exit %d) - not writing release files" % r.returncode)
     # Binary-mode sha256sum lines ("<hash>  <name>"), LF endings, so `sha256sum -c SHA256SUMS.txt` works too.
     with open(os.path.join(dist, "SHA256SUMS.txt"), "w", encoding="utf-8", newline="\n") as fh:
         for name in jars:
