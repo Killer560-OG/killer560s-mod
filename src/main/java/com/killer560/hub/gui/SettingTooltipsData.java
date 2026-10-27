@@ -732,7 +732,7 @@ final class SettingTooltipsData {
         d.put("show in hotbar", "Also draws rarity backgrounds behind items in your hotbar.");
         d.put("home button/youtube", "Opens Killer560's YouTube channel.");
         d.put("home button/sweat mode", "Enters sweat mode.");
-        d.put("home/sweat mode", "Click to enter sweat mode.");
+        d.put("home/sweat mode", "Enters sweat mode.");
         d.put("home/skyblock only", "Pauses every feature while you're not on Hypixel Skyblock or p3sim.");
         d.put("skyblock only", "Limits this feature to Hypixel Skyblock and p3sim.");
         d.put("video browser", "Shows YouTube Shorts in a small window pinned over Minecraft (Windows only).");
