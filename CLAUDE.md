@@ -317,6 +317,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   equivalent" and a duplicate was half built on 2026-10-25. Grep docs/FEATURES.md for the behavior, not the name, first.
 - Menu tabs share `BaseTab.onOff`/`onOffButton` (cleanup-gui, 2026-10-25): a tab with its own `private static onOff` no longer
   compiles ("cannot override ... in BaseTab"); three tabs written on main beside the cleanup broke the merge that way. Use BaseTab's.
+  The cleanup also dropped imports a tab no longer needed (`SettingsButtonWidget` in QuizSolverTab, `DungeonChestValuer` in
+  CroesusTab), so an older branch adding a row there fails with "cannot find symbol" after a clean text merge (batch-1026,
+  clickguards-1025). Write such rows with `onOffButton` and compile every variant after the merge.
 - Docs are split by topic since docs-condense (2026-10-25): LESSONS.md, LESSONS-AUTOMATION.md, LESSONS-GUI.md and SIM.md are
   indexes to LESSONS-{AUTOCLEAR,ROUTES,AUTOMATION-PUZZLES,DUNGEONS,HUD,MENU,MINECRAFT,PERF}.md and SIM-*.md. Add a lesson to the
   topic file; a branch that appends to an old monolith conflicts on merge.
