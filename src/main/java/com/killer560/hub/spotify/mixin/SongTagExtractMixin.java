@@ -25,6 +25,7 @@ public abstract class SongTagExtractMixin {
     private void killer560smod$songTag(Avatar entity, AvatarRenderState state, float partialTick, CallbackInfo ci) {
         if ((Object) state instanceof SongTagState tagged) {
             tagged.killer560smod$setSongTag(SongTagDraw.tagFor(entity, state.distanceToCameraSq));
+            tagged.killer560smod$setLyricTag(SongTagDraw.lyricFor(entity));
         }
     }
 }

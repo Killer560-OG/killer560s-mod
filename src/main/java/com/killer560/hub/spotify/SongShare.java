@@ -88,6 +88,7 @@ public final class SongShare {
         if (++ticks % TICK_EVERY != 0) {
             return;
         }
+        updateLocalTag();
         if (roomChanged) {
             // A new room has heard nothing from us: start over, and send the current song if there is one.
             roomChanged = false;
@@ -171,8 +172,58 @@ public final class SongShare {
         return t != null ? t : SpotifyLyricsFeature.nowPlaying();
     }
 
-    /** Your own song line while it is being shared, for your own nametag in F5; null otherwise. */
+    /**
+     * Your own song line for your own nametag in F5: while Share My Song is on and a song plays, whether or not it can
+     * be SENT. killer560 (2026-10-26): "I turned it on but don't see it in f5" - it was only shown once the relay had
+     * taken it, so with Show Me As A Mod User off (its default, and his), out of a relay room, or not in the supporter
+     * list, the switch showed nothing anywhere and said nothing. Your own copy is local, so none of those gates apply
+     * to it; the tab's Share My Song row says why it is not reaching anyone else ({@link #notSentReason}).
+     */
     public static Component ownTag() {
-        return live ? ownTag : null;
+        return localTag;
+    }
+
+    // Client thread only.
+    private static Component localTag;
+    private static String localKey = "";
+
+    private static void updateLocalTag() {
+        // Supporters only (killer560, 2026-10-26: "for sharing spotify that should be supporter only ... just sharing the
+        // hud thing above their head, not lyrics"): a non-supporter's own copy is not shown either, even with an old
+        // config file that has Share My Song on. My Lyrics In F5 is not gated.
+        NowPlaying np = SongShareConfig.getInstance().isShareSong() && selfIsSupporter() ? nowPlaying() : null;
+        String title = np == null ? "" : RemoteSongs.clean(np.title(), RemoteSongs.TITLE_MAX);
+        if (np == null || np.kind() != NowPlaying.Kind.TRACK || title.isEmpty()) {
+            localTag = null;
+            localKey = "";
+            return;
+        }
+        String artist = RemoteSongs.clean(np.artist(), RemoteSongs.ARTIST_MAX);
+        String key = artist + "\n" + title;
+        if (!key.equals(localKey)) {
+            localKey = key;
+            localTag = RemoteSongs.buildTag(artist, title);
+        }
+    }
+
+    /** Whether you are in the supporter list (false while it has not loaded: nothing is sent until it has). */
+    public static boolean selfIsSupporter() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc != null && mc.player != null && SupportersFeature.isSupporter(mc.player.getUUID());
+    }
+
+    /** Why your song is not reaching other mod users right now, or null when it is (or Share My Song is off). */
+    public static String notSentReason() {
+        if (!SongShareConfig.getInstance().isShareSong()) {
+            return null;
+        }
+        String why = blockReason();
+        if (why != null) {
+            return why;
+        }
+        if (testSender == null && !RelayClient.isConnected()) {
+            return "not connected to the mod's relay (no party or lobby room)";
+        }
+        return null;
     }
 }

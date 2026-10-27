@@ -22,4 +22,17 @@ public abstract class SongTagStateMixin implements SongTagState {
     public void killer560smod$setSongTag(Component tag) {
         killer560smod$songTag = tag;
     }
+
+    @Unique
+    private Component killer560smod$lyricTag;
+
+    @Override
+    public Component killer560smod$lyricTag() {
+        return killer560smod$lyricTag;
+    }
+
+    @Override
+    public void killer560smod$setLyricTag(Component tag) {
+        killer560smod$lyricTag = tag;
+    }
 }

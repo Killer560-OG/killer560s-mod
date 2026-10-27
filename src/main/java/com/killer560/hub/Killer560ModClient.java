@@ -213,6 +213,7 @@ public class Killer560ModClient implements ClientModInitializer {
         ProxyConfig.load();
         SpotifyLyricsFeature.init();
         com.killer560.hub.spotify.SongShare.register();
+        com.killer560.hub.spotify.SpotifyControls.register();
         MagicFindTracker.register();
         RngMeterOverlay.register();
         RngMeterEngine.PRICES.startAutoRefresh();

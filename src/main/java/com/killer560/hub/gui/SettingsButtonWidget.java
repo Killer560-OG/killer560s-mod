@@ -524,8 +524,23 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         return null;
     }
 
+    /** When set, decides each frame whether this row can be pressed (grayed out when not). */
+    private java.util.function.BooleanSupplier activeWhen;
+
+    /** Grays this row out whenever {@code when} says false, checked every frame; returns this. */
+    public SettingsButtonWidget activeWhen(java.util.function.BooleanSupplier when) {
+        this.activeWhen = when;
+        if (when != null) {
+            this.active = when.getAsBoolean();
+        }
+        return this;
+    }
+
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        if (activeWhen != null) {
+            active = activeWhen.getAsBoolean();
+        }
         if (inMenu()) {
             renderMenu(graphics, mouseX, mouseY);
             return;

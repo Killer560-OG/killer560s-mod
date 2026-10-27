@@ -177,10 +177,14 @@ public final class SpotifyHud implements HudElement {
         LyricPlan plan = cfg.isShowLyrics() && !ad
                 ? planLyrics(font, snap, elapsed, cfg.isWordHighlight() && !paused, x + PAD, y + LYRIC_Y, W - 2 * PAD)
                 : null;
+        int scroll = plan == null ? 0 : Math.round(scrollOffset(plan, snap, cfg.isSmoothScroll() && snap != DEMO));
         if (plan != null && plan.chip != null) {
             int[] c = plan.chip;
-            r.fill(c[0] - 2, c[1] - 1, c[2] + 2, c[1] + 9, OverlayPalette.alpha(p.accent(), 0x48));
-            r.fill(c[0] - 1, c[1] + 9, c[2] + 1, c[1] + 10, p.accent());
+            int cy0 = c[1] + scroll;
+            if (cy0 + 10 <= y + LYRIC_Y + LYRIC_ROWS * ROW_H) {   // a chip still sliding in below the rows is not drawn
+                r.fill(c[0] - 2, cy0 - 1, c[2] + 2, cy0 + 9, OverlayPalette.alpha(p.accent(), 0x48));
+                r.fill(c[0] - 1, cy0 + 9, c[2] + 1, cy0 + 10, p.accent());
+            }
         }
         r.submit();
 
@@ -216,10 +220,107 @@ public final class SpotifyHud implements HudElement {
         }
 
         if (cfg.isShowLyrics() && !ad) {
-            drawLyrics(graphics, font, snap, plan, paused, p, x + PAD, y + LYRIC_Y, W - 2 * PAD);
+            int lx = x + PAD;
+            int ly = y + LYRIC_Y;
+            int lw = W - 2 * PAD;
+            if (scroll != 0) {
+                // Mid-slide: the rows are clipped to the lyric area, and the line that just ended slides up out of it.
+                graphics.enableScissor(lx - 3, ly - 1, lx + lw + 3, ly + LYRIC_ROWS * ROW_H);
+                try {
+                    drawOutgoing(graphics, font, p, lx, ly - ROW_H + scroll, scroll / (float) ROW_H);
+                    drawLyrics(graphics, font, snap, plan, paused, p, lx, ly + scroll, lw);
+                } finally {
+                    graphics.disableScissor();
+                }
+            } else {
+                drawLyrics(graphics, font, snap, plan, paused, p, lx, ly, lw);
+            }
         }
         if (!editor) {
             HudSeen.markDrawn(id());
+        }
+    }
+
+    // ---- Smooth Lyric Scroll (killer560, 2026-10-26: "have a smoother transition of moving the lines up when a line
+    // finishes for lyrics"). When the top row moves on to a later row (the next line, or the next wrapped row of a long
+    // one), the rows start one row lower and ease up into place over SCROLL_NS, time-based on System.nanoTime so it is
+    // the same speed at any frame rate; the row that just ended slides up out of the area and fades. A jump backwards
+    // (a seek back) or a new song does not animate. Render thread only; nothing is allocated per frame: the outgoing
+    // row is kept as references to the line and its row bounds, which the wrap cache already holds.
+
+    /** How long a slide takes. */
+    static final long SCROLL_NS = 200_000_000L;
+
+    private static List<LyricsEngine.LyricLine> scrollLines;
+    private static int scrollLine = -1;
+    private static int scrollRow = -1;
+    private static long scrollStartNs;
+    private static boolean scrolling;
+    private static LyricsEngine.LyricLine curTopLine;
+    private static int[] curTopRow;
+    private static LyricsEngine.LyricLine outLine;
+    private static int[] outRow;
+    // Test hooks (read by the testkit).
+    private static volatile float lastScrollOffset;
+    private static volatile long scrollAnimations;
+
+    /** How far below its resting place the lyric rows are drawn this frame (0 at rest, up to {@link #ROW_H}). */
+    private static float scrollOffset(LyricPlan plan, LyricsEngine.Snapshot snap, boolean smooth) {
+        int line = plan.line == null || plan.line.parsed().words().isEmpty() ? -1 : plan.lineIdx;
+        int row = line < 0 ? 0 : plan.firstRow;
+        boolean sameSong = snap.lines() == scrollLines;
+        boolean forward = sameSong && (line > scrollLine || (line == scrollLine && row > scrollRow));
+        if (line != scrollLine || row != scrollRow || !sameSong) {
+            if (smooth && forward && scrollLine >= 0 && curTopLine != null) {
+                outLine = curTopLine;
+                outRow = curTopRow;
+                scrollStartNs = System.nanoTime();
+                scrolling = true;
+                scrollAnimations++;
+            } else {
+                scrolling = false;
+            }
+            scrollLines = snap.lines();
+            scrollLine = line;
+            scrollRow = row;
+        }
+        if (line >= 0 && row < plan.rows.size()) {
+            curTopLine = plan.line;
+            curTopRow = plan.rows.get(row);
+        } else {
+            curTopLine = null;
+            curTopRow = null;
+        }
+        float off = 0f;
+        if (scrolling && smooth) {
+            double t = (System.nanoTime() - scrollStartNs) / (double) SCROLL_NS;
+            if (t >= 1) {
+                scrolling = false;
+            } else {
+                double u = 1 - Math.max(0, t);
+                off = (float) (ROW_H * u * u * u);   // ease-out cubic: fast start, gentle landing
+            }
+        } else {
+            scrolling = false;
+        }
+        lastScrollOffset = off;
+        return off;
+    }
+
+    /** The row that just ended, sliding up and fading; {@code left} is 1 at the start of the slide and 0 at its end. */
+    private static void drawOutgoing(GuiGraphicsExtractor graphics, Font font, OverlayPalette p, int lx, int y, float left) {
+        if (outLine == null || outRow == null || left <= 0.05f) {
+            return;
+        }
+        List<String> words = outLine.parsed().words();
+        int alpha = Math.max(8, Math.min(255, Math.round(left * 255)));
+        int colour = OverlayPalette.alpha(p.textHover(), alpha);
+        int space = font.width(" ");
+        int wx = lx;
+        for (int i = outRow[0]; i < outRow[1] && i < words.size(); i++) {
+            String word = clean(words.get(i));
+            graphics.text(font, word, wx, y, colour, true);
+            wx += font.width(word) + space;
         }
     }
 
