@@ -107,6 +107,69 @@ public abstract class BlinkPacketListenerMixin {
         }
     }
 
+    /**
+     * A block near him changed in a way he could bump into (GrimAC moves its world only at the ping after the update, which
+     * Charge holds a second): the answers go through that ping at once (BlinkCharge.onServerPush). Both versions: both
+     * handlers begin with ensureRunningOnSameThread (javap 26.1.2 / 26.2); this runs before vanilla applies the change.
+     */
+    @Inject(method = "handleBlockUpdate", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER),
+            cancellable = true)
+    private void killer560smod$blinkBlock(net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket packet,
+            CallbackInfo ci) {
+        try {
+            if (packet != null && !com.killer560.hub.blink.BlinkCharge.applyingDeferred()
+                    && com.killer560.hub.blink.BlinkCharge.deferBlocks()
+                    && killer560smod$blink$bumps(packet.getPos(), packet.getBlockState())) {
+                ClientPacketListener self = (ClientPacketListener) (Object) this;
+                com.killer560.hub.blink.BlinkCharge.deferBlockUpdate(() -> self.handleBlockUpdate(packet));
+                ci.cancel();
+            }
+        } catch (Throwable t) {
+            killer560smod$blink$threw(t);
+        }
+    }
+
+    @Inject(method = "handleChunkBlocksUpdate", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD,
+            shift = At.Shift.AFTER), cancellable = true)
+    private void killer560smod$blinkBlocks(net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket packet,
+            CallbackInfo ci) {
+        try {
+            if (packet == null || com.killer560.hub.blink.BlinkCharge.applyingDeferred()
+                    || !com.killer560.hub.blink.BlinkCharge.deferBlocks()) {
+                return;
+            }
+            boolean[] hit = {false};
+            packet.runUpdates((pos, state) -> {
+                if (!hit[0] && killer560smod$blink$bumps(pos, state)) {
+                    hit[0] = true;
+                }
+            });
+            if (hit[0]) {
+                ClientPacketListener self = (ClientPacketListener) (Object) this;
+                com.killer560.hub.blink.BlinkCharge.deferBlockUpdate(() -> self.handleChunkBlocksUpdate(packet));
+                ci.cancel();
+            }
+        } catch (Throwable t) {
+            killer560smod$blink$threw(t);
+        }
+    }
+
+    /** Within 3 blocks of his box, and its collision changes from what the client has there now. */
+    @Unique
+    private static boolean killer560smod$blink$bumps(net.minecraft.core.BlockPos pos,
+            net.minecraft.world.level.block.state.BlockState next) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || pos == null || next == null || player.level() == null) {
+            return false;
+        }
+        if (!player.getBoundingBox().inflate(3.0).intersects(new net.minecraft.world.phys.AABB(pos))) {
+            return false;
+        }
+        var level = player.level();
+        var now = level.getBlockState(pos);
+        return now.getCollisionShape(level, pos).isEmpty() != next.getCollisionShape(level, pos).isEmpty();
+    }
+
     @Unique
     private static void killer560smod$blink$threw(Throwable t) {
         ModLog.get("killer560smod-blink").error("[Blink] packet hook threw", t);

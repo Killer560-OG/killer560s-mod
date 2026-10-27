@@ -477,8 +477,15 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   (3) Simulation 2.07 decaying x4: a superboom's knockback while the answers were held - Grim predicts a push only once the
   ping it sent after the push is answered. That answer and all before it now go at once (BlinkCharge.onServerPush from
   handleExplosion / handleSetEntityMotion over 0.1 blocks a tick); testkit 1027-blink-c-p3sim (b)/(c): GroundSpoof +
-  Simulation 0.5-0.75 before, clean after. Still open: Simulation .001-.7 in the first parts of a shot where Breaker Aura
-  mines the wall he walks through inside the shot's ticks (zero-ping air on the client, Grim's world a second behind).
+  Simulation 0.5-0.75 before, clean after. (4) Simulation .001-.7 where Breaker Aura mined the wall
+  he walked through inside a shot: GrimAC predicts air only for a VANILLA-instant dig (CheckManagerListener.handleDigging:
+  BlockBreakSpeed.getBlockDamage >= 1); Hypixel's Dungeon Breaker on stone bricks is server-instant, so GrimAC applies the
+  break at the ping after the server's block update - a second later with Charge holding answers. While Charge is on:
+  no zero-ping air for a non-instant dig; block updates near him that change collision are held on the client until the
+  answer to the ping after them goes (BlinkCharge.deferBlockUpdate, applied at tick start before physics); a shot pauses
+  at a wall Breaker Aura dug that is still there (about 1.3 s at 150 ms) and goes on covered; Breaker Aura never re-digs
+  a held block (that drew AirLiquidBreak x108). Answering the block's ping early instead cost the bank its cover (Timer on
+  the rest of the shot). The testkit's HxAbilities now emulates the Dungeon Breaker (1027-blink-breaker-walk/-leap/-stand).
 - The same lag allowance is shared by a hold and the bank: a hold while charging sends the waiting answers (TransactionOrder)
   and its own in its burst, so after it GrimAC covers only ~2 ticks of the kept bank. Before campaign-blink-1027 the shot after
   a kept hold drew Timer/TimerLimit and was half set back however long he waited (the bank was full, so nothing re-banked:
