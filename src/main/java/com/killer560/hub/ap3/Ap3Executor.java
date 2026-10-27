@@ -2044,6 +2044,8 @@ public final class Ap3Executor {
      * every tick and add up to any drop (killer560, 2026-10-26: "sometimes fastalign still goes off of stairs").
      */
     private static double ledgeStartY = Double.NaN;
+    /** The current align's point height (its node's y). */
+    private static double ledgeTargetY = Double.NaN;
 
     /**
      * Whether a player at (x, z) has a floor no lower than {@code startY - MAX_LEDGE_DROP} under his footprint: some
@@ -2102,8 +2104,15 @@ public final class Ap3Executor {
     /** Whether pressing (fw, st, sneak) now keeps every predicted position over a floor no lower than start - 0.5. */
     private static boolean ledgeSafe(LocalPlayer player, int fw, int st, boolean sneak, float yaw) {
         Vec3 pos = player.position();
+        // Stepping DOWN is a fall: off even a half step he is in the air for three ticks, where no key can brake him,
+        // and the step's far edge can pass under him before he lands (a stair's low half is only half a block wide -
+        // his 23:15:14 and 23:17:06 falls). So unless the align's point is itself lower than where he stands, a press
+        // may not take him onto any lower floor at all; with a lower point, never below start - 0.5.
+        double floorLine = ledgeTargetY < pos.y - 0.05 ? ledgeStartY : pos.y - 0.05 + MAX_LEDGE_DROP;
+        floorLine = Math.max(floorLine, ledgeStartY);
+        floorLine = Math.min(floorLine, pos.y + MAX_LEDGE_DROP); // never ask for a floor above his feet
         for (double[] d : ledgePredict(player, fw, st, sneak, yaw, LEDGE_LOOKAHEAD)) {
-            if (!supportedAt(player, pos.x + d[0], pos.y, pos.z + d[1], ledgeStartY)
+            if (!supportedAt(player, pos.x + d[0], pos.y, pos.z + d[1], floorLine)
                     || hazardAt(player, pos.x + d[0], pos.y, pos.z + d[1])) {
                 return false;
             }
@@ -2207,6 +2216,7 @@ public final class Ap3Executor {
         ledgeLastX = pos.x;
         ledgeLastZ = pos.z;
         ledgeStartY = player.onGround() ? pos.y : Double.NaN;
+        ledgeTargetY = node.y;
         ledgeTargetUnsupported = player.onGround() && (!supportedAt(player, node.x, pos.y, node.z, pos.y)
                 || hazardAt(player, node.x, pos.y, node.z));
         budgetSpentTicks = 0;
