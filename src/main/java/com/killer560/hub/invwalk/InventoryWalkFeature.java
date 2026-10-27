@@ -77,8 +77,16 @@ public final class InventoryWalkFeature {
     private static long clicksHeld;
     private static long closesHeld;
     private static long gaveUp;
-    /** Ticks to wait for a still tick before sending anyway (the still tick is forced, so it takes one). */
-    private static final int GIVE_UP_TICKS = 10;
+    /**
+     * Ticks to wait for him to come to a full stop. Past this the held packets are DROPPED, never sent while he moves
+     * (a click sent while sliding put him in Hypixel's limbo, 2026-10-27). A dropped click only desyncs the menu until the
+     * server's next resync; a limbo is a flag.
+     */
+    private static final int GIVE_UP_TICKS = 40;
+    /** Below this (blocks per tick) he counts as standing still. */
+    private static final double STILL_SPEED = 0.003;
+    /** Ticks his keys stay up after held clicks go out, so the click is never in the same tick as movement. */
+    private static final int AFTER_CLICK_STILL_TICKS = 3;
     /**
      * The last input and sprint state that really LEFT the connection ({@link #noteLeft}, from Blink's send hook, which
      * sees what Blink and Charge keep back). {@code getLastSentInput} is what the client handed to the connection; with a
@@ -115,10 +123,17 @@ public final class InventoryWalkFeature {
             // Before the screen check: a close is held after its screen has gone, and still needs its still tick.
             heldClickTicks++;
             if (readyToSend(player)) {
-                flushClicks(client, "still tick reached the server");
+                flushClicks(client, "he is standing still");
+                pauseLeft = Math.max(pauseLeft, AFTER_CLICK_STILL_TICKS);
             } else if (heldClickTicks > GIVE_UP_TICKS) {
                 gaveUp++;
-                flushClicks(client, "gave up waiting for a still tick");
+                int before = heldClicks.size();
+                // Clicks are dropped; a menu close still goes (the server must not think the menu is open, and a close
+                // while walking was fine on Hypixel in his test).
+                heldClicks.removeIf(p -> !(p instanceof ServerboundContainerClosePacket));
+                LOGGER.info("[InvWalk] {} held click(s) DROPPED: he never stopped in {} ticks (a click sent while moving"
+                        + " flags on Hypixel)", before - heldClicks.size(), GIVE_UP_TICKS);
+                flushClicks(client, "close after dropped clicks");
             }
         }
         boolean eligible = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && cfg.isEnabled() && player != null
@@ -321,6 +336,14 @@ public final class InventoryWalkFeature {
      */
     private static boolean readyToSend(LocalPlayer player) {
         if (moving(player.getLastSentInput()) || player.isSprinting()) {
+            return false;
+        }
+        // He must really be standing still, not just have no keys down: Hypixel limboed him for a click sent while he was
+        // still sliding from a sprint after a one-tick "no keys" input (his log, 2026-10-27 16:39:06 and 16:40:02). The
+        // position the server saw last tick must equal this one, and his velocity must be gone.
+        Vec3 v = player.getDeltaMovement();
+        if (Math.hypot(v.x, v.z) > STILL_SPEED || Math.hypot(player.getX() - player.xo, player.getZ() - player.zo) > STILL_SPEED
+                || Math.abs(player.getY() - player.yo) > STILL_SPEED || !player.onGround()) {
             return false;
         }
         return serverStill() || com.killer560.hub.blink.BlinkFeature.isHolding();
