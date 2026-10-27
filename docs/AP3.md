@@ -123,3 +123,16 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   him up to 9.5 blocks in a tick, past AP3's 8-block "you leapt" line: `BlinkCharge.shotThisTick()` exempts it, or the
   first long shot would drop the walk and the queue. AP3 stopping (any reason) ends a charge AP3 started; a release that
   spends the bank ends it too, so ping answers go back to live. Testkit 1026-ap3-blink-*, 1026-ui-ap3-blink-nodes.
+- **A Blink shot's ticks are AP3 ticks (2026-10-27).** The first release design ran every shot tick on the keys AP3 chose at
+  the END before the shot, so a 20-tick release replayed one frozen input: killer560's S2 blinkrelease #39 (Mod Only Test
+  log 00:15:34) went 18.75 blocks straight off the platform (y 132 -> 115, a server correction) because the turns and nodes
+  inside the shot never ran. Now `BlinkCharge.addShotTickEndHook(Ap3Feature::tick)` runs AP3's whole END work after each
+  shot tick's movement and tick-end, and `addShotGuard(Ap3Executor::shotStopReason)` may end the shot before a tick (the
+  rest stays banked). The release node finishes as soon as it asks, so nodes reached inside the shot can begin; its result
+  is logged by `tickReleaseWatch`. The 8-block leap line needs no exemption any more: no shot tick moves him 8 blocks.
+- **Momentum-keeping charge.** A banked tick sends no move and no tick-end, so for the server no game time passes for him;
+  `Ap3FreezeMixin` skips `LocalPlayer.aiStep` on exactly those ticks (`Ap3Executor.takeBlinkFreeze`, only when the tick's
+  tick-end will bank - `BlinkCharge.canBankNow` - and `noteFrozenTick` makes it bank in mid-air too). Nothing is written:
+  velocity, sprint and ground state simply are not ticked. A skipped tick that went out unbanked (an action in it) would
+  tell the server he stood still with his velocity unspent; `BlinkCharge.frozenTicksSent` counts those. The node keeps the
+  held walk (`Ap3Node.keepsHoldNow`); `stop` restores the old plain stop.

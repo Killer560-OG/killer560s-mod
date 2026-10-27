@@ -331,6 +331,13 @@ public final class Ap3Node {
      */
     public int blinkTicks;
     /**
+     * {@link Type#BLINK_CHARGE} with the {@code stop} suffix: the old plain stop (the walk ends, he brakes, then banks
+     * standing). Off by default: the charge freezes his momentum instead (killer560, 2026-10-27: "freeze momentum while it
+     * is charging so once the blink is done charging it still has all its momentum") - a banked tick sends nothing, so no
+     * game time passes for him on the server either, and the client skips his physics tick to match.
+     */
+    public boolean blinkStop;
+    /**
      * {@link Type#PATH}: which step of the route this node is - killer560 (2026-09-22): "allow me to do add path one,
      * add path four etc. so that way it knows what number in the path it should be. It should always default such
      * that if I don't label it it goes to the lowest number available". Nodes SHARING a number are one step that has
@@ -479,6 +486,9 @@ public final class Ap3Node {
         if (!type.usesBlinkTicks()) {
             blinkTicks = 0;
         }
+        if (type != Type.BLINK_CHARGE) {
+            blinkStop = false;
+        }
         // The close gate was removed on 2026-10-06 (killer560: "I dont think that is ever needed"); nothing sets it.
         closeGate = false;
     }
@@ -512,6 +522,16 @@ public final class Ap3Node {
 
     public void setLeapCount(int n) {
         leapCount = Math.max(1, Math.min(MAX_LEAP_COUNT, n));
+    }
+
+    /** This node leaves a held walk running ({@link Type#keepsHold}); a momentum-keeping Blink Charge does too. */
+    public boolean keepsHoldNow() {
+        return type.keepsHold() || (type == Type.BLINK_CHARGE && !blinkStop);
+    }
+
+    /** {@link Type#ownsMovement}, for this node ({@link #keepsHoldNow}). */
+    public boolean ownsMovementNow() {
+        return !keepsHoldNow() && !type.isMover();
     }
 
     /** A Blink node's tick count, 0 (the max) to {@link #MAX_BLINK_TICKS}. */
@@ -698,7 +718,7 @@ public final class Ap3Node {
             case NO_GO -> sb.append(" [the route may not enter]");
             case TERM_AURA -> sb.append(" [opens a term in range]");
             case BLINK_CHARGE -> sb.append(" [").append(blinkTicks > 0 ? blinkTicks + (blinkTicks == 1 ? " tick" : " ticks")
-                    : "max").append(']');
+                    : "max").append(blinkStop ? ", stop" : ", momentum kept").append(']');
             case BLINK_RELEASE -> sb.append(" [").append(blinkTicks > 0 ? blinkTicks + (blinkTicks == 1 ? " tick" : " ticks")
                     : "all").append(']');
             default -> {
@@ -769,6 +789,7 @@ public final class Ap3Node {
         leapCount = o.leapCount;
         leapCounter = o.leapCounter;
         blinkTicks = o.blinkTicks;
+        blinkStop = o.blinkStop;
         pathIndex = o.pathIndex;
         pathStart = o.pathStart;
         pathEnd = o.pathEnd;
@@ -788,7 +809,7 @@ public final class Ap3Node {
                 && waitAfterMs == o.waitAfterMs && closeGate == o.closeGate && ssGate == o.ssGate && jumpMod == o.jumpMod
                 && java.util.Objects.equals(useItemId, o.useItemId) && java.util.Objects.equals(name, o.name)
                 && leapMode == o.leapMode && leapClass == o.leapClass && java.util.Objects.equals(leapIgn, o.leapIgn)
-                && leapCount == o.leapCount && leapCounter == o.leapCounter && blinkTicks == o.blinkTicks && pathIndex == o.pathIndex && pathStart == o.pathStart
+                && leapCount == o.leapCount && leapCounter == o.leapCounter && blinkTicks == o.blinkTicks && blinkStop == o.blinkStop && pathIndex == o.pathIndex && pathStart == o.pathStart
                 && pathEnd == o.pathEnd && minSpeed == o.minSpeed && maxSpeed == o.maxSpeed && hasDir == o.hasDir
                 && dirDeg == o.dirDeg && dirTolDeg == o.dirTolDeg && termWait == o.termWait
                 && java.util.Objects.equals(colour, o.colour);
@@ -811,6 +832,7 @@ public final class Ap3Node {
         n.leapCount = leapCount;
         n.leapCounter = leapCounter;
         n.blinkTicks = blinkTicks;
+        n.blinkStop = blinkStop;
         n.colour = colour;
         return n;
     }
