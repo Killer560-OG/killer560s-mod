@@ -334,11 +334,47 @@ final class ImageFetcher {
             if (a instanceof Inet6Address && (b[0] & 0xFE) == 0xFC) {
                 return true; // fc00::/7 unique local
             }
-            if (b.length == 4 && ((b[0] & 0xFF) == 100 && (b[1] & 0xC0) == 64)) {
-                return true; // 100.64.0.0/10 carrier-grade NAT
+            if (b.length == 4 && isPrivateV4(b, 0)) {
+                return true;
+            }
+            if (b.length == 16) {
+                // An IPv6 address that carries an IPv4 one (security audit 2026-10-27): NAT64 64:ff9b::/96, 6to4
+                // 2002::/16 and IPv4-compatible ::a.b.c.d reach the embedded address, so a private one counts too.
+                boolean nat64 = (b[0] & 0xFF) == 0x00 && (b[1] & 0xFF) == 0x64 && (b[2] & 0xFF) == 0xFF
+                        && (b[3] & 0xFF) == 0x9B && allZero(b, 4, 12);
+                boolean compat = allZero(b, 0, 12);
+                if ((nat64 || compat) && isPrivateV4(b, 12)) {
+                    return true;
+                }
+                if ((b[0] & 0xFF) == 0x20 && (b[1] & 0xFF) == 0x02 && isPrivateV4(b, 2)) {
+                    return true;
+                }
             }
         }
         return false;
+    }
+
+    /** The IPv4 ranges InetAddress's own tests miss, plus the ones it covers (for an address embedded in IPv6). */
+    private static boolean isPrivateV4(byte[] b, int o) {
+        int a0 = b[o] & 0xFF, a1 = b[o + 1] & 0xFF, a2 = b[o + 2] & 0xFF;
+        return a0 == 0                                   // 0.0.0.0/8 "this network"
+                || a0 == 10 || a0 == 127                 // private, loopback
+                || (a0 == 100 && (a1 & 0xC0) == 64)      // 100.64.0.0/10 carrier-grade NAT
+                || (a0 == 169 && a1 == 254)              // link-local
+                || (a0 == 172 && (a1 & 0xF0) == 16)      // 172.16.0.0/12
+                || (a0 == 192 && a1 == 168)              // 192.168.0.0/16
+                || (a0 == 192 && a1 == 0 && a2 == 0)     // 192.0.0.0/24 protocol assignments
+                || (a0 == 198 && (a1 & 0xFE) == 18)      // 198.18.0.0/15 benchmarking
+                || a0 >= 224;                            // multicast, reserved, broadcast
+    }
+
+    private static boolean allZero(byte[] b, int from, int to) {
+        for (int i = from; i < to; i++) {
+            if (b[i] != 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static Body get(String url, boolean anyHost, long cap, String accept) throws IOException {
