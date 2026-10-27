@@ -113,11 +113,42 @@ public final class ZeroPingEtherwarp {
     private static int usesThisTick;
     private static int maxUsesInOneTick;
 
+    // ---- Aimed Warps (cheat build) ----
+    /** A press of the use key waiting for this tick, with the look he had when it was pressed. */
+    private record ClickLook(float yaw, float pitch) {
+    }
+    /** One per waiting press of the use key (its clickCount), oldest first. Render thread. */
+    private static final java.util.ArrayList<ClickLook> CLICKS = new java.util.ArrayList<>();
+    /** The body turns of a burst, the camera held still meanwhile (one owner, like Auto Routes' own). */
+    private static final com.killer560.hub.util.BodyAim BODY = new com.killer560.hub.util.BodyAim(() -> {
+    });
+    private static long aimedBursts;
+    private static long aimedWarpsSent;
+    private static long aimedDropped;
+    private static long aimedUnfunded;
+    private static int lastAimedBurst;
+
     private ZeroPingEtherwarp() {
     }
 
     public static void register() {
+        ClientTickEvents.START_CLIENT_TICK.register(client -> {
+            if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+                return;
+            }
+            try {
+                BODY.tick(client.player, false);
+                pollClicks();
+                aimedPending(client);
+                if (pendingLooks == null) {
+                    aimedBurst(client);
+                }
+            } catch (RuntimeException e) {
+                LOGGER.error("[ZPEW] Aimed Warps threw - the clicks go to vanilla", e);
+            }
+        });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            pollClicks();
             clientTick++;
             owed = 0; // owed warps never go in a later tick
             expire();
@@ -315,6 +346,195 @@ public final class ZeroPingEtherwarp {
                 stop == null ? "" : " - stopped: " + stop, usesThisTick));
     }
 
+    /**
+     * Aimed Warps: gives every press of the use key that has arrived since the last call the look he has now (the held
+     * view while a burst holds the camera). Called every frame from the camera hook and at each tick's start and end, so
+     * each press keeps the look of the frame it was made in. Cheat build only.
+     */
+    public static void pollClicks() {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || !((Object) mc.options.keyUse instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor key)) {
+            CLICKS.clear();
+            return;
+        }
+        int waiting = key.killer560smod$getClickCount();
+        while (CLICKS.size() > waiting) {
+            CLICKS.remove(0); // vanilla used the oldest
+        }
+        if (CLICKS.size() < waiting) {
+            boolean held = com.killer560.hub.util.ViewFreeze.isHeld();
+            float yaw = held ? com.killer560.hub.util.ViewFreeze.viewYaw() : player.getYRot();
+            float pitch = held ? com.killer560.hub.util.ViewFreeze.viewPitch() : player.getXRot();
+            while (CLICKS.size() < waiting) {
+                CLICKS.add(new ClickLook(yaw, pitch));
+            }
+        }
+    }
+
+    /**
+     * Aimed Warps (cheat build; killer560, 2026-10-27: "Can you make it etherwarp different directions during the same
+     * tick?"). At a tick's start, two or more waiting presses of the use key with an etherwarp item, sneak on the server and
+     * not all at one look go out NOW, each at its own look, all inside this one real tick - and each still its own tick
+     * on the wire, because that is the only way GrimAC takes two looks: BadPacketsJ (javap 2.3.74) flags a use whose look
+     * differs from the previous use's since the last tick packet, and checks the last use's look against the NEXT tick
+     * packet's. So press i (all but the last) spends one banked Blink Charge tick ({@code BlinkCharge.spendTick}): the body
+     * turns to its look, its use goes, then his own movement tick (whose move reports that look) and its tick-end; the last
+     * press goes in this real tick with the body at its look, and this tick's own move reports it. The camera is held still
+     * throughout (BodyAim) and given back a tick later. Every tick packet costs GrimAC 50 ms of Timer, which is what the
+     * bank is: with no Charge bank the presses are left to vanilla (one look, as a vanilla client sends them), and presses
+     * past the bank are dropped rather than sent at a look he did not click at.
+     */
+    static void aimedBurst(Minecraft mc) {
+        if (CLICKS.size() < 2 || !on() || !ZeroPingEtherwarpConfig.getInstance().effectiveAimedWarps()) {
+            return;
+        }
+        LocalPlayer player = mc.player;
+        if (player == null || mc.level == null || com.killer560.hub.compat.McCompat.screen(mc) != null
+                || !(mc.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker)
+                || !((Object) mc.options.keyUse instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor key)) {
+            return;
+        }
+        InteractionHand hand = InteractionHand.MAIN_HAND;
+        if (etherwarpRange(player.getItemInHand(hand)) <= 0 || !player.getLastSentInput().shift()
+                || !ZeroPingEtherwarpConfig.getInstance().worksFor(ZpewSource.MANUAL)) {
+            return;
+        }
+        boolean differ = false;
+        for (ClickLook c : CLICKS) {
+            differ |= c.yaw() != CLICKS.get(0).yaw() || c.pitch() != CLICKS.get(0).pitch();
+        }
+        if (!differ) {
+            return; // one look: vanilla sends them (and Warps Per Tick adds to them)
+        }
+        int bank = com.killer560.hub.blink.BlinkCharge.isActive() ? com.killer560.hub.blink.BlinkCharge.banked() : 0;
+        if (bank < 1) {
+            aimedUnfunded++;
+            LOGGER.info("[ZPEW] Aimed Warps: {} presses at different looks this tick but no Blink Charge bank - left to "
+                    + "vanilla (all at the look he has now)", CLICKS.size());
+            return;
+        }
+        java.util.List<ClickLook> looks = new java.util.ArrayList<>(CLICKS);
+        key.killer560smod$setClickCount(0);
+        CLICKS.clear();
+        if ((Object) mc instanceof com.killer560.hub.zpew.mixin.ZpewMinecraftAccessor m) {
+            m.killer560smod$setRightClickDelay(4); // as startUseItem does: a held button repeats only after 4 ticks
+        }
+        if (!com.killer560.hub.blink.BlinkCharge.shotCovered()) {
+            // GrimAC does not back the kept bank yet (a teleport's confirm still held behind its ping answer, or ticks
+            // unbacked since): spending it now draws TimerLimit (1027-zpewlk-0, n=5 after a burst). Wait for cover, as
+            // Blink's own shot does.
+            pendingLooks = looks;
+            pendingAtMs = System.currentTimeMillis();
+            aimedWaited++;
+            LOGGER.info("[ZPEW] Aimed Warps: {} press(es) wait for Blink's bank to be covered (bank {})", looks.size(), bank);
+            return;
+        }
+        fireAimed(mc, player, invoker, hand, looks);
+    }
+
+    /** The yaw of the last move with a look that really went on the wire ({@code mixin/ZpewWireMixin}), NaN before one. */
+    private static volatile float wireYaw = Float.NaN;
+
+    public static void onWireYaw(float yaw) {
+        wireYaw = yaw;
+    }
+
+    /** Presses waiting for Blink's bank to be covered, and since when. */
+    private static java.util.List<ClickLook> pendingLooks;
+    private static long pendingAtMs;
+    private static long aimedWaited;
+    /** The longest presses wait for cover; past it they are dropped (never sent where GrimAC would flag them). */
+    private static final long AIMED_WAIT_MAX_MS = 3000L;
+
+    /** At a tick's start: waiting presses fire once the bank is covered (conditions checked again), or go after 3 s. */
+    static void aimedPending(Minecraft mc) {
+        java.util.List<ClickLook> looks = pendingLooks;
+        if (looks == null) {
+            return;
+        }
+        // Presses made while these wait join them, in order (never fired by vanilla ahead of the ones before them).
+        if (!CLICKS.isEmpty() && (Object) mc.options.keyUse instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor key) {
+            looks.addAll(CLICKS);
+            CLICKS.clear();
+            key.killer560smod$setClickCount(0);
+        }
+        LocalPlayer player = mc.player;
+        boolean stillOk = player != null && mc.level != null && on()
+                && ZeroPingEtherwarpConfig.getInstance().effectiveAimedWarps()
+                && com.killer560.hub.blink.BlinkCharge.isActive() && com.killer560.hub.blink.BlinkCharge.banked() >= 1
+                && etherwarpRange(player.getItemInHand(InteractionHand.MAIN_HAND)) > 0 && player.getLastSentInput().shift()
+                && mc.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker;
+        if (!stillOk || System.currentTimeMillis() - pendingAtMs > AIMED_WAIT_MAX_MS) {
+            pendingLooks = null;
+            aimedDropped += looks.size();
+            LOGGER.info("[ZPEW] Aimed Warps: {} waiting press(es) dropped ({})", looks.size(),
+                    stillOk ? "the bank was not covered within " + AIMED_WAIT_MAX_MS + " ms" : "sneak, item, Charge or bank gone");
+            return;
+        }
+        if (!com.killer560.hub.blink.BlinkCharge.shotCovered()) {
+            return;
+        }
+        pendingLooks = null;
+        LOGGER.info("[ZPEW] Aimed Warps: the bank is covered after {} ms - firing", System.currentTimeMillis() - pendingAtMs);
+        fireAimed(mc, player, (com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker) mc.gameMode,
+                InteractionHand.MAIN_HAND, looks);
+    }
+
+    private static void fireAimed(Minecraft mc, LocalPlayer player,
+                                  com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker, InteractionHand hand,
+                                  java.util.List<ClickLook> looks) {
+        int bank = com.killer560.hub.blink.BlinkCharge.banked();
+        int n = Math.min(looks.size(), bank + 1);
+        int dropped = looks.size() - n;
+        int sent = 0;
+        ZpewSource prev = sending(ZpewSource.MANUAL);
+        extraSending = true; // chained from the last landing, and owes no Warps Per Tick extras
+        try {
+            for (int i = 0; i < n; i++) {
+                ClickLook l = looks.get(i);
+                float pitch = Mth.clamp(l.pitch(), -90f, 90f);
+                final boolean first = i == 0;
+                Runnable use = () -> {
+                    // The same direction as the press, as a turn of at most 180 from the yaw the SERVER has: the first
+                    // from the yaw that last went on the wire (Blink Charge keeps turn-only ticks off it, so his running
+                    // yaw can be a whole turn away - a 360 jump is GrimAC AimModulo360, 1027-zpewlk n=5), the rest from
+                    // the one before (which went out in its spent tick).
+                    float from = first && !Float.isNaN(wireYaw) ? wireYaw : player.getYRot();
+                    float yaw = from + Mth.wrapDegrees(l.yaw() - from);
+                    LOGGER.info(String.format(Locale.ROOT, "[ZPEW] Aimed Warps: press at yaw %.2f pitch %.2f sent as yaw %.2f "
+                            + "(turned from %.2f%s)", l.yaw(), pitch, yaw, from, first ? ", the yaw on the wire" : ""));
+                    BODY.turn(player, yaw, pitch);
+                    invoker.killer560smod$invokeStartPrediction(mc.level,
+                            sequence -> new ServerboundUseItemPacket(hand, sequence, yaw, pitch));
+                };
+                if (i < n - 1) {
+                    if (!com.killer560.hub.blink.BlinkCharge.spendTick(use)) {
+                        dropped += n - i;
+                        break;
+                    }
+                } else {
+                    use.run(); // this real tick's own move reports it
+                }
+                sent++;
+            }
+        } finally {
+            extraSending = false;
+            done(prev);
+            com.killer560.hub.blink.BlinkCharge.endSpend();
+        }
+        aimedBursts++;
+        aimedWarpsSent += sent;
+        aimedDropped += dropped;
+        lastAimedBurst = sent;
+        LOGGER.info("[ZPEW] Aimed Warps: {} warp(s), each at its own look, sent in tick {} ({} banked Blink tick(s) spent, "
+                        + "{} left){}", sent, clientTick, Math.max(0, sent - 1), com.killer560.hub.blink.BlinkCharge.banked(),
+                dropped > 0 ? "; " + dropped + " press(es) past the bank dropped" : "");
+    }
+
     /** 57 + tuners for an etherwarp-capable item, 0 for anything else. */
     static double etherwarpRange(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
@@ -405,6 +625,7 @@ public final class ZeroPingEtherwarp {
 
     /** {@code mixin/ZpewCameraMixin}: where to draw from this frame, or {@code vanilla} when nothing is pending. */
     public static Vec3 cameraPosition(Entity cameraEntity, boolean detached, Vec3 vanilla) {
+        pollClicks();
         if (!on() || detached) {
             return vanilla;
         }
@@ -513,6 +734,32 @@ public final class ZeroPingEtherwarp {
 
     public static int maxUsesInOneTick() {
         return maxUsesInOneTick;
+    }
+
+    /** Aimed Warps, for the testkit: bursts, warps sent, presses dropped past the bank, bursts left to vanilla (no bank). */
+    public static long aimedBursts() {
+        return aimedBursts;
+    }
+
+    public static long aimedWarpsSent() {
+        return aimedWarpsSent;
+    }
+
+    public static long aimedDropped() {
+        return aimedDropped;
+    }
+
+    public static long aimedUnfunded() {
+        return aimedUnfunded;
+    }
+
+    /** Bursts that waited for Blink's bank to be covered before firing (or being dropped). */
+    public static long aimedWaited() {
+        return aimedWaited;
+    }
+
+    public static int lastAimedBurst() {
+        return lastAimedBurst;
     }
 
     private static String fmt(Vec3 v) {

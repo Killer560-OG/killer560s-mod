@@ -130,10 +130,14 @@ public class ArrowAlignTab extends BaseTab {
             y += 22;
             widgets.add(SettingsButtonWidget.cycling(Component.literal("Aura Clicks Per Tick: " + cfg.getAuraClicksPerTick()),
                     (btn, dir) -> {
-                        cfg.setAuraClicksPerTick((int) SettingsButtonWidget.step(cfg.getAuraClicksPerTick(), 1, 1, 4, dir));
+                        cfg.setAuraClicksPerTick((int) SettingsButtonWidget.step(cfg.getAuraClicksPerTick(), 1, 1,
+                                ArrowAlignConfig.MAX_AURA_CLICKS_PER_TICK, dir));
                         cfg.save();
                         btn.setMessage(Component.literal("Aura Clicks Per Tick: " + cfg.getAuraClicksPerTick()));
                     }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+            widgets.add(onOffButton("Turn And Click Same Tick", cfg::isAuraSameTickTurn, cfg::setAuraSameTickTurn,
+                    cfg::save, null, contentX, y, contentWidth, 18));
             y += 22;
             widgets.add(onOffButton("Leave Last Arrow", cfg::isAuraLeaveLastArrow, cfg::setAuraLeaveLastArrow,
                     cfg::save, null, contentX, y, contentWidth, 18));

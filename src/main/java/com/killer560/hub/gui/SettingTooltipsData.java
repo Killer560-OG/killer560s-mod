@@ -1831,6 +1831,14 @@ final class SettingTooltipsData {
         d.put("fast/auto leap/s2", "Who you leap to when section 2 is done: a class or a party member. Left click forward, right click back.");
         d.put("fast/auto leap/s3", "Who you leap to when section 3 is done: a class or a party member. Left click forward, right click back.");
         d.put("fast/auto leap/s4", "Who you leap to when section 4 is done: a class or a party member. Left click forward, right click back.");
+        d.put("fast/auto leap/class targets", "Lets a leap go to someone else depending on the class you are playing this run. Pick one of your classes here and each leap below shows its target for that class. Off only hides those rows; what is set still applies (cheat build only).");
+        for (String mine : new String[] {"Mage", "Tank", "Healer", "Archer", "Berserker"}) {
+            String lower = mine.toLowerCase(java.util.Locale.ROOT);
+            d.put("fast/auto leap/as " + lower, "Who this leap goes to when you are playing " + mine + ": a class or a party member. Same as Target uses the leap's Target. Left click forward, right click back.");
+            for (int sec = 1; sec <= 4; sec++) {
+                d.put("fast/auto leap/s" + sec + " as " + lower, "Who you leap to when section " + sec + " is done and you are playing " + mine + ". Same as Target uses S" + sec + ". Left click forward, right click back.");
+            }
+        }
         d.put("gif player/speed", "GIF playback speed, 0.25x-4x (1 = normal).");
         d.put("gif player/set", "Applies the number typed in the box to its left.");
         d.put("gif player/volume", "Loudness of the GIF Player audio, 0-100%.");

@@ -291,11 +291,36 @@ final class ImageFetcher {
             // imgur serves any picture at i.imgur.com/<id>.png in its own format.
             urls.add("https://i.imgur.com/" + target.id() + ".png");
         }
+        if (urls.isEmpty() && failure != null) {
+            // The API failed (the shared client id may be dead): the album's page still names its cover picture in
+            // og:image, a direct i.imgur.com link. Not cached, so the full album comes back once the API answers.
+            String cover = imgurPageCover(target.id());
+            if (cover != null) {
+                LOGGER.warn("imgur API failed ({}), showing the album's cover picture only", failure.getMessage());
+                return List.of(cover);
+            }
+        }
         if (urls.isEmpty()) {
             throw failure != null ? failure : new FetchException("Empty imgur album");
         }
         cacheWrite(name, String.join("\n", urls).getBytes(StandardCharsets.UTF_8));
         return urls;
+    }
+
+    /** The cover picture an imgur album or gallery page names in its og:image tag (an i.imgur.com address), or null. */
+    static String imgurPageCover(String id) {
+        for (String page : new String[]{"https://imgur.com/a/" + id, "https://imgur.com/gallery/" + id}) {
+            try {
+                String cover = ogImage(page, false);
+                if (cover != null && "i.imgur.com".equals(ImageLinks.hostOf(cover))) {
+                    int q = cover.indexOf('?');
+                    return q < 0 ? cover : cover.substring(0, q);
+                }
+            } catch (IOException | RuntimeException ignored) {
+                // try the next page form
+            }
+        }
+        return null;
     }
 
     // ------------------------------------------------------------------------------------------------------- HTTP

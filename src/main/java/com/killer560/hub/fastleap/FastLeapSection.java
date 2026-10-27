@@ -101,6 +101,14 @@ public final class FastLeapSection {
             cfg.save();
             requestRebuild.run();
         }).bounds(x, y, Math.max(1, width), ROW).build());
+        y += ROW + GAP;
+        // Class Targets (killer560, 2026-10-27: "add an option to change who it leaps to based on what class you are
+        // playing"): picks which of YOUR classes the leap list below edits. Off hides the per-class rows; what is set
+        // stays set and is used whatever this shows.
+        widgets.add(SettingsButtonWidget.cycling(classTargetsLabel(cfg), (btn, dir) -> {
+            editingClass = DungeonClass.step(editingClass, dir);
+            requestRebuild.run();
+        }).bounds(x, y, Math.max(1, width), ROW).build());
         y += ROW + GAP + GROUP_GAP - GAP;
 
         // --- Click Behavior: what happens while a leap is actually clicking the menu. ---
@@ -149,6 +157,15 @@ public final class FastLeapSection {
         }).bounds(x, y, Math.max(1, width), ROW).build());
         y += ROW + GAP;
         return y;
+    }
+
+    /** Which of your classes the leap list shows per-class targets for; null = Off. View state only, not saved. */
+    private static DungeonClass editingClass = null;
+
+    static Component classTargetsLabel(FastLeapConfig cfg) {
+        int n = cfg.classTargetCount();
+        String shown = editingClass == null ? "§6Off" : DungeonClass.colourCode(editingClass) + "When " + editingClass.displayName();
+        return Component.literal("Class Targets: " + shown + (n == 0 ? "" : " §7(" + n + " set)"));
     }
 
     static Component returnLabel(int slot) {
@@ -250,6 +267,10 @@ public final class FastLeapSection {
 
         int ix = x + INDENT;
         int iw = Math.max(1, w - INDENT);
+        if (single != null && editingClass != null) {
+            widgets.add(classTargetButton(ix, y, iw, single, editingClass, cfg));
+            y += ROW + GAP;
+        }
         if (group == LeapGroup.P3) {
             // S1-S4: four target buttons, two to a row (one on a very narrow panel)
             int cols = iw >= 2 * MIN_TOGGLE_W + GAP ? 2 : 1;
@@ -268,6 +289,23 @@ public final class FastLeapSection {
             }
             if (col != 0) {
                 y += ROW + GAP;
+            }
+            if (editingClass != null) {
+                col = 0;
+                for (LeapTarget t : LeapTarget.values()) {
+                    if (t.group != LeapGroup.P3) {
+                        continue;
+                    }
+                    widgets.add(classTargetButton(ix + col * (cw + GAP), y,
+                            col == cols - 1 ? ix + iw - (ix + col * (cw + GAP)) : cw, t, editingClass, cfg));
+                    if (++col == cols) {
+                        col = 0;
+                        y += ROW + GAP;
+                    }
+                }
+                if (col != 0) {
+                    y += ROW + GAP;
+                }
             }
         }
         if (cfg.getTargetMode() == FastLeapConfig.TargetMode.POSMSG) {
@@ -336,6 +374,69 @@ public final class FastLeapSection {
         } else {
             cfg.setTargetPickClass(target, (DungeonClass) next);
         }
+    }
+
+    /**
+     * A leap's target while you play {@code mine}: "As Mage: Same as Target" (none set - the Target button applies), a
+     * class, or a party member by name, cycling like the Target button. "S1 as Mage" for P3's sections.
+     */
+    static SettingsButtonWidget classTargetButton(int x, int y, int w, LeapTarget target, DungeonClass mine, FastLeapConfig cfg) {
+        return SettingsButtonWidget.cycling(classTargetLabel(target, mine, cfg), (btn, dir) -> {
+            stepClassTarget(target, mine, cfg, dir);
+            cfg.save();
+            btn.setMessage(classTargetLabel(target, mine, cfg));
+        }).bounds(x, y, Math.max(1, w), ROW).build();
+    }
+
+    /** Moves the per-class target one choice forward (dir 1) or back (dir -1): Same as Target, each class, each party
+     *  member by name (plus a saved name from an earlier party), wrapping. */
+    public static void stepClassTarget(LeapTarget target, DungeonClass mine, FastLeapConfig cfg, int dir) {
+        FastLeapConfig.ClassPick pick = cfg.getClassTarget(target, mine);
+        List<Object> choices = new java.util.ArrayList<>();
+        choices.add(null);
+        choices.addAll(List.of(DungeonClass.values()));
+        for (String n : com.killer560.hub.leapmenu.PartyTracker.teammates()) {
+            choices.add(n);
+        }
+        if (pick != null && !pick.byClass() && !containsIgnoreCase(choices, pick.name())) {
+            choices.add(pick.name());
+        }
+        int at = 0;
+        if (pick != null && pick.byClass()) {
+            at = choices.indexOf(pick.clazz());
+        } else if (pick != null) {
+            for (int i = 0; i < choices.size(); i++) {
+                if (choices.get(i) instanceof String s && s.equalsIgnoreCase(pick.name())) {
+                    at = i;
+                }
+            }
+        }
+        Object next = choices.get(Math.floorMod(at + (dir < 0 ? -1 : 1), choices.size()));
+        if (next == null) {
+            cfg.clearClassTarget(target, mine);
+        } else if (next instanceof String s) {
+            cfg.setClassTargetName(target, mine, s);
+        } else {
+            cfg.setClassTargetClass(target, mine, (DungeonClass) next);
+        }
+    }
+
+    static Component classTargetLabel(LeapTarget target, DungeonClass mine, FastLeapConfig cfg) {
+        String label = (target.group == LeapGroup.P3 ? target.label + " as " : "As ") + mine.displayName();
+        FastLeapConfig.ClassPick pick = cfg.getClassTarget(target, mine);
+        String shown;
+        if (pick == null) {
+            shown = "§7Same as Target";
+        } else if (pick.byClass()) {
+            DungeonClass c = pick.clazz();
+            Teammates.Teammate who = Teammates.firstAliveOfClass(c);
+            String holder = who != null ? who.name() : partyMemberOfClass(c);
+            shown = DungeonClass.colourCode(c) + c.displayName() + (holder == null ? "" : " §7(" + holder + ")");
+        } else {
+            DungeonClass c = com.killer560.hub.leapmenu.PartyTracker.classOf(pick.name());
+            shown = "§6" + pick.name() + (c == null ? "" : " §7(" + c.displayName() + ")");
+        }
+        return Component.literal(label + ": " + shown);
     }
 
     private static boolean containsIgnoreCase(List<Object> list, String name) {

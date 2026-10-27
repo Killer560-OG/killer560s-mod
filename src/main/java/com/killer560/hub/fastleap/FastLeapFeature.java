@@ -37,6 +37,8 @@ import com.killer560.hub.compat.McCompat;
  * (or gate blown), Necron's "impressive trick" line (middle), 2nd Necron ARGH (P4), picking up a relic (P5).</li>
  * <li><b>Target</b>: each leap's own pick, a class (first alive teammate of that class, Leap Order's class picks
  * applied) or a name; or, in Posmsg mode, whoever announced the spot (see {@link PosmsgTargets}), with the pick as backup.</li>
+ * <li><b>Class Targets</b> (2026-10-27): a leap can have its own pick per class YOU play this run; that class's pick
+ * replaces the Target, and a class with none uses it ({@link #leapToConfigured}).</li>
  * <li><b>Fast / Auto</b> (2026-10-13, v2): two switches per leap, each on or off by itself. An Auto leap swaps to the
  * leap item if it is not held, uses it, clicks the target's head and swaps to Return To ({@link LeapManager}).</li>
  * </ul>
@@ -415,6 +417,24 @@ public final class FastLeapFeature {
         String name = cfg.getTargetName(target);
         DungeonClass clazz = cfg.getTargetClass(target);
         boolean byClass = cfg.isTargetByClass(target);
+        // Per-class target (2026-10-27): the class YOU play this run, from the dungeon tab list with Leap Order's class
+        // pick for your own name applied (PartyTracker.selfClass), replaces the pick when that class has one set. In
+        // Posmsg mode it replaces the backup pick; an announced position still goes first.
+        DungeonClass mine = com.killer560.hub.leapmenu.PartyTracker.selfClass();
+        FastLeapConfig.ClassPick pick = cfg.getClassTarget(target, mine);
+        lastSelfClass = mine == null ? "" : mine.name();
+        lastUsedClassTarget = pick != null;
+        if (pick != null) {
+            LOGGER.info("[FastLeap] {} as {}: per-class target {}", displayLabel(target), mine.displayName(),
+                    pick.byClass() ? "class " + pick.clazz().name() : "name " + pick.name());
+            if (pick.byClass()) {
+                byClass = true;
+                clazz = pick.clazz();
+            } else {
+                byClass = false;
+                name = pick.name();
+            }
+        }
         switch (cfg.getTargetMode()) {
             case PER_LEAP -> {
                 if (byClass ? clazz == null : name.isBlank()) {
@@ -476,6 +496,19 @@ public final class FastLeapFeature {
 
     public static String lastTarget() {
         return lastTarget;
+    }
+
+    /** Your class when the last configured leap was resolved ("MAGE", "" unknown) and whether its per-class target was
+     *  used (testkit 983). */
+    private static volatile String lastSelfClass = "";
+    private static volatile boolean lastUsedClassTarget = false;
+
+    public static String lastSelfClass() {
+        return lastSelfClass;
+    }
+
+    public static boolean lastUsedClassTarget() {
+        return lastUsedClassTarget;
     }
 
     // ------------------------------------------------------------------------------------------------------------

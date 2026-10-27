@@ -53,6 +53,20 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   `util/TurnFirst` (or BodyAim), camera held, and send only after a movement packet has carried the turn: an AP3 Term Aura
   click sent at the START right after an END turn preceded every packet facing the stand, and after an earlier flag GrimAC
   let none through (testkit 416). Digs are not judged this way (54: behind and through a wall, 0 lines).
+- **GrimAC 2.3.74 never judges the look or reach of an interact on a NON-LIVING entity** (javap, aafast-1027): `Reach.
+  checkReach` returns NONE unless the target is living or an end crystal, so an item frame (Arrow Align) draws neither
+  Hitboxes nor Reach whatever the look. An armor stand IS living (Terminal Aura, 415/418). For a living target the interact
+  is queued (`playerAttackQueue`, one entry per entity id) and judged at the NEXT update packet (flying, client_tick_end or
+  pong) after that packet's look is applied, against (yaw, pitch), (lastYaw, pitch) and (lastYaw, lastPitch): so a body
+  turn written at START before the click, carried by the same tick's movement packet, is the look it is judged by. That
+  ordering is javap only; it was measured on item frames, where Grim does not look, so it is unproven for armor stands.
+- **Interacts on two different entities in one tick are GrimAC MultiInteractA; several on ONE entity are not** (javap +
+  testkit 1027-aafast). MultiInteractA flags a second entity id (or a sneak change) before the next tick packet;
+  MultiInteractB flags interact-at packets in one tick with different hit vectors. Both are EXPERIMENTAL in 2.3.74 and only
+  report with `experimental-checks: true` (the testkit's server has it off). A second "tick" inside a client tick needs an
+  extra flying packet, and Grim's Timer counts every tick packet (client_tick_end too, 1.21.2+) with only 120 ms of
+  fall-behind (`clockDrift`), so that cannot be banked. Arrow Align Aura therefore does one frame a tick, all its clicks
+  (Clicks Per Tick up to 7), and RSA's and QUOI's auras do the same (one frame, every click, then `break`).
 - **A use-on-block (block place) has no rotation of its own: GrimAC 2.3.74 lends it the NEXT movement packet's only when
   that packet arrives within 15 ms** (`CheckManagerListener.handleQueuedPlaces`, javap), else judges it by the rotation
   before - RotationPlace "post-flying", then "pre-flying" on every later place (the buffer never drains). AP3 placed at
@@ -327,6 +341,21 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   So differently aimed warps (Auto Routes' nodes) go one per client tick (or several per SERVER tick through Blink The
   Chain), while same-look warps can go N in one tick: ZPEW Warps Per Tick, testkit 1027-zpewmt-* (2, 3, 5, 10 and 20 in a
   tick, 0-300 ms, 26.1.2 and 26.2, GrimAC clean; the server casts each from the previous landing).
+- Different looks in ONE real tick (owner 2026-10-27, testkit 1027-zpewlk-*, javap GrimAC 2.3.74): every look needs its own
+  tick packet, and only a whole extra client tick will do. BadPacketsJ resets at each tick packet and compares the last
+  use's look with that packet's UPDATED look (`canSkipTicks` is false for 1.21.2+ clients, so no lastYaw fallback): the
+  order is use, then the tick packet reporting its look. Measured: RSA's shape (n uses at n looks, nothing between) =
+  BadPacketsJ; look packet BEFORE each use (a 1.8 server's way) = BadPacketsJ + TickTimer; use then a look-only packet =
+  TickTimer (a flying needs a tick-end before it) and Timer/TimerLimit (each tick packet is +50 ms on the timer balance,
+  whose floor is the last answered ping - 120 ms, so the headroom is about a ping plus 120 ms and does not come back while
+  the client ticks normally). The 1.17 duplicate-packet exemption is for 1.17-1.20 clients only. What works is Blink
+  Charge's bank: `BlinkCharge.spendTick` runs a whole tick (use, his movement tick with the body at that look, tick-end)
+  per extra look - Auto Routes' Charged Chain and ZPEW Aimed Warps. It needs the campaign-blink-1027 fixes (a teleport's
+  confirm held behind its ping answer): on 3011406a the same burst drew AimDuplicateLook, GroundSpoof, Simulation and
+  TickTimer at every landing. Spend only while `BlinkCharge.shotCovered()` (a burst right after a kept teleport drew
+  TimerLimit), and turn the first look from the yaw that last went ON THE WIRE (Charge keeps turn-only ticks off it, so
+  the running yaw can be a whole turn away; a look jump over 320 is AimModulo360). The test's first path, a square
+  (+x, +z, -x, -z, +x), spun the client a full 360 between two ticks and drew AimModulo360 with or without the burst.
 - RouteExecutor assumed one warp in flight (one `warpLanding`, one `teleportPacketSeen`). Zero Ping Chain keeps a queue
   of predicted landings (`inFlight`), reads `feet(player)` instead of `player.position()` while it is non-empty, and
   matches each server packet against the queue; a packet that matches an older entry confirms it and every older one.
@@ -384,14 +413,57 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   teleports and stuff like that"; "it should never drop blink if possible except if i release it". Charge keeps its bank
   through every server teleport (answers stay on their steady delay, no flush, no post-teleport pause - the 2026-10-26
   settle pause and the flush on a moving confirm are gone), respawns and dimension changes, configuration phases (answers
-  sent first), a hold starting, the Skyblock gate, screens and AP3 stopping. GrimAC flags the next shot after a kept
-  teleport (BadPacketsN / Simulation / a setback - see the in-place and setback-variants findings above); he accepts it.
+  sent first), a hold starting, the Skyblock gate, screens and AP3 stopping. Until campaign-blink-1027 GrimAC flagged and
+  ignored everything after a kept teleport; now the confirm waits behind its ping's answer (next entry) and only a shot in
+  the first ~1.5 s after it is partly set back; he accepted the flags either way.
   Do not revert. Impossible to keep: a hold's packets across a world change (old-world moves), anything across a disconnect.
-- What keeping the bank costs on GrimAC (blink-keep-1027, testkit 1026-blink-keep-warp, 1026-ap3-blink-leap): at the kept
-  teleport itself Simulation = the teleport's distance, GroundSpoof, TickTimer, BadPacketsN; then the next shot is SET BACK
-  (the server never moves; client/server gap = the shot's length). Later in the same session, a teleport held through a
-  plain Hold draws BadPacketsN too (items-a / lcew hold rows; the same holds are clean in a fresh session). A hold started
-  while charging sends the waiting answers, and the kept bank's shot then draws Timer (keep-misc 4b).
+- What keeping the bank cost on GrimAC until campaign-blink-1027 (blink-keep-1027, testkit 1026-blink-keep-warp,
+  1026-ap3-blink-leap, 1027-blink-c-keep-delay): Simulation = the teleport's distance, GroundSpoof, TickTimer, BadPacketsN and
+  AimDuplicateLook (one per kept teleport, 12 for Charged Chain's 12), and then GrimAC IGNORED EVERY MOVE until the next
+  teleport - not just the next shot: a walk 20 or 100 ticks after a kept teleport and shots 2-200 ticks after it never moved
+  him on the server (client and server 6 blocks apart), in place or moving. Cause (javap SetbackTeleportUtil.checkTeleportQueue,
+  2.3.74): GrimAC takes a flying as the teleport only while its last received transaction is EXACTLY the one it sent before
+  the teleport; earlier it waits, later it flags BadPacketsN and keeps a setback pending. Charge sent the confirm a second
+  before that answer. Fix (campaign-blink-1027, `BlinkCharge.tpSegs`): the confirm and everything after it wait right behind
+  that answer (the newest one waiting when the confirm is made; one segment per teleport, so a chain's confirms each follow
+  their own answer), menu clicks still go live, and the bank is kept. Result: the teleport, a walk after it and Charged Chain
+  (12 warps) are clean, and a shot 40+ ticks after a moving teleport (60+ after an in-place one) lands clean. Inside ~1.5 s
+  the shot is partly set back with TimerLimit: the held second plus the bank exceed GrimAC's ~1.1 s lag allowance, and the
+  ticks he moved in during the hold are backed again on the next still ticks (`unbacked`). Releasing the confirm behind the
+  FIRST answer after it instead (v3 of the campaign) is BadPacketsN on every teleport. Dropping still ticks inside the hold
+  (v6) made the early shots worse (Simulation 0.10 decaying, fully set back): reverted.
+- A menu click or close during a teleport hold (campaign-blink-1027): live, it reached GrimAC with the moving or sneaking
+  input from before the teleport (the new input waits in the hold) and MultiActionsC cancelled it (1025-blink-charge-rapid:
+  the first click after three sneaking warps never arrived); held, it would be a second late. Now it goes at once when the
+  server already has him still, else every waiting answer and everything held go first, in order (each confirm right behind
+  its own answer), then the click; the bank is kept and backed again. Same rule as Inventory Walk's clicks in a Hold
+  (campaign-invwalk-1027, `InventoryWalkFeature.serverHasStillInput`).
+- A Hold key down across a world change started its new hold on the new world's first tick, holding the spawn teleport's
+  confirm: GrimAC Simulation 0.03-0.065 on 19-20 ticks (1026-blink-death (a), on 3011406a too). The new hold now waits for
+  the spawn teleport (`BlinkFeature.spawnWaitTicks`, at most 40 ticks) and then for him to stand on the ground: he spawns 0.1
+  above it, and a hold over that drop drew Simulation 0.029 decaying in 1 run of 2 on 26.2 (`spawnSettle`, at most 60 ticks).
+- A server teleport that lands while he is sprinting draws GrimAC Simulation 0.196 with Blink idle (1027-blink-c-tpsprint,
+  Charge off, 26.1.2 3 of 6 rows, 26.2 4 of 6; the same rate with Charge on). GrimAC's, not Blink's; compare against that control.
+- Charge's answer delay followed the cap (50 x Charge Ticks - 10 ms), so a bank kept when Charge Ticks was lowered (owner:
+  the bank is kept) was bigger than what that delay lets GrimAC cover: with Charge Ticks 2 and 17 banked the delay was 90 ms
+  and the shot drew Timer however long he stood (1027-blink-c-mixed). The delay now covers max(cap, banked).
+- OWNER DECISION (killer560, 2026-10-27, after his p3sim field test "if I teleport to someone up there (a leap) that's when it
+  tends to fail"): after a kept teleport fire the kept bank on the first tick the server will accept it, automatically,
+  never dropping it. `BlinkCharge.shoot` defers a shot while the bank is not covered (a teleport confirm held behind its
+  answer, a Blink hold running, or ticks sent since not backed again) and fires it the tick it is (`covered()`, logged; at
+  most 3 s); AP3's Blink Release holds on its node meanwhile and finishes the tick the bank is covered, so the shot runs
+  along the next node. Measured on GrimAC 2.3.74 (1027-ap3-blink-leap-now/-10): released at the leap the shot waited 1.95 s,
+  10 ticks after it 1.51 s, both landed the full 5.39 blocks, clean; on c9521191 both were set back (TimerLimit). The wait
+  needs him still, and walking can never cover it: GrimAC's floor after a teleport is that teleport's ping send time - 120 ms,
+  so he may be behind real time only by the ticks he did NOT send since the teleport, and a walking tick is always sent. A shot
+  still uncovered after 10 s is not fired (bank kept, logged); it used to fire uncovered after 3 s and be set back. Tried and reverted: skipping his physics through the hold so its ticks cost nothing (the first ticks
+  after still drew Simulation 0.025 decaying, even with input changes carried to the next sent tick).
+- The same lag allowance is shared by a hold and the bank: a hold while charging sends the waiting answers (TransactionOrder)
+  and its own in its burst, so after it GrimAC covers only ~2 ticks of the kept bank. Before campaign-blink-1027 the shot after
+  a kept hold drew Timer/TimerLimit and was half set back however long he waited (the bank was full, so nothing re-banked:
+  1027-blink-c-interleave 49/60 rows). Now the bank is kept and the next still ticks are withheld uncounted until it is covered
+  again (0/60). A shot fired within the same second as the hold, or inside the hold, cannot be covered (interleave-now 12/16,
+  order (e)); that is the allowance, not a bug.
 - Charge's "a tick is open" flag must move only on the client's own sends. A tick that is not banked sends its kept move
   from inside the tick-end's hook; counted as the client's, that re-send re-opened the tick, so while he moved with Charge
   on no ping answer was ever sent at a tick start (AP3 blinkcharge 3, then running: 18 answers waiting, the oldest 1660 ms

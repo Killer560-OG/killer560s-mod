@@ -330,6 +330,11 @@ public final class InventoryWalkFeature {
         return !moving(serverInput) && !Boolean.TRUE.equals(serverSprinting);
     }
 
+    /** The last input and sprint state that LEFT the connection hold no movement (Blink Charge's teleport hold asks). */
+    public static boolean serverHasStillInput() {
+        return serverStill();
+    }
+
     private static boolean moving(Input in) {
         return in != null && (in.forward() || in.backward() || in.left() || in.right() || in.jump() || in.shift());
     }
