@@ -399,6 +399,15 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   ticks he moved in during the hold are backed again on the next still ticks (`unbacked`). Releasing the confirm behind the
   FIRST answer after it instead (v3 of the campaign) is BadPacketsN on every teleport. Dropping still ticks inside the hold
   (v6) made the early shots worse (Simulation 0.10 decaying, fully set back): reverted.
+- A menu click or close during a teleport hold (campaign-blink-1027): live, it reached GrimAC with the moving or sneaking
+  input from before the teleport (the new input waits in the hold) and MultiActionsC cancelled it (1025-blink-charge-rapid:
+  the first click after three sneaking warps never arrived); held, it would be a second late. Now it goes at once when the
+  server already has him still, else every waiting answer and everything held go first, in order (each confirm right behind
+  its own answer), then the click; the bank is kept and backed again. Same rule as Inventory Walk's clicks in a Hold
+  (campaign-invwalk-1027, `InventoryWalkFeature.serverHasStillInput`).
+- A Hold key down across a world change started its new hold on the new world's first tick, holding the spawn teleport's
+  confirm: GrimAC Simulation 0.03-0.065 on 19-20 ticks (1026-blink-death (a), on 3011406a too). The new hold now waits for
+  the spawn teleport (`BlinkFeature.spawnWaitTicks`, at most 40 ticks).
 - The same lag allowance is shared by a hold and the bank: a hold while charging sends the waiting answers (TransactionOrder)
   and its own in its burst, so after it GrimAC covers only ~2 ticks of the kept bank. Before campaign-blink-1027 the shot after
   a kept hold drew Timer/TimerLimit and was half set back however long he waited (the bank was full, so nothing re-banked:
