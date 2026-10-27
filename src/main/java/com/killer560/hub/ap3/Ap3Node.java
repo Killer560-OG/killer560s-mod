@@ -41,7 +41,7 @@ public final class Ap3Node {
      *  (a modifier and Breaker Aura respectively) - {@link Ap3Store} migrates those, {@link #parse} does not. */
     public enum Type {
         ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK, FAST_ALIGN,
-        PATH, NO_GO, TERM_AURA, USE;
+        PATH, NO_GO, TERM_AURA, USE, BLINK_CHARGE, BLINK_RELEASE;
 
         public static Type parse(String s) {
             if (s == null) {
@@ -72,6 +72,9 @@ public final class Ap3Node {
                 case "path", "route", "gate", "p" -> PATH;
                 case "nogo", "no_go", "avoid", "blacklist", "keepout" -> NO_GO;
                 case "termaura", "term_aura", "taura", "opento" -> TERM_AURA;
+                // killer560 (2026-10-26): "/ap3 add blinkcharge and /ap3 add blinkrelease".
+                case "blinkcharge", "blink_charge", "bcharge" -> BLINK_CHARGE;
+                case "blinkrelease", "blink_release", "brelease" -> BLINK_RELEASE;
                 default -> null;
             };
         }
@@ -98,6 +101,8 @@ public final class Ap3Node {
                 case PATH -> "Path";
                 case NO_GO -> "No Go";
                 case TERM_AURA -> "Term Aura";
+                case BLINK_CHARGE -> "Blink Charge";
+                case BLINK_RELEASE -> "Blink Release";
             };
         }
 
@@ -114,7 +119,8 @@ public final class Ap3Node {
          *  STOPWATCH) and a LOOK, BOOM, TERMINAL, LEAP_COUNTER or TERM_AURA silently stopped the run. */
         public boolean keepsHold() {
             return switch (this) {
-                case WALK, RUN, STOP, ALIGN, AXIS_ALIGN, FAST_ALIGN, LEAP, PATH -> false;
+                // A Blink Charge stops him where it is: Charge banks only ticks he stands still in.
+                case WALK, RUN, STOP, ALIGN, AXIS_ALIGN, FAST_ALIGN, LEAP, PATH, BLINK_CHARGE -> false;
                 default -> true;
             };
         }
@@ -159,6 +165,10 @@ public final class Ap3Node {
                 case TERM_AURA -> 4;
                 case BOOM -> 8;
                 case LEAP -> 9;
+                // A charge waits like a terminal does (stand, charge, walk on); a release fires along the movement, so
+                // after a walk in the same box has started it.
+                case BLINK_CHARGE -> 4;
+                case BLINK_RELEASE -> 7;
             };
         }
 
@@ -189,6 +199,11 @@ public final class Ap3Node {
             return this == STOPWATCH;
         }
 
+        /** Whether {@link Ap3Node#blinkTicks} means anything: the two Blink nodes. */
+        public boolean usesBlinkTicks() {
+            return this == BLINK_CHARGE || this == BLINK_RELEASE;
+        }
+
         /** Whether the Precise flag can be set from the editor - the types {@code /ap3 set <n> precise} accepts. */
         public boolean usesPrecise() {
             return isAlign() || this == PATH;
@@ -198,7 +213,7 @@ public final class Ap3Node {
          *  any of them (killer560: "if I ever left click manually, then it should act like the terminal was
          *  completed. Same thing for leaps or any other type of wait modifier"). */
         public boolean isWaiting() {
-            return this == LEAP || this == LEAP_COUNTER || this == TERMINAL;
+            return this == LEAP || this == LEAP_COUNTER || this == TERMINAL || this == BLINK_CHARGE;
         }
     }
 
@@ -236,6 +251,8 @@ public final class Ap3Node {
     /** Matches {@code Ap3Commands.MAX_WAIT_MS}, which is what the command and the tooltip promise. */
     public static final int MAX_WAIT_MS = 120_000;
     public static final int MAX_LEAP_COUNT = 4;
+    /** The most ticks a Blink node charges or releases: Blink Charge's own limit (Hypixel sets a longer shot back). */
+    public static final int MAX_BLINK_TICKS = 20;
     /** A node counts as reached while your feet are within this much of its floor (stairs, a small ledge). */
     public static final double BOX_Y_TOLERANCE = 1.5;
     private static final double BOX_EPS = 0.02;
@@ -306,6 +323,13 @@ public final class Ap3Node {
      * but an align fires. 0 = none.
      */
     public int leapCounter;
+    /**
+     * {@link Type#BLINK_CHARGE} / {@link Type#BLINK_RELEASE} (killer560, 2026-10-26: "if i do /ap3 add blinkcharge 3 it
+     * should charge 3 packets while frozen then /blinkrelease 3 would release 3. if no number have it go to the max"):
+     * ticks to bank, or to fire, 1 to {@link #MAX_BLINK_TICKS}. 0 = the max: a charge banks Blink's Charge Ticks setting,
+     * a release fires everything banked.
+     */
+    public int blinkTicks;
     /**
      * {@link Type#PATH}: which step of the route this node is - killer560 (2026-09-22): "allow me to do add path one,
      * add path four etc. so that way it knows what number in the path it should be. It should always default such
@@ -452,6 +476,9 @@ public final class Ap3Node {
         if (!type.usesName()) {
             name = null;
         }
+        if (!type.usesBlinkTicks()) {
+            blinkTicks = 0;
+        }
         // The close gate was removed on 2026-10-06 (killer560: "I dont think that is ever needed"); nothing sets it.
         closeGate = false;
     }
@@ -485,6 +512,11 @@ public final class Ap3Node {
 
     public void setLeapCount(int n) {
         leapCount = Math.max(1, Math.min(MAX_LEAP_COUNT, n));
+    }
+
+    /** A Blink node's tick count, 0 (the max) to {@link #MAX_BLINK_TICKS}. */
+    public void setBlinkTicks(int n) {
+        blinkTicks = Math.max(0, Math.min(MAX_BLINK_TICKS, n));
     }
 
     /** The {@code leapcounter:} suffix, 0 (none) to {@link #MAX_LEAP_COUNT}. */
@@ -665,6 +697,10 @@ public final class Ap3Node {
             }
             case NO_GO -> sb.append(" [the route may not enter]");
             case TERM_AURA -> sb.append(" [opens a term in range]");
+            case BLINK_CHARGE -> sb.append(" [").append(blinkTicks > 0 ? blinkTicks + (blinkTicks == 1 ? " tick" : " ticks")
+                    : "max").append(']');
+            case BLINK_RELEASE -> sb.append(" [").append(blinkTicks > 0 ? blinkTicks + (blinkTicks == 1 ? " tick" : " ticks")
+                    : "all").append(']');
             default -> {
             }
         }
@@ -732,6 +768,7 @@ public final class Ap3Node {
         leapIgn = o.leapIgn;
         leapCount = o.leapCount;
         leapCounter = o.leapCounter;
+        blinkTicks = o.blinkTicks;
         pathIndex = o.pathIndex;
         pathStart = o.pathStart;
         pathEnd = o.pathEnd;
@@ -751,7 +788,7 @@ public final class Ap3Node {
                 && waitAfterMs == o.waitAfterMs && closeGate == o.closeGate && ssGate == o.ssGate && jumpMod == o.jumpMod
                 && java.util.Objects.equals(useItemId, o.useItemId) && java.util.Objects.equals(name, o.name)
                 && leapMode == o.leapMode && leapClass == o.leapClass && java.util.Objects.equals(leapIgn, o.leapIgn)
-                && leapCount == o.leapCount && leapCounter == o.leapCounter && pathIndex == o.pathIndex && pathStart == o.pathStart
+                && leapCount == o.leapCount && leapCounter == o.leapCounter && blinkTicks == o.blinkTicks && pathIndex == o.pathIndex && pathStart == o.pathStart
                 && pathEnd == o.pathEnd && minSpeed == o.minSpeed && maxSpeed == o.maxSpeed && hasDir == o.hasDir
                 && dirDeg == o.dirDeg && dirTolDeg == o.dirTolDeg && termWait == o.termWait
                 && java.util.Objects.equals(colour, o.colour);
@@ -773,6 +810,7 @@ public final class Ap3Node {
         n.leapIgn = leapIgn;
         n.leapCount = leapCount;
         n.leapCounter = leapCounter;
+        n.blinkTicks = blinkTicks;
         n.colour = colour;
         return n;
     }

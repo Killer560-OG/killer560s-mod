@@ -161,6 +161,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             pending.put("Length", fmt(n.length));
             pending.put("Wait ms", String.valueOf(n.waitAfterMs));
             pending.put("Leap counter", String.valueOf(n.leapCounter));
+            pending.put("Blink ticks", n.blinkTicks > 0 ? String.valueOf(n.blinkTicks) : "");
             pending.put("Name", n.name == null ? "" : n.name);
             yawKnown = type.usesYaw();
             pitchKnown = type.usesPitch();
@@ -235,6 +236,10 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
         y += LINE;
         // The leapcounter: suffix (2026-10-26): 0 = none; any node type.
         addField(x, y, half, "Leap counter", 70);
+        if (type.usesBlinkTicks()) {
+            // Blink Charge / Blink Release: the ticks to bank or fire, 1-20; blank (or 0) = the max.
+            addField(x + half + GAP, y, w - half - GAP, "Blink ticks", 58);
+        }
         y += LINE;
 
         if (type.usesItem()) {
@@ -490,10 +495,11 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
         Double nwid = num("Width");
         Double nwait = num("Wait ms");
         Double nleap = get("Leap counter").isBlank() ? Double.valueOf(0) : num("Leap counter");
+        Double nblink = !type.usesBlinkTicks() || get("Blink ticks").isBlank() ? Double.valueOf(0) : num("Blink ticks");
         Double nyaw = type.usesYaw() ? num("Yaw") : Double.valueOf(0);
         Double npitch = type.usesPitch() ? num("Pitch") : Double.valueOf(0);
         if (nx == null || ny == null || nz == null || nyaw == null || npitch == null
-                || nlen == null || nwid == null || nwait == null || nleap == null) {
+                || nlen == null || nwid == null || nwait == null || nleap == null || nblink == null) {
             status = "§cOne of the numbers is not a number - nothing was changed.";
             return;
         }
@@ -519,6 +525,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             node.setWidth(nwid);
             node.setWaitAfterMs((int) Math.round(nwait));
             node.setLeapCounter((int) Math.round(nleap));
+            node.setBlinkTicks(newType.usesBlinkTicks() ? (int) Math.round(nblink) : 0);
             node.type = newType;
             node.jumpMod = jumpMod;
             node.ssGate = ssGate;

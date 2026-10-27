@@ -138,7 +138,8 @@ public final class Ap3Commands {
 
     /** The node-type words {@code /ap3 add <type>} accepts, in the order they are offered. */
     private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "fastalign", "path", "nogo", "termaura", "walk", "run", "leap",
-            "leapcounter", "terminal", "stop", "look", "boom", "stopwatch", "jump", "edge", "block", "use");
+            "leapcounter", "terminal", "stop", "look", "boom", "stopwatch", "jump", "edge", "block", "use", "blinkcharge",
+            "blinkrelease");
     /** Modifiers offered after any {@code /ap3 add <type>}. */
     private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "precise", "jump", "edge", "ss",
             "leapcounter:");
@@ -161,6 +162,8 @@ public final class Ap3Commands {
                 opts.addAll(List.of("1", "2", "3", "4"));
             } else if (t == Ap3Node.Type.PATH) {
                 opts.addAll(PATH_MODS);
+            } else if (t != null && t.usesBlinkTicks()) {
+                opts.addAll(List.of("1", "3", "5", "10", "20"));
             }
         } catch (Exception ignored) {
             // no type yet - just offer the common modifiers
@@ -476,6 +479,13 @@ public final class Ap3Commands {
             {"/ap3 set <n> color <hex>|reset", "Per-node marker color"},
     };
 
+    /** The node types that have no keybind of their own, for {@link #help()}. */
+    private static final String[][] ADD_HELP = {
+            {"/ap3 add use", "Use the held item at the angle you look"},
+            {"/ap3 add blinkcharge [ticks]", "Stop here and bank that many Blink ticks (none = Charge Ticks, max 20)"},
+            {"/ap3 add blinkrelease [ticks]", "Fire that many banked ticks along AP3's movement (none = all)"},
+    };
+
     private static int exec(Action action) {
         run(action);
         return 1;
@@ -603,6 +613,9 @@ public final class Ap3Commands {
         for (Action a : Action.values()) {
             ModChat.send(FEATURE, ModChat.value(a.command), ModChat.dim(" - " + a.label));
         }
+        for (String[] line : ADD_HELP) {
+            ModChat.send(FEATURE, ModChat.value(line[0]), ModChat.dim(" - " + line[1]));
+        }
         for (String[] line : EDIT_HELP) {
             ModChat.send(FEATURE, ModChat.value(line[0]), ModChat.dim(" - " + line[1]));
         }
@@ -645,7 +658,8 @@ public final class Ap3Commands {
             Ap3Node.Type type = Ap3Node.Type.parse(key);
             if (type == null) {
                 ModChat.send(FEATURE, ModChat.bad("Unknown node type "), ModChat.value(typeWord),
-                        ModChat.text(" - align, axisalign, walk, run, leap, leapcounter, terminal, stop, look, boom, stopwatch."));
+                        ModChat.text(" - align, axisalign, walk, run, leap, leapcounter, terminal, stop, look, boom, stopwatch,"
+                                + " blinkcharge, blinkrelease."));
                 return;
             }
             Ap3Feature.NodeSpec spec = parseSpec(type, mods);
@@ -778,6 +792,15 @@ public final class Ap3Commands {
                     spec.leapCount = Integer.parseInt(t.startsWith("x") ? t.substring(1) : t);
                 } else if (type == Ap3Node.Type.LEAP_COUNTER && t.startsWith("count:")) {
                     spec.leapCount = Integer.parseInt(t.substring(6));
+                } else if (type.usesBlinkTicks() && t.matches("[0-9]{1,3}")) {
+                    // "/ap3 add blinkcharge 3": the ticks to bank (or fire); no number = the max.
+                    int k = Integer.parseInt(t);
+                    if (k < 1 || k > Ap3Node.MAX_BLINK_TICKS) {
+                        ModChat.send(FEATURE, ModChat.bad("Blink ticks out of range "), ModChat.value(raw),
+                                ModChat.text(" - 1 to " + Ap3Node.MAX_BLINK_TICKS + ", or no number for the max."));
+                        return null;
+                    }
+                    spec.blinkTicks = k;
                 } else if (type == Ap3Node.Type.STOPWATCH && raw.matches("[A-Za-z0-9_\\-]{1,16}") && spec.name == null) {
                     // "/ap3 add stopwatch s3" - the name the time is reported under.
                     spec.name = raw;
@@ -786,6 +809,7 @@ public final class Ap3Commands {
                             ModChat.text(" for " + type.label() + " - w<n> l<n>, wait:<ms>, precise, ss, leapcounter:<n>"
                                     + (type == Ap3Node.Type.LEAP ? ", a class, ign <name>" : "")
                                     + (type == Ap3Node.Type.LEAP_COUNTER ? ", a count" : "")
+                                    + (type.usesBlinkTicks() ? ", a tick count 1-" + Ap3Node.MAX_BLINK_TICKS : "")
                                     + (type == Ap3Node.Type.STOPWATCH ? ", a name (one word)" : "") + "."));
                     return null;
                 }
@@ -1146,6 +1170,8 @@ public final class Ap3Commands {
             });
             case LEAP_COUNTER -> sb.append(" x").append(node.leapCount());
             case AXIS_ALIGN -> sb.append(" wall ").append(node.wallDir() == null ? "?" : node.wallDir().getName());
+            case BLINK_CHARGE -> sb.append(node.blinkTicks > 0 ? " " + node.blinkTicks + " ticks" : " max");
+            case BLINK_RELEASE -> sb.append(node.blinkTicks > 0 ? " " + node.blinkTicks + " ticks" : " all");
             default -> {
             }
         }

@@ -1039,7 +1039,7 @@ final class Ap3RouteRunner {
      */
     private static boolean disturbedByCrossing(Ap3Node.Type t) {
         return switch (t) {
-            case ALIGN, AXIS_ALIGN, FAST_ALIGN, LEAP, LEAP_COUNTER, TERMINAL, BOOM, STOP -> true;
+            case ALIGN, AXIS_ALIGN, FAST_ALIGN, LEAP, LEAP_COUNTER, TERMINAL, BOOM, STOP, BLINK_CHARGE -> true;
             default -> false;
         };
     }

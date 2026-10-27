@@ -59,7 +59,8 @@ import com.killer560.hub.compat.McCompat;
  * <b>Universal priority, one node per tick.</b> When more than one node triggers on the same tick, they fire one per
  * tick in this order (killer560: "stop should go first, then align, then look, then walk, then boom, then leap. So
  * if i hit a boom and leap node on the same tick then it should boom then the next tick leap"):
- * {@code STOPWATCH > STOP > ALIGN / AXIS_ALIGN > LOOK > TERMINAL > LEAP_COUNTER > WALK / RUN > BOOM > LEAP}
+ * {@code STOPWATCH > STOP > ALIGN / AXIS_ALIGN > LOOK > TERMINAL / BLINK_CHARGE > LEAP_COUNTER > WALK / RUN >
+ * USE / BLOCK / BLINK_RELEASE > BOOM > LEAP}
  * ({@link Ap3Node.Type#priority()}). Since 2026-10-06 LOOK, STOPWATCH, USE, and (unless a STOP / align / leap / path
  * owns the movement) WALK / RUN / JUMP / EDGE do not wait at all: they fire on the tick their box is entered, beside
  * whatever is being performed - see {@link #fireInstant}. A triggered node waits in the {@link #queue} until the executor is free (the
@@ -388,6 +389,8 @@ public final class Ap3Executor {
         }
         leapGate = null;
         leapCleared.clear();
+        // A charge AP3's Blink nodes started is AP3's: it ends with AP3 (his own Charge key's charge is left alone).
+        com.killer560.hub.blink.BlinkCharge.endFor(BLINK_OWNER, "AP3 stopped (" + reason + ")");
         Ap3RouteRunner.stop();
         restoreSlotOnStop(Minecraft.getInstance().player);
         endAim(Minecraft.getInstance().player);
@@ -756,7 +759,9 @@ public final class Ap3Executor {
         // YOU were moved 8+ blocks in one tick: a leap (auto, manual or ours), an etherwarp, a boss teleport. With
         // no previous position (first tick in the boss, a rejoin) the origin is unknown and treated the same way.
         Vec3 pos = player.position();
-        boolean jumped = lastSelfPos == null || pos.distanceTo(lastSelfPos) >= TELEPORT_JUMP;
+        // A Blink shot this tick moves him up to 9.5 blocks in one tick on his own keys: that is not a teleport.
+        boolean jumped = lastSelfPos == null || (pos.distanceTo(lastSelfPos) >= TELEPORT_JUMP
+                && !com.killer560.hub.blink.BlinkCharge.shotThisTick());
         if (current != chain) {
             // A new area, or the file was reloaded (new objects). The held walk and the node being performed carry
             // on - a walk from S1's last node has to survive the gap into S2 - but whatever was queued was for the
@@ -1411,6 +1416,8 @@ public final class Ap3Executor {
             case BOOM -> tickBoom(client, player, node);
             case USE -> tickUse(client, player, node);
             case BLOCK -> tickBlock(client, player, node);
+            case BLINK_CHARGE -> tickBlinkCharge(player, node);
+            case BLINK_RELEASE -> tickBlinkRelease(player, node);
             case STOPWATCH -> {
                 toggleStopwatch(node);
                 finishNode();
@@ -3368,6 +3375,170 @@ public final class Ap3Executor {
         if (speed <= Ap3AlignMath.ZERO_VELOCITY || stepTicks > BRAKE_TIMEOUT) {
             finishNode();
         }
+    }
+
+    // ---- BLINK_CHARGE / BLINK_RELEASE (killer560, 2026-10-26) ---------------------------------------------------
+    //
+    // "add a blink node to ap3. there should be a /ap3 add blinkcharge and /ap3 add blinkrelease. for both if i do /ap3
+    // add blinkcharge 3 it should charge 3 packets while frozen then /blinkrelease 3 would release 3. if no number have it
+    // go to the max. it should freeze on that node though for the charge". Blink Charge banks only ticks he stands still
+    // in, so the charge node ends the walk (keepsHold false) and presses nothing until the bank holds its count; Blink is
+    // driven through BlinkCharge.beginFor / shootFor, never through his Charge key, so a bound or unbound key changes
+    // nothing. The bank outlives the node; a release fires part or all of it along the movement AP3 makes at that moment.
+
+    /** The name AP3 drives Blink Charge under ({@link com.killer560.hub.blink.BlinkCharge#beginFor}). */
+    static final String BLINK_OWNER = "AP3";
+    /** The node already said in chat why it waits (Blink off): once per node run. */
+    private static boolean blinkWaitSaid;
+    private static String blinkWaitWhy;
+    private static int blinkLastBank;
+    private static Vec3 blinkReleaseFrom;
+
+    /** Blink can act for a Blink node; if not, says why once (chat and log) and the node waits. */
+    private static boolean blinkReady(Ap3Node node) {
+        String why = !com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? "not in this build"
+                : !com.killer560.hub.blink.BlinkConfig.getInstance().isEnabled() ? "Blink is off" : null;
+        if (why == null) {
+            return true;
+        }
+        blinkWait(node, why);
+        return false;
+    }
+
+    private static void blinkWait(Ap3Node node, String why) {
+        if (blinkWaitSaid && why.equals(blinkWaitWhy)) {
+            return;
+        }
+        blinkWaitSaid = true;
+        blinkWaitWhy = why;
+        LOGGER.info("[AP3] {} #{}: waiting - {} (the route waits here; turn Blink on and it carries on)",
+                node.type.label(), number(node), why);
+        chat(ModChat.value("#" + number(node) + " " + node.type.label()), ModChat.bad(" waits: " + why),
+                ModChat.dim(" - turn Blink on and it carries on"));
+    }
+
+    /** The bank a charge node fills: its number, or Blink's Charge Ticks setting; at most 20. */
+    private static int blinkChargeTarget(Ap3Node node) {
+        return node.blinkTicks > 0 ? Math.min(Ap3Node.MAX_BLINK_TICKS, node.blinkTicks)
+                : com.killer560.hub.blink.BlinkCharge.settingsCap();
+    }
+
+    private static void tickBlinkCharge(LocalPlayer player, Ap3Node node) {
+        // Frozen on the node: the walk was ended when it began, and nothing is pressed (Blink banks only still ticks).
+        clearMovement();
+        if (step == Step.PREP && stepTicks == 1) {
+            blinkWaitSaid = false;
+        }
+        if (!blinkReady(node)) {
+            step = Step.PREP;
+            return;
+        }
+        int want = blinkChargeTarget(node);
+        if (step == Step.PREP) {
+            String why = com.killer560.hub.blink.BlinkCharge.beginFor(BLINK_OWNER, want);
+            if (why != null) {
+                blinkWait(node, why);
+                return;
+            }
+            blinkLastBank = com.killer560.hub.blink.BlinkCharge.banked();
+            Vec3 v = player.getDeltaMovement();
+            LOGGER.info("[AP3] blinkcharge #{}: charge started - banking {} tick(s){} at {}, speed {} (he stands still, "
+                            + "banking starts once he has stopped), bank {}", number(node), want,
+                    node.blinkTicks > 0 ? "" : " (the Charge Ticks setting)", fmtPos(player.position()),
+                    String.format(Locale.ROOT, "%.4f", Math.sqrt(v.x * v.x + v.z * v.z)), blinkLastBank);
+            step = Step.CONFIRM;
+            stepTicks = 0;
+        }
+        if (!com.killer560.hub.blink.BlinkCharge.isActive()
+                || !BLINK_OWNER.equals(com.killer560.hub.blink.BlinkCharge.owner())) {
+            // Blink ended the charge under the node (switched off, a world change, his Hold key): start it again.
+            LOGGER.info("[AP3] blinkcharge #{}: the charge was ended under the node - starting it again", number(node));
+            step = Step.PREP;
+            return;
+        }
+        int bank = com.killer560.hub.blink.BlinkCharge.banked();
+        if (bank != blinkLastBank) {
+            LOGGER.info("[AP3] blinkcharge #{}: bank {}/{}", number(node), bank, want);
+            blinkLastBank = bank;
+        } else if (stepTicks % 40 == 0) {
+            LOGGER.info("[AP3] blinkcharge #{}: still waiting, bank {}/{} after {} tick(s) ({})", number(node), bank, want,
+                    stepTicks, com.killer560.hub.blink.BlinkCharge.settling() ? "Blink settles after a teleport"
+                            : !player.onGround() ? "in the air" : "moving or acting");
+        }
+        if (bank >= want) {
+            LOGGER.info("[AP3] blinkcharge #{}: charged - {} tick(s) banked after {} tick(s) on the node, at {}; the route "
+                    + "moves on with the bank kept", number(node), bank, stepTicks, fmtPos(player.position()));
+            if (Ap3Config.getInstance().isChatFeedback()) {
+                chat(ModChat.good("Charged "), ModChat.value(bank + (bank == 1 ? " tick" : " ticks")),
+                        ModChat.dim(" - #" + number(node)));
+            }
+            finishNode();
+        }
+    }
+
+    private static void tickBlinkRelease(LocalPlayer player, Ap3Node node) {
+        if (step == Step.PREP && stepTicks == 1) {
+            blinkWaitSaid = false;
+        }
+        if (!blinkReady(node)) {
+            step = Step.PREP;
+            return;
+        }
+        if (step == Step.PREP) {
+            if (com.killer560.hub.blink.BlinkCharge.shotPending()) {
+                return; // the last release is still running (split over two ticks)
+            }
+            int bank = com.killer560.hub.blink.BlinkCharge.isActive() ? com.killer560.hub.blink.BlinkCharge.banked() : 0;
+            String asked = node.blinkTicks > 0 ? node.blinkTicks + " tick(s)" : "everything";
+            if (bank <= 0) {
+                LOGGER.info("[AP3] blinkrelease #{}: release asked for {} - nothing fired: {}", number(node), asked,
+                        !com.killer560.hub.blink.BlinkCharge.isActive() ? "Blink is not charging"
+                                : "nothing is banked");
+                if (Ap3Config.getInstance().isChatFeedback()) {
+                    chat(ModChat.value("#" + number(node) + " Blink Release"), ModChat.dim(" - nothing banked, nothing fired"));
+                }
+                finishNode();
+                return;
+            }
+            int k = com.killer560.hub.blink.BlinkCharge.shootFor(BLINK_OWNER, node.blinkTicks);
+            blinkReleaseFrom = player.position();
+            LOGGER.info("[AP3] blinkrelease #{}: release asked for {} - {} banked, {} fire at the next tick start along "
+                            + "{} (speed {}) from {}", number(node), asked, bank, k,
+                    holdDir == null ? "no AP3 walk" : String.format(Locale.ROOT, "the %s at yaw %.1f", holdSprint ? "run" : "walk",
+                            Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z))),
+                    String.format(Locale.ROOT, "%.4f", horizontalSpeed(player)), fmtPos(blinkReleaseFrom));
+            step = Step.CONFIRM;
+            stepTicks = 0;
+            return;
+        }
+        if (com.killer560.hub.blink.BlinkCharge.shotPending() && stepTicks <= 40) {
+            return;
+        }
+        int fired = com.killer560.hub.blink.BlinkCharge.lastReleaseTicks();
+        int left = com.killer560.hub.blink.BlinkCharge.banked();
+        LOGGER.info("[AP3] blinkrelease #{}: fired {} tick(s), moved {} blocks from {} to {}; {} banked tick(s) left",
+                number(node), fired, String.format(Locale.ROOT, "%.3f", com.killer560.hub.blink.BlinkCharge.lastReleaseBlocks()),
+                fmtPos(com.killer560.hub.blink.BlinkCharge.lastReleaseFrom()),
+                fmtPos(com.killer560.hub.blink.BlinkCharge.lastReleaseTo()), left);
+        if (Ap3Config.getInstance().isChatFeedback()) {
+            chat(ModChat.good("Released "), ModChat.value(fired + (fired == 1 ? " tick" : " ticks")),
+                    ModChat.dim(String.format(Locale.ROOT, " - %.1f blocks, #%d", com.killer560.hub.blink.BlinkCharge.lastReleaseBlocks(),
+                            number(node))));
+        }
+        if (left <= 0) {
+            // The bank is spent: AP3's charge ends, so the server's pings are answered on time again.
+            com.killer560.hub.blink.BlinkCharge.endFor(BLINK_OWNER, "the bank is spent");
+        }
+        finishNode();
+    }
+
+    private static String fmtPos(Vec3 v) {
+        return v == null ? "?" : String.format(Locale.ROOT, "(%.3f, %.3f, %.3f)", v.x, v.y, v.z);
+    }
+
+    private static double horizontalSpeed(LocalPlayer player) {
+        Vec3 v = player.getDeltaMovement();
+        return Math.sqrt(v.x * v.x + v.z * v.z);
     }
 
     // ---- LOOK: client-side rotation only ----------------------------------------------------------------------

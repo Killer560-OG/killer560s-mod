@@ -304,8 +304,13 @@ public final class BlinkCharge {
                     && !(packet instanceof ServerboundClientTickEndPacket)) {
                 shotPacketsSent++;
             }
-            if (!answer) {
-                if (!passing && !tickOpen) {
+            if (!answer && !passing) {
+                // Only the client's own sends open and close a tick. Before 2026-10-26 our own re-sends counted too: a
+                // tick that was not banked sends its kept move from inside the tick-end's hook, and that move re-opened
+                // the tick, so while he moved with Charge on no answer was ever sent at a tick start - 18 waiting, the
+                // oldest 1660 ms, at a 140 ms delay (testkit 1026-ap3-blink-3); walking long enough would reach GrimAC's
+                // 60 s transaction limit.
+                if (!tickOpen) {
                     releaseDueAnswersLocked(System.currentTimeMillis());
                 }
                 tickOpen = !(packet instanceof ServerboundClientTickEndPacket);
@@ -490,6 +495,7 @@ public final class BlinkCharge {
         if (!down) {
             latched = false;
         }
+        tickStamp++;
         if (!allowed) {
             if (pressed) {
                 BlinkLog.event("Charge key pressed but not used: Skyblock Only is on and this is not Skyblock");
@@ -497,7 +503,13 @@ public final class BlinkCharge {
             reset("not allowed here");
             return;
         }
-        if (cfg.getChargeMode() == BlinkConfig.Mode.TOGGLE) {
+        if (owner != null) {
+            // A feature drives Charge (AP3's Blink nodes): his Charge key neither starts, fires nor ends it meanwhile.
+            if (pressed || letGo) {
+                BlinkLog.event("Charge key %s ignored: %s is driving Charge (bank %d/%d)", pressed ? "press" : "release",
+                        owner, banked, cap());
+            }
+        } else if (cfg.getChargeMode() == BlinkConfig.Mode.TOGGLE) {
             if (pressed) {
                 if (!active) {
                     BlinkLog.event("Charge key pressed (Toggle): charge on");
@@ -542,11 +554,20 @@ public final class BlinkCharge {
             }
         }
         if (shotLeft > 0) {
+            int c;
             synchronized (LOCK) {
-                banked += shotLeft;
+                c = shotLeft;
+                banked += c;
                 shotLeft = 0;
             }
-            shoot(client, client.player, shotLeftWhy + ", continued");
+            shoot(client, client.player, shotLeftWhy + ", continued", c);
+        } else if (shotWanted > 0) {
+            // A feature's release (shootFor): this many of the bank, the rest stays banked.
+            int c = shotWanted;
+            shotWanted = 0;
+            requestFrom = client.player == null ? null : client.player.position();
+            requestTicks = 0;
+            shoot(client, client.player, "released by " + shotWantedBy, c);
         }
         if (armed && movementKeyDown(client) && McCompat.screen(client) == null) {
             armed = false;
@@ -637,10 +658,18 @@ public final class BlinkCharge {
 
     /** Runs the banked ticks of his own movement now, each with its tick-end, before this tick's own. Render thread. */
     private static void shoot(Minecraft client, LocalPlayer player, String why) {
+        shoot(client, player, why, -1);
+    }
+
+    /**
+     * Runs {@code count} banked ticks (all of them when negative or more than are banked); the rest stays banked, so a
+     * route can split one bank across several releases (AP3's Blink Release nodes, killer560 2026-10-26).
+     */
+    private static void shoot(Minecraft client, LocalPlayer player, String why, int count) {
         int n;
         synchronized (LOCK) {
-            n = banked;
-            banked = 0;
+            n = count < 0 ? banked : Math.min(count, banked);
+            banked -= n;
             if (stash != null) {
                 // Cannot happen at a tick's start (the tick-end settles it), but never leave a move behind.
                 sendLocked(stash);
@@ -704,12 +733,16 @@ public final class BlinkCharge {
             lastShotFrom = from;
         }
         lastShotTo = player.position();
-        bankEmptySinceMs = System.currentTimeMillis();
+        lastShotTickStamp = tickStamp;
+        if (banked == 0) {
+            bankEmptySinceMs = System.currentTimeMillis();
+        }
+        requestTicks += ran;
         BlinkLog.event("charge SHOT (%s): %d banked tick(s) run in %.1f ms, moved %.2f blocks from %s to %s, %d action "
-                        + "packet(s) inside it; %d answer(s) waiting (oldest %d ms); shot #%d%s", why, ran,
+                        + "packet(s) inside it; %d answer(s) waiting (oldest %d ms); shot #%d%s; %d banked tick(s) left", why, ran,
                 (System.nanoTime() - t0) / 1e6, blocks, fmt(from), fmt(player.position()), shotPacketsSent - shotPacketsAtStart,
                 answersHeld(), oldestAnswerAgeMs(), shots, shotLeft > 0 ? "; SPLIT: " + shotLeft + " tick(s) left for next "
-                        + "tick (the server takes at most 10 blocks a tick)" : "");
+                        + "tick (the server takes at most 10 blocks a tick)" : "", banked);
         if (BlinkConfig.getInstance().isChatMessages()) {
             ModChat.send("Blink", ModChat.text(String.format(java.util.Locale.ROOT, "shot %d tick(s), %.1f blocks", ran, blocks)));
         }
@@ -789,6 +822,7 @@ public final class BlinkCharge {
             lost = banked;
             banked = 0;
             shotLeft = 0;
+            shotWanted = 0;
             wasArmed = armed;
             armed = false;
             bankEmptySinceMs = System.currentTimeMillis();
@@ -821,6 +855,9 @@ public final class BlinkCharge {
             active = false;
             banked = 0;
             shotLeft = 0;
+            shotWanted = 0;
+            owner = null;
+            lastShotTickStamp = -1;
             armed = false;
             offAfterShot = false;
             tickOpen = false;
@@ -856,7 +893,138 @@ public final class BlinkCharge {
      * inside GrimAC's 1120 (22 banked + 1 flagged, testkit 1025-blink-charge-sweep).
      */
     public static int cap() {
-        return Math.max(1, BlinkConfig.getInstance().getChargeTicks());
+        String o = owner;
+        return o != null ? ownerCap : settingsCap();
+    }
+
+    /** The Charge Ticks setting (1-20): the bank a charge with no number of its own fills. */
+    public static int settingsCap() {
+        return Math.max(1, Math.min(MAX_TICKS, BlinkConfig.getInstance().getChargeTicks()));
+    }
+
+    /** The most a charge banks whoever drives it (Hypixel sets a longer shot back, killer560 2026-10-25). */
+    public static final int MAX_TICKS = 20;
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // A feature driving Charge instead of the key (AP3's Blink Charge / Blink Release nodes, killer560 2026-10-26: "if i
+    // do /ap3 add blinkcharge 3 it should charge 3 packets while frozen then /blinkrelease 3 would release 3. if no number
+    // have it go to the max")
+
+    /** Who drives Charge instead of the Charge key, or null (the key). While set the key does nothing to Charge. */
+    private static volatile String owner;
+    /** The bank {@link #owner}'s charge fills (1-20). */
+    private static int ownerCap;
+    /** Ticks a caller asked to fire at the next tick start ({@link #shootFor}), 0 = none. */
+    private static volatile int shotWanted;
+    private static String shotWantedBy = "";
+    /** One count per Charge tick: a shot remembers the tick it ran in ({@link #shotThisTick}). */
+    private static long tickStamp;
+    private static long lastShotTickStamp = -1;
+    /** The last {@link #shootFor} release as a whole (a split shot is two shots): where it started and the ticks it ran. */
+    private static net.minecraft.world.phys.Vec3 requestFrom;
+    private static int requestTicks;
+
+    /**
+     * {@code who} drives Charge from now on: charging starts if it was off (his Charge key's charge is taken over if it was
+     * on, bank kept) and banks up to {@code ticks} (1-20; 0 or less = the Charge Ticks setting). His Charge key does
+     * nothing to it until {@link #endFor}. Render thread.
+     *
+     * @return null when charging, else why not (Blink is off, not Skyblock, no connection)
+     */
+    public static String beginFor(String who, int ticks) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return "not in this build";
+        }
+        if (!BlinkConfig.getInstance().isEnabled()) {
+            return "Blink is off";
+        }
+        if (!com.killer560.hub.util.SkyblockGate.allows()) {
+            return "Skyblock Only is on and this is not Skyblock";
+        }
+        Minecraft client = Minecraft.getInstance();
+        ClientPacketListener listener = client.getConnection();
+        if (listener == null || client.player == null || !listener.getConnection().isConnected()) {
+            return "no connection";
+        }
+        int cap = ticks <= 0 ? settingsCap() : Math.min(MAX_TICKS, ticks);
+        String was = owner;
+        boolean wasActive = active;
+        ownerCap = cap;
+        owner = who;
+        if (!wasActive || connection != listener.getConnection()) {
+            turnOn(listener.getConnection());
+            BlinkLog.event("charge started for %s: banks up to %d tick(s)", who, cap);
+        } else {
+            BlinkLog.event("charge %s %s: banks up to %d tick(s), %d already banked", was == null ? "taken over from the "
+                    + "Charge key by" : "now driven by", who, cap, banked);
+        }
+        return null;
+    }
+
+    /** {@code who} is done with Charge: charging ends (whatever is still banked is not owed). No-op for another owner. */
+    public static void endFor(String who, String why) {
+        if (who == null || !who.equals(owner)) {
+            return;
+        }
+        reset(who + ": " + why);
+    }
+
+    /**
+     * Fires {@code n} banked ticks (all of them when {@code n <= 0}) at the next tick start, along whatever movement is
+     * being made then; the rest stays banked. The shot keeps every rule a key shot has (9.5 blocks a tick, the shot-tick
+     * aura hooks). Render thread.
+     *
+     * @return the ticks that will fire (0: nothing banked, or not charging - nothing is fired)
+     */
+    public static int shootFor(String who, int n) {
+        synchronized (LOCK) {
+            if (!active || banked <= 0) {
+                BlinkLog.event("release asked for %s by %s: nothing fired - %s", n <= 0 ? "everything" : n + " tick(s)",
+                        who, !active ? "not charging" : "nothing banked");
+                return 0;
+            }
+            int k = n <= 0 ? banked : Math.min(n, banked);
+            shotWanted = k;
+            shotWantedBy = who;
+            BlinkLog.event("release asked for %s by %s: %d of %d banked tick(s) fire at the next tick start%s",
+                    n <= 0 ? "everything" : n + " tick(s)", who, k, banked, n > banked ? " (fewer banked than asked)" : "");
+            return k;
+        }
+    }
+
+    /** A {@link #shootFor} release has not run to its end yet (asked, or split over two ticks). */
+    public static boolean shotPending() {
+        return shotWanted > 0 || shotLeft > 0;
+    }
+
+    /** A shot ran in the current tick (a feature that reads an 8-block move as a teleport must not here). */
+    public static boolean shotThisTick() {
+        return lastShotTickStamp == tickStamp;
+    }
+
+    /** Ticks the last {@link #shootFor} release ran in all, and how far it moved him from where it started. */
+    public static int lastReleaseTicks() {
+        return requestTicks;
+    }
+
+    public static double lastReleaseBlocks() {
+        LocalPlayer p = Minecraft.getInstance().player;
+        net.minecraft.world.phys.Vec3 from = requestFrom;
+        net.minecraft.world.phys.Vec3 to = lastShotTo;
+        return from == null || to == null || p == null ? 0 : from.distanceTo(to);
+    }
+
+    public static net.minecraft.world.phys.Vec3 lastReleaseFrom() {
+        return requestFrom;
+    }
+
+    public static net.minecraft.world.phys.Vec3 lastReleaseTo() {
+        return lastShotTo;
+    }
+
+    /** Who drives Charge now, or null (his key). */
+    public static String owner() {
+        return owner;
     }
 
     /**
