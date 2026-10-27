@@ -13,7 +13,7 @@ Java 25 and a JDK on `JAVA_HOME`. Gradle wrapper, Fabric Loom.
 ./gradlew build -Prelease=true      # official release: compiles dev tooling OUT
 ./gradlew build [-PcheatBuild=true] -PtestingBuild=true  # killer560's private jar, ...-26.1.2-<cheat|legit>-testing.jar: Untested category, Mark tested, /k560tested; lists in testing/; deploy ONLY with --testing-instance-cheat/--testing-instance-legit NAME
 python deploy-to-instances.py [--dry-run] [--jars-dir DIR]   # install into every Prism instance; writes minecraft/killer560smod-no-auto-update in each (Auto Update off there)
-# --auto-update-instance NAME: leave NAME to the mod's own Auto Update (no jar, marker removed) - Mod Only Test since 2026-10-13
+# --auto-update-instance NAME: leave NAME to the mod's own Auto Update (no jar, marker removed); none uses it (2026-10-24: all 7 have the marker)
 ```
 
 The Minecraft version is in every jar name, and one gradle run builds one version. The deploy script keeps
@@ -34,14 +34,16 @@ to `false` in a legit build and deletes the branch, which is the point.
 
 Versions, all from `gradle.properties` (check there, not here, if something looks off): Minecraft 26.1.2,
 Fabric Loader 0.19.3, Fabric API 0.155.2+26.1.2, Loom 1.17-SNAPSHOT, Mod Menu 18.0.0, mod version 1.1.0,
-Netty 4.2.7.Final (bundled Jar-in-Jar for the Proxy Client feature; must match what MC 26.1.2 ships).
-`fabric.mod.json` declares `minecraft ~26.1`, `java >=25`, entrypoints `client` and `modmenu`.
+Netty is not in `gradle.properties`: `build.gradle`'s `nettyByMinecraft` picks the Jar-in-Jar pair for the Proxy Client
+(4.2.7.Final for 26.1, 4.2.15.Final for 26.2) and the build re-checks it against Minecraft's own.
+`fabric.mod.json` declares `minecraft ~<major.minor>` (filled in from `minecraft_version`), `java >=25`, entrypoints `client` and `modmenu`.
 
 ## Testing
 
 Boot-test only in the Prism instance **26.1.2 (Mod Only Test)**, and close the game afterwards. The
 instance **26.1.2 (Dungeons)** is him actually playing — never install a test jar there, never boot it, and
-never draw a conclusion from its log.
+never draw a conclusion from its log. A finished, tested batch does go there with every other instance
+(`deploy-to-instances.py`, killer560 2026-09-27).
 
 **Never use `prismlauncher.exe --launch`.** On 2026-09-30 it was given a folder a running Prism had not rescanned
 and silently started one of his play instances instead. Boot-test through the testkit (it starts its own client), or
@@ -49,10 +51,11 @@ ask him. Never swap a jar over a running game; stage it as `.jar.pending`. Never
 the PID you launched, and leave a client whose log shows a server join (he took the window).
 
 **Instances** (since 2026-10-07; enumerate the directory, never trust this list - it has been wrong before):
-`26.1.2 (Dungeons)` (his play instance, cheat), `26.1.2 (Mod Only Test)` (cheat), `26.1.2 Legit`, `26.2 Cheat`, and the
+`26.1.2 (Dungeons)` (his play instance, cheat), `26.1.2 (Mod Only Test)` (cheat), `26.1.2 (SIM recording)` (cheat, checked
+2026-10-24), `26.1.2 Legit`, `26.2 Cheat`, and the
 private `26.1.2 Untested Cheat` / `26.1.2 Untested Legit`, which take only `-PtestingBuild` jars. `Title Screen GUI` (the main-menu preview instance, marker `killer560smod-title-screen-gui`, docs/TESTING-HOOKS.md) was
-retired on 2026-10-16 to `C:\Users\Hunter\PrismInstances-removed-2026-10-16`. Eight older ones are
-in `C:\Users\Hunter\PrismInstances-removed-2026-10-07`; every `options.txt` is a copy of Dungeons'. Mod Only Test
+retired on 2026-10-16; it and eight older retired instances were deleted on 2026-10-26 (PC cleanup). Every
+`options.txt` is a copy of Dungeons'. Mod Only Test
 does not reach the instance he plays on: after work lands, check every instance by md5 and promote or delete any
 leftover `.jar.pending` (on 2026-09-29 four were two builds behind). A new instance is invisible to a running Prism
 until it rescans. 26.2 instances get the 26.2 jar (killer560, 2026-09-30); every jar name carries its MC version, and
@@ -101,6 +104,17 @@ Any other file or folder a feature keeps under `config/killer560/` (named `kille
 A new feature gets its name in the README list and its full text in `docs/FEATURES.md`, then the features
 Google Doc is regenerated. Sharing and receiving settings default ON. The GUI is orange-themed. Never carry
 his typos into a command, label or alias.
+Spelling is AMERICAN in everything the mod shows or writes (labels, tooltips, chat, HUD, logs, testkit matches,
+the Discord posts and the features Google Doc): color, center, gray, armor, defense, canceled, optimized.
+Game and Hypixel text stays as the game writes it, and so do config keys, saved-file names and anything the code
+matches (killer560, 2026-10-24: "should be american not british").
+Cringe lines update with the mod (`cringe/CringeLines.java`): `cringe-lines.txt` carries `#k560` lines, a hash stamp of the
+built-in list and the hash of every built-in line ever offered, so a new built-in line is added on the next load and one
+the player deleted never comes back. Edit the built-in list freely; there is no counter to bump.
+Croesus run memory (`croesus/CroesusRunMemory.java`) never guesses: a run it cannot place reads "not looked at", never
+hidden and never another run's state. A run moves later only by as many joins as the time since it was seen allows, it
+crosses into a later page only behind a join that page's own runs show, and a head at the front of page 1 that fits no
+remembered run is a new run (testkit 888, 906-908).
 A setting that steps through values is built with `SettingsButtonWidget.cycling(label, (btn, dir) -> ...)` and its
 `step` helpers: left click forward, right click back, wrapping (killer560, 2026-10-11); testkit 806 finds them by `isCycling()`,
 which since 2026-10-20 is true only for `cycling(...)`: a plain `builder(...).secondaryPress(...)` (Door Keys' colour rows,
@@ -135,13 +149,32 @@ A Discord update covers three places: #changelog (mod), #roadmap (edit the pinne
 
 These are his, they are about getting banned, and they are not negotiable. Never write position or velocity
 directly (`setPos`, `setDeltaMovement`) and never use fractional movement input — discrete key presses only.
-A server correction is always honoured (never fought) but never stops anything: see the first lesson below. Never clamp or wrap simulated yaw at 0-360; Hypixel treats an uncapped
+A server correction is always honored (never fought) but never stops anything: see the first lesson below. Never clamp or wrap simulated yaw at 0-360; Hypixel treats an uncapped
 running rotation value as the normal signal. Pitch is always kept within -90..+90. Anticheat *deception*
 features: on 2026-10-25 he asked for Blink, Inventory Walk and Zero Ping Etherwarp and had them built and shipped
-(cheat build only, off by default; blink-1025). Zero Ping Etherwarp stays CAMERA ONLY (his decision 2026-10-25): the
+(cheat build only, off by default; blink-1025). Zero Ping Etherwarp stays CAMERA ONLY (his decision 2026-10-25; in both builds since 2026-10-26): the
 character is never moved client-side ahead of the server, so the setPos rule above stands. Blink AP3 is not built.
 
-## Quirks and lessons
+(Added 2026-10-20: the working rules that now apply. Each is in the handoff file too, which is the fuller record.)
+
+(Added 2026-10-26, killer560:)
+- After-2.0 (staging) features are NEVER shipped - not to main, a jar, an instance or GitHub - until 2.0 is pushed.
+  "Under no circumstances." Only dungeon/main work ships before 2.0.
+- Up to 9 testkit clients may run at once (slot waits: fewer than 9 `fabric.dli.env=client` java.exe processes).
+- A finished, tested main batch is deployed to EVERY instance, 26.1.2 (Dungeons) included (he said yes, 2026-10-26).
+  Test or testing jars still never go into Dungeons, and it is never booted by us.
+
+- Push only when no game is running (`(Get-Process javaw -ErrorAction SilentlyContinue | Measure-Object).Count` is 0).
+  With a game running, commit but do not push; a jar that must reach a running instance is staged as `.jar.pending`.
+  The testkit client runs as `java.exe`, not `javaw` (run-scenario.ps1), so count that too; Gradle daemons are `java.exe`
+  with no window title and do not count.
+- Parallel agents work in their own worktrees, commit by file name, and do not push. Cherry-picks onto `release-1019`
+  conflict when the branch was based on an older commit: rebase the agent's branch first.
+- Trap rooms (New Trap, Old Trap) are not functional yet; leave them out of tests until the owner says otherwise.
+- The `/trades` menu is a container titled "Trades"; Auto Sell's default title pattern matches "sell" or "trade", and a
+  saved old pattern is migrated on load.
+- A Shadow Assassin leap blocks right-click on the main server; a route waiting on a chest click must retry on a real
+  signal, never freeze.
 
 Two topics have their own files, because they had grown to half this one:
 **[docs/SIM.md](docs/SIM.md)** for the dungeon sim (`roomsim/`) - room captures, floor generation,
@@ -149,7 +182,7 @@ secret placement, doors and altitude - and **[docs/AP3.md](docs/AP3.md)** for AP
 physics. Read the relevant one before touching either area. Feature-specific lessons (Bazaar, HUD
 elements, Superpairs, Instant Transmission, item identity, gametest, `AttackBlockCallback` per tick, slider clamps) are in
 **[docs/LESSONS.md](docs/LESSONS.md)**; automation runtime ones (Auto Routes on GrimAC, chain timing, ViewFreeze, key
-range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD and rendering ones are in **[docs/LESSONS-GUI.md](docs/LESSONS-GUI.md)**. The Room Recorder was removed on 2026-10-04 and lives at git tag
+range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD and rendering ones are in **[docs/LESSONS-GUI.md](docs/LESSONS-GUI.md)**. Sim lessons (the sim answers as the server, solver scans, heights, room answers, sim RNG) are in **[docs/LESSONS-SIM.md](docs/LESSONS-SIM.md)**. The Room Recorder was removed on 2026-10-04 and lives at git tag
 `room-recorder-last`; the last section of docs/SIM.md says how to restore it.
 
 - **Nothing in this mod ever stops, pauses or disables on a server correction** (killer560, 2026-10-06): it calls
@@ -163,9 +196,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - `"^(?:.*something.*|...)$"` is NOT anchored. The leading `^` buys nothing when the alternative starts with
   `.*`, and the Blood Key split read that way for months. Anchor on the real line shape, with a
   `[A-Za-z0-9_]{1,16}` name group, and check with `matches()`.
-- A comparator must not call the RNG. `SimFloorLayout` sorted candidates by a key containing
-  `rng.nextDouble()`; TimSort noticed and threw "Comparison method violates its general contract!". Draw the
-  jitter once per element and store it.
 - Switching variants needs `build/classes` cleared too, not just the generated `BuildVariant` source. After a
   cheat compile, deleting only `build/generated/sources/buildVariant` and compiling legit produced a wall of
   `error: cannot access Ap3FreezeState` / `Ap3EditScreen` / `Ap3RouteCache` - stale class files, not a real
@@ -198,26 +228,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Run gradle through Bash, not PowerShell: PowerShell wraps native stderr in ErrorRecords and splits compiler
   messages mid-line, so error counts and file paths become unreadable. Gradle also prints compiler output
   TWICE, so `grep -c "error:"` is double - the `N errors` line javac prints is the authoritative number.
-- **One room must not have two answers.** A room's clay corner and its rotation are published once and read
-  everywhere; if any second place computes them, they will disagree and the symptom will be "my solvers point at
-  the wrong block". `SimBuilder` published the PASTE rotation beside a corner computed for the DATABASE rotation,
-  which differ by the capture's own turn in 88 of 122 rooms, so nine of the eleven puzzle rooms' solvers were
-  measuring through a rotation a quarter or half turn off. `SimRoomIndex` had always been right, which is why
-  Secret Waypoints worked while every solver did not - **a feature that works beside one that does not, on the
-  same data, is naming the bug.** The publish now reads `SimRoomIndex` and nothing else computes it.
-- **A bare dungeon height in a comparison is a bug in the sim.** Relative y IS world y on Hypixel, so
-  `player.getY() != 75.0`, `pos.y != 69.5`, `69.5..72.5` and `y 66` all look like facts and are all wrong the
-  moment `SimAltitude` shifts the floor. Anything that TRANSLATES a coordinate goes through
-  `PuzzleCoords`/`RouteCoords`; anything that COMPARES one adds `DungeonLayout.simYOffset()`. Better still, take
-  the height from the solver's own output (`path.get(0).y`) so there is no second expression to keep in step.
-  Five of these were found in one sweep in October 2026, one per auto, each failing silently.
-- **To make the sim satisfy a solver, read the solver's SCAN, not just its coordinates.** Getting the position
-  right is half of it. `BlazeSolverFeature` skips anything that is not an `ArmorStand`, so a name set on the blaze
-  itself was invisible; `TicTacToeSolverFeature` reads map ITEM FRAMES at the cell, so a mark painted on the wall
-  behind the button was invisible; `BeamsSolverFeature` reads prismarine as "burned on the wrong partner", so the
-  sim marking a held lantern that way turned a correct shot red; `TeleportMazeSolverFeature` only accepts a
-  teleport that lands on a half block. In every case the sim was placing the right thing somewhere the solver
-  never looks, or the wrong thing where it does.
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** Method names and some
   block/sound constants differ between 26.1.2 and 26.2 (`snapTo` not `moveTo`, `McBlocks.RED_WOOL`, holder vs plain
   `SoundEvent`); copy the shape of an existing use. Examples, and the cloud-session `javac` filter that catches
@@ -235,7 +245,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   feature is often ticked from a lambda in another class entirely (`CheatUtils` ticks Secret Aura, Auto Ult and
   Chocolate Factory; `PathfindingFeature` ticks the soul runner and pearl hopper). A per-file grep missed seven
   of them and the gap only surfaced as `Post` violations in a later test.
-- Reach must be measured to the block's **box**, not its centre — the centre reads up to half a block
+- Reach must be measured to the block's **box**, not its center — the center reads up to half a block
   further and makes a module look out of range when it is not.
 - **A throw in a RAW chat listener disconnects him from Hypixel.** `ClientReceiveMessageEvents` runs on the
   packet path, and `ClientCommonPacketListenerImpl.onPacketError` logs "Failed to handle packet, disconnecting"
@@ -271,7 +281,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   the same shape: the Wither Key line was anchored and the Blood Key line beside it left on `contains()`;
   `Floor7Tracker` and `LeverAura` got the `[A-Za-z0-9_]{1,16}` name group and `Ap3Feature`'s copy of the same
   line kept `(.{1,16})`; three reach CONSTANTS were tightened to 4.5/3.0 and the MEASURES under them left on
-  centre/feet (the javadoc describing the fault sat directly above the code still doing it); the cooldown
+  center/feet (the javadoc describing the fault sat directly above the code still doing it); the cooldown
   setter above. When fixing one instance, grep the sibling call sites and fix the set, and update the comment
   that claims they match - two of these said "the same regex as X" after they had stopped being that.
 - `RouteExecutor.stop()` is already a real cancel - it drops the step machine, `releaseKeys()` zeroes the
@@ -280,7 +290,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   START and ABORT in the same tick, so nothing is left open server-side either. What it does NOT clear is
   `stoppedByUser`/`justFinished`, and both make `AutoRoutesFeature` latch instead of arming *while the player
   stands inside a node* - which is exactly where a map warp puts him. Clear them whenever something other than
-  the player cancels a route. Anything that fires a node on its own (the breaker re-fire) must honour `stoppedByUser`
+  the player cancels a route. Anything that fires a node on its own (the breaker re-fire) must honor `stoppedByUser`
   too: counting it as a mere latch restarted a breaker the tick after his strafe stopped it (96-ar-breakerwait, 2026-10-12).
 - A movement key held when an Auto Routes node fires is the walk that got him there, not a takeover. The input
   mixin used to return before installing the route's input whenever any movement key was down, so walking onto
@@ -288,16 +298,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   first tick) - traced in the code 2026-10-04. `RouteExecutor.onInputTick` now overrides keys held since the route took over and treats only a
   press after a release as "you moved" - AP3's align rule. (His sim etherwarps not firing was a different cause - the
   sim ignored raw use packets - and is fixed by the rule below, not by a branch.)
-- **The sim emulates Hypixel's SERVER; client features never special-case it.** Abilities in `roomsim` answer the
-  use / use-on / START_DESTROY_BLOCK packets on the integrated server (Fabric's common `UseItemCallback`,
-  `UseBlockCallback`, `AttackBlockCallback`, whose server copies fire for the `ServerPlayer`), from the server
-  player's position, packet rotation, sneak and held item, and teleport with a real position packet. Until
-  2026-10-04 they reacted to the client's `gameMode` calls instead, and `RouteExecutor`/`ClearExecutor` grew sim
-  branches to cope - the opposite of why the sim exists. If a feature behaves differently in the sim, fix the sim.
-  The same goes for a puzzle's JUDGE: Ice Fill read `client.player` once a client tick and missed a tile whenever two
-  teleports reached the client between ticks (2026-10-05); it now judges on the server, every landing.
-  So did the mimic: its chest click was the CLIENT's callback queueing the spawn, and Secret Aura's click plus Kill Mimic's
-  Hyperion could reach the server first (2026-10-11, 96-ar-644). A chest now counts only when the server accepts the click (in reach).
 - Agent worktrees are cut from `main`, not from the branch checked out here. On 2026-10-04 six were started
   while work sat on a feature branch 26 commits ahead of `main`, and every one began on stale code. Get the
   work onto `main` (or tell each agent its base) before fanning out.
@@ -308,6 +308,13 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   client state goes to the render thread (fixed 2026-10-05, 3f3fa8ad). But a `client.execute` task from DISCONNECT can be
   DROPPED: a pause-menu leave closes the channel, then `Minecraft.disconnect` begins with `dropAllTasks()` (javap 26.1.2).
   SimWorld leaves a flag its END_CLIENT_TICK drains (5a1afa62; 97-sim-leave-build lost 5 of 5 resets to the task alone).
+- A spelling sweep can merge map keys: six British/American tooltip key pairs ("color", "border color", ...) became one key
+  each and the later entry silently replaced the earlier (a92e0357). After renaming text, check keyed maps for duplicates.
+- Merging branches that each edit `docs/FEATURES.md` left 11 features listed twice, each copy holding a change the other
+  lacked (2026-10-24, fixed in 8dcac505). After such a merge, check FEATURES.md for a feature named twice before the Doc regen.
+- Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
+  (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
+  and import keeps the locked update and sharing keys (testkit 981).
 - A Fabric event's first non-PASS listener wins. `/ar edit db`'s right clicks lost to the sim's ability hook (a held
   Superboom detonated, no block picked) until its `UseBlockCallback` moved to a phase ordered before the default. The sim's
   client-side essence listener lost the same way with any ability item held, so Secret Aura never collected essences
