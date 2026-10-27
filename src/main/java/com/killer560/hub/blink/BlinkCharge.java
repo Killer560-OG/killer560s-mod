@@ -1025,6 +1025,13 @@ public final class BlinkCharge {
         }
         handedBackCap = ownerCap;
         owner = null;
+        if (inShotLoop) {
+            // Inside a shot the bank is in the shot: what it does not fire is re-banked when it ends (AP3's stop ends it
+            // at the next shot tick), and that is the bank kept.
+            BlinkLog.event("charge handed back to the Charge key by %s (%s) inside a shot: the ticks it does not fire stay "
+                    + "banked (cap %d)", who, why, handedBackCap);
+            return;
+        }
         BlinkLog.event("charge handed back to the Charge key by %s (%s): bank kept (%d of %d)", who, why, banked,
                 handedBackCap);
     }
