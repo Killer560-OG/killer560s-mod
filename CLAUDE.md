@@ -318,3 +318,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Blink's keys are read under a container menu (a terminal) since 2026-10-26; before, opening one mid-hold read as the
   key coming up and released the hold. Rework Grim findings (banked turns, Post on dropped releases, the in-place
   teleport conflict) are in docs/LESSONS-AUTOMATION.md, Blink section.
+- Blink logs every event as one `[Blink]` INFO line through `blink/BlinkLog` (logger `killer560smod-blink`, last 40 kept
+  for `/blink debug`). A release jar (`-Prelease=true`, the GitHub builds) drops INFO, so that logger is
+  `ModLog.keptWhen(...)`: it logs in a release only while Blink's Debug Log setting is on (testkit 1026-blink-release-log).
+  His own jars (deploy-to-instances.py, built without -Prelease) always log. Stress-pass lessons (burst skipping Charge,
+  settling after a teleport, latches across a rejoin): docs/LESSONS-AUTOMATION.md, Blink section.

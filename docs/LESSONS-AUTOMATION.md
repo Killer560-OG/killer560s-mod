@@ -885,3 +885,23 @@ and AOTV) and the `[AutoClear] room time:` / `trip time:` lines (`autoclear/Room
   hold the click goes out live but the input change (stopping the sneak) is held, so stop sneaking before the hold.
 - Testkit: a Session class (`62-argrim-session`) runs only if a -Scenario part contains the session's own name; run
   single cases with `-Scenario '62-argrim-session+,<case>,<case>'`.
+- Stress pass (blink-stress, 2026-10-26, testkit 1026-blink-*, GrimAC 2.3.74, 26.1.2 and 26.2): every Hold Ticks and Charge
+  Ticks 1-20 (both Charge modes), key mashing, both keys at once, switching off mid-hold/charge/armed, chest/chat/pause/
+  inventory screens, ice, soul sand, slabs, stairs, water, ladders, cobwebs, sneaking, edges, walls, Speed/Slowness/Jump
+  Boost, pearls, AOTV, Hyperion, chained etherwarps, LCEW+ZPEW, eating, bow, place/dig/lever/chest, death, leave/kick and
+  rejoin, dimension change, 0-300 ms, a 2.5 s frozen client, 250 back-to-back holds, 120 shots, 10 minutes charging: all
+  clean once the fixes below went in.
+- A released hold went back through Charge's send hook when Charge was on (holding off = Charge's turn), so its tick-ends
+  could be banked and their moves dropped, and its ping answers queued behind newer traffic. The burst is sent by one
+  thread with a marker that skips Charge (`BlinkFeature.releasingThread`). Likewise a banked turn's owed look must ride the
+  next move whether or not a hold is on (`BlinkCharge.carryOwedLook`, called first in `BlinkFeature.onSend`).
+- A Charge shot fired the moment the bank refilled after a moving teleport (~1.04 s after the confirm) drew Simulation
+  0.10 decaying over 8 ticks (ground friction) and was set back; 60 ticks later it was clean, and a tp right after a shot is
+  clean. Banking now waits the answer delay + 150 ms after a moving confirm. Answering pings live for 250 ms after the
+  confirm instead did not fix it and drew Timer on back-to-back warps (reverted, 0c634e76).
+- The harness's two-way LagSpike (1.5 s) draws GrimAC TimerLimit with Blink OFF (8 flags, 1026-blink-controls); with a hold
+  14, while charging 29 and the next shot is set back. A frozen client (render thread asleep 2.5 s) is clean in all cases.
+- A Hold key down when the world goes (leave, kick, death screen) must latch: the no-world tick path reset `keyWasDown`
+  and the latch, so a rejoin with the key still down started a hold during the join (1026-blink-disconnect).
+- A setback right after a shot is told from a warp by where it puts him: back within 0.75 of the shot's start is "SHOT SET
+  BACK" (logged and reported); the watch is cleared on a world change, or the next world's join position reads as one.
