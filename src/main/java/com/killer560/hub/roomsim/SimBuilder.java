@@ -622,6 +622,8 @@ public final class SimBuilder {
                 if (m > 0) {
                     ModChat.send("Sim", ModChat.dim(m + " cell(s) had no captured room: " + names));
                 }
+                // The run starts by itself: three seconds in the entrance with the gate shut, then GO.
+                SimRun.autoStart(client);
                 });
             });
             LOGGER.info("Sim build: {} room(s) queued, {} cells missing a room", roomCount, m);
