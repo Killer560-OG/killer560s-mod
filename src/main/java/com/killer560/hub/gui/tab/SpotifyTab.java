@@ -176,7 +176,12 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
                     tag().setLyricsOverHead(!tag().isLyricsOverHead());
                     tag().save();
                     btn.setMessage(onOff("My Lyrics In F5", tag().isLyricsOverHead()));
-                }).bounds(contentX, y, contentWidth, 20).build());
+                }).bounds(contentX, y, half, 20).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Highlight Word In F5", tag().isHighlightWordInF5()), btn -> {
+                    tag().setHighlightWordInF5(!tag().isHighlightWordInF5());
+                    tag().save();
+                    btn.setMessage(onOff("Highlight Word In F5", tag().isHighlightWordInF5()));
+                }).bounds(contentX + half + 8, y, half, 20).build());
         y += 24;
 
         return widgets;

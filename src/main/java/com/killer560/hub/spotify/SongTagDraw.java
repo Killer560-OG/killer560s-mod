@@ -5,7 +5,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
@@ -61,21 +60,62 @@ public final class SongTagDraw {
         if (!snap.hasTrack() || snap.lines().isEmpty()) {
             return null;
         }
-        int idx = snap.lineAt(snap.elapsedSeconds(System.currentTimeMillis()));
+        double elapsed = snap.elapsedSeconds(SpotifyLyricsFeature.nowMs());
+        int idx = snap.lineAt(elapsed);
         if (idx < 0) {
             return null;
         }
-        if (snap.lines() != lyricLines || idx != lyricIndex) {
+        boolean paused = snap.kind() == NowPlaying.Kind.PAUSED;
+        // Highlight Word In F5: the same word and the same colors as the HUD (SpotifyHud.sungWord / wordColor).
+        int sung = SongShareConfig.getInstance().isHighlightWordInF5() && !paused ? SpotifyHud.sungWord(snap, idx, elapsed) : -1;
+        com.killer560.hub.gui.OverlayPalette p = com.killer560.hub.gui.OverlayThemes.menu();
+        int c0 = p.text();
+        int c1 = p.textHover();
+        int c2 = p.accentHover();
+        int c3 = p.faint();
+        // Rebuilt only when the line, the lit word, the pause or the theme changes: a frame normally allocates nothing.
+        if (snap.lines() != lyricLines || idx != lyricIndex || sung != lyricSung || paused != lyricPaused
+                || c0 != lyricC0 || c1 != lyricC1 || c2 != lyricC2 || c3 != lyricC3) {
             lyricLines = snap.lines();
             lyricIndex = idx;
-            String text = snap.lines().get(idx).text().replace('\u00a7', '?').strip();
-            if (text.codePointCount(0, text.length()) > LYRIC_MAX) {
-                text = text.substring(0, text.offsetByCodePoints(0, LYRIC_MAX - 1)).stripTrailing() + "\u2026";
-            }
-            lyricTag = text.isEmpty() ? null : Component.literal("\u266b " + text).withStyle(ChatFormatting.WHITE);
+            lyricSung = sung;
+            lyricPaused = paused;
+            lyricC0 = c0;
+            lyricC1 = c1;
+            lyricC2 = c2;
+            lyricC3 = c3;
+            lyricTag = buildLyric(snap.lines().get(idx), sung, paused, p);
             lastOwnLyric = lyricTag == null ? "" : lyricTag.getString();
+            lastF5Word = sung;
+            lyricBuilds++;
         }
         return lyricTag;
+    }
+
+    /** The F5 line: "♫ " and the line's words, each in the HUD's color for it; the lit word also underlined, as the HUD's
+     *  chip is. Cut after {@link #LYRIC_MAX} characters. */
+    private static Component buildLyric(LyricsEngine.LyricLine line, int sung, boolean paused,
+                                        com.killer560.hub.gui.OverlayPalette p) {
+        java.util.List<String> words = line.parsed().words();
+        if (words.isEmpty()) {
+            return null;
+        }
+        net.minecraft.network.chat.MutableComponent out = Component.literal("\u266b ")
+                .withStyle(s -> s.withColor(SpotifyHud.wordColor(p, -1, -1, paused) & 0xFFFFFF));
+        int used = 2;
+        for (int i = 0; i < words.size(); i++) {
+            String word = words.get(i).replace('\u00a7', '?');
+            if (used + word.length() > LYRIC_MAX) {
+                out.append(Component.literal("\u2026").withStyle(s -> s.withColor(p.faint() & 0xFFFFFF)));
+                break;
+            }
+            final int colour = SpotifyHud.wordColor(p, i, sung, paused) & 0xFFFFFF;
+            final boolean lit = i == sung;
+            out.append(Component.literal(i + 1 < words.size() ? word + " " : word)
+                    .withStyle(s -> s.withColor(colour).withUnderlined(lit)));
+            used += word.length() + 1;
+        }
+        return out;
     }
 
     /** A lyric line longer than this is cut, so the line over your head stays a sensible width. */
@@ -83,7 +123,16 @@ public final class SongTagDraw {
     // Render thread only.
     private static java.util.List<LyricsEngine.LyricLine> lyricLines;
     private static int lyricIndex = -1;
+    private static int lyricSung = -2;
+    private static boolean lyricPaused;
+    private static int lyricC0;
+    private static int lyricC1;
+    private static int lyricC2;
+    private static int lyricC3;
     private static Component lyricTag;
+    // Test hooks: the word the F5 line lit when last built (-1 = none) and how many times it was built.
+    private static volatile int lastF5Word = -1;
+    private static volatile long lyricBuilds;
 
     /**
      * Whether your own player has a line to draw above its name this frame (your song with Share My Song on, or your

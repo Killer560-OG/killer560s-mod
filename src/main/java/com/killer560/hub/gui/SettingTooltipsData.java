@@ -352,6 +352,7 @@ final class SettingTooltipsData {
         d.put("share my song", "Shows the song you play on Spotify as a line above your name to the other mod users in your relay room (your party, or your lobby with Mod Chat in Lobby mode). Supporters only: grayed out for everyone else, and nothing is ever sent from a non-supporter. Only while Show Me As A Mod User is on. You see your own line above your name in F5. Song name only; hidden while paused or on an ad. Spotify's private session cannot be seen, so this switch is the only control. Off by default.");
         d.put("spotify lyrics/smooth lyric scroll", "Slides the Spotify HUD's lyric rows up when a line ends, instead of jumping. On by default.");
         d.put("spotify lyrics/my lyrics in f5", "Shows the lyric line being sung above your own head in third person (F5), with your name under it. Only you see it; nothing is sent. Works for everyone. Off by default.");
+        d.put("spotify lyrics/highlight word in f5", "Lights up the word being sung in your F5 lyric line, the same word and colors as the Spotify HUD's Word Highlight. On by default.");
         d.put("spotify lyrics/previous", "Goes back a song in the Spotify desktop app (or to the start of this one, as Spotify's own back button does).");
         d.put("spotify lyrics/play/pause", "Pauses or resumes the Spotify desktop app on this PC. No login or Premium needed.");
         d.put("spotify lyrics/next", "Skips to the next song in the Spotify desktop app.");

@@ -30,6 +30,11 @@ public final class SongShareConfig {
      * sent. Off by default, because turning it on starts the Spotify reader and the lyric lookups.
      */
     private volatile boolean lyricsOverHead = false;
+    /**
+     * Highlight Word In F5 (killer560, 2026-10-26: "have an option to highlight the word just like the hud as well"): the
+     * F5 lyric line lights the word being sung exactly as the HUD does. On by default, as the HUD's Word Highlight is.
+     */
+    private volatile boolean highlightWordInF5 = true;
 
     private SongShareConfig() {
     }
@@ -51,6 +56,7 @@ public final class SongShareConfig {
                 cfg.shareSong = ConfigJson.getBool(obj, "shareSong", false);
                 cfg.showOthers = ConfigJson.getBool(obj, "showOthers", false);
                 cfg.lyricsOverHead = ConfigJson.getBool(obj, "lyricsOverHead", false);
+                cfg.highlightWordInF5 = ConfigJson.getBool(obj, "highlightWordInF5", true);
             } catch (Exception ignored) {
                 // a broken file loads as the defaults
             }
@@ -65,6 +71,7 @@ public final class SongShareConfig {
             obj.addProperty("shareSong", shareSong);
             obj.addProperty("showOthers", showOthers);
             obj.addProperty("lyricsOverHead", lyricsOverHead);
+            obj.addProperty("highlightWordInF5", highlightWordInF5);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -92,5 +99,13 @@ public final class SongShareConfig {
 
     public void setLyricsOverHead(boolean lyricsOverHead) {
         this.lyricsOverHead = lyricsOverHead;
+    }
+
+    public boolean isHighlightWordInF5() {
+        return highlightWordInF5;
+    }
+
+    public void setHighlightWordInF5(boolean highlightWordInF5) {
+        this.highlightWordInF5 = highlightWordInF5;
     }
 }

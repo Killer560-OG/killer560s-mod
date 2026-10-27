@@ -285,6 +285,15 @@ public final class SpotifyLyricsFeature {
         return s;
     }
 
+    /** Test hook: a frozen wall time for the HUD and the F5 lyric (0 = the real clock). */
+    static volatile long testNowMs;
+
+    /** The wall time the HUD and the F5 lyric line run the lyric clock at; one source so they always agree. */
+    public static long nowMs() {
+        long t = testNowMs;
+        return t > 0 ? t : System.currentTimeMillis();
+    }
+
     /** Test hook: what {@link #snapshot()} answers instead of the engine's (null = the engine's). */
     static volatile LyricsEngine.Snapshot testSnapshot;
 
