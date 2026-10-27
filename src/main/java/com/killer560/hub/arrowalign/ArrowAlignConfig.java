@@ -75,6 +75,8 @@ public final class ArrowAlignConfig {
     private boolean auraLeaveLastArrow = true;
     private boolean leaveLastArrowDisableWhileCrouching = true;
     private int auraClicksPerTick = 1;
+    /** Turn the body to a frame and click it in the same tick (aafast-1027); off = turn one tick, click the next. */
+    private boolean auraSameTickTurn = false;
     private boolean auraEnabled = false;
     private int auraCps = DEFAULT_AURA_CPS;
     private double auraRange = MAX_AURA_RANGE;
@@ -131,6 +133,7 @@ public final class ArrowAlignConfig {
             cfg.auraLeaveLastArrow = ConfigJson.getBool(obj, "auraLeaveLastArrow", true);
             cfg.leaveLastArrowDisableWhileCrouching = ConfigJson.getBool(obj, "leaveLastArrowDisableWhileCrouching", true);
             cfg.setAuraClicksPerTick(ConfigJson.getInt(obj, "auraClicksPerTick", 1));
+            cfg.auraSameTickTurn = ConfigJson.getBool(obj, "auraSameTickTurn", false);
             cfg.auraEnabled = ConfigJson.getBool(obj, "auraEnabled", false);
             if (obj.has("auraCps")) {
                 cfg.setAuraCps(ConfigJson.getInt(obj, "auraCps", DEFAULT_AURA_CPS));
@@ -166,6 +169,7 @@ public final class ArrowAlignConfig {
             obj.addProperty("auraLeaveLastArrow", auraLeaveLastArrow);
             obj.addProperty("leaveLastArrowDisableWhileCrouching", leaveLastArrowDisableWhileCrouching);
             obj.addProperty("auraClicksPerTick", auraClicksPerTick);
+            obj.addProperty("auraSameTickTurn", auraSameTickTurn);
             obj.addProperty("auraEnabled", auraEnabled);
             obj.addProperty("auraCps", auraCps);
             obj.addProperty("auraRange", auraRange);
@@ -298,13 +302,34 @@ public final class ArrowAlignConfig {
         this.auraDisableWhileCrouching = v;
     }
 
-    /** Aura clicks on one frame within a single tick, 1-4 (1 = the normal one interaction per tick). */
+    /** The most Aura Clicks Per Tick: 7 is every click a frame can need (8 rotations), so a frame always goes in one tick. */
+    public static final int MAX_AURA_CLICKS_PER_TICK = 7;
+
+    /**
+     * Aura clicks on one frame within a single tick, 1-7 (1 = the normal one interaction per tick). All on ONE frame: GrimAC
+     * MultiInteractA flags a second entity interacted with before the next tick packet (aafast-1027), so it is never
+     * spread over frames. Was 1-4 until aafast-1027.
+     */
     public int getAuraClicksPerTick() {
         return auraClicksPerTick;
     }
 
     public void setAuraClicksPerTick(int n) {
-        this.auraClicksPerTick = Math.max(1, Math.min(4, n));
+        this.auraClicksPerTick = Math.max(1, Math.min(MAX_AURA_CLICKS_PER_TICK, n));
+    }
+
+    /**
+     * Turn And Click Same Tick (aafast-1027): the body turns to a frame off the look and the click goes out in the same
+     * START_CLIENT_TICK, before that tick's movement packet carries the turn. GrimAC 2.3.74 judges an entity interact when
+     * the NEXT tick packet arrives, against that packet's look (Reach.tickBetterReachCheckWithAngle, javap), so it is
+     * clean; a frame then costs one tick instead of two. Off (the default) keeps turn one tick, click the next.
+     */
+    public boolean isAuraSameTickTurn() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && auraSameTickTurn;
+    }
+
+    public void setAuraSameTickTurn(boolean v) {
+        this.auraSameTickTurn = v;
     }
 
     public boolean isAuraLeaveLastArrow() {

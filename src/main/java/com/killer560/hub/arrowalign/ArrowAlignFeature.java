@@ -418,12 +418,13 @@ public final class ArrowAlignFeature {
      *  ({@code gameMode.interact(player, entity, hitResult, hand)} - sends the interact packet with the hit location
      *  relative to the entity). Callers must already be behind a cheat-gated config getter. */
     private static boolean sendClick(Minecraft client, int index, long now) {
-        return sendClick(client, index, now, true);
+        return sendClick(client, index, now, true, false);
     }
 
     /** {@code claimGate} false is the Aura's extra clicks in the same tick (Clicks Per Tick above 1): the first click of
-     *  the tick already took the ActionGate claim. */
-    private static boolean sendClick(Minecraft client, int index, long now, boolean claimGate) {
+     *  the tick already took the ActionGate claim. {@code sameTickTurn}: a frame off the look is turned to AND clicked
+     *  this tick (the Aura's Turn And Click Same Tick), instead of turned now and clicked next tick. */
+    private static boolean sendClick(Minecraft client, int index, long now, boolean claimGate, boolean sameTickTurn) {
         sendClickTurned = false;
         ItemFrame frame = frames[index];
         if (frame == null || frame.isRemoved() || client.player == null || client.gameMode == null) {
@@ -460,7 +461,13 @@ public final class ArrowAlignFeature {
         // Aura picks frames by range in any direction: one the reported look does not reach gets the BODY turned to it
         // this tick and is clicked on the next, the camera held (util/TurnFirst) - an interact the look misses is
         // GrimAC Hitboxes (testkit 415/418). False is the callers' "retry".
-        if (!TURN.readyBox(client.player, box, hit, eye.distanceTo(hit) + 1.0)) {
+        double turnReach = eye.distanceTo(hit) + 1.0;
+        if (!TURN.readyBox(client.player, box, hit, turnReach)
+                // Turn And Click Same Tick (aafast-1027): the turn just written goes out in THIS tick's movement packet,
+                // after this interact. GrimAC 2.3.74 queues an entity interact and judges it when the next tick packet
+                // arrives, against that packet's look (Reach: playerAttackQueue, tickBetterReachCheckWithAngle, javap), so
+                // the turned look is the one it is judged by. Asking again clears TurnFirst's pending wait (it hits now).
+                && !(sameTickTurn && TURN.isTurned() && TURN.readyBox(client.player, box, hit, turnReach))) {
             sendClickTurned = true;
             LOGGER.info("[ArrowAlign] turning body to frame {} first (reported look does not reach it) tick={}", index,
                     com.killer560.hub.util.ActionGate.currentTick());
@@ -602,7 +609,7 @@ public final class ArrowAlignFeature {
             auraTurnStartTick = -1L;
             return;
         }
-        if (!sendClick(client, target, now)) {
+        if (!sendClick(client, target, now, true, cfg.isAuraSameTickTurn())) {
             // Gate held this tick back - the rolled delay must not be re-rolled for a click never sent. A tick spent
             // turning the body to the frame is remembered: the click is scheduled from it, below.
             if (sendClickTurned && auraTurnStartTick < 0) {
@@ -612,7 +619,7 @@ public final class ArrowAlignFeature {
         }
         lastAuraIndex = target;
         for (int extra = 1; extra < cfg.getAuraClicksPerTick() && auraClicksLeft(target) > 0; extra++) {
-            if (!sendClick(client, target, now, false)) {
+            if (!sendClick(client, target, now, false, false)) {
                 break;
             }
         }
