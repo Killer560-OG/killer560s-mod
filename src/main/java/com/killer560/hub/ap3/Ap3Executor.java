@@ -400,6 +400,7 @@ public final class Ap3Executor {
         releaseResumeBy = -1L;
         blinkFreezeNext = false;
         blinkHoldPaused = false;
+        releaseWaiting = false;
         // A charge AP3's Blink nodes started survives AP3 stopping (a leap, a death, a screen, his movement): it is handed
         // back to his Charge key with its bank, so a later Blink Release node, his key, or Charge switching off releases it
         // (killer560 2026-10-27: "the blink should always be saved through leaps"). Only switching AP3 off ends it.
@@ -4345,6 +4346,22 @@ public final class Ap3Executor {
         if (step == Step.PREP && stepTicks == 1) {
             blinkWaitSaid = false;
         }
+        if (releaseWaiting) {
+            // The release waits for GrimAC to cover the kept bank (after a leap / teleport, campaign-blink-1027): he stands
+            // on the node; the tick the bank is covered the node finishes, the next node's walk goes in, and the shot fires
+            // along it at the next tick start.
+            if (com.killer560.hub.blink.BlinkCharge.shotCovered() || !com.killer560.hub.blink.BlinkCharge.shotPending()) {
+                releaseWaiting = false;
+                blinkHoldPaused = false;
+                LOGGER.info("[AP3] blinkrelease #{}: the bank is covered after {} tick(s) on the node - the shot fires now",
+                        number(node), stepTicks);
+                finishNode();
+                return;
+            }
+            blinkHoldPaused = true;
+            clearMovement();
+            return;
+        }
         if (!blinkReady(node)) {
             step = Step.PREP;
             return;
@@ -4379,9 +4396,21 @@ public final class Ap3Executor {
             releaseFired = 0;
             releaseResumeBy = -1L;
             releaseWatchFrom = blinkReleaseFrom;
+            if (k > 0 && !com.killer560.hub.blink.BlinkCharge.shotCovered()) {
+                // The shot will wait for cover at the next tick start (BlinkCharge.shoot): hold here meanwhile.
+                releaseWaiting = true;
+                blinkHoldPaused = true;
+                clearMovement();
+                LOGGER.info("[AP3] blinkrelease #{}: the kept bank is not covered yet (a teleport just now) - he holds on the "
+                        + "node until it is, then the shot fires", number(node));
+                return;
+            }
             finishNode();
         }
     }
+
+    /** A Blink Release node's shot waits for cover: he holds on the node. */
+    private static boolean releaseWaiting;
 
     // ---- a release's shot, watched from AP3's tick (2026-10-27) -----------------------------------------------
     //
@@ -5100,7 +5129,8 @@ public final class Ap3Executor {
         if (driving || holdDir == null) {
             return;
         }
-        if (blinkHoldPaused && activeNode != null && activeNode.type == Ap3Node.Type.BLINK_CHARGE) {
+        if (blinkHoldPaused && activeNode != null && (activeNode.type == Ap3Node.Type.BLINK_CHARGE
+                || activeNode.type == Ap3Node.Type.BLINK_RELEASE)) {
             clearMovement(); // a momentum-keeping charge waiting for Blink to bank: brake, the walk resumes after
             return;
         }
