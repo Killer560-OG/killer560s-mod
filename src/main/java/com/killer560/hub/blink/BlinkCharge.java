@@ -410,8 +410,12 @@ public final class BlinkCharge {
                     teleportMoveNext = false;
                 }
                 if (packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket) {
-                    if (!teleportInPlace) {
+                    if (teleportInPlace) {
+                        inPlaceTeleports++;
+                    } else {
                         movingTeleports++;
+                    }
+                    {
                         Answer mark = answers.peekLast();
                         if (mark != null && mark != tpSegs.peekLast().mark()) {
                             // Another moving teleport: its confirm goes right behind ITS ping's answer.
@@ -421,8 +425,6 @@ public final class BlinkCharge {
                             tpHolds++;
                             return true;
                         }
-                    } else {
-                        inPlaceTeleports++;
                     }
                 }
                 tpSegs.peekLast().packets().addLast(h);
@@ -530,7 +532,7 @@ public final class BlinkCharge {
             } else if (accept) {
                 movingTeleports++;
             }
-            if (accept && !teleportInPlace) {
+            if (accept) {
                 // The confirm and everything after it wait for the answer to the ping GrimAC sent with this teleport
                 // (campaign-blink-1027). Sent at once, the confirm reached GrimAC before that answer, so GrimAC never took
                 // it as the teleport: Simulation (the teleport's distance), GroundSpoof, TickTimer, AimDuplicateLook, and
@@ -547,8 +549,9 @@ public final class BlinkCharge {
                     tpHeldTotal++;
                     tpSegs.addLast(new TpSeg(mark, q, System.currentTimeMillis()));
                     tpHolds++;
-                    BlinkLog.event("charge: moving teleport confirmed - bank kept (%d); the confirm and what follows wait "
-                            + "behind the answer to its ping (%d answer(s) to go first)", banked, answers.size());
+                    BlinkLog.event("charge: %s teleport confirmed - bank kept (%d); the confirm and what follows wait "
+                            + "behind the answer to its ping (%d answer(s) to go first)", teleportInPlace ? "in-place" : "moving",
+                            banked, answers.size());
                     return true;
                 }
             }
