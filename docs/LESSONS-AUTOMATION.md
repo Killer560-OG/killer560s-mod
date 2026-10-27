@@ -56,6 +56,13 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   START_CLIENT_TICK and a slow tick opened the gap (63-ap3-block-*); its USE / BLOCK / BOOM go out at the head of
   `sendPosition` (`Ap3Executor.beforeSendPosition`). Any snap-aimed place should go out there; testkit
   1018-ap3-block-slow-tick proves it (START-sent: flagged 2 of 2; sendPosition-sent: clean).
+  The 15 ms is SERVER time between the two reads, and it includes the server's own processing of the place: a freshly
+  started test server took 16-162 ms over its first place under load (testkit `[testkit-gap]` probe, 2026-10-27), so the
+  63-ap3 session's first AP3 place flagged on every jar until the session warmed the path with plain places first. Since
+  ap3-blockuse-1027 the act's packets are written unflushed (`mixin/Ap3SendTogetherMixin`) and leave in ONE write with the
+  movement packet, so no network or wakeup split can come between them (warm gaps 0 ms against 0-2 before). What no
+  client can prevent is a slow server; only a look already sent in the packet BEFORE the place survives that, at the cost
+  of one tick.
 - **Never release a `ViewFreeze` hold you did not take.** It is one global lease; a second owner releasing it drops the
   camera onto a body another auto is still turning (93-solve-blazemiss-lower, -boulder-aura). `ViewFreeze.holdCount()` says
   whether anybody else held it since you did.
