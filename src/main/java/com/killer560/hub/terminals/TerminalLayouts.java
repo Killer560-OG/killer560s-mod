@@ -51,7 +51,6 @@ public final class TerminalLayouts {
 
     private static int seenMelodyRows = -1;
     private static int seenNumbersCount = -1;
-    private static int seenSimonRounds = -1;
 
     private TerminalLayouts() {
     }
@@ -123,24 +122,56 @@ public final class TerminalLayouts {
 
     // ------------------------------------------------------------------ Simon Says
 
-    /** Records how many rounds the Simon Says device was seen to have: 5 when a fifth step was revealed, 4 when the
-     *  device completed right after its fourth round. */
+    // The Simon Says round count is remembered PER SERVER (2026-10-27): p3sim.net still runs the old 5-round device
+    // while Hypixel runs the 4-round one, and one session-wide value let a p3sim device teach "5" to the Hypixel devices
+    // after it (whose round 4 then never counted as the end) and started every p3sim session planning 4.
+    private static final java.util.Map<String, Integer> seenSimonRoundsByServer = new java.util.HashMap<>();
+
+    /** Servers known to run the OLD device, used before a device there has shown its count. p3sim.net: every device
+     *  in killer560's Mod Only Test logs of 2026-10-22 and 2026-10-27 revealed a fifth round. A device that shows
+     *  otherwise overrides this at once (noteSimonRounds). */
+    private static int knownSimonRounds(String server) {
+        return server.contains("p3sim") ? OLD_SIMON_ROUNDS : -1;
+    }
+
+    private static String serverKey() {
+        try {
+            net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+            net.minecraft.client.multiplayer.ServerData server = client == null ? null : client.getCurrentServer();
+            return server != null && server.ip != null ? server.ip.toLowerCase(java.util.Locale.ROOT) : "local";
+        } catch (RuntimeException e) {
+            return "local";
+        }
+    }
+
+    /** Records how many rounds the Simon Says device on this server was seen to have: 5 when a fifth step was
+     *  revealed, 4 when the device completed right after its fourth round. */
     public static void noteSimonRounds(int rounds, String why) {
-        if (rounds <= 0 || rounds == seenSimonRounds) {
+        String server = serverKey();
+        Integer seen = seenSimonRoundsByServer.get(server);
+        if (rounds <= 0 || (seen != null && seen == rounds)) {
             return;
         }
-        LOGGER.info("[SimonSays] Device has {} rounds ({} layout): {}", rounds, describe(rounds, OLD_SIMON_ROUNDS, NEW_SIMON_ROUNDS), why);
-        seenSimonRounds = rounds;
+        LOGGER.info("[SimonSays] Device has {} rounds ({} layout) on {}: {}", rounds,
+                describe(rounds, OLD_SIMON_ROUNDS, NEW_SIMON_ROUNDS), server, why);
+        seenSimonRoundsByServer.put(server, rounds);
     }
 
-    /** @return true once a live device has shown its round count this session. */
+    /** @return true once a live device on this server has shown its round count this session. */
     public static boolean simonRoundsSeen() {
-        return seenSimonRounds > 0;
+        return seenSimonRoundsByServer.containsKey(serverKey());
     }
 
-    /** @return the Simon Says round count last seen live this session, else the assumed layout's. */
+    /** @return the Simon Says round count last seen live on this server this session, else what the server is known
+     *  to run, else the assumed layout's. */
     public static int simonRounds() {
-        return seenSimonRounds > 0 ? seenSimonRounds : ASSUME_NEW_LAYOUT ? NEW_SIMON_ROUNDS : OLD_SIMON_ROUNDS;
+        String server = serverKey();
+        Integer seen = seenSimonRoundsByServer.get(server);
+        if (seen != null) {
+            return seen;
+        }
+        int known = knownSimonRounds(server);
+        return known > 0 ? known : ASSUME_NEW_LAYOUT ? NEW_SIMON_ROUNDS : OLD_SIMON_ROUNDS;
     }
 
     /** Forgets every layout seen this session. Nothing in the mod calls it; the testkit runs old and new boards in
@@ -148,7 +179,7 @@ public final class TerminalLayouts {
     static void resetSeen() {
         seenMelodyRows = -1;
         seenNumbersCount = -1;
-        seenSimonRounds = -1;
+        seenSimonRoundsByServer.clear();
     }
 
     private static String describe(int n, int oldValue, int newValue) {

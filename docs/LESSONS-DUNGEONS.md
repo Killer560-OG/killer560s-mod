@@ -125,6 +125,19 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   order 10, Simon Says 4 rounds; `terminals/TerminalLayouts`). The old Melody code was row-generic only by accident
   (`MELODY_CLAY_SLOTS[r-1] == r*9+7` for rows 1-4), so a 3-row board still auto-clicked; what broke was indexing past
   the last row - Melody Keys' key 4 pressed slot 43, the bottom marker row (testkit 290 fails on main 5813cb91).
+- p3sim.net still runs the OLD 5-round Simon Says device (every device in his Mod Only Test logs of 2026-10-22 and
+  10-27 revealed a fifth round), Hypixel the 4-round one, and the mod's own dungeon sim builds no device at all (the
+  testkit's `hx/boss/HxSimonSays` is the only emulated one). A "sim" Simon Says report from him is p3sim: check the
+  log's "Connecting to" line. The round count is remembered per server (`TerminalLayouts`, p3sim known as 5 before its
+  first device), Auto Solve's click total is worked out at every click from the attempt's start round (a fifth round
+  found mid-attempt joins the plan), and a remembered 5 is still checked at round 4. Before 2026-10-27 the first p3sim
+  device of every session was planned as 4 rounds and ran about 3 s past the Target (14.7 and 14.9 s at 11.8), and a
+  p3sim session taught "5" to the Hypixel devices after it (round 4 never ended them; Auto Restart pressed start on a
+  finished device). Testkit 1027-ss-*.
+- Simon Says round transitions on Hypixel did not change with the 0.27.2 cut: a skip run's 2->3 plus 3->4 is about
+  4600 ms on the 4-round device (twelve runs, 2026-10-23), the old device's 2148 + 2398. The reserve table had them at
+  2000/2300; it is 2150/2450 now. The completion log line lists each transition ("transitions 2->3 2150, 3->4 2450"),
+  so re-measure from that line, not from the sum.
 - Tic Tac Toe's prediction skipped the computer's own square when testing "safe whatever it plays", so the square the
   computer was about to take always qualified and was what got shown. The prediction now takes every computer reply with
   its best outcome and shows his best move after them, never one of those squares (testkit 679, all 2,423 positions).

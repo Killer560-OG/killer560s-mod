@@ -234,7 +234,7 @@ final class SettingTooltipsData {
         d.put("3rd color", "Color of the highlight on every later button in the sequence.");
         d.put("dungeon/prevent misclicks", "Blocks clicks on the wrong Simon Says buttons; hold Shift to click anyway.");
         d.put("prevent misclicks", "Blocks clicks that would be wrong for the current puzzle.");
-        d.put("announce progress", "Sends 'SS n/5' in party chat after each Simon Says round ('n/4' on the 4-round device).");
+        d.put("announce progress", "Sends 'SS n/4' in party chat after each Simon Says round ('n/5' on a server still running the old 5-round device, such as p3sim).");
         d.put("party tracker", "Shows each teammate's Simon Says progress and ETA from party chat.");
         d.put("announce key", "Keybind that sends your reset message to party chat.");
         d.put("auto message", "Sends your reset message in party chat whenever the device resets.");
@@ -1967,7 +1967,7 @@ final class SettingTooltipsData {
         d.put("auto simon says/delay", "Cheat build: time between Auto Start clicks on the start button, 1-20 ticks.");
         d.put("auto simon says/clicks", "Cheat build: how many times (0-20) the start button is clicked; 0 turns clicking off.");
         d.put("auto simon says/stim", "Cheat build, Rotate mode: between rounds the aim retraces the newest buttons it just clicked, looking only, and ends on the round's first button.");
-        d.put("auto simon says/stim buttons", "Cheat build: how many of the round's newest buttons Stim retraces, 1 to 5.");
+        d.put("auto simon says/stim buttons", "Cheat build: how many of the round's newest buttons Stim retraces, 1 to 4.");
         d.put("auto simon says/momentum", "Cheat build, Rotate mode: how much speed the aim carries from one click into the next turn, 0 (off) to 100%.");
         d.put("slot binds/remove", "Deletes this slot bind pair. The items are not moved.");
         d.put("storage overlay/scale", "Resizes the whole storage overlay, grid and inventory panel together.");

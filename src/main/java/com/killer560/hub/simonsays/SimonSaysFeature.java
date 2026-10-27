@@ -212,15 +212,24 @@ public final class SimonSaysFeature {
     // 2599/2798ms) - the old values ran ~150-250ms short, which matters more now that the Timer Target
     // counts from the start-button click and leaves much less click budget to absorb the error. 1->2 has
     // no newer real sample (every recent run was a skip), kept as-is.
-    private static final long[] TRANSITION_OVERHEAD_MS = {1400L, 2000L, 2300L, 2700L};
+    // Re-measured for the 4-round device 2026-10-27 from his Hypixel log of 2026-10-23 (12 skip runs, "SS 2/4" first):
+    // 2->3 plus 3->4 came to 4351-4750 ms, median about 4600, the same as the old device's 2148 + 2398, so Hypixel's
+    // reveal pacing per round did not change with the round it removed. The table was 2000/2300 there (300 ms short of
+    // every device); it is 2150/2450 now. Index 3 (4->5) exists only on the old device, which p3sim.net still runs
+    // (P3SIM_TRANSITION_MS). On a 4-round device estimatedRemainingRevealMs reserves indices 0-2 only.
+    private static final long[] TRANSITION_OVERHEAD_MS = {1400L, 2150L, 2450L, 2800L};
+    // p3sim.net's transitions (its 5-round device): 1748/2151/2550 ms for 2->3, 3->4, 4->5 (2026-09-14 runs, see the
+    // learned-estimates comment below), about 400 ms quicker than Hypixel's each. Seeds that server's estimates so its
+    // first device of a session is planned on its own pace; 1->2 is not measured, kept at the table's value.
+    private static final long[] P3SIM_TRANSITION_MS = {1400L, 1750L, 2150L, 2550L};
     private static int currentRoundNumber = 1;
-    // The real total click count for the REST of this attempt - normally 15 (1+2+3+4+5), but a real "SS
-    // skip" can start the attempt after round 1 (killer560's own report: "it starts on 2/5 and never
-    // 1/5"), making the real total for that attempt smaller (e.g. 2+3+4+5=14 for a 1-round skip). Set
-    // once per attempt, the first time the real starting round is detected (see
-    // tickAutoSolveAndTriggerBot's own currentRoundNumber detection) - defaults to the normal full total
-    // until then.
-    private static int expectedTotalClicksThisAttempt = totalClicksFrom(1);
+    // The round this attempt started on - normally 1, but a real "SS skip" can start the attempt after round 1
+    // (killer560's own report: "it starts on 2/5 and never 1/5"). Set once per attempt, the first time the real
+    // starting round is detected (see tickAutoSolveAndTriggerBot's own currentRoundNumber detection). The attempt's
+    // click total is totalClicksFrom(attemptStartRound), worked out at every click (2026-10-27) rather than stored at
+    // the first: a device that turns out to have a fifth round mid-attempt (TerminalLayouts) then adds its 5 clicks to
+    // the plan instead of the planner believing the attempt was over.
+    private static int attemptStartRound = 1;
 
     /** Sum of {@link #TRANSITION_OVERHEAD_MS} for every round transition still ahead of the CURRENT
      *  round - e.g. round 1 (nothing completed yet) has all 4 ahead (~8.1s); round 4 (working on the
@@ -251,14 +260,18 @@ public final class SimonSaysFeature {
     private static double attemptRevealScale = 1.0;
     private static double attemptObservedTransitionMs = 0.0;
     private static double attemptExpectedTransitionMs = 0.0;
+    // This attempt's measured round transitions ("2->3 2148, 3->4 2398"), for the completion log line - the numbers the
+    // TRANSITION_OVERHEAD_MS table is re-measured from (2026-10-27: until then the log had only their sum).
+    private static final StringBuilder attemptTransitionsLog = new StringBuilder();
 
     private static double[] transitionEstimates() {
         Minecraft client = Minecraft.getInstance();
         String server = client.getCurrentServer() != null ? client.getCurrentServer().ip.toLowerCase(Locale.ROOT) : "local";
         return learnedTransitionMs.computeIfAbsent(server, key -> {
-            double[] initial = new double[TRANSITION_OVERHEAD_MS.length];
+            long[] seed = key.contains("p3sim") ? P3SIM_TRANSITION_MS : TRANSITION_OVERHEAD_MS;
+            double[] initial = new double[seed.length];
             for (int i = 0; i < initial.length; i++) {
-                initial[i] = TRANSITION_OVERHEAD_MS[i];
+                initial[i] = seed[i];
             }
             return initial;
         });
@@ -266,6 +279,8 @@ public final class SimonSaysFeature {
 
     /** A real round transition into round {@code nowOnRound} took {@code observedMs}. */
     private static void learnTransition(int nowOnRound, long observedMs) {
+        attemptTransitionsLog.append(attemptTransitionsLog.length() == 0 ? "" : ", ")
+                .append(nowOnRound - 1).append("->").append(nowOnRound).append(' ').append(observedMs);
         int index = nowOnRound - 2; // index 0 = round 1 -> 2
         double[] estimates = transitionEstimates();
         if (index < 0 || index >= estimates.length || observedMs <= 0 || observedMs > 10_000L) {
@@ -279,6 +294,7 @@ public final class SimonSaysFeature {
     }
 
     private static void resetRevealScale() {
+        attemptTransitionsLog.setLength(0);
         attemptRevealScale = 1.0;
         attemptObservedTransitionMs = 0.0;
         attemptExpectedTransitionMs = 0.0;
@@ -868,7 +884,7 @@ public final class SimonSaysFeature {
             wasBlockedByReveal = false;
             lastRoundCompletedAtMs = 0L;
             currentRoundNumber = 1;
-            expectedTotalClicksThisAttempt = totalClicksFrom(1);
+            attemptStartRound = 1;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             resetRevealScale();
@@ -1014,7 +1030,7 @@ public final class SimonSaysFeature {
             wasBlockedByReveal = false;
             lastRoundCompletedAtMs = 0L;
             currentRoundNumber = 1;
-            expectedTotalClicksThisAttempt = totalClicksFrom(1);
+            attemptStartRound = 1;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             resetRevealScale();
@@ -1244,7 +1260,7 @@ public final class SimonSaysFeature {
                 wasBlockedByReveal = false;
                 lastRoundCompletedAtMs = 0L;
                 currentRoundNumber = 1;
-                expectedTotalClicksThisAttempt = totalClicksFrom(1);
+                attemptStartRound = 1;
                 deviceStartedAtMs = 0L;
                 resetRevealScale();
             }
@@ -1314,20 +1330,26 @@ public final class SimonSaysFeature {
             // Old layout: 5 rounds. Since Hypixel's 2026-10-06 update: 4 (TerminalLayouts). Which one this device is
             // comes from the device itself - a fifth step being revealed, or the device completing right after round
             // 4 (its "completed a device!" line, or no fifth round lighting within ROUND_VERDICT_TIMEOUT_TICKS).
+            // A server believed to run 5 rounds (seen, or p3sim's known value) is still checked at round 4: until
+            // 2026-10-27 a remembered 5 made round 4 never the end, so a 4-round device there sat "unfinished", its
+            // blank grid read as a break 30 ticks later and Auto Restart pressed start on a finished device. The
+            // "SS 4/5" announce still goes out at once in that case (expectFive); only the decision waits.
             boolean wholeDeviceCompleted = false;
             boolean awaitRoundVerdict = false;
+            boolean expectFive = false;
             int roundsDone = clickInOrder.size();
             if (roundsDone >= TerminalLayouts.OLD_SIMON_ROUNDS) {
                 wholeDeviceCompleted = true;
             } else if (roundsDone == TerminalLayouts.NEW_SIMON_ROUNDS) {
-                if (TerminalLayouts.simonRoundsSeen()) {
-                    wholeDeviceCompleted = TerminalLayouts.simonRounds() == TerminalLayouts.NEW_SIMON_ROUNDS;
+                if (TerminalLayouts.simonRounds() == TerminalLayouts.NEW_SIMON_ROUNDS && TerminalLayouts.simonRoundsSeen()) {
+                    wholeDeviceCompleted = true;
                 } else if (System.currentTimeMillis() - deviceCompleteLineAtMs <= DEVICE_LINE_MATCH_MS) {
                     TerminalLayouts.noteSimonRounds(TerminalLayouts.NEW_SIMON_ROUNDS,
                             "\"completed a device!\" arrived with round 4's last click");
                     wholeDeviceCompleted = true;
                 } else {
                     awaitRoundVerdict = true;
+                    expectFive = TerminalLayouts.simonRounds() == TerminalLayouts.OLD_SIMON_ROUNDS;
                 }
             }
             // Real format ported from Odin's own announceProgress ("pc SS ${clickInOrder.size}/5") - only sent on the
@@ -1336,8 +1358,8 @@ public final class SimonSaysFeature {
             // after the round count was decided above, so a device that just showed it has 4 rounds says "4/4".
             // While a round-4 verdict is pending the total is not known yet: the announce waits for it (sent from
             // tickRoundVerdict / settleRoundVerdictAsFour), so the first 4-round device of a session still says 4/4.
-            roundVerdictAnnounce = cfg.isAnnounceProgress() && awaitRoundVerdict;
-            if (cfg.isAnnounceProgress() && client.player != null && !awaitRoundVerdict) {
+            roundVerdictAnnounce = cfg.isAnnounceProgress() && awaitRoundVerdict && !expectFive;
+            if (cfg.isAnnounceProgress() && client.player != null && (!awaitRoundVerdict || expectFive)) {
                 client.player.connection.sendCommand("pc SS " + roundsDone + "/" + TerminalLayouts.simonRounds());
             }
             if (wholeDeviceCompleted && client.player != null) {
@@ -1414,8 +1436,9 @@ public final class SimonSaysFeature {
         // start click was seen this attempt (e.g. entered range mid-device).
         long fromStartMs = startClickAnchorMs > 0 && startClickAnchorMs <= completedAtMs
                 ? completedAtMs - startClickAnchorMs : -1L;
-        LOGGER.info("[SimonSays] Whole device completed in {} ms from first start-button click, {} ms from first grid click ({} ms of that was real reveal/transition delay).",
-                fromStartMs, deviceTookMs, autoSolveBlockedMsThisAttempt);
+        LOGGER.info("[SimonSays] Whole device completed in {} ms from first start-button click, {} ms from first grid click ({} ms of that was real reveal/transition delay; transitions {}; {} rounds).",
+                fromStartMs, deviceTookMs, autoSolveBlockedMsThisAttempt,
+                attemptTransitionsLog.length() == 0 ? "none" : attemptTransitionsLog, TerminalLayouts.simonRounds());
         // Client-side only (sendSystemMessage, same technique this mod's other features already
         // use for a local-only notice) - killer560 asked for a message to himself, not a real
         // party announcement. Breaks out the real reveal/transition delay (2026-09-14, killer560's
@@ -1490,7 +1513,7 @@ public final class SimonSaysFeature {
         wasBlockedByReveal = false;
         lastRoundCompletedAtMs = 0L;
         currentRoundNumber = 1;
-        expectedTotalClicksThisAttempt = totalClicksFrom(1);
+        attemptStartRound = 1;
         deviceStartedAtMs = 0L;
         totalClicksThisAttempt = 0;
         resetRevealScale();
@@ -1728,7 +1751,7 @@ public final class SimonSaysFeature {
         wasBlockedByReveal = false;
         lastRoundCompletedAtMs = 0L;
         currentRoundNumber = 1;
-        expectedTotalClicksThisAttempt = totalClicksFrom(1);
+        attemptStartRound = 1;
         deviceStartedAtMs = 0L;
         totalClicksThisAttempt = 0;
         // A new attempt's lanterns are not a fifth round: drop a round-4 verdict still waiting.
@@ -1861,14 +1884,14 @@ public final class SimonSaysFeature {
         // fully settled (round N always has exactly N steps), regardless of which round the attempt
         // actually started on. Moved OUT of the Auto-Solve-only branch (2026-09-14) - this needs to stay
         // accurate for Trigger Bot too, since killer560's planned self-logging test uses that, not Auto
-        // Solve. Only recomputes expectedTotalClicksThisAttempt once, on the very first round seen this
+        // Solve. Only sets attemptStartRound once, on the very first round seen this
         // attempt (detected via totalClicksThisAttempt, which counts ANY real completed click regardless
         // of source - autoSolveClicksDoneThisAttempt would never move at all during a Trigger-Bot-only
         // attempt) - it's the fixed total for the WHOLE remaining attempt, not a per-round value.
         if (clickNeeded == 0) {
             currentRoundNumber = clickInOrder.size();
             if (totalClicksThisAttempt == 0) {
-                expectedTotalClicksThisAttempt = totalClicksFrom(currentRoundNumber);
+                attemptStartRound = currentRoundNumber;
             }
         }
         // Real bug found and fixed (2026-09-14, "bug once-over" pass): Trigger Bot never had this same
@@ -2119,7 +2142,7 @@ public final class SimonSaysFeature {
             autoApproachOverheadEmaMs = (autoApproachOverheadEmaMs * 3 + observedOverheadMs) / 4;
         }
 
-        int remainingAfter = Math.max(1, expectedTotalClicksThisAttempt - autoSolveClicksDoneThisAttempt);
+        int remainingAfter = Math.max(1, totalClicksFrom(attemptStartRound) - autoSolveClicksDoneThisAttempt);
         long windowLeftMs = autoSolveDeadlineMs - clickedAtMs;
         // Reserve only the overhead for transitions STILL AHEAD (never touching the deadline itself) -
         // already-elapsed reveal time is already reflected in windowLeftMs shrinking naturally, so
