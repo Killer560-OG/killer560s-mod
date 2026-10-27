@@ -1623,10 +1623,10 @@ public final class Ap3Executor {
         if (next != null && next.type.isAlign() && !inside.contains(next) && passedBeside(player, next)) {
             return true;
         }
-        if (!player.onGround()) {
+        if (!WALK_EDGE_STOP || !player.onGround()) {
             return false;
         }
-        if (next != null && next.y < holdStartY - MAX_LEDGE_DROP) {
+        if (next != null && next.y < holdStartY - WALK_FALL_GUARD) {
             return false; // the route goes down from here on purpose
         }
         if (jumpAhead(holdNode) || jumpPendingTicks > 0 || edgeArmedTicks > 0 || wantJump) {
@@ -1645,7 +1645,9 @@ public final class Ap3Executor {
         double ahead = 1.0 + SLIDE_FACTOR;
         double nx = pos.x + v.x * ahead + holdDir.x / len * push;
         double nz = pos.z + v.z * ahead + holdDir.z / len * push;
-        if (supportedAt(player, nx, pos.y, nz, holdStartY) && !hazardAt(player, nx, pos.y, nz)) {
+        // Only a real fall stops a held walk: a step or ledge down up to WALK_FALL_GUARD is ordinary running (0.5 stopped
+        // his run nodes at every small drop and jiggled him at the edge, killer560 2026-10-27).
+        if (supportedWithin(player, nx, pos.y, nz, holdStartY, WALK_FALL_GUARD) && !hazardAt(player, nx, pos.y, nz)) {
             return false;
         }
         Ap3Node from = holdNode;
@@ -1655,7 +1657,7 @@ public final class Ap3Executor {
         edgeBrakeTicks = EDGE_BRAKE_TICKS; // keep braking at the edge until he has stopped (one tick of sneak was not enough)
         LOGGER.info("[AP3] held walk from {} #{}: the next step at ({}, {}) leaves the floor more than {} below where it began"
                         + " (y {}) and the route's next node{} is not lower - stopped at the edge", from.type.label(),
-                number(from), String.format(Locale.US, "%.2f", nx), String.format(Locale.US, "%.2f", nz), MAX_LEDGE_DROP,
+                number(from), String.format(Locale.US, "%.2f", nx), String.format(Locale.US, "%.2f", nz), WALK_FALL_GUARD,
                 String.format(Locale.US, "%.3f", holdStartY), next == null ? "" : " #" + number(next));
         if (next != null && next.type.isAlign() && next.horizontalDistance(pos) <= ALIGN_REACH) {
             LOGGER.info("[AP3] held walk: pulling you into align #{} ({} blocks away) from the edge", number(next),
@@ -1708,8 +1710,9 @@ public final class Ap3Executor {
             return;
         }
         edgeBrakeTicks--;
-        int[] k = nearestKey8(-v.x, -v.z, player.getYRot());
-        writeDiscrete(player, k[0], k[1], true, false, player.getYRot(), modelFor(player, false), lastSneakSent);
+        // Sneak with no key: vanilla's sneak clip holds him at the drop and friction stops him. Pressing the key against
+        // his velocity overshot at sneak speed and swung him left and right for the whole brake (his log, 2026-10-27).
+        writeDiscrete(player, 0, 0, true, false, player.getYRot(), modelFor(player, false), lastSneakSent);
     }
 
     /** Closest the current held walk has come to its route's next align, and to which align. */
@@ -2495,6 +2498,28 @@ public final class Ap3Executor {
     static boolean supportedAt(LocalPlayer player, double x, double feetY, double z, double startY) {
         double hw = player.getBbWidth() / 2.0 - 1.0e-7;
         double bottom = startY - MAX_LEDGE_DROP - 1.0e-3;
+        double top = Math.max(feetY, startY) - 1.0e-4;
+        if (top <= bottom) {
+            return false;
+        }
+        net.minecraft.world.phys.AABB probe = new net.minecraft.world.phys.AABB(x - hw, bottom, z - hw, x + hw, top, z + hw);
+        return !player.level().noCollision(player, probe);
+    }
+
+    /**
+     * Off (killer560, 2026-10-27): the held-walk edge stop fired on his run node over a gap the run crosses ("run nodes
+     * now ... walk left and right repeatedly"): a run between two floors at the same height looks like "no floor" for a
+     * tick. Runs go where he placed them again; the pull into a passed align stays.
+     */
+    static final boolean WALK_EDGE_STOP = false;
+
+    /** A held walk stops only where the floor ahead is more than this far below where the walk began. */
+    static final double WALK_FALL_GUARD = 3.0;
+
+    /** {@link #supportedAt} with a deeper allowed drop: some floor no lower than {@code startY - drop}. */
+    static boolean supportedWithin(LocalPlayer player, double x, double feetY, double z, double startY, double drop) {
+        double hw = player.getBbWidth() / 2.0 - 1.0e-7;
+        double bottom = startY - drop - 1.0e-3;
         double top = Math.max(feetY, startY) - 1.0e-4;
         if (top <= bottom) {
             return false;
