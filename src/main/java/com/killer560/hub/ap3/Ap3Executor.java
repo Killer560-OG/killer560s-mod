@@ -1249,6 +1249,8 @@ public final class Ap3Executor {
                     jumpPendingTicks = 0;
                     edgeArmedTicks = 0;
                     holdDir = node.dir();
+                    holdNode = node;
+                    holdStartY = player.getY();
                     holdSprint = node.type == Ap3Node.Type.RUN;
                 }
                 case JUMP -> jumpPendingTicks = JUMP_WAIT_TICKS;
@@ -1417,9 +1419,120 @@ public final class Ap3Executor {
         }
     }
 
+    /** The WALK / RUN that set the current held walk, and his feet height when it did. */
+    private static Ap3Node holdNode;
+    private static double holdStartY = Double.NaN;
+
+    /**
+     * The held-walk half of the ledge rule (killer560, 2026-10-27: "sometimes the ap3 will walk off still"): a WALK / RUN
+     * may take him down only where the route itself goes down. Each tick, if the next tick's position (his velocity
+     * plus a full push along the walk) has no floor within 0.5 below where the walk began AND the route's next node
+     * after the walk's own is not lower than that, the walk stops at the edge (no keys, sneak) and says so once. When
+     * that next node is an align within reach, it is begun from there - his "it needs to pull me back into it" for
+     * align #34, whose 1x1 box the RUN #33 line passes beside rather than through.
+     * True when it stopped the walk.
+     */
+    private static boolean walkLedgeGuard(LocalPlayer player) {
+        if (holdNode == null || chain == null || Double.isNaN(holdStartY)) {
+            return false;
+        }
+        Ap3Node next = nextInChain(holdNode);
+        if (next != null && next.type.isAlign() && !inside.contains(next) && passedBeside(player, next)) {
+            return true;
+        }
+        if (!player.onGround()) {
+            return false;
+        }
+        if (next != null && next.y < holdStartY - MAX_LEDGE_DROP) {
+            return false; // the route goes down from here on purpose
+        }
+        Vec3 pos = player.position();
+        Vec3 v = player.getDeltaMovement();
+        double len = Math.hypot(holdDir.x, holdDir.z);
+        if (len < 1.0e-6) {
+            return false;
+        }
+        double push = 0.35; // more than one tick's push at any walking speed he uses
+        double nx = pos.x + v.x + holdDir.x / len * push;
+        double nz = pos.z + v.z + holdDir.z / len * push;
+        if (supportedAt(player, nx, pos.y, nz, holdStartY) && !hazardAt(player, nx, pos.y, nz)) {
+            return false;
+        }
+        Ap3Node from = holdNode;
+        endHold();
+        clearMovement();
+        wantSneak = true;
+        LOGGER.info("[AP3] held walk from {} #{}: the next step at ({}, {}) leaves the floor more than {} below where it began"
+                        + " (y {}) and the route's next node{} is not lower - stopped at the edge", from.type.label(),
+                number(from), String.format(Locale.US, "%.2f", nx), String.format(Locale.US, "%.2f", nz), MAX_LEDGE_DROP,
+                String.format(Locale.US, "%.3f", holdStartY), next == null ? "" : " #" + number(next));
+        if (next != null && next.type.isAlign() && next.horizontalDistance(pos) <= ALIGN_REACH) {
+            LOGGER.info("[AP3] held walk: pulling you into align #{} ({} blocks away) from the edge", number(next),
+                    String.format(Locale.US, "%.2f", next.horizontalDistance(pos)));
+            trigger(next);
+        }
+        return true;
+    }
+
+    /** Closest the current held walk has come to its route's next align, and to which align. */
+    private static double passMin = Double.MAX_VALUE;
+    private static Ap3Node passAlign;
+    /** A walk passing within this of its next align without entering the box pulls him into it. */
+    private static final double PASS_PULL_DISTANCE = 1.5;
+
+    /**
+     * killer560, 2026-10-27, align #34: "it needs to pull me back into it ... if i walk into it then it works". A RUN
+     * line that passes BESIDE its next align's small box (his RUN #33 at yaw 140 misses the 1x1 box of #34 by about 1.4
+     * blocks) never triggers it, and the run goes on. When the held walk has come within {@link #PASS_PULL_DISTANCE} of
+     * the next align and is now getting farther away, it has passed it: the walk ends and the align is begun from where he
+     * is (it pulls him back within ALIGN_REACH). True when it did.
+     */
+    private static boolean passedBeside(LocalPlayer player, Ap3Node align) {
+        if (passAlign != align) {
+            passAlign = align;
+            passMin = Double.MAX_VALUE;
+        }
+        double d = align.horizontalDistance(player.position());
+        if (d < passMin) {
+            passMin = d;
+            return false;
+        }
+        if (passMin > PASS_PULL_DISTANCE || d < passMin + 0.05 || Math.abs(player.getY() - align.y) > Ap3Node.BOX_Y_TOLERANCE) {
+            return false;
+        }
+        Ap3Node from = holdNode;
+        endHold();
+        clearMovement();
+        LOGGER.info("[AP3] held walk from {} #{} passed beside align #{} (closest {} blocks, not in its box) - pulling you into"
+                        + " it", from == null ? "?" : from.type.label(), from == null ? 0 : number(from), number(align),
+                String.format(Locale.US, "%.2f", passMin));
+        passAlign = null;
+        trigger(align);
+        return true;
+    }
+
+    /** The node after {@code node} in the chain's order, skipping nodes that never move him (stopwatches, No Go). */
+    private static Ap3Node nextInChain(Ap3Node node) {
+        java.util.List<Ap3Node> nodes = chain.nodes();
+        int i = nodes.indexOf(node);
+        if (i < 0) {
+            return null;
+        }
+        for (int k = i + 1; k < nodes.size(); k++) {
+            Ap3Node n = nodes.get(k);
+            if (n.type == Ap3Node.Type.STOPWATCH || n.type == Ap3Node.Type.NO_GO) {
+                continue;
+            }
+            return n;
+        }
+        return null;
+    }
+
     /** The held walk ends (a STOP / align was hit): the run, and the jump / edge its modifier armed. */
     private static void endHold() {
         holdDir = null;
+        holdNode = null;
+        passAlign = null;
         jumpPendingTicks = 0;
         edgeArmedTicks = 0;
     }
@@ -1455,6 +1568,8 @@ public final class Ap3Executor {
             case WALK, RUN -> {
                 // The direction and speed persist until any other node fires - the node itself is done at once.
                 holdDir = node.dir();
+                holdNode = node;
+                holdStartY = player.getY();
                 holdSprint = node.type == Ap3Node.Type.RUN;
                 finishNode();
             }
@@ -2177,29 +2292,55 @@ public final class Ap3Executor {
                 a = Ap3DiscretePlanner.NONE;
             }
             Ap3DiscretePlanner.step(s, a, yaw, m);
-            out[i] = new double[]{-s.ex, -s.ez};
+            out[i] = new double[]{-s.ex, -s.ez, s.vx, s.vz};
         }
         return out;
     }
 
-    /** Whether pressing (fw, st, sneak) now keeps every predicted position over a floor no lower than start - 0.5. */
+    /**
+     * Whether pressing (fw, st, sneak) now keeps every predicted position over a floor no lower than start - 0.5
+     * (killer560's rule), AND - wherever a predicted position is over a LOWER floor than his feet - whether the fall onto
+     * it stays over that floor too. Stepping down is a short fall: three ticks in the air where no key can brake him, so
+     * a stair's half-block-wide low half can pass under him before he reaches its height (his 2026-10-26 23:15:14 and
+     * 23:17:06 falls). Those ticks are predicted as the air does them (velocity times 0.91 a tick, no push) and each must
+     * still have a floor.
+     * <p>
+     * Until 2026-10-27 the rule was stricter - no stepping down at all unless the point was lower - and it stranded him
+     * (his 09:25:55 align #34: started on the stair's low half, stepped up, then every press toward the point crossed the
+     * low half and was refused; he stood 0.78 from the point for 50 ticks). Crossing a low half that he lands on is fine.
+     */
     private static boolean ledgeSafe(LocalPlayer player, int fw, int st, boolean sneak, float yaw) {
         Vec3 pos = player.position();
-        // Stepping DOWN is a fall: off even a half step he is in the air for three ticks, where no key can brake him,
-        // and the step's far edge can pass under him before he lands (a stair's low half is only half a block wide -
-        // his 23:15:14 and 23:17:06 falls). So unless the align's point is itself lower than where he stands, a press
-        // may not take him onto any lower floor at all; with a lower point, never below start - 0.5.
-        double floorLine = ledgeTargetY < pos.y - 0.05 ? ledgeStartY : pos.y - 0.05 + MAX_LEDGE_DROP;
-        floorLine = Math.max(floorLine, ledgeStartY);
-        floorLine = Math.min(floorLine, pos.y + MAX_LEDGE_DROP); // never ask for a floor above his feet
+        double floorLine = ledgeStartY; // a floor no lower than start - 0.5
         for (double[] d : ledgePredict(player, fw, st, sneak, yaw, LEDGE_LOOKAHEAD)) {
-            if (!supportedAt(player, pos.x + d[0], pos.y, pos.z + d[1], floorLine)
-                    || hazardAt(player, pos.x + d[0], pos.y, pos.z + d[1])) {
+            double x = pos.x + d[0];
+            double z = pos.z + d[1];
+            if (!supportedAt(player, x, pos.y, z, floorLine) || hazardAt(player, x, pos.y, z)) {
                 return false;
+            }
+            if (!supportedAt(player, x, pos.y, z, pos.y)) {
+                // Over a lower floor here: he drops onto it. Follow the drift through the fall.
+                double vx = d[2];
+                double vz = d[3];
+                for (int k = 0; k < LEDGE_FALL_TICKS; k++) {
+                    vx *= AIR_DRAG;
+                    vz *= AIR_DRAG;
+                    x += vx;
+                    z += vz;
+                    if (!supportedAt(player, x, pos.y, z, floorLine) || hazardAt(player, x, pos.y, z)) {
+                        return false;
+                    }
+                }
+                return true; // landed: the presses after the landing are planned from there
             }
         }
         return true;
     }
+
+    /** Ticks a 0.5 step down keeps him in the air (0.078 + 0.155 + 0.230 > 0.5). */
+    private static final int LEDGE_FALL_TICKS = 3;
+    /** Horizontal drag in the air per tick. */
+    private static final double AIR_DRAG = 0.91;
 
     /** This tick plus the braking after it: a press that is fine now but leaves too much speed to stop is not fine. */
     private static final int LEDGE_LOOKAHEAD = 3;
@@ -2226,7 +2367,16 @@ public final class Ap3Executor {
         // over the floor: no keys with sneak, then the key combination against his velocity with sneak, then without.
         Vec3 v = player.getDeltaMovement();
         int[] brake = Math.hypot(v.x, v.z) > 1.0e-3 ? nearestKey8(-v.x, -v.z, yaw) : new int[]{0, 0};
-        int[][] tries = {{0, 0, 1}, {brake[0], brake[1], 1}, {brake[0], brake[1], 0}};
+        int[][] tries;
+        if (Math.hypot(v.x, v.z) < 0.02 && node != null) {
+            // Standing still with the planner's press refused: no keys would keep him there forever (his 09:25:55 align #34
+            // stood 50 ticks). A sneak-held step toward the point goes first - slow, and checked like any press.
+            Vec3 pos = player.position();
+            int[] toward = nearestKey8(node.x - pos.x, node.z - pos.z, yaw);
+            tries = new int[][]{{toward[0], toward[1], 1}, {0, 0, 1}};
+        } else {
+            tries = new int[][]{{0, 0, 1}, {brake[0], brake[1], 1}, {brake[0], brake[1], 0}};
+        }
         int[] pick = null;
         for (int[] t : tries) {
             if (ledgeSafe(player, t[0], t[1], t[2] == 1, yaw)) {
@@ -4622,6 +4772,9 @@ public final class Ap3Executor {
             // tickBlockWatch.)
             clearMovement();
             return;
+        }
+        if (walkLedgeGuard(player)) {
+            return; // the walk would take him off a drop its route does not go down: it stopped there
         }
         if (!WALK_USES_SENT_YAW) {
             applyHoldRealYaw(player);
