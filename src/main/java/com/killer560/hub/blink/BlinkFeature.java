@@ -158,7 +158,7 @@ public final class BlinkFeature {
             // Nothing releases a hold but the key (killer560, 2026-10-25: "it should only release when you choose to
             // release it"); hits, digs and item uses are held with everything else. Menu clicks are the one exception:
             // a click (a terminal's) does not depend on where he stands, so it goes out now and the hold carries on.
-            if (isMenuClick(packet)) {
+            if (isMenuClick(packet) && !clicksJoinHold) {
                 clicksLive++;
                 return false;
             }
@@ -197,6 +197,13 @@ public final class BlinkFeature {
         return peakQueue;
     }
 
+    /**
+     * Inventory Walk's held clicks, sent while a hold runs and the server has not yet seen his still tick (it is in the
+     * hold): they join the hold behind it instead of going out live, or the server would take them with the moving input
+     * it had before the hold (GrimAC MultiActionsC, testkit 1027-iw-interop). Render thread, only around that send.
+     */
+    public static boolean clicksJoinHold;
+
     private static boolean isMenuClick(Packet<?> packet) {
         return packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClickPacket
                 || packet instanceof net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket;
@@ -208,6 +215,7 @@ public final class BlinkFeature {
 
     /** A packet that really left: a move updates where the server thinks he is. */
     private static void noteSent(Connection connection, Packet<?> packet) {
+        com.killer560.hub.invwalk.InventoryWalkFeature.noteLeft(packet);
         if (!(packet instanceof ServerboundMovePlayerPacket move) || connection.getSending() != PacketFlow.SERVERBOUND) {
             return;
         }

@@ -4,7 +4,8 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.invwalk.mixin",
 	"client": [
-		"InventoryWalkSendMixin"
+		"InventoryWalkSendMixin",
+		"InventoryWalkInputMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
