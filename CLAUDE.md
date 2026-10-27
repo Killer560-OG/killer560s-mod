@@ -13,6 +13,7 @@ Java 25 and a JDK on `JAVA_HOME`. Gradle wrapper, Fabric Loom.
 ./gradlew build -Prelease=true      # official release: compiles dev tooling OUT
 ./gradlew build [-PcheatBuild=true] -PtestingBuild=true  # killer560's private jar, ...-26.1.2-<cheat|legit>-testing.jar: Untested category, Mark tested, /k560tested; lists in testing/; deploy ONLY with --testing-instance-cheat/--testing-instance-legit NAME
 python deploy-to-instances.py [--dry-run] [--jars-dir DIR]   # install into every Prism instance; writes minecraft/killer560smod-no-auto-update in each (Auto Update off there)
+python tools/verify-artifact.py JARS_OR_DIRS [--git REPO]    # secret scan; deploy-to-instances.py, release-assets.py, dev-build.yml and killer560s-mod-logs/verify_gate.py all run it and stop on exit 1
 # --auto-update-instance NAME: leave NAME to the mod's own Auto Update (no jar, marker removed); none uses it (2026-10-24: all 7 have the marker)
 ```
 
@@ -327,6 +328,16 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   each and the later entry silently replaced the earlier (a92e0357). After renaming text, check keyed maps for duplicates.
 - Merging branches that each edit `docs/FEATURES.md` left 11 features listed twice, each copy holding a change the other
   lacked (2026-10-24, fixed in 8dcac505). After such a merge, check FEATURES.md for a feature named twice before the Doc regen.
+- **No secret ever goes in this repo or a jar** (security audit 2026-10-27, `killer560s-mod-logs/security-audit-1027.md`).
+  v1.0.0/v1.1.0 shipped a Hypixel key XOR'd in `HypixelApiKeyProvider` - obfuscation is not protection, and it is public
+  forever in those jars and in history. A key the mod needs goes in the relay as a Worker secret behind an endpoint, or is
+  the player's own, stored in its own non-`.json` file listed in `ProfileData.EXCLUDED_NAMES` (or a `SECRET_FIELDS` field).
+  `tools/verify-artifact.py` (shapes, the owner's secrets by sha256 from `~/.claude/secrets` + `~/.claude/secret-fingerprints.json`,
+  embedded-key code, user paths) gates every deploy and release; CI also runs gitleaks with `.gitleaks.toml` and fails on a hit
+  (a reviewed false positive goes in `.gitleaksignore` by fingerprint). Native libraries inside Jar-in-Jar jars carry their
+  own builders' paths (JNA): reported as warnings only.
+- A relay challenge and a relay bearer token must never verify with the same key: they did until 2026-10-27, and
+  `GET /challenge?uuid=<anyone>` was a two-minute token for that player (relay `security-1027`, test/token-domain.test.mjs).
 - Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
   (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
   and import keeps the locked update and sharing keys (testkit 981).
