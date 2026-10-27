@@ -6,6 +6,7 @@
 	"client": [
 		"Ap3InputMixin",
 		"Ap3RotationSendMixin",
+		"Ap3SendTogetherMixin",
 		"Ap3StrafeImpulseMixin",
 		"Ap3ThirdPersonMixin",
 		"Ap3PositionPacketMixin",

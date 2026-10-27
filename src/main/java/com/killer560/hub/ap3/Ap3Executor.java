@@ -1668,7 +1668,54 @@ public final class Ap3Executor {
         if (actNode == null || actFired || client.player != self || client.level == null || client.gameMode == null) {
             return;
         }
-        sendAct(client, self, actNode, b);
+        // Written, not flushed: the movement packet sendPosition sends next flushes them with it, one write, so the
+        // server reads the place and the packet carrying its aim together however loaded either side is (holdFlush).
+        holdFlush = true;
+        flushOwed = true;
+        try {
+            sendAct(client, self, actNode, b);
+        } finally {
+            holdFlush = false;
+        }
+    }
+
+    /**
+     * True while {@link #beforeSendPosition} sends the armed act on the render thread: {@code mixin/Ap3SendTogetherMixin}
+     * then writes those packets without a flush. Two flushes reached the server as two reads, and on a loaded machine
+     * (testkit 63-ap3 block cases, 2026-10-27, ~90% CPU) the second read came 15 ms or more after the first: GrimAC
+     * 2.3.74 ({@code CheckManagerListener.handleQueuedPlaces}, server {@code currentTimeMillis} at each read) then judged
+     * the place by the rotation BEFORE it - RotationPlace post-flying - though the client sent the two 0.04-0.5 ms apart.
+     */
+    private static boolean holdFlush;
+    /** Set when {@link #beforeSendPosition} held a flush: {@link #afterSendPosition} flushes if no movement packet did. */
+    private static boolean flushOwed;
+
+    /** For {@code mixin/Ap3SendTogetherMixin}: hold this send's flush (only AP3's own act, only on the render thread). */
+    public static boolean holdFlush() {
+        return holdFlush && Minecraft.getInstance().isSameThread();
+    }
+
+    /** Packets whose flush {@code mixin/Ap3SendTogetherMixin} held (testkit reads it: the mixin applied and acted). */
+    private static int heldFlushes;
+
+    public static void noteHeldFlush() {
+        heldFlushes++;
+    }
+
+    public static int heldFlushes() {
+        return heldFlushes;
+    }
+
+    /** From {@code mixin/Ap3RotationSendMixin} at the RETURN of {@code LocalPlayer#sendPosition}: a held flush goes now
+     *  (normally the movement packet already flushed it; with no movement packet this tick nothing else would). */
+    public static void afterSendPosition(LocalPlayer self) {
+        if (!flushOwed) {
+            return;
+        }
+        flushOwed = false;
+        if (self.connection != null && self.connection.getConnection().isConnected()) {
+            self.connection.getConnection().flushChannel();
+        }
     }
 
     /** The armed act's packets: hotbar change first if it needs one, then the click along the aim. */

@@ -68,6 +68,7 @@ public abstract class Ap3RotationSendMixin {
 
     @Inject(method = "sendPosition", at = @At("RETURN"), require = 0)
     private void killer560smod$ap3RestoreRotation(CallbackInfo ci) {
+        Ap3Executor.afterSendPosition((LocalPlayer) (Object) this);
         if (!killer560smod$swapped) {
             return;
         }
