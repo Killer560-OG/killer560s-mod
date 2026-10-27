@@ -52,6 +52,36 @@ public final class TurnFirst {
         BODY_OWNERS.add(owner);
     }
 
+    /**
+     * The yaws the body may be turned to right now without changing where he is being walked, or null for any yaw
+     * (killer560, 2026-10-27: "when it looks at stuff like levers and things it can mess with where my ap3 is going").
+     * An AP3 held walk (and Auto Routes walking) moves him along a fixed world direction with one of the eight key
+     * combinations, and each combination points exactly along that direction at one yaw - so a turn to one of those
+     * yaws, with the keys re-picked for it, leaves the path exactly as it was. Pitch never affects movement and is free.
+     * The provider returns them in preference order (the ones that keep sprint - W, W+A, W+D - first).
+     */
+    private static final java.util.List<java.util.function.Supplier<float[]>> YAW_CONSTRAINTS =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public static void registerYawConstraint(java.util.function.Supplier<float[]> c) {
+        YAW_CONSTRAINTS.add(c);
+    }
+
+    private static float[] yawConstraint() {
+        for (java.util.function.Supplier<float[]> c : YAW_CONSTRAINTS) {
+            float[] y = c.get();
+            if (y != null) {
+                return y;
+            }
+        }
+        return null;
+    }
+
+    private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-turnfirst");
+
+    /** How the last click this owner was told to make got its look: for the log line at the click. */
+    private String method = "already on the look";
+
     /** Whether some feature owns the body's rotation right now (see {@link #registerBodyOwner}). */
     public static boolean bodyOwned() {
         for (java.util.function.BooleanSupplier o : BODY_OWNERS) {
@@ -176,20 +206,26 @@ public final class TurnFirst {
         Vec3 eye = player.getEyePosition();
         Vec3 end = eye.add(look(player).scale(reach));
         boolean hits = shape.isEmpty() ? new AABB(pos).clip(eye, end).isPresent() : shape.clip(eye, end, pos) != null;
-        return settle(player, hits, aimPoint);
+        java.util.function.BiPredicate<Vec3, Vec3> ray = (a, b) -> shape.isEmpty() ? new AABB(pos).clip(a, b).isPresent()
+                : shape.clip(a, b, pos) != null;
+        return settle(player, hits, aimPoint, ray, reach, pos.toShortString());
     }
 
     /** As {@link #readyBlock}, for an entity (or any) box. */
     public boolean readyBox(LocalPlayer player, AABB box, Vec3 aimPoint, double reach) {
         Vec3 eye = player.getEyePosition();
         boolean hits = box.contains(eye) || box.clip(eye, eye.add(look(player).scale(reach))).isPresent();
-        return settle(player, hits, aimPoint);
+        java.util.function.BiPredicate<Vec3, Vec3> ray = (a, b) -> box.contains(a) || box.clip(a, b).isPresent();
+        return settle(player, hits, aimPoint, ray, reach, String.format(java.util.Locale.US, "box at %.1f, %.1f, %.1f",
+                box.getCenter().x, box.getCenter().y, box.getCenter().z));
     }
 
-    private boolean settle(LocalPlayer player, boolean hits, Vec3 aimPoint) {
+    private boolean settle(LocalPlayer player, boolean hits, Vec3 aimPoint, java.util.function.BiPredicate<Vec3, Vec3> ray,
+                           double reach, String what) {
         if (hits) {
             pending = false; // acting now; the body (if turned) is still held this tick and given back the next
             foreignWait = 0;
+            LOGGER.info("[TurnFirst] click on {} with {}", what, turned ? method : "the look he already had");
             return true;
         }
         if (current != null && current != this) {
@@ -208,6 +244,25 @@ public final class TurnFirst {
         Vec3 d = aimPoint.subtract(player.getEyePosition());
         float yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));
         float pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)));
+        float[] allowed = yawConstraint();
+        if (allowed != null) {
+            // A walk is steering him: only a yaw that some key combination walks exactly along the walk at, with a pitch
+            // whose ray meets the target from where the click will be judged - the eye after this tick's move (the
+            // click goes out at the next START, judged by the position and look of this tick's movement packet).
+            Vec3 v = player.getDeltaMovement();
+            Vec3 eyeNext = player.getEyePosition().add(v.x, 0.0, v.z);
+            float[] found = walkKeyedLook(allowed, eyeNext, pitch, ray, reach);
+            if (found == null) {
+                method = "deferred";
+                return false; // none this tick: no turn at all; the bearing moves as he walks, try again next tick
+            }
+            yaw = found[0];
+            pitch = found[1];
+            method = String.format(java.util.Locale.US, "a walk-keyed look (yaw %.1f, pitch %.1f: the walk's path unchanged)",
+                    yaw, pitch);
+        } else {
+            method = String.format(java.util.Locale.US, "a body turn (yaw %.1f, pitch %.1f)", yaw, pitch);
+        }
         if (!turned) {
             ownsHold = !ViewFreeze.isHeld();
             prevYaw = player.getYRot();
@@ -226,6 +281,29 @@ public final class TurnFirst {
         pending = true;
         pendingAge = 0;
         return false;
+    }
+
+    /** The first allowed yaw with a pitch (searched out from {@code pitch0} in quarter degrees) whose ray from {@code eye}
+     *  meets the target within {@code reach}; null when none does. */
+    private static float[] walkKeyedLook(float[] yaws, Vec3 eye, float pitch0, java.util.function.BiPredicate<Vec3, Vec3> ray,
+                                         double reach) {
+        for (float yaw : yaws) {
+            for (int i = 0; i <= 720; i++) {
+                float step = (i % 2 == 0 ? 1 : -1) * ((i + 1) / 2) * 0.25f;
+                float pitch = pitch0 + step;
+                if (pitch < -90f || pitch > 90f) {
+                    continue;
+                }
+                float yr = yaw * Mth.DEG_TO_RAD;
+                float pr = pitch * Mth.DEG_TO_RAD;
+                float cp = Mth.cos(pr);
+                Vec3 dir = new Vec3(-Mth.sin(yr) * cp, -Mth.sin(pr), Mth.cos(yr) * cp);
+                if (ray.test(eye, eye.add(dir.scale(reach)))) {
+                    return new float[]{yaw, pitch};
+                }
+            }
+        }
+        return null;
     }
 
     /** The look the movement packets report: the body's rotation, NOT getViewVector (which a held camera answers). */

@@ -4432,6 +4432,28 @@ public final class Ap3Executor {
         heldKeysValid = true;
     }
 
+    /**
+     * For {@code util/TurnFirst.registerYawConstraint}: while a held walk drives (and nothing of AP3's own is aiming or
+     * aligning - those own the body outright), the yaws at which one of the eight key combinations walks exactly along
+     * the walk, fastest first (W+A, W+D, W keep the sprint). An aura turning him to one of these for a click leaves the
+     * path unchanged: the walk re-picks that combination for the turned yaw (beforeInputInstall / applyHoldRealYaw).
+     * Null = no constraint.
+     */
+    public static float[] walkKeyedYaws() {
+        if (!isRunning() || holdDir == null || aiming || aimLock || actNode != null || isInputOverridden()) {
+            return null;
+        }
+        if (activeNode != null && activeNode.type.ownsMovement()) {
+            return null;
+        }
+        float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+        float[] out = new float[AIM_KEYS.length];
+        for (int i = 0; i < AIM_KEYS.length; i++) {
+            out[i] = walkYaw - AIM_KEYS[i][2];
+        }
+        return out;
+    }
+
     /** The yaw the held walk's keys were picked at this tick; valid only while {@link #heldKeysValid}. */
     private static float heldKeysYaw;
     private static boolean heldKeysValid;
