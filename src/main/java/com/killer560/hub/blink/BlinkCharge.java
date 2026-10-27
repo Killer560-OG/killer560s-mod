@@ -106,19 +106,12 @@ public final class BlinkCharge {
     }
 
     /**
-     * After a moving teleport is confirmed nothing is banked until the answers have caught up with it (the answer delay
-     * plus this margin). A shot fired the moment the bank had refilled - about 1.04 s after the confirm - drew GrimAC
-     * Simulation 0.10 decaying over 8 ticks and was set back; the same shot 60 ticks later was clean (testkit
-     * 1026-blink-setback-variants, 2026-10-26). The ping GrimAC sends with a teleport can come just after the position
-     * packet, so its answer is still waiting its 990 ms then. Answering it early instead (a live window) drew Timer on
-     * back-to-back warps. Ticks in this window go out normally.
+     * Always false since 2026-10-27: every server teleport keeps the bank and nothing pauses banking after one (killer560, 2026-10-27: the blink should always be saved through leaps and teleports; it should never drop blink if possible except if i release it).
+     * From 2026-10-26 to then, banking paused for the answer delay + 150 ms after a moving teleport (GrimAC Simulation on a
+     * shot fired the instant the bank refilled); GrimAC flagging the next shot is accepted by his decision.
      */
-    static final long SETTLE_MARGIN_MS = 150L;
-    private static long bankBlockedUntilMs;
-
-    /** Banking is paused after a moving teleport (see {@link #SETTLE_MARGIN_MS}). */
     public static boolean settling() {
-        return System.currentTimeMillis() < bankBlockedUntilMs;
+        return false;
     }
 
     /** The last server teleport did not move him (an in-place re-sync): its confirm leaves the bank alone. */
@@ -132,7 +125,7 @@ public final class BlinkCharge {
         if (active) {
             BlinkLog.event("charge: server teleport %.2f blocks, client at %s, server put him at %s, bank %d, %d answer(s) "
                     + "waiting (oldest %d ms) - %s", dist, BlinkLog.fmt(from), BlinkLog.fmt(to), banked, answers.size(),
-                    oldestAnswerAgeMs(), teleportInPlace ? "in place (re-sync), bank kept" : "moved, bank starts again");
+                    oldestAnswerAgeMs(), (teleportInPlace ? "in place (re-sync)" : "moved") + ", bank kept (" + banked + ")");
         }
         // A teleport soon after a shot that puts him back where the shot started is the server refusing the shot.
         if (ticksSinceShot <= 40 && lastShotFrom != null && to != null && dist > 0.5 && to.distanceTo(lastShotFrom) < 0.75) {
@@ -308,9 +301,9 @@ public final class BlinkCharge {
         return frozenTicksSent;
     }
 
-    /** This tick's tick-end would bank (charging, not settling after a teleport, room in the bank). */
+    /** This tick's tick-end would bank (charging, no shot pending, room in the bank). */
     public static boolean canBankNow() {
-        return active && !shotPending() && System.currentTimeMillis() >= bankBlockedUntilMs && banked < cap()
+        return active && !shotPending() && banked < cap()
                 && connection != null && connection.isConnected();
     }
 
@@ -427,16 +420,16 @@ public final class BlinkCharge {
                 return true;
             }
             if (packet instanceof ServerboundClientTickEndPacket) {
-                boolean settling = System.currentTimeMillis() < bankBlockedUntilMs;
                 boolean frozen = frozenTick;
                 frozenTick = false;
                 // A tick whose physics a driver skipped (AP3's momentum-keeping charge) banks in mid-air too: he did not
                 // move because no game time passed for him, which is exactly what a banked tick tells the server.
-                boolean bank = !busy && !settling && banked < cap() && (frozen || stillThisTick());
+                // (No settling pause after a teleport since 2026-10-27: the bank is kept through every teleport.)
+                boolean bank = !busy && banked < cap() && (frozen || stillThisTick());
                 if (frozen && !bank) {
                     frozenTicksSent++;
                     BlinkLog.event("charge: a tick with his physics skipped could not be banked (%s) - sent as it was",
-                            busy ? "an action went out in it" : settling ? "settling after a teleport" : "the bank is full");
+                            busy ? "an action went out in it" : "the bank is full");
                 }
                 busy = false;
                 if (bank) {
@@ -475,20 +468,13 @@ public final class BlinkCharge {
                 movingTeleports++;
             }
             if (accept && !teleportInPlace) {
-                bankBlockedUntilMs = System.currentTimeMillis() + answerDelayMs() + SETTLE_MARGIN_MS;
-            }
-            if (accept && !teleportInPlace && !answers.isEmpty()) {
-                // A server teleport (an etherwarp, a leap) is confirmed. GrimAC counts a teleport as reached by the
-                // client only once the ping sent with it is answered; with the answers still a second late it took the
-                // confirm for an unsent one and dropped every move after it - the next shot never reached the server
-                // (testkit 1025-blink-charge-warp / -far, 2026-10-25). So the waiting answers go first, in order; the
-                // bank starts again here and refills in a second.
-                int n = releaseAnswersLocked();
-                int lost = banked;
-                banked = 0;
-                bankEmptySinceMs = System.currentTimeMillis();
-                BlinkLog.event("charge: moving teleport confirmed - %d waiting ping answer(s) sent first; %d banked tick(s) "
-                        + "dropped; banking starts again in %d ms", n, lost, answerDelayMs() + SETTLE_MARGIN_MS);
+                // Every server teleport keeps the bank (killer560, 2026-10-27: 'the blink should always be saved through leaps and teleports'; 'it should never drop blink if possible except if i release it'):
+                // the answers stay on their steady delay, as for an in-place re-sync. GrimAC then takes the confirm before
+                // the ping sent with the teleport is answered and flags the next shot (BadPacketsN, Simulation, a setback
+                // - testkit 1025-blink-charge-warp / -inplace); he accepts that. Until 2026-10-27 the answers were flushed
+                // here and the bank dropped.
+                BlinkLog.event("charge: moving teleport confirmed - bank kept (%d), %d answer(s) still waiting their delay",
+                        banked, answers.size());
             }
             if (checkedAgainstLook(packet)) {
                 busy = true;
@@ -592,12 +578,16 @@ public final class BlinkCharge {
             latched = false;
         }
         tickStamp++;
-        if (!allowed) {
+        if (!allowed && !active) {
+            // Skyblock Only stops a charge from STARTING; one already running keeps its bank through the gate flipping
+            // (a scoreboard gap on a server switch) - killer560 2026-10-27, never drop a blink he did not release.
             if (pressed) {
                 BlinkLog.event("Charge key pressed but not used: Skyblock Only is on and this is not Skyblock");
             }
-            reset("not allowed here");
             return;
+        }
+        if (owner == null && handedBackCap > 0 && banked == 0 && !shotPending()) {
+            handedBackCap = 0; // the handed-back bank is spent: back to Charge Ticks
         }
         if (owner != null) {
             // A feature drives Charge (AP3's Blink nodes): his Charge key neither starts, fires nor ends it meanwhile.
@@ -741,8 +731,12 @@ public final class BlinkCharge {
             return forced;
         }
         int code = cfg.getChargeKeyCode();
-        if (code == com.killer560.hub.util.KeyUtil.NONE || !BlinkFeature.keysReadUnder(client) || client.getWindow() == null) {
+        if (code == com.killer560.hub.util.KeyUtil.NONE || client.getWindow() == null) {
             return false;
+        }
+        if (!BlinkFeature.keysReadUnder(client)) {
+            // Chat, pause, the death screen, a mod screen: the key keeps the state it had (never fires, never starts).
+            return keyWasDown;
         }
         return com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), code);
     }
@@ -948,21 +942,13 @@ public final class BlinkCharge {
         if (!active) {
             return "";
         }
+        // The waiting answers go first (in order, ahead of the hold: TransactionOrder); the bank is KEPT (killer560
+        // 2026-10-27: never drop a blink he did not release). Until then a hold dropped it.
         int n;
-        int lost;
-        boolean wasArmed;
         synchronized (LOCK) {
             n = releaseAnswersLocked();
-            lost = banked;
-            banked = 0;
-            shotLeft = 0;
-            shotWanted = 0;
-            wasArmed = armed;
-            armed = false;
-            bankEmptySinceMs = System.currentTimeMillis();
         }
-        return String.format(java.util.Locale.ROOT, "; charging: %d waiting answer(s) sent first, %d banked tick(s) dropped%s",
-                n, lost, wasArmed ? ", the armed shot dropped" : "");
+        return String.format(java.util.Locale.ROOT, "; charging: %d waiting answer(s) sent first, bank kept (%d)", n, banked);
     }
 
     public static long answersHeldTotal() {
@@ -979,6 +965,77 @@ public final class BlinkCharge {
         return spentTicks;
     }
 
+    /**
+     * A login or respawn packet (a respawn, a dimension change) on the same connection: charging carries on and the bank
+     * carries over (killer560 2026-10-27). What belonged to the old world goes: a move kept for its tick-end, an owed look,
+     * the second half of a split shot (its ticks go back into the bank). Render thread.
+     */
+    static void onWorldChange() {
+        if (!active) {
+            return;
+        }
+        synchronized (LOCK) {
+            if (stash != null && connection != null && connection.isConnected()) {
+                sendLocked(stash);
+            }
+            stash = null;
+            busy = false;
+            tickOpen = false;
+            teleportMoveNext = false;
+            banked += shotLeft;
+            shotLeft = 0;
+        }
+        rotationOwed = false;
+        ticksSinceShot = Integer.MAX_VALUE;
+        lastShotFrom = null;
+        BlinkLog.event("charge: world change - still charging, bank kept (%d), %d answer(s) waiting", banked, answersHeld());
+    }
+
+    /**
+     * The server starts a configuration phase: the waiting answers are play packets, so they go now; charging carries on
+     * with the bank kept for when play resumes (same connection).
+     */
+    static void onConfiguration() {
+        if (!active) {
+            return;
+        }
+        int n;
+        synchronized (LOCK) {
+            if (stash != null && connection != null && connection.isConnected()) {
+                sendLocked(stash);
+            }
+            stash = null;
+            n = releaseAnswersLocked();
+        }
+        BlinkLog.event("charge: configuration phase - %d answer(s) sent first, bank kept (%d)", n, banked);
+    }
+
+    /** The cap an owner had when it handed the charge back to the Charge key (kept until the bank is spent or reset). */
+    private static int handedBackCap;
+
+    /**
+     * {@code who} stops driving Charge without ending it: the charge and its bank stay, and his Charge key drives it from
+     * now on (it fires it), with the cap {@code who} had (killer560 2026-10-27: AP3 stopping for a leap must not drop the
+     * bank; a later Blink Release node, his key, or Charge switching off releases it). A later {@link #beginFor} by
+     * {@code who} takes it back, bank kept. No-op for another owner.
+     */
+    public static void handBack(String who, String why) {
+        if (who == null || !who.equals(owner)) {
+            return;
+        }
+        handedBackCap = ownerCap;
+        owner = null;
+        if (inShotLoop) {
+            // Inside a shot the bank is in the shot: what it does not fire is re-banked when it ends (AP3's stop ends it
+            // at the next shot tick), and that is the bank kept.
+            BlinkLog.event("charge handed back to the Charge key by %s (%s) inside a shot: the ticks it does not fire stay "
+                    + "banked (cap %d)", who, why, handedBackCap);
+            return;
+        }
+        BlinkLog.event("charge handed back to the Charge key by %s (%s): bank kept (%d of %d)", who, why, banked,
+                handedBackCap);
+    }
+
     /** Ends charging. What is banked is simply not owed: the server only saw a client a little behind. */
     static void reset(String why) {
         boolean was;
@@ -991,6 +1048,7 @@ public final class BlinkCharge {
             shotLeft = 0;
             shotWanted = 0;
             owner = null;
+            handedBackCap = 0;
             lastShotTickStamp = -1;
             armed = false;
             offAfterShot = false;
@@ -1007,9 +1065,9 @@ public final class BlinkCharge {
             BlinkLog.event("charge off (%s), %d banked tick(s) left unused; %d shot(s), %d set back, %d tick(s) banked in all",
                     why, left, shots, shotsSetBack, bankedTotal);
         }
-        if ("world change".equals(why) || "disconnect".equals(why) || "no world".equals(why)
-                || "configuration".equals(why)) {
-            // Hold mode: a key still down from the old world waits for it to come up, as a hold does.
+        if ("disconnect".equals(why)) {
+            // Hold mode: a key still down from the old session waits for it to come up, as a hold does.
+            // (A world change or a configuration phase no longer ends Charge at all: onWorldChange / onConfiguration.)
             if (keyWasDown) {
                 latched = true;
             }
@@ -1028,7 +1086,7 @@ public final class BlinkCharge {
      */
     public static int cap() {
         String o = owner;
-        return o != null ? ownerCap : settingsCap();
+        return o != null ? ownerCap : handedBackCap > 0 ? handedBackCap : settingsCap();
     }
 
     /** The Charge Ticks setting (1-20): the bank a charge with no number of its own fills. */
@@ -1081,6 +1139,7 @@ public final class BlinkCharge {
             return "no connection";
         }
         int cap = ticks <= 0 ? settingsCap() : Math.min(MAX_TICKS, ticks);
+        handedBackCap = 0;
         String was = owner;
         boolean wasActive = active;
         ownerCap = cap;

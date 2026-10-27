@@ -52,6 +52,7 @@ final class SettingTooltipsData {
         d.put("blink/blink", "Turns Blink on: Charge and Hold, each on its own key.");
         d.put("blink/show hud", "Shows \"Charge 12/20\" while charging and \"Hold 5/20\" while holding; move it in the HUD editor.");
         d.put("blink/show server position", "Red box: where the server has you during a hold. Green box: where a charge shot would land you now.");
+        d.put("blink/hud style", "Bar: a bar that fills as ticks bank. Text: \"Charge 12/20\". Both: the bar with the numbers.");
         d.put("blink/chat messages", "Says in chat when a hold starts and ends and when Charge starts, fires and stops.");
         d.put("blink/debug log", "Writes every blink to latest.log on a GitHub build too (your own builds always do); /blink debug shows the state now.");
         d.put("blink/charge key", "Standing still banks ticks; firing runs them all at once and shoots you forward. Fired standing, it goes off when you move.");

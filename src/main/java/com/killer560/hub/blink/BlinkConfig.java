@@ -38,6 +38,19 @@ public final class BlinkConfig {
         }
     }
 
+    /** What the HUD shows: a bar, the "Charge 12/20" text, or both (killer560, 2026-10-27: "a growing bar"). */
+    public enum HudStyle {
+        BAR("Bar"),
+        TEXT("Text"),
+        BOTH("Both");
+
+        public final String label;
+
+        HudStyle(String label) {
+            this.label = label;
+        }
+    }
+
     /** Smallest and largest tick count either slider offers. More than 20 does not go off on Hypixel. */
     public static final int MIN_TICKS = 1;
     public static final int MAX_TICKS = 20;
@@ -61,6 +74,7 @@ public final class BlinkConfig {
     private boolean chatMessages = false;
     /** A release jar writes Blink's log lines only while this is on (dev and cheat jars always do). */
     private boolean debugLog = false;
+    private HudStyle hudStyle = HudStyle.BOTH;
 
     private BlinkConfig() {
     }
@@ -102,6 +116,7 @@ public final class BlinkConfig {
                 cfg.showServerBox = ConfigJson.getBool(obj, "showServerBox", cfg.showServerBox);
                 cfg.chatMessages = ConfigJson.getBool(obj, "chatMessages", cfg.chatMessages);
                 cfg.debugLog = ConfigJson.getBool(obj, "debugLog", cfg.debugLog);
+                cfg.hudStyle = ConfigJson.getEnum(obj, "hudStyle", HudStyle.class, cfg.hudStyle);
             } catch (Exception e) {
                 cfg = new BlinkConfig();
             }
@@ -123,6 +138,7 @@ public final class BlinkConfig {
             obj.addProperty("showServerBox", showServerBox);
             obj.addProperty("chatMessages", chatMessages);
             obj.addProperty("debugLog", debugLog);
+            obj.addProperty("hudStyle", hudStyle.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -202,6 +218,14 @@ public final class BlinkConfig {
 
     public void setChatMessages(boolean chatMessages) {
         this.chatMessages = chatMessages;
+    }
+
+    public HudStyle getHudStyle() {
+        return hudStyle;
+    }
+
+    public void setHudStyle(HudStyle style) {
+        this.hudStyle = style == null ? HudStyle.BOTH : style;
     }
 
     public boolean isDebugLog() {

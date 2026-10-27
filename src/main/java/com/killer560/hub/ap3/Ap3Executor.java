@@ -397,8 +397,14 @@ public final class Ap3Executor {
         releaseResumeBy = -1L;
         blinkFreezeNext = false;
         blinkHoldPaused = false;
-        // A charge AP3's Blink nodes started is AP3's: it ends with AP3 (his own Charge key's charge is left alone).
-        com.killer560.hub.blink.BlinkCharge.endFor(BLINK_OWNER, "AP3 stopped (" + reason + ")");
+        // A charge AP3's Blink nodes started survives AP3 stopping (a leap, a death, a screen, his movement): it is handed
+        // back to his Charge key with its bank, so a later Blink Release node, his key, or Charge switching off releases it
+        // (killer560 2026-10-27: "the blink should always be saved through leaps"). Only switching AP3 off ends it.
+        if (reason != null && reason.contains("AP3 turned off")) {
+            com.killer560.hub.blink.BlinkCharge.endFor(BLINK_OWNER, "AP3 stopped (" + reason + ")");
+        } else {
+            com.killer560.hub.blink.BlinkCharge.handBack(BLINK_OWNER, "AP3 stopped (" + reason + ")");
+        }
         Ap3RouteRunner.stop();
         restoreSlotOnStop(Minecraft.getInstance().player);
         endAim(Minecraft.getInstance().player);

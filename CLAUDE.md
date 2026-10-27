@@ -376,3 +376,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   96-ar run turned up a third (a path arrival ranked as an etherwarp in a stack); the rest were tests left behind by the
   owner's redesigns or measuring under load. Two testkit fixes (91af48ec, 7d854287) had sat unmerged on old branches for a
   week. Report: killer560s-mod-logs/preexisting-1026-report.md.
+- Blink Charge keeps its bank through every teleport by the owner's decision (2026-10-27); GrimAC flags the next shot; do
+  not revert. Wider (same day): "it should never drop blink if possible except if i release it" - Charge also survives
+  respawns, dimension changes, a configuration phase, a hold starting, the Skyblock gate flipping, screens (keys keep their
+  state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
+  release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
+  `Rows.addKept`).
