@@ -45,6 +45,13 @@ public final class ChatTidyConfig {
     private boolean hideActionbar = false;
     private boolean hideNonRankInvites = false;
     private boolean hideBanAnnouncements = false;
+    // Dungeon pack (2026-10-25): each hides one family of dungeon chat, only while in a dungeon (ChatTidy).
+    private boolean hideBossDialogue = false;
+    private boolean hideMort = false;
+    private boolean hideBlessings = false;
+    private boolean hideOthersPickups = false;
+    private boolean hideAbilitySpam = false;
+    private boolean hideDungeonBreaker = false;
 
     private ChatTidyConfig() {
     }
@@ -80,6 +87,12 @@ public final class ChatTidyConfig {
                 cfg.hideActionbar = ConfigJson.getBool(obj, "hideActionbar", false);
                 cfg.hideNonRankInvites = ConfigJson.getBool(obj, "hideNonRankInvites", false);
                 cfg.hideBanAnnouncements = ConfigJson.getBool(obj, "hideBanAnnouncements", false);
+                cfg.hideBossDialogue = ConfigJson.getBool(obj, "hideBossDialogue", false);
+                cfg.hideMort = ConfigJson.getBool(obj, "hideMort", false);
+                cfg.hideBlessings = ConfigJson.getBool(obj, "hideBlessings", false);
+                cfg.hideOthersPickups = ConfigJson.getBool(obj, "hideOthersPickups", false);
+                cfg.hideAbilitySpam = ConfigJson.getBool(obj, "hideAbilitySpam", false);
+                cfg.hideDungeonBreaker = ConfigJson.getBool(obj, "hideDungeonBreaker", false);
             }
         }
         if (migrate) {
@@ -134,6 +147,12 @@ public final class ChatTidyConfig {
             obj.addProperty("hideActionbar", hideActionbar);
             obj.addProperty("hideNonRankInvites", hideNonRankInvites);
             obj.addProperty("hideBanAnnouncements", hideBanAnnouncements);
+            obj.addProperty("hideBossDialogue", hideBossDialogue);
+            obj.addProperty("hideMort", hideMort);
+            obj.addProperty("hideBlessings", hideBlessings);
+            obj.addProperty("hideOthersPickups", hideOthersPickups);
+            obj.addProperty("hideAbilitySpam", hideAbilitySpam);
+            obj.addProperty("hideDungeonBreaker", hideDungeonBreaker);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -185,6 +204,30 @@ public final class ChatTidyConfig {
     /** Hide Ban Announcements (killer560, 2026-10-18): Watchdog's "has banned N players" / staff's "banned an additional N". */
     public boolean isHideBanAnnouncements() {
         return on(hideBanAnnouncements);
+    }
+
+    public boolean isHideBossDialogue() {
+        return on(hideBossDialogue);
+    }
+
+    public boolean isHideMort() {
+        return on(hideMort);
+    }
+
+    public boolean isHideBlessings() {
+        return on(hideBlessings);
+    }
+
+    public boolean isHideOthersPickups() {
+        return on(hideOthersPickups);
+    }
+
+    public boolean isHideAbilitySpam() {
+        return on(hideAbilitySpam);
+    }
+
+    public boolean isHideDungeonBreaker() {
+        return on(hideDungeonBreaker);
     }
 
     // ---- raw (what the settings menu shows) -----------------------------------------------------------------
@@ -267,5 +310,53 @@ public final class ChatTidyConfig {
 
     public void setHideBanAnnouncements(boolean v) {
         hideBanAnnouncements = v;
+    }
+
+    public boolean getHideBossDialogueRaw() {
+        return hideBossDialogue;
+    }
+
+    public void setHideBossDialogue(boolean v) {
+        hideBossDialogue = v;
+    }
+
+    public boolean getHideMortRaw() {
+        return hideMort;
+    }
+
+    public void setHideMort(boolean v) {
+        hideMort = v;
+    }
+
+    public boolean getHideBlessingsRaw() {
+        return hideBlessings;
+    }
+
+    public void setHideBlessings(boolean v) {
+        hideBlessings = v;
+    }
+
+    public boolean getHideOthersPickupsRaw() {
+        return hideOthersPickups;
+    }
+
+    public void setHideOthersPickups(boolean v) {
+        hideOthersPickups = v;
+    }
+
+    public boolean getHideAbilitySpamRaw() {
+        return hideAbilitySpam;
+    }
+
+    public void setHideAbilitySpam(boolean v) {
+        hideAbilitySpam = v;
+    }
+
+    public boolean getHideDungeonBreakerRaw() {
+        return hideDungeonBreaker;
+    }
+
+    public void setHideDungeonBreaker(boolean v) {
+        hideDungeonBreaker = v;
     }
 }

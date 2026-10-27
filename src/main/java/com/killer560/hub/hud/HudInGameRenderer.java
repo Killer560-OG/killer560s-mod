@@ -34,7 +34,9 @@ public final class HudInGameRenderer {
             // Blink's "Blink 12/22 ticks" line (2026-10-25) - missing at first, so it never drew in game (the demo video).
             "blink",
             // Boss Health (2026-10-25).
-            "boss_health");
+            "boss_health",
+            // P3 Status (2026-10-25).
+            "p3_status");
 
     private HudInGameRenderer() {
     }

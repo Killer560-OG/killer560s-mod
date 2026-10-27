@@ -97,7 +97,7 @@ public final class ModPaths {
             t.put(solver, "dungeons/puzzles");
         }
 
-        for (String terminal : new String[]{"terminal", "teammelody", "goldor", "i4", "p3nav", "simonsays",
+        for (String terminal : new String[]{"terminal", "teammelody", "goldor", "i4", "p3nav", "p3status", "simonsays",
                 "leveraura", "lightsdevice", "arrowalign"}) {
             t.put(terminal, "dungeons/terminals");
         }

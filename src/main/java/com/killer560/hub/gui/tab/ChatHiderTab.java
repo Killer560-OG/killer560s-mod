@@ -48,6 +48,21 @@ public class ChatHiderTab extends BaseTab {
                 "Hide Non-Rank Invites", cfg::getHideNonRankInvitesRaw, cfg::setHideNonRankInvites);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Hide Ban Announcements", cfg::getHideBanAnnouncementsRaw, cfg::setHideBanAnnouncements);
+
+        // Dungeon pack (2026-10-25): each only acts inside a dungeon.
+        header(widgets, contentX, contentWidth, y, "Dungeons");
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Boss Dialogue", cfg::getHideBossDialogueRaw, cfg::setHideBossDialogue);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Mort", cfg::getHideMortRaw, cfg::setHideMort);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Blessings", cfg::getHideBlessingsRaw, cfg::setHideBlessings);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Others' Pickups", cfg::getHideOthersPickupsRaw, cfg::setHideOthersPickups);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Ability Spam", cfg::getHideAbilitySpamRaw, cfg::setHideAbilitySpam);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Dungeon Breaker Spam", cfg::getHideDungeonBreakerRaw, cfg::setHideDungeonBreaker);
         return widgets;
     }
 

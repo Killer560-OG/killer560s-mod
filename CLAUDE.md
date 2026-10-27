@@ -320,3 +320,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Docs are split by topic since docs-condense (2026-10-25): LESSONS.md, LESSONS-AUTOMATION.md, LESSONS-GUI.md and SIM.md are
   indexes to LESSONS-{AUTOCLEAR,ROUTES,AUTOMATION-PUZZLES,DUNGEONS,HUD,MENU,MINECRAFT,PERF}.md and SIM-*.md. Add a lesson to the
   topic file; a branch that appends to an old monolith conflicts on merge.
+- Titles and subtitles have ONE hook: `terminals/mixin/TerminalQolTitleMixin` (Gui.setTitle/setSubtitle on 26.1.2, Hud on 26.2, one
+  copy per version). Terminal QoL's Hide Completion and P3 Status both run there; add to it, never a second title mixin. A
+  test reads the shown text from the private `title`/`subtitle` fields of Gui (26.1.2) / Hud (26.2) (testkit 2141).
+  The dungeon-gaps survey called subtitles unhandled because it grepped for the packet class (2026-10-25).

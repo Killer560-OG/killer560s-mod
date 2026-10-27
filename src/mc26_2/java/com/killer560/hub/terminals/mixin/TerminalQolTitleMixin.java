@@ -30,19 +30,22 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  {@code net.minecraft.client.gui.Hud} unchanged - same names, same {@code (Component)} descriptor, both
  *  still public, checked with javap on both jars.
  */
+// P3 Status (2026-10-25) rewrites the P3 progress titles here too, after Hide Completion.
 @Mixin(Hud.class)
 public abstract class TerminalQolTitleMixin {
 
     @Inject(method = "setTitle", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideTerminalCompletionTitle(Component title, CallbackInfo ci) {
-        if (TerminalQolFeature.shouldHideCompletionTitle(title)) {
+        if (TerminalQolFeature.shouldHideCompletionTitle(title)
+                || com.killer560.hub.p3status.P3StatusFeature.onTitle(title, false)) {
             ci.cancel();
         }
     }
 
     @Inject(method = "setSubtitle", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideTerminalCompletionSubtitle(Component subtitle, CallbackInfo ci) {
-        if (TerminalQolFeature.shouldHideCompletionTitle(subtitle)) {
+        if (TerminalQolFeature.shouldHideCompletionTitle(subtitle)
+                || com.killer560.hub.p3status.P3StatusFeature.onTitle(subtitle, true)) {
             ci.cancel();
         }
     }

@@ -236,6 +236,8 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(com.killer560.hub.thorn.ThornFeature.HUD);
         com.killer560.hub.f7spots.F7SpotsFeature.register();
         com.killer560.hub.p3nav.P3NavFeature.register();
+        com.killer560.hub.p3status.P3StatusFeature.register();
+        HudElementRegistry.register(com.killer560.hub.p3status.P3StatusFeature.HUD);
         com.killer560.hub.blessings.BlessingsFeature.register();
         com.killer560.hub.runsummary.RunSummaryFeature.register();
         com.killer560.hub.runsummary.RunLogCommands.register();
