@@ -4375,8 +4375,10 @@ public final class Ap3Executor {
         }
         int want = blinkChargeTarget(node);
         if (step == Step.PREP) {
-            Ap3Node align = alignBeside(player);
-            if (align == null) {
+            // Only an align whose box he is IN goes first (killer560, 2026-10-27: "nodes should only ever fire if i am
+            // inside the node"); an align merely beside the charge is never fired from here.
+            Ap3Node align = null;
+            {
                 for (Ap3Node n : inside) {
                     // Only an align of this chain whose box he really stands in (inside can hold a stale node: a
                     // test's earlier chain sent the charge after "align #0", 11 blocks off).
