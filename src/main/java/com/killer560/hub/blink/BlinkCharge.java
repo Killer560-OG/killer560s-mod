@@ -714,6 +714,25 @@ public final class BlinkCharge {
         }
     }
 
+    /** A shot asked for while the kept bank was not covered: it fires once it is (why, ticks, asked at). */
+    private static volatile String deferredWhy;
+    private static int deferredCount;
+    private static long deferredAtMs;
+    /** The longest a shot waits for cover; after it, it fires anyway (logged). */
+    private static final long SHOT_WAIT_MAX_MS = 3000L;
+
+    /** GrimAC's lag allowance covers the whole bank now: no teleport held, nothing unbacked. */
+    private static boolean covered() {
+        // A Blink hold running shares the same allowance: a shot inside it went out in its burst and drew Timer
+        // (1027-blink-c-order (e)); it waits for the hold to end and the bank to be backed again.
+        return tpSegs.isEmpty() && unbacked <= 0 && !BlinkFeature.isHolding();
+    }
+
+    /** A shot is waiting for the bank to be covered (testkit, HUD). */
+    public static boolean shotWaiting() {
+        return deferredWhy != null;
+    }
+
     /** A banked tick's move carried a new look that has not reached the server yet; the next move sent carries it. */
     private static volatile boolean rotationOwed;
     private static float owedYaw;
@@ -865,6 +884,20 @@ public final class BlinkCharge {
                 releaseAnswersLocked(); // cannot happen (its answer waits at most the delay) - never hold past it
             }
         }
+        if (deferredWhy != null && (covered() || System.currentTimeMillis() - deferredAtMs > SHOT_WAIT_MAX_MS)) {
+            String why = deferredWhy;
+            int c = deferredCount;
+            long waited = System.currentTimeMillis() - deferredAtMs;
+            boolean ok = covered();
+            deferredWhy = null;
+            BlinkLog.event("charge: the shot (%s) waited %d ms %s", why, waited, ok ? "for the bank to be covered - firing"
+                    : "and the bank is still not covered (he kept moving) - firing anyway, GrimAC may set it back");
+            if (why.startsWith("released by")) {
+                requestFrom = client.player == null ? null : client.player.position();
+                requestTicks = 0;
+            }
+            shoot(client, client.player, ok ? why : why + ", continued", c);
+        }
         if (shotLeft > 0) {
             if (tickStamp >= shotLeftAt + 2) {
                 int c;
@@ -887,7 +920,7 @@ public final class BlinkCharge {
             armed = false;
             shoot(client, client.player, "key, fired as he moved");
         }
-        if (offAfterShot && !armed && shotLeft == 0) {
+        if (offAfterShot && !armed && shotLeft == 0 && deferredWhy == null) {
             offAfterShot = false;
             reset("fired");
         }
@@ -986,6 +1019,20 @@ public final class BlinkCharge {
      * route can split one bank across several releases (AP3's Blink Release nodes, killer560 2026-10-26).
      */
     private static void shoot(Minecraft client, LocalPlayer player, String why, int count) {
+        if (!why.endsWith(", continued") && deferredWhy == null && !covered()) {
+            // The kept bank is not covered by GrimAC's lag allowance yet: a teleport's confirm is still held behind its
+            // ping's answer, or the ticks sent since then are not backed again. Fired now the shot is set back (the
+            // owner's leap then release, 1027-ap3-blink-leap-now/-10, TimerLimit). killer560 2026-10-27: fire the kept
+            // bank on the first tick the server will accept it, automatically - never drop it. It fires the tick the bank
+            // is covered (about 2 s after a teleport if he stands still; at most SHOT_WAIT_MAX_MS).
+            deferredWhy = why;
+            deferredCount = count;
+            deferredAtMs = System.currentTimeMillis();
+            BlinkLog.event("charge: shot (%s) waits for the bank to be covered (%s; bank %d)", why,
+                    !tpSegs.isEmpty() ? "a teleport's confirm is held behind its ping's answer" : BlinkFeature.isHolding()
+                            ? "a Blink hold is running" : unbacked + " tick(s) not backed again yet", banked);
+            return;
+        }
         int n;
         synchronized (LOCK) {
             n = count < 0 ? banked : Math.min(count, banked);
@@ -1308,6 +1355,7 @@ public final class BlinkCharge {
             stash = null;
             releaseAnswersLocked();
             tpSegs.clear();
+            deferredWhy = null;
             connection = null;
         }
         if (was) {
@@ -1440,7 +1488,7 @@ public final class BlinkCharge {
 
     /** A {@link #shootFor} release has not run to its end yet (asked, or split over two ticks). */
     public static boolean shotPending() {
-        return shotWanted > 0 || shotLeft > 0 || inShotLoop;
+        return shotWanted > 0 || shotLeft > 0 || inShotLoop || deferredWhy != null;
     }
 
     /** A shot ran in the current tick (a feature that reads an 8-block move as a teleport must not here). */
