@@ -53,7 +53,46 @@ public final class RoutePathPlanner {
         RouteNode dest = route == null ? null : route.pathDestination(src);
         return dest != null && !src.pathHops.isEmpty()
                 && near(src.planFromX, src.x) && near(src.planFromY, src.y) && near(src.planFromZ, src.z)
-                && near(src.planToX, dest.x) && near(src.planToY, dest.y) && near(src.planToZ, dest.z);
+                && near(src.planToX, dest.x) && near(src.planToY, dest.y) && near(src.planToZ, dest.z)
+                && withinReach(src);
+    }
+
+    /**
+     * Every saved warp is within THIS player's etherwarp range. Warps are planned with the range of the etherwarp item of
+     * whoever planned them (57 + Transmission Tuners), and a routes file shared with a friend who has fewer tuners kept
+     * hops his item cannot reach: the warp did nothing and the route stopped "not at path #19 - 9.0 blocks away"
+     * (killer560's friend, 2026-10-26). With Replan For My Range on, a hop longer than the current range makes the pair
+     * stale, so it is planned again with his range. Distances are taken in the route's own frame, which a rotation or move of the room does not change.
+     */
+    static boolean withinReach(RouteNode src) {
+        if (!AutoRoutesConfig.getInstance().isReplanForRange()) {
+            // Off by default (killer560, 2026-10-26): routes are planned with Transmission Tuners, which everyone has.
+            return true;
+        }
+        if (com.killer560.hub.pathfinding.EtherwarpHopper.range() <= 0) {
+            // No etherwarp item in the hotbar: his range is unknown, and judging by the 56-block default would replan
+            // (and save over) every longer hop of his own routes. Only a known, shorter range makes a pair stale.
+            return true;
+        }
+        double range = ClearExecutor.hopRange() + 0.5;
+        double eyeHeight = TeleportUtils.eyeHeight(true);
+        for (RouteNode.PathHop h : src.pathHops) {
+            BlockPos t = h.target();
+            if (t == null) {
+                continue;
+            }
+            double ex = h.ox();
+            double ey = h.oy() + eyeHeight;
+            double ez = h.oz();
+            // To the nearest point of the target block, which is what the warp's ray has to reach.
+            double dx = Math.max(Math.max(t.getX() - ex, 0.0), ex - (t.getX() + 1.0));
+            double dy = Math.max(Math.max(t.getY() - ey, 0.0), ey - (t.getY() + 1.0));
+            double dz = Math.max(Math.max(t.getZ() - ez, 0.0), ez - (t.getZ() + 1.0));
+            if (dx * dx + dy * dy + dz * dz > range * range) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean near(double a, double b) {
