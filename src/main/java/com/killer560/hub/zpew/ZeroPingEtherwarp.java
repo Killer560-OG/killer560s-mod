@@ -491,9 +491,13 @@ public final class ZeroPingEtherwarp {
                 ClickLook l = looks.get(i);
                 float pitch = Mth.clamp(l.pitch(), -90f, 90f);
                 Runnable use = () -> {
-                    BODY.turn(player, l.yaw(), pitch);
+                    // The same direction as the press, as a turn of at most 180 from where the body is now: the presses'
+                    // running yaws can span a whole circle (+x, +z, -x, -z, +x), and turning straight back from the last
+                    // to the first is a 360 that GrimAC flags as AimModulo360 (1027-zpewlk n=5, b10ae6c9).
+                    float yaw = player.getYRot() + Mth.wrapDegrees(l.yaw() - player.getYRot());
+                    BODY.turn(player, yaw, pitch);
                     invoker.killer560smod$invokeStartPrediction(mc.level,
-                            sequence -> new ServerboundUseItemPacket(hand, sequence, l.yaw(), pitch));
+                            sequence -> new ServerboundUseItemPacket(hand, sequence, yaw, pitch));
                 };
                 if (i < n - 1) {
                     if (!com.killer560.hub.blink.BlinkCharge.spendTick(use)) {
