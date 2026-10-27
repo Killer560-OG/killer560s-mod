@@ -229,19 +229,27 @@ public final class BlinkFeature {
         }
         BlinkConfig cfg = BlinkConfig.getInstance();
         ClientPacketListener listener = client.getConnection();
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || !cfg.isEnabled() || client.player == null
-                || client.level == null || listener == null) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || !cfg.isEnabled() || listener == null) {
+            // Blink switched off, or no connection: the only ends besides his own release (killer560 2026-10-27).
             wanted = false;
-            // A Hold key that was down when the world went (a disconnect, leaving) waits for it to come up on the next one:
-            // before 2026-10-26 this forgot it, and a key still down after a rejoin started a hold during the join.
+            // A Hold key that was down when the connection went waits for it to come up on the next one: a key still down
+            // after a rejoin started a hold during the join (2026-10-26).
             if (keyWasDown) {
                 holdLatched = true;
             }
             keyWasDown = false;
             if (holding) {
-                release(cfg.isEnabled() ? "no world - leaving or loading" : "switched off");
+                release(cfg.isEnabled() ? "no connection" : "switched off");
             }
-            BlinkCharge.reset(cfg.isEnabled() ? "no world" : "switched off");
+            BlinkCharge.reset(cfg.isEnabled() ? "disconnect" : "switched off");
+            return;
+        }
+        if (client.player == null || client.level == null) {
+            // Connected with no world (loading, a configuration phase): a hold cannot go on (its packets belong to the old
+            // world and must go before the new one's), Charge and its bank carry on.
+            if (holding) {
+                release("no world - loading");
+            }
             return;
         }
 
@@ -305,8 +313,13 @@ public final class BlinkFeature {
             return forced;
         }
         int code = cfg.getHoldKeyCode();
-        if (code == KeyUtil.NONE || !keysReadUnder(client) || client.getWindow() == null) {
+        if (code == KeyUtil.NONE || client.getWindow() == null) {
             return false;
+        }
+        if (!keysReadUnder(client)) {
+            // Chat, pause, the death screen, a mod screen: the key keeps the state it had, so opening one neither ends a
+            // hold nor (typing the key's letter) starts one (killer560 2026-10-27: never drop a blink he did not release).
+            return keyWasDown;
         }
         return KeyUtil.isBindDown(client.getWindow(), code);
     }
@@ -541,7 +554,7 @@ public final class BlinkFeature {
             BlinkLog.event("world change (login or respawn packet): holding %s (%d packet(s)), charging %s (bank %d)", holding,
                     heldPackets(), BlinkCharge.isActive(), BlinkCharge.banked());
         }
-        BlinkCharge.reset("world change");
+        BlinkCharge.onWorldChange();
         serverPos = null;
         synchronized (LOCK) {
             // Everything, in order, before the new world's packets: dropping the moves and tick-ends left a held sprint
@@ -552,17 +565,18 @@ public final class BlinkFeature {
         // The new world's first position packet is the move into it, not a rubberband after the release.
         ticksSinceRelease = Integer.MAX_VALUE;
         wanted = false;
-        // Off until the key is pressed again (a key still down from the old world waits for it to come up): a hold that
-        // started on the new world's first tick held its loading packets and drew GrimAC Post (testkit 1025-blink-world).
-        holdLatched = keyWasDown;
-        if (holdLatched) {
-            BlinkLog.event("Hold key still down across the world change - the next hold waits for it to come up");
+        // The held packets cannot cross into the new world (sent above, in order); a Hold key still down starts a new hold
+        // there (killer560 2026-10-27: never drop a blink he did not release). From 2026-10-26 to then it waited for the
+        // key to come up, because a hold on the new world's first tick drew GrimAC Post (testkit 1025-blink-world).
+        holdLatched = false;
+        if (keyWasDown) {
+            BlinkLog.event("Hold key still down across the world change - a new hold goes on in the new world");
         }
     }
 
     /** The server starts a configuration phase: everything held is a play packet for it, so all of it goes now. */
     public static void onConfigurationStart() {
-        BlinkCharge.reset("configuration");
+        BlinkCharge.onConfiguration();
         synchronized (LOCK) {
             releaseLocked("configuration", false);
         }
