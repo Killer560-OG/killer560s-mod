@@ -83,6 +83,10 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   Look registers as the body's owner (`TurnFirst.registerBodyOwner`) and auras wait; a held walk leaves an aura's turn
   alone and re-picks its keys at the live yaw in the input hook (`Ap3Executor.beforeInputInstall`). The same aura turns
   mid-align were what walked him off the ledge at align #13 (21:09:35, 21:43:23, flicks interleaved with the align trace).
+- **Runs and walks may walk off a ledge; only aligns (ALIGN, fast and axis aligns) are guarded** (killer560, 2026-10-27:
+  "runs should be able to walk off a ledge, just not aligns or fast aligns"). A held-walk edge stop shipped in eed9bcad
+  read a gap his RUN crosses between two same-height floors as "no floor", stopped him and swung A/D at the edge; it is
+  off (`Ap3Executor.WALK_EDGE_STOP = false`, f9807f02). Do not bring it back. The pull into a passed align stays.
 - **Ledge guard (aligns).** Each align press's predicted position (the planner's own one-step model) needs a collision box
   within 0.5 under the footprint; if not, Sneak goes down with the same keys and vanilla's `maybeBackOffFromEdge` (it
   reads `isShiftKeyDown`, i.e. this tick's input, javap 26.1.2) clips the move at the edge. The edge clip stops the move,
