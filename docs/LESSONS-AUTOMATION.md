@@ -512,3 +512,8 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   for two new pings (at most 300 ms). Lowering the cap alone (8.5) did not help. `grim consoledebug <player>` plus the
   server log's "moved too quickly" line told the two apart: GrimAC predicted every shot tick exactly.
 
+- State that is counted per tick (a wait after a world change, a cooldown) must be counted before a feature's "switched
+  off" early return. Blink's spawn settle (5fa141f2) was counted only while Blink was on, so with Blink off at the world
+  change it stayed pending, and a hold pressed later mid-jump waited for the landing (testkit 1025-blink-jump: 2.4 of 6.9
+  blocks held; ship3-1027). The same shape in AP3: `Ap3Feature.onChat` returned before reading the leap line whenever no
+  node was running, so an armed route never knew a landing was a leap (1027-ap3-live34-beside-leap).
