@@ -470,7 +470,10 @@ public final class BlinkCharge {
                 // the tick, so while he moved with Charge on no answer was ever sent at a tick start - 18 waiting, the
                 // oldest 1660 ms, at a 140 ms delay (testkit 1026-ap3-blink-3); walking long enough would reach GrimAC's
                 // 60 s transaction limit.
-                if (!tickOpen) {
+                // Not for a teleport's confirm: it sends every answer through its ping back to back anyway, and releasing the
+                // due ones first left the batch a younger oldest answer than the bank needs, so a covered leap took the
+                // slow hold (1027-blink-c-keep-delay "walking after the tp" at 50 ms, ts9).
+                if (!tickOpen && !(packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket)) {
                     releaseDueAnswersLocked(System.currentTimeMillis());
                 }
                 tickOpen = !(packet instanceof ServerboundClientTickEndPacket);
