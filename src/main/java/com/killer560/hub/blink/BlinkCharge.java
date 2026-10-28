@@ -493,7 +493,7 @@ public final class BlinkCharge {
                     BlinkLog.event("charge: a menu click during a teleport hold - %d answer(s) and the held teleport(s) sent "
                             + "first so the server has his still input; bank kept (%d), backed again on still ticks", sent, banked);
                     if (banked + shotLeft > 0) {
-                        unbacked = banked + shotLeft;
+                        unbacked = rebackFor(banked + shotLeft);
                         rebackRun = 0;
                     }
                 }
@@ -569,7 +569,7 @@ public final class BlinkCharge {
                     connection.flushChannel();
                     pushReleases++;
                     if (banked + shotLeft > 0 && !coverKept) {
-                        unbacked = banked + shotLeft;
+                        unbacked = rebackFor(banked + shotLeft);
                         rebackRun = 0;
                     }
                     BlinkLog.event("charge: the server pushed him (%s) - %d answer(s) sent at once so GrimAC sees the push "
@@ -668,9 +668,6 @@ public final class BlinkCharge {
                 }
             }
             boolean accept = packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
-            if (accept) {
-                flushPreLocked();
-            }
             if (accept && teleportInPlace) {
                 inPlaceTeleports++;
             } else if (accept) {
@@ -714,6 +711,9 @@ public final class BlinkCharge {
                         }
                     }
                     tpBatches++;
+                    // Actions held for this tick go after the answers: sent before them, they sat after his last move
+                    // with an answer behind - GrimAC Post "entity action" (1027-blink-c-p3sim (d) on 26.2, ts10).
+                    flushPreLocked();
                     BlinkLog.event("charge: %s teleport confirmed - bank kept (%d) and still covered; %d answer(s) sent back "
                             + "to back with the confirm right behind (oldest %d ms)", teleportInPlace ? "in-place" : "moving",
                             banked, sent, oldestAge);
@@ -721,6 +721,9 @@ public final class BlinkCharge {
                 }
                 if (mark != null) {
                     ArrayDeque<Held> q = new ArrayDeque<>();
+                    while (!preHeld.isEmpty()) {
+                        q.addLast(preHeld.pollFirst());
+                    }
                     q.addLast(new Held(packet, listener, flush));
                     tpHeldTotal++;
                     tpSegs.addLast(new TpSeg(mark, q, System.currentTimeMillis()));
@@ -787,7 +790,7 @@ public final class BlinkCharge {
         if (!active || banked + shotLeft <= 0) {
             return;
         }
-        unbacked = banked + shotLeft;
+        unbacked = rebackFor(banked + shotLeft);
         rebackRun = 0;
         BlinkLog.event("charge: %s - the bank is kept (%d) but GrimAC no longer covers it; the next %d still tick(s) are "
                 + "withheld to back it again", why, banked, unbacked);
@@ -795,7 +798,16 @@ public final class BlinkCharge {
 
     /** After a shot or a spent tick: what is left of the bank is unbacked at most as far as it was (backed ticks go first). */
     private static void trimUnbacked() {
-        unbacked = Math.max(0, Math.min(unbacked, banked + shotLeft));
+        unbacked = Math.max(0, Math.min(unbacked, rebackFor(banked + shotLeft)));
+    }
+
+    /**
+     * Still ticks to withhold to back B banked ticks again: the bank, its firing tick and one more. Withholding exactly B
+     * left GrimAC's balance 1000 ms behind for a 1050 ms shot, and with the answers at 1050 ms the leap-route shot drew
+     * TimerLimit on 26.2 at 150 ms (ts10).
+     */
+    private static int rebackFor(int b) {
+        return b <= 0 ? 0 : b + 2;
     }
 
     /**
@@ -1021,7 +1033,7 @@ public final class BlinkCharge {
         BlinkLog.event("charge: teleport hold let go after %d ms (%s): %d packet(s) sent behind its answer", ms, why, n);
         if (active && banked + shotLeft > 0) {
             // The second it held put him that much further behind than GrimAC allows on top of the bank.
-            unbacked = banked + shotLeft;
+            unbacked = rebackFor(banked + shotLeft);
             rebackRun = 0;
             BlinkLog.event("charge: the kept bank (%d) is backed again on the next %d still tick(s)", banked, unbacked);
         }
