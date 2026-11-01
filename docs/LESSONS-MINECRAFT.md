@@ -159,3 +159,28 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
   hooks `Minecraft.toggleFullscreen`), and `McWindow.isFullscreen` reads Window's private `fullscreen` field by
   reflection (26.3 is not obfuscated). SDL3 has no Win32 display device name, so Window Layout finds a saved monitor
   by name and index on 26.3. `Util.OS.openUri/openPath` moved to `com.mojang.blaze3d.Blaze3D.openUri(URI)/openPath`.
+
+## Packets, swings and entities on 26.3 (port, 2026-11-01)
+
+- **26.3 has no ServerboundSwingPacket and no `LivingEntity.swing(hand)`.** Vanilla's `Minecraft.startAttack` (javap 26.3)
+  animates with `swing(MAIN_HAND, held.getAttackAnimation(), false)` and then sends `ServerboundPunchPacket.INSTANCE` (no
+  hand); `startUseItem` only animates a successful use (`getInteractAnimation()`) and sends NO swing packet. So a mod swing
+  must say which click it goes with: `McCompat.swingAttack` after a dig START/ABORT, an attack or an air click,
+  `McCompat.swingUse` after useItemOn/useItem/interact. On 26.2 both are the old `swing(hand)` with its packet. Outbound
+  taps that watched for the swing packet (`OutboundBreakMixin`, `RightClickSendMixin`) now see the punch packet on 26.3,
+  which only a left click sends.
+- **Most game packets became records**: `getHand()`/`getHitResult()`/`getSequence()`/`getX()` are `hand()`/`hitResult()`/
+  `sequence()`/`x()`; the particle packet carries x/y/z max speeds (its old 11-argument constructor copies one value into
+  all three); `ClientboundMoveEntityPacket` lost `getXa/Ya/Za` for a stepped `VecDelta` decoded against
+  `entity.getPositionCodec()` (still 1/4096 block units). All behind `compat/McPackets`.
+- **Methods that are now only inherited on LocalPlayer:** `getViewXRot(float)` (Entity) and the drop key's
+  `drop(boolean)` (gone; the key runs `MultiPlayerGameMode.dropItem(LocalPlayer, boolean)`). Mixin injects into DECLARED
+  methods only, so a `@Mixin(LocalPlayer.class)` on either silently did nothing on 26.3: AP3's pitch freeze now also
+  hooks `Entity.getViewXRot` (`Ap3ViewPitchMixin`), and Item Protection's drop guard has a per-version copy.
+- Entities: `setInvulnerable` -> `setPermanentlyInvulnerable`, the public `invulnerableTime` field -> private with
+  `get/setInvulnerableTime`, `InterpolationHandler` is an interface whose `target().position()` replaces `position()`,
+  `Player.drop(stack, bool)` gained a `Prediction` (server side: `SERVER_ONLY`). `SoundInstance.resolve` ->
+  `getOrResolve` (it also stores `soundEvent`). authlib 10 dropped `YggdrasilAuthenticationService`: Minecraft builds its
+  UserApiService with `MinecraftServicesDiscoveryService.create(proxy, true).createUserApiService(token)`, and
+  `ProfileResult` moved to `com.mojang.authlib.services`.
+

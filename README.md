@@ -1,6 +1,6 @@
 # Killer560's Mod
 
-A Fabric client mod for Hypixel Skyblock (Minecraft 26.1.2). Built as a personal quality-of-life toolkit that grew into something friends can use too.
+A Fabric client mod for Hypixel Skyblock (Minecraft 26.3, and 26.2). Built as a personal quality-of-life toolkit that grew into something friends can use too.
 
 See the #roadmap channel in the [Discord server](https://discord.gg/hkQMF5fE84) for what's planned next.
 
@@ -42,11 +42,11 @@ Open the menu in game with `/killer560` or the Open Menu Key (backslash by defau
 
 ## Latest dev build
 
-Every push to `main` is built automatically and published as the **Latest Dev Build** pre-release on the [Releases page](https://github.com/Killer560-OG/killer560s-mod/releases/tag/dev-latest) - download the `-legit.jar` or `-cheat.jar` for your Minecraft version (26.1.2 or 26.2) from there to get the newest commit without building it yourself. It is replaced on every push and is not an official release.
+Every push to `main` is built automatically and published as the **Latest Dev Build** pre-release on the [Releases page](https://github.com/Killer560-OG/killer560s-mod/releases/tag/dev-latest) - download the `-legit.jar` or `-cheat.jar` for your Minecraft version (26.3 or 26.2) from there to get the newest commit without building it yourself. It is replaced on every push and is not an official release.
 
 ## Installing
 
-1. Install Fabric Loader for `26.1.2`.
+1. Install Fabric Loader for `26.3` (or `26.2`).
 2. Drop Fabric API into your `mods` folder.
 3. Grab the latest release jar from the [Releases](../../releases) page and drop it in `mods` too. Two jars are published per release:
    - **`-legit.jar`** — everything in the feature list above except autonomous auto-clicking and Full Block. This is the one almost everyone wants.

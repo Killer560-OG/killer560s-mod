@@ -156,11 +156,11 @@ override read by `MainMenuLook.current()`, `MainMenuTheme.active()` and `MenuSty
 `MainMenuScenes.setAmberScene` / `setGreenScene` and `GreenTheme.setGradient` are the runtime choices behind it (the
 `AMBER_SCENE` / `GREEN_SCENE` / `DEFAULT_GRADIENT` constants stay the defaults).
 
-## World render batch (`compat/McRender`, 26.1.2)
+## World render batch (`compat/McRender`, 26.1.2 only - dropped 2026-11-01)
 Inside `AFTER_TRANSLUCENT_FEATURES` and `AFTER_TRANSLUCENT_TERRAIN`, `McRender.inCameraSpace` writes into the mod's own
 buffer source and draws each render type once after the event's last listener (see `McRender.registerBatching`).
-`McRender.batchStats()` returns `{geometry callbacks batched, batches drawn}` since launch (both 0 on 26.2, whose submit
-collector groups by type itself); the probe attributes the batch's draw to `compat.McRender <event>`, not to the
+`McRender.batchStats()` returns `{geometry callbacks batched, batches drawn}` since launch (both 0 on 26.2 and 26.3, whose
+submit collector groups by type itself; the batching lived only in the 26.1.2 layer, removed 2026-11-01); the probe attributes the batch's draw to `compat.McRender <event>`, not to the
 features that filled it. Testkit 95-perf-world reads both, plus its own draw-call counter.
 
 ## Dungeon Map draw cache (`livemap/MapDrawCache`)

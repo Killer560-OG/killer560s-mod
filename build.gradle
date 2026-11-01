@@ -231,6 +231,12 @@ if (!compatDir.directory) {
 			+ "nearest existing src/mc*/java and fix what moved.")
 }
 sourceSets.main.java.srcDir compatDir
+// Resources that differ per version (the mod's GLSL shaders: 26.3 compiles them through SPIR-V, which needs explicit
+// layout(location) on every input/output and reordered DynamicTransforms; 26.2's GL compiler takes the plain ones).
+def compatResources = file("src/${mcBranch}/resources")
+if (compatResources.directory) {
+	sourceSets.main.resources.srcDir compatResources
+}
 
 // ---------------------------------------------------------------- class moves, without a second copy of the file
 //

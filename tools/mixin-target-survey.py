@@ -5,13 +5,14 @@ the feature simply never runs and nothing appears in the log. That is the failur
 bump produces most of, and it is invisible to `compileJava`. This is the repeatable version of the javap
 check CLAUDE.md asks for.
 
-Run it once per supported version, with that version's jar FIRST:
+Run it once per supported version, with that version's jar FIRST (the jars are under .gradle/loom-cache/minecraftMaven/
+net/minecraft/minecraft-merged-*/<version>/ after a build of that version):
 
-  # 26.1.2
-  python tools/mixin-target-survey.py       .gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-*/26.1.2/*-26.1.2.jar       <the-other-version-jar> src/main/java,src/mc26_1/java
+  # 26.3 (main)
+  python tools/mixin-target-survey.py <26.3-jar> <26.2-jar> src/main/java,src/mc26_3/java
 
-  # 26.2
-  python tools/mixin-target-survey.py <26.2-jar-or-extracted-classes-dir>       <the-other-version-jar> src/main/java,src/mc26_2/java
+  # 26.2 (compile once with the 26.2 flags first, so the remapped copy exists)
+  python tools/mixin-target-survey.py <26.2-jar> <26.3-jar> build/generated/sources/remapped/mc26_2,src/mc26_2/java
 
 Both jars are passed because the second one only decides the wording: a target missing from the version under
 test but present in the other is a version break, while one missing from both was already wrong.
@@ -166,8 +167,8 @@ for path in files:
     m262 = members(MC262, fqcn)
     m261 = members(MC261, fqcn)
     if not m262:
-        note(path, fqcn, 'MIXIN TARGET CLASS not resolvable on 26.2',
-             'on 26.1.2: ' + ('yes' if m261 else 'ALSO NO'))
+        note(path, fqcn, 'MIXIN TARGET CLASS not resolvable on this version',
+             'on the other version: ' + ('yes' if m261 else 'ALSO NO'))
         continue
 
     wanted = set()
@@ -191,11 +192,11 @@ for path in files:
             continue
         d262 = declared(MC262, fqcn) or set()
         if bare not in m262:
-            note(path, fqcn, 'method missing on 26.2: ' + name,
-                 'on 26.1.2: ' + ('yes' if m261 and bare in m261 else 'NO'))
+            note(path, fqcn, 'method missing on this version: ' + name,
+                 'on the other version: ' + ('yes' if m261 and bare in m261 else 'NO'))
         elif bare not in d262:
-            note(path, fqcn, 'INHERITED ONLY on 26.2 (Mixin needs it declared): ' + name,
-                 'declared on 26.1.2: ' + ('yes' if (declared(MC261, fqcn) or set()) and bare in (declared(MC261, fqcn) or set()) else 'NO'))
+            note(path, fqcn, 'INHERITED ONLY on this version (Mixin needs it declared): ' + name,
+                 'declared on the other version: ' + ('yes' if (declared(MC261, fqcn) or set()) and bare in (declared(MC261, fqcn) or set()) else 'NO'))
 
     for t in sorted(ats):
         m = re.match(r'L([\w/$]+);([\w<>$]+)', t)
@@ -205,11 +206,11 @@ for path in files:
         member = m.group(2)
         om = members(MC262, owner)
         if not om:
-            note(path, fqcn, '@At owner not resolvable on 26.2: ' + owner, '')
+            note(path, fqcn, '@At owner not resolvable on this version: ' + owner, '')
         elif member not in om:
             om261 = members(MC261, owner)
-            note(path, fqcn, '@At member missing on 26.2: ' + owner + '#' + member,
-                 'on 26.1.2: ' + ('yes' if om261 and member in om261 else 'NO'))
+            note(path, fqcn, '@At member missing on this version: ' + owner + '#' + member,
+                 'on the other version: ' + ('yes' if om261 and member in om261 else 'NO'))
 
 for path, fqcn, problem, extra in rows:
     print('%-58s | %-50s | %s | %s' % (path.replace('\\', '/'), fqcn, problem, extra))

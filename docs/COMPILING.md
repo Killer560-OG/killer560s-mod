@@ -28,5 +28,37 @@ Moved out of CLAUDE.md (2026-10-05), then out of LESSONS.md (2026-10-07). Proble
   reintroducing the `pool` collision into a scratch copy and watching the filter print it. This does NOT replace
   the rule below about API names - an unresolved method is indistinguishable from a misspelled one here.
 
+## Two versions: 26.3 (main) and 26.2 (since 2026-11-01)
+
+- **Build both, every time.** 26.3: `./gradlew build`. 26.2: `./gradlew build -Pminecraft_version=26.2
+  -Pfabric_api_version=0.160.0+26.2 -Pmodmenu_version=20.0.2`. Between versions or variants delete
+  `build/generated/sources/buildVariant` and `build/classes`. 26.1.2 is dropped; there is no mc26_1 any more.
+- **src/main/java speaks 26.3.** Write 26.3's class names. A class that only moved or was renamed between the versions
+  goes in `src/mc26_2/remap.txt` as `26.3 name = 26.2 name`; the 26.2 build compiles a rewritten copy under
+  `build/generated/sources/remapped/mc26_2/`, so a 26.2-only compile error is reported THERE (same relative path and line
+  as the real file under src/main/java - fix the real file). The rewrite also renames the simple name in a file that
+  imports the class or its package, comments included, never string literals unless they hold the bare simple name.
+- **What remap.txt cannot do:** a changed METHOD (rename, new argument, record accessor) needs a facade in the compat
+  classes, written in both `src/mc26_3/java` and `src/mc26_2/java` with identical public signatures; and mixin STRINGS
+  (slash descriptors like `Lcom/mojang/blaze3d/pipeline/RenderPipeline;`) are never rewritten, so a descriptor naming a
+  moved class lists both versions' forms or lives in a per-version mixin copy.
+- **Where the 26.3 differences live** (2026-11-01 port): packet getters that became record accessors (`getHand()` ->
+  `hand()`, particle/chunk/remove-entities packets, the move-entity packet's stepped VecDelta) in `McPackets`; arm swings in
+  `McCompat.swingAttack` (left-click actions: animation + `ServerboundPunchPacket`, what vanilla's startAttack sends) and
+  `McCompat.swingUse` (right-click actions: animation only on 26.3, the swing packet on 26.2 - both as each version's
+  vanilla does); keys, mouse buttons and the window (SDL3 replaced GLFW) in `McInput`/`McWindow` with configs keeping GLFW
+  numbers (`util/Keys`); `PoseStack.mulPose(quaternion)` -> `McRender.rotate`; entity renames (`setPermanentlyInvulnerable`,
+  `invulnerableTime` behind a getter, `InterpolationHandler.target()`, `drop(..., Prediction)`) in `McEntities`;
+  `SoundInstance.resolve` -> `getOrResolve` behind `McSoundInstance`; authlib 10's `MinecraftServicesDiscoveryService` in
+  `McCompat.createUserApiService`; first-person hands and the GPU API in `McRender` plus per-version mixins
+  (docs/LESSONS-GUI.md).
+- **Checking mixins on a version:** `tools/mixin-target-survey.py` (names), `tools/mixin-descriptor-check.py` (full
+  descriptors in mixin strings) and `tools/mixin-handler-check.py` (handler arguments against the target). Pass the mapped
+  jar from `.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-*/<version>/` as a Windows path (`cygpath -m`);
+  a `/c/...` path makes javap find nothing and every target reads as missing. Expected noise: alternatives listed for the
+  other version, Fabric impl classes (not in the Minecraft jar), ModMenu's ModListWidget, generic erasure (`Packet<?>`,
+  `E extends Entity`, `AvatarlikeEntity`), and an INVOKE owner that only inherits the method (javac writes the receiver's
+  static type as the owner, so check the bytecode with `javap -c` before "fixing" it).
+
 Automation runtime lessons (Auto Routes on GrimAC, chain timing, ViewFreeze, held camera, key range) moved to
 [LESSONS-AUTOMATION.md](LESSONS-AUTOMATION.md) on 2026-10-06 to keep this file under its size limit.

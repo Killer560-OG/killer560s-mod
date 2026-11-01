@@ -8,13 +8,21 @@ and (in one of the two build variants) automation. Personal toolkit that friends
 Java 25 and a JDK on `JAVA_HOME`. Gradle wrapper, Fabric Loom.
 
 ```
-./gradlew build                     # legit variant  -> build/libs/killer560smod-1.1.0-26.1.2-legit.jar
-./gradlew build -PcheatBuild=true   # cheat variant  -> build/libs/killer560smod-1.1.0-26.1.2-cheat.jar
+./gradlew build                     # legit variant  -> build/libs/killer560smod-1.1.0-26.3-legit.jar
+./gradlew build -PcheatBuild=true   # cheat variant  -> build/libs/killer560smod-1.1.0-26.3-cheat.jar
 ./gradlew build -Prelease=true      # official release: compiles dev tooling OUT
-./gradlew build [-PcheatBuild=true] -PtestingBuild=true  # killer560's private jar, ...-26.1.2-<cheat|legit>-testing.jar: Untested category, Mark tested, /k560tested; lists in testing/; deploy ONLY with --testing-instance-cheat/--testing-instance-legit NAME
+./gradlew build [-PcheatBuild=true] -PtestingBuild=true  # killer560's private jar, ...-26.3-<cheat|legit>-testing.jar: Untested category, Mark tested, /k560tested; lists in testing/; deploy ONLY with --testing-instance-cheat/--testing-instance-legit NAME
 python deploy-to-instances.py [--dry-run] [--jars-dir DIR]   # install into every Prism instance; writes minecraft/killer560smod-no-auto-update in each (Auto Update off there)
 python tools/verify-artifact.py JARS_OR_DIRS [--git REPO]    # secret scan; deploy-to-instances.py, release-assets.py, dev-build.yml and killer560s-mod-logs/verify_gate.py all run it and stop on exit 1
 # --auto-update-instance NAME: leave NAME to the mod's own Auto Update (no jar, marker removed); none uses it (2026-10-24: all 7 have the marker)
+```
+
+**Minecraft versions (killer560, 2026-11-01): 26.3 is the main version, 26.2 the second, 26.1.2 is dropped** (no more builds;
+`src/mc26_1` is gone). Every change must build and run on both. The two exact command lines, with any of the flags above added:
+
+```
+./gradlew build                                                                                       # 26.3 (gradle.properties)
+./gradlew build -Pminecraft_version=26.2 -Pfabric_api_version=0.160.0+26.2 -Pmodmenu_version=20.0.2  # 26.2
 ```
 
 The Minecraft version is in every jar name, and one gradle run builds one version. The deploy script keeps
@@ -33,16 +41,20 @@ Both variants come from the same source. `build.gradle` generates
 `-Prelease`. Because they are `static final boolean`, javac folds every `CHEAT_FEATURES_ENABLED && x` down
 to `false` in a legit build and deletes the branch, which is the point.
 
-Versions, all from `gradle.properties` (check there, not here, if something looks off): Minecraft 26.1.2,
-Fabric Loader 0.19.3, Fabric API 0.155.2+26.1.2, Loom 1.17-SNAPSHOT, Mod Menu 18.0.0, mod version 1.1.0,
+Versions, all from `gradle.properties` (check there, not here, if something looks off): Minecraft 26.3,
+Fabric Loader 0.20.1 (the stable one Fabric meta lists for 26.3; the jar itself still declares `fabricloader >=0.19.3`, which is
+also what Fabric API 0.165.0+26.3 needs), Fabric API 0.165.0+26.3, Loom 1.17-SNAPSHOT (resolves 1.17.21, builds 26.3 fine),
+Mod Menu 21.0.0 (declares minecraft >=26.3-; 20.0.x stops below 26.3), mod version 1.1.0. 26.2 keeps Fabric API
+0.160.0+26.2 and Mod Menu 20.0.2 through the -P overrides above.
 Netty is not in `gradle.properties`: `build.gradle`'s `nettyByMinecraft` picks the Jar-in-Jar pair for the Proxy Client
-(4.2.7.Final for 26.1, 4.2.15.Final for 26.2) and the build re-checks it against Minecraft's own.
-`fabric.mod.json` declares `minecraft ~<major.minor>` (filled in from `minecraft_version`), `java >=25`, entrypoints `client` and `modmenu`.
+(4.2.16.Final for 26.3, 4.2.15.Final for 26.2, both read off Mojang's version manifests) and the build re-checks it against
+Minecraft's own.
+`fabric.mod.json` declares `minecraft ~<major.minor>` (filled in from `minecraft_version`: `~26.3` / `~26.2`), `java >=25`, entrypoints `client` and `modmenu`.
 
 ## Testing
 
-Boot-test only in the Prism instance **26.1.2 (Mod Only Test)**, and close the game afterwards. The
-instance **26.1.2 (Dungeons)** is him actually playing — never install a test jar there, never boot it, and
+Boot-test only in the Prism instance **26.3 Mod Only Test** (26.2: **26.2 Mod Only Test**), and close the game
+afterwards. The instance **26.3** is him actually playing (it was `26.1.2 (Dungeons)` until 2026-11-01) — never install a test jar there, never boot it, and
 never draw a conclusion from its log. A finished, tested batch does go there with every other instance
 (`deploy-to-instances.py`, killer560 2026-09-27).
 
@@ -51,10 +63,13 @@ and silently started one of his play instances instead. Boot-test through the te
 ask him. Never swap a jar over a running game; stage it as `.jar.pending`. Never blanket `taskkill javaw` - kill only
 the PID you launched, and leave a client whose log shows a server join (he took the window).
 
-**Instances** (since 2026-10-07; enumerate the directory, never trust this list - it has been wrong before):
-`26.1.2 (Dungeons)` (his play instance, cheat), `26.1.2 (Mod Only Test)` (cheat), `26.1.2 (SIM recording)` (cheat, checked
-2026-10-24), `26.1.2 Legit`, `26.2 Cheat`, and the
-private `26.1.2 Untested Cheat` / `26.1.2 Untested Legit`, which take only `-PtestingBuild` jars. `Title Screen GUI` (the main-menu preview instance, marker `killer560smod-title-screen-gui`, docs/TESTING-HOOKS.md) was
+**Instances** (owner decision 2026-11-01, being set up by the instance agent; enumerate the directory, never trust this
+list - it has been wrong before): `26.3` (his play instance, Minecraft settings only), `26.3 Default` (Minecraft settings
+only: what the mod turns on from a first download), `26.3 Mod Only Test` (carries everything from the old 26.1.2 one),
+`26.2 Mod Only Test`, `26.3 Legit`, `26.2 Legit`, and the private `26.3 Untested Cheat` / `26.3 Untested Legit`, which
+take only `-PtestingBuild` jars. No SIM recording instance, no other mods (ours plus Fabric API). Before 2026-11-01 they
+were `26.1.2 (Dungeons)`, `26.1.2 (Mod Only Test)`, `26.1.2 (SIM recording)`, `26.1.2 Legit`, `26.2 Cheat` and
+`26.1.2 Untested Cheat/Legit`. `Title Screen GUI` (the main-menu preview instance, marker `killer560smod-title-screen-gui`, docs/TESTING-HOOKS.md) was
 retired on 2026-10-16; it and eight older retired instances were deleted on 2026-10-26 (PC cleanup). Every
 `options.txt` is a copy of Dungeons'. Mod Only Test
 does not reach the instance he plays on: after work lands, check every instance by md5 and promote or delete any
@@ -173,8 +188,8 @@ that flags is capped below or the setting removed (Arrow Align Frames Per Tick w
 - After-2.0 (staging) features are NEVER shipped - not to main, a jar, an instance or GitHub - until 2.0 is pushed.
   "Under no circumstances." Only dungeon/main work ships before 2.0.
 - Up to 9 testkit clients may run at once (slot waits: fewer than 9 `fabric.dli.env=client` java.exe processes).
-- A finished, tested main batch is deployed to EVERY instance, 26.1.2 (Dungeons) included (he said yes, 2026-10-26).
-  Test or testing jars still never go into Dungeons, and it is never booted by us.
+- A finished, tested main batch is deployed to EVERY instance, his play instance included (he said yes, 2026-10-26; that
+  is `26.3` since 2026-11-01). Test or testing jars still never go into it, and it is never booted by us.
 
 - Push only when no game is running (`(Get-Process javaw -ErrorAction SilentlyContinue | Measure-Object).Count` is 0).
   With a game running, commit but do not push; a jar that must reach a running instance is staged as `.jar.pending`.
@@ -225,9 +240,15 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   just never runs. Verify targets with `javap` against the mapped jar in `.gradle/loom-cache/` before
   trusting a new mixin. A probe that silently counts nothing reports zeroes that read as findings.
 - **Two Minecraft versions, one source tree.** `build.gradle` derives a compat directory from
-  `minecraft_version` and puts exactly ONE of `src/mc26_1/java` / `src/mc26_2/java` on the source path (it
-  prints "compatibility layer mcXX_Y" every build and throws for a version with no directory). Version-specific
-  API lives in `com.killer560.hub.compat` - `McCompat`, `McBlocks`, `McItems`, `McEntities`, `McRender` - and
+  `minecraft_version` and puts exactly ONE of `src/mc26_3/java` / `src/mc26_2/java` on the source path (it
+  prints "compatibility layer mcXX_Y" every build and throws for a version with no directory). 26.3 is the main version
+  and 26.1.2 is dropped (2026-11-01). `src/main/java` is written in 26.3's CLASS names; a class 26.3 moved or renamed
+  (the GPU API's `com.mojang.renderpearl.api.*`, `Enderman`, `RedstoneWireBlock`, `ServerboundPunchPacket`, authlib's
+  `services.ProfileResult`) is listed in `src/mc26_2/remap.txt`, and a 26.2 build compiles a copy of src/main/java with
+  those names rewritten (`remapMainSources`; its errors point into build/generated/sources/remapped/mc26_2/, same path and
+  line). Only class names go there; a changed METHOD still goes behind a facade. Version-specific
+  API lives in `com.killer560.hub.compat` - `McCompat`, `McBlocks`, `McItems`, `McEntities`, `McRender`, `McPackets`,
+  `McInput`, `McWindow`, `McSoundInstance` - and
   **every version's copy must have identical public signatures**, or one version stops compiling. Nothing under
   `src/main/java` may touch an API that differs between versions. Build 26.2 with
   `-Pminecraft_version=26.2 -Pfabric_api_version=0.160.0+26.2 -Pmodmenu_version=20.0.2`.
@@ -237,6 +258,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   accepts a handler taking only `CallbackInfo` for any target (checked in `CallbackInjector$Callback.
   checkDescriptor`: the full descriptor OR `(LCallbackInfo;)V`, all-or-nothing, never a prefix), which is how a
   single mixin survives a target whose argument TYPES changed.
+- **26.3 split the arm swing** (2026-11-01): no ServerboundSwingPacket; a left click sends `ServerboundPunchPacket` after the
+  animation, a right click sends no swing at all. Swing through `McCompat.swingAttack` (left-click actions) or
+  `McCompat.swingUse` (right-click actions), never `player.swing`. Packet getters became record accessors (`McPackets`).
+  Details: docs/LESSONS-MINECRAFT.md "Packets, swings and entities on 26.3".
 - **26.3 key and mouse codes are SDL, stored codes stay GLFW** (2026-11-01). On 26.3 `KeyEvent.key()`, `KeyMapping`
   values and `InputConstants.KEY_*` are SDL scancodes and mouse buttons are 1-based (left 1, right 3), and wrong numbers
   still compile. Configs keep GLFW numbers (`util/Keys`); read keys with `McInput.key(event)`, buttons with
