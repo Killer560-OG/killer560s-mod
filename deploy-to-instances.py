@@ -27,7 +27,7 @@ Rules it will not break:
     Auto Update off there for good (2026-10-11): these instances take killer560's own builds, and a release must
     never replace one. Written even into a running or skipped instance (it is not a jar; nothing loads it).
 
-  * The Dungeons instance (and only it) gets minecraft/config/killer560/killer560smod-session-recorder-disabled on
+  * His play instance "26.3" (until 2026-11-01 "26.1.2 (Dungeons)"), and only it, gets minecraft/config/killer560/killer560smod-session-recorder-disabled on
     every deploy (2026-10-19), which stops the mod's Session Recorder from ever starting there.
 
 Usage:  python deploy-to-instances.py [--dry-run] [--jars-dir DIR]
@@ -57,7 +57,9 @@ NO_AUTO_UPDATE_MARKER = "killer560smod-no-auto-update"
 # start. killer560 (2026-10-19): "It should only be on my instance. Do not put it in my dungeon instance. The rest can
 # have it." So it is written into his play instance on every deploy, and into no other instance.
 SESSION_RECORDER_OFF_MARKER = "killer560smod-session-recorder-disabled"
-RECORDER_OFF_INSTANCE = "26.1.2 (Dungeons)"
+# His play instance: "26.1.2 (Dungeons)" until 2026-11-01, when 26.3 became the main version and the instances were
+# remade (26.3, 26.3 Default, 26.3 / 26.2 Mod Only Test, 26.3 / 26.2 Legit, 26.3 Untested Cheat / Legit).
+RECORDER_OFF_INSTANCE = "26.3"
 
 # First 8 hex of md5(BuildVariant.class), per CLAUDE.md's Quirks and lessons.
 # BuildVariant gained TESTING on 2026-10-07, which changed every hash; the old three are kept so an instance still on

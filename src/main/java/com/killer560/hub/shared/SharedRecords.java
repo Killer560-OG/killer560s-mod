@@ -95,11 +95,18 @@ public final class SharedRecords {
         try {
             Minecraft mc = Minecraft.getInstance();
             UUID id = mc == null || mc.getUser() == null ? null : mc.getUser().getProfileId();
-            return id == null ? "unknown" : id.toString().replace("-", "").toLowerCase(Locale.ROOT);
-        } catch (RuntimeException notYet) {
-            return "unknown";
+            if (id != null) {
+                lastAccount = id.toString().replace("-", "").toLowerCase(Locale.ROOT);
+                return lastAccount;
+            }
+        } catch (RuntimeException notHere) {
+            // Seen 2026-11-01: testkit 75 asked from its test thread and got no account (a run history landed under
+            // accounts/unknown). Off the client thread, answer with the account last read on it.
         }
+        return lastAccount != null ? lastAccount : "unknown";
     }
+
+    private static volatile String lastAccount;
 
     /** Where {@code kind} lives for the signed-in account. */
     public static Path pathOf(RecordCatalog.Kind kind) {
