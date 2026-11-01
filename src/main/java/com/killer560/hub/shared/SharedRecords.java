@@ -21,7 +21,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * The shared record store (killer560, 2026-11-01: "I want profit logs from other prism instances all combinable as the
  * mod updates"). Records ({@link RecordCatalog}) live outside every instance, in
- * {@code %APPDATA%\killer560smod\shared\} on Windows, so every instance and Minecraft version on the PC reads and adds to
+ * {@code %USERPROFILE%\.killer560smod\shared\} on Windows ({@link #defaultRoot}), so every instance and Minecraft version on the PC reads and adds to
  * the same profit, run history and stats. Settings stay in each instance's {@code config/killer560/}.
  *
  * <p>The first time an instance asks for a record, its old per-instance file is folded in ({@link SharedFile#importLegacy}:
@@ -47,6 +47,9 @@ public final class SharedRecords {
         if (r == null) {
             r = resolveRoot();
             root = r;
+            if (r.equals(defaultRoot())) {
+                foldOldAppDataStore(r);
+            }
         }
         return r;
     }
@@ -63,11 +66,18 @@ public final class SharedRecords {
             deleteTree(dir);
             return dir;
         }
+        return defaultRoot();
+    }
+
+    /** Where the store lives on this PC when nothing overrides it. */
+    static Path defaultRoot() {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String home = System.getProperty("user.home");
         if (os.contains("win")) {
-            String appData = System.getenv("APPDATA");
-            return Paths.get(appData != null ? appData : home, "killer560smod", "shared");
+            // In the user folder, NOT %APPDATA%: Windows virtualizes a packaged app's writes to a NEW %APPDATA% folder
+            // into the app's own LocalCache, so a tool run from one (the Claude desktop app, 2026-11-01) filled a
+            // store the game never saw - the owner opened /profit in a 26.3 instance and it was empty.
+            return Paths.get(home, ".killer560smod", "shared");
         }
         if (os.contains("mac")) {
             return Paths.get(home, "Library", "Application Support", "killer560smod", "shared");
@@ -75,6 +85,54 @@ public final class SharedRecords {
         String xdg = System.getenv("XDG_DATA_HOME");
         return Paths.get(xdg != null && !xdg.isBlank() ? xdg : Paths.get(home, ".local", "share").toString(),
                 "killer560smod", "shared");
+    }
+
+    /**
+     * Folds a store left at the first location, {@code %APPDATA%\killer560smod\shared} (2026-11-01, a few hours), into
+     * {@code root} with the same no-double-count import as an instance's old file, then renames it so this runs once.
+     */
+    private static void foldOldAppDataStore(Path root) {
+        String appData = System.getenv("APPDATA");
+        if (appData == null) {
+            return;
+        }
+        Path old = Paths.get(appData, "killer560smod", "shared");
+        if (!Files.isDirectory(old) || old.toAbsolutePath().normalize().equals(root.toAbsolutePath().normalize())) {
+            return;
+        }
+        int folded = 0;
+        try {
+            List<Path[]> pairs = new java.util.ArrayList<>();
+            for (RecordCatalog.Kind kind : RecordCatalog.ALL) {
+                if (kind.scope() == RecordCatalog.Scope.GLOBAL) {
+                    pairs.add(new Path[]{old.resolve(kind.sharedName()), root.resolve(kind.sharedName())});
+                } else if (Files.isDirectory(old.resolve("accounts"))) {
+                    try (java.util.stream.Stream<Path> accounts = Files.list(old.resolve("accounts"))) {
+                        for (Path acc : accounts.filter(Files::isDirectory).toList()) {
+                            pairs.add(new Path[]{acc.resolve(kind.sharedName()),
+                                    root.resolve("accounts").resolve(acc.getFileName().toString()).resolve(kind.sharedName())});
+                        }
+                    }
+                }
+            }
+            for (Path[] pair : pairs) {
+                if (!Files.isRegularFile(pair[0])) {
+                    continue;
+                }
+                RecordCatalog.Kind kind = RecordCatalog.ALL.stream()
+                        .filter(k -> k.sharedName().equals(pair[0].getFileName().toString())).findFirst().orElseThrow();
+                if (new SharedFile(pair[1], kind.policy()).importLegacy(Files.readAllBytes(pair[0]),
+                        pair[0].toAbsolutePath().normalize().toString())) {
+                    folded++;
+                }
+            }
+            Path moved = old.resolveSibling("shared-moved-" + System.currentTimeMillis());
+            Files.move(old, moved);
+            LOGGER.info("[SharedRecords] Folded {} file(s) of the old store {} into {} (old folder kept as {})",
+                    folded, old, root, moved);
+        } catch (Exception e) {
+            LOGGER.warn("[SharedRecords] Could not fold the old store {} into {}", old, root, e);
+        }
     }
 
     private static void deleteTree(Path dir) {
