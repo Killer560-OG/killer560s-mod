@@ -1515,6 +1515,9 @@ public final class BlinkCharge {
                 player.setOldPosAndRot();
                 player.tickCount++;
                 player.tick();
+                // 26.3 sends his move from Minecraft.tick (LocalPlayer.sendChanges), not from his tick: without this a shot
+                // moved him on the client only and the server set every one back (63-ap3 on 26.3, 2026-11-01).
+                com.killer560.hub.compat.McCompat.sendPlayerChanges(player);
                 connection.send(ServerboundClientTickEndPacket.INSTANCE);
                 lastStep = before.distanceTo(player.position());
                 ran++;
@@ -1606,6 +1609,7 @@ public final class BlinkCharge {
             player.setOldPosAndRot();
             player.tickCount++;
             player.tick();
+            com.killer560.hub.compat.McCompat.sendPlayerChanges(player);
             connection.send(ServerboundClientTickEndPacket.INSTANCE);
         } finally {
             passing = false;

@@ -184,4 +184,12 @@ public final class McCompat {
         return w instanceof net.minecraft.client.gui.components.FriendsButton;
     }
 
+    /**
+     * Sends what the local player's tick would send after his movement (input, sprint, position). On 26.2 LocalPlayer.tick
+     * sends it itself (sendIsSprintingIfNeeded, sendPosition - javap 26.2), so this does nothing; a caller running his tick by
+     * hand calls it right after player.tick() on every version.
+     */
+    public static void sendPlayerChanges(net.minecraft.client.player.LocalPlayer player) {
+    }
+
 }
