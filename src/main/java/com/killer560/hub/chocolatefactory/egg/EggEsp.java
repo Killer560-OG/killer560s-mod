@@ -207,7 +207,7 @@ public final class EggEsp {
     /** Holder idiom - built once, on {@link #register()} (cheat build only). */
     static final class ThroughWalls {
         static final RenderType LINES = RenderType.create("killer560smod_eggesp_lines_through_walls",
-                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
+                RenderSetup.builder(RenderPipelines.register(com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
                         .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/eggesp_lines_through_walls"))
                         .withCull(false)
                         .withDepthStencilState(Optional.<DepthStencilState>empty())

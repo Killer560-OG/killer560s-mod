@@ -42,7 +42,7 @@ final class WitherDoorsRenderer {
 
     private static final class ThroughWalls {
         static final RenderType LINES = RenderType.create("killer560smod_witherdoors_lines_through_walls",
-                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
+                RenderSetup.builder(RenderPipelines.register(com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
                         .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/witherdoors_lines_through_walls"))
                         .withCull(false)
                         .withDepthStencilState(Optional.<DepthStencilState>empty())

@@ -337,6 +337,19 @@ public final class McRender {
      * is, in its own bytecode, exactly {@code BindGroupLayout.builder().withSampler("Sampler0").build()}, which is
      * why this is a rename and not a shader change.
      */
+    /**
+     * Gives a pipeline built from {@code RenderPipelines.LINES_SNIPPET} the color target 26.2's snippet carried. 26.3's
+     * LINES_SNIPPET has NO color target state (vanilla adds {@code ColorTargetState.DEFAULT} or a translucent one per
+     * pipeline; javap 26.3 RenderPipelines), and a pipeline with none crashes the game on its first draw in the main pass:
+     * "Render pass color attachment count must match pipeline color target state count" (FrontendRenderPass.setPipeline),
+     * which Secret Waypoints' through-walls lines hit on 2026-11-01 (testkit 96-ar). 26.2's snippet carries
+     * {@code new ColorTargetState(BlendFunction.TRANSLUCENT)} (javap 26.2), so that is what is added here.
+     */
+    public static RenderPipeline.Builder linesColorTarget(RenderPipeline.Builder builder) {
+        return builder.withColorTargetState(new com.mojang.renderpearl.api.pipeline.ColorTargetState(
+                com.mojang.renderpearl.api.pipeline.BlendFunction.TRANSLUCENT));
+    }
+
     public static RenderPipeline.Builder withSampler0(RenderPipeline.Builder builder) {
         return builder.withBindGroupLayout(BindGroupLayouts.SAMPLER0);
     }

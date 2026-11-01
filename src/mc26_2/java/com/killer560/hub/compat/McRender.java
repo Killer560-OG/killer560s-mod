@@ -248,6 +248,12 @@ public final class McRender {
      * is, in its own bytecode, exactly {@code BindGroupLayout.builder().withSampler("Sampler0").build()}, which is
      * why this is a rename and not a shader change.
      */
+    /** Gives a LINES_SNIPPET pipeline the color target 26.2's snippet already carries (translucent): nothing to add
+     *  here. 26.3's snippet has none and crashes on the first draw without it (see mc26_3). */
+    public static RenderPipeline.Builder linesColorTarget(RenderPipeline.Builder builder) {
+        return builder;
+    }
+
     public static RenderPipeline.Builder withSampler0(RenderPipeline.Builder builder) {
         return builder.withBindGroupLayout(BindGroupLayouts.SAMPLER0);
     }

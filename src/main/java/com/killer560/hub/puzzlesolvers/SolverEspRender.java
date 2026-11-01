@@ -54,7 +54,7 @@ public final class SolverEspRender {
         // an already-drawn line instead of the other way around. Matches FILLED's own sorted buffer now - on 26.1.2
         // only: 26.2 refuses to sort anything but quads and crashed the frame (McRender.sortLinesOnUpload).
         static final RenderType LINES = RenderType.create("killer560smod_solver_lines_through_walls",
-                McRender.sortLinesOnUpload(RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
+                McRender.sortLinesOnUpload(RenderSetup.builder(RenderPipelines.register(com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
                         .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/solver_lines_through_walls"))
                         .withCull(false)
                         .withDepthStencilState(Optional.<DepthStencilState>empty())
