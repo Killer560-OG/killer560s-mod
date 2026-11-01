@@ -365,6 +365,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - The shared record store's account must be read on the client thread: testkit 75 asked from its test thread and got
   no account, so its seed went to `accounts/unknown` and the run list stayed empty (2026-11-01). `SharedRecords.accountId`
   is read at client init and remembered; a testkit case that needs a record's path asks for it in `computeOnClient`.
+- A testkit `-PseedConfig` copied from Mod Only Test carries his Proxy Client config (`system/proxy/proxyclient.json`, SOCKS5,
+  enabled): the test client then dials the local server through his real proxy, which refuses it ("socks5 ... FORBIDDEN",
+  00-smoke fails, 2026-11-01). Leave that file out of a seed.
 - Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
   (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
   and import keeps the locked update and sharing keys (testkit 981).
