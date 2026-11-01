@@ -3,22 +3,18 @@ package com.killer560.hub.helditem.mixin;
 import com.killer560.hub.helditem.HeldItemConfig;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** Held Item Transform hooks on the first-person hand renderer - see {@link HeldItemConfig}. Hook points
  *  ported from NoammAddons' 26.1.2 {@code MixinItemInHandRenderer} (Animations feature), verified against
@@ -28,28 +24,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *      float inverseArmHeight, PoseStack, SubmitNodeCollector, int)} - offset right after its
  *      {@code PoseStack.pushPose()}, rotation+scale right before each {@code renderItem(...)} submit
  *      (two call sites, only one runs per call), swing progress via the {@code attack} arg.</li>
- *  <li>{@code shouldInstantlyReplaceVisibleItem} + {@code tick} TAIL (main/off hand height fields) - equip.</li>
+ *  <li>Equip ({@code shouldInstantlyReplaceVisibleItem}, {@code tick}) is in {@link HeldItemEquipMixin}, because 26.3
+ *      moved it to another class ({@code FirstPersonHandsAndItems}).</li>
  *  <li>{@code renderHandsWithItems} - the two {@code Axis.rotationDegrees(F)} view-bob sway rotations.</li>
  *  </ul>
  *  Every injector is {@code require = 0}; every one starts with a single static boolean read.
  *  <p>
+ *  <p>26.2 copy (src/mc26_2); 26.3 has its own on {@code FirstPersonHandsAndItemsRenderer}, which replaced this class.
  *  <p><b>The two 26.2 renames.</b> This class survives the 26.2 render rework with the same members and the
  *  same parameter lists; only two of the names it injects into changed, {@code renderArmWithItem} to
  *  {@code submitArmWithItem} and {@code renderHandsWithItems} to {@code submitHandsWithItems} (javap on both
  *  jars: byte-identical descriptors, including the inner {@code renderItem} and {@code Axis.rotationDegrees}
- *  targets). Both names are listed in each {@code method =}, so one file serves both versions and the handler
- *  signatures need no change - which is why this mixin did NOT need splitting into the per-version source
- *  directories the way the ones whose target CLASS moved did.
+ *  targets). 26.1.2 is dropped (2026-11-01), so only the 26.2 names are listed now.
  */
 @Mixin(ItemInHandRenderer.class)
 public abstract class HeldItemInHandRendererMixin {
 
-    @Shadow private float mainHandHeight;
-    @Shadow private float oMainHandHeight;
-    @Shadow private float offHandHeight;
-    @Shadow private float oOffHandHeight;
-
-    @Inject(method = {"renderArmWithItem", "submitArmWithItem"},
+    @Inject(method = "submitArmWithItem",
             at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", shift = At.Shift.AFTER),
             require = 0)
     private void killer560smod$heldItemOffset(AbstractClientPlayer player, float frameInterp, float xRot,
@@ -65,7 +56,7 @@ public abstract class HeldItemInHandRendererMixin {
         poseStack.translate(t.x * sign, t.y, t.z);
     }
 
-    @Inject(method = {"renderArmWithItem", "submitArmWithItem"},
+    @Inject(method = "submitArmWithItem",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;renderItem(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemDisplayContext;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V"),
             require = 0)
     private void killer560smod$heldItemRotateScale(AbstractClientPlayer player, float frameInterp, float xRot,
@@ -83,37 +74,15 @@ public abstract class HeldItemInHandRendererMixin {
     }
 
     /** {@code attack} is the swing progress (0 = at rest); pinning it to 0 removes the swing arc/rotation. */
-    @ModifyVariable(method = {"renderArmWithItem", "submitArmWithItem"}, at = @At("HEAD"), ordinal = 2, argsOnly = true, require = 0)
+    @ModifyVariable(method = "submitArmWithItem", at = @At("HEAD"), ordinal = 2, argsOnly = true, require = 0)
     private float killer560smod$heldItemNoSwing(float attack) {
         if (!HeldItemConfig.isActive()) return attack;
         return HeldItemConfig.getInstance().isNoSwing() ? 0f : attack;
     }
 
-    @Inject(method = "shouldInstantlyReplaceVisibleItem", at = @At("HEAD"), cancellable = true, require = 0)
-    private void killer560smod$heldItemInstantReplace(ItemStack currentlyVisibleItem, ItemStack expectedItem,
-                                                      CallbackInfoReturnable<Boolean> cir) {
-        if (!HeldItemConfig.isActive()) return;
-        if (HeldItemConfig.getInstance().isNoEquip()) {
-            cir.setReturnValue(true);
-        }
-    }
-
-    @Inject(method = "tick", at = @At("TAIL"), require = 0)
-    private void killer560smod$heldItemNoEquip(CallbackInfo ci) {
-        if (!HeldItemConfig.isActive()) return;
-        if (!HeldItemConfig.getInstance().isNoEquip()) return;
-        LocalPlayer player = Minecraft.getInstance().player;
-        // Vanilla drops the hands out of view while riding etc. (isHandsBusy) - keep that behavior.
-        if (player == null || player.isHandsBusy()) return;
-        mainHandHeight = 1f;
-        oMainHandHeight = 1f;
-        offHandHeight = 1f;
-        oOffHandHeight = 1f;
-    }
-
     /** The two {@code Axis.rotationDegrees} calls in renderHandsWithItems are the look-around sway
      *  ({@code (xRot - xBob) * 0.1F} and the yaw equivalent); zeroing their angle keeps the item still. */
-    @ModifyArg(method = {"renderHandsWithItems", "submitHandsWithItems"},
+    @ModifyArg(method = "submitHandsWithItems",
             at = @At(value = "INVOKE", target = "Lcom/mojang/math/Axis;rotationDegrees(F)Lorg/joml/Quaternionf;"),
             index = 0, require = 0)
     private float killer560smod$heldItemNoSway(float degrees) {

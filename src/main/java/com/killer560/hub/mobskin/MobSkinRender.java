@@ -225,8 +225,7 @@ public final class MobSkinRender {
             mh.isPassenger = ph.isPassenger;
         }
         if (ms instanceof ArmedEntityRenderState ma && ps instanceof ArmedEntityRenderState pa) {
-            ma.attackTime = pa.attackTime;
-            ma.attackArm = pa.attackArm;
+            com.killer560.hub.compat.McRender.copySwing(ma, pa);
             ma.mainArm = pa.mainArm;
         }
 

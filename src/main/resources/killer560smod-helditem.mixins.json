@@ -5,6 +5,7 @@
 	"package": "com.killer560.hub.helditem.mixin",
 	"client": [
 		"HeldItemInHandRendererMixin",
+		"HeldItemEquipMixin",
 		"HeldItemSwingDurationMixin"
 	],
 	"injectors": {

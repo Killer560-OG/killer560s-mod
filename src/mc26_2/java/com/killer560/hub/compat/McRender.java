@@ -277,13 +277,21 @@ public final class McRender {
     }
 
     /**
-     * Draws what was submitted to {@link #handMaskCollector}, under the same model-view vanilla drew the hands with:
-     * 26.2's {@code renderItemInHand} draws them while {@code handView} is multiplied onto the pushed model-view stack.
+     * Draws what was submitted to {@link #handMaskCollector} into {@code colorTarget}'s color and {@code depthTarget}'s
+     * depth, under the same model-view vanilla drew the hands with: 26.2's {@code renderItemInHand} draws them while
+     * {@code handView} is multiplied onto the pushed model-view stack. 26.2 redirects every {@code RenderType} draw
+     * through {@code RenderSystem.outputColorTextureOverride}/{@code outputDepthTextureOverride} (javap:
+     * {@code PreparedRenderType.drawFromBuffer}); 26.3 removed both and takes the pass's targets directly.
      */
-    public static void drawHandMask(Minecraft client, Matrix4fc handView) {
+    public static void drawHandMask(Minecraft client, Matrix4fc handView, RenderTarget colorTarget,
+                                    RenderTarget depthTarget) {
         if (handMaskStorage == null) {
             return;
         }
+        com.mojang.blaze3d.textures.GpuTextureView oldColor = RenderSystem.outputColorTextureOverride;
+        com.mojang.blaze3d.textures.GpuTextureView oldDepth = RenderSystem.outputDepthTextureOverride;
+        RenderSystem.outputColorTextureOverride = colorTarget.getColorTextureView();
+        RenderSystem.outputDepthTextureOverride = depthTarget.getDepthTextureView();
         Matrix4fStack mv = RenderSystem.getModelViewStack();
         mv.pushMatrix();
         try {
@@ -293,7 +301,32 @@ public final class McRender {
             client.gameRenderer.featureRenderDispatcher().renderAllFeatures(handMaskStorage);
         } finally {
             mv.popMatrix();
+            RenderSystem.outputColorTextureOverride = oldColor;
+            RenderSystem.outputDepthTextureOverride = oldDepth;
         }
+    }
+
+    /**
+     * Compiles {@code pipeline} now and says whether it compiled. 26.2: {@code GpuDevice.precompilePipeline} plus
+     * {@code CompiledRenderPipeline.isValid}; 26.3 removed both (see the 26.3 copy).
+     */
+    public static boolean pipelineCompiles(RenderPipeline pipeline) {
+        com.mojang.blaze3d.pipeline.CompiledRenderPipeline compiled = RenderSystem.getDevice().precompilePipeline(pipeline);
+        return compiled != null && compiled.isValid();
+    }
+
+    /** The entity's arm-swing progress this frame, 0 at rest - {@code LivingEntity.getAttackAnim} on 26.2,
+     *  {@code getSwingAnimation} on 26.3 (javap, both). */
+    public static float swingProgress(net.minecraft.world.entity.LivingEntity entity, float partialTick) {
+        return entity.getAttackAnim(partialTick);
+    }
+
+    /** Copies the arm-swing animation between two armed render states: 26.2's {@code attackTime} + {@code attackArm};
+     *  26.3 replaced them with {@code swingAnimation} + {@code currentSwing} (javap, both). */
+    public static void copySwing(net.minecraft.client.renderer.entity.state.ArmedEntityRenderState to,
+                                 net.minecraft.client.renderer.entity.state.ArmedEntityRenderState from) {
+        to.attackTime = from.attackTime;
+        to.attackArm = from.attackArm;
     }
 
     /** Writes consecutive std140 vec4s (four floats each) into a mapped uniform buffer. */

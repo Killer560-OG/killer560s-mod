@@ -7,7 +7,6 @@ import com.killer560.hub.motionblur.mixin.PostPassAccessor;
 import com.killer560.hub.util.ModChat;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
-import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.resource.CrossFrameResourcePool;
@@ -50,9 +49,9 @@ import java.util.Optional;
  *     every failure stays inside this class.</li>
  * <li>The fragment shader is under {@code shaders/post/} so vanilla's ShaderManager serves its source (only
  *     the raw text is loaded at reload - compiling happens here).</li>
- * <li>Each pass pipeline is precompiled with {@link GpuDevice#precompilePipeline} and checked with
- *     {@link CompiledRenderPipeline#isValid()} before the first frame; an invalid program would otherwise throw
- *     "Pipeline contains invalid shader program" mid frame-graph.</li>
+ * <li>Each pass pipeline is compiled and checked before the first frame ({@code McRender.pipelineCompiles}: 26.2's
+ *     {@code GpuDevice.precompilePipeline} + {@code CompiledRenderPipeline.isValid}, 26.3's
+ *     {@code RenderSystem.getCompiledPipelineNullable}); an invalid program would otherwise fail mid frame-graph.</li>
  * <li>The JSON-declared {@code MotionBlurConfig} uniform buffer is USAGE_UNIFORM only (not writable), so it is
  *     swapped for our own UNIFORM|MAP_WRITE buffer of the same std140 size (vec4 = 16 bytes).</li>
  * <li>Own {@link CrossFrameResourcePool} (vanilla uses 3 frames), so no shadow into GameRenderer is needed.</li>
@@ -204,8 +203,7 @@ public final class MotionBlurRenderer {
             GpuDevice device = RenderSystem.getDevice();
             for (PostPass pass : passes) {
                 RenderPipeline pipeline = ((PostPassAccessor) pass).killer560smod$getPipeline();
-                CompiledRenderPipeline compiled = device.precompilePipeline(pipeline);
-                if (compiled == null || !compiled.isValid()) {
+                if (!com.killer560.hub.compat.McRender.pipelineCompiles(pipeline)) {
                     built.close();
                     fail("Motion blur shader failed to compile (" + pipeline.getLocation() + ")", null);
                     return false;

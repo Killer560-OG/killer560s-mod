@@ -149,7 +149,7 @@ public final class CustomCrosshairFeature {
         }
         float total = spread;
         if (c.isRecoil()) {
-            float anim = player.getAttackAnim(partial);
+            float anim = com.killer560.hub.compat.McRender.swingProgress(player, partial);
             if (anim > 0f) {
                 total += c.getRecoilAmount() * (float) Math.sin(anim * Math.PI);
             }

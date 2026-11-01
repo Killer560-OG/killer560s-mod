@@ -228,7 +228,9 @@ public final class McRender {
      * destination for the main one.
      */
     public static TextureTarget newTextureTarget(String label, int width, int height, boolean useDepth) {
-        return new TextureTarget(label, width, height, useDepth, GpuFormat.RGBA8_UNORM);
+        // 26.3: TextureTarget(String, int, int, GpuFormat color, GpuFormat depth); a null depth format makes no depth
+        // texture (RenderTarget.createBuffers checks it). MainTarget passes RGBA8_UNORM and D32_FLOAT (javap, 26.3).
+        return new TextureTarget(label, width, height, GpuFormat.RGBA8_UNORM, useDepth ? GpuFormat.D32_FLOAT : null);
     }
 
     /**
@@ -277,10 +279,19 @@ public final class McRender {
     }
 
     /**
-     * Draws what was submitted to {@link #handMaskCollector}, under the same model-view vanilla drew the hands with:
-     * 26.2's {@code renderItemInHand} draws them while {@code handView} is multiplied onto the pushed model-view stack.
+     * Draws what was submitted to {@link #handMaskCollector} into {@code colorTarget}'s color and {@code depthTarget}'s
+     * depth, under the same model-view vanilla drew the hands with.
+     *
+     * <p>26.3 removed {@code RenderSystem.outputColorTextureOverride}/{@code outputDepthTextureOverride}, and
+     * {@code FeatureRenderDispatcher.renderAllFeatures} became static {@code (RenderPass, PreparedFrame)}. This is
+     * {@code GameRenderer.renderItemInHand}'s own sequence (javap, 26.3): push the model-view stack and multiply the view
+     * matrix on, {@code prepareFrame(storage)} (which drains the storage), open a render pass on the targets with no
+     * clear, {@code RenderSystem.bindDefaultUniforms}, {@code renderAllFeatures}, close the pass, then the frame. The
+     * dispatcher reuses ONE PreparedFrame, so this must not run while vanilla holds it open; Held Item Outline calls it
+     * from {@code render3dHud} between the hands' frame closing and the screen effect's opening.
      */
-    public static void drawHandMask(Minecraft client, Matrix4fc handView) {
+    public static void drawHandMask(Minecraft client, Matrix4fc handView, RenderTarget colorTarget,
+                                    RenderTarget depthTarget) {
         if (handMaskStorage == null) {
             return;
         }
@@ -290,10 +301,42 @@ public final class McRender {
             if (handView != null) {
                 mv.mul(handView);
             }
-            client.gameRenderer.featureRenderDispatcher().renderAllFeatures(handMaskStorage);
+            try (net.minecraft.client.renderer.feature.FeatureRenderDispatcher.PreparedFrame frame =
+                         client.gameRenderer.featureRenderDispatcher().prepareFrame(handMaskStorage);
+                 com.mojang.renderpearl.api.commands.RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
+                         .createRenderPass(() -> "killer560smod held outline mask", colorTarget.getColorTextureView(),
+                                 java.util.Optional.empty(), depthTarget.getDepthTextureView(),
+                                 java.util.OptionalDouble.empty())) {
+                RenderSystem.bindDefaultUniforms(pass);
+                net.minecraft.client.renderer.feature.FeatureRenderDispatcher.renderAllFeatures(pass, frame);
+            }
         } finally {
             mv.popMatrix();
         }
+    }
+
+    /**
+     * Compiles {@code pipeline} now and says whether it compiled. 26.3 removed {@code GpuDevice.precompilePipeline} and
+     * {@code CompiledRenderPipeline.isValid}; its {@code RenderSystem.getCompiledPipelineNullable} looks the pipeline up
+     * in the current (or fallback) {@code PipelineCache}, whose {@code get} compiles a miss synchronously
+     * ({@code compilePipeline(...).join().finishCompile()}) and returns null when it fails (javap, 26.3).
+     */
+    public static boolean pipelineCompiles(RenderPipeline pipeline) {
+        return RenderSystem.getCompiledPipelineNullable(pipeline) != null;
+    }
+
+    /** The entity's arm-swing progress this frame, 0 at rest - {@code LivingEntity.getAttackAnim} on 26.2,
+     *  {@code getSwingAnimation} on 26.3 (javap, both). */
+    public static float swingProgress(net.minecraft.world.entity.LivingEntity entity, float partialTick) {
+        return entity.getSwingAnimation(partialTick);
+    }
+
+    /** Copies the arm-swing animation between two armed render states: 26.2's {@code attackTime} + {@code attackArm};
+     *  26.3 replaced them with {@code swingAnimation} + {@code currentSwing} (javap, both). */
+    public static void copySwing(net.minecraft.client.renderer.entity.state.ArmedEntityRenderState to,
+                                 net.minecraft.client.renderer.entity.state.ArmedEntityRenderState from) {
+        to.swingAnimation = from.swingAnimation;
+        to.currentSwing = from.currentSwing;
     }
 
     /** Writes consecutive std140 vec4s (four floats each) into a mapped uniform buffer. */

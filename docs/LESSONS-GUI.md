@@ -291,3 +291,40 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   is the given width minus 10 and `getWidth()` reports that line. A box sized for a vanilla bordered box loses 2 px: the
   Profile Viewer's name box went 96 -> 94 px and no longer held a 16-character name until its sidebar widened to 120
   (testkit 693, 2026-10-26).
+
+## First-person hands and the GPU API on 26.3
+
+All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unverified until a 26.3 boot.
+
+- **26.3 removed `ItemInHandRenderer`.** Drawing is `FirstPersonHandsAndItemsRenderer` (`GameRenderer.
+  firstPersonHandsAndItemsRenderer`), working from `PlayerRenderState` + `FirstPersonHandsAndItemsRenderState`; the
+  equip state (hand heights, `shouldInstantlyReplaceVisibleItem`, `tick(LocalPlayer)`) moved to
+  `net.minecraft.client.player.FirstPersonHandsAndItems`. `submitArmWithItem` keeps `attack` as its third float and
+  submits the item through `ItemStackRenderState.submit(PoseStack, SubmitNodeCollector, int, int, int)` (two call sites,
+  same as 26.2's two `renderItem`); there is no `renderItem` to hook. The view sway is `PoseStack.rotateDegrees(Axis,
+  float)` (angle at index 1), called exactly twice in `submitHandsWithItems`. `applyEatTransform` is now
+  `(PoseStack, float, HumanoidArm, float, int)`. Every mixin on these (Held Item Transform, Held Item Outline, Object
+  Hider) has one copy per version directory; Held Item Transform's equip hooks are their own mixin
+  (`HeldItemEquipMixin`) because they target a different class on 26.3.
+- **The hands moved from `renderLevel` to `GameRenderer.render3dHud`**, which calls `renderItemInHand(CameraRenderState,
+  PlayerRenderState, GpuTextureView depth)` and then `ScreenEffectRenderer.submit(float, SubmitNodeCollector,
+  PlayerRenderState, CameraRenderState, boolean)`. The hand view matrix is `camera.viewRotationMatrix` (pushed on the
+  model-view stack; the pose starts from its inverse). Depth is still reverse-Z (cleared to 0.0).
+- **`RenderSystem.outputColorTextureOverride`/`outputDepthTextureOverride` are gone**, and `FeatureRenderDispatcher.
+  renderAllFeatures` is static `(RenderPass, PreparedFrame)`. To draw a SubmitNodeStorage into your own target, copy
+  `renderItemInHand`: `prepareFrame(storage)` (drains it), `createRenderPass(label, colorView, Optional.empty(),
+  depthView, OptionalDouble.empty())`, `RenderSystem.bindDefaultUniforms(pass)`, `renderAllFeatures`, close the pass,
+  then the frame (`McRender.drawHandMask`). The dispatcher reuses ONE PreparedFrame: never prepare while vanilla holds
+  one open.
+- **`GpuDevice.precompilePipeline` and `CompiledRenderPipeline.isValid` are gone.** `RenderSystem.
+  getCompiledPipelineNullable(pipeline)` compiles a cache miss synchronously through `PipelineCache.get` and returns
+  null on failure (`McRender.pipelineCompiles`). `TextureTarget` takes `(String, int, int, GpuFormat color, GpuFormat
+  depth)`; null depth means none (MainTarget: RGBA8_UNORM, D32_FLOAT). `SubmitNodeStorage.submitItem` takes `ItemQuads`
+  (record of all/solid/translucent; build one with `ItemQuads.split(list)`) where 26.2 took `List<BakedQuad>`.
+- **Swing animation:** `LivingEntity.getAttackAnim(float)` is `getSwingAnimation(float)` (`McRender.swingProgress`);
+  `ArmedEntityRenderState.attackTime`/`attackArm` became `swingAnimation`/`currentSwing` (`McRender.copySwing`);
+  `getCurrentSwingDuration()` became `getModifiedSwingDuration(SwingAnimation)`.
+- A mixin handler that takes only `CallbackInfo`/`CallbackInfoReturnable` matches both versions' descriptors, which is
+  how `HeldItemSwingDurationMixin` stays one file. A mixin listed in a shared `*.mixins.json` must exist in BOTH version
+  directories (or in src/main), so a 26.3-only hook that needs a new class gets a main-dir mixin that is a no-op on 26.2
+  (`HeldOutlineItemStateMixin`).

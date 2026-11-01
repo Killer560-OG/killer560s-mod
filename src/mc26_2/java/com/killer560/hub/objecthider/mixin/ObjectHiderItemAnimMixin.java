@@ -38,7 +38,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * notes.
  *
  * <p><b>26.2 rename.</b> {@code renderArmWithItem} is {@code submitArmWithItem} on 26.2, with a byte-identical
- * parameter list (javap on both jars), so both names are listed and the one file serves both versions.
+ * parameter list (javap on both jars). 26.1.2 is dropped (2026-11-01), so only the 26.2 name is listed. This is the
+ * 26.2 copy (src/mc26_2); 26.3 removed ItemInHandRenderer and has its own copy on FirstPersonHandsAndItemsRenderer.
  */
 @Mixin(ItemInHandRenderer.class)
 public abstract class ObjectHiderItemAnimMixin {
@@ -51,7 +52,7 @@ public abstract class ObjectHiderItemAnimMixin {
         }
     }
 
-    @ModifyVariable(method = {"renderArmWithItem", "submitArmWithItem"}, at = @At("HEAD"), ordinal = 2, argsOnly = true, require = 0)
+    @ModifyVariable(method = "submitArmWithItem", at = @At("HEAD"), ordinal = 2, argsOnly = true, require = 0)
     private float killer560smod$objectHider$noShortbowSwing(float attack) {
         if (!ObjectHiderConfig.getInstance().isNoShortbowSwing()) {
             return attack;

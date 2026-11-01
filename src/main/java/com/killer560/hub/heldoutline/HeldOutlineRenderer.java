@@ -9,7 +9,6 @@ import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.blaze3d.framegraph.FrameGraphBuilder;
-import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
@@ -17,7 +16,6 @@ import com.mojang.blaze3d.resource.CrossFrameResourcePool;
 import com.mojang.blaze3d.resource.ResourceHandle;
 import com.mojang.renderpearl.api.device.GpuDevice;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
@@ -30,10 +28,6 @@ import net.minecraft.client.renderer.ProjectionMatrixBuffer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.world.entity.HumanoidArm;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.slf4j.Logger;
@@ -54,15 +48,16 @@ import java.util.Set;
  * shader ESP): draw the object again into an off-screen mask, then run an edge pass over the mask and composite onto
  * the frame. Here:
  * <ol>
- * <li>{@code ItemInHandRenderer.renderItem} is hooked at HEAD and records each first-person item it is asked to draw
- * (stack, display context, the full pose, light). Nothing is changed in the vanilla draw.</li>
- * <li>In {@code GameRenderer.renderLevel}, right before the screen effect is submitted (after the hands, before the
- * GUI), each recorded item is submitted again through vanilla's own {@code renderItem} and drawn with
- * {@code RenderSystem.outputColorTextureOverride}/{@code outputDepthTextureOverride} pointing at a cleared
- * window-sized mask target - every {@code RenderType} draw honors those overrides (javap: {@code RenderType.draw} on
- * 26.1.2, {@code PreparedRenderType.drawFromBuffer} on 26.2). It is drawn under the model-view vanilla drew the hands
- * with ({@code McRender.drawHandMask}). A mask texel that took depth or any color is the item's silhouette (not every
- * item pipeline writes alpha).</li>
+ * <li>Each first-person item vanilla draws is recorded with its full pose and a way to submit it again
+ * ({@link ItemRedraw}). 26.2: {@code ItemInHandRenderer.renderItem} HEAD. 26.3, which replaced ItemInHandRenderer
+ * with {@code FirstPersonHandsAndItemsRenderer}: {@code ItemStackRenderState.submit} HEAD while
+ * {@code submitArmWithItem} runs. Nothing is changed in the vanilla draw.</li>
+ * <li>After the hands, before the screen effect is submitted (before the GUI) - 26.2 in {@code renderLevel}, 26.3 in
+ * {@code render3dHud} - each recorded item is submitted again into a storage of our own and drawn into a cleared
+ * window-sized mask target ({@code McRender.drawHandMask}: 26.2 through {@code RenderSystem.outputColorTextureOverride}/
+ * {@code outputDepthTextureOverride}, 26.3 through a render pass opened on the mask itself) under the model-view
+ * vanilla drew the hands with. A mask texel that took depth or any color is the item's silhouette (not every item
+ * pipeline writes alpha).</li>
  * <li>A post chain ({@code assets/killer560smod/heldoutline/held_outline.json}) runs a horizontal pass storing the
  * distance to the nearest mask pixel in each row, then a vertical pass that turns those into the exact Euclidean
  * distance within the outline width (2 x (2w + 1) texel reads per pixel, not (2w + 1)^2), blends the outline
@@ -93,13 +88,20 @@ public final class HeldOutlineRenderer {
     private static final int MAIN_SIZE = (5 + MAX_SEGMENTS) * 16;
     private static final int MAX_CAPTURES = 4;
 
-    private record Capture(LivingEntity entity, ItemStack stack, ItemDisplayContext context, PoseStack.Pose pose,
-                           int light) {
+    /** Submits one recorded first-person item again, under the given pose, to the given collector. */
+    @FunctionalInterface
+    public interface ItemRedraw {
+        void submit(PoseStack poseStack, SubmitNodeCollector collector);
+    }
+
+    private record Capture(PoseStack.Pose pose, ItemRedraw redraw) {
     }
 
     private static final List<Capture> captures = new ArrayList<>(2);
     private static final Matrix4f handView = new Matrix4f();
     private static boolean drawingMask;
+    /** 26.3: which hand {@code FirstPersonHandsAndItemsRenderer.submitArmWithItem} is drawing (0 none, 1 main, 2 off). */
+    private static int armHand;
 
     private static TextureTarget mask;
     /** Outline Side: the near face alone and the far face alone (color only; they borrow {@link #mask}'s depth). */
@@ -156,6 +158,7 @@ public final class HeldOutlineRenderer {
     /** {@code GameRenderer.renderItemInHand} HEAD: a new set of hands, and the matrix vanilla pushes for them. */
     public static void beginHands(Matrix4fc view) {
         captures.clear();
+        armHand = 0;
         if ((failed || chain != null || mask != null) && !HeldOutlineConfig.getInstance().isEnabledRaw()) {
             failed = false; // re-enabling retries a previous failure
             closeChain(); // free the window-sized targets while off
@@ -167,24 +170,44 @@ public final class HeldOutlineRenderer {
         }
     }
 
-    /** {@code ItemInHandRenderer.renderItem} HEAD. */
-    public static void capture(LivingEntity entity, ItemStack stack, ItemDisplayContext context, PoseStack poseStack,
-                               int light) {
-        if (drawingMask || failed || entity == null || stack == null || stack.isEmpty() || context == null
-                || !context.firstPerson() || captures.size() >= MAX_CAPTURES) {
+    /** Whether a face mask is being drawn now, so {@link #filterSubmit} has work to do (one static int read). */
+    public static boolean isFiltering() {
+        return faceFilter != 0 && !inFilteredSubmit;
+    }
+
+    /** Whether a first-person item submitted now would be recorded (cheap: the capture mixins test this first). */
+    public static boolean wantsCapture() {
+        return !drawingMask && !failed && captures.size() < MAX_CAPTURES && HeldOutlineConfig.getInstance().isActive();
+    }
+
+    /**
+     * Records one first-person item: 26.2 from {@code ItemInHandRenderer.renderItem} HEAD, 26.3 from
+     * {@code ItemStackRenderState.submit} HEAD while {@code submitArmWithItem} runs ({@link #beginArm}).
+     */
+    public static void capture(boolean mainHand, PoseStack poseStack, ItemRedraw redraw) {
+        if (!wantsCapture() || poseStack == null || redraw == null) {
             return;
         }
         HeldOutlineConfig cfg = HeldOutlineConfig.getInstance();
-        if (!cfg.isActive()) {
-            return;
-        }
-        boolean rightContext = !context.leftHand();
-        boolean mainRight = entity.getMainArm() == HumanoidArm.RIGHT;
-        boolean mainHand = rightContext == mainRight;
         if (mainHand ? !cfg.isMainHand() : !cfg.isOffHand()) {
             return;
         }
-        captures.add(new Capture(entity, stack, context, poseStack.last().copy(), light));
+        captures.add(new Capture(poseStack.last().copy(), redraw));
+    }
+
+    /** 26.3 {@code FirstPersonHandsAndItemsRenderer.submitArmWithItem} HEAD. */
+    public static void beginArm(boolean mainHand) {
+        armHand = mainHand ? 1 : 2;
+    }
+
+    /** 26.3 {@code submitArmWithItem} RETURN. */
+    public static void endArm() {
+        armHand = 0;
+    }
+
+    /** 26.3: an {@code ItemStackRenderState.submit} now is a first-person held item (0 none, 1 main hand, 2 off hand). */
+    public static int armHand() {
+        return armHand;
     }
 
     /** {@code GameRenderer.renderLevel}, just before the screen effect is submitted. */
@@ -322,25 +345,18 @@ public final class HeldOutlineRenderer {
     private static void drawMask(Minecraft mc, SubmitNodeCollector collector, TextureTarget target, int filter) {
         McRender.clearToZero(target.getColorTexture());
         RenderSystem.getDevice().createCommandEncoder().clearDepthTexture(mask.getDepthTexture(), McRender.FAR_DEPTH);
-        GpuTextureView oldColor = RenderSystem.outputColorTextureOverride;
-        GpuTextureView oldDepth = RenderSystem.outputDepthTextureOverride;
-        RenderSystem.outputColorTextureOverride = target.getColorTextureView();
-        RenderSystem.outputDepthTextureOverride = mask.getDepthTextureView();
         drawingMask = true;
         faceFilter = filter;
         try {
             for (Capture c : captures) {
                 PoseStack ps = new PoseStack();
                 ps.last().set(c.pose());
-                mc.gameRenderer.itemInHandRenderer.renderItem(c.entity(), c.stack(), c.context(), ps, collector,
-                        c.light());
+                c.redraw().submit(ps, collector);
             }
-            McRender.drawHandMask(mc, handView);
+            McRender.drawHandMask(mc, handView, target, mask);
         } finally {
             drawingMask = false;
             faceFilter = 0;
-            RenderSystem.outputColorTextureOverride = oldColor;
-            RenderSystem.outputDepthTextureOverride = oldDepth;
         }
     }
 
@@ -359,10 +375,8 @@ public final class HeldOutlineRenderer {
      * edge running from the near face to the far face that two walls of different directions share is a corner of the
      * slab, and its two ends are projected to window pixels.
      */
-    public static boolean filterSubmit(net.minecraft.client.renderer.SubmitNodeStorage self, PoseStack pose,
-                                       ItemDisplayContext context, int light, int overlay, int outline, int[] tints,
-                                       List<net.minecraft.client.resources.model.geometry.BakedQuad> quads,
-                                       net.minecraft.client.renderer.item.ItemStackRenderState.FoilType foil) {
+    public static boolean filterSubmit(PoseStack pose, List<net.minecraft.client.resources.model.geometry.BakedQuad> quads,
+                                       java.util.function.Consumer<List<net.minecraft.client.resources.model.geometry.BakedQuad>> resubmit) {
         if (faceFilter == 0 || inFilteredSubmit || quads == null) {
             return false;
         }
@@ -411,7 +425,7 @@ public final class HeldOutlineRenderer {
         }
         inFilteredSubmit = true;
         try {
-            self.submitItem(pose, context, light, overlay, outline, tints, only, foil);
+            resubmit.accept(only);
         } finally {
             inFilteredSubmit = false;
         }
@@ -514,8 +528,7 @@ public final class HeldOutlineRenderer {
             GpuDevice device = RenderSystem.getDevice();
             for (PostPass pass : passes) {
                 RenderPipeline pipeline = ((PostPassAccessor) pass).killer560smod$getPipeline();
-                CompiledRenderPipeline compiled = device.precompilePipeline(pipeline);
-                if (compiled == null || !compiled.isValid()) {
+                if (!McRender.pipelineCompiles(pipeline)) {
                     built.close();
                     fail("Held Item Outline shader failed to compile (" + pipeline.getLocation() + ")", null);
                     return false;

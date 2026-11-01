@@ -11,14 +11,14 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Held Item Outline hooks on {@code GameRenderer} (javap, 26.1.2 and 26.2):
+ * Held Item Outline hooks on {@code GameRenderer}, 26.2 copy (javap, 26.2):
  * <ul>
- * <li>{@code renderItemInHand(CameraRenderState, float, Matrix4fc)} HEAD - identical descriptor in both versions; the
- * {@code Matrix4fc} is what it multiplies onto the model-view stack around the hands.</li>
- * <li>{@code renderLevel(DeltaTracker)} just before the screen effect is submitted, which follows
- * {@code renderItemInHand} directly in both: 26.1.2 calls {@code ScreenEffectRenderer.renderScreenEffect}, 26.2 renamed
- * it {@code submit} with the same descriptor, so there is one injector per name and exactly one of them matches.</li>
+ * <li>{@code renderItemInHand(CameraRenderState, float, Matrix4fc)} HEAD; the {@code Matrix4fc} is what it multiplies
+ * onto the model-view stack around the hands.</li>
+ * <li>{@code renderLevel(DeltaTracker)} just before {@code ScreenEffectRenderer.submit}, which follows
+ * {@code renderItemInHand} directly.</li>
  * </ul>
+ * 26.3 changed both descriptors and moved the hands into {@code render3dHud}; see that copy.
  */
 @Mixin(GameRenderer.class)
 public abstract class HeldOutlineGameRendererMixin {
@@ -27,13 +27,6 @@ public abstract class HeldOutlineGameRendererMixin {
     private void killer560smod$heldOutlineBegin(CameraRenderState camera, float partialTick, Matrix4fc view,
                                                 CallbackInfo ci) {
         HeldOutlineRenderer.beginHands(view);
-    }
-
-    @Inject(method = "renderLevel", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/ScreenEffectRenderer;renderScreenEffect(ZZFLnet/minecraft/client/renderer/SubmitNodeCollector;Z)V"),
-            require = 0)
-    private void killer560smod$heldOutlineAfterHands(DeltaTracker deltaTracker, CallbackInfo ci) {
-        HeldOutlineRenderer.afterHands();
     }
 
     @Inject(method = "renderLevel", at = @At(value = "INVOKE",

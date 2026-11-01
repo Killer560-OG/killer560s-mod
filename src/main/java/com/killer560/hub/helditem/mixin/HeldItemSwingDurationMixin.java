@@ -12,11 +12,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *  shortened by Haste / lengthened by Mining Fatigue, computed in {@code LivingEntity.getCurrentSwingDuration()}).
  *  Same hook NoammAddons' 26.1.2 {@code MixinLivingEntity} uses. Only drives the client-side
  *  {@code swingTime}/{@code getAttackAnim} animation for our own player - the swing packet is sent by
- *  {@code swing()} regardless, so this is visual only. Applied on top of vanilla's value, so Haste still counts. */
+ *  {@code swing()} regardless, so this is visual only. Applied on top of vanilla's value, so Haste still counts.
+ *  26.3 renamed the method {@code getModifiedSwingDuration(SwingAnimation)} (the base is now the held item's swing
+ *  animation duration, then Haste / Mining Fatigue as before; javap); the handler takes only the callback info, so
+ *  both names are listed and exactly one matches per version. */
 @Mixin(LivingEntity.class)
 public abstract class HeldItemSwingDurationMixin {
 
-    @Inject(method = "getCurrentSwingDuration", at = @At("RETURN"), cancellable = true, require = 0)
+    @Inject(method = {"getCurrentSwingDuration", "getModifiedSwingDuration"}, at = @At("RETURN"), cancellable = true, require = 0)
     private void killer560smod$heldItemSwingSpeed(CallbackInfoReturnable<Integer> cir) {
         if (!HeldItemConfig.isActive()) return;
         float speed = HeldItemConfig.getInstance().getSwingSpeed();
