@@ -225,6 +225,16 @@ public final class Ap3Executor {
     private static final Set<Ap3Node> inside = Collections.newSetFromMap(new IdentityHashMap<>());
     /** Nodes you entered with a movement key held: they fire the moment you let go while still inside. */
     private static final Set<Ap3Node> unfired = Collections.newSetFromMap(new IdentityHashMap<>());
+    /**
+     * STOP and TERM_AURA nodes that have fired during his current stay in their box (killer560, 2026-11-01: "if i hit a
+     * stop node and stay in it dont have it keep overriding other nodes it should fire once then not work again till i
+     * reenter it"). {@link #trigger} refuses them, whatever asks - the edge detector, a re-arm on arrival, a route
+     * hand-over - and {@link #tick} drops a node the first END he is seen outside its box. Kept through
+     * {@link #arm}/{@link #disarm}, so a re-arm while he stands in one cannot fire it again; emptied in a new world.
+     */
+    private static final Set<Ap3Node> stopSpent = Collections.newSetFromMap(new IdentityHashMap<>());
+    /** The world {@link #stopSpent} belongs to (its identity hash: no reference kept to an old level). */
+    private static int stopSpentLevel;
     /** Nodes with the {@code ss} modifier entered before Simon Says was done: they fire the tick it is, if he is still
      *  inside (killer560, 2026-10-18: "only trigger that node after ss finishes"). */
     private static final Set<Ap3Node> ssWaiting = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -797,6 +807,13 @@ public final class Ap3Executor {
         // YOU were moved 8+ blocks in one tick: a leap (auto, manual or ours), an etherwarp, a boss teleport. With
         // no previous position (first tick in the boss, a rejoin) the origin is unknown and treated the same way.
         Vec3 pos = player.position();
+        if (System.identityHashCode(client.level) != stopSpentLevel) {
+            stopSpentLevel = System.identityHashCode(client.level); // a new world (the next run's boss): nothing is spent there
+            stopSpent.clear();
+        }
+        if (!stopSpent.isEmpty()) {
+            stopSpent.removeIf(n -> !n.contains(pos)); // he left its box: the next entry fires it again
+        }
         // A Blink shot runs this tick once per shot tick (Ap3Feature's shot-tick END hook), so a shot never moves him 8
         // blocks between two of these: the line holds inside a shot too.
         boolean jumped = lastSelfPos == null || pos.distanceTo(lastSelfPos) >= TELEPORT_JUMP;
@@ -1062,6 +1079,11 @@ public final class Ap3Executor {
         return moverDeferred.size();
     }
 
+    /** Test hook: this STOP / TERM_AURA has fired during his current stay in its box ({@link #stopSpent}). */
+    public static boolean isStopSpent(Ap3Node node) {
+        return stopSpent.contains(node);
+    }
+
     /**
      * Fire a node because the ROUTE arrived on it, not because he walked into it.
      * <p>
@@ -1087,6 +1109,11 @@ public final class Ap3Executor {
      *  stepping out and back in while it waits its turn must not fire it twice. */
     private static void trigger(Ap3Node node) {
         if (node == activeNode || node == actNode) {
+            return;
+        }
+        if (stopSpent.contains(node)) {
+            LOGGER.info("[AP3] {} #{}: already fired while you are in its box - fires again only after you leave and re-enter",
+                    node.type.label(), number(node));
             return;
         }
         for (Ap3Node q : queue) {
@@ -1200,6 +1227,9 @@ public final class Ap3Executor {
     // ------------------------------------------------------------------------------------------- nodes
 
     private static void beginNode(Ap3Node node, LocalPlayer player) {
+        if (node.type == Ap3Node.Type.STOP || node.type == Ap3Node.Type.TERM_AURA) {
+            stopSpent.add(node); // once per entry: not again until he has left its box
+        }
         activeNode = node;
         stepTicks = 0;
         settleTicks = 0;
@@ -3109,6 +3139,14 @@ public final class Ap3Executor {
     private static long termAuraTurnTick = -1L;
     /** The terminal screen a Term Aura node opened: AP3 carries on under it (see {@link #screenAllowed}). */
     private static net.minecraft.client.gui.screens.Screen termAuraScreen;
+    /** The click part of the running Term Aura node is over (opened, gave up, nothing in range): it only brakes now. */
+    private static boolean termAuraClickDone;
+
+    /** The click part is over: from here the node is a STOP - it ends once the slide has died out (see tickStop). */
+    private static void termAuraFinish(LocalPlayer player) {
+        termAuraClickDone = true;
+        tickStop(player);
+    }
 
     /**
      * The click goes the way every other AP3 interaction does since 2026-10-06 ({@link #armAct}): chosen and aimed at END
@@ -3127,6 +3165,14 @@ public final class Ap3Executor {
             step = Step.DO;
             termAuraTries = 0;
             termAuraGap = 0;
+            termAuraClickDone = false;
+        }
+        // It stops him like a STOP (killer560, 2026-11-01): the held walk ended when it began (keepsHold false), nothing
+        // is pressed, and the node holds until the slide has died out - the click goes out meanwhile, unchanged.
+        clearMovement();
+        if (termAuraClickDone) {
+            tickStop(player);
+            return;
         }
         net.minecraft.client.gui.screens.Screen screen = McCompat.screen(client);
         if (screen != null) {
@@ -3139,7 +3185,7 @@ public final class Ap3Executor {
                 endAim(player);
             }
             termAuraScreen = screen;
-            finishNode();
+            termAuraFinish(player);
             return;
         }
         if (actNode == node) {
@@ -3151,7 +3197,7 @@ public final class Ap3Executor {
         }
         if (termAuraTries >= TERM_AURA_TRIES) {
             LOGGER.info("[AP3] Term Aura #{}: no terminal opened after {} tries", number(node), termAuraTries);
-            finishNode();
+            termAuraFinish(player);
             return;
         }
         com.killer560.hub.terminalaura.TerminalAuraConfig ta = com.killer560.hub.terminalaura.TerminalAuraConfig.getInstance();
@@ -3168,7 +3214,7 @@ public final class Ap3Executor {
                     chat(ModChat.text("Term Aura "), ModChat.value("#" + number(node)),
                             ModChat.dim(" - no terminal in range"));
                 }
-                finishNode();
+                termAuraFinish(player);
                 return;
             }
             termAuraGap = TERM_AURA_GAP;
