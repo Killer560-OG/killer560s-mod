@@ -41,8 +41,8 @@ Netty is not in `gradle.properties`: `build.gradle`'s `nettyByMinecraft` picks t
 
 ## Testing
 
-Boot-test only in the Prism instance **26.1.2 (Mod Only Test)**, and close the game afterwards. The
-instance **26.1.2 (Dungeons)** is him actually playing — never install a test jar there, never boot it, and
+Boot-test only in the Prism instance **26.3 Mod Only Test** (26.1.2 (Mod Only Test) until 2026-11-01), and close the game afterwards. The
+instance **26.3** (26.1.2 (Dungeons) until 2026-11-01) is him actually playing — never install a test jar there, never boot it, and
 never draw a conclusion from its log. A finished, tested batch does go there with every other instance
 (`deploy-to-instances.py`, killer560 2026-09-27).
 
@@ -51,10 +51,15 @@ and silently started one of his play instances instead. Boot-test through the te
 ask him. Never swap a jar over a running game; stage it as `.jar.pending`. Never blanket `taskkill javaw` - kill only
 the PID you launched, and leave a client whose log shows a server join (he took the window).
 
-**Instances** (since 2026-10-07; enumerate the directory, never trust this list - it has been wrong before):
-`26.1.2 (Dungeons)` (his play instance, cheat), `26.1.2 (Mod Only Test)` (cheat), `26.1.2 (SIM recording)` (cheat, checked
-2026-10-24), `26.1.2 Legit`, `26.2 Cheat`, and the
-private `26.1.2 Untested Cheat` / `26.1.2 Untested Legit`, which take only `-PtestingBuild` jars. `Title Screen GUI` (the main-menu preview instance, marker `killer560smod-title-screen-gui`, docs/TESTING-HOOKS.md) was
+**Instances** (remade 2026-11-01 when 26.3 became the main version; enumerate the directory, never trust this list - it
+has been wrong before). Only our mod and Fabric API in each, no other mods (killer560, 2026-11-01). `26.3` (his play
+instance, cheat: Minecraft options only, no mod settings), `26.3 Default` (cheat, Minecraft options only and no mod config,
+to see what the mod turns on from first download), `26.3 Mod Only Test` / `26.2 Mod Only Test` (cheat; 26.3's carries all of
+26.1.2 Mod Only Test's mod config, 26.2's that of `26.2 Cheat`), `26.3 Legit` / `26.2 Legit` (settings from 26.1.2 Legit), and
+the private `26.3 Untested Cheat` / `26.3 Untested Legit`, which take only `-PtestingBuild` jars. No SIM recording instance.
+Records (profit, run history, stats) are in the shared store, not in any instance. The 26.1.2 instances (Dungeons, Mod
+Only Test, SIM recording, Legit, Untested Cheat/Legit) and `26.2 Cheat` stay until he has checked the new ones; their
+mod config is backed up in `killer560s-mod-logs/instance-backups-1101/`. `Title Screen GUI` (the main-menu preview instance, marker `killer560smod-title-screen-gui`, docs/TESTING-HOOKS.md) was
 retired on 2026-10-16; it and eight older retired instances were deleted on 2026-10-26 (PC cleanup). Every
 `options.txt` is a copy of Dungeons'. Mod Only Test
 does not reach the instance he plays on: after work lands, check every instance by md5 and promote or delete any
@@ -90,6 +95,17 @@ a thousand call sites being guarded. `roomsim/` and `bazaarflip/` were the last 
 Automation chat (killer560, 2026-10-16): a running auto says only that it started or stopped, a server correction and
 a real failure; every progress line goes through `ModChat.log` (same words, logger `killer560smod-chat`, testkit LogTap
 tag "(chat)"). The sim says only what Hypixel says, at Hypixel's pace.
+
+RECORDS are not settings (shared-stats-1101, killer560 2026-11-01: profit and stats "combinable" across instances): the
+Croesus claim log and run memory, RNG Meter item log, Experiments and Bazaar Flip profit, NPC sale count, run history,
+best friends and egg hunts live in ONE store for every instance on the PC, `%APPDATA%\killer560smod\shared\`
+(`accounts/<uuid>/` for one player's own), listed in `shared/RecordCatalog`. Read and write a record only through
+`SharedRecords.file(kind)` + `SharedRecords.load/save`: a save takes an OS file lock and three-way merges onto the disk
+(counters add, keyed entries union, what this instance removed stays removed), so two games never overwrite each other. A
+new record type gets a `RecordCatalog.Kind` with its merge policy (which numbers are COUNTERs, how array entries are keyed).
+An instance's old file is folded in on first use (a byte-identical copy never twice) and moved to
+`<game dir>/killer560smod-records-moved/`. A testkit client gets a sandbox store in its game folder, emptied at start.
+`tools/shared-records/run-test.sh` tests the merge and two JVMs at once; `combine.sh` folds Prism instances in by hand.
 
 Every config path goes through `util/ModPaths.config("killer560smod-<name>")`, never `FabricLoader.getConfigDir()`
 directly: files live in `config/killer560/<category>/<feature>/` under their unchanged names, and the folder is
@@ -346,6 +362,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   own builders' paths (JNA): reported as warnings only.
 - A relay challenge and a relay bearer token must never verify with the same key: they did until 2026-10-27, and
   `GET /challenge?uuid=<anyone>` was a two-minute token for that player (relay `security-1027`, test/token-domain.test.mjs).
+- The shared record store's account must be read on the client thread: testkit 75 asked from its test thread and got
+  no account, so its seed went to `accounts/unknown` and the run list stayed empty (2026-11-01). `SharedRecords.accountId`
+  is read at client init and remembered; a testkit case that needs a record's path asks for it in `computeOnClient`.
 - Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
   (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
   and import keeps the locked update and sharing keys (testkit 981).
