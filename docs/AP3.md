@@ -212,3 +212,14 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   blink make sure the align takes priority over it charging"). Testkit 1027-ap3-live34-*: all six fail on live-blink
   e5d9a683 and pass on 531e0e83.
 
+- **Term Aura stops him; a Stop / Term Aura fires once per entry (2026-11-01, branch ap3-stop-1101).** Owner: "make it so
+  a termaura node will make you stop as well just like a stop node" and "if i hit a stop node and stay in it dont have it
+  keep overriding other nodes it should fire once then not work again till i reenter it". TERM_AURA is now in
+  `keepsHold() == false` (ends the walk, owns the movement like STOP) and, once its click part is over (opened, gave up, or
+  nothing in range), it brakes through `tickStop` (`termAuraClickDone`); the click itself goes out unchanged while he
+  slows. `Ap3Executor.stopSpent` holds every STOP / TERM_AURA that BEGAN during his current stay in its box: `trigger`
+  refuses it from any path (edge detector, a re-arm on arrival, a route hand-over), `tick` drops it the first END he is
+  outside the box, and it empties in a new world. In the plain case the edge detector already gave once per entry (the
+  base jar passes 1101-ap3-stop-once-reenter too), so the set only closes the re-arm paths; the owner's exact repro was
+  not in any log. Testkit 1101-ap3-stop-once-reenter, 1101-ap3-termaura-once-reenter, 1101-boss-ap3-termaura-run; the
+  63-ap3-hold-term-aura expectation is now "run ENDED".
