@@ -207,9 +207,9 @@ project CLAUDE.md. Compiling lessons
   then "Retry-After: 30" every time, and 53 of 126 answers were HTTP 500s that the relay fetched fine later. A 429 is
   `ProfileViewerApi.RateLimitedException`; the Party Finder worker waits out `backendRetryAtMs()` and requeues the name
   (it had cached each 429 as a 3-minute failure, so a full menu showed about four players). Treat a backend 5xx as
-  transient (retry in seconds), never as a 3-minute failure. The relay's own Hypixel key still answers 403 "Invalid API
-  key" (checked 2026-10-15), so the relay runs on SkyBlockPV too and its `etaMs` (3.3 s per queue place) is 3-8x
-  optimistic; trust it only briefly.
+  transient (retry in seconds), never as a 3-minute failure. Since 2026-11-01 the relay holds Hypixel's
+  approved PERMANENT application key (300 requests per 5 min) and answers /pf/stats from the Hypixel API (checked: three
+  fresh names ok in 1.8-2.9 s, source "Hypixel API"); it falls back to SkyBlockPV for an hour only after a 403.
 - Hypixel records no S/S+ on Entrance (every real player's Entrance time is `fastest_time` only), so S/S+-only PBs never
   show there. The Party Finder parser also accepts "Floor: Entrance" (floor 0); that lore wording is assumed, not yet
   seen in a real menu.
