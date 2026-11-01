@@ -1,5 +1,8 @@
 package com.killer560.hub.rngmeter;
 
+import com.killer560.hub.shared.RecordCatalog;
+import com.killer560.hub.shared.SharedRecords;
+
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -19,13 +22,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * so every page of a multi-page floor accumulates under the same key - opening just page 1 of F7
  * still shows every reward ever seen across both its pages, from this session or a past one).
  *
- * <p>Saved to {@code config/killer560/dungeons/runs/killer560smod-rng-item-log.json}, sorted for a stable, human-readable,
+ * <p>Saved to the shared store's {@code rng-item-log.json} (SharedRecords; was {@code config/killer560/dungeons/runs/killer560smod-rng-item-log.json}), sorted for a stable, human-readable,
  * shareable file - the whole point being that this can be copied to a friend's install and they
  * start with everything already discovered instead of re-scanning every menu themselves.
  */
 public final class RngItemLog {
 
-    private static final Path PATH = ModPaths.config("killer560smod-rng-item-log.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static final Map<String, Map<String, Long>> LOG = new ConcurrentHashMap<>();
@@ -35,12 +37,9 @@ public final class RngItemLog {
 
     public static synchronized void load() {
         LOG.clear();
-        if (!Files.exists(PATH)) {
-            return;
-        }
         try {
-            String json = Files.readString(PATH, StandardCharsets.UTF_8);
-            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+            // Shared by every instance (shared-stats-1101): what one instance scanned, all of them know.
+            JsonObject root = SharedRecords.load(SharedRecords.file(RecordCatalog.RNG_ITEM_LOG));
             for (String group : root.keySet()) {
                 JsonObject items = root.getAsJsonObject(group);
                 Map<String, Long> groupMap = new ConcurrentHashMap<>();
@@ -83,12 +82,8 @@ public final class RngItemLog {
         for (var entry : LOG.entrySet()) {
             sorted.put(entry.getKey(), new TreeMap<>(entry.getValue()));
         }
-        WRITER.execute(() -> {
-            try {
-                Files.createDirectories(PATH.getParent());
-                Files.writeString(PATH, GSON.toJson(sorted), StandardCharsets.UTF_8);
-            } catch (Exception ignored) {
-            }
-        });
+        JsonObject root = GSON.toJsonTree(sorted).getAsJsonObject();
+        com.killer560.hub.shared.SharedFile target = SharedRecords.file(RecordCatalog.RNG_ITEM_LOG);
+        WRITER.execute(() -> SharedRecords.save(target, root));
     }
 }

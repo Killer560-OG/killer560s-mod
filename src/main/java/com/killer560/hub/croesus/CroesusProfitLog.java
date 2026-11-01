@@ -1,6 +1,9 @@
 package com.killer560.hub.croesus;
 
 import com.killer560.hub.gui.profit.ProfitScope;
+import com.killer560.hub.shared.RecordCatalog;
+import com.killer560.hub.shared.SharedFile;
+import com.killer560.hub.shared.SharedRecords;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -46,7 +49,6 @@ import java.util.concurrent.Executors;
 public final class CroesusProfitLog {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-croesus");
-    private static final Path PATH = ModPaths.config("killer560smod-croesus-log.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final ExecutorService WRITER = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "killer560smod-croesus-log-writer");
@@ -120,11 +122,9 @@ public final class CroesusProfitLog {
         view = new ProfitScope.Filter();
         parsed = null;
         accountsMigrated = false;
-        if (!Files.exists(PATH)) {
-            return;
-        }
         try {
-            JsonObject root = JsonParser.parseString(Files.readString(PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+            // The shared store (shared-stats-1101): every instance's claims, this one's old file folded in on first use.
+            JsonObject root = SharedRecords.load(file());
             if (root.has("entries")) {
                 entries = root.getAsJsonArray("entries");
             }
@@ -142,18 +142,13 @@ public final class CroesusProfitLog {
                 migrateLegacyTotals(root);
             }
         } catch (Exception e) {
-            // 2026-09-15 persistence audit: the next record() saves over PATH, which used to silently
-            // destroy the whole unreadable claim history - keep a copy of the original file first.
-            Path backup = PATH.resolveSibling(PATH.getFileName() + ".corrupt-" + System.currentTimeMillis());
-            try {
-                Files.copy(PATH, backup);
-                LOGGER.warn("[Croesus] Could not read {} - backed it up to {} and starting a fresh log",
-                        PATH.getFileName(), backup.getFileName(), e);
-            } catch (Exception backupError) {
-                LOGGER.warn("[Croesus] Could not read {} - starting a fresh log (backup copy also failed: {})",
-                        PATH.getFileName(), backupError.toString(), e);
-            }
+            // An unreadable shared file is copied aside by SharedFile before anything replaces it.
+            LOGGER.warn("[Croesus] Could not read the claim log - starting a fresh log", e);
         }
+    }
+
+    private static SharedFile file() {
+        return SharedRecords.file(RecordCatalog.CROESUS_LOG);
     }
 
     /** The old file's totals counted only the last {@code totals.All.chests} claims (an old reset cleared them and
@@ -563,16 +558,8 @@ public final class CroesusProfitLog {
         }
         root.add("totals", totals);
         root.add("entries", entries.deepCopy());
-        String json = GSON.toJson((JsonElement) root);
-        WRITER.submit(() -> {
-            try {
-                Files.createDirectories(PATH.getParent());
-                Path tmp = PATH.resolveSibling(PATH.getFileName() + ".tmp");
-                Files.writeString(tmp, json, StandardCharsets.UTF_8);
-                CroesusRunMemory.replace(tmp, PATH, json);
-            } catch (Exception e) {
-                LOGGER.warn("[Croesus] Failed to write {}", PATH.getFileName(), e);
-            }
-        });
+        // Merged onto the shared file, so another instance's claims written since are kept (shared-stats-1101).
+        SharedFile target = file();
+        WRITER.submit(() -> SharedRecords.save(target, root));
     }
 }

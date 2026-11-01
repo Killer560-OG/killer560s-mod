@@ -1,5 +1,8 @@
 package com.killer560.hub.bazaarflip;
 
+import com.killer560.hub.shared.RecordCatalog;
+import com.killer560.hub.shared.SharedRecords;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -37,7 +40,6 @@ public final class BazaarFlipProfitLog {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bazaarflip");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path FILE = ModPaths.config("killer560smod-bazaarflip-profit.json");
     /** Oldest records are dropped past this, so the file stays small. */
     private static final int MAX_RECORDS = 5000;
 
@@ -218,8 +220,9 @@ public final class BazaarFlipProfitLog {
         }
         loaded = true;
         try {
-            if (Files.exists(FILE)) {
-                JsonObject root = JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8)).getAsJsonObject();
+            {
+                // Every instance's cycles in one shared file (shared-stats-1101).
+                JsonObject root = SharedRecords.load(SharedRecords.file(RecordCatalog.BAZAAR_FLIP));
                 if (root.has("cycles")) {
                     for (JsonElement e : root.getAsJsonArray("cycles")) {
                         try {
@@ -235,7 +238,7 @@ public final class BazaarFlipProfitLog {
                 }
             }
         } catch (Exception e) {
-            LOGGER.warn("[BazaarFlip] Couldn't read {} - starting an empty profit log", FILE, e);
+            LOGGER.warn("[BazaarFlip] Couldn't read the profit log - starting an empty one", e);
         }
         migrate();
     }
@@ -269,10 +272,9 @@ public final class BazaarFlipProfitLog {
             CYCLES.forEach(c -> arr.add(c.toJson()));
             root.add("cycles", arr);
             root.add("view", view.toJson());
-            Files.createDirectories(FILE.getParent());
-            Files.writeString(FILE, GSON.toJson(root), StandardCharsets.UTF_8);
+            SharedRecords.save(SharedRecords.file(RecordCatalog.BAZAAR_FLIP), root);
         } catch (Exception e) {
-            LOGGER.warn("[BazaarFlip] Couldn't save {}", FILE, e);
+            LOGGER.warn("[BazaarFlip] Couldn't save the profit log", e);
         }
     }
 }

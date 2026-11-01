@@ -1,5 +1,8 @@
 package com.killer560.hub.chocolatefactory.egg;
 
+import com.killer560.hub.shared.RecordCatalog;
+import com.killer560.hub.shared.SharedRecords;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -34,10 +37,19 @@ public final class EggTracker {
 
     private static final int KEEP_HUNTS = 50;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path PATH = ModPaths.config("killer560smod-eggtracker.json");
 
     private static final List<Hunt> HUNTS = new ArrayList<>();
     private static boolean loaded;
+
+    static {
+        // The in-game account switcher: the next read is the new account's hunts (each change is saved as it happens).
+        SharedRecords.onAccountChange(() -> {
+            synchronized (EggTracker.class) {
+                EggTracker.loaded = false;
+                HUNTS.clear();
+            }
+        });
+    }
     private static boolean huntWasActive;
 
     private EggTracker() {
@@ -127,11 +139,9 @@ public final class EggTracker {
             return;
         }
         loaded = true;
-        if (!Files.exists(PATH)) {
-            return;
-        }
         try {
-            JsonObject obj = JsonParser.parseString(Files.readString(PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+            // This account's hunts from every instance (shared-stats-1101).
+            JsonObject obj = SharedRecords.load(SharedRecords.file(RecordCatalog.EGG_TRACKER));
             JsonArray arr = obj.getAsJsonArray("hunts");
             if (arr == null) {
                 return;
@@ -153,7 +163,6 @@ public final class EggTracker {
 
     private static synchronized void save() {
         try {
-            Files.createDirectories(PATH.getParent());
             JsonArray arr = new JsonArray();
             for (Hunt h : HUNTS) {
                 JsonObject o = new JsonObject();
@@ -166,7 +175,7 @@ public final class EggTracker {
             }
             JsonObject root = new JsonObject();
             root.add("hunts", arr);
-            Files.writeString(PATH, GSON.toJson(root), StandardCharsets.UTF_8);
+            SharedRecords.save(SharedRecords.file(RecordCatalog.EGG_TRACKER), root);
         } catch (Exception ignored) {
         }
     }

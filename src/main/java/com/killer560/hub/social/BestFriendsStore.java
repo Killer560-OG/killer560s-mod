@@ -1,5 +1,9 @@
 package com.killer560.hub.social;
 
+import com.killer560.hub.shared.RecordCatalog;
+import com.killer560.hub.shared.SharedFile;
+import com.killer560.hub.shared.SharedRecords;
+
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -46,8 +50,20 @@ public final class BestFriendsStore {
     private static final Logger LOGGER = ModLog.get("killer560smod-bestfriends");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private static final Path DIR = ModPaths.config("killer560smod-social");
-    private static final Path FILE = DIR.resolve("bestfriends.json");
+    /** The shared file the records were loaded from (the account signed in then). */
+    private static SharedFile file;
+
+    static {
+        // The in-game account switcher: save what this account has, then read the new account's players.
+        SharedRecords.onAccountChange(() -> {
+            synchronized (BestFriendsStore.class) {
+                if (BestFriendsStore.loaded) {
+                    saveNow();
+                    load();
+                }
+            }
+        });
+    }
     private static final int FILE_VERSION = 1;
 
     private static final ExecutorService WRITER = Executors.newSingleThreadExecutor(r -> {
@@ -99,11 +115,10 @@ public final class BestFriendsStore {
     public static synchronized void load() {
         RECORDS.clear();
         loaded = true;
-        if (!Files.exists(FILE)) {
-            return;
-        }
         try {
-            JsonObject root = JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8)).getAsJsonObject();
+            // This account's players from every instance (shared-stats-1101); the old per-instance file is folded in.
+            file = SharedRecords.file(RecordCatalog.BEST_FRIENDS);
+            JsonObject root = SharedRecords.load(file);
             JsonArray players = ConfigJson.getArray(root, "players");
             if (players != null) {
                 for (JsonElement element : players) {
@@ -113,17 +128,10 @@ public final class BestFriendsStore {
                     }
                 }
             }
-            LOGGER.info("[BestFriends] Loaded {} tracked player(s) from {}", RECORDS.size(), FILE);
+            LOGGER.info("[BestFriends] Loaded {} tracked player(s) from {}", RECORDS.size(), file.path());
         } catch (Exception e) {
-            Path backup = FILE.resolveSibling(FILE.getFileName() + ".corrupt-" + System.currentTimeMillis());
-            try {
-                Files.copy(FILE, backup);
-                LOGGER.warn("[BestFriends] Could not read {} - backed it up to {} and starting fresh",
-                        FILE.getFileName(), backup.getFileName(), e);
-            } catch (Exception backupError) {
-                LOGGER.warn("[BestFriends] Could not read {} - starting fresh (backup also failed: {})",
-                        FILE.getFileName(), backupError.toString(), e);
-            }
+            // An unreadable shared file is copied aside by SharedFile before anything replaces it.
+            LOGGER.warn("[BestFriends] Could not read the best friends file - starting fresh", e);
             RECORDS.clear();
         }
     }
@@ -229,17 +237,22 @@ public final class BestFriendsStore {
     /** Forces a write regardless of the dirty flag - used on disconnect so the very last few seconds of a
      *  session are never lost even if nothing else has changed the flag since the last periodic flush. */
     public static synchronized void saveAsync() {
-        String json = snapshotJson();
-        WRITER.submit(() -> write(json));
+        JsonObject json = snapshotJson();
+        SharedFile target = target();
+        WRITER.submit(() -> write(target, json));
     }
 
     /** Writes on THIS thread - for the client stopping, when the daemon writer may never get to run. */
     public static synchronized void saveNow() {
         dirty = false;
-        write(snapshotJson());
+        write(target(), snapshotJson());
     }
 
-    private static String snapshotJson() {
+    private static SharedFile target() {
+        return file != null ? file : SharedRecords.file(RecordCatalog.BEST_FRIENDS);
+    }
+
+    private static JsonObject snapshotJson() {
         ensureLoaded();
         JsonObject root = new JsonObject();
         root.addProperty("version", FILE_VERSION);
@@ -248,22 +261,11 @@ public final class BestFriendsStore {
             array.add(toJson(record));
         }
         root.add("players", array);
-        return GSON.toJson((JsonElement) root);
+        return root;
     }
 
-    private static void write(String json) {
-        synchronized (FILE_LOCK) {
-            try {
-                Files.createDirectories(DIR);
-                Path tmp = FILE.resolveSibling(FILE.getFileName() + ".tmp");
-                Files.writeString(tmp, json, StandardCharsets.UTF_8);
-                Files.move(tmp, FILE, StandardCopyOption.REPLACE_EXISTING);
-            } catch (Exception e) {
-                LOGGER.warn("[BestFriends] Failed to write {}", FILE, e);
-            }
-        }
+    /** Merged onto the shared file: time partied in another instance meanwhile is added, not overwritten. */
+    private static void write(SharedFile target, JsonObject json) {
+        SharedRecords.save(target, json);
     }
-
-    /** The writer thread and {@link #saveNow} share the one tmp file. */
-    private static final Object FILE_LOCK = new Object();
 }
