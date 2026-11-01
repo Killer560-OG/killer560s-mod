@@ -110,7 +110,7 @@ tag "(chat)"). The sim says only what Hypixel says, at Hypixel's pace.
 
 RECORDS are not settings (shared-stats-1101, killer560 2026-11-01: profit and stats "combinable" across instances): the
 Croesus claim log and run memory, RNG Meter item log, Experiments and Bazaar Flip profit, NPC sale count, run history,
-best friends and egg hunts live in ONE store for every instance on the PC, `%APPDATA%\killer560smod\shared\`
+best friends and egg hunts live in ONE store for every instance on the PC, `%USERPROFILE%\.killer560smod\shared\`
 (`accounts/<uuid>/` for one player's own), listed in `shared/RecordCatalog`. Read and write a record only through
 `SharedRecords.file(kind)` + `SharedRecords.load/save`: a save takes an OS file lock and three-way merges onto the disk
 (counters add, keyed entries union, what this instance removed stays removed), so two games never overwrite each other. A
@@ -409,6 +409,15 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - The shared record store's account must be read on the client thread: testkit 75 asked from its test thread and got
   no account, so its seed went to `accounts/unknown` and the run list stayed empty (2026-11-01). `SharedRecords.accountId`
   is read at client init and remembered; a testkit case that needs a record's path asks for it in `computeOnClient`.
+- The shared store was first at `%APPDATA%\killer560smod\shared`, and the combine run from the Claude desktop app wrote it
+  there - but Windows virtualizes a packaged app's writes to a NEW %APPDATA% folder into
+  `AppData\Local\Packages\Claude_*\LocalCache\Roaming`, so every tool here saw the store and the real game saw nothing:
+  /profit was empty in 26.3 Mod Only Test (2026-11-01). The store moved to `%USERPROFILE%\.killer560smod\shared` (not
+  virtualized); the mod folds a real %APPDATA% store into it once. Never put data a game must read under a new %APPDATA% folder
+  from an agent tool; existing folders (PrismLauncher) are written in place.
+- A testkit `-PseedConfig` copied from Mod Only Test carries his Proxy Client config (`system/proxy/proxyclient.json`, SOCKS5,
+  enabled): the test client then dials the local server through his real proxy, which refuses it ("socks5 ... FORBIDDEN",
+  00-smoke fails, 2026-11-01). Leave that file out of a seed.
 - Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
   (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
   and import keeps the locked update and sharing keys (testkit 981).
