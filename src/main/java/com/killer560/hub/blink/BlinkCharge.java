@@ -473,7 +473,11 @@ public final class BlinkCharge {
                 // Not for a teleport's confirm: it sends every answer through its ping back to back anyway, and releasing the
                 // due ones first left the batch a younger oldest answer than the bank needs, so a covered leap took the
                 // slow hold (1027-blink-c-keep-delay "walking after the tp" at 50 ms, ts9).
-                if (!tickOpen && !(packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket)) {
+                // Nor while a block change waits for its answer: that answer must go at a tick START, before his physics
+                // runs on the changed block (pumpDeferredBlocks); sent mid-tick, GrimAC had the wall gone for a move the
+                // client made against it - Simulation .0077 decaying (1027-blink-breaker-stand at 50 ms, ts11).
+                if (!tickOpen && heldBlocks.isEmpty()
+                        && !(packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket)) {
                     releaseDueAnswersLocked(System.currentTimeMillis());
                 }
                 tickOpen = !(packet instanceof ServerboundClientTickEndPacket);
@@ -1211,7 +1215,7 @@ public final class BlinkCharge {
             return;
         }
         synchronized (LOCK) {
-            if (!tickOpen) {
+            if (!tickOpen && heldBlocks.isEmpty()) { // with block changes held, pumpDeferredBlocks released them above
                 releaseDueAnswersLocked(System.currentTimeMillis());
             }
             if (!tpSegs.isEmpty() && System.currentTimeMillis() - tpSegs.peekFirst().startMs() > TP_HOLD_MAX_MS) {
