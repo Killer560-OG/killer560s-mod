@@ -3,10 +3,11 @@ package com.killer560.hub.chunkcache.mixin;
 import com.killer560.hub.chunkcache.ChunkCacheManager;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Collection;
@@ -65,22 +66,24 @@ public abstract class ChunkCacheLevelChunkMixin {
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    @Redirect(method = "clearAllBlockEntities",
+    @WrapOperation(method = "clearAllBlockEntities",
             at = @At(value = "INVOKE", target = "Ljava/util/Collection;forEach(Ljava/util/function/Consumer;)V", ordinal = 0),
             require = 0)
-    private void killer560smod$keepBlockEntitiesUnremoved(Collection values, Consumer action) {
+    private void killer560smod$keepBlockEntitiesUnremoved(Collection values, Consumer action,
+            Operation<Void> original) {
         if (!ChunkCacheManager.keepsBlockEntities((LevelChunk) (Object) this, false)) {
-            values.forEach(action);
+            original.call(values, action);
         }
     }
 
     @SuppressWarnings("rawtypes")
-    @Redirect(method = "clearAllBlockEntities",
+    @WrapOperation(method = "clearAllBlockEntities",
             at = @At(value = "INVOKE", target = "Ljava/util/Map;clear()V", ordinal = 0),
             require = 0)
-    private void killer560smod$keepBlockEntityMap(Map map) {
+    private void killer560smod$keepBlockEntityMap(Map map,
+            Operation<Void> original) {
         if (!ChunkCacheManager.keepsBlockEntities((LevelChunk) (Object) this, true)) {
-            map.clear();
+            original.call(map);
         }
     }
 }

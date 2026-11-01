@@ -8,11 +8,12 @@ import net.minecraft.client.gui.components.TabButton;
 import net.minecraft.client.gui.components.tabs.MenuTabBar;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -49,11 +50,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(MenuTabBar.MenuTabButton.class)
 public abstract class MenuTabButtonMixin {
 
-    @Redirect(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+    @WrapOperation(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V"),
             require = 0)
     private void killer560smod$themedTab(GuiGraphicsExtractor graphics, RenderPipeline pipeline, Identifier sprite,
-                                         int x, int y, int width, int height) {
+                                         int x, int y, int width, int height,
+            Operation<Void> original) {
         if (MenuWidgets.active()) {
             try {
                 TabButton self = (TabButton) (Object) this;
@@ -63,7 +65,7 @@ public abstract class MenuTabButtonMixin {
                 MainMenuTheme.fail("tab", t);
             }
         }
-        graphics.blitSprite(pipeline, sprite, x, y, width, height);
+        original.call(graphics, pipeline, sprite, x, y, width, height);
     }
 
     @Inject(method = "renderMenuBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIII)V", at = @At("HEAD"), cancellable = true, require = 0)

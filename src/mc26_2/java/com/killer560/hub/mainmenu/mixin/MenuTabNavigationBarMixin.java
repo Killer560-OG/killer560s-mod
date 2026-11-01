@@ -6,9 +6,10 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.tabs.MenuTabBar;
 import net.minecraft.resources.Identifier;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * The two header-separator strips TabNavigationBar draws left of the first tab and right of the last tab become a
@@ -37,12 +38,13 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(MenuTabBar.class)
 public abstract class MenuTabNavigationBarMixin {
 
-    @Redirect(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+    @WrapOperation(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V"),
             require = 0)
     private void killer560smod$themedTabSeparator(GuiGraphicsExtractor graphics, RenderPipeline pipeline, Identifier texture,
                                                   int x, int y, float u, float v, int width, int height,
-                                                  int textureWidth, int textureHeight) {
+                                                  int textureWidth, int textureHeight,
+            Operation<Void> original) {
         if (MenuWidgets.active()) {
             try {
                 MenuWidgets.drawTabSeparator(graphics, x, y, width, height);
@@ -51,6 +53,6 @@ public abstract class MenuTabNavigationBarMixin {
                 MainMenuTheme.fail("tab separator", t);
             }
         }
-        graphics.blit(pipeline, texture, x, y, u, v, width, height, textureWidth, textureHeight);
+        original.call(graphics, pipeline, texture, x, y, u, v, width, height, textureWidth, textureHeight);
     }
 }

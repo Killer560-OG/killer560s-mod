@@ -6,9 +6,10 @@ import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.resources.Identifier;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * Bordered text fields (server name/address, world name/seed, search boxes, other mods' config fields, and this
@@ -24,11 +25,12 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(EditBox.class)
 public abstract class MenuEditBoxMixin {
 
-    @Redirect(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+    @WrapOperation(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V"),
             require = 0)
     private void killer560smod$themedTextField(GuiGraphicsExtractor graphics, RenderPipeline pipeline, Identifier sprite,
-                                               int x, int y, int width, int height) {
+                                               int x, int y, int width, int height,
+            Operation<Void> original) {
         if (MenuWidgets.active()) {
             try {
                 EditBox self = (EditBox) (Object) this;
@@ -38,15 +40,16 @@ public abstract class MenuEditBoxMixin {
                 MainMenuTheme.fail("text field", t);
             }
         }
-        graphics.blitSprite(pipeline, sprite, x, y, width, height);
+        original.call(graphics, pipeline, sprite, x, y, width, height);
     }
 
     /** 26.3: the same call with RenderPipeline at its 26.3 path (Redirect takes one @At). */
-    @Redirect(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+    @WrapOperation(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V"),
             require = 0)
     private void killer560smod$themedTextField263(GuiGraphicsExtractor graphics, RenderPipeline pipeline, Identifier sprite,
-                                               int x, int y, int width, int height) {
-        killer560smod$themedTextField(graphics, pipeline, sprite, x, y, width, height);
+                                               int x, int y, int width, int height,
+            Operation<Void> original) {
+        killer560smod$themedTextField(graphics, pipeline, sprite, x, y, width, height, original);
     }
 }

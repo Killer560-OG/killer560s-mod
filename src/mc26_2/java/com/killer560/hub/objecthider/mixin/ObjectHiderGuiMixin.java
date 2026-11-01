@@ -1,6 +1,7 @@
 package com.killer560.hub.objecthider.mixin;
 
 import com.killer560.hub.objecthider.ObjectHiderConfig;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.gui.Hud;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.Holder;
@@ -9,7 +10,6 @@ import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -30,8 +30,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * both are redirected instead - same technique QUOI itself uses for Absorption
  * ({@code @Redirect Player.getAbsorptionAmount() -> 0.0F}, {@code mixins/GuiMixin.java:29-41}); the
  * Regeneration-bounce redirect is this port's equivalent of QUOI's {@code @ModifyExpressionValue} (this repo
- * has no MixinExtras dependency, so plain {@code @Redirect} on the single {@code hasEffect} call site does
- * the same job).
+ * now uses the same {@code @ModifyExpressionValue}: since 2026-11-01 no mixin here takes a call with
+ * {@code @Redirect}, which breaks other mods hooking the same call).
  *
  * <b>This mixin has one copy per Minecraft version</b>, in {@code src/mc26_1/java} and
  * {@code src/mc26_2/java}, because the class it targets is not the same class on both - and a
@@ -77,20 +77,20 @@ public abstract class ObjectHiderGuiMixin {
         }
     }
 
-    @Redirect(method = "extractPlayerHealth",
+    @ModifyExpressionValue(method = "extractPlayerHealth",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;getAbsorptionAmount()F"),
             require = 0)
-    private float killer560smod$objectHider$absorption(Player player) {
-        return ObjectHiderConfig.getInstance().isHideAbsorptionHearts() ? 0.0F : player.getAbsorptionAmount();
+    private float killer560smod$objectHider$absorption(float absorption) {
+        return ObjectHiderConfig.getInstance().isHideAbsorptionHearts() ? 0.0F : absorption;
     }
 
-    @Redirect(method = "extractPlayerHealth",
+    @ModifyExpressionValue(method = "extractPlayerHealth",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;hasEffect(Lnet/minecraft/core/Holder;)Z"),
             require = 0)
-    private boolean killer560smod$objectHider$regenBounce(Player player, Holder<MobEffect> effect) {
+    private boolean killer560smod$objectHider$regenBounce(boolean hasEffect) {
         if (ObjectHiderConfig.getInstance().isHideRegenBounce()) {
             return false;
         }
-        return player.hasEffect(effect);
+        return hasEffect;
     }
 }

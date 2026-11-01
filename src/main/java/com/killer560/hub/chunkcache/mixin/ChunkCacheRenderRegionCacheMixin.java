@@ -4,9 +4,10 @@ import com.killer560.hub.chunkcache.ChunkCacheManager;
 import net.minecraft.client.renderer.chunk.RenderRegionCache;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * Second half of the "renderer keeps seeing vanilla" rule (see {@link ChunkCacheRenderSectionMixin}).
@@ -27,11 +28,12 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(RenderRegionCache.class)
 public abstract class ChunkCacheRenderRegionCacheMixin {
 
-    @Redirect(method = "*",
+    @WrapOperation(method = "*",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/world/level/Level;getChunk(II)Lnet/minecraft/world/level/chunk/LevelChunk;"),
             require = 0)
-    private static LevelChunk killer560smod$vanillaChunkOnly(Level level, int x, int z) {
+    private static LevelChunk killer560smod$vanillaChunkOnly(Level level, int x, int z,
+            Operation<LevelChunk> original) {
         return ChunkCacheManager.vanillaGetChunk(level, x, z);
     }
 }

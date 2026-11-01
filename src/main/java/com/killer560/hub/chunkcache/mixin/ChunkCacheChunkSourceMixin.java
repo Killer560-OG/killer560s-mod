@@ -4,9 +4,10 @@ import com.killer560.hub.chunkcache.ChunkCacheManager;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkSource;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * Keeps "is this chunk loaded?" a vanilla question. javap on 26.1.2 shows
@@ -22,11 +23,12 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(ChunkSource.class)
 public abstract class ChunkCacheChunkSourceMixin {
 
-    @Redirect(method = "hasChunk",
+    @WrapOperation(method = "hasChunk",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/world/level/chunk/ChunkSource;getChunk(IILnet/minecraft/world/level/chunk/status/ChunkStatus;Z)Lnet/minecraft/world/level/chunk/ChunkAccess;"),
             require = 0)
-    private ChunkAccess killer560smod$vanillaChunkOnly(ChunkSource source, int x, int z, ChunkStatus status, boolean load) {
+    private ChunkAccess killer560smod$vanillaChunkOnly(ChunkSource source, int x, int z, ChunkStatus status, boolean load,
+            Operation<ChunkAccess> original) {
         return ChunkCacheManager.vanillaGetChunk(source, x, z, status, load);
     }
 }

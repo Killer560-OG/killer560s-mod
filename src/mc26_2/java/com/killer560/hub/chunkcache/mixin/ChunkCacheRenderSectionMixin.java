@@ -5,9 +5,10 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.SectionUpdateTracker;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * Keeps the terrain renderer on vanilla's answer. {@code RenderSection.doesChunkExistAt(long)} gates section
@@ -31,11 +32,12 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(SectionUpdateTracker.class)
 public abstract class ChunkCacheRenderSectionMixin {
 
-    @Redirect(method = "doesChunkExistAt",
+    @WrapOperation(method = "doesChunkExistAt",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/multiplayer/ClientLevel;getChunk(IILnet/minecraft/world/level/chunk/status/ChunkStatus;Z)Lnet/minecraft/world/level/chunk/ChunkAccess;"),
             require = 0)
-    private ChunkAccess killer560smod$vanillaChunkOnly(ClientLevel level, int x, int z, ChunkStatus status, boolean load) {
+    private ChunkAccess killer560smod$vanillaChunkOnly(ClientLevel level, int x, int z, ChunkStatus status, boolean load,
+            Operation<ChunkAccess> original) {
         return ChunkCacheManager.vanillaGetChunk(level, x, z, status, load);
     }
 }

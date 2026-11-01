@@ -4,9 +4,10 @@ import com.killer560.hub.mainmenu.MainMenuTheme;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.TitleScreen;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 
 /** The title screen's version line ("Minecraft 26.1.2 (71 Mods)") is not drawn while the themed main menu is on
@@ -16,13 +17,14 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(TitleScreen.class)
 public abstract class MainMenuTitleScreenMixin {
 
-    @Redirect(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+    @WrapOperation(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;text(Lnet/minecraft/client/gui/Font;Ljava/lang/String;III)V"),
             require = 0)
-    private void killer560smod$hideVersionLine(GuiGraphicsExtractor graphics, Font font, String text, int x, int y, int color) {
+    private void killer560smod$hideVersionLine(GuiGraphicsExtractor graphics, Font font, String text, int x, int y, int color,
+            Operation<Void> original) {
         if (MainMenuTheme.active()) {
             return;
         }
-        graphics.text(font, text, x, y, color);
+        original.call(graphics, font, text, x, y, color);
     }
 }

@@ -6,11 +6,12 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSink;
 import net.minecraft.util.FormattedCharSequence;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
@@ -45,12 +46,13 @@ public abstract class NameChangerFontMixin {
      * colors. {@code NameColor.iterateFormatted} is the same decoder plus that escape; for any other string it is
      * glyph-for-glyph what vanilla produces. {@code NameAnimation.iterate} is that decoder with animated names recolored.
      */
-    @Redirect(
+    @WrapOperation(
             method = "prepareText(Ljava/lang/String;FFIZI)Lnet/minecraft/client/gui/Font$PreparedText;",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/util/StringDecomposer;iterateFormatted("
                     + "Ljava/lang/String;Lnet/minecraft/network/chat/Style;Lnet/minecraft/util/FormattedCharSink;)Z"),
             require = 0)
-    private boolean killer560smod$hexAwareDecode(String text, Style style, FormattedCharSink sink) {
+    private boolean killer560smod$hexAwareDecode(String text, Style style, FormattedCharSink sink,
+            Operation<Boolean> original) {
         return com.killer560.hub.namechanger.NameAnimation.iterate(text, style, sink);
     }
 

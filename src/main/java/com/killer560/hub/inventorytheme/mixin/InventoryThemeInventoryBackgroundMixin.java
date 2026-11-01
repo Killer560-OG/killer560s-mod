@@ -5,9 +5,10 @@ import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.resources.Identifier;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 /** Same idea as {@link InventoryThemeContainerBackgroundMixin}, but for the player's own survival
  *  inventory screen ('e'). {@code InventoryScreen.extractBackground} does three things (javap, 26.1.2 and
@@ -18,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(InventoryScreen.class)
 public abstract class InventoryThemeInventoryBackgroundMixin {
 
-    @Redirect(
+    @WrapOperation(
             method = "extractBackground",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V"),
@@ -26,17 +27,18 @@ public abstract class InventoryThemeInventoryBackgroundMixin {
     )
     private void killer560smod$themeInventoryBackground(GuiGraphicsExtractor graphics, RenderPipeline pipeline,
                                                           Identifier texture, int x, int y, float u, float v,
-                                                          int width, int height, int texWidth, int texHeight) {
+                                                          int width, int height, int texWidth, int texHeight,
+            Operation<Void> original) {
         InventoryScreen self = (InventoryScreen) (Object) this;
         if (InventoryThemeFeature.shouldTheme(self)) {
             InventoryThemeFeature.drawBackground(graphics, self);
         } else {
-            graphics.blit(pipeline, texture, x, y, u, v, width, height, texWidth, texHeight);
+            original.call(graphics, pipeline, texture, x, y, u, v, width, height, texWidth, texHeight);
         }
     }
 
     /** 26.3: the same call with RenderPipeline at its 26.3 path (Redirect takes one @At). */
-    @Redirect(
+    @WrapOperation(
             method = "extractBackground",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blit(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V"),
@@ -44,7 +46,8 @@ public abstract class InventoryThemeInventoryBackgroundMixin {
     )
     private void killer560smod$themeInventoryBackground263(GuiGraphicsExtractor graphics, RenderPipeline pipeline,
                                                           Identifier texture, int x, int y, float u, float v,
-                                                          int width, int height, int texWidth, int texHeight) {
-        killer560smod$themeInventoryBackground(graphics, pipeline, texture, x, y, u, v, width, height, texWidth, texHeight);
+                                                          int width, int height, int texWidth, int texHeight,
+            Operation<Void> original) {
+        killer560smod$themeInventoryBackground(graphics, pipeline, texture, x, y, u, v, width, height, texWidth, texHeight, original);
     }
 }
