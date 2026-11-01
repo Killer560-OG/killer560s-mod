@@ -435,7 +435,7 @@ public final class SimQuizPuzzle {
         ArmorStand npc = new ArmorStand(level, x, y, z);
         npc.snapTo(x, y, z, yaw, 0f);
         npc.setNoGravity(true);
-        npc.setInvulnerable(true);
+        com.killer560.hub.compat.McEntities.setInvulnerable(npc, true);
         npc.setShowArms(true);
         npc.setCustomName(Component.literal(WEIRDO_NAMES[index]));
         npc.setCustomNameVisible(true);
@@ -449,7 +449,7 @@ public final class SimQuizPuzzle {
         click.snapTo(x, y - 0.3, z, yaw, 0f);
         click.setInvisible(true);
         click.setNoGravity(true);
-        click.setInvulnerable(true);
+        com.killer560.hub.compat.McEntities.setInvulnerable(click, true);
         click.setNoBasePlate(true);
         click.setCustomName(Component.literal("CLICK"));
         click.setCustomNameVisible(true);
@@ -1052,7 +1052,7 @@ public final class SimQuizPuzzle {
         stand.setInvisible(true);
         stand.setNoGravity(true);
         stand.setNoBasePlate(true);
-        stand.setInvulnerable(true);
+        com.killer560.hub.compat.McEntities.setInvulnerable(stand, true);
         stand.setCustomName(Component.literal(text));
         stand.setCustomNameVisible(true);
         level.addFreshEntity(stand);
@@ -1167,7 +1167,7 @@ public final class SimQuizPuzzle {
         if (name != null) {
             ArmorStand stand = new ArmorStand(level, name.getX() + 0.5, name.getY(), name.getZ() + 0.5);
             stand.setNoGravity(true);
-            stand.setInvulnerable(true);
+            com.killer560.hub.compat.McEntities.setInvulnerable(stand, true);
             stand.setCustomName(Component.literal("Oruo the Omniscient"));
             stand.setCustomNameVisible(true);
             if (level.addFreshEntity(stand)) {

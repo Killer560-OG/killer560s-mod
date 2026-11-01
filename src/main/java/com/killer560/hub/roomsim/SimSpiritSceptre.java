@@ -140,7 +140,7 @@ public final class SimSpiritSceptre {
             entity.snapTo(at.x, at.y, at.z, 0f, 0f);
             entity.setNoGravity(true);
             entity.setNoAi(true);
-            entity.setInvulnerable(true);
+            com.killer560.hub.compat.McEntities.setInvulnerable(entity, true);
             server.overworld().addFreshEntity(entity);
         });
     }

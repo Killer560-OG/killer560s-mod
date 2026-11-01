@@ -83,7 +83,7 @@ public final class SoundEffects {
             // played, so resolving it only reads its volume and pitch.
             float volume = 1.0f;
             try {
-                in.resolve(sounds);
+                com.killer560.hub.compat.McSoundInstance.resolve(in, sounds);
                 volume = in.getVolume();
             } catch (RuntimeException ignored) {
                 // use the default volume; make() reads the pitch the same careful way

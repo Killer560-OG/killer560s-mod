@@ -193,7 +193,7 @@ public final class SimBlazePuzzle {
         tag.setInvisible(true);
         tag.setNoGravity(true);
         tag.setNoBasePlate(true);
-        tag.setInvulnerable(true);
+        com.killer560.hub.compat.McEntities.setInvulnerable(tag, true);
         byte flags = tag.getEntityData().get(net.minecraft.world.entity.decoration.ArmorStand.DATA_CLIENT_FLAGS);
         tag.getEntityData().set(net.minecraft.world.entity.decoration.ArmorStand.DATA_CLIENT_FLAGS,
                 (byte) (flags | net.minecraft.world.entity.decoration.ArmorStand.CLIENT_FLAG_MARKER));

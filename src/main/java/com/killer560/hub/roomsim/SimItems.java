@@ -304,7 +304,7 @@ public final class SimItems {
                 return;
             }
             if (!sp.getInventory().add(stack)) {
-                sp.drop(stack, false);
+                com.killer560.hub.compat.McEntities.serverDrop(sp, stack);
             }
         });
     }

@@ -3,8 +3,7 @@ package com.killer560.hub.accounts;
 import com.killer560.hub.accounts.core.AuthResult;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.minecraft.UserApiService;
-import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
-import com.mojang.authlib.yggdrasil.ProfileResult;
+import com.mojang.authlib.services.ProfileResult;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Util;
 import net.minecraft.client.User;
@@ -47,8 +46,8 @@ public final class AccountApplier {
         // So: a fresh UserApiService for this token (the same construction Minecraft's own constructor does), and the
         // key manager, the user-properties future and the field itself all follow it.
         try {
-            YggdrasilAuthenticationService authService = new YggdrasilAuthenticationService(minecraft.getProxy());
-            UserApiService userApiService = authService.createUserApiService(result.minecraftAccessToken());
+            UserApiService userApiService = com.killer560.hub.compat.McCompat.createUserApiService(minecraft,
+                    result.minecraftAccessToken());
             setFinalField(minecraft, "userApiService", userApiService);
             setFinalField(minecraft, "userPropertiesFuture", CompletableFuture.supplyAsync(() -> {
                 try {

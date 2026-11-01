@@ -539,7 +539,7 @@ public final class SimMobs {
         tag.setInvisible(true);
         tag.setNoGravity(true);
         tag.setNoBasePlate(true);
-        tag.setInvulnerable(true);
+        com.killer560.hub.compat.McEntities.setInvulnerable(tag, true);
         // A marker, so the tag has no hitbox to catch hits meant for the mob (the same fix as the blaze labels).
         byte flags = tag.getEntityData().get(ArmorStand.DATA_CLIENT_FLAGS);
         tag.getEntityData().set(ArmorStand.DATA_CLIENT_FLAGS, (byte) (flags | ArmorStand.CLIENT_FLAG_MARKER));
@@ -766,7 +766,7 @@ public final class SimMobs {
         skull.setInvisible(true);
         skull.setNoBasePlate(true);
         skull.setShowArms(false);
-        skull.setInvulnerable(true);
+        com.killer560.hub.compat.McEntities.setInvulnerable(skull, true);
         skull.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.SKELETON_SKULL));
         level.addFreshEntity(skull);
         FELS.add(new FelMarker(skull, starred));

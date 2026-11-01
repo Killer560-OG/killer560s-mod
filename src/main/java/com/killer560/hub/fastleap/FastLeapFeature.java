@@ -173,7 +173,7 @@ public final class FastLeapFeature {
                     continue;
                 }
                 Vec3 target = other.getInterpolation() != null && other.getInterpolation().hasActiveInterpolation()
-                        ? other.getInterpolation().position() : other.position();
+                        ? com.killer560.hub.compat.McEntities.interpolationTarget(other.getInterpolation()) : other.position();
                 if (HEALER_PY_BOX.contains(target) || HEALER_PY_BOX.contains(other.position())) {
                     leapedHealerPy = true;
                     LOGGER.info("[FastLeap] {} reached the PY healer spot -> PY healer leap", name);

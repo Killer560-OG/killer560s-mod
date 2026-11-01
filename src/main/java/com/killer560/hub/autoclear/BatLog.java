@@ -433,7 +433,7 @@ public final class BatLog {
     /** Where the server last put an entity: its interpolation's target while it is drawn toward one, else where it is. */
     static Vec3 serverPos(Entity e) {
         var interp = e.getInterpolation();
-        return interp != null && interp.hasActiveInterpolation() ? interp.position() : e.position();
+        return interp != null && interp.hasActiveInterpolation() ? com.killer560.hub.compat.McEntities.interpolationTarget(interp) : e.position();
     }
 
     /**
@@ -444,7 +444,7 @@ public final class BatLog {
     private static Vec3 serverPos(Shot s, Entity e) {
         var interp = e.getInterpolation();
         if (interp != null && interp.hasActiveInterpolation()) {
-            s.lastServer = interp.position();
+            s.lastServer = com.killer560.hub.compat.McEntities.interpolationTarget(interp);
         } else if (s.lastServer == null) {
             s.lastServer = e.position();
         }

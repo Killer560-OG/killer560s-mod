@@ -736,7 +736,7 @@ public final class SimIcePathPuzzle {
         // Stationary until something shoves it, and never hurt by the shove - see the class doc. Invulnerable
         // as well as the canceled punch, because an arrow reaches it on a path no callback can refuse.
         fish.setNoAi(true);
-        fish.setInvulnerable(true);
+        com.killer560.hub.compat.McEntities.setInvulnerable(fish, true);
         // The slide is driven by position, one step a tick, so vanilla physics must not also be moving it.
         fish.setNoGravity(true);
         fish.setPos(ice.getX() + 0.5, ice.getY() + 1, ice.getZ() + 0.5);

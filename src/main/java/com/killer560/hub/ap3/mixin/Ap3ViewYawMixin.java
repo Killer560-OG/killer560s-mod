@@ -40,20 +40,12 @@ public abstract class Ap3ViewYawMixin {
         }
     }
 
-    /** Freeze State only: the free camera's pitch (the align/walk freeze never touches pitch). */
+    /** Freeze State only: the free camera's pitch (the align/walk freeze never touches pitch). 26.2 declares
+     *  {@code getViewXRot} on LocalPlayer; 26.3 only inherits it from Entity, where {@code Ap3ViewPitchMixin} catches it
+     *  (Mixin matches declared methods only, so this injection is a silent no-op on 26.3). */
     @Inject(method = "getViewXRot", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$ap3FrozenPitch(float partialTick, CallbackInfoReturnable<Float> cir) {
-        if (((LocalPlayer) (Object) this).isPassenger()) {
-            return;
-        }
-        if (Ap3FreezeState.isFrozen()) {
-            cir.setReturnValue(Ap3FreezeState.viewPitch());
-            return;
-        }
-        float pitch = Ap3Executor.frozenViewPitch(); // a Block node aiming the real pitch
-        if (Float.isNaN(pitch)) {
-            pitch = com.killer560.hub.util.ViewFreeze.viewPitch(); // the auto puzzles, aiming
-        }
+        float pitch = com.killer560.hub.ap3.Ap3FreezeState.viewPitchOverride((LocalPlayer) (Object) this);
         if (!Float.isNaN(pitch)) {
             cir.setReturnValue(pitch);
         }

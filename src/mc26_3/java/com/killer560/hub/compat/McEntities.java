@@ -46,4 +46,32 @@ public final class McEntities {
         target.knockback(strength, dx, dz, target.damageSources().generic(), 0.0f);
     }
 
+    // ---- 26.3 renames (same signatures in every copy) ---------------------------------------------------------------
+
+    /** Makes an entity immune to damage for good: 26.2 {@code setInvulnerable}; 26.3 {@code setPermanentlyInvulnerable}. */
+    public static void setInvulnerable(net.minecraft.world.entity.Entity entity, boolean invulnerable) {
+        entity.setPermanentlyInvulnerable(invulnerable);
+    }
+
+    /** The hurt-cooldown ticks left: a public field on 26.2, a private one behind a getter/setter on 26.3. */
+    public static int invulnerableTime(net.minecraft.world.entity.Entity entity) {
+        return entity.getInvulnerableTime();
+    }
+
+    public static void setInvulnerableTime(net.minecraft.world.entity.Entity entity, int ticks) {
+        entity.setInvulnerableTime(ticks);
+    }
+
+    /** Where an entity's active interpolation is heading (the last position the server sent): 26.2
+     *  {@code InterpolationHandler.position()}; 26.3 made the handler an interface whose {@code target()} carries it. */
+    public static net.minecraft.world.phys.Vec3 interpolationTarget(net.minecraft.world.entity.InterpolationHandler handler) {
+        return handler.target().position();
+    }
+
+    /** A server-side drop of a stack at the player's feet (inventory full), as 26.2's {@code drop(stack, false)}.
+     *  26.3 added a Prediction argument; SERVER_ONLY is the server-side case. */
+    public static void serverDrop(net.minecraft.server.level.ServerPlayer player, net.minecraft.world.item.ItemStack stack) {
+        player.drop(stack, false, net.minecraft.util.Prediction.SERVER_ONLY);
+    }
+
 }

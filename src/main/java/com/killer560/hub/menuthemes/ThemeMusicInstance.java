@@ -1,6 +1,5 @@
 package com.killer560.hub.menuthemes;
 
-import net.minecraft.client.resources.sounds.AbstractSoundInstance;
 import net.minecraft.client.resources.sounds.Sound;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.resources.sounds.TickableSoundInstance;
@@ -18,7 +17,7 @@ import net.minecraft.util.valueproviders.ConstantFloat;
  * streams and loops it exactly as it does vanilla's music. An imported track ({@link ThemeMusicFiles}) names a streamed
  * {@link Sound} no resource pack has, and the engine's stream request for it is answered from the file.
  */
-class ThemeMusicInstance extends AbstractSoundInstance implements TickableSoundInstance {
+class ThemeMusicInstance extends com.killer560.hub.compat.McSoundInstance implements TickableSoundInstance {
 
     private volatile boolean stopped;
     /** True for an imported file: {@link #resolve} makes its Sound instead of looking up an event. */
@@ -51,9 +50,9 @@ class ThemeMusicInstance extends AbstractSoundInstance implements TickableSoundI
     }
 
     @Override
-    public WeighedSoundEvents resolve(SoundManager soundManager) {
+    protected WeighedSoundEvents resolveCustom(SoundManager soundManager) {
         if (!imported) {
-            return super.resolve(soundManager);
+            return null;
         }
         Identifier id = getIdentifier();
         WeighedSoundEvents events = new WeighedSoundEvents(id, null);

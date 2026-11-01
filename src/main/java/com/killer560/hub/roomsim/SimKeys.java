@@ -73,7 +73,7 @@ public final class SimKeys {
             stand.setInvisible(true);
             stand.setNoGravity(true);
             stand.setNoBasePlate(true);
-            stand.setInvulnerable(true);
+            com.killer560.hub.compat.McEntities.setInvulnerable(stand, true);
             stand.setCustomName(Component.literal(blood ? "Blood Key" : "Wither Key"));
             stand.setCustomNameVisible(true);
             // A full-size stand standing on the floor: the head it wears floats at head height (helmet ~1.4-1.9 above

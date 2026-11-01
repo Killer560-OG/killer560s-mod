@@ -1,6 +1,5 @@
 package com.killer560.hub.clicksound;
 
-import net.minecraft.client.resources.sounds.AbstractSoundInstance;
 import net.minecraft.client.resources.sounds.Sound;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.SoundManager;
@@ -14,7 +13,7 @@ import net.minecraft.util.valueproviders.ConstantFloat;
  * It names a {@link Sound} the resource packs do not have; the sound engine's buffer lookup for that name is answered from
  * disk by {@code SoundBufferLibraryClickMixin} ({@link ClickSoundBuffers}).
  */
-final class ImportedSoundInstance extends AbstractSoundInstance {
+final class ImportedSoundInstance extends com.killer560.hub.compat.McSoundInstance {
 
     private final Identifier fileId;
 
@@ -36,7 +35,7 @@ final class ImportedSoundInstance extends AbstractSoundInstance {
     }
 
     @Override
-    public WeighedSoundEvents resolve(SoundManager soundManager) {
+    protected WeighedSoundEvents resolveCustom(SoundManager soundManager) {
         WeighedSoundEvents events = new WeighedSoundEvents(this.fileId, null);
         this.sound = new Sound(this.fileId, ConstantFloat.of(1.0f), ConstantFloat.of(1.0f), 1, Sound.Type.FILE,
                 false, false, 16);

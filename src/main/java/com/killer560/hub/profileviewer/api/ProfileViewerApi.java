@@ -7,7 +7,7 @@ import com.google.gson.JsonParser;
 import com.killer560.hub.profileviewer.ProfileViewerConfig;
 import com.killer560.hub.profileviewer.data.SbProfile;
 import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.yggdrasil.ProfileResult;
+import com.mojang.authlib.services.ProfileResult;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.User;

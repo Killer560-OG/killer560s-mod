@@ -307,4 +307,21 @@ public final class Ap3FreezeState {
             player.sendSystemMessage(net.minecraft.network.chat.Component.literal(s));
         }
     }
+
+    /** The pitch the camera is drawn with instead of the real one, or NaN for none: Freeze State's free camera first,
+     *  then a Block node aiming the real pitch, then the auto puzzles aiming (ViewFreeze). Never while riding. Shared by
+     *  Ap3ViewYawMixin (26.2, LocalPlayer.getViewXRot) and Ap3ViewPitchMixin (26.3, Entity.getViewXRot). */
+    public static float viewPitchOverride(LocalPlayer player) {
+        if (player.isPassenger()) {
+            return Float.NaN;
+        }
+        if (isFrozen()) {
+            return viewPitch();
+        }
+        float pitch = Ap3Executor.frozenViewPitch();
+        if (Float.isNaN(pitch)) {
+            pitch = com.killer560.hub.util.ViewFreeze.viewPitch();
+        }
+        return pitch;
+    }
 }

@@ -320,7 +320,7 @@ public final class SimRedstoneKey {
             stand.setInvisible(true);
             stand.setNoGravity(true);
             stand.setNoBasePlate(true);
-            stand.setInvulnerable(true);
+            com.killer560.hub.compat.McEntities.setInvulnerable(stand, true);
             stand.setItemSlot(EquipmentSlot.HEAD, keyHead());
             server.addFreshEntity(stand);
             if (opens != null) {

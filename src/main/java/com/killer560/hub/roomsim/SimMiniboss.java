@@ -342,8 +342,8 @@ public final class SimMiniboss {
                 discard();
                 return;
             }
-            if (invulnerableTime > 0) {
-                invulnerableTime--;
+            if (com.killer560.hub.compat.McEntities.invulnerableTime(this) > 0) {
+                com.killer560.hub.compat.McEntities.setInvulnerableTime(this, com.killer560.hub.compat.McEntities.invulnerableTime(this) - 1);
             }
             if (hurtTime > 0) {
                 hurtTime--;

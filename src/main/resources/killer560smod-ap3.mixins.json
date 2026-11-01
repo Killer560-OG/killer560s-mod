@@ -10,6 +10,7 @@
 		"Ap3StrafeImpulseMixin",
 		"Ap3ThirdPersonMixin",
 		"Ap3PositionPacketMixin",
+		"Ap3ViewPitchMixin",
 		"Ap3ViewYawMixin",
 		"Ap3MouseYawMixin",
 		"Ap3FreezeMixin"

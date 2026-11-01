@@ -152,6 +152,18 @@ public final class McCompat {
         return monitor.y();
     }
 
+    // ------------------------------------------------------------------------------------------------ accounts
+
+    /** A UserApiService for an access token, built the way Minecraft's own constructor builds its one. 26.3 (authlib
+     *  10) dropped YggdrasilAuthenticationService: Minecraft's constructor does
+     *  {@code MinecraftServicesDiscoveryService.create(proxy, !offlineDeveloperMode).createUserApiService(token)}
+     *  (javap 26.3); an account swap is never offline, hence {@code true}. */
+    public static com.mojang.authlib.minecraft.UserApiService createUserApiService(Minecraft client, String accessToken)
+            throws Exception {
+        return com.mojang.authlib.services.MinecraftServicesDiscoveryService.create(client.getProxy(), true)
+                .createUserApiService(accessToken);
+    }
+
     // ------------------------------------------------------------------------------------------------ arm swings
 
     /** The swing that goes with a LEFT click the mod sends (a dig START/ABORT, an attack, a click at the air). 26.3
