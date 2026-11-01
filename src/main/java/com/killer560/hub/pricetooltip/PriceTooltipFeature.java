@@ -9,7 +9,6 @@ import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import org.lwjgl.glfw.GLFW;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -261,7 +260,7 @@ public final class PriceTooltipFeature {
         }
         try {
             var window = Minecraft.getInstance().getWindow();
-            return KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_LEFT_SHIFT) || KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_SHIFT);
+            return KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.LEFT_SHIFT) || KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.RIGHT_SHIFT);
         } catch (Throwable t) {
             return false;
         }

@@ -27,7 +27,7 @@ public class AbilityKeybindsTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        applyCapture(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        applyCapture(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
     }
 
     /** Lets {@code ModScreen} route the next mouse press here (a {@code KeyCaptureTab} method). */

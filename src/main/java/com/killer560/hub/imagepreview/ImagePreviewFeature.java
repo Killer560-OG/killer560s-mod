@@ -143,7 +143,7 @@ public final class ImagePreviewFeature {
                 }
             });
             ScreenMouseEvents.allowMouseScroll(screen).register((s, mx, my, sx, sy) -> !onScroll(sy));
-            ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> !onClick(s, event.button()));
+            ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> !onClick(s, com.killer560.hub.compat.McInput.button(event)));
             ScreenEvents.remove(screen).register(s -> hoveredLink = null);
         });
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ImagePreviewFeature.tick", c -> tick()));

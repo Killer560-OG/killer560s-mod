@@ -3,18 +3,15 @@ package com.killer560.hub.windowlayout;
 import com.mojang.blaze3d.platform.Monitor;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.PointerBuffer;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWNativeWin32;
-import org.lwjgl.glfw.GLFWVidMode;
 
 import java.util.ArrayList;
 import java.util.List;
-import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.compat.McWindow;
 
-/** Connected monitors straight from GLFW (Mojang's {@code ScreenManager} keeps its map private), with the
- *  Windows work area from user32 {@code GetMonitorInfoW} and GLFW's own work area as the fallback. Must be
- *  called on the render thread. All values are in GLFW screen coordinates. */
+/** Connected monitors straight from the windowing system through {@link McWindow} (GLFW on 26.2, SDL3 on 26.3;
+ *  Mojang's monitor manager keeps its map private), with the Windows work area from user32 {@code GetMonitorInfoW}
+ *  and the windowing system's own work area as the fallback. Must be called on the render thread. All values are in
+ *  screen coordinates. {@code handle} is McWindow's display id, valid until the displays change. */
 public final class WindowMonitors {
 
     /** @param device Win32 display device name (e.g. {@code \\.\DISPLAY1}), empty elsewhere. */
@@ -37,56 +34,26 @@ public final class WindowMonitors {
     public static List<MonitorInfo> list() {
         List<MonitorInfo> out = new ArrayList<>();
         try {
-            PointerBuffer monitors = GLFW.glfwGetMonitors();
-            if (monitors == null) {
-                return out;
-            }
-            for (int i = 0; i < monitors.limit(); i++) {
-                long handle = monitors.get(i);
-                GLFWVidMode mode = GLFW.glfwGetVideoMode(handle);
-                if (mode == null) {
+            for (long handle : McWindow.displays()) {
+                int[] b = McWindow.displayBounds(handle);
+                if (b == null) {
                     continue;
                 }
-                int[] mx = new int[1];
-                int[] my = new int[1];
-                GLFW.glfwGetMonitorPos(handle, mx, my);
-                int w = mode.width();
-                int h = mode.height();
-                String name = GLFW.glfwGetMonitorName(handle);
-                String device = "";
-                if (WindowLayoutWin32.isWindows()) {
-                    try {
-                        String d = GLFWNativeWin32.glfwGetWin32Monitor(handle);
-                        device = d == null ? "" : d;
-                    } catch (Throwable ignored) {
-                    }
-                }
-                int[] work = WindowLayoutWin32.isWindows() ? WindowLayoutWin32.workArea(mx[0], my[0], w, h) : null;
+                String name = McWindow.displayName(handle);
+                String device = WindowLayoutWin32.isWindows() ? McWindow.displayWin32Device(handle) : "";
+                int[] work = WindowLayoutWin32.isWindows() ? WindowLayoutWin32.workArea(b[0], b[1], b[2], b[3]) : null;
                 if (work == null) {
-                    work = glfwWorkArea(handle);
+                    work = McWindow.displayWorkArea(handle);
                 }
                 if (work == null) {
-                    work = new int[]{mx[0], my[0], w, h};
+                    work = new int[]{b[0], b[1], b[2], b[3]};
                 }
                 out.add(new MonitorInfo(out.size(), handle, name == null ? "Monitor" : name, device,
-                        mx[0], my[0], w, h, work[0], work[1], work[2], work[3]));
+                        b[0], b[1], b[2], b[3], work[0], work[1], work[2], work[3]));
             }
         } catch (Throwable ignored) {
         }
         return out;
-    }
-
-    private static int[] glfwWorkArea(long handle) {
-        try {
-            int[] x = new int[1];
-            int[] y = new int[1];
-            int[] w = new int[1];
-            int[] h = new int[1];
-            GLFW.glfwGetMonitorWorkarea(handle, x, y, w, h);
-            return w[0] > 0 && h[0] > 0 ? new int[]{x[0], y[0], w[0], h[0]} : null;
-        } catch (Throwable t) {
-            return null;
-        }
     }
 
     /** The monitor this Minecraft window is currently on. */
@@ -99,7 +66,7 @@ public final class WindowMonitors {
             Monitor best = window.findBestMonitor();
             if (best != null) {
                 for (MonitorInfo m : monitors) {
-                    if (m.handle() == McCompat.monitorHandle(best)) {
+                    if (m.handle() == McWindow.displayOf(best)) {
                         return m;
                     }
                 }
@@ -113,7 +80,7 @@ public final class WindowMonitors {
             }
         } catch (Throwable ignored) {
         }
-        long primary = GLFW.glfwGetPrimaryMonitor();
+        long primary = McWindow.primaryDisplay();
         for (MonitorInfo m : monitors) {
             if (m.handle() == primary) {
                 return m;

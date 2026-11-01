@@ -28,7 +28,7 @@ public final class AutoSellToggleKey {
             if (!(screen instanceof AbstractContainerScreen<?>)) {
                 return;
             }
-            ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> !handle(s, event.key()));
+            ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> !handle(s, com.killer560.hub.compat.McInput.key(event)));
         });
     }
 

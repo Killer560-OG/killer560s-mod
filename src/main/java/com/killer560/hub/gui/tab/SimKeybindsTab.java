@@ -31,7 +31,7 @@ public class SimKeybindsTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        apply(keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode);
+        apply(keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
     }
 
     @Override

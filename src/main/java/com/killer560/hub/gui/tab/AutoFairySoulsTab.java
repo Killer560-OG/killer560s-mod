@@ -88,7 +88,7 @@ public class AutoFairySoulsTab extends BaseTab implements KeyCaptureTab {
 
     private static Component resumeKeyText(PathfindingConfig cfg) {
         int code = cfg.getResumeKeyCode();
-        String name = code < 0 ? "Not Set" : InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
+        String name = code < 0 ? "Not Set" : com.killer560.hub.util.KeyUtil.keyName(code);
         return Component.literal("Start/Stop Key: §6" + name);
     }
 
@@ -103,7 +103,7 @@ public class AutoFairySoulsTab extends BaseTab implements KeyCaptureTab {
             return;
         }
         PathfindingConfig cfg = PathfindingConfig.getInstance();
-        cfg.setResumeKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        cfg.setResumeKeyCode(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
         cfg.save();
         capturingResumeKey = false;
     }

@@ -187,7 +187,7 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
     }
 
     public void onKeyCaptured(int keyCode) {
-        int code = keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode;
+        int code = keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode;
         // Escape unbinds (-1), same convention as every other KeyCaptureTab - it used to bind Escape itself.
         if (listening == 2) {
             HudConfig.getInstance().setOpenMenuKeyCode(code);
@@ -201,14 +201,14 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
     private static Component openMenuText() {
         int code = HudConfig.getInstance().getOpenMenuKeyCode();
         String name = code < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
+                : com.killer560.hub.util.KeyUtil.keyName(code);
         return Component.literal("Open Menu Key: §b" + name);
     }
 
     private static Component keybindText() {
         int code = HudConfig.getInstance().getEditKeyCode();
         String name = code < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
+                : com.killer560.hub.util.KeyUtil.keyName(code);
         return Component.literal("Edit HUD Keybind: §b" + name);
     }
 }

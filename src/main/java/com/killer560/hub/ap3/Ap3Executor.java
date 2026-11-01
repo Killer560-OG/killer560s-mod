@@ -30,7 +30,6 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -173,8 +172,8 @@ public final class Ap3Executor {
     private static final int BOOM_TIMEOUT = 40;
     private static final double BOOM_REACH = 4.5;
     private static final String[] BOOM_IDS = {"INFINITE_SUPERBOOM_TNT", "SUPERBOOM_TNT"};
-    private static final int GLFW_FIRST_KEY = GLFW.GLFW_KEY_SPACE;
-    private static final int GLFW_LAST_KEY = GLFW.GLFW_KEY_LAST;
+    private static final int GLFW_FIRST_KEY = com.killer560.hub.util.Keys.FIRST;
+    private static final int GLFW_LAST_KEY = com.killer560.hub.util.Keys.LAST;
     /** 45 Degree Strafe: the server-side yaw sits this far off the walk direction (W+A / W+D strafing). */
     private static final float STRAFE_ANGLE = 45f;
     /** The server-side yaw never moves more than this in one tick - a fast flick, still a hand's flick. */
@@ -265,7 +264,7 @@ public final class Ap3Executor {
 
     // ---- test mode: any key / button = the player taking over ----
     private static final boolean[] keyWasDown = new boolean[GLFW_LAST_KEY + 1];
-    private static final boolean[] mouseWasDown = new boolean[GLFW.GLFW_MOUSE_BUTTON_LAST + 1];
+    private static final boolean[] mouseWasDown = new boolean[com.killer560.hub.util.Keys.MOUSE_LAST + 1];
 
     // ---- terminal ----
     private static int selfCompletions;
@@ -5744,10 +5743,10 @@ public final class Ap3Executor {
         try {
             com.mojang.blaze3d.platform.InputConstants.Key key =
                     ((com.killer560.hub.autoroutes.mixin.KeyMappingKeyAccessor) (Object) mapping).killer560smod$getKey();
-            if (key == null || key.getType() != com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM) {
+            if (!com.killer560.hub.compat.McInput.isKeyboard(key)) {
                 return false;
             }
-            return com.killer560.hub.util.KeyUtil.isKeyDown(window, key.getValue());
+            return com.killer560.hub.compat.McInput.isNativeKeyDown(window, key.getValue());
         } catch (Throwable t) {
             return false;
         }
@@ -5768,7 +5767,7 @@ public final class Ap3Executor {
     private static boolean leftButtonDown(Minecraft client) {
         try {
             var window = client.getWindow();
-            return window != null && GLFW.glfwGetMouseButton(window.handle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+            return window != null && com.killer560.hub.compat.McInput.isStoredButtonDown(window, com.killer560.hub.util.Keys.MOUSE_LEFT);
         } catch (Throwable t) {
             return false;
         }
@@ -5777,12 +5776,12 @@ public final class Ap3Executor {
     /** Test mode's "any button": records what is down right now so only a NEW press counts. */
     private static void snapshotButtons(Minecraft client) {
         try {
-            long handle = client.getWindow().handle();
+            var window = client.getWindow();
             for (int k = GLFW_FIRST_KEY; k <= GLFW_LAST_KEY; k++) {
-                keyWasDown[k] = GLFW.glfwGetKey(handle, k) == GLFW.GLFW_PRESS;
+                keyWasDown[k] = com.killer560.hub.util.KeyUtil.isKeyDown(window, k);
             }
-            for (int b = 0; b <= GLFW.GLFW_MOUSE_BUTTON_LAST; b++) {
-                mouseWasDown[b] = GLFW.glfwGetMouseButton(handle, b) == GLFW.GLFW_PRESS;
+            for (int b = 0; b <= com.killer560.hub.util.Keys.MOUSE_LAST; b++) {
+                mouseWasDown[b] = com.killer560.hub.compat.McInput.isStoredButtonDown(window, b);
             }
         } catch (Throwable ignored) {
         }
@@ -5792,17 +5791,17 @@ public final class Ap3Executor {
      *  from its own state table, no events involved. */
     private static boolean anyNewButton(Minecraft client) {
         try {
-            long handle = client.getWindow().handle();
+            var window = client.getWindow();
             boolean pressed = false;
             for (int k = GLFW_FIRST_KEY; k <= GLFW_LAST_KEY; k++) {
-                boolean down = GLFW.glfwGetKey(handle, k) == GLFW.GLFW_PRESS;
+                boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(window, k);
                 if (down && !keyWasDown[k]) {
                     pressed = true;
                 }
                 keyWasDown[k] = down;
             }
-            for (int b = 0; b <= GLFW.GLFW_MOUSE_BUTTON_LAST; b++) {
-                boolean down = GLFW.glfwGetMouseButton(handle, b) == GLFW.GLFW_PRESS;
+            for (int b = 0; b <= com.killer560.hub.util.Keys.MOUSE_LAST; b++) {
+                boolean down = com.killer560.hub.compat.McInput.isStoredButtonDown(window, b);
                 if (down && !mouseWasDown[b]) {
                     pressed = true;
                 }

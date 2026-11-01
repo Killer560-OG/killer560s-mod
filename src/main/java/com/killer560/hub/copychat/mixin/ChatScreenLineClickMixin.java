@@ -17,7 +17,7 @@ public abstract class ChatScreenLineClickMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void killer560smod$copyChatClick(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
-        if (CopyChatFeature.onChatClick(event.x(), event.y(), event.button(),
+        if (CopyChatFeature.onChatClick(event.x(), event.y(), com.killer560.hub.compat.McInput.button(event),
                 event.hasShiftDown() || event.hasControlDown())) {
             cir.setReturnValue(true);
         }

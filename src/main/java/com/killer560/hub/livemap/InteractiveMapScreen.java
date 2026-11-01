@@ -765,13 +765,13 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
-        pressButton = event.button();
+        pressButton = com.killer560.hub.compat.McInput.button(event);
         return true;
     }
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-        if (pressButton >= 0 && event.button() == pressButton) {
+        if (pressButton >= 0 && com.killer560.hub.compat.McInput.button(event) == pressButton) {
             return true; // never pans
         }
         return super.mouseDragged(event, dragX, dragY);
@@ -779,12 +779,12 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (event.button() == pressButton) {
+        if (com.killer560.hub.compat.McInput.button(event) == pressButton) {
             pressButton = -1;
-            if (event.button() == 0 && legendClick(event.x(), event.y())) {
+            if (com.killer560.hub.compat.McInput.button(event) == 0 && legendClick(event.x(), event.y())) {
                 return true;
             }
-            onClick(event.button(), event.x(), event.y());
+            onClick(com.killer560.hub.compat.McInput.button(event), event.x(), event.y());
             return true;
         }
         return super.mouseReleased(event);

@@ -447,10 +447,10 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
         }
         // A mouse button bound as a page key changes page before the click can select or swap a slice.
         PetWheelConfig cfg = PetWheelConfig.getInstance();
-        if (matchesBind(cfg.getPrevPageKeyCode(), true, event.button()) && changePage(-1)) {
+        if (matchesBind(cfg.getPrevPageKeyCode(), true, com.killer560.hub.compat.McInput.button(event)) && changePage(-1)) {
             return true;
         }
-        if (matchesBind(cfg.getNextPageKeyCode(), true, event.button()) && changePage(1)) {
+        if (matchesBind(cfg.getNextPageKeyCode(), true, com.killer560.hub.compat.McInput.button(event)) && changePage(1)) {
             return true;
         }
         if (editMode) {
@@ -476,13 +476,13 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
      */
     private boolean editModeClick(MouseButtonEvent event) {
         int hit = hitGlobalIndex(event.x(), event.y());
-        if (event.button() == 1) {
+        if (com.killer560.hub.compat.McInput.button(event) == 1) {
             if (hit >= 0 && pendingSwapIndex == null) {
                 PetWheelEditor.beginPick(hit, this);
             }
             return true;
         }
-        if (event.button() != 0) {
+        if (com.killer560.hub.compat.McInput.button(event) != 0) {
             return false;
         }
         if (pendingSwapIndex == null) {
@@ -551,7 +551,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
      */
     @Override
     public boolean keyReleased(KeyEvent event) {
-        if (isHoldReleaseBind(false, event.key())) {
+        if (isHoldReleaseBind(false, com.killer560.hub.compat.McInput.key(event))) {
             confirmSelection();
             return true;
         }
@@ -561,7 +561,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         // Same as keyReleased for a mouse-button bind: MouseHandler.onButton hands every release to the open screen.
-        if (isHoldReleaseBind(true, event.button())) {
+        if (isHoldReleaseBind(true, com.killer560.hub.compat.McInput.button(event))) {
             confirmSelectionAt(event.x(), event.y());
             return true;
         }
@@ -614,10 +614,10 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         PetWheelConfig cfg = PetWheelConfig.getInstance();
-        if (matchesBind(cfg.getPrevPageKeyCode(), false, event.key()) && changePage(-1)) {
+        if (matchesBind(cfg.getPrevPageKeyCode(), false, com.killer560.hub.compat.McInput.key(event)) && changePage(-1)) {
             return true;
         }
-        if (matchesBind(cfg.getNextPageKeyCode(), false, event.key()) && changePage(1)) {
+        if (matchesBind(cfg.getNextPageKeyCode(), false, com.killer560.hub.compat.McInput.key(event)) && changePage(1)) {
             return true;
         }
         if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT && changePage(1)) {

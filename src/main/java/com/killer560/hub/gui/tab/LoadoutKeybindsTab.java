@@ -30,7 +30,7 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        applyCapture(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        applyCapture(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
     }
 
     /** killer560 (2026-10-07): "for loadout keybinds I cannot use my special mouse buttons like side mouse buttons".

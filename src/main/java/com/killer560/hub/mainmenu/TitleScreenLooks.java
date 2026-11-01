@@ -264,12 +264,12 @@ public final class TitleScreenLooks {
 
         @Override
         protected boolean isValidClickButton(net.minecraft.client.input.MouseButtonInfo info) {
-            return info.button() == 0 || info.button() == 1;
+            return com.killer560.hub.compat.McInput.button(info) == 0 || com.killer560.hub.compat.McInput.button(info) == 1;
         }
 
         @Override
         public void onClick(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
-            if (event.button() == 1) {
+            if (com.killer560.hub.compat.McInput.button(event) == 1) {
                 step(-1);
             } else {
                 super.onClick(event, doubleClick);

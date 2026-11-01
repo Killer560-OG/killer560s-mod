@@ -1038,11 +1038,10 @@ public final class RouteExecutor {
                 return false;
             }
             if (key.getType() == com.mojang.blaze3d.platform.InputConstants.Type.MOUSE) {
-                return org.lwjgl.glfw.GLFW.glfwGetMouseButton(client.getWindow().handle(), key.getValue())
-                        == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+                return com.killer560.hub.compat.McInput.isNativeButtonDown(client.getWindow(), key.getValue());
             }
-            return key.getType() == com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM
-                    && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), key.getValue());
+            return com.killer560.hub.compat.McInput.isKeyboard(key)
+                    && com.killer560.hub.compat.McInput.isNativeKeyDown(client.getWindow(), key.getValue());
         } catch (Throwable t) {
             return false;
         }
@@ -1277,10 +1276,10 @@ public final class RouteExecutor {
             com.mojang.blaze3d.platform.InputConstants.Key key =
                     ((com.killer560.hub.autoroutes.mixin.KeyMappingKeyAccessor) (Object) mapping)
                             .killer560smod$getKey();
-            if (key == null || key.getType() != com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM) {
+            if (!com.killer560.hub.compat.McInput.isKeyboard(key)) {
                 return false;
             }
-            return com.killer560.hub.util.KeyUtil.isKeyDown(window, key.getValue());
+            return com.killer560.hub.compat.McInput.isNativeKeyDown(window, key.getValue());
         } catch (Throwable t) {
             if (!warnedNoKeyAccessor) {
                 warnedNoKeyAccessor = true;

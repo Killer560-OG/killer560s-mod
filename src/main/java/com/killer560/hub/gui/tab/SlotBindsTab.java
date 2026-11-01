@@ -39,7 +39,7 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
     @Override
     public void onKeyCaptured(int keyCode) {
         listening = false;
-        SlotBindsConfig.getInstance().setBindKey(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        SlotBindsConfig.getInstance().setBindKey(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
         SlotBindsConfig.getInstance().save();
     }
 
@@ -104,7 +104,7 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
 
     private static Component bindKeyText() {
         int key = SlotBindsConfig.getInstance().getBindKey();
-        String name = key == -1 ? "Not Set" : InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString();
+        String name = key == -1 ? "Not Set" : com.killer560.hub.util.KeyUtil.keyName(key);
         return Component.literal("Bind Key: " + name);
     }
 }

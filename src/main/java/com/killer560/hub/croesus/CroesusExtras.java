@@ -24,7 +24,6 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -163,8 +162,8 @@ public final class CroesusExtras {
             return false;
         }
         Minecraft client = Minecraft.getInstance();
-        if (KeyUtil.isKeyDown(client.getWindow(), GLFW.GLFW_KEY_LEFT_CONTROL)
-                || KeyUtil.isKeyDown(client.getWindow(), GLFW.GLFW_KEY_RIGHT_CONTROL)) {
+        if (KeyUtil.isKeyDown(client.getWindow(), com.killer560.hub.util.Keys.LEFT_CONTROL)
+                || KeyUtil.isKeyDown(client.getWindow(), com.killer560.hub.util.Keys.RIGHT_CONTROL)) {
             LOGGER.info("[Croesus] Reroll Protection: Ctrl held - reroll of the {} chest let through", type.display);
             return false;
         }

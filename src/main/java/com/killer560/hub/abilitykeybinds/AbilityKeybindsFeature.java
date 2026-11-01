@@ -80,8 +80,7 @@ public final class AbilityKeybindsFeature {
             return false;
         }
         if (AbilityKeybindsConfig.isMouseCode(code)) {
-            return org.lwjgl.glfw.GLFW.glfwGetMouseButton(client.getWindow().handle(),
-                    AbilityKeybindsConfig.mouseButton(code)) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+            return com.killer560.hub.compat.McInput.isStoredButtonDown(client.getWindow(), AbilityKeybindsConfig.mouseButton(code));
         }
         return com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
     }

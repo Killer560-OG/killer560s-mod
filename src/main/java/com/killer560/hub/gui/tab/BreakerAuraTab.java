@@ -32,7 +32,7 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        applyCapture(keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE
+        applyCapture(keyCode == com.killer560.hub.util.Keys.ESCAPE
                 ? com.killer560.hub.util.KeyUtil.NONE : keyCode);
     }
 

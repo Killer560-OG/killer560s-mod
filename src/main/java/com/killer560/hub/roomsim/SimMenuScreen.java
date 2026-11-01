@@ -232,7 +232,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
         if (mode == SimMenuNav.Page.CYCLE && capturing != 0) {
             applyCapture(event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE
-                    ? com.killer560.hub.util.KeyUtil.NONE : event.key());
+                    ? com.killer560.hub.util.KeyUtil.NONE : com.killer560.hub.compat.McInput.key(event));
             return true;
         }
         return super.keyPressed(event);
@@ -663,10 +663,10 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
         // A key row waiting for a bind takes the next mouse press as the bind, as the settings tabs do.
         if (mode == SimMenuNav.Page.CYCLE && capturing != 0) {
-            applyCapture(com.killer560.hub.util.KeyUtil.codeForMouseButton(event.button()));
+            applyCapture(com.killer560.hub.util.KeyUtil.codeForMouseButton(com.killer560.hub.compat.McInput.button(event)));
             return true;
         }
-        if (mode == SimMenuNav.Page.ROOM && event.button() == 0) {
+        if (mode == SimMenuNav.Page.ROOM && com.killer560.hub.compat.McInput.button(event) == 0) {
             // A heading sorts by its column; the same one again turns the order round.
             if (event.y() >= roomWellTop() && event.y() < roomRowsTop()) {
                 for (Col c : columns()) {
@@ -686,7 +686,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
                 return true;
             }
         }
-        if (mode == SimMenuNav.Page.PREVIOUS && detail == null && event.button() == 0) {
+        if (mode == SimMenuNav.Page.PREVIOUS && detail == null && com.killer560.hub.compat.McInput.button(event) == 0) {
             int i = runAt(event.x(), event.y());
             if (i >= 0) {
                 detail = runs.get(i);

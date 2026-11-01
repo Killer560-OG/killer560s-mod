@@ -138,12 +138,12 @@ public final class ItemProtectFeature {
             return;
         }
 
-        ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> handleKey(containerScreen, event.key()));
+        ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> handleKey(containerScreen, com.killer560.hub.compat.McInput.key(event)));
         // A protect bind can be a mouse button (killer560, 2026-09-20: "make all of the keybind things compatible
         // with mouse buttons and middle mouse buttons"), and a mouse press in a container screen never reaches
         // allowKeyPress, so it needs its own funnel.
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) ->
-                handleKey(containerScreen, ItemProtectConfig.codeForMouseButton(event.button())));
+                handleKey(containerScreen, ItemProtectConfig.codeForMouseButton(com.killer560.hub.compat.McInput.button(event))));
     }
 
     /** @return false to swallow the key (a protect toggle), true to let the screen handle it. */

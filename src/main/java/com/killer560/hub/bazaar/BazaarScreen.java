@@ -47,7 +47,7 @@ public final class BazaarScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        BazaarView.press(event.x(), event.y(), event.button(), event.hasShiftDown(), null);
+        BazaarView.press(event.x(), event.y(), com.killer560.hub.compat.McInput.button(event), event.hasShiftDown(), null);
         return true;
     }
 

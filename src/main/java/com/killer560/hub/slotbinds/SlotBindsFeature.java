@@ -212,7 +212,7 @@ public final class SlotBindsFeature {
 
         ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
             SlotBindsConfig cfg = SlotBindsConfig.getInstance();
-            if (cfg.getBindKey() == -1 || event.key() != cfg.getBindKey()) {
+            if (cfg.getBindKey() == -1 || com.killer560.hub.compat.McInput.key(event) != cfg.getBindKey()) {
                 return true;
             }
             if (gesture[0] != null) {
@@ -228,7 +228,7 @@ public final class SlotBindsFeature {
                 finishBind(cfg, pendingSlot, hoveredIndex);
                 return false;
             }
-            boolean shared = ownsSharedKey(screen, event.key());
+            boolean shared = ownsSharedKey(screen, com.killer560.hub.compat.McInput.key(event));
             if (!shared && (hovered == null || hovered.index < 5 || hovered.index >= 45)) {
                 return true;
             }
@@ -239,7 +239,7 @@ public final class SlotBindsFeature {
 
         ScreenKeyboardEvents.allowKeyRelease(screen).register((s, event) -> {
             SlotBindsConfig cfg = SlotBindsConfig.getInstance();
-            if (gesture[0] == null || cfg.getBindKey() == -1 || event.key() != cfg.getBindKey()) {
+            if (gesture[0] == null || cfg.getBindKey() == -1 || com.killer560.hub.compat.McInput.key(event) != cfg.getBindKey()) {
                 return true;
             }
             Gesture held = gesture[0];

@@ -54,7 +54,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         // Escape clears the binding, same convention DoorHelpersTab already uses. -1 here means
         // "unbound", which for this feature is a real, useful setting: nothing at all can drop an item while a
         // terminal is open (Devonian's own default for TerminalDropKey is GLFW_KEY_UNKNOWN too).
-        cfg.setDropKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        cfg.setDropKeyCode(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
         capturingDropKey = false;
         cfg.save();
     }
@@ -364,7 +364,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
             return Component.literal("Press any key...");
         }
         int key = cfg.getDropKeyCode();
-        String name = key == -1 ? "Unbound" : InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString();
+        String name = key == -1 ? "Unbound" : com.killer560.hub.util.KeyUtil.keyName(key);
         return Component.literal("Drop Key: " + name);
     }
 

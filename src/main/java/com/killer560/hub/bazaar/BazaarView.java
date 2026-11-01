@@ -1839,7 +1839,7 @@ public final class BazaarView {
         if (code < 0) {
             return "";
         }
-        return "Hold " + InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString() + ": Hypixel's menu";
+        return "Hold " + com.killer560.hub.util.KeyUtil.keyName(code) + ": Hypixel's menu";
     }
 
     /** "Go Back" says where it goes ("‹ Bazaar", from its "To Bazaar" lore line). */

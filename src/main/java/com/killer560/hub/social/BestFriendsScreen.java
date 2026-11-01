@@ -187,7 +187,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (selected == null && event.button() == 0) {
+        if (selected == null && com.killer560.hub.compat.McInput.button(event) == 0) {
             BestFriendsStore.Record hit = rowAt(event.x(), event.y());
             if (hit != null) {
                 selected = hit;

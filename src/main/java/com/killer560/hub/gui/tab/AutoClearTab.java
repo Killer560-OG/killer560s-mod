@@ -86,7 +86,7 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
             return;
         }
         AutoSecretConfig cfg = AutoSecretConfig.getInstance();
-        int key = keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : KeyUtil.sanitize(keyCode);
+        int key = keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : KeyUtil.sanitize(keyCode);
         if (capturingPilot) {
             cfg.setAutopilotKey(key);
         } else {

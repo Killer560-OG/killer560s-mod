@@ -92,13 +92,13 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
 
     private static Component keyText(AuctionConfig cfg) {
         String name = cfg.getOpenAhKeyCode() < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(cfg.getOpenAhKeyCode()).getDisplayName().getString();
+                : com.killer560.hub.util.KeyUtil.keyName(cfg.getOpenAhKeyCode());
         return Component.literal("Open Key: §b" + name);
     }
 
     private static Component vanillaKeyText(AuctionHouseConfig ah) {
         String name = ah.getVanillaKeyCode() < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(ah.getVanillaKeyCode()).getDisplayName().getString();
+                : com.killer560.hub.util.KeyUtil.keyName(ah.getVanillaKeyCode());
         return Component.literal("Hypixel Menu Key: §b" + name);
     }
 
@@ -111,13 +111,13 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
     public void onKeyCaptured(int keyCode) {
         if (capturingVanillaKey) {
             AuctionHouseConfig ah = AuctionHouseConfig.getInstance();
-            ah.setVanillaKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+            ah.setVanillaKeyCode(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
             capturingVanillaKey = false;
             ah.save();
             return;
         }
         AuctionConfig cfg = AuctionConfig.getInstance();
-        cfg.setOpenAhKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        cfg.setOpenAhKeyCode(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
         capturingKey = false;
         cfg.save();
     }

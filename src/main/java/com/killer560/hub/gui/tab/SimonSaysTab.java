@@ -171,7 +171,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
 
     private static Component announceKeyText(SimonSaysConfig cfg) {
         String name = cfg.getAnnounceKeyCode() < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(cfg.getAnnounceKeyCode()).getDisplayName().getString();
+                : com.killer560.hub.util.KeyUtil.keyName(cfg.getAnnounceKeyCode());
         return Component.literal("Announce Key: §b" + name);
     }
 
@@ -183,7 +183,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
     @Override
     public void onKeyCaptured(int keyCode) {
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
-        int code = keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode;
+        int code = keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode;
         cfg.setAnnounceKeyCode(code);
         capturingAnnounceKey = false;
         cfg.save();

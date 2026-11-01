@@ -128,3 +128,34 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
 - **Match a sound packet's sound by id, not by object.** A `ClientboundSoundPacket` whose holder was sent inline (a direct
   holder, which is what the testkit's Hx `sound` sends) decodes to a NEW `SoundEvent`, so `value() == SoundEvents.CHEST_OPEN`
   is false for it. Mute Chest/Lever Sounds compares `value().location()` (2026-10-25); Spring Boots already did.
+
+## Input and window on 26.3 (SDL3)
+
+- **26.3 replaced GLFW with SDL3; `org.lwjgl.glfw` is not on its classpath.** Key codes changed meaning, not just
+  names: `KeyEvent.key()` (= `input()`), `KeyMapping` keyboard values and `InputConstants.KEY_*` are SDL SCANCODES
+  (A=4, Escape=41, Return=40, LShift=225; javap `SDLEventHandler.handleKeyEvent` builds `KeyEvent(scancode, keycode,
+  mod)`); `KeyEvent.keycode()` is the layout-dependent SDL keycode, used by vanilla only for Ctrl+A/C/V/X. Mouse buttons
+  are SDL's 1-based numbers (left 1, middle 2, right 3, X1 4), and vanilla's own `AbstractContainerScreen.
+  getContainerClickButton` turns 1/3 back into container buttons 0/1. Modifier bits changed too (`MOD_SHIFT` 3,
+  `MOD_CONTROL` 192); use `event.hasShiftDown()` and friends, never raw bits. `InputConstants.Type.KEYSYM` is now
+  `KEYBOARD`, `isKeyDown(Window,int)` is `isKeyDown(int)`, `grabOrReleaseMouse` is `grabMouse`/`releaseMouse`, and
+  `KEY_1..KEY_9` are still contiguous (30..38) but `KEY_0` (39) comes after 9. Wrong numbers COMPILE: `event.button()
+  == 1` meant right click on 26.2 and is LEFT click on 26.3.
+- **Stored codes are GLFW numbering on every version** (2026-11-01, port-263-input-1101): every config file, profile
+  and shared setting keeps GLFW key tokens (`util/Keys`) and `KeyUtil.MOUSE_CODE_BASE - <GLFW button>`. `compat/McInput`
+  translates at the boundary (identity on 26.2; GLFW<->SDL scancode table on 26.3 built from LWJGL's `SDLScancode`
+  names). Rules: a code from Minecraft is NATIVE (`event.key()`, a `KeyMapping` value, `InputConstants.KEY_*`), and
+  is only compared with another native code; anything that is stored, compared with a config value, or handed to mod
+  code goes through `McInput.key(event)`; every mouse button read is `McInput.button(event)` (0 left, 1 right, 2
+  middle on both versions); a stored code is polled with `KeyUtil.isKeyDown/isBindDown`, a `KeyMapping` value with
+  `McInput.isNativeKeyDown/isNativeButtonDown`; a stored code's name is `KeyUtil.keyName`/`bindDisplayName`.
+  `KeyCaptureTab.onKeyCaptured` gets the stored code, so its Escape check is `Keys.ESCAPE`. A key with no GLFW twin
+  (SDL-only media keys) reads as -1 on 26.3; GLFW `WORLD_2` and `F25` have no SDL scancode and never poll as down.
+- **Window management on 26.3 goes through `compat/McWindow`**, which drives SDL3 the way 26.3's own `Window` does:
+  `Window.handle()` is the `SDL_Window*`, the HWND is the window property `SDL.window.win32.hwnd`, displays are SDL
+  display ids (`Monitor.id()`, not `Monitor.monitor()`), cursors are `SDL_HideCursor`/`SDL_ShowCursor` plus relative
+  mouse mode. 26.3's Window has no `isFullscreen()`/`toggleFullScreen()`: F11 runs the private `Minecraft.
+  toggleFullscreen()`, so `WindowFullscreenMixin` has one copy per version (26.2 hooks `Window.toggleFullScreen`, 26.3
+  hooks `Minecraft.toggleFullscreen`), and `McWindow.isFullscreen` reads Window's private `fullscreen` field by
+  reflection (26.3 is not obfuscated). SDL3 has no Win32 display device name, so Window Layout finds a saved monitor
+  by name and index on 26.3. `Util.OS.openUri/openPath` moved to `com.mojang.blaze3d.Blaze3D.openUri(URI)/openPath`.

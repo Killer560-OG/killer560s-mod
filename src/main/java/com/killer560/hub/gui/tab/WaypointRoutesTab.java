@@ -269,7 +269,7 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
 
     private static Component keyText(WaypointRoutesConfig cfg, int which) {
         int code = cfg.getKeyCode(which);
-        String name = code < 0 ? "Not Set" : InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
+        String name = code < 0 ? "Not Set" : com.killer560.hub.util.KeyUtil.keyName(code);
         return Component.literal(WaypointRoutesConfig.KEY_NAMES[which] + ": §6" + name);
     }
 
@@ -284,7 +284,7 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
             return;
         }
         WaypointRoutesConfig cfg = WaypointRoutesConfig.getInstance();
-        cfg.setKeyCode(capturingKey, keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        cfg.setKeyCode(capturingKey, keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
         cfg.save();
         capturingKey = -1;
     }

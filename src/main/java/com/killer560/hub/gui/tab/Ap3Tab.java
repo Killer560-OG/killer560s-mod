@@ -84,7 +84,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         Ap3Config cfg = Ap3Config.getInstance();
         // Esc clears, like every other keybind row in the mod; anything GLFW can't poll is stored as Not Set
         // rather than as a code that would spam GLFW_INVALID_ENUM every tick (see KeyUtil).
-        int key = keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : KeyUtil.sanitize(keyCode);
+        int key = keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : KeyUtil.sanitize(keyCode);
         cfg.setKeybind(capturing.id, key);
         cfg.save();
         capturing = null;
@@ -333,7 +333,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         if (capturing == action) {
             return Component.literal(action.label + " Key: §ePress any key...");
         }
-        String name = key == KeyUtil.NONE ? "§7Not Set" : "§e" + InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString();
+        String name = key == KeyUtil.NONE ? "§7Not Set" : "§e" + com.killer560.hub.util.KeyUtil.keyName(key);
         return Component.literal(action.label + " Key: " + name + " §8" + action.command);
     }
 

@@ -696,7 +696,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // The grid.
         int slot = slotAt(mx, my);
         if (slot >= 0) {
-            if (event.button() == 1) {
+            if (com.killer560.hub.compat.McInput.button(event) == 1) {
                 Integer anchor = occupiedBy.get(slot);
                 if (anchor != null) {
                     planStale();
@@ -740,7 +740,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             int row = (int) ((my - top + scroll) / ROW_H);
             if (row >= 0 && row < listed.size()) {
                 if (panel == Panel.MAPS) {
-                    if (event.button() == 1) {
+                    if (com.killer560.hub.compat.McInput.button(event) == 1) {
                         SimMapHistory.remove(history.get(row));
                         refilter();
                         status = "deleted that floor from the list";

@@ -17,7 +17,7 @@ public class PathStopMouseMixin {
     @Inject(method = "onButton", at = @At("HEAD"))
     private void killer560smod$fairyStopOnButton(long window, MouseButtonInfo input, int action, CallbackInfo ci) {
         if (action == 1 && window == Minecraft.getInstance().getWindow().handle() && AutoWalker.isSessionActive()) {
-            int b = input.button();
+            int b = com.killer560.hub.compat.McInput.button(input);
             AutoWalker.onPlayerInput(b == 0 ? "left click" : b == 1 ? "right click" : b == 2 ? "middle click"
                     : "mouse button " + (b + 1), Integer.MIN_VALUE);
         }

@@ -21,11 +21,12 @@ import com.killer560.hub.compat.McCompat;
 /** Real Time clock settings - see {@link RealTimeFeature}. */
 public class RealTimeTab extends BaseTab {
 
-    private static final int KEY_TAB = 258;
-    private static final int KEY_ENTER = 257;
-    private static final int KEY_KP_ENTER = 335;
-    private static final int KEY_DOWN = 264;
-    private static final int KEY_UP = 265;
+    // Stored (GLFW) numbering; the key handler reads McInput.key(event).
+    private static final int KEY_TAB = com.killer560.hub.util.Keys.TAB;
+    private static final int KEY_ENTER = com.killer560.hub.util.Keys.ENTER;
+    private static final int KEY_KP_ENTER = com.killer560.hub.util.Keys.KP_ENTER;
+    private static final int KEY_DOWN = com.killer560.hub.util.Keys.DOWN;
+    private static final int KEY_UP = com.killer560.hub.util.Keys.UP;
 
     /** Zone search text - transient UI state, survives tab rebuilds but not restarts. */
     private String search = "";
@@ -121,7 +122,7 @@ public class RealTimeTab extends BaseTab {
                 Component.literal("Search Zones")) {
             @Override
             public boolean keyPressed(KeyEvent event) {
-                int key = event.key();
+                int key = com.killer560.hub.compat.McInput.key(event);
                 if (key == KEY_TAB || key == KEY_ENTER || key == KEY_KP_ENTER) {
                     // Accept the highlighted match into the box (autocomplete).
                     if (!getValue().isBlank() && !cfg.getCustomZone().isBlank()

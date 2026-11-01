@@ -47,7 +47,7 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
             return;
         }
         InventorySorterConfig cfg = InventorySorterConfig.getInstance();
-        cfg.setLayoutKey(capturingFor, keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode);
+        cfg.setLayoutKey(capturingFor, keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
         cfg.save();
         capturingFor = null;
     }

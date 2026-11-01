@@ -26,7 +26,7 @@ public class CompactorPreviewTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        applyCapture(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        applyCapture(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
     }
 
     @Override

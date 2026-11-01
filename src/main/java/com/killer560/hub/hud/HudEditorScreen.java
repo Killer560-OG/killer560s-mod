@@ -13,7 +13,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -472,13 +471,13 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             boolean nwse = (edges & LEFT) != 0 == ((edges & TOP) != 0);
             if (nwse) {
                 if (resizeNwse == null) {
-                    resizeNwse = CursorType.createStandardCursor(GLFW.GLFW_RESIZE_NWSE_CURSOR, "resize_nwse",
+                    resizeNwse = CursorType.createStandardCursor(com.killer560.hub.compat.McWindow.resizeNwseCursorId(), "resize_nwse",
                             CursorTypes.RESIZE_ALL);
                 }
                 return resizeNwse;
             }
             if (resizeNesw == null) {
-                resizeNesw = CursorType.createStandardCursor(GLFW.GLFW_RESIZE_NESW_CURSOR, "resize_nesw",
+                resizeNesw = CursorType.createStandardCursor(com.killer560.hub.compat.McWindow.resizeNeswCursorId(), "resize_nesw",
                         CursorTypes.RESIZE_ALL);
             }
             return resizeNesw;
@@ -690,7 +689,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             return false;
         }
         var window = this.minecraft == null ? null : this.minecraft.getWindow();
-        return !(KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_LEFT_ALT) || KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_ALT));
+        return !(KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.LEFT_ALT) || KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.RIGHT_ALT));
     }
 
     @Override
@@ -699,7 +698,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
         if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
-        if (event.button() == 0) {
+        if (com.killer560.hub.compat.McInput.button(event) == 0) {
             for (int i = shown.size() - 1; i >= 0; i--) {
                 HudElement element = shown.get(i);
                 int edges = handleAt(element, event.x(), event.y());

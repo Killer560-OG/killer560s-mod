@@ -29,7 +29,7 @@ public class ZoomTab extends BaseTab implements KeyCaptureTab {
     @Override
     public void onKeyCaptured(int keyCode) {
         ZoomConfig cfg = ZoomConfig.getInstance();
-        cfg.setKeyCode(keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode);
+        cfg.setKeyCode(keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
         cfg.save();
         capturing = false;
     }

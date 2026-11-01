@@ -49,7 +49,7 @@ public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
             return;
         }
         Ap3Config cfg = Ap3Config.getInstance();
-        int key = keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : KeyUtil.sanitize(keyCode);
+        int key = keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : KeyUtil.sanitize(keyCode);
         cfg.setKeybind(capturing.id, key);
         cfg.save();
         capturing = null;
@@ -134,7 +134,7 @@ public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
             return Component.literal(action.label + " Key: §ePress any key...");
         }
         String name = key == KeyUtil.NONE ? "§7Not Set"
-                : "§e" + InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString();
+                : "§e" + com.killer560.hub.util.KeyUtil.keyName(key);
         return Component.literal(action.label + " Key: " + name + " §8" + action.command);
     }
 

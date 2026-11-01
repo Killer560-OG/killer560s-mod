@@ -234,7 +234,7 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
     private static Component keyText(ShortsConfig cfg, int index) {
         int code = keyCode(cfg, index);
         String name = code < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
+                : com.killer560.hub.util.KeyUtil.keyName(code);
         return Component.literal(KEY_LABELS[index] + ": §6" + name);
     }
 
@@ -260,7 +260,7 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
     @Override
     public void onKeyCaptured(int keyCode) {
         ShortsConfig cfg = ShortsConfig.getInstance();
-        int code = keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode;
+        int code = keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode;
         switch (capturing) {
             case 0 -> cfg.setToggleKey(code);
             case 1 -> cfg.setNextKey(code);

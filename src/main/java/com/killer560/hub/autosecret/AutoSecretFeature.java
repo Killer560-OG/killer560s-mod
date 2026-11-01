@@ -921,11 +921,10 @@ public final class AutoSecretFeature {
         try {
             com.mojang.blaze3d.platform.InputConstants.Key key =
                     ((com.killer560.hub.autoroutes.mixin.KeyMappingKeyAccessor) (Object) mapping).killer560smod$getKey();
-            if (key == null || key.getType() != com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM
-                    || client.getWindow() == null) {
+            if (!com.killer560.hub.compat.McInput.isKeyboard(key) || client.getWindow() == null) {
                 return false;
             }
-            return KeyUtil.isKeyDown(client.getWindow(), key.getValue());
+            return com.killer560.hub.compat.McInput.isNativeKeyDown(client.getWindow(), key.getValue());
         } catch (Throwable t) {
             return false;
         }

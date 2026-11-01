@@ -287,7 +287,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
     }
 
     static Component keyText(String label, int code) {
-        String name = code < 0 ? "Not Set" : InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
+        String name = code < 0 ? "Not Set" : com.killer560.hub.util.KeyUtil.keyName(code);
         return Component.literal(label + ": §b" + name);
     }
 
@@ -299,7 +299,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
     @Override
     public void onKeyCaptured(int keyCode) {
         LiveMapConfig cfg = LiveMapConfig.getInstance();
-        int code = keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode;
+        int code = keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode;
         if (capturing == KeyTarget.PEEK) {
             cfg.setPeekKeyCode(code);
         }

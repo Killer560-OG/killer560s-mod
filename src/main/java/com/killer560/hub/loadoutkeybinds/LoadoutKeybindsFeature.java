@@ -49,11 +49,11 @@ public final class LoadoutKeybindsFeature {
                 || !(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return;
         }
-        ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> !press(client, containerScreen, event.key()));
+        ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> !press(client, containerScreen, com.killer560.hub.compat.McInput.key(event)));
         // Mouse buttons (side buttons included) are stored as KeyUtil mouse codes, so a press that matches a bind is
         // that bind; any other click goes through to the screen untouched.
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) ->
-                !press(client, containerScreen, com.killer560.hub.util.KeyUtil.codeForMouseButton(event.button())));
+                !press(client, containerScreen, com.killer560.hub.util.KeyUtil.codeForMouseButton(com.killer560.hub.compat.McInput.button(event))));
     }
 
     /** Clicks the loadout or page arrow bound to {@code code} (a key or a KeyUtil mouse code); true if it did. */

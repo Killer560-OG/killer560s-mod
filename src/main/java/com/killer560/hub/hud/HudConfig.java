@@ -28,7 +28,7 @@ public final class HudConfig {
     private int editKeyCode = -1;
     /** GLFW key code that opens the mod's menu, or -1 if unbound (killer560, 2026-10-26: default backslash). Kept here
      *  beside the Edit HUD key, which Home's Mod section shows with it. */
-    private int openMenuKeyCode = org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSLASH;
+    private int openMenuKeyCode = com.killer560.hub.util.Keys.BACKSLASH;
     /** HUD editor "Show Unseen" toggle: make every element whose setting is ON draggable, not just the ones
      *  that were actually on screen within {@link HudSeen#GRACE_MS} of the editor opening. A switched-off
      *  element is never listed either way (see {@link HudElement#isEnabledInSettings()}). Persisted like

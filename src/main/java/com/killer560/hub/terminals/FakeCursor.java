@@ -6,7 +6,6 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -433,16 +432,16 @@ public final class FakeCursor {
         if (client.getWindow() == null) {
             return;
         }
-        long handle = client.getWindow().handle();
+        com.mojang.blaze3d.platform.Window window = client.getWindow();
         if (wantHidden) {
             // Re-asserted every tick: the game sets its own cursor mode when a screen opens or closes.
-            GLFW.glfwSetInputMode(handle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_HIDDEN);
+            com.killer560.hub.compat.McWindow.setCursorHidden(window, true, false);
             hidden = true;
         } else if (hidden) {
             // Not always NORMAL: closing the terminal to no screen makes the game grab the mouse (cursor DISABLED) before this
             // tick ends, and writing NORMAL over that left the pointer free in the world until the next screen opened and closed.
             boolean grabbed = client.mouseHandler.isMouseGrabbed() && McCompat.screen(client) == null;
-            GLFW.glfwSetInputMode(handle, GLFW.GLFW_CURSOR, grabbed ? GLFW.GLFW_CURSOR_DISABLED : GLFW.GLFW_CURSOR_NORMAL);
+            com.killer560.hub.compat.McWindow.setCursorHidden(window, false, grabbed);
             hidden = false;
         }
     }
@@ -495,11 +494,8 @@ public final class FakeCursor {
         long now = System.currentTimeMillis();
         if (now - contentScaleReadMs > 1000) {
             contentScaleReadMs = now;
-            try (org.lwjgl.system.MemoryStack stack = org.lwjgl.system.MemoryStack.stackPush()) {
-                java.nio.FloatBuffer x = stack.mallocFloat(1);
-                java.nio.FloatBuffer y = stack.mallocFloat(1);
-                GLFW.glfwGetWindowContentScale(client.getWindow().handle(), x, y);
-                float v = x.get(0);
+            try {
+                float v = com.killer560.hub.compat.McWindow.contentScale(client.getWindow());
                 cachedContentScale = v > 0.5f && v < 4f ? v : 1f;
             } catch (Throwable t) {
                 cachedContentScale = 1f;

@@ -67,7 +67,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        applyCapture(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        applyCapture(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
     }
 
     @Override
@@ -322,8 +322,8 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
             return "Not Set";
         }
         return CommandKeybindsConfig.isMouseCode(code)
-                ? InputConstants.Type.MOUSE.getOrCreate(CommandKeybindsConfig.mouseButton(code))
+                ? com.killer560.hub.compat.McInput.storedButtonInput(CommandKeybindsConfig.mouseButton(code))
                         .getDisplayName().getString()
-                : InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
+                : com.killer560.hub.util.KeyUtil.keyName(code);
     }
 }

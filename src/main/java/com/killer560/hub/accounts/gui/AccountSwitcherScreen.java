@@ -31,7 +31,6 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
-import org.lwjgl.glfw.GLFW;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -534,7 +533,7 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         MenuAnim.input();
-        if (event.button() == 0 && overTrack(event.x(), event.y())) {
+        if (com.killer560.hub.compat.McInput.button(event) == 0 && overTrack(event.x(), event.y())) {
             int ty = thumbY(this.scroll);
             this.dragGrabY = event.y() >= ty && event.y() < ty + thumbH() ? event.y() - ty : thumbH() / 2.0;
             this.draggingScroll = true;
@@ -907,7 +906,7 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
     private static boolean shiftDown() {
         try {
             var window = Minecraft.getInstance().getWindow();
-            return KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_LEFT_SHIFT) || KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_SHIFT);
+            return KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.LEFT_SHIFT) || KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.RIGHT_SHIFT);
         } catch (Throwable t) {
             return false;
         }

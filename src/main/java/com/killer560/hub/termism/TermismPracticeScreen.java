@@ -861,7 +861,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (!solved && (event.button() == 0 || event.button() == 1)) {
+        if (!solved && (com.killer560.hub.compat.McInput.button(event) == 0 || com.killer560.hub.compat.McInput.button(event) == 1)) {
             double localX = (event.x() - gridOriginX) / (double) scale();
             double localY = (event.y() - gridOriginY) / (double) scale();
             int col = (int) Math.floor(localX / CELL_SIZE);
@@ -869,7 +869,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
             if (col >= 0 && col < columns && row >= 0 && row < rows) {
                 int index = row * columns + col;
                 if (index < cells.size() && !cells.get(index).isEmpty()) {
-                    handleCellClick(index, event.button() == 0);
+                    handleCellClick(index, com.killer560.hub.compat.McInput.button(event) == 0);
                     return true;
                 }
             }

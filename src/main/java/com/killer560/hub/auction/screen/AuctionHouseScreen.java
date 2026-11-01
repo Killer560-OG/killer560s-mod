@@ -488,7 +488,7 @@ public final class AuctionHouseScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        int button = event.button();
+        int button = com.killer560.hub.compat.McInput.button(event);
         if (button != 0 && button != 1) {
             return super.mouseClicked(event, doubleClick);
         }

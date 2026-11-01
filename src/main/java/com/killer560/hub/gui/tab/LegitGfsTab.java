@@ -29,7 +29,7 @@ public class LegitGfsTab extends BaseTab implements KeyCaptureTab {
     @Override
     public void onKeyCaptured(int keyCode) {
         if (capturing != null) {
-            LegitGfs.setKey(capturing, keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode);
+            LegitGfs.setKey(capturing, keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
         }
         capturing = null;
     }

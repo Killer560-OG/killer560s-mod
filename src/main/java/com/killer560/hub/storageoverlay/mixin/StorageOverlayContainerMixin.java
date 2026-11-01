@@ -7,7 +7,6 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -60,12 +59,12 @@ public abstract class StorageOverlayContainerMixin extends Screen {
         }
         // Per killer560's "move the inventory portion all the way to the bottom" request (2026-09-08):
         // a click on the relocated Inventory panel is redirected to the real underlying slot by index.
-        if (StorageOverlayFeature.handleInventoryClick(self, event.x(), event.y(), event.button(), event.hasShiftDown())) {
+        if (StorageOverlayFeature.handleInventoryClick(self, event.x(), event.y(), com.killer560.hub.compat.McInput.button(event), event.hasShiftDown())) {
             cir.setReturnValue(true);
             return;
         }
         String activeKey = StorageOverlayFeature.storageKeyForTitle(title);
-        if (StorageOverlayFeature.handleClick(self, event.x(), event.y(), activeKey, event.button(), event.hasShiftDown())) {
+        if (StorageOverlayFeature.handleClick(self, event.x(), event.y(), activeKey, com.killer560.hub.compat.McInput.button(event), event.hasShiftDown())) {
             cir.setReturnValue(true);
             return;
         }
@@ -95,7 +94,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
         if (!StorageOverlayFeature.isRenamePending()) {
             return;
         }
-        if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN || event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER) {
             StorageOverlayFeature.commitRename();
         } else {
             StorageOverlayFeature.forwardKeyToRenameBox(event);

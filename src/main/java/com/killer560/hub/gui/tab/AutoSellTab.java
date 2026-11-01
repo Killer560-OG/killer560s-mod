@@ -33,7 +33,7 @@ public class AutoSellTab extends BaseTab implements KeyCaptureTab {
     @Override
     public void onKeyCaptured(int keyCode) {
         AutoSellConfig cfg = AutoSellConfig.getInstance();
-        cfg.setToggleKeyCode(keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode);
+        cfg.setToggleKeyCode(keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
         cfg.save();
         capturingToggleKey = false;
     }

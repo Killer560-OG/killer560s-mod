@@ -4,7 +4,6 @@ import com.killer560.hub.terminals.TerminalSolverFeature;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
-import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -56,7 +55,7 @@ public abstract class TerminalAutoClickInputBlockMixin {
         // AutoTerminal exempts both Escape and the player's own Inventory keybind from this exact same
         // kind of input block), so closing/backing out of the menu is never trapped behind Auto
         // Terminals' input block.
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
             return;
         }
         if (TerminalSolverFeature.shouldBlockInput()) {

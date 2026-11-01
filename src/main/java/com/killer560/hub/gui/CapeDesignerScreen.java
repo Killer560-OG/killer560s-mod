@@ -252,21 +252,21 @@ public class CapeDesignerScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() == 0 || event.button() == 1) {
+        if (com.killer560.hub.compat.McInput.button(event) == 0 || com.killer560.hub.compat.McInput.button(event) == 1) {
             if (pixelAt(event.x(), event.y()) >= 0) {
                 painting = true;
-                erasing = event.button() == 1;
+                erasing = com.killer560.hub.compat.McInput.button(event) == 1;
                 applyAt(event.x(), event.y());
                 return true;
             }
             for (int i = 0; i < PALETTE.length; i++) {
                 int sx = panelX + 10 + i * (SWATCH + SWATCH_GAP);
-                if (event.button() == 0 && within(event.x(), event.y(), sx, paletteY, SWATCH, SWATCH)) {
+                if (com.killer560.hub.compat.McInput.button(event) == 0 && within(event.x(), event.y(), sx, paletteY, SWATCH, SWATCH)) {
                     brush = PALETTE[i];
                     return true;
                 }
             }
-            if (event.button() == 0 && within(event.x(), event.y(), pickX, paletteY, SWATCH, SWATCH)) {
+            if (com.killer560.hub.compat.McInput.button(event) == 0 && within(event.x(), event.y(), pickX, paletteY, SWATCH, SWATCH)) {
                 McCompat.setScreen(this.minecraft, new ColorPickerScreen(this, "Brush", 0xFF000000 | brush, 0xFF000000 | brush,
                         argb -> brush = argb & 0xFFFFFF));
                 return true;

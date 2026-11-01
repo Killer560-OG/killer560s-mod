@@ -439,7 +439,7 @@ public final class BazaarFlipFeature {
         if (screen instanceof AbstractSignEditScreen) {
             return true;
         }
-        return code != InputConstants.KEY_ESCAPE;
+        return code != com.killer560.hub.util.Keys.ESCAPE;
     }
 
     // ---- the tick -------------------------------------------------------------------------------------
@@ -554,15 +554,15 @@ public final class BazaarFlipFeature {
         if (System.currentTimeMillis() - startedAtMs < START_GRACE_MS) {
             return false;
         }
-        long handle = client.getWindow().handle();
+        var window = client.getWindow();
         // The start bind is skipped only while it has been continuously held since the start - see
         // startBindStillHeld. The moment it comes up, it stops the session like any other key.
         int startCode = startBindStillHeld ? BazaarFlipConfig.getInstance().getStartKeyCode() : KeyUtil.NONE;
-        for (int key = org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE; key <= org.lwjgl.glfw.GLFW.GLFW_KEY_LAST; key++) {
+        for (int key = com.killer560.hub.util.Keys.SPACE; key <= com.killer560.hub.util.Keys.LAST; key++) {
             if (key == startCode) {
                 continue;
             }
-            if (org.lwjgl.glfw.GLFW.glfwGetKey(handle, key) == org.lwjgl.glfw.GLFW.GLFW_PRESS) {
+            if (KeyUtil.isKeyDown(window, key)) {
                 return stopOnKeyPress(key);
             }
         }
@@ -570,7 +570,7 @@ public final class BazaarFlipFeature {
             if (KeyUtil.codeForMouseButton(button) == startCode) {
                 continue;
             }
-            if (org.lwjgl.glfw.GLFW.glfwGetMouseButton(handle, button) == org.lwjgl.glfw.GLFW.GLFW_PRESS) {
+            if (com.killer560.hub.compat.McInput.isStoredButtonDown(window, button)) {
                 return stopOnKeyPress(KeyUtil.codeForMouseButton(button));
             }
         }

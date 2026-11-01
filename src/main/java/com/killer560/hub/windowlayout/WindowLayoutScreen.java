@@ -219,7 +219,7 @@ public class WindowLayoutScreen extends Screen implements MenuThemedScreen {
             return true;
         }
         double[] p = preview();
-        if (p == null || event.button() != 0) {
+        if (p == null || com.killer560.hub.compat.McInput.button(event) != 0) {
             return false;
         }
         int hit = hoveredCell(guiCells(p), event.x(), event.y());

@@ -138,7 +138,7 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
 
     private static Component keyText(InventoryHudConfig cfg) {
         String name = cfg.getKeyCode() < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(cfg.getKeyCode()).getDisplayName().getString();
+                : com.killer560.hub.util.KeyUtil.keyName(cfg.getKeyCode());
         return Component.literal("Key: §b" + name);
     }
 
@@ -150,7 +150,7 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
     @Override
     public void onKeyCaptured(int keyCode) {
         InventoryHudConfig cfg = InventoryHudConfig.getInstance();
-        cfg.setKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        cfg.setKeyCode(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
         capturingKey = false;
         cfg.save();
     }

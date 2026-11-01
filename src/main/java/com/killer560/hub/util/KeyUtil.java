@@ -1,17 +1,17 @@
 package com.killer560.hub.util;
 
-import com.mojang.blaze3d.platform.InputConstants;
+import com.killer560.hub.compat.McInput;
 import com.mojang.blaze3d.platform.Window;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * Shared keybind-code validation for every raw-polled keybind in the mod.
  *
- * <p>{@link InputConstants#isKeyDown} is a bare {@code glfwGetKey}, and GLFW rejects any code outside
- * {@code GLFW_KEY_SPACE..GLFW_KEY_LAST} with a GLFW_INVALID_ENUM error - which Minecraft logs on every call.
- * Since the polls run every tick, a hand-edited bad code in a config file (e.g. {@code 5} or {@code 9999})
- * used to spam the log constantly. Keyboard codes come from {@code keyPressed}; a mouse button is encoded
- * into the same field as a negative code (see {@link #MOUSE_CODE_BASE}), with {@code -1} meaning "Not Set".
+ * <p>Every code here is a STORED code: a GLFW key token ({@link Keys}) or a mouse bind, on every Minecraft version
+ * (26.3's SDL scancodes are translated by {@link McInput}; see {@link Keys}). A key code from a key event goes through
+ * {@code McInput.key(event)} before it is stored or compared. On 26.2 an out-of-range code made {@code glfwGetKey}
+ * log GLFW_INVALID_ENUM on every call, so a hand-edited bad code in a config file (e.g. {@code 5} or {@code 9999})
+ * spammed the log; {@link #sanitize} still drops those. A mouse button is encoded into the same field as a negative
+ * code (see {@link #MOUSE_CODE_BASE}), with {@code -1} meaning "Not Set".
  */
 public final class KeyUtil {
 
@@ -21,9 +21,9 @@ public final class KeyUtil {
     private KeyUtil() {
     }
 
-    /** True for codes {@code glfwGetKey} accepts (keyboard range {@code GLFW_KEY_SPACE..GLFW_KEY_LAST}). */
+    /** True for stored keyboard codes (GLFW range {@code GLFW_KEY_SPACE..GLFW_KEY_LAST}). */
     public static boolean isValidKey(int code) {
-        return code >= GLFW.GLFW_KEY_SPACE && code <= GLFW.GLFW_KEY_LAST;
+        return code >= Keys.FIRST && code <= Keys.LAST;
     }
 
     /** Returns {@code code} if valid, otherwise {@link #NONE} - use on config load. */
@@ -31,9 +31,10 @@ public final class KeyUtil {
         return isValidKey(code) ? code : NONE;
     }
 
-    /** Drop-in replacement for {@link InputConstants#isKeyDown} that never polls GLFW with an invalid code. */
+    /** Polls a STORED keyboard code (never with an invalid one). For a code from Minecraft (a {@code KeyMapping}
+     *  value, {@code InputConstants.KEY_*}) use {@link McInput#isNativeKeyDown} instead. */
     public static boolean isKeyDown(Window window, int code) {
-        return window != null && isValidKey(code) && InputConstants.isKeyDown(window, code);
+        return window != null && isValidKey(code) && McInput.isStoredKeyDown(window, code);
     }
 
     /** Mouse buttons are stored in the same int field as a key, as {@code MOUSE_CODE_BASE - button}
@@ -65,7 +66,7 @@ public final class KeyUtil {
             return false;
         }
         return isMouseCode(code)
-                ? GLFW.glfwGetMouseButton(window.handle(), mouseButton(code)) == GLFW.GLFW_PRESS
+                ? McInput.isStoredButtonDown(window, mouseButton(code))
                 : isKeyDown(window, code);
     }
 
@@ -91,7 +92,12 @@ public final class KeyUtil {
             return "Not Set";
         }
         return isMouseCode(code)
-                ? InputConstants.Type.MOUSE.getOrCreate(mouseButton(code)).getDisplayName().getString()
-                : InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
+                ? McInput.storedButtonInput(mouseButton(code)).getDisplayName().getString()
+                : keyName(code);
+    }
+
+    /** Display name of a STORED keyboard code ("R", "Left Shift"), whatever Minecraft version is running. */
+    public static String keyName(int code) {
+        return McInput.storedKeyInput(code).getDisplayName().getString();
     }
 }

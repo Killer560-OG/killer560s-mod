@@ -8,8 +8,6 @@ import com.mojang.blaze3d.platform.Window;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWNativeWin32;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -151,7 +149,7 @@ public final class WindowLayoutFeature {
                     req.stage = Stage.MOVE;
                     return;
                 }
-                if (window.isFullscreen()) {
+                if (com.killer560.hub.compat.McWindow.isFullscreen(window)) {
                     // Full Monitor asked for the whole screen, so end up back in the same kind of fullscreen the
                     // user was already in instead of a plain window (killer560, 2026-09-15: "it still doesnt
                     // reingauge fullscreen... I have to press f11 to refullscreen it").
@@ -175,9 +173,8 @@ public final class WindowLayoutFeature {
                     req.waitTicks = 3;
                     return;
                 }
-                if (GLFW.glfwGetWindowAttrib(handle, GLFW.GLFW_ICONIFIED) == GLFW.GLFW_TRUE
-                        || GLFW.glfwGetWindowAttrib(handle, GLFW.GLFW_MAXIMIZED) == GLFW.GLFW_TRUE) {
-                    GLFW.glfwRestoreWindow(handle);
+                if (com.killer560.hub.compat.McWindow.isMinimizedOrMaximized(window)) {
+                    com.killer560.hub.compat.McWindow.restore(window);
                     req.waitTicks = 2;
                     return;
                 }
@@ -185,29 +182,25 @@ public final class WindowLayoutFeature {
                 step(client, req);
             }
             case MOVE -> {
-                int[] frame = frameSize(handle);
-                GLFW.glfwSetWindowPos(handle, cell[0] + frame[0], cell[1] + frame[1]);
+                int[] frame = com.killer560.hub.compat.McWindow.frameSize(window);
+                com.killer560.hub.compat.McWindow.setPosition(window, cell[0] + frame[0], cell[1] + frame[1]);
                 req.stage = Stage.SIZE;
                 req.waitTicks = 1;
             }
             case SIZE -> {
-                int[] target = contentRect(handle, cell);
-                GLFW.glfwSetWindowMonitor(handle, 0L, target[0], target[1], target[2], target[3], GLFW.GLFW_DONT_CARE);
+                int[] target = contentRect(window, cell);
+                com.killer560.hub.compat.McWindow.setWindowedBounds(window, target[0], target[1], target[2], target[3]);
                 req.stage = Stage.VERIFY;
                 req.waitTicks = 4;
             }
             case VERIFY -> {
-                int[] target = contentRect(handle, cell);
-                int[] px = new int[1];
-                int[] py = new int[1];
-                int[] pw = new int[1];
-                int[] ph = new int[1];
-                GLFW.glfwGetWindowPos(handle, px, py);
-                GLFW.glfwGetWindowSize(handle, pw, ph);
-                boolean off = Math.abs(px[0] - target[0]) > 1 || Math.abs(py[0] - target[1]) > 1
-                        || Math.abs(pw[0] - target[2]) > 1 || Math.abs(ph[0] - target[3]) > 1;
+                int[] target = contentRect(window, cell);
+                int[] pos = com.killer560.hub.compat.McWindow.position(window);
+                int[] size = com.killer560.hub.compat.McWindow.size(window);
+                boolean off = Math.abs(pos[0] - target[0]) > 1 || Math.abs(pos[1] - target[1]) > 1
+                        || Math.abs(size[0] - target[2]) > 1 || Math.abs(size[1] - target[3]) > 1;
                 if (off && req.verifyRounds++ < MAX_VERIFY_ROUNDS) {
-                    GLFW.glfwSetWindowMonitor(handle, 0L, target[0], target[1], target[2], target[3], GLFW.GLFW_DONT_CARE);
+                    com.killer560.hub.compat.McWindow.setWindowedBounds(window, target[0], target[1], target[2], target[3]);
                     req.waitTicks = 4;
                     return;
                 }
@@ -224,9 +217,8 @@ public final class WindowLayoutFeature {
                     }
                 } else if (req.restoreFullscreen) {
                     req.restoreFullscreen = false;
-                    if (!window.isFullscreen()) {
-                        window.toggleFullScreen();
-                        client.options.fullscreen().set(window.isFullscreen());
+                    if (!com.killer560.hub.compat.McWindow.isFullscreen(window)) {
+                        com.killer560.hub.compat.McWindow.enterFullscreen(client, window);
                         client.options.save();
                         // 26.1.2 defers the real switch to updateFullscreenIfChanged (called once per frame from
                         // Minecraft.runTick), and it no-ops when its actuallyFullscreen flag already matches - so
@@ -244,25 +236,15 @@ public final class WindowLayoutFeature {
         return WindowLayoutConfig.getInstance().isFullMonitorBorderless();
     }
 
-    /** @return {left, top, right, bottom} decoration sizes (title bar/borders), zeros when undecorated. */
-    private static int[] frameSize(long handle) {
-        int[] l = new int[1];
-        int[] t = new int[1];
-        int[] r = new int[1];
-        int[] b = new int[1];
-        GLFW.glfwGetWindowFrameSize(handle, l, t, r, b);
-        return new int[]{Math.max(0, l[0]), Math.max(0, t[0]), Math.max(0, r[0]), Math.max(0, b[0])};
-    }
-
     /** Content-area {x, y, w, h} (what GLFW positions/sizes) so the window's VISIBLE outer frame covers
      *  {@code cell}: the GLFW frame includes Windows' invisible resize borders, so those are pushed outside the
      *  cell rather than showing up as a transparent gap between tiled windows. */
-    private static int[] contentRect(long handle, int[] cell) {
-        int[] frame = frameSize(handle);
+    private static int[] contentRect(Window window, int[] cell) {
+        int[] frame = com.killer560.hub.compat.McWindow.frameSize(window);
         int[] invisible = {0, 0, 0, 0};
         if (WindowLayoutWin32.isWindows()) {
             try {
-                invisible = WindowLayoutWin32.invisibleBorders(GLFWNativeWin32.glfwGetWin32Window(handle));
+                invisible = WindowLayoutWin32.invisibleBorders(com.killer560.hub.compat.McWindow.win32Handle(window));
             } catch (Throwable ignored) {
             }
         }

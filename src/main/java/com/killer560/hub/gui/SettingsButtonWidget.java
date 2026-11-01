@@ -617,7 +617,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
      */
     private boolean pillClick(MouseButtonEvent event) {
         if (onSecondaryPress == null || !active || !visible || !inMenu() || parts().look() != Look.PILL
-                || (event.button() != 0 && event.button() != 1) || !isMouseOver(event.x(), event.y())) {
+                || (com.killer560.hub.compat.McInput.button(event) != 0 && com.killer560.hub.compat.McInput.button(event) != 1) || !isMouseOver(event.x(), event.y())) {
             return false;
         }
         return true;
@@ -631,13 +631,13 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
                 return false;
             }
             playDownSound(Minecraft.getInstance().getSoundManager());
-            boolean back = event.button() == 1 || half < 0;
+            boolean back = com.killer560.hub.compat.McInput.button(event) == 1 || half < 0;
             anim.pressed();
             anim.valueDir = back ? -1 : 1;
             (back ? onSecondaryPress : onPress).onPress(this);
             return true;
         }
-        if (onSecondaryPress != null && active && visible && event.button() == 1
+        if (onSecondaryPress != null && active && visible && com.killer560.hub.compat.McInput.button(event) == 1
                 && isMouseOver(event.x(), event.y())) {
             playDownSound(Minecraft.getInstance().getSoundManager());
             anim.pressed();

@@ -44,7 +44,7 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        bind(keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode);
+        bind(keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
     }
 
     @Override

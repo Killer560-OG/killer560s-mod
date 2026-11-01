@@ -18,7 +18,7 @@ public class ExperimentsStopMouseMixin {
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
     private void killer560smod$etableStopOnButton(long window, MouseButtonInfo input, int action, CallbackInfo ci) {
         if (action == 1 && window == Minecraft.getInstance().getWindow().handle()
-                && ExperimentsFeature.stopOnPlayerInput(ExperimentsFeature.mouseButtonName(input.button()))) {
+                && ExperimentsFeature.stopOnPlayerInput(ExperimentsFeature.mouseButtonName(com.killer560.hub.compat.McInput.button(input)))) {
             ci.cancel();
         }
     }

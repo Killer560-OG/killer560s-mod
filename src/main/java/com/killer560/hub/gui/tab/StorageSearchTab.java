@@ -237,7 +237,7 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        if (keyCode == InputConstants.KEY_ESCAPE) {
+        if (keyCode == com.killer560.hub.util.Keys.ESCAPE) {
             capturingIndex = NOT_CAPTURING;
             capturingMods = 0;
             return;

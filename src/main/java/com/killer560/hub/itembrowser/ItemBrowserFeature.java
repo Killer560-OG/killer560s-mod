@@ -129,14 +129,14 @@ public final class ItemBrowserFeature {
 
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
             if (ItemCraftView.isOpen()) {
-                ItemCraftView.handleClick(event.x(), event.y(), event.button());
+                ItemCraftView.handleClick(event.x(), event.y(), com.killer560.hub.compat.McInput.button(event));
                 return false;
             }
             ItemBrowserConfig cfg = ItemBrowserConfig.getInstance();
             // The sort button (right at the panel's bottom) responds to both buttons - left cycles the
             // mode forward, right goes back one, same repo-wide rule every other cycling button follows
             // (see SettingsButtonWidget). Everything else in the panel stays left-click only, unchanged.
-            if (!cfg.isEnabled() || !showsOn(containerScreen, cfg) || (event.button() != 0 && event.button() != 1)) {
+            if (!cfg.isEnabled() || !showsOn(containerScreen, cfg) || (com.killer560.hub.compat.McInput.button(event) != 0 && com.killer560.hub.compat.McInput.button(event) != 1)) {
                 return true;
             }
             PanelLayout layout = layout(containerScreen, cfg);
@@ -145,11 +145,11 @@ public final class ItemBrowserFeature {
             }
             double localY = (event.y() - layout.screenY()) / layout.scale();
             if (localY >= footerLocalY(layout)) {
-                cfg.setSortMode(event.button() == 1 ? cfg.getSortMode().previous() : cfg.getSortMode().next());
+                cfg.setSortMode(com.killer560.hub.compat.McInput.button(event) == 1 ? cfg.getSortMode().previous() : cfg.getSortMode().next());
                 cfg.save();
                 return false;
             }
-            if (event.button() != 0) {
+            if (com.killer560.hub.compat.McInput.button(event) != 0) {
                 return true; // right-click anywhere else in the panel is a no-op, same as before
             }
             SkyblockItemEntry clicked = entryAt(layout, cfg, event.x(), event.y());

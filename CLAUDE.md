@@ -237,6 +237,11 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   accepts a handler taking only `CallbackInfo` for any target (checked in `CallbackInjector$Callback.
   checkDescriptor`: the full descriptor OR `(LCallbackInfo;)V`, all-or-nothing, never a prefix), which is how a
   single mixin survives a target whose argument TYPES changed.
+- **26.3 key and mouse codes are SDL, stored codes stay GLFW** (2026-11-01). On 26.3 `KeyEvent.key()`, `KeyMapping`
+  values and `InputConstants.KEY_*` are SDL scancodes and mouse buttons are 1-based (left 1, right 3), and wrong numbers
+  still compile. Configs keep GLFW numbers (`util/Keys`); read keys with `McInput.key(event)`, buttons with
+  `McInput.button(event)`, poll stored codes with `KeyUtil`, window/cursor/display work through `McWindow`. Full rules
+  in docs/LESSONS-MINECRAFT.md "Input and window on 26.3".
 - Run gradle through Bash, not PowerShell: PowerShell wraps native stderr in ErrorRecords and splits compiler
   messages mid-line, so error counts and file paths become unreadable. Gradle also prints compiler output
   TWICE, so `grep -c "error:"` is double - the `N errors` line javac prints is the authoritative number.

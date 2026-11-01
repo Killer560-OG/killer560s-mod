@@ -12,8 +12,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWNativeWin32;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -638,8 +636,7 @@ public final class ShortsFeature {
             if (client.getWindow() == null) {
                 return 0;
             }
-            long glfw = client.getWindow().handle();
-            return glfw == 0 ? 0 : GLFWNativeWin32.glfwGetWin32Window(glfw);
+            return com.killer560.hub.compat.McWindow.win32Handle(client.getWindow());
         } catch (Throwable t) {
             return 0;
         }
@@ -681,7 +678,7 @@ public final class ShortsFeature {
                 Long.toHexString(style), Long.toHexString(newStyle), Long.toHexString(ex), Long.toHexString(newEx));
         if (refocusMcOnAttach) {
             refocusMcOnAttach = false;
-            GLFW.glfwFocusWindow(client.getWindow().handle());
+            com.killer560.hub.compat.McWindow.focus(client.getWindow());
         }
         return true;
     }

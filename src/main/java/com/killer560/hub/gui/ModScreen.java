@@ -1154,7 +1154,7 @@ public class ModScreen extends Screen {
         MenuAnim.input();
         KeyCaptureTab listening = findListeningKeyCaptureTab();
         if (listening != null) {
-            listening.onKeyCaptured(keyEvent.key());
+            listening.onKeyCaptured(com.killer560.hub.compat.McInput.key(keyEvent));
             rebuild();
             return true;
         }
@@ -1230,13 +1230,13 @@ public class ModScreen extends Screen {
         // 2026-09-20). Checked before anything else so the click doesn't also press what is under the cursor.
         KeyCaptureTab listening = findListeningKeyCaptureTab();
         if (listening != null && listening.supportsMouseCapture()) {
-            listening.onMouseCaptured(event.button());
+            listening.onMouseCaptured(com.killer560.hub.compat.McInput.button(event));
             rebuild();
             return true;
         }
         double mx = event.x();
         double my = event.y();
-        int button = event.button();
+        int button = com.killer560.hub.compat.McInput.button(event);
         if (paletteOpen) {
             if (paletteClick(mx, my, button)) {
                 return true;

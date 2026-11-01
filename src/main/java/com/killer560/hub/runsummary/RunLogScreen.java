@@ -133,7 +133,7 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (mode == Mode.DUNGEONS && selected == null && event.button() == 0) {
+        if (mode == Mode.DUNGEONS && selected == null && com.killer560.hub.compat.McInput.button(event) == 0) {
             RunRecord hit = runAt(event.x(), event.y());
             if (hit != null) {
                 selected = hit;

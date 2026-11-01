@@ -57,7 +57,7 @@ public final class DungeonExtrasConfig {
     /** The measured limit, from the constant rather than a literal that has to be kept in step. */
     private double breakerAuraReach = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
     /** The pick/unpick key. Semicolon by default - killer560 (2026-09-23): "default the breaker key to ;". */
-    private int breakerAuraSelectKey = org.lwjgl.glfw.GLFW.GLFW_KEY_SEMICOLON;
+    private int breakerAuraSelectKey = com.killer560.hub.util.Keys.SEMICOLON;
     /**
      * LEGACY (2026-09-27): the picks used to live here, and only here. {@link BreakerAuraStore} is the live copy
      * now - one file per named config, swappable "just like the auto routes can swap" (killer560) - so nothing

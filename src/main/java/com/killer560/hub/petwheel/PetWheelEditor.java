@@ -128,7 +128,7 @@ final class PetWheelEditor {
     }
 
     private static boolean onPetsClick(AbstractContainerScreen<?> screen, MouseButtonEvent event) {
-        if (!armed || event.button() != 0) {
+        if (!armed || com.killer560.hub.compat.McInput.button(event) != 0) {
             return true;
         }
         AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;

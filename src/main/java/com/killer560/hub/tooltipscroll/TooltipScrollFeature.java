@@ -9,7 +9,6 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.client.gui.screens.inventory.tooltip.TooltipRenderUtil;
 import net.minecraft.world.item.ItemStack;
-import org.lwjgl.glfw.GLFW;
 
 import java.lang.ref.WeakReference;
 import java.util.List;
@@ -244,9 +243,9 @@ public final class TooltipScrollFeature {
     private static int maxNudgeX = 40;
 
     private static boolean shiftHeld() {
-        long handle = Minecraft.getInstance().getWindow().handle();
-        return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+        var window = Minecraft.getInstance().getWindow();
+        return com.killer560.hub.util.KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.LEFT_SHIFT)
+                || com.killer560.hub.util.KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.RIGHT_SHIFT);
     }
 
     /** The sideways move the tooltip should be drawn with this frame (0 = none). Used by the render mixin. */

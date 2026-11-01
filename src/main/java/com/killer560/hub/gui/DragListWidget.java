@@ -150,7 +150,7 @@ public final class DragListWidget extends AbstractWidget implements WheelTarget 
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (!this.active || !this.visible || event.button() != 0 || !isMouseOver(event.x(), event.y())) {
+        if (!this.active || !this.visible || com.killer560.hub.compat.McInput.button(event) != 0 || !isMouseOver(event.x(), event.y())) {
             return false;
         }
         int i = rowAt(event.y());
@@ -173,7 +173,7 @@ public final class DragListWidget extends AbstractWidget implements WheelTarget 
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-        if (pressIndex < 0 || event.button() != 0) {
+        if (pressIndex < 0 || com.killer560.hub.compat.McInput.button(event) != 0) {
             return false;
         }
         mouseY = event.y();
@@ -191,7 +191,7 @@ public final class DragListWidget extends AbstractWidget implements WheelTarget 
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (pressIndex < 0 || event.button() != 0) {
+        if (pressIndex < 0 || com.killer560.hub.compat.McInput.button(event) != 0) {
             return false;
         }
         int from = pressIndex;

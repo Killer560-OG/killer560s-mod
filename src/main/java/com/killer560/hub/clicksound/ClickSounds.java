@@ -392,7 +392,7 @@ public final class ClickSounds {
                 return;
             }
             ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
-                if (event.button() != 0) {
+                if (com.killer560.hub.compat.McInput.button(event) != 0) {
                     return true;
                 }
                 try {

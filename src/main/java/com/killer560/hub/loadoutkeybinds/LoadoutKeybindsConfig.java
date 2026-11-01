@@ -1,5 +1,7 @@
 package com.killer560.hub.loadoutkeybinds;
 
+import com.killer560.hub.util.Keys;
+
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -25,16 +27,16 @@ public final class LoadoutKeybindsConfig {
     private static LoadoutKeybindsConfig instance;
 
     private boolean enabled = false;
-    private int nextPageKey = InputConstants.KEY_RIGHT;
-    private int previousPageKey = InputConstants.KEY_LEFT;
+    private int nextPageKey = Keys.RIGHT;
+    private int previousPageKey = Keys.LEFT;
     /** A key that sends /loadouts from anywhere (killer560, 2026-10-18: "a bind to open the loadouts page"). -1 = unbound. */
     private int openKey = -1;
     // Real default keys ported from Odin's own: 1-9, 0, minus, equals - matching a real vanilla keyboard
     // row's natural left-to-right order for slots 1-12.
     private final int[] slotKeys = {
-            InputConstants.KEY_1, InputConstants.KEY_2, InputConstants.KEY_3, InputConstants.KEY_4,
-            InputConstants.KEY_5, InputConstants.KEY_6, InputConstants.KEY_7, InputConstants.KEY_8,
-            InputConstants.KEY_9, InputConstants.KEY_0, InputConstants.KEY_MINUS, InputConstants.KEY_EQUALS
+            Keys.NUM_1, Keys.NUM_2, Keys.NUM_3, Keys.NUM_4,
+            Keys.NUM_5, Keys.NUM_6, Keys.NUM_7, Keys.NUM_8,
+            Keys.NUM_9, Keys.NUM_0, Keys.MINUS, Keys.EQUAL
     };
 
     /** What each slot's key does (killer560, 2026-10-13: "a toggle per keybind to have that keybind open the menu and
@@ -78,8 +80,8 @@ public final class LoadoutKeybindsConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             LoadoutKeybindsConfig cfg = new LoadoutKeybindsConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.nextPageKey = ConfigJson.getInt(obj, "nextPageKey", InputConstants.KEY_RIGHT);
-            cfg.previousPageKey = ConfigJson.getInt(obj, "previousPageKey", InputConstants.KEY_LEFT);
+            cfg.nextPageKey = ConfigJson.getInt(obj, "nextPageKey", Keys.RIGHT);
+            cfg.previousPageKey = ConfigJson.getInt(obj, "previousPageKey", Keys.LEFT);
             cfg.openKey = ConfigJson.getInt(obj, "openKey", -1);
             JsonArray arr = ConfigJson.getArray(obj, "slotKeys");
             if (arr != null) {

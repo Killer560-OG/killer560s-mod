@@ -131,17 +131,17 @@ public final class AutoClearSettings {
             return;
         }
         if (downAtCapture == null) {
-            downAtCapture = new boolean[org.lwjgl.glfw.GLFW.GLFW_KEY_LAST + 1];
-            for (int k = org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE; k <= org.lwjgl.glfw.GLFW.GLFW_KEY_LAST; k++) {
+            downAtCapture = new boolean[com.killer560.hub.util.Keys.LAST + 1];
+            for (int k = com.killer560.hub.util.Keys.SPACE; k <= com.killer560.hub.util.Keys.LAST; k++) {
                 downAtCapture[k] = KeyUtil.isKeyDown(client.getWindow(), k);
             }
             return;
         }
-        for (int k = org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE; k <= org.lwjgl.glfw.GLFW.GLFW_KEY_LAST; k++) {
+        for (int k = com.killer560.hub.util.Keys.SPACE; k <= com.killer560.hub.util.Keys.LAST; k++) {
             boolean down = KeyUtil.isKeyDown(client.getWindow(), k);
             if (down && !downAtCapture[k]) {
                 AutoClearConfig cfg = AutoClearConfig.getInstance();
-                cfg.setKeybind(k == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : k);
+                cfg.setKeybind(k == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : k);
                 cfg.save();
                 capturing = false;
                 Runnable r = captureRebuild;

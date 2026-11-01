@@ -53,14 +53,14 @@ public final class HoldToClickFeature {
             }
             leftDown = false;
             net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
-                if (event.button() == 0) {
+                if (com.killer560.hub.compat.McInput.button(event) == 0) {
                     leftDown = true;
                     leftDownScreen = s;
                 }
                 return true;
             });
             net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents.allowMouseRelease(screen).register((s, event) -> {
-                if (event.button() == 0) {
+                if (com.killer560.hub.compat.McInput.button(event) == 0) {
                     leftDown = false;
                 }
                 return true;

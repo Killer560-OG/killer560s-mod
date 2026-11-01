@@ -49,7 +49,7 @@ public abstract class ClassSelectionScreenMixin {
     private void killer560smod$classSelectionClick(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
         try {
             if (ClassSelectionOverlay.mouseClicked((AbstractContainerScreen<?>) (Object) this,
-                    event.x(), event.y(), event.button())) {
+                    event.x(), event.y(), com.killer560.hub.compat.McInput.button(event))) {
                 cir.setReturnValue(true);
             }
         } catch (Throwable ignored) {

@@ -6,7 +6,6 @@ import com.mojang.blaze3d.platform.VideoMode;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -96,7 +95,7 @@ public final class WindowModeFeature {
         Window window = client.getWindow();
         WindowModeConfig cfg = WindowModeConfig.getInstance();
 
-        if (window.isFullscreen()) {
+        if (com.killer560.hub.compat.McWindow.isFullscreen(window)) {
             window.setWindowed(cfg.getSavedWindowedWidth(), cfg.getSavedWindowedHeight());
             // setWindowed clears Window.fullscreen and calls setMode() itself, but leaves the separate
             // actuallyFullscreen flag stale - so Minecraft.runTick's next Window.updateFullscreenIfChanged()
@@ -118,8 +117,8 @@ public final class WindowModeFeature {
         VideoMode mode = McCompat.currentMode(monitor);
         int[] rect = borderlessRect(McCompat.monitorX(monitor), McCompat.monitorY(monitor), mode.getWidth(), mode.getHeight());
 
-        GLFW.glfwSetWindowAttrib(window.handle(), GLFW.GLFW_DECORATED, GLFW.GLFW_FALSE);
-        GLFW.glfwSetWindowMonitor(window.handle(), 0L, rect[0], rect[1], rect[2], rect[3], GLFW.GLFW_DONT_CARE);
+        com.killer560.hub.compat.McWindow.setDecorated(window, false);
+        com.killer560.hub.compat.McWindow.setWindowedBounds(window, rect[0], rect[1], rect[2], rect[3]);
         reapplyCursorState(client);
         LOGGER.info("Borderless ON: monitor {}x{} at {},{} -> window {}x{} at {},{} ({} overhang, composited)",
                 mode.getWidth(), mode.getHeight(), McCompat.monitorX(monitor), McCompat.monitorY(monitor),
@@ -149,8 +148,8 @@ public final class WindowModeFeature {
             cfg.save();
         }
 
-        GLFW.glfwSetWindowAttrib(window.handle(), GLFW.GLFW_DECORATED, GLFW.GLFW_TRUE);
-        GLFW.glfwSetWindowMonitor(window.handle(), 0L, x, y, width, height, GLFW.GLFW_DONT_CARE);
+        com.killer560.hub.compat.McWindow.setDecorated(window, true);
+        com.killer560.hub.compat.McWindow.setWindowedBounds(window, x, y, width, height);
         reapplyCursorState(client);
         LOGGER.info("Borderless OFF: window {}x{} at {},{}", width, height, x, y);
     }
@@ -219,9 +218,7 @@ public final class WindowModeFeature {
         try {
             Window window = client.getWindow();
             boolean grabbed = client.mouseHandler.isMouseGrabbed() && McCompat.screen(client) == null;
-            InputConstants.grabOrReleaseMouse(window,
-                    grabbed ? InputConstants.CURSOR_DISABLED : InputConstants.CURSOR_NORMAL,
-                    client.mouseHandler.xpos(), client.mouseHandler.ypos());
+            com.killer560.hub.compat.McWindow.reapplyMouseGrab(window, grabbed, client.mouseHandler.xpos(), client.mouseHandler.ypos());
         } catch (Throwable ignored) {
             // Never let a cursor fix-up break the window toggle itself.
         }

@@ -1,6 +1,5 @@
 package com.killer560.hub.util;
 
-import net.minecraft.util.Util;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
@@ -29,13 +28,13 @@ public final class ExternalOpen {
         return Boolean.getBoolean(NO_EXTERNAL_OPEN_PROPERTY);
     }
 
-    /** {@code Util.getPlatform().openUri(uri)}, or a log line under the test property. */
+    /** {@code McWindow.openUri(uri)}, or a log line under the test property. */
     public static void uri(String uri) {
         if (suppress(uri)) return;
-        Util.getPlatform().openUri(uri);
+        com.killer560.hub.compat.McWindow.openUri(uri);
     }
 
-    /** {@code Util.getPlatform().openPath(path)}, or a log line under the test property. */
+    /** {@code McWindow.openPath(path)}, or a log line under the test property. */
     public static void path(Path path) {
         // Every caller opens a folder, and a feature's folder is only made by its first save (2026-10-26): make it
         // here so "Open Folder" never opens nothing.
@@ -47,7 +46,7 @@ public final class ExternalOpen {
             LOGGER.warn("Could not create {}", path, e);
         }
         if (suppress(String.valueOf(path))) return;
-        Util.getPlatform().openPath(path);
+        com.killer560.hub.compat.McWindow.openPath(path);
     }
 
     /**

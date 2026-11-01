@@ -233,7 +233,7 @@ public final class DropdownWidget<T> extends AbstractWidget {
         if (d == null) {
             return false;
         }
-        int row = event.button() == 0 ? d.rowAt(event.x(), event.y()) : -1;
+        int row = com.killer560.hub.compat.McInput.button(event) == 0 ? d.rowAt(event.x(), event.y()) : -1;
         if (row >= 0) {
             d.playDownSound(Minecraft.getInstance().getSoundManager());
             d.choose(row);
@@ -245,7 +245,7 @@ public final class DropdownWidget<T> extends AbstractWidget {
 
     /** First thing in a screen's {@code keyPressed}: Escape closes an open list (and not the screen). */
     public static boolean keyOpen(KeyEvent event) {
-        if (open != null && event.key() == 256) { // GLFW_KEY_ESCAPE
+        if (open != null && event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
             open.closeList();
             return true;
         }

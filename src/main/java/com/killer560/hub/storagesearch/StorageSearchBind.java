@@ -2,7 +2,6 @@ package com.killer560.hub.storagesearch;
 
 import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.Window;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * One open-bind for Storage Item Search - killer560 (2026-09-21): "allow for me to have multiple keybinds in the
@@ -30,9 +29,9 @@ public record StorageSearchBind(int mods, int code) {
     /** @return the {@code mods} bit this key contributes, or 0 when it is not a modifier key. */
     public static int modBitFor(int key) {
         return switch (key) {
-            case GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_RIGHT_CONTROL -> MOD_CTRL;
-            case GLFW.GLFW_KEY_LEFT_SHIFT, GLFW.GLFW_KEY_RIGHT_SHIFT -> MOD_SHIFT;
-            case GLFW.GLFW_KEY_LEFT_ALT, GLFW.GLFW_KEY_RIGHT_ALT -> MOD_ALT;
+            case com.killer560.hub.util.Keys.LEFT_CONTROL, com.killer560.hub.util.Keys.RIGHT_CONTROL -> MOD_CTRL;
+            case com.killer560.hub.util.Keys.LEFT_SHIFT, com.killer560.hub.util.Keys.RIGHT_SHIFT -> MOD_SHIFT;
+            case com.killer560.hub.util.Keys.LEFT_ALT, com.killer560.hub.util.Keys.RIGHT_ALT -> MOD_ALT;
             default -> 0;
         };
     }
@@ -54,13 +53,13 @@ public record StorageSearchBind(int mods, int code) {
 
     private static int heldMods(Window window) {
         int held = 0;
-        if (KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_LEFT_CONTROL) || KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_CONTROL)) {
+        if (KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.LEFT_CONTROL) || KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.RIGHT_CONTROL)) {
             held |= MOD_CTRL;
         }
-        if (KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_LEFT_SHIFT) || KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_SHIFT)) {
+        if (KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.LEFT_SHIFT) || KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.RIGHT_SHIFT)) {
             held |= MOD_SHIFT;
         }
-        if (KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_LEFT_ALT) || KeyUtil.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_ALT)) {
+        if (KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.LEFT_ALT) || KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.RIGHT_ALT)) {
             held |= MOD_ALT;
         }
         return held;

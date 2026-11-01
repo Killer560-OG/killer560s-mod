@@ -153,7 +153,7 @@ public final class BazaarReskin {
             }
         });
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> onPress(state, event.x() / scale(),
-                event.y() / scale(), event.button(), event.hasShiftDown()));
+                event.y() / scale(), com.killer560.hub.compat.McInput.button(event), event.hasShiftDown()));
         ScreenMouseEvents.allowMouseRelease(screen).register((s, event) -> !hiding(state));
         ScreenMouseEvents.allowMouseScroll(screen).register((s, mx, my, sx, sy) -> {
             if (!hiding(state)) {
@@ -169,7 +169,7 @@ public final class BazaarReskin {
             if (com.killer560.hub.bazaarflip.BazaarFlipFeature.isRunning()) {
                 // The flipper's own key watcher sits after this one and would never see the key: stop it here.
                 // Escape still closes the menu (which the flipper reports as "the Bazaar menu closed").
-                com.killer560.hub.bazaarflip.BazaarFlipFeature.stopOnKeyPress(event.key());
+                com.killer560.hub.bazaarflip.BazaarFlipFeature.stopOnKeyPress(com.killer560.hub.compat.McInput.key(event));
                 return event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE;
             }
             if (BazaarView.key(event)) {

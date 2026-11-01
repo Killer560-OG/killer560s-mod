@@ -276,7 +276,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (selected == null && event.button() == 0 && overTrack(event.x(), event.y())) {
+        if (selected == null && com.killer560.hub.compat.McInput.button(event) == 0 && overTrack(event.x(), event.y())) {
             int ty = thumbY();
             int th = thumbHeight();
             // On the thumb: grab it where it was clicked. On the track: jump the thumb's center there.
@@ -285,7 +285,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
             dragScrollTo(event.y());
             return true;
         }
-        if (selected == null && event.button() == 0) {
+        if (selected == null && com.killer560.hub.compat.McInput.button(event) == 0) {
             FriendsListConfig.Friend hit = rowAt(event.x(), event.y());
             if (hit != null && overInvite(visible.indexOf(hit), event.x(), event.y())) {
                 invite(hit);

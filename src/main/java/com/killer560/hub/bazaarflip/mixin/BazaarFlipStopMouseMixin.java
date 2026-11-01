@@ -21,7 +21,7 @@ public class BazaarFlipStopMouseMixin {
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
     private void killer560smod$bazaarFlipStopOnButton(long window, MouseButtonInfo input, int action, CallbackInfo ci) {
         if (action == 1 && window == Minecraft.getInstance().getWindow().handle()
-                && BazaarFlipFeature.onRawKeyPress(KeyUtil.codeForMouseButton(input.button()))) {
+                && BazaarFlipFeature.onRawKeyPress(KeyUtil.codeForMouseButton(com.killer560.hub.compat.McInput.button(input)))) {
             ci.cancel();
         }
     }

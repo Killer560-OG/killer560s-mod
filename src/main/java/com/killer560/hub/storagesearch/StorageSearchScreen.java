@@ -155,7 +155,7 @@ public class StorageSearchScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         StorageSearchIndex.Entry hit = entryAt(event.x(), event.y());
-        if (hit != null && event.button() == 0) {
+        if (hit != null && com.killer560.hub.compat.McInput.button(event) == 0) {
             StorageSearchFeature.onResultClicked(hit, results);
             return true;
         }

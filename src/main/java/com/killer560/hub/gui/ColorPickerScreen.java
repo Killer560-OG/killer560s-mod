@@ -388,7 +388,7 @@ public class ColorPickerScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() == 0) {
+        if (com.killer560.hub.compat.McInput.button(event) == 0) {
             if (isWithin(event.x(), event.y(), svX, svY, svSize, svSize)) {
                 setFocused(null);
                 draggingSv = true;

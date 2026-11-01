@@ -420,7 +420,7 @@ public class CrosshairTab extends BaseTab {
 
         @Override
         public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            if (event.button() == 1 && isMouseOver(event.x(), event.y())) {
+            if (com.killer560.hub.compat.McInput.button(event) == 1 && isMouseOver(event.x(), event.y())) {
                 step(event.x(), event.y(), -1);
                 return true;
             }

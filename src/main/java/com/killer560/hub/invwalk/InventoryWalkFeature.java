@@ -27,7 +27,6 @@ import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 
 import java.util.ArrayDeque;
@@ -209,9 +208,9 @@ public final class InventoryWalkFeature {
             return false;
         }
         if (key.getType() == InputConstants.Type.MOUSE) {
-            return GLFW.glfwGetMouseButton(client.getWindow().handle(), key.getValue()) == GLFW.GLFW_PRESS;
+            return com.killer560.hub.compat.McInput.isNativeButtonDown(client.getWindow(), key.getValue());
         }
-        return KeyUtil.isKeyDown(client.getWindow(), key.getValue());
+        return com.killer560.hub.compat.McInput.isNativeKeyDown(client.getWindow(), key.getValue());
     }
 
     static boolean eligible(Screen screen, InventoryWalkConfig cfg) {

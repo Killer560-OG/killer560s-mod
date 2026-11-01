@@ -75,8 +75,7 @@ public abstract class AutoScaleScreenMixin {
     @Unique
     private static boolean killer560smod$leftMouseDown() {
         Window window = Minecraft.getInstance().getWindow();
-        return window != null && org.lwjgl.glfw.GLFW.glfwGetMouseButton(window.handle(),
-                org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+        return window != null && com.killer560.hub.compat.McInput.isStoredButtonDown(window, com.killer560.hub.util.Keys.MOUSE_LEFT);
     }
 
     @Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At("RETURN"))

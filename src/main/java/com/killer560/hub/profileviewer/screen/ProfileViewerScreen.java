@@ -28,7 +28,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ResolvableProfile;
-import org.lwjgl.glfw.GLFW;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -535,7 +534,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() == 0) {
+        if (com.killer560.hub.compat.McInput.button(event) == 0) {
             for (Hotspot h : overlayHotspots) {
                 if (h.contains(event.x(), event.y())) {
                     click();
@@ -591,11 +590,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         if (switchBox != null && switchBox.isFocused()) {
             // Enter submits the typed name; otherwise let the box handle its own text/cursor keys
             // (in particular Left/Right, which would otherwise page instead of moving the cursor).
-            if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
+            if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN || event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER) {
                 submitSwitch();
                 return true;
             }
-            if (event.key() == GLFW.GLFW_KEY_TAB && cycleSuggestion(event.hasShiftDown())) {
+            if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_TAB && cycleSuggestion(event.hasShiftDown())) {
                 return true;
             }
             return super.keyPressed(event);

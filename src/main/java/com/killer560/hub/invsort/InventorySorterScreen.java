@@ -436,7 +436,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (capturingKey) {
             // A mouse button can be the bind too (KeyUtil's mouse codes); Escape (a key) clears it.
-            bind(KeyUtil.codeForMouseButton(event.button()));
+            bind(KeyUtil.codeForMouseButton(com.killer560.hub.compat.McInput.button(event)));
             return true;
         }
         int slot = slotAt(event.x(), event.y());

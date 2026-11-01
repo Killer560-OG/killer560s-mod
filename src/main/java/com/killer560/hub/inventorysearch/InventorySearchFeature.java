@@ -191,7 +191,7 @@ public final class InventorySearchFeature {
         // vanilla text field. Only ever claims the click when it's actually inside the box, so normal
         // inventory clicks elsewhere are untouched.
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
-            if (!anyConsumerEnabled() || event.button() != 0 || lastBoxBounds == null) {
+            if (!anyConsumerEnabled() || com.killer560.hub.compat.McInput.button(event) != 0 || lastBoxBounds == null) {
                 return true;
             }
             if (inside(lastBoxBounds, event.x(), event.y())) {

@@ -14,7 +14,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -70,9 +69,9 @@ public final class TerminalQolFeature {
     // Melody's row buttons are read off the open board (TerminalLayouts.melodyButtonSlots): 16/25/34/43 on the old
     // 4-row layout (Devonian's i * 9 + 16), three buttons on the 2026-10-06 3-row one.
 
-    private static final int[] MELODY_KEYS = {GLFW.GLFW_KEY_1, GLFW.GLFW_KEY_2, GLFW.GLFW_KEY_3, GLFW.GLFW_KEY_4};
+    private static final int[] MELODY_KEYS = {com.killer560.hub.util.Keys.NUM_1, com.killer560.hub.util.Keys.NUM_2, com.killer560.hub.util.Keys.NUM_3, com.killer560.hub.util.Keys.NUM_4};
     private static final int[] MELODY_NUMPAD_KEYS =
-            {GLFW.GLFW_KEY_KP_1, GLFW.GLFW_KEY_KP_2, GLFW.GLFW_KEY_KP_3, GLFW.GLFW_KEY_KP_4};
+            {com.killer560.hub.util.Keys.KP_1, com.killer560.hub.util.Keys.KP_2, com.killer560.hub.util.Keys.KP_3, com.killer560.hub.util.Keys.KP_4};
 
     // ---- live terminal tracking (independent of TerminalSolverFeature, which only tracks while IT is on) ----
     private static TerminalType currentType;
@@ -370,7 +369,7 @@ public final class TerminalQolFeature {
     }
 
     private static InputConstants.Key keyFor(int glfwKeyCode) {
-        return glfwKeyCode < 0 ? InputConstants.UNKNOWN : InputConstants.Type.KEYSYM.getOrCreate(glfwKeyCode);
+        return glfwKeyCode < 0 ? InputConstants.UNKNOWN : com.killer560.hub.compat.McInput.storedKeyInput(glfwKeyCode);
     }
 
     // ---- Custom Terminal Scale ----

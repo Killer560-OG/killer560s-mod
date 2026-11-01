@@ -11,7 +11,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -142,9 +141,9 @@ public final class LagDisplayFeature {
             rightWasDown = false;
             return;
         }
-        long handle = client.getWindow().handle();
-        boolean left = GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
-        boolean right = GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
+        var window = client.getWindow();
+        boolean left = com.killer560.hub.compat.McInput.isStoredButtonDown(window, com.killer560.hub.util.Keys.MOUSE_LEFT);
+        boolean right = com.killer560.hub.compat.McInput.isStoredButtonDown(window, com.killer560.hub.util.Keys.MOUSE_RIGHT);
         long now = System.currentTimeMillis();
         if (left && !leftWasDown) {
             synchronized (LEFT_CLICKS) {

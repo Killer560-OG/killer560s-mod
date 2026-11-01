@@ -161,7 +161,7 @@ public final class AhReskin {
             }
         });
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> onPress(state, event.x(), event.y(),
-                event.button(), event.hasShiftDown()));
+                com.killer560.hub.compat.McInput.button(event), event.hasShiftDown()));
         ScreenMouseEvents.allowMouseRelease(screen).register((s, event) -> !hiding(state));
         ScreenMouseEvents.allowMouseScroll(screen).register((s, mx, my, sx, sy) -> {
             if (!hiding(state)) {

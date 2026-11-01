@@ -25,8 +25,8 @@ public class PathStopKeyMixin {
                 && !Minecraft.getInstance().options.keyTogglePerspective.matches(event)) {
             // The key's name is only for the stop line: spared on every press outside a session.
             AutoWalker.onPlayerInput(!AutoWalker.isSessionActive() ? ""
-                    : "the " + InputConstants.Type.KEYSYM.getOrCreate(event.key()).getDisplayName().getString()
-                    + " key", event.key());
+                    : "the " + InputConstants.getKey(event).getDisplayName().getString()
+                    + " key", com.killer560.hub.compat.McInput.key(event));
         }
     }
 }

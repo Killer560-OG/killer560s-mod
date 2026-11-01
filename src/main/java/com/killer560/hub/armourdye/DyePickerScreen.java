@@ -89,9 +89,9 @@ public final class DyePickerScreen extends Screen implements MenuThemedScreen {
         double y = event.y();
         if (x >= panelX + 8 && x < panelX + panelW - 8 && y >= listY && y < listY + rows * ROW_H) {
             int idx = scroll + (int) ((y - listY) / ROW_H);
-            if (idx >= 0 && idx < dyes.size() && (event.button() == 0 || event.button() == 1)) {
+            if (idx >= 0 && idx < dyes.size() && (com.killer560.hub.compat.McInput.button(event) == 0 || com.killer560.hub.compat.McInput.button(event) == 1)) {
                 HypixelDyes.Dye dye = dyes.get(idx);
-                int rgb = event.button() == 1 && dye.animated() ? dye.to() : dye.from();
+                int rgb = com.killer560.hub.compat.McInput.button(event) == 1 && dye.animated() ? dye.to() : dye.from();
                 onPick.accept(0xFF000000 | rgb);
                 onClose();
                 return true;

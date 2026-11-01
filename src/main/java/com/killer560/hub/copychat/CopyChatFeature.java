@@ -13,7 +13,6 @@ import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.util.FormattedCharSequence;
 import org.joml.Matrix3x2f;
 import org.joml.Vector2f;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -54,11 +53,11 @@ public final class CopyChatFeature {
     /** Shift or Ctrl held right now, read from the window (for callers that have no input event, like
      *  {@code ChatScreen.handleComponentClicked}). */
     public static boolean isCopyModifierDown() {
-        long handle = Minecraft.getInstance().getWindow().handle();
-        return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+        var window = Minecraft.getInstance().getWindow();
+        return com.killer560.hub.util.KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.LEFT_SHIFT)
+                || com.killer560.hub.util.KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.RIGHT_SHIFT)
+                || com.killer560.hub.util.KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.LEFT_CONTROL)
+                || com.killer560.hub.util.KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.RIGHT_CONTROL);
     }
 
     /**

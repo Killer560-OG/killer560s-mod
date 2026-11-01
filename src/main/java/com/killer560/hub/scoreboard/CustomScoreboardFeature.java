@@ -109,7 +109,7 @@ public final class CustomScoreboardFeature {
             if (screen instanceof ChatScreen) {
                 ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
                     try {
-                        return event.button() != 0 || !onChatClick(event.x(), event.y());
+                        return com.killer560.hub.compat.McInput.button(event) != 0 || !onChatClick(event.x(), event.y());
                     } catch (RuntimeException e) {
                         return true;
                     }

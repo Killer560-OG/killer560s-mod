@@ -7,6 +7,8 @@ public interface KeyCaptureTab {
 
     boolean isListeningForKey();
 
+    /** Called with the STORED (GLFW-numbered, {@code util/Keys}) code of the pressed key: ModScreen passes
+     *  {@code McInput.key(event)}, never the raw event key (an SDL scancode on 26.3). -1 for a key with no GLFW twin. */
     void onKeyCaptured(int keyCode);
 
     /** Whether this tab can take a MOUSE button as a bind, not just a key - killer560 (2026-09-20):
@@ -16,7 +18,7 @@ public interface KeyCaptureTab {
         return false;
     }
 
-    /** Called with the GLFW button number when this tab is listening and {@link #supportsMouseCapture()}. */
+    /** Called with the STORED (GLFW, 0 left / 1 right / 2 middle) button number when this tab is listening and {@link #supportsMouseCapture()}. */
     default void onMouseCaptured(int button) {
     }
 }

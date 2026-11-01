@@ -12,7 +12,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.util.Util;
-import org.lwjgl.glfw.GLFWNativeWin32;
 import org.slf4j.Logger;
 
 import java.util.Arrays;
@@ -65,7 +64,7 @@ public final class ConfineMouseFeature {
 
     /** Whether the game window is in this mod's borderless fullscreen right now (exclusive fullscreen does not count). */
     static boolean isBorderless(Minecraft client) {
-        return WindowModeConfig.getInstance().isBorderlessFullscreenEnabled() && !client.getWindow().isFullscreen();
+        return WindowModeConfig.getInstance().isBorderlessFullscreenEnabled() && !com.killer560.hub.compat.McWindow.isFullscreen(client.getWindow());
     }
 
     /** The confinement rule: setting on, borderless, window focused, and a screen other than chat open. */
@@ -120,7 +119,7 @@ public final class ConfineMouseFeature {
 
     /** {left, top, right, bottom} of the window's client area in screen coordinates, or null. */
     private static int[] clientRectOnScreen(Window window) {
-        long hwnd = GLFWNativeWin32.glfwGetWin32Window(window.handle());
+        long hwnd = com.killer560.hub.compat.McWindow.win32Handle(window);
         if (hwnd == 0L) {
             return null;
         }

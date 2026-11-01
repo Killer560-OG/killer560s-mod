@@ -39,7 +39,7 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        applyCapture(keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode);
+        applyCapture(keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
     }
 
     /** Lets {@code ModScreen} route the next mouse press here instead of to the widget under the cursor.

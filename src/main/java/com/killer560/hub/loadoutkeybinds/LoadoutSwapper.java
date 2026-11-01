@@ -146,12 +146,14 @@ public final class LoadoutSwapper {
      */
     private static boolean consumeVanillaClicks(Minecraft client, int code) {
         boolean mouse = KeyUtil.isMouseCode(code);
-        int value = mouse ? KeyUtil.mouseButton(code) : code;
+        // code is a STORED (GLFW) code; the mapping's bound key is native, so compare in native numbering.
+        InputConstants.Key want = mouse ? com.killer560.hub.compat.McInput.storedButtonInput(KeyUtil.mouseButton(code))
+                : com.killer560.hub.compat.McInput.storedKeyInput(code);
         boolean any = false;
         for (KeyMapping mapping : client.options.keyMappings) {
             InputConstants.Key bound = ((KeyMappingKeyAccessor) (Object) mapping).killer560smod$getKey();
-            if (bound == null || bound.getValue() != value
-                    || bound.getType() != (mouse ? InputConstants.Type.MOUSE : InputConstants.Type.KEYSYM)) {
+            if (bound == null || want == InputConstants.UNKNOWN || bound.getValue() != want.getValue()
+                    || bound.getType() != want.getType()) {
                 continue;
             }
             while (mapping.consumeClick()) {

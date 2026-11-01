@@ -304,7 +304,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
 
     private static Component restartKeyText(SimonSaysConfig cfg) {
         String name = cfg.getRestartKeyCode() < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(cfg.getRestartKeyCode()).getDisplayName().getString();
+                : com.killer560.hub.util.KeyUtil.keyName(cfg.getRestartKeyCode());
         return Component.literal("Restart Key: \u00a7b" + name);
     }
 
@@ -316,7 +316,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
     @Override
     public void onKeyCaptured(int keyCode) {
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
-        cfg.setRestartKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        cfg.setRestartKeyCode(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
         capturingRestartKey = false;
         cfg.save();
     }

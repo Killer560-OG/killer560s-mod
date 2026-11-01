@@ -88,7 +88,7 @@ public final class ListingHelperFeature {
             }
         });
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
-            if (!active() || copyButtonRect == null || event.button() != 0) {
+            if (!active() || copyButtonRect == null || com.killer560.hub.compat.McInput.button(event) != 0) {
                 return true;
             }
             int[] r = copyButtonRect;

@@ -20,7 +20,7 @@ public class FastLeapMouseHandlerMixin {
         if (window != Minecraft.getInstance().getWindow().handle()) {
             return;
         }
-        if (FastLeapInput.shouldCancelMouseButton(input.button(), action)) {
+        if (FastLeapInput.shouldCancelMouseButton(com.killer560.hub.compat.McInput.button(input), action)) {
             ci.cancel();
         }
     }

@@ -675,7 +675,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                 continue;
             }
             String[] layout = currentLayout();
-            if (event.button() == 1) {
+            if (com.killer560.hub.compat.McInput.button(event) == 1) {
                 if (layout[spot] != null) {
                     cycleOverride(layout[spot], 1);
                     rebuild();

@@ -113,7 +113,7 @@ public final class StorageSearchConfig {
     private int searchBoxOpacity = 100;
 
     private StorageSearchConfig() {
-        binds.add(new StorageSearchBind(StorageSearchBind.MOD_CTRL, org.lwjgl.glfw.GLFW.GLFW_KEY_F));
+        binds.add(new StorageSearchBind(StorageSearchBind.MOD_CTRL, com.killer560.hub.util.Keys.F));
     }
 
     public static StorageSearchConfig getInstance() {

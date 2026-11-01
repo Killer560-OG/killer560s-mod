@@ -22,7 +22,7 @@ public class BazaarFlipStopKeyMixin {
     @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void killer560smod$bazaarFlipStopOnKey(long window, int action, KeyEvent event, CallbackInfo ci) {
         if (action == 1 && window == Minecraft.getInstance().getWindow().handle()
-                && BazaarFlipFeature.onRawKeyPress(event.key())) {
+                && BazaarFlipFeature.onRawKeyPress(com.killer560.hub.compat.McInput.key(event))) {
             ci.cancel();
         }
     }

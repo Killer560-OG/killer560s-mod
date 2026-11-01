@@ -670,7 +670,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         mouseX = event.x();
         mouseY = event.y();
-        if (event.button() == 0) {
+        if (com.killer560.hub.compat.McInput.button(event) == 0) {
             Block b = blockAt(board(null), event.x(), event.y());
             ScoreboardEntry from = b != null ? b.entry() : inactiveAt(event.x(), event.y());
             if (from != null) {

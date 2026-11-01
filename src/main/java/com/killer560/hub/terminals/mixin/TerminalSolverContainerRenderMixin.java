@@ -35,7 +35,7 @@ public abstract class TerminalSolverContainerRenderMixin extends Screen {
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void killer560smod$clickTerminalCustomGui(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
-        if (TerminalSolverFeature.handleCustomGuiClick(self, event.x(), event.y(), event.button())) {
+        if (TerminalSolverFeature.handleCustomGuiClick(self, event.x(), event.y(), com.killer560.hub.compat.McInput.button(event))) {
             cir.setReturnValue(true);
         }
     }

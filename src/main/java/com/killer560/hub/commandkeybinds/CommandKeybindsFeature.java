@@ -6,7 +6,6 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ServerCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 import com.killer560.hub.compat.McCompat;
@@ -101,8 +100,7 @@ public final class CommandKeybindsFeature {
             return false;
         }
         if (CommandKeybindsConfig.isMouseCode(code)) {
-            return GLFW.glfwGetMouseButton(client.getWindow().handle(),
-                    CommandKeybindsConfig.mouseButton(code)) == GLFW.GLFW_PRESS;
+            return com.killer560.hub.compat.McInput.isStoredButtonDown(client.getWindow(), CommandKeybindsConfig.mouseButton(code));
         }
         return com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
     }
