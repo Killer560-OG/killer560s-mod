@@ -425,107 +425,7 @@ public final class BlinkCharge {
             return false;
         }
         synchronized (LOCK) {
-            boolean held = onSendLocked(c, packet, listener, flush);
-            if (!held && c == connection) {
-                noteSentLocked(packet);
-            }
-            return held;
-        }
-    }
-
-    // ---------------------------------------------------------------------------------------------------------------
-    // How much of the bank GrimAC covers right now (owner 2026-11-01: "if your ping spikes it just drops that extra one
-    // or something to blink the most amount possible" - the bank stays 20; what is not covered fires a tick or two later).
-
-    /** When the ping whose answer set GrimAC's floor arrived here (Timer: the first answer after a tick packet). */
-    private static long anchorMadeMs;
-    private static boolean tickSinceAnswer = true;
-    /** Arrival times of the server's pings, newest last (ms). */
-    private static final long[] PING_ARRIVALS = new long[256];
-    private static int pingArrivalCount;
-    private static final long JITTER_WINDOW_MS = 3000L;
-    /** GrimAC's TimerLimit: the floor never goes back further than this (limitAbuseOverPing default), plus its drift. */
-    private static final long TIMER_LIMIT_MS = 1000L;
-    private static final long TIMER_DRIFT_MS = 120L;
-    /** A fixed safety on top of the measured jitter. */
-    private static final long COVER_SAFETY_MS = 20L;
-
-    /** Something went out: keep GrimAC's floor anchor as Timer sets it. Under LOCK. */
-    private static void noteSentLocked(Packet<?> packet) {
-        if (packet instanceof ServerboundMovePlayerPacket || packet instanceof ServerboundClientTickEndPacket) {
-            tickSinceAnswer = true;
-        } else if (packet instanceof net.minecraft.network.protocol.common.ServerboundPongPacket && tickSinceAnswer) {
-            tickSinceAnswer = false;
-            Long made = madeOfLocked(packet);
-            anchorMadeMs = made != null ? made : System.currentTimeMillis();
-        }
-    }
-
-    /** The arrival time of the ping this answer belongs to (the answer may already be out of the queue). Under LOCK. */
-    private static Long madeOfLocked(Packet<?> pong) {
-        Long m = lastSentAnswerMade.get(pong);
-        return m;
-    }
-
-    private static final java.util.IdentityHashMap<Packet<?>, Long> lastSentAnswerMade = new java.util.IdentityHashMap<>();
-
-    private static void notePingArrivalLocked(long now) {
-        PING_ARRIVALS[pingArrivalCount % PING_ARRIVALS.length] = now;
-        pingArrivalCount++;
-    }
-
-    /**
-     * The network's recent unsteadiness: the longest gap between two of the server's pings in the last 3 s, less one tick
-     * (the server pings at least once a tick, so a longer gap is a stall or a latency swing that bunched them). Under LOCK.
-     */
-    private static long jitterMsLocked(long now) {
-        int n = Math.min(pingArrivalCount, PING_ARRIVALS.length);
-        long prev = -1;
-        long maxGap = 0;
-        for (int i = n; i >= 1; i--) {
-            long t = PING_ARRIVALS[(pingArrivalCount - i) % PING_ARRIVALS.length];
-            if (now - t > JITTER_WINDOW_MS) {
-                continue;
-            }
-            if (prev >= 0) {
-                maxGap = Math.max(maxGap, t - prev);
-            }
-            prev = t;
-        }
-        if (prev >= 0) {
-            maxGap = Math.max(maxGap, now - prev);
-        }
-        return Math.max(0L, Math.min(500L, maxGap - 50L));
-    }
-
-    /** Banked ticks GrimAC covers right now, the firing tick taken out. Under LOCK. */
-    private static int coveredTicksLocked() {
-        long now = System.currentTimeMillis();
-        long age = anchorMadeMs == 0 ? 0 : now - anchorMadeMs;
-        long room = Math.min(age, TIMER_LIMIT_MS) + TIMER_DRIFT_MS - jitterMsLocked(now) - COVER_SAFETY_MS;
-        return (int) Math.max(0L, room / 50L - 1L);
-    }
-
-    /** Ticks a shot kept back because GrimAC did not cover them yet; they fire as soon as it does. */
-    private static int coverLeft;
-    private static String coverLeftWhy;
-    private static long coverLeftAtMs;
-    private static long coverLeftTicks;
-    private static final long COVER_WAIT_MAX_MS = 3000L;
-
-    public static long coverLeftTicks() {
-        return coverLeftTicks;
-    }
-
-    public static int coveredTicksNow() {
-        synchronized (LOCK) {
-            return coveredTicksLocked();
-        }
-    }
-
-    public static long jitterMsNow() {
-        synchronized (LOCK) {
-            return jitterMsLocked(System.currentTimeMillis());
+            return onSendLocked(c, packet, listener, flush);
         }
     }
 
@@ -651,11 +551,6 @@ public final class BlinkCharge {
                     lastPingMs = System.currentTimeMillis();
                 }
                 Answer a = new Answer(new Held(packet, listener, flush), System.currentTimeMillis());
-                notePingArrivalLocked(a.madeMs());
-                if (lastSentAnswerMade.size() > 512) {
-                    lastSentAnswerMade.clear();
-                }
-                lastSentAnswerMade.put(packet, a.madeMs());
                 answers.addLast(a);
                 markHeldBlocksLocked(a);
                 answersHeldTotal++;
@@ -1357,25 +1252,6 @@ public final class BlinkCharge {
                 }
             }
         }
-        if (coverLeft > 0 && shotLeft == 0 && !inShotLoop) {
-            int cov;
-            synchronized (LOCK) {
-                cov = coveredTicksLocked();
-            }
-            long waited = System.currentTimeMillis() - coverLeftAtMs;
-            if (cov >= 1 || waited > COVER_WAIT_MAX_MS) {
-                int c = Math.min(coverLeft, Math.max(1, cov));
-                if (waited > COVER_WAIT_MAX_MS && cov < 1) {
-                    // Never covered in time: the rest stays banked for his next release (it is never dropped).
-                    LOGGER.info("[Blink] charge SHOT: {} tick(s) still not covered after {} ms - kept banked", coverLeft, waited);
-                    coverLeft = 0;
-                } else {
-                    coverLeft -= c;
-                    LOGGER.info("[Blink] charge SHOT: {} tick(s) covered now, {} ms after the first part - firing", c, waited);
-                    shoot(client, client.player, coverLeftWhy + ", continued", c);
-                }
-            }
-        }
         if (shotLeft > 0 && pausedWhy != null) {
             String still = shotPauseReason(client);
             long waited = System.currentTimeMillis() - pausedAtMs;
@@ -1482,8 +1358,6 @@ public final class BlinkCharge {
             armed = false;
             offAfterShot = false;
             active = true;
-            anchorMadeMs = System.currentTimeMillis(); // GrimAC's floor: the last answer before charging, about now
-            tickSinceAnswer = true;
         }
         bankEmptySinceMs = System.currentTimeMillis();
         statusTicks = 0;
@@ -1548,20 +1422,6 @@ public final class BlinkCharge {
         int n;
         synchronized (LOCK) {
             n = count < 0 ? banked : Math.min(count, banked);
-            int cov = coveredTicksLocked();
-            if (n > cov && !why.endsWith(", continued")) {
-                long jit = jitterMsLocked(System.currentTimeMillis());
-                int keep = n - Math.max(1, cov);
-                if (keep > 0) {
-                    coverLeft += keep;
-                    coverLeftWhy = why;
-                    coverLeftAtMs = System.currentTimeMillis();
-                    coverLeftTicks += keep;
-                    BlinkLog.event("charge SHOT (%s): GrimAC covers %d of %d tick(s) now (network jitter %d ms) - %d fire now, "
-                            + "%d the moment they are covered", why, cov, n, jit, n - keep, keep);
-                    n -= keep;
-                }
-            }
             banked -= n;
             if (stash != null) {
                 // Cannot happen at a tick's start (the tick-end settles it), but never leave a move behind.
@@ -1913,7 +1773,6 @@ public final class BlinkCharge {
             preHeld.clear();
             pushAnswerNext = false;
             pausedWhy = null;
-            coverLeft = 0;
             releaseAnswersLocked();
             tpSegs.clear();
             deferredWhy = null;
