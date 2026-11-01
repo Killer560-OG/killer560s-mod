@@ -43,7 +43,7 @@ public abstract class MainMenuButtonMixin {
         try {
             AbstractButton self = (AbstractButton) (Object) this;
             MainMenuTheme.drawButtonBox(graphics, self.getX(), self.getY(), self.getWidth(), self.getHeight(),
-                    self.isActive(), self.isHoveredOrFocused(), self.getAlpha());
+                    self.isActive(), self.isHoveredOrFocused(), self.getAlpha(), MainMenuTheme.iconWell(self));
             ci.cancel();
         } catch (Throwable t) {
             MainMenuTheme.fail("button box", t);

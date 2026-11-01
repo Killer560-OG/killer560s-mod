@@ -129,6 +129,16 @@ public final class MainMenuChrome {
     /** A title-screen button: a raised face in the theme's card color, an accent ring, glow and side bar on hover. */
     public static void drawButton(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active, boolean hover,
                                   float alpha) {
+        drawButton(g, x, y, w, h, active, hover, alpha, 0f);
+    }
+
+    /**
+     * {@code faceLift} (0..1) mixes the face toward the theme's text color: an icon-only button whose sprite has dark
+     * outlines (the pause menu's bug, friends and player-reporting icons) lost them on the near-black face, so it draws
+     * with a lighter face, the way vanilla draws those icons on mid-gray. Frame, highlight, shade and hover are unchanged.
+     */
+    public static void drawButton(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active, boolean hover,
+                                  float alpha, float faceLift) {
         MenuWidgets.sync();
         GuiRects r = GuiRects.begin(g);
         float a = Math.max(0f, Math.min(1f, alpha)) * (active ? 1f : 0.55f);
@@ -148,6 +158,10 @@ public final class MainMenuChrome {
         }
         int top = lit ? MenuStyle.CARD_HOVER_TOP : MenuStyle.CARD_TOP;
         int bottom = lit ? MenuStyle.mix(MenuStyle.CARD_HOVER_BOTTOM, MenuStyle.OR, 0.12f) : MenuStyle.CARD_BOTTOM;
+        if (faceLift > 0f) {
+            top = MenuStyle.mix(top, MenuStyle.TXT, faceLift);
+            bottom = MenuStyle.mix(bottom, MenuStyle.TXT, faceLift);
+        }
         r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, f(top, a), f(bottom, a));
         r.outline(x, y, w, h, f(lit ? MenuStyle.OR : MenuStyle.FRAME_RING, a));
         r.fill(x + 1, y + 1, x + w - 1, y + 2, f(MenuStyle.HILITE, a));

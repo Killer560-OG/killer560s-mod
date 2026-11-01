@@ -18,6 +18,7 @@
 		"MenuSliderMixin",
 		"MenuTabButtonMixin",
 		"MenuTextAndIconButtonMixin",
+		"SpriteIconButtonSpriteAccessor",
 		"MenuTextAreaMixin",
 		"MenuTooltipMixin",
 		"MenuListMixin",

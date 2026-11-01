@@ -227,6 +227,14 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   `parent.content()` in order), so a long URL wrapped over two rows is found from either row (testkit 1072). A URL regex
   whose host must end in letters misses `127.0.0.1` (the first 1072 run): allow an IPv4 host alternative.
 
+- The themed vanilla button box (`MainMenuButtonMixin`) is near black, and the pause menu's icon row (bug, feedback,
+  Friends, Player Reporting; the same `SpriteIconButton$CenteredIcon`s on 26.2 and 26.3) draws sprites whose outlines
+  are near black too (bug legs 11,25,30; friends outline 30,30,31; Amber face 31,25,19), so the icons lost their edges and
+  the row looked "a hair weird" (killer560, 2026-11-01). The geometry was identical to vanilla (testkit 1101-pause-layout
+  dumps every widget box with and without the mod). Those sprites (`pause_menu/*`, `friends/friends`) now get a face lifted
+  toward the theme text color on dark themes (`MainMenuTheme.iconWell`); compare a sprite's own palette against the face
+  before theming another icon button.
+
 ## World rendering
 
 - **To replace a vanilla HUD piece, wrap its Fabric layer instead of mixing into `Gui`:**
