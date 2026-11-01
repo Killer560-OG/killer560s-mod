@@ -403,6 +403,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - On 26.3 the world render events (AFTER_TRANSLUCENT_*) run inside an open render pass, so a first-time glyph bake from
   `font.width` there throws and FeatureGuard disables the feature (Auto Routes, AP3, 2026-11-01). Measure world text with
   `McRender.textWidth`, never `font.width`; no texture uploads in those events. docs/LESSONS-GUI.md has the detail.
+- 26.3's `RenderPipelines.LINES_SNIPPET` has no color target, so a mod pipeline built from it crashed the game on its first
+  draw (Secret Waypoints, 2026-11-01). Build it as `McRender.linesColorTarget(RenderPipeline.builder(LINES_SNIPPET))`.
 - A spelling sweep can merge map keys: six British/American tooltip key pairs ("color", "border color", ...) became one key
   each and the later entry silently replaced the earlier (a92e0357). After renaming text, check keyed maps for duplicates.
   A branch can do it too: aafast-1027 added a new "arrow align/aura clicks per tick" tooltip (1-7) above the old one (1-4),

@@ -380,3 +380,10 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   `font.width`, inside one it answers from widths measured earlier and queues a new string for the next COLLECT_SUBMITS
   or client tick (one frame's estimate; Auto Routes' mesh rebuilds when `textWidthEstimates()` moved). `submitText` is
   safe: its glyphs are prepared in `prepareFrame`, before the pass. `COLLECT_SUBMITS` runs outside the pass.
+
+- **26.3: a pipeline built from `RenderPipelines.LINES_SNIPPET` needs `McRender.linesColorTarget(...)`.** 26.3's
+  LINES_SNIPPET has no color target state (vanilla adds one per pipeline), 26.2's carries `ColorTargetState(TRANSLUCENT)`.
+  A pipeline with none crashes the GAME (not just the feature: vanilla draws it) on its first draw in the main pass,
+  "Render pass color attachment count must match pipeline color target state count" - Secret Waypoints' through-walls
+  lines on 2026-11-01, the first 26.3 run that ever drew one (96-ar). DEBUG_FILLED, GUI and GUI_TEXTURED snippets carry
+  the same target on both versions (javap). Wrap any new `RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)`.
