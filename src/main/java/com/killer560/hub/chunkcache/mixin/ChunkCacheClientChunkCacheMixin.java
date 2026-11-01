@@ -5,7 +5,6 @@ import com.killer560.hub.chunkcache.ChunkCacheManager;
 import com.killer560.hub.chunkcache.ChunkCacheStore;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
@@ -15,9 +14,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import java.util.Map;
-import java.util.function.Consumer;
 
 /**
  * Chunk Cache core (see {@link ChunkCacheManager}).
@@ -53,11 +49,17 @@ public abstract class ChunkCacheClientChunkCacheMixin implements ChunkCacheHolde
         killer560smod$store = new ChunkCacheStore();
     }
 
-    @SuppressWarnings("rawtypes")
+    /** 26.2 {@code replaceWithPacketData(int, int, FriendlyByteBuf, Map, Consumer)}, 26.3 {@code (int, int,
+     *  ClientboundLevelChunkPacketData)} (javap, both; both return the applied LevelChunk). A handler that named the 26.2
+     *  arguments would fail Mixin's descriptor check on 26.3 at load, so it takes only the callback info and reads the
+     *  position off the returned chunk. */
     @Inject(method = "replaceWithPacketData", at = @At("RETURN"), require = 0)
-    private void killer560smod$rememberChunk(int x, int z, FriendlyByteBuf buffer, Map heightmaps, Consumer consumer,
-                                             CallbackInfoReturnable<LevelChunk> cir) {
-        ChunkCacheManager.onChunkReceived(killer560smod$store, x, z, cir.getReturnValue());
+    private void killer560smod$rememberChunk(CallbackInfoReturnable<LevelChunk> cir) {
+        LevelChunk chunk = cir.getReturnValue();
+        if (chunk != null) {
+            ChunkPos pos = chunk.getPos();
+            ChunkCacheManager.onChunkReceived(killer560smod$store, pos.x(), pos.z(), chunk);
+        }
     }
 
     @Inject(method = "getChunk(IILnet/minecraft/world/level/chunk/status/ChunkStatus;Z)Lnet/minecraft/world/level/chunk/LevelChunk;",

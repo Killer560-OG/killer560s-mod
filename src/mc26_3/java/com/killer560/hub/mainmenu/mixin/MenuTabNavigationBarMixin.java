@@ -38,7 +38,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 public abstract class MenuTabNavigationBarMixin {
 
     @Redirect(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V"),
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blit(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V"),
             require = 0)
     private void killer560smod$themedTabSeparator(GuiGraphicsExtractor graphics, RenderPipeline pipeline, Identifier texture,
                                                   int x, int y, float u, float v, int width, int height,

@@ -34,4 +34,17 @@ public abstract class InventoryThemeInventoryBackgroundMixin {
             graphics.blit(pipeline, texture, x, y, u, v, width, height, texWidth, texHeight);
         }
     }
+
+    /** 26.3: the same call with RenderPipeline at its 26.3 path (Redirect takes one @At). */
+    @Redirect(
+            method = "extractBackground",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blit(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V"),
+            require = 0
+    )
+    private void killer560smod$themeInventoryBackground263(GuiGraphicsExtractor graphics, RenderPipeline pipeline,
+                                                          Identifier texture, int x, int y, float u, float v,
+                                                          int width, int height, int texWidth, int texHeight) {
+        killer560smod$themeInventoryBackground(graphics, pipeline, texture, x, y, u, v, width, height, texWidth, texHeight);
+    }
 }

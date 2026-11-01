@@ -17,7 +17,8 @@ import java.util.List;
 public abstract class CompactorPreviewTooltipMixin {
 
     @ModifyVariable(
-            method = "tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;)V",
+            method = {"tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;)V",
+                    "tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;Z)V"},
             at = @At("HEAD"), argsOnly = true, require = 0)
     private List<ClientTooltipComponent> killer560smod$addCompactorGrid(List<ClientTooltipComponent> components) {
         try {

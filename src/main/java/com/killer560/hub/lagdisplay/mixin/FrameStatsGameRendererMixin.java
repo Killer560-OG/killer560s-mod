@@ -14,6 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * {@code extractGui}, 26.2 {@code Gui.extractRenderState}, both {@code (DeltaTracker, boolean, boolean)});
  * {@code render(DeltaTracker, boolean)} calls {@code renderLevel(DeltaTracker)} and {@code GuiRenderer.render}
  * ({@code (GpuBufferSlice)} on 26.1.2, {@code ()} on 26.2). Each pair lists both versions' targets; one matches.
+ * 26.3 (javap): {@code render()} and {@code renderLevel()} take no arguments (the frame reads its render state), so
+ * those are listed too; extract and GuiRenderer.render() are as on 26.2.
  */
 @Mixin(GameRenderer.class)
 public abstract class FrameStatsGameRendererMixin {
@@ -76,22 +78,23 @@ public abstract class FrameStatsGameRendererMixin {
         }
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/DeltaTracker;Z)V", at = @At("HEAD"), require = 0)
+    @Inject(method = {"render(Lnet/minecraft/client/DeltaTracker;Z)V", "render()V"}, at = @At("HEAD"), require = 0)
     private void killer560smod$renderBegin(CallbackInfo ci) {
         if (FrameStats.active) {
             FrameStats.begin(FrameStats.RENDER);
         }
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/DeltaTracker;Z)V", at = @At("RETURN"), require = 0)
+    @Inject(method = {"render(Lnet/minecraft/client/DeltaTracker;Z)V", "render()V"}, at = @At("RETURN"), require = 0)
     private void killer560smod$renderEnd(CallbackInfo ci) {
         if (FrameStats.active) {
             FrameStats.end(FrameStats.RENDER);
         }
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/DeltaTracker;Z)V", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel(Lnet/minecraft/client/DeltaTracker;)V"),
+    @Inject(method = {"render(Lnet/minecraft/client/DeltaTracker;Z)V", "render()V"}, at = {
+            @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel(Lnet/minecraft/client/DeltaTracker;)V"),
+            @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel()V")},
             require = 0)
     private void killer560smod$renderLevelBegin(CallbackInfo ci) {
         if (FrameStats.active) {
@@ -99,16 +102,18 @@ public abstract class FrameStatsGameRendererMixin {
         }
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/DeltaTracker;Z)V", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel(Lnet/minecraft/client/DeltaTracker;)V",
-            shift = At.Shift.AFTER), require = 0)
+    @Inject(method = {"render(Lnet/minecraft/client/DeltaTracker;Z)V", "render()V"}, at = {
+            @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel(Lnet/minecraft/client/DeltaTracker;)V",
+                    shift = At.Shift.AFTER),
+            @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel()V", shift = At.Shift.AFTER)},
+            require = 0)
     private void killer560smod$renderLevelEnd(CallbackInfo ci) {
         if (FrameStats.active) {
             FrameStats.end(FrameStats.RENDER_LEVEL);
         }
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/DeltaTracker;Z)V", at = {
+    @Inject(method = {"render(Lnet/minecraft/client/DeltaTracker;Z)V", "render()V"}, at = {
             @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/render/GuiRenderer;render(Lcom/mojang/blaze3d/buffers/GpuBufferSlice;)V"),
             @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/render/GuiRenderer;render()V")},
             require = 0)
@@ -118,7 +123,7 @@ public abstract class FrameStatsGameRendererMixin {
         }
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/DeltaTracker;Z)V", at = {
+    @Inject(method = {"render(Lnet/minecraft/client/DeltaTracker;Z)V", "render()V"}, at = {
             @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/render/GuiRenderer;render(Lcom/mojang/blaze3d/buffers/GpuBufferSlice;)V",
                     shift = At.Shift.AFTER),
             @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/render/GuiRenderer;render()V", shift = At.Shift.AFTER)},

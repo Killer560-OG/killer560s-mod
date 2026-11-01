@@ -40,4 +40,13 @@ public abstract class MenuEditBoxMixin {
         }
         graphics.blitSprite(pipeline, sprite, x, y, width, height);
     }
+
+    /** 26.3: the same call with RenderPipeline at its 26.3 path (Redirect takes one @At). */
+    @Redirect(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V"),
+            require = 0)
+    private void killer560smod$themedTextField263(GuiGraphicsExtractor graphics, RenderPipeline pipeline, Identifier sprite,
+                                               int x, int y, int width, int height) {
+        killer560smod$themedTextField(graphics, pipeline, sprite, x, y, width, height);
+    }
 }

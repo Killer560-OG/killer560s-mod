@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 @Mixin(GuiGraphicsExtractor.class)
 public abstract class MenuFadeMixin {
 
-    @ModifyVariable(method = "fill(Lcom/mojang/blaze3d/pipeline/RenderPipeline;IIIII)V", at = @At("HEAD"), argsOnly = true,
+    @ModifyVariable(method = {"fill(Lcom/mojang/blaze3d/pipeline/RenderPipeline;IIIII)V", "fill(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;IIIII)V"}, at = @At("HEAD"), argsOnly = true,
             ordinal = 4)
     private int killer560smod$fadeFill(int color) {
         return MenuAnim.fade >= 1f ? color : MenuAnim.faded(color);

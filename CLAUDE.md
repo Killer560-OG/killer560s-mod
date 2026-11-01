@@ -258,6 +258,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   `RenderSystem.output*TextureOverride` fields and `precompilePipeline`; the hand mixins have one copy per version dir
   and the GPU differences sit behind `McRender` (drawHandMask, pipelineCompiles, swingProgress, copySwing). Details and
   the replacement call sequences: docs/LESSONS-GUI.md "First-person hands and the GPU API on 26.3".
+- remap.txt does not touch mixin STRINGS: a slash descriptor naming a moved class (RenderPipeline, GpuSurface) needs both
+  versions' forms listed, and a handler whose arguments changed crashes at load whatever `require` says. Run
+  `tools/mixin-descriptor-check.py` and `tools/mixin-handler-check.py` against each version after a port (LESSONS-GUI).
 - A mixin class that is not listed in its `*.mixins.json` compiles, ships in the jar and never runs - no warning at all.
   On 2026-10-26 a Bash heredoc that should have added six FrameStats mixins to `killer560smod-lagdisplay.mixins.json` aborted
   on a quoting error and the jar measured nothing; testkit 1026-stutter-hooks caught it by asserting every hook fired.

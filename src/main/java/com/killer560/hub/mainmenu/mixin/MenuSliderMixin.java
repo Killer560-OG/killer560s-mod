@@ -50,6 +50,15 @@ public abstract class MenuSliderMixin {
         graphics.blitSprite(pipeline, sprite, x, y, width, height, color);
     }
 
+    /** 26.3: the same call with RenderPipeline at its 26.3 path (Redirect takes one @At). */
+    @Redirect(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIIII)V", ordinal = 0),
+            require = 0)
+    private void killer560smod$themedSliderTrack263(GuiGraphicsExtractor graphics, RenderPipeline pipeline, Identifier sprite,
+                                                 int x, int y, int width, int height, int color) {
+        killer560smod$themedSliderTrack(graphics, pipeline, sprite, x, y, width, height, color);
+    }
+
     @Redirect(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIIII)V", ordinal = 1),
             require = 0)
@@ -66,6 +75,15 @@ public abstract class MenuSliderMixin {
             }
         }
         graphics.blitSprite(pipeline, sprite, x, y, width, height, color);
+    }
+
+    /** 26.3: the same call with RenderPipeline at its 26.3 path (Redirect takes one @At). */
+    @Redirect(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIIII)V", ordinal = 1),
+            require = 0)
+    private void killer560smod$themedSliderHandle263(GuiGraphicsExtractor graphics, RenderPipeline pipeline, Identifier sprite,
+                                                  int x, int y, int width, int height, int color) {
+        killer560smod$themedSliderHandle(graphics, pipeline, sprite, x, y, width, height, color);
     }
 
     @ModifyArg(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",

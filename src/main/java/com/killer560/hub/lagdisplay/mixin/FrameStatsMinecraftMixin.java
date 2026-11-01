@@ -58,10 +58,12 @@ public abstract class FrameStatsMinecraftMixin {
     }
 
     /** The buffer swap / present, where the GPU driver and vsync wait: 26.1.2 {@code RenderSystem.flipFrame(TracyFrameCapture)},
-     *  26.2 {@code GpuSurface.present()} (javap, both called from {@code renderFrame}). */
+     *  26.2 {@code GpuSurface.present()}, 26.3 the same method on {@code com.mojang.renderpearl.api.device.GpuSurface}
+     *  (javap, all called from {@code renderFrame}). Mixin strings are not remapped by remap.txt, so both owners are listed. */
     @Inject(method = "renderFrame", at = {
             @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;flipFrame(Lcom/mojang/blaze3d/TracyFrameCapture;)V"),
-            @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/GpuSurface;present()V")}, require = 0)
+            @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/GpuSurface;present()V"),
+            @At(value = "INVOKE", target = "Lcom/mojang/renderpearl/api/device/GpuSurface;present()V")}, require = 0)
     private void killer560smod$swapBegin(CallbackInfo ci) {
         if (FrameStats.active) {
             FrameStats.begin(FrameStats.SWAP);
@@ -71,7 +73,8 @@ public abstract class FrameStatsMinecraftMixin {
     @Inject(method = "renderFrame", at = {
             @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;flipFrame(Lcom/mojang/blaze3d/TracyFrameCapture;)V",
                     shift = At.Shift.AFTER),
-            @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/GpuSurface;present()V", shift = At.Shift.AFTER)},
+            @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/GpuSurface;present()V", shift = At.Shift.AFTER),
+            @At(value = "INVOKE", target = "Lcom/mojang/renderpearl/api/device/GpuSurface;present()V", shift = At.Shift.AFTER)},
             require = 0)
     private void killer560smod$swapEnd(CallbackInfo ci) {
         if (FrameStats.active) {

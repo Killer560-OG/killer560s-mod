@@ -39,4 +39,13 @@ public abstract class MenuCheckboxMixin {
         }
         graphics.blitSprite(pipeline, sprite, x, y, width, height, color);
     }
+
+    /** 26.3: the same call with RenderPipeline at its 26.3 path (Redirect takes one @At). */
+    @Redirect(method = "extractContents(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIIII)V"),
+            require = 0)
+    private void killer560smod$themedCheckbox263(GuiGraphicsExtractor graphics, RenderPipeline pipeline, Identifier sprite,
+                                              int x, int y, int width, int height, int color) {
+        killer560smod$themedCheckbox(graphics, pipeline, sprite, x, y, width, height, color);
+    }
 }

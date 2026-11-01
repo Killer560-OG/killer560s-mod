@@ -22,7 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(GuiGraphicsExtractor.class)
 public abstract class InventoryThemeHotbarSpriteMixin {
 
-    @Inject(method = "blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V",
+    @Inject(method = {"blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V", "blitSprite(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V"},
             at = @At("HEAD"), cancellable = true)
     private void killer560smod$dropHotbarSprite(RenderPipeline pipeline, Identifier sprite, int x, int y, int width,
                                                int height, CallbackInfo ci) {

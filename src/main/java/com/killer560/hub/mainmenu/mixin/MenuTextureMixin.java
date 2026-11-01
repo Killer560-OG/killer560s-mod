@@ -25,7 +25,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(GuiGraphicsExtractor.class)
 public abstract class MenuTextureMixin {
 
-    @Inject(method = "blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V",
+    @Inject(method = {"blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V", "blit(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V"},
             at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$themedSeparators(RenderPipeline pipeline, Identifier texture, int x, int y, float u, float v,
                                                 int width, int height, int textureWidth, int textureHeight, CallbackInfo ci) {

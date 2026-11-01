@@ -328,3 +328,20 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   how `HeldItemSwingDurationMixin` stays one file. A mixin listed in a shared `*.mixins.json` must exist in BOTH version
   directories (or in src/main), so a 26.3-only hook that needs a new class gets a main-dir mixin that is a no-op on 26.2
   (`HeldOutlineItemStateMixin`).
+- **Mixin strings are NOT remapped.** `remap.txt` rewrites dotted class names in Java code only, so a slash descriptor in a
+  mixin string written for 26.2 (`Lcom/mojang/blaze3d/pipeline/RenderPipeline;`) matched nothing on 26.3, silently: the
+  menu theme's widget redirects, Menu Fade, the inventory theme's hotbar and background, Main Menu textures. Each now
+  lists both paths (`method = {"...blaze3d...", "...renderpearl..."}`; an @Inject `at = {A, B}`). `@Redirect`,
+  `@ModifyArg` and `@ModifyVariable` take ONE `@At`, so a redirect gets a twin handler on the 26.3 target that calls the
+  original. `GameRenderer.render()`/`renderLevel()` and `GuiRenderer.draw()` lost their arguments on 26.3, so Lag
+  Display's frame stats, Motion Blur's frame hook (per-version copy; `gameRenderState().shouldRenderLevel` replaces the
+  old `renderLevel` argument) and the scoreboard blur needed the same. The scoreboard blur's `draw(GpuBufferSlice)` was
+  26.1.2's: on 26.2 too it matched nothing and the blur disabled itself every session until 2026-11-01.
+- **A handler whose arguments no longer match the target is a load-time crash, not a silent miss**: Mixin checks the
+  handler descriptor whatever `require` says. 26.3 changed `ClientChunkCache.replaceWithPacketData` to `(int, int,
+  ClientboundLevelChunkPacketData)` and `EntityRenderDispatcher.shouldRender` gained a `float`; the Chunk Cache handler
+  now takes only the callback info, Object Hider's has one copy per version. `tools/mixin-target-survey.py` checks names
+  only; `tools/mixin-descriptor-check.py <classes> <roots>` checks every full descriptor in mixin strings and
+  `tools/mixin-handler-check.py` every @Inject handler's arguments against the target's overloads (both read a jar or an
+  extracted class dir; generic-erasure lines such as `Packet<?>` vs `Packet` and `AvatarlikeEntity` vs `Avatar` are noise,
+  compare against the other version's run).
