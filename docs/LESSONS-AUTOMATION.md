@@ -465,6 +465,29 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   the floor at now - 1000 ms (`limitAbuseOverPing`), which is why a bank is 20 ticks at most. A shot still uncovered after 10 s
   is not fired (bank kept, logged). Tried and reverted: skipping his physics through the hold so its ticks cost nothing (the first ticks
   after still drew Simulation 0.025 decaying, even with input changes carried to the next sent tick).
+- p3sim runs GrimAC (it has /grimac; "/grim alerts" works for him) and sends about 4 pings a server tick, so "2 pings" is not
+  a server tick there. His alerts on 2026-10-27 16:54 traced to three Charge causes, each reproduced or read in Grim 2.3.74:
+  (1) Post "entity action": a sprint action sent in a BANKED tick sat after his last sent move, and the next answer made
+  Post flag it (Post.onPacketReceive: a post packet after a flying, then a valid transaction). Actions now wait for the next
+  move that is sent. Not reproduced on the testkit (it needs a tick with no due answer at its start). (2) TimerLimit on the
+  post-leap shot: the batch's oldest answer was 907 ms, and 20 ticks plus the firing tick need over 930 ms with Grim's
+  120 ms drift; answers now wait 1050 ms (50 B + 50). The margin is thin whatever the delay: TimerLimit never lets
+  the floor go back more than 1000 ms + drift (1120 ms with Grim's default 120), and a full bank plus its firing tick
+  is 1050 ms, so 70 ms of network jitter is all a 20-tick shot can absorb (1150 ms drew TimerLimit twice at 150 ms).
+  (3) Simulation 2.07 decaying x4: a superboom's knockback while the answers were held - Grim predicts a push only once the
+  ping it sent after the push is answered. That answer and all before it now go at once (BlinkCharge.onServerPush from
+  handleExplosion / handleSetEntityMotion over 0.1 blocks a tick); testkit 1027-blink-c-p3sim (b)/(c): GroundSpoof +
+  Simulation 0.5-0.75 before, clean after. (4) Simulation .001-.7 where Breaker Aura mined the wall
+  he walked through inside a shot: GrimAC predicts air only for a VANILLA-instant dig (CheckManagerListener.handleDigging:
+  BlockBreakSpeed.getBlockDamage >= 1); Hypixel's Dungeon Breaker on stone bricks is server-instant, so GrimAC applies the
+  break at the ping after the server's block update - a second later with Charge holding answers. While Charge is on:
+  no zero-ping air for a non-instant dig; block updates near him that change collision are held on the client until the
+  answer to the ping GrimAC sent just BEFORE the block packet goes (BasePacketWorldReader.handleBlockChange: sendTransaction
+  then addRealTimeTask(lastTransactionSent)); marking the ping after it left the client a move behind GrimAC (setback to the
+  wall, Simulation .0077 decaying). The answer goes only at a tick start and the change is applied before his physics; a shot pauses
+  at a wall Breaker Aura dug that is still there (about 1.3 s at 150 ms) and goes on covered; Breaker Aura never re-digs
+  a held block (that drew AirLiquidBreak x108). Answering the block's ping early instead cost the bank its cover (Timer on
+  the rest of the shot). The testkit's HxAbilities now emulates the Dungeon Breaker (1027-blink-breaker-walk/-leap/-stand).
 - The same lag allowance is shared by a hold and the bank: a hold while charging sends the waiting answers (TransactionOrder)
   and its own in its burst, so after it GrimAC covers only ~2 ticks of the kept bank. Before campaign-blink-1027 the shot after
   a kept hold drew Timer/TimerLimit and was half set back however long he waited (the bank was full, so nothing re-banked:

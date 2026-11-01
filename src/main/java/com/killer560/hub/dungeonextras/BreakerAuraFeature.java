@@ -937,8 +937,19 @@ public final class BreakerAuraFeature {
             // Inside a Blink Charge shot the break is predicted at once: the shot's next ticks move him into that spot before
             // the server's answer can arrive, and a block still there stopped him at the wall it had just mined (testkit
             // 1025-blink-shot-breaker, 2026-10-25).
-            breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing() || stands
-                    || com.killer560.hub.blink.BlinkCharge.inShot());
+            boolean predict = cfg.isBreakerAuraZeroPing() || stands || com.killer560.hub.blink.BlinkCharge.inShot();
+            if (predict && com.killer560.hub.blink.BlinkCharge.isActive()
+                    && level.getBlockState(pos).getDestroyProgress(player, level, pos) < 1.0f) {
+                // While Blink Charge holds the ping answers, never predict a break GrimAC does not predict: it sets the block
+                // to air at once only for an instant break by vanilla rules (CheckManagerListener.handleDigging, 2.3.74), and
+                // otherwise when the ping after the server's update is answered. A Dungeon Breaker on stone bricks is
+                // Hypixel's instant break, not vanilla's, so the client walked through a wall GrimAC still had - Simulation
+                // .001-.7 in the owner's p3sim log (16:54:51, 16:55:05). Blink's shot pauses at the wall instead
+                // (BlinkCharge.addShotPause below) and goes on once the server's update is in and answered.
+                predict = false;
+                PENDING.put(pos.immutable(), System.currentTimeMillis());
+            }
+            breakBlock(invoker, level, pos, hit.getDirection(), predict);
             LOGGER.info("[BreakerAura] START_DESTROY_BLOCK sent: pos={} block={} face={} seq={} boxDist={} reach={}"
                             + " zeroPing={} standsOn={} predictedAir={} charges={} available={} #{} of {} this tick tick={}",
                     pos.toShortString(), blockName, hit.getDirection(), lastSentSeq,
@@ -1028,6 +1039,37 @@ public final class BreakerAuraFeature {
         return pos.getY() < player.getY() && new AABB(pos).intersects(player.getBoundingBox().move(0.0, -0.05, 0.0));
     }
 
+    /** Digs sent unpredicted while Blink Charge held the answers: the wall is there until the server says not. */
+    private static final java.util.Map<BlockPos, Long> PENDING = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long PENDING_MAX_MS = 3000L;
+
+    static {
+        com.killer560.hub.blink.BlinkCharge.addShotPause(mc -> pendingWallAhead(mc));
+    }
+
+    /** A wall he asked the server to break, still there on the client and within his next step: a Blink shot waits. */
+    private static String pendingWallAhead(net.minecraft.client.Minecraft mc) {
+        if (PENDING.isEmpty() || mc.player == null || mc.level == null) {
+            return null;
+        }
+        long now = System.currentTimeMillis();
+        LocalPlayer p = mc.player;
+        AABB near = p.getBoundingBox().inflate(1.6, 0.0, 1.6);
+        String found = null;
+        for (java.util.Iterator<java.util.Map.Entry<BlockPos, Long>> it = PENDING.entrySet().iterator(); it.hasNext(); ) {
+            java.util.Map.Entry<BlockPos, Long> e = it.next();
+            BlockPos pos = e.getKey();
+            if (now - e.getValue() > PENDING_MAX_MS || mc.level.getBlockState(pos).getCollisionShape(mc.level, pos).isEmpty()) {
+                it.remove();
+                continue;
+            }
+            if (found == null && near.intersects(new AABB(pos))) {
+                found = "Breaker Aura's wall at " + pos.toShortString() + " is not broken on the server yet";
+            }
+        }
+        return found;
+    }
+
     /** Logging only: the sequence and prediction of the last {@link #breakBlock}, read by its caller's log line. */
     private static int lastSentSeq = -1;
     private static boolean lastSentPredicted;
@@ -1073,6 +1115,16 @@ public final class BreakerAuraFeature {
             // on a tick (this runs every tick, twice while the hand is being armed).
             if (eyeToBlockSq(eye, pos) > reachSq) {
                 continue;
+            }
+            // Dug already, its block change held until GrimAC applies it (Blink Charge): digging it again is a dig on
+            // what GrimAC already has as air - AirLiquidBreak x108 (testkit 1027-blink-breaker-leap at 150 ms, ts8).
+            Long dugAt = PENDING.get(pos);
+            if (dugAt != null) {
+                if (System.currentTimeMillis() - dugAt > PENDING_MAX_MS || level.getBlockState(pos).isAir()) {
+                    PENDING.remove(pos);
+                } else {
+                    continue;
+                }
             }
             if (level.isLoaded(pos) && level.getBlockState(pos).isAir()) {
                 // QUOI: `if (level.getBlockState(targetBlock).isAir) { activeBreakerBlocks.remove(targetBlock) }`.

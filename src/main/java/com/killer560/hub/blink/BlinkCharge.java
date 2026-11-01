@@ -126,16 +126,21 @@ public final class BlinkCharge {
     static final long ANSWER_DELAY_MS = 1050L;
 
     /**
-     * The delay actually used: just what a full bank needs, so the answers are no later than they must be. GrimAC clamps the
-     * timer balance up to (that answer's ping time - 120 ms drift), and a full bank of B ticks needs the balance 50 B + 50 ms
-     * behind: D >= 50 B - 70. Twenty ticks: 930 ms; 60 ms of headroom on top.
+     * The delay actually used: what the bank needs, so the answers are no later than they must be. GrimAC clamps the timer
+     * balance up to (the answered ping's time - 120 ms drift), but never further back than now - 1000 ms (TimerLimit), so a
+     * full bank of B ticks needs the balance 50 B + 50 ms behind with the oldest answer at least that old even right after
+     * the due ones went: D = 50 B + 50 (1050 ms for twenty).
      */
     static long answerDelayMs() {
         // The bank to cover, not just the cap: a bank kept when Charge Ticks was lowered (or an owner's smaller cap) is
         // larger than the cap, and with the cap's shorter delay GrimAC never covered it - the shot after a hold drew Timer
         // however long he stood (1027-blink-c-mixed: "C2 (bank 17)", campaign-blink-1027).
         int need = Math.max(cap(), banked + shotLeft);
-        return Math.min(ANSWER_DELAY_MS, Math.max(0L, 50L * need - 10L));
+        // A full bank's answers wait 1050 ms (the bank and the firing tick), so the oldest is near a second old whenever
+        // it is read and GrimAC's floor near its cap (TimerLimit.limitFallBehind: now - 1000 ms - drift; 1120 ms of room
+        // for 1050). At 990 ms a leap batch's oldest answer was 907 ms and the shot drew TimerLimit on p3sim (owner's log
+        // 16:54:28). 1150 ms drew TimerLimit on two kept-teleport shots at 150 ms (1027-blink-c-keep-delay, ts3).
+        return Math.min(ANSWER_DELAY_MS, Math.max(0L, 50L * need + 50L));
     }
 
     /**
@@ -155,6 +160,13 @@ public final class BlinkCharge {
     /** Blink's server-position hook, before vanilla answers it: how far the teleport moves him. Render thread. */
     static void noteServerTeleport(net.minecraft.world.phys.Vec3 from, net.minecraft.world.phys.Vec3 to, double dist) {
         teleportInPlace = dist < 0.1;
+        if (!teleportInPlace) {
+            // The split's budget reads how far he moved since the ping before last; across a teleport that is the teleport
+            // itself, and the first part after a 19-block leap got 0 blocks (one tick, then a wait - testkit
+            // 1027-blink-breaker-leap). Start that count again where the server put him.
+            prevPingPos = null;
+            lastPingPos = null;
+        }
         if (active) {
             BlinkLog.event("charge: server teleport %.2f blocks, client at %s, server put him at %s, bank %d, %d answer(s) "
                     + "waiting (oldest %d ms) - %s", dist, BlinkLog.fmt(from), BlinkLog.fmt(to), banked, answers.size(),
@@ -286,6 +298,41 @@ public final class BlinkCharge {
                 LOGGER.error("[Blink] a shot-tick end hook threw", e);
             }
         }
+    }
+
+    /**
+     * Asked before each shot tick: a reason PAUSES the shot there (the rest waits, as a split does) until it clears and
+     * GrimAC has heard of it - a wall Breaker Aura asked the server to break that the server has not broken yet
+     * (owner's p3sim log 16:54:51 / 16:55:05: walking through it on a zero-ping prediction drew Simulation .001-.7).
+     */
+    private static final java.util.List<java.util.function.Function<Minecraft, String>> SHOT_PAUSES =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+    private static String pausedWhy;
+    private static long pausedAtMs;
+    private static long shotPauses;
+    /** The longest a shot pauses for the world; after it the rest stays banked (logged). */
+    private static final long SHOT_PAUSE_MAX_MS = 2000L;
+
+    public static void addShotPause(java.util.function.Function<Minecraft, String> pause) {
+        SHOT_PAUSES.add(pause);
+    }
+
+    public static long shotPauses() {
+        return shotPauses;
+    }
+
+    private static String shotPauseReason(Minecraft client) {
+        for (java.util.function.Function<Minecraft, String> pause : SHOT_PAUSES) {
+            try {
+                String r = pause.apply(client);
+                if (r != null) {
+                    return r;
+                }
+            } catch (RuntimeException e) {
+                LOGGER.error("[Blink] a shot pause threw", e);
+            }
+        }
+        return null;
     }
 
     private static String shotGuardReason(Minecraft client) {
@@ -423,7 +470,14 @@ public final class BlinkCharge {
                 // the tick, so while he moved with Charge on no answer was ever sent at a tick start - 18 waiting, the
                 // oldest 1660 ms, at a 140 ms delay (testkit 1026-ap3-blink-3); walking long enough would reach GrimAC's
                 // 60 s transaction limit.
-                if (!tickOpen) {
+                // Not for a teleport's confirm: it sends every answer through its ping back to back anyway, and releasing the
+                // due ones first left the batch a younger oldest answer than the bank needs, so a covered leap took the
+                // slow hold (1027-blink-c-keep-delay "walking after the tp" at 50 ms, ts9).
+                // Nor while a block change waits for its answer: that answer must go at a tick START, before his physics
+                // runs on the changed block (pumpDeferredBlocks); sent mid-tick, GrimAC had the wall gone for a move the
+                // client made against it - Simulation .0077 decaying (1027-blink-breaker-stand at 50 ms, ts11).
+                if (!tickOpen && heldBlocks.isEmpty()
+                        && !(packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket)) {
                     releaseDueAnswersLocked(System.currentTimeMillis());
                 }
                 tickOpen = !(packet instanceof ServerboundClientTickEndPacket);
@@ -443,7 +497,7 @@ public final class BlinkCharge {
                     BlinkLog.event("charge: a menu click during a teleport hold - %d answer(s) and the held teleport(s) sent "
                             + "first so the server has his still input; bank kept (%d), backed again on still ticks", sent, banked);
                     if (banked + shotLeft > 0) {
-                        unbacked = banked + shotLeft;
+                        unbacked = rebackFor(banked + shotLeft);
                         rebackRun = 0;
                     }
                 }
@@ -483,6 +537,9 @@ public final class BlinkCharge {
                 return true;
             }
             if (passing) {
+                if (packet instanceof ServerboundMovePlayerPacket) {
+                    flushPreLocked();
+                }
                 return false;
             }
             if (answer) {
@@ -495,11 +552,45 @@ public final class BlinkCharge {
                 }
                 Answer a = new Answer(new Held(packet, listener, flush), System.currentTimeMillis());
                 answers.addLast(a);
+                markHeldBlocksLocked(a);
                 answersHeldTotal++;
                 maxAnswersWaiting = Math.max(maxAnswersWaiting, answers.size());
+                if (pushAnswerNext && tpSegs.isEmpty()) {
+                    // The ping GrimAC sent after a push (an explosion's knockback, a velocity) - it and everything before it
+                    // go now, so GrimAC knows the push reached him before his next move (owner's p3sim log 16:54:42, a
+                    // superboom with Charge on: Simulation 2.07 decaying x4 and a 6-block correction - GrimAC predicts the
+                    // knockback only from the answer to that ping, which waited a second while he already flew).
+                    pushAnswerNext = false;
+                    // Back to back, oldest first and no move between: GrimAC's floor lands on the oldest (as at a teleport),
+                    // so a full enough wait keeps the bank covered.
+                    long oldestAge = System.currentTimeMillis() - answers.peekFirst().madeMs();
+                    boolean coverKept = oldestAge >= 50L * (banked + shotLeft + 1) - TP_BATCH_SLACK_MS;
+                    int sent = 0;
+                    while (!answers.isEmpty()) {
+                        sendLocked(answers.pollFirst().held());
+                        sent++;
+                    }
+                    connection.flushChannel();
+                    pushReleases++;
+                    if (banked + shotLeft > 0 && !coverKept) {
+                        unbacked = rebackFor(banked + shotLeft);
+                        rebackRun = 0;
+                    }
+                    BlinkLog.event("charge: the server pushed him (%s) - %d answer(s) sent at once so GrimAC sees the push "
+                            + "(oldest %d ms); bank kept (%d)%s", pushWhy, sent, oldestAge, banked, banked + shotLeft > 0
+                            ? (coverKept ? ", still covered" : ", backed again on the next " + unbacked + " still tick(s)") : "");
+                }
+                return true;
+            }
+            if (packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket && tpSegs.isEmpty()) {
+                // A sprint or sneak action goes right before the next move that is SENT. In a banked tick the move is
+                // withheld; the action sent alone sat after his last sent move, and the next answer made GrimAC's Post
+                // check flag it ("entity action", owner's p3sim log 16:54:25: AP3's frozen charge flips sprint).
+                preHeld.addLast(new Held(packet, listener, flush));
                 return true;
             }
             if (packet instanceof ServerboundMovePlayerPacket && teleportMoveNext) {
+                flushPreLocked();
                 // The answer to a teleport goes right behind its confirm. Kept for the tick-end, the next landing's confirm
                 // overtook it when a Charged Chain's landings came back together, and GrimAC matched neither (BadPacketsN,
                 // TickTimer, Simulation 6.0 - testkit 62-argrim-1025-chargechain, 2026-10-25).
@@ -624,6 +715,9 @@ public final class BlinkCharge {
                         }
                     }
                     tpBatches++;
+                    // Actions held for this tick go after the answers: sent before them, they sat after his last move
+                    // with an answer behind - GrimAC Post "entity action" (1027-blink-c-p3sim (d) on 26.2, ts10).
+                    flushPreLocked();
                     BlinkLog.event("charge: %s teleport confirmed - bank kept (%d) and still covered; %d answer(s) sent back "
                             + "to back with the confirm right behind (oldest %d ms)", teleportInPlace ? "in-place" : "moving",
                             banked, sent, oldestAge);
@@ -631,6 +725,9 @@ public final class BlinkCharge {
                 }
                 if (mark != null) {
                     ArrayDeque<Held> q = new ArrayDeque<>();
+                    while (!preHeld.isEmpty()) {
+                        q.addLast(preHeld.pollFirst());
+                    }
                     q.addLast(new Held(packet, listener, flush));
                     tpHeldTotal++;
                     tpSegs.addLast(new TpSeg(mark, q, System.currentTimeMillis()));
@@ -652,6 +749,7 @@ public final class BlinkCharge {
             }
             if (checkedAgainstLook(packet)) {
                 busy = true;
+                flushPreLocked();
                 if (stash != null) {
                     sendLocked(stash);
                     stash = null;
@@ -696,7 +794,7 @@ public final class BlinkCharge {
         if (!active || banked + shotLeft <= 0) {
             return;
         }
-        unbacked = banked + shotLeft;
+        unbacked = rebackFor(banked + shotLeft);
         rebackRun = 0;
         BlinkLog.event("charge: %s - the bank is kept (%d) but GrimAC no longer covers it; the next %d still tick(s) are "
                 + "withheld to back it again", why, banked, unbacked);
@@ -704,7 +802,16 @@ public final class BlinkCharge {
 
     /** After a shot or a spent tick: what is left of the bank is unbacked at most as far as it was (backed ticks go first). */
     private static void trimUnbacked() {
-        unbacked = Math.max(0, Math.min(unbacked, banked + shotLeft));
+        unbacked = Math.max(0, Math.min(unbacked, rebackFor(banked + shotLeft)));
+    }
+
+    /**
+     * Still ticks to withhold to back B banked ticks again: the bank, its firing tick and one more. Withholding exactly B
+     * left GrimAC's balance 1000 ms behind for a 1050 ms shot, and with the answers at 1050 ms the leap-route shot drew
+     * TimerLimit on 26.2 at 150 ms (ts10).
+     */
+    private static int rebackFor(int b) {
+        return b <= 0 ? 0 : b + 2;
     }
 
     /**
@@ -715,11 +822,169 @@ public final class BlinkCharge {
     }
 
     private static final ArrayDeque<TpSeg> tpSegs = new ArrayDeque<>();
+    /** Sprint/sneak actions waiting for the next move that is sent (see onSendLocked). */
+    private static final ArrayDeque<Held> preHeld = new ArrayDeque<>();
+    /** The server pushed him: the next ping's answer and all before it go at once. */
+    private static boolean pushAnswerNext;
+    private static String pushWhy = "";
+    private static long pushReleases;
+
+    public static long pushReleases() {
+        return pushReleases;
+    }
+
+    /**
+     * Block changes near him that could stop or free his movement are applied on the client at the moment GrimAC applies
+     * them: when the answer to the first ping after the change goes out (GrimAC queues a server block change on its next
+     * transaction). Applied at once, the client walked into a broken wall up to a second before GrimAC let him (Charge holds
+     * the answers): Simulation .001-.7 in the owner's p3sim log (16:54:51, 16:55:05), .137-.4 decaying in testkit
+     * 1027-blink-breaker-*. Answering early instead cost the bank its cover (Timer on the rest of the shot, ts7). So the
+     * wall stays on his screen until its answer goes on the normal schedule, and a Blink shot pauses at it (Breaker Aura's
+     * shot pause) and goes on, still covered, once it is gone.
+     */
+    private static final class HeldBlock {
+        final Runnable apply;
+        final long atMs;
+        Answer mark;
+        int pingsSeen;
+        boolean ready;
+
+        HeldBlock(Runnable apply, long atMs) {
+            this.apply = apply;
+            this.atMs = atMs;
+        }
+    }
+
+    private static final ArrayDeque<HeldBlock> heldBlocks = new ArrayDeque<>();
+    /** A held block change with no ping after it yet is applied after this long (a server without pings). */
+    private static final long HELD_BLOCK_MAX_MS = 2500L;
+    private static long heldBlocksApplied;
+
+    public static long heldBlocksApplied() {
+        return heldBlocksApplied;
+    }
+
+    /** A block packet the mixin canceled: re-run it when the next ping's answer goes. Render thread. */
+    public static void deferBlockUpdate(Runnable apply) {
+        synchronized (LOCK) {
+            HeldBlock h = new HeldBlock(apply, System.currentTimeMillis());
+            // GrimAC applies a block change it sends at the transaction it sent just BEFORE it (BasePacketWorldReader.
+            // handleBlockChange: sendTransaction() unless one went in the last 2 ms, then addRealTimeTask(lastTransactionSent)
+            // - javap 2.3.74): the newest ping the client has answered or holds when the block packet arrives.
+            h.mark = answers.peekLast();
+            heldBlocks.addLast(h);
+        }
+    }
+
+    /** Whether a block change near him waits for its ping's answer (Charge holding answers, no teleport hold). */
+    public static boolean deferBlocks() {
+        // Nothing to wait for when no answer is held: GrimAC has the ping before the change answered already.
+        return active && connection != null && tpSegs.isEmpty() && !answers.isEmpty();
+    }
+
+    /**
+     * (Kept for the call site.) The first version marked the first ping AFTER the change and the client walked into the
+     * gap a move after GrimAC had it: Grim had air and expected him to move on while the wall still stopped him -
+     * setback to the wall and Simulation .0077 decaying (1027-blink-breaker-stand at 50 ms, ts11-ts13). Under LOCK.
+     */
+    private static void markHeldBlocksLocked(Answer a) {
+        // Marks are taken when the block packet arrives (deferBlockUpdate); a later ping marks nothing.
+    }
+
+    /** An answer went: the block changes it marks are ready. Under LOCK. */
+    private static void heldBlocksAnsweredLocked(Answer a) {
+        for (HeldBlock h : heldBlocks) {
+            if (h.mark == a) {
+                h.ready = true;
+            }
+        }
+    }
+
+    private static volatile boolean applyingDeferred;
+
+    /** The mixin re-running a held block packet must let it through. */
+    public static boolean applyingDeferred() {
+        return applyingDeferred;
+    }
+
+    /**
+     * Render thread, at each tick start before his physics: answers that are due go first (so GrimAC has the change before
+     * this tick's move), then the block changes they mark are applied, in order.
+     */
+    public static void pumpDeferredBlocks() {
+        java.util.List<Runnable> run = new java.util.ArrayList<>();
+        synchronized (LOCK) {
+            if (heldBlocks.isEmpty()) {
+                return;
+            }
+            if (active && connection != null && connection.isConnected() && !tickOpen) {
+                releaseDueAnswersLocked(System.currentTimeMillis());
+            }
+            long now = System.currentTimeMillis();
+            while (!heldBlocks.isEmpty()) {
+                HeldBlock h = heldBlocks.peekFirst();
+                boolean sent = h.ready || (h.mark != null && !answers.contains(h.mark));
+                if (!(sent || !active || connection == null || now - h.atMs > HELD_BLOCK_MAX_MS)) {
+                    break;
+                }
+                heldBlocks.pollFirst();
+                run.add(h.apply);
+            }
+        }
+        if (run.isEmpty()) {
+            return;
+        }
+        applyingDeferred = true;
+        try {
+            for (Runnable r : run) {
+                try {
+                    r.run();
+                } catch (RuntimeException e) {
+                    LOGGER.error("[Blink] a held block change threw", e);
+                }
+            }
+        } finally {
+            applyingDeferred = false;
+        }
+        heldBlocksApplied += run.size();
+        BlinkLog.event("charge: %d held block change(s) applied with their ping's answer", run.size());
+    }
+
+    /** Sends the held actions, in order, before a move goes. Under LOCK. */
+    private static void flushPreLocked() {
+        if (preHeld.isEmpty() || connection == null || !connection.isConnected()) {
+            return;
+        }
+        boolean was = passing;
+        passing = true;
+        try {
+            while (!preHeld.isEmpty()) {
+                Held h = preHeld.pollFirst();
+                connection.send(h.packet(), h.listener(), h.flush());
+            }
+        } finally {
+            passing = was;
+        }
+    }
+
+    /**
+     * The server pushed the local player (an explosion with knockback, a velocity packet): GrimAC brackets it with pings
+     * and predicts the push only once the ping after it is answered. Render thread, before vanilla applies it.
+     */
+    public static void onServerPush(String why) {
+        synchronized (LOCK) {
+            if (!active) {
+                return;
+            }
+            pushAnswerNext = true;
+            pushWhy = why;
+        }
+    }
     /** A teleport while charging sends the waiting answers back to back with its confirm (the cover is kept). */
     private static final boolean TP_BATCH = !"false".equals(System.getProperty("killer560smod.blink.tpBatch"));
     private static long tpBatches;
     /** How far short of the bank's ticks the oldest answer may be and still cover it (the shot is a tick later at least). */
-    private static final long TP_BATCH_SLACK_MS = 160L;
+    private static final long TP_BATCH_SLACK_MS = 120L;
 
     public static long teleportBatches() {
         return tpBatches;
@@ -746,6 +1011,7 @@ public final class BlinkCharge {
 
     /** An answer just went: the teleports waiting for it go right behind it. Under LOCK. */
     private static void answerSentLocked(Answer a) {
+        heldBlocksAnsweredLocked(a);
         while (!tpSegs.isEmpty() && tpSegs.peekFirst().mark() == a) {
             flushSegLocked(tpSegs.pollFirst(), "its ping answered");
         }
@@ -778,7 +1044,7 @@ public final class BlinkCharge {
         BlinkLog.event("charge: teleport hold let go after %d ms (%s): %d packet(s) sent behind its answer", ms, why, n);
         if (active && banked + shotLeft > 0) {
             // The second it held put him that much further behind than GrimAC allows on top of the bank.
-            unbacked = banked + shotLeft;
+            unbacked = rebackFor(banked + shotLeft);
             rebackRun = 0;
             BlinkLog.event("charge: the kept bank (%d) is backed again on the next %d still tick(s)", banked, unbacked);
         }
@@ -867,6 +1133,9 @@ public final class BlinkCharge {
     }
 
     private static void sendLocked(Held h) {
+        if (h.packet() instanceof ServerboundMovePlayerPacket && !preHeld.isEmpty()) {
+            flushPreLocked();
+        }
         passing = true;
         try {
             connection.send(h.packet(), h.listener(), h.flush());
@@ -883,6 +1152,7 @@ public final class BlinkCharge {
      * and ends it) and runs what is due. {@code allowed} is the Skyblock gate.
      */
     static void tick(Minecraft client, boolean allowed, ClientPacketListener listener) {
+        pumpDeferredBlocks();
         BlinkConfig cfg = BlinkConfig.getInstance();
         boolean down = chargeKeyDown(client, cfg);
         boolean pressed = down && !keyWasDown;
@@ -952,7 +1222,7 @@ public final class BlinkCharge {
             return;
         }
         synchronized (LOCK) {
-            if (!tickOpen) {
+            if (!tickOpen && heldBlocks.isEmpty()) { // with block changes held, pumpDeferredBlocks released them above
                 releaseDueAnswersLocked(System.currentTimeMillis());
             }
             if (!tpSegs.isEmpty() && System.currentTimeMillis() - tpSegs.peekFirst().startMs() > TP_HOLD_MAX_MS) {
@@ -982,14 +1252,37 @@ public final class BlinkCharge {
                 }
             }
         }
-        boolean splitWaiting = shotLeft > 0 && (tickStamp < shotLeftAt + 2
+        if (shotLeft > 0 && pausedWhy != null) {
+            String still = shotPauseReason(client);
+            long waited = System.currentTimeMillis() - pausedAtMs;
+            if (still == null && !pushAnswerNext) {
+                LOGGER.info("[Blink] charge SHOT paused {} ms ({}) - the server has done it and GrimAC heard; going on",
+                        waited, pausedWhy);
+                pausedWhy = null;
+            } else if (waited > SHOT_PAUSE_MAX_MS) {
+                int c;
+                synchronized (LOCK) {
+                    c = shotLeft;
+                    banked += c;
+                    shotLeft = 0;
+                }
+                LOGGER.info("[Blink] charge SHOT pause gave up after {} ms ({}): {} tick(s) kept banked", waited,
+                        still != null ? still : pausedWhy, c);
+                pausedWhy = null;
+            }
+        }
+        boolean splitWaiting = shotLeft > 0 && (pausedWhy != null || tickStamp < shotLeftAt + 2
                 || (answersHeldTotal - pongsAtSplit < SPLIT_WAIT_PINGS
                 && System.currentTimeMillis() - splitAtMs < SPLIT_WAIT_MAX_MS));
         if (splitWaiting) {
             if (!splitWaitSaid) {
                 splitWaitSaid = true;
-                LOGGER.info("[Blink] charge SHOT split: the other {} tick(s) wait for the server's next tick ({} of {} pings"
-                        + " since the first part)", shotLeft, answersHeldTotal - pongsAtSplit, SPLIT_WAIT_PINGS);
+                if (pausedWhy != null) {
+                    LOGGER.info("[Blink] charge SHOT paused: the other {} tick(s) wait - {}", shotLeft, pausedWhy);
+                } else {
+                    LOGGER.info("[Blink] charge SHOT split: the other {} tick(s) wait for the server's next tick ({} of {} "
+                            + "pings since the first part)", shotLeft, answersHeldTotal - pongsAtSplit, SPLIT_WAIT_PINGS);
+                }
             }
         } else if (shotLeft > 0) {
             int c;
@@ -1172,6 +1465,21 @@ public final class BlinkCharge {
                         banked += kept;
                     }
                     stoppedBy = stop;
+                    break;
+                }
+                String pause = shotPauseReason(client);
+                if (pause != null) {
+                    shotLeft = n - i;
+                    shotLeftWhy = why;
+                    shotLeftAt = tickStamp;
+                    pongsAtSplit = answersHeldTotal;
+                    splitAtMs = System.currentTimeMillis();
+                    splitWaitSaid = false;
+                    if (pausedWhy == null) {
+                        pausedAtMs = System.currentTimeMillis();
+                        shotPauses++;
+                    }
+                    pausedWhy = pause;
                     break;
                 }
                 double sofar = from.distanceTo(player.position());
@@ -1459,6 +1767,12 @@ public final class BlinkCharge {
                 sendLocked(stash);
             }
             stash = null;
+            if (connection != null && connection.isConnected()) {
+                flushPreLocked();
+            }
+            preHeld.clear();
+            pushAnswerNext = false;
+            pausedWhy = null;
             releaseAnswersLocked();
             tpSegs.clear();
             deferredWhy = null;
