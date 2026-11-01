@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
  * Unlimited Chat History. {@code ChatComponent.addMessageToQueue} trims {@code allMessages} to
  * {@code MAX_CHAT_HISTORY} (100) and {@code addMessageToDisplayQueue} trims the wrapped {@code trimmedMessages} to the
  * same number; the constant is inlined by javac, so each method holds a literal {@code bipush 100} (javap 26.1.2). Both
- * are replaced by {@link ChatHistoryConfig#limit()}. The constructor's {@code 100} is the sent-message history's
+ * are lifted to no cap while Unlimited is on (off, the value passes through unchanged). The constructor's {@code 100} is the sent-message history's
  * capacity and {@code addRecentChat}'s is that history's cap; neither is touched.
  *
  * <p>A MixinExtras {@code @ModifyExpressionValue} on the constant, never a {@code @ModifyConstant}: More Chat History
@@ -23,7 +23,8 @@ public abstract class ChatHistoryMixin {
 
     @ModifyExpressionValue(method = {"addMessageToQueue", "addMessageToDisplayQueue"},
             at = @At(value = "CONSTANT", args = "intValue=100"))
-    private int killer560smod$historyLimit(int vanilla) {
-        return ChatHistoryConfig.limit();
+    private int killer560smod$historyLimit(int limit) {
+        // Off: pass on whatever the cap is by now (100, or another chat-history mod's larger one), never force 100.
+        return ChatHistoryConfig.getInstance().isUnlimited() ? Integer.MAX_VALUE : limit;
     }
 }
