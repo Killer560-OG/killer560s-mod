@@ -846,6 +846,7 @@ public final class BlinkCharge {
         final Runnable apply;
         final long atMs;
         Answer mark;
+        int pingsSeen;
         boolean ready;
 
         HeldBlock(Runnable apply, long atMs) {
@@ -866,22 +867,28 @@ public final class BlinkCharge {
     /** A block packet the mixin canceled: re-run it when the next ping's answer goes. Render thread. */
     public static void deferBlockUpdate(Runnable apply) {
         synchronized (LOCK) {
-            heldBlocks.addLast(new HeldBlock(apply, System.currentTimeMillis()));
+            HeldBlock h = new HeldBlock(apply, System.currentTimeMillis());
+            // GrimAC applies a block change it sends at the transaction it sent just BEFORE it (BasePacketWorldReader.
+            // handleBlockChange: sendTransaction() unless one went in the last 2 ms, then addRealTimeTask(lastTransactionSent)
+            // - javap 2.3.74): the newest ping the client has answered or holds when the block packet arrives.
+            h.mark = answers.peekLast();
+            heldBlocks.addLast(h);
         }
     }
 
     /** Whether a block change near him waits for its ping's answer (Charge holding answers, no teleport hold). */
     public static boolean deferBlocks() {
-        return active && connection != null && tpSegs.isEmpty();
+        // Nothing to wait for when no answer is held: GrimAC has the ping before the change answered already.
+        return active && connection != null && tpSegs.isEmpty() && !answers.isEmpty();
     }
 
-    /** A new answer: it is the mark of every held block change that has none. Under LOCK. */
+    /**
+     * (Kept for the call site.) The first version marked the first ping AFTER the change and the client walked into the
+     * gap a move after GrimAC had it: Grim had air and expected him to move on while the wall still stopped him -
+     * setback to the wall and Simulation .0077 decaying (1027-blink-breaker-stand at 50 ms, ts11-ts13). Under LOCK.
+     */
     private static void markHeldBlocksLocked(Answer a) {
-        for (HeldBlock h : heldBlocks) {
-            if (h.mark == null) {
-                h.mark = a;
-            }
-        }
+        // Marks are taken when the block packet arrives (deferBlockUpdate); a later ping marks nothing.
     }
 
     /** An answer went: the block changes it marks are ready. Under LOCK. */
