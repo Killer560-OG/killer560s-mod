@@ -1610,12 +1610,47 @@ public final class BlinkCharge {
             player.tickCount++;
             player.tick();
             com.killer560.hub.compat.McCompat.sendPlayerChanges(player);
+            reportLookOnWire(player);
             connection.send(ServerboundClientTickEndPacket.INSTANCE);
         } finally {
             passing = false;
         }
         spentTicks++;
         return true;
+    }
+
+    /** The look of the last move with a rotation that really went on the wire ({@link #onWire}); NaN before one. */
+    private static volatile float wireYaw = Float.NaN;
+    private static volatile float wirePitch = Float.NaN;
+    /** Spent ticks whose move had to be sent by {@link #reportLookOnWire} (vanilla thought the look already sent). */
+    private static long spentLooksReported;
+
+    /** From {@code mixin/BlinkConnectionMixin} at the RETURN of {@code Connection.send}: a held packet is cancelled at the
+     *  head and only gets here when it is really let go. Any thread. */
+    public static void onWire(Packet<?> packet) {
+        if (packet instanceof ServerboundMovePlayerPacket move && move.hasRotation()) {
+            wireYaw = move.getYRot(0f);
+            wirePitch = move.getXRot(0f);
+        }
+    }
+
+    /**
+     * A spent tick's tick-end must find the server at the look its use was sent at (GrimAC BadPacketsJ compares them at the
+     * tick packet). Vanilla reports a look only when it differs from the last one IT sent, and Charge kept that turn off the
+     * wire (a banked tick), so when the use's look is the client's last "sent" one, no move went and the server still had
+     * the look from before the turn. Seen on the wire in testkit 1027-zpewlk-0 (zpew263-1101, 26.2 and 26.3): USE -90/9.02
+     * then the tick-end alone, one BadPacketsJ per burst whenever the setup turn had been banked. Sent only when the wire
+     * look differs, so it is never a repeated look (AimDuplicateLook).
+     */
+    private static void reportLookOnWire(LocalPlayer player) {
+        float yaw = player.getYRot();
+        float pitch = player.getXRot();
+        if (Float.isNaN(wireYaw) || (yaw == wireYaw && pitch == wirePitch)) {
+            return;
+        }
+        rotationOwed = false;
+        spentLooksReported++;
+        connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
     }
 
     private static long spentTicks;
@@ -1667,6 +1702,11 @@ public final class BlinkCharge {
         synchronized (LOCK) {
             return answers.size();
         }
+    }
+
+    /** Spent ticks that had to report their look themselves ({@code reportLookOnWire}). For the testkit. */
+    public static long spentLooksReported() {
+        return spentLooksReported;
     }
 
     public static long spentTicks() {
