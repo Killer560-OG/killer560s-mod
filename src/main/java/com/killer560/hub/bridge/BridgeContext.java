@@ -19,23 +19,15 @@ import java.util.UUID;
  * @param teammates       party members other than us ({@code PartyTracker})
  * @param devonianPartyHash Devonian's party hash, or null when it cannot be computed exactly (see
  *                        {@link BridgeFeature#devonianPartyHash})
- * @param serverCode      the sidebar server code NoammAddons/Odin group by, or null
- * @param entranceCol     entrance room's first grid cell, or -1
- * @param entranceRow     ditto
+ * @param serverCode      the sidebar server code Odin groups by, or null
  * @param selfFacts       {@link PartyDataFeature#selfFactSnapshot()} - empty outside a run
- * @param roomCells       every cell of every named room from our own map scan (for NoammAddons' per-cell room packet)
  * @param p3Active        between Goldor's P3 line and the core opening, this run
  * @param runEpoch        bumps every time a run starts - adapters reset their "already sent" state on change
  */
 public record BridgeContext(boolean active, boolean onHypixel, boolean inDungeon, String floor,
                             String selfName, UUID selfUuid, List<String> teammates, Integer devonianPartyHash,
-                            String serverCode, int entranceCol, int entranceRow,
-                            List<PartyDataFeature.SelfFact> selfFacts, List<RoomCell> roomCells,
+                            String serverCode, List<PartyDataFeature.SelfFact> selfFacts,
                             boolean p3Active, int runEpoch) {
-
-    /** One grid cell of a named room, in NoammAddons' {@code dungeonroom} shape. */
-    public record RoomCell(String name, int x, int z, int col, int row, boolean isSeparator) {
-    }
 
     public boolean identityKnown() {
         return selfName != null && selfUuid != null;

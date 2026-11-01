@@ -36,8 +36,7 @@ import java.util.concurrent.CompletableFuture;
  * <ul>
  *   <li>{@code hypixel} - api.hypixel.net: auctions, bazaar, items, collections, skills, election, profiles,
  *       museum, garden, player</li>
- *   <li>{@code noamm} - api.noamm.org: room database version/download and the bridge auth</li>
- *   <li>{@code noamm-ws} - ws.noamm.org: the NoammAddons bridge socket</li>
+ *   <li>{@code noamm} - api.noamm.org: the room database version/download (public data, no auth)</li>
  *   <li>{@code odin-ws} - ws.odtheking.com: the Odin bridge socket</li>
  *   <li>{@code devonian-ws} - wss.docilelm.top: the Devonian bridge socket</li>
  *   <li>{@code pv-backend} - skyblock-pv.thatgravyboat.tech: the Profile Viewer's keyless backend,
@@ -67,6 +66,17 @@ import java.util.concurrent.CompletableFuture;
  *       i.imgur.com, api.imgur.com, cdn.discordapp.com and media.discordapp.net: Image Preview (read on every request)</li>
  * </ul>
  *
+ * <h2>Never contacted</h2>
+ * NoammAddons' party socket ({@code ws.noamm.org}) and its sign-in endpoint ({@code api.noamm.org/hypixel/auth})
+ * are for NoammAddons' own users; its owner asked us on 2026-11-01 to stop authenticating into them. Nothing in
+ * the mod builds those URLs any more, and every helper here refuses them anyway ({@link #forbidden}), offline
+ * or not, so a future change cannot quietly bring the connection back.
+ *
+ * <h2>Test hook</h2>
+ * {@link #attemptsForTest()} lists the last {@value #ATTEMPT_LOG} targets any helper here was asked to reach
+ * (scheme, host and path only: no query string, which can carry a token), recorded before the network or any
+ * refusal, so a harness can prove a host was never tried. Memory only, never logged.
+ *
  * <p>Not covered, deliberately: the Shorts player's DevTools client talks to 127.0.0.1 (a browser this mod
  * launched), Discord RPC is a local pipe, and the Proxy Client carries the game connection itself.
  */
@@ -79,6 +89,65 @@ public final class ModNet {
     public static final String OFFLINE_PROPERTY = "killer560.net.offline";
 
     private ModNet() {
+    }
+
+    static final int ATTEMPT_LOG = 512;
+    private static final java.util.ArrayDeque<String> ATTEMPTS = new java.util.ArrayDeque<>();
+    private static final java.util.concurrent.atomic.AtomicInteger FORBIDDEN_REFUSALS =
+            new java.util.concurrent.atomic.AtomicInteger();
+
+    /** Test hook: the last {@value #ATTEMPT_LOG} targets asked for, oldest first ("wss://host/path"). */
+    public static java.util.List<String> attemptsForTest() {
+        synchronized (ATTEMPTS) {
+            return java.util.List.copyOf(ATTEMPTS);
+        }
+    }
+
+    public static void clearAttemptsForTest() {
+        synchronized (ATTEMPTS) {
+            ATTEMPTS.clear();
+        }
+    }
+
+    /** Test hook: how many calls {@link #forbidden} has refused since start-up. */
+    public static int forbiddenRefusalsForTest() {
+        return FORBIDDEN_REFUSALS.get();
+    }
+
+    private static void record(URI target) {
+        String scheme = target.getScheme() == null ? "" : target.getScheme().toLowerCase(Locale.ROOT);
+        String host = target.getHost() == null ? "" : target.getHost().toLowerCase(Locale.ROOT);
+        String port = target.getPort() < 0 ? "" : ":" + target.getPort();
+        String path = target.getRawPath() == null ? "" : target.getRawPath();
+        synchronized (ATTEMPTS) {
+            if (ATTEMPTS.size() >= ATTEMPT_LOG) ATTEMPTS.removeFirst();
+            ATTEMPTS.addLast(scheme + "://" + host + port + path);
+        }
+    }
+
+    /**
+     * True for NoammAddons' party socket host and its sign-in endpoint, which this mod must never contact
+     * (see the class javadoc). Matched on the real host, so it holds whatever code builds the URL.
+     */
+    public static boolean forbidden(URI target) {
+        String host = target.getHost();
+        if (host == null) return false;
+        host = host.toLowerCase(Locale.ROOT);
+        while (host.endsWith(".")) host = host.substring(0, host.length() - 1);
+        if (host.equals("ws.noamm.org") || host.endsWith(".ws.noamm.org")) return true;
+        if (host.equals("api.noamm.org")) {
+            String path = target.getPath() == null ? "" : target.getPath().toLowerCase(Locale.ROOT);
+            while (path.startsWith("//")) path = path.substring(1);
+            return path.startsWith("/hypixel/");
+        }
+        return false;
+    }
+
+    private static ConnectException forbiddenError(URI target) {
+        FORBIDDEN_REFUSALS.incrementAndGet();
+        LOGGER.warn("[Net] refused {}://{}: NoammAddons' socket and sign-in are never contacted",
+                target.getScheme(), target.getHost());
+        return new ConnectException("refused: " + target.getHost() + " is never contacted by this mod");
     }
 
     /** True when {@code -Dkiller560.net.offline=true}. Read on every call, so a harness can flip it mid-run. */
@@ -156,6 +225,8 @@ public final class ModNet {
     /** {@link HttpClient#send}, refused with a {@link ConnectException} when offline. */
     public static <T> HttpResponse<T> send(HttpClient client, HttpRequest request,
                                            HttpResponse.BodyHandler<T> handler) throws IOException, InterruptedException {
+        record(request.uri());
+        if (forbidden(request.uri())) throw forbiddenError(request.uri());
         if (blocked(request.uri())) throw offlineError(request.uri());
         return client.send(request, handler);
     }
@@ -163,6 +234,8 @@ public final class ModNet {
     /** {@link HttpClient#sendAsync}, completed exceptionally with a {@link ConnectException} when offline. */
     public static <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpClient client, HttpRequest request,
                                                                    HttpResponse.BodyHandler<T> handler) {
+        record(request.uri());
+        if (forbidden(request.uri())) return CompletableFuture.failedFuture(forbiddenError(request.uri()));
         if (blocked(request.uri())) return CompletableFuture.failedFuture(offlineError(request.uri()));
         return client.sendAsync(request, handler);
     }
@@ -170,12 +243,16 @@ public final class ModNet {
     /** {@code URI.create(url).toURL().openConnection()}, refused with a {@link ConnectException} when offline. */
     public static URLConnection open(String url) throws IOException {
         URI target = URI.create(url);
+        record(target);
+        if (forbidden(target)) throw forbiddenError(target);
         if (blocked(target)) throw offlineError(target);
         return target.toURL().openConnection();
     }
 
     /** {@link WebSocket.Builder#buildAsync}, completed exceptionally with a {@link ConnectException} when offline. */
     public static CompletableFuture<WebSocket> webSocket(WebSocket.Builder builder, URI target, WebSocket.Listener listener) {
+        record(target);
+        if (forbidden(target)) return CompletableFuture.failedFuture(forbiddenError(target));
         if (blocked(target)) return CompletableFuture.failedFuture(offlineError(target));
         return builder.buildAsync(target, listener);
     }

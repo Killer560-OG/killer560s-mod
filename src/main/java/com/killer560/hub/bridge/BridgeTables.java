@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -227,83 +226,6 @@ public final class BridgeTables {
     public static int roomCount() {
         return ROOMS.size();
     }
-
-    // ================================================================== doors
-
-    /**
-     * NoammAddons' {@code DoorType} enum (spec 2.4 "Enum wire values": {@code DoorType.kt:6-10} -
-     * {@code BLOOD, WITHER, NORMAL, ENTRANCE}, upper-case, Gson enum-name serialization) against the lower-case
-     * door names our own {@code dg.v1.door} uses ({@code killer560s-mod-relay/PROTOCOL.md}, "dg.v1.door":
-     * {@code normal, wither, blood, entrance}). Devonian and Odin carry no door data.
-     * @return the NoammAddons wire value, or null for anything else.
-     */
-    public static String noammDoorType(String ourType) {
-        if (ourType == null) {
-            return null;
-        }
-        return switch (ourType) {
-            case "normal" -> "NORMAL";
-            case "wither" -> "WITHER";
-            case "blood" -> "BLOOD";
-            case "entrance" -> "ENTRANCE";
-            default -> null;
-        };
-    }
-
-    /** Inverse of {@link #noammDoorType}. Case-sensitive on purpose: NoammAddons' own receiver calls
-     *  {@code DoorType.valueOf}, so anything not spelled exactly like this is not a real NoammAddons message. */
-    public static String ourDoorType(String noammType) {
-        if (noammType == null) {
-            return null;
-        }
-        return switch (noammType) {
-            case "NORMAL" -> "normal";
-            case "WITHER" -> "wither";
-            case "BLOOD" -> "blood";
-            case "ENTRANCE" -> "entrance";
-            default -> null;
-        };
-    }
-
-    // ================================================================== M7 dragons
-
-    /**
-     * NoammAddons' {@code WitherDragonEnum} constants (spec 2.4: {@code WitherDragonEnum.kt:38-43} -
-     * {@code Red, Orange, Green, Blue, Purple, None}, <b>first letter capitalized only</b>) against the
-     * lower-case colors our {@code dg.v1.dragon} / {@code PartyInteropState.offerDragonSpawn} use. {@code None}
-     * is never sent and never accepted.
-     */
-    public static String noammDragon(String ourColour) {
-        if (ourColour == null) {
-            return null;
-        }
-        return switch (ourColour.toLowerCase(Locale.ROOT)) {
-            case "red" -> "Red";
-            case "orange" -> "Orange";
-            case "green" -> "Green";
-            case "blue" -> "Blue";
-            case "purple" -> "Purple";
-            default -> null;
-        };
-    }
-
-    public static String ourDragon(String noammDragon) {
-        if (noammDragon == null) {
-            return null;
-        }
-        return switch (noammDragon) {
-            case "Red" -> "red";
-            case "Orange" -> "orange";
-            case "Green" -> "green";
-            case "Blue" -> "blue";
-            case "Purple" -> "purple";
-            default -> null; // includes "None"
-        };
-    }
-
-    /** NoammAddons' {@code S2CPacketM7Dragon.DragonEvent} (spec 2.4: {@code SPAWN}, {@code DEATH}). */
-    public static final String NOAMM_DRAGON_SPAWN = "SPAWN";
-    public static final String NOAMM_DRAGON_DEATH = "DEATH";
 
     // ================================================================== Odin melody
 

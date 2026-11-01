@@ -51,7 +51,7 @@ abstract class SocketAdapter {
     static final long BACKOFF_MAX_MS = 10 * 60_000L;
     /** Consecutive sign-in failures before giving up for the session. */
     static final int MAX_AUTH_FAILURES = 3;
-    /** Outbound cap: 2 messages/s steady, burst of 8. The real clients have no cap at all - NoammAddons sends
+    /** Outbound cap: 2 messages/s steady, burst of 8. The real clients have no cap at all - some send
      *  one message per scanned map tile, i.e. up to ~100 in a single burst when the map loads. */
     static final double BURST = 8.0;
     static final double REFILL_PER_SEC = 2.0;
@@ -533,7 +533,7 @@ abstract class SocketAdapter {
         }
     }
 
-    /** Worker: refresh the CONNECTED detail (e.g. NoammAddons' user counts arrived). */
+    /** Worker: refresh the CONNECTED detail. */
     protected final void refreshConnectedDetail() {
         if (status == BridgeStatus.CONNECTED) {
             setStatus(BridgeStatus.CONNECTED, "");
@@ -621,7 +621,7 @@ abstract class SocketAdapter {
 
         @Override
         public CompletionStage<?> onBinary(WebSocket webSocket, ByteBuffer data, boolean last) {
-            webSocket.request(1); // none of the three protocols uses binary frames
+            webSocket.request(1); // neither protocol uses binary frames
             return null;
         }
 

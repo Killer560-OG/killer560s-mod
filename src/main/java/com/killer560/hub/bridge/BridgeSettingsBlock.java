@@ -46,13 +46,6 @@ public final class BridgeSettingsBlock {
                     btn.setMessage(onOff("Devonian Bridge", cfg.isDevonian()));
                 }).bounds(x, y, 220, 18).build());
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(onOff("NoammAddons Bridge", cfg.isNoamm()), btn -> {
-                    cfg.setNoamm(!cfg.isNoamm());
-                    cfg.save();
-                    BridgeFeature.onSettingsChanged();
-                    btn.setMessage(onOff("NoammAddons Bridge", cfg.isNoamm()));
-                }).bounds(x, y, 220, 18).build());
-        y += 22;
         widgets.add(SettingsButtonWidget.builder(onOff("Odin Bridge", cfg.isOdin()), btn -> {
                     cfg.setOdin(!cfg.isOdin());
                     cfg.save();

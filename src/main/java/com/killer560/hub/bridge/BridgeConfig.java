@@ -26,7 +26,6 @@ public final class BridgeConfig {
 
     private boolean enabled = true;
     private boolean devonian = true;
-    private boolean noamm = true;
     private boolean odin = true;
 
     private BridgeConfig() {
@@ -50,7 +49,7 @@ public final class BridgeConfig {
             BridgeConfig cfg = new BridgeConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
             cfg.devonian = ConfigJson.getBool(obj, "devonian", true);
-            cfg.noamm = ConfigJson.getBool(obj, "noammAddons", true);
+            // "noammAddons" (the NoammAddons socket toggle) is no longer read: that socket was removed on 2026-11-01.
             cfg.odin = ConfigJson.getBool(obj, "odin", true);
             instance = cfg;
         } catch (Exception e) {
@@ -64,7 +63,6 @@ public final class BridgeConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("devonian", devonian);
-            obj.addProperty("noammAddons", noamm);
             obj.addProperty("odin", odin);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -85,14 +83,6 @@ public final class BridgeConfig {
 
     public void setDevonian(boolean devonian) {
         this.devonian = devonian;
-    }
-
-    public boolean isNoamm() {
-        return noamm;
-    }
-
-    public void setNoamm(boolean noamm) {
-        this.noamm = noamm;
     }
 
     public boolean isOdin() {

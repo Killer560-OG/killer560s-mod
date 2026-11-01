@@ -50,7 +50,7 @@ public class InteropTab extends BaseTab {
                 null, contentX, y, 220, 18));
         y += 26;
 
-        // Cross-Mod Bridge (Devonian / NoammAddons / Odin party sockets) - its own block, see BridgeSettingsBlock.
+        // Cross-Mod Bridge (Devonian / Odin party sockets) - its own block, see BridgeSettingsBlock.
         y = com.killer560.hub.bridge.BridgeSettingsBlock.addWidgets(widgets, contentX, y, contentWidth, requestRebuild);
 
         // The live status lines (other mods here, flags, counters, recent events) are no longer drawn on this tab
