@@ -482,7 +482,9 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   BlockBreakSpeed.getBlockDamage >= 1); Hypixel's Dungeon Breaker on stone bricks is server-instant, so GrimAC applies the
   break at the ping after the server's block update - a second later with Charge holding answers. While Charge is on:
   no zero-ping air for a non-instant dig; block updates near him that change collision are held on the client until the
-  answer to the ping after them goes (BlinkCharge.deferBlockUpdate, applied at tick start before physics); a shot pauses
+  answer to the ping GrimAC sent just BEFORE the block packet goes (BasePacketWorldReader.handleBlockChange: sendTransaction
+  then addRealTimeTask(lastTransactionSent)); marking the ping after it left the client a move behind GrimAC (setback to the
+  wall, Simulation .0077 decaying). The answer goes only at a tick start and the change is applied before his physics; a shot pauses
   at a wall Breaker Aura dug that is still there (about 1.3 s at 150 ms) and goes on covered; Breaker Aura never re-digs
   a held block (that drew AirLiquidBreak x108). Answering the block's ping early instead cost the bank its cover (Timer on
   the rest of the shot). The testkit's HxAbilities now emulates the Dungeon Breaker (1027-blink-breaker-walk/-leap/-stand).
