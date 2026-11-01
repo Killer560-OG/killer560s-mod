@@ -663,7 +663,7 @@ public final class WaterSolverFeature {
         // visible. Vanilla 26.1.2 NameTagFeatureRenderer uses (+s, -s, +s).
         poseStack.scale(scale, -scale, scale);
 
-        float width = font.width(text);
+        float width = McRender.textWidth(font, text);
         int background = (int) (0.4f * 255f) << 24;
         McRender.drawText(context, font, text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
 

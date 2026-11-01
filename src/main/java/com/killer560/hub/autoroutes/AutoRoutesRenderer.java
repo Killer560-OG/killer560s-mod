@@ -230,6 +230,7 @@ public final class AutoRoutesRenderer {
         Route route;
         int count;
         RouteNode[] nodes;          // route list order
+        boolean provisional;        // a label width was estimated (26.3, inside the render pass): rebuild next frame
         double[] key;               // per node: x, y, z, radius
         int[] keyInts;              // per node: type, flags, awaitCondition, awaitAmount, pathIndex, color
         String roomName;
@@ -287,7 +288,7 @@ public final class AutoRoutesRenderer {
 
         boolean matches(Route r, RouteCoords.Frame f, int sh, AutoRoutesConfig cfg, float th, double h,
                         AutoRoutesConfig.RenderStyle st, boolean num) {
-            if (r != route || sh != shift || th != thickness || h != height || st != style || num != numbers
+            if (provisional || r != route || sh != shift || th != thickness || h != height || st != style || num != numbers
                     || f.clayX() != clayX || f.clayZ() != clayZ || f.rotation() != rotation
                     || !f.roomName().equals(roomName)) {
                 return false;
@@ -371,6 +372,7 @@ public final class AutoRoutesRenderer {
         static Mesh build(Route route, RouteCoords.Frame frame, int shift, AutoRoutesConfig cfg, float thickness,
                           double height, AutoRoutesConfig.RenderStyle style, boolean numbers, Font font) {
             Mesh m = new Mesh();
+            long estimatesBefore = McRender.textWidthEstimates();
             List<RouteNode> list = route.nodes();
             int n = list.size();
             m.route = route;
@@ -497,7 +499,7 @@ public final class AutoRoutesRenderer {
                 // the lowest label fires first.
                 double lift = stackIndex(route, node) * STACK_STEP;
                 m.labelY[i] = real.y + height + 0.35 + lift;
-                double half = Math.max(font.width(text), font.lineHeight) * MAX_LABEL_SCALE + CULL_MARGIN;
+                double half = Math.max(McRender.textWidth(font, text), font.lineHeight) * MAX_LABEL_SCALE + CULL_MARGIN;
                 m.labelBounds[i] = new AABB(real.x - half, m.labelY[i] - half, real.z - half,
                         real.x + half, m.labelY[i] + half, real.z + half);
             }
@@ -526,6 +528,9 @@ public final class AutoRoutesRenderer {
                     m.postFill[i] = new RangeReplay(m, false, m.fillMid[i], m.fillEnd[i]);
                 }
             }
+            // 26.3: a label not measured yet was estimated inside the render pass (McRender.textWidth); build again
+            // next frame, once it has been measured, so its cull box is exact. Never true on 26.2.
+            m.provisional = McRender.textWidthEstimates() != estimatesBefore;
             return m;
         }
 
@@ -1084,7 +1089,7 @@ public final class AutoRoutesRenderer {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
             com.killer560.hub.compat.McRender.rotate(poseStack, McRender.cameraRotation(ctx));
             poseStack.scale(s, -s, s);
-            McRender.drawText(ctx, font, text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false,
+            McRender.drawText(ctx, font, text, -McRender.textWidth(font, text) / 2f, -font.lineHeight / 2f, color, false,
                     poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
         } finally {
             poseStack.popPose();

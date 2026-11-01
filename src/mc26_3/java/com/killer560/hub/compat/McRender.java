@@ -127,6 +127,128 @@ public final class McRender {
         return new long[]{0L, 0L};
     }
 
+    // ---- text measured from a world render event ------------------------------------------------------------------
+    //
+    // 26.3 runs the solid and classic-translucent stages inside ONE open render pass (LevelRenderer's main-pass lambda
+    // opens it, executeSolid and executeClassicTransparency take it; javap 26.3), and Fabric's AFTER_TRANSLUCENT_FEATURES
+    // and AFTER_TRANSLUCENT_TERRAIN fire inside executeClassicTransparency. Font.width bakes a glyph the first time it
+    // sees a code point (FontSet$DelayedBake -> BitmapProvider$Glyph.upload -> copyBufferToTexture), and
+    // FrontendCommandEncoder.copyBufferToTexture throws "Close the existing render pass before performing additional
+    // commands" while isInRenderPass. That disabled Auto Routes and AP3 on their first frame (tkport263 U-2, U-3).
+    // So a world renderer never calls the font inside a pass: it asks here. Outside a pass this measures (and bakes)
+    // as normal; inside one it answers from widths measured earlier, and a string not seen yet is queued, measured at
+    // the next safe point (the next frame's COLLECT_SUBMITS, or the client tick) and estimated for that one frame.
+    // Drawing is unaffected: submitText only records the sequence, and its glyphs are prepared in prepareFrame,
+    // before any pass opens.
+
+    private static final java.util.Map<Object, Integer> TEXT_WIDTHS = new java.util.HashMap<>();
+    private static final java.util.LinkedHashSet<Object> TEXT_PENDING = new java.util.LinkedHashSet<>();
+    private static final int TEXT_WIDTHS_MAX = 4096;
+    private static long textWidthEstimates;
+    private static long textWidthsWarmed;
+    private static final org.slf4j.Logger TEXT_LOG = com.killer560.hub.util.ModLog.get("killer560smod-render");
+
+    /** Client init: measures queued strings at points where no render pass is open. A no-op on 26.2. */
+    public static void registerTextWidths() {
+        net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.COLLECT_SUBMITS
+                .register(ctx -> warmPendingText());
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK
+                .register(client -> warmPendingText());
+    }
+
+    /** Whether a render pass is open on the device's (single) command encoder right now. Always false on 26.2. */
+    public static boolean inRenderPass() {
+        Object encoder = RenderSystem.getDevice().createCommandEncoder();
+        if (encoder instanceof com.mojang.renderpearl.frontend.FrontendCommandEncoder frontend) {
+            return frontend.isInRenderPass();
+        }
+        return true; // an encoder we do not know: assume the worst and never bake
+    }
+
+    /** {@code font.width(text)}, safe to call inside an open render pass (see above). */
+    public static int textWidth(net.minecraft.client.gui.Font font, String text) {
+        if (text == null) {
+            return 0;
+        }
+        return textWidthOf(font, text);
+    }
+
+    /** {@code font.width(text)} for a component, safe to call inside an open render pass (see above). */
+    public static int textWidth(net.minecraft.client.gui.Font font, net.minecraft.network.chat.FormattedText text) {
+        if (text == null) {
+            return 0;
+        }
+        return textWidthOf(font, text);
+    }
+
+    /**
+     * How many {@link #textWidth} answers were estimates (a string not yet measured, asked inside a pass). A caller that
+     * caches a width compares this before and after and measures again next frame when it moved. Always 0 on 26.2.
+     */
+    public static long textWidthEstimates() {
+        return textWidthEstimates;
+    }
+
+    /** Testkit: {estimates answered, strings measured at a safe point}. Both 0 on 26.2. */
+    public static long[] textWidthStats() {
+        return new long[]{textWidthEstimates, textWidthsWarmed};
+    }
+
+    private static int textWidthOf(net.minecraft.client.gui.Font font, Object text) {
+        if (!inRenderPass()) {
+            int w = measure(font, text);
+            remember(text, w);
+            return w;
+        }
+        Integer known = TEXT_WIDTHS.get(text);
+        if (known != null) {
+            return known;
+        }
+        TEXT_PENDING.add(text);
+        if (textWidthEstimates++ == 0) {
+            TEXT_LOG.info("[McRender] first text width asked inside an open render pass: estimated, measured at the next safe point");
+        }
+        return estimate(text instanceof String s ? s : ((net.minecraft.network.chat.FormattedText) text).getString());
+    }
+
+    private static int measure(net.minecraft.client.gui.Font font, Object text) {
+        return text instanceof String s ? font.width(s) : font.width((net.minecraft.network.chat.FormattedText) text);
+    }
+
+    private static void remember(Object text, int width) {
+        if (TEXT_WIDTHS.size() >= TEXT_WIDTHS_MAX && !TEXT_WIDTHS.containsKey(text)) {
+            TEXT_WIDTHS.clear();
+        }
+        TEXT_WIDTHS.put(text, width);
+    }
+
+    private static void warmPendingText() {
+        if (TEXT_PENDING.isEmpty() || inRenderPass()) {
+            return;
+        }
+        net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+        for (Object text : TEXT_PENDING) {
+            remember(text, measure(font, text));
+            if (textWidthsWarmed++ == 0) {
+                TEXT_LOG.info("[McRender] first queued text width measured outside the render pass");
+            }
+        }
+        TEXT_PENDING.clear();
+    }
+
+    /** About what the default font gives: 6 px a character (5 + 1 spacing), section-sign codes skipped. */
+    private static int estimate(String s) {
+        int w = 0;
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) == '§' && i + 1 < s.length()) {
+                i++;
+                continue;
+            }
+            w += 6;
+        }
+        return w;
+    }
+
     public static void inCameraSpace(LevelRenderContext context, RenderType type, Geometry geometry) {
         PoseStack poseStack = context.poseStack();
         Vec3 cam = cameraPos(context);

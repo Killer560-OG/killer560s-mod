@@ -222,7 +222,7 @@ public final class EtherwarpFeature {
                 poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
                 com.killer560.hub.compat.McRender.rotate(poseStack, McRender.cameraRotation(ctx));
                 poseStack.scale(s, -s, s);
-                McRender.drawText(ctx, font, label, -font.width(label) / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false,
+                McRender.drawText(ctx, font, label, -McRender.textWidth(font, label) / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false,
                         poseStack, net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH,
                         0, 0xF000F0);
             } finally {

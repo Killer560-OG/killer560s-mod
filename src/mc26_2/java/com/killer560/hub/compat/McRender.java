@@ -127,6 +127,39 @@ public final class McRender {
         return new long[]{0L, 0L};
     }
 
+    // ---- text measured from a world render event ------------------------------------------------------------------
+    // 26.3 runs the world render events inside an open render pass, where a first-time glyph bake throws; its copy of
+    // these answers from widths measured outside the pass (see mc26_3). 26.2 has no such pass: plain font.width.
+
+    /** Client init: nothing to do on 26.2 (26.3 measures queued strings outside its render pass). */
+    public static void registerTextWidths() {
+    }
+
+    /** Whether a render pass is open right now. 26.2's world render events run outside one. */
+    public static boolean inRenderPass() {
+        return false;
+    }
+
+    /** {@code font.width(text)}; on 26.3 safe inside an open render pass. */
+    public static int textWidth(net.minecraft.client.gui.Font font, String text) {
+        return text == null ? 0 : font.width(text);
+    }
+
+    /** {@code font.width(text)} for a component; on 26.3 safe inside an open render pass. */
+    public static int textWidth(net.minecraft.client.gui.Font font, net.minecraft.network.chat.FormattedText text) {
+        return text == null ? 0 : font.width(text);
+    }
+
+    /** How many {@link #textWidth} answers were estimates; always 0 on 26.2. */
+    public static long textWidthEstimates() {
+        return 0L;
+    }
+
+    /** Testkit: {estimates answered, strings measured at a safe point}. Both 0 on 26.2. */
+    public static long[] textWidthStats() {
+        return new long[]{0L, 0L};
+    }
+
     public static void inCameraSpace(LevelRenderContext context, RenderType type, Geometry geometry) {
         PoseStack poseStack = context.poseStack();
         Vec3 cam = cameraPos(context);

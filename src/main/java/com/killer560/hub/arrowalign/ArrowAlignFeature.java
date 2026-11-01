@@ -793,7 +793,7 @@ public final class ArrowAlignFeature {
         poseStack.translate(worldX - cam.x, worldY - cam.y, worldZ - cam.z);
         com.killer560.hub.compat.McRender.rotate(poseStack, new org.joml.Quaternionf().rotationYXZ((float) (Math.PI / 2.0), 0f, 0f));
         poseStack.scale(scale, -scale, scale);
-        float width = font.width(text);
+        float width = McRender.textWidth(font, text);
         McRender.drawText(context, font, text, -width / 2f, -font.lineHeight / 2f, argb, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
         poseStack.popPose();
     }

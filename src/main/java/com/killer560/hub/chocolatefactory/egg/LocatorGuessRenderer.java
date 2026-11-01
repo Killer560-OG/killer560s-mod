@@ -108,7 +108,7 @@ final class LocatorGuessRenderer {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
             com.killer560.hub.compat.McRender.rotate(poseStack, McRender.cameraRotation(context));
             poseStack.scale(s, -s, s);
-            McRender.drawText(context, font, text, -font.width(text) / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false,
+            McRender.drawText(context, font, text, -McRender.textWidth(font, text) / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false,
                     poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
         } finally {
             poseStack.popPose();

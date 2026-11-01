@@ -161,7 +161,7 @@ public final class DungeonAlertsFeature {
         com.killer560.hub.compat.McRender.rotate(poseStack, McRender.cameraRotation(context));
         float s = 0.025f * scale;
         poseStack.scale(s, -s, s);
-        float width = font.width(text);
+        float width = McRender.textWidth(font, text);
         int background = (int) (0.25f * 255f) << 24;
         McRender.drawText(context, font, text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
         poseStack.popPose();

@@ -2175,7 +2175,7 @@ public final class BloodCampFeature {
         // (+s, -s, +s): the 26.1.2 nametag transform - see SimonSaysFeature.renderNumber for why not (-s, -s, s).
         poseStack.scale(scale, -scale, scale);
 
-        float width = font.width(text);
+        float width = McRender.textWidth(font, text);
         // Centered across, hanging DOWN from the anchor (y 0 is the top of the glyphs), with a shadow and no
         // background plate, through walls - as Noamm's renderString draws it.
         // Timer Text Color (killer560, 2026-10-18), white by default as it always was.

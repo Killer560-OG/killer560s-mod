@@ -3244,7 +3244,7 @@ public final class SimonSaysFeature {
         // NoammAddons' 26.1.2 Render3D.renderString.)
         poseStack.scale(scale, -scale, scale);
 
-        float width = font.width(text);
+        float width = McRender.textWidth(font, text);
         // Fully transparent (2026-09-14, killer560: "remove the grey outline around the numbers").
         int background = 0;
         // Real bug found and fixed (2026-09-14): this used Font.DisplayMode.NORMAL (depth-tested), but

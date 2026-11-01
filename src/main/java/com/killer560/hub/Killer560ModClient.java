@@ -133,6 +133,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.configversion.ConfigMigrations.run();
         // World render geometry: one draw call per render type per event (26.1.2; see McRender).
         com.killer560.hub.compat.McRender.registerBatching();
+        com.killer560.hub.compat.McRender.registerTextWidths();
         com.killer560.hub.autodebuff.AutoDebuffFeature.register();
         // The sim's entry point is the title screen's "Dungeon Sim" row, which MainMenuTitleLayout
         // places under Multiplayer - so there is nothing to register here.

@@ -435,11 +435,11 @@ public final class WaypointRoutesFeature {
             poseStack.scale(s, -s, s);
             float yOff = (line1 != null && line2 != null) ? -font.lineHeight : -font.lineHeight / 2f;
             if (line1 != null) {
-                McRender.drawText(context, font, line1, -font.width(line1) / 2f, yOff, color1, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+                McRender.drawText(context, font, line1, -McRender.textWidth(font, line1) / 2f, yOff, color1, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
                 yOff += font.lineHeight + 1;
             }
             if (line2 != null) {
-                McRender.drawText(context, font, line2, -font.width(line2) / 2f, yOff, color2, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+                McRender.drawText(context, font, line2, -McRender.textWidth(font, line2) / 2f, yOff, color2, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
             }
         } finally {
             // Review fix (2026-09-15): never leave the shared level PoseStack unbalanced if a draw throws.
