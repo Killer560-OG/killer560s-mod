@@ -475,31 +475,27 @@ public final class BlinkCharge {
     }
 
     /**
-     * The network's recent unsteadiness, from when the server's pings arrive. The server sends them on its ticks, 50 ms
-     * apart (not on every tick), so with a steady latency they all arrive at the same phase of a 50 ms grid; a latency that
-     * swings scatters that phase. The jitter is twice the circular spread of the phases over the last 3 s (0-98 ms). The
-     * longest gap between pings was tried first and read 60-110 ms on a steady testkit connection, because the server skips
-     * ticks (1027 runs, ts15). Under LOCK.
+     * The network's recent unsteadiness: the longest gap between two of the server's pings in the last 3 s, less one tick
+     * (the server pings at least once a tick, so a longer gap is a stall or a latency swing that bunched them). Under LOCK.
      */
     private static long jitterMsLocked(long now) {
         int n = Math.min(pingArrivalCount, PING_ARRIVALS.length);
-        int[] phases = new int[n];
-        int k = 0;
+        long prev = -1;
+        long maxGap = 0;
         for (int i = n; i >= 1; i--) {
             long t = PING_ARRIVALS[(pingArrivalCount - i) % PING_ARRIVALS.length];
-            if (now - t <= JITTER_WINDOW_MS) {
-                phases[k++] = (int) (t % 50L);
+            if (now - t > JITTER_WINDOW_MS) {
+                continue;
             }
+            if (prev >= 0) {
+                maxGap = Math.max(maxGap, t - prev);
+            }
+            prev = t;
         }
-        if (k < 4) {
-            return 0L;
+        if (prev >= 0) {
+            maxGap = Math.max(maxGap, now - prev);
         }
-        java.util.Arrays.sort(phases, 0, k);
-        int largestGap = phases[0] + 50 - phases[k - 1];
-        for (int i = 1; i < k; i++) {
-            largestGap = Math.max(largestGap, phases[i] - phases[i - 1]);
-        }
-        return 2L * (50 - largestGap);
+        return Math.max(0L, Math.min(500L, maxGap - 50L));
     }
 
     /** Banked ticks GrimAC covers right now, the firing tick taken out. Under LOCK. */
@@ -1367,8 +1363,6 @@ public final class BlinkCharge {
                 cov = coveredTicksLocked();
             }
             long waited = System.currentTimeMillis() - coverLeftAtMs;
-            // The first part has landed; the margin kept for the jitter covers the rest now.
-            cov = coverLeft;
             if (cov >= 1 || waited > COVER_WAIT_MAX_MS) {
                 int c = Math.min(coverLeft, Math.max(1, cov));
                 if (waited > COVER_WAIT_MAX_MS && cov < 1) {
@@ -1554,14 +1548,9 @@ public final class BlinkCharge {
         int n;
         synchronized (LOCK) {
             n = count < 0 ? banked : Math.min(count, banked);
-            // A covered full bank has about 70 ms to spare under TimerLimit (1000 + 120 ms drift for 1050 ms of shot). When
-            // the measured jitter eats more than that, a tick per 50 ms over goes a tick later instead. Trimming from the
-            // floor anchor's age alone read 5 of 20 covered after a re-backed explosion that the bank+2 reback covered in
-            // full (1027-blink-c-p3sim (b), ts15/ts16), so the base cover stays covered()/unbacked.
-            long jit = jitterMsLocked(System.currentTimeMillis());
-            int keepForJitter = jit > 50L ? (int) Math.min(n - 1L, (jit - 50L + 49L) / 50L) : 0;
-            int cov = n - keepForJitter;
+            int cov = coveredTicksLocked();
             if (n > cov && !why.endsWith(", continued")) {
+                long jit = jitterMsLocked(System.currentTimeMillis());
                 int keep = n - Math.max(1, cov);
                 if (keep > 0) {
                     coverLeft += keep;
