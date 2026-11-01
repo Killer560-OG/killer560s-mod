@@ -320,7 +320,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   "Lunar Client Startup Error" (`Critical injection failure: Redirector lunar$chatMod$render$fill`; reproduced on Lunar 26.3
   as Guest, fixed by WrapOperation); Skysoft, Unlimited Chat History and Better Chat History hook ChatComponent's history
   constant 100 with require-1 `@ModifyConstant`s, and our `@ModifyConstant` there was the "chat history crash" (the
-  first-applied one takes the constant, the later one is skipped: "@ModifyConstant conflict. Skipping ..."). All 31 were
+  first-applied one takes the constant, the later one is skipped: "@ModifyConstant conflict. Skipping ..."). All 32 were
   converted on branch mixincompat-1101. Lunar specifics: real Fabric Loader 0.19.5 inside Lunar's "Genesis/Ichor" launcher;
   `tools/lunar/lunar-mixin-scan.py` + `lunar-redirect-collide.py` list Lunar's redirects that collide with ours (jars in
   `%USERPROFILE%\.lunarclient\offline\multiver`). Lunar game log: `%USERPROFILE%\.lunarclient\profiles\<major>\logs\latest.log`
