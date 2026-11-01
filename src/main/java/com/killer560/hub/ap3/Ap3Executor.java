@@ -231,9 +231,11 @@ public final class Ap3Executor {
      * stop node and stay in it dont have it keep overriding other nodes it should fire once then not work again till i
      * reenter it"). {@link #trigger} refuses them, whatever asks - the edge detector, a re-arm on arrival, a route
      * hand-over - and {@link #tick} drops a node the first END he is seen outside its box. Kept through
-     * {@link #arm}/{@link #disarm}, so a re-arm while he stands in one cannot fire it again.
+     * {@link #arm}/{@link #disarm}, so a re-arm while he stands in one cannot fire it again; emptied in a new world.
      */
     private static final Set<Ap3Node> stopSpent = Collections.newSetFromMap(new IdentityHashMap<>());
+    /** The world {@link #stopSpent} belongs to (its identity hash: no reference kept to an old level). */
+    private static int stopSpentLevel;
     /** Nodes with the {@code ss} modifier entered before Simon Says was done: they fire the tick it is, if he is still
      *  inside (killer560, 2026-10-18: "only trigger that node after ss finishes"). */
     private static final Set<Ap3Node> ssWaiting = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -806,6 +808,10 @@ public final class Ap3Executor {
         // YOU were moved 8+ blocks in one tick: a leap (auto, manual or ours), an etherwarp, a boss teleport. With
         // no previous position (first tick in the boss, a rejoin) the origin is unknown and treated the same way.
         Vec3 pos = player.position();
+        if (System.identityHashCode(client.level) != stopSpentLevel) {
+            stopSpentLevel = System.identityHashCode(client.level); // a new world (the next run's boss): nothing is spent there
+            stopSpent.clear();
+        }
         if (!stopSpent.isEmpty()) {
             stopSpent.removeIf(n -> !n.contains(pos)); // he left its box: the next entry fires it again
         }
