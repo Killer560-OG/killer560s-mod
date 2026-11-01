@@ -9,7 +9,7 @@
 // The scene clock rides in the vertex colour: rgb is a 24-bit fraction of the 600 s loop (alpha 255). Every motion below
 // is a sine whose angular speed is a whole number of turns per loop (W(k)), so the loop wraps without a jump.
 
-#moj_import <minecraft:dynamictransforms.glsl>
+#include <minecraft:dynamictransforms.glsl>
 
 uniform sampler2D Sampler0;
 

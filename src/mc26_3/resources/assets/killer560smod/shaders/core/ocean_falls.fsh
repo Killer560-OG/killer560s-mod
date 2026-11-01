@@ -16,7 +16,7 @@
 // toward the viewer and rings from the falls bend its reflections; the falls reflected; current lines; glints on the
 // crests). The cliffs, the character and the land stay still: the maps are zero there.
 
-#moj_import <minecraft:dynamictransforms.glsl>
+#include <minecraft:dynamictransforms.glsl>
 
 uniform sampler2D Sampler0;
 

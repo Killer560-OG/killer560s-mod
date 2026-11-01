@@ -233,7 +233,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   Delete `build/generated/sources/buildVariant` between variants, and check the class hash - **`md5sum` of
   `com/killer560/hub/BuildVariant.class` unzipped from the jar, first 8 hex characters**, which a 2026-09-30
   sweep wasted time on by reaching for CRC32 and finding it did not reproduce:
-  `8e95469d`=cheat+dev, `31a271c1`=legit+dev, `9d814aa3`=legit+release, `8193ef73`/`84d195e7`=cheat/legit testing
+  `8e95469d`=cheat+dev, `31a271c1`=legit+dev, `9d814aa3`=legit+release, `3a71edd5`=cheat+release (same on 26.3 and 26.2, checked 2026-11-01), `8193ef73`/`84d195e7`=cheat/legit testing
   (since `BuildVariant.TESTING`, 2026-10-07; before it `c7d5d8f5`/`1d821df5`/`f8fc20a1`). `javap -constants` on that class is
   the unambiguous check if a hash ever disagrees - it prints the booleans directly.
 - Mixin config uses `defaultRequire: 0`, so a wrong target signature fails **silently** and the feature
@@ -258,6 +258,12 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   accepts a handler taking only `CallbackInfo` for any target (checked in `CallbackInjector$Callback.
   checkDescriptor`: the full descriptor OR `(LCallbackInfo;)V`, all-or-nothing, never a prefix), which is how a
   single mixin survives a target whose argument TYPES changed.
+- **26.3 shaders need SPIR-V-ready GLSL** (2026-11-01): explicit `layout(location)` on every in/out, the separate-shader
+  extension, `#include` for `#moj_import`, and DynamicTransforms in its new order; one bad shader takes down the whole
+  resource reload and the client crashes at the first particle. Shaders live per version in `src/mc26_X/resources`
+  (docs/LESSONS-GUI.md "The mod's GLSL shaders on 26.3").
+- The testkit's synthetic clicks must use `InputConstants.MOUSE_BUTTON_LEFT` (1 on 26.3, 0 on 26.2), never a literal 0:
+  with GLFW's 0, 26.3 smoke 303/304 failed "presses not landing" while the mod was fine (2026-11-01).
 - **26.3 split the arm swing** (2026-11-01): no ServerboundSwingPacket; a left click sends `ServerboundPunchPacket` after the
   animation, a right click sends no swing at all. Swing through `McCompat.swingAttack` (left-click actions) or
   `McCompat.swingUse` (right-click actions), never `player.swing`. Packet getters became record accessors (`McPackets`).

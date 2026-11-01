@@ -345,3 +345,18 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   `tools/mixin-handler-check.py` every @Inject handler's arguments against the target's overloads (both read a jar or an
   extracted class dir; generic-erasure lines such as `Packet<?>` vs `Packet` and `AvatarlikeEntity` vs `Avatar` are noise,
   compare against the other version's run).
+
+## The mod's GLSL shaders on 26.3 (2026-11-01)
+
+- 26.3 compiles every core and post shader through SPIR-V. A shader without `#extension GL_ARB_separate_shader_objects :
+  require` and an explicit `layout(location = N)` on each vertex input, varying and fragment output fails with
+  "'location' : SPIR-V requires location for user input/output", and `#moj_import <...>` is now `#include <...>`.
+  Vertex inputs take the attribute's index in the pipeline's vertex format (POSITION_TEX_COLOR: Position 0, UV0 1,
+  Color 2; POSITION_COLOR: Position 0, Color 1), as vanilla's own 26.3 shaders do. The DynamicTransforms block also
+  reordered: ModelViewMat, TextureMat, ColorModulator, ModelOffset.
+- One failing "required" shader fails the WHOLE resource reload: the game drops every resource pack, reloads, fails again,
+  and is left without atlases, so the first particle crashes the client (NPE in ParticleResources$MutableSpriteSet) and
+  menus throw "atlas is not initialized". The first 26.3 boot did exactly that. So the shaders live per version in
+  `src/mc26_3/resources` and `src/mc26_2/resources` (build.gradle adds the compat resources dir); the 26.3 copies were
+  generated from the 26.2 ones by adding the extension, the locations, `#include` and the new block order.
+

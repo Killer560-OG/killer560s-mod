@@ -3,8 +3,8 @@
 
 // Ocean's Cavern Falls main menu (killer560smod): the stock GUI textured vertex shader (position_tex_color), unchanged.
 
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:projection.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
 
 layout(location = 0) in vec3 Position;
 layout(location = 1) in vec2 UV0;

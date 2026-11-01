@@ -5,7 +5,7 @@
 // the GUI is drawn; this samples it around the fragment with a 9x9 gaussian kernel. The blur radius in framebuffer
 // pixels is packed into the vertex colour's red channel; alpha 0 means "no copy yet" and draws nothing.
 
-#moj_import <minecraft:dynamictransforms.glsl>
+#include <minecraft:dynamictransforms.glsl>
 
 uniform sampler2D Sampler0;
 
