@@ -1,5 +1,8 @@
 package com.killer560.hub.bazaarflip;
 
+import com.killer560.hub.shared.RecordCatalog;
+import com.killer560.hub.shared.SharedRecords;
+
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.gui.profit.ProfitScope;
@@ -36,7 +39,6 @@ import java.util.regex.Pattern;
 public final class BazaarFlipNpcLimit {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bazaarflip");
-    private static final Path FILE = ModPaths.config("killer560smod-bazaarflip-npcsold.json");
 
     /** Coins a player can earn from NPC sales per UTC day (wiki, Shops and Coins, 2026-10-16). */
     public static final double DAILY_LIMIT = 500_000_000.0;
@@ -132,15 +134,13 @@ public final class BazaarFlipNpcLimit {
 
     private static void load() {
         try {
-            if (!Files.exists(FILE)) {
-                return;
-            }
-            JsonObject o = JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8)).getAsJsonObject();
+            // This account's count in the shared store (shared-stats-1101): sales from every instance today add up.
+            JsonObject o = SharedRecords.load(SharedRecords.file(RecordCatalog.NPC_SOLD));
             day = o.has("day") ? o.get("day").getAsString() : "";
             account = o.has("account") ? o.get("account").getAsString() : "";
             soldToday = o.has("soldCoins") ? Math.max(0, o.get("soldCoins").getAsDouble()) : 0;
         } catch (Exception e) {
-            LOGGER.warn("[BazaarFlip] Couldn't read {} - counting today's NPC sales from 0", FILE, e);
+            LOGGER.warn("[BazaarFlip] Couldn't read the NPC sale count - counting today's NPC sales from 0", e);
         }
     }
 
@@ -150,10 +150,17 @@ public final class BazaarFlipNpcLimit {
             o.addProperty("day", day);
             o.addProperty("account", account);
             o.addProperty("soldCoins", soldToday);
-            Files.createDirectories(FILE.getParent());
-            Files.writeString(FILE, o.toString(), StandardCharsets.UTF_8);
+            JsonObject merged = SharedRecords.save(SharedRecords.file(RecordCatalog.NPC_SOLD), o);
+            // Another instance's sales today count here too.
+            if (day.equals(str(merged, "day")) && account.equals(str(merged, "account")) && merged.has("soldCoins")) {
+                soldToday = Math.max(soldToday, merged.get("soldCoins").getAsDouble());
+            }
         } catch (Exception e) {
-            LOGGER.warn("[BazaarFlip] Couldn't save {}", FILE, e);
+            LOGGER.warn("[BazaarFlip] Couldn't save the NPC sale count", e);
         }
+    }
+
+    private static String str(JsonObject o, String k) {
+        return o.has(k) && o.get(k).isJsonPrimitive() ? o.get(k).getAsString() : "";
     }
 }

@@ -7,6 +7,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.shared.RecordCatalog;
+import com.killer560.hub.shared.SharedFile;
+import com.killer560.hub.shared.SharedRecords;
 import com.killer560.hub.util.ModPaths;
 import org.slf4j.Logger;
 
@@ -45,7 +48,24 @@ import java.util.regex.Pattern;
 final class CroesusRunMemory {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-croesus");
-    private static final Path PATH = ModPaths.config("killer560smod-croesus-runs.json");
+    /** The shared file this memory was loaded from (the account signed in at the time). */
+    private static SharedFile file;
+
+    static {
+        // The in-game account switcher: read the new account's runs (the old one's are already saved).
+        SharedRecords.onAccountChange(() -> {
+            synchronized (CroesusRunMemory.class) {
+                if (CroesusRunMemory.loaded) {
+                    load();
+                }
+            }
+        });
+    }
+
+    /** The shared file, for the testkit (CroesusTrackCases writes a fixture here). */
+    public static java.nio.file.Path pathForTest() {
+        return SharedRecords.pathOf(RecordCatalog.CROESUS_RUNS);
+    }
     /** Croesus keeps a run 72 hours (hypixelskyblock.minecraft.wiki/w/Croesus). */
     static final long RUN_LIFETIME_MS = 72L * 3600_000L;
     /** Slack on top of the two texts' own coarseness: the two reads are taken at different moments. */
@@ -535,11 +555,10 @@ final class CroesusRunMemory {
         PAGES.clear();
         pageCount = 0;
         version++;
-        if (!Files.exists(PATH)) {
-            return;
-        }
         try {
-            JsonObject obj = JsonParser.parseString(Files.readString(PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+            // This account's file in the shared store (shared-stats-1101), followed across an account switch.
+            file = SharedRecords.file(RecordCatalog.CROESUS_RUNS);
+            JsonObject obj = SharedRecords.load(file);
             JsonArray runs = ConfigJson.getArray(obj, "runs");
             long now = System.currentTimeMillis();
             if (runs != null) {
@@ -582,7 +601,7 @@ final class CroesusRunMemory {
                 }
             }
         } catch (Exception e) {
-            LOGGER.warn("[Croesus] Could not read {} - starting with no remembered runs", PATH.getFileName(), e);
+            LOGGER.warn("[Croesus] Could not read the run memory - starting with no remembered runs", e);
         }
     }
 
@@ -638,21 +657,13 @@ final class CroesusRunMemory {
                 pages.add(o);
             }
             obj.add("pages", pages);
-            String json = new GsonBuilder().setPrettyPrinting().create().toJson(obj);
             // The write itself goes to a writer thread: a save is triggered from the render path (a page read, a claim seen),
-            // and a disk write there is a frame hitch. One thread keeps the writes in order; load() waits for it.
-            WRITER.submit(() -> {
-                try {
-                    Files.createDirectories(PATH.getParent());
-                    Path tmp = PATH.resolveSibling(PATH.getFileName() + ".tmp");
-                    Files.writeString(tmp, json, StandardCharsets.UTF_8);
-                    replace(tmp, PATH, json);
-                } catch (Exception e) {
-                    LOGGER.warn("[Croesus] Could not save {}", PATH.getFileName(), e);
-                }
-            });
+            // and a disk write there is a frame hitch. One thread keeps the writes in order; load() waits for it. It merges
+            // onto the shared file (SharedFile), so runs another instance learned since are kept.
+            SharedFile target = file != null ? file : SharedRecords.file(RecordCatalog.CROESUS_RUNS);
+            WRITER.submit(() -> SharedRecords.save(target, obj));
         } catch (Exception e) {
-            LOGGER.warn("[Croesus] Could not save {}", PATH.getFileName(), e);
+            LOGGER.warn("[Croesus] Could not save the run memory", e);
         }
     }
 
@@ -687,7 +698,7 @@ final class CroesusRunMemory {
 
     /** For the testkit: forget every run, on disk too. */
     static synchronized void clearForTest() {
-        loaded = true;
+        load(); // the merge base: a clear removes what was read, from the shared file too
         RUNS.clear();
         PAGES.clear();
         pageCount = 0;

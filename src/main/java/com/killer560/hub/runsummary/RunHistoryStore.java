@@ -1,5 +1,9 @@
 package com.killer560.hub.runsummary;
 
+import com.killer560.hub.shared.RecordCatalog;
+import com.killer560.hub.shared.SharedFile;
+import com.killer560.hub.shared.SharedRecords;
+
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -44,9 +48,29 @@ public final class RunHistoryStore {
     private static final Logger LOGGER = ModLog.get("killer560smod-runsummary");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    /** {@code config/killer560/dungeons/runs/killer560smod-runs/history.json}. */
-    private static final Path DIR = ModPaths.config("killer560smod-runs");
-    private static final Path FILE = DIR.resolve("history.json");
+    /** Was {@code config/killer560/dungeons/runs/killer560smod-runs/history.json}; now the shared store (SharedRecords). */
+    /** The shared file the history was loaded from (the account signed in then). */
+    private static SharedFile file;
+
+    static {
+        // The in-game account switcher: finish this account's writes, then read the new account's runs.
+        SharedRecords.onAccountChange(() -> {
+            try {
+                RunHistoryStore.WRITER.submit(() -> { }).get(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception ignored) {
+            }
+            synchronized (RunHistoryStore.class) {
+                if (RunHistoryStore.loaded) {
+                    load();
+                }
+            }
+        });
+    }
+
+    /** The shared file, for the testkit (it writes fixture histories here). */
+    public static Path pathForTest() {
+        return SharedRecords.pathOf(RecordCatalog.RUN_HISTORY);
+    }
 
     private static final int FILE_VERSION = 1;
     /** Hard ceiling regardless of the configured keep-count, so a hand-edited config can't grow the file forever. */
@@ -74,11 +98,10 @@ public final class RunHistoryStore {
     public static synchronized void load() {
         RUNS.clear();
         loaded = true;
-        if (!Files.exists(FILE)) {
-            return;
-        }
         try {
-            JsonObject root = JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8)).getAsJsonObject();
+            // This account's runs from every instance (shared-stats-1101); the old per-instance file is folded in.
+            file = SharedRecords.file(RecordCatalog.RUN_HISTORY);
+            JsonObject root = SharedRecords.load(file);
             JsonArray runs = ConfigJson.getArray(root, "runs");
             if (runs != null) {
                 for (JsonElement element : runs) {
@@ -92,19 +115,10 @@ public final class RunHistoryStore {
             if (repairBogusBests()) {
                 saveAsync();
             }
-            LOGGER.info("[RunSummary] Loaded {} run(s) from {}", RUNS.size(), FILE);
+            LOGGER.info("[RunSummary] Loaded {} run(s) from {}", RUNS.size(), file.path());
         } catch (Exception e) {
-            // Same rule as CroesusProfitLog: the next save() would overwrite an unreadable history, so keep
-            // the original bytes first instead of silently destroying them.
-            Path backup = FILE.resolveSibling(FILE.getFileName() + ".corrupt-" + System.currentTimeMillis());
-            try {
-                Files.copy(FILE, backup);
-                LOGGER.warn("[RunSummary] Could not read {} - backed it up to {} and starting a fresh history",
-                        FILE.getFileName(), backup.getFileName(), e);
-            } catch (Exception backupError) {
-                LOGGER.warn("[RunSummary] Could not read {} - starting a fresh history (backup also failed: {})",
-                        FILE.getFileName(), backupError.toString(), e);
-            }
+            // An unreadable shared file is copied aside by SharedFile before anything replaces it.
+            LOGGER.warn("[RunSummary] Could not read the run history - starting a fresh one", e);
             RUNS.clear();
         }
     }
@@ -287,6 +301,7 @@ public final class RunHistoryStore {
         // Callers hold the class lock. Only the list is copied here (records are immutable); building and printing
         // up to 500 runs' JSON happens on the writer thread, not on the client tick that finished the run.
         List<RunRecord> snapshot = List.copyOf(RUNS);
+        SharedFile target = file != null ? file : SharedRecords.file(RecordCatalog.RUN_HISTORY);
         WRITER.submit(() -> {
             try {
                 JsonObject root = new JsonObject();
@@ -296,13 +311,10 @@ public final class RunHistoryStore {
                     array.add(r.toJson());
                 }
                 root.add("runs", array);
-                String json = GSON.toJson((JsonElement) root);
-                Files.createDirectories(DIR);
-                Path tmp = FILE.resolveSibling(FILE.getFileName() + ".tmp");
-                Files.writeString(tmp, json, StandardCharsets.UTF_8);
-                Files.move(tmp, FILE, StandardCopyOption.REPLACE_EXISTING);
+                // Merged onto the shared file, so another instance's runs since are kept (shared-stats-1101).
+                SharedRecords.save(target, root);
             } catch (Exception e) {
-                LOGGER.warn("[RunSummary] Failed to write {}", FILE, e);
+                LOGGER.warn("[RunSummary] Failed to write the run history", e);
             }
         });
     }

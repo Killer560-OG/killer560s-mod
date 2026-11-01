@@ -67,6 +67,8 @@ public final class AccountApplier {
         }
         // A relay token issued to the previous account must never be reused for this one.
         com.killer560.hub.relay.RelayClient.forgetToken();
+        // Run history, best friends, Croesus run memory... are per account in the shared store: follow the switch.
+        com.killer560.hub.shared.SharedRecords.accountChanged();
     }
 
     private static void setFinalField(Object target, String name, Object value) {

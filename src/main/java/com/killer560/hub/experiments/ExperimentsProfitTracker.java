@@ -1,5 +1,8 @@
 package com.killer560.hub.experiments;
 
+import com.killer560.hub.shared.RecordCatalog;
+import com.killer560.hub.shared.SharedRecords;
+
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.gui.profit.ProfitScope;
 import com.google.gson.Gson;
@@ -67,8 +70,6 @@ public final class ExperimentsProfitTracker {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-experiments-profit");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path DATA_PATH =
-            ModPaths.config("killer560smod-experiments-profit.json");
     private static final String CHAT_FEATURE = "Experiments";
     private static final int MAX_LOGGED_SESSIONS = 1000;
     /** A reward-screen snapshot older than this when the claim message arrives is treated as stale
@@ -938,11 +939,9 @@ public final class ExperimentsProfitTracker {
         }
         loaded = true;
         trackingSinceMs = System.currentTimeMillis();
-        if (!Files.exists(DATA_PATH)) {
-            return;
-        }
         try {
-            JsonObject root = JsonParser.parseString(Files.readString(DATA_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+            // Every instance's sessions in one shared file (shared-stats-1101), this one's old file folded in.
+            JsonObject root = SharedRecords.load(SharedRecords.file(RecordCatalog.EXPERIMENTS));
             JsonObject totals = root.has("totals") ? root.getAsJsonObject("totals") : new JsonObject();
             trackingSinceMs = totals.has("trackingSinceMs") ? totals.get("trackingSinceMs").getAsLong() : trackingSinceMs;
             lastSummary = totals.has("lastSummary") ? totals.get("lastSummary").getAsString() : "";
@@ -968,7 +967,7 @@ public final class ExperimentsProfitTracker {
                 }
             }
         } catch (Exception e) {
-            LOGGER.warn("Couldn't read {} - starting fresh totals", DATA_PATH, e);
+            LOGGER.warn("Couldn't read the experiments profit file - starting fresh totals", e);
         }
         migrateAccounts();
     }
@@ -1048,10 +1047,10 @@ public final class ExperimentsProfitTracker {
             root.add("buckets", bucketsJson);
             root.add("view", view.toJson());
             root.add("sessionLog", log);
-            Files.createDirectories(DATA_PATH.getParent());
-            Files.writeString(DATA_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
+            // Merged onto the shared file: another instance's sessions since are added, not overwritten.
+            SharedRecords.save(SharedRecords.file(RecordCatalog.EXPERIMENTS), root);
         } catch (Exception e) {
-            LOGGER.warn("Couldn't save {}", DATA_PATH, e);
+            LOGGER.warn("Couldn't save the experiments profit file", e);
         }
     }
 }

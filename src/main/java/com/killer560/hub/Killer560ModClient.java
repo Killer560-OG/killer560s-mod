@@ -80,6 +80,9 @@ public class Killer560ModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ModCompatibility.refuseIfFirmamentPresent();
+        // The shared record store's account, read once on this (the client) thread so a record touched from another
+        // thread later still finds its account folder (SharedRecords.accountId).
+        com.killer560.hub.shared.SharedRecords.accountId();
 
         // Before anything reads a setting: sweep every killer560smod-* file and folder out of the config root into
         // config/killer560/<category>/<feature>/, so the root is clean even for features not touched this session.

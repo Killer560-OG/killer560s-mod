@@ -5,7 +5,7 @@ propper version [...] I still want it going there too" - including the Dungeons 
 left alone deliberately.
 
 Jars are named killer560smod-<mod>-<mc>-<cheat|legit>.jar (build.gradle's archiveClassifier), and one gradle
-run produces only one Minecraft version's jars. So a deploy after building 26.3 (the default) updates the 26.3
+run produces only one Minecraft version's jars. So a deploy after building 26.1.2 updates the 26.1.2
 instances, and the 26.2 instances are reported as "no build in <dir>" until a 26.2 build is pointed at with
 --jars-dir (or lands in build/libs).
 
@@ -27,13 +27,13 @@ Rules it will not break:
     Auto Update off there for good (2026-10-11): these instances take killer560's own builds, and a release must
     never replace one. Written even into a running or skipped instance (it is not a jar; nothing loads it).
 
-  * His play instance (and only it) gets minecraft/config/killer560/killer560smod-session-recorder-disabled on
+  * His play instance "26.3" (until 2026-11-01 "26.1.2 (Dungeons)"), and only it, gets minecraft/config/killer560/killer560smod-session-recorder-disabled on
     every deploy (2026-10-19), which stops the mod's Session Recorder from ever starting there.
 
 Usage:  python deploy-to-instances.py [--dry-run] [--jars-dir DIR]
                                       [--testing-instance-cheat NAME] [--testing-instance-legit NAME]
 
-After `./gradlew build` for 26.2, the 26.3 jars are gone from build/libs; keep each version's jars in
+After `./gradlew build` for 26.2, the 26.1.2 jars are gone from build/libs; keep each version's jars in
 their own folder and run once per folder.
 """
 import argparse
@@ -57,7 +57,8 @@ NO_AUTO_UPDATE_MARKER = "killer560smod-no-auto-update"
 # start. killer560 (2026-10-19): "It should only be on my instance. Do not put it in my dungeon instance. The rest can
 # have it." So it is written into his play instance on every deploy, and into no other instance.
 SESSION_RECORDER_OFF_MARKER = "killer560smod-session-recorder-disabled"
-# His play instance: "26.1.2 (Dungeons)" until 26.1.2 was dropped (2026-11-01), "26.3" since.
+# His play instance: "26.1.2 (Dungeons)" until 2026-11-01, when 26.3 became the main version and the instances were
+# remade (26.3, 26.3 Default, 26.3 / 26.2 Mod Only Test, 26.3 / 26.2 Legit, 26.3 Untested Cheat / Legit).
 RECORDER_OFF_INSTANCE = "26.3"
 
 # First 8 hex of md5(BuildVariant.class), per CLAUDE.md's Quirks and lessons.
@@ -120,14 +121,14 @@ def running_instances():
         return None
     if res.returncode != 0:
         return None
-    # Prism writes the instance paths with FORWARD slashes (-Djava.library.path=C:/.../instances/26.3
-    # Mod Only Test/natives). Matching only backslashes never saw a running game, and on 2026-10-06 deploys replaced
+    # Prism writes the instance paths with FORWARD slashes (-Djava.library.path=C:/.../instances/26.1.2
+    # (Dungeons)/natives). Matching only backslashes never saw a running game, and on 2026-10-06 deploys replaced
     # jars under open instances, which crashed one with "ZipFile invalid LOC header". Normalise before matching.
     ps = res.stdout.replace("\\", "/")
     out = set()
     for name in os.listdir(INSTANCES):
-        # Match the folder inside a real path, not as a bare substring: plain "26.3" is a substring of
-        # "26.3 Mod Only Test", and matching loosely reported an idle instance as running.
+        # Match the folder inside a real path, not as a bare substring: plain "26.1.2" is a substring of
+        # "26.1.2 (Mod Only Test)", and matching loosely reported an idle instance as running.
         if name and ("instances/" + name + "/") in ps:
             out.add(name)
     return out
