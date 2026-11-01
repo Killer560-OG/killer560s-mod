@@ -116,11 +116,13 @@ public final class Ap3Node {
          *  run and hit a walk i should start walking or if i hit a stop node or align node." So only WALK / RUN
          *  (they replace the hold), STOP and the aligns end it, plus LEAP (a teleport: "drops all movement") and
          *  PATH (the route takes the movement over). Before that it was a list of exceptions (JUMP, EDGE, BLOCK, USE,
-         *  STOPWATCH) and a LOOK, BOOM, TERMINAL, LEAP_COUNTER or TERM_AURA silently stopped the run. */
+         *  STOPWATCH) and a LOOK, BOOM, TERMINAL, LEAP_COUNTER or TERM_AURA silently stopped the run.
+         *  TERM_AURA stops him like a STOP since 2026-11-01 (killer560: "for ap3 make it so a termaura node will make you
+         *  stop as well just like a stop node"): the walk ends, nothing is pressed, and it brakes as a STOP does. */
         public boolean keepsHold() {
             return switch (this) {
                 // A Blink Charge stops him where it is: Charge banks only ticks he stands still in.
-                case WALK, RUN, STOP, ALIGN, AXIS_ALIGN, FAST_ALIGN, LEAP, PATH, BLINK_CHARGE -> false;
+                case WALK, RUN, STOP, ALIGN, AXIS_ALIGN, FAST_ALIGN, LEAP, PATH, BLINK_CHARGE, TERM_AURA -> false;
                 default -> true;
             };
         }
