@@ -311,6 +311,15 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   After adding a mixin, check the json in the built jar (`unzip -p <jar> <name>.mixins.json`) or a test that it acted.
 - A class placed inside a mixin-owned package throws `IllegalClassLoadError` and crashes the game at boot.
   Keep helper classes out of `mixin` packages.
+- **Lunar Client: never `@Redirect` a call Lunar also redirects; use `@WrapOperation`** (2026-11-01). Lunar runs real
+  Fabric Loader 0.19.5 inside its own "Genesis/Ichor" launcher and applies its own mixins (`mixins.modern_lunar_combined.json`,
+  priority 200, `defaultRequire 1`). Two `@Redirect`s on one call: the higher priority (ours, 1000) takes it, Lunar's finds no
+  target and Lunar aborts boot with "Lunar Client Startup Error" (`Critical injection failure: Redirector lunar$chatMod$render$fill`
+  from Peek Chat's ChatScreen fill redirect; reproduced and fixed on Lunar 26.3). Before adding a `@Redirect`, run
+  `python -I tools/lunar/lunar-mixin-scan.py <lunar.jar> <modern-*.jar> > scan.txt` then
+  `python -I tools/lunar/lunar-redirect-collide.py src scan.txt` (jars in `%USERPROFILE%\.lunarclient\offline\multiver`).
+  Lunar game log: `%USERPROFILE%\.lunarclient\profiles\<major>\logs\latest.log` and `ichor-boot.log`; launcher log
+  `%USERPROFILE%\.lunarclient\logs\launcher\main.log`. Lunar boots as Guest (no login) for title-screen tests.
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
   StackOverflows. Send below the dispatcher via `util/ServerCommands.toServer`.
 - When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
