@@ -19,8 +19,7 @@ import java.util.List;
  * <b>Rebuilt 2026-09-20.</b> killer560: <i>"For the mod chat I meant for that to only be client side. So other
  * people not using my mod cannot see my chat."</i> The old version tagged a line and sent it over real Hypixel
  * Party/Guild chat, which is exactly the bug - everyone in that party saw it, mod or not. Hypixel has no private
- * client channel, so messages now go over the mod's own relay ({@code killer560s-mod-relay}, the same approach
- * NoammAddons uses for {@code ws.noamm.org}) and never touch Hypixel at all.
+ * client channel, so messages now go over the mod's own relay ({@code killer560s-mod-relay}, our own server) and never touch Hypixel at all.
  * <p>
  * <b>There is deliberately no fallback to party chat.</b> If the relay is off, unset or unreachable, sending
  * fails and says so. Falling back would silently reintroduce the exact leak he reported.

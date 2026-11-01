@@ -226,6 +226,12 @@ project CLAUDE.md. Compiling lessons
   refused it ("not issued by Mojang for that UUID": his alts, 2026-10-08; Mod Only Test log, launched as Killer560, playing
   as 9878981). It now builds a fresh `YggdrasilAuthenticationService(...).createUserApiService(token)` (testkit 579 replays
   the swap against a fake Mojang and relay). The relay's embedded Mojang keys were identical to the live set.
+- **Another mod's party server is for that mod's users, not ours.** NoammAddons' owner asked on 2026-11-01 ("definitely dont
+  manually auth into it"): the Cross-Mod Bridge had signed into `api.noamm.org/hypixel/auth` with the player's Mojang session
+  and opened `wss://ws.noamm.org` for anyone WITHOUT NoammAddons. Both are gone (`bridge/NoammAdapter`, `NoammCodec`), and
+  `util/ModNet.forbidden` refuses that host and endpoint even if code to reach them comes back (testkit 1101-noamm-never). A
+  player who runs NoammAddons still gets its socket-fed state in-process through `interop/LocalModBridge`. Devonian's and
+  Odin's sockets are still joined: ask before adding any other mod's server, and stop at once if its owner objects.
 
 ## Other features
 

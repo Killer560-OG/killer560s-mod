@@ -10,7 +10,6 @@ import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.partydata.PartyDataFeature;
 import com.killer560.hub.partydata.PartyRoomIntel;
-import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -19,7 +18,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.scores.PlayerTeam;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -32,14 +30,14 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Cross-Mod Bridge: killer560s-mod speaks Devonian's, NoammAddons' and Odin's own party sockets, so party data
+ * Cross-Mod Bridge: killer560s-mod speaks Devonian's and Odin's own party sockets, so party data
  * flows between our users and theirs in both directions. killer560 (2026-09-21): "I will never have access to
  * joy's bridge so I need you to build it", "Also make it work for Odin", "I really want everything to tie into
  * my mod."
  * <p>
  * The protocols are documented, source-cited, in the staging research ({@code BRIDGE-PROTOCOLS.md}); every
- * identifier translation lives in {@link BridgeTables}; the wire formats are {@link DevonianCodec},
- * {@link NoammCodec} and {@link OdinCodec}; the connection rules shared by all three are in
+ * identifier translation lives in {@link BridgeTables}; the wire formats are {@link DevonianCodec} and
+ * {@link OdinCodec}; the connection rules shared by both are in
  * {@link SocketAdapter}. This class is the client-thread glue:
  * <ul>
  * <li><b>Out:</b> every 5 ticks it reads a {@link BridgeContext} - including
@@ -52,6 +50,11 @@ import java.util.UUID;
  * <b>Hard rules</b> (all enforced in the adapters' {@code decide}): never connect to a mod's socket when that
  * mod is installed here - it already holds the connection and a duplicate might kick it; Hypixel only; only while
  * the grouping applies; only while the per-mod toggle is on; never any identity but the signed-in account's own.
+ * <p>
+ * <b>No NoammAddons socket.</b> NoammAddons' socket ({@code ws.noamm.org}) is for NoammAddons' own users only: its
+ * owner asked us (2026-11-01) to stop authenticating into it, so this mod never opens it, never calls its auth
+ * endpoint, and {@code util/ModNet} refuses both outright. A player who also runs NoammAddons still gets what
+ * NoammAddons' own connection learned, read in-process by {@code interop/LocalModBridge}.
  */
 public final class BridgeFeature {
 
@@ -60,9 +63,8 @@ public final class BridgeFeature {
     private static final int SERVER_CODE_DIVISOR = 20;
 
     private static final DevonianAdapter DEVONIAN = new DevonianAdapter();
-    private static final NoammAdapter NOAMM = new NoammAdapter();
     private static final OdinAdapter ODIN = new OdinAdapter();
-    private static final List<SocketAdapter> ADAPTERS = List.of(DEVONIAN, NOAMM, ODIN);
+    private static final List<SocketAdapter> ADAPTERS = List.of(DEVONIAN, ODIN);
 
     private static int tickCounter;
     private static int serverCodeCounter;
@@ -96,6 +98,18 @@ public final class BridgeFeature {
         }
     }
 
+    /** Test hook: when set, every bridge tick hands this context to the adapters instead of reading the game. */
+    private static volatile BridgeContext contextOverrideForTest;
+
+    /**
+     * Test hook (testkit, by reflection): {@code ctx} replaces the context every bridge tick reads, until set back to
+     * null, so a harness can put the bridge in a Hypixel-shaped run (which a local test server never is) and read
+     * {@code ModNet.attemptsForTest()} to see which sockets it tried to open. Never set by the mod itself.
+     */
+    public static void setContextOverrideForTest(BridgeContext ctx) {
+        contextOverrideForTest = ctx;
+    }
+
     // ------------------------------------------------------------------ client tick
 
     private static void tick(Minecraft client) {
@@ -112,9 +126,11 @@ public final class BridgeFeature {
             return;
         }
         tickCounter = 0;
-        BridgeContext ctx;
+        BridgeContext ctx = contextOverrideForTest;
         try {
-            ctx = context(client, inDungeon);
+            if (ctx == null) {
+                ctx = context(client, inDungeon);
+            }
         } catch (Throwable t) {
             // WARN the first time (DEBUG never reaches the log), then keep trying every tick quietly.
             if (!warnedContext) {
@@ -143,10 +159,10 @@ public final class BridgeFeature {
 
     private static BridgeContext context(Minecraft client, boolean inDungeon) {
         BridgeConfig cfg = BridgeConfig.getInstance();
-        boolean anyOn = cfg.isEnabled() && (cfg.isDevonian() || cfg.isNoamm() || cfg.isOdin());
+        boolean anyOn = cfg.isEnabled() && (cfg.isDevonian() || cfg.isOdin());
         if (!anyOn || client.player == null || client.level == null) {
-            return new BridgeContext(false, false, false, null, null, null, List.of(), null, null, -1, -1,
-                    List.of(), List.of(), false, runEpoch);
+            return new BridgeContext(false, false, false, null, null, null, List.of(), null, null,
+                    List.of(), false, runEpoch);
         }
         boolean active = InteropConfig.getInstance().isEnabled();
         boolean onHypixel = onHypixel(client);
@@ -174,45 +190,14 @@ public final class BridgeFeature {
 
         Integer partyHash = inDungeon && onHypixel ? devonianPartyHash(client, selfUuid, teammates) : null;
 
-        List<PartyDataFeature.SelfFact> selfFacts = List.of();
-        List<BridgeContext.RoomCell> cells = List.of();
-        int entranceCol = -1;
-        int entranceRow = -1;
-        if (inDungeon && active && onHypixel && (DEVONIAN.isReady() || NOAMM.isReady())) {
-            selfFacts = PartyDataFeature.selfFactSnapshot();
-            DungeonLayout layout = DungeonLayout.current();
-            List<BridgeContext.RoomCell> out = new ArrayList<>();
-            for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
-                int room = layout.roomOfCell(idx);
-                if (room < 0) {
-                    continue;
-                }
-                String name = layout.name(room);
-                if (name == null || name.isBlank() || "Unknown".equals(name)) {
-                    continue;
-                }
-                int col = idx % DungeonLayout.GRID;
-                int row = idx / DungeonLayout.GRID;
-                BlockPos centre = DungeonLayout.cellCenter(idx);
-                // Room tiles sit on even col/row; a room cell with an odd coordinate is a connector inside a
-                // multi-tile room - NoammAddons' "separator".
-                out.add(new BridgeContext.RoomCell(name, centre.getX(), centre.getZ(), col, row,
-                        col % 2 == 1 || row % 2 == 1));
-                RoomEntry entry = layout.entry(room);
-                if (entranceCol < 0 && entry != null && "entrance".equalsIgnoreCase(entry.type)) {
-                    // First cell in row-major order, like NoammAddons' dungeonList.find (FEAT_WebSocket.kt:79).
-                    entranceCol = col;
-                    entranceRow = row;
-                }
-            }
-            cells = out;
-        }
+        List<PartyDataFeature.SelfFact> selfFacts = inDungeon && active && onHypixel && DEVONIAN.isReady()
+                ? PartyDataFeature.selfFactSnapshot() : List.of();
         return new BridgeContext(active, onHypixel, inDungeon, DungeonState.getFloor(), selfName, selfUuid,
-                teammates, partyHash, serverCode, entranceCol, entranceRow, selfFacts, cells, p3Active, runEpoch);
+                teammates, partyHash, serverCode, selfFacts, p3Active, runEpoch);
     }
 
     /** hypixel.net only. p3sim has none of the identifiers these sockets group by (no Hypixel party for
-     *  Devonian's Mod-API hash, no Hypixel server code for NoammAddons/Odin), so it is deliberately excluded. */
+     *  Devonian's Mod-API hash, no Hypixel server code for Odin), so it is deliberately excluded. */
     private static boolean onHypixel(Minecraft client) {
         ServerData server = client.getCurrentServer();
         return server != null && server.ip != null && server.ip.toLowerCase(Locale.ROOT).contains("hypixel.net");
@@ -247,8 +232,7 @@ public final class BridgeFeature {
         return DevonianCodec.partyHash(members);
     }
 
-    /** The sidebar date line's server code, exactly the way NoammAddons ({@code LocationUtils.kt:54-56}) and
-     *  Odin read it: each scoreboard team's prefix + suffix, formatting stripped, through the shared regex. */
+    /** The sidebar date line's server code, exactly the way Odin reads it: each scoreboard team's prefix + suffix, formatting stripped, through the shared regex. */
     private static String readServerCode(Minecraft client) {
         try {
             for (PlayerTeam team : client.level.getScoreboard().getPlayerTeams()) {
@@ -309,32 +293,6 @@ public final class BridgeFeature {
         return hash != null && target.equals(DevonianAdapter.TARGET_PREFIX + hash);
     }
 
-    /**
-     * Team check for a NoammAddons frame: they carry no sender at all, so the frame counts only if it came in on
-     * the group this client joined with its current team - the same server code as the sidebar shows now, and a
-     * {@code dungeon_start} whose member list is exactly self plus the current teammates.
-     */
-    private static boolean noammGroupIsTeam(String target, List<String> announced) {
-        Minecraft client = Minecraft.getInstance();
-        List<String> teammates = List.copyOf(PartyTracker.teammates());
-        if (target == null || announced == null || teammates.isEmpty() || selfUuid(client) == null
-                || !target.equals(serverCode)) {
-            return false;
-        }
-        Set<String> now = new HashSet<>();
-        now.add(client.getUser().getName().toLowerCase(Locale.ROOT));
-        for (String name : teammates) {
-            now.add(name.toLowerCase(Locale.ROOT));
-        }
-        Set<String> then = new HashSet<>();
-        for (String name : announced) {
-            if (name != null) {
-                then.add(name.toLowerCase(Locale.ROOT));
-            }
-        }
-        return now.equals(then);
-    }
-
     static void applyDevonian(DevonianCodec.Message msg, String target) {
         if (!acceptInbound() || !devonianGroupIsTeam(target)) {
             return;
@@ -379,44 +337,6 @@ public final class BridgeFeature {
             }
         }
         return match;
-    }
-
-    static void applyNoamm(NoammCodec.Message msg, String target, List<String> announced) {
-        if (!acceptInbound() || !noammGroupIsTeam(target, announced)) {
-            return;
-        }
-        String who = "NoammAddons";
-        if (msg instanceof NoammCodec.Door d) {
-            PartyRoomIntel.offerDoor(d.x(), d.z(), d.col(), d.row(), d.ourType(), who);
-        } else if (msg instanceof NoammCodec.Room r) {
-            PartyRoomIntel.offerRoom(r.name(), r.x(), r.z(), r.col(), r.row(), who);
-        } else if (msg instanceof NoammCodec.Flag f) {
-            PartyInteropState.Flag flag = switch (f.which()) {
-                case "mimic" -> PartyInteropState.Flag.MIMIC_KILLED;
-                case "prince" -> PartyInteropState.Flag.PRINCE_KILLED;
-                case "bat" -> PartyInteropState.Flag.BAT_KILLED;
-                default -> null;
-            };
-            // No mimic exists below floor 6 (the same rule as the party-chat path, InteropChatParser), so a
-            // mimic flag there is wrong and must not latch the score's mimic bonus.
-            if (flag == PartyInteropState.Flag.MIMIC_KILLED
-                    && com.killer560.hub.scorecalc.ScoreCalculator.floorNumber(DungeonState.getFloor()) < 6) {
-                flag = null;
-            }
-            if (flag != null) {
-                PartyInteropState.offerFlag(flag, InteropSource.SOCKET, who);
-            }
-        } else if (msg instanceof NoammCodec.Dragon dr) {
-            // M7 P5 only; DEATH has no slot in PartyInteropState, so only spawns are recorded.
-            if (dr.spawn() && "M7".equals(DungeonState.getFloor())) {
-                PartyInteropState.offerDragonSpawn(dr.ourColour(), InteropSource.SOCKET, who);
-            }
-        } else if (msg instanceof NoammCodec.RoomSecrets rs) {
-            BridgeTables.Room known = BridgeTables.room(rs.room());
-            if (known != null) {
-                PartyInteropState.offerRoomSecrets(rs.room(), rs.secrets(), known.secrets(), InteropSource.SOCKET, who);
-            }
-        }
     }
 
     static void applyOdin(OdinCodec.Update update) {

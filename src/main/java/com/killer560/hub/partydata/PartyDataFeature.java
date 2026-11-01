@@ -161,8 +161,8 @@ public final class PartyDataFeature {
     /**
      * Every SELF fact this feature publishes, as of right now - the single source of truth for "what do we
      * know ourselves", shared by the relay publisher below and by the Cross-Mod Bridge
-     * ({@code com.killer560.hub.bridge}), which translates the same list into Devonian's / NoammAddons' own
-     * formats instead of re-deriving any of it. Pure read, no side effects, no dedupe - callers keep their own
+     * ({@code com.killer560.hub.bridge}), which translates the same list into Devonian's own
+     * format instead of re-deriving any of it. Pure read, no side effects, no dedupe - callers keep their own
      * "already sent" state. Client thread only ({@link DungeonLayout#current()}).
      * <p>
      * Sources, unchanged from before this was factored out: {@link PartyInteropState}'s SELF-sourced flags,

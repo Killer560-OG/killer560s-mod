@@ -2528,9 +2528,8 @@ final class SettingTooltipsData {
         d.put("name animation", "Animates your faded or letter-colored name: Wave flows the colors along it to the right, Pulse dims and brightens it. Other players with the mod see it too when Share if Supporter is on.");
         d.put("animation speed", "How fast your name's Wave or Pulse runs, from 0.25x to 3x.");
         d.put("party interop/share dungeon data with party", "Shares your dungeon info (rooms, secrets, mimic, dragons) with your party over the mod relay.");
-        d.put("party interop/cross-mod bridge", "Shares dungeon data both ways with users of Devonian, NoammAddons and Odin.");
+        d.put("party interop/cross-mod bridge", "Shares dungeon data both ways with users of Devonian and Odin.");
         d.put("party interop/devonian bridge", "Shares room secret counts with Devonian users in your dungeon party.");
-        d.put("party interop/noammaddons bridge", "Shares rooms, doors, secrets and dragon spawns with NoammAddons users in your run.");
         d.put("party interop/odin bridge", "Shows Odin users' Melody progress in F7/M7 P3, and shares yours if Share My Progress is on.");
         d.put("dungeon map/mark reported rooms", "Marks rooms and doors your party shared that you haven't seen yourself.");
         d.put("dungeon map/player heads", "Draws you and your teammates as their skin faces, turned to face the way they look.");

@@ -69,7 +69,6 @@ public final class SharingDefaults {
             BridgeConfig bridge = BridgeConfig.getInstance();
             bridge.setEnabled(true);
             bridge.setDevonian(true);
-            bridge.setNoamm(true);
             bridge.setOdin(true);
             bridge.save();
 

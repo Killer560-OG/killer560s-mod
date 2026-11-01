@@ -16,7 +16,7 @@ default)` and goes out through `ModNet.send` / `sendAsync` / `open` / `webSocket
   dead network gives, so each caller's own failure path runs. Hosts named by a `killer560.net.<service>`
   override are still reachable, so a harness can run offline with only its fakes. Read on every call.
 
-Service keys: `hypixel`, `noamm`, `noamm-ws`, `odin-ws`, `devonian-ws`, `pv-backend`, `mojang`,
+Service keys: `hypixel`, `noamm`, `odin-ws`, `devonian-ws`, `pv-backend`, `mojang`,
 `minecraftservices`, `microsoft`, `xboxlive`, `github-raw`, `jsdelivr`, `coflnet`, `hysky`, `github-api`, `relay`,
 `pf-relay`, `lfg-relay`, `lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`, `github-download`. `ModNet`'s javadoc says which host and
 feature each one is. `pf-relay` is the relay's `/pf/stats` alone (Party Finder stats) and, unlike the others, is read
@@ -25,6 +25,13 @@ Auto Update (`autoupdate/AutoUpdater`) also reads `github-api` and `github-downl
 both at an in-process fake at run time. `github-download` is also the only download prefix it accepts
 (`<override>/Killer560-OG/killer560s-mod/releases/download/`). `-Dkiller560.test.autoUpdateStallMillis=N` shortens the
 download's stall limit (default 60000: it gives up only after that long with no byte arriving); read on every download.
+
+`ModNet.attemptsForTest()` lists the last 512 targets any helper was asked to reach (`scheme://host[:port]/path`, no query
+string), recorded before the network and before any refusal, so offline runs read the same; `clearAttemptsForTest()` empties
+it. NoammAddons' socket host (`ws.noamm.org`) and sign-in (`api.noamm.org/hypixel/...`) are refused by `ModNet.forbidden`
+whatever the overrides, online or offline; `forbiddenRefusalsForTest()` counts those refusals. `BridgeFeature.
+setContextOverrideForTest(BridgeContext)` makes every bridge tick use a made-up context (null goes back to the game's), so a
+case can put the bridge in a Hypixel-shaped run (testkit 1101-noamm-never).
 
 ## Custom Party Finder (`lfg/`)
 

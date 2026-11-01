@@ -14,11 +14,12 @@ package com.killer560.hub.interop;
  * <li>{@link #SELF} - we saw it ourselves (entity, block, map item, tab list, server chat line).
  * <li>{@link #RELAY} - another killer560s-mod user sent it over our own relay as a structured field.
  * <li>{@link #BRIDGE} - read out of another mod's own state in this JVM (only if that mod is installed here).
- * <li>{@link #SOCKET} - received over another mod's own party websocket (Devonian / NoammAddons / Odin) by
+ * <li>{@link #SOCKET} - received over another mod's own party websocket (Devonian / Odin) by
  * {@code com.killer560.hub.bridge}. Below {@link #BRIDGE}: that is the real mod's own merged view (its scan plus
- * its own socket), while this is a single relayed claim - NoammAddons' server does not say which player sent a
- * message, and Odin's socket has no authentication at all. Above {@link #CHAT}: a structured field over an
- * authenticated connection (Devonian, NoammAddons) cannot be produced by a human typing a chat line.
+ * its own socket), while this is a single relayed claim - Odin's socket has no authentication at all. Above
+ * {@link #CHAT}: a structured field over an authenticated connection (Devonian) cannot be produced by a human
+ * typing a chat line. (NoammAddons' socket is never opened by this mod: its owner asked us not to, 2026-11-01;
+ * what NoammAddons' own connection learned arrives as {@link #BRIDGE} when NoammAddons is installed here.)
  * <li>{@link #CHAT} - parsed out of a party-chat line another mod announced. Weakest: a human can type the
  * same words by hand, and the formats belong to someone else and can change on their next update.
  * </ol>

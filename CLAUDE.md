@@ -336,6 +336,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   and the old one, later in `SettingTooltipsData`, won (2026-10-27). After a merge: `grep -o 'd\.put("[^"]*"' | sort | uniq -d`.
 - Merging branches that each edit `docs/FEATURES.md` left 11 features listed twice, each copy holding a change the other
   lacked (2026-10-24, fixed in 8dcac505). After such a merge, check FEATURES.md for a feature named twice before the Doc regen.
+- **Never open or sign into another mod's own server unless its owner is fine with it.** NoammAddons' owner asked us to
+  stop authenticating into `ws.noamm.org` (2026-11-01); the NoammAddons bridge was removed and `util/ModNet.forbidden` refuses
+  `ws.noamm.org` and `api.noamm.org/hypixel/*` (testkit 1101-noamm-never). Read a co-installed mod's state in-process
+  (`interop/LocalModBridge`) instead. The room database download from `api.noamm.org/na/data` (public, no auth) stays.
 - **No secret ever goes in this repo or a jar** (security audit 2026-10-27, `killer560s-mod-logs/security-audit-1027.md`).
   v1.0.0/v1.1.0 shipped a Hypixel key XOR'd in `HypixelApiKeyProvider` - obfuscation is not protection, and it is public
   forever in those jars and in history. A key the mod needs goes in the relay as a Worker secret behind an endpoint, or is
