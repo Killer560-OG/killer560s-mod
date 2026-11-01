@@ -370,3 +370,13 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   `src/mc26_3/resources` and `src/mc26_2/resources` (build.gradle adds the compat resources dir); the 26.3 copies were
   generated from the 26.2 ones by adding the extension, the locations, `#include` and the new block order.
 
+
+- **26.3: nothing in a world render event may bake a glyph or upload a texture.** 26.3 opens ONE render pass around
+  `executeSolid` and `executeClassicTransparency`, and Fabric's `AFTER_TRANSLUCENT_FEATURES` / `AFTER_TRANSLUCENT_TERRAIN`
+  fire inside it (javap, 26.3 LevelRenderer and fabric-rendering-v1 27.2.0). `Font.width` bakes a code point the first
+  time it sees it, the bake calls `copyBufferToTexture`, and `FrontendCommandEncoder` throws "Close the existing render
+  pass before performing additional commands" - FeatureGuard then disabled Auto Routes and AP3 on their first frame
+  (tkport263 U-2/U-3, 2026-11-01). World renderers measure through `McRender.textWidth(font, text)`: outside a pass it is
+  `font.width`, inside one it answers from widths measured earlier and queues a new string for the next COLLECT_SUBMITS
+  or client tick (one frame's estimate; Auto Routes' mesh rebuilds when `textWidthEstimates()` moved). `submitText` is
+  safe: its glyphs are prepared in `prepareFrame`, before the pass. `COLLECT_SUBMITS` runs outside the pass.

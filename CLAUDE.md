@@ -400,6 +400,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   client state goes to the render thread (fixed 2026-10-05, 3f3fa8ad). But a `client.execute` task from DISCONNECT can be
   DROPPED: a pause-menu leave closes the channel, then `Minecraft.disconnect` begins with `dropAllTasks()` (javap 26.1.2).
   SimWorld leaves a flag its END_CLIENT_TICK drains (5a1afa62; 97-sim-leave-build lost 5 of 5 resets to the task alone).
+- On 26.3 the world render events (AFTER_TRANSLUCENT_*) run inside an open render pass, so a first-time glyph bake from
+  `font.width` there throws and FeatureGuard disables the feature (Auto Routes, AP3, 2026-11-01). Measure world text with
+  `McRender.textWidth`, never `font.width`; no texture uploads in those events. docs/LESSONS-GUI.md has the detail.
 - A spelling sweep can merge map keys: six British/American tooltip key pairs ("color", "border color", ...) became one key
   each and the later entry silently replaced the earlier (a92e0357). After renaming text, check keyed maps for duplicates.
   A branch can do it too: aafast-1027 added a new "arrow align/aura clicks per tick" tooltip (1-7) above the old one (1-4),
