@@ -1,7 +1,7 @@
 package com.killer560.hub.scoreboard.mixin;
 
 import com.killer560.hub.scoreboard.ScoreboardBlur;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import net.minecraft.client.gui.render.GuiRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

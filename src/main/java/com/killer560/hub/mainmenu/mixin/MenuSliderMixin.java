@@ -2,7 +2,7 @@ package com.killer560.hub.mainmenu.mixin;
 
 import com.killer560.hub.mainmenu.MainMenuTheme;
 import com.killer560.hub.mainmenu.MenuWidgets;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.network.chat.Component;

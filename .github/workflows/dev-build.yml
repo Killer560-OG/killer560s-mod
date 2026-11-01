@@ -1,4 +1,4 @@
-# Builds the legit and cheat jars for 26.1.2 and 26.2 on every push to main and publishes them on one rolling "Latest Dev Build" pre-release,
+# Builds the legit and cheat jars for 26.3 (main) and 26.2 on every push to main and publishes them on one rolling "Latest Dev Build" pre-release,
 # replaced each time, so the newest commit is always one click away without building from source.
 # Real versioned releases (v1.0.0, v1.1.0, ...) are never touched.
 #
@@ -32,10 +32,10 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # Four jars: legit and cheat for Minecraft 26.1.2 and 26.2, all -Prelease=true. The build tree is cleared
+      # Four jars: legit and cheat for Minecraft 26.3 (gradle.properties' default) and 26.2, all -Prelease=true. The build tree is cleared
       # between them (as the local four-jar build does) so the generated BuildVariant and compiled classes never
       # carry over.
-      - name: Build jars (26.1.2 and 26.2, legit and cheat, release builds)
+      - name: Build jars (26.3 and 26.2, legit and cheat, release builds)
         run: |
           mkdir dist
           V262="-Pminecraft_version=26.2 -Pfabric_api_version=0.160.0+26.2 -Pmodmenu_version=20.0.2"
@@ -78,7 +78,7 @@ jobs:
 
           Commit: \`${SHORT}\` - ${SUBJECT}
 
-          Pick the jar matching your Minecraft version (\`26.1.2\` or \`26.2\` in the file name):
+          Pick the jar matching your Minecraft version (\`26.3\` or \`26.2\` in the file name):
 
           - \`*-legit.jar\` - what almost everyone wants.
           - \`*-cheat.jar\` - adds the automation features. Against Hypixel's rules; your risk.

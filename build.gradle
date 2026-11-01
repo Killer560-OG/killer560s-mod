@@ -31,7 +31,7 @@ def mcBranch = "mc" + (mcParts.size() >= 2 ? "${mcParts[0]}_${mcParts[1]}" : mcP
 // bundled the older pair. `nettyMatchesMinecraft` below re-checks this against the resolved classpath on every
 // build rather than trusting the table - a stale entry here is exactly the kind of thing that compiles, ships,
 // and only shows up as a NoSuchMethodError inside the Proxy Client.
-def nettyByMinecraft = ['26.1': '4.2.7.Final', '26.2': '4.2.15.Final']
+def nettyByMinecraft = ['26.2': '4.2.15.Final', '26.3': '4.2.16.Final']
 def nettyVersion = nettyByMinecraft[mcMinorVersion]
 if (nettyVersion == null) {
 	throw new GradleException("No netty version recorded for Minecraft ${project.minecraft_version}. Find it "
@@ -231,6 +231,75 @@ if (!compatDir.directory) {
 			+ "nearest existing src/mc*/java and fix what moved.")
 }
 sourceSets.main.java.srcDir compatDir
+
+// ---------------------------------------------------------------- class moves, without a second copy of the file
+//
+// 26.3 moved the whole render-device API from com.mojang.blaze3d.{pipeline,buffers,textures,systems} into
+// com.mojang.renderpearl.api.*, and renamed a few classes outright (EnderMan -> Enderman, RedStoneWireBlock ->
+// RedstoneWireBlock). Java has no import alias, so a facade cannot hide a class that only changed its NAME: every
+// file importing it would need one copy per version. Instead, src/main/java is written against the MAIN version's
+// names (26.3), and an older version's compat directory may carry a remap.txt of `mainName = thisVersionName` lines.
+// When it does, src/main/java is copied into build/generated with each fully qualified name rewritten (and, in a file
+// that imports the class or its package, the simple name too when it changed), and THAT copy is compiled. Only class
+// names move this way: a method that changed is still a facade method in the compat classes. A compile error of the
+// older version therefore points into build/generated/sources/remapped/<branch>/ - the same relative path as the real
+// file under src/main/java, and the same line, since every rewrite stays on its line.
+def remapFile = file("src/${mcBranch}/remap.txt")
+if (remapFile.exists()) {
+	def remapOut = layout.buildDirectory.dir("generated/sources/remapped/${mcBranch}")
+	def mainJava = file("src/main/java")
+	def remapMainSources = tasks.register('remapMainSources') {
+		description = "Copies src/main/java with ${remapFile.name}'s class renames applied, for Minecraft ${project.minecraft_version}."
+		inputs.dir(mainJava)
+		inputs.file(remapFile)
+		outputs.dir(remapOut)
+		doLast {
+			def rules = []
+			remapFile.eachLine { line ->
+				def t = line.trim()
+				if (t.isEmpty() || t.startsWith('#')) {
+					return
+				}
+				def parts = t.split('=')*.trim()
+				if (parts.size() != 2 || !(parts[0] ==~ /[\w.$]+/) || !(parts[1] ==~ /[\w.$]+/)) {
+					throw new GradleException("${remapFile}: bad line '${line}' (expected `main.Name = this.version.Name`)")
+				}
+				def from = parts[0], to = parts[1]
+				rules << [from: from, to: to,
+						fromPkg: from.substring(0, from.lastIndexOf('.')),
+						fromSimple: from.substring(from.lastIndexOf('.') + 1),
+						toSimple: to.substring(to.lastIndexOf('.') + 1),
+						fqn: java.util.regex.Pattern.compile('\\b' + java.util.regex.Pattern.quote(from) + '\\b')]
+			}
+			def out = remapOut.get().asFile
+			project.delete(out)
+			def root = mainJava.toPath()
+			java.nio.file.Files.walk(root).withCloseable { stream ->
+				stream.filter { it.toString().endsWith('.java') }.forEach { p ->
+					def text = new String(java.nio.file.Files.readAllBytes(p), 'UTF-8')
+					def orig = text
+					rules.each { r ->
+						if (!text.contains(r.fromSimple)) {
+							return
+						}
+						boolean imported = text.contains(r.from) || text.contains("import ${r.fromPkg}.*;")
+						text = r.fqn.matcher(text).replaceAll(java.util.regex.Matcher.quoteReplacement(r.to))
+						if (imported && r.fromSimple != r.toSimple) {
+							text = text.replaceAll('\\b' + java.util.regex.Pattern.quote(r.fromSimple) + '\\b',
+									java.util.regex.Matcher.quoteReplacement(r.toSimple))
+						}
+					}
+					def target = new File(out, root.relativize(p).toString())
+					target.parentFile.mkdirs()
+					target.setText(text, 'UTF-8')
+				}
+			}
+		}
+	}
+	sourceSets.main.java.srcDirs = sourceSets.main.java.srcDirs.findAll { it != mainJava }
+	sourceSets.main.java.srcDir(remapMainSources)
+	logger.lifecycle("Minecraft ${project.minecraft_version}: src/main/java compiled through ${remapFile.name}")
+}
 
 // Checks the bundled netty against the one Minecraft actually put on the compile classpath, so the table above
 // cannot quietly go stale on the next Minecraft version. Resolution happens inside the task, not during

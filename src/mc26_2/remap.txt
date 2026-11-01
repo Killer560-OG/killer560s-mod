@@ -1,0 +1,16 @@
+# Classes that 26.3 (the main version, whose names src/main/java uses) moved or renamed, as `26.3 name = 26.2 name`.
+# build.gradle's remapMainSources rewrites a copy of src/main/java with these before a 26.2 compile. Only CLASS names go
+# here; a method that changed goes behind a compat facade (McCompat, McRender, McInput...). Find candidates with javap:
+# a class src/main imports that exists in one version's jar and not the other.
+com.mojang.renderpearl.api.pipeline.RenderPipeline = com.mojang.blaze3d.pipeline.RenderPipeline
+com.mojang.renderpearl.api.pipeline.DepthStencilState = com.mojang.blaze3d.pipeline.DepthStencilState
+com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline = com.mojang.blaze3d.pipeline.CompiledRenderPipeline
+com.mojang.renderpearl.api.buffers.GpuBuffer = com.mojang.blaze3d.buffers.GpuBuffer
+com.mojang.renderpearl.api.buffers.GpuBufferSlice = com.mojang.blaze3d.buffers.GpuBufferSlice
+com.mojang.renderpearl.api.device.GpuDevice = com.mojang.blaze3d.systems.GpuDevice
+com.mojang.renderpearl.api.textures.FilterMode = com.mojang.blaze3d.textures.FilterMode
+com.mojang.renderpearl.api.textures.GpuTextureView = com.mojang.blaze3d.textures.GpuTextureView
+com.mojang.renderpearl.api.textures.GpuTexture = com.mojang.blaze3d.textures.GpuTexture
+com.mojang.renderpearl.api.GpuFormat = com.mojang.blaze3d.GpuFormat
+net.minecraft.world.entity.monster.Enderman = net.minecraft.world.entity.monster.EnderMan
+net.minecraft.world.level.block.RedstoneWireBlock = net.minecraft.world.level.block.RedStoneWireBlock

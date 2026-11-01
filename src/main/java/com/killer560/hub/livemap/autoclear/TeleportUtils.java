@@ -104,7 +104,7 @@ public final class TeleportUtils {
                     || block instanceof CropBlock || block instanceof StemBlock
                     || block instanceof SeagrassBlock || block instanceof TallSeagrassBlock
                     || block instanceof SugarCaneBlock || block instanceof MushroomBlock || block instanceof NetherWartBlock
-                    || block instanceof RedStoneWireBlock || block instanceof ComparatorBlock || block instanceof RepeaterBlock
+                    || block instanceof RedstoneWireBlock || block instanceof ComparatorBlock || block instanceof RepeaterBlock
                     || block instanceof SmallDripleafBlock || block instanceof BigDripleafStemBlock
                     || block instanceof DoublePlantBlock || block instanceof LeverBlock || block instanceof SnowLayerBlock
                     || block instanceof BubbleColumnBlock || block instanceof GrowingPlantBlock

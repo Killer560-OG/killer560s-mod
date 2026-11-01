@@ -15,7 +15,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.entity.monster.EnderMan;
+import net.minecraft.world.entity.monster.Enderman;
 import net.minecraft.world.entity.monster.skeleton.Skeleton;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
@@ -1040,9 +1040,9 @@ public final class SimMobs {
         }
     }
 
-    /** Plain {@link EnderMan} minus {@code checkDespawn()} - see {@link #wake}. */
-    private static final class SimEnderman extends EnderMan {
-        SimEnderman(EntityType<? extends EnderMan> type, Level level) {
+    /** Plain {@link Enderman} minus {@code checkDespawn()} - see {@link #wake}. */
+    private static final class SimEnderman extends Enderman {
+        SimEnderman(EntityType<? extends Enderman> type, Level level) {
             super(type, level);
         }
 

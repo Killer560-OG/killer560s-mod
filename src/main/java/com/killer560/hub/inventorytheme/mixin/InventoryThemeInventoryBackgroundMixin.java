@@ -1,7 +1,7 @@
 package com.killer560.hub.inventorytheme.mixin;
 
 import com.killer560.hub.inventorytheme.InventoryThemeFeature;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.resources.Identifier;

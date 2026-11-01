@@ -41,7 +41,7 @@ import net.minecraft.world.level.block.MushroomBlock;
 import net.minecraft.world.level.block.NetherPortalBlock;
 import net.minecraft.world.level.block.NetherWartBlock;
 import net.minecraft.world.level.block.RailBlock;
-import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.level.block.RedstoneTorchBlock;
 import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.SaplingBlock;
@@ -571,7 +571,7 @@ public final class AutoPuzzleUtil {
                 || b instanceof RailBlock || b instanceof FireBlock || b instanceof VineBlock || b instanceof LiquidBlock
                 || b instanceof SaplingBlock || b instanceof CropBlock || b instanceof StemBlock
                 || b instanceof SeagrassBlock || b instanceof TallSeagrassBlock || b instanceof SugarCaneBlock
-                || b instanceof MushroomBlock || b instanceof NetherWartBlock || b instanceof RedStoneWireBlock
+                || b instanceof MushroomBlock || b instanceof NetherWartBlock || b instanceof RedstoneWireBlock
                 || b instanceof ComparatorBlock || b instanceof RepeaterBlock || b instanceof SmallDripleafBlock
                 || b instanceof BigDripleafStemBlock || b instanceof DoublePlantBlock || b instanceof LeverBlock
                 || b instanceof SnowLayerBlock || b instanceof BubbleColumnBlock || b instanceof GrowingPlantBlock
