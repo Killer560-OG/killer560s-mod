@@ -26,6 +26,9 @@ public final class MainMenuThemeConfig {
     private boolean particles = true;
     /** Extends the theme past the title screen (multiplayer, options, world select, other mods' menus). */
     private boolean otherMenus = true;
+    /** Leaves the pause menu's icon row (Report Bugs, Give Feedback, Friends, Player Reporting) out of the layout, so
+     *  Statistics is followed directly by the next row (killer560, 2026-11-01: "I dont think they are needed"). */
+    private boolean hidePauseIcons = true;
 
     // ---- the redesigned main menu (killer560, 2026-10-15: "Redo the main menu overlay to fit the new mod themes ...
     // have toggle options for it to match, customize it, or have a different main menu than mod menu") ----
@@ -138,6 +141,7 @@ public final class MainMenuThemeConfig {
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
                 cfg.particles = ConfigJson.getBool(obj, "particles", cfg.particles);
                 cfg.otherMenus = ConfigJson.getBool(obj, "otherMenus", cfg.otherMenus);
+                cfg.hidePauseIcons = ConfigJson.getBool(obj, "hidePauseIcons", cfg.hidePauseIcons);
                 cfg.style = ConfigJson.getEnum(obj, "style", Style.class, cfg.style);
                 if (obj.has("theme")) {
                     cfg.theme = com.killer560.hub.gui.MenuTheme.parse(ConfigJson.getString(obj, "theme", "OCEAN"));
@@ -176,6 +180,7 @@ public final class MainMenuThemeConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("particles", particles);
             obj.addProperty("otherMenus", otherMenus);
+            obj.addProperty("hidePauseIcons", hidePauseIcons);
             obj.addProperty("style", style.name());
             obj.addProperty("theme", theme.name());
             obj.addProperty("scene", scene.name());
@@ -214,6 +219,14 @@ public final class MainMenuThemeConfig {
     public void setOtherMenus(boolean otherMenus) {
         this.otherMenus = otherMenus;
         version++;
+    }
+
+    public boolean isHidePauseIcons() {
+        return hidePauseIcons;
+    }
+
+    public void setHidePauseIcons(boolean hidePauseIcons) {
+        this.hidePauseIcons = hidePauseIcons;
     }
 
     public Style getStyle() {

@@ -233,7 +233,9 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   the row looked "a hair weird" (killer560, 2026-11-01). The geometry was identical to vanilla (testkit 1101-pause-layout
   dumps every widget box with and without the mod). Those sprites (`pause_menu/*`, `friends/friends`) now get a face lifted
   toward the theme text color on dark themes (`MainMenuTheme.iconWell`); compare a sprite's own palette against the face
-  before theming another icon button.
+  before theming another icon button. The owner then chose to drop the row: Hide Pause Menu Icons (default ON,
+  `mainmenu/mixin/PauseMenuIconRowMixin`) skips the grid `addChild` of the `LinearLayout`, which leaves no hole because
+  `GridLayout.RowHelper` only advances when something is added (rows stay 24 apart on 26.3 and 26.2, testkit 1101).
 
 ## World rendering
 

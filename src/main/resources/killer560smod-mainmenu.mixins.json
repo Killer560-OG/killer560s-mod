@@ -19,6 +19,7 @@
 		"MenuTabButtonMixin",
 		"MenuTextAndIconButtonMixin",
 		"SpriteIconButtonSpriteAccessor",
+		"PauseMenuIconRowMixin",
 		"MenuTextAreaMixin",
 		"MenuTooltipMixin",
 		"MenuListMixin",
