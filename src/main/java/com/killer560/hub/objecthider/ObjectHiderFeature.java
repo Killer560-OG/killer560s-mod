@@ -1,5 +1,6 @@
 package com.killer560.hub.objecthider;
 
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.objecthider.mixin.AbstractArrowInGroundAccessor;
@@ -467,11 +468,11 @@ public final class ObjectHiderFeature {
             return false;
         }
         ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
-        Object type = packet.getParticle().getType();
+        Object type = McPackets.particle(packet).getType();
 
         // Devonian HideHypeHearts.kt - wither-shield healing hearts.
         if (cfg.isHideHypeHearts() && type == ParticleTypes.HEART
-                && packet.getCount() == 3 && packet.alwaysShow() && packet.isOverrideLimiter()) {
+                && McPackets.particleCount(packet) == 3 && packet.alwaysShow() && McPackets.particleOverrideLimiter(packet)) {
             return true;
         }
         if (!DungeonState.isInDungeon()) {
@@ -479,17 +480,17 @@ public final class ObjectHiderFeature {
         }
         // Devonian HideWitherKing.kt - the King's witch particles, inside the same arena box as his model.
         if (cfg.isHideWitherKing() && type == ParticleTypes.WITCH
-                && isWitherKingArea(packet.getY(), packet.getZ()) && isMasterSeven()) {
+                && isWitherKingArea(McPackets.particleY(packet), McPackets.particleZ(packet)) && isMasterSeven()) {
             return true;
         }
         // Devonian HideHealerOrbs.kt - the orb's dust cloud, by flags + proximity to a tracked orb stand.
         if (cfg.isHideHealerOrbs() && type == ParticleTypes.DUST
-                && packet.getCount() == 0 && packet.isOverrideLimiter() && packet.alwaysShow()) {
+                && McPackets.particleCount(packet) == 0 && McPackets.particleOverrideLimiter(packet) && packet.alwaysShow()) {
             double[][] orbs = orbPositions;
             for (double[] orb : orbs) {
-                if (Math.abs(packet.getX() - orb[0]) < 8.0
-                        && Math.abs(packet.getY() - orb[1]) < 8.0
-                        && Math.abs(packet.getZ() - orb[2]) < 8.0) {
+                if (Math.abs(McPackets.particleX(packet) - orb[0]) < 8.0
+                        && Math.abs(McPackets.particleY(packet) - orb[1]) < 8.0
+                        && Math.abs(McPackets.particleZ(packet) - orb[2]) < 8.0) {
                     return !isKeptPosition(orb[0], orb[1] - 2.0, orb[2], cfg);
                 }
             }

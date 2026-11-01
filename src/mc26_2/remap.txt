@@ -14,3 +14,4 @@ com.mojang.renderpearl.api.textures.GpuTexture = com.mojang.blaze3d.textures.Gpu
 com.mojang.renderpearl.api.GpuFormat = com.mojang.blaze3d.GpuFormat
 net.minecraft.world.entity.monster.Enderman = net.minecraft.world.entity.monster.EnderMan
 net.minecraft.world.level.block.RedstoneWireBlock = net.minecraft.world.level.block.RedStoneWireBlock
+net.minecraft.network.protocol.game.ServerboundPunchPacket = net.minecraft.network.protocol.game.ServerboundSwingPacket

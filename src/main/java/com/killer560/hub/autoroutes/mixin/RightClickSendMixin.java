@@ -1,5 +1,6 @@
 package com.killer560.hub.autoroutes.mixin;
 
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.RightClick;
 import net.minecraft.client.Minecraft;
@@ -30,7 +31,7 @@ public abstract class RightClickSendMixin {
                     || packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerActionPacket
                     || packet instanceof net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket
                     || packet instanceof net.minecraft.network.protocol.game.ServerboundInteractPacket
-                    || packet instanceof net.minecraft.network.protocol.game.ServerboundSwingPacket) {
+                    || packet instanceof net.minecraft.network.protocol.game.ServerboundPunchPacket) {
                 // Anything that acts on the world (a dig, a swap, a use, a click, a swing): Auto Routes starts its next node
                 // in the same tick only when nothing of the kind went this tick (RouteExecutor.actionPacketsSent).
                 com.killer560.hub.autoroutes.RouteExecutor.onActionPacket();
@@ -49,13 +50,13 @@ public abstract class RightClickSendMixin {
                     RightClick.onMove(mc.player, move);
                 } else if (packet instanceof ServerboundUseItemOnPacket useOn) {
                     RightClick.onUseOn(mc.player, useOn);
-                    com.killer560.hub.autoroutes.RouteExecutor.onBlockClickSent(mc.player, useOn.getHand());
+                    com.killer560.hub.autoroutes.RouteExecutor.onBlockClickSent(mc.player, McPackets.useItemOnHand(useOn));
                 } else {
                     RightClick.onUse(mc.player, (ServerboundUseItemPacket) packet);
                     // A Spirit Sceptre use: its bat is logged from here to its hit (autoclear/BatLog).
                     com.killer560.hub.autoclear.BatLog.onUseSent(mc.player, (ServerboundUseItemPacket) packet);
                     com.killer560.hub.autoroutes.RouteExecutor.onItemUseSent(mc.player,
-                            ((ServerboundUseItemPacket) packet).getHand());
+                            McPackets.useItemHand((ServerboundUseItemPacket) packet));
                 }
                 if (!(packet instanceof ServerboundMovePlayerPacket)) {
                     // A use of ours as it leaves the client: what a sceptre BAT node counts its first downward uses by (the sim's

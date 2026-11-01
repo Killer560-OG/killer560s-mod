@@ -267,7 +267,7 @@ public final class Ap3Renderer {
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-            poseStack.mulPose(McRender.cameraRotation(ctx));
+            com.killer560.hub.compat.McRender.rotate(poseStack, McRender.cameraRotation(ctx));
             poseStack.scale(s, -s, s);
             McRender.drawText(ctx, font, text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false,
                     poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);

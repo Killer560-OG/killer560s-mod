@@ -1,5 +1,6 @@
 package com.killer560.hub.util;
 
+import com.killer560.hub.compat.McPackets;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -176,19 +177,19 @@ public final class RightClick {
     /** A right click on a block is leaving. */
     public static void onUseOn(LocalPlayer player, ServerboundUseItemOnPacket p) {
         checkLevel(player);
-        if (!player.getItemInHand(p.getHand()).isEmpty()) {
+        if (!player.getItemInHand(McPackets.useItemOnHand(p)).isEmpty()) {
             usesSent++;
         }
         // A click with an empty hand stores a verdict too, but one that cannot deny an item - and it replaces whatever an
         // earlier click stored. Only a click made with an item in hand can leave a use to be eaten (the one real warp a tick
         // after a click with another item, the Dungeon Breaker, landed: Grand Library 2026-10-14 17:29:35).
-        unpaired = !player.getItemInHand(p.getHand()).isEmpty();
+        unpaired = !player.getItemInHand(McPackets.useItemOnHand(p)).isEmpty();
         clickTick = ActionGate.currentTick();
-        clickPos = p.getHitResult().getBlockPos().immutable();
-        clickItem = itemId(player, p.getHand());
-        lastUseOnSequence = p.getSequence();
+        clickPos = McPackets.useItemOnHitResult(p).getBlockPos().immutable();
+        clickItem = itemId(player, McPackets.useItemOnHand(p));
+        lastUseOnSequence = McPackets.useItemOnSequence(p);
         LOGGER.info("[RightClick] block click seq {} at {} face {} with {} (slot {}) | server look {} | shift {} | screen {}",
-                p.getSequence(), clickPos.toShortString(), p.getHitResult().getDirection(), clickItem,
+                McPackets.useItemOnSequence(p), clickPos.toShortString(), McPackets.useItemOnHitResult(p).getDirection(), clickItem,
                 player.getInventory().getSelectedSlot() + 1, sentLook(), player.getLastSentInput().shift(), screen());
     }
 
@@ -213,10 +214,10 @@ public final class RightClick {
         if (pairs && !spent) {
             barePairedUses++;
         }
-        lastUseSequence = p.getSequence();
+        lastUseSequence = McPackets.useItemSequence(p);
         String line = String.format(Locale.US, "[RightClick] use seq %d with %s (slot %d) rot %.2f/%.2f | server look %s"
-                        + " | shift %s | screen %s | %s | server ray %s%s", p.getSequence(), itemId(player, p.getHand()),
-                player.getInventory().getSelectedSlot() + 1, p.getYRot(), p.getXRot(), sentLook(),
+                        + " | shift %s | screen %s | %s | server ray %s%s", McPackets.useItemSequence(p), itemId(player, McPackets.useItemHand(p)),
+                player.getInventory().getSelectedSlot() + 1, McPackets.useItemYRot(p), McPackets.useItemXRot(p), sentLook(),
                 player.getLastSentInput().shift(), screen(), clickText, rayText,
                 spent ? " -> pairs with that click on purpose (a use with no ability): the click is paired now"
                         : pairs ? " -> Hypixel takes this use as that click's second half: no ability, it replays the click's verdict"

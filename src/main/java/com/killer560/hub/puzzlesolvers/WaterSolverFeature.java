@@ -656,7 +656,7 @@ public final class WaterSolverFeature {
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
         poseStack.translate(worldX - cam.x, worldY - cam.y, worldZ - cam.z);
-        poseStack.mulPose(McRender.cameraRotation(context));
+        com.killer560.hub.compat.McRender.rotate(poseStack, McRender.cameraRotation(context));
         // Real bug found and fixed (2026-09-14, same root cause as SimonSaysFeature.renderNumber): the
         // old pre-1.21.2 (-s, -s, s) nametag scale mirrors X on top of 26.1.2's already-flipped camera
         // quaternion, reversing glyph winding so every lever countdown was back-face culled and never

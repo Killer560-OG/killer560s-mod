@@ -1159,7 +1159,7 @@ public final class AutoBeams {
         }
         // The order a tap sends (Minecraft.startAttack, then continueAttack with the button up): START, the swing, ABORT.
         client.gameMode.startDestroyBlock(lantern, hit.getDirection());
-        player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingAttack(player);
         client.gameMode.stopDestroyBlock();
         return true;
     }

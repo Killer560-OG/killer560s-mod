@@ -198,7 +198,7 @@ public final class ObsidianDig {
                     pos.toShortString(), startSeq, ticks);
         }
         // A hand holding the button on a block swings every tick.
-        player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingAttack(player);
         if (stopSent) {
             if (refusedAtTick < 0 && com.killer560.hub.util.ChestWindows.acked(stopSeq)) {
                 // The ack and the block update can land in either order; the refusal is read a tick later.

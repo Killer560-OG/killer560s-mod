@@ -1,5 +1,6 @@
 package com.killer560.hub.autoclear;
 
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import com.killer560.hub.livemap.autoclear.TeleportUtils;
@@ -247,7 +248,7 @@ public final class BatLog {
 
     /** From {@code RightClickSendMixin}, client thread, as a use packet leaves. Logs a shot when the hand holds a sceptre. */
     public static void onUseSent(LocalPlayer player, ServerboundUseItemPacket p) {
-        if (player == null || !ItemIdentity.matches(player.getItemInHand(p.getHand()),
+        if (player == null || !ItemIdentity.matches(player.getItemInHand(McPackets.useItemHand(p)),
                 AutoClearConfig.Weapon.SPIRIT_SCEPTRE.itemId())) {
             return;
         }
@@ -257,7 +258,7 @@ public final class BatLog {
         }
         long tick = ClearExecutor.clientTick();
         Vec3 eye = player.getEyePosition();
-        Vec3 look = TeleportUtils.getLook(p.getYRot(), p.getXRot());
+        Vec3 look = TeleportUtils.getLook(McPackets.useItemYRot(p), McPackets.useItemXRot(p));
         Entity target = null;
         String chosen;
         if (hintTarget >= 0 && tick - hintTick <= HINT_TICKS) {
@@ -268,7 +269,7 @@ public final class BatLog {
             chosen = target == null ? "no mob within " + (int) TARGET_CONE_DEG + " deg of the look" : "nearest the look";
         }
         hintTarget = -1;
-        Shot s = new Shot(++shots, tick, player.position(), eye, p.getYRot(), p.getXRot(), target, client);
+        Shot s = new Shot(++shots, tick, player.position(), eye, McPackets.useItemYRot(p), McPackets.useItemXRot(p), target, client);
         LIVE.add(s);
         BY_NO.put(s.no, s);
         float viewYaw = ViewFreeze.viewYaw();
@@ -277,7 +278,7 @@ public final class BatLog {
         LOGGER.info(String.format(Locale.US, "[Bat] #%d use tick %d seq %d | feet %s eye %s | packet look %.2f/%.2f |"
                         + " camera %s | target %s (%s): id %d %s tag '%s' dist %.2f vel %s (%.2f b/t) hp %s | look off %.2f deg"
                         + " (yaw %+.2f, pitch %+.2f), a straight bat passes it %.2f blocks away",
-                s.no, tick, p.getSequence(), fmt(s.feet), fmt(eye), p.getYRot(), p.getXRot(),
+                s.no, tick, McPackets.useItemSequence(p), fmt(s.feet), fmt(eye), McPackets.useItemYRot(p), McPackets.useItemXRot(p),
                 Float.isNaN(viewYaw) ? "not held (= look)" : String.format(Locale.US, "%.2f/%.2f", viewYaw, viewPitch),
                 s.targetName, chosen, s.targetId, target == null ? "-" : target.getType().toShortString(), s.tagBefore,
                 s.targetDist, fmt(vel), vel.length(), hp(target), s.lookOffDeg, s.yawOffDeg, s.pitchOffDeg, s.rayMissBlocks));

@@ -1,5 +1,6 @@
 package com.killer560.hub.zpew;
 
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature;
 import com.killer560.hub.livemap.autoclear.TeleportUtils;
 import com.killer560.hub.util.ModLog;
@@ -192,17 +193,17 @@ public final class ZeroPingEtherwarp {
             return;
         }
         if (packet instanceof ServerboundUseItemOnPacket useOn) {
-            ItemStack held = player.getItemInHand(useOn.getHand());
+            ItemStack held = player.getItemInHand(McPackets.useItemOnHand(useOn));
             if (etherwarpRange(held) > 0) {
                 LOGGER.info("[ZPEW] use-on-block {} with an etherwarp item (not predicted: the use packet that follows is)",
-                        useOn.getHitResult().getBlockPos().toShortString());
+                        McPackets.useItemOnHitResult(useOn).getBlockPos().toShortString());
             }
             return;
         }
         if (!(packet instanceof ServerboundUseItemPacket use)) {
             return;
         }
-        ItemStack held = player.getItemInHand(use.getHand());
+        ItemStack held = player.getItemInHand(McPackets.useItemHand(use));
         double range = etherwarpRange(held);
         if (range <= 0) {
             return;
@@ -234,8 +235,8 @@ public final class ZeroPingEtherwarp {
         boolean chained = last != null && (ZeroPingEtherwarpConfig.getInstance().isChain() || extraSending);
         Vec3 from = chained ? last.landing() : player.position();
         Vec3 eye = new Vec3(from.x, from.y + TeleportUtils.eyeHeight(true), from.z);
-        float yaw = use.getYRot();
-        float pitch = Mth.clamp(use.getXRot(), -90f, 90f);
+        float yaw = McPackets.useItemYRot(use);
+        float pitch = Mth.clamp(McPackets.useItemXRot(use), -90f, 90f);
         TeleportUtils.RaycastResult shot = TeleportUtils.getEtherPos(eye, yaw, pitch, range);
         if (shot == null || !shot.succeeded() || shot.pos() == null) {
             noLanding++;
@@ -263,9 +264,9 @@ public final class ZeroPingEtherwarp {
             int n = ZeroPingEtherwarpConfig.getInstance().effectiveWarpsPerTick();
             if (n > 1) {
                 owed = n - 1;
-                owedHand = use.getHand();
-                owedYaw = use.getYRot();
-                owedPitch = use.getXRot();
+                owedHand = McPackets.useItemHand(use);
+                owedYaw = McPackets.useItemYRot(use);
+                owedPitch = McPackets.useItemXRot(use);
                 owedTick = clientTick;
             }
         }

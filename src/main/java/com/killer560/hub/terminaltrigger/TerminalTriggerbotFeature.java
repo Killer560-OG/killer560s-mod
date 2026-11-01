@@ -110,7 +110,7 @@ public final class TerminalTriggerbotFeature {
         }
         client.gameMode.interact(player, hit.stand(), new EntityHitResult(hit.stand(), hit.point()),
                 InteractionHand.MAIN_HAND);
-        player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingUse(player);
         clicked.add(id);
         lastClickTick = now;
         pendingEntityId = -1;

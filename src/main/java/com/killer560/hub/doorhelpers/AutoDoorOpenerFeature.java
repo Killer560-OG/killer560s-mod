@@ -217,7 +217,7 @@ public final class AutoDoorOpenerFeature {
         }
         boolean sent = interactBlock(client, doorPos);
         if (cfg.isAutoDoorSwing()) {
-            client.player.swing(InteractionHand.MAIN_HAND);
+            com.killer560.hub.compat.McCompat.swingUse(client.player);
         }
         lastClick = now;
         DoorHelpersFeature.LOGGER.info("[DoorHelpers] {} door at {}: click {}", pendingType, doorPos.toShortString(),

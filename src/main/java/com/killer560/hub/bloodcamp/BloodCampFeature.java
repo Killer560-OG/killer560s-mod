@@ -1,5 +1,6 @@
 package com.killer560.hub.bloodcamp;
 
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.WorldRenderUtils;
@@ -253,7 +254,7 @@ public final class BloodCampFeature {
         if (!isActive()) {
             return;
         }
-        if (packet.getXa() == 0 && packet.getYa() == 0 && packet.getZa() == 0) {
+        if (!McPackets.moveEntityMoves(packet)) {
             return;
         }
         // Before any entity lookup: until the Watcher is known no move packet can matter (every stand in the world sends them).
@@ -283,10 +284,12 @@ public final class BloodCampFeature {
         // sample is the stand's position BEFORE this packet moves it (this hook runs ahead of the vanilla handler).
         // The trip therefore starts at the skull's spot in the wall, not one step out of it; this used to add the
         // exact step (/ 4096.0), which put the start, and so the predicted landing spot, one step too far along.
+        // The packet's step in 26.2's wire units (1/4096 block); McPackets decodes 26.3's stepped delta to the same.
+        long[] step = McPackets.moveEntityDelta(packet, entity);
         Vec3 packetVec = new Vec3(
-                entity.getX() + packet.getXa() / 4096,
-                entity.getY() + packet.getYa() / 4096,
-                entity.getZ() + packet.getZa() / 4096
+                entity.getX() + step[0] / 4096,
+                entity.getY() + step[1] / 4096,
+                entity.getZ() + step[2] / 4096
         );
 
         long nowTick = client.level != null ? client.level.getGameTime() : 0L;
@@ -325,8 +328,8 @@ public final class BloodCampFeature {
         if (data.firstPacketExact == null) {
             // Where the trip's first packet actually put the stand - only for the testkit, which measures the old
             // start (this point) against the new one (startVec, the wall spot) on the same movement.
-            data.firstPacketExact = new Vec3(entity.getX() + packet.getXa() / 4096.0,
-                    entity.getY() + packet.getYa() / 4096.0, entity.getZ() + packet.getZa() / 4096.0);
+            data.firstPacketExact = new Vec3(entity.getX() + step[0] / 4096.0,
+                    entity.getY() + step[1] / 4096.0, entity.getZ() + step[2] / 4096.0);
         }
         data.lastMoveTick = nowTick;
 
@@ -385,7 +388,7 @@ public final class BloodCampFeature {
     }
 
     public static void onRemoveEntities(ClientboundRemoveEntitiesPacket packet, Level level) {
-        if (watcherEntityId != null && packet.getEntityIds().contains(watcherEntityId)) {
+        if (watcherEntityId != null && McPackets.removedEntityIds(packet).contains(watcherEntityId)) {
             LOGGER.info("[BloodCamp] Watcher removed by the server: entity #{}", watcherEntityId);
             watcherEntityId = null;
         }
@@ -393,7 +396,7 @@ public final class BloodCampFeature {
         // so no capturing lambda and iterator are made for an empty map (mixin FPS pass, 2026-10-15).
         if (!bloodMobs.isEmpty()) {
             int before = bloodMobs.size();
-            bloodMobs.keySet().removeIf(entity -> packet.getEntityIds().contains(entity.getId()));
+            bloodMobs.keySet().removeIf(entity -> McPackets.removedEntityIds(packet).contains(entity.getId()));
             if (bloodMobs.size() != before) {
                 LOGGER.info("[BloodCamp] {} tracked stand(s) removed by the server, {} left", before - bloodMobs.size(),
                         bloodMobs.size());
@@ -1118,7 +1121,7 @@ public final class BloodCampFeature {
         if (melee != null) {
             client.gameMode.attack(client.player, melee);
         }
-        client.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingAttack(client.player);
         Click kind = melee != null ? Click.ATTACK : Click.SWING;
         CLICKS_BY_KIND[kind.ordinal()]++;
         return kind;
@@ -2168,7 +2171,7 @@ public final class BloodCampFeature {
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
         poseStack.translate(worldX - cam.x, worldY - cam.y, worldZ - cam.z);
-        poseStack.mulPose(McRender.cameraRotation(context));
+        com.killer560.hub.compat.McRender.rotate(poseStack, McRender.cameraRotation(context));
         // (+s, -s, +s): the 26.1.2 nametag transform - see SimonSaysFeature.renderNumber for why not (-s, -s, s).
         poseStack.scale(scale, -scale, scale);
 

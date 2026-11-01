@@ -335,7 +335,7 @@ final class AutoWeirdos {
             AABB box = best.getBoundingBox();
             Vec3 aim = box.clip(eye, box.getCenter()).orElse(box.getCenter());
             client.gameMode.interact(player, best, new EntityHitResult(best, aim), InteractionHand.MAIN_HAND);
-            player.swing(InteractionHand.MAIN_HAND);
+            com.killer560.hub.compat.McCompat.swingUse(player);
             talked.add(best.getId());
             loggedWait = null;
             LOGGER.info("[AutoPuzzles] Weirdos: talked to '{}' (entity {}) at {} ({} of 3, {} blocks eye to box, reach {};"

@@ -133,7 +133,7 @@ final class WitherDoorsRenderer {
             poseStack.pushPose();
             try {
                 poseStack.translate(l.pos().x - cam.x, l.pos().y - cam.y, l.pos().z - cam.z);
-                poseStack.mulPose(McRender.cameraRotation(context));
+                com.killer560.hub.compat.McRender.rotate(poseStack, McRender.cameraRotation(context));
                 poseStack.scale(s, -s, s);
                 McRender.drawText(context, font, text, -font.width(text) / 2f, -font.lineHeight / 2f,
                         0xFF000000 | l.argb(), false, poseStack, net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH,

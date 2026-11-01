@@ -1670,7 +1670,7 @@ public final class AutoClearFeature {
             LOGGER.info("[AutoClear] wither door {}: click {} refused client-side, not sent", door, doorClicks);
             return;
         }
-        player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingUse(player);
         if (!doorAccepted) {
             doorKeysAtClick = keysNow;
         }
@@ -2410,7 +2410,7 @@ public final class AutoClearFeature {
             return true;
         }
         com.killer560.hub.autoroutes.RouteExecutor.sendBoomTap(client, player, hit.getBlockPos(), hit.getDirection());
-        player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingAttack(player);
         midasBooms++;
         midasWait = 0;
         action = "Superboom on the King Midas altar";

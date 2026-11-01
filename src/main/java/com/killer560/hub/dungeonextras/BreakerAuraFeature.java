@@ -965,7 +965,7 @@ public final class BreakerAuraFeature {
         }
         census("sent");
         // One swing however many went out: a hand swings once a tick whatever it is doing.
-        player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingAttack(player);
         // MINUS ONE, because the wait is checked on a later tick and that check costs a tick of its own: with the
         // old arithmetic a cooldown of 1 meant break, skip, break - half the rate the setting says, and half
         // QUOI's, which has no cooldown in its break loop at all and simply sends one every tick. killer560

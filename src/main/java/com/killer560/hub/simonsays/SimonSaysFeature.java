@@ -3138,7 +3138,7 @@ public final class SimonSaysFeature {
         } finally {
             syntheticClickInProgress = false;
         }
-        client.player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingUse(client.player);
         diagNoteGridClickFired(pos, System.currentTimeMillis());
         return true;
     }
@@ -3229,7 +3229,7 @@ public final class SimonSaysFeature {
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
         poseStack.translate(worldX - cam.x, worldY - cam.y, worldZ - cam.z);
-        poseStack.mulPose(new org.joml.Quaternionf().rotationYXZ((float) (Math.PI + Math.PI / 2.0), 0f, 0f));
+        com.killer560.hub.compat.McRender.rotate(poseStack, new org.joml.Quaternionf().rotationYXZ((float) (Math.PI + Math.PI / 2.0), 0f, 0f));
         // Real bug found and fixed (2026-09-14, killer560's own report: "the numbers that go on the
         // buttons still do not show up. They never have."): this scaled by (-s, -s, s) - the OLD
         // (pre-1.21.2) nametag transform. In 26.1.2 the camera quaternion is already the flipped

@@ -167,7 +167,7 @@ public final class RelicHelpersFeature {
                 return;
             }
             client.gameMode.interact(player, stand, new EntityHitResult(stand, point.get()), InteractionHand.MAIN_HAND);
-            player.swing(InteractionHand.MAIN_HAND);
+            com.killer560.hub.compat.McCompat.swingUse(player);
             clickedStands.put(stand.getId(), now);
             lastClickTick = now;
             clicksSent++;
@@ -202,7 +202,7 @@ public final class RelicHelpersFeature {
                 return;
             }
             client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, srv);
-            player.swing(InteractionHand.MAIN_HAND);
+            com.killer560.hub.compat.McCompat.swingUse(player);
             lastClickTick = now;
             clicksSent++;
             LOGGER.info("[RelicHelpers] placed {} relic on its cauldron {}, tick {}", held.colourName, pos.toShortString(), now);

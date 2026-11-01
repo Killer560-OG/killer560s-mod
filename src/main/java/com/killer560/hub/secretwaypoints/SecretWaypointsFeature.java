@@ -1024,7 +1024,7 @@ public final class SecretWaypointsFeature {
             poseStack.pushPose();
             try {
                 poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-                poseStack.mulPose(McRender.cameraRotation(ctx));
+                com.killer560.hub.compat.McRender.rotate(poseStack, McRender.cameraRotation(ctx));
                 poseStack.scale(s, -s, s);
                 McRender.drawText(ctx, font, w.label(), -font.width(w.label()) / 2f, -font.lineHeight / 2f, color, false,
                         poseStack, net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH,

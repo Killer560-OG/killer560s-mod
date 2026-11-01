@@ -274,7 +274,7 @@ public final class LeverAuraFeature {
                         ? client.level.getBlockState(pos).getValue(net.minecraft.world.level.block.LeverBlock.POWERED) : null,
                 cfg.isSwingHand(), ActionGate.currentTick());
         if (cfg.isSwingHand()) {
-            client.player.swing(InteractionHand.MAIN_HAND);
+            com.killer560.hub.compat.McCompat.swingUse(client.player);
         }
         if (cfg.isChatFeedback()) {
             ModChat.send(CHAT_TAG, ModChat.text("Flicked "), ModChat.value(pos.toShortString()), ModChat.dim(" (" + reason + ")"));

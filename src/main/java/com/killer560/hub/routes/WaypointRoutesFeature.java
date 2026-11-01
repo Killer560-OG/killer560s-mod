@@ -431,7 +431,7 @@ public final class WaypointRoutesFeature {
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-            poseStack.mulPose(McRender.cameraRotation(context));
+            com.killer560.hub.compat.McRender.rotate(poseStack, McRender.cameraRotation(context));
             poseStack.scale(s, -s, s);
             float yOff = (line1 != null && line2 != null) ? -font.lineHeight : -font.lineHeight / 2f;
             if (line1 != null) {

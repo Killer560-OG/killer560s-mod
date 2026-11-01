@@ -572,7 +572,7 @@ public final class AutoI4Feature {
         }
         long now = System.currentTimeMillis();
         // Left click in the air = an arm swing packet (what vanilla sends for a miss); the wall is out of reach.
-        player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingAttack(player);
         abilityPending = false;
         abilityUsedThisAttempt = true;
         abilityActivatedAtMs = now;

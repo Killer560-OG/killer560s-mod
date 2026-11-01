@@ -1166,7 +1166,7 @@ public final class AutoPuzzleUtil {
                 boxDistSq > BLOCK_REACH_SQ ? " OUT OF REACH" : "", heldName(client.player),
                 client.player.isShiftKeyDown(), logTick());
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
-        client.player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingUse(client.player);
         return true;
     }
 }

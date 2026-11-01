@@ -152,9 +152,26 @@ public final class McCompat {
         return monitor.y();
     }
 
-    /** The monitor's GLFW handle. */
-    public static long monitorHandle(Monitor monitor) {
-        return monitor.monitor();
+    // ------------------------------------------------------------------------------------------------ arm swings
+
+    /** The swing that goes with a LEFT click the mod sends (a dig START/ABORT, an attack, a click at the air). 26.3
+     *  dropped ServerboundSwingPacket and LivingEntity.swing(hand): vanilla's startAttack (javap 26.3,
+     *  Minecraft.startAttack) animates with {@code swing(MAIN_HAND, held.getAttackAnimation(), false)} and then sends
+     *  {@code ServerboundPunchPacket.INSTANCE} itself, so this does exactly those two things. */
+    public static void swingAttack(net.minecraft.world.entity.player.Player player) {
+        player.swing(net.minecraft.world.InteractionHand.MAIN_HAND,
+                player.getItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND).getAttackAnimation(), false);
+        if (player instanceof net.minecraft.client.player.LocalPlayer local) {
+            local.connection.send(net.minecraft.network.protocol.game.ServerboundPunchPacket.INSTANCE);
+        }
+    }
+
+    /** The swing that goes with a RIGHT click the mod sends (useItemOn, useItem, interact). On 26.3 vanilla's
+     *  startUseItem only ANIMATES a successful use - {@code swing(hand, held.getInteractAnimation(), false)}, no packet
+     *  (javap 26.3: the punch packet is sent from startAttack alone) - so this sends nothing either. */
+    public static void swingUse(net.minecraft.world.entity.player.Player player) {
+        player.swing(net.minecraft.world.InteractionHand.MAIN_HAND,
+                player.getItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND).getInteractAnimation(), false);
     }
 
     // ------------------------------------------------------------------------------------------------ title screen

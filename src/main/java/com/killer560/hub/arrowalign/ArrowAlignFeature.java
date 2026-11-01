@@ -481,7 +481,7 @@ public final class ArrowAlignFeature {
         } finally {
             syntheticClickInProgress = false;
         }
-        client.player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingUse(client.player);
         noteClick(index, now);
         LOGGER.info("[ArrowAlign] click sent: frame {} entity #{} hit={} dist={} observed {} pending {} target {} needed {}{} tick={}",
                 index, frame.getId(), String.format(Locale.ROOT, "%.2f,%.2f,%.2f", hit.x, hit.y, hit.z),
@@ -791,7 +791,7 @@ public final class ArrowAlignFeature {
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
         poseStack.translate(worldX - cam.x, worldY - cam.y, worldZ - cam.z);
-        poseStack.mulPose(new org.joml.Quaternionf().rotationYXZ((float) (Math.PI / 2.0), 0f, 0f));
+        com.killer560.hub.compat.McRender.rotate(poseStack, new org.joml.Quaternionf().rotationYXZ((float) (Math.PI / 2.0), 0f, 0f));
         poseStack.scale(scale, -scale, scale);
         float width = font.width(text);
         McRender.drawText(context, font, text, -width / 2f, -font.lineHeight / 2f, argb, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);

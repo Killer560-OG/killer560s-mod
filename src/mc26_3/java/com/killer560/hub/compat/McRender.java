@@ -255,6 +255,12 @@ public final class McRender {
         }
     }
 
+    /** Multiplies a rotation onto the pose. 26.3 renamed {@code PoseStack.mulPose(Quaternionfc)} to
+     *  {@code rotate(Quaternionfc)} (javap); {@code mulPose} now takes only a matrix or a Transformation. */
+    public static void rotate(com.mojang.blaze3d.vertex.PoseStack poseStack, org.joml.Quaternionfc rotation) {
+        poseStack.rotate(rotation);
+    }
+
     // ---- first-person hand (Held Item Outline) ------------------------------------------------------------------
 
     private static net.minecraft.client.renderer.SubmitNodeStorage handMaskStorage;

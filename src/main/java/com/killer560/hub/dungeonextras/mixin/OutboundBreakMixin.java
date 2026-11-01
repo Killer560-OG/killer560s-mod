@@ -5,7 +5,7 @@ import net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
-import net.minecraft.network.protocol.game.ServerboundSwingPacket;
+import net.minecraft.network.protocol.game.ServerboundPunchPacket;
 import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -53,7 +53,7 @@ public abstract class OutboundBreakMixin {
                         // every other action (drops, offhand swap, STAB) is not a break - ignore it
                     }
                 }
-            } else if (packet instanceof ServerboundSwingPacket) {
+            } else if (packet instanceof ServerboundPunchPacket) {
                 ForeignBreakerProbe.onSwing();
             } else if (packet instanceof ServerboundSetCarriedItemPacket) {
                 ForeignBreakerProbe.onHotbarSwap();

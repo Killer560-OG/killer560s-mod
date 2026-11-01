@@ -158,7 +158,7 @@ public final class DungeonAlertsFeature {
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
         poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-        poseStack.mulPose(McRender.cameraRotation(context));
+        com.killer560.hub.compat.McRender.rotate(poseStack, McRender.cameraRotation(context));
         float s = 0.025f * scale;
         poseStack.scale(s, -s, s);
         float width = font.width(text);

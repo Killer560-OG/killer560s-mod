@@ -191,7 +191,7 @@ public final class SecretTriggerbotFeature {
         pendingPos = null;
         BlockState state = client.level.getBlockState(pos);
         client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
-        player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingUse(player);
         clicked.add(pos.asLong());
         lastClickMs = now;
         lastClickedChest = isChest(state.getBlock()) ? pos : null;

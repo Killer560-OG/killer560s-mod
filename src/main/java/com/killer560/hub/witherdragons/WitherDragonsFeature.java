@@ -1,5 +1,6 @@
 package com.killer560.hub.witherdragons;
 
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudSeen;
@@ -220,9 +221,9 @@ public final class WitherDragonsFeature {
     static void onParticles(ClientboundLevelParticlesPacket p) {
         // The packet's own fields first: almost every particle in every world fails them, and they cost nothing
         // beside trackingActive()'s config reads and inP5()'s state lookups (FPS sweep, 2026-10-21).
-        if (p.getCount() != 20 || p.getY() != 19.0 || p.getParticle().getType() != ParticleTypes.FLAME
-                || p.getXDist() != 2f || p.getYDist() != 3f || p.getZDist() != 2f || p.getMaxSpeed() != 0f
-                || p.getX() % 1 != 0.0 || p.getZ() % 1 != 0.0) {
+        if (McPackets.particleCount(p) != 20 || McPackets.particleY(p) != 19.0 || McPackets.particle(p).getType() != ParticleTypes.FLAME
+                || McPackets.particleXDist(p) != 2f || McPackets.particleYDist(p) != 3f || McPackets.particleZDist(p) != 2f || McPackets.particleMaxSpeed(p) != 0f
+                || McPackets.particleX(p) % 1 != 0.0 || McPackets.particleZ(p) % 1 != 0.0) {
             return;
         }
         if (!trackingActive() || !P5State.inP5()) {
@@ -236,7 +237,7 @@ public final class WitherDragonsFeature {
                 dragons.add(d);
                 continue;
             }
-            if (!d.particleInRange(p.getX(), p.getZ())) {
+            if (!d.particleInRange(McPackets.particleX(p), McPackets.particleZ(p))) {
                 continue;
             }
             d.state = WitherDragon.State.SPAWNING;
@@ -539,7 +540,7 @@ public final class WitherDragonsFeature {
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
         poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-        poseStack.mulPose(McRender.cameraRotation(context));
+        com.killer560.hub.compat.McRender.rotate(poseStack, McRender.cameraRotation(context));
         float s = 0.025f * scale;
         poseStack.scale(s, -s, s);
         Component component = Component.literal(text);

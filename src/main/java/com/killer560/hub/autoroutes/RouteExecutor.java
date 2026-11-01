@@ -4998,7 +4998,7 @@ public final class RouteExecutor {
                     - player.getYRot()), node.pitch);
         }
         client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
-        player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingUse(player);
         logActed(node, " (empty hand: clicked " + client.level.getBlockState(hit.getBlockPos()).getBlock().getName().getString()
                 + " at " + hit.getBlockPos().toShortString() + ")");
         step = Step.CONFIRM;
@@ -5083,7 +5083,7 @@ public final class RouteExecutor {
                         Mth.clamp(boomAimPitch, -90f, 90f));
                 sendBoomTap(client, player, boomTarget, hit.getDirection());
             }
-            player.swing(InteractionHand.MAIN_HAND);
+            com.killer560.hub.compat.McCompat.swingAttack(player);
             boomSentAt = execTicks;
             LOGGER.info("[AutoRoutes] Node #{} BOOM: START+ABORT dig sent at {} ({}) face {} from {} at tick {} - watching "
                             + "{} block(s) within {} for a change", route.indexOf(node) + 1, boomTarget.toShortString(),
@@ -5477,7 +5477,7 @@ public final class RouteExecutor {
                 breakerSent.add(pos);
                 breakerSentAt.put(pos.immutable(), execTicks);
                 if (!multi) {
-                    player.swing(InteractionHand.MAIN_HAND);
+                    com.killer560.hub.compat.McCompat.swingAttack(player);
                     if (!breakerQueue.isEmpty()) {
                         return; // next block on the next delay tick
                     }
@@ -5486,7 +5486,7 @@ public final class RouteExecutor {
             }
             if (multi && sentNow > 0) {
                 // One swing however many went out, as Breaker Aura: a hand swings once a tick.
-                player.swing(InteractionHand.MAIN_HAND);
+                com.killer560.hub.compat.McCompat.swingAttack(player);
                 LOGGER.info("[AutoRoutes] Breaker: {} block(s) on one tick (multi break)", sentNow);
             }
             step = Step.CONFIRM;
@@ -5539,7 +5539,7 @@ public final class RouteExecutor {
                         + "obsidian queued)", route.indexOf(node) + 1, pos.toShortString(), face, execTicks,
                         breakerObsidian.size());
                 OBSIDIAN.start(client, player, pos, face, obsidianAim(player));
-                player.swing(InteractionHand.MAIN_HAND);
+                com.killer560.hub.compat.McCompat.swingAttack(player);
                 if (breakerSent.isEmpty()) {
                     logActed(node, " (obsidian)");
                 }
@@ -5663,7 +5663,7 @@ public final class RouteExecutor {
             breakerRedigs++;
             sent++;
         }
-        player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingAttack(player);
         noteSecretGap("re-dug " + sent + " breaker block(s) the server had not broken");
         return true;
     }
@@ -5921,7 +5921,7 @@ public final class RouteExecutor {
                 break;
             }
         }
-        player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingAttack(player);
         LOGGER.info("[AutoRoutes] Breaker linger: {} block(s) broken {} tick(s) after the node, eye y {}", sentNow,
                 lingerTicks, String.format(java.util.Locale.US, "%.2f", eye.y));
     }
@@ -6005,7 +6005,7 @@ public final class RouteExecutor {
                 }
                 client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
             }
-            player.swing(InteractionHand.MAIN_HAND);
+            com.killer560.hub.compat.McCompat.swingUse(player);
             LOGGER.info("[AutoRoutes] use sent (legit) at tick {}: {} at the live look {} / {} (target {} / {}), block click "
                             + "{} -> {}, item use {}", execTicks, ItemIdentity.skyblockId(player.getMainHandItem()),
                     String.format(Locale.ROOT, "%.2f", player.getYRot()), String.format(Locale.ROOT, "%.2f", player.getXRot()),
@@ -6032,7 +6032,7 @@ public final class RouteExecutor {
         } else {
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         }
-        player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingUse(player);
         LOGGER.info("[AutoRoutes] use sent (obvious) at tick {}: {} with body look {} / {} from {}, prediction {}", execTicks,
                 ItemIdentity.skyblockId(player.getMainHandItem()), String.format(Locale.ROOT, "%.2f", yaw),
                 String.format(Locale.ROOT, "%.2f", pitch), fmt(player.position()),

@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonextras;
 
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.WorldRenderUtils;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -107,10 +108,10 @@ public final class MageBeamFeature {
         if (!cfg.isMageBeamEnabled() || !DungeonState.isInDungeon()) {
             return false;
         }
-        if (packet.getParticle() == null || packet.getParticle().getType() != ParticleTypes.FIREWORK) {
+        if (McPackets.particle(packet) == null || McPackets.particle(packet).getType() != ParticleTypes.FIREWORK) {
             return false;
         }
-        onPoint(new Vec3(packet.getX(), packet.getY(), packet.getZ()));
+        onPoint(new Vec3(McPackets.particleX(packet), McPackets.particleY(packet), McPackets.particleZ(packet)));
         // Custom Mage Beam on means the vanilla firework particles are always hidden (killer560, 2026-10-18).
         return true;
     }

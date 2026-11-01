@@ -161,7 +161,7 @@ public final class GoldorTriggerbotFeature {
         }
         if (cfg.getClickType() == GoldorTriggerbotConfig.ClickType.ATTACK) {
             client.gameMode.attack(player, target);
-            player.swing(InteractionHand.MAIN_HAND);
+            com.killer560.hub.compat.McCompat.swingAttack(player);
         } else {
             // Terminator / Juju: the shot is a plain item use in the direction you are already looking - the same
             // call AutoI4Feature fires the bow with. useItem does its own swing handling, so none is sent here. A block

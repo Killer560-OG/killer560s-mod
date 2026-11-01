@@ -76,9 +76,9 @@ public abstract class HeldItemInHandRendererMixin {
         if (!HeldItemConfig.isActive()) return;
         HeldItemConfig.HandTransform t = HeldItemConfig.getInstance().forHand(hand == InteractionHand.MAIN_HAND);
         float sign = killer560smod$armSign(player, hand);
-        if (t.rotX != 0f) poseStack.mulPose(Axis.XP.rotationDegrees(t.rotX));
-        if (t.rotY != 0f) poseStack.mulPose(Axis.YP.rotationDegrees(t.rotY * sign));
-        if (t.rotZ != 0f) poseStack.mulPose(Axis.ZP.rotationDegrees(t.rotZ * sign));
+        if (t.rotX != 0f) com.killer560.hub.compat.McRender.rotate(poseStack, Axis.XP.rotationDegrees(t.rotX));
+        if (t.rotY != 0f) com.killer560.hub.compat.McRender.rotate(poseStack, Axis.YP.rotationDegrees(t.rotY * sign));
+        if (t.rotZ != 0f) com.killer560.hub.compat.McRender.rotate(poseStack, Axis.ZP.rotationDegrees(t.rotZ * sign));
         if (t.scale != 1.0f) poseStack.scale(t.scale, t.scale, t.scale);
     }
 

@@ -563,7 +563,7 @@ public final class SecretAuraFeature {
             LOGGER.info("[SecretAura] Redstone Key placing click sent on {} (keyFound cleared) tick={}", xyz(bestPos), tickNow());
         }
         if (cfg.isAuraSwing()) {
-            client.player.swing(InteractionHand.MAIN_HAND);
+            com.killer560.hub.compat.McCompat.swingUse(client.player);
         }
     }
 

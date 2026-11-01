@@ -377,7 +377,7 @@ public final class LightsDeviceFeature {
         }
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
         if (swing) {
-            client.player.swing(InteractionHand.MAIN_HAND);
+            com.killer560.hub.compat.McCompat.swingUse(client.player);
         }
         flickCount++;
         recent.add(who + " " + pos.toShortString());

@@ -1,5 +1,6 @@
 package com.killer560.hub.livemap.mixin;
 
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.livemap.LiveMapConfig;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -91,7 +92,7 @@ public abstract class LiveMapPacketListenerMixin {
     @Inject(method = "handleLevelChunkWithLight", at = @At("RETURN"), require = 0)
     private void killer560smod$etherGridChunk(ClientboundLevelChunkWithLightPacket packet, CallbackInfo ci) {
         try {
-            LevelEtherGrid.invalidateColumn(packet.getX(), packet.getZ());
+            LevelEtherGrid.invalidateColumn(McPackets.chunkX(packet), McPackets.chunkZ(packet));
         } catch (RuntimeException e) {
             killer560smod$liveMap$hookThrew("levelChunk", e);
         }

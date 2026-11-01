@@ -2241,7 +2241,7 @@ public final class Ap3Executor {
                 placedBlocking = false;
                 placedGraceTicks = 0;
                 if (r.consumesAction()) {
-                    player.swing(InteractionHand.MAIN_HAND);
+                    com.killer560.hub.compat.McCompat.swingUse(player);
                 }
             }
             case BOOM -> {
@@ -2262,7 +2262,7 @@ public final class Ap3Executor {
                         ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, boomTarget, b.getDirection()));
                 player.connection.send(new ServerboundPlayerActionPacket(
                         ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, boomTarget, Direction.DOWN));
-                player.swing(InteractionHand.MAIN_HAND);
+                com.killer560.hub.compat.McCompat.swingAttack(player);
                 boomLog(node, String.format(Locale.US, "use sent: Superboom tap on %s from (%.2f, %.2f, %.2f) at look %.2f/%.2f",
                         boomTarget.toShortString(), player.getX(), player.getY(), player.getZ(), player.getYRot(),
                         player.getXRot()));
@@ -2280,7 +2280,7 @@ public final class Ap3Executor {
                     com.killer560.hub.zpew.ZeroPingEtherwarp.done(zpew);
                 }
                 if (r.consumesAction()) {
-                    player.swing(InteractionHand.MAIN_HAND);
+                    com.killer560.hub.compat.McCompat.swingUse(player);
                 }
             }
         }

@@ -152,9 +152,18 @@ public final class McCompat {
         return monitor.y();
     }
 
-    /** The monitor's GLFW handle. */
-    public static long monitorHandle(Monitor monitor) {
-        return monitor.monitor();
+    // ------------------------------------------------------------------------------------------------ arm swings
+
+    /** The swing that goes with a LEFT click the mod sends (a dig START/ABORT, an attack, a click at the air). 26.2:
+     *  {@code swing(hand)}, which animates and sends ServerboundSwingPacket, as vanilla's startAttack does. */
+    public static void swingAttack(net.minecraft.world.entity.player.Player player) {
+        player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+    }
+
+    /** The swing that goes with a RIGHT click the mod sends (useItemOn, useItem, interact). 26.2: the same
+     *  {@code swing(hand)} with its swing packet, which is what 26.2's vanilla startUseItem sends for a success. */
+    public static void swingUse(net.minecraft.world.entity.player.Player player) {
+        player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
     }
 
     // ------------------------------------------------------------------------------------------------ title screen

@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonalerts;
 
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.ChatFormatting;
@@ -166,7 +167,7 @@ public final class SecretSound {
         if (!detecting() || level == null || !DungeonState.isInDungeon()) {
             return;
         }
-        packet.getEntityIds().forEach(id -> checkItemEntity(level.getEntity(id)));
+        McPackets.removedEntityIds(packet).forEach(id -> checkItemEntity(level.getEntity(id)));
     }
 
     private static void checkItemEntity(Entity entity) {

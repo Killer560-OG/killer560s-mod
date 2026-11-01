@@ -1,5 +1,6 @@
 package com.killer560.hub.smoothtp;
 
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.ModLog;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -116,11 +117,11 @@ public final class SmoothTeleport {
             return;
         }
         if (packet instanceof ServerboundUseItemPacket use) {
-            hand = use.getHand();
+            hand = McPackets.useItemHand(use);
             // The rotation the server snaps to before using the item (handleUseItem).
-            look = Vec3.directionFromRotation(use.getXRot(), use.getYRot());
+            look = Vec3.directionFromRotation(McPackets.useItemXRot(use), McPackets.useItemYRot(use));
         } else if (packet instanceof ServerboundUseItemOnPacket useOn) {
-            hand = useOn.getHand();
+            hand = McPackets.useItemOnHand(useOn);
             look = Vec3.directionFromRotation(player.getXRot(), player.getYRot());
         } else {
             return;

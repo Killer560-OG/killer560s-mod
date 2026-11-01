@@ -908,7 +908,7 @@ public final class AutoBoulder {
             long sincePrev = lastPressMs == 0L ? now - engagedMs : now - lastPressMs;
             lastPressMs = now;
             client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
-            player.swing(InteractionHand.MAIN_HAND);
+            com.killer560.hub.compat.McCompat.swingUse(player);
             LOGGER.info("[AutoPuzzles] Boulder: click on {} - crosshair on it: yes ({} hit {} face {}), turn {} tick(s) "
                             + "/ {} ms after the walk, {} ms since the previous click; eye {} to box {}, yaw {} pitch {},"
                             + " holding {} (tick {})", label,

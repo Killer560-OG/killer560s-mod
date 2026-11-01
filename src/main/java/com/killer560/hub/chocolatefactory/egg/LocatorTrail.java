@@ -1,5 +1,6 @@
 package com.killer560.hub.chocolatefactory.egg;
 
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.ModLog;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.particles.ParticleTypes;
@@ -103,14 +104,14 @@ public final class LocatorTrail {
         if (clickedAt == 0L || now - clickedAt > TRAIL_MS) {
             return;
         }
-        if (packet.getParticle() == null || packet.getParticle().getType() != ParticleTypes.HAPPY_VILLAGER) {
+        if (McPackets.particle(packet) == null || McPackets.particle(packet).getType() != ParticleTypes.HAPPY_VILLAGER) {
             return;
         }
-        Vec3 p = new Vec3(packet.getX(), packet.getY(), packet.getZ());
+        Vec3 p = new Vec3(McPackets.particleX(packet), McPackets.particleY(packet), McPackets.particleZ(packet));
         long t = now - clickedAt;
-        if (packet.getMaxSpeed() != 0f || packet.getCount() != 1) {
-            LOGGER.info("[Egglocator] happy villager at " + fmt(p) + " skipped: speed=" + packet.getMaxSpeed() + " count="
-                    + packet.getCount() + " t=" + t + "ms");
+        if (McPackets.particleMaxSpeed(packet) != 0f || McPackets.particleCount(packet) != 1) {
+            LOGGER.info("[Egglocator] happy villager at " + fmt(p) + " skipped: speed=" + McPackets.particleMaxSpeed(packet) + " count="
+                    + McPackets.particleCount(packet) + " t=" + t + "ms");
             return;
         }
         boolean added = FITTER.tryAdd(p, MAX_STEP, LocatorTrail::atFishingHook);

@@ -269,7 +269,7 @@ public final class TerminalAuraFeature {
     /** The interact and the swing; the caller has asked the ActionGate. */
     private static void interact(Minecraft client, Player player, ArmorStand stand, Vec3 hit) {
         client.gameMode.interact(player, stand, new EntityHitResult(stand, hit), InteractionHand.MAIN_HAND);
-        player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingUse(player);
     }
 
     /** The nearest terminal the aura may click, or null. */

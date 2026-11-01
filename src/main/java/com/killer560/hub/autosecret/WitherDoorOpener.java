@@ -198,7 +198,7 @@ final class WitherDoorOpener {
             fail("refused client-side before sending (outside the world border)");
             return;
         }
-        player.swing(InteractionHand.MAIN_HAND);
+        com.killer560.hub.compat.McCompat.swingUse(player);
         LOGGER.info("[AutoSecret] right-clicked the {} door at {} (face {}, from {})", blood ? "blood" : "wither",
                 lock.toShortString(),
                 hit.getDirection(), String.format(java.util.Locale.US, "%.2f %.2f %.2f", eye.x, eye.y, eye.z));
