@@ -184,3 +184,12 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
   UserApiService with `MinecraftServicesDiscoveryService.create(proxy, true).createUserApiService(token)`, and
   `ProfileResult` moved to `com.mojang.authlib.services`.
 
+
+## Mixins beside other mods
+
+- Mixin conflict rules (2026-11-01, Lunar Client and the chat-history mods). Two `@Redirect`s on one call: the higher
+  priority takes it and the other finds no target; two `@ModifyConstant`s on one constant: the first applied takes it and
+  the later one is skipped ("@ModifyConstant conflict. Skipping ... already redirected by ..."). A skipped require-1
+  injector is a boot crash. MixinExtras injectors run after every plain-Mixin injector and chain with each other, so a
+  `@ModifyExpressionValue` on a CONSTANT still applies after another mod's `@ModifyConstant`, and a `@WrapOperation`
+  wraps the call whatever else hooks it. The testkit shows which mod lost: grep the client log for "conflict. Skipping".

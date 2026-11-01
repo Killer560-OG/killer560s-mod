@@ -311,15 +311,20 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   After adding a mixin, check the json in the built jar (`unzip -p <jar> <name>.mixins.json`) or a test that it acted.
 - A class placed inside a mixin-owned package throws `IllegalClassLoadError` and crashes the game at boot.
   Keep helper classes out of `mixin` packages.
-- **Lunar Client: never `@Redirect` a call Lunar also redirects; use `@WrapOperation`** (2026-11-01). Lunar runs real
-  Fabric Loader 0.19.5 inside its own "Genesis/Ichor" launcher and applies its own mixins (`mixins.modern_lunar_combined.json`,
-  priority 200, `defaultRequire 1`). Two `@Redirect`s on one call: the higher priority (ours, 1000) takes it, Lunar's finds no
-  target and Lunar aborts boot with "Lunar Client Startup Error" (`Critical injection failure: Redirector lunar$chatMod$render$fill`
-  from Peek Chat's ChatScreen fill redirect; reproduced and fixed on Lunar 26.3). Before adding a `@Redirect`, run
-  `python -I tools/lunar/lunar-mixin-scan.py <lunar.jar> <modern-*.jar> > scan.txt` then
-  `python -I tools/lunar/lunar-redirect-collide.py src scan.txt` (jars in `%USERPROFILE%\.lunarclient\offline\multiver`).
-  Lunar game log: `%USERPROFILE%\.lunarclient\profiles\<major>\logs\latest.log` and `ichor-boot.log`; launcher log
-  `%USERPROFILE%\.lunarclient\logs\launcher\main.log`. Lunar boots as Guest (no login) for title-screen tests.
+- **No `@Redirect`, `@Overwrite` or `@ModifyConstant` in this mod unless nothing else can do it** (killer560, 2026-11-01:
+  "fix this cause it seems like a universal problem"). They take a call, method or constant for ONE mod: a second mod
+  hooking the same spot either loses silently or, if its injector is require 1, crashes the game at boot. Use the forms
+  that chain: `@WrapOperation` (call `original.call(...)` to keep the vanilla call), `@ModifyExpressionValue` (a call's
+  result or a CONSTANT), `@ModifyReturnValue`, `@WrapWithCondition`, plain `@Inject`. Seen: Lunar Client's own chat mod
+  `@Redirect`s ChatScreen's input-bar fill (require 1, priority 200) and our Peek Chat redirect won, so Lunar aborted with
+  "Lunar Client Startup Error" (`Critical injection failure: Redirector lunar$chatMod$render$fill`; reproduced on Lunar 26.3
+  as Guest, fixed by WrapOperation); Skysoft, Unlimited Chat History and Better Chat History hook ChatComponent's history
+  constant 100 with require-1 `@ModifyConstant`s, and our `@ModifyConstant` there was the "chat history crash" (the
+  first-applied one takes the constant, the later one is skipped: "@ModifyConstant conflict. Skipping ..."). All 31 were
+  converted on branch mixincompat-1101. Lunar specifics: real Fabric Loader 0.19.5 inside Lunar's "Genesis/Ichor" launcher;
+  `tools/lunar/lunar-mixin-scan.py` + `lunar-redirect-collide.py` list Lunar's redirects that collide with ours (jars in
+  `%USERPROFILE%\.lunarclient\offline\multiver`). Lunar game log: `%USERPROFILE%\.lunarclient\profiles\<major>\logs\latest.log`
+  and `ichor-boot.log`; launcher log `%USERPROFILE%\.lunarclient\logs\launcher\main.log`. Lunar boots as Guest (no login).
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
   StackOverflows. Send below the dispatcher via `util/ServerCommands.toServer`.
 - When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
