@@ -131,6 +131,8 @@ public final class ItemCraftView {
         int panelX = (screenWidth - panelW) / 2;
         int panelY = Math.max(10, (screenHeight - panelH) / 2);
         panelBounds = new int[]{panelX, panelY, panelW, panelH};
+        // Modal over the whole screen: nothing of the menu behind it hovers or takes a click.
+        com.killer560.hub.containercover.ContainerCover.coverRectOnCurrentScreen("itembrowser.craft", 0, 0, screenWidth, screenHeight);
 
         graphics.fill(0, 0, screenWidth, screenHeight, 0x99000000);
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.ITEM_BROWSER);
@@ -232,6 +234,7 @@ public final class ItemCraftView {
         int panelX = (screenWidth - PANEL_WIDTH) / 2;
         int panelY = Math.max(10, (screenHeight - panelHeight) / 2);
         panelBounds = new int[]{panelX, panelY, PANEL_WIDTH, panelHeight};
+        com.killer560.hub.containercover.ContainerCover.coverRectOnCurrentScreen("itembrowser.craft", 0, 0, screenWidth, screenHeight);
 
         // Dim the whole screen behind it so the popup reads clearly over whatever real menu is open.
         graphics.fill(0, 0, screenWidth, screenHeight, 0x99000000);

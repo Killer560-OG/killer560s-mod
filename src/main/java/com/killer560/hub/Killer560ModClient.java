@@ -242,6 +242,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.util.SackCommands.register();
         ExperimentsFeature.register();
         StorageOverlayFeature.register();
+        // Terminal Custom GUI hides the whole terminal: no hidden slot hovers or takes input (ContainerCover).
+        com.killer560.hub.containercover.ContainerCover.registerFull(
+                s -> com.killer560.hub.terminals.TerminalSolverFeature.isCustomGuiActive());
         DungeonState.register();
         SimDiagnosticFeature.register();
         PosmsgFeature.register();

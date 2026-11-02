@@ -398,6 +398,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   center/feet (the javadoc describing the fault sat directly above the code still doing it); the cooldown
   setter above. When fixing one instance, grep the sibling call sites and fix the set, and update the comment
   that claims they match - two of these said "the same regex as X" after they had stopped being that.
+  Again 2026-11-01: the terminal Custom GUI's "hidden slots never hover" fix was never given to the Storage Overlay, so
+  a click on blank overlay space picked his Spirit Sceptre out of the hidden slot under it. Any GUI drawn over a
+  container now registers with `containercover.ContainerCover` (full screen or a per-frame panel rect); docs/LESSONS-GUI.md.
 - `RouteExecutor.stop()` is already a real cancel - it drops the step machine, `releaseKeys()` zeroes the
   want-flags the input mixin reads, `RouteRotation.clear()` releases the camera, and every per-node buildup
   (breaker queue, boom snapshot, swap/await state) is rebuilt by `beginAction`. BOOM and BREAKER send their

@@ -120,6 +120,7 @@ public final class AhReskin {
     }
 
     public static void register() {
+        com.killer560.hub.containercover.ContainerCover.registerFull(AhReskin::isHiding);
         ScreenEvents.AFTER_INIT.addPhaseOrdering(INPUT_PHASE, Event.DEFAULT_PHASE);
         ScreenEvents.AFTER_INIT.addPhaseOrdering(Event.DEFAULT_PHASE, DRAW_PHASE);
         ScreenEvents.AFTER_INIT.register(INPUT_PHASE, AhReskin::onInitInput);

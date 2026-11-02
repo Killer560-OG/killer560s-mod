@@ -69,6 +69,10 @@ public final class ContainerOverlayElement implements HudElement {
         HudSeen.markDrawn(id);
         int[] pos = HudElementRegistry.resolvePosition(this);
         float scale = HudElementRegistry.resolveScale(this);
+        // Over a real menu: no slot under the panel hovers or takes a click (ContainerCover). 3 px of margin: some
+        // panels (Chocolate Factory's line) fill a little past their box.
+        com.killer560.hub.containercover.ContainerCover.coverRectOnCurrentScreen("hud." + id,
+                pos[0] - 3 * scale, pos[1] - 3 * scale, pos[0] + (this.width + 3) * scale, pos[1] + (this.height + 3) * scale);
         graphics.pose().pushMatrix();
         try {
             graphics.pose().translate(pos[0], pos[1]);

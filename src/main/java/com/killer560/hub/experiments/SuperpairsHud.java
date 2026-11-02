@@ -106,8 +106,10 @@ public final class SuperpairsHud {
         graphics.pose().pushMatrix();
         graphics.pose().translate(pos[0], pos[1]);
         graphics.pose().scale(scale, scale);
-        drawPanel(graphics, 0, 0, lines);
+        int[] size = drawPanel(graphics, 0, 0, lines);
         graphics.pose().popMatrix();
+        com.killer560.hub.containercover.ContainerCover.coverRectOnCurrentScreen("experiments.superpairs",
+                pos[0], pos[1], pos[0] + size[0] * scale, pos[1] + size[1] * scale);
     }
 
     static List<String> lines(ExperimentSolver.SuperpairsSummary s) {
@@ -137,7 +139,8 @@ public final class SuperpairsHud {
         return out;
     }
 
-    private static void drawPanel(GuiGraphicsExtractor graphics, int x, int y, List<String> lines) {
+    /** @return the panel's unscaled {width, height}. */
+    private static int[] drawPanel(GuiGraphicsExtractor graphics, int x, int y, List<String> lines) {
         Font font = Minecraft.getInstance().font;
         int w = WIDTH;
         for (String line : lines) {
@@ -153,6 +156,7 @@ public final class SuperpairsHud {
             graphics.text(font, line, x + 4, ty, 0xFFFFFFFF, true);
             ty += LINE;
         }
+        return new int[]{w, h};
     }
 
     public static long framesDrawn() {

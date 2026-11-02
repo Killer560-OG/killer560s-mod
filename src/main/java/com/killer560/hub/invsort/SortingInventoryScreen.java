@@ -18,7 +18,8 @@ import net.minecraft.world.entity.player.Player;
  * first listener that says no, so no other feature's click handler (Slot Binds, Item Protect, Auto Sell's key...) sees
  * the click either, and the screen's own handlers below never pass it to the vanilla inventory.
  */
-public class SortingInventoryScreen extends InventoryScreen {
+public class SortingInventoryScreen extends InventoryScreen
+        implements com.killer560.hub.containercover.ContainerCover.FullyCovered {
 
     public SortingInventoryScreen(Player player) {
         super(player);

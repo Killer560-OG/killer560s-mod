@@ -346,6 +346,8 @@ public final class ExperimentsFeature {
             float scale = resolveStartButtonScale();
             // Where the button really appears; the element's render() is only the HUD editor's preview.
             HudSeen.markDrawn(START_BUTTON_ELEMENT_ID);
+            com.killer560.hub.containercover.ContainerCover.coverRectOnCurrentScreen("experiments.start",
+                    pos[0], pos[1], pos[0] + START_BUTTON_WIDTH * scale, pos[1] + START_BUTTON_HEIGHT * scale);
             graphics.pose().pushMatrix();
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);

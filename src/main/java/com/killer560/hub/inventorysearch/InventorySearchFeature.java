@@ -357,6 +357,8 @@ public final class InventorySearchFeature {
         int screenX = (screen.width - Math.round(boxWidth * scale)) / 2;
         int screenY = screen.height - Math.round(boxHeight * scale) - 30;
         lastBoxBounds = new int[]{screenX, screenY, Math.round(boxWidth * scale), Math.round(boxHeight * scale)};
+        com.killer560.hub.containercover.ContainerCover.coverRect(screen, "inventorysearch.bar", screenX, screenY,
+                screenX + lastBoxBounds[2], screenY + lastBoxBounds[3]);
 
         graphics.pose().pushMatrix();
         try {
