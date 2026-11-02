@@ -2924,6 +2924,20 @@ public final class AutoSecretFeature {
         if (DungeonMapPathfinder.getDoorPos(layout, here, best) == null) {
             return false;
         }
+        // A shut wither door and no key, while a Wither Key lies in a room it can reach: the key first (simmobs2-1101, a sim
+        // floor with mobs: Auto Clear handed Multicolored back the tick its last mob died, before the key's stand reached
+        // the client, and Auto Secret then waited at the door it opens for the rest of the run, 12 minutes).
+        Minecraft client = Minecraft.getInstance();
+        if (!WitherDoorOpener.haveKey(client.player)) {
+            com.killer560.hub.doorkeys.DungeonKeys.Dropped lying = lyingWitherKey(client, layout, dist);
+            if (lying != null) {
+                LOGGER.info(String.format(Locale.US, "[AutoSecret] wither door at cell %d wants a key and Wither Key #%d lies"
+                        + " in %s - picking it up first", best, lying.id(), layout.name(layout.roomAtWorld(lying.x(),
+                        lying.z()))));
+                goKey(lying, "the wither door on the way wants a key");
+                return true;
+            }
+        }
         String said = best + "|" + bestWhat;
         if (!said.equals(lastDoorSaid)) {
             lastDoorSaid = said;
@@ -2934,6 +2948,28 @@ public final class AutoSecretFeature {
         }
         goToDoor(layout, best, false, null);
         return true;
+    }
+
+    /** The nearest dropped Wither Key in a room it can reach now ({@code dist}), not given up on; null when none. */
+    private static com.killer560.hub.doorkeys.DungeonKeys.Dropped lyingWitherKey(Minecraft client, DungeonLayout layout,
+                                                                                Map<Integer, Integer> dist) {
+        com.killer560.hub.doorkeys.DungeonKeys.Dropped best = null;
+        double bestD = Double.MAX_VALUE;
+        for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
+            if (k.blood() || Autopilot.keyGivenUp(k.id())) {
+                continue;
+            }
+            int room = layout.roomAtWorld(k.x(), k.z());
+            if (room < 0 || !dist.containsKey(room) || client.player == null) {
+                continue;
+            }
+            double d = client.player.position().distanceToSqr(k.x(), k.y(), k.z());
+            if (d < bestD) {
+                bestD = d;
+                best = k;
+            }
+        }
+        return best;
     }
 
     /**
