@@ -1277,6 +1277,8 @@ final class SettingTooltipsData {
         d.put("auto fairy souls/auto walk", "Walks you from soul to soul. Off: you walk, it still clicks each soul you reach.");
         d.put("auto fairy souls/auto click", "Right-clicks each soul when it is in reach.");
         d.put("auto fairy souls/sprint", "Sprints where the path is clear; it still slows for corners and the soul at any speed.");
+        d.put("auto fairy souls/free camera", "On: your camera stays where you point it while your character walks and turns. Off: you see the walk turning. Either way any key or click stops it.");
+        d.put("auto fairy souls/warp when stuck", "When it cannot get out on foot (or with a pearl or etherwarp it is allowed), it warps to this island's spawn and walks back to the soul once before skipping it.");
         d.put("start/stop key", "Starts or stops Auto Fairy Souls (it has no button; /k560path souls auto starts it too).");
 
         // Terminal overlay colors

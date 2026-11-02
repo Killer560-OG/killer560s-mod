@@ -152,7 +152,7 @@ public final class AutoWalker {
         LocalPlayer player = Minecraft.getInstance().player;
         lastHurtTime = player == null ? 0 : player.hurtTime;
         viewHeld = false;
-        if (player != null && PathfindingConfig.getInstance().isAutoWalk()) {
+        if (player != null && PathfindingConfig.getInstance().isAutoWalk() && PathfindingConfig.getInstance().isFreecam()) {
             viewHeld = true;
             ViewFreeze.hold(player.getYRot(), Mth.clamp(player.getXRot(), -90f, 90f));
         }
@@ -276,7 +276,9 @@ public final class AutoWalker {
             PathfindingFeature.onStartKey(); // the toggle, taken on the next tick; never an "any key" stop
             return;
         }
-        if (!sessionActive || !viewHeld) {
+        // He takes over whenever the walk is his character's (Auto Walk), free camera or not; with Auto Walk off he is
+        // the one walking and only a held click view is the run's.
+        if (!sessionActive || !(viewHeld || PathfindingConfig.getInstance().isAutoWalk())) {
             return;
         }
         stop("you pressed " + what);
@@ -419,6 +421,18 @@ public final class AutoWalker {
         }
         LocalPlayer player = client.player;
         PathfindingConfig cfg = PathfindingConfig.getInstance();
+        if (AutoSoulRunner.isWarping()) {
+            // The runner's warp back to the island's spawn: the server switch, its loading screen and its teleport are
+            // the warp, not a failsafe, a screen or a correction. Nothing is driven until it lands.
+            clearKeys();
+            releaseFallbackKey();
+            positionPacketsSeen = ServerCorrections.packetCount();
+            WalkCamera.rebase();
+            if (viewHeld && player != null) {
+                ViewFreeze.hold(player.getYRot(), player.getXRot());
+            }
+            return;
+        }
         if (player == null || client.level == null) {
             failsafe("disconnected or left the world");
             return;
@@ -561,6 +575,11 @@ public final class AutoWalker {
         // ---- off the route: water, lava, fallen below it, or blocked - ahead of the route's own ladders, so a pit
         // with a ladder in it is planned out of, not taken for the route's climb (testkit 1017-fairy-pit)
         String why = player.onClimbable() ? null : offRouteReason(level, player, pos, carrot, jumpH);
+        if (why != null && !player.onGround() && !player.isInWater() && !player.isInLava()) {
+            // Still falling: a way back planned from mid-air starts from a cell he will not be in (testkit 1101-fairy-
+            // island-THE_PARK: "stuck" 40 blocks into a fall, no way back, soul skipped). Plan from where he lands.
+            return;
+        }
         if (why != null) {
             startRescue(level, player, pos, jumpH, why);
             if (rescuePath != null) {
@@ -783,7 +802,7 @@ public final class AutoWalker {
             fail("tried " + MAX_RESCUES_PER_TARGET + " ways back for this soul");
             return;
         }
-        BlockPos start = BlockPos.containing(pos.x, pos.y + 0.01, pos.z);
+        BlockPos start = LocalPlanner.startCell(level, pos);
         boolean ahead = why.startsWith("blocked") || why.startsWith("stuck");
         List<BlockPos> goals = rescueGoals(level, pos, start, ahead);
         long t0 = System.nanoTime();
@@ -797,7 +816,7 @@ public final class AutoWalker {
             fail(why + ", and no way back on foot");
             return;
         }
-        rescuePath = LocalPlanner.toPoints(cells);
+        rescuePath = LocalPlanner.toPoints(level, cells);
         rescueIndex = 1;
         rescueWhy = why;
         rescueTarget = rescuePath.get(rescuePath.size() - 1);
@@ -863,6 +882,7 @@ public final class AutoWalker {
 
     private static void clearRescueState() {
         rescuePath = null;
+        approaching = false;
         rescueIndex = 0;
         blockedTicks = 0;
         needsEscape = false;
@@ -883,6 +903,14 @@ public final class AutoWalker {
             }
         }
         if (rescueIndex >= pts.size()) {
+            if (approaching) {
+                // In place to click: the runner takes it from here (it checks reach and sight itself).
+                approaching = false;
+                rescuePath = null;
+                approachesDone++;
+                clearKeys();
+                return;
+            }
             finishRescue("arrived");
             return;
         }
@@ -905,6 +933,10 @@ public final class AutoWalker {
         }
         if (off > 3.0) {
             rescuePath = null;
+            if (approaching) {
+                approaching = false; // the runner plans the approach again from here
+                return;
+            }
             startRescue(level, player, pos, jumpH, "off the way back");
             return;
         }
@@ -914,6 +946,10 @@ public final class AutoWalker {
             rescueBestAtMs = System.currentTimeMillis();
         } else if (System.currentTimeMillis() - rescueBestAtMs > STUCK_MS) {
             rescuePath = null;
+            if (approaching) {
+                approaching = false;
+                return;
+            }
             startRescue(level, player, pos, jumpH, "stuck on the way back");
             return;
         }
@@ -948,6 +984,70 @@ public final class AutoWalker {
                 jumpsPressed++;
             }
         }
+    }
+
+    // ---- the last few blocks to the soul itself (killer560, 2026-11-01 picture: it stopped 3.7 blocks from a soul that
+    // sat on a ledge 3.6 blocks from its graph node, because "arrived" meant the node, not the soul)
+
+    private static boolean approaching;
+    private static int approachesPlanned;
+    private static int approachesDone;
+
+    /**
+     * Plans a walk to one of {@code goals} - feet cells the soul is in reach and in sight from (the runner picks them)
+     * - and follows it with the way-back driver. False when no such walk exists over the loaded blocks.
+     */
+    static boolean approach(Level level, LocalPlayer player, List<BlockPos> goals) {
+        Vec3 pos = player.position();
+        BlockPos start = LocalPlanner.startCell(level, pos);
+        rescuePath = null;
+        approaching = false;
+        needsEscape = false;
+        long t0 = System.nanoTime();
+        List<BlockPos> cells = LocalPlanner.plan(level, start, goals, WalkTerrain.jumpHeight(player), true);
+        long us = (System.nanoTime() - t0) / 1000;
+        approachesPlanned++;
+        if (cells.size() < 2) {
+            LOGGER.info("[AutoWalker] no walk to a spot the soul is in reach from ({} spots, from {}, {} us)", goals.size(),
+                    start, us);
+            return false;
+        }
+        rescuePath = LocalPlanner.toPoints(level, cells);
+        rescueIndex = 1;
+        rescueWhy = "to the soul";
+        rescueTarget = rescuePath.get(rescuePath.size() - 1);
+        rescueBest = Double.MAX_VALUE;
+        rescueBestAtMs = System.currentTimeMillis();
+        approaching = true;
+        LOGGER.info("[AutoWalker] {} step(s) to {}, where the soul is in reach ({} us)", cells.size(),
+                cells.get(cells.size() - 1), us);
+        return true;
+    }
+
+    static boolean isApproaching() {
+        return sessionActive && approaching && rescuePath != null;
+    }
+
+    static void cancelApproach() {
+        if (approaching) {
+            approaching = false;
+            rescuePath = null;
+            clearKeys();
+        }
+    }
+
+    /** No spot in reach of the soul can be walked to: the runner's escape / warp / skip takes over. */
+    static void approachFailed(String why) {
+        cancelApproach();
+        fail(why);
+    }
+
+    public static int approachesPlanned() {
+        return approachesPlanned;
+    }
+
+    public static int approachesDone() {
+        return approachesDone;
     }
 
     private static void finishRescue(String how) {

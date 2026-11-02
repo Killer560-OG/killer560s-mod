@@ -40,8 +40,16 @@ final class LocalPlanner {
     private LocalPlanner() {
     }
 
-    /** Feet cells of the plan, start first; empty when no way exists. */
+    /** Feet cells of the plan, start first; empty when no way exists. A goal is reached within one block. */
     static List<BlockPos> plan(Level level, BlockPos start, List<BlockPos> goals, double jumpHeight) {
+        return plan(level, start, goals, jumpHeight, false);
+    }
+
+    /**
+     * As {@link #plan(Level, BlockPos, List, double)}; {@code exact} = only a goal cell itself ends the plan (a place
+     * a soul is in reach from: one block off may be out of reach).
+     */
+    static List<BlockPos> plan(Level level, BlockPos start, List<BlockPos> goals, double jumpHeight, boolean exact) {
         if (goals.isEmpty()) {
             return List.of();
         }
@@ -62,7 +70,7 @@ final class LocalPlanner {
                 continue; // a stale entry
             }
             expansions++;
-            if (isGoal(at, goals) && key != startKey) {
+            if ((exact ? goals.contains(at) : isGoal(at, goals)) && key != startKey) {
                 return rebuild(parent, key);
             }
             for (Move move : moves(level, at, start, maxUp)) {
@@ -146,6 +154,11 @@ final class LocalPlanner {
                 continue;
             }
             double base = diagonal ? 1.414 : 1.0;
+            if (!diagonal && !body(level, side) && doorway(level, side, d[0], d[1]) && standOn(level, side.below())) {
+                // An open door, a trapdoor up against a wall, a pane edge: a thin panel along the way he walks.
+                out.add(new Move(side, base * 1.2));
+                continue;
+            }
             if (body(level, side)) {
                 boolean sideLava = lava(level, side);
                 if (sideLava && !inLava) {
@@ -158,7 +171,7 @@ final class LocalPlanner {
                 // Nothing under it: walking off drops him to the first thing below.
                 for (int k = 1; k <= MAX_FALL; k++) {
                     BlockPos fall = side.below(k);
-                    if (!passable(level, fall) || lava(level, fall)) {
+                    if ((!passable(level, fall) && lowTop(level, fall) < 0.0) || lava(level, fall)) {
                         break;
                     }
                     if (cell(level, fall)) {
@@ -189,18 +202,83 @@ final class LocalPlanner {
                 && Math.abs(p.getY() - origin.getY()) <= HEIGHT;
     }
 
-    /** A place he can be: room for the body, and something holding him there. */
+    /**
+     * A place he can be: room for the body, and something holding him there. A LOW block in the feet cell itself (a
+     * bottom slab, a carpet, snow layers, a lily pad - collision no taller than {@link #LOW_TOP}) is a floor he stands
+     * ON inside that cell, not a wall: before 2026-11-01 every carpeted or slab-floored cell read as solid, so a way
+     * back could never cross one (testkit 1101-fairy-plan-floors).
+     */
     static boolean cell(Level level, BlockPos feet) {
         if (!body(level, feet)) {
             return false;
         }
         return water(level, feet) || lava(level, feet) || WalkTerrain.climbable(level, feet)
-                || standOn(level, feet.below());
+                || lowTop(level, feet) > 0.0 || standOn(level, feet.below());
     }
 
-    /** Room for a 1.8-tall player at these feet (fluids and ladders are not in the way). */
+    /** The tallest collision in a block that still counts as a floor inside the feet cell (a bottom slab is 0.5). */
+    static final double LOW_TOP = 0.5625;
+
+    /**
+     * Room for a 1.8-tall player at these feet (fluids and ladders are not in the way). Standing on a low block raises
+     * the head into the cell two up, which must then be free as well.
+     */
     static boolean body(Level level, BlockPos feet) {
-        return passable(level, feet) && passable(level, feet.above());
+        double low = lowTop(level, feet);
+        if (low < 0.0 && !passable(level, feet)) {
+            return false;
+        }
+        if (!passable(level, feet.above())) {
+            return false;
+        }
+        return low <= 0.2 || passable(level, feet.above(2));
+    }
+
+    /**
+     * Walking straight through this column along {@code (dx, dz)} (one of them 0) passes whatever is in its feet and head
+     * blocks: each is open, or a panel no thicker than {@link #PANEL} flat against one of the two faces PARALLEL to the
+     * walk - an open door, which before 2026-11-01 read as a wall, so no way back went through a doorway. A closed door
+     * across the way is thin against a face the walk crosses, and stays a wall.
+     */
+    static boolean doorway(Level level, BlockPos side, int dx, int dz) {
+        return panelOrOpen(level, side, dx, dz) && panelOrOpen(level, side.above(), dx, dz);
+    }
+
+    static final double PANEL = 0.25;
+
+    private static boolean panelOrOpen(Level level, BlockPos p, int dx, int dz) {
+        if (passable(level, p)) {
+            return true;
+        }
+        if (!level.isLoaded(p)) {
+            return false;
+        }
+        var shape = level.getBlockState(p).getCollisionShape(level, p);
+        if (dx != 0) {
+            double lo = shape.min(net.minecraft.core.Direction.Axis.Z);
+            double hi = shape.max(net.minecraft.core.Direction.Axis.Z);
+            return hi - lo <= PANEL && (lo <= 0.01 || hi >= 0.99);
+        }
+        double lo = shape.min(net.minecraft.core.Direction.Axis.X);
+        double hi = shape.max(net.minecraft.core.Direction.Axis.X);
+        return hi - lo <= PANEL && (lo <= 0.01 || hi >= 0.99);
+    }
+
+    /** The collision top (0..LOW_TOP] of a low block in this cell, 0 for no collision, -1 for anything taller. */
+    static double lowTop(Level level, BlockPos p) {
+        if (!level.isLoaded(p)) {
+            return -1.0;
+        }
+        BlockState s = level.getBlockState(p);
+        if (s.is(BlockTags.CLIMBABLE)) {
+            return 0.0;
+        }
+        var shape = s.getCollisionShape(level, p);
+        if (shape.isEmpty()) {
+            return 0.0;
+        }
+        double top = shape.max(net.minecraft.core.Direction.Axis.Y);
+        return shape.min(net.minecraft.core.Direction.Axis.Y) <= 0.01 && top <= LOW_TOP ? top : -1.0;
     }
 
     static boolean passable(Level level, BlockPos p) {
@@ -230,11 +308,37 @@ final class LocalPlanner {
         return level.getBlockState(p).getFluidState().is(FluidTags.LAVA);
     }
 
+    /**
+     * The cell his feet are in: the block containing the feet, or the one above it when the feet rest on top of a
+     * block taller than a slab but short of a full block (soul sand 0.875, a path block or farmland 0.9375) - the
+     * block containing those feet is that block itself.
+     */
+    static BlockPos startCell(Level level, Vec3 pos) {
+        BlockPos p = BlockPos.containing(pos.x, pos.y + 0.01, pos.z);
+        if (!passable(level, p) && lowTop(level, p) < 0.0) {
+            // On top of it (its collision ends at or under his feet), not beside a door panel in his own cell.
+            var shape = level.getBlockState(p).getCollisionShape(level, p);
+            if (shape.max(net.minecraft.core.Direction.Axis.Y) <= pos.y - p.getY() + 0.02) {
+                return p.above();
+            }
+        }
+        return p;
+    }
+
     /** Feet points (block center, feet height) for the walker. */
     static List<Vec3> toPoints(List<BlockPos> cells) {
         List<Vec3> out = new ArrayList<>(cells.size());
         for (BlockPos c : cells) {
             out.add(new Vec3(c.getX() + 0.5, c.getY(), c.getZ() + 0.5));
+        }
+        return out;
+    }
+
+    /** Feet points at the real standing height: on a low block (slab, carpet) the feet are its top, not the cell's floor. */
+    static List<Vec3> toPoints(Level level, List<BlockPos> cells) {
+        List<Vec3> out = new ArrayList<>(cells.size());
+        for (BlockPos c : cells) {
+            out.add(new Vec3(c.getX() + 0.5, c.getY() + Math.max(0.0, lowTop(level, c)), c.getZ() + 0.5));
         }
         return out;
     }

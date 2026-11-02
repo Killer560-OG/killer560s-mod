@@ -74,7 +74,9 @@ public final class PathfindingFeature {
         if (client.level != lastLevel) {
             lastLevel = client.level;
             ProfileTracker.onWorldChange();
-            if (AutoSoulRunner.isActive() && client.level != null && AutoWalker.inDeathGrace()) {
+            if (AutoSoulRunner.isActive() && client.level != null && AutoSoulRunner.isWarping()) {
+                // Its own warp back to the island's spawn (Warp When Stuck): the runner walks on once it lands.
+            } else if (AutoSoulRunner.isActive() && client.level != null && AutoWalker.inDeathGrace()) {
                 // A respawn that rebuilt the level is the death's, not a trip to another world: keep going.
                 NavigationManager.recalculate(true);
             } else if (AutoSoulRunner.isActive()) {

@@ -94,6 +94,10 @@ public final class PathfindingConfig {
     private AutoMode autoMode = AutoMode.WALK;
     private boolean autoSprint = true;
     private int resumeKeyCode = KeyUtil.NONE;
+    /** The camera stays free while it walks (killer560, 2026-11-01: "have the freecam as an option"). */
+    private boolean freecam = true;
+    /** Stuck with no way out on foot: warp to the island's spawn and walk back (killer560, 2026-11-01). */
+    private boolean warpWhenStuck = true;
 
     private PathfindingConfig() {
     }
@@ -155,6 +159,8 @@ public final class PathfindingConfig {
         }
         autoSprint = ConfigJson.getBool(obj, "autoSprint", true);
         resumeKeyCode = KeyUtil.sanitize(ConfigJson.getInt(obj, "resumeKeyCode", KeyUtil.NONE));
+        freecam = ConfigJson.getBool(obj, "freecam", true);
+        warpWhenStuck = ConfigJson.getBool(obj, "warpWhenStuck", true);
         if (version < 2) {
             // The "Fairy Souls" switch under the old "Pathfinding" one: OFF meant no soul waypoints were drawn.
             if (obj.has("fairySouls") && !ConfigJson.getBool(obj, "fairySouls", false)) {
@@ -191,6 +197,8 @@ public final class PathfindingConfig {
         obj.addProperty("autoMode", autoMode.name());
         obj.addProperty("autoSprint", autoSprint);
         obj.addProperty("resumeKeyCode", resumeKeyCode);
+        obj.addProperty("freecam", freecam);
+        obj.addProperty("warpWhenStuck", warpWhenStuck);
         return obj;
     }
 
@@ -414,6 +422,24 @@ public final class PathfindingConfig {
 
     public void setResumeKeyCode(int v) {
         this.resumeKeyCode = KeyUtil.sanitize(v);
+    }
+
+    /** Free Camera: while it walks your camera stays where you point it (off: you watch the body turn). */
+    public boolean isFreecam() {
+        return freecam;
+    }
+
+    public void setFreecam(boolean v) {
+        this.freecam = v;
+    }
+
+    /** Warp When Stuck: with no way out on foot or by tool, warp to this island's spawn and walk back to the soul. */
+    public boolean isWarpWhenStuck() {
+        return warpWhenStuck;
+    }
+
+    public void setWarpWhenStuck(boolean v) {
+        this.warpWhenStuck = v;
     }
 
     /** Orange-theme chat prefix used by every message this feature sends. */
