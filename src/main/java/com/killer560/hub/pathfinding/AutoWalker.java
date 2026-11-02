@@ -51,7 +51,11 @@ import java.util.Locale;
 public final class AutoWalker {
 
     private static final double[] CARROT_TRIES = {8.0, 6.0, 4.5, 3.2, 2.2, 1.4};
-    private static final long STUCK_MS = 2500L;
+    /** No progress for this many client ticks (50 = 2.5 s at 20 tps) is stuck. Counted in ticks, not wall time: on a
+     *  client running at half speed 2.5 s of wall time was 25 ticks, so a way back was called stuck mid-climb. */
+    private static final long STUCK_TICKS = 50L;
+    /** Client ticks of this session (the stuck clocks count these). */
+    private static long walkerTicks;
     private static final double STUCK_PROGRESS = 1.0;
     /** A server move larger than this is a teleport (warp, pad), which NavigationManager re-plans on - not a correction. */
     private static final double CORRECTION_MAX_BLOCKS = 8.0;
@@ -143,7 +147,7 @@ public final class AutoWalker {
         backoffTicks = 0;
         climbing = false;
         bestRemaining = Double.MAX_VALUE;
-        bestRemainingAtMs = System.currentTimeMillis();
+        bestRemainingAtMs = walkerTicks;
         WalkCamera.clear();
         respawning = false;
         graceUntilMs = 0L;
@@ -244,7 +248,7 @@ public final class AutoWalker {
             releaseFallbackKey();
         }
         bestRemaining = Double.MAX_VALUE;
-        bestRemainingAtMs = System.currentTimeMillis();
+        bestRemainingAtMs = walkerTicks;
     }
 
     /** Forget the last applied rotation after a server-driven one (the etherwarp teleport reply). */
@@ -255,7 +259,7 @@ public final class AutoWalker {
     public static void clearStuck() {
         stuck = false;
         bestRemaining = Double.MAX_VALUE;
-        bestRemainingAtMs = System.currentTimeMillis();
+        bestRemainingAtMs = walkerTicks;
     }
 
     /** A new soul (or a fresh route): the rescue budget starts over. */
@@ -419,6 +423,7 @@ public final class AutoWalker {
             releaseFallbackKey();
             return;
         }
+        walkerTicks++;
         LocalPlayer player = client.player;
         PathfindingConfig cfg = PathfindingConfig.getInstance();
         if (AutoSoulRunner.isWarping()) {
@@ -782,7 +787,7 @@ public final class AutoWalker {
         // No straight walk to the carrot is NOT a reason by itself: real island paths fail the strict check past
         // fences, slabs and foliage all the time, and the carrot fallback and the wall sidestep handle those
         // (testkit 746 planned eight ways back round one wall end before this). Blocked against something while
-        // making no progress is: that is "stuck", after STUCK_MS - or sooner when he is pressed against a wall
+        // making no progress is: that is "stuck", after STUCK_TICKS - or sooner when he is pressed against a wall
         // with no straight walk anywhere ahead.
         boolean anyWalkable = carrot != null && WalkTerrain.walkable(level, pos, new Vec3(carrot.x, carrot.y - 0.5, carrot.z), jumpH);
         if (!anyWalkable && player.onGround() && player.horizontalCollision) {
@@ -824,7 +829,7 @@ public final class AutoWalker {
         rescueWhy = why;
         rescueTarget = rescuePath.get(rescuePath.size() - 1);
         rescueBest = Double.MAX_VALUE;
-        rescueBestAtMs = System.currentTimeMillis();
+        rescueBestAtMs = walkerTicks;
         ModChat.log("Auto Fairy Souls", ModChat.text("Off the route (" + why + ") - "),
                 ModChat.dim(cells.size() + " steps back"));
         LOGGER.info("[AutoWalker] {} at {} - {} step(s) back to {} ({} us)", why, start, cells.size(), cells.get(cells.size() - 1), us);
@@ -956,11 +961,17 @@ public final class AutoWalker {
             startRescue(level, player, pos, jumpH, "off the way back");
             return;
         }
-        double toEnd = pos.distanceTo(rescueTarget);
-        if (toEnd < rescueBest - 0.5) {
-            rescueBest = toEnd;
-            rescueBestAtMs = System.currentTimeMillis();
-        } else if (System.currentTimeMillis() - rescueBestAtMs > STUCK_MS) {
+        // Progress is a cell reached or getting closer to the cell he is heading for, not to the way's END: a way that
+        // first leads away from its end (round a wall, to a ladder) was called stuck while following it exactly.
+        double toNext = pos.distanceTo(pts.get(rescueIndex)) - rescueIndex * 1000.0;
+        if (toNext < rescueBest - 0.3) {
+            rescueBest = toNext;
+            rescueBestAtMs = walkerTicks;
+        } else if (walkerTicks - rescueBestAtMs > STUCK_TICKS) {
+            LOGGER.info(String.format(Locale.US, "[AutoWalker] no progress on the way back: at %.2f %.2f %.2f, step %d of %d "
+                            + "(%.1f %.1f %.1f), ground %s, ladder %s, water %s", pos.x, pos.y, pos.z, rescueIndex,
+                    pts.size() - 1, pts.get(rescueIndex).x, pts.get(rescueIndex).y, pts.get(rescueIndex).z,
+                    player.onGround(), player.onClimbable(), player.isInWater()));
             rescuePath = null;
             if (approaching) {
                 approaching = false;
@@ -1033,7 +1044,7 @@ public final class AutoWalker {
         rescueWhy = "to the soul";
         rescueTarget = rescuePath.get(rescuePath.size() - 1);
         rescueBest = Double.MAX_VALUE;
-        rescueBestAtMs = System.currentTimeMillis();
+        rescueBestAtMs = walkerTicks;
         approaching = true;
         LOGGER.info("[AutoWalker] {} step(s) to {}, where the soul is in reach ({} us)", cells.size(),
                 cells.get(cells.size() - 1), us);
@@ -1164,10 +1175,10 @@ public final class AutoWalker {
                 : NavigationManager.remainingDistance();
         if (remaining < bestRemaining - STUCK_PROGRESS) {
             bestRemaining = remaining;
-            bestRemainingAtMs = System.currentTimeMillis();
-        } else if (System.currentTimeMillis() - bestRemainingAtMs > STUCK_MS) {
+            bestRemainingAtMs = walkerTicks;
+        } else if (walkerTicks - bestRemainingAtMs > STUCK_TICKS) {
             stuck = rescuePath == null && !needsEscape;
-            bestRemainingAtMs = System.currentTimeMillis();
+            bestRemainingAtMs = walkerTicks;
         }
     }
 

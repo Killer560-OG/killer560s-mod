@@ -403,6 +403,9 @@ public final class AutoSoulRunner {
             for (int dx = -4; dx <= 4; dx++) {
                 for (int dz = -4; dz <= 4; dz++) {
                     BlockPos c = base.offset(dx, dy, dz);
+                    if (dx == 0 && dz == 0) {
+                        continue; // not inside the stand itself: its column is often a lone ledge with no way off
+                    }
                     if (!LocalPlanner.cell(level, c) || LocalPlanner.water(level, c) || LocalPlanner.lava(level, c)) {
                         continue;
                     }
