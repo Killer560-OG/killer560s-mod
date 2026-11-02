@@ -158,6 +158,16 @@ public final class SimMobs {
                     SimLiveMobs.registerCommand(dispatcher);
                 });
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimMobs.tick", SimMobs::tick));
+        // No sim mob dies to the world: starred mobs on a floor's sky-lit edge burned in the daylight ("onFire, by nothing")
+        // within 3 s of GO, and whole key rooms cleared with nobody there (doc-adm-sim-1101). isInvulnerableTo's
+        // environmental() did not stop it; refusing the damage outright does.
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            if (SPAWNED.contains(entity.getUUID()) && environmental(source)) {
+                entity.clearFire();
+                return false;
+            }
+            return true;
+        });
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
             if (STARRED.contains(entity.getUUID())) {
                 KILLED.add(entity.getUUID());
