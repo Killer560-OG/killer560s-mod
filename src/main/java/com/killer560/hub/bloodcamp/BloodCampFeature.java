@@ -286,6 +286,13 @@ public final class BloodCampFeature {
         // exact step (/ 4096.0), which put the start, and so the predicted landing spot, one step too far along.
         // The packet's step in 26.2's wire units (1/4096 block); McPackets decodes 26.3's stepped delta to the same.
         long[] step = McPackets.moveEntityDelta(packet, entity);
+        // A packet that carries a position but no movement is not a move. 26.2's gate (moveEntityMoves: any of xa/ya/za
+        // non-zero) already drops it; 26.3's only knows hasPosition(), so its zero-step packets - one two ticks after a
+        // stand spawns, one after it stops - opened or restarted a trip: the countdown began 12 ticks early and a
+        // stopped stand lost its predicted spot (UI suite 392 and 552, 26.3, 2026-11-01).
+        if (step[0] == 0 && step[1] == 0 && step[2] == 0) {
+            return;
+        }
         Vec3 packetVec = new Vec3(
                 entity.getX() + step[0] / 4096,
                 entity.getY() + step[1] / 4096,

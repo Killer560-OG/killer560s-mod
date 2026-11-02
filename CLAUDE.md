@@ -287,7 +287,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - **26.3 key and mouse codes are SDL, stored codes stay GLFW** (2026-11-01). On 26.3 `KeyEvent.key()`, `KeyMapping`
   values and `InputConstants.KEY_*` are SDL scancodes and mouse buttons are 1-based (left 1, right 3), and wrong numbers
   still compile. Configs keep GLFW numbers (`util/Keys`); read keys with `McInput.key(event)`, buttons with
-  `McInput.button(event)`, poll stored codes with `KeyUtil`, window/cursor/display work through `McWindow`. Full rules
+  `McInput.button(event)`, poll stored codes with `KeyUtil`, window/cursor/display work through `McWindow`. A key capture
+  stores `McInput.key(event)` too (Inventory Sorter's stored the scancode, saved as "none", UI 584). Full rules
   in docs/LESSONS-MINECRAFT.md "Input and window on 26.3".
 - Run gradle through Bash, not PowerShell: PowerShell wraps native stderr in ErrorRecords and splits compiler
   messages mid-line, so error counts and file paths become unreadable. Gradle also prints compiler output
@@ -517,3 +518,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - `DisconnectedScreen`'s constructors chain into each other, so a mixin on each of them (accounts/DisconnectedScreenMixin)
   runs up to three times for ONE screen (testkit 4101, 2026-11-01). Anything that must act once per screen keys on the
   screen object (`BanReportFeature.onDisconnectScreen(this, ...)`), not on the call.
+- 26.3's move-entity packet can carry a position with a zero step (`McPackets.moveEntityMoves` is only `hasPosition()`
+  there; 26.2's checks xa/ya/za). Blood Camp took those as moves and restarted trips (UI 392/552); it now drops a zero
+  `moveEntityDelta`. Any other move-packet reader must do the same.

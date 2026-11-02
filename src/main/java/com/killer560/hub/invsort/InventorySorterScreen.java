@@ -496,7 +496,9 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (capturingKey) {
-            bind(event.key() == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : event.key());
+            // Configs keep GLFW numbers: McInput.key, never the raw event key (an SDL scancode on 26.3, which
+            // setLayoutKey's range check turned into "none" - UI suite 584, 2026-11-01).
+            bind(event.key() == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : com.killer560.hub.compat.McInput.key(event));
             return true;
         }
         return super.keyPressed(event);
