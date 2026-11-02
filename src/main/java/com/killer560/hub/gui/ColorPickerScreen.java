@@ -73,6 +73,9 @@ public class ColorPickerScreen extends Screen {
 
     private AbstractWidget tooltipWidget;
     private int tooltipSwatch = -1;
+    /** An optional full-width button above Set Default / Done (Custom Items' Hypixel Dyes, 2026-11-01), or null. */
+    private String extraLabel;
+    private java.util.function.Consumer<ColorPickerScreen> extraAction;
     private long tooltipSinceMs;
 
     public ColorPickerScreen(Screen parent, String title, int initialArgb, int defaultArgb, IntConsumer onChange) {
@@ -101,6 +104,18 @@ public class ColorPickerScreen extends Screen {
 
     public int currentArgb() {
         return argb;
+    }
+
+    /** Adds one full-width button above Set Default / Done; {@code action} gets this screen. Returns this. */
+    public ColorPickerScreen withExtraButton(String label, java.util.function.Consumer<ColorPickerScreen> action) {
+        this.extraLabel = label;
+        this.extraAction = action;
+        return this;
+    }
+
+    /** Sets the color from outside (a dye picked from a list) on every control and applies it, as a paste does. */
+    public void setColour(int c) {
+        applyArgb(c);
     }
 
     private void applyLive() {
@@ -186,7 +201,7 @@ public class ColorPickerScreen extends Screen {
     @Override
     protected void init() {
         panelW = 220;
-        panelH = 324;
+        panelH = 324 + (extraLabel != null && extraAction != null ? 24 : 0);
         panelX = (this.width - panelW) / 2;
         panelY = Math.max(4, (this.height - panelH) / 2);
         int inX = panelX + 10;
@@ -225,6 +240,11 @@ public class ColorPickerScreen extends Screen {
         recentX = panelX + panelW - 10 - (RecentColours.MAX * SWATCH + (RecentColours.MAX - 1) * SWATCH_GAP);
 
         int buttonY = recentY + SWATCH + 8;
+        if (extraLabel != null && extraAction != null) {
+            this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal(extraLabel), btn -> extraAction.accept(this))
+                    .bounds(inX, buttonY, inW, 20).build());
+            buttonY += 24;
+        }
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Set Default"), btn -> applyArgb(defaultArgb))
                 .bounds(inX, buttonY, (inW - 10) / 2, 20).build());
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
@@ -312,7 +332,14 @@ public class ColorPickerScreen extends Screen {
         }
         r.submit();
 
-        MenuStyle.text(graphics, this.title.getString(), panelX + 10, panelY + 12, MenuStyle.OR);
+        // The title stops short of the swatch in the top right (killer560, 2026-11-01: a long item name ran over the
+        // swatch and off the panel); a cut title ends in "...".
+        String title = this.title.getString();
+        int titleW = previewX - 6 - (panelX + 10);
+        if (this.font.width(title) > titleW) {
+            title = this.font.plainSubstrByWidth(title, titleW - this.font.width("...")).stripTrailing() + "...";
+        }
+        MenuStyle.text(graphics, title, panelX + 10, panelY + 12, MenuStyle.OR);
         MenuStyle.text(graphics, "Recent", panelX + 10, recentY + 4, MenuStyle.DIM);
         if (!status.isEmpty() && System.currentTimeMillis() < statusUntil) {
             int w = this.font.width(status);

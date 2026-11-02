@@ -2620,9 +2620,18 @@ final class SettingTooltipsData {
         d.put("custom items", "Recolors and reskins items on your screen only; nothing is sent to the server.");
         d.put("custom items/open custom items", "Opens the Custom Items menu (/customitems): pick an item, then set its color, skin or look.");
         d.put("custom items/reset all", "Removes every saved look; press twice.");
-        d.put("hypixel skin...", "Opens the list of Hypixel item skins from the item catalog; pick one to use its head texture as this item's look.");
-        d.put("show with look", "Previews the item with its saved skin, color, trim and look drawn on it.");
-        d.put("show clear item", "Previews the item as it really is, with no custom skin, color, trim or look drawn on it.");
+        d.put("customize custom item", "Search every Minecraft and Hypixel item and apply one's look to the selected item. Clear there takes it off again.");
+        d.put("customize custom color", "The selected item's color, Hypixel skin, trim color and trim pattern, each with its own clear button.");
+        d.put("clear changes", "Removes every change from the selected item.");
+        d.put("copy look", "Click this, then another item in the grid: that item takes every change the selected item has.");
+        d.put("skin", "Hypixel item skins that fit this item, found by its id, so starred, recombed and fragged items find theirs. N/A when the item has none.");
+        d.put("clear skin", "Takes the item's skin off.");
+        d.put("reset color", "Puts the item's own color back.");
+        d.put("trim color", "The trim's material color, from the trims the game has. Off leaves the real trim alone.");
+        d.put("trim pattern", "The trim's pattern; the preview's armor stand wears it so you can see it.");
+        d.put("clear trim color", "Takes the trim color off.");
+        d.put("clear trim pattern", "Takes the trim pattern off.");
+        d.put("hypixel dyes...", "Opens every Hypixel dye; picking one sets this color. Clear Dye puts the item's own color back.");
         d.put("open layouts folder", "Opens the folder holding your saved inventory layouts.");
         d.put("auto sell", "Sells every stack on your sell list by itself while a sell screen is open; an item added there is sold without reopening it.");
         // Auto Anvil (killer560, 2026-10-07). Scoped under its own tab name: Min/Max Delay and Close When Done are
