@@ -1514,13 +1514,17 @@ final class SettingTooltipsData {
         d.put("secret waypoints/show names", "Writes each secret's name above its waypoint in the waypoint's color.");
         d.put("adaptive ice fill", "Cheat build: Auto Ice Fill waits for the server to count each tile before hopping, so lag cannot break it.");
         d.put("scan all", "Opens every Ender Chest, backpack, wardrobe and pet page one by one so Storage Search remembers them.");
-        d.put("show prediction", "On the computer's turn, outlines in yellow the square you click next: your best move after the computer's reply.");
-        d.put("tic tac toe solver/prevent misclicks", "Blocks clicks on every other Tic Tac Toe square while one is highlighted; sneak to click anyway.");
+        d.put("show prediction", "On the computer's turn, outlines in yellow a square that is safe to click now: your best move whatever the computer replies. If the computer takes it, your best move is shown instead.");
+        d.put("tic tac toe solver/prevent misclicks", "Blocks clicks on every other Tic Tac Toe square while one is highlighted.");
+        d.put("tic tac toe solver/sneak to override", "While on, sneaking lets a click Prevent Misclicks would block go through.");
         d.put("tic tac toe solver/highlight style", "Whether the Tic Tac Toe square to click is drawn as an outline or filled in.");
         d.put("ice path solver", "Draws the shortest path for pushing the silverfish to the exit.");
         d.put("outline next stop", "Outlines where the silverfish should stop next on the ice path.");
         d.put("teleport maze solver", "Colors the Teleport Maze pads to show which are used and which are likely exits.");
         d.put("tracer to best pad", "Draws a line to the teleport pad you should try next.");
+        d.put("teleport maze solver/tracer color", "Color of the line to the best next pad.");
+        d.put("teleport maze solver/current cell only", "Only highlights the four pads of the cell you are standing in.");
+        d.put("teleport maze solver/best pad only", "Only highlights the pad you should take next (or the exit once it is the only candidate).");
 
         // ---- Thorn (F4/M4) ----
         d.put("spirit bear counter", "Shows how many Spirit Bears are left on your HUD.");
@@ -1983,8 +1987,7 @@ final class SettingTooltipsData {
         d.put("auto simon says/click delay", "Cheat build: time (0-3000 ms) Auto Solve waits between clicks.");
         d.put("auto simon says/delay", "Cheat build: time between Auto Start clicks on the start button, 1-20 ticks.");
         d.put("auto simon says/clicks", "Cheat build: how many times (0-20) the start button is clicked; 0 turns clicking off.");
-        d.put("auto simon says/stim", "Cheat build, Rotate mode: between rounds the aim retraces the newest buttons it just clicked, looking only, and ends on the round's first button.");
-        d.put("auto simon says/stim buttons", "Cheat build: how many of the round's newest buttons Stim retraces, 1 to 4.");
+        d.put("auto simon says/stim", "Cheat build, Rotate mode: between rounds the aim quickly retraces the whole round it just clicked, first button to last, looking only, and ends on the round's first button.");
         d.put("auto simon says/momentum", "Cheat build, Rotate mode: how much speed the aim carries from one click into the next turn, 0 (off) to 100%.");
         d.put("slot binds/remove", "Deletes this slot bind pair. The items are not moved.");
         d.put("storage overlay/scale", "Resizes the whole storage overlay, grid and inventory panel together.");
@@ -2191,7 +2194,11 @@ final class SettingTooltipsData {
         d.put("croesus/kismet count", "Shows the Kismet Feathers in your inventory as the number on the Reroll Chest button.");
         d.put("croesus/croesus chests hud", "A HUD element with Croesus's unclaimed chests out of 60 (read from Hypixel's tab list) and your Kismet Feathers, in the Dungeon Hub and in dungeons.");
         d.put("croesus/chest warning at", "Warns in chat once Croesus's unclaimed chests reach this many.");
-        d.put("quiz solver/block wrong answers", "Once the solver knows the answer, blocks your click on the other two answers; sneak to click anyway.");
+        d.put("quiz solver/block wrong answers", "Once the solver knows the answer, blocks your click on the other two answers.");
+        d.put("quiz solver/sneak to override", "While on, sneaking lets a click Block Wrong Answers would block go through.");
+        d.put("quiz solver/quiz timer", "A movable HUD showing which Quiz question is next and how long until it can be answered.");
+        d.put("creeper beams solver/show", "All shows every pair; One At A Time shows one pair until you finish it; Next shows that pair and the one after.");
+        d.put("ice fill solver/etherwarp protection", "Refuses your etherwarp in Ice Fill while the tile under you has not turned to packed ice, or when it would not land on the next spot of the path. Off the ice you warp freely.");
         d.put("wither dragons/block wrong relic", "In P5, blocks your click on a relic cauldron that is not the color of the relic you carry; sneak to click anyway.");
         d.put("croesus/hide opened runs", "Runs with nothing left to do are not drawn in the Croesus menu (hovering and clicking still work); runs worth a key are never hidden.");
         d.put("croesus/highlight free chest", "In a run's chest view, fills the most profitable chest green: the one to claim for free, when it makes a profit. Not shown once a chest of that run has been claimed.");
@@ -2763,7 +2770,7 @@ final class SettingTooltipsData {
         d.put("breaker aura/clear picked", "Unpicks every block in the active Breaker Aura config (the number is how many are picked).");
         d.put("fill box", "Fills each blaze's highlight box solid instead of drawing only its outline.");
         d.put("optimized solutions", "Uses Odin's alternate lever-timing set instead of the default one.");
-        d.put("line color", "Color of the Ice Fill route line. Left click cycles forward, right click back.");
+        d.put("line color", "Color of the Ice Fill route line. Click to pick a color.");
         d.put("auto e-table", "Cheat build: the autonomous Experimentation Table macro - opens Chronomatron or Ultrasequencer, plays, claims and buys renews. Off by default.");
         d.put("skip grand xp bottles", "Superpairs skips Grand Experience Bottles only; Titanic bottles are still paired (cheat build, Autonomous mode).");
         d.put("skip guardian pets", "Superpairs skips Guardian pets of every rarity (cheat build, Autonomous mode).");
