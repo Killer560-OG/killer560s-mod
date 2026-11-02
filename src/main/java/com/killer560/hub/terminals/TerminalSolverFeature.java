@@ -237,6 +237,8 @@ public final class TerminalSolverFeature {
     static final long MELODY_LATE_MARGIN_MS = 50;
     /** Live matches let go because the pane had stood there too long for the click to reach it (testkit reads it). */
     static int melodyLateSkips;
+    /** Lookahead clicks dropped because they would have arrived after the pane stepped (testkit reads it). */
+    static int melodyLookaheadDropped;
     private static boolean melodyPingDemand;
     /** Lookahead clicks actually sent since the game started. Read by the testkit (275-277); nothing in the mod reads it. */
     static int melodyLookaheadFired;
@@ -1071,6 +1073,9 @@ public final class TerminalSolverFeature {
                     }
                     melodyLastStepAtMs = seenAt;
                     melodyLastStepChestRow = chestRow;
+                } else if (melodyPaneSlot >= 0 && limeSlot % 9 != melodyPaneSlot % 9) {
+                    // A new row with the pane on another column: a fresh position (not sampled as a step).
+                    melodyLastStepAtMs = seenAt;
                 }
                 melodyPaneSlot = limeSlot;
                 melodyPaneSinceMs = seenAt;
@@ -1133,11 +1138,9 @@ public final class TerminalSolverFeature {
             com.killer560.hub.util.PingTracker.addDemand(() -> currentType == TerminalType.MELODY);
         }
         long step = melodyStepMs();
-        // How long the server's pane has stood where it is: by the step clock once known (the time since the last step
-        // seen, modulo the step time - right across a row change), else since this client first saw it there.
-        long age = step > 0 && melodyLastStepAtMs > 0 ? (now - melodyLastStepAtMs) % step : now - melodyPaneSinceMs;
+        long age = melodyPaneAge(now);
         int rtt = com.killer560.hub.util.PingTracker.automationMs();
-        if (step > 0 && age + rtt + MELODY_LATE_MARGIN_MS > step) {
+        if (melodyTooLate(now)) {
             // TOO LATE IN THE PANE'S STAY (2026-11-02, ship gate 1102k "34=2"). The click is judged where the SERVER's
             // pane is when it arrives: it has stood there a one-way trip longer than this client has seen it, and the
             // click needs another one-way trip. A click sent late in the stay (the Stream Safe hand pressing, a slow
@@ -1225,6 +1228,20 @@ public final class TerminalSolverFeature {
 
     private static int melodyLateSkippedSlot = -1;
 
+    /** How long the server's pane has stood where it is: since the last step seen (a row change keeping the column is
+     *  not a step, so the clock runs on across it - Hx keeps both), else since this client first saw it there. Not
+     *  wrapped by the step time: past a step, the server has stepped and this client has not seen it yet. */
+    private static long melodyPaneAge(long now) {
+        return melodyLastStepAtMs > 0 ? now - melodyLastStepAtMs : now - melodyPaneSinceMs;
+    }
+
+    /** Whether a click sent now reaches the server after its pane has stepped off the column it is on (see
+     *  {@link #MELODY_LATE_MARGIN_MS}). False until the board's step time is known. */
+    private static boolean melodyTooLate(long now) {
+        long step = melodyStepMs();
+        return step > 0 && melodyPaneAge(now) + com.killer560.hub.util.PingTracker.automationMs() + MELODY_LATE_MARGIN_MS > step;
+    }
+
     /** The board's pane step time (median of the last few seen on one row), or 0 before two steps were seen. */
     private static long melodyStepMs() {
         int n = Math.min(melodyStepCount, melodyStepSamples.length);
@@ -1262,6 +1279,17 @@ public final class TerminalSolverFeature {
             if (!FakeCursor.ready(melodyButtons[due.row()])) {
                 break;
             }
+            if (melodyTooLate(now)) {
+                // The gamble only wins while the server's pane is still on the target column: a lookahead click that
+                // arrives after it stepped is a sure wrong click (testkit 292: the Stream Safe hand reached row 3's
+                // button after the step, and the row was then clicked again live). Drop the rest of the burst; live
+                // play takes those rows.
+                LOGGER.info("[Melody] lookahead burst dropped at row {}: the pane has stood {} ms of a {} ms step -"
+                        + " too late to reach it", due.row(), melodyPaneAge(now), melodyStepMs());
+                melodyLookaheadDropped += scheduledMelodyClicks.size();
+                scheduledMelodyClicks.clear();
+                break;
+            }
             // Mod-wide one-interaction-per-tick gate. This drain used to send EVERY click whose scheduled
             // time had passed in a single pass - the one place in this class that could put several
             // interactions in one tick by design. The entry is only removed from the queue once the gate has
@@ -1278,7 +1306,8 @@ public final class TerminalSolverFeature {
                 melodyClickedColumn[due.row()] = MELODY_UNSEEN;
             }
             melodyLookaheadFired++;
-            LOGGER.info("[Melody] lookahead click row {} (target column {})", due.row(), melodyCorrectColumn);
+            LOGGER.info("[Melody] lookahead click row {} (target column {}), pane there {} ms of a {} ms step", due.row(),
+                    melodyCorrectColumn, melodyPaneAge(now), melodyStepMs());
             if (sendTerminalClick(screen, melodyButtons[due.row()], 0, ContainerInput.CLONE)) {
                 noteAutoClick(melodyButtons[due.row()], now);
             }
