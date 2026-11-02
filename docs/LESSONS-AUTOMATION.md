@@ -91,8 +91,10 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   sneak; the close was held, and the warp's use flushed it with the server's input still sneaking (62-argrim invwalk-play,
   v5, once in ~15 runs). Fix: while `InventoryWalkFeature.heldNow() > 0` the route installs no keys and sends no use
   (etherwarp, USE_ITEM, sceptre); the close goes on its still tick, then the sneak and the use. Testkit
-  62-argrim-1102-iwclose lines it up ("route waited for the close true", clean); a deterministic flag on the old jar
-  was not reached - the route's own waits there let the close out on a still tick.
+  62-argrim-1102-iwclose reproduces it every time: the route held on its mana hold with the sneak down, the chest window
+  hidden on arrival, the close sent at an early END phase (after the tick's sneaking input, before the route acts). Old jar
+  MultiActionsD 5/5 per version, fixed 5/5 clean; a close sent at START does not reproduce it, since Inventory Walk then
+  makes that tick's input its still tick.
 - **Breaker Aura aims without steering his walk (ba-rotation-1102).** It dug picks it never looked at: GrimAC RotationBreak
   (experimental) 87 lines in scenario 50 and 73 of 200 digs canceled. Now only a pick the HEARD look strikes is dug
   (util/DigAim; Grim also tries (lastYaw, lastPitch), so the next pick's aim can ride the same tick's movement packet), and
