@@ -742,7 +742,7 @@ public class ModScreen extends Screen {
         List<AbstractWidget> widgets = new ArrayList<>();
         int startY = contentY;
         if (com.killer560.hub.BuildVariant.TESTING) {
-            widgets.add(com.killer560.hub.testing.TestingMenu.markButton(tab, contentX, startY, contentW));
+            widgets.addAll(com.killer560.hub.testing.TestingMenu.markButtons(tab, contentX, startY, contentW));
             startY += com.killer560.hub.testing.TestingMenu.MARK_ROW_HEIGHT;
         }
         List<AbstractWidget> built;
