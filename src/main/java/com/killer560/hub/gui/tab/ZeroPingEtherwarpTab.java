@@ -36,7 +36,7 @@ public class ZeroPingEtherwarpTab extends BaseTab {
     @Override
     public String cardDescription() {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
-                ? "Instant etherwarp view, and left click etherwarps." : "Instant etherwarp view.";
+                ? "Instant etherwarp; left click warps." : "Instant etherwarp view.";
     }
 
     @Override
