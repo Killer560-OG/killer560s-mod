@@ -36,10 +36,8 @@ public final class BazaarFeature {
         BazaarReskin.register();
         BazaarHud.register();
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            dispatcher.register(ClientCommands.literal("killer560bz").executes(ctx -> {
-                openOrExplain();
-                return 1;
-            }));
+            // /killer560bz was removed (killer560, 2026-11-01: "they are not needed"); the keybind and the settings
+            // buttons still open the screen without a menu.
             // /bz is always Hypixel's own command. Bare or with anything after it ("/bz rec", "/bz Recombobulator
             // 3000"), the line is forwarded whole. Without the argument node, the client dispatcher rejected every
             // argued line with "Incorrect argument for command at position 3" and Hypixel never saw it (killer560,

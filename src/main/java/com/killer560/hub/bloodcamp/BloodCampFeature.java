@@ -165,9 +165,11 @@ public final class BloodCampFeature {
     public static void register() {
         // The box, the kill sound and the Trigger Bot's lead all time themselves by the measured round trip.
         com.killer560.hub.util.PingTracker.register();
+        com.killer560.hub.util.PerTickServerClock.register();
         com.killer560.hub.util.PingTracker.addDemand(() -> BloodCampConfig.getInstance().isEnabled());
         WorldRenderUtils.initThroughWalls();
         BloodCampMoveTimer.register();
+        BloodCampStats.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("BloodCampFeature", client -> tick()));
         ClientTickEvents.END_CLIENT_TICK.register(client -> endTick());
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeaturesFlush(
@@ -189,7 +191,7 @@ public final class BloodCampFeature {
      *  and scale them; the same instances are drawn in-game by {@link #drawInGame}. Same split
      *  {@code dungeonalerts.DungeonAlertsFeature} uses. */
     public static java.util.List<com.killer560.hub.hud.HudElement> hudElements() {
-        return java.util.List.of(BloodCampMoveTimer.HUD);
+        return java.util.List.of(BloodCampMoveTimer.HUD, BloodCampStats.HUD);
     }
 
     private static void drawInGame(net.minecraft.client.gui.GuiGraphicsExtractor graphics,
@@ -286,12 +288,73 @@ public final class BloodCampFeature {
         // exact step (/ 4096.0), which put the start, and so the predicted landing spot, one step too far along.
         // The packet's step in 26.2's wire units (1/4096 block); McPackets decodes 26.3's stepped delta to the same.
         long[] step = McPackets.moveEntityDelta(packet, entity);
+        // A packet that carries a position but no horizontal movement is not a move. 26.3's zero-step packets (one two
+        // ticks after a stand spawns, one after it stops) opened or restarted a trip: the countdown began 12 ticks off and
+        // a stopped stand lost its predicted spot (UI suite 392 and 552, 2026-11-01). NoammAddons likewise reads only a
+        // packet with a horizontal move (hasHorizontalMove), so a vertical-only step is skipped too.
+        if (step[0] == 0L && step[2] == 0L) {
+            return;
+        }
         Vec3 packetVec = new Vec3(
                 entity.getX() + step[0] / 4096,
                 entity.getY() + step[1] / 4096,
                 entity.getZ() + step[2] / 4096
         );
+        standMoved(client, entity, packetVec, new Vec3(entity.getX() + step[0] / 4096.0,
+                entity.getY() + step[1] / 4096.0, entity.getZ() + step[2] / 4096.0), "move");
+    }
 
+    /**
+     * An absolute move of an entity: a position-sync or teleport packet (from {@code BloodCampPacketMixin}, before the
+     * vanilla handler moves it). killer560, 2026-11-01: "Sometimes if it lags then it wont pick up a mob spawning arrow
+     * thing either." A blood mob's trip used to be read from relative move packets ONLY. A server sends an absolute
+     * position instead when a step is too large for a relative move (1.8 servers, Hypixel's, past 4 blocks - exactly what
+     * a stalled trip catching up looks like) and as a periodic sync, so a trip whose first movement came that way was never
+     * tracked: no box, no line, no countdown. Now the absolute position is the same step, measured from where the client
+     * has the stand, and goes through the same model as a move packet (Noamm's integer step included).
+     */
+    public static void onAbsoluteMove(int entityId, Vec3 target, Level level, String kind) {
+        if (target == null || !isActive()) {
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || watcherEntityId == null || level == null) {
+            return;
+        }
+        if (!(level.getEntity(entityId) instanceof ArmorStand entity)) {
+            return;
+        }
+        Vec3 d = target.subtract(entity.position());
+        if (Math.abs(d.x) < 1e-9 && Math.abs(d.z) < 1e-9) {
+            return; // no horizontal move (the move packets' own gate is a horizontal move too)
+        }
+        Entity watcher = level.getEntity(watcherEntityId);
+        if (watcher == null || watcher.distanceToSqr(entity) > 400) {
+            return;
+        }
+        ItemStack item = entity.getItemBySlot(EquipmentSlot.HEAD);
+        if (!item.is(Items.PLAYER_HEAD)) {
+            return;
+        }
+        String mobTexture = getSkullTexture(item);
+        if (mobTexture == null || !MOB_SKULL_TEXTURES.contains(mobTexture)) {
+            return;
+        }
+        absoluteMoves++;
+        // Kotlin's Short / 4096 truncates toward zero; so does a (long) cast of the block delta.
+        Vec3 packetVec = new Vec3(entity.getX() + (long) d.x, entity.getY() + (long) d.y, entity.getZ() + (long) d.z);
+        standMoved(client, entity, packetVec, target, kind);
+    }
+
+    /** Absolute (position-sync / teleport) moves of a blood mob's skull stand taken as trip steps (testkit). */
+    private static int absoluteMoves;
+
+    public static int absoluteMoves() {
+        return absoluteMoves;
+    }
+
+    /** The trip model, for a relative or an absolute move of a blood mob's skull stand. */
+    private static void standMoved(Minecraft client, ArmorStand entity, Vec3 packetVec, Vec3 exact, String kind) {
         long nowTick = client.level != null ? client.level.getGameTime() : 0L;
         // firstSpawns is the Watcher's, not this mob's: his first wave settles 40 ticks slower and that state ends
         // on his "Let's see how you can handle this." line (Odin clears its own flag on exactly that line). This
@@ -301,7 +364,7 @@ public final class BloodCampFeature {
         if (data == null) {
             data = new BloodMobState(packetVec, nowTick, firstSpawn);
             bloodMobs.put(entity, data);
-            LOGGER.info("[BloodCamp] trip tracked: stand #{} {} tracked={} tick={}", entity.getId(), data.brief(),
+            LOGGER.info("[BloodCamp] trip tracked ({}): stand #{} {} tracked={} tick={}", kind, entity.getId(), data.brief(),
                     bloodMobs.size(), nowTick);
         } else if (nowTick - data.lastMoveTick >= RESETTLE_GAP_TICKS) {
             // This class's own doc: "the SAME entity periodically repositions". Deltas arrive every tick while a
@@ -328,8 +391,7 @@ public final class BloodCampFeature {
         if (data.firstPacketExact == null) {
             // Where the trip's first packet actually put the stand - only for the testkit, which measures the old
             // start (this point) against the new one (startVec, the wall spot) on the same movement.
-            data.firstPacketExact = new Vec3(entity.getX() + step[0] / 4096.0,
-                    entity.getY() + step[1] / 4096.0, entity.getZ() + step[2] / 4096.0);
+            data.firstPacketExact = exact;
         }
         data.lastMoveTick = nowTick;
 
@@ -391,6 +453,20 @@ public final class BloodCampFeature {
         if (watcherEntityId != null && McPackets.removedEntityIds(packet).contains(watcherEntityId)) {
             LOGGER.info("[BloodCamp] Watcher removed by the server: entity #{}", watcherEntityId);
             watcherEntityId = null;
+        }
+        // A blood mob the server removes is a kill for Blood Camp Stats when it was dead already or close enough to him that
+        // it cannot be the entity leaving his tracking range (the entity is still in the level here, before vanilla).
+        if (!BLOOD_IDS.isEmpty() && level != null) {
+            Minecraft client = Minecraft.getInstance();
+            for (int id : McPackets.removedEntityIds(packet)) {
+                if (!BLOOD_IDS.contains(id)) {
+                    continue;
+                }
+                Entity e = level.getEntity(id);
+                if (e != null && (!e.isAlive() || (client.player != null && e.distanceToSqr(client.player) < 40.0 * 40.0))) {
+                    BloodCampStats.onBloodMobDied(id);
+                }
+            }
         }
         // Every remove-entities packet in every world comes here: with no blood mob tracked there is nothing to drop,
         // so no capturing lambda and iterator are made for an empty map (mixin FPS pass, 2026-10-15).
@@ -498,6 +574,17 @@ public final class BloodCampFeature {
 
         // killer560, 2026-10-15: "Aura and triggerbot should both only work if I am in the blood room."
         boolean inRoom = inBloodRoom(client);
+        BloodCampStats.noteInRoom(inRoom);
+        // killer560, 2026-11-01: "Have an option to only toggle as mage." With Mage Only on, the Trigger Bot and the
+        // Aura act only while the dungeon tab list says he is the Mage (before it says anything: not the Mage).
+        boolean classOk = !cfg.isMageOnly()
+                || com.killer560.hub.leapmenu.PartyTracker.selfClass() == com.killer560.hub.dungeonclass.DungeonClass.MAGE;
+        if (classOk != lastClassOkLogged && cfg.isMageOnly()) {
+            LOGGER.info("[BloodCamp] Mage Only: {} (class {}) tick={}", classOk ? "Mage, acting" : "not the Mage, holding",
+                    com.killer560.hub.leapmenu.PartyTracker.selfClass(), now);
+        }
+        lastClassOkLogged = classOk;
+        inRoom = inRoom && classOk;
         if (inRoom != lastInBloodRoom) {
             LOGGER.info("[BloodCamp] Blood Room: {} (watcher={} mapType={} watcherTile={}) tick={}", inRoom ? "entered" : "left",
                     watcherEntityId, com.killer560.hub.livemap.LiveMapFeature.currentRoomType(),
@@ -513,20 +600,39 @@ public final class BloodCampFeature {
         // sure it doesn't track them through walls"): a ray from his eye reaches its box without meeting a block.
         Map.Entry<ArmorStand, BloodMobState> auraTrip = null;
         Entity auraFloor = null;
-        if (cfg.isAuraEnabled() && inRoom) {
+        // killer560, 2026-11-01: "Dont have it track until the timer is about to go off then it can start tracking if it
+        // is in the room." The Aura used to start turning 35 ticks before a mob was due - as soon as it left the wall, a
+        // second and a half of a crosshair glued to an empty spot. Now nothing is picked until the click moment (the kill
+        // timer, moved by Trigger Offset) is a reaction time plus the turn to it away ({@link #auraLeadTicks}): it starts as
+        // late as it can and still be on the mob when it may click.
+        double clickBelowAura = triggerTargetTicks(cfg, client);
+        long killIn = BloodCampMoveTimer.ticksUntilKillOpen(cfg.getTriggerOffsetTicks());
+        if (cfg.isAuraEnabled() && inRoom && killIn <= AURA_MAX_LEAD_TICKS) {
             double best = Double.MAX_VALUE;
+            // Stay on the mob already being turned to while it is still a target (killer560, 2026-11-01: "it was doing kind
+            // of this snap thing if a mob was spawned with a new one being spawned close to it"): a second mob landing
+            // beside it, a little more due, used to take the aim mid-turn.
+            Map.Entry<ArmorStand, BloodMobState> keep = null;
             for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
                 BloodMobState data = entry.getValue();
                 if (!liveTrip(entry.getKey(), data, now)) {
                     continue;
                 }
                 double remaining = remainingTicks(data, now);
-                if (remaining > AURA_START_TICKS || remaining >= best) {
+                boolean current = java.util.Objects.equals(lastAuraKeyLogged, entry.getKey().getId());
+                if (!current && (remaining - clickBelowAura > AURA_MAX_LEAD_TICKS || remaining >= best)) {
                     continue; // not due yet, or it cannot beat the one already picked (saves its line-of-sight rays)
+                }
+                double lead = auraLeadTicks(client, aimPoint(client, data));
+                if (!current && (remaining - clickBelowAura > lead || killIn > lead)) {
+                    continue;
                 }
                 Entity mob = nearestMob(client, data.endVector);
                 if (!visible(client, mob != null ? mob.getBoundingBox() : aimBox(data.endVector))) {
                     continue;
+                }
+                if (current) {
+                    keep = entry;
                 }
                 if (remaining < best) {
                     best = remaining;
@@ -536,14 +642,33 @@ public final class BloodCampFeature {
             // A mob already on the floor is killable now: it goes ahead of a trip still more than its own angle away.
             float yaw = client.player.getYRot();
             float pitch = client.player.getXRot();
+            Entity keepFloor = null;
             for (Entity mob : floorMobs(client, now)) {
                 float[] a = BloodCampAim.angles(client.player.getEyePosition(), mob.getBoundingBox().getCenter());
                 double score = (Math.abs(net.minecraft.util.Mth.wrapDegrees(a[0] - yaw)) + Math.abs(a[1] - pitch)) * 0.01;
-                if (score < best && visible(client, mob.getBoundingBox())) {
+                boolean current = ("mob" + mob.getId()).equals(lastAuraKeyLogged);
+                if (!current && killIn > auraLeadTicks(client, mob.getBoundingBox().getCenter())) {
+                    continue;
+                }
+                boolean seen = visible(client, mob.getBoundingBox());
+                if (seen && current) {
+                    keepFloor = mob;
+                }
+                if (score < best && seen) {
                     best = score;
                     auraFloor = mob;
                     auraTrip = null;
                 }
+            }
+            if (keepFloor != null) {
+                auraFloor = keepFloor;
+                auraTrip = null;
+            } else if (keep != null) {
+                auraFloor = null;
+                auraTrip = keep;
+            }
+            if ((auraTrip != null || auraFloor != null) && lastAuraKeyLogged == null) {
+                auraPickedAtRemaining = auraTrip != null ? remainingTicks(auraTrip.getValue(), now) - clickBelowAura : -killIn;
             }
         }
         Vec3 auraPoint = auraFloor != null ? aimPoint(auraFloor, auraFloor.getId())
@@ -585,6 +710,7 @@ public final class BloodCampFeature {
         // moved by the Trigger Offset. A mob's own countdown only says when THAT mob can be hit; until then the
         // Trigger Bot clicked on it alone, 100 ticks before "KILL" in his run. See BloodCampMoveTimer#killTimerAllows.
         boolean killTimerOpen = BloodCampMoveTimer.killTimerAllows(cfg.getTriggerOffsetTicks());
+        BloodCampStats.noteKillTimer(killTimerOpen);
         if (killTimerOpen != lastKillTimerOpen) {
             LOGGER.info("[BloodCamp] kill timer gate: {} (KILL shown at tick {}, offset {}) cooldown={} tick={}",
                     killTimerOpen ? "open, attacks allowed" : "closed, attacks held", BloodCampMoveTimer.killShownTick(),
@@ -594,6 +720,7 @@ public final class BloodCampFeature {
         trackFloorClicks(client, now);
 
         // ---- Trigger Bot ------------------------------------------------------------------------------------------
+        // (Trigger Offset's sign: since 2026-11-01 positive is LATE, the slider's right - see BloodCampConfig.)
         // killer560 (2026-09-20): "if I have two levers in my range at once ... have it only pick one and then the
         // other on the next tick". Pick the most-due mob here and send at most one click below.
         //
@@ -610,6 +737,7 @@ public final class BloodCampFeature {
         hitSound(cfg, now, clickBelow, killTimerOpen);
         boolean triggerBotUsable = cfg.isTriggerBotEnabled() && inRoom
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client);
+        lastTriggerUsable = triggerBotUsable;
         if (triggerBotUsable != lastTriggerUsableLogged) {
             lastTriggerUsableLogged = triggerBotUsable;
             LOGGER.info("[BloodCamp] Trigger Bot {}: enabled={} inRoom={} containerOpen={} clickBelow={} neverMiss={} ping={}ms tick={}",
@@ -1062,7 +1190,7 @@ public final class BloodCampFeature {
         } else if (!killTimerOpen) {
             long kill = BloodCampMoveTimer.killShownTick();
             logRefusal(now, "kill timer", (kill < 0 ? "kill timer not up: waiting for the Watcher's last-wave line"
-                    : "kill timer not up: KILL in " + (kill - now) + " ticks, Trigger Offset "
+                    : "kill timer not up: KILL in " + (kill - now) + " ticks, Trigger Offset (late) "
                     + BloodCampConfig.getInstance().getTriggerOffsetTicks()) + " (" + target + ")");
         } else if (!cooldownReady) {
             logRefusal(now, "cooldown", "attack cooldown, " + (now - lastClickTick) + " of " + cooldown + " ticks ("
@@ -1185,26 +1313,37 @@ public final class BloodCampFeature {
     private static void tagBloodMobs(Minecraft client, long now) {
         BLOOD_IDS.removeIf(id -> {
             Entity e = client.level.getEntity(id);
-            return e == null || e.isRemoved() || !e.isAlive();
+            if (e != null && !e.isRemoved() && e.isAlive() && !excluded(client, e)) {
+                return false;
+            }
+            if (e != null && !e.isAlive()) {
+                BloodCampStats.onBloodMobDied(id);
+            }
+            return true;
         });
         // By name, every 5 ticks (killer560, 2026-10-15): a blood mob that landed while he was too far away for the
         // client to see its trip still has its name tag - see BloodMobNames.
         if (now % 5 == 0) {
             for (Entity e : client.level.entitiesForRendering()) {
                 if (e instanceof ArmorStand stand && stand.hasCustomName()) {
-                    if (isBloodTagCached(stand)) {
+                    // Only inside the Blood Room (killer560, 2026-11-01: "something is highlighting all fels ... It is coming
+                    // currently from the blood mob highlight"): "Fels", "Skull" and the rest are ordinary dungeon mob names
+                    // too, so a name tag anywhere on the floor used to make its mob a blood mob. A starred tag (✯) is never
+                    // the Watcher's.
+                    if (inRoomTile(client, stand.position()) && isBloodTagCached(stand)
+                            && !stand.getName().getString().contains("\u272F")) {
                         Entity mob = BloodMobNames.mobFor(client, stand);
-                        if (mob != null && (watcherEntityId == null || mob.getId() != watcherEntityId)) {
+                        if (mob != null && (watcherEntityId == null || mob.getId() != watcherEntityId) && !excluded(client, mob)) {
                             if (BLOOD_IDS.add(mob.getId())) {
                                 LOGGER.info("[BloodCamp] blood mob tagged by name tag: {} tick={}", describe(client, mob), now);
                             }
                         }
                     }
-                } else if (BloodMobNames.isNamedNpc(client, e)) {
+                } else if (BloodMobNames.isNamedNpc(client, e) && inRoomTile(client, e.position()) && !excluded(client, e)) {
                     if (BLOOD_IDS.add(e.getId())) {
                         LOGGER.info("[BloodCamp] blood mob tagged as named NPC: {} tick={}", describe(client, e), now);
                     }
-                } else if (isRoomNpc(client, e)) {
+                } else if (isRoomNpc(client, e) && !excluded(client, e)) {
                     // killer560, 2026-10-19: "watcher triggerbot still almost never fires." His run's log: the click was
                     // held for "player #1158128 in the line of fire" - a player-model NPC (not a real player: those are
                     // version 4) standing in the Blood Room that neither its name tag nor a trip's landing had tagged.
@@ -1296,6 +1435,12 @@ public final class BloodCampFeature {
             }
         }
         return true;
+    }
+
+    /** {@link #inRoomTile} for other features (Dungeon ESP's Fel skulls): false while no Watcher is known. */
+    public static boolean inBloodRoomTile(Vec3 p) {
+        Minecraft client = Minecraft.getInstance();
+        return client.level != null && inRoomTile(client, p);
     }
 
     /** Whether {@code p} is in the Watcher's room tile (the Blood Room). */
@@ -1522,8 +1667,33 @@ public final class BloodCampFeature {
         return best;
     }
 
-    /** Ticks before a mob is due the Aura starts turning toward it (a trip is 38.8 ticks, the first wave 78.8). */
+    /** Ticks before a mob is due the explain-why log still looks at it (a trip is 38.8 ticks, the first wave 78.8). */
     private static final double AURA_START_TICKS = 35.0;
+    /** The most ticks before its click moment the Aura ever picks a target (a 180 degree turn plus the slowest reaction). */
+    static final double AURA_MAX_LEAD_TICKS = 24.0;
+    /** Testkit: ticks between the Aura picking its last target from rest and that target's click moment. */
+    private static double auraPickedAtRemaining = Double.NaN;
+
+    public static double auraPickedAtRemaining() {
+        return auraPickedAtRemaining;
+    }
+
+    /**
+     * How long before a mob's click moment the Aura has to pick it to be on it in time: its slowest reaction (6 ticks), the
+     * longest the human turn to {@code point} can take ({@link BloodCampAim#maxTurnTicks}), and one tick to spare.
+     */
+    static double auraLeadTicks(Minecraft client, Vec3 point) {
+        float[] a = BloodCampAim.angles(client.player.getEyePosition(), point);
+        float dy = net.minecraft.util.Mth.wrapDegrees(a[0] - client.player.getYRot());
+        float dp = a[1] - client.player.getXRot();
+        return Math.min(AURA_MAX_LEAD_TICKS, 6.0 + BloodCampAim.maxTurnTicks(dy, dp) + 1.0);
+    }
+    private static boolean lastClassOkLogged = true;
+    private static boolean lastTriggerUsable;
+
+    public static boolean lastTriggerUsable() {
+        return lastTriggerUsable;
+    }
     /** A click that did no damage is retried at most this many times per trip. */
     static final int MAX_RETRIES = 4;
     /** Retries (and the Aura) give a mob up this many ticks past its due moment. */
@@ -1569,7 +1739,12 @@ public final class BloodCampFeature {
         return AIM.maxTickPitch;
     }
 
+    public static float auraMaxRestingFrameYaw() {
+        return AIM.maxRestingFrameYaw;
+    }
+
     public static void resetAuraStats() {
+        AIM.maxRestingFrameYaw = 0f;
         AIM.maxTickYaw = 0f;
         AIM.maxTickPitch = 0f;
         AIM.lastReactionTicks = -1;
@@ -1672,6 +1847,27 @@ public final class BloodCampFeature {
         }
     }
 
+    /** Blood mobs alive now (tagged and not dead), and trips on their way (a path, the mob not landed yet). */
+    static int[] campCounts(Minecraft client) {
+        int alive = 0;
+        for (Integer id : BLOOD_IDS) {
+            Entity e = client.level == null ? null : client.level.getEntity(id);
+            if (e != null && e.isAlive() && !e.isRemoved()) {
+                alive++;
+            }
+        }
+        int flying = 0;
+        long now = client.level == null ? 0L : client.level.getGameTime();
+        for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
+            BloodMobState data = entry.getValue();
+            if (data.endVector != null && !entry.getKey().isRemoved() && data.mobId < 0
+                    && remainingTicks(data, now) > -TAG_WITHIN_TICKS) {
+                flying++;
+            }
+        }
+        return new int[]{alive, flying};
+    }
+
     /** The real mob standing on a landing spot (nearest to it), or null when only the stand is there. */
     private static Entity nearestMob(Minecraft client, Vec3 end) {
         AABB search = new AABB(end, end).inflate(TARGET_SEARCH_RADIUS);
@@ -1694,7 +1890,8 @@ public final class BloodCampFeature {
      * Blood Camp draws. A small offset rolled per trip keeps two aims from being pixel-identical.
      */
     static Vec3 aimPoint(Minecraft client, BloodMobState data) {
-        Entity mob = nearestMob(client, data.endVector);
+        Entity own = data.mobId >= 0 ? client.level.getEntity(data.mobId) : null;
+        Entity mob = own != null && own.isAlive() && !own.isRemoved() ? own : nearestMob(client, data.endVector);
         if (mob != null) {
             AABB b = mob.getBoundingBox();
             double w = b.getXsize();
@@ -1986,7 +2183,42 @@ public final class BloodCampFeature {
                 && !(entity instanceof ArmorStand)
                 && !(entity instanceof Player && entity.getUUID().version() == 4)
                 && !isPlayerSummon(entity)
-                && entity != Minecraft.getInstance().player;
+                && entity != Minecraft.getInstance().player
+                && !excluded(Minecraft.getInstance(), entity);
+    }
+
+    /**
+     * Never a blood mob, whatever tags it (killer560, 2026-11-01): "Sometimes it is highlighting those silverfish for the
+     * esp", "on occasion it can highlight the watcher and the watchful eyes", and "I had a primal fear spawn in the room
+     * as blood camp was happening and trigger bot would hit it as well. And the mob esp would highlight it." His
+     * 2026-10-29 log has the silverfish: "blood mob tagged by name tag: silverfish #880376" - a blood name tag mapped onto
+     * the silverfish one id below it. So: any silverfish, the Watcher (by id, or any zombie in his skull before his id is
+     * known), and a Primal Fear ({@link BloodExclusions}). The Trigger Bot, the Aura and Blood Mobs ESP all read
+     * {@link #isBloodMob}/{@link #isAttackableMob}, so one rule covers all three.
+     */
+    static boolean excluded(Minecraft client, Entity e) {
+        try {
+            return excluded0(client, e);
+        } catch (IllegalStateException notInLevel) {
+            // An entity with no id yet (never added to a level: testkit 686 asks about one it built) is not in the room.
+            return false;
+        }
+    }
+
+    private static boolean excluded0(Minecraft client, Entity e) {
+        if (e instanceof net.minecraft.world.entity.monster.Silverfish) {
+            return true;
+        }
+        if (watcherEntityId != null && e.getId() == watcherEntityId) {
+            return true;
+        }
+        if (e instanceof Zombie z) {
+            String tex = getSkullTexture(z.getItemBySlot(EquipmentSlot.HEAD));
+            if (tex != null && WATCHER_SKULL_TEXTURES.contains(tex)) {
+                return true;
+            }
+        }
+        return BloodExclusions.isPrimalFear(client, e);
     }
 
     /**
@@ -2005,8 +2237,10 @@ public final class BloodCampFeature {
     /** Real countdown formula, ported directly from Noamm's own real math (see this class's own doc
      *  comment) - real ticks remaining until this specific blood mob has settled and become vulnerable
      *  again. */
-    private static double remainingTicks(BloodMobState data, long nowTick) {
-        long timeTook = nowTick - data.startedAtTick;
+    static double remainingTicks(BloodMobState data, long nowTick) {
+        // Server ticks since the trip's first packet (util.PerTickServerClock: the server's per-tick pings on Hypixel,
+        // client ticks on a server that does not ping every tick). A server stall pauses it as it pauses the mob.
+        long timeTook = com.killer560.hub.util.PerTickServerClock.now() - data.startedAtClock;
         return (data.firstSpawn ? 40 : 0) + 38 - timeTook + 0.8;
     }
 
@@ -2019,14 +2253,23 @@ public final class BloodCampFeature {
      * -offset ticks after the kill timer (testkit 792 and the 1015 blood camp cases measure it).
      */
     static double triggerTargetTicks(BloodCampConfig cfg, Minecraft client) {
-        return autoLagOffsetTicks(cfg, client) + cfg.getTriggerOffsetTicks();
+        // Positive Trigger Offset is late (2026-11-01): it LOWERS the time left the click waits for.
+        return autoLagOffsetTicks(cfg, client) - cfg.getTriggerOffsetTicks();
     }
 
+    /**
+     * Auto Detect Lag's share: the round trip with any server stall taken out ({@code PingTracker#automationMsLagFree}).
+     * killer560, 2026-11-01: "sometimes the triggerbot comes out really late likely due to auto detect lag finding
+     * something wrong." His 2026-10-29 15:21:05 log: a 20-tick stall ("stall bridged: gap=20 ticks") put a 1170 ms pong in
+     * the ping median, so clickBelow was 24.4 ticks, the click went 9.8 ticks before the mob was due onto an empty spot,
+     * and the mob was only taken 15 ticks after it landed, by the next-mob pass. A stall is not ping: the countdown
+     * already leaves it out ({@link #remainingTicks}), so the click is timed by the connection's own round trip.
+     */
     private static double autoLagOffsetTicks(BloodCampConfig cfg, Minecraft client) {
         if (!cfg.isAutoDetectLag() || client.getConnection() == null || client.player == null) {
             return 0;
         }
-        return pingMs(client) / 50.0;
+        return com.killer560.hub.util.PingTracker.automationMsLagFree() / 50.0;
     }
 
     // ------------------------------------------------------------------

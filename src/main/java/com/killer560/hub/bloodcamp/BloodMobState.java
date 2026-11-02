@@ -11,6 +11,8 @@ final class BloodMobState {
 
     Vec3 startVec;
     long startedAtTick;
+    /** {@code util.PerTickServerClock.now()} at the trip's start: the countdown counts server ticks (2026-11-01). */
+    long startedAtClock;
     boolean firstSpawn;
     final Deque<Vec3> deltaHistory = new ArrayDeque<>();
     Vec3 lastPosition;
@@ -60,6 +62,7 @@ final class BloodMobState {
     void restart(Vec3 startVec, long startedAtTick, boolean firstSpawn) {
         this.startVec = startVec;
         this.startedAtTick = startedAtTick;
+        this.startedAtClock = com.killer560.hub.util.PerTickServerClock.now();
         this.firstSpawn = firstSpawn;
         this.lastPosition = startVec;
         this.lastMoveTick = startedAtTick;

@@ -160,13 +160,15 @@ public final class ModPaths {
         }
 
         for (String run : new String[]{"run", "splittimers", "scorecalc", "dungeoninfo", "dungeonalerts",
-                "dungeonqueue", "partyfinder", "leap", "fastleap", "spiritleapoverlay", "class", "teammates",
+                "dungeonqueue", "creationcooldown", "instaclearwarning", "partyfinder", "leap", "fastleap", "spiritleapoverlay", "class", "teammates",
                 "blessings", "croesus", "rng", "revertmasterstars", "ticktimers", "mobesp"}) {
             t.put(run, "dungeons/runs");
         }
 
         // ---- skyblock --------------------------------------------------------------------------------------------
         t.put("experiments", "skyblock/experiments");
+        // How Lucky Are You's settings (killer560smod-luck.json); its records are in the shared store.
+        t.put("luck", "skyblock/luck");
         // The profit trackers' shared Show Profit / Profit Data settings (killer560smod-profit-trackers.json, 2026-10-15).
         t.put("profit-trackers", "skyblock/profit");
         t.put("auction", "skyblock/auction");
@@ -180,7 +182,11 @@ public final class ModPaths {
         t.put("mining-profit", "skyblock/mining-profit");
         t.put("nucleus-profit", "skyblock/nucleus-profit");
         t.put("chmap", "skyblock/chmap");
+        // The pre-2.0 mining features (miningqol/, 2026-11-01).
+        t.put("miningqol", "skyblock/miningqol");
         t.put("pathfinding", "skyblock/pathfinding");
+        // Auto Sprint (killer560smod-autosprint.json, 2026-11-01).
+        t.put("autosprint", "skyblock/autosprint");
         t.put("itemprotect", "skyblock/itemprotect");
         t.put("petwheel", "skyblock/petwheel");
         t.put("storage", "skyblock/storage");
@@ -191,6 +197,7 @@ public final class ModPaths {
         t.put("pricetooltip", "skyblock/pricetooltip");
         t.put("quiverdisplay", "skyblock/quiverdisplay");
         t.put("ragaxe", "skyblock/ragaxe");
+        t.put("gyrooverlay", "skyblock/gyrooverlay");
         t.put("autosell", "skyblock/autosell");
         t.put("autoanvil", "skyblock/autoanvil");
         t.put("ability", "skyblock/abilities");
@@ -233,6 +240,7 @@ public final class ModPaths {
         t.put("peekchat", "social/peekchat");
         t.put("chattidy", "social/chattidy");
         t.put("chathistory", "social/chathistory");
+        t.put("chattabs", "social/chattabs");
         // Image Preview: its settings and its picture cache (killer560smod-imagepreview-cache/), 2026-10-27.
         t.put("imagepreview", "social/imagepreview");
         t.put("voice", "social/voicetotext");
@@ -294,7 +302,13 @@ public final class ModPaths {
         t.put("autoupdate", "system/autoupdate");
         t.put("reboot", "system/reboot");
         t.put("correctionalarm", "system/correctionalarm");
+        // The mod-wide Emergency Cancel Key for every macro (killer560smod-macrostop.json, 2026-11-01).
+        t.put("macrostop", "system/macrostop");
         t.put("bugreport", "system/bugreport");
+        // Auto Report Bans (2026-11-01): its switch and the hashed keys of bans already reported.
+        t.put("banreport", "system/banreport");
+        // The first-launch tour (2026-11-01): whether it has run.
+        t.put("intro", "system/intro");
         t.put("bug-reports", "system/bugreport");
         // Session Recorder (2026-10-19): its switch, and its per-session files plus the "disabled here" marker, which
         // live in killer560/diagnostics/ (the marker is normally written straight into killer560/ by the deploy script).

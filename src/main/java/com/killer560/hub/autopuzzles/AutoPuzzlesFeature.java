@@ -154,7 +154,13 @@ public final class AutoPuzzlesFeature {
         return AutoIceFill.isDone();
     }
 
+    /** Set by the Emergency Cancel Key: every puzzle auto resets on the next tick, as on a world change. */
+    private static volatile boolean emergencyReset = false;
+
     public static void register() {
+        // Emergency Cancel Key (killer560, 2026-11-01): every puzzle auto lets go (keys, camera, its run) and none acts
+        // while the hold is on (macrostop/MacroStop).
+        com.killer560.hub.macrostop.MacroStop.onEmergency(() -> emergencyReset = true);
         // ChatObserver, same as QuizSolverFeature (whose reset this re-arm mirrors): Odin/NoammAddons/Skyblocker can
         // cancel a server line via ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric
         // listeners never see - on Fabric CHAT/GAME the solver would reset but this would never re-arm. The trigger
@@ -203,9 +209,11 @@ public final class AutoPuzzlesFeature {
     private static void onTick(Minecraft client) {
         AutoPuzzleUtil.turnTick(client); // first, always: a body turned for a click is given back the tick after
         AutoPuzzleActivity.tick(client);
-        if (client.level != lastLevel) {
-            LOGGER.info("[AutoPuzzles] dispatcher: world changed ({}) - every puzzle auto reset, solvers must be seen"
-                    + " empty again tick={}", client.level == null ? "no world" : "new world", nowTick());
+        if (client.level != lastLevel || emergencyReset) {
+            LOGGER.info("[AutoPuzzles] dispatcher: {} - every puzzle auto reset, solvers must be seen"
+                    + " empty again tick={}", emergencyReset ? "the Emergency Cancel Key"
+                    : client.level == null ? "world changed (no world)" : "world changed (new world)", nowTick());
+            emergencyReset = false;
             dispatchLogged = null;
             lastLevel = client.level;
             resetQuiz();
@@ -229,6 +237,10 @@ public final class AutoPuzzlesFeature {
             quizSolverClearedThisLevel = true;
         }
         AutoWeirdos.observeSolver();
+        if (com.killer560.hub.macrostop.MacroStop.emergencyHeld()) {
+            logDispatch("held - the Emergency Cancel Key");
+            return;
+        }
         if (client.player == null || client.level == null || client.gameMode == null) {
             logDispatch("idle - no player, world or game mode");
             return;

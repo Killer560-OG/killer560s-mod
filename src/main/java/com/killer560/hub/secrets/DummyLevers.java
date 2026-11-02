@@ -28,7 +28,8 @@ import java.util.Set;
  * the database's chests: capture 58,70,6 and 40,90,27 are database 57,70,5 and 39,90,26): wall levers facing south at
  * capture 57,70,6 and 60,70,6 (database 56,70,5 and 59,70,5) flank the chest at capture 58,70,6; the real lever is the
  * floor lever at capture 55,69,6 (database 54,69,5), which is also the only Red Blue lever in RSM's secret list
- * (center-relative 39,69,-10). No other room's dummy lever is confirmed yet; add one here and every reader has it.
+ * (center-relative 39,69,-10). Pressure Plates' cauldron levers and Mines' wool lever were added 2026-11-01 (his to-do Doc);
+ * add one here and every reader has it.
  *
  * <p>Readers: Secret Aura (and so Auto Secret's "still being taken" wait), Secret Waypoints, Secret Triggerbot, Secret
  * Sound, and Auto Routes' {@code AwaitEvents} (its await count and the run memory Auto Secret counts from).
@@ -37,7 +38,27 @@ public final class DummyLevers {
 
     /** Room name -> database-relative positions of its dummy levers. */
     private static final Map<String, List<BlockPos>> BY_ROOM = Map.of(
-            "Red Blue", List.of(new BlockPos(56, 70, 5), new BlockPos(59, 70, 5)));
+            "Red Blue", List.of(new BlockPos(56, 70, 5), new BlockPos(59, 70, 5)),
+            // killer560, 2026-11-01, at the top of Pressure Plates: "There looks to be 3 sets of 4 levers that are
+            // highlighted and they shouldnt be" - the only real ones are the lever by the item and the one on an oak log.
+            // The capture (rooms/Pressure_Plates.json, capture = database + 1 in x and z, checked on the database's lever
+            // at capture 22,83,16 on the oak log) holds sixteen wall levers on cauldrons at y 97, a pair either side of
+            // each of eight cauldrons at capture x 17,18,25,26,38,39,46,47 and z 16 (levers at z 15 and 17).
+            "Pressure Plates", pressurePlatesCauldrons(),
+            // killer560, 2026-11-01, in Mines where a crypt sits on top of two levers: "Only one lever should be
+            // highlighted and that is the lower one." The lower is the database's floor lever (capture 15,80,4); the upper
+            // is a wall lever on red wool at capture 15,81,5.
+            "Mines", List.of(new BlockPos(14, 81, 4)));
+
+    /** Pressure Plates' sixteen cauldron levers, database frame. */
+    private static List<BlockPos> pressurePlatesCauldrons() {
+        List<BlockPos> out = new java.util.ArrayList<>();
+        for (int captureX : new int[]{17, 18, 25, 26, 38, 39, 46, 47}) {
+            out.add(new BlockPos(captureX - 1, 97, 14));
+            out.add(new BlockPos(captureX - 1, 97, 16));
+        }
+        return List.copyOf(out);
+    }
 
     /** Hypixel's rooms are re-identified while he explores; their list is re-read at most this often. */
     private static final long LIVE_REFRESH_MS = 250;

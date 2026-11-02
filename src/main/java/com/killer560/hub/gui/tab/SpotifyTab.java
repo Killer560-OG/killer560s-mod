@@ -86,6 +86,19 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
                     hud().save();
                     btn.setMessage(onOff("Spotify HUD", hud().isHudEnabled()));
                 }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        // Which player to follow and what the display stars out (2026-11-01), for the HUD, F5 and shared lines alike.
+        widgets.add(SettingsButtonWidget.cycling(sourceText(), (btn, dir) -> {
+                    SpotifyHudConfig.MusicSource[] all = SpotifyHudConfig.MusicSource.values();
+                    hud().setMusicSource(all[SettingsButtonWidget.step(hud().getMusicSource().ordinal(), dir, all.length)]);
+                    hud().save();
+                    btn.setMessage(sourceText());
+                }).bounds(contentX, y, half, 20).build());
+        widgets.add(SettingsButtonWidget.cycling(censorText(), (btn, dir) -> {
+                    hud().setDisplayCensor(dir > 0 ? hud().getDisplayCensor().next() : hud().getDisplayCensor().previous());
+                    hud().save();
+                    btn.setMessage(censorText());
+                }).bounds(contentX + half + 8, y, contentWidth - half - 8, 20).build());
         y += 26;
 
         // No status line at all: the "Reading Spotify" line went on 2026-09-30 and the "Spotify is not running"
@@ -145,10 +158,20 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
                     hud().setWordTimedLyrics(!hud().isWordTimedLyrics());
                     hud().save();
                     btn.setMessage(onOff("Word-Timed Lyrics", hud().isWordTimedLyrics()));
-                }).bounds(contentX, y, contentWidth, 20).build());
+                }).bounds(contentX, y, half, 20).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Always Show Controls", hud().isAlwaysShowControls()), btn -> {
+                    hud().setAlwaysShowControls(!hud().isAlwaysShowControls());
+                    hud().save();
+                    btn.setMessage(onOff("Always Show Controls", hud().isAlwaysShowControls()));
+                }).bounds(contentX + half + 8, y, half, 20).build());
         y += 26;
 
-        // Song Tag (2026-10-24): the song as a line above your name for other mod users. Its own two switches.
+        // Lyrics In F5 (2026-11-01): every F5 row, the same rows (same values) as Player Cosmetics' Spotify In F5.
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Lyrics In F5", false));
+        y += 14;
+        y = SpotifyF5Rows.build(widgets, contentX, y, contentWidth, true, requestRebuild) + 2;
+
+        // Song Tag (2026-10-24): the song as a line above your name for other mod users.
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Song Tag", false));
         y += 14;
         // Supporters only (killer560, 2026-10-26): grayed out for everyone else, and its hover says so. Turning it OFF
@@ -171,45 +194,40 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
                     + ". You still see your own line above your name in F5.";
         });
         y += 24;
+        // What each sharer sends (killer560, 2026-11-01): the song name, the lyric line, or both, and the lit word.
+        widgets.add(SettingsButtonWidget.cycling(shareWhatText(), (btn, dir) -> {
+                    SongShareConfig.ShareWhat[] all = SongShareConfig.ShareWhat.values();
+                    tag().setShareWhat(all[SettingsButtonWidget.step(tag().getShareWhat().ordinal(), dir, all.length)]);
+                    tag().save();
+                    btn.setMessage(shareWhatText());
+                }).bounds(contentX, y, half, 20).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Share Current Word", tag().isShareWord()), btn -> {
+                    tag().setShareWord(!tag().isShareWord());
+                    tag().save();
+                    btn.setMessage(onOff("Share Current Word", tag().isShareWord()));
+                }).bounds(contentX + half + 8, y, contentWidth - half - 8, 20).build());
+        y += 24;
         widgets.add(SettingsButtonWidget.builder(onOff("Show Others' Songs", tag().isShowOthers()), btn -> {
                     tag().setShowOthers(!tag().isShowOthers());
                     tag().save();
                     btn.setMessage(onOff("Show Others' Songs", tag().isShowOthers()));
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
-        // Everyone (not a supporter perk): your own lyric over your own head, local only.
-        widgets.add(SettingsButtonWidget.builder(onOff("My Lyrics In F5", tag().isLyricsOverHead()), btn -> {
-                    tag().setLyricsOverHead(!tag().isLyricsOverHead());
-                    tag().save();
-                    btn.setMessage(onOff("My Lyrics In F5", tag().isLyricsOverHead()));
-                }).bounds(contentX, y, half, 20).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Highlight Word In F5", tag().isHighlightWordInF5()), btn -> {
-                    tag().setHighlightWordInF5(!tag().isHighlightWordInF5());
-                    tag().save();
-                    btn.setMessage(onOff("Highlight Word In F5", tag().isHighlightWordInF5()));
-                }).bounds(contentX + half + 8, y, half, 20).build());
-        y += 24;
 
         return widgets;
     }
 
-    /** Spotify Controls (2026-10-26): transport buttons, the volume slider, the steps and a key for each control. */
+    /**
+     * Spotify Controls (2026-10-26): the volume slider, the steps and a key for each control. The transport buttons that
+     * stood here (Previous, Play/Pause, Next, Rewind, Skip Ahead) were removed on 2026-11-01 (killer560: "remove the
+     * controls buttons in the mod settings"); they live on the Spotify HUD's control row and on the keys.
+     */
     private int controls(List<AbstractWidget> widgets, int contentX, int y, int contentWidth, int half,
                          Runnable requestRebuild) {
         SpotifyControls.tabOpened();
         SpotifyControlsConfig cfg = SpotifyControlsConfig.getInstance();
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Controls", false));
         y += 14;
-        int third = (contentWidth - 16) / 3;
-        control(widgets, SpotifyControls.Action.PREVIOUS, "Previous", contentX, y, third);
-        control(widgets, SpotifyControls.Action.PLAY_PAUSE, "Play/Pause", contentX + third + 8, y,
-                contentWidth - 2 * (third + 8));
-        control(widgets, SpotifyControls.Action.NEXT, "Next", contentX + contentWidth - third, y, third);
-        y += 24;
-        control(widgets, SpotifyControls.Action.REWIND, "Rewind " + cfg.getSeekSeconds() + "s", contentX, y, half);
-        control(widgets, SpotifyControls.Action.SKIP_AHEAD, "Skip Ahead " + cfg.getSeekSeconds() + "s",
-                contentX + half + 8, y, half);
-        y += 24;
 
         int shown = SpotifyControls.volume();
         ThemedSliderButton volume = new ThemedSliderButton(contentX, y, contentWidth, 18, volumeText(),
@@ -248,7 +266,6 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
                     SpotifyControlsConfig.getInstance().setSeekSeconds(steps[SettingsButtonWidget.step(i, dir, steps.length)]);
                     SpotifyControlsConfig.getInstance().save();
                     btn.setMessage(seekText());
-                    requestRebuild.run();   // Rewind and Skip Ahead show the step
                 }).bounds(contentX, y, half, 20).build());
         widgets.add(SettingsButtonWidget.cycling(volumeStepText(), (btn, dir) -> {
                     int[] steps = {2, 5, 10};
@@ -281,15 +298,6 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
         return y + 2;
     }
 
-    private static void control(List<AbstractWidget> widgets, SpotifyControls.Action action, String label, int x, int y,
-                                int w) {
-        SettingsButtonWidget b = SettingsButtonWidget.builder(Component.literal(label),
-                btn -> SpotifyControls.perform(action)).bounds(x, y, w, 20).build()
-                .activeWhen(() -> SpotifyControls.unavailableReason(action) == null);
-        widgets.add(b);
-        SettingTooltips.live(b, () -> SpotifyControls.unavailableReason(action));
-    }
-
     private Component keyText(SpotifyControls.Action a) {
         if (capturing == a) {
             return Component.literal(a.label + " Key: Press any key...");
@@ -315,7 +323,7 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
     @Override
     public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
         return switchRows(built, "Send Lyrics To Chat", "Spotify HUD", "Share My Song", "Show Others' Songs",
-                "My Lyrics In F5");
+                "My Lyrics In F5", "Song In F5");
     }
 
     /** Read fresh each time: applying a profile replaces the config instance. */
@@ -339,6 +347,18 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
     private static Component detailText() {
         return Component.literal("Lyrics Mode: §b"
                 + (SpotifyLyricsFeature.fullLyrics ? "Full Lyrics" : "Song Title Only"));
+    }
+
+    private static Component sourceText() {
+        return Component.literal("Music Source: §b" + hud().getMusicSource().label);
+    }
+
+    private static Component censorText() {
+        return Component.literal("Display Censor: §b" + hud().getDisplayCensor().shortName());
+    }
+
+    private static Component shareWhatText() {
+        return Component.literal("Share What: §b" + tag().getShareWhat().label);
     }
 
     private static Component profanityText() {

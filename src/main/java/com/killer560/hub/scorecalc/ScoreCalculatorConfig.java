@@ -81,11 +81,23 @@ public final class ScoreCalculatorConfig {
     private boolean chatNote = false;
     private boolean alertSound = true;
     // Score Warning (2026-10-25, its own tab): the pre-boss warning and the crypt reminder, both OFF.
-    public static final int MIN_CRYPT_REMINDER_SECONDS = 30;
-    public static final int MAX_CRYPT_REMINDER_SECONDS = 600;
+    // killer560, 2026-11-01: "make crypt reminder by default go off at 45s. Make the timer go in increments of 5s from
+    // 5s to 2 minutes." A saved 180 (the old default) loads as 45; anything over 2:00 loads as 2:00.
+    public static final int MIN_CRYPT_REMINDER_SECONDS = 5;
+    public static final int MAX_CRYPT_REMINDER_SECONDS = 120;
+    public static final int CRYPT_REMINDER_STEP = 5;
+    public static final int DEFAULT_CRYPT_REMINDER_SECONDS = 45;
+    private static final int OLD_DEFAULT_CRYPT_REMINDER_SECONDS = 180;
     private boolean preBossWarning = false;
+    /** Pre-Boss Warning only while you are playing Mage (2026-11-01). */
+    private boolean preBossMageOnly = false;
+    /** Permanent (2026-11-01): from the Watcher's line until the boss, a title that stays up and follows the score -
+     *  "DO NOT ENTER PORTAL" while anything is missing, a green "ENTER THE PORTAL" once nothing is. */
+    private boolean preBossPermanent = false;
+    /** With Permanent: list what is missing under DO NOT ENTER PORTAL (ON) or show that line alone (OFF). */
+    private boolean preBossListMissing = true;
     private boolean cryptReminder = false;
-    private int cryptReminderSeconds = 180;
+    private int cryptReminderSeconds = DEFAULT_CRYPT_REMINDER_SECONDS;
     private boolean cryptReminderParty = false;
     private boolean scoreWarningSound = true;
     // Bonus-kill party alerts (moved from DungeonInfoConfig 2026-09-21 - see class doc). Same default
@@ -142,8 +154,12 @@ public final class ScoreCalculatorConfig {
                 cfg.chatNote = ConfigJson.getBool(obj, "chatNote", cfg.chatNote);
                 cfg.alertSound = ConfigJson.getBool(obj, "alertSound", cfg.alertSound);
                 cfg.preBossWarning = ConfigJson.getBool(obj, "preBossWarning", cfg.preBossWarning);
+                cfg.preBossMageOnly = ConfigJson.getBool(obj, "preBossMageOnly", cfg.preBossMageOnly);
+                cfg.preBossPermanent = ConfigJson.getBool(obj, "preBossPermanent", cfg.preBossPermanent);
+                cfg.preBossListMissing = ConfigJson.getBool(obj, "preBossListMissing", cfg.preBossListMissing);
                 cfg.cryptReminder = ConfigJson.getBool(obj, "cryptReminder", cfg.cryptReminder);
-                cfg.setCryptReminderSeconds(ConfigJson.getInt(obj, "cryptReminderSeconds", cfg.cryptReminderSeconds));
+                int remindAt = ConfigJson.getInt(obj, "cryptReminderSeconds", cfg.cryptReminderSeconds);
+                cfg.setCryptReminderSeconds(remindAt == OLD_DEFAULT_CRYPT_REMINDER_SECONDS ? DEFAULT_CRYPT_REMINDER_SECONDS : remindAt);
                 cfg.cryptReminderParty = ConfigJson.getBool(obj, "cryptReminderParty", cfg.cryptReminderParty);
                 cfg.scoreWarningSound = ConfigJson.getBool(obj, "scoreWarningSound", cfg.scoreWarningSound);
                 cfg.mimicAlertEnabled = ConfigJson.getBool(obj, "mimicAlertEnabled", cfg.mimicAlertEnabled);
@@ -222,6 +238,9 @@ public final class ScoreCalculatorConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("preBossWarning", preBossWarning);
+            obj.addProperty("preBossMageOnly", preBossMageOnly);
+            obj.addProperty("preBossPermanent", preBossPermanent);
+            obj.addProperty("preBossListMissing", preBossListMissing);
             obj.addProperty("cryptReminder", cryptReminder);
             obj.addProperty("cryptReminderSeconds", cryptReminderSeconds);
             obj.addProperty("cryptReminderParty", cryptReminderParty);
@@ -429,6 +448,30 @@ public final class ScoreCalculatorConfig {
         chatNote = v;
     }
 
+    public boolean isPreBossMageOnly() {
+        return preBossMageOnly;
+    }
+
+    public void setPreBossMageOnly(boolean v) {
+        preBossMageOnly = v;
+    }
+
+    public boolean isPreBossPermanent() {
+        return preBossPermanent;
+    }
+
+    public void setPreBossPermanent(boolean v) {
+        preBossPermanent = v;
+    }
+
+    public boolean isPreBossListMissing() {
+        return preBossListMissing;
+    }
+
+    public void setPreBossListMissing(boolean v) {
+        preBossListMissing = v;
+    }
+
     public boolean isPreBossWarning() {
         return preBossWarning;
     }
@@ -450,7 +493,8 @@ public final class ScoreCalculatorConfig {
     }
 
     public void setCryptReminderSeconds(int v) {
-        cryptReminderSeconds = Math.max(MIN_CRYPT_REMINDER_SECONDS, Math.min(MAX_CRYPT_REMINDER_SECONDS, v));
+        int stepped = Math.round(v / (float) CRYPT_REMINDER_STEP) * CRYPT_REMINDER_STEP;
+        cryptReminderSeconds = Math.max(MIN_CRYPT_REMINDER_SECONDS, Math.min(MAX_CRYPT_REMINDER_SECONDS, stepped));
     }
 
     public boolean isCryptReminderParty() {

@@ -100,7 +100,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         this.parent = parent;
     }
 
-    /** What {@code /leaporder}, {@code /class} and {@code /killer560 leaporder|class} run: opens this editor over whatever
+    /** What {@code /leaporder} and {@code /killer560 leaporder} run: opens this editor over whatever
      *  is showing, one tick later (never from inside command execution). */
     public static int openFromCommand() {
         Minecraft client = Minecraft.getInstance();

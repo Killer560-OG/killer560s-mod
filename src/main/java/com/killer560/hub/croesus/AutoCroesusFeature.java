@@ -166,6 +166,9 @@ public final class AutoCroesusFeature {
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoCroesusFeature.tick", AutoCroesusFeature::tick));
+        // Escape and the Emergency Cancel Key stop it (killer560, 2026-11-01: not other keys); Escape still closes the menu.
+        com.killer560.hub.macrostop.MacroStop.register("Auto Croesus", com.killer560.hub.macrostop.MacroStop.Kind.CLICK,
+                () -> state != State.IDLE || armed, AutoCroesusFeature::stopByPlayer);
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             if (state != State.IDLE) {
                 stop("world changed", false);
@@ -204,15 +207,22 @@ public final class AutoCroesusFeature {
         }
     }
 
+    /** A run (or a pressed Start button) is in progress: {@link ChestProfitFeature}'s key hook keeps his other keys off
+     *  the menu meanwhile - a stray number key there is a real hotbar-swap packet. */
+    public static boolean isBusy() {
+        return state != State.IDLE || armed;
+    }
+
     /**
-     * killer560: "it will keep going until i press any key while it is going or it finishes." Called from
-     * {@link ChestProfitFeature}'s container key hook for every key press.
+     * Escape or the Emergency Cancel Key ({@code macrostop/MacroStop}; killer560, 2026-11-01: "only make it stop if I
+     * press escape or the emergency cancel key not other keys"). It was any key from 2026-09-20 ("it will keep going
+     * until i press any key while it is going or it finishes").
      *
-     * @return whether something was actually stopped, so the caller can swallow that key press.
+     * @return whether something was actually stopped.
      */
-    public static boolean stopOnKeyPress() {
+    public static boolean stopByPlayer(String what) {
         if (state != State.IDLE) {
-            stop("a key was pressed", false);
+            stop("you pressed " + what, false);
             return true;
         }
         if (armed) {
@@ -271,7 +281,7 @@ public final class AutoCroesusFeature {
         graphics.pose().pushMatrix();
         graphics.pose().translate(pos[0], pos[1]);
         graphics.pose().scale(scale, scale);
-        drawButtonBox(graphics, 0, 0, running ? "Running - any key" : "Start Croesus", running);
+        drawButtonBox(graphics, 0, 0, running ? "Running - Esc stops" : "Start Croesus", running);
         graphics.pose().popMatrix();
     }
 
@@ -639,6 +649,36 @@ public final class AutoCroesusFeature {
         CroesusConfig cfg = CroesusConfig.getInstance();
         long minProfit = cfg.getAutoMinProfitK() * 1000L;
 
+        // Kismet first (killer560, 2026-11-01: "For kismet it should reroll a chest before opening if it is bad enough to
+        // deem it needs a reroll. Also I should be able to select which floors I want it to reroll on"). Before any chest
+        // of the run is claimed, a Bedrock chest worth less than Reroll Below is rerolled - whatever else the run holds -
+        // and the run is judged again from the rerolled chest (the chest screen claims it, or refuses it and walks back).
+        // Only a Bedrock chest, once per run, while a Kismet Feather is on you, on a selected floor (2026-09-20 rules).
+        if (cfg.isAutoUseKismets() && kismetAvailable && !rerolledThisRun && !claimedThisRun
+                && (cfg.isRerollFloor(currentRunFloor) || (currentRunFloor == null && cfg.isRerollEveryFloor()))) {
+            ChestValue bedrock = null;
+            for (ChestValue c : chests) {
+                if (!c.opened() && c.slot() >= 0 && c.type() == ChestType.BEDROCK
+                        && !refusedChests.contains(chestKey(c.slot()))) {
+                    bedrock = c;
+                    break;
+                }
+            }
+            long rerollBelow = cfg.getAutoRerollBelowK() * 1000L;
+            if (bedrock != null && !bedrock.requiresKey() && bedrock.profit() < rerollBelow) {
+                if (!click(client, screen, bedrock.slot())) {
+                    return;
+                }
+                LOGGER.info("[Croesus] Rerolling the Bedrock chest of run {} ({}) first: {} is under {}", currentRunKey,
+                        currentRunFloor, bedrock.profit(), rerollBelow);
+                targetType = bedrock.type();
+                targetSlot = bedrock.slot();
+                pendingReroll = true;
+                setState(State.WAIT_CHEST, now);
+                return;
+            }
+        }
+
         ChestValue target = null;
         for (ChestValue c : chests) {
             if (c.opened() || c.slot() < 0 || refusedChests.contains(chestKey(c.slot()))) {
@@ -673,30 +713,6 @@ public final class AutoCroesusFeature {
             }
             setState(State.WAIT_CHEST, now);
             return;
-        }
-
-        // Nothing worth claiming as it stands - killer560, 2026-09-20: "for auto croeseus add the ability to
-        // reroll as well". Only a Bedrock chest can be rerolled, only once per run, and only while a Kismet
-        // Feather is actually on you (quoi AutoCroesus.kt reads that off the slot-50 button itself).
-        if (cfg.isAutoUseKismets() && kismetAvailable && !rerolledThisRun) {
-            ChestValue bedrock = null;
-            for (ChestValue c : chests) {
-                if (!c.opened() && c.slot() >= 0 && c.type() == ChestType.BEDROCK) {
-                    bedrock = c;
-                    break;
-                }
-            }
-            long rerollBelow = cfg.getAutoRerollBelowK() * 1000L;
-            if (bedrock != null && bedrock.profit() < rerollBelow) {
-                if (!click(client, screen, bedrock.slot())) {
-                    return;
-                }
-                targetType = bedrock.type();
-                targetSlot = bedrock.slot();
-                pendingReroll = true;
-                setState(State.WAIT_CHEST, now);
-                return;
-            }
         }
 
         // The skip bookkeeping and its chat line only happen once the "go back" click has actually gone out -

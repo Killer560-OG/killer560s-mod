@@ -105,6 +105,14 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
   (`ClientCommandInternals.isIgnoredException`). So live-editable client commands (custom Command Shortcuts) are added to
   `getActiveDispatcher()` behind `requires(isLive(name))`: removing or renaming one is instant, adding one registers it a
   moment after typing stops, and only its tab completion lingers until the next join.
+- Filtering which chat messages show needs no ChatScreen or ChatComponent redirect: vanilla has
+  `ChatComponent.setVisibleMessageFilter(Predicate<GuiMessage>)` (26.3 and 26.2, javap 2026-11-01), which stores the
+  predicate and re-lays every message through it (`refreshTrimmedMessages`); vanilla sets it from the chat restrictions
+  in `LocalPlayer.refreshChatAbilities`. Chat Tabs wraps whatever arrives with a `@ModifyVariable` on that argument and
+  calls the setter again to re-filter, so other chat mods keep their hooks (doc-extras-1101, testkit 1101-extras-chattabs).
+- A command the mod sends through `ServerCommands.toServer` never reaches Fabric's `ClientSendMessageEvents.ALLOW_COMMAND`
+  (it leaves below the dispatcher). A rule over outgoing commands (Creation Cooldown's /joininstance block) needs both:
+  ALLOW_COMMAND for typed ones and a check in `toServer` for the mod's own (the /f7 shortcuts, Party Commands).
 
 ## Java, javac and Windows
 

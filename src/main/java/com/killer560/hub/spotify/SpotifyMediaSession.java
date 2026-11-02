@@ -150,6 +150,7 @@ public final class SpotifyMediaSession {
                     "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-EncodedCommand", encoded);
             pb.environment().put("K560_SPOTIFY_PARENT", Long.toString(ProcessHandle.current().pid()));
             pb.environment().put("K560_SPOTIFY_COVER", coverFile.toString());
+            pb.environment().put("K560_SPOTIFY_SOURCE", Integer.toString(sourceMode));
             pb.environment().put("K560_SPOTIFY_AUDIO",
                     Base64.getEncoder().encodeToString(AUDIO_SOURCE.getBytes(StandardCharsets.UTF_8)));
             pb.redirectError(ProcessBuilder.Redirect.DISCARD);
@@ -219,6 +220,7 @@ public final class SpotifyMediaSession {
                 // keep the last volume
             }
             album = f.length >= 11 ? f[10].trim() : "";
+            sourceApp = f.length >= 12 ? f[11].trim() : "";
             String flags = f[9].trim();
             if (flags.length() == 4) {
                 boolean[] a = new boolean[4];
@@ -235,6 +237,42 @@ public final class SpotifyMediaSession {
 
     public String album() {
         return album;
+    }
+
+    /** The player the reading came from (Windows' app id, "Spotify.exe" for the desktop app), or "" before a reading. */
+    private volatile String sourceApp = "";
+
+    public String sourceApp() {
+        return sourceApp;
+    }
+
+    /** Whether the reading is the Spotify app's (or carries no app id, as an older helper's did). */
+    public boolean fromSpotify() {
+        String s = sourceApp;
+        return s.isEmpty() || s.toLowerCase(Locale.ROOT).contains("spotify");
+    }
+
+    /** {@link SpotifyHudConfig.MusicSource} ordinal: which players the helper may follow. */
+    private volatile int sourceMode = SpotifyHudConfig.MusicSource.MUSIC_PLAYERS.ordinal();
+
+    /** Sets which players the helper follows; a running helper is told at once, a new one starts with it. Any thread. */
+    public void setSourceMode(int mode) {
+        if (mode == sourceMode) {
+            return;
+        }
+        sourceMode = mode;
+        if (running()) {
+            send("src " + mode);
+        }
+    }
+
+    /** How the volume was last read or set: "app" (Spotify's own slider), "mixer" (Windows' mixer) or "". */
+    private volatile String volumeHow = "";
+    // Test hook: volume commands the helper skipped because a later one was already waiting.
+    private volatile long volumesSkipped;
+
+    public String volumeHow() {
+        return volumeHow;
     }
 
     /** Spotify's mixer volume (0-100), -1 when it has no audio session, -2 when not read yet. Any thread. */
@@ -303,10 +341,26 @@ public final class SpotifyMediaSession {
                     break;   // stopped (or replaced) while this line was in flight: it must not repopulate latest/cover
                 }
                 long now = System.currentTimeMillis();
+                if (line.startsWith("K\t")) {
+                    volumesSkipped++;   // a volume setting a later one replaced before it ran
+                    continue;
+                }
                 if (line.startsWith("C\t")) {
                     String[] f = line.split("\t", -1);
                     lastResult = f.length >= 3 ? f[1] + " " + f[2] : line;
                     results++;
+                    if (f.length >= 5 && f[1].startsWith("vol")) {
+                        if (!f[3].equals(volumeHow)) {
+                            LOGGER.info("Spotify volume goes through {}", "app".equals(f[3])
+                                    ? "Spotify's own slider" : "the Windows volume mixer (Spotify's slider not found)");
+                        }
+                        volumeHow = f[3];
+                        try {
+                            volume = Integer.parseInt(f[4].trim());
+                        } catch (NumberFormatException ignored) {
+                            // keep the last reading
+                        }
+                    }
                     if (f.length >= 3 && !"True".equalsIgnoreCase(f[2].trim())) {
                         LOGGER.info("Spotify control '{}' was refused (Spotify said no)", f[1]);
                     }
@@ -356,6 +410,7 @@ public final class SpotifyMediaSession {
             [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
             $parentPid = [int]$env:K560_SPOTIFY_PARENT
             $coverPath = $env:K560_SPOTIFY_COVER
+            $srcMode = [int]$env:K560_SPOTIFY_SOURCE
             $audioSource = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:K560_SPOTIFY_AUDIO))
             Add-Type -AssemblyName System.Runtime.WindowsRuntime
             Add-Type -AssemblyName System.Drawing
@@ -368,6 +423,10 @@ public final class SpotifyMediaSession {
             $mgrType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
             $propsType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties, Windows.Media.Control, ContentType = WindowsRuntime]
             $streamType = [Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage.Streams, ContentType = WindowsRuntime]
+            $inputType = [Windows.Storage.Streams.IInputStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+            # PowerShell cannot bind the stream (a bare COM object) to AsStreamForRead's IInputStream parameter: the plain
+            # call fails "Cannot find an overload", which is why no cover ever showed (2026-11-01). Reflection casts it.
+            $asStreamForRead = [System.IO.WindowsRuntimeStreamExtensions].GetMethod('AsStreamForRead', [type[]]@($inputType))
             $mgr = Await ($mgrType::RequestAsync()) $mgrType
             function Clean([string]$s) { if ($null -eq $s) { '' } else { $s -replace "[`t`r`n]", ' ' } }
             function SaveCover($props) {
@@ -375,12 +434,20 @@ public final class SpotifyMediaSession {
               $ref = $props.Thumbnail
               if ($null -eq $ref) { return $false }
               $ras = Await ($ref.OpenReadAsync()) $streamType
-              $net = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ras)
+              $net = $asStreamForRead.Invoke($null, @($ras))
               try {
                 $img = [System.Drawing.Image]::FromStream($net)
                 try {
-                  $bmp = [System.Drawing.Bitmap]::new($img, 64, 64)
+                  # A square from the middle (a browser's thumbnail is often 16:9), scaled to 64x64.
+                  $side = [Math]::Min($img.Width, $img.Height)
+                  $bmp = [System.Drawing.Bitmap]::new(64, 64)
                   try {
+                    $g = [System.Drawing.Graphics]::FromImage($bmp)
+                    try {
+                      $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+                      $src = [System.Drawing.Rectangle]::new([int](($img.Width - $side) / 2), [int](($img.Height - $side) / 2), $side, $side)
+                      $g.DrawImage($img, [System.Drawing.Rectangle]::new(0, 0, 64, 64), $src, [System.Drawing.GraphicsUnit]::Pixel)
+                    } finally { $g.Dispose() }
                     $tmp = $coverPath + '.tmp'
                     $bmp.Save($tmp, [System.Drawing.Imaging.ImageFormat]::Png)
                   } finally { $bmp.Dispose() }
@@ -394,18 +461,46 @@ public final class SpotifyMediaSession {
             $retryAt = 0
             $i = 0
             $vol = -2
+            $volHow = ''
             $audioReady = $false
             $fast = 0
             $stdin = [System.IO.StreamReader]::new([Console]::OpenStandardInput())
             $pending = $stdin.ReadLineAsync()
-            function FindSession { foreach ($x in $mgr.GetSessions()) { if ($x.SourceAppUserModelId -like '*Spotify*') { return $x } }; return $null }
-            function EnsureAudio { if (-not $script:audioReady) { Add-Type -TypeDefinition $script:audioSource -Language CSharp; $script:audioReady = $true } }
+            function IsBrowser([string]$id) { return $id -match '(?i)chrome|msedge|firefox|opera|brave|vivaldi|^arc' }
+            # Which player to follow (2026-11-01). Mode 0: the Spotify app only. Mode 1: also other players, and a browser
+            # tab only when it names an album (a music site does, a plain video does not). Mode 2: anything. A playing
+            # session beats a paused one, and the Spotify app beats another player of the same state.
+            function FindSession {
+              $best = $null
+              $bestScore = -1
+              foreach ($x in $mgr.GetSessions()) {
+                $id = [string]$x.SourceAppUserModelId
+                $isSpotify = $id -like '*Spotify*'
+                if (-not $isSpotify -and $script:srcMode -le 0) { continue }
+                if (-not $isSpotify -and $script:srcMode -eq 1 -and (IsBrowser $id)) {
+                  $album = ''
+                  try { $album = [string](Await ($x.TryGetMediaPropertiesAsync()) $propsType).AlbumTitle } catch { }
+                  if ([string]::IsNullOrWhiteSpace($album)) { continue }
+                }
+                $score = 0
+                try { if ([int]$x.GetPlaybackInfo().PlaybackStatus -eq 4) { $score += 10 } } catch { }
+                if ($isSpotify) { $score += 5 }
+                if ($score -gt $bestScore) { $best = $x; $bestScore = $score }
+              }
+              return $best
+            }
+            function EnsureAudio { if (-not $script:audioReady) { Add-Type -TypeDefinition $script:audioSource -Language CSharp -ReferencedAssemblies @('UIAutomationClient', 'UIAutomationTypes', 'WindowsBase'); $script:audioReady = $true } }
+            # Spotify's own volume: its in-app slider when Windows' UI Automation can reach it (2026-11-01: "changing the
+            # volume slider doesnt change the actual slider in spotify"), else its slider in the Windows volume mixer.
+            function GetVol { $a = [K560.SpotifyAppVolume]::Get(); if ($a -ge 0) { $script:volHow = 'app'; return $a }; $script:volHow = 'mixer'; return [K560.SpotifyVolume]::Get() }
+            function SetVol([int]$v) { if ([K560.SpotifyAppVolume]::Set($v)) { $script:volHow = 'app'; return $true }; $script:volHow = 'mixer'; return [K560.SpotifyVolume]::Set($v) }
             function RunCmd([string]$cmd) {
               $parts = $cmd.Trim().Split(' ')
               $ok = $false
-              if ($parts[0] -eq 'vol') { EnsureAudio; $ok = [K560.SpotifyVolume]::Set([int]$parts[1]); $script:vol = [K560.SpotifyVolume]::Get() }
-              elseif ($parts[0] -eq 'volrel') { EnsureAudio; $cur = [K560.SpotifyVolume]::Get(); if ($cur -ge 0) { $ok = [K560.SpotifyVolume]::Set($cur + [int]$parts[1]) }; $script:vol = [K560.SpotifyVolume]::Get() }
-              elseif ($parts[0] -eq 'volq') { EnsureAudio; $script:vol = [K560.SpotifyVolume]::Get(); $ok = $script:vol -ge 0 }
+              if ($parts[0] -eq 'vol') { EnsureAudio; $ok = SetVol ([int]$parts[1]); $script:vol = GetVol }
+              elseif ($parts[0] -eq 'volrel') { EnsureAudio; $cur = GetVol; if ($cur -ge 0) { $ok = SetVol ($cur + [int]$parts[1]) }; $script:vol = GetVol }
+              elseif ($parts[0] -eq 'volq') { EnsureAudio; $script:vol = GetVol; $ok = $script:vol -ge 0 }
+              elseif ($parts[0] -eq 'src') { $script:srcMode = [int]$parts[1]; $script:lastKey = $null; $ok = $true }
               else {
                 $s = FindSession
                 if ($null -ne $s) {
@@ -425,7 +520,9 @@ public final class SpotifyMediaSession {
                   }
                 }
               }
-              "C`t" + $parts[0] + "`t" + $ok
+              $res = "C`t" + $parts[0] + "`t" + $ok
+              if ($parts[0] -like 'vol*') { $res = $res + "`t" + $script:volHow + "`t" + $script:vol }
+              $res
             }
             while ($true) {
               if (($i % 10) -eq 0 -and $parentPid -gt 0 -and -not (Get-Process -Id $parentPid -ErrorAction SilentlyContinue)) { exit 0 }
@@ -439,7 +536,7 @@ public final class SpotifyMediaSession {
                   $tl = $s.GetTimelineProperties()
                   $pb = $s.GetPlaybackInfo()
                   $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-                  $key = [string]$props.Artist + '|' + [string]$props.Title
+                  $key = [string]$s.SourceAppUserModelId + '|' + [string]$props.Artist + '|' + [string]$props.Title
                   if ($key -ne $lastKey) {
                     $lastKey = $key
                     $retryAt = $nowMs + 2500
@@ -449,16 +546,19 @@ public final class SpotifyMediaSession {
                     try { if (SaveCover $props) { $seq++ } } catch { }
                   }
                   $line = "S`t" + (Clean $props.Artist) + "`t" + (Clean $props.Title) + "`t" + [int]$pb.PlaybackStatus + "`t" + [long]$tl.Position.TotalMilliseconds + "`t" + [long]$tl.EndTime.TotalMilliseconds + "`t" + $tl.LastUpdatedTime.ToUnixTimeMilliseconds() + "`t" + $seq
-                  if ($audioReady -and ($i % 4) -eq 0) { try { $vol = [K560.SpotifyVolume]::Get() } catch { $vol = -1 } }
+                  if ($audioReady -and ($i % 4) -eq 0) { try { $vol = GetVol } catch { $vol = -1 } }
                   $c = $pb.Controls
                   $flags = '' + [int]$c.IsPlayPauseToggleEnabled + [int]$c.IsNextEnabled + [int]$c.IsPreviousEnabled + [int]$c.IsPlaybackPositionEnabled
-                  $line = $line + "`t" + $vol + "`t" + $flags + "`t" + (Clean $props.AlbumTitle)
+                  $line = $line + "`t" + $vol + "`t" + $flags + "`t" + (Clean $props.AlbumTitle) + "`t" + (Clean $s.SourceAppUserModelId)
                 }
               } catch { $line = 'E' }
               [Console]::Out.WriteLine($line)
               [Console]::Out.Flush()
-              # Waits for the next reading, answering a command from the game at once (and reading again soon after it,
-              # so a seek or a skip reaches the lyric clock within a quarter second). End of input means the game is gone.
+              # Waits for the next reading, answering commands from the game at once (and reading again soon after, so a
+              # seek or a skip reaches the lyric clock within a quarter second). End of input means the game is gone.
+              # Every command already waiting is taken in one go, and of several volume settings only the LAST is applied:
+              # a dragged slider sends one per step, and running each in turn left the volume seconds behind the slider
+              # (2026-11-01: "making the volume quieter takes a long time to update").
               $waitMs = 500
               if ($fast -gt 0) { $fast--; $waitMs = 120 }
               $deadline = [Environment]::TickCount + $waitMs
@@ -468,13 +568,26 @@ public final class SpotifyMediaSession {
                 $got = $false
                 try { $got = $pending.Wait($left) } catch { exit 0 }
                 if ($got) {
-                  $cmd = $pending.Result
-                  if ($null -eq $cmd) { exit 0 }
-                  $pending = $stdin.ReadLineAsync()
-                  $res = "C`t" + $cmd + "`tFalse"
-                  try { $res = RunCmd $cmd } catch { }
-                  [Console]::Out.WriteLine($res)
+                  $cmds = [System.Collections.Generic.List[string]]::new()
+                  $eof = $false
+                  while ($pending.IsCompleted) {
+                    $cmd = $null
+                    try { $cmd = $pending.Result } catch { $eof = $true; break }
+                    if ($null -eq $cmd) { $eof = $true; break }
+                    $cmds.Add($cmd)
+                    $pending = $stdin.ReadLineAsync()
+                  }
+                  $lastVol = -1
+                  for ($k = 0; $k -lt $cmds.Count; $k++) { if ($cmds[$k].StartsWith('vol ')) { $lastVol = $k } }
+                  for ($k = 0; $k -lt $cmds.Count; $k++) {
+                    $cmd = $cmds[$k]
+                    if ($cmd.StartsWith('vol ') -and $k -ne $lastVol) { [Console]::Out.WriteLine("K`t" + $cmd); continue }
+                    $res = "C`t" + $cmd + "`tFalse"
+                    try { $res = RunCmd $cmd } catch { }
+                    [Console]::Out.WriteLine($res)
+                  }
                   [Console]::Out.Flush()
+                  if ($eof) { exit 0 }
                   $fast = 3
                   break
                 }
@@ -494,6 +607,7 @@ public final class SpotifyMediaSession {
             using System.Collections.Generic;
             using System.Diagnostics;
             using System.Runtime.InteropServices;
+            using System.Windows.Automation;
             namespace K560 {
               [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] class MMDeviceEnumeratorCom { }
               [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -535,6 +649,82 @@ public final class SpotifyMediaSession {
               interface ISimpleAudioVolume {
                 [PreserveSig] int SetMasterVolume(float level, ref Guid ctx);
                 [PreserveSig] int GetMasterVolume(out float level);
+              }
+              /**
+               * Spotify's own in-app volume slider, through Windows UI Automation (2026-11-01). Spotify is a Chromium app;
+               * its volume bar carries an accessible slider (a range from 0 to 1) that UI Automation can read and set
+               * without focusing or clicking anything. Found once and kept; looked for again at most every 10 s while it
+               * cannot be found (Spotify closed to the tray has no window to look in). -1 / false when it is not there,
+               * and the caller falls back to the Windows mixer.
+               */
+              public static class SpotifyAppVolume {
+                static AutomationElement slider;
+                static DateTime nextFind = DateTime.MinValue;
+                static RangeValuePattern Pattern() {
+                  if (slider != null) {
+                    try { return (RangeValuePattern)slider.GetCurrentPattern(RangeValuePattern.Pattern); } catch { slider = null; }
+                  }
+                  if (DateTime.UtcNow < nextFind) return null;
+                  nextFind = DateTime.UtcNow.AddSeconds(10);
+                  foreach (var p in Process.GetProcessesByName("Spotify")) {
+                    IntPtr h;
+                    try { h = p.MainWindowHandle; } catch { continue; }
+                    if (h == IntPtr.Zero) continue;
+                    AutomationElementCollection all;
+                    try {
+                      all = AutomationElement.FromHandle(h).FindAll(TreeScope.Descendants,
+                          new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Slider));
+                    } catch { continue; }
+                    // The slider named for volume; failing that (another language), the ONE writable slider whose
+                    // range is 0..1 (the song's progress bar is in milliseconds). Two such sliders: neither, so a seek
+                    // can never be mistaken for the volume.
+                    AutomationElement unit = null;
+                    int units = 0;
+                    foreach (AutomationElement s in all) {
+                      try {
+                        object pat;
+                        if (!s.TryGetCurrentPattern(RangeValuePattern.Pattern, out pat)) continue;
+                        var rv = (RangeValuePattern)pat;
+                        if (rv.Current.IsReadOnly) continue;
+                        string name = s.Current.Name ?? "";
+                        if (name.IndexOf("volume", StringComparison.OrdinalIgnoreCase) >= 0) {
+                          slider = s;
+                          return rv;
+                        }
+                        if (rv.Current.Maximum <= 1.0001 && rv.Current.Minimum >= -0.0001 && rv.Current.Maximum > 0) {
+                          unit = s;
+                          units++;
+                        }
+                      } catch { }
+                    }
+                    if (units == 1) {
+                      try {
+                        slider = unit;
+                        return (RangeValuePattern)unit.GetCurrentPattern(RangeValuePattern.Pattern);
+                      } catch { slider = null; }
+                    }
+                  }
+                  return null;
+                }
+                public static int Get() {
+                  try {
+                    var rv = Pattern();
+                    if (rv == null) return -1;
+                    double min = rv.Current.Minimum, max = rv.Current.Maximum;
+                    if (max <= min) return -1;
+                    return (int)Math.Round((rv.Current.Value - min) * 100 / (max - min));
+                  } catch { slider = null; return -1; }
+                }
+                public static bool Set(int percent) {
+                  try {
+                    var rv = Pattern();
+                    if (rv == null) return false;
+                    double min = rv.Current.Minimum, max = rv.Current.Maximum;
+                    if (max <= min) return false;
+                    rv.SetValue(min + (max - min) * Math.Max(0, Math.Min(100, percent)) / 100.0);
+                    return true;
+                  } catch { slider = null; return false; }
+                }
               }
               public static class SpotifyVolume {
                 static List<ISimpleAudioVolume> Find() {

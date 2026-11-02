@@ -33,6 +33,9 @@ public final class TestingCommands {
                 ModChat.value(tested.isEmpty() ? "none" : String.join(", ", tested)));
         ModChat.send(FEATURE, ModChat.bad("Marked untested (" + untested.size() + "): "),
                 ModChat.value(untested.isEmpty() ? "none" : String.join(", ", untested)));
+        List<String> bugged = TestedFeatures.marksBugged();
+        ModChat.send(FEATURE, ModChat.bad("Marked bugged (" + bugged.size() + "): "),
+                ModChat.value(bugged.isEmpty() ? "none" : String.join(", ", bugged)));
         ModChat.send(FEATURE, ModChat.text("Marks file: "), ModChat.value(TestedFeatures.marksFile().toString()));
         return 1;
     }

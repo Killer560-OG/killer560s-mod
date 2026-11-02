@@ -111,6 +111,10 @@ public final class BlessingsFeature {
             if (!editor && !cfg.isHudEnabled()) {
                 return out;
             }
+            // Boss Only: the floor's boss room (any floor), latched by the map's boss detection until the next run.
+            if (!editor && cfg.isBossOnly() && !com.killer560.hub.livemap.LiveMapFeature.isInBoss()) {
+                return out;
+            }
             Blessing[] all = Blessing.values();
             for (int i = 0; i < all.length; i++) {
                 Blessing blessing = all[i];

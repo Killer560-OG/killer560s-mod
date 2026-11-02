@@ -10,10 +10,6 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ModPaths;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -70,7 +66,7 @@ import java.util.regex.Pattern;
  * A starred stand that disappears counts as a kill only while he is inside the room.
  *
  * <p><b>Known rule</b> ({@link #knownToInstaClear}): {@code >= N} INSTA observations and no KILLED/NO_CLEAR at all
- * for that room + entry key, N = 2 by default ({@code /autosecret instaclear threshold <n>}).
+ * for that room + entry key, N = 2 by default.
  *
  * <p>Persisted to {@code config/killer560/dungeons/autosecret/insta-clear.json} after every closed observation.
  */
@@ -147,65 +143,15 @@ public final class InstaClearTracker {
 
     // ============================================================================================== public API
 
-    /** Hooks the recorder up: client tick, the position-packet hook (via {@code LiveMapPacketListenerMixin}) and the
-     *  {@code /autosecret instaclear} readout. Safe to call more than once. A no-op in the legit build. */
+    /** Hooks the recorder up: client tick and the position-packet hook (via {@code LiveMapPacketListenerMixin}). Its
+     *  readout and settings are rows in the Auto Clear tab (they were {@code /autosecret instaclear} until killer560
+     *  removed the command, 2026-11-01). Safe to call more than once. A no-op in the legit build. */
     public static void register() {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED || registered) {
             return;
         }
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InstaClearTracker", client -> tick(client)));
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-                dispatcher.register(ClientCommands.literal("autosecret")
-                        .then(ClientCommands.literal("instaclear")
-                                .executes(c -> {
-                                    summary();
-                                    return 1;
-                                })
-                                .then(ClientCommands.literal("room")
-                                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
-                                                .executes(c -> {
-                                                    roomDetail(StringArgumentType.getString(c, "name"));
-                                                    return 1;
-                                                })))
-                                .then(ClientCommands.literal("last").executes(c -> {
-                                    last();
-                                    return 1;
-                                }))
-                                .then(ClientCommands.literal("mark")
-                                        .then(ClientCommands.argument("verdict", StringArgumentType.word())
-                                                .suggests((c, b) -> {
-                                                    for (String s : new String[]{"insta", "notinsta", "ignore", "measured"}) {
-                                                        b.suggest(s);
-                                                    }
-                                                    return b.buildFuture();
-                                                })
-                                                .executes(c -> {
-                                                    mark(StringArgumentType.getString(c, "verdict"));
-                                                    return 1;
-                                                })))
-                                .then(ClientCommands.literal("threshold")
-                                        .then(ClientCommands.argument("n", IntegerArgumentType.integer(1, 50))
-                                                .executes(c -> {
-                                                    ensureLoaded();
-                                                    STORE.setMinSuccesses(IntegerArgumentType.getInteger(c, "n"));
-                                                    save();
-                                                    ModChat.send(FEATURE, ModChat.text("Known now needs "),
-                                                            ModChat.value(STORE.minSuccesses() + ""),
-                                                            ModChat.text(" insta clears and no failure."));
-                                                    return 1;
-                                                })))
-                                .then(ClientCommands.literal("window")
-                                        .then(ClientCommands.argument("seconds", IntegerArgumentType.integer(2, 120))
-                                                .executes(c -> {
-                                                    ensureLoaded();
-                                                    STORE.setWindowSeconds(IntegerArgumentType.getInteger(c, "seconds"));
-                                                    save();
-                                                    ModChat.send(FEATURE, ModChat.text("A room now has "),
-                                                            ModChat.value(STORE.windowSeconds() + " s"),
-                                                            ModChat.text(" after entry to flip."));
-                                                    return 1;
-                                                }))))));
         LOGGER.info("[InstaClear] recorder registered, evidence at {}", path());
     }
 
@@ -814,77 +760,6 @@ public final class InstaClearTracker {
         return out;
     }
 
-    private static void summary() {
-        List<String> lines = summaryLines();
-        ModChat.send(FEATURE, ModChat.text(lines.get(0)));
-        for (int i = 1; i < lines.size(); i++) {
-            ModChat.send(FEATURE, ModChat.dim(lines.get(i)));
-        }
-        if (lines.size() == 1) {
-            ModChat.send(FEATURE, ModChat.dim("Nothing yet - enter rooms in a dungeon and it records each entry."));
-        }
-    }
-
-    private static void roomDetail(String room) {
-        ensureLoaded();
-        String match = null;
-        for (String r : STORE.roomNames()) {
-            if (r.equalsIgnoreCase(room.trim())) {
-                match = r;
-            }
-        }
-        if (match == null) {
-            ModChat.send(FEATURE, ModChat.bad("No entries recorded for " + room));
-            return;
-        }
-        ModChat.send(FEATURE, ModChat.value(match));
-        for (String key : STORE.keys(match)) {
-            int[] c = STORE.counts(match, key);
-            long median = STORE.medianFlipMs(match, key);
-            Component verdict = STORE.known(match, key) ? ModChat.good(" KNOWN") : ModChat.dim("");
-            ModChat.send(FEATURE, ModChat.text(key + "  "), ModChat.dim(c[0] + " insta / " + c[1] + " fail (+" + c[2]
-                    + "), median " + (median < 0 ? "-" : median + " ms")), verdict);
-        }
-    }
-
-    private static void last() {
-        ensureLoaded();
-        InstaClearStore.Obs o = STORE.last();
-        if (o == null) {
-            ModChat.send(FEATURE, ModChat.dim("No entry recorded this session yet."));
-            return;
-        }
-        ModChat.send(FEATURE, ModChat.value(STORE.lastRoom()), ModChat.text(" " + STORE.lastKey()));
-        ModChat.send(FEATURE, ModChat.dim(o.method + " by " + o.driver + " from " + o.from + " (" + o.fromState
-                + "), room was " + o.before + "; stars " + o.stars + ", kills " + o.kills + ", alive at flip "
-                + o.aliveAtFlip + ", flip " + o.flipMs + " ms -> " + o.outcome
-                + (o.verdict != null ? " (marked " + o.verdict + ")" : "")));
-    }
-
-    private static void mark(String verdict) {
-        ensureLoaded();
-        InstaClearStore.Obs o = STORE.last();
-        if (o == null) {
-            ModChat.send(FEATURE, ModChat.bad("No entry recorded this session to mark."));
-            return;
-        }
-        InstaClearStore.Outcome v = switch (verdict.toLowerCase(Locale.ROOT)) {
-            case "insta" -> InstaClearStore.Outcome.INSTA;
-            case "notinsta" -> InstaClearStore.Outcome.NOT_INSTA;
-            case "ignore" -> InstaClearStore.Outcome.IGNORE;
-            case "measured" -> null;
-            default -> InstaClearStore.Outcome.IGNORE;
-        };
-        if (!List.of("insta", "notinsta", "ignore", "measured").contains(verdict.toLowerCase(Locale.ROOT))) {
-            ModChat.send(FEATURE, ModChat.bad("Use insta, notinsta, ignore or measured."));
-            return;
-        }
-        o.verdict = v;
-        save();
-        ModChat.send(FEATURE, ModChat.text("Marked the last entry ("), ModChat.value(STORE.lastRoom()),
-                ModChat.text(") " + (v == null ? "back to its measured outcome " + o.outcome : v.name())));
-    }
-
     // ============================================================================================== test hooks
     // For the testkit's logic and sim cases (reflection). None of these is used by the mod itself.
 
@@ -922,7 +797,7 @@ public final class InstaClearTracker {
         save();
     }
 
-    /** Sets the threshold N and saves (the same as {@code /autosecret instaclear threshold N}). */
+    /** Sets the threshold N and saves. */
     public static void testSetMinSuccesses(int n) {
         ensureLoaded();
         STORE.setMinSuccesses(n);

@@ -124,7 +124,7 @@ public final class ItemIdentity {
     }
 
     /** Display-name fallback: strips formatting, stars, master-star pips and one leading reforge word. */
-    static String fromName(String raw) {
+    public static String fromName(String raw) {
         if (raw == null) {
             return null;
         }

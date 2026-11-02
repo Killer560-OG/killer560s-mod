@@ -42,7 +42,7 @@ import com.killer560.hub.compat.McCompat;
  * Chest pages + Backpacks), this feature's own island-chest and wardrobe/equipment/pets caches, plus the live
  * inventory/armor/offhand, and shows every match with where it is and how old that copy is.
  * <p>
- * Ships disabled. Opened by {@code /search}, {@code /k560search [text]}, any of its open-binds (Ctrl+F by
+ * Ships disabled. Opened by {@code /search [text]}, any of its open-binds (Ctrl+F by
  * default, see {@link StorageSearchBind}) or the Search button in the Storage Overlay grid. Clicking a storage
  * result sends the same real Hypixel command Storage Overlay / NoammAddons' {@code StoragePage.open} use
  * ({@code /enderchest N}, {@code /backpack N}) on the player's own click, then outlines the item's slot once that
@@ -106,8 +106,8 @@ public final class StorageSearchFeature {
             McCompat.setScreen(client, new StorageSearchScreen(McCompat.screen(client), ""));
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            dispatcher.register(searchCommand("k560search"));
-            // killer560 (2026-09-21): "allow me to do /search to open it."
+            // killer560 (2026-09-21): "allow me to do /search to open it." /k560search was removed on 2026-11-01
+            // ("remove /k560search in favor of just /search").
             dispatcher.register(searchCommand("search"));
         });
     }

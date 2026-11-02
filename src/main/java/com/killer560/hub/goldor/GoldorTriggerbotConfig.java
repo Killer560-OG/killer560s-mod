@@ -14,7 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Persisted Goldor Triggerbot settings - see {@link GoldorTriggerbotFeature}. Cheat build only; ships disabled.
+ * Persisted Wither Boss Triggerbot (Goldor Triggerbot until 2026-11-01) settings - see {@link GoldorTriggerbotFeature}. Cheat build only; ships disabled.
  * <p>
  * The rate is a <b>CPS range</b>, not a delay, because that is what killer560 asked for ("goldore triggerbot with
  * cps range") and because the mod already has exactly that control for i4 ({@code I4SensorsConfig} 1-15 CPS on a
@@ -39,8 +39,10 @@ public final class GoldorTriggerbotConfig {
     public static final int DEFAULT_CPS_MIN = 15;
     public static final int DEFAULT_CPS_MAX = 17;
 
-    public static final double MIN_RANGE = 3.0;
-    public static final double MAX_RANGE = 50.0;
+    /** How far down the crosshair a boss's hitbox is looked for. Not a setting since 2026-11-01 (killer560: "It
+     *  shouldnt have a range ... It should work from any range since i could be holding a bow or my mage beam"): far
+     *  past any render distance a boss can be drawn at, so in practice there is no range. */
+    public static final double AIM_DISTANCE = 256.0;
     public static final int MAX_AIM_DELAY_MS = 500;
 
     /** What a click actually is. Melee is an attack; a Terminator / Juju shot is a use. */
@@ -60,8 +62,12 @@ public final class GoldorTriggerbotConfig {
     private int cpsMin = DEFAULT_CPS_MIN;
     private int cpsMax = DEFAULT_CPS_MAX;
     private ClickType clickType = ClickType.ATTACK;
-    private double range = 25.0;
     private int aimDelayMs = 0;
+    /** Every real wither boss of the F7/M7 fight (Maxor, Storm, Goldor, Necron), not just Goldor in P3. */
+    private boolean allWithers = false;
+    /** The dungeon classes it works on (your class from the tab list); all five by default. */
+    private final java.util.EnumSet<com.killer560.hub.dungeonclass.DungeonClass> classes =
+            java.util.EnumSet.allOf(com.killer560.hub.dungeonclass.DungeonClass.class);
 
     private GoldorTriggerbotConfig() {
     }
@@ -83,8 +89,17 @@ public final class GoldorTriggerbotConfig {
                 cfg.setCpsRange(ConfigJson.getInt(obj, "cpsMin", DEFAULT_CPS_MIN),
                         ConfigJson.getInt(obj, "cpsMax", DEFAULT_CPS_MAX));
                 cfg.clickType = ConfigJson.getEnum(obj, "clickType", ClickType.class, ClickType.ATTACK);
-                cfg.setRange(ConfigJson.getDouble(obj, "range", 25.0));
                 cfg.setAimDelayMs(ConfigJson.getInt(obj, "aimDelayMs", 0));
+                cfg.allWithers = ConfigJson.getBool(obj, "allWithers", false);
+                if (obj.has("classes")) {
+                    cfg.classes.clear();
+                    for (String n : obj.get("classes").getAsString().split(",")) {
+                        com.killer560.hub.dungeonclass.DungeonClass c = com.killer560.hub.dungeonclass.DungeonClass.byName(n.trim());
+                        if (c != null) {
+                            cfg.classes.add(c);
+                        }
+                    }
+                }
             } catch (Exception ignored) {
                 // Unreadable file: keep the defaults rather than half-applying a broken config.
                 cfg = new GoldorTriggerbotConfig();
@@ -101,8 +116,9 @@ public final class GoldorTriggerbotConfig {
             obj.addProperty("cpsMin", cpsMin);
             obj.addProperty("cpsMax", cpsMax);
             obj.addProperty("clickType", clickType.name());
-            obj.addProperty("range", range);
             obj.addProperty("aimDelayMs", aimDelayMs);
+            obj.addProperty("allWithers", allWithers);
+            obj.addProperty("classes", String.join(",", classes.stream().map(Enum::name).toList()));
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -147,14 +163,27 @@ public final class GoldorTriggerbotConfig {
         clickType = all[Math.floorMod(clickType.ordinal() + dir, all.length)];
     }
 
-    /** How far down the crosshair the boss's hitbox may be and still count as "aimed at", in blocks. */
-    public double getRange() {
-        return range;
+    public boolean isAllWithers() {
+        return allWithers;
     }
 
-    public void setRange(double range) {
-        double clamped = Math.max(MIN_RANGE, Math.min(MAX_RANGE, range));
-        this.range = Math.round(clamped * 10.0) / 10.0;
+    public void setAllWithers(boolean v) {
+        allWithers = v;
+    }
+
+    public boolean isClassEnabled(com.killer560.hub.dungeonclass.DungeonClass c) {
+        return c != null && classes.contains(c);
+    }
+
+    public void setClassEnabled(com.killer560.hub.dungeonclass.DungeonClass c, boolean on) {
+        if (c == null) {
+            return;
+        }
+        if (on) {
+            classes.add(c);
+        } else {
+            classes.remove(c);
+        }
     }
 
     /** How long the crosshair has to have been on him before the first click, like the other triggerbots' Delay. */

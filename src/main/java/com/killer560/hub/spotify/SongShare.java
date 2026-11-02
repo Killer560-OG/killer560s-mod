@@ -1,5 +1,6 @@
 package com.killer560.hub.spotify;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.killer560.hub.modusers.ModUserConfig;
@@ -17,7 +18,13 @@ import java.util.function.BiPredicate;
 /**
  * Song Tag, sending side (killer560, 2026-10-24). Sends the song you are playing on Spotify to the other mod users in your
  * relay room as one {@code data} packet, key {@link RemoteSongs#KEY}: {@code {"state":"play","artist":..,"title":..}}, or
- * {@code {"state":"off"}} once when it stops. Song name only, never a lyric line.
+ * {@code {"state":"off"}} once when it stops. Since 2026-11-01 Share What can add the lyric line you are on ({@code line},
+ * {@code into}, and with Share Current Word {@code words}) or send it instead of the song (see {@link #payload}); a lyric
+ * line changes every few seconds, still at most one packet a second.
+ * <p>
+ * The relay room: {@code ModChatFeature} keeps the relay connected while Share My Song or Show Others' Songs is on, in the
+ * LOBBY room unless Mod Chat picks one (2026-11-01; before that nothing connected for Song Tag, so with Mod Chat off and
+ * no party every song went nowhere).
  * <p>
  * Nothing is sent unless ALL of these hold ({@link #blockReason}): Share My Song is on, Show Me As A Mod User is on (a
  * song tag on someone who hides that they use the mod would give it away), and you are in the supporter list. A paused
@@ -104,7 +111,10 @@ public final class SongShare {
             return;
         }
         JsonObject payload = payload();
-        String json = payload.toString();
+        // What decides a resend: everything but "into", which moves every tick and is only a timing hint.
+        JsonObject content = payload.deepCopy();
+        content.remove("into");
+        String json = content.toString();
         boolean play = "play".equals(payload.get("state").getAsString());
         long now = System.currentTimeMillis();
         if (!play && !live) {
@@ -119,7 +129,7 @@ public final class SongShare {
             return;
         }
         BiPredicate<String, JsonElement> sender = testSender;
-        lastHanded = json;
+        lastHanded = payload.toString();
         handedCount++;
         boolean sent = sender != null ? sender.test(RemoteSongs.KEY, payload) : RelayClient.sendData(RemoteSongs.KEY, payload);
         if (!sent) {
@@ -129,10 +139,16 @@ public final class SongShare {
         lastSendMs = now;
         lastSentJson = json;
         live = play;
-        ownTag = play ? RemoteSongs.buildTag(payload.get("artist").getAsString(), payload.get("title").getAsString()) : null;
+        ownTag = play && payload.has("title")
+                ? RemoteSongs.buildTag(payload.get("artist").getAsString(), payload.get("title").getAsString()) : null;
     }
 
-    /** What would be sent right now: "play" with the song, or "off". */
+    /**
+     * What would be sent right now: "play" with what Share What allows (the song, the lyric line, or both), or "off".
+     * The lyric line (2026-11-01) is the line being sung as its words joined by single spaces, "into" how far into it
+     * playback is (ms), and with Share Current Word each word's start from the line's start (ms), so a receiver lights
+     * the word being sung on its own clock between packets.
+     */
     static JsonObject payload() {
         JsonObject o = new JsonObject();
         String why = blockReason();
@@ -143,10 +159,94 @@ public final class SongShare {
             o.addProperty("state", "off");
             return o;
         }
+        SongShareConfig cfg = SongShareConfig.getInstance();
+        SongShareConfig.ShareWhat what = cfg.getShareWhat();
         o.addProperty("state", "play");
-        o.addProperty("artist", RemoteSongs.clean(np.artist(), RemoteSongs.ARTIST_MAX));
-        o.addProperty("title", title);
+        if (what.song()) {
+            o.addProperty("artist", RemoteSongs.clean(np.artist(), RemoteSongs.ARTIST_MAX));
+            o.addProperty("title", title);
+        }
+        if (what.lyrics()) {
+            addLine(o, cfg.isShareWord());
+        }
+        if (!o.has("title") && !o.has("line")) {
+            // Lyrics only, and no line right now (none found yet, or before the first): nothing to show anyone.
+            JsonObject off = new JsonObject();
+            off.addProperty("state", "off");
+            return off;
+        }
         return o;
+    }
+
+    /** Adds the line being sung, if any: "line", "into" and (with {@code words}) "words". */
+    private static void addLine(JsonObject o, boolean words) {
+        LyricsEngine.Snapshot snap = snapshot();
+        if (!snap.hasTrack() || snap.lines().isEmpty() || snap.kind() != NowPlaying.Kind.TRACK) {
+            return;
+        }
+        double elapsed = snap.elapsedSeconds(SpotifyLyricsFeature.nowMs());
+        int idx = snap.lineAt(elapsed);
+        if (idx < 0) {
+            return;
+        }
+        LyricsEngine.LyricLine line = snap.lines().get(idx);
+        List<String> all = line.parsed().words();
+        if (all.isEmpty()) {
+            o.addProperty("line", "");   // an instrumental gap: the receiver's line goes
+            return;
+        }
+        // Whole words only, within the receiver's limits.
+        StringBuilder text = new StringBuilder();
+        int n = 0;
+        for (String w : all) {
+            String c = RemoteSongs.clean(w, RemoteSongs.LINE_MAX);
+            if (c.isEmpty() || c.indexOf(' ') >= 0 || n >= RemoteSongs.MAX_WORDS
+                    || text.length() + c.length() + 1 > RemoteSongs.LINE_MAX) {
+                break;
+            }
+            if (n > 0) {
+                text.append(' ');
+            }
+            text.append(c);
+            n++;
+        }
+        if (n == 0) {
+            return;
+        }
+        o.addProperty("line", text.toString());
+        long into = Math.round((elapsed - line.timeSeconds()) * 1000);
+        o.addProperty("into", Math.max(0, Math.min(RemoteSongs.MAX_INTO_MS, into)));
+        if (words) {
+            double start = line.timeSeconds();
+            double[] starts = new double[all.size()];
+            LyricTiming.Parsed parsed = line.parsed();
+            if (parsed.timed()) {
+                starts = parsed.wordStarts();
+            } else {
+                double[] share = LyricTiming.shares(parsed, start, snap.lineEnd(idx));
+                double t = start;
+                for (int k = 0; k < share.length; k++) {
+                    starts[k] = t;
+                    t += share[k];
+                }
+            }
+            JsonArray arr = new JsonArray();
+            long prev = 0;
+            for (int k = 0; k < n; k++) {
+                long ms = Math.max(prev, Math.min(RemoteSongs.MAX_INTO_MS, Math.round((starts[k] - start) * 1000)));
+                arr.add(ms);
+                prev = ms;
+            }
+            o.add("words", arr);
+        }
+    }
+
+    /** Test hook: the lyric state to share instead of the engine's (null = the engine's). */
+    static volatile LyricsEngine.Snapshot testSnapshot;
+
+    private static LyricsEngine.Snapshot snapshot() {
+        LyricsEngine.Snapshot t = testSnapshot;
+        return t != null ? t : SpotifyLyricsFeature.snapshot();
     }
 
     /** Why your song may not be shared, or null when it may. */

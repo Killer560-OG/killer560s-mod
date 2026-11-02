@@ -79,21 +79,42 @@ public class DoorKeysTab extends BaseTab {
         // killer560, 2026-10-18: the circle's line thickness and height, and colors for the tracer, the circle and the
         // sphere's fill. A color left on Auto follows the key (near-black Wither Key, red Blood Key); right-click resets.
         boolean sphere = cfg.getRangeStyle() == DoorKeysConfig.RANGE_SPHERE;
-        float tSpan = DoorKeysConfig.MAX_CIRCLE_THICKNESS - DoorKeysConfig.MIN_CIRCLE_THICKNESS;
-        widgets.add(new ThemedSliderButton(col2aX, y, col2W, 18, circleThicknessText(cfg),
-                (cfg.getCircleThickness() - DoorKeysConfig.MIN_CIRCLE_THICKNESS) / tSpan) {
+        // killer560, 2026-11-01: "the radius should apply for the sphere and the circle options". Far left follows the
+        // key pickup range (the Key Base Range + 5); otherwise 1-10 blocks.
+        float rSpan = DoorKeysConfig.MAX_RADIUS - DoorKeysConfig.MIN_RADIUS;
+        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, radiusText(cfg),
+                cfg.getRadius() == DoorKeysConfig.RADIUS_PICKUP ? 0.0
+                        : (cfg.getRadius() - DoorKeysConfig.MIN_RADIUS) / rSpan) {
             @Override
             protected void updateMessage() {
-                setMessage(circleThicknessText(cfg));
+                setMessage(radiusText(cfg));
             }
 
             @Override
             protected void applyValue() {
-                cfg.setCircleThickness(Math.round((DoorKeysConfig.MIN_CIRCLE_THICKNESS + (float) this.value * tSpan) * 2f) / 2f);
+                float raw = this.value <= 0.0 ? DoorKeysConfig.RADIUS_PICKUP
+                        : Math.max(DoorKeysConfig.MIN_RADIUS,
+                                Math.round((DoorKeysConfig.MIN_RADIUS + (float) this.value * rSpan) * 2f) / 2f);
+                cfg.setRadius(raw);
                 saveOnRelease(() -> cfg.save());
             }
         });
-        if (!sphere) {
+        y += 22;
+        if (!sphere) {   // the sphere has no line, and keeps its center on the key's stand
+            float tSpan = DoorKeysConfig.MAX_CIRCLE_THICKNESS - DoorKeysConfig.MIN_CIRCLE_THICKNESS;
+            widgets.add(new ThemedSliderButton(col2aX, y, col2W, 18, circleThicknessText(cfg),
+                    (cfg.getCircleThickness() - DoorKeysConfig.MIN_CIRCLE_THICKNESS) / tSpan) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(circleThicknessText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setCircleThickness(Math.round((DoorKeysConfig.MIN_CIRCLE_THICKNESS + (float) this.value * tSpan) * 2f) / 2f);
+                    saveOnRelease(() -> cfg.save());
+                }
+            });
             float lSpan = DoorKeysConfig.MAX_CIRCLE_LIFT - DoorKeysConfig.MIN_CIRCLE_LIFT;
             widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, circleLiftText(cfg),
                     (cfg.getCircleLift() - DoorKeysConfig.MIN_CIRCLE_LIFT) / lSpan) {
@@ -108,15 +129,14 @@ public class DoorKeysTab extends BaseTab {
                     saveOnRelease(() -> cfg.save());
                 }
             });
-        }
-        y += 22;
-        widgets.add(colorButton("Circle Color", cfg::getCircleColor, cfg::setCircleColor, 0xFFCC0D0D, 0xFFCC0D0D, cfg, col2aX, y, col2W));
-        widgets.add(colorButton("Tracer Color", cfg::getTracerColor, cfg::setTracerColor, 0xFFCC0D0D, 0xFFCC0D0D, cfg, col2bX, y, col2W));
-        y += 22;
-        if (sphere) {
-            widgets.add(colorButton("Sphere Fill", cfg::getFillColor, cfg::setFillColor, 0x38BFBFCC, 0x38BFBFCC, cfg, contentX, y, contentWidth));
             y += 22;
         }
+        // One color for the circle or the whole sphere; Auto is the key's own (black for Wither, red for Blood) at 50%,
+        // and an Auto tracer follows it (killer560, 2026-11-01).
+        widgets.add(colorButton(sphere ? "Sphere Color" : "Circle Color", cfg::getCircleColor, cfg::setCircleColor,
+                0x80000000, 0x80000000, cfg, col2aX, y, col2W));
+        widgets.add(colorButton("Tracer Color", cfg::getTracerColor, cfg::setTracerColor, 0x80000000, 0x80000000, cfg, col2bX, y, col2W));
+        y += 22;
         y += 4;
 
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
@@ -155,6 +175,13 @@ public class DoorKeysTab extends BaseTab {
 
     private static Component circleThicknessText(DoorKeysConfig cfg) {
         return Component.literal(String.format(Locale.US, "Circle Thickness: %.1f", cfg.getCircleThickness()));
+    }
+
+    private static Component radiusText(DoorKeysConfig cfg) {
+        if (cfg.getRadius() == DoorKeysConfig.RADIUS_PICKUP) {
+            return Component.literal(String.format(Locale.US, "Radius: Pickup Range (%.1f)", cfg.drawnRadius()));
+        }
+        return Component.literal(String.format(Locale.US, "Radius: %.1f", cfg.getRadius()));
     }
 
     private static Component circleLiftText(DoorKeysConfig cfg) {

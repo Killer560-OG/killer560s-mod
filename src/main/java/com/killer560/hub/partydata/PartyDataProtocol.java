@@ -284,7 +284,8 @@ final class PartyDataProtocol {
         return switch (type) {
             case com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_CLAY,
                  com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_PURPLE,
-                 com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_PANE -> type;
+                 com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_PANE,
+                 com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_DONE -> type;
             default -> null;
         };
     }
@@ -303,6 +304,7 @@ final class PartyDataProtocol {
                  com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_PANE ->
                     slot >= com.killer560.hub.bridge.BridgeTables.MELODY_MIN_COLUMN
                             && slot <= com.killer560.hub.bridge.BridgeTables.MELODY_MAX_COLUMN;
+            case com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_DONE -> slot == 0;
             default -> false;
         };
         return valid ? slot : -1;

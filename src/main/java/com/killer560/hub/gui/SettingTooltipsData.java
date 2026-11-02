@@ -11,6 +11,7 @@ final class SettingTooltipsData {
     }
 
     static void register(Map<String, String> d) {
+        d.put("replay intro", "Shows the first-launch tour again: how to open the mod, picking a theme, Auto Update and the menus.");
         d.put("secret clicked", "Draws a short box on each secret you collect; the box turns red when the chest was locked.");
         d.put("locked chest sound", "Plays an anvil sound when the chest you clicked was locked.");
         d.put("mute chest sounds", "In dungeons, silences chest open and close sounds.");
@@ -19,10 +20,29 @@ final class SettingTooltipsData {
         d.put("blood rush splits", "Times the blood rush room by room on its own HUD: each room's time from the door into it to the door out, how long its key took, and a slow door click.");
         d.put("rush style", "Compact is one row a room; Detailed lists each room's door down, last mob, pickup, opened and room total.");
         d.put("rush to chat", "When the Blood door opens, sends you the rush's room times as one chat line (only you see it).");
-        d.put("key spawn alert","Shows a title and plays a sound when a Wither Key or Blood Key appears.");
-        d.put("pre-boss warning", "When the Watcher lets you pass, lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
+        d.put("creation cooldown", "Shows how long until Hypixel lets you create another dungeon (30 s after you enter one).");
+        d.put("show on all islands", "Also shows the Creation Cooldown outside dungeons, anywhere on Skyblock.");
+        d.put("only in green room", "In a dungeon, shows the Creation Cooldown only while you are in the green Entrance room.");
+        d.put("chat when over", "Says in chat when the dungeon creation cooldown is over.");
+        d.put("block instance creation", "Holds back /joininstance (and the /f7-style shortcuts) while the creation cooldown runs.");
+        d.put("insta clear warning", "Warns when a room on the way to blood (the one before a wither, fairy or blood door) is cleared on the map and no key dropped or was picked up.");
+        d.put("hud popup", "Shows a movable warning on screen with a sound for a few seconds. Move it in the HUD editor.");
+        d.put("requeue same floor", "Sends /joininstance for the floor you are on once the 30 s creation cooldown and Auto Requeue's Requeue Delay have passed. Once a run.");
+        d.put("party message", "Sends the text below to party chat. Leave it empty for the default line.");
+        d.put("gyrokinetic wand overlay", "While you hold the Gyrokinetic Wand, draws the 10-block ring its ability pulls mobs from, where you are looking (up to 24 blocks away).");
+        d.put("gyrokinetic wand overlay/style", "Circle Outline, a filled Circle, or a Sphere.");
+        d.put("gyro color", "The overlay's color and how see-through it is.");
+        d.put("gyrokinetic wand overlay/line width", "How thick the Circle Outline is drawn.");
+        d.put("chat tabs", "Shows tabs above the chat input (All, Party, Guild, Officer, Co-op, Messages): click one to see only that channel's messages.");
+        d.put("switch channel", "Clicking a tab also puts you in that chat (/chat party and so on); with Messages, a line you type goes as /r.");
+        d.put("filter closed chat", "Keeps showing only the selected tab's messages after you close the chat.");
+        d.put("key spawn alert", "Shows a title and plays a sound when a Wither Key or Blood Key appears.");
+        d.put("pre-boss warning", "The moment the Watcher lets you pass (the last blood mob dies), lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
         d.put("crypt reminder", "Once the run clock passes the set time with fewer than 5 crypts, shows the crypt count. Outside the boss only, once a run.");
-        d.put("remind at", "The run time at which the Crypt Reminder checks your crypts.");
+        d.put("remind at", "The run time at which the Crypt Reminder checks your crypts: 0:05 to 2:00 in 5 second steps (default 0:45).");
+        d.put("score warning/mage only", "The Pre-Boss Warning only while you are playing Mage.");
+        d.put("score warning/permanent", "From the Watcher's last line until you enter the boss, a title stays on screen: DO NOT ENTER PORTAL while score is missing, a green ENTER THE PORTAL once nothing is.");
+        d.put("score warning/list missing score", "Lists what is missing (crypts, cleared, secrets) under DO NOT ENTER PORTAL. Off shows that line alone.");
         d.put("score warning/tell party", "Also sends the crypt count to party chat.");
         d.put("warning sound", "Plays a sound with the Score Warning titles.");
         d.put("ice spray alert", "Shows an \"Ice Spray Livid!\" title and a sound the moment Livid's opening invulnerability ends.");
@@ -48,6 +68,32 @@ final class SettingTooltipsData {
         priceTooltip(d);
         settingsSweep(d);
         blink(d);
+        miningQol(d);
+    }
+
+    /** The pre-2.0 Mining category (miningqol/, to-do Doc 2026-11-01). */
+    private static void miningQol(Map<String, String> d) {
+        d.put("commission hud", "Shows your commissions from the tab list on a movable HUD, with waypoints to where each is done.");
+        d.put("commission hud/color by progress", "Colors each commission's progress: red under 25%, gold under 75%, yellow above, green when DONE.");
+        d.put("commission hud/commission waypoints", "Labels in the world at the area or gemstone spots each open commission needs.");
+        d.put("commission hud/emissary waypoints", "When a commission is DONE, labels every Emissary so you can turn it in at the nearest.");
+        d.put("pickobulus estimate", "While you hold a Pickobulus tool and it is ready, outlines every block it would break where you aim.");
+        d.put("pickobulus estimate/outline color", "The color of the outlines.");
+        d.put("ability ready alert", "Shows a big \"READY\" popup when a pickaxe ability is available again. Move it in the HUD editor.");
+        d.put("ability ready alert/cooldown timer", "A HUD line counting down each pickaxe ability until it is ready again.");
+        d.put("ability ready alert/ready sound", "Plays a ding with the popup.");
+        d.put("carpet highlighter", "In the Dwarven Mines, fills the unbreakable carpets in ore veins so you stop swinging at them.");
+        d.put("carpet highlighter/carpet color", "The color the carpets are filled with.");
+        d.put("mithril as stone", "In the Dwarven Mines, draws mithril as stone unless a commission wants mithril or titanium in the area you are in.");
+        d.put("mithril as stone/universal area access", "Turn on if your commissions count in every area: all mithril shows again.");
+        d.put("titanium highlight", "Outlines Titanium (polished diorite) in the Dwarven Mines.");
+        d.put("titanium highlight/show", "Always: every titanium block. Commission Area: only while a commission wants titanium where you are.");
+        d.put("titanium highlight/universal area access", "Turn on if your commissions count in every area: titanium shows everywhere.");
+        d.put("titanium highlight/titanium color", "The color of the titanium outline.");
+        d.put("titanium highlight/through walls", "Cheat build: draws the titanium boxes through blocks.");
+        d.put("raffle ticket highlight", "During the Dwarven Mines Raffle, boxes each raffle ticket on the ground.");
+        d.put("raffle ticket highlight/ticket color", "The color of the ticket boxes.");
+        d.put("raffle ticket highlight/through walls", "Cheat build: draws the ticket boxes through blocks.");
     }
 
     /** Blink's rows (killer560, 2026-10-26: no explanation lines in the tab, just the settings and short hovers). */
@@ -57,7 +103,7 @@ final class SettingTooltipsData {
         d.put("blink/show server position", "Red box: where the server has you during a hold. Green box: where a charge shot would land you now.");
         d.put("blink/hud style", "Bar: a bar that fills as ticks bank. Text: \"Charge 12/20\". Both: the bar with the numbers.");
         d.put("blink/chat messages", "Says in chat when a hold starts and ends and when Charge starts, fires and stops.");
-        d.put("blink/debug log", "Writes every blink to latest.log on a GitHub build too (your own builds always do); /blink debug shows the state now.");
+        d.put("blink/debug log", "Writes every blink to latest.log on a GitHub build too (your own builds always do).");
         d.put("blink/charge key", "Standing still banks ticks; firing runs them all at once and shoots you forward. Fired standing, it goes off when you move.");
         d.put("blink/charge mode", "Toggle: press to charge, press again to fire. Hold: charge while held, fire when you let go.");
         d.put("blink/charge ticks", "The most ticks Charge banks, so how far a shot goes; also what an AP3 Blink Charge node with no number banks. Past 20, Hypixel sets it back.");
@@ -353,29 +399,28 @@ final class SettingTooltipsData {
         d.put("spotify lyrics/send lyrics to chat", "Posts the song you are playing on Spotify, or its lyrics, to the chat you pick.");
         d.put("chat destination", "Which chat the lyrics are sent to: Party, All, Guild, Co-op / Plain, or Mod Chat.");
         d.put("lyrics mode", "Sends every lyric line, or only announces the song when it changes.");
-        d.put("profanity filter", "Stars out swear words in the lyrics you send.");
+        d.put("profanity filter", "Stars out words in the lyrics you send to chat. All: every swear word. Minimal: slurs only. None: nothing.");
         d.put("spotify lyrics/spotify hud", "Shows a panel with the song, its time and the lyric being sung; move it in Edit HUD.");
         d.put("spotify lyrics/hud lyrics", "Shows the current lyric line in the Spotify HUD.");
         d.put("spotify lyrics/word highlight", "Lights up the word being sung in the Spotify HUD's lyric line.");
-        d.put("spotify lyrics/hide when paused", "Hides the Spotify HUD while Spotify is paused.");
-        d.put("share my song", "Shows the song you play on Spotify as a line above your name to the other mod users in your relay room (your party, or your lobby with Mod Chat in Lobby mode). Supporters only: grayed out for everyone else, and nothing is ever sent from a non-supporter. Only while Show Me As A Mod User is on. You see your own line above your name in F5. Song name only; hidden while paused or on an ad. Spotify's private session cannot be seen, so this switch is the only control. Off by default.");
+        d.put("spotify lyrics/hide when paused", "Hides the Spotify HUD while Spotify is paused. Off or on, the HUD and your F5 lines go away once a song has been paused for over a minute.");
+        d.put("spotify lyrics/always show controls", "Always draws the control row (back, rewind, play/pause, skip, next, volume) under the Spotify HUD, not only with chat open. Clicking it still needs chat open, where the mouse is free. Off by default.");
+        d.put("spotify lyrics/music source", "Which player the lyrics, HUD, F5 lines and controls follow. Spotify App Only: the Spotify desktop app. Music Players: also Apple Music, iTunes, Tidal and other players, and browser tabs that name an album (Spotify's web player, YouTube Music). Anything Playing: any video too. A playing Spotify app always comes first.");
+        d.put("spotify lyrics/display censor", "What the Spotify HUD, your F5 lines and other players' shared lines star out. All: every swear word. Minimal: slurs only. None: nothing. Chat lyrics use their own Profanity Filter.");
+        d.put("spotify lyrics/song in f5", "Shows the song's title and artist above your own head in third person (F5). Only you see it; nothing is sent. Works for everyone. Off by default.");
+        d.put("spotify lyrics/my name in f5", "Shows your own nametag above you in F5, the same switch as in Player Cosmetics.");
+        d.put("spotify lyrics/f5 colors", "Menu Theme: your F5 lines use the Spotify HUD's theme colors. Custom: pick the text color and the color of the word being sung.");
+        d.put("spotify lyrics/f5 text color", "The color of your F5 song and lyric lines, and of other players' shared lyric lines.");
+        d.put("spotify lyrics/f5 highlight color", "The color of the word being sung in F5 lyric lines.");
+        d.put("spotify lyrics/share what", "What Share My Song sends: the song name, the lyric line you are on, or both. Supporters only, like Share My Song.");
+        d.put("spotify lyrics/share current word", "With lyrics shared, also sends when each word starts, so other players see the word you are on lit. On by default.");
+        d.put("share my song", "Shows the song you play on Spotify as a line above your name to the other mod users in your lobby (Mod Chat's room when Mod Chat is on; your party's in a dungeon). Supporters only: grayed out for everyone else, and nothing is ever sent from a non-supporter. Only while Show Me As A Mod User is on. You see your own line above your name in F5. Share What picks the song name, the lyric line you are on, or both; hidden while paused or on an ad. Spotify's private session cannot be seen, so this switch is the only control. Off by default.");
         d.put("spotify lyrics/word-timed lyrics", "Also asks Kugou's public lyrics service (no account) for lyrics with a time for every word, so the lit word is the one being sung, not an estimate. Only the artist, title and length are sent, as for lrclib. Most popular songs have them; others use lrclib's line times. On by default.");
         d.put("spotify lyrics/smooth lyric scroll", "Slides the Spotify HUD's lyric rows up when a line ends, instead of jumping. On by default.");
         d.put("spotify lyrics/my lyrics in f5", "Shows the lyric line being sung above your own head in third person (F5), with your name under it. Only you see it; nothing is sent. Works for everyone. Off by default.");
         d.put("spotify lyrics/highlight word in f5", "Lights up the word being sung in your F5 lyric line, the same word and colors as the Spotify HUD's Word Highlight. On by default.");
-        d.put("spotify lyrics/previous", "Goes back a song in the Spotify desktop app (or to the start of this one, as Spotify's own back button does).");
-        d.put("spotify lyrics/play/pause", "Pauses or resumes the Spotify desktop app on this PC. No login or Premium needed.");
-        d.put("spotify lyrics/next", "Skips to the next song in the Spotify desktop app.");
-        d.put("spotify lyrics/rewind 5s", "Jumps back in the song by the Rewind/Skip Step.");
-        d.put("spotify lyrics/rewind 10s", "Jumps back in the song by the Rewind/Skip Step.");
-        d.put("spotify lyrics/rewind 15s", "Jumps back in the song by the Rewind/Skip Step.");
-        d.put("spotify lyrics/rewind 30s", "Jumps back in the song by the Rewind/Skip Step.");
-        d.put("spotify lyrics/skip ahead 5s", "Jumps forward in the song by the Rewind/Skip Step.");
-        d.put("spotify lyrics/skip ahead 10s", "Jumps forward in the song by the Rewind/Skip Step.");
-        d.put("spotify lyrics/skip ahead 15s", "Jumps forward in the song by the Rewind/Skip Step.");
-        d.put("spotify lyrics/skip ahead 30s", "Jumps forward in the song by the Rewind/Skip Step.");
-        d.put("spotify lyrics/spotify volume", "Spotify's volume in the Windows volume mixer (not Spotify's own in-app slider). Needs Spotify to have played sound once.");
-        d.put("spotify lyrics/rewind/skip step", "How far Rewind and Skip Ahead (buttons and keys) jump: 5, 10, 15 or 30 seconds.");
+        d.put("spotify lyrics/spotify volume", "Spotify's own volume slider when Windows can reach it in the Spotify app's window, else Spotify's slider in the Windows volume mixer. Needs Spotify to have played sound once.");
+        d.put("spotify lyrics/rewind/skip step", "How far Rewind and Skip Ahead (the HUD's buttons and the keys) jump: 5, 10, 15 or 30 seconds.");
         d.put("spotify lyrics/volume key step", "How much one press of Volume Up or Volume Down changes Spotify's volume.");
         d.put("spotify lyrics/play/pause key", "A key that pauses or resumes Spotify in game (not while typing or in a menu). Esc unbinds.");
         d.put("spotify lyrics/previous key", "A key that goes back a song in Spotify. Esc unbinds.");
@@ -384,7 +429,7 @@ final class SettingTooltipsData {
         d.put("spotify lyrics/next key", "A key that skips to the next song in Spotify. Esc unbinds.");
         d.put("spotify lyrics/volume up key", "A key that turns Spotify up by the Volume Key Step. Esc unbinds.");
         d.put("spotify lyrics/volume down key", "A key that turns Spotify down by the Volume Key Step. Esc unbinds.");
-        d.put("show others' songs", "Shows the song another mod user who is a supporter shares, as a line above their name, within 16 blocks. Swear words are starred out. Off by default.");
+        d.put("show others' songs", "Shows the song another mod user who is a supporter shares, as a line above their name, within 16 blocks, and the lyric line they share with the word they are on lit. Your Display Censor applies; slurs are always hidden. Turning this on keeps you in your lobby's relay room. Off by default.");
         d.put("copy screenshots to clipboard", "Copies each screenshot you take to the clipboard so you can paste it with Ctrl+V.");
         d.put("gifs", "Shows the GIFs toggled on below as looping HUD overlays.");
         d.put("audio", "Loops the audio files toggled on below.");
@@ -414,15 +459,17 @@ final class SettingTooltipsData {
         d.put("hud elements/width", "Width of the GIF box in pixels; type it, then press Set Width.");
         d.put("width", "Width or line thickness of this element.");
         d.put("height", "Height of the GIF box in pixels; type it, then press Set Height.");
-        d.put("corner sound", "Click to pick which audio file plays when the box hits a corner exactly, or None.");
+        d.put("corner sound", "Click to pick what plays when the box hits a corner exactly: a game sound, one of your audio files, or None.");
+        d.put("corner volume", "How loud the corner sound is, 0% to 500%. Above 100% it plays in layers, so 300% is three copies together.");
+        d.put("on screen corner text", "Text shown on screen when the box hits a corner; {name} becomes the GIF or DVD name.");
         d.put("corner hit message", "Text shown on screen when the box hits a corner; {name} becomes the GIF or DVD name.");
         d.put("done", "Finishes setting up this DVD box and returns to the list.");
         d.put("custom leap menu", "Replaces Hypixel's Spirit Leap menu with 4 big teammate boxes; click one or press 1-4 to leap.");
         d.put("use class colors", "Colors each leap menu box by that teammate's class; off draws every box in orange.");
         d.put("show player heads", "Draws each teammate's face (their real skin) at the left of their leap menu box.");
-        d.put("leap style", "Boxes: the four teammate boxes. Map in Clear: the dungeon map with each teammate's face during the clear, boxes again in the boss. Keys 1-4 work in both.");
+        d.put("show map during clear", "On: during the clear the leap menu is the dungeon map with each teammate's face; boxes again in the boss. Off: the four teammate boxes everywhere. Keys 1-4 work in both.");
         d.put("default order", "Where each teammate goes by class until you move them by hand: Odin, A-Z Class, Z-A Class or Hypixel's own order.");
-        d.put("open leap order", "Opens the Leap Order editor to set which teammate goes in each of the 4 spots.");
+        d.put("open custom leap order editor", "Opens the Leap Order editor to set which teammate goes in each of the 4 spots.");
         d.put("fast leap", "Left-clicking a Spirit Leap or Infinileap leaps straight to your target (cheat build only).");
         d.put("target mode", "How leaps pick their target: Per Leap (each leap's own Target) or Posmsg (whoever announced the spot, with the leap's Target as backup) (cheat build only).");
         d.put("block inputs", "Blocks keyboard and mouse input while a fast or auto leap runs.");
@@ -570,6 +617,8 @@ final class SettingTooltipsData {
         d.put("starred mobs", "Highlights starred mobs and minibosses during dungeon clear.");
         d.put("bats", "Highlights secret bats during dungeon clear.");
         d.put("blood mobs", "Highlights the Watcher's blood mobs (red by default) for as long as they live, even if they walk out of the Blood Room.");
+        d.put("fel skulls", "Highlights dormant Fel skulls lying by starred mobs (pink by default); once a room's starred mobs and those Fels are dead, its other Fel skulls until the room is cleared.");
+        d.put("mimic", "Highlights the Mimic (purple by default) and, before it comes out, the trapped chest it hides in.");
         d.put("wither bosses", "Cheat build: highlights the F7/M7 wither bosses through walls.");
         d.put("line width", "Thickness of the drawn lines and box outlines.");
         d.put("range", "Maximum distance in blocks this feature reaches.");
@@ -579,7 +628,7 @@ final class SettingTooltipsData {
         d.put("auto routes/replan for my range", "Saved path warps are planned with Transmission Tuners. On: any warp longer than your etherwarp reaches is planned again for your range.");
         d.put("auto routes/kill mimic", "After you click a trapped chest, kills the mimic straight down: the Hyperion once, the Spirit Sceptre until it dies (5 s at most).");
         // Auto Clear (cheat build; its rows are built by autoclear.AutoClearSettings inside the shared Auto Clear tab).
-        d.put("auto clear", "Cheat build: kills the starred mobs of the dungeon's mob rooms with your Hyperion or Spirit Sceptre; start and stop it with the Clear Toggle Key or /autoclear.");
+        d.put("auto clear", "Cheat build: kills the starred mobs of the dungeon's mob rooms with your Hyperion or Spirit Sceptre; start and stop it with the Clear Toggle Key.");
         d.put("clear mode", "Any Mob Room clears every uncleared mob room; Blood Rush Split clears only the mob rooms on the shortest path from the Entrance to the Blood door.");
         d.put("clear weapon", "What kills the mobs: the Hyperion's Wither Impact where you land, or the Spirit Sceptre's bat, which also reaches a mob inside a wall.");
         d.put("predictive bats", "ON aims a Spirit Sceptre bat where a moving mob will be when the bat reaches it; OFF aims at the mob as it stands.");
@@ -690,8 +739,7 @@ final class SettingTooltipsData {
         d.put("clear chain key", "Keybind for /ap3 clear.");
         d.put("reload chains file key", "Keybind for /ap3 reload.");
         d.put("stop chain key", "Keybind for /ap3 stop. Works even with AP3 off.");
-        d.put("class selection overlay", "On the class-selection screen, shows your party across the top. Pick a player, then a class box, to set their class; it is the same class the Leap Order editor (/class) sets.");
-        d.put("edit classes", "Opens the Leap Order editor (the same screen as /leaporder and /class): pick your class, then set each teammate's class and leap spot.");
+        d.put("edit classes", "Opens the Leap Order editor (the same screen as /leaporder): pick your class, then set each teammate's class and leap spot.");
         d.put("current party", "Lists your party and their classes; click Override to set a different class.");
         d.put("override", "Left click cycles this player's class override, right click goes back.");
         d.put("remove override", "Removes this player's override.");
@@ -715,6 +763,8 @@ final class SettingTooltipsData {
         d.put("show mimic room", "Cheat build, Funny Map: tints the room the mimic's trapped chest is in before anyone opens it. Without it a room still turns red once you kill the mimic there.");
         d.put("mimic room color", "Cheat build: the mimic room's tint. Its alpha is how strongly it is blended over the room's own color (20% red by default).");
         d.put("extra info overlay", "Shows two rows under the Dungeon Map: score, secrets for S+ and crypts, then deaths and the bonus kills - M Mimic, P Prince, B Murkbat bat. Works with Score Calculator off.");
+        d.put("extra info scale", "Size of the Extra Info text under the Dungeon Map, 0.5x to 2x. A row too wide for the map at that size moves its last fields onto another row.");
+        d.put("wither door outline", "Draws an amber outline round each locked wither door on the map. Off by default: wither doors are plain black.");
         d.put("etherwarp waypoints/etherwarp waypoints", "Use /ew waypoint add [name] to mark the block you stand on with a box.");
         d.put("clear all", "Removes every etherwarp waypoint added this run.");
         d.put("tick timers", "Shows a countdown HUD for the F7/M7 boss phases.");
@@ -731,6 +781,7 @@ final class SettingTooltipsData {
         d.put("split timers/total with lag", "A Total line under the splits with the run's real time, the same clock as Hypixel's own end-of-run time.");
         d.put("split timers/total without lag", "Adds the run's time without server lag in parentheses after the Total: \"Total: 1m 23.45s (1m 20.10s)\". Also on the chat Total.");
         d.put("split timers/lag lost", "A Lag line under the Total: how much of the run server lag cost (the Total minus the time in parentheses).");
+        d.put("split timers/counting", "Every 0.01s shows times as measured; Ticks rounds every split time to the nearest 0.05s, one server tick (cheat build only).");
         d.put("split timers/slowest in hud", "Shows the slowest teammate into core, and their time, at the bottom of the Split Timers HUD.");
         d.put("announce in chat", "Posts a private chat message only you can see when this happens.");
         d.put("terminal timers", "Shows terminal solve times and section splits in your own chat during F7/M7 P3.");
@@ -796,8 +847,12 @@ final class SettingTooltipsData {
         d.put("no equip animation", "Stops the item dipping down and back up when you switch items.");
         d.put("no hand sway", "Stops your held item lagging behind the camera when you look around.");
         d.put("swing speed", "Speeds up or slows down your swing animation (0.05x-4.0x).");
+        d.put("chocolate factory/hide outside hoppity's hunt", "Hides the Hoppity egg timers HUD (next egg and the rest) while Hoppity's Hunt is not running.");
+        d.put("chocolate factory/hide while busy", "Hides the Hoppity egg timers HUD while you are busy. For now that means in a dungeon; more events may be added later.");
+        d.put("swing range", "How far the held item travels forward on each hit: 1x is vanilla, 0x keeps it in place, up to 3x.");
+        d.put("held item transform/edit", "Opens the sliders over the game on the side away from your held item, so you can watch it change as you edit.");
         d.put("separate off hand", "Gives the off hand its own size, position and rotation sliders.");
-        d.put("storage search", "Searches your cached Ender Chests and Backpacks from one screen; also opens with /k560search.");
+        d.put("storage search", "Searches your cached Ender Chests and Backpacks from one screen; also opens with /search.");
         d.put("open key", "Key that opens this feature's screen.");
         d.put("open search", "Opens the Storage Search screen right now.");
         d.put("search lore", "Also matches your search against item lore, not just the name.");
@@ -901,6 +956,8 @@ final class SettingTooltipsData {
         d.put("show order lines", "Draws lines connecting the next few blazes in kill order.");
         d.put("livid solver", "Outlines the real Livid on F5/M5.");
         d.put("show invuln timer", "Shows a HUD countdown of Livid's opening invulnerability.");
+        d.put("blessings/boss only", "Shows the Blessings HUD only in the floor's boss room.");
+        d.put("livid solver/timer unit", "Livid's invuln timer in ticks (120t) or in seconds (6.0s).");
         d.put("quiver display", "Shows how many arrows you have left in a HUD line.");
         d.put("quiver text color", "Color of the Quiver Display's HUD line.");
         d.put("low arrow alert", "Shows a title on screen once your arrows drop below the threshold.");
@@ -1019,7 +1076,8 @@ final class SettingTooltipsData {
         d.put("peek chat", "Opens the chat history with no text box, so you can read and scroll it. Peek Mode says whether it stays open while the key is held.");
         d.put("peek chat key", "Key or mouse button that opens Peek Chat (in Toggle Peek press it again, or Escape, to close; in Hold To Peek let go of it). Only works with no menu open. Esc while binding clears it.");
         d.put("peek mode", "Toggle Peek: press the key to open the chat, press it again to close. Hold To Peek: the chat is open while you hold the key. The mouse wheel scrolls the chat either way.");
-        d.put("unlimited chat history", "Vanilla forgets everything but the last 100 chat messages. On, the whole session stays in chat and can be scrolled back to. Uses more memory the longer you play.");
+        d.put("chat history", "How many chat messages stay scrollable. Off: vanilla's last 100. Limited: the number set below (200-10000). Unlimited: the whole session, using more memory the longer you play.");
+        d.put("history limit", "How many chat messages Limited keeps, from 200 to 10000 in steps of 200.");
         d.put("open loadouts key", "A key (or mouse button) that runs /loadouts from anywhere with no menu open, like the Open Loadouts button. Needs Loadout Keybinds on. Esc while binding clears it.");
         d.put("open loadouts", "Runs /loadouts: opens Hypixel's Loadout menu. Works whether or not Loadout Keybinds is on.");
         d.put("ability keybinds", "Custom keys for your dungeon class Ability and Ultimate.");
@@ -1061,6 +1119,12 @@ final class SettingTooltipsData {
         d.put("refill below", "Auto GFS refills an item when you hold less than this percent of a stack, 5-95%.");
         d.put("check every", "How often Auto GFS checks your inventory, in seconds (5-60).");
         d.put("auto ult", "Uses your class Ultimate on chosen F7/M7 boss lines (cheat build only).");
+        d.put("auto ult/mage", "Auto Ult fires while you are playing Mage.");
+        d.put("auto ult/tank", "Auto Ult fires while you are playing Tank (on by default).");
+        d.put("auto ult/healer", "Auto Ult fires while you are playing Healer (on by default). Wish On Clear needs it too.");
+        d.put("auto ult/archer", "Auto Ult fires while you are playing Archer.");
+        d.put("auto ult/berserker", "Auto Ult fires while you are playing Berserker.");
+        d.put("auto ult/wish on clear", "Healer only: during the clear, uses Wish when a teammate's health on the sidebar turns red. It tries once, then waits for Hypixel to say Wish is ready again (or for the cooldown Hypixel names), so it never keeps trying while Wish is on cooldown.");
         d.put("on maxor enraged", "Auto Ult fires when the Maxor is enraged message appears.");
         d.put("on goldor factory destroyed", "Auto Ult fires when Goldor says you destroyed the factory.");
         d.put("auto chocolate factory", "Clicks for you while the Chocolate Factory menu is open (cheat build only).");
@@ -1094,10 +1158,14 @@ final class SettingTooltipsData {
         d.put("swap slot", "Hotbar slot (1-9) to switch to before clicking a secret.");
         d.put("notify me of updates", "Tells you when you join a world if a newer release of the mod exists.");
         d.put("auto update", "Installs new versions for you, on by default. It follows its Channel: Full Release or Beta (the newest dev build).");
+        d.put("ban reports", "Opt-in, off by default. If you get banned on Hypixel, sends one report to killer560's staff so they can tell whether the mod was the cause.");
+        d.put("ban reports/auto report bans", "Off by default. On, a Hypixel ban screen sends one report through the mod's relay to a private staff channel: the ban message (Ban ID hidden), mod version and variant, the features you had on and their settings, and this session's mod log with server corrections. Other players' names and chat, tokens, session IDs, IP addresses and API keys are never sent. Once per ban.");
         d.put("auto update/channel", "Which release Auto Update follows: Full Release (the newest numbered release) or Beta (the rolling dev build, newer and less tested). Left click forward, right click back.");
         d.put("check now", "Checks your Auto Update channel right now and downloads the update if there is one. It installs when you close the game.");
         d.put("this build", "The commit this jar was built from, and its Minecraft version and variant. Auto Update compares the commit with the release's.");
         d.put("open menu key", "Key that opens this menu in game, when no screen is open and you are not typing. Click, then press a key; Esc unbinds.");
+        d.put("superpairs overview", "A panel beside the Superpairs board, like SkyHanni's: every reward found (green once claimed, gray with only one tile seen), the powerups turned over, the pairs still to find (half-found ones plus up to how many wholly unseen) and the powerups still covered (exact when the board allows, otherwise an upper bound). Needs the solver or Auto E-Table on. Move it in Edit HUD Positions.");
+        d.put("emergency cancel key", "Stops everything automatic at once: every macro, Auto Routes, AP3, Mimic Killer, the Interactive Map's warps, and holds every aura, triggerbot, Auto Terminals, the auto puzzles and Auto I4 until you press it again, change worlds or start a macro yourself (your Slot Binds, Pet Wheel and Loadout Keybinds still work). Click macros (Auto E-Table, Bazaar Flip, Auto Croesus, Auto Sell, Auto Anvil, Inventory Sorter, Storage Scan All) otherwise stop only on Escape; movement macros (Auto Fairy Souls, Auto Secret, Auto Clear, Blood Rush) also on a movement key or opening chat. Not counted while you type in chat or a menu. A key or a mouse button; click, then press it; Esc unbinds.");
         d.put("edit hud keybind", "Key that opens the HUD editor, over any screen (a chest, Croesus, this menu) so its overlays can be placed where they sit. It does nothing while you are typing: chat, a rename, a sign or book, any search box.");
         d.put("correction alarm", "Plays a siren when the server corrects your position during an automation. Nothing is stopped; the mod carries on from the corrected position.");
         d.put("alarm volume", "How loud the Correction Alarm plays, 0-100%.");
@@ -1114,7 +1182,8 @@ final class SettingTooltipsData {
         d.put("mod & hud/equal spacing", "Snap a box so the gap to its neighbor matches a gap already between two others.");
         d.put("auto scale (monitor)", "Keeps this mod's HUD elements and menus the same size relative to your window on any monitor and GUI Scale (on by default).");
         d.put("borderless fullscreen", "Stretches the window over the whole monitor without borders.");
-        d.put("confine mouse in menus", "In borderless fullscreen, keeps the mouse inside the game window while a menu or chest is open. Chat, alt-tab and closing the menu let it go. On by default while borderless is on.");
+        d.put("confine mouse in menus", "In borderless fullscreen, keeps the mouse inside the game window while a menu or chest is open. Chat, alt-tab and closing the menu let it go. Only in game: never on the title screen or other menus outside a world. On by default while borderless is on.");
+        d.put("display options/only in dungeons", "Confine Mouse In Menus acts only during a dungeon run.");
         d.put("fullbright", "Renders the world at full brightness in any light.");
         d.put("profile viewer/theme", "The colors /pv draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
         d.put("friends list/theme", "The colors the custom Friends List draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
@@ -1129,7 +1198,7 @@ final class SettingTooltipsData {
         d.put("storage search/theme", "The colors the Storage Search screen draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
         d.put("croesus/theme", "The colors the Dungeon Profit screen (/croesus) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
         d.put("experiments/theme", "The colors /profit and the Experimentation Table profit screen draw in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
-        d.put("run summary/theme", "The colors the Run Log (/log) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
+        d.put("run summary/theme", "The colors the Run Log (/runlog) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
         d.put("swap accounts theme", "The colors of the title screen's Swap Accounts page and its proxy and session login pages. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors.");
         d.put("hide pause menu icons", "Removes the row of small icon buttons (Report Bugs, Give Feedback, Friends, Player Reporting) from the pause menu and closes the gap. Turn it off to get them back.");
         d.put("themed main menu", "Gives the game's menus the mod's black and orange theme.");
@@ -1276,7 +1345,7 @@ final class SettingTooltipsData {
         d.put("mark all found (this island)", "Logs every fairy soul on this island as found, so the walker skips them.");
         d.put("reset this island", "Clears the found-soul log for this island. Click twice to confirm.");
         d.put("reset found souls (profile)", "Clears the found-soul log for every island. Click twice to confirm.");
-        d.put("auto fairy souls", "Cheat build: walks the island's soul route and clicks each Fairy Soul, with your camera free. Any key or click stops it. Needs nothing else on.");
+        d.put("auto fairy souls", "Cheat build: walks the island's soul route and clicks each Fairy Soul, with your camera free. A movement key, Escape, opening chat or the Emergency Cancel Key (Home) stops it. Needs nothing else on.");
         d.put("auto fairy souls/auto walk", "Walks you from soul to soul. Off: you walk, it still clicks each soul you reach.");
         d.put("auto fairy souls/auto click", "Right-clicks each soul when it is in reach.");
         d.put("auto fairy souls/sprint", "Sprints where the path is clear; it still slows for corners and the soul at any speed.");
@@ -1517,13 +1586,17 @@ final class SettingTooltipsData {
         d.put("secret waypoints/show names", "Writes each secret's name above its waypoint in the waypoint's color.");
         d.put("adaptive ice fill", "Cheat build: Auto Ice Fill waits for the server to count each tile before hopping, so lag cannot break it.");
         d.put("scan all", "Opens every Ender Chest, backpack, wardrobe and pet page one by one so Storage Search remembers them.");
-        d.put("show prediction", "On the computer's turn, outlines in yellow the square you click next: your best move after the computer's reply.");
-        d.put("tic tac toe solver/prevent misclicks", "Blocks clicks on every other Tic Tac Toe square while one is highlighted; sneak to click anyway.");
+        d.put("show prediction", "On the computer's turn, outlines in yellow a square that is safe to click now: your best move whatever the computer replies. If the computer takes it, your best move is shown instead.");
+        d.put("tic tac toe solver/prevent misclicks", "Blocks clicks on every other Tic Tac Toe square while one is highlighted.");
+        d.put("tic tac toe solver/sneak to override", "While on, sneaking lets a click Prevent Misclicks would block go through.");
         d.put("tic tac toe solver/highlight style", "Whether the Tic Tac Toe square to click is drawn as an outline or filled in.");
         d.put("ice path solver", "Draws the shortest path for pushing the silverfish to the exit.");
         d.put("outline next stop", "Outlines where the silverfish should stop next on the ice path.");
         d.put("teleport maze solver", "Colors the Teleport Maze pads to show which are used and which are likely exits.");
         d.put("tracer to best pad", "Draws a line to the teleport pad you should try next.");
+        d.put("teleport maze solver/tracer color", "Color of the line to the best next pad.");
+        d.put("teleport maze solver/current cell only", "Only highlights the four pads of the cell you are standing in.");
+        d.put("teleport maze solver/best pad only", "Only highlights the pad you should take next (or the exit once it is the only candidate).");
 
         // ---- Thorn (F4/M4) ----
         d.put("spirit bear counter", "Shows how many Spirit Bears are left on your HUD.");
@@ -1674,7 +1747,7 @@ final class SettingTooltipsData {
         d.put("performance hud/text color", "Color of every line when Color By Value is off, and of the CPS line.");
         d.put("performance hud", "Shows TPS, ping, FPS, frame times and a click counter in one movable HUD element.");
         d.put("tps", "Shows the server's ticks per second, capped at 20.");
-        d.put("ping", "Shows your ping, colored from green to red.");
+        d.put("ping", "Shows your ping, colored: green under 100 ms, yellow under 150, orange under 200, red from 200.");
         d.put("fps", "Shows your current frames per second.");
         d.put("cps counter", "Shows your left and right clicks per second.");
         d.put("color by value", "Colors the TPS, ping and FPS numbers by how good they are.");
@@ -1684,7 +1757,7 @@ final class SettingTooltipsData {
         d.put("performance hud/stutter threshold", "A frame at least this long counts as a stutter. Left click for more,"
                 + " right click for less.");
         d.put("performance hud/log stutters", "Writes each stutter, with what the frame was spent on and whether your PC"
-                + " rather than the game held it up, to the log and to a stutter log file. /lag stutters lists the last ones.");
+                + " rather than the game held it up, to the log and to a stutter log file.");
 
         // P3 Status (2026-10-25)
         d.put("p3 status", "F7/M7 Phase 3: a HUD of the current section's terminals, device, levers and gate, and short progress titles.");
@@ -1707,7 +1780,7 @@ final class SettingTooltipsData {
 
         // Hover Terminals + Run Summary
         d.put("hover terminals", "Cheat build only. Resting the mouse on a correct terminal slot clicks it for you.");
-        d.put("hover delay", "Cheat build only. How long the mouse must rest on a slot before it clicks, 0-1000 ms.");
+        d.put("hover delay", "Cheat build only. The least time between two hover clicks, 0-300 ms. A correct slot under the mouse clicks at once when that long has passed since the last one.");
         d.put("hover jitter", "Cheat build only. Adds a random extra delay to each hover click.");
         d.put("hover melody", "Cheat build only. Rest the mouse on a Melody row button and it clicks once when the moving pane reaches the right column.");
         d.put("hold to click", "Hold left click in a terminal and the slot under the mouse is clicked again and again, like holding the drop key, but only when it is a correct click.");
@@ -1731,7 +1804,8 @@ final class SettingTooltipsData {
         d.put("skip dead", "Skips teammates the tab list currently shows as DEAD.");
         d.put("clear splits", "Splits the clear phase into Blood Rush, Blood Open, Watcher Dialogue and Blood Clear.");
         d.put("watcher move", "Adds a row for how long after the blood door opens the Watcher starts moving.");
-        d.put("core entry times", "Times how long each player takes to enter the core after the Phase 3 terminals.");
+        d.put("core entry times", "Times how long each player takes to step inside the core after \"The Core entrance is opening!\".");
+        d.put("split timers/show with splits off", "Keeps Core Entry Times and their HUD rows going with Split Timers turned off.");
         d.put("slowest to chat", "Prints the slowest player into the core in your own chat once per run.");
         d.put("slowest to party", "Sends the slowest core entry line to party chat once per run.");
         d.put("ability cooldowns/display", "How the cooldown list is drawn and how many lines it may use.");
@@ -1826,6 +1900,8 @@ final class SettingTooltipsData {
         d.put("fast/auto leap/fast", "This leap fires when you left click with a Spirit Leap or Infinileap here. Works alongside Auto (cheat build only).");
         d.put("fast/auto leap/auto", "This leap fires by itself when its trigger happens: swaps to your leap from the hotbar, opens it, clicks the target, then swaps to Return To (cheat build only).");
         d.put("fast/auto leap/click delay", "Minimum time between fast leap clicks, 100-500 ms (cheat build only).");
+        d.put("fast/auto leap/leap timeout", "How long a leap waits for the Spirit Leap menu, then for the target's head, before it gives up and gives you your inputs back, 0.5-5 s in 0.25 s steps, 2 s by default (cheat build only).");
+        d.put("leap timeout", "How long a leap waits for the menu, then for the target's head, before giving up, 0.5-5 s (cheat build only).");
         d.put("fast/auto leap/block inputs", "Blocks your keyboard and mouse while a fast or auto leap is clicking (cheat build only).");
         d.put("fast/auto leap/fast mode", "Blocks input only between the leap menu opening and the click (cheat build only).");
         d.put("fast/auto leap/return to", "The hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap: your previous slot, Stay on Leap (no swap back), or a fixed slot 1-9 (cheat build only).");
@@ -1903,6 +1979,14 @@ final class SettingTooltipsData {
         d.put("player stats", "HUD line with your health, mana and defense, read off the action bar.");
         d.put("profile viewer", "Run /pv <name> to open any player's Skyblock profile in game.");
         d.put("rng meter overlay", "Ranks RNG Meter rewards by coins per meter point.");
+        d.put("how lucky are you", "Counts every drop you get against the drops the odds say you should have got. Open it with /luck.");
+        d.put("rng tracker", "Counts slayer kills, drop lines and dye pickups for How Lucky Are You. Dungeon chests come from your Croesus claim log.");
+        d.put("open how lucky are you", "Opens the How Lucky Are You screen (also /luck and /profit luck).");
+        d.put("drop chat line", "After a tracked drop, prints how many you got against how many the odds expected.");
+        d.put("count dye pickups", "Counts a dye that lands in your inventory with no menu open. An item you dropped and picked back up never counts.");
+        d.put("chest odds", "Dungeon chest odds: the wiki's chance with no bonuses, or with S+ and every chest bonus (Treasure Artifact, Boss Luck).");
+        d.put("how lucky are you/magic find", "Magic Find for slayer kills: the last value Hypixel printed on a drop line, or a value you set.");
+        d.put("share my luck", "Sends your overall luck and top drops to mod users in your relay room. Needs Show Me As A Mod User on.");
         d.put("leap order class", "Cycles this player's class override (None, Mage, Tank, Healer, Archer, Berserker). Right click goes back.");
         d.put("leap menu/set", "Saves the leap message typed in the box to the left.");
         d.put("leap menu/scale", "Size of the custom leap menu's four teammate boxes, 50% to 400%.");
@@ -1986,12 +2070,11 @@ final class SettingTooltipsData {
         d.put("auto simon says/click delay", "Cheat build: time (0-3000 ms) Auto Solve waits between clicks.");
         d.put("auto simon says/delay", "Cheat build: time between Auto Start clicks on the start button, 1-20 ticks.");
         d.put("auto simon says/clicks", "Cheat build: how many times (0-20) the start button is clicked; 0 turns clicking off.");
-        d.put("auto simon says/stim", "Cheat build, Rotate mode: between rounds the aim retraces the newest buttons it just clicked, looking only, and ends on the round's first button.");
-        d.put("auto simon says/stim buttons", "Cheat build: how many of the round's newest buttons Stim retraces, 1 to 4.");
+        d.put("auto simon says/stim", "Cheat build, Rotate mode: between rounds the aim quickly retraces the whole round it just clicked, first button to last, looking only, and ends on the round's first button.");
         d.put("auto simon says/momentum", "Cheat build, Rotate mode: how much speed the aim carries from one click into the next turn, 0 (off) to 100%.");
         d.put("slot binds/remove", "Deletes this slot bind pair. The items are not moved.");
         d.put("storage overlay/scale", "Resizes the whole storage overlay, grid and inventory panel together.");
-        d.put("storage search/open key", "Key that opens Storage Search in-game; /k560search works too.");
+        d.put("storage search/open key", "Key that opens Storage Search in-game; /search works too.");
         d.put("teammate highlight/style", "Outline Box draws only the edges; Filled Box also fills the box with a faint tint.");
         d.put("teammate highlight/line width", "Thickness of the box outline, 1-10.");
         d.put("teammate highlight/range", "Only teammates within this many blocks (5-128) are highlighted.");
@@ -2065,6 +2148,8 @@ final class SettingTooltipsData {
         d.put("secret waypoints/show crypts", "Also boxes each crypt tomb in your room, found from its slab lid. It goes as soon as you blow it open.");
         d.put("secret waypoints/show princes", "Also boxes the prince's golden crypt when your room has one. It goes as soon as you blow it open.");
         d.put("secret waypoints/crypt color", "Color of the crypt waypoints.");
+        d.put("secret waypoints/hide crypts after 5", "Stops showing crypt waypoints once the tab list counts 5 crypts, the most the score uses.");
+        d.put("secret waypoints/hide princes after 1", "Stops showing prince waypoints once a prince has fallen this run; the bonus comes only once.");
         d.put("secret waypoints/prince color", "Color of the prince waypoints.");
         d.put("dungeon esp", "Boxes starred mobs, secret bats and the F7/M7 wither bosses.");
         d.put("starred mob hitboxes", "Boxes starred mobs and secret bats, and highlights the F7/M7 wither boss.");
@@ -2083,7 +2168,7 @@ final class SettingTooltipsData {
         d.put("starred mob hitboxes/wither style", "Picks how the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
         d.put("solver highlight", "Whether this solver draws its boxes, waypoints and lines in the world. Off, it still solves (and its chat and HUD lines stay); only the world drawing stops.");
         d.put("solver highlight through walls", "Draws this solver's highlights through blocks so you can see answers early.");
-        d.put("solver highlight style", "Draws this solver's waypoints as an outline or a see-through full block.");
+        d.put("solver highlight style", "Draws this solver's waypoints as an outline or a see-through fill.");
         d.put("livid color", "Livid Solver: Match Livid draws the highlight and the tracer in the Livid's own wool color. Custom uses the Highlight Color and Tracer Color you set below.");
         d.put("livid solver/highlight color", "Livid Solver, Custom color mode: the color of the box drawn around Livid.");
         d.put("tracer color", "Livid Solver, Custom color mode: the color of the line from you to Livid.");
@@ -2098,9 +2183,11 @@ final class SettingTooltipsData {
         d.put("chat keybinds/key", "Click, then press a key or mouse button to bind it. Escape clears it.");
         d.put("chat keybinds/delete", "Removes this row.");
         d.put("chat keybinds/command or message", "The line to send; start it with / to run it as a command.");
-        d.put("door keys/pickup range", "How the range you pick a key up from is drawn: Radius, a flat circle at the key's height; Sphere, a see-through ball around it - step inside and the key is yours.");
-        d.put("door keys/circle color", "Color of the pickup circle or sphere outline drawn at a dropped key.");
-        d.put("door keys/sphere fill", "Fill color of the Sphere style's see-through ball.");
+        d.put("door keys/pickup range", "How the range you pick a key up from is drawn: Circle, a flat circle at the key's height; Sphere, a see-through ball around it - step inside and the key is yours.");
+        d.put("door keys/radius", "Radius of the circle or the sphere, in blocks. Far left follows the key pickup range (Auto Clear's Key Base Range + 5).");
+        d.put("door keys/circle color", "Color of the pickup circle. Auto: black for a Wither Key, red for a Blood Key, at 50% alpha. Right-click resets to Auto.");
+        d.put("door keys/sphere color", "Color of the whole sphere. Auto: black for a Wither Key, red for a Blood Key, at 50% alpha. Right-click resets to Auto.");
+        d.put("door keys/tracer color", "Color of the tracer line. Auto matches the circle or sphere color. Right-click resets to Auto.");
         d.put("door keys/tracer thickness", "How thick that tracer line is drawn (1-10).");
         d.put("door keys/esp through walls", "Draws the key circle and tracer through walls (cheat build only).");
         d.put("name changer/color", "Opens the color picker for this name.");
@@ -2127,6 +2214,8 @@ final class SettingTooltipsData {
         d.put("custom mage beam/width", "How thick the custom Mage beam is drawn.");
         d.put("custom mage beam/duration", "How long each custom Mage beam stays drawn, 5-100 ticks.");
         d.put("custom mage beam/shape", "How the custom Mage beam is drawn: Square, Flat or Cylinder.");
+        d.put("custom mage beam/color mode", "Solid: the Beam Color. Fade: from the Beam Color at the start to the Fade Color at the end. Rotating: a rainbow along the beam that turns over time.");
+        d.put("custom mage beam/fade color", "The color the beam fades to at its far end in the Fade color mode.");
         d.put("auto dialogue/delay", "How long Auto Dialogue waits before clicking the option, 0-40 ticks (cheat build only).");
         d.put("echoes of the lost", "Dungeon Sim only: charges each secret gives back to the Dungeon Breaker (0 is off; default is the maxed perk, 5).");
         d.put("breaker aura/reach", "How far from your eyes a picked block can be and still be broken, 1.0 up to the measured limit (cheat build only).");
@@ -2154,7 +2243,8 @@ final class SettingTooltipsData {
             d.put("auto blood camp/aura", "Cheat build, Blood Room only: turns you to the next blood mob you can see and clicks it at your weapon's attack speed until it dies; moving your mouse takes over.");
             d.put("auto blood camp/never miss", "The first hit waits until the mob is really there - on the spot, in reach and in sight - and goes that tick, instead of on the kill timer.");
             d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
-            d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: below 0 clicks late, above 0 early. -1 by default.");
+            d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: left (below 0) clicks early, right (above 0) late. +1 by default.");
+            d.put("auto blood camp/mage only", "The Trigger Bot and the Aura act only while the dungeon tab list says you are the Mage.");
             d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
             d.put("auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
@@ -2194,7 +2284,11 @@ final class SettingTooltipsData {
         d.put("croesus/kismet count", "Shows the Kismet Feathers in your inventory as the number on the Reroll Chest button.");
         d.put("croesus/croesus chests hud", "A HUD element with Croesus's unclaimed chests out of 60 (read from Hypixel's tab list) and your Kismet Feathers, in the Dungeon Hub and in dungeons.");
         d.put("croesus/chest warning at", "Warns in chat once Croesus's unclaimed chests reach this many.");
-        d.put("quiz solver/block wrong answers", "Once the solver knows the answer, blocks your click on the other two answers; sneak to click anyway.");
+        d.put("quiz solver/block wrong answers", "Once the solver knows the answer, blocks your click on the other two answers.");
+        d.put("quiz solver/sneak to override", "While on, sneaking lets a click Block Wrong Answers would block go through.");
+        d.put("quiz solver/quiz timer", "A movable HUD showing which Quiz question is next and how long until it can be answered.");
+        d.put("creeper beams solver/show", "All shows every pair; One At A Time shows one pair until you finish it; Next shows that pair and the one after.");
+        d.put("ice fill solver/etherwarp protection", "Refuses your etherwarp in Ice Fill while the tile under you has not turned to packed ice, or when it would not land on the next spot of the path. Off the ice you warp freely.");
         d.put("wither dragons/block wrong relic", "In P5, blocks your click on a relic cauldron that is not the color of the relic you carry; sneak to click anyway.");
         d.put("croesus/hide opened runs", "Runs with nothing left to do are not drawn in the Croesus menu (hovering and clicking still work); runs worth a key are never hidden.");
         d.put("croesus/highlight free chest", "In a run's chest view, fills the most profitable chest green: the one to claim for free, when it makes a profit. Not shown once a chest of that run has been claimed.");
@@ -2208,10 +2302,25 @@ final class SettingTooltipsData {
         d.put("auto croesus/use key based on", "What a key chest's profit must clear before a key is spent: your own number or the key's live price (cheat build only).");
         d.put("auto croesus/chest key min profit", "Minimum profit, after the key's price, for a key chest to be opened: 0 to 2,000,000 in 20k steps (cheat build only).");
         d.put("auto croesus/use kismets", "Lets Auto Croesus spend a Kismet Feather to reroll a poor Bedrock chest (cheat build only).");
-        d.put("auto croesus/reroll below", "Bedrock chests worth less than this get rerolled with a Kismet Feather (cheat build only).");
-        d.put("secret sound/sound", "Picks which sound Secret Sound plays; left click cycles forward, right click back.");
-        d.put("secret sound/volume", "Loudness of the secret sound, 0.0-1.0.");
-        d.put("secret sound/pitch", "Pitch of the secret sound, 0.0-2.0; 1.0 is normal.");
+        d.put("auto croesus/reroll below", "A Bedrock chest worth less than this is rerolled with a Kismet Feather before any chest of the run is opened, then the run is judged again (cheat build only).");
+        d.put("auto croesus/f1", "Lets Auto Croesus spend a Kismet Feather on Floor 1 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/f2", "Lets Auto Croesus spend a Kismet Feather on Floor 2 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/f3", "Lets Auto Croesus spend a Kismet Feather on Floor 3 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/f4", "Lets Auto Croesus spend a Kismet Feather on Floor 4 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/f5", "Lets Auto Croesus spend a Kismet Feather on Floor 5 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/f6", "Lets Auto Croesus spend a Kismet Feather on Floor 6 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/f7", "Lets Auto Croesus spend a Kismet Feather on Floor 7 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/m1", "Lets Auto Croesus spend a Kismet Feather on Master Mode 1 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/m2", "Lets Auto Croesus spend a Kismet Feather on Master Mode 2 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/m3", "Lets Auto Croesus spend a Kismet Feather on Master Mode 3 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/m4", "Lets Auto Croesus spend a Kismet Feather on Master Mode 4 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/m5", "Lets Auto Croesus spend a Kismet Feather on Master Mode 5 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/m6", "Lets Auto Croesus spend a Kismet Feather on Master Mode 6 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/m7", "Lets Auto Croesus spend a Kismet Feather on Master Mode 7 runs: green on, red off (cheat build only).");
+        d.put("auto croesus/reroll on floors", "The floors Auto Croesus may spend a Kismet Feather on; green is on, red is off. Click a floor to switch it (cheat build only).");
+        d.put("secret/sound", "Picks which sound Secret Sound plays; left click cycles forward, right click back.");
+        d.put("secret/volume", "Loudness of the secret sound, 0.0-1.0.");
+        d.put("secret/pitch", "Pitch of the secret sound, 0.0-2.0; 1.0 is normal.");
         d.put("class colors/tab list", "Colors each teammate's name in the tab list by dungeon class.");
         d.put("class colors/nametags", "Draws a class-colored tag like [M] Name above each teammate.");
         d.put("secret aura/in rooms", "Lets Secret Aura flip levers in dungeon rooms.");
@@ -2300,7 +2409,7 @@ final class SettingTooltipsData {
         d.put("wither doors/blood door (key) color", "Color the Blood door turns once you have the Blood Key.");
         d.put("wither doors/fairy door", "Highlights the door into the Fairy room once you know it is one: your map draws it like a Wither door but you have seen its doorway is empty. Clears when you or a teammate enter Fairy.");
         d.put("wither doors/fairy door color", "Color of the Fairy door highlight. Style and fill follow the settings above.");
-        d.put("dungeon map/predictive rooms", "Names a room you have not entered from what you saw of it through a doorway; tiles it is not sure of stay \"?\".");
+        d.put("dungeon map/predictive rooms", "Names a room you have not entered from what you saw of it through a doorway, its name in gray until you go in; tiles it is not sure of stay \"?\".");
         d.put("dungeon map/special room guess", "Splits an unopened one-tile room on your map into the colors of the special rooms it can still be (Puzzle, Trap, Miniboss), from what your map shows.");
         d.put("wither doors/door labels", "Puts a waypoint label (\"Wither Door 34m\") over each highlighted door, readable through walls.");
         d.put("mask invincibility/spirit", "Whether you own Spirit Mask; controls its HUD timer and Auto Mask.");
@@ -2313,7 +2422,7 @@ final class SettingTooltipsData {
         d.put("mask invincibility/announce to party", "Sends a /pc message to your party when a mask or Phoenix pops.");
         d.put("auto mask/auto mask", "Cheat build: Auto Mask as a whole - off, nothing here swaps masks or Phoenix for you. Needs Mask Invincibility on.");
         d.put("auto simon says/auto simon says", "Cheat build: Auto Simon Says as a whole - off, Trigger Bot, Auto Start, Auto Solve and Auto Restart all stay idle, whatever their own switches say.");
-        d.put("freeze state/freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freeze State as a whole - off, its keys, /freezestate and /rewind do nothing, and a freeze in progress resumes.");
+        d.put("freeze state/freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freeze State as a whole - off, its keys do nothing, and a freeze in progress resumes.");
         d.put("auto mask/mode", "Keybind: swaps only when you press the Swap Key. Full Auto: swaps on its own once the mask you wear (or Phoenix) procs.");
         d.put("auto mask/swap key", "Keybind mode: press to put on a mask when you wear none, or swap to your other mask when you do (Phoenix where Swap Order puts it first). Skips anything on cooldown. Click, then press a key or mouse button; Escape clears it.");
         d.put("auto mask/swap order", "What a swap goes to next. Mask First: your other mask, then Phoenix. Phoenix First: summon Phoenix through the pet menu or rod, then the masks.");
@@ -2349,11 +2458,25 @@ final class SettingTooltipsData {
         d.put("storage overlay/storage overlay enabled", "Shows all your Ender Chest pages and backpacks in a grid beside the menu.");
         d.put("storage overlay/overlay theme", "Amber (the original dark look), Dark (neutral grays) or Light, for the grid and the relocated inventory.");
         d.put("storage overlay/columns", "How many storage panels sit side by side.");
-        d.put("goldor triggerbot", "Cheat build: in F7/M7 P3, clicks Goldor while your crosshair is on him.");
-        d.put("goldor triggerbot/cps", "Clicks per second, randomized between the two ends of the range.");
-        d.put("goldor triggerbot/click type", "Attack is a left click for melee; Use is a right click for a Terminator or Juju shot.");
-        d.put("goldor triggerbot/aim delay", "How long your crosshair must stay on Goldor before it clicks, 0-500 ms. Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
-        d.put("goldor triggerbot/range", "How far away Goldor can be and still get clicked, 3-50 blocks.");
+        d.put("thorn triggerbot", "Cheat build: in the F4/M4 Thorn fight, holds right click while you hold the Tribal Spear, so its throw keeps Thorn stunned.");
+        d.put("thorn triggerbot/only when aimed at thorn", "Holds only while your crosshair is on Thorn with no block in the way. Bats and other mobs in between do not stop it.");
+        d.put("auto sell/any npc sell menu", "Sells in any Hypixel NPC shop you can sell into (told by the shop's sell slot), not only menus whose title matches the sell pattern like Trades.");
+        d.put("auto sell/add defaults", "Adds the dungeon junk list (Oak Sign, Lever, the dungeon armor sets, Earthen Blade, Silent Death, Training Weights, Healing VIII Splash Potion and more) to the sell list. Items already on it stay once; the never-sell list still wins.");
+        d.put("mask keybinds", "While you have the /stats menu open, a key equips Spirit Mask or Bonzo's Mask: one click in that menu per press, skipping a mask that is worn, on cooldown or not in your inventory.");
+        d.put("mask keybinds/equip mask key", "The key that equips a mask while the /stats menu is open. Escape clears it.");
+        d.put("mask keybinds/order", "Which mask it tries first: Spirit First or Bonzo First. If that one is on cooldown it equips the other. Left or right click switches.");
+        d.put("mask keybinds/dungeons only", "The key only works in dungeons.");
+        d.put("mask keybinds/boss only", "The key only works in a boss fight.");
+        d.put("wither boss triggerbot", "Cheat build: in the F7/M7 boss, clicks Goldor (or every wither boss) while your crosshair is on him, from any range.");
+        d.put("wither boss triggerbot/cps", "Clicks per second, randomized between the two ends of the range.");
+        d.put("wither boss triggerbot/click type", "Attack is a left click: an attack in melee reach, the swing alone from further (what a Terminator or a mage beam fires on). Use is a right click for a Terminator or Juju shot.");
+        d.put("wither boss triggerbot/aim delay", "How long your crosshair must stay on the boss before it clicks, 0-500 ms. Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
+        d.put("wither boss triggerbot/all wither bosses", "Works on every wither boss of the F7/M7 fight (Maxor, Storm, Goldor, Necron), not only Goldor in P3.");
+        d.put("wither boss triggerbot/mage", "Works while you are playing Mage. With every class on it also works when your class is unknown.");
+        d.put("wither boss triggerbot/tank", "Works while you are playing Tank.");
+        d.put("wither boss triggerbot/healer", "Works while you are playing Healer.");
+        d.put("wither boss triggerbot/archer", "Works while you are playing Archer.");
+        d.put("wither boss triggerbot/berserker", "Works while you are playing Berserker.");
         d.put("dungeon esp/tracer", "Draws a line from you to each wither boss: only to one you can see with the Wither Boss Highlight, to every one through walls while ESP is on.");
         d.put("dungeon esp/tracer thickness", "How thick the wither boss tracer line is drawn, 1.0-10.0.");
         d.put("starred mob hitboxes/tracer", "Draws a line from you to a wither boss you can see (line of sight only) while the Wither Boss Highlight is on.");
@@ -2375,7 +2498,7 @@ final class SettingTooltipsData {
         d.put("party commands/tps", "!tps replies with the server's tick rate.");
         d.put("party commands/location", "!location replies with your current Skyblock area, read from the tab list.");
         d.put("party commands/discord", "!odin, !od, !killer560 and !k560 reply with this mod's Discord invite link.");
-        d.put("secrets hud/secrets hud", "Shows the secrets found in your current dungeon room over its total, as a small movable HUD.");
+        d.put("secret/secrets hud", "Shows the secrets found in your current dungeon room over its total, as a small movable HUD.");
         d.put("score calculator/bonus kill alerts", "Sends a party message when you get credit for a mimic, prince or bat kill.");
         d.put("score calculator/send 270 now", "Sends the 270 party message immediately, whatever your score is.");
         d.put("score calculator/send 300 now", "Sends the 300 party message immediately, whatever your score is.");
@@ -2480,17 +2603,17 @@ final class SettingTooltipsData {
         d.put("pet wheel/add page", "Adds an empty page after the last one and switches to it. Open Edit Pets to fill it.");
         d.put("pet wheel/delete page", "Deletes the page shown above (never the last one).");
         d.put("pet wheel/edit pets", "Opens the wheel to edit it: right-click a slot to pick a pet, or drag slices to swap them.");
-        d.put("auction house/auction house browser", "One switch for the whole Auction House: the custom browser (/killer560 ah or a keybind) and Hypixel's real Auction House menus drawn in its look, where every click is the same single click on Hypixel's menu.");
-        d.put("auction house/open key", "Optional keybind that opens the Auction House browser, same as /killer560 ah.");
-        d.put("auction house/open auction house", "Opens the Auction House browser now, the same as /killer560 ah.");
+        d.put("auction house/auction house browser", "One switch for the whole Auction House: the custom browser (its keybind or Open Auction House) and Hypixel's real Auction House menus drawn in its look, where every click is the same single click on Hypixel's menu.");
+        d.put("auction house/open key", "Optional keybind that opens the Auction House browser.");
+        d.put("auction house/open auction house", "Opens the Auction House browser now.");
         d.put("auction house/ah override", "Makes /ah open this browser instead of Hypixel's menu; /hypixelah still opens Hypixel's.");
         d.put("auction house/listing helper", "In Hypixel's Create BIN Auction menu, shows the lowest similar BIN and an estimated value.");
         d.put("auction house/hypixel menu key", "Hold this key to see Hypixel's own Auction House menu instead of the reskin (Escape clears it).");
         d.put("auction house/recent searches & items", "Keeps your recent searches and viewed auctions on the left of the Auction House.");
         d.put("auction house/clear recents", "Forgets the recent searches and viewed auctions.");
-        d.put("bazaar/bazaar browser", "Turns the Bazaar browser on or off (/killer560bz, or its keybind). Needs an active Booster Cookie, as Hypixel's remote Bazaar does.");
+        d.put("bazaar/bazaar browser", "Turns the Bazaar browser on or off (open it with its keybind or Open Bazaar). Needs an active Booster Cookie, as Hypixel's remote Bazaar does.");
         d.put("bazaar/hypixel menu key", "Hold this key while a Bazaar menu is open to see and use Hypixel's own menu instead.");
-        d.put("bazaar/open key", "Optional keybind that opens the Bazaar screen, same as /killer560bz (needs an active Booster Cookie).");
+        d.put("bazaar/open key", "Optional keybind that opens the Bazaar screen (needs an active Booster Cookie).");
         d.put("bazaar/track my orders", "Reads your buy orders and sell offers whenever you open Hypixel's Manage Orders, so each order shows whether it is still the top one. Read only: nothing is clicked.");
         d.put("bazaar/open manage orders", "Opens Hypixel's Bazaar and presses Manage Orders for you, as the follow-up to this click (needs an active Booster Cookie and Follow-up Click).");
         d.put("bazaar/follow-up click", "When you click a product, the Bazaar clicks the one matching search result for you, so you land on the product.");
@@ -2537,8 +2660,8 @@ final class SettingTooltipsData {
         d.put("party interop/odin bridge", "Shows Odin users' Melody progress in F7/M7 P3, and shares yours if Share My Progress is on.");
         d.put("dungeon map/mark reported rooms", "Marks rooms and doors your party shared that you haven't seen yourself.");
         d.put("dungeon map/player heads", "Draws you and your teammates as their skin faces, turned to face the way they look.");
-        d.put("team melody/team melody hud", "Shows each teammate's Melody terminal progress during Phase 3.");
-        d.put("team melody/share my progress", "Lets teammates see your live Melody terminal progress.");
+        d.put("team melody/team melody hud", "Shows each teammate's Melody terminal during Phase 3: their board (target, moving pane, rows done) for a teammate on this mod or Odin, a progress bar for one who only calls it in party chat. A finished Melody reads 100%; a player drops off when the section ends or after 15 s with no update.");
+        d.put("team melody/share my progress", "Lets teammates see your live Melody terminal, and when you finish it. On by default, and it shares whatever Party Dungeon Data and the relay data switch are set to.");
         d.put("team melody/scale", "Resizes the Team Melody HUD.");
         d.put("full block/width", "How wide the hitbox is; far left is normal, far right is a full block.");
         d.put("full block/height", "How tall the hitbox is; far left is normal, far right is a full block.");
@@ -2558,6 +2681,12 @@ final class SettingTooltipsData {
         d.put("blood camp/start sound type", "Which sound Countdown Start Sound plays. Left click cycles forward, right click back.");
         d.put("blood camp/kill sound type", "Which sound Kill Sound plays. Left click cycles forward, right click back.");
         d.put("blood camp/sound volume", "Volume of the Kill Sound, 0-1.");
+        d.put("blood camp/mobs left hud", "Blood Camp Stats HUD: blood mobs still alive plus those on their way; a + while the Watcher is still sending more.");
+        d.put("blood camp/mob ticks hud", "Blood Camp Stats HUD: server ticks lost to slow kills - every tick from the kill timer to the first kill, then every tick a blood mob is alive on the floor.");
+        d.put("blood camp/camp lag hud", "Blood Camp Stats HUD: how long the server lagged since the Watcher's greeting.");
+        d.put("blood camp/party message", "After the run, sends the mob ticks lost to party chat if you camped the Blood Room.");
+        d.put("blood camp/send for any class", "Sends the party message even when someone else camped: the ticks are counted from any room the blood mobs are loaded in.");
+        d.put("blood camp/include camp lag", "Adds the server lag during the camp to the party message.");
         d.put("ap3/align timer (dev)", "Dev builds only: prints how long each Align took.");
         d.put("advanced position/advanced position", "Shows your exact X, Y and Z as a small movable HUD.");
         d.put("advanced position/decimal places", "How many decimal places the HUD shows (0-8).");
@@ -2603,10 +2732,10 @@ final class SettingTooltipsData {
         d.put("ap3/node messages", "How much the chat says when you place a node: Simple, Detailed or None.");
         d.put("ap3/default node size", "The box size new nodes are placed with: half a block or a whole block.");
         d.put("freeze state/rewind memory", "!! NEVER ON HYPIXEL - INSTANT BAN !! How many ticks of movement Freeze State remembers for stepping back (20 = 1 second).");
-        d.put("freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freezes your character in place while your camera looks around freely (/freezestate).");
+        d.put("freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freezes your character in place while your camera looks around freely.");
         d.put("rewind 1 tick", "!! NEVER ON HYPIXEL - INSTANT BAN !! Steps your character back one tick.");
         d.put("forward 1 tick", "!! NEVER ON HYPIXEL - INSTANT BAN !! Steps your character forward one tick.");
-        d.put("freeze state key", "Keybind for /freezestate; never use it on Hypixel.");
+        d.put("freeze state key", "Keybind that freezes and resumes your character; never use it on Hypixel.");
         d.put("rewind 1 tick key", "Keybind: one tick back in time. Refused on Hypixel (instant ban).");
         d.put("forward 1 tick key", "Keybind: one tick forward again. Refused on Hypixel (instant ban).");
         d.put("ap3/freeze view (freecam)", "Keeps your screen view steady while an Align or Walk/Run node turns your real yaw.");
@@ -2616,8 +2745,10 @@ final class SettingTooltipsData {
      *  distinctive mod-wide, so there's no collision to scope against by top-level tab name. */
     private static void invSortAndAutoSell(Map<String, String> d) {
         d.put("auto inventory sorter", "Re-arranges your inventory into a saved layout, by key or /invsort apply <name>.");
-        d.put("inventory sorter/open layouts", "Opens the layouts menu (/invsort): arrange a copy of your inventory, save it, apply, rename, delete or bind it.");
-        d.put("inventory sorter/ticks between moves", "Client ticks between each click the sorter sends (a hotbar swap is one click, any other move two or three).");
+        d.put("inventory sorter/open layouts", "Opens the layouts menu (/invsort): left click a layout to swap to it, right click to edit it, drag to reorder, and set its key in the cell on its right.");
+        d.put("inventory sorter/open menu key", "Press to capture a key (or mouse button) that opens the layouts menu; Escape clears it.");
+        d.put("inventory sorter/instant (0-tick)", "Cheat build. Sends every click of a sort in one tick without opening your inventory. UNTESTED on Hypixel: clicks with no inventory open are what got a limbo for \"Bad client inventory move\". Off by default.");
+        d.put("inventory sorter/ticks between moves", "Client ticks between each click the sorter sends. It always uses the fewest clicks a sort can take.");
         d.put("inventory sorter/random extra ticks", "Adds 0 up to this many extra ticks, at random, before each click.");
         d.put("inventory sorter/layout key", "Press to capture a key (or mouse button) that applies this layout; Escape clears it.");
         d.put("custom items", "Recolors and reskins items on your screen only; nothing is sent to the server.");
@@ -2676,12 +2807,13 @@ final class SettingTooltipsData {
         d.put("bazaar flipper", "Buys items from the Bazaar and sells them to the /trades NPC.");
         d.put("hide mouse cursor", "With Stream Safe off: while auto terminal clicks are landing, the real mouse pointer is hidden and no pointer is drawn, so a screen share shows nothing moving. It comes back as soon as the clicks stop.");
         d.put("stream safe", "On: auto terminal clicks come from a drawn mouse pointer that moves like a hand (curves, misses, overshoots, a varied order) and clicks only once it is on the slot, so a stream looks like you playing. Off: the Min and Max delays, and no pointer is drawn.");
-        d.put("cursor speed", "How fast the Stream Safe pointer moves, in percent of a typical hand, 50-200%. Clicks wait for it, so slower is slower.");
+        d.put("cursor speed", "How fast the Stream Safe pointer moves, in percent of a typical hand, 50-300%. Clicks wait for it, so slower is slower.");
         d.put("reaction time", "The usual pause before the Stream Safe pointer starts each move, 60-400 ms (130 by default); each pause varies round it.");
         d.put("miss chance", "How often a Stream Safe move lands a little off (the slot edge or the next slot) and corrects before clicking, 0-30%. A wrong click is never sent.");
         d.put("overshoot chance", "How often a Stream Safe move carries past the slot and comes back before clicking, 0-50%.");
         d.put("streamer mode", "Run /streamer to turn it on, and again to turn it off. The option below says what it does while it is on: Disable cheats stops every automated action, and either option hides the cheat parts of the menu.");
         d.put("streamer mode/option", "What Streamer Mode does while it is on: Disable cheats refuses every automated action, Hide cheat UI only hides them.");
+        d.put("auto sprint", "Sprints for you whenever you walk forward (not while sneaking). The mod's own movement - AP3, Auto Routes, the pathfinder - always keeps its own sprint choice, and while one of those is moving you no other mod's auto sprint can start a sprint it did not ask for.");
         d.put("zoom", "Hold the zoom key to narrow the view. While it is held, the mouse wheel changes the zoom.");
         d.put("see other mod users", "Shows a colored diamond before the name of every player who shows as a mod user: green for legit, red for cheat. Off by default.");
         d.put("show me as a mod user", "Lets other mod users see that you run the mod. Off by default; nobody sees your variant until you turn this on.");
@@ -2690,7 +2822,7 @@ final class SettingTooltipsData {
         d.put("bazaar advisor", "Legit, read-only: when a Bazaar menu opens, prints what to buy, how much, and the expected profit in chat. It never clicks anything.");
         d.put("bazaar pick", "Ranks by profit per unit times units sold a week: buy at the cheapest sell offer, sell into the best buy order.");
         d.put("npc pick", "Ranks by profit per unit: buy at the cheapest sell offer, sell to the NPC at its listed price.");
-        d.put("bazaar flipper/start key", "Starts a flipping session. Any key or mouse button you press while it runs stops it, in a menu or not.");
+        d.put("bazaar flipper/start key", "Starts a flipping session; pressing it again stops it. Escape or the Emergency Cancel Key (Home) stops it too, and no other key or click does; while it runs, other keys and clicks in a Bazaar menu are kept off the menu.");
         d.put("bazaar flipper/rank by", "Picks the best flip by percentage margin or by total profit per run; anything with a profit after fees qualifies.");
         d.put("bazaar flipper/target purse", "Stops flipping once your purse reaches this. Type a number: 5,000,000, 750k, 2.5m or 1b. Empty or 0 means off.");
         d.put("bazaar flipper/speed", "Delay between automated actions, in milliseconds.");
@@ -2766,8 +2898,8 @@ final class SettingTooltipsData {
         d.put("breaker aura/clear picked", "Unpicks every block in the active Breaker Aura config (the number is how many are picked).");
         d.put("fill box", "Fills each blaze's highlight box solid instead of drawing only its outline.");
         d.put("optimized solutions", "Uses Odin's alternate lever-timing set instead of the default one.");
-        d.put("line color", "Color of the Ice Fill route line. Left click cycles forward, right click back.");
-        d.put("auto e-table", "Cheat build: the autonomous Experimentation Table macro - opens Chronomatron or Ultrasequencer, plays, claims and buys renews. Off by default.");
+        d.put("line color", "Color of the Ice Fill route line. Click to pick a color.");
+        d.put("auto e-table", "Cheat build: the autonomous Experimentation Table macro - opens Chronomatron or Ultrasequencer, plays, claims and buys renews. Escape or the Emergency Cancel Key (Home) stops a run, and no other key or click does; you can finish the board by hand and the solver follows. Off by default.");
         d.put("skip grand xp bottles", "Superpairs skips Grand Experience Bottles only; Titanic bottles are still paired (cheat build, Autonomous mode).");
         d.put("skip guardian pets", "Superpairs skips Guardian pets of every rarity (cheat build, Autonomous mode).");
         d.put("interactive map/class colors", "Outlines each player's map marker in their dungeon class color.");

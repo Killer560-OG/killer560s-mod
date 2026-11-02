@@ -91,7 +91,6 @@ public final class LagDisplayFeature {
                 Identifier.fromNamespaceAndPath("killer560smod", "lag_display_click_sampler"),
                 (graphics, deltaTracker) -> sampleClicks());
 
-        StutterCommand.register();
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
     }
@@ -365,12 +364,14 @@ public final class LagDisplayFeature {
             return t >= 10.0 ? COLOR_BAD : COLOR_AWFUL;
         }
 
-        /** Devonian {@code PingDisplay.formatPing} thresholds: 50 / 100 / 150 / 200 ms. */
-        private static int pingColor(int ping) {
-            if (ping < 50) {
+        /** killer560, 2026-11-01: "make the ping under 100 good under 150 meh and over 200 as bad". Under 100 good
+         *  (green), 100-149 meh (yellow), 150-199 the in-between Bad color (orange: worse than meh, not yet the 200+
+         *  he called bad), 200 and over the worst color (red). */
+        static int pingColor(int ping) {
+            if (ping < 100) {
                 return COLOR_GOOD;
             }
-            if (ping < 100) {
+            if (ping < 150) {
                 return COLOR_OK;
             }
             return ping < 200 ? COLOR_BAD : COLOR_AWFUL;

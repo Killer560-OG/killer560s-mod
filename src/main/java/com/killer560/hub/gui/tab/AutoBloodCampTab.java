@@ -64,6 +64,11 @@ public class AutoBloodCampTab extends BaseTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 22;
 
+        // killer560, 2026-11-01: "Have an option to only toggle as mage." Both automations, so above the Aura's own row.
+        widgets.add(onOffButton("Mage Only", cfg::isMageOnly, cfg::setMageOnly, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 20;
+
         if (cfg.getAuraRaw()) {
             // The Aura's own option, so it sits with the switches above the Attack Speed group.
             widgets.add(onOffButton("Freecam Mode", cfg::isAuraFreecam, cfg::setAuraFreecam, cfg::save,
@@ -88,8 +93,8 @@ public class AutoBloodCampTab extends BaseTab {
                     null, contentX, y, contentWidth, 18));
             y += 20;
 
-            // killer560, 2026-10-15: "Have the slider go from -10 to 10 and have it default to -1" - ticks from the kill
-            // timer, positive early, negative late.
+            // killer560, 2026-10-15: "Have the slider go from -10 to 10"; 2026-11-01: "if i slide it left it is early and
+            // right it is late". Ticks from the kill timer, negative (left) early, positive (right) late, default +1.
             int span = BloodCampConfig.MAX_TRIGGER_OFFSET_TICKS - BloodCampConfig.MIN_TRIGGER_OFFSET_TICKS;
             double offsetNorm = (cfg.getTriggerOffsetTicks() - BloodCampConfig.MIN_TRIGGER_OFFSET_TICKS) / (double) span;
             widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
@@ -123,9 +128,9 @@ public class AutoBloodCampTab extends BaseTab {
     /** The small section header over the attack timing settings. */
     static final String ATTACK_SPEED_HEADER = "Attack Speed";
 
-    /** "Trigger Offset: -1t (late)" - which way the click moves from the kill timer. */
+    /** "Trigger Offset: +1t (late)" - which way the click moves from the kill timer (positive late since 2026-11-01). */
     static String offsetLabel(int ticks) {
-        String dir = ticks < 0 ? " (late)" : ticks > 0 ? " (early)" : "";
+        String dir = ticks > 0 ? " (late)" : ticks < 0 ? " (early)" : "";
         return "Trigger Offset: " + (ticks > 0 ? "+" : "") + ticks + "t" + dir;
     }
 }

@@ -30,6 +30,12 @@ public final class FastLeapConfig {
     public static final int MIN_CLICK_DELAY_MS = 100;
     public static final int MAX_CLICK_DELAY_MS = 500;
     public static final int CLICK_DELAY_STEP_MS = 50;
+    /** Leap Timeout (killer560, 2026-11-01: "let me customize the timeout slider for fastleap"): how long a leap waits
+     *  for the menu, then for the target's head, before it gives up and hands every input back. */
+    public static final int MIN_TIMEOUT_MS = 500;
+    public static final int MAX_TIMEOUT_MS = 5000;
+    public static final int TIMEOUT_STEP_MS = 250;
+    public static final int DEFAULT_TIMEOUT_MS = 2000;
 
     /** How a leap picks who it goes to. PER_LEAP: each leap's own Target button (a class or a name - QUOI's Name and
      *  Class modes, chosen per leap since 2026-10-13). POSMSG: whoever last announced that position in party chat,
@@ -137,6 +143,7 @@ public final class FastLeapConfig {
     private boolean enabled = false;
     private TargetMode targetMode = TargetMode.PER_LEAP;
     private int clickDelayMs = 250;
+    private int timeoutMs = DEFAULT_TIMEOUT_MS;
     private boolean blockInputs = false;
     private boolean fastMode = false;
     private int returnToSlot = RETURN_PREVIOUS;
@@ -173,6 +180,7 @@ public final class FastLeapConfig {
                 String oldMode = str(obj, "targetMode", "NAME");
                 cfg.targetMode = parseMode(oldMode);
                 cfg.clickDelayMs = clampDelay(intOr(obj, "clickDelayMs", 250));
+                cfg.timeoutMs = clampTimeout(intOr(obj, "timeoutMs", DEFAULT_TIMEOUT_MS));
                 cfg.blockInputs = bool(obj, "blockInputs", false);
                 cfg.fastMode = bool(obj, "fastMode", false);
                 // "swapBack" (before 2026-10-13) is not carried over: an Auto leap always returns now (killer560:
@@ -252,6 +260,7 @@ public final class FastLeapConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("targetMode", targetMode.name());
             obj.addProperty("clickDelayMs", clickDelayMs);
+            obj.addProperty("timeoutMs", timeoutMs);
             obj.addProperty("blockInputs", blockInputs);
             obj.addProperty("fastMode", fastMode);
             obj.addProperty("returnToSlot", returnToSlot);
@@ -330,6 +339,24 @@ public final class FastLeapConfig {
     private static int clampDelay(int ms) {
         int stepped = Math.round(ms / (float) CLICK_DELAY_STEP_MS) * CLICK_DELAY_STEP_MS;
         return Math.max(MIN_CLICK_DELAY_MS, Math.min(MAX_CLICK_DELAY_MS, stepped));
+    }
+
+    private static int clampTimeout(int ms) {
+        int stepped = Math.round(ms / (float) TIMEOUT_STEP_MS) * TIMEOUT_STEP_MS;
+        return Math.max(MIN_TIMEOUT_MS, Math.min(MAX_TIMEOUT_MS, stepped));
+    }
+
+    public int getTimeoutMs() {
+        return timeoutMs;
+    }
+
+    public void setTimeoutMs(int ms) {
+        timeoutMs = clampTimeout(ms);
+    }
+
+    /** {@link #getTimeoutMs()} in client ticks, at least one. */
+    public int getTimeoutTicks() {
+        return Math.max(1, (timeoutMs + 49) / 50);
     }
 
     // ---- master / general ------------------------------------------------------------------------------------

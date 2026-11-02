@@ -66,7 +66,15 @@ public final class MobSkinRender {
     private static java.util.UUID lastSwapOwner;
     private static String lastSwapId;
 
+    // True while 26.3's LevelExtractor.extractPlayerState extracts the local player's own state, which must stay an
+    // AvatarRenderState or vanilla throws (MobSkinLocalPlayerStateMixin). Render thread only.
+    private static boolean extractingOwnState;
+
     private MobSkinRender() {
+    }
+
+    public static void setExtractingOwnState(boolean on) {
+        extractingOwnState = on;
     }
 
     /** The mob {@code entity} is drawn as right now (an allowed id), or null for the normal player. */
@@ -96,6 +104,9 @@ public final class MobSkinRender {
     public static EntityRenderState swap(EntityRenderDispatcher dispatcher, Entity entity, EntityRenderState playerState,
                                          float partialTick) {
         if (!(playerState instanceof LivingEntityRenderState ps) || !(entity instanceof AbstractClientPlayer)) {
+            return playerState;
+        }
+        if (extractingOwnState && entity == Minecraft.getInstance().player) {
             return playerState;
         }
         String id = null;

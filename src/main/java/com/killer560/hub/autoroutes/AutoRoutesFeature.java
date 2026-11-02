@@ -94,6 +94,11 @@ public final class AutoRoutesFeature {
     }
 
     public static void register() {
+        // Emergency Cancel Key (killer560, 2026-11-01): stops a route and Mimic Killer on top of their own stop rules.
+        com.killer560.hub.macrostop.MacroStop.register("Auto Routes", com.killer560.hub.macrostop.MacroStop.Kind.EMERGENCY, RouteExecutor::isRunning,
+                why -> RouteExecutor.stop(RouteExecutor.STOPPED_BY_EMERGENCY));
+        com.killer560.hub.macrostop.MacroStop.register("Mimic Killer", com.killer560.hub.macrostop.MacroStop.Kind.EMERGENCY, MimicKiller::isBusy,
+                why -> MimicKiller.cancel(net.minecraft.client.Minecraft.getInstance(), "the Emergency Cancel Key"));
         // A boom's settle waits out the measured round trip (RouteExecutor.boomSettleTicks).
         com.killer560.hub.util.PingTracker.register();
         com.killer560.hub.util.PingTracker.addDemand(() -> AutoRoutesConfig.getInstance().isEnabled());

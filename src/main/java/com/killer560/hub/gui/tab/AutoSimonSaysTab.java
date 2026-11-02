@@ -233,16 +233,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
             // Stim and Momentum (killer560's to-do, 2026-10-18) - they only move Rotate mode's aim, so only shown there.
             if (cfg.isAutoSolveRotate()) {
                 widgets.add(onOffButton("Stim", cfg::isAutoSolveStim, cfg::setAutoSolveStim, cfg::save,
-                        requestRebuild, col2aX, y, col2W, 18));
-                if (cfg.isAutoSolveStim()) {
-                    widgets.add(SettingsButtonWidget.cycling(stimButtonsText(cfg), (btn, dir) -> {
-                                int span = SimonSaysConfig.MAX_STIM_BUTTONS - SimonSaysConfig.MIN_STIM_BUTTONS + 1;
-                                int i = cfg.getAutoSolveStimButtons() - SimonSaysConfig.MIN_STIM_BUTTONS;
-                                cfg.setAutoSolveStimButtons(SimonSaysConfig.MIN_STIM_BUTTONS + SettingsButtonWidget.step(i, dir, span));
-                                cfg.save();
-                                btn.setMessage(stimButtonsText(cfg));
-                            }).bounds(col2bX, y, col2W, 18).build());
-                }
+                        null, contentX, y, contentWidth, 18));
                 y += 22;
 
                 double momentumNorm = cfg.getAutoSolveMomentum() / (double) SimonSaysConfig.MAX_MOMENTUM;
@@ -287,10 +278,6 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
 
     private static Component rotateText(SimonSaysConfig cfg) {
         return Component.literal(cfg.isAutoSolveRotate() ? "Mode: \u00a7bRotate" : "Mode: \u00a7bNo Rotate");
-    }
-
-    private static Component stimButtonsText(SimonSaysConfig cfg) {
-        return Component.literal("Stim Buttons: §b" + cfg.getAutoSolveStimButtons());
     }
 
     private static Component momentumText(SimonSaysConfig cfg) {

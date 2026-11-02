@@ -118,6 +118,14 @@ public final class ChestClearRule {
                 clear ? "Auto Clear" : "Auto Secret", LEAVE_TICKS / 20, RETURN_TICKS / 20);
     }
 
+    /** A chest {@link #noteChest} was given turned out locked: its room's clock, if that chest started it, stops. */
+    public static void forgetChest(String what) {
+        check();
+        if (rooms.values().removeIf(e -> e.chest.equals(what))) {
+            LOGGER.info("[AutoClear] chest rule: {} was locked - its room's clock is dropped", what);
+        }
+    }
+
     /** {@link #clearedInItsEyes(DungeonLayout, int)} by name. */
     public static boolean clearedInItsEyes(String name) {
         DungeonLayout layout = DungeonLayout.capture();

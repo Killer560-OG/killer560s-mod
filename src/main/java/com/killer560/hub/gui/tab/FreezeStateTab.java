@@ -80,8 +80,8 @@ public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
         String[] warning = {
                 "§4§l!! NEVER USE THIS ON HYPIXEL - INSTANT BAN !!",
                 "§cRewinding teleports your character, and a frozen player in the air",
-                "§clooks like hovering. Singleplayer or p3sim only. On Hypixel the keys",
-                "§crefuse; only the typed /rewind works there, behind a warning."
+                "§clooks like hovering. Singleplayer or p3sim only. On Hypixel the step",
+                "§ckeys refuse."
         };
         for (String line : warning) {
             w.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal(line), font));
@@ -89,9 +89,9 @@ public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
         }
         y += 6;
         String[] help = {
-                "§7/freezestate - freeze / resume. While frozen the camera is free and",
+                "§7Freeze State key - freeze / resume. While frozen the camera is free and",
                 "§7/ap3 add uses where the camera looks, not your character's facing.",
-                "§7/rewind [ticks] goes back from where you are; /rewind forward [ticks] predicts ahead.",
+                "§7Rewind 1 Tick goes back one tick from where you are; Forward 1 Tick predicts ahead.",
                 "§7AP3 keeps going while frozen: each forward step runs one AP3 tick. Your own keys",
                 "§7and mouse never move the character while frozen - only AP3 nodes do."
         };
@@ -135,7 +135,7 @@ public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
         }
         String name = key == KeyUtil.NONE ? "§7Not Set"
                 : "§e" + com.killer560.hub.util.KeyUtil.keyName(key);
-        return Component.literal(action.label + " Key: " + name + " §8" + action.command);
+        return Component.literal(action.label + " Key: " + name + (action.command.isEmpty() ? "" : " §8" + action.command));
     }
 
     private static Component rewindText(Ap3Config cfg) {

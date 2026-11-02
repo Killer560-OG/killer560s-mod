@@ -49,7 +49,7 @@ public final class AutoSellToggleKey {
         if (stack.isEmpty()) {
             return false;
         }
-        String identity = ItemIdentity.of(stack);
+        String identity = AutoSellFeature.identityOf(stack);
         if (identity == null) {
             return false;
         }

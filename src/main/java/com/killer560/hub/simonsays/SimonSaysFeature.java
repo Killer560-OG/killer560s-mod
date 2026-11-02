@@ -369,6 +369,12 @@ public final class SimonSaysFeature {
     // run through the completely separate tickStartButton/onRealBlockInteractAttempt paths and never
     // touch either counter), so this flag can't be confused with them.
     private static boolean autoStartClickedThisPhase = false;
+    /** This round's first light was dropped by the skip re-light rule (detectGridChanges); the size-3 drop then stays off. */
+    private static boolean skipDropped = false;
+    private static BlockPos skipDroppedLantern = null;
+    // Testkit counters: first lights dropped by the re-light rule, and presses on a light the sequence did not hold.
+    private static int skipRelightDrops = 0;
+    private static int unknownPresses = 0;
     private static int realStartButtonPressCountThisPhase = 0;
 
     // --- Rotate Mode (killer560's own request, 2026-09-14) - real behavior for the "Rotate" toggle that
@@ -466,8 +472,13 @@ public final class SimonSaysFeature {
     private static float stimDwellTicks = 0f;
     private static long stimArmedAtMs = 0L;
     private static final long STIM_MAX_MS = 4000L;
-    private static final float STIM_ON_TARGET_DEG = 1.0f;
-    private static final float STIM_DWELL_TICKS = 2f;
+    // Fast (killer560, 2026-11-01: "It should be pretty fast"): 1.5 degrees counts as on a button, one tick on it, and a
+    // stronger ease than an approach's 0.45 per tick.
+    private static final float STIM_ON_TARGET_DEG = 1.5f;
+    private static final float STIM_DWELL_TICKS = 1f;
+    private static final double STIM_SMOOTHING = 0.7;
+    // Every button a rehearsal queued (the testkit's proof that the whole round is retraced, not its newest few).
+    private static int stimButtonsQueued = 0;
     // Counters the testkit reads (1018-ss-stim): rehearsals begun, buttons reached, rehearsals cut short by a reveal.
     private static int stimRehearsalsStarted = 0;
     private static int stimButtonsTraced = 0;
@@ -723,6 +734,15 @@ public final class SimonSaysFeature {
             return false;
         }
         boolean block = clickNeeded >= clickInOrder.size() || !pos.equals(clickInOrder.get(clickNeeded).west());
+        // killer560, 2026-11-01: after a skip attempt the first light may be the round the skip already satisfied, so the
+        // second is let through until the first click of the attempt lands; onButtonPressed then follows whichever he
+        // pressed (a press of the second moves the highlight on to the third).
+        if (block && clickNeeded == 0 && totalClicksThisAttempt == 0 && autoStartClickedThisPhase
+                && clickInOrder.size() >= 2 && pos.equals(clickInOrder.get(1).west())) {
+            LOGGER.info("[SimonSays] Prevent Misclicks: let the second light {} through - a skip was attempted, the"
+                    + " first may be the satisfied round", pos);
+            block = false;
+        }
         // Diagnostic-only (2026-09-14): the mixin returns FAIL silently, so a blocked BOT click would
         // otherwise look exactly like a sent one that the server just never confirmed.
         if (block && syntheticClickInProgress) {
@@ -946,6 +966,8 @@ public final class SimonSaysFeature {
     private static void resetSolveState() {
         clickInOrder.clear();
         clickNeeded = 0;
+        skipDropped = false;
+        skipDroppedLantern = null;
         // Deliberately does NOT touch firstPhase - matching Odin's own real resetSolution(), which
         // never does either. Real bug found and fixed (2026-09-14): this used to force firstPhase=true
         // right here, unconditionally - but this method is also called on the routine "grid reset
@@ -1068,14 +1090,34 @@ public final class SimonSaysFeature {
             if (old == null) {
                 continue;
             }
-            if (now.is(Blocks.OBSIDIAN) && old.is(Blocks.SEA_LANTERN) && !clickInOrder.contains(pos)) {
+            if (now.is(Blocks.SEA_LANTERN) && old.is(Blocks.OBSIDIAN) && clickInOrder.contains(pos) && firstPhase
+                    && clickNeeded == 0 && autoStartClickedThisPhase && !skipDropped && clickInOrder.size() >= 2) {
+                // killer560, 2026-11-01 (manual solves): "sometimes it'll do the first button a second button then
+                // highlight the first if I skip. So now I need to still click the second button then the third to
+                // complete the skip. But our mod will make me click the first one first still". A lantern already
+                // recorded lighting AGAIN before any click, after a skip attempt, is the device replaying from the top: the
+                // skip landed, and the first light is the round the skip satisfied - the same "drop the first" a landed
+                // skip's third light gets below, taken now rather than waiting for a third light that may come after the
+                // reveal settles.
+                BlockPos dropped = clickInOrder.remove(0);
+                skipDropped = true;
+                skipDroppedLantern = dropped.immutable();
+                skipRelightDrops++;
+                updateRememberedFirstButton(clickInOrder.get(0));
+                LOGGER.info("[SimonSays] Skip: {} lit again before any click after a skip attempt - the skip landed;"
+                        + " dropped the first light {}, next is {}", pos, dropped, clickInOrder.get(0));
+            }
+            // The dropped first light goes dark again in the replay: it is the satisfied round, not a new step (the
+            // first 1101-ss-skip-relight run re-added it and read B, A, C).
+            if (now.is(Blocks.OBSIDIAN) && old.is(Blocks.SEA_LANTERN) && !clickInOrder.contains(pos)
+                    && !(skipDropped && pos.equals(skipDroppedLantern))) {
                 clickInOrder.add(pos.immutable());
                 lastLanternChangeTick = 0;
                 if (clickInOrder.size() >= TerminalLayouts.OLD_SIMON_ROUNDS) {
                     TerminalLayouts.noteSimonRounds(TerminalLayouts.OLD_SIMON_ROUNDS, "a fifth step was revealed");
                 }
                 if (firstPhase) {
-                    if (clickInOrder.size() == 2) {
+                    if (clickInOrder.size() == 2 && !skipDropped) {
                         // Real bug found and fixed (2026-09-14, killer560's own report: "it kept the first
                         // one green removed the second and made the third orange" on a landed skip):
                         // reversing here unconditionally corrupted the list order BEFORE a skip's own 3rd
@@ -1102,7 +1144,7 @@ public final class SimonSaysFeature {
                             // second real light) the new first.
                             updateRememberedFirstButton(clickInOrder.get(0));
                         }
-                    } else if (clickInOrder.size() == 3) {
+                    } else if (clickInOrder.size() == 3 && !skipDropped) {
                         // Real bug found and fixed (2026-09-14, "now it's bugged every time instead of
                         // just sometimes"): dropping the first unconditionally broke the ordinary,
                         // non-skip case - Odin's own confirmed real behavior for THAT case is drop the
@@ -1303,7 +1345,27 @@ public final class SimonSaysFeature {
         BlockPos lanternPos = buttonPos.east();
         int index = clickInOrder.indexOf(lanternPos);
         if (index < 0) {
+            // killer560, 2026-11-01: "let's say that I solve a set and it goes on to the 3 click set. It'll highlight the
+            // wrong things if I had to crouch to override it. When it should rescan". A press the device took (it did not
+            // break) on a light the mod did not have means the mod's reading of this reveal was wrong. It still counts as
+            // a click of this attempt, and it ends the first reveal's corrections, so the next round's reveal is recorded
+            // fresh, light by light, instead of having round 1's reverse/drop applied to it again (or the grid reset
+            // re-arming them because no click "of this attempt" had landed).
+            totalClicksThisAttempt++;
+            unknownPresses++;
+            if (deviceStartedAtMs == 0L) {
+                deviceStartedAtMs = System.currentTimeMillis();
+            }
+            if (firstPhase) {
+                firstPhase = false;
+            }
+            LOGGER.info("[SimonSays] Press on {} that the recorded sequence {} does not hold (override) - the next reveal"
+                    + " is read fresh", buttonPos, clickInOrder);
             return;
+        }
+        if (index > clickNeeded) {
+            LOGGER.info("[SimonSays] Press on step {} while step {} was next - following the press ({} skipped)",
+                    index + 1, clickNeeded + 1, index - clickNeeded);
         }
         clickNeeded = index + 1;
         totalClicksThisAttempt++;
@@ -1400,8 +1462,8 @@ public final class SimonSaysFeature {
         }
     }
 
-    /** Queues the newest {@code Stim Buttons} buttons of the round that just ended, in the order they were clicked, then
-     *  the round's first button again (the next round starts there). Look only: nothing here ever clicks. */
+    /** Queues every button of the round that just ended, first to last in the order they were clicked, then the round's
+     *  first button again (the next round starts there). Look only: nothing here ever clicks. */
     private static void armStim(SimonSaysConfig cfg) {
         stimQueue.clear();
         stimIndex = 0;
@@ -1410,8 +1472,7 @@ public final class SimonSaysFeature {
         if (size == 0) {
             return;
         }
-        int from = Math.max(0, size - cfg.getAutoSolveStimButtons());
-        for (int i = from; i < size; i++) {
+        for (int i = 0; i < size; i++) {
             stimQueue.add(clickInOrder.get(i).west().immutable());
         }
         BlockPos first = clickInOrder.get(0).west().immutable();
@@ -1420,6 +1481,7 @@ public final class SimonSaysFeature {
         }
         stimArmedAtMs = System.currentTimeMillis();
         stimRehearsalsStarted++;
+        stimButtonsQueued += stimQueue.size();
         verboseLog("[SimonSays][Stim] Rehearsing {} button(s) of round {}: {}", stimQueue.size(), size, stimQueue);
     }
 
@@ -2596,7 +2658,7 @@ public final class SimonSaysFeature {
         float currentPitch = player.getXRot();
         float yawDelta = Mth.wrapDegrees(to[0] - currentYaw);
         float pitchDelta = Mth.wrapDegrees(to[1] - currentPitch);
-        float frameSmoothing = 1f - (float) Math.pow(1.0 - 0.45, dtTicks);
+        float frameSmoothing = 1f - (float) Math.pow(1.0 - STIM_SMOOTHING, dtTicks);
         player.setYRot(currentYaw + yawDelta * frameSmoothing);
         player.setXRot(Mth.clamp(currentPitch + pitchDelta * frameSmoothing, -90f, 90f));
         if (Math.abs(yawDelta) < STIM_ON_TARGET_DEG && Math.abs(pitchDelta) < STIM_ON_TARGET_DEG) {

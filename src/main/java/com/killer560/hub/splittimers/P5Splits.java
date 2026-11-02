@@ -108,6 +108,6 @@ public final class P5Splits {
     }
 
     private static String seconds(long ms) {
-        return String.format(Locale.US, "%.2fs", Math.max(0L, ms) / 1000.0);
+        return String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(Math.max(0L, ms)) / 1000.0);
     }
 }

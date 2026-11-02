@@ -236,7 +236,85 @@ public final class RoomPredictor {
         if (!RoomDatabase.isReady()) {
             RoomDatabase.ensureLoading();
         }
+        noteStartTile(client.player.getEyePosition());
+        noteOpenedChange();
         step(client, client.player.getEyePosition(), client.player.getViewVector(1.0f));
+    }
+
+    // ------------------------------------------------------------------------------------------------- the start room
+
+    /**
+     * The tile (tz * TILES + tx) he stood in when the floor began, before any held map existed: the start room, or -1.
+     *
+     * <p>killer560 (to-do Doc, 2026-11-01, "PREDICTIVE MAP MODE"): digging the green room's door before the run starts
+     * lets him see into the first room, the map names it, "then once the run starts it bugs out the map entirely". Before
+     * the run Hypixel has given no map (Mort hands it over at the start), so {@link HeldMap#available()} is false and
+     * nothing was known to be opened: the start room itself was a tile to look into whenever he stood in its doorway gap
+     * (the eye outside every tile's 31 blocks - exactly where he stands digging the door), and every placement of the
+     * room he peeked into was free to cover the start tile. A wrong room named over the start tile (his 2026-11-01
+     * picture: "Grand Library" where his head is, the green room gone) then stayed when the map arrived, because nothing
+     * re-decided the predictions on the held map changing ({@link #noteOpenedChange}). The start room is the one room a
+     * player knows is opened before the map does: he is in it.
+     */
+    private static int startTile = -1;
+
+    /** Records {@link #startTile} the first time he is inside a tile's walls with no held map. */
+    private static void noteStartTile(Vec3 eye) {
+        if (startTile >= 0 || HeldMap.available()) {
+            return;
+        }
+        int tx = Math.floorDiv((int) Math.floor(eye.x) - ORIGIN, TILE_PITCH);
+        int tz = Math.floorDiv((int) Math.floor(eye.z) - ORIGIN, TILE_PITCH);
+        int[] floor = HeldMap.floorTiles();
+        if (tx < 0 || tz < 0 || tx >= floor[0] || tz >= floor[1]) {
+            return; // the (0, 100, 0) placeholder before the server places him, or off the floor
+        }
+        int gridIdx = tz * 2 * DungeonLayout.GRID + tx * 2;
+        BlockPos c = DungeonLayout.cellCenter(gridIdx);
+        if (Math.abs(eye.x - (c.getX() + 0.5)) < 15.5 && Math.abs(eye.z - (c.getZ() + 0.5)) < 15.5) {
+            startTile = tz * TILES + tx;
+            LOGGER.info("[Predict] no held map yet: tile {},{} is the start room (he is in it) - never looked into or"
+                    + " covered by a placement until the map arrives", tx, tz);
+        }
+    }
+
+    /** Whether a room tile (grid index) is opened: the held map's answer, or before it exists the start room. */
+    private static boolean opened(int gridIdx) {
+        if (HeldMap.available()) {
+            return HeldMap.roomOpened(gridIdx);
+        }
+        int t = (gridIdx / DungeonLayout.GRID / 2) * TILES + (gridIdx % DungeonLayout.GRID) / 2;
+        return t == startTile;
+    }
+
+    /** The opened tiles as last decided on (bit tz * TILES + tx), with bit 63 = a held map was there. */
+    private static long openedSeen = Long.MIN_VALUE + 1;
+
+    /**
+     * Re-decides every prediction when the opened tiles change - the held map arriving at the start of the run above all.
+     * {@link #decide} leaves out every placement covering an opened tile, but it only ran when something new was seen or
+     * compared, so a prediction made before the map arrived stood over a tile the map now shows opened.
+     */
+    private static void noteOpenedChange() {
+        long mask = HeldMap.available() ? 1L << 63 : 0L;
+        for (int t = 0; t < TILES * TILES; t++) {
+            if (opened((t / TILES) * 2 * DungeonLayout.GRID + (t % TILES) * 2)) {
+                mask |= 1L << t;
+            }
+        }
+        if (mask != openedSeen) {
+            if (openedSeen != Long.MIN_VALUE + 1 && (mask & (1L << 63)) != (openedSeen & (1L << 63))) {
+                LOGGER.info("[Predict] held map {}: {} opened tile(s) - every prediction decided again",
+                        (mask & (1L << 63)) != 0 ? "arrived" : "gone", Long.bitCount(mask & ~(1L << 63)));
+            }
+            openedSeen = mask;
+            dirty = true;
+        }
+    }
+
+    /** Test hook: the start tile recorded before the held map ({@code tz * 6 + tx}), or -1. */
+    public static int startTile() {
+        return startTile;
     }
 
     /** One tick's work, seen from {@code eye} looking along {@code view}. */
@@ -275,6 +353,8 @@ public final class RoomPredictor {
                     obsCount, ALL.size(), PREDICTIONS.size());
         }
         Arrays.fill(LOGGED_RULED_OUT, false);
+        startTile = -1;
+        openedSeen = Long.MIN_VALUE + 1;
         loggedFull = false;
         ticks = 0;
         lastSweepProductive = false;
@@ -651,7 +731,7 @@ public final class RoomPredictor {
 
     /** A tile is worth looking at when the held map does not show it opened and he is not standing in it. */
     private static boolean isTarget(Vec3 eye, int gridIdx) {
-        if (HeldMap.available() && HeldMap.roomOpened(gridIdx)) {
+        if (opened(gridIdx)) {
             return false;
         }
         // Inside the tile's own 31 blocks; standing in the doorway gap between two tiles is in neither.
@@ -701,7 +781,7 @@ public final class RoomPredictor {
                                 }
                                 int gx = ax + i;
                                 int gz = az + k;
-                                if (HeldMap.available() && HeldMap.roomOpened(gz * 2 * DungeonLayout.GRID + gx * 2)) {
+                                if (opened(gz * 2 * DungeonLayout.GRID + gx * 2)) {
                                     ok = false;
                                     break;
                                 }
@@ -1041,11 +1121,8 @@ public final class RoomPredictor {
     }
 
     private static boolean touchesOpened(Candidate c) {
-        if (!HeldMap.available()) {
-            return false;
-        }
         for (int t = 0; t < TILES * TILES; t++) {
-            if ((c.tiles & (1L << t)) != 0 && HeldMap.roomOpened((t / TILES) * 2 * DungeonLayout.GRID + (t % TILES) * 2)) {
+            if ((c.tiles & (1L << t)) != 0 && opened((t / TILES) * 2 * DungeonLayout.GRID + (t % TILES) * 2)) {
                 return true;
             }
         }

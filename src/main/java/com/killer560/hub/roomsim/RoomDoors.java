@@ -385,7 +385,7 @@ public final class RoomDoors {
      * itself is the next column in. Tile centers sit {@code margin + TILE/2} in and every {@code TILE + 1}
      * after that, which is the same arithmetic {@link RoomPlacer} pastes with.
      */
-    /** {@link #of}'s measurement for a room that is not (yet) in the library - {@link RoomCapture}'s check. No cache. */
+    /** {@link #of}'s measurement for a room that is not (yet) in the library. No cache. */
     static Mask measure(RoomLibrary.Room room) {
         return detect(room);
     }

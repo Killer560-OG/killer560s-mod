@@ -45,6 +45,8 @@ public final class DungeonAlertsPackets {
 
     public static void onTakeItem(ClientboundTakeItemEntityPacket packet, ClientLevel level) {
         guard("takeItem", SecretSound::onTakeItem, packet, level);
+        // Secret Waypoints rides the same hook: an item picked up next to an ITEM waypoint takes that waypoint down.
+        guard("takeItem/waypoints", com.killer560.hub.secretwaypoints.SecretWaypointsFeature::onItemTaken, packet, level);
     }
 
     public static void onRemoveEntities(ClientboundRemoveEntitiesPacket packet, ClientLevel level) {

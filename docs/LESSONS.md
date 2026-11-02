@@ -132,6 +132,11 @@ project CLAUDE.md. Compiling lessons
   glowstone returns after all its clicks went out (`ExperimentSolver.chronomatronRoundsCompleted`), and the stop uses that
   (testkit 2783: closed 3 ticks after the last accepted click, counter 3/3; the old jar took 33 ticks and read 4/3). Ultrasequencer shows its whole series when a round
   starts, so its size check does not wait for anything (2784).
+- **"Is the bot driving?" is the run's state, not its switch.** Auto E-Table's manual-click follow (and the cursor clear
+  and tier peek beside it) tested `cfg.isAutonomousMode()`, so after he stopped a run mid-Ultrasequencer his own clicks
+  never moved the solver on and the 1-6 highlight sat on 1 (killer560, 2026-11-01). They test `autonomous && armed` now,
+  and a stop gives back a click the run had decided (and counted) but not sent (`ExperimentSolver.rewindUnsentClick`).
+  Testkit 1101-menu-etable-resume.
 - A step that closes a menu and sends a command must time out if the screen it waits for never opens. Auto E-Table's
   Guardian swap closed the table, sent /pets, and waited forever when nothing opened; it now gives up after 10 s.
 - **A container scan that commits once must keep reading while the menu is open.** The RNG Meter overlay committed after
@@ -274,6 +279,26 @@ project CLAUDE.md. Compiling lessons
   packet was blocked) and his account is not in the supporter list; nothing said so. A local line must not wait for a
   network send. Also: vanilla never draws the camera entity's name, so a line over your own name needs the name forced on
   (`OwnNameTagF5Mixin` now also asks `SongTagDraw.hasOwnLine`).
+- **The Spotify HUD never showed a cover (2026-11-01): PowerShell could not open the thumbnail stream.** The helper's
+  `[System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ras)` failed with "Cannot find an overload" on every
+  track, because the awaited `IRandomAccessStreamWithContentType` reaches PowerShell as a bare `__ComObject` that its
+  binder will not pass as `IInputStream`; the catch around `SaveCover` hid it. Calling the method through reflection
+  (`GetMethod('AsStreamForRead', [type[]]@($inputType)).Invoke($null, @($ras))`) casts it. A file-backed
+  `RandomAccessStreamReference` reproduces both (killer560s-mod-logs/spotify-1101/cover_test.py: main fails, the fix writes
+  64x64). Test a helper's PowerShell outside the game before trusting a silent catch.
+- **Song Tag never reached anyone (2026-11-01): nothing connected the relay for it.** `ModChatFeature` turned the relay on
+  only for Mod Chat or party data and used the PARTY room otherwise, so with Mod Chat off and no Hypixel party (his test:
+  two accounts and a friend standing together) the socket never opened; the testkit fed `RemoteSongs` directly and never
+  saw it. Song Tag now keeps the relay up in the LOBBY room (Mod Chat's room when Mod Chat is on, the party's in a dungeon).
+  Testkit 2866 checks the room choice and 2867 runs the whole path through a local `wrangler dev` relay.
+- **A dragged volume slider lagged seconds behind (2026-11-01, "making the volume quieter takes a long time").** Every 1 %
+  step was a `vol N` line, and the helper ran one per reading cycle, so a long drag queued dozens; down sounded slower than
+  up because the last steps of a drag down are the audible ones. The helper now takes every waiting command at once and
+  runs only the last `vol` (testkit 2868: 51 at once, 1 ran, 50 skipped), and the game sends only the newest value.
+- Windows' media sessions are per app, not per site: Chrome publishes one session (`SourceAppUserModelId` "Chrome") with a
+  timeline and a thumbnail for whatever tab plays. A music site fills `AlbumTitle`, a plain video does not, which is what
+  Music Source "Music Players" keys on (checked on his PC 2026-11-01 with a video tab: excluded in that mode, followed in
+  Anything Playing).
 - The media-session helper's stdin is the control channel (`SpotifyMediaSession.send`): the script waits on
   `StreamReader.ReadLineAsync` from `OpenStandardInput()`, not `[Console]::In` (its ReadLineAsync is synchronous on .NET
   Framework), and exits when stdin closes. Per-app volume is Core Audio `ISimpleAudioVolume` compiled by `Add-Type` on
@@ -306,3 +331,15 @@ project CLAUDE.md. Compiling lessons
 - **Your own dungeon class is `leapmenu/PartyTracker.selfClass()`** (tab list, plus Party Finder lines, with the
   `ClassOverrides` pick on your own IGN already applied by `classOf`). Fast Leap's Class Targets (2026-10-27) read it;
   `Ap3Feature.selfClass()` wraps it in `ClassOverrides` a second time, which is harmless. Do not write another tab parser.
+- **Simon Says: a grid press on a light the solver did not hold must still count as a click of the attempt.** Before
+  2026-11-01 `onButtonPressed` returned early for it, so `totalClicksThisAttempt` stayed 0, the between-round grid reset took
+  the attempt for a fresh one and re-armed `firstPhase`, and the next round got round 1's reverse/drop (his "highlights the
+  wrong things after I crouch to override"; traced in the code, not reproduced on the old jar - 1101-ss-override-rescan passes
+  with the fix). Count it, and end `firstPhase`.
+- A mouse button bound to vanilla's Drop key does nothing in a container screen: `AbstractContainerScreen.keyPressed`
+  reads `keyDrop`, `mouseClicked` never does (javap 26.3 and 26.2). The Terminal Drop Key handles a mouse bind itself
+  (`TerminalQolFeature.handleMouseDrop`: the same THROW click on the hovered slot, or the Custom GUI's own click).
+- Another mod's auto sprint ends in `LivingEntity.setSprinting(true)` whichever way it is built (Odin answers
+  `Input.sprint()` in `LocalPlayer.aiStep` with `@ModifyExpressionValue`; others call setSprinting each tick); holding
+  the sprint KEY is already undone by our movers replacing the key record. `AutoSprintOverrideMixin` refuses a sprint
+  start there while one of the mod's movers drives with sprint up (doc-terms-1101, testkit 1101-menu-autosprint).

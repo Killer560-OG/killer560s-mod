@@ -33,6 +33,11 @@ public abstract class TerminalQolInputMixin {
     private void killer560smod$terminalProtection(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
         if (TerminalQolFeature.shouldSwallowClick()) {
             cir.setReturnValue(true);
+            return;
+        }
+        AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
+        if (TerminalQolFeature.handleMouseDrop(self, com.killer560.hub.compat.McInput.button(event), event.x(), event.y())) {
+            cir.setReturnValue(true);
         }
     }
 

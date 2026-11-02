@@ -23,12 +23,15 @@ public class DungeonTab extends FolderTab {
                 // ---- map, doors, party ----
                 new LiveMapTab(),
                 new ChunkCacheTab(),
-                new DungeonInfoTab(),
                 new DoorKeysTab(),
                 new WitherDoorsTab(),
                 new LeapMenuTab(),
                 new LeapCounterTab(),
                 new DungeonQueueTab(),
+                // Creation Cooldown (to-do Doc 2026-11-01): SkyHanni's 30 s instance creation timer.
+                new CreationCooldownTab(),
+                // Insta Clear Warning (to-do Doc 2026-11-01): a blood rush room cleared without its key.
+                new InstaClearWarningTab(),
                 new CustomPartyFinderTab(),
                 new AutoKickTab(),
                 // Not cheat-only: setting someone's class fixes the normal leap menu and every class-colored display
@@ -49,6 +52,7 @@ public class DungeonTab extends FolderTab {
                 new CustomMageBeamTab(),
                 new RagAxeTab(),
                 new MaskInvincibilityTab(),
+                new MaskKeybindsTab(),
                 new BreakerChargesTab(),
                 // ---- timers, score, loot ----
                 new SplitTimersTab(),
@@ -111,6 +115,7 @@ public class DungeonTab extends FolderTab {
             tabs.add(new RelicHelpersTab());
             tabs.add(new DioriteGlassTab());
             tabs.add(new GoldorTriggerbotTab());
+            tabs.add(new ThornTriggerbotTab());
             // Out of Secret Aura's In Boss, 2026-10-15 (killer560: "It should be its own cheat").
             tabs.add(new LightsDeviceTab());
             tabs.add(new AutoUltTab());

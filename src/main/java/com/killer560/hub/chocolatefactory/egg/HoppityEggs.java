@@ -393,7 +393,23 @@ public final class HoppityEggs {
 
     private static boolean shown() {
         ChocolateFactoryConfig cfg = ChocolateFactoryConfig.getInstance();
-        return cfg.isEnabled() && cfg.isEggHud();
+        if (!cfg.isEnabled() || !cfg.isEggHud()) {
+            return false;
+        }
+        return !hiddenNow(cfg, System.currentTimeMillis());
+    }
+
+    /** Hide Outside Hoppity's Hunt and Hide While Busy (killer560, 2026-11-01). Public for the testkit. */
+    public static boolean hiddenNow(ChocolateFactoryConfig cfg, long now) {
+        if (cfg.isHideOutsideHunt() && !HoppityCalendar.huntActive(now)) {
+            return true;
+        }
+        return cfg.isHideWhileBusy() && busy();
+    }
+
+    /** Busy, for Hide While Busy: in a dungeon for now; other events (Kuudra, a slayer boss...) can join later. */
+    public static boolean busy() {
+        return com.killer560.hub.secrets.DungeonState.isInDungeon();
     }
 
     private static void drawHudInGame(GuiGraphicsExtractor graphics) {

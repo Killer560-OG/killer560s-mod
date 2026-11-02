@@ -106,6 +106,10 @@ public final class AwaitEvents {
             }
             // Diagnostic only (no count: the skull click already counted it): when Hypixel confirms his essence, and
             // whether a route was running and waiting. startsWith is safe - a player's chat line starts with his name.
+            // Hypixel's answer to a locked chest (matched whole: a player's line always carries a name prefix).
+            if ("That chest is locked!".equals(plain)) {
+                onChestLocked();
+            }
             if (plain.startsWith("You found a Wither Essence!")) {
                 LOGGER.info("[AutoRoutes] secret confirmed by chat: Wither Essence collected at tick {} ({} - window count "
                         + "{})", ticks, active ? "route running" : "no route running", secrets);
@@ -425,6 +429,9 @@ public final class AwaitEvents {
             MimicKiller.onTrappedChestClicked(client, pos.immutable());
             return;
         }
+        if (b == Blocks.CHEST) {
+            noteChestClick(client, pos);
+        }
         String kind = b == Blocks.CHEST ? "chest"
                 : b == Blocks.LEVER ? "lever" : b == Blocks.PLAYER_HEAD || b == Blocks.PLAYER_WALL_HEAD ? "skull" : null;
         if (kind == null) {
@@ -672,6 +679,11 @@ public final class AwaitEvents {
             return;
         }
         Entity item = client.level == null ? null : client.level.getEntity(itemId);
+        String notSecret = notASecretItem(item);
+        if (notSecret != null) {
+            LOGGER.info("[AwaitEvents] item {} picked up by you is no secret: {}", itemId, notSecret);
+            return;
+        }
         String what = "item picked up by you" + (item != null ? " at " + item.blockPosition().toShortString() : "");
         RouteRunMemory.gotSecret("item " + itemId, item != null ? item.position() : player.position(), what);
         if (!active) {
@@ -681,6 +693,88 @@ public final class AwaitEvents {
             return;
         }
         addSecret("item " + itemId, what);
+    }
+
+    // ------------------------------------------------------------------ chests that are no secret (2026-11-01)
+
+    /** A chest he clicked: where, when (wall clock: {@link #ticks} only runs with Auto Routes on), and the highest entity
+     *  id his world held then - an entity with a higher id was made after the click. */
+    private record ChestClick(BlockPos pos, long atMs, int maxEntityId) {
+    }
+
+    private static final java.util.ArrayDeque<ChestClick> chestClicks = new java.util.ArrayDeque<>();
+    private static Object chestClicksLevel;
+    /** "That chest is locked!" further than this after the click answers no click of ours. */
+    private static final long LOCKED_WINDOW_MS = 1500L;
+    /** An item made after a chest click, this close to the chest, is what came out of the chest. */
+    static final double CHEST_DROP_RANGE = 4.5;
+
+    private static void noteChestClick(Minecraft client, BlockPos pos) {
+        if (chestClicksLevel != client.level) {
+            chestClicks.clear();
+            chestClicksLevel = client.level;
+        }
+        int max = 0;
+        for (Entity e : client.level.entitiesForRendering()) {
+            max = Math.max(max, e.getId());
+        }
+        chestClicks.addLast(new ChestClick(pos.immutable(), System.currentTimeMillis(), max));
+        while (chestClicks.size() > 64) {
+            chestClicks.pollFirst();
+        }
+    }
+
+    /**
+     * Why a picked-up item is no item secret, or null when it is one (killer560, 2026-11-01, Secret Counter HUD: "I think an
+     * item came out of a chest and it counted that dropped item as an item secret"): an item that is none of the dungeon's
+     * secret drops (Noamm's {@code dungeonItemDrops}, as Secret Sound), or one that came out of a chest he opened - made
+     * after his click on it, beside it. An item already gone from his world is counted as before.
+     */
+    static String notASecretItem(Entity item) {
+        if (!(item instanceof net.minecraft.world.entity.item.ItemEntity ie)) {
+            return null;
+        }
+        String name = net.minecraft.ChatFormatting.stripFormatting(ie.getItem().getHoverName().getString());
+        if (!com.killer560.hub.dungeonalerts.SecretSound.isDungeonItemDrop(name)) {
+            return "'" + name + "' is not a dungeon secret item";
+        }
+        if (chestClicksLevel == Minecraft.getInstance().level) {
+            for (ChestClick c : chestClicks) {
+                if (item.getId() > c.maxEntityId()
+                        && item.position().distanceTo(Vec3.atCenterOf(c.pos())) <= CHEST_DROP_RANGE) {
+                    return "'" + name + "' came out of the chest at " + c.pos().toShortString();
+                }
+            }
+        }
+        return null;
+    }
+
+    /** "That chest is locked!": his last chest click (within {@link #LOCKED_WINDOW_MS}) was no secret - taken back from
+     *  the run memory, the map's room count (the Secrets HUD) and an open await window. */
+    private static void onChestLocked() {
+        ChestClick last = chestClicks.peekLast();
+        if (last == null || chestClicksLevel != Minecraft.getInstance().level
+                || System.currentTimeMillis() - last.atMs() > LOCKED_WINDOW_MS) {
+            return;
+        }
+        chestClicks.pollLast();
+        String key = "block " + last.pos().asLong();
+        boolean remembered = RouteRunMemory.forgetSecret(key);
+        boolean inWindow = counted.remove(key);
+        if (inWindow) {
+            secrets = Math.max(0, secrets - 1);
+        }
+        recent.removeIf(r -> key.equals(r.key()));
+        lockedChests++;
+        LOGGER.info("[AwaitEvents] chest at {} was locked: not a secret (run memory {}, await window {})",
+                last.pos().toShortString(), remembered ? "forgot it" : "did not have it", inWindow ? "took it back" : "did not have it");
+    }
+
+    private static int lockedChests;
+
+    /** For the testkit: chest clicks taken back because Hypixel said the chest was locked. */
+    static int lockedChests() {
+        return lockedChests;
     }
 
     /** Any use / attack of ours ({@code AwaitEventsGameModeMixin}, and the route's own use packets): what a crypt

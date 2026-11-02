@@ -291,6 +291,13 @@ public final class MenuConfig {
         version++;
     }
 
+    /** Shows {@code t} without saving and without starting Custom from it: the first-launch tour cycles the presets
+     *  through this, and puts the player's own theme back with it if none was picked (intro/IntroScreen). */
+    public void previewTheme(MenuTheme t) {
+        theme = t == null ? MenuTheme.AMBER : t;
+        version++;
+    }
+
     public MenuTheme getCustomBase() {
         return customBase;
     }

@@ -110,6 +110,12 @@ public final class StorageScanAll {
     private StorageScanAll() {
     }
 
+    static {
+        // Escape already stopped it (it closes the menu); the Emergency Cancel Key does too since 2026-11-01.
+        com.killer560.hub.macrostop.MacroStop.register("Storage Scan All", com.killer560.hub.macrostop.MacroStop.Kind.CLICK, StorageScanAll::isRunning,
+                why -> stop("you pressed " + why));
+    }
+
     public static boolean isRunning() {
         return current != null || !queue.isEmpty();
     }

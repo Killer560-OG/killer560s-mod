@@ -114,7 +114,7 @@ public final class AutoSellCommands {
         if (t.equalsIgnoreCase("held")) {
             ItemStack held = Minecraft.getInstance().player == null ? ItemStack.EMPTY
                     : Minecraft.getInstance().player.getMainHandItem();
-            return held.isEmpty() ? null : ItemIdentity.of(held);
+            return held.isEmpty() ? null : AutoSellFeature.identityOf(held);
         }
         return t.isBlank() ? null : t;
     }

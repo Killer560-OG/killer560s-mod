@@ -153,9 +153,9 @@ public class ModScreen extends Screen {
     private static final int PAL_ROW = 16;
 
     // ---- links (the ones the mod already publishes) -----------------------------------------------------------------
-    static final String DISCORD_URL = "https://discord.gg/hkQMF5fE84";
+    public static final String DISCORD_URL = "https://discord.gg/hkQMF5fE84";
     /** killer560's channel (2026-10-14: "Add a button to this that will take you to my youtube channel"). */
-    static final String YOUTUBE_URL = "https://www.youtube.com/@Killer560_iscool";
+    public static final String YOUTUBE_URL = "https://www.youtube.com/@Killer560_iscool";
     static final String GITHUB_URL = "https://github.com/" + com.killer560.hub.autoupdate.AutoUpdater.REPO;
     static final String FEATURES_URL = "https://docs.google.com/document/d/e/2PACX-1vQsLEy_hlz-Dv518bH7AgYjyoGgdNl2jSAF4T8vzQ"
             + "Hawmkg0f56q6Yrp67Zqncc8h9N-pdAvFLC5_D-/pub";
@@ -742,7 +742,7 @@ public class ModScreen extends Screen {
         List<AbstractWidget> widgets = new ArrayList<>();
         int startY = contentY;
         if (com.killer560.hub.BuildVariant.TESTING) {
-            widgets.add(com.killer560.hub.testing.TestingMenu.markButton(tab, contentX, startY, contentW));
+            widgets.addAll(com.killer560.hub.testing.TestingMenu.markButtons(tab, contentX, startY, contentW));
             startY += com.killer560.hub.testing.TestingMenu.MARK_ROW_HEIGHT;
         }
         List<AbstractWidget> built;

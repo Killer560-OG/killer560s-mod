@@ -22,11 +22,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  javap to actually exist as its own method there (not just assumed inherited), so every subclass's
  *  own override chain runs through it eventually, covering every kind of screen in the game, not just
  *  chest-style ones. Purely a safety net (no canceling here, unlike the more specific mixin) - just
- *  guarantees state is never more than one frame stale for anything this mod doesn't actually cover. */
+ *  guarantees state is never more than one frame stale for anything this mod doesn't actually cover.
+ *  <p>
+ *  Moved to the HEAD of {@code Screen.extractRenderStateWithTooltipAndSubtitles} (2026-11-01): the one refresh used to
+ *  run from {@code ContainerScreen.extractBackground}, and any other mod or feature that cancels that method at HEAD
+ *  first stopped every terminal from ever being tracked. Inventory Theme does exactly that, so with it on (his Untested
+ *  Cheat instance) the solver, Custom GUI and Auto Terminals never showed on any terminal (testkit
+ *  1101-menu-term-instcfg reproduced it with that instance's config). This method is final, calls extractBackground
+ *  itself first thing after a stratum (javap 26.3 and 26.2), and nothing cancels it, so the state is fresh before any
+ *  background hook runs, on every screen, every frame. */
 @Mixin(Screen.class)
 public abstract class TerminalSolverStateRefreshMixin {
 
-    @Inject(method = "extractBackground", at = @At("HEAD"))
+    @Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At("HEAD"))
     private void killer560smod$refreshTerminalStateEverywhere(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         TerminalSolverFeature.refreshState();
     }

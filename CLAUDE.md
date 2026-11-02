@@ -11,7 +11,7 @@ Java 25 and a JDK on `JAVA_HOME`. Gradle wrapper, Fabric Loom.
 ./gradlew build                     # legit variant  -> build/libs/killer560smod-1.1.0-26.3-legit.jar
 ./gradlew build -PcheatBuild=true   # cheat variant  -> build/libs/killer560smod-1.1.0-26.3-cheat.jar
 ./gradlew build -Prelease=true      # official release: compiles dev tooling OUT
-./gradlew build [-PcheatBuild=true] -PtestingBuild=true  # killer560's private jar, ...-26.3-<cheat|legit>-testing.jar: Untested category, Mark tested, /k560tested; lists in testing/; deploy ONLY with --testing-instance-cheat/--testing-instance-legit NAME
+./gradlew build [-PcheatBuild=true] -PtestingBuild=true  # killer560's private jar, ...-26.3-<cheat|legit>-testing.jar: Untested and Bugged categories, Mark tested / Mark bugged, /k560tested; lists in testing/; deploy ONLY with --testing-instance-cheat/--testing-instance-legit NAME
 python deploy-to-instances.py [--dry-run] [--jars-dir DIR]   # install into every Prism instance; writes minecraft/killer560smod-no-auto-update in each (Auto Update off there)
 python tools/verify-artifact.py JARS_OR_DIRS [--git REPO]    # secret scan; deploy-to-instances.py, release-assets.py, dev-build.yml and killer560s-mod-logs/verify_gate.py all run it and stop on exit 1
 # --auto-update-instance NAME: leave NAME to the mod's own Auto Update (no jar, marker removed); none uses it (2026-10-24: all 7 have the marker)
@@ -87,7 +87,8 @@ GrimAC on a real dedicated server. See its own `CLAUDE.md`. Harness system prope
 Source under `src/main/java/com/killer560/hub/`, one package per feature area (`ap3`, `dungeonextras`,
 `secrets`, `livemap`, `autopuzzles`, `terminals`, `leveraura`, `gui/tab`, `util`, …). Mixins live in a
 `mixin` subpackage of the feature that owns them. Docs: `docs/FEATURES.md` holds the full text for every
-feature; `README.md` holds the name list. Mining is shelved until after 2.0 (never compiled): **[shelved/mining/README.md](shelved/mining/README.md)**.
+feature; `README.md` holds the name list. Mining is shelved until after 2.0 (never compiled): **[shelved/mining/README.md](shelved/mining/README.md)**,
+except the seven pre-2.0 mining features he asked for (to-do Doc, 2026-11-01) in `miningqol/` and the menu's Mining category.
 
 Shared pieces worth knowing: `util/ActionGate` is the mod-wide one-automated-interaction-per-tick arbiter
 with actor priority; `util/SkyblockGate` is the "Skyblock Only" gate; `secrets/DungeonState` owns floor and
@@ -102,7 +103,9 @@ cheat build that hands back the real SLF4J logger; in a release (`-Prelease=true
 hands back one that drops TRACE/DEBUG/INFO/WARN and forwards only ERROR, so a release jar is quiet without
 a thousand call sites being guarded. `roomsim/` and `bazaarflip/` were the last two packages still calling
 `LoggerFactory` directly, and so the last two still logging in a release; both went through `ModLog` on
-2026-09-30, so a release jar is now quiet everywhere.
+2026-09-30, so a release jar is now quiet everywhere. Since 2026-11-01 every `ModLog` logger is wrapped (`RecordingLogger`) so Auto Report Bans'
+`util/SessionLogTap` can keep the session's INFO+ lines in memory while that opt-in switch is on (also in a release); a logger
+whose lines quote other players (chat, Mod Chat, party, friends) must be added to `SessionLogTap.SKIP`.
 
 Automation chat (killer560, 2026-10-16): a running auto says only that it started or stopped, a server correction and
 a real failure; every progress line goes through `ModChat.log` (same words, logger `killer560smod-chat`, testkit LogTap
@@ -284,7 +287,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - **26.3 key and mouse codes are SDL, stored codes stay GLFW** (2026-11-01). On 26.3 `KeyEvent.key()`, `KeyMapping`
   values and `InputConstants.KEY_*` are SDL scancodes and mouse buttons are 1-based (left 1, right 3), and wrong numbers
   still compile. Configs keep GLFW numbers (`util/Keys`); read keys with `McInput.key(event)`, buttons with
-  `McInput.button(event)`, poll stored codes with `KeyUtil`, window/cursor/display work through `McWindow`. Full rules
+  `McInput.button(event)`, poll stored codes with `KeyUtil`, window/cursor/display work through `McWindow`. A key capture
+  stores `McInput.key(event)` too (Inventory Sorter's stored the scancode, saved as "none", UI 584). Full rules
   in docs/LESSONS-MINECRAFT.md "Input and window on 26.3".
 - Run gradle through Bash, not PowerShell: PowerShell wraps native stderr in ErrorRecords and splits compiler
   messages mid-line, so error counts and file paths become unreadable. Gradle also prints compiler output
@@ -293,6 +297,16 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   block/sound constants differ between 26.1.2 and 26.2 (`snapTo` not `moveTo`, `McBlocks.RED_WOOL`, holder vs plain
   `SoundEvent`); copy the shape of an existing use. Examples, and the cloud-session `javac` filter that catches
   structural errors without the Minecraft jar: [docs/COMPILING.md](docs/COMPILING.md).
+- **26.3 moved the player's packets out of `LocalPlayer.tick`.** On 26.2 the tick sends the input, sprint and move packets
+  (sendPosition); on 26.3 `Minecraft.tick` calls the public `LocalPlayer.sendChanges()` after `ClientLevel.tickEntities` (javap
+  26.3). Code that runs his tick by hand (Blink's shot, BlinkCharge's spent ticks) must call `McCompat.sendPlayerChanges(player)`
+  right after `player.tick()`; without it every Blink shot on 26.3 moved him on the client only and the server set it back
+  (63-ap3 26.3 76/21 -> 87/2, same 2 as 26.2; 2026-11-01). It also fixed ZPEW Aimed Warps n>=3 and Auto Routes' Charged
+  Chain on 26.3 (BadPacketsJ: the spent ticks' tick-ends went with no move to report the use's look).
+- **Blink Charge's banked turns leave vanilla's "last sent look" wrong.** A hand-run tick whose look equals it sends no
+  move, so the server keeps the pre-turn look; `BlinkCharge.spendTick` sends the look itself when the wire one differs
+  (zpew263-1101: one BadPacketsJ per aimed burst at 0 ms on 26.2 and 26.3 before it). Find such faults with the testkit's
+  `WireCapture` (encoder-level, after Blink's holds), not `PacketTrace` (hand-off level, before them).
 - **A mixin that compiles on 26.2 can still crash 26.2 at startup.** Mixin descriptors are only checked when the
   game loads, so `@Inject(method = "extractRenderState")` on `Gui` with 26.1.2's `(GuiGraphicsExtractor, DeltaTracker)`
   built fine and crashed every 26.2 launch (26.2's is `(DeltaTracker, boolean, boolean)`). Seven overlays did it until
@@ -325,6 +339,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   `tools/lunar/lunar-mixin-scan.py` + `lunar-redirect-collide.py` list Lunar's redirects that collide with ours (jars in
   `%USERPROFILE%\.lunarclient\offline\multiver`). Lunar game log: `%USERPROFILE%\.lunarclient\profiles\<major>\logs\latest.log`
   and `ichor-boot.log`; launcher log `%USERPROFILE%\.lunarclient\logs\launcher\main.log`. Lunar boots as Guest (no login).
+- A rule over OUTGOING commands needs two hooks: Fabric's `ClientSendMessageEvents.ALLOW_COMMAND` sees only typed ones,
+  and the mod's own sends (`ServerCommands.toServer`: /f7 shortcuts, Party Commands, requeues) leave below it. Creation
+  Cooldown's /joininstance block checks in both (doc-extras-1101). Chat filtering goes through vanilla's
+  `ChatComponent.setVisibleMessageFilter` (Chat Tabs), not a ChatScreen redirect: docs/LESSONS-MINECRAFT.md "Chat and commands".
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
   StackOverflows. Send below the dispatcher via `util/ServerCommands.toServer`.
 - When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
@@ -354,6 +372,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   (2026-09-29), and `contains("has obtained Wither Key")` let anyone make the client right-click a door. Even
   an anchored `^(.{1,16}) completed a terminal!` is forgeable, because `[VIP] Bob: a` is sixteen characters -
   a name group must be `[A-Za-z0-9_]{1,16}`, which no chat prefix can be.
+- Nickhider renames by WORD wherever text is drawn (`NameReplacer`), so any name added to its seen set is replaced in
+  every string on screen. `namechanger/ChatNames` (2026-11-01) feeds it names from chat (friend/guild joins, party/guild
+  chat, PMs, notices); each of its patterns is a whole anchored Hypixel line with a `[A-Za-z0-9_]{3,16}` group, because a
+  loose one would turn an ordinary word ("Party", "Maxor") into a fake name everywhere. Testkit 1101-ds-nickhider.
 - `/f7`, `/m7` and the rest are THIS MOD'S client-side shortcuts, not Hypixel commands - they expand to
   `/joininstance catacombs_floor_seven` etc. in `CommandShortcutsFeature.Shortcut`. So automation must send the
   `joininstance` form: `ServerCommands.toServer` deliberately sends below the client dispatcher, so it hands
@@ -363,6 +385,12 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   the command starting the feature, and the Escape that closes the settings tab starting it, each stop it
   immediately - which reads as "I turn it on and it auto turns off". Name the key in the stop message too; "key
   pressed" cannot tell a walk from the feature killing itself.
+  Since 2026-11-01 (killer560) no macro stops on "any key": every macro registers with `macrostop/MacroStop` (click
+  macros: Escape or the Emergency Cancel Key; movement macros: also W/A/S/D/jump or the chat key, no screen open), which
+  owns the one raw key/mouse hook. A new macro registers there; it does not get a key mixin of its own. The Emergency
+  Cancel Key stops EVERYTHING automatic (killer560, 2026-11-01): automation with its own stop rules registers as
+  `Kind.EMERGENCY`, and anything that acts by itself is held by `MacroStop.emergencyHeld()` (checked in `ActionGate`,
+  the puzzle dispatcher, Auto Routes/AP3 starts, Auto I4). New automation must honor one of the two.
 - **A fix applied to one of a set is the thing to go looking for.** The 2026-09-30 audit found four, all of
   the same shape: the Wither Key line was anchored and the Blood Key line beside it left on `contains()`;
   `Floor7Tracker` and `LeverAura` got the `[A-Za-z0-9_]{1,16}` name group and `Ap3Feature`'s copy of the same
@@ -405,6 +433,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   `McRender.textWidth`, never `font.width`; no texture uploads in those events. docs/LESSONS-GUI.md has the detail.
 - 26.3's `RenderPipelines.LINES_SNIPPET` has no color target, so a mod pipeline built from it crashed the game on its first
   draw (Secret Waypoints, 2026-11-01). Build it as `McRender.linesColorTarget(RenderPipeline.builder(LINES_SNIPPET))`.
+- A new movable HUD element draws in game only if its id is in `HudInGameRenderer.UNDRAWN_ELEMENT_IDS`; registering it only
+  lists it in the HUD editor (missed for Advanced Position, Blink and the mining HUDs; docs/LESSONS-HUD.md).
 - A spelling sweep can merge map keys: six British/American tooltip key pairs ("color", "border color", ...) became one key
   each and the later entry silently replaced the earlier (a92e0357). After renaming text, check keyed maps for duplicates.
   A branch can do it too: aafast-1027 added a new "arrow align/aura clicks per tick" tooltip (1-7) above the old one (1-4),
@@ -434,9 +464,32 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   /profit was empty in 26.3 Mod Only Test (2026-11-01). The store moved to `%USERPROFILE%\.killer560smod\shared` (not
   virtualized); the mod folds a real %APPDATA% store into it once. Never put data a game must read under a new %APPDATA% folder
   from an agent tool; existing folders (PrismLauncher) are written in place.
+- hypixelskyblock.minecraft.wiki answers `/w/<Page>?action=raw` with a "Please wait" bot-check page, but
+  `index.php?title=<Page>&action=raw` (curl) returns the wikitext, and its slayer/loot tables are structured templates
+  (2026-11-01). How Lucky Are You's drop table (`assets/killer560smod/rngtracker/drop-table.json`) is built from that by
+  `tools/rng-table/fetch.sh`; rebuild it there, never hand-edit chances. Dungeon chest odds are the `/Loot` and
+  `/Master_Mode_Loot` subpages' per-chest averages; Revenant's page has weights only (chance = weight/(token+main)).
+- How Lucky Are You never counts a dungeon chest itself: chest attempts and drops are derived from the Croesus claim log
+  (`CroesusProfitLog.allClaims`, resets ignored), so a new chest-counting hook would double count. Its own record
+  (`RecordCatalog.LUCK`, `luck.json`) holds slayer kills, drop lines and dye pickups only.
 - A testkit `-PseedConfig` copied from Mod Only Test carries his Proxy Client config (`system/proxy/proxyclient.json`, SOCKS5,
   enabled): the test client then dials the local server through his real proxy, which refuses it ("socks5 ... FORBIDDEN",
   00-smoke fails, 2026-11-01). Leave that file out of a seed.
+- Whether the relay connects, and to which room, is decided in ONE place, `ModChatFeature.onTick`. A feature that sends or
+  reads relay `data` must be named there, or nothing connects for it: Song Tag never was, so no song was ever shared with
+  Mod Chat off and no party (fixed 2026-11-01, lobby room; testkit 2866/2867). Testing the receiver by feeding it packets
+  does not prove the socket opens.
+- A `try { ... } catch { }` around a PowerShell helper step hides a binding failure for good: the Spotify cover never showed
+  because `AsStreamForRead` could not take a WinRT COM object (2026-11-01, docs/LESSONS.md). Run a helper script's step outside
+  the game against a real or file-backed input before trusting it.
+- `ServerLag`/`ServerTickClock` take ~15 pings a second as "the server pings every tick", which GrimAC's transactions alone
+  reach: on a Grim server they read jitter as stalls. Anything that must count exact server ticks uses `util.PerTickServerClock`
+  (19 of 20 ticks with a ping, two windows in a row) (doc-blood-1101, docs/LESSONS-DUNGEONS.md).
+- `.gitignore`'s `secrets/` line also matches `src/main/java/com/killer560/hub/secrets/`, so `git add` of a tracked file
+  there (DungeonState, ...) fails with "paths are ignored" and the rest of that add is not staged; use `git add -f` on the
+  tracked file (2026-11-01).
+- The sim's F7 boss (`bosssim/`, docs/SIM-BOSS.md): reference mod ADM is All-Rights-Reserved - facts only, never its code
+  or its arena.bin capture.
 - Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
   (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
   and import keeps the locked update and sharing keys (testkit 981).
@@ -463,7 +516,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   key coming up and released the hold. Rework Grim findings (banked turns, Post on dropped releases, the in-place
   teleport conflict) are in docs/LESSONS-AUTOMATION.md, Blink section.
 - Blink logs every event as one `[Blink]` INFO line through `blink/BlinkLog` (logger `killer560smod-blink`, last 40 kept
-  for `/blink debug`). A release jar (`-Prelease=true`, the GitHub builds) drops INFO, so that logger is
+  for `BlinkCommands.debugLines`, the testkit's readout; /blink itself was removed 2026-11-01). A release jar (`-Prelease=true`, the GitHub builds) drops INFO, so that logger is
   `ModLog.keptWhen(...)`: it logs in a release only while Blink's Debug Log setting is on (testkit 1026-blink-release-log).
   His own jars (deploy-to-instances.py, built without -Prelease) always log. Stress-pass lessons (burst skipping Charge,
   settling after a teleport, latches across a rejoin): docs/LESSONS-AUTOMATION.md, Blink section.
@@ -485,3 +538,45 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   `Rows.addKept`).
 - Sim mobs burned in daylight ("onFire, by nothing") and cleared key rooms at GO with nobody near, despite their
   `isInvulnerableTo`; `SimMobs` refuses environmental damage in Fabric ALLOW_DAMAGE (2026-11-01, docs/SIM-SERVER.md).
+- `.gitignore`'s `secrets/` matches the source package `hub/secrets/`, so `git add <path>/secrets/X.java` aborts the WHOLE
+  add with "paths are ignored" although the file is tracked (2026-11-01). Stage it with `git add -u -- <paths>`.
+- Crypt census (CryptScanner rules against all 134 captures): use `killer560s-mod-logs/doc-secrets-1101/crypt_scan_port.py
+  --new --rule crypt_1101_rule.py` (paths fixed for 26.3 Mod Only Test); the older copy in `crypt-census/` points at a
+  deleted worktree and the wiped 26.1.2 instance. Run `python -I` on a file, never `python -` with stdin redirected.
+- `DisconnectedScreen`'s constructors chain into each other, so a mixin on each of them (accounts/DisconnectedScreenMixin)
+  runs up to three times for ONE screen (testkit 4101, 2026-11-01). Anything that must act once per screen keys on the
+  screen object (`BanReportFeature.onDisconnectScreen(this, ...)`), not on the call.
+- 26.3's move-entity packet can carry a position with a zero step (`McPackets.moveEntityMoves` is only `hasPosition()`
+  there; 26.2's checks xa/ya/za). Blood Camp took those as moves and restarted trips (UI 392/552); it now drops a zero
+  `moveEntityDelta`. Any other move-packet reader must do the same.
+- The sim has NO held map during a run's countdown (`HeldMap.emulated()` is false until `SimRun` reaches GO, since doc-map-1101),
+  as Hypixel gives the map only at Mort's first line. A feature that reads `HeldMap` must cope with `available() == false` in
+  the green room; a sim test that needs the stand-in waits for `SimRun.hasStarted()` (or re-arms with `SimRun.begin` to stay pre-run).
+- Inventory Sorter clicks come from `invsort/InvSortPlanner`, which is proven minimal (docs/INVSORT-OPTIMALITY.md). After any
+  change to it, rerun `tools/invsort-optimality` (javac both files, ~5 min, every instance must print "exactly minimal"); its
+  first run found a case the hand argument had missed (a hotbar slot already holding a matching copy is a free swap pivot).
+- Five features cancel `ContainerScreen.extractBackground` at HEAD (Inventory Theme, Storage Overlay, AH/Bazaar reskins,
+  Spirit Leap), so nothing may read per-frame state from a hook there: the Terminal Solver did, and with Inventory Theme on
+  no terminal was ever tracked (2026-11-01, doc-terms-1101). Use the HEAD of `Screen.extractRenderStateWithTooltipAndSubtitles`.
+- The Modrinth App starts the game through `com.modrinth.theseus.MinecraftLaunch` (so `sun.java.command` names it) and keeps
+  its signed-in accounts in `%APPDATA%\ModrinthApp\app.db`, SQLite in WAL mode: table `minecraft_users` (uuid, active,
+  username, access_token, refresh_token, expires in Unix seconds), recent rows often only in `app.db-wal`. Its refresh token
+  is bound to the app's Xbox device key, so the mod uses the app's current token (`accounts/core/LauncherAccounts`,
+  `SqliteReader`, read only; 2026-11-01). Inspect a COPY of app.db, never the live file, and never print a token.
+- The first-launch tour (`intro/`, 2026-11-01) opens over the title screen once per instance (fresh or updated; `seen` in killer560smod-intro.json, saved as it opens); in a client gametest
+  run it never opens unless `-Dkiller560.test.intro=show` (docs/TESTING-HOOKS.md), so title-screen cases are not
+  interrupted. A GUI picture-in-picture (`g.skin`, entity, item models) ignores the pose: transform its box yourself
+  under Auto Scale (docs/LESSONS-GUI.md).
+- A sim change to the world's SHAPE can silently blind a scanner: the 2026-10-12 seam fill walled the door's middle seam
+  column up to the roofs, so every QUOI-rule door scanner (top block 73/74/81/82) found no doors in the sim, and the 538/678
+  failures were later blamed on 26.3 (doors263-1101: they had failed on 26.1.2 since 2026-10-15). Before blaming a port,
+  find the last PASS of the case in killer560s-mod-logs and bisect from it. docs/SIM-DOORS.md has the seam rule.
+- A Brigadier node with children and no `.executes` answers the bare command with "Unknown or incomplete command", which
+  reads to him as "unknown command": `/killer560 ew` and `/killer560 profile` were registered fine, they only needed a
+  word after them (2026-11-01, both removed). A command meant to be typed bare needs its own `.executes`.
+- Command removals (killer560, 2026-11-01, mod cmdclean-1101): no `/class`, `/log`, `/k560search`, `/lag`, `/k560textures`,
+  `/autoclear`, `/autosecret`, `/blink`, `/freezestate`, `/rewind`, `/test`, and no `/killer560 class|ew|mapdump|profile|sim`.
+  What they reached stays reachable from a key or the menu: Auto Clear's Clear Toggle Key, Auto Secret's key, the Freeze
+  State keys, Blink's keys, the Profiles tab, `/runlog`, `/search`, `/ew`. The Bat Test (/test) was dropped entirely and
+  the Insta Clear readout/mark/threshold/window have no UI (his call: "why do i need a bat test? autosecret had its own
+  keybind already"); do not add menu rows for them. Testkit 1101-cmdclean-gone fails if any command comes back.

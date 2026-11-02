@@ -339,6 +339,14 @@ public final class LividSolverFeature {
         return currentLivid == null ? null : currentLivid.entityName + " Livid";
     }
 
+    /** The invuln timer's text: "120t", or "6.0s" when Timer Unit is Seconds (killer560, 2026-11-01). */
+    static String timerText(int ticks) {
+        if (LividSolverConfig.getInstance().isTimerSeconds()) {
+            return String.format(java.util.Locale.US, "%.1fs", ticks / 20.0);
+        }
+        return ticks + "t";
+    }
+
     public static final class InvulnTimerHudElement implements HudElement {
         @Override
         public String id() {
@@ -363,7 +371,7 @@ public final class LividSolverFeature {
         @Override
         public int width() {
             // The drawn text (2026-10-07 box audit: it was a fixed 140 round "Livid: 120t").
-            return Minecraft.getInstance().font.width("§aLivid: " + Math.max(0, invulnTicks) + "t");
+            return Minecraft.getInstance().font.width("§aLivid: " + timerText(Math.max(0, invulnTicks)));
         }
 
         @Override
@@ -386,7 +394,7 @@ public final class LividSolverFeature {
                 return;
             }
             String color = invulnTicks > INVULN_TICKS * 2 / 3 ? "§a" : invulnTicks > INVULN_TICKS / 3 ? "§e" : "§c";
-            String text = color + "Livid: " + invulnTicks + "t";
+            String text = color + "Livid: " + timerText(invulnTicks);
             HudSeen.markDrawn(id());
             graphics.text(Minecraft.getInstance().font, text, x, y, 0xFFFFFFFF, false);
         }

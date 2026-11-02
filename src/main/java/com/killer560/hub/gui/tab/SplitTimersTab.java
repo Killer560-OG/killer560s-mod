@@ -28,6 +28,8 @@ public class SplitTimersTab extends BaseTab {
         y += 26;
 
         if (!cfg.isEnabled()) {
+            // Core Entry can run with the splits off (killer560, 2026-11-01), so its rows stay reachable.
+            coreEntryRows(widgets, cfg, contentX, y, contentWidth, requestRebuild);
             return widgets;
         }
 
@@ -45,24 +47,7 @@ public class SplitTimersTab extends BaseTab {
                 null, contentX + 168, y, 160, 18));
         y += 26;
 
-        // Core entry times (2026-09-16, killer560: "time to enter core after terms finish").
-        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Core Entry (F7/M7)", false));
-        y += 14;
-        widgets.add(onOffButton("Core Entry Times", cfg::isCoreEntryTimes, cfg::setCoreEntryTimes, cfg::save,
-                requestRebuild, contentX, y, 220, 18));
-        y += 22;
-        if (cfg.isCoreEntryTimes()) {
-            widgets.add(onOffButton("Slowest To Chat", cfg::isCoreEntrySlowestChat, cfg::setCoreEntrySlowestChat,
-                    cfg::save, null, contentX, y, 160, 18));
-            widgets.add(onOffButton("Slowest To Party", cfg::isCoreEntrySlowestParty, cfg::setCoreEntrySlowestParty,
-                    cfg::save, null, contentX + 168, y, 160, 18));
-            y += 22;
-            // killer560, 2026-09-20: "at the very bottom of the split timers show the slowest person into
-            // core and their time" - separate from the chat/party lines above, which stay chat-only.
-            widgets.add(onOffButton("Slowest In HUD", cfg::isCoreEntrySlowestHud, cfg::setCoreEntrySlowestHud,
-                    cfg::save, null, contentX, y, 220, 18));
-            y += 22;
-        }
+        y = coreEntryRows(widgets, cfg, contentX, y, contentWidth, requestRebuild);
 
         y = BloodRushSplitsRows.add(widgets, contentX, y, contentWidth, requestRebuild);
 
@@ -80,7 +65,49 @@ public class SplitTimersTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 26;
 
+        // Cheat only (killer560, 2026-11-01), at the bottom under a red header, with no explanation line (its tooltip has it).
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat", true));
+            y += 14;
+            widgets.add(SettingsButtonWidget.cycling(countingLabel(cfg), (btn, dir) -> {
+                        cfg.setTickCounting(!cfg.isTickCountingRaw());
+                        cfg.save();
+                        btn.setMessage(countingLabel(cfg));
+                    }).bounds(contentX, y, 220, 18).build());
+            y += 26;
+        }
+
         return widgets;
+    }
+
+    /** Core entry times (2026-09-16, killer560: "time to enter core after terms finish"). @return the y under them. */
+    private static int coreEntryRows(List<AbstractWidget> widgets, SplitTimersConfig cfg, int contentX, int y,
+                                     int contentWidth, Runnable requestRebuild) {
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Core Entry (F7/M7)", false));
+        y += 14;
+        widgets.add(onOffButton("Core Entry Times", cfg::isCoreEntryTimes, cfg::setCoreEntryTimes, cfg::save,
+                requestRebuild, contentX, y, 220, 18));
+        y += 22;
+        if (cfg.isCoreEntryTimes()) {
+            widgets.add(onOffButton("Show With Splits Off", cfg::isCoreEntryWithoutSplits, cfg::setCoreEntryWithoutSplits,
+                    cfg::save, null, contentX, y, 220, 18));
+            y += 22;
+            widgets.add(onOffButton("Slowest To Chat", cfg::isCoreEntrySlowestChat, cfg::setCoreEntrySlowestChat,
+                    cfg::save, null, contentX, y, 160, 18));
+            widgets.add(onOffButton("Slowest To Party", cfg::isCoreEntrySlowestParty, cfg::setCoreEntrySlowestParty,
+                    cfg::save, null, contentX + 168, y, 160, 18));
+            y += 22;
+            // killer560, 2026-09-20: "at the very bottom of the split timers show the slowest person into
+            // core and their time" - separate from the chat/party lines above, which stay chat-only.
+            widgets.add(onOffButton("Slowest In HUD", cfg::isCoreEntrySlowestHud, cfg::setCoreEntrySlowestHud,
+                    cfg::save, null, contentX, y, 220, 18));
+            y += 22;
+        }
+        return y;
+    }
+
+    private static Component countingLabel(SplitTimersConfig cfg) {
+        return Component.literal("Counting: §6" + (cfg.isTickCountingRaw() ? "Ticks (0.05s)" : "Every 0.01s"));
     }
 
     private static Component p5PosLabel(SplitTimersConfig cfg) {

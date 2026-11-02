@@ -96,6 +96,10 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
     private final Map<String, Float> liveScales = new HashMap<>();
     /** Elements currently draggable, in registry order (topmost last). */
     private final List<HudElement> shown = new ArrayList<>();
+    /** Edit HUD only: the switched-on stat bars (Health and Mana Bars), drawn where they sit in game but with no box and
+     *  no way to move them - they are placed in Edit Bars (killer560, 2026-11-01: "I shouldnt be able to move them but
+     *  i should be able to see them"). */
+    private final List<HudElement> fixedBars = new ArrayList<>();
     private int disabledCount = 0;
     /** The reference point the grace window is measured from: the last frame the HUD was actually live, which
      *  is not the same as now - see {@link HudSeen#markHudFrame()}. Snapshotted in the constructor rather than
@@ -242,6 +246,15 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
         }
     }
 
+    /** Edit HUD's fixed stat bars (ids), for the testkit. */
+    public List<String> fixedBarIds() {
+        List<String> ids = new ArrayList<>();
+        for (HudElement e : fixedBars) {
+            ids.add(e.id());
+        }
+        return ids;
+    }
+
     /** The screen this editor returns to (null: none). */
     public Screen parentScreen() {
         return parent;
@@ -270,13 +283,18 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
         guides.clear();
         endAreaDrag();
         shown.clear();
+        fixedBars.clear();
         livePositions.clear();
         liveScales.clear();
         boolean showUnseen = HudConfig.getInstance().isEditorShowAll();
         int disabled = 0;
         for (HudElement element : HudElementRegistry.all()) {
             if (StatElements.isStatElementId(element.id()) != barsMode) {
-                // Edit HUD never lists a bar; Edit Bars lists nothing else.
+                // Edit HUD never lists a bar; Edit Bars lists nothing else. Edit HUD still shows a switched-on bar,
+                // fixed in place (see fixedBars).
+                if (!barsMode && HudElementRegistry.isEnabledInSettings(element) && !isHiddenReadout(element)) {
+                    fixedBars.add(element);
+                }
                 continue;
             }
             if (!HudElementRegistry.isEnabledInSettings(element)) {
@@ -346,6 +364,12 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
                         "§7Predefined: drop one on an area; scroll sizes them all.", "§7Predefined: drop one on an area."), 19);
             }
             drawAreas(graphics);
+        }
+
+        // The stat bars, under every box: where they are in game, no box, no handles, nothing to grab.
+        for (HudElement bar : fixedBars) {
+            int[] pos = HudElementRegistry.resolvePosition(bar);
+            drawPreview(graphics, bar, pos[0], pos[1], HudElementRegistry.elementScale(bar));
         }
 
         // What the cursor is over: a handle of some box, or the inside of one (topmost first).

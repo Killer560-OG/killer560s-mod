@@ -23,6 +23,7 @@ public final class ConfineMouseConfig {
 
     /** Null until he sets it; then the saved value. */
     private Boolean enabled;
+    private boolean onlyInDungeons = false;
 
     private ConfineMouseConfig() {
     }
@@ -43,6 +44,9 @@ public final class ConfineMouseConfig {
                 if (obj.has("enabled") && obj.get("enabled").isJsonPrimitive()) {
                     cfg.enabled = obj.get("enabled").getAsBoolean();
                 }
+                if (obj.has("onlyInDungeons") && obj.get("onlyInDungeons").isJsonPrimitive()) {
+                    cfg.onlyInDungeons = obj.get("onlyInDungeons").getAsBoolean();
+                }
             }
         } catch (Exception ignored) {
             cfg.enabled = null;
@@ -57,6 +61,7 @@ public final class ConfineMouseConfig {
             if (enabled != null) {
                 obj.addProperty("enabled", enabled);
             }
+            obj.addProperty("onlyInDungeons", onlyInDungeons);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -69,6 +74,15 @@ public final class ConfineMouseConfig {
 
     public void setEnabled(boolean v) {
         enabled = v;
+    }
+
+    /** Only In Dungeons (killer560, 2026-11-01): confine only while in a Catacombs run. */
+    public boolean isOnlyInDungeons() {
+        return onlyInDungeons;
+    }
+
+    public void setOnlyInDungeons(boolean v) {
+        onlyInDungeons = v;
     }
 
     /** Whether he has set it himself (so the default no longer follows the window mode). */

@@ -59,14 +59,21 @@ public final class ModChatFeature {
         // The relay also carries party dungeon data (hub/partydata, Team Melody), which is ON by default and must
         // not depend on Mod Chat being on. Without Mod Chat, data always uses the party room - never a lobby room.
         boolean chatOn = cfg.isEnabled();
-        boolean dataOn = com.killer560.hub.interop.InteropConfig.getInstance().isEnabled()
+        // Team Melody needs the party room whatever the other data switches say (killer560, 2026-11-01).
+        boolean dataOn = (com.killer560.hub.interop.InteropConfig.getInstance().isEnabled()
                 && com.killer560.hub.interop.InteropConfig.getInstance().isRelayData()
-                && (com.killer560.hub.partydata.PartyDataConfig.getInstance().isShareEnabled()
-                    || com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress());
+                && com.killer560.hub.partydata.PartyDataConfig.getInstance().isShareEnabled())
+                || com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress();
         // Crystal Hollows structure sharing (which forced a LOBBY room here) is shelved until after 2.0 - see
         // shelved/mining/README.md. A "ch.v1.find" data packet from an older client still in our room reaches
         // only listeners that switch on their own keys, so it is ignored.
-        boolean on = (chatOn || dataOn)
+        // Song Tag (killer560, 2026-11-01: "they arent being shared currently. I tested with another one of my accounts
+        // and another persons"): its packets ride the relay, but nothing here ever connected for it, so with Mod Chat
+        // off and no party the socket stayed shut and every song went nowhere; even partied, the two players had to be
+        // in one Hypixel party. The line is drawn over players within 16 blocks, which is the LOBBY: so Share My Song or
+        // Show Others' Songs on now keeps the relay up, in the lobby room when Mod Chat does not choose one.
+        boolean songsOn = songTagWantsRelay();
+        boolean on = (chatOn || dataOn || songsOn)
                 && client.getConnection() != null && client.player != null;
         // Party dungeon data only travels in a party room. In a dungeon the lobby IS the party (the instance only holds
         // your team), so while sharing is on, a dungeon always uses the party room even if Mod Chat is set to Lobby -
@@ -75,9 +82,12 @@ public final class ModChatFeature {
         RelayRoom.Mode mode;
         if (dataNeedsParty) {
             mode = RelayRoom.Mode.PARTY;
+        } else if (chatOn) {
+            mode = cfg.getRoomMode();
         } else {
-            mode = chatOn ? cfg.getRoomMode() : RelayRoom.Mode.PARTY;
+            mode = songsOn ? RelayRoom.Mode.LOBBY : RelayRoom.Mode.PARTY;
         }
+        lastMode = mode;
         // Only asks Hypixel for its instance id when Lobby mode could actually use the answer - Party mode
         // never sends /locraw at all.
         HypixelLocation.tick(client, on && mode == RelayRoom.Mode.LOBBY);
@@ -86,6 +96,15 @@ public final class ModChatFeature {
         String room = on ? RelayRoom.current(mode) : null;
         // Cheap no-op unless one of these three actually changed - all the work happens on the relay's thread.
         RelayClient.update(on, cfg.getRelayUrl(), room);
+    }
+
+    /** Test hook: the room mode the last check chose. */
+    private static volatile RelayRoom.Mode lastMode;
+
+    /** Song Tag needs the relay: you share your song, or you want to see other players'. */
+    static boolean songTagWantsRelay() {
+        com.killer560.hub.spotify.SongShareConfig tag = com.killer560.hub.spotify.SongShareConfig.getInstance();
+        return tag.isShareSong() || tag.isShowOthers();
     }
 
     /** For {@code /kc <message>} and plain chat while the channel is Mod Chat ({@link ModChatChannel}).

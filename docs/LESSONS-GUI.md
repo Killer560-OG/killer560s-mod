@@ -157,6 +157,11 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   pack. The browser read the bundled `assets/killer560smod/bazaar/products.json` (tools/bazaar, from NEU incl. its
   pre-resource-pack commit 26169fe for old head textures), with a pack model only when `getResource("items/<path>.json")`
   finds it; since Pack Disabler the icons come from the shared `skyblock/item_looks.json` and none fall back (425/432).
+- **A picture-in-picture GUI element ignores the pose.** `GuiGraphicsExtractor.skin(...)` (and the other PIP states) is
+  built from bare coordinates and the scissor, never `pose()` (javap 26.3 and 26.2), so under Auto Scale's pose scale the
+  tour guide drew at 1/1.125 of his place (x off by ~190 px at the right edge of 1920x1080 GUI 2). Put the box through
+  `pose().transformPosition` and scale the model by the transformed height (`intro/Guide`). The Profile Viewer's
+  `PlayerSkinWidget` inside an Auto Scaled screen has the same offset (not fixed, 2026-11-01).
 - A `SkinManager.createLookup` on a bare `new GameProfile(uuid, name)` is always the default skin: SkinManager only unpacks
   the profile's own textures property and never fetches one. Fetch the textured profile (`ProfileViewerApi.fetchSkinProfile`)
   or use the tab list's `PlayerInfo`.
@@ -239,6 +244,14 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
 
 ## World rendering
 
+- **A render-only block swap goes in the chunk mesher, not the world.** `SectionCompiler.compile` calls
+  `ModelBlockRenderer.tesselateBlock(BlockQuadOutput, float, float, float, BlockAndTintGetter, BlockPos, BlockState,
+  BlockStateModel, long)` once per block, with the state and its position (same descriptor on 26.3 and 26.2, javap
+  2026-11-01); a `@WrapOperation` there that passes another state and `blockModelSet.get(thatState)` draws the block as
+  something else while the client world, collision and the server keep the real block (Mithril As Stone,
+  `miningqol/mixin/MithrilStoneSectionMixin`). It runs on the section-compile threads, so its decision is a volatile snapshot.
+  To re-mesh what is already built, `ClientLevel.setSectionRangeDirty(minSecX, minSecY, minSecZ, maxSecX, maxSecY, maxSecZ)`
+  (both versions). `level.setBlock` (I Hate Diorite's way) changes the client world instead and cannot be undone cleanly.
 - **To replace a vanilla HUD piece, wrap its Fabric layer instead of mixing into `Gui`:**
   `HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> ...)` (identical in Fabric API 0.155.2+26.1.2
   and 0.160.0+26.2, javap) calls the vanilla layer only when you do, so there is no 26.2 descriptor to break (Custom
@@ -316,6 +329,11 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   `(PoseStack, float, HumanoidArm, float, int)`. Every mixin on these (Held Item Transform, Held Item Outline, Object
   Hider) has one copy per version directory; Held Item Transform's equip hooks are their own mixin
   (`HeldItemEquipMixin`) because they target a different class on 26.3.
+- **An empty hand never reaches `swingArm`** (26.2 and 26.3): the bare arm is drawn by `renderPlayerArm`, which has its
+  own swing translate; only an item goes `submitArmWithItem` -> `swingArm(float, PoseStack, int, HumanoidArm)`, whose one
+  `PoseStack.translate` Swing Range scales. A test of a hand-item hook must put an item in the hand, and turn Skyblock
+  Only off: `HeldItemConfig.isActive()` includes `SkyblockGate`, so in singleplayer every hook returns early (testkit
+  1101-ds-held-item read 0 hook calls until both were done, 2026-11-01).
 - **The hands moved from `renderLevel` to `GameRenderer.render3dHud`**, which calls `renderItemInHand(CameraRenderState,
   PlayerRenderState, GpuTextureView depth)` and then `ScreenEffectRenderer.submit(float, SubmitNodeCollector,
   PlayerRenderState, CameraRenderState, boolean)`. The hand view matrix is `camera.viewRotationMatrix` (pushed on the
@@ -387,3 +405,20 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   "Render pass color attachment count must match pipeline color target state count" - Secret Waypoints' through-walls
   lines on 2026-11-01, the first 26.3 run that ever drew one (96-ar). DEBUG_FILLED, GUI and GUI_TEXTURED snippets carry
   the same target on both versions (javap). Wrap any new `RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)`.
+- **26.3: the local player's own render state must stay an `AvatarRenderState`.** 26.3's `LevelExtractor.extractPlayerState`
+  (new; 26.2 has none) extracts the local player a second time through `EntityRenderDispatcher.extractEntity` for the
+  first-person hands and throws `IllegalStateException("Expected an AvatarRenderState for the local player")` otherwise.
+  Play as Mob swapped that call too and crashed the render frame with My Mob set (UI 1018-mob-own, 2026-11-01).
+  `MobSkinLocalPlayerStateMixin` flags the call so the swap skips it; anything else that replaces a player's state at
+  `extractEntity` must do the same.
+- A screen that hides the vanilla menu must never draw NOTHING. The custom Spirit Leap menu (spiritleap/SpiritLeapOverlayFeature)
+  hides the chest and drew nothing until a head had settled, so a leap menu with no heads was an open screen that looked like
+  none: mouse freed, camera and movement dead until Escape or the inventory key closed it - the shape of killer560's 2026-11-01
+  Fast Leap report (not yet confirmed as its cause on Hypixel). It now draws a notice after 300 ms (testkit 1344, lastView EMPTY).
+- **Per-frame screen state never hangs off a background hook another feature cancels.** The Terminal Solver refreshed at
+  the HEAD of `ContainerScreen.extractBackground`; Inventory Theme cancels that same method at HEAD, and with it on
+  (his 26.3 Untested Cheat config) no terminal was ever tracked - no solver, Custom GUI or Auto Terminals (doc-terms-1101,
+  testkit 1101-menu-term-instcfg with that config: all six types untracked on main, tracked after). The refresh now runs
+  at the HEAD of `Screen.extractRenderStateWithTooltipAndSubtitles` (final, calls extractBackground first; javap 26.3
+  and 26.2), which nothing cancels. Five features cancel `extractBackground` at HEAD (Inventory Theme, Storage Overlay,
+  AH/Bazaar reskins, Spirit Leap): read state anywhere else.

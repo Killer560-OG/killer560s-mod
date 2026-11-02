@@ -43,6 +43,10 @@ public final class PathfindingFeature {
     }
 
     public static void register() {
+        com.killer560.hub.macrostop.MacroStop.register("Etherwarp Hopper", com.killer560.hub.macrostop.MacroStop.Kind.EMERGENCY, EtherwarpHopper::isBusy,
+                why -> EtherwarpHopper.cancel());
+        com.killer560.hub.macrostop.MacroStop.register("Ender Pearl Hopper", com.killer560.hub.macrostop.MacroStop.Kind.EMERGENCY, EnderPearlHopper::isBusy,
+                why -> EnderPearlHopper.cancel());
         PathfindingConfig.getInstance();
         FairySoulStore.load();
         ProfileTracker.register();

@@ -1057,6 +1057,32 @@ public final class MapPainter {
         return color;
     }
 
+    /** The room the map shows (and names) as the Fairy room on either side of door cell {@code idx}, or null. */
+    static LiveMapFeature.RoomGroup fairyBeside(int idx) {
+        int g = LiveMapFeature.GRID;
+        int gx = idx % g;
+        int gz = idx / g;
+        if ((gx % 2 == 1) == (gz % 2 == 1)) {
+            return null; // not a connector cell
+        }
+        for (int side = 0; side < 2; side++) {
+            int nx = gx % 2 == 1 ? gx + (side == 0 ? -1 : 1) : gx;
+            int nz = gz % 2 == 1 ? gz + (side == 0 ? -1 : 1) : gz;
+            if (nx < 0 || nz < 0 || nx >= g || nz >= g) {
+                continue;
+            }
+            int gid = LiveMapFeature.groupIdAt(nx + nz * g);
+            if (gid < 0 || gid >= LiveMapFeature.groupsView().size()) {
+                continue;
+            }
+            LiveMapFeature.RoomGroup group = LiveMapFeature.groupsView().get(gid);
+            if (isRevealed(group) && identityRevealed(group) && "FAIRY".equals(roomType(group))) {
+                return group;
+            }
+        }
+        return null;
+    }
+
     // ------------------------------------------------------------------------------------------- rooms
 
     static void drawRoom(GuiGraphicsExtractor graphics, LiveMapFeature.RoomGroup group, int gid, int color,
@@ -1265,13 +1291,31 @@ public final class MapPainter {
                 case DungeonLayout.DOOR_ENTRANCE -> cfg.getColorEntrance();
                 default -> connectorColor(idx, cfg);
             };
+            // The Fairy door, pink (to-do Doc, 2026-11-01: "the fairy door should be pink no orange highlight. That is the
+            // default"): a door into the Fairy room, wherever the map knows that room is Fairy. Ordinary doors take the
+            // color of the room they lead from, and connectorColor deliberately prefers a non-fairy neighbor, so the door
+            // into Fairy was brown on Funny Map; a map-WITHER door is black on Hypixel's map until the room is known.
+            LiveMapFeature.RoomGroup fairy = theoreticalWither || type == DungeonLayout.DOOR_BLOOD
+                    || type == DungeonLayout.DOOR_ENTRANCE || (type == DungeonLayout.DOOR_WITHER && locked && hideUnrevealed())
+                    ? null : fairyBeside(idx);
+            boolean fairyDoor = fairy != null;
+            if (fairyDoor) {
+                color = roomColor(fairy, cfg); // the Fairy room's own pink, as that room is drawn
+            }
             int mapByte = hideUnrevealed() ? DungeonMapScanner.doorColorAt(idx) : 0;
-            if (mapByte == 85) {
+            if (fairyDoor) {
+                // its own color, as drawn for the room it opens into
+            } else if (mapByte == 85) {
                 // The map item's own gray: a door into a room nobody has opened yet. Hypixel draws it gray (NoammAddons
                 // DoorTile: "Unopened Door"), not in the color of the opened room it leads from; it used to be drawn as
                 // that room's color darkened, so it read as an opened corridor.
                 color = unopenedFill(cfg);
-            } else if (DungeonMapScanner.isCalibrated() && DungeonMapScanner.stateAt(idx) >= DungeonMapScanner.STATE_UNOPENED) {
+            } else if (DungeonMapScanner.isCalibrated() && DungeonMapScanner.stateAt(idx) >= DungeonMapScanner.STATE_UNOPENED
+                    && !cfg.isFunnyMap()) {
+                // Not on Funny Map (to-do Doc, 2026-11-01: "For funny map style the doors are too dark on the map, they
+                // should be the same color of the rooms"): there a door's color is already the room color as drawn
+                // (connectorColor reads roomColor, which darkens an unexplored room itself), and darkening it again here
+                // drew every door to an unexplored room two awt-darker steps below the rooms either side of it.
                 color = unexploredFill(color, cfg);
             }
             float[] box = doorUnits(gx, gz);
@@ -1287,7 +1331,8 @@ public final class MapPainter {
             int x1 = px(ox, ux + uw, ppu);
             int y1 = px(oy, uz + uh, ppu);
             rects.fill(x0, y0, x1, y1, color);
-            if (type == DungeonLayout.DOOR_WITHER && locked) {
+            if (type == DungeonLayout.DOOR_WITHER && locked && !fairyDoor && cfg.isWitherDoorOutline()) {
+                // Wither Door Outline, OFF by default since 2026-11-01 ("no orange highlight. That is the default").
                 // killer560, 2026-09-20: "wither doors are very hard to see on the map" - the real map's own byte
                 // for a locked wither door is near-black (default #101010), which vanishes into the HUD background.
                 // A double amber outline (the mod's own accent color) makes it read as a warning at a glance
@@ -1345,7 +1390,7 @@ public final class MapPainter {
             int x1 = px(ox, ux + uw, ppu);
             int y1 = px(oy, uz + uh, ppu);
             graphics.fill(x0, y0, x1, y1, color);
-            if (type == DungeonLayout.DOOR_WITHER) {
+            if (type == DungeonLayout.DOOR_WITHER && cfg.isWitherDoorOutline()) {
                 graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
                 graphics.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
             }

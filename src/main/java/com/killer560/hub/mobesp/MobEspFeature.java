@@ -173,6 +173,11 @@ public final class MobEspFeature {
             // Entity ids restart on a new server, so a dungeon -> dungeon warp would otherwise keep stale ids.
             lastLevel = client.level;
             standToMob.clear();
+            KNOWN_STARRED.clear();
+            PREDICTED_FELS.clear();
+            STARRED_ROOMS.clear();
+            MIMIC_CHESTS_SPENT.clear();
+            chestTargets = List.of();
             losCache.clear();
             invalidateLayout();
             clearTargets();
@@ -180,7 +185,8 @@ public final class MobEspFeature {
         boolean hasWorld = client.level != null && client.player != null;
         // Cheapest gates first: a disabled feature must not reach DungeonState/LiveMap at all (FPS pass).
         boolean anyRaw = (cfg.getStarredMobsRaw() || cfg.getBatsRaw() || cfg.getBloodMobsRaw() || cfg.getWithersRaw()
-                || cfg.getWitherHighlightRaw()) && com.killer560.hub.util.SkyblockGate.allows();
+                || cfg.getWitherHighlightRaw() || cfg.getFelSkullsRaw() || cfg.getMimicRaw())
+                && com.killer560.hub.util.SkyblockGate.allows();
         if (!hasWorld || !anyRaw) {
             if (!boxTargets.isEmpty() || !glowTargets.isEmpty() || !tracerTargets.isEmpty()) {
                 standToMob.clear();
@@ -193,6 +199,10 @@ public final class MobEspFeature {
         boolean inBoss = LiveMapFeature.isInBoss();
         boolean wantStars = cfg.isStarredMobsEnabled() && inDungeon && !inBoss;
         boolean wantBats = cfg.isBatsEnabled() && inDungeon && !inBoss;
+        boolean wantFels = cfg.isFelSkullsEnabled() && inDungeon && !inBoss;
+        boolean wantMimic = cfg.isMimicEnabled() && inDungeon && !inBoss;
+        // Fel Skulls are predicted from where the starred mobs are, so the starred stands are read for either.
+        boolean readStars = wantStars || wantFels;
         // Blood Mobs (killer560, 2026-10-15): the Watcher's mobs, by identity (BloodCampFeature tracks them from the
         // moment they land), drawn like starred mobs - same style, same line-of-sight rule, through walls with ESP on -
         // but wherever they are: no Range or Room Scoped limit ("there's a chance they walk out of the room").
@@ -205,10 +215,14 @@ public final class MobEspFeature {
         // Wither ESP wins when both are on - otherwise the same wither is drawn twice.
         boolean wantWitherHighlight = witherActive && !wantWitherEsp && cfg.isWitherHighlightEnabled();
 
-        if (!wantStars) {
+        if (!readStars) {
             standToMob.clear();
+            KNOWN_STARRED.clear();
         }
-        if (!wantStars && !wantBats && !wantBlood && !wantWitherEsp && !wantWitherHighlight) {
+        if (!wantMimic && !chestTargets.isEmpty()) {
+            chestTargets = List.of();
+        }
+        if (!readStars && !wantBats && !wantBlood && !wantWitherEsp && !wantWitherHighlight && !wantMimic) {
             losCache.clear();
             clearTargets();
             return;
@@ -241,6 +255,8 @@ public final class MobEspFeature {
         liveStands.clear();
         int stars = 0;
         int bats = 0;
+        List<ArmorStand> felSkullsSeen = wantFels ? new java.util.ArrayList<>() : List.of();
+        List<Entity> mimicsSeen = wantMimic ? new java.util.ArrayList<>() : List.of();
         int withers = 0;
         int bloodDrawn = 0;
 
@@ -284,10 +300,13 @@ public final class MobEspFeature {
                         throughWalls, foundBoxes, foundGlows, cfg.getBatColor())) {
                     bats++;
                 }
-            } else if (wantStars && entity instanceof ArmorStand stand) {
+            } else if (readStars && entity instanceof ArmorStand stand) {
                 // hasCustomName() is a flat data-watcher read; getName().getString() builds a String. A dungeon room
                 // is full of unnamed decoration stands, so check the cheap one first (FPS pass).
                 if (!stand.hasCustomName()) {
+                    if (wantFels && isFelSkull(client, stand)) {
+                        felSkullsSeen.add(stand);
+                    }
                     continue;
                 }
                 String name = stand.getName().getString();
@@ -296,20 +315,44 @@ public final class MobEspFeature {
                 }
                 liveStands.add(stand.getId());
                 Entity mob = resolveMob(client, stand, name);
+                if (mob != null) {
+                    rememberStarred(mob);
+                }
                 // Starred mobs ignore Range and Room Scoped, as QUOI's starred ESP does: every starred mob in the dungeon is
                 // drawn until it dies, wherever it is (2026-10-22). Line of sight still applies.
-                if (mob != null && accept(client, eye, mob, Double.MAX_VALUE, null, throughWalls, glow, filled,
+                if (wantStars && mob != null && accept(client, eye, mob, Double.MAX_VALUE, null, throughWalls, glow, filled,
                         throughWalls, foundBoxes, foundGlows, cfg.getStarredColor())) {
                     stars++;
                 }
-            } else if (wantStars && entity instanceof Player p && isMiniboss(client, p)) {
-                if (accept(client, eye, p, Double.MAX_VALUE, null, throughWalls, glow, filled, throughWalls,
+            } else if (readStars && entity instanceof Player p && isMiniboss(client, p)) {
+                rememberStarred(p);
+                if (wantStars && accept(client, eye, p, Double.MAX_VALUE, null, throughWalls, glow, filled, throughWalls,
                         foundBoxes, foundGlows, cfg.getStarredColor())) {
                     stars++;
                 }
+            } else if (wantMimic && entity instanceof net.minecraft.world.entity.monster.zombie.Zombie z && z.isBaby()
+                    && z.isAlive() && !z.isRemoved()) {
+                mimicsSeen.add(z);
             }
         }
         standToMob.keySet().retainAll(liveStands);
+        if (readStars) {
+            // Starred mobs whose name-tag stand the client no longer has (killer560, 2026-11-01: "it seems to be missing
+            // mobs that are slightly far away in rooms. Like 2 ish room tiles away"). The "✯ ... ❤" name lives on an armor
+            // stand, and a server keeps misc entities (stands) loaded for a shorter range than mobs (Spigot's defaults: 32
+            // and 48 blocks), so a starred mob 1.5-2 room tiles away is still on the client while its star is not, and was
+            // not drawn. A mob once seen starred stays starred for as long as it lives.
+            stars += rememberedStarred(client, eye, wantStars, throughWalls, glow, filled, foundBoxes, foundGlows,
+                    cfg.getStarredColor());
+        }
+        if (wantFels) {
+            fels(client, eye, felSkullsSeen, throughWalls, glow, filled, foundBoxes, foundGlows, cfg.getFelColor());
+        } else if (!PREDICTED_FELS.isEmpty()) {
+            PREDICTED_FELS.clear();
+        }
+        if (wantMimic) {
+            mimics(client, eye, mimicsSeen, throughWalls, glow, filled, foundBoxes, foundGlows, cfg.getMimicColor());
+        }
         // A target that FAILED the raycast must keep its cached "not visible" answer, or the expensive case would
         // never be cached at all - so prune by age instead of by what got accepted this tick.
         if ((tickCounter & 63L) == 0L) {
@@ -423,8 +466,9 @@ public final class MobEspFeature {
     private static void render(LevelRenderContext context) {
         Map<Integer, Box> current = boxTargets;
         Map<Integer, Integer> tracers = tracerTargets;
+        List<ChestBox> chests = chestTargets;
         Minecraft client = Minecraft.getInstance();
-        if ((current.isEmpty() && tracers.isEmpty()) || client.level == null || client.player == null) {
+        if ((current.isEmpty() && tracers.isEmpty() && chests.isEmpty()) || client.level == null || client.player == null) {
             return;
         }
         MobEspConfig renderCfg = MobEspConfig.getInstance();
@@ -478,6 +522,18 @@ public final class MobEspFeature {
             }
             (box.throughWalls() ? LINE_WALLS : LINE_DEPTH).add(bb.minX + dx, bb.minY + dy, bb.minZ + dz,
                     bb.maxX + dx, bb.maxY + dy, bb.maxZ + dz, r, g, b, a);
+        }
+        for (ChestBox c : chests) {
+            AABB bb = c.box();
+            int argb = c.spec().argb();
+            float r = ((argb >> 16) & 0xFF) / 255f, g = ((argb >> 8) & 0xFF) / 255f, b = (argb & 0xFF) / 255f;
+            float a = EspRenderer.alpha(argb);
+            if (c.spec().filled()) {
+                (c.spec().throughWalls() ? FILL_WALLS : FILL_DEPTH).add(bb.minX, bb.minY, bb.minZ, bb.maxX, bb.maxY, bb.maxZ,
+                        r, g, b, a * 0.35f);
+            }
+            (c.spec().throughWalls() ? LINE_WALLS : LINE_DEPTH).add(bb.minX, bb.minY, bb.minZ, bb.maxX, bb.maxY, bb.maxZ,
+                    r, g, b, a);
         }
         FILL_DEPTH.drawFilled(context, EspRenderer.fillType(false));
         FILL_WALLS.drawFilled(context, EspRenderer.fillType(true));
@@ -613,7 +669,292 @@ public final class MobEspFeature {
         return visible;
     }
 
+    // ---- Starred memory, Fel Skulls, Mimic (doc-blood-1101) ---------------------------------------------------------
+
+    /** Mob ids seen with a starred name tag (or a named miniboss), kept while they live; cleared with the level. */
+    private static final Set<Integer> KNOWN_STARRED = new HashSet<>();
+    /** Fel skull stand ids predicted starred: seen within {@link #FEL_PACK_RADIUS} of a starred mob. */
+    private static final Set<Integer> PREDICTED_FELS = new HashSet<>();
+    /** Rooms (see {@link #roomKey}) a starred mob or a predicted Fel was ever seen in. */
+    private static final Set<Long> STARRED_ROOMS = new HashSet<>();
+    /** Trapped chests whose mimic has come out: no longer highlighted. */
+    private static final Set<Long> MIMIC_CHESTS_SPENT = new HashSet<>();
+    /** Testkit hook: rooms off the scanned map (no layout) counted as cleared. */
+    private static final Set<Long> TEST_CLEARED_ROOMS = new HashSet<>();
+    /** How close to a starred mob a Fel skull is part of its pack: "starred mobs will spawn by each other". */
+    static final double FEL_PACK_RADIUS = 6.0;
+
+    private record ChestBox(AABB box, Box spec) {
+    }
+
+    private static volatile List<ChestBox> chestTargets = List.of();
+    private static long lastChestScanTick = Long.MIN_VALUE / 2;
+    /** Testkit: what the Fel and Mimic passes did last tick. */
+    private static final Set<Integer> LAST_FELS_DRAWN = new HashSet<>();
+    private static int lastOtherFelsDrawn;
+
+    private static void rememberStarred(Entity mob) {
+        if (KNOWN_STARRED.add(mob.getId())) {
+            Vec3 p = mob.position();
+            STARRED_ROOMS.add(roomKey(p.x, p.z));
+        }
+    }
+
+    /** Draws the remembered starred mobs this tick's stands did not already draw; forgets the dead. */
+    private static int rememberedStarred(Minecraft client, Vec3 eye, boolean draw, boolean throughWalls, boolean glow,
+                                         boolean filled, Map<Integer, Box> foundBoxes, Map<Integer, Integer> foundGlows,
+                                         int color) {
+        int drawn = 0;
+        Iterator<Integer> it = KNOWN_STARRED.iterator();
+        while (it.hasNext()) {
+            Entity mob = client.level.getEntity(it.next());
+            if (mob == null || mob.isRemoved() || !mob.isAlive()) {
+                it.remove();
+                continue;
+            }
+            if (draw && accept(client, eye, mob, Double.MAX_VALUE, null, throughWalls, glow, filled, throughWalls,
+                    foundBoxes, foundGlows, color)) {
+                drawn++;
+                rememberedDrawn++;
+            }
+        }
+        return drawn;
+    }
+
+    private static int rememberedDrawn;
+
+    /**
+     * A dormant Fel: an armor stand with no name wearing a skull, the "upside-down Enderman head placed on the ground"
+     * (hypixelskyblock.minecraft.wiki, Fels) that wakes into the Fel when a player comes near - the same thing the mod's
+     * own dungeon sim places (roomsim/SimMobs#spawnFel: an invisible stand wearing a skull). The Blood Room's flying
+     * skulls are not Fels.
+     */
+    static boolean isFelSkull(Minecraft client, ArmorStand stand) {
+        if (stand.isRemoved() || stand.isPassenger()) {
+            return false;
+        }
+        net.minecraft.world.item.ItemStack head = stand.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD);
+        if (head.isEmpty() || !(head.is(net.minecraft.world.item.Items.PLAYER_HEAD)
+                || head.is(net.minecraft.world.item.Items.SKELETON_SKULL))) {
+            return false;
+        }
+        if (!stand.isInvisible()) {
+            return false;
+        }
+        return !com.killer560.hub.bloodcamp.BloodCampFeature.inBloodRoomTile(stand.position());
+    }
+
+    /**
+     * killer560, 2026-11-01: "Make that a toggle to highlight fels first of all, then only have it highlight fel skulls that
+     * were by other starred mobs not random ones all about. Because starred mobs will spawn by each other ... Also if you
+     * kill all starred mobs in a room and all the predicted fel skulls have it highlight other skulls if that toggle for
+     * highlight fel skulls is on. Then once the room is clear it should no longer highlight them anymore."
+     * <ol>
+     *   <li>A Fel skull within {@link #FEL_PACK_RADIUS} of a living starred mob is predicted starred, and stays so.</li>
+     *   <li>In a room where starred mobs (or predicted Fels) were seen and none is left alive, every other Fel skull is
+     *   drawn too: the room is not cleared yet, so the missing star is in one of them.</li>
+     *   <li>Once the map shows the room cleared, none of its skulls is drawn.</li>
+     * </ol>
+     */
+    private static void fels(Minecraft client, Vec3 eye, List<ArmorStand> skulls, boolean throughWalls, boolean glow,
+                             boolean filled, Map<Integer, Box> foundBoxes, Map<Integer, Integer> foundGlows, int color) {
+        LAST_FELS_DRAWN.clear();
+        lastOtherFelsDrawn = 0;
+        List<Entity> starred = new java.util.ArrayList<>();
+        for (Integer id : KNOWN_STARRED) {
+            Entity e = client.level.getEntity(id);
+            if (e != null && e.isAlive() && !e.isRemoved()) {
+                starred.add(e);
+            }
+        }
+        Set<Integer> liveSkulls = new HashSet<>();
+        for (ArmorStand s : skulls) {
+            liveSkulls.add(s.getId());
+            if (!PREDICTED_FELS.contains(s.getId())) {
+                for (Entity m : starred) {
+                    if (m.distanceToSqr(s) <= FEL_PACK_RADIUS * FEL_PACK_RADIUS) {
+                        PREDICTED_FELS.add(s.getId());
+                        STARRED_ROOMS.add(roomKey(s.getX(), s.getZ()));
+                        LOGGER.info("[DungeonESP] Fel skull #{} predicted starred: {} blocks from starred {} #{}", s.getId(),
+                                String.format(Locale.ROOT, "%.1f", Math.sqrt(m.distanceToSqr(s))), m.getType().toShortString(),
+                                m.getId());
+                        break;
+                    }
+                }
+            }
+        }
+        PREDICTED_FELS.retainAll(liveSkulls);
+        // Rooms still holding a living starred mob or a predicted Fel.
+        Set<Long> busy = new HashSet<>();
+        for (Entity m : starred) {
+            busy.add(roomKey(m.getX(), m.getZ()));
+        }
+        for (ArmorStand s : skulls) {
+            if (PREDICTED_FELS.contains(s.getId())) {
+                busy.add(roomKey(s.getX(), s.getZ()));
+            }
+        }
+        for (ArmorStand s : skulls) {
+            long room = roomKey(s.getX(), s.getZ());
+            boolean predicted = PREDICTED_FELS.contains(s.getId());
+            boolean others = !predicted && STARRED_ROOMS.contains(room) && !busy.contains(room) && !roomCleared(room);
+            if (predicted && roomCleared(room)) {
+                continue;
+            }
+            if ((predicted || others) && accept(client, eye, s, Double.MAX_VALUE, null, throughWalls, glow, filled,
+                    throughWalls, foundBoxes, foundGlows, color)) {
+                LAST_FELS_DRAWN.add(s.getId());
+                if (others) {
+                    lastOtherFelsDrawn++;
+                }
+            }
+        }
+    }
+
+    /** A room id from the scanned map, or (off the map) a key for the 32x32 dungeon cell. */
+    static long roomKey(double x, double z) {
+        int room = DungeonLayout.current().roomAtWorld(x, z);
+        if (room >= 0) {
+            return room;
+        }
+        long tx = Math.round((x - LiveMapFeature.START_X) / 32.0);
+        long tz = Math.round((z - LiveMapFeature.START_Z) / 32.0);
+        return -1_000_000L - ((tx + 500L) * 2000L + (tz + 500L));
+    }
+
+    private static boolean roomCleared(long key) {
+        if (TEST_CLEARED_ROOMS.contains(key) || key < 0) {
+            return TEST_CLEARED_ROOMS.contains(key);
+        }
+        DungeonLayout layout = DungeonLayout.current();
+        int[] tiles = key < layout.roomCount() ? layout.tiles((int) key) : null;
+        if (tiles == null) {
+            return false;
+        }
+        for (int tile : tiles) {
+            if (LiveMapFeature.isRoomCleared(tile)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Mimic (killer560, 2026-11-01: "Add an option for mimic highlight as well"): the Mimic is a baby zombie (the test
+     * Auto Routes' Kill Mimic already uses, autoroutes/AwaitEvents), and before it comes out, the trapped chest it hides in
+     * (dungeon secret chests are plain chests; the mimic's is the trapped one). A chest stops being drawn once a mimic has
+     * been seen beside it.
+     */
+    private static void mimics(Minecraft client, Vec3 eye, List<Entity> mimics, boolean throughWalls, boolean glow,
+                               boolean filled, Map<Integer, Box> foundBoxes, Map<Integer, Integer> foundGlows, int color) {
+        lastMimicsDrawn = 0;
+        for (Entity m : mimics) {
+            if (accept(client, eye, m, Double.MAX_VALUE, null, throughWalls, glow, filled, throughWalls, foundBoxes,
+                    foundGlows, color)) {
+                lastMimicsDrawn++;
+            }
+        }
+        long now = client.level.getGameTime();
+        if (now - lastChestScanTick < 10 && now >= lastChestScanTick) {
+            return;
+        }
+        lastChestScanTick = now;
+        List<ChestBox> out = new java.util.ArrayList<>();
+        int r = 48;
+        BlockPos at = client.player.blockPosition();
+        for (int cx = (at.getX() - r) >> 4; cx <= (at.getX() + r) >> 4; cx++) {
+            for (int cz = (at.getZ() - r) >> 4; cz <= (at.getZ() + r) >> 4; cz++) {
+                net.minecraft.world.level.chunk.ChunkAccess chunk;
+                try {
+                    chunk = client.level.getChunk(cx, cz, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false);
+                } catch (RuntimeException e) {
+                    continue;
+                }
+                if (!(chunk instanceof net.minecraft.world.level.chunk.LevelChunk lc)) {
+                    continue;
+                }
+                for (BlockPos p : lc.getBlockEntities().keySet()) {
+                    if (!client.level.getBlockState(p).is(net.minecraft.world.level.block.Blocks.TRAPPED_CHEST)) {
+                        continue;
+                    }
+                    if (MIMIC_CHESTS_SPENT.contains(p.asLong())) {
+                        continue;
+                    }
+                    Vec3 c = Vec3.atCenterOf(p);
+                    boolean spent = false;
+                    for (Entity m : mimics) {
+                        if (m.position().distanceToSqr(c) <= 64.0) {
+                            spent = true;
+                        }
+                    }
+                    if (spent) {
+                        MIMIC_CHESTS_SPENT.add(p.asLong());
+                        LOGGER.info("[DungeonESP] mimic out of the trapped chest at {} {} {}: chest no longer drawn",
+                                p.getX(), p.getY(), p.getZ());
+                        continue;
+                    }
+                    boolean seen = throughWalls || clearTo(client, eye, c);
+                    if (seen) {
+                        out.add(new ChestBox(new AABB(p.getX() + 0.0625, p.getY(), p.getZ() + 0.0625, p.getX() + 0.9375,
+                                p.getY() + 0.875, p.getZ() + 0.9375), new Box(color, filled || glow, throughWalls)));
+                    }
+                }
+            }
+        }
+        chestTargets = List.copyOf(out);
+    }
+
+    private static int lastMimicsDrawn;
+
+    private static boolean clearTo(Minecraft client, Vec3 from, Vec3 to) {
+        BlockHitResult hit = client.level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+                client.player));
+        return hit.getType() == HitResult.Type.MISS || hit.getBlockPos().equals(BlockPos.containing(to));
+    }
+
+    // ---- testkit ----
+
+    public static Set<Integer> lastFelsDrawn() {
+        return Set.copyOf(LAST_FELS_DRAWN);
+    }
+
+    public static int lastOtherFelsDrawn() {
+        return lastOtherFelsDrawn;
+    }
+
+    public static Set<Integer> predictedFels() {
+        return Set.copyOf(PREDICTED_FELS);
+    }
+
+    public static Set<Integer> knownStarred() {
+        return Set.copyOf(KNOWN_STARRED);
+    }
+
+    public static int rememberedDrawn() {
+        return rememberedDrawn;
+    }
+
+    public static int lastMimicsDrawn() {
+        return lastMimicsDrawn;
+    }
+
+    public static int chestTargetCount() {
+        return chestTargets.size();
+    }
+
+    public static void setTestRoomCleared(double x, double z, boolean cleared) {
+        long key = roomKey(x, z);
+        if (cleared) {
+            TEST_CLEARED_ROOMS.add(key);
+        } else {
+            TEST_CLEARED_ROOMS.remove(key);
+        }
+    }
+
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-mobesp");
+
     private static void clearTargets() {
+        chestTargets = List.of();
         boxTargets = Map.of();
         glowSet = NO_GLOW;
         glowTargets = Map.of();

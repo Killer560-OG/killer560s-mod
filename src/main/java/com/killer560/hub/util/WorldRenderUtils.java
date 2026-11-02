@@ -121,9 +121,9 @@ public final class WorldRenderUtils {
     }
 
     /**
-     * Draws a shaded sphere (latitude/longitude quads), depth-tested like {@link #renderFilledBox}, every face in both
-     * windings so it reads the same from inside it as from outside. Each band is shaded a little darker toward the
-     * bottom, so it reads as a ball rather than a flat disc.
+     * Draws a filled sphere (latitude/longitude quads), depth-tested like {@link #renderFilledBox}, every face in both
+     * windings so it reads the same from inside it as from outside. One flat color: the bands were shaded darker toward
+     * the bottom until 2026-11-01, when killer560 asked for the Door Keys sphere to be all one color.
      */
     public static void renderFilledSphere(LevelRenderContext context, Vec3 centre, double radius, int stacks, int slices,
                                           float r, float g, float b, float a) {
@@ -134,8 +134,8 @@ public final class WorldRenderUtils {
         McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
             var matrix = pose.pose();
             for (int i = 0; i < ns; i++) {
-                float shade = 0.65f + 0.35f * (float) (i + 0.5) / ns;
-                float sr = r * shade, sg = g * shade, sb = b * shade;
+                // One flat color, no per-band shading (killer560, 2026-11-01, Door Keys: "Make it all the same color").
+                float sr = r, sg = g, sb = b;
                 float y0 = (float) (centre.y + sinP[i] * radius);
                 float y1 = (float) (centre.y + sinP[i + 1] * radius);
                 double c0 = cosP[i] * radius;
@@ -400,6 +400,16 @@ public final class WorldRenderUtils {
      */
     public static void initThroughWalls() {
         RenderType unused = ThroughWalls.LINES;
+    }
+
+    /** The through-walls line type the batched methods use, for a {@link BoxBatch} (needs {@link #initThroughWalls()}). */
+    public static RenderType throughWallsLines() {
+        return ThroughWalls.LINES;
+    }
+
+    /** The through-walls fill type the batched methods use, for a {@link BoxBatch} (needs {@link #initThroughWalls()}). */
+    public static RenderType throughWallsFilled() {
+        return ThroughWalls.FILLED;
     }
 
     /** Holder idiom. Same no-depth construction as SecretWaypointsRenderer / EtherwarpWaypointsRenderer, with

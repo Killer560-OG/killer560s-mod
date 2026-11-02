@@ -3,7 +3,6 @@ package com.killer560.hub.auction;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.auction.screen.AuctionHouseScreen;
 import com.killer560.hub.util.KeyUtil;
-import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
@@ -15,7 +14,8 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * killer560's item 8.1, part 1+2: "Custom AH search/sell menu... /ah replacement toggle or
- * /killer560 ah, a keybind". This class owns opening the browser (command/keybind) and the real
+ * /killer560 ah, a keybind" (/killer560 ah and /killer560ah were removed 2026-11-01). This class owns opening the
+ * browser (the /ah override, the keybind, the Open button) and the real
  * {@code /ah} override; {@link AuctionHouseApi} owns the actual scan, {@code AuctionHouseScreen} the UI.
  * <p>
  * Never buys, bids or lists anything itself - clicking a listing in the screen runs Hypixel's own real
@@ -70,30 +70,14 @@ public final class AuctionHouseFeature {
                 forwardToServer("ah " + StringArgumentType.getString(ctx, "args"));
                 return 1;
             })));
-            // Self-registered alias, same pattern as ProfileViewerFeature's "/pv" + "/killer560pv" (no
-            // edit to the big inline "/killer560 ..." tree needed for this one). The brief's literal
-            // "/killer560 ah" (with the space) is a tiny patch to that existing tree instead - see this
-            // package's staging notes for the exact snippet, since that file isn't owned by this task.
-            dispatcher.register(ClientCommands.literal("killer560ah").executes(ctx -> {
-                openOrExplain();
-                return 1;
-            }));
+            // /killer560ah was removed (killer560, 2026-11-01: "they are not needed"); the browser opens from /ah
+            // (with Override /ah on), its key and the Items tab.
         });
     }
 
     private static boolean shouldOverrideAh() {
         AuctionConfig cfg = AuctionConfig.getInstance();
         return cfg.isAhEnabled() && cfg.isOverrideAhCommand();
-    }
-
-    /** Used by both "/killer560ah" and the "/killer560 ah" patch (see staging notes) - opens the browser
-     *  if the feature is on, otherwise tells him where to turn it on instead of silently doing nothing. */
-    public static void openOrExplain() {
-        if (!AuctionConfig.getInstance().isAhEnabled()) {
-            ModChat.send("Auction House", ModChat.bad("Turn on the Auction House Browser in the Items tab first."));
-            return;
-        }
-        openDeferred();
     }
 
     public static void openDeferred() {

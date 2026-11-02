@@ -20,6 +20,8 @@ public class ItemsTab extends FolderTab {
                 new SlotBindsTab(),
                 new SlotTextTab(),
                 new CompactorPreviewTab(),
+                // Gyrokinetic Wand Overlay (to-do Doc 2026-11-01): Skyblocker's gyro ring.
+                new GyroOverlayTab(),
                 new LoadoutKeybindsTab(),
                 new PetWheelTab(),
                 new ItemProtectTab(),

@@ -90,8 +90,6 @@ public final class SecretWaypointsFeature {
                            float r, float g, float b, float a, BlockPos pos, Kind kind, String label) {
     }
 
-    /** How far the prince box sits below its tomb, in blocks. */
-    private static final double PRINCE_DROP = 0.5;
     /** Secrets already taken in this run (block positions from the room database) - their waypoints are gone
      *  (killer560, 2026-09-21: "if I click/get a secret then that waypoint should disappear"). Cleared on leaving
      *  the dungeon. */
@@ -102,6 +100,8 @@ public final class SecretWaypointsFeature {
     private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3> NEAR_BATS = new java.util.HashMap<>();
 
     private static boolean wasInDungeon = false;
+    /** The room cell the last tick stood in, to rebuild the moment it changes. */
+    private static int lastRoomIdx = Integer.MIN_VALUE;
     private static int lastGeneration = 0;
 
     /** The per-tick snapshot the render path walks. Never rebuilt from inside a frame. */
@@ -139,6 +139,7 @@ public final class SecretWaypointsFeature {
     public static void register() {
         SecretWaypointsRenderer.init();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SecretWaypointsFeature", client -> tick()));
+        com.killer560.hub.util.ChatObserver.subscribe(SecretWaypointsFeature::onChat);
         // AFTER_TRANSLUCENT_FEATURES, not AFTER_TRANSLUCENT_TERRAIN.
         //
         // killer560 (2026-09-30): "the waypoints are not showing through blocks in esp mode like they always
@@ -247,13 +248,22 @@ public final class SecretWaypointsFeature {
      * {@link #ITEM_GONE_RANGE}. A teammate taking it hides it too: the secret is gone either way.
      */
     private static void watchPickups(Minecraft client) {
-        if (client.level == null || client.player == null || CACHED.isEmpty()) {
+        if (client.level == null || client.player == null) {
             WATCHED_ITEMS.clear();
             NEAR_BATS.clear();
             return;
         }
         var player = client.player;
+        // Before the empty-snapshot return, not after it: killer560, 2026-11-01, "I just picked up an item and it didnt
+        // register the waypoint removing. I picked it up as i walked away from it". Walking on out of the room empties
+        // the snapshot (a corridor or an unidentified room has no waypoints), and that used to forget every item being
+        // watched - so the pickup, whose removal reaches the client a round trip later, landed on nothing. An item
+        // already being watched is now followed until it is removed or the run ends, whatever room he is in by then.
         watchItems(client);
+        if (CACHED.isEmpty()) {
+            NEAR_BATS.clear();
+            return;
+        }
         // No bat waypoint standing means a dying bat has nothing to hide (markCollected matches only a BAT waypoint),
         // so the entity query is skipped; most rooms have none.
         boolean anyBat = false;
@@ -282,6 +292,36 @@ public final class SecretWaypointsFeature {
         }
         NEAR_BATS.clear();
         NEAR_BATS.putAll(bats);
+    }
+
+    /** How far from an ITEM waypoint a picked-up item may have lain (NoammAddons' item radius, as {@link #markCollected}). */
+    private static final double ITEM_TAKEN_RADIUS = 5.0;
+
+    /**
+     * An item entity was picked up (Hypixel's take-item packet, for him or a teammate; main thread, before vanilla removes
+     * it). The waypoint goes on the pickup itself: an item being watched marks its own waypoint, and one that was never
+     * watched (it lay further than {@link #ITEM_AT_WAYPOINT} from its database spot) marks the nearest ITEM waypoint within
+     * {@link #ITEM_TAKEN_RADIUS}. killer560, 2026-11-01: "I just picked up an item and it didnt register the waypoint
+     * removing. I picked it up as i walked away from it probably outside the range to remove it."
+     */
+    public static void onItemTaken(net.minecraft.network.protocol.game.ClientboundTakeItemEntityPacket packet,
+                                   net.minecraft.client.multiplayer.ClientLevel level) {
+        if (level == null || !DungeonState.isInDungeon()) {
+            return;
+        }
+        WatchedItem watched = WATCHED_ITEMS.get(packet.getItemId());
+        if (watched != null) {
+            if (COLLECTED.add(watched.waypoint())) {
+                LOGGER.info("[SecretWaypoints] collected: item at {} - item entity {} picked up",
+                        watched.waypoint().toShortString(), packet.getItemId());
+                invalidateCache();
+            }
+            return;
+        }
+        var entity = level.getEntity(packet.getItemId());
+        if (entity instanceof net.minecraft.world.entity.item.ItemEntity) {
+            markCollected(entity.blockPosition(), Kind.ITEM, ITEM_TAKEN_RADIUS);
+        }
     }
 
     /** See {@link #watchPickups}: follow every item entity lying at an ITEM waypoint by id until it is removed. */
@@ -342,10 +382,20 @@ public final class SecretWaypointsFeature {
             COLLECTED.clear();
             CRYPTS.clear();
             LEVERS_BY_CHUNK.clear();
+            WATCHED_ITEMS.clear();
+            princeFallen = false;
             invalidateCache();
         }
         wasInDungeon = inDungeon;
+        // A new room: rebuild now, not up to a second later, so the room he has just left stops drawing at once
+        // (killer560, 2026-11-01: "if i leave trap then it still keeps their waypoints loaded").
+        int roomNow = inDungeon ? LiveMapFeature.currentRoomIndex() : -1;
+        if (roomNow != lastRoomIdx) {
+            lastRoomIdx = roomNow;
+            invalidateCache();
+        }
         refreshCacheIfStale(inDungeon);
+        dropOpenedCrypts(Minecraft.getInstance());
         watchPickups(Minecraft.getInstance());
     }
 
@@ -561,48 +611,31 @@ public final class SecretWaypointsFeature {
                     currentIdx, bounds[0], bounds[1], bounds[2], bounds[3], crypts, princes);
         }
         for (CryptScanner.Found f : CryptScanner.scan(client.level, bounds)) {
+            if (f.type() == CryptScanner.Type.PRINCE) {
+                // A crypt whose lid turns out to have the prince's gold beside it (CryptScanner.goldBeside) is that prince:
+                // drop the crypt this run already holds for the same blocks, unless it was already opened.
+                java.util.Set<BlockPos> mine = new java.util.HashSet<>(f.blocks());
+                CRYPTS.entrySet().removeIf(e -> !e.getValue().done && e.getValue().found.type() == CryptScanner.Type.CRYPT
+                        && !java.util.Collections.disjoint(mine, e.getValue().found.blocks()));
+            }
             if (CRYPTS.putIfAbsent(f.anchor(), new CryptState(f)) == null) {
                 LOGGER.info("[SecretWaypoints] {} added for the run: anchor={} blocks={} box={},{},{}..{},{},{}", f.type(),
                         f.anchor().toShortString(), f.blocks().size(), f.minX(), f.minY(), f.minZ(), f.maxX(), f.maxY(),
                         f.maxZ());
             }
         }
+        boolean cryptsDone = crypts && cryptsEnough(cfg, client);
+        boolean princesDone = princes && princesEnough(cfg);
         for (CryptState s : CRYPTS.values()) {
             CryptScanner.Found f = s.found;
             if (s.done || f.maxX() < bounds[0] || f.minX() > bounds[2] || f.maxZ() < bounds[1] || f.minZ() > bounds[3]) {
                 continue;
             }
             boolean isPrince = f.type() == CryptScanner.Type.PRINCE;
-            if (isPrince ? !princes : !crypts) {
+            if (isPrince ? !princes || princesDone : !crypts || cryptsDone) {
                 continue;
             }
-            // A tomb in a chunk the client does not have reads as all air - "opened" - and two seconds later, with no
-            // mob in sight (none can be seen there either), it was marked done for the run and never drawn again.
-            // Unknown is not opened: while any of it is unloaded it keeps its last state and is not judged.
-            boolean readable = com.killer560.hub.util.ClientChunks.allLoaded(client.level, f.minX(), f.minZ(),
-                    f.maxX(), f.maxZ());
-            AABB tomb = new AABB(f.minX(), f.minY(), f.minZ(), f.maxX() + 1, f.maxY() + 1, f.maxZ() + 1);
-            int standing = 0;
-            if (readable) {
-                for (BlockPos p : f.blocks()) {
-                    if (CryptScanner.stillThere(client.level, f.type(), p)) {
-                        standing++;
-                    }
-                }
-            }
-            // Blown open: gone for the run, at once. killer560, 2026-10-19: when he blows up a crypt or a prince with
-            // a Superboom it should disappear - he does not kill what comes out, he only opens it. It used to stay up
-            // for as long as a living mob stood within five blocks of the hole, which with nothing killed was forever.
-            if (!readable && changed("unreadable:" + f.anchor().toShortString(), "y")) {
-                LOGGER.info("[SecretWaypoints] {} at {} not judged: part of it is in an unloaded chunk, keeps its last state",
-                        f.type(), f.anchor().toShortString());
-            } else if (readable) {
-                NOTED.remove("unreadable:" + f.anchor().toShortString());
-            }
-            if (readable && standing * 2 < f.blocks().size()) {
-                LOGGER.info("[SecretWaypoints] {} at {} opened: standing={} of {} blocks - hidden for the run", f.type(),
-                        f.anchor().toShortString(), standing, f.blocks().size());
-                s.done = true;
+            if (judgeOpened(client, s)) {
                 continue;
             }
             int argb = isPrince ? cfg.getPrinceColor() : cfg.getCryptColor();
@@ -613,18 +646,136 @@ public final class SecretWaypointsFeature {
             if (a <= 0f) {
                 a = 1f;
             }
-            // HITBOX: the lid as it sits, half a block for a slab lid. FULL_BLOCK: whole blocks, like the others.
-            AABB box = (!isPrince && cfg.getBoxSize() == SecretWaypointsConfig.BoxSize.HITBOX)
-                    ? new AABB(tomb.minX, tomb.minY, tomb.minZ, tomb.maxX, tomb.minY + 0.5, tomb.maxZ)
-                    : tomb;
-            // killer560, 2026-10-19: "move this prince box down a bit" - the prince's box sits half a block lower than its tomb.
-            if (isPrince) {
-                box = new AABB(box.minX, box.minY - PRINCE_DROP, box.minZ, box.maxX, box.maxY - PRINCE_DROP, box.maxZ);
-            }
+            // The tomb as it stands: its legs under it and up to its tallest block's top (CryptScanner.tombBox; killer560,
+            // 2026-11-01). HITBOX tops out at the real shapes (half a block over a bottom-slab lid); FULL_BLOCK at whole
+            // blocks. This replaces the prince's old half-block drop (2026-10-19, "move this prince box down a bit"),
+            // which reached only the top half of the stairs under it.
+            double[] tb = CryptScanner.tombBox(client.level, f,
+                    cfg.getBoxSize() != SecretWaypointsConfig.BoxSize.HITBOX);
+            AABB box = new AABB(tb[0], tb[1], tb[2], tb[3], tb[4], tb[5]);
             Kind kind = isPrince ? Kind.PRINCE : Kind.CRYPT;
             CACHED.add(new Waypoint(box,
                     (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5, (box.minZ + box.maxZ) * 0.5,
                     r, g, b, a, f.anchor(), kind, labelFor(kind, "")));
+        }
+    }
+
+    /**
+     * Whether a crypt or prince has been blown open (and marks it done for the run when it has).
+     *
+     * <p>A tomb in a chunk the client does not have reads as all air - "opened" - and two seconds later, with no mob in
+     * sight (none can be seen there either), it was marked done for the run and never drawn again. Unknown is not
+     * opened: while any of it is unloaded it keeps its last state and is not judged.
+     *
+     * <p>Blown open: gone for the run, at once. killer560, 2026-10-19: when he blows up a crypt or a prince with a
+     * Superboom it should disappear - he does not kill what comes out, he only opens it.
+     */
+    private static boolean judgeOpened(Minecraft client, CryptState s) {
+        if (s.done) {
+            return true;
+        }
+        CryptScanner.Found f = s.found;
+        boolean readable = com.killer560.hub.util.ClientChunks.allLoaded(client.level, f.minX(), f.minZ(),
+                f.maxX(), f.maxZ());
+        if (!readable) {
+            if (changed("unreadable:" + f.anchor().toShortString(), "y")) {
+                LOGGER.info("[SecretWaypoints] {} at {} not judged: part of it is in an unloaded chunk, keeps its last state",
+                        f.type(), f.anchor().toShortString());
+            }
+            return false;
+        }
+        NOTED.remove("unreadable:" + f.anchor().toShortString());
+        int standing = 0;
+        for (BlockPos p : f.blocks()) {
+            if (CryptScanner.stillThere(client.level, f.type(), p)) {
+                standing++;
+            }
+        }
+        if (standing * 2 < f.blocks().size()) {
+            LOGGER.info("[SecretWaypoints] {} at {} opened: standing={} of {} blocks - hidden for the run", f.type(),
+                    f.anchor().toShortString(), standing, f.blocks().size());
+            s.done = true;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * killer560, 2026-11-01: "the waypoints do go away over time after you break one but the instant it breaks I would
+     * like for them to go away not half to a full second later." The snapshot is rebuilt once a second, so a crypt blown
+     * open stayed drawn until the next rebuild. Every tick, each crypt and prince waypoint standing in the snapshot is
+     * judged again (a few dozen block reads), and one that has opened leaves the snapshot that tick. The explosion's
+     * block changes reach the client in the same packets that show the hole, so the box goes the tick the hole appears.
+     */
+    private static void dropOpenedCrypts(Minecraft client) {
+        if (client.level == null || CACHED.isEmpty()) {
+            return;
+        }
+        boolean any = false;
+        for (Waypoint w : CACHED) {
+            if (w.kind() == Kind.CRYPT || w.kind() == Kind.PRINCE) {
+                any = true;
+                break;
+            }
+        }
+        if (!any) {
+            return;
+        }
+        java.util.Set<BlockPos> gone = new java.util.HashSet<>();
+        for (Waypoint w : CACHED) {
+            if (w.kind() != Kind.CRYPT && w.kind() != Kind.PRINCE) {
+                continue;
+            }
+            CryptState s = CRYPTS.get(w.pos());
+            if (s == null || judgeOpened(client, s)) {
+                gone.add(w.pos());
+            }
+        }
+        if (!gone.isEmpty()) {
+            CACHED.removeIf(w -> (w.kind() == Kind.CRYPT || w.kind() == Kind.PRINCE) && gone.contains(w.pos()));
+        }
+    }
+
+    /** The tab list's "Crypts:" at or over this hides the crypt waypoints when {@code hideCryptsAfterFive} is on. */
+    static final int CRYPTS_ENOUGH = 5;
+
+    /** "A Prince falls. +1 Bonus Score" was said this run (cleared with the rest of the run state). */
+    private static boolean princeFallen = false;
+
+    /** killer560, 2026-11-01: no crypt waypoints once 5 crypts are counted ("after you get the 5 crypts"). */
+    private static boolean cryptsEnough(SecretWaypointsConfig cfg, Minecraft client) {
+        if (!cfg.isHideCryptsAfterFive()) {
+            return false;
+        }
+        int n = com.killer560.hub.scorecalc.ScoreCalculatorFeature.tabCrypts(client);
+        boolean enough = n >= CRYPTS_ENOUGH;
+        if (changed("cryptsEnough", String.valueOf(enough))) {
+            LOGGER.info("[SecretWaypoints] crypt waypoints {}: tab Crypts={}", enough ? "hidden (5 counted)" : "shown", n);
+        }
+        return enough;
+    }
+
+    /** killer560, 2026-11-01: no prince waypoints once a prince has fallen ("or 1 prince"). A party mate's kill counts:
+     *  the bonus line is said to the whole party, and Party Interop's flag carries it from a mate's mod too. */
+    private static boolean princesEnough(SecretWaypointsConfig cfg) {
+        if (!cfg.isHidePrincesAfterOne()) {
+            return false;
+        }
+        boolean enough = princeFallen
+                || com.killer560.hub.interop.PartyInteropState.flag(com.killer560.hub.interop.PartyInteropState.Flag.PRINCE_KILLED);
+        if (changed("princesEnough", String.valueOf(enough))) {
+            LOGGER.info("[SecretWaypoints] prince waypoints {}", enough ? "hidden (a prince has fallen)" : "shown");
+        }
+        return enough;
+    }
+
+    private static void onChat(net.minecraft.network.chat.Component message) {
+        if (!princeFallen && DungeonState.isInDungeon()
+                && com.killer560.hub.scorecalc.ScoreCalculatorFeature.PRINCE_KILLED.matcher(
+                com.killer560.hub.util.ChatObserver.strip(message).trim()).matches()) {
+            princeFallen = true;
+            LOGGER.info("[SecretWaypoints] a prince has fallen this run");
+            invalidateCache();
         }
     }
 
@@ -731,6 +882,9 @@ public final class SecretWaypointsFeature {
      *  Hypixel as in the sim. The
      *  scan skips every section whose palette holds no lever, so the whole build height costs a palette check per
      *  section and nothing else. */
+    /** Rooms whose levers are a puzzle's controls, never secrets: no lever waypoints there. */
+    private static final java.util.Set<String> NO_LEVER_ROOMS = java.util.Set.of("Water Board");
+
     private static final int LEVER_SCAN_MIN_Y = 0;
     private static final int LEVER_SCAN_MAX_Y = 255;
 
@@ -741,6 +895,17 @@ public final class SecretWaypointsFeature {
         }
         int[] bounds = LiveMapFeature.roomWorldBounds(currentIdx);
         if (bounds == null) {
+            return;
+        }
+        // killer560, 2026-11-01: "Secret waypoints for levers should not work in water board." Its seven levers are the
+        // puzzle's controls (the capture's floor lever and six wall levers on the colored blocks), not secrets.
+        String roomName = com.killer560.hub.roomsim.SimState.isActive()
+                ? com.killer560.hub.roomsim.SimRoomIndex.nameAtCell(currentIdx)
+                : java.util.Optional.ofNullable(LiveMapFeature.roomEntryAt(currentIdx)).map(e -> e.name).orElse(null);
+        if (roomName != null && NO_LEVER_ROOMS.contains(roomName)) { // Set.of throws on contains(null)
+            if (changed("leverRoom:" + currentIdx, roomName)) {
+                LOGGER.info("[SecretWaypoints] lever scan skipped: {} has no lever secrets", roomName);
+            }
             return;
         }
         int argb = cfg.getLeverColor();

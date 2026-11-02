@@ -111,7 +111,7 @@ public final class PartyDataFeature {
             PartyRoomIntel.reset();
         }
         drainQueue();
-        if (!inDungeon || !publishActive()) {
+        if (!inDungeon || !(publishActive() || melodyPublishActive())) {
             return;
         }
         if (++tickCounter < SCAN_TICKS) {
@@ -132,6 +132,12 @@ public final class PartyDataFeature {
             return false;
         }
         return inPartyRoom();
+    }
+
+    /** Team Melody shares by default whatever the other sharing settings say (killer560, 2026-11-01: "by default make sure
+     *  it shares no matter what setting on or off"): only its own Share My Progress (on by default) and a party room. */
+    private static boolean melodyPublishActive() {
+        return com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress() && inPartyRoom();
     }
 
     private static boolean inPartyRoom() {
@@ -260,6 +266,13 @@ public final class PartyDataFeature {
                             com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_PANE, self.current())));
                 }
             }
+            // Finished (2026-11-01): teammates show 100% instead of the last row forever. The id carries the finish time, so a
+            // second Melody in the same run is a new fact.
+            long doneAt = com.killer560.hub.melody.MelodyTrackerFeature.selfDoneAtMs();
+            if (doneAt > 0 && System.currentTimeMillis() - doneAt <= com.killer560.hub.bridge.MelodyIntel.STALE_MS) {
+                out.add(new SelfFact(KEY_MELODY, "melody:done:" + doneAt, PartyDataProtocol.melodyPayload(
+                        com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_DONE, 0)));
+            }
         }
         return out;
     }
@@ -267,7 +280,12 @@ public final class PartyDataFeature {
     /** Queues every fact in {@link #selfFactSnapshot()} whose payload differs from what was last queued for
      *  its id this run. A fact is only marked sent once {@link #enqueue} accepts it. */
     private static void publishSnapshot() {
+        boolean all = publishActive();
         for (SelfFact fact : selfFactSnapshot()) {
+            if (!all && !KEY_MELODY.equals(fact.key())) {
+                // Party Dungeon Data or the relay data switch is off: only Team Melody goes out.
+                continue;
+            }
             String json = fact.payload().toString();
             if (json.equals(SENT.get(fact.id()))) {
                 continue;
@@ -359,7 +377,9 @@ public final class PartyDataFeature {
 
     private static void handleData(String from, String key, JsonElement value) {
         InteropConfig cfg = InteropConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isRelayData() || !DungeonState.isInDungeon()) {
+        // Team Melody is received whatever the relay data switches say, like it is sent (2026-11-01).
+        boolean melody = PartyDataProtocol.KEY_MELODY.equals(key);
+        if ((!melody && (!cfg.isEnabled() || !cfg.isRelayData())) || !DungeonState.isInDungeon()) {
             return;
         }
         // The relay only ever delivers a packet to sockets already in the room it broadcasts to, so being

@@ -26,6 +26,9 @@ public enum ProfitTracker {
             ProfitTracker::croesusSummary),
     EXPERIMENTS("Experimentation Table", "Superpairs, Chronomatron, Ultrasequencer", List.of("etable", "experiments"),
             ExperimentsProfitScreen::new, ProfitTracker::experimentsSummary),
+    /** How Lucky Are You (doc-rng-1101): drops against the odds; also {@code /luck}. */
+    LUCK("How Lucky Are You", "Drops against the odds: chests, slayers, dyes", List.of("luck", "rng"),
+            com.killer560.hub.luck.LuckScreen::new, ProfitTracker::luckSummary),
     /**
      * Cheat build only (killer560, 2026-10-16: "only have it show on cheat version"). Every string and the screen and log
      * references sit behind {@code CHEAT_FEATURES_ENABLED ? ... : ...}, which javac folds, so a legit jar's copy of this
@@ -140,6 +143,18 @@ public enum ProfitTracker {
         }
         return new Summary(ProfitPanels.signedCoins(profit) + " profit, " + chests + " chests",
                 profit >= 0 ? ProfitPanels.GOOD : ProfitPanels.BAD);
+    }
+
+    private static Summary luckSummary() {
+        com.killer560.hub.luck.LuckConfig cfg = com.killer560.hub.luck.LuckConfig.getInstance();
+        com.killer560.hub.luck.LuckStore.Summary s = com.killer560.hub.luck.LuckStore.summarize(
+                com.killer560.hub.luck.LuckStore.rows(null, cfg.getChestOdds(), false));
+        if (s.drops() == 0) {
+            return new Summary("Nothing tracked yet", ProfitPanels.DIM);
+        }
+        int pct = (int) Math.round(s.meanPercentile() * 100);
+        return new Summary(pct + "% luck, " + s.got() + " drops vs " + com.killer560.hub.luck.LuckMath.expected(s.expected())
+                + " expected", pct >= 50 ? ProfitPanels.GOOD : ProfitPanels.BAD);
     }
 
     private static Summary experimentsSummary() {

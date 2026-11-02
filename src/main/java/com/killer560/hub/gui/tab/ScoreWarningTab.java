@@ -35,9 +35,24 @@ public class ScoreWarningTab extends BaseTab {
         w.add(SettingsButtonWidget.builder(onOff("Pre-Boss Warning", cfg.isPreBossWarning()), btn -> {
                     cfg.setPreBossWarning(!cfg.isPreBossWarning());
                     cfg.save();
-                    btn.setMessage(onOff("Pre-Boss Warning", cfg.isPreBossWarning()));
+                    requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
-        y += 26;
+        y += 24;
+        if (cfg.isPreBossWarning()) {
+            // killer560, 2026-11-01: Mage only, and a Permanent title (DO NOT ENTER PORTAL / ENTER THE PORTAL).
+            int half = (contentWidth - 6) / 2;
+            w.add(onOffButton("Mage Only", cfg::isPreBossMageOnly, cfg::setPreBossMageOnly, cfg::save,
+                    null, contentX, y, half, 18));
+            w.add(onOffButton("Permanent", cfg::isPreBossPermanent, cfg::setPreBossPermanent, cfg::save,
+                    requestRebuild, contentX + half + 6, y, contentWidth - half - 6, 18));
+            y += 22;
+            if (cfg.isPreBossPermanent()) {
+                w.add(onOffButton("List Missing Score", cfg::isPreBossListMissing, cfg::setPreBossListMissing, cfg::save,
+                        null, contentX, y, contentWidth, 18));
+                y += 22;
+            }
+        }
+        y += 2;
 
         w.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Crypt Reminder", false),
                 Minecraft.getInstance().font));
@@ -60,7 +75,8 @@ public class ScoreWarningTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     int raw = ScoreCalculatorConfig.MIN_CRYPT_REMINDER_SECONDS + (int) Math.round(this.value * span);
-                    int v = Math.round(raw / 15f) * 15;
+                    int step = ScoreCalculatorConfig.CRYPT_REMINDER_STEP;
+                    int v = Math.round(raw / (float) step) * step;
                     if (v != cfg.getCryptReminderSeconds()) {
                         cfg.setCryptReminderSeconds(v);
                         saveOnRelease(() -> cfg.save());

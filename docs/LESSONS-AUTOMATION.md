@@ -324,6 +324,10 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   (delay); a bow draw start and release together fire nothing. Blink sends hits, every dig edge and charged-use edges live.
 - GrimAC MultiActionsC flags a container click while the server has a movement key in his last input, a sprint or a
   sneak. Inventory Walk holds such a click until a still tick has reached the server (Stop To Click).
+- GrimAC 2.3.74's classes that read a container click (javap, doc-invsort-1101): MultiActionsC, PacketOrderA and K,
+  BadPacketsP, CrashD/F, Post. PacketOrderA (a pickup and a shift-click in one tick) has `isApplicable` = client version
+  1.12.2 or older, so it never judges a 26.x client; none of them counts clicks per tick. The Inventory Sorter's Instant
+  sends a whole plan in one tick for that reason, behind the same still-input wait as every click.
 - MultiActionsD is the same check on the menu CLOSE packet (javap 2.3.74), and GrimAC 2.3.74 has no InventoryA-D: MultiActions
   C/D and PacketOrder are its inventory checks. Both cancel the packet they flag, so a flagged click is never applied and
   the item snaps back. Until campaign-invwalk-1027 every close made while walking with Inventory Walk drew D, a click the
@@ -356,6 +360,13 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   TimerLimit), and turn the first look from the yaw that last went ON THE WIRE (Charge keeps turn-only ticks off it, so
   the running yaw can be a whole turn away; a look jump over 320 is AimModulo360). The test's first path, a square
   (+x, +z, -x, -z, +x), spun the client a full 360 between two ticks and drew AimModulo360 with or without the burst.
+- A spent tick must put its look on the wire itself when vanilla will not (zpew263-1101, 2026-11-01). Vanilla's
+  sendPosition reports a look only when it differs from the last one IT sent, and a banked tick's turn never reached the
+  server, so a burst whose first look equals the client's last "sent" look sent USE then the tick-end alone, and GrimAC
+  compared the use with the pre-turn look: one BadPacketsJ per burst (wire trace, 1027-zpewlk-0, 2 of 2 runs on 26.2,
+  sometimes 26.3). `BlinkCharge.spendTick` now sends a Rot when the wire look (RETURN of Connection.send) differs from his
+  look - never when it matches (AimDuplicateLook). On 26.3 the spent tick also needs `McCompat.sendPlayerChanges` (26.3
+  sends his move from Minecraft.tick); without it every spent tick after the first flagged (flags = n - 2, W-2).
 - RouteExecutor assumed one warp in flight (one `warpLanding`, one `teleportPacketSeen`). Zero Ping Chain keeps a queue
   of predicted landings (`inFlight`), reads `feet(player)` instead of `player.position()` while it is non-empty, and
   matches each server packet against the queue; a packet that matches an older entry confirms it and every older one.
