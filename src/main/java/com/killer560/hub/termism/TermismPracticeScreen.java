@@ -695,10 +695,13 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         Collections.shuffle(combined, random);
 
         for (NamedItem entry : combined) {
-            ItemStack stack = new ItemStack(entry.item());
+            // Named as the pool names it: the board counts matches by that name, but the click and the solver read the
+            // hover name, and several vanilla names differ ("Web" is a Cobweb, "Writable Book" a Book and Quill,
+            // "Experience Bottle" a Bottle o' Enchanting, "Map" an Empty Map), so a W, E or M board could never be
+            // finished (testkit 1102-menu-termism-ss-startswith, 2026-11-02).
+            ItemStack stack = namedStack(entry.item(), entry.name());
             // A glint means "already clicked" on a real board, and the solver skips glinting items: an Enchanted Book or
-            // Experience Bottle (glint by default) was a match nobody could see highlighted or auto-click, so an E board
-            // could never be finished by Auto Terminals (testkit 1102-menu-termism-ss-startswith, 2026-11-02).
+            // Experience Bottle (glint by default) was a match nobody could see highlighted or auto-click.
             stack.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, false);
             cells.add(stack);
         }
