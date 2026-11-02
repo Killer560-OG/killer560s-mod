@@ -2479,7 +2479,7 @@ final class SettingTooltipsData {
         d.put("thorn triggerbot/only when aimed at thorn", "Holds only while your crosshair is on Thorn with no block in the way. Bats and other mobs in between do not stop it.");
         d.put("auto sell/any npc sell menu", "Sells in any Hypixel NPC shop you can sell into (told by the shop's sell slot), not only menus whose title matches the sell pattern like Trades.");
         d.put("auto sell/add defaults", "Adds the dungeon junk list (Oak Sign, Lever, the dungeon armor sets, Earthen Blade, Silent Death, Training Weights, Healing VIII Splash Potion and more) to the sell list. Items already on it stay once; the never-sell list still wins.");
-        d.put("mask keybinds", "While you have the /stats menu open, a key equips Spirit Mask or Bonzo's Mask: one click in that menu per press, skipping a mask that is worn, on cooldown or not in your inventory.");
+        d.put("mask keybinds", "While you have the /stats menu open, a key equips Spirit Mask or Bonzo's Mask: one click in that menu per press, so each press swaps to the other mask. Only a mask on its proc cooldown is refused, with its time left in chat.");
         d.put("mask keybinds/equip mask key", "The key that equips a mask while the /stats menu is open. Escape clears it.");
         d.put("mask keybinds/order", "Which mask it tries first: Spirit First or Bonzo First. If that one is on cooldown it equips the other. Left or right click switches.");
         d.put("mask keybinds/dungeons only", "The key only works in dungeons.");
