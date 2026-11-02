@@ -171,6 +171,14 @@ public final class LegitGfs {
         }
     }
 
+    /** Reads the file again, defaults first (a profile applied: ProfileManager.reloadAllConfigs, 2026-11-02). */
+    public static synchronized void reload() {
+        loaded = false;
+        enabled = true;
+        KEYS.clear();
+        ensureLoaded();
+    }
+
     private static synchronized void ensureLoaded() {
         if (loaded) {
             return;
