@@ -1,6 +1,7 @@
 package com.killer560.hub.ap3.mixin;
 
 import com.killer560.hub.ap3.Ap3Executor;
+import com.killer560.hub.util.PlaceRotationGuard;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -40,8 +41,19 @@ public abstract class Ap3RotationSendMixin {
     @Unique private float killer560smod$liveYaw;
     @Unique private float killer560smod$livePitch;
 
+    /** The yaw {@link PlaceRotationGuard} moved for this send, to put back at RETURN; NaN when none. */
+    @Unique private float killer560smod$unNudgedYaw = Float.NaN;
+
     @Inject(method = "sendPosition", at = @At("HEAD"), require = 0)
     private void killer560smod$ap3HoldRotation(CallbackInfo ci) {
+        killer560smod$ap3HoldRotationInner();
+        // Last, on whatever yaw is about to go out (AP3's swaps included): never repeat the turn before the last block
+        // click (GrimAC DuplicateRotPlace, util/PlaceRotationGuard).
+        killer560smod$unNudgedYaw = PlaceRotationGuard.beforeSend((LocalPlayer) (Object) this, this.yRotLast);
+    }
+
+    @Unique
+    private void killer560smod$ap3HoldRotationInner() {
         Ap3Executor.onRotationMixinApplied();
         LocalPlayer self = (LocalPlayer) (Object) this;
         // A USE / BLOCK / BOOM armed at this tick's START goes out here, right ahead of the movement packet that carries
@@ -69,6 +81,12 @@ public abstract class Ap3RotationSendMixin {
     @Inject(method = "sendPosition", at = @At("RETURN"), require = 0)
     private void killer560smod$ap3RestoreRotation(CallbackInfo ci) {
         Ap3Executor.afterSendPosition((LocalPlayer) (Object) this);
+        if (!Float.isNaN(killer560smod$unNudgedYaw)) {
+            if (!killer560smod$swapped) {
+                ((LocalPlayer) (Object) this).setYRot(killer560smod$unNudgedYaw);
+            }
+            killer560smod$unNudgedYaw = Float.NaN;
+        }
         if (!killer560smod$swapped) {
             return;
         }

@@ -21,7 +21,31 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   eye sees (an always-UP face is PositionBreakA), an ABORT says DOWN as vanilla does (any other face is PositionBreakB on
   every later dig), and no input packet may say sneak while a container is open (MultiActionsD on its close). Both
   executors turn the body with the camera held through `util/BodyAim`, one instance each. Multi Break's six STARTs on one
-  tick, aimed at the first, drew nothing from GrimAC.
+  tick, aimed at the first, drew nothing from GrimAC with experimental checks OFF - and MultiBreak + RotationBreak with
+  them on (next entry); Multi Break is gone.
+- **GrimAC 2.3.74's experimental checks (gridexp-1102, 62-argrim/63-ap3 with `experimental-checks: true`).** Each flag and
+  its packet pattern, from Grim's source at tag v2.3.74:
+  MultiBreak: a second START_DESTROY_BLOCK on another block or face before the server's next tick packet - Multi Break's
+  burst, and a breaker node's six. Fix: one dig a tick everywhere (Breaker Aura, breaker node, linger, re-dig).
+  RotationBreak: a dig is traced along the NEXT movement packet's look only if that arrives within 15 ms
+  (`handleQueuedBreaks`), else along the look before; after one miss every later dig is judged on arrival by the look
+  before ("pre-flying"). Digs sent at START with the body turned in the same tick missed whenever the tick was slow. Fix:
+  `util/DigAim` - a dig (breaker, boom tap) goes only once the look the server already heard strikes the block's cube from
+  where it has him; the body turns a tick ahead, and the next block's turn rides the current dig's tick (Grim also tries
+  the previous look), so a run of digs still goes one a tick.
+  PacketOrderE: a `set_carried_item` after a use / block click / interact / attack / release / player command inside one
+  server tick (reset by a movement packet, or by `client_tick_end` when no movement packet went that tick; a teleport's
+  echo is not a tick packet). Vanilla reads hotbar keys before use keys, so it never sends that order. Cases: Kill Mimic's
+  Hyperion use then the slot handed back in the same tick; his lever click (outside the tick) then the breaker node's swap.
+  Fix: `HotbarSelect.swapWouldFlag()` (fed by the send tap); the route holds a tick, Kill Mimic waits a tick before its
+  swap and hands the slot back the next tick (state RESTORE). Not under a Blink charge (Blink replays the wire).
+  DuplicateRotPlace: a `use_item_on` whose preceding yaw turn is over 2 degrees and equal to 0.0001 to the turn before the
+  previous block click - automation snapping to 45-degree node yaws did it twice in a row. Fix: `util/PlaceRotationGuard`
+  moves the yaw 0.01 for the one send when a turn would repeat (sendPosition head), never in a tick whose movement packet
+  must report a `use_item`'s look (moving it there is BadPacketsJ - 11 flags in 62-argrim-1020-acbat on the first try).
+  BadPacketsH: every START/STOP dig and use must carry the last sequence + 1; AP3's boom START went out with sequence 0
+  (the constructor without one). Fix: it goes through `RouteExecutor.sendBoomTap` (vanilla's `startPrediction`).
+  BadPacketsV (a position packet that did not move) in 63-ap3's Blink shot cases is Blink's, not fixed here.
 - **A vanilla client removes a block it instabreaks the moment it sends the dig, and GrimAC assumes it did**: on an instant
   START_DESTROY_BLOCK (`BlockBreakSpeed.getBlockDamage >= 1`) it sets the block to air in its own world at once
   (`CheckManagerListener.handleDigging`, 2.3.74). Breaker Aura with Zero Ping off kept standing on a picked floor block
