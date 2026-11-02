@@ -32,6 +32,12 @@ public class QuizSolverTab extends BaseTab {
         widgets.add(onOffButton("Block Wrong Answers", cfg::isBlockWrongAnswers, cfg::setBlockWrongAnswers, cfg::save,
                 null, contentX, y, contentWidth, 18));
         y += 22;
+        widgets.add(onOffButton("Sneak To Override", cfg::isSneakOverride, cfg::setSneakOverride, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 22;
+        widgets.add(onOffButton("Quiz Timer", cfg::isShowTimer, cfg::setShowTimer, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 22;
 
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.QUIZ, contentX, contentWidth, y, true);
 
