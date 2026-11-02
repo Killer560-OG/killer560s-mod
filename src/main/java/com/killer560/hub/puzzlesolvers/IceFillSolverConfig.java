@@ -16,7 +16,8 @@ import java.nio.file.Path;
  *  feature in this mod. */
 public final class IceFillSolverConfig {
 
-    /** killer560, 2026-09-20: "ice fill's line shouldn't be blue, its hard to see - make it configurable".
+    /** The pre-2026-11-01 presets, kept only so an old file's "lineColor" loads as its color.
+     *  killer560, 2026-09-20: "ice fill's line shouldn't be blue, its hard to see - make it configurable".
      *  Light blue read poorly against the puzzle's own ice/snow floor, so the default is a lime that reads
      *  against ice, snow AND stone alike; the rest give a real choice instead of guessing what he'd prefer. */
     public enum LineColor {
@@ -45,7 +46,13 @@ public final class IceFillSolverConfig {
 
     private boolean enabled = false;
     private boolean optimizedPath = false;
-    private LineColor lineColor = LineColor.LIME;
+    /** Default line color: the old LIME preset. */
+    public static final int DEFAULT_LINE_COLOR = argbOf(LineColor.LIME);
+    /** The line color, picked in a color box since 2026-11-01 (killer560: "line color should be a customizable box not a
+     *  toggle through"). A file from before holds the old preset name under "lineColor", which load turns into its color. */
+    private int lineColorArgb = DEFAULT_LINE_COLOR;
+    /** Etherwarp Protection (killer560, 2026-11-01): see {@link IceFillSolverFeature#etherwarpVerdict}. */
+    private boolean etherwarpProtection = false;
 
     private IceFillSolverConfig() {
     }
@@ -74,7 +81,12 @@ public final class IceFillSolverConfig {
             IceFillSolverConfig cfg = new IceFillSolverConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.optimizedPath = ConfigJson.getBool(obj, "optimizedPath", false);
-            cfg.lineColor = ConfigJson.getEnum(obj, "lineColor", LineColor.class, LineColor.LIME);
+            if (obj.has("lineColorArgb")) {
+                cfg.lineColorArgb = (int) obj.get("lineColorArgb").getAsLong();
+            } else {
+                cfg.lineColorArgb = argbOf(ConfigJson.getEnum(obj, "lineColor", LineColor.class, LineColor.LIME));
+            }
+            cfg.etherwarpProtection = ConfigJson.getBool(obj, "etherwarpProtection", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new IceFillSolverConfig();
@@ -87,7 +99,8 @@ public final class IceFillSolverConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("optimizedPath", optimizedPath);
-            obj.addProperty("lineColor", lineColor.name());
+            obj.addProperty("lineColorArgb", lineColorArgb);
+            obj.addProperty("etherwarpProtection", etherwarpProtection);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -118,17 +131,24 @@ public final class IceFillSolverConfig {
         this.optimizedPath = optimizedPath;
     }
 
-    public LineColor getLineColor() {
-        return lineColor;
+    public int getLineColorArgb() {
+        return lineColorArgb;
     }
 
-    /** Cycles to the next color in {@link LineColor#values()}, wrapping around. */
-    public void cycleLineColor() {
-        cycleLineColor(1);
+    public void setLineColorArgb(int argb) {
+        this.lineColorArgb = argb;
     }
 
-    public void cycleLineColor(int dir) {
-        LineColor[] values = LineColor.values();
-        lineColor = values[Math.floorMod(lineColor.ordinal() + dir, values.length)];
+    public boolean isEtherwarpProtection() {
+        return etherwarpProtection;
+    }
+
+    public void setEtherwarpProtection(boolean etherwarpProtection) {
+        this.etherwarpProtection = etherwarpProtection;
+    }
+
+    /** A preset as an opaque ARGB color. */
+    static int argbOf(LineColor c) {
+        return 0xFF000000 | (Math.round(c.r * 255) << 16) | (Math.round(c.g * 255) << 8) | Math.round(c.b * 255);
     }
 }

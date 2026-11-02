@@ -6,7 +6,8 @@
 	"client": [
 		"PuzzlePacketMixin",
 		"TicTacToeMisclickMixin",
-		"QuizMisclickMixin"
+		"QuizMisclickMixin",
+		"IceFillEtherwarpMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0
