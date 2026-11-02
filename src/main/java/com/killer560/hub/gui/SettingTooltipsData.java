@@ -332,8 +332,8 @@ final class SettingTooltipsData {
         d.put("dungeon/max delay", "Longest random wait between auto terminal clicks, 80-500 ms (cheat build only).");
         d.put("max delay", "Longest random wait in milliseconds between automated clicks (cheat build only).");
         d.put("block input while auto-clicking", "Ignores your own clicks and keys in a terminal while it is being auto-clicked (cheat build only).");
-        d.put("melody skip mode", "Edges: extra rows are clicked in a burst only when the match is on the first or last row; All: every remaining row is clicked (cheat build only).");
-        d.put("melody lookahead", "Extra rows clicked right after a proper Melody click, 0-2: 0 clicks only that row, 2 clicks all 3 (cheat build only).");
+        d.put("melody skip mode", "Edges: the Lookahead's extra rows are clicked only when the target is the first or last slot of the row; a target on a middle slot is played one row at a time, whatever the Lookahead. All: every remaining row is clicked after any proper click (cheat build only).");
+        d.put("melody lookahead", "Extra rows clicked right after a proper Melody click, 0-2: 0 clicks only that row, 2 clicks all 3. With Skip Mode Edges only when the target is the first or last slot (cheat build only).");
         d.put("experiment solver enabled", "Turns on the Experimentation Table solver for Chronomatron, Ultrasequencer and Superpairs.");
         d.put("auto-solve superpairs", "Lets the bot play Superpairs too (cheat build, Autonomous mode). Off also hides the Superpairs highlights.");
         d.put("superpairs pairs", "Every Pair matches all revealed pairs; Skip Plain XP saves clicks for other rewards (cheat build, Autonomous mode).");
