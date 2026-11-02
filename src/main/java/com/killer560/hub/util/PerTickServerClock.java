@@ -14,8 +14,10 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * anticheat's transaction pings come close to that on their own. On the testkit's GrimAC server (about 15 a second)
  * ServerLag read the gaps between them as stalls, and a Blood Camp countdown built on it fell 11-15 ticks a second instead
  * of 20 (testkit 177 on doc-blood-1101's first jar: "74.8 -> 62.8 -> 47.8 -> 33.8 ticks left" a second apart). Here a
- * server is trusted only after a 20-client-tick window carrying at least {@link #TRUST_PINGS} pings, and stops being
- * trusted after two windows in a row short of it (one short window is what the stall itself looks like).
+ * server is trusted only after two 20-client-tick windows in a row in which at least {@link #TRUST_TICKS_WITH_PING}
+ * ticks saw a ping and no more than {@link #MAX_WINDOW_PINGS} came in all, and stops being trusted after two windows in a
+ * row that fail it (one failing window is what a stall itself looks like). The first rule, at 18 pings a window, still
+ * trusted GrimAC now and then and ran testkit 792's first trip 31 ticks slow.
  * <p>
  * The clock is one count: each ping advances it while the server is trusted, each client tick while it is not. So it is
  * continuous across a change of source, a stall stops it, and a burst of pings after a network spike (the server kept
@@ -24,8 +26,14 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 public final class PerTickServerClock {
 
     private static final int WINDOW_TICKS = 20;
-    /** Pings in a 20-tick window that make the server a per-tick pinger (Hypixel: 20; GrimAC alone: about 15). */
-    static final int TRUST_PINGS = 18;
+    /** A good window: at least this many of its 20 client ticks saw a ping (a per-tick pinger: all of them)... */
+    static final int TRUST_TICKS_WITH_PING = 19;
+    /** ...and no more than this many pings in all (an anticheat's bursts of transactions are not ticks). */
+    static final int MAX_WINDOW_PINGS = 24;
+    private static int windowTicksWithPing;
+    private static int pingsThisTick;
+    private static int goodWindows;
+    private static volatile int trustChanges;
 
     private static volatile long clock;
     private static volatile long clientTicks;
@@ -63,10 +71,14 @@ public final class PerTickServerClock {
         shortWindows = 0;
         windowPings = 0;
         windowTicks = 0;
+        windowTicksWithPing = 0;
+        pingsThisTick = 0;
+        goodWindows = 0;
     }
 
     private static synchronized void onPing() {
         windowPings++;
+        pingsThisTick++;
         if (trusted) {
             clock++;
         }
@@ -77,17 +89,34 @@ public final class PerTickServerClock {
         if (!trusted) {
             clock++;
         }
+        if (pingsThisTick > 0) {
+            windowTicksWithPing++;
+        }
+        pingsThisTick = 0;
         if (++windowTicks >= WINDOW_TICKS) {
             lastWindowPings = windowPings;
-            if (windowPings >= TRUST_PINGS) {
-                trusted = true;
+            boolean good = windowTicksWithPing >= TRUST_TICKS_WITH_PING && windowPings <= MAX_WINDOW_PINGS;
+            boolean was = trusted;
+            if (good) {
                 shortWindows = 0;
-            } else if (trusted && ++shortWindows >= 2) {
-                trusted = false;
-                shortWindows = 0;
+                if (++goodWindows >= 2) {
+                    trusted = true;
+                }
+            } else {
+                goodWindows = 0;
+                if (trusted && ++shortWindows >= 2) {
+                    trusted = false;
+                    shortWindows = 0;
+                }
+            }
+            if (was != trusted) {
+                trustChanges++;
+                LOGGER.info("[PerTickServerClock] server {} per-tick pinger: {} pings, {} of {} ticks with a ping", trusted
+                        ? "is a" : "is no longer a", windowPings, windowTicksWithPing, WINDOW_TICKS);
             }
             windowPings = 0;
             windowTicks = 0;
+            windowTicksWithPing = 0;
         }
     }
 
@@ -111,6 +140,26 @@ public final class PerTickServerClock {
 
     public static boolean trusted() {
         return trusted;
+    }
+
+    /** Testkit (logic suite, no server): drive the clock by hand - a server ping, a client tick, a fresh world. */
+    public static void pingForTest() {
+        onPing();
+    }
+
+    public static void tickForTest() {
+        onClientTick();
+    }
+
+    public static void untrustForTest() {
+        untrust();
+    }
+
+    private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-servertick");
+
+    /** Testkit: times the trust changed. */
+    public static int trustChanges() {
+        return trustChanges;
     }
 
     /** Testkit: pings in the last full window. */
