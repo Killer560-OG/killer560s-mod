@@ -26,6 +26,11 @@ public abstract class Ap3SendTogetherMixin {
             Ap3Executor.noteHeldFlush();
             return false;
         }
+        // The same for util/BeforeMove's turned digs and clicks (rbcause-1102: GrimAC RotationBreak's 15 ms lend).
+        if (flush && com.killer560.hub.util.BeforeMove.holdFlush()) {
+            com.killer560.hub.util.BeforeMove.noteHeldFlush();
+            return false;
+        }
         return flush;
     }
 }
