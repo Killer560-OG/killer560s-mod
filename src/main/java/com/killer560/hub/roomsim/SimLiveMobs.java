@@ -204,7 +204,8 @@ public final class SimLiveMobs {
                         if (layout.roomAtWorld(x + 0.5, z + 0.5) != room) {
                             continue;
                         }
-                        for (int y = c.getY() - 6; y <= c.getY() + 8; y++) {
+                        // c is a tile center at the doorways' feet level + 1: never under that floor, less one (see besideSpot).
+                        for (int y = c.getY() - 2; y <= c.getY() + 8; y++) {
                             BlockPos feet = new BlockPos(x, y, z);
                             if (solid(level, feet.below()) && !solid(level, feet) && !solid(level, feet.above())
                                     && level.getFluidState(feet).isEmpty()) {
@@ -276,6 +277,9 @@ public final class SimLiveMobs {
     /** An open floor spot 2-4 blocks from {@code near}, in the same room and clear of {@code taken}, or null. */
     private static BlockPos besideSpot(ServerLevel level, DungeonLayout layout, int room, BlockPos near, List<BlockPos> taken,
                                        java.util.Random rng) {
+        // Never below the floor the doorways stand on, less one: a pit or the hollow under a floor is no place for a mob (a
+        // key that drops there cannot be reached; doc-adm-sim-1101, a Flags key 3 below the floor).
+        int floorMin = DungeonLayout.doorBlock(0).getY() - 1;
         for (int tries = 0; tries < 60; tries++) {
             int x = near.getX() + rng.nextInt(9) - 4;
             int z = near.getZ() + rng.nextInt(9) - 4;
@@ -284,7 +288,7 @@ public final class SimLiveMobs {
             if (dx * dx + dz * dz < 4 || layout.roomAtWorld(x + 0.5, z + 0.5) != room) {
                 continue;
             }
-            for (int y = near.getY() - 2; y <= near.getY() + 2; y++) {
+            for (int y = Math.max(near.getY() - 2, floorMin); y <= near.getY() + 2; y++) {
                 BlockPos feet = new BlockPos(x, y, z);
                 if (solid(level, feet.below()) && !solid(level, feet) && !solid(level, feet.above())
                         && !solid(level, feet.above(2)) && level.getFluidState(feet).isEmpty()) {
