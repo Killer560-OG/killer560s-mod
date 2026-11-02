@@ -1,5 +1,6 @@
 package com.killer560.hub.blink.mixin;
 
+import com.killer560.hub.blink.BlinkCharge;
 import com.killer560.hub.blink.BlinkFeature;
 import com.killer560.hub.util.ModLog;
 import io.netty.channel.ChannelFutureListener;
@@ -29,6 +30,16 @@ public abstract class BlinkConnectionMixin {
             }
         } catch (Throwable t) {
             killer560smod$blink$threw(t);
+        }
+    }
+
+    /** The RETURN: only a packet that really went (a held one is cancelled at the head) - the look the server has. Same
+     *  signature on 26.2 and 26.3 (javap 2026-11-01). */
+    @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;Lio/netty/channel/ChannelFutureListener;Z)V",
+            at = @At("RETURN"))
+    private void killer560smod$blinkWire(Packet<?> packet, ChannelFutureListener listener, boolean flush, CallbackInfo ci) {
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            BlinkCharge.onWire(packet);
         }
     }
 

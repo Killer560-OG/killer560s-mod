@@ -296,6 +296,16 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   block/sound constants differ between 26.1.2 and 26.2 (`snapTo` not `moveTo`, `McBlocks.RED_WOOL`, holder vs plain
   `SoundEvent`); copy the shape of an existing use. Examples, and the cloud-session `javac` filter that catches
   structural errors without the Minecraft jar: [docs/COMPILING.md](docs/COMPILING.md).
+- **26.3 moved the player's packets out of `LocalPlayer.tick`.** On 26.2 the tick sends the input, sprint and move packets
+  (sendPosition); on 26.3 `Minecraft.tick` calls the public `LocalPlayer.sendChanges()` after `ClientLevel.tickEntities` (javap
+  26.3). Code that runs his tick by hand (Blink's shot, BlinkCharge's spent ticks) must call `McCompat.sendPlayerChanges(player)`
+  right after `player.tick()`; without it every Blink shot on 26.3 moved him on the client only and the server set it back
+  (63-ap3 26.3 76/21 -> 87/2, same 2 as 26.2; 2026-11-01). It also fixed ZPEW Aimed Warps n>=3 and Auto Routes' Charged
+  Chain on 26.3 (BadPacketsJ: the spent ticks' tick-ends went with no move to report the use's look).
+- **Blink Charge's banked turns leave vanilla's "last sent look" wrong.** A hand-run tick whose look equals it sends no
+  move, so the server keeps the pre-turn look; `BlinkCharge.spendTick` sends the look itself when the wire one differs
+  (zpew263-1101: one BadPacketsJ per aimed burst at 0 ms on 26.2 and 26.3 before it). Find such faults with the testkit's
+  `WireCapture` (encoder-level, after Blink's holds), not `PacketTrace` (hand-off level, before them).
 - **A mixin that compiles on 26.2 can still crash 26.2 at startup.** Mixin descriptors are only checked when the
   game loads, so `@Inject(method = "extractRenderState")` on `Gui` with 26.1.2's `(GuiGraphicsExtractor, DeltaTracker)`
   built fine and crashed every 26.2 launch (26.2's is `(DeltaTracker, boolean, boolean)`). Seven overlays did it until
