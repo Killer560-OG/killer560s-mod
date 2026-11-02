@@ -79,6 +79,11 @@ public final class BreakerAuraFeature {
     // 2026-10-19 it is dug over time and never zero-pinged - see OBSIDIAN below.
 
     private static final Map<BlockPos, Long> RECENT = new HashMap<>();
+    /** The block-prediction sequence of each RECENT dig: it is dug again only once the server has acked that sequence
+     *  (its answer is in and the block still stands), or after {@link #RETRY_FALLBACK_MS}. */
+    private static final Map<BlockPos, Integer> RECENT_SEQ = new HashMap<>();
+    /** A retry with no ack (a server that never sends one) still goes, this long after the dig. */
+    private static final long RETRY_FALLBACK_MS = 1500L;
     /**
      * The obsidian block being dug, if any. Obsidian is not broken by one START like every other block (killer560,
      * 2026-10-19: it takes time): it is held as a hand holds it until the server's block update says it is gone, and no
@@ -241,6 +246,7 @@ public final class BreakerAuraFeature {
 
     private static void resetState() {
         RECENT.clear();
+        RECENT_SEQ.clear();
         lastSkipReason = null;
         spentSinceLore = 0;
         lastLoreCharges = -1;
@@ -720,7 +726,24 @@ public final class BreakerAuraFeature {
         }
 
         long now = System.currentTimeMillis();
-        RECENT.values().removeIf(t -> now - t > RETRY_MS);
+        // A dig is sent again only once the server has answered it (multibreak-1102). On a fixed 200 ms a busy server's
+        // answer was still on its way: the same block was dug twice more after the server had broken it, and GrimAC
+        // flagged AirLiquidBreak on each (1102-breaker-aura-multibreak-off, 26.2, the server's update 700 ms late). The
+        // server acks a dig's sequence once it has handled it, so a block still standing
+        // once its dig is acked was really refused.
+        RECENT.entrySet().removeIf(e -> {
+            long age = now - e.getValue();
+            if (age <= RETRY_MS) {
+                return false;
+            }
+            Integer seq = RECENT_SEQ.get(e.getKey());
+            boolean due = seq == null || seq < 0 || com.killer560.hub.util.ChestWindows.acked(seq)
+                    || age > RETRY_FALLBACK_MS;
+            if (due) {
+                RECENT_SEQ.remove(e.getKey());
+            }
+            return due;
+        });
 
         // PICKED BLOCKS ONLY, always. killer560 (2026-10-05): "the aura shouldn't randomly grab blocks, only ones
         // I have selected." The automatic path sweep (and its Side Reach and "Only Picked Blocks" settings) is
@@ -965,6 +988,7 @@ public final class BreakerAuraFeature {
                         lastSentPredicted ? 1L : 0L});
             }
             RECENT.put(pos, now);
+            RECENT_SEQ.put(pos.immutable(), lastSentSeq);
             spentSinceLore++;
             sent++;
         }
