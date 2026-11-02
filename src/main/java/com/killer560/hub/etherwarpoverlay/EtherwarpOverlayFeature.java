@@ -108,7 +108,79 @@ public final class EtherwarpOverlayFeature {
         LevelRenderEvents.COLLECT_SUBMITS.register(EtherwarpOverlayFeature::onWorldRender);
     }
 
+    /**
+     * Where the server's etherwarp ray meets its block this frame (the ray's entry into that voxel, from the eye the server
+     * casts from), or null when the overlay drew nothing. The crosshair is moved onto it ({@link #crosshairOffset}).
+     */
+    private static volatile Vec3 serverAim;
+    /** Frames the crosshair was moved by more than a hundredth of a GUI pixel - read by the testkit. */
+    private static int crosshairMoves;
+    private static volatile float lastCrosshairDy;
+
+    public static int crosshairMoves() {
+        return crosshairMoves;
+    }
+
+    public static float lastCrosshairDy() {
+        return lastCrosshairDy;
+    }
+
+    public static Vec3 serverAim() {
+        return serverAim;
+    }
+
+    /**
+     * killer560 (2026-11-01): "If i am on p3sim and holding etherwarp make it adjust my crosshair to the spot that the
+     * server recognizes as well as the box like it does." p3sim casts the warp from 1.8.9's sneaking eye (1.54) while the
+     * camera sits at the modern 1.27, so the box (cast from the server's eye) sits above where the plain crosshair points.
+     * The GUI offset, in GUI pixels (+y down), that puts the crosshair on {@link #serverAim} as the camera sees it - zero
+     * on Hypixel, where both eyes agree. Null when there is nothing to move it for (no aim, the setting off, a detached
+     * camera, the aim behind the camera).
+     */
+    public static float[] crosshairOffset(int guiWidth, int guiHeight) {
+        Vec3 aim = serverAim;
+        if (aim == null || !EtherwarpOverlayConfig.getInstance().isEnabled()
+                || !EtherwarpOverlayConfig.getInstance().isServerCrosshair()) {
+            return null;
+        }
+        Minecraft client = Minecraft.getInstance();
+        net.minecraft.client.Camera camera = client.gameRenderer.mainCamera();
+        if (camera == null || camera.isDetached()) {
+            return null;
+        }
+        org.joml.Vector3fc f = camera.forwardVector();
+        double fx = f.x(), fy = f.y(), fz = f.z();
+        // The camera's basis from its forward vector: right is horizontal (no roll), up = right x forward.
+        double h = Math.sqrt(fx * fx + fz * fz);
+        if (h < 1e-6) {
+            return null; // straight up or down: no stable right vector
+        }
+        double rx = -fz / h, rz = fx / h;
+        double ux = -(rz * fy), uy = rz * fx - rx * fz, uz = rx * fy;
+        Vec3 cam = camera.position();
+        double dx = aim.x - cam.x, dy = aim.y - cam.y, dz = aim.z - cam.z;
+        double depth = dx * fx + dy * fy + dz * fz;
+        if (depth < 0.05) {
+            return null;
+        }
+        double tanHalf = Math.tan(Math.toRadians(camera.getFov()) / 2.0);
+        double aspect = (double) guiWidth / Math.max(1, guiHeight);
+        double ndcX = (dx * rx + dz * rz) / depth / (tanHalf * aspect);
+        double ndcY = (dx * ux + dy * uy + dz * uz) / depth / tanHalf;
+        float ox = (float) (ndcX * guiWidth / 2.0);
+        float oy = (float) (-ndcY * guiHeight / 2.0);
+        if (Math.abs(ox) > guiWidth || Math.abs(oy) > guiHeight) {
+            return null;
+        }
+        if (Math.abs(ox) > 0.01f || Math.abs(oy) > 0.01f) {
+            crosshairMoves++;
+        }
+        lastCrosshairDy = oy;
+        return new float[]{ox, oy};
+    }
+
     private static void onWorldRender(LevelRenderContext context) {
+        serverAim = null;
         EtherwarpOverlayConfig cfg = EtherwarpOverlayConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
         if (!cfg.isEnabled() || McCompat.screen(client) != null || client.player == null || client.level == null) {
@@ -139,8 +211,15 @@ public final class EtherwarpOverlayFeature {
         // Both builds: ZPEW moved to the legit build on 2026-10-26 and this gate was left behind, so Overlay From
         // Prediction did nothing in a legit jar (zpew campaign 1027, testkit 1027-zpewc-overlay).
         Vec3 zpewFeet = com.killer560.hub.zpew.ZeroPingEtherwarp.predictedFeet();
-        EtherPos etherPos = getEtherPos(client.level, zpewFeet != null ? zpewFeet : client.player.position(), client.player,
-                distance);
+        Vec3 castFeet = zpewFeet != null ? zpewFeet : client.player.position();
+        EtherPos etherPos = getEtherPos(client.level, castFeet, client.player, distance);
+        if (etherPos.pos() != null && zpewFeet == null) {
+            // The spot the server's ray meets: where it enters the voxel it stopped on (a zpew-predicted cast starts
+            // somewhere the camera is not, so there is no crosshair to move for it).
+            Vec3 start = castStart(castFeet, client.player);
+            Vec3 look = client.player.getLookAngle();
+            serverAim = new AABB(etherPos.pos()).clip(start, start.add(look.scale(distance + 2.0))).orElse(null);
+        }
         if (!etherPos.succeeded() && !cfg.isShowWhenFailed()) {
             lastOutcome = "failed " + etherPos.pos();
             return;
@@ -436,7 +515,11 @@ public final class EtherwarpOverlayFeature {
                 || block instanceof LadderBlock
                 || block instanceof FlowerPotBlock
                 || block instanceof WebBlock
-                || block instanceof NetherPortalBlock;
+                || block instanceof NetherPortalBlock
+                // Carpets: Hypixel's 1.8 feet-block list has them (id 171) beside snow layers, flowers and torches,
+                // which this table already passes; only carpets had been dropped (killer560, 2026-11-01: "the
+                // etherwarp prediction ... doesnt work right on carpets"). Same change in TeleportUtils' table.
+                || block instanceof net.minecraft.world.level.block.CarpetBlock;
     }
 
     private static boolean blocksFeet(Block block) {

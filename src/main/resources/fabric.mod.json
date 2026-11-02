@@ -107,7 +107,8 @@
     "killer560smod-modusers.mixins.json",
     "killer560smod-cape.mixins.json",
     "killer560smod-egglocator.mixins.json",
-    "killer560smod-perfprobe.mixins.json"
+    "killer560smod-perfprobe.mixins.json",
+    "killer560smod-etherwarpoverlay.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.3",
