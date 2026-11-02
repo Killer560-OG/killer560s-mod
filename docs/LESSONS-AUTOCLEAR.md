@@ -177,3 +177,7 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
 - Waiting at a shut wither door with no key, Auto Clear only looked for keys within 40 blocks (`KEY_SEARCH_RANGE`): the
   key it needed dropped 50 blocks away the tick it set off for the door, and it waited 12 minutes. `keyAnyRange` (2026-11-01)
   takes a Wither Key anywhere in view while a door waits on one (testkit 1101-sim-mobfloor).
+- Pockets the etherwarp graph cannot land in or leave (Banners' ledge in the sim, 2026-11-01): a key or a sleeping Fel there
+  was left for good after one failed trip, and from inside it the door trip failed four times. Now: up to 3 stands for a key,
+  then one forced walk (`walkInsteadOfTrip(..., force)`, up to 32 blocks, whatever the etherwarp estimate); a Fel trip that
+  ended out of range walks; a door after a failed trip walks; and at a door with no key a key left earlier gets one more go.
