@@ -71,6 +71,15 @@ public class ExperimentsTab extends BaseTab {
                     c.save();
                     btn.setMessage(notifyMaxClicksText());
                 }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+
+        // Superpairs Overview HUD (killer560, 2026-11-01): found rewards and powerups, undiscovered pairs and powerups.
+        widgets.add(SettingsButtonWidget.builder(superpairsHudText(), btn -> {
+                    ExperimentsConfig c = ExperimentsConfig.getInstance();
+                    c.setSuperpairsHudEnabled(!c.isSuperpairsHudEnabled());
+                    c.save();
+                    btn.setMessage(superpairsHudText());
+                }).bounds(contentX, y, contentWidth, 20).build());
         y += 28;
 
         // The profit tracker is independent of the solver (it only reads claimed rewards), so it stays
@@ -128,6 +137,11 @@ public class ExperimentsTab extends BaseTab {
     }
 
     /** Fires for the solver and for the automation alike since 2026-09-15. */
+    private static Component superpairsHudText() {
+        return Component.literal("Superpairs Overview: "
+                + (ExperimentsConfig.getInstance().isSuperpairsHudEnabled() ? "§aON" : "§cOFF"));
+    }
+
     private static Component notifyMaxClicksText() {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
         return Component.literal("Notify Max Clicks Reached: " + (cfg.isNotifyMaxClicksReached() ? "§aON" : "§cOFF"));

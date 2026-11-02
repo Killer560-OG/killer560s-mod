@@ -159,8 +159,8 @@ public class AutoExperimentsTab extends BaseTab {
                 }).bounds(contentX + half + GAP, y, half, 20).build());
         y += 24;
 
-        // The Emergency Cancel Key went on 2026-10-13 (killer560): any key, click or scroll of his stops a run now,
-        // and chat names which (ExperimentsFeature.stopOnPlayerInput). Stop At has the row to itself.
+        // Escape or the mod-wide Emergency Cancel Key (Home, macrostop/MacroStop) stops a run, nothing else (killer560,
+        // 2026-11-01; from 2026-10-13 to then any key, click or scroll did). Stop At has the row to itself.
         widgets.add(SettingsButtonWidget.cycling(stopStrategyText(), (btn, dir) -> {
                     ExperimentsConfig c = ExperimentsConfig.getInstance();
                     c.setStopStrategy(dir > 0 ? c.getStopStrategy().next() : c.getStopStrategy().previous());

@@ -294,6 +294,8 @@ public final class ModPaths {
         t.put("autoupdate", "system/autoupdate");
         t.put("reboot", "system/reboot");
         t.put("correctionalarm", "system/correctionalarm");
+        // The mod-wide Emergency Cancel Key for every macro (killer560smod-macrostop.json, 2026-11-01).
+        t.put("macrostop", "system/macrostop");
         t.put("bugreport", "system/bugreport");
         t.put("bug-reports", "system/bugreport");
         // Session Recorder (2026-10-19): its switch, and its per-session files plus the "disabled here" marker, which

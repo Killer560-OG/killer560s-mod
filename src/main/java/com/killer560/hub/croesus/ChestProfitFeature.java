@@ -319,14 +319,13 @@ public final class ChestProfitFeature {
                 LOGGER.error("[ChestProfit] Render failed", e);
             }
         });
-        // killer560, 2026-09-20: "it will keep going until i press any key while it is going or it finishes."
-        // ESC and the inventory key are let through as well as stopping, so the menu still closes the way it
-        // normally would; everything else is swallowed, since a stray number key inside a Hypixel menu is a
-        // real hotbar-swap packet.
+        // Only Escape and the Emergency Cancel Key stop a run (macrostop/MacroStop, raw, ahead of this hook; killer560,
+        // 2026-11-01). While one runs every other key is swallowed, since a stray number key inside a Hypixel menu is a
+        // real hotbar-swap packet; Escape is let through so the menu still closes the way it normally would.
         ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
             try {
                 // A hidden run takes no hotbar swap or drop either (each is a real click on it); Escape still closes.
-                if (!AutoCroesusFeature.stopOnKeyPress()) {
+                if (!AutoCroesusFeature.isBusy()) {
                     return true;
                 }
                 return event.key() == InputConstants.KEY_ESCAPE;

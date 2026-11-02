@@ -1095,6 +1095,8 @@ final class SettingTooltipsData {
         d.put("check now", "Checks your Auto Update channel right now and downloads the update if there is one. It installs when you close the game.");
         d.put("this build", "The commit this jar was built from, and its Minecraft version and variant. Auto Update compares the commit with the release's.");
         d.put("open menu key", "Key that opens this menu in game, when no screen is open and you are not typing. Click, then press a key; Esc unbinds.");
+        d.put("superpairs overview", "A panel beside the Superpairs board, like SkyHanni's: every reward found (green once claimed, gray with only one tile seen), the powerups turned over, the pairs still to find (half-found ones plus up to how many wholly unseen) and the powerups still covered (exact when the board allows, otherwise an upper bound). Needs the solver or Auto E-Table on. Move it in Edit HUD Positions.");
+        d.put("emergency cancel key", "Stops every running macro at once, beside Escape. Click macros (Auto E-Table, Bazaar Flip, Auto Croesus, Auto Sell, Auto Anvil, Inventory Sorter, Storage Scan All) stop only on Escape or this key; movement macros (Auto Fairy Souls, Auto Secret, Auto Clear, Blood Rush) also stop on a movement key or opening chat. Not counted while you type in chat or a menu. A key or a mouse button; click, then press it; Esc unbinds.");
         d.put("edit hud keybind", "Key that opens the HUD editor, over any screen (a chest, Croesus, this menu) so its overlays can be placed where they sit. It does nothing while you are typing: chat, a rename, a sign or book, any search box.");
         d.put("correction alarm", "Plays a siren when the server corrects your position during an automation. Nothing is stopped; the mod carries on from the corrected position.");
         d.put("alarm volume", "How loud the Correction Alarm plays, 0-100%.");
@@ -1273,7 +1275,7 @@ final class SettingTooltipsData {
         d.put("mark all found (this island)", "Logs every fairy soul on this island as found, so the walker skips them.");
         d.put("reset this island", "Clears the found-soul log for this island. Click twice to confirm.");
         d.put("reset found souls (profile)", "Clears the found-soul log for every island. Click twice to confirm.");
-        d.put("auto fairy souls", "Cheat build: walks the island's soul route and clicks each Fairy Soul, with your camera free. Any key or click stops it. Needs nothing else on.");
+        d.put("auto fairy souls", "Cheat build: walks the island's soul route and clicks each Fairy Soul, with your camera free. A movement key, Escape, opening chat or the Emergency Cancel Key (Home) stops it. Needs nothing else on.");
         d.put("auto fairy souls/auto walk", "Walks you from soul to soul. Off: you walk, it still clicks each soul you reach.");
         d.put("auto fairy souls/auto click", "Right-clicks each soul when it is in reach.");
         d.put("auto fairy souls/sprint", "Sprints where the path is clear; it still slows for corners and the soul at any speed.");
@@ -2687,7 +2689,7 @@ final class SettingTooltipsData {
         d.put("bazaar advisor", "Legit, read-only: when a Bazaar menu opens, prints what to buy, how much, and the expected profit in chat. It never clicks anything.");
         d.put("bazaar pick", "Ranks by profit per unit times units sold a week: buy at the cheapest sell offer, sell into the best buy order.");
         d.put("npc pick", "Ranks by profit per unit: buy at the cheapest sell offer, sell to the NPC at its listed price.");
-        d.put("bazaar flipper/start key", "Starts a flipping session. Any key or mouse button you press while it runs stops it, in a menu or not.");
+        d.put("bazaar flipper/start key", "Starts a flipping session; pressing it again stops it. Escape or the Emergency Cancel Key (Home) stops it too, and no other key or click does; while it runs, other keys and clicks in a Bazaar menu are kept off the menu.");
         d.put("bazaar flipper/rank by", "Picks the best flip by percentage margin or by total profit per run; anything with a profit after fees qualifies.");
         d.put("bazaar flipper/target purse", "Stops flipping once your purse reaches this. Type a number: 5,000,000, 750k, 2.5m or 1b. Empty or 0 means off.");
         d.put("bazaar flipper/speed", "Delay between automated actions, in milliseconds.");
@@ -2764,7 +2766,7 @@ final class SettingTooltipsData {
         d.put("fill box", "Fills each blaze's highlight box solid instead of drawing only its outline.");
         d.put("optimized solutions", "Uses Odin's alternate lever-timing set instead of the default one.");
         d.put("line color", "Color of the Ice Fill route line. Left click cycles forward, right click back.");
-        d.put("auto e-table", "Cheat build: the autonomous Experimentation Table macro - opens Chronomatron or Ultrasequencer, plays, claims and buys renews. Off by default.");
+        d.put("auto e-table", "Cheat build: the autonomous Experimentation Table macro - opens Chronomatron or Ultrasequencer, plays, claims and buys renews. Escape or the Emergency Cancel Key (Home) stops a run, and no other key or click does; you can finish the board by hand and the solver follows. Off by default.");
         d.put("skip grand xp bottles", "Superpairs skips Grand Experience Bottles only; Titanic bottles are still paired (cheat build, Autonomous mode).");
         d.put("skip guardian pets", "Superpairs skips Guardian pets of every rarity (cheat build, Autonomous mode).");
         d.put("interactive map/class colors", "Outlines each player's map marker in their dungeon class color.");

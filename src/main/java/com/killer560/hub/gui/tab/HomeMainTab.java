@@ -16,7 +16,7 @@ import java.util.List;
  *  they live elsewhere - the header's round buttons and Home's quick buttons). */
 public class HomeMainTab extends BaseTab implements KeyCaptureTab {
 
-    /** Which key is being captured: 0 none, 1 Edit HUD, 2 Open Menu. */
+    /** Which key is being captured: 0 none, 1 Edit HUD, 2 Open Menu, 3 Emergency Cancel. */
     private int listening = 0;
 
     public HomeMainTab() {
@@ -59,6 +59,15 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SettingsButtonWidget.builder(listening == 2 ? Component.literal("Press any key...") : openMenuText(),
                 btn -> {
                     listening = 2;
+                    btn.setMessage(Component.literal("Press any key..."));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
+
+        // The Emergency Cancel Key (killer560, 2026-11-01): one key that stops every macro, beside Escape
+        // (macrostop/MacroStop). Unset by default; a key or a mouse button; Esc unbinds.
+        widgets.add(SettingsButtonWidget.builder(listening == 3 ? Component.literal("Press any key...") : emergencyCancelText(),
+                btn -> {
+                    listening = 3;
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
@@ -186,8 +195,30 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
         return listening != 0;
     }
 
+    @Override
+    public boolean supportsMouseCapture() {
+        return listening == 3;
+    }
+
+    @Override
+    public void onMouseCaptured(int button) {
+        if (listening == 3) {
+            var cfg = com.killer560.hub.macrostop.MacroStopConfig.getInstance();
+            cfg.setEmergencyCancelKeyCode(com.killer560.hub.util.KeyUtil.codeForMouseButton(button));
+            cfg.save();
+        }
+        listening = 0;
+    }
+
     public void onKeyCaptured(int keyCode) {
         int code = keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode;
+        if (listening == 3) {
+            var cfg = com.killer560.hub.macrostop.MacroStopConfig.getInstance();
+            cfg.setEmergencyCancelKeyCode(code);
+            cfg.save();
+            listening = 0;
+            return;
+        }
         // Escape unbinds (-1), same convention as every other KeyCaptureTab - it used to bind Escape itself.
         if (listening == 2) {
             HudConfig.getInstance().setOpenMenuKeyCode(code);
@@ -196,6 +227,11 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
         }
         listening = 0;
         HudConfig.getInstance().save();
+    }
+
+    private static Component emergencyCancelText() {
+        return Component.literal("Emergency Cancel Key: §b" + com.killer560.hub.util.KeyUtil.bindDisplayName(
+                com.killer560.hub.macrostop.MacroStopConfig.getInstance().getEmergencyCancelKeyCode()));
     }
 
     private static Component openMenuText() {
