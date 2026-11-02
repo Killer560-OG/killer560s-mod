@@ -90,6 +90,19 @@ project CLAUDE.md. Compiling lessons
   ("" / "^^^^^^^^^^^^^^^" / "Enter amount" / "to order"). Fill it through the screen itself - `charTyped(new
   CharacterEvent(c))` per digit, then its Done button, whose `removed()` sends `ServerboundSignUpdatePacket` - in one
   tick, so a stray Escape never sends a half-typed number (`AbstractSignEditScreen`, same on 26.1.2 and 26.2; testkit 2761).
+- **Hypixel stacks by its own rules, not the vanilla material's.** Kaleidoscopic Mineral (`SALMON_OPAL`) is PAPER, so the
+  flipper planned 254 for an inventory that holds one per free slot (his log, 2026-10-30 11:02). Hypixel's items API marks
+  539 items `unstackable` and 181 `has_uuid`; the 107 Bazaar reforge stones (category `REFORGE_STONE`) carry neither but
+  do not stack either, and nor do enchanted books. The Instant Buy page's "Fill my inventory!" amount is Hypixel's own
+  room count: never ask for more (`BazaarStackSizes`, testkit 2790). One buy order: 71,680, or 256 unstackable (wiki).
+- **An Instant Buy preset BIGGER than the amount says nothing about its price** - it averages in dearer levels - and the
+  top of the book alone under-prices a big buy. Judge by the biggest preset at or under the amount, walk the book for the
+  rest, and check the Confirm Instant Buy price against the purse above the reserve before clicking it; a dear confirm is
+  resized and retried, not skipped (testkit 2791).
+- Hypixel's order-slot refusal reads "[Bazaar] You reached your maximum of 21 Bazaar orders!" (his log, 2026-10-30); 21 is
+  his real slot count, not the autopilot's default 14.
+- The Auction House endpoints (`/v2/skyblock/auctions`, `auctions_ended`) need no API key, so the AH Flipper polls Hypixel
+  directly; nothing goes through the relay (checked 2026-11-01).
 - **A wait that ends on "the confirm page is open" must not end on the one it just clicked.** That page stays open until the
   server answers, so the Bazaar Flip autopilot read its own clicked Confirm Instant Buy as a new question, dropped its
   wait, and bought from the reopened Instant Buy page a second time (testkit 2762, 2026-10-22). Key such a wait on the

@@ -483,3 +483,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
   release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
   `Rows.addKept`).
+- Anything that BUYS sizes by Hypixel's stacking, never the vanilla material's (2026-11-01: Kaleidoscopic Mineral is PAPER,
+  stacks to 1, and the Bazaar Flipper typed 254): `bazaarflip/BazaarStackSizes` (catalog `unstackable`/`has_uuid`, reforge
+  stones, books, the live "Fill my inventory!"); docs/LESSONS.md "Bazaar and Croesus".
