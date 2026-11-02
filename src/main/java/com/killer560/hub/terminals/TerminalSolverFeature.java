@@ -220,6 +220,18 @@ public final class TerminalSolverFeature {
      *  click, whose row the pane has not reached yet). */
     private static final int[] melodyClickedColumn = new int[8];
     private static final int MELODY_UNSEEN = -2;
+    /** The slot the moving pane was last seen in, and since when (client ms): how long it has stood there. */
+    private static int melodyPaneSlot = -1;
+    private static long melodyPaneSinceMs;
+    /** The last few times between two pane steps on one row (ms); their median is the board's step time. */
+    private static final long[] melodyStepSamples = new long[5];
+    private static int melodyStepCount;
+    /** A live click goes out only if the server will still have the pane on the target when it arrives: the pane's
+     *  time on the target so far, plus a round trip, plus this (a server tick), must be under one step. */
+    static final long MELODY_LATE_MARGIN_MS = 50;
+    /** Live matches let go because the pane had stood there too long for the click to reach it (testkit reads it). */
+    static int melodyLateSkips;
+    private static boolean melodyPingDemand;
     /** Lookahead clicks actually sent since the game started. Read by the testkit (275-277); nothing in the mod reads it. */
     static int melodyLookaheadFired;
     private static long lastMelodyClickAtMs;
@@ -625,6 +637,9 @@ public final class TerminalSolverFeature {
         lastMelodyClickedRow = -1;
         melodyRowsClicked = 0;
         java.util.Arrays.fill(melodyClickedColumn, -1);
+        melodyPaneSlot = -1;
+        melodyPaneSinceMs = 0;
+        // melodyStepSamples stay: the step time is the server's, so a new board starts with the last one's.
         lastMelodyClickAtMs = 0;
         scheduledMelodyClicks.clear();
         hoverMelodyCorrectColumn = null;
@@ -1034,6 +1049,18 @@ public final class TerminalSolverFeature {
             // (2026-10-06 update) and a 4-row one both map without assuming the band starts at chest row 1.
             melodyButtonRow = melodyButtonIndexForChestRow(limeSlot / 9);
             melodyCurrentColumn = limeSlot % 9 - 1;
+            if (limeSlot != melodyPaneSlot) {
+                long seenAt = System.currentTimeMillis();
+                if (melodyPaneSlot >= 0 && limeSlot / 9 == melodyPaneSlot / 9 && melodyPaneSinceMs > 0) {
+                    long step = seenAt - melodyPaneSinceMs;
+                    if (step >= 40 && step <= 3000) {
+                        melodyStepSamples[melodyStepCount % melodyStepSamples.length] = step;
+                        melodyStepCount++;
+                    }
+                }
+                melodyPaneSlot = limeSlot;
+                melodyPaneSinceMs = seenAt;
+            }
         }
         if (melodyButtonRow == null || melodyCurrentColumn == null || melodyCorrectColumn == null) {
             // Nothing to time yet: the Stream Safe hand still goes straight to the button side (the first row's button),
@@ -1087,6 +1114,27 @@ public final class TerminalSolverFeature {
         if (buttonRow == lastMelodyClickedRow && now - lastMelodyClickAtMs < 250) {
             return;
         }
+        if (!melodyPingDemand) {
+            melodyPingDemand = true;
+            com.killer560.hub.util.PingTracker.addDemand(() -> currentType == TerminalType.MELODY);
+        }
+        long step = melodyStepMs();
+        long age = now - melodyPaneSinceMs;
+        int rtt = com.killer560.hub.util.PingTracker.automationMs();
+        if (step > 0 && age + rtt + MELODY_LATE_MARGIN_MS > step) {
+            // TOO LATE IN THE PANE'S STAY (2026-11-02, ship gate 1102k "34=2"). The click is judged where the SERVER's
+            // pane is when it arrives: it has stood there a one-way trip longer than this client has seen it, and the
+            // click needs another one-way trip. A click sent late in the stay (the Stream Safe hand pressing, a slow
+            // frame) arrived after the pane had stepped on: a wrong click, then the row clicked again on the next pass.
+            // Let this pass go; the pane comes back.
+            if (melodyLateSkippedSlot != melodyPaneSlot) {
+                melodyLateSkippedSlot = melodyPaneSlot;
+                melodyLateSkips++;
+                LOGGER.info("[Melody] row {} match let go: the pane has stood {} ms of a {} ms step, ping {} ms - too late"
+                        + " for the click to reach it", buttonRow, age, step, rtt);
+            }
+            return;
+        }
         // Mod-wide one-interaction-per-tick gate, before the same-row guard fields move. A denied frame must
         // not arm the 250ms guard, or the live match would be swallowed for a click that never happened.
         if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
@@ -1098,7 +1146,8 @@ public final class TerminalSolverFeature {
         if (buttonRow < melodyClickedColumn.length) {
             melodyClickedColumn[buttonRow] = melodyCurrentColumn;
         }
-        LOGGER.info("[Melody] live click row {} at column {} (target {})", buttonRow, melodyCurrentColumn, melodyCorrectColumn);
+        LOGGER.info("[Melody] live click row {} at column {} (target {}), pane there {} ms of a {} ms step, ping {} ms",
+                buttonRow, melodyCurrentColumn, melodyCorrectColumn, age, step, rtt);
         if (sendTerminalClick(screen, melodyButtons[buttonRow], 0, ContainerInput.CLONE)) {
             noteAutoClick(melodyButtons[buttonRow], now);
         }
@@ -1156,6 +1205,19 @@ public final class TerminalSolverFeature {
         for (int i = 1; i <= extraRows; i++) {
             scheduledMelodyClicks.add(new ScheduledMelodyClick(now + i * 50L, matchedRow + i));
         }
+    }
+
+    private static int melodyLateSkippedSlot = -1;
+
+    /** The board's pane step time (median of the last few seen on one row), or 0 before two steps were seen. */
+    private static long melodyStepMs() {
+        int n = Math.min(melodyStepCount, melodyStepSamples.length);
+        if (n == 0) {
+            return 0;
+        }
+        long[] sorted = java.util.Arrays.copyOf(melodyStepSamples, n);
+        java.util.Arrays.sort(sorted);
+        return sorted[n / 2];
     }
 
     /** Melody's track is chest columns 1-5, columns 0-4 as {@link #melodyCorrectColumn} counts them. */
