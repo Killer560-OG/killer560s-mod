@@ -1417,6 +1417,12 @@ public final class BloodCampFeature {
         return true;
     }
 
+    /** {@link #inRoomTile} for other features (Dungeon ESP's Fel skulls): false while no Watcher is known. */
+    public static boolean inBloodRoomTile(Vec3 p) {
+        Minecraft client = Minecraft.getInstance();
+        return client.level != null && inRoomTile(client, p);
+    }
+
     /** Whether {@code p} is in the Watcher's room tile (the Blood Room). */
     private static boolean inRoomTile(Minecraft client, Vec3 p) {
         Entity watcher = watcherEntityId == null ? null : client.level.getEntity(watcherEntityId);
