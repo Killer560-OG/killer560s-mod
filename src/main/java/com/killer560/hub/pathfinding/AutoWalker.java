@@ -1151,50 +1151,89 @@ public final class AutoWalker {
     }
 
     /**
-     * The last word on the keys while he is on a ladder, whoever chose them (the climb, a way back, an approach): no
-     * key moves him toward water, and if his box already touches water the key away from it is pressed. A way back
-     * that faced the pool and held W walked him off the ladder's column into it (testkit 1102-fairy-spill-ladder,
-     * z -5.73 to -5.94 at 0.07 a tick, GrimAC Simulation every time); on a ladder jump alone climbs.
+     * The last word on the keys while he is on a ladder, whoever chose them (the climb, a way back, an approach, the
+     * route turning at the ladder's top): he must never be on a ladder with water in his box (GrimAC flags the water
+     * current there for vanilla keys too). For each side with water in the next two columns: no key that moves him
+     * toward it, no sprint, and if where his sideways speed carries him (about ten ticks of air drag) would put his box
+     * within 0.05 of that water, the key away from it. Testkit 1102-fairy-spill-ladder: a way back facing the pool held
+     * W off the ladder's column into it, and the route turning toward the next point at the top strafed him in.
      */
     private static void keepLadderOutOfWater(Level level, LocalPlayer player) {
         if (level == null || !player.onClimbable()) {
             return;
         }
         Vec3 pos = player.position();
+        Vec3 v = player.getDeltaMovement();
         double yawRad = Math.toRadians(player.getYRot());
-        double fx = -Math.sin(yawRad);
-        double fz = Math.cos(yawRad);
-        double lx = Math.cos(yawRad);
-        double lz = Math.sin(yawRad);
-        boolean waterAhead = waterBeside(level, pos, fx, fz);
-        boolean waterBehind = waterBeside(level, pos, -fx, -fz);
-        boolean waterLeft = waterBeside(level, pos, lx, lz);
-        boolean waterRight = waterBeside(level, pos, -lx, -lz);
-        if (!(waterAhead || waterBehind || waterLeft || waterRight)) {
+        // world x and z of each key's push: forward, back, left, right
+        double[] kx = {-Math.sin(yawRad), Math.sin(yawRad), Math.cos(yawRad), -Math.cos(yawRad)};
+        double[] kz = {Math.cos(yawRad), -Math.cos(yawRad), Math.sin(yawRad), -Math.sin(yawRad)};
+        boolean[] keys = {wantForward, wantBack, wantLeft, wantRight};
+        boolean[] away = new boolean[4];
+        boolean any = false;
+        for (int axis = 0; axis < 2; axis++) {
+            double p = axis == 0 ? pos.x : pos.z;
+            double other = axis == 0 ? pos.z : pos.x;
+            double vel = axis == 0 ? v.x : v.z;
+            for (int sign = -1; sign <= 1; sign += 2) {
+                double face = Double.NaN;
+                for (int k = 1; k <= 2 && Double.isNaN(face); k++) {
+                    int c = Mth.floor(p) + sign * k;
+                    if (waterColumn(level, axis, c, other, pos.y)) {
+                        face = sign > 0 ? c : c + 1;
+                    }
+                }
+                if (Double.isNaN(face)) {
+                    continue;
+                }
+                any = true;
+                double rest = p + vel * 10.0;
+                boolean danger = sign > 0 ? rest + 0.35 > face : rest - 0.35 < face;
+                for (int i = 0; i < 4; i++) {
+                    double toward = sign * (axis == 0 ? kx[i] : kz[i]);
+                    if (toward > 0.2) {
+                        keys[i] = false;
+                    } else if (danger && toward < -0.5) {
+                        away[i] = true;
+                    }
+                }
+            }
+        }
+        if (!any) {
             return;
         }
-        wantSprint = false;
-        wantForward &= !waterAhead;
-        wantBack &= !waterBehind;
-        wantLeft &= !waterLeft;
-        wantRight &= !waterRight;
-        if (player.isInWater()) {
-            if (waterAhead != waterBehind) {
-                wantForward = waterBehind;
-                wantBack = waterAhead;
-            }
-            if (waterLeft != waterRight) {
-                wantLeft = waterRight;
-                wantRight = waterLeft;
+        for (int i = 0; i < 4; i++) {
+            if (away[i] && !away[i ^ 1]) {
+                keys[i] = true;
+                keys[i ^ 1] = false;
             }
         }
+        wantForward = keys[0];
+        wantBack = keys[1];
+        wantLeft = keys[2];
+        wantRight = keys[3];
+        wantSprint = false;
     }
 
-    /** Water within 0.55 of his center on that side, from his feet to a block above his head. */
+    /** Water in that column (x = c for axis 0, z = c for axis 1) across his box's width, from below his feet to above his head. */
+    private static boolean waterColumn(Level level, int axis, int c, double other, double y) {
+        for (double o = -0.3; o <= 0.3; o += 0.6) {
+            for (double dy = -0.6; dy <= 2.9; dy += 0.7) {
+                BlockPos b = axis == 0 ? BlockPos.containing(c + 0.5, y + dy, other + o)
+                        : BlockPos.containing(other + o, y + dy, c + 0.5);
+                if (level.getBlockState(b).getFluidState().is(FluidTags.WATER)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Water within 0.75 of his center on that side, from below his feet to a block above his head. */
     private static boolean waterBeside(Level level, Vec3 pos, double sx, double sz) {
-        double x = pos.x + sx * 0.55;
-        double z = pos.z + sz * 0.55;
-        for (double dy = 0.0; dy <= 2.9; dy += 0.95) {
+        double x = pos.x + sx * 0.75;
+        double z = pos.z + sz * 0.75;
+        for (double dy = -0.6; dy <= 2.9; dy += 0.7) {
             if (level.getBlockState(BlockPos.containing(x, pos.y + dy, z)).getFluidState().is(FluidTags.WATER)) {
                 return true;
             }
