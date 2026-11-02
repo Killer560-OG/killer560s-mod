@@ -188,6 +188,10 @@ public final class ShortsConfig {
      *  looks open, so a keybind press doesn't yank the feed out from under him mid-scroll-through-comments.
      *  Best-effort/YouTube-only - see {@link ShortsFeature}. */
     private boolean commentsScrollGuard = false;
+    /** Auto Scroll (killer560, 2026-11-01, to-do Doc "VIDEO BROWSER": "if it is something like yt shorts itll scroll once
+     *  the vid ends"): when the playing video ends, or loops back to its start as Shorts do, the feed goes to the next
+     *  one, exactly as the Next key does. Off by default. */
+    private boolean autoScroll = false;
 
     private ShortsConfig() {
     }
@@ -228,6 +232,7 @@ public final class ShortsConfig {
                 cfg.customH = Math.max(MIN_CUSTOM_SIZE, intOr(o, "customH", 605));
                 cfg.zoomPercent = clamp(intOr(o, "zoomPercent", 100), MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT);
                 cfg.commentsScrollGuard = ConfigJson.getBool(o, "commentsScrollGuard", false);
+                cfg.autoScroll = ConfigJson.getBool(o, "autoScroll", false);
             } catch (Exception e) {
                 cfg = new ShortsConfig();
             }
@@ -263,6 +268,7 @@ public final class ShortsConfig {
             o.addProperty("customH", customH);
             o.addProperty("zoomPercent", zoomPercent);
             o.addProperty("commentsScrollGuard", commentsScrollGuard);
+            o.addProperty("autoScroll", autoScroll);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -466,5 +472,13 @@ public final class ShortsConfig {
 
     public void setCommentsScrollGuard(boolean commentsScrollGuard) {
         this.commentsScrollGuard = commentsScrollGuard;
+    }
+
+    public boolean isAutoScroll() {
+        return autoScroll;
+    }
+
+    public void setAutoScroll(boolean autoScroll) {
+        this.autoScroll = autoScroll;
     }
 }

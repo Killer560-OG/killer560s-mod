@@ -30,7 +30,20 @@ public final class SearchAliases {
             Map.entry("egglocator", "chocolate factory"),
             // killer560 (2026-11-01, to-do Doc "ZPEW"): "make the setting show up if you search zpew". The Zero Ping
             // Etherwarp switch row of the Etherwarp tab answers it.
-            Map.entry("zpew", "zero ping etherwarp"));
+            Map.entry("zpew", "zero ping etherwarp"),
+            // killer560 (2026-11-01, to-do Doc "VIDEO BROWSER"): "make this show up if i search things like tictok or yt or
+            // youtube or web or anything like that".
+            Map.entry("tiktok", "video browser"),
+            Map.entry("tictok", "video browser"),
+            Map.entry("tik tok", "video browser"),
+            Map.entry("yt", "video browser"),
+            Map.entry("youtube", "video browser"),
+            Map.entry("web", "video browser"),
+            Map.entry("browser", "video browser"),
+            Map.entry("reels", "video browser"),
+            Map.entry("instagram", "video browser"),
+            Map.entry("twitch", "video browser"),
+            Map.entry("shorts", "video browser"));
 
     /** A typed prefix shorter than this only matches the alias when typed in full ("e" alone stays plain). */
     private static final int MIN_PREFIX = 2;

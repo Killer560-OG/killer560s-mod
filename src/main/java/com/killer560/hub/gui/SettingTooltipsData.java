@@ -2509,6 +2509,7 @@ final class SettingTooltipsData {
         d.put("video browser/placement", "Where the window sits: anchored to a screen edge, at a custom spot, or bouncing like a DVD logo.");
         d.put("video browser/edit window", "Gives the window a title bar so you can drag it to move and resize it, then turn off to save.");
         d.put("video browser/zoom", "Sets the page's zoom level when the window launches.");
+        d.put("video browser/auto scroll", "Goes to the next video when the one playing ends, or loops back to its start as YouTube Shorts do, the same as your Next key. Off by default.");
         d.put("video browser/comments scroll guard", "YouTube Shorts only: stops Next/Previous from scrolling the feed while comments are open.");
         d.put("video browser/sign in to youtube", "Opens a normal browser window so you can sign in to your account by hand.");
         d.put("toggle global cosmetics", "Shows other supporters' custom names and scale; turn off to see everyone's real name.");
