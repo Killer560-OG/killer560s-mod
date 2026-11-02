@@ -6141,6 +6141,8 @@ public final class RouteExecutor {
         Vec3 eye = player.getEyePosition();
         int sentNow = 0;
         boolean turned = false;
+        boolean atMove = false;
+        List<BlockPos> burst = new ArrayList<>();
         java.util.Iterator<BlockPos> it = breakerQueue.iterator();
         while (it.hasNext()) {
             BlockPos pos = it.next();
@@ -6166,11 +6168,14 @@ public final class RouteExecutor {
                 continue; // dug alone after the others (CONFIRM)
             }
             if (!turned && !legitMode && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos)) {
+                // Turned this tick: the burst goes at the head of the movement packet carrying the look, in one write
+                // with it (util/BeforeMove), as a single dig does.
                 turnBodyToward(player, Vec3.atCenterOf(pos));
+                atMove = true;
             }
             turned = true;
             it.remove();
-            sendBreak(client, player, pos);
+            burst.add(pos);
             breakerChargesLeft--;
             sentNow++;
             if (breakerSent.isEmpty()) {
@@ -6180,7 +6185,17 @@ public final class RouteExecutor {
             breakerSentAt.put(pos.immutable(), execTicks);
         }
         if (sentNow > 0) {
-            com.killer560.hub.compat.McCompat.swingAttack(player);
+            Runnable send = () -> {
+                for (BlockPos p : burst) {
+                    sendBreak(client, player, p);
+                }
+                com.killer560.hub.compat.McCompat.swingAttack(player);
+            };
+            if (atMove) {
+                com.killer560.hub.util.BeforeMove.queue(send);
+            } else {
+                send.run();
+            }
             LOGGER.info("[AutoRoutes] Breaker: {} block(s) on one tick (burst multi break)", sentNow);
         }
         step = Step.CONFIRM;
