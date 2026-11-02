@@ -508,6 +508,17 @@ public final class ExperimentsProfitTracker {
         lastSummary = game + (session.tier != null ? " (" + session.tier + ")" : "")
                 + ": +" + shortNumber(xp) + " XP, " + shortNumber(value) + " coins";
         save();
+        try {
+            List<String> names = new ArrayList<>();
+            for (Reward reward : rewards) {
+                if (reward.xp() <= 0) {
+                    names.add(reward.name());
+                }
+            }
+            com.killer560.hub.luck.LuckDetector.onExperimentClaim(game, session.tier, names);
+        } catch (RuntimeException e) {
+            LOGGER.error("How Lucky Are You could not count this experiment", e);
+        }
         postSummary(game, session, rewards, xp, value, unpriced);
     }
 

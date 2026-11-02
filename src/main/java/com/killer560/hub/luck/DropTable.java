@@ -39,10 +39,13 @@ public final class DropTable {
      * @param chance    base chance per attempt (chests: the wiki's "No Bonuses" average; slayers: every drop unlocked,
      *                  no Magic Find); NaN for an untracked drop
      * @param chanceMax chests: the wiki's "S+ Max Bonuses" average; NaN when the table has none
-     * @param mf        Magic Find raises it (Slayer#Boss Loot: Main/Extra items under 5%)
+     * @param mf        Magic Find raises it (Slayer#Boss Loot: Main/Extra items under 5%; mobs: under 5% after Looting)
+     * @param loot      a mob drop Looting raises (Looting page: x(1 + 0.15 x level); never slayers or pets)
+     * @param mob       for a mob drop, the mob's name as its nametag shows it (the page title less any "(...)")
+     * @param level     for a mob drop, the table's mob level (0 when the page gives none)
      */
     public record Drop(String name, String activity, double chance, double chanceMax, String pool, int req, boolean mf,
-                       String category, String chanceText) {
+                       String category, String chanceText, boolean loot, String mob, int level) {
         public String key() {
             return activity + "|" + name;
         }
@@ -60,6 +63,8 @@ public final class DropTable {
     private final Map<String, List<Drop>> byActivity = new HashMap<>();
     private final Map<String, List<Drop>> byName = new HashMap<>();
     private final List<String> notes;
+    private final Map<String, List<String>> byMob = new HashMap<>();
+    private final Map<String, Integer> mobLevel = new HashMap<>();
 
     private DropTable(Map<String, Activity> activities, List<Drop> drops, List<String> notes) {
         this.activities = Collections.unmodifiableMap(activities);
@@ -69,6 +74,13 @@ public final class DropTable {
             byKey.put(d.key(), d);
             byActivity.computeIfAbsent(d.activity(), k -> new ArrayList<>()).add(d);
             byName.computeIfAbsent(normalize(d.name()), k -> new ArrayList<>()).add(d);
+            if (!d.mob().isEmpty()) {
+                List<String> acts = byMob.computeIfAbsent(normalize(d.mob()), k -> new ArrayList<>());
+                if (!acts.contains(d.activity())) {
+                    acts.add(d.activity());
+                    mobLevel.put(d.activity(), d.level());
+                }
+            }
         }
     }
 
@@ -111,7 +123,8 @@ public final class DropTable {
             JsonObject o = e.getAsJsonObject();
             out.add(new Drop(str(o, "name", "?"), str(o, "activity", "untracked"), num(o, "chance"), num(o, "chanceMax"),
                     str(o, "pool", ""), o.has("req") ? o.get("req").getAsInt() : 0,
-                    o.has("mf") && o.get("mf").getAsBoolean(), str(o, "cat", "other"), str(o, "chanceText", "")));
+                    o.has("mf") && o.get("mf").getAsBoolean(), str(o, "cat", "other"), str(o, "chanceText", ""),
+                    o.has("loot") && o.get("loot").getAsBoolean(), str(o, "mob", ""), o.has("level") ? o.get("level").getAsInt() : 0));
         }
         List<String> notes = new ArrayList<>();
         if (root.has("notes")) {
@@ -158,6 +171,40 @@ public final class DropTable {
     /** Every table drop with this name (any activity), by {@link #normalize}d name. */
     public List<Drop> named(String name) {
         return byName.getOrDefault(normalize(name), List.of());
+    }
+
+    /**
+     * The activity of a mob with this nametag name ("Zealot") and level (0 = unknown): the table whose level matches, else
+     * the page named exactly so ("Blaze", not "Blaze (Minion Mob)"), else the first. Null for a mob the table lacks.
+     */
+    public String mobActivity(String name, int level) {
+        List<String> acts = byMob.get(normalize(name));
+        if (acts == null || acts.isEmpty()) {
+            return null;
+        }
+        if (level > 0) {
+            for (String a : acts) {
+                if (mobLevel.getOrDefault(a, 0) == level) {
+                    return a;
+                }
+            }
+        }
+        String exact = "mob:" + name.trim();
+        for (String a : acts) {
+            if (a.equalsIgnoreCase(exact) || a.regionMatches(true, 0, exact + ":", 0, exact.length() + 1)) {
+                return a;
+            }
+        }
+        return acts.get(0);
+    }
+
+    /**
+     * Whether an activity's attempts come only from a claim (a dungeon or Kuudra chest, a Nucleus bundle, an
+     * experiment), so a drop line or a pickup is never its drop.
+     */
+    public static boolean claimOnly(String activity) {
+        return activity.startsWith("chest:") || activity.startsWith("kuudra:") || activity.equals("nucleus")
+                || activity.startsWith("experiment:");
     }
 
     /** The drop called {@code name} in {@code activity}, or null. */

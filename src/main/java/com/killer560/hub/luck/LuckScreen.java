@@ -30,7 +30,8 @@ public class LuckScreen extends Screen implements MenuThemedScreen {
     enum Scope { PROFILE, ALL, OTHERS }
 
     enum Group {
-        ALL("All Drops"), CHESTS("Dungeon Chests"), SLAYERS("Slayers"), DYES("Dyes"), OTHER("Other");
+        ALL("All Drops"), CHESTS("Dungeon Chests"), SLAYERS("Slayers"), MOBS("Mobs"), SEA("Sea Creatures"),
+        KUUDRA("Kuudra"), NUCLEUS("Crystal Nucleus"), EXPERIMENTS("Experiments"), DYES("Dyes"), OTHER("Other");
 
         final String label;
 
@@ -114,9 +115,19 @@ public class LuckScreen extends Screen implements MenuThemedScreen {
             case ALL -> true;
             case CHESTS -> r.activity().startsWith("chest:");
             case SLAYERS -> r.activity().startsWith("slayer:");
+            case MOBS -> r.activity().startsWith("mob:") && !"Sea Creatures".equals(groupOf(r));
+            case SEA -> "Sea Creatures".equals(groupOf(r));
+            case KUUDRA -> r.activity().startsWith("kuudra:");
+            case NUCLEUS -> r.activity().equals("nucleus");
+            case EXPERIMENTS -> r.activity().startsWith("experiment:");
             case DYES -> "dye".equals(cat) || r.name().endsWith(" Dye");
-            case OTHER -> !r.activity().startsWith("chest:") && !r.activity().startsWith("slayer:");
+            case OTHER -> !r.activity().startsWith("chest:") && !r.activity().startsWith("slayer:")
+                    && !r.activity().startsWith("mob:") && !DropTable.claimOnly(r.activity());
         };
+    }
+
+    private static String groupOf(LuckStore.Row r) {
+        return DropTable.get().activity(r.activity()).group();
     }
 
     static double chanceShown(DropTable.Drop d) {

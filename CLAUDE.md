@@ -479,7 +479,17 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   `/Master_Mode_Loot` subpages' per-chest averages; Revenant's page has weights only (chance = weight/(token+main)).
 - How Lucky Are You never counts a dungeon chest itself: chest attempts and drops are derived from the Croesus claim log
   (`CroesusProfitLog.allClaims`, resets ignored), so a new chest-counting hook would double count. Its own record
-  (`RecordCatalog.LUCK`, `luck.json`) holds slayer kills, drop lines and dye pickups only.
+  (`RecordCatalog.LUCK`, `luck.json`) holds slayer and mob kills, Kuudra / Nucleus / Superpairs claims, drop lines, dye
+  pickups, and per profile the slayer levels and slayer RNG Meters it read (luck2-1101). A claim with floor "Unknown" is
+  given the one floor its items fit (`LuckStore.inferFloor`), else counted under `chest:Unknown:<chest>` with no odds.
+- `tools/rng-table/fetch_mobs.py` gets every page using a wiki template in one request per 50 pages: `api.php?action=query&
+  generator=embeddedin&geititle=Template:Mob_Drops_Table&prop=revisions&rvprop=content&rvslots=main` (590 mob and sea
+  creature pages, 2026-11-02; api.php has no bot check either). Mob drop odds: Looting x(1+0.15L) first, then Magic Find
+  only if the looted chance is under 5% (wiki Looting and Magic Find pages); Looting never applies to slayers or pets.
+- ChatObserver drops a line equal to (or a 12+ character prefix of) one seen in the last 250 ms, so a Hypixel message that
+  opens and closes with the same ▬ bar never hands its closing bar to subscribers. How Lucky Are You's Nucleus reader also
+  ends the block 1.5 s after its header (luck2-1101, testkit 1102-luck-nucleus); any block parser keyed on a repeated
+  closing line needs the same.
 - A testkit `-PseedConfig` copied from Mod Only Test carries his Proxy Client config (`system/proxy/proxyclient.json`, SOCKS5,
   enabled): the test client then dials the local server through his real proxy, which refuses it ("socks5 ... FORBIDDEN",
   00-smoke fails, 2026-11-01). Leave that file out of a seed.

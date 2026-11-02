@@ -17,5 +17,8 @@ for r in I II III IV V VI VII; do
   get "The_Catacombs_-_Floor_$r/Loot" "loot_F_$r.wiki"
   get "The_Catacombs_-_Floor_$r/Master_Mode_Loot" "loot_M_$r.wiki"
 done
+get "Kuudra/Loot" "Kuudra_Loot.wiki"
+get "Crystal_Nucleus" "Crystal_Nucleus.wiki"
+python -I "$here/fetch_mobs.py" < /dev/null   # every Mob Drops Table page + the ultra-rare Experiments rewards
 python -I "$here/parse_slayers.py" "$here/wiki/slayers.json"
 python -I "$here/build_table.py" "$here/wiki/slayers.json" "$here/../../src/main/resources/assets/killer560smod/rngtracker/drop-table.json"

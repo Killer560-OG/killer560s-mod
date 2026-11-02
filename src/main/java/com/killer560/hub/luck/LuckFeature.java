@@ -30,6 +30,8 @@ public final class LuckFeature {
     public static void register() {
         LuckConfig.getInstance();
         LuckDetector.register();
+        LuckKills.register();
+        LuckKuudra.register();
         LuckShare.register();
         SharedRecords.onAccountChange(LuckStore::load);
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
