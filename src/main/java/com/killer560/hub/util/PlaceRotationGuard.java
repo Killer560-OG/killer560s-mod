@@ -69,6 +69,9 @@ public final class PlaceRotationGuard {
      *         camera-turn detectors - ever sees the nudge), or NaN when nothing was moved
      */
     public static float beforeSend(LocalPlayer self, float yRotLast) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return Float.NaN; // a legit jar never touches what his own mouse sends; the automation it guards is cheat-only
+        }
         if (Float.isNaN(clickTurn) || useSinceMove) {
             // An item use went out since the last tick packet: it carries this tick's look, and GrimAC BadPacketsJ wants
             // the movement packet to report exactly that look - nothing may move it (62-argrim-1020-acbat, gridexp-1102).
