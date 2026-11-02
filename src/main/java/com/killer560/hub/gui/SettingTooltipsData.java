@@ -1622,6 +1622,7 @@ final class SettingTooltipsData {
         d.put("archer passive", "Hides the spinning bone meal items the archer passive drops.");
         d.put("sheep", "Hides sheep inside dungeons.");
         d.put("wither cloak creepers", "Hides the invisible charged creepers Wither Cloak spawns.");
+        d.put("witherborn wither", "Hides the small wither a full F7 armor set (Witherborn) spawns, and its smoke and swirl particles.");
         d.put("wither shield hearts", "Hides the heart particles from Wither Shield healing.");
         d.put("dying dragons", "Hides M7 dragons once they start dying so P5 stays readable.");
         d.put("wither king model", "Hides the Wither King's model and witch particles in the M7 arena.");
