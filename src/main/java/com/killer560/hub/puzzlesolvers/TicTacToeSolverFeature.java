@@ -249,9 +249,10 @@ public final class TicTacToeSolverFeature {
      * <p>The computer's reply is not guessed: every reply with the computer's best outcome (minimax from its side) is
      * taken. A square qualifies only if the computer takes none of them - so it is still empty when his click lands -
      * and it is one of his best replies (same outcome: win, draw or loss) after EACH of them. Usually the computer has
-     * one best reply (a block, a fork), so this is simply his best move on the board after it. The old rule skipped the
-     * computer's own square when testing it, so the square it was about to take always qualified and was what got
-     * shown. Null when no square is safe whichever best reply comes.
+     * one best reply (a block, a fork), so this is simply his best move on the board after it. When no such square exists,
+     * a square one of the replies would take still qualifies if it is his best click after every OTHER best reply (the
+     * 2026-11-01 Doc item: "X.O/OOX/X.." with the computer to move, where squares 7 and 8 are both safe and the computer
+     * may take either). Null when no square is safe whichever best reply comes.
      */
     static Integer safePrediction(char[] board) {
         List<Integer> replies = new java.util.ArrayList<>();
@@ -277,42 +278,58 @@ public final class TicTacToeSolverFeature {
         if (replies.isEmpty()) {
             return null;
         }
+        // First choice: a square the computer takes in none of its best replies, so it is still empty when his click lands.
         for (int s : MOVE_ORDER) {
-            if (board[s] != EMPTY || replies.contains(s)) {
-                continue;
+            if (board[s] == EMPTY && !replies.contains(s) && bestAfterEvery(board, s, replies)) {
+                return s;
             }
-            boolean safe = true;
-            for (int c : replies) {
-                board[c] = 'X';
-                if (getScore(board) != 0) {
-                    safe = false; // the computer wins outright: nothing he clicks matters
-                } else {
-                    int best = Integer.MIN_VALUE;
-                    int mine = Integer.MIN_VALUE;
-                    for (int r = 0; r < 9; r++) {
-                        if (board[r] != EMPTY) {
-                            continue;
-                        }
-                        board[r] = 'O';
-                        int outcome = Integer.signum(alphaBeta(board, 0, -1000, 1000, false));
-                        board[r] = EMPTY;
-                        best = Math.max(best, outcome);
-                        if (r == s) {
-                            mine = outcome;
-                        }
-                    }
-                    safe = mine == best;
-                }
-                board[c] = EMPTY;
-                if (!safe) {
-                    break;
-                }
-            }
-            if (safe) {
+        }
+        // killer560, 2026-11-01 ("the bottom right or bottom middle are both 100% safe for me to prefire. So highlight one
+        // of those as the prediction. If it ends up going there then just highlight the other one"): a square the computer
+        // MIGHT take is still a safe prefire when it is his best click after every OTHER best reply. If the computer does
+        // take it, the board changes, it is his turn and the solver shows his best move there instead. Needs at least one
+        // other reply, or the square is simply the computer's.
+        for (int s : MOVE_ORDER) {
+            if (board[s] == EMPTY && replies.contains(s) && replies.size() > 1 && bestAfterEvery(board, s, replies)) {
                 return s;
             }
         }
         return null;
+    }
+
+    /** True when, after each reply in {@code replies} other than {@code s}, square {@code s} is one of his best moves. */
+    private static boolean bestAfterEvery(char[] board, int s, List<Integer> replies) {
+        for (int c : replies) {
+            if (c == s) {
+                continue;
+            }
+            board[c] = 'X';
+            boolean safe;
+            if (getScore(board) != 0) {
+                safe = false; // the computer wins outright: nothing he clicks matters
+            } else {
+                int best = Integer.MIN_VALUE;
+                int mine = Integer.MIN_VALUE;
+                for (int r = 0; r < 9; r++) {
+                    if (board[r] != EMPTY) {
+                        continue;
+                    }
+                    board[r] = 'O';
+                    int outcome = Integer.signum(alphaBeta(board, 0, -1000, 1000, false));
+                    board[r] = EMPTY;
+                    best = Math.max(best, outcome);
+                    if (r == s) {
+                        mine = outcome;
+                    }
+                }
+                safe = mine == best;
+            }
+            board[c] = EMPTY;
+            if (!safe) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** For the testkit: the prediction on a board given as 9 chars ('X', 'O', anything else empty), row by row. */
@@ -357,6 +374,8 @@ public final class TicTacToeSolverFeature {
         TicTacToeSolverConfig cfg = TicTacToeSolverConfig.getInstance();
         int[] cr = boardCr;
         BlockPos target = currentTarget();
+        // Sneak To Override (killer560, 2026-11-01): sneaking lets a click through only while that setting is on.
+        sneaking = sneaking && cfg.isSneakOverride();
         if (!cfg.isEnabled() || !cfg.isPreventMisclicks() || sneaking || cr == null || target == null || pos == null
                 || pos.equals(target)) {
             if (sneaking && cfg.isEnabled() && cfg.isPreventMisclicks() && cr != null && target != null && pos != null
