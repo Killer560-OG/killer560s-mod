@@ -302,6 +302,7 @@ public final class AutoClearFeature {
         doorTarget = -1;
         keyId = -1;
         keyTrip = false;
+        keyAnyRange = false;
         keysTried.clear();
         felTrips.clear();
         felWaitTicks = 0;
@@ -1675,6 +1676,9 @@ public final class AutoClearFeature {
             return;
         }
         boolean key = witherKeyCount(player) > 0;
+        if (key) {
+            keyAnyRange = false;
+        }
         long now = ClearExecutor.clientTick();
         if (doorClicks > 0) {
             // The door still stands (target != null above): it is open only when its blocks go.
@@ -1711,6 +1715,11 @@ public final class AutoClearFeature {
                         doorClickSeq >= 0 && com.killer560.hub.util.ChestWindows.acked(doorClickSeq), doorClicks + 1,
                         DOOR_MAX_CLICKS);
             }
+        }
+        if (!key && !keyAnyRange && witherKeyInView(client)) {
+            keyAnyRange = true;
+            LOGGER.info("[AutoClear] at wither door {} with no key, and a Wither Key lies in view - going for it", door);
+            return;
         }
         if (!key) {
             action = "waiting at the wither door - no Wither Key";
@@ -1800,6 +1809,18 @@ public final class AutoClearFeature {
     /** Keys further than this from him are left to Auto Secret / Autopilot (or him): a detour across the map is not "on
      *  the way". A key stand is only tracked by the client within its entity range anyway. */
     static final double KEY_SEARCH_RANGE = 40.0;
+    /** Set while a shut wither door waits on a key: the key search has no range then. Cleared when a key is held. */
+    private static boolean keyAnyRange = false;
+
+    /** Whether a dropped Wither Key not yet given up on is in the client's world. */
+    private static boolean witherKeyInView(Minecraft client) {
+        for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
+            if (!k.blood() && !keysTried.contains(k.id())) {
+                return true;
+            }
+        }
+        return false;
+    }
     /** Ticks to stand in pickup range of a key before calling the try failed (Auto Secret's KEY_WAIT_TICKS). */
     static final int KEY_WAIT_TICKS = 40;
     /** Within this many blocks a key vanishing from the client means it was taken (Auto Secret's KEY_GONE_NEAR). */
@@ -1852,7 +1873,9 @@ public final class AutoClearFeature {
             keyLastDist = player.position().distanceTo(e.position());
         } else {
             com.killer560.hub.doorkeys.DungeonKeys.Dropped best = null;
-            double bestD = KEY_SEARCH_RANGE;
+            // Waiting at a shut wither door with no key: a key anywhere in view is the way on (doc-adm-sim-1101: a 2x2
+            // room's key dropped 50 blocks from the door he went to wait at, and he waited there for 12 minutes).
+            double bestD = keyAnyRange ? Double.MAX_VALUE : KEY_SEARCH_RANGE;
             for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k
                     : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
                 if (k.blood() || keysTried.contains(k.id())) {
