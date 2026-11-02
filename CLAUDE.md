@@ -483,3 +483,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
   release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
   `Rows.addKept`).
+- `.gitignore`'s `secrets/` matches the source package `hub/secrets/`, so `git add <path>/secrets/X.java` aborts the WHOLE
+  add with "paths are ignored" although the file is tracked (2026-11-01). Stage it with `git add -u -- <paths>`.
+- Crypt census (CryptScanner rules against all 134 captures): use `killer560s-mod-logs/doc-secrets-1101/crypt_scan_port.py
+  --new --rule crypt_1101_rule.py` (paths fixed for 26.3 Mod Only Test); the older copy in `crypt-census/` points at a
+  deleted worktree and the wiped 26.1.2 instance. Run `python -I` on a file, never `python -` with stdin redirected.
