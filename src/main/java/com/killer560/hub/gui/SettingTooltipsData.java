@@ -1968,6 +1968,14 @@ final class SettingTooltipsData {
         d.put("player stats", "HUD line with your health, mana and defense, read off the action bar.");
         d.put("profile viewer", "Run /pv <name> to open any player's Skyblock profile in game.");
         d.put("rng meter overlay", "Ranks RNG Meter rewards by coins per meter point.");
+        d.put("how lucky are you", "Counts every drop you get against the drops the odds say you should have got. Open it with /luck.");
+        d.put("rng tracker", "Counts slayer kills, drop lines and dye pickups for How Lucky Are You. Dungeon chests come from your Croesus claim log.");
+        d.put("open how lucky are you", "Opens the How Lucky Are You screen (also /luck and /profit luck).");
+        d.put("drop chat line", "After a tracked drop, prints how many you got against how many the odds expected.");
+        d.put("count dye pickups", "Counts a dye that lands in your inventory with no menu open. An item you dropped and picked back up never counts.");
+        d.put("chest odds", "Dungeon chest odds: the wiki's chance with no bonuses, or with S+ and every chest bonus (Treasure Artifact, Boss Luck).");
+        d.put("how lucky are you/magic find", "Magic Find for slayer kills: the last value Hypixel printed on a drop line, or a value you set.");
+        d.put("share my luck", "Sends your overall luck and top drops to mod users in your relay room. Needs Show Me As A Mod User on.");
         d.put("leap order class", "Cycles this player's class override (None, Mage, Tank, Healer, Archer, Berserker). Right click goes back.");
         d.put("leap menu/set", "Saves the leap message typed in the box to the left.");
         d.put("leap menu/scale", "Size of the custom leap menu's four teammate boxes, 50% to 400%.");

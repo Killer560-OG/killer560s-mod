@@ -464,6 +464,14 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   /profit was empty in 26.3 Mod Only Test (2026-11-01). The store moved to `%USERPROFILE%\.killer560smod\shared` (not
   virtualized); the mod folds a real %APPDATA% store into it once. Never put data a game must read under a new %APPDATA% folder
   from an agent tool; existing folders (PrismLauncher) are written in place.
+- hypixelskyblock.minecraft.wiki answers `/w/<Page>?action=raw` with a "Please wait" bot-check page, but
+  `index.php?title=<Page>&action=raw` (curl) returns the wikitext, and its slayer/loot tables are structured templates
+  (2026-11-01). How Lucky Are You's drop table (`assets/killer560smod/rngtracker/drop-table.json`) is built from that by
+  `tools/rng-table/fetch.sh`; rebuild it there, never hand-edit chances. Dungeon chest odds are the `/Loot` and
+  `/Master_Mode_Loot` subpages' per-chest averages; Revenant's page has weights only (chance = weight/(token+main)).
+- How Lucky Are You never counts a dungeon chest itself: chest attempts and drops are derived from the Croesus claim log
+  (`CroesusProfitLog.allClaims`, resets ignored), so a new chest-counting hook would double count. Its own record
+  (`RecordCatalog.LUCK`, `luck.json`) holds slayer kills, drop lines and dye pickups only.
 - A testkit `-PseedConfig` copied from Mod Only Test carries his Proxy Client config (`system/proxy/proxyclient.json`, SOCKS5,
   enabled): the test client then dials the local server through his real proxy, which refuses it ("socks5 ... FORBIDDEN",
   00-smoke fails, 2026-11-01). Leave that file out of a seed.

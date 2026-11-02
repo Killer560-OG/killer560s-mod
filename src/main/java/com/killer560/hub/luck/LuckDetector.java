@@ -1,0 +1,430 @@
+package com.killer560.hub.luck;
+
+import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.itemprotect.ItemProtect;
+import com.killer560.hub.rngmeter.MagicFindTracker;
+import com.killer560.hub.scoreboard.ScoreboardData;
+import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ModLog;
+import com.killer560.hub.util.SkyblockGate;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.item.ItemStack;
+import org.slf4j.Logger;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Finds what How Lucky Are You counts, from three places, never from a player's chat line or a re-picked item:
+ * <ul>
+ * <li><b>Drop lines.</b> Hypixel's {@code RARE DROP!}, {@code VERY RARE DROP!}, {@code CRAZY RARE DROP!},
+ *     {@code INSANE DROP!}, {@code PRAY TO RNGESUS DROP!}, {@code RNGESUS INCARNATE DROP!} and {@code PET DROP!} lines,
+ *     anchored at the start of the line, so {@code [VIP] Bob: RARE DROP! Warden Heart} (any typed chat starts with a
+ *     channel, rank or name) never matches. Formats from SkyHanni's and Skyblocker's regex tests (slayer drops are in
+ *     brackets, often with "2x "), not copied code.</li>
+ * <li><b>Slayer kills.</b> {@code SLAYER QUEST COMPLETE!} / {@code NICE! SLAYER BOSS SLAIN!} (once per 5 s, both can
+ *     come for one boss) count one attempt at the boss and tier the sidebar showed in the last minute ("Revenant Horror
+ *     V"; the sidebar cannot be typed into by other players).</li>
+ * <li><b>Inventory gains</b> of a table item that has no drop line (dyes), only with no screen open (a chest, trade, Auction
+ *     House or storage move is never a drop). A gain is NOT a drop when the stack's Skyblock UUID was already seen in his
+ *     inventory, or when the same item left his inventory in the last 10 minutes (thrown with Q and picked back up, moved
+ *     out and back): that is the "dropped it and picked it up" case the owner named. A gain within 20 s of a drop line for
+ *     the same item is that drop line's, not a second drop.</li>
+ * </ul>
+ * Dungeon chests are counted from the Croesus claim log instead ({@link LuckStore}).
+ */
+public final class LuckDetector {
+
+    private static final Logger LOGGER = ModLog.get("killer560smod-luck");
+    public static final String FEATURE = "Luck";
+
+    /** A drop line. Group 1 the kind, 2 an amount, 3 the item, 4 the Magic Find. */
+    static final Pattern DROP = Pattern.compile(
+            "^(RARE|VERY RARE|CRAZY RARE|INSANE|PRAY TO RNGESUS|RNGESUS INCARNATE|PET) DROP!\\s+\\(?(?:(\\d{1,4})x )?"
+                    + "(?:◆ )?([A-Za-z0-9'\\-:.,&! ]{1,64}?)\\)?"
+                    + "(?:\\s+\\(\\+(\\d{1,6})%?[^)]{0,6}Magic Find!?\\))?(?:\\s+\\(\\+[^)]{1,20}\\))?$");
+    static final Pattern SLAYER_DONE = Pattern.compile("^\\s*(?:SLAYER QUEST COMPLETE!|NICE! SLAYER BOSS SLAIN!)\\s*$");
+    static final Pattern SLAYER_SIDEBAR = Pattern.compile("(Revenant Horror|Atoned Horror|Tarantula Broodfather|Conjoined Brood"
+            + "|Sven Packmaster|Voidgloom Seraph|Inferno Demonlord|Riftstalker Bloodfiend|Bloodfiend)(?: (V|IV|III|II|I))?\\b");
+    private static final Pattern PET_RARITY = Pattern.compile("^(?:COMMON|UNCOMMON|RARE|EPIC|LEGENDARY|MYTHIC) ");
+
+    private static final long QUEST_MEMORY_MS = 60_000;
+    private static final long KILL_MEMORY_MS = 30_000;
+    private static final long LOSS_MEMORY_MS = 10 * 60_000;
+    private static final long CHAT_CREDIT_MS = 20_000;
+
+    // Client thread only (chat subscribers and the tick both run there).
+    private static String questActivity;
+    private static long questSeenMs;
+    private static String lastKillActivity;
+    private static long lastKillMs;
+    private static int ticks;
+
+    private static Map<String, Integer> snapshot;
+    private static final Set<String> SEEN_UUIDS = new HashSet<>();
+    /** Item names whose stacks have carried a Skyblock UUID. */
+    private static final Set<String> UUID_NAMES = new HashSet<>();
+    private record Loss(String name, long atMs) {
+    }
+    private static final Deque<Loss> LOSSES = new ArrayDeque<>();
+    private record Credit(String name, long atMs) {
+    }
+    private static final Deque<Credit> CREDITS = new ArrayDeque<>();
+
+    // Test hooks (testkit reads them).
+    static volatile String lastDecision = "";
+    static volatile int excludedPickups;
+
+    private LuckDetector() {
+    }
+
+    public static void register() {
+        ChatObserver.subscribe(message -> onChat(ChatObserver.raw(message)));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LuckDetector.onTick", LuckDetector::onTick));
+    }
+
+    private static boolean active() {
+        return LuckConfig.getInstance().isEnabled() && SkyblockGate.allows();
+    }
+
+    // ---- chat --------------------------------------------------------------------------------------------------------
+
+    static void onChat(String raw) {
+        if (raw == null || !active() || (!raw.contains("DROP!") && !raw.contains("SLAYER"))) {
+            return;
+        }
+        String text = ChatFormatting.stripFormatting(raw);
+        if (text == null) {
+            return;
+        }
+        text = text.trim();
+        if (SLAYER_DONE.matcher(text).matches()) {
+            onSlayerKill();
+            return;
+        }
+        Matcher m = DROP.matcher(text);
+        if (!m.matches()) {
+            return;
+        }
+        int amount = 1;
+        int mf = -1;
+        try {
+            if (m.group(2) != null) {
+                amount = Integer.parseInt(m.group(2));
+            }
+            if (m.group(4) != null) {
+                mf = (int) Math.min(100_000, Long.parseLong(m.group(4)));
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        String name = m.group(3).trim();
+        if ("PET".equals(m.group(1))) {
+            name = PET_RARITY.matcher(name).replaceFirst("");
+        }
+        onDrop(name, amount, "chat", mf >= 0 ? mf : magicFind());
+    }
+
+    private static void onSlayerKill() {
+        long now = System.currentTimeMillis();
+        if (now - lastKillMs < 5_000) {
+            return; // the second of the two lines for one boss
+        }
+        refreshQuest();
+        if (questActivity == null || now - questSeenMs > QUEST_MEMORY_MS) {
+            lastDecision = "slayer kill with no quest on the sidebar - not counted";
+            LOGGER.info("[Luck] A slayer boss died but no quest was on the sidebar in the last minute; not counted");
+            return;
+        }
+        lastKillActivity = questActivity;
+        lastKillMs = now;
+        int mf = magicFind();
+        LuckStore.attempt(questActivity, mf);
+        lastDecision = "attempt " + questActivity + " at " + mf + "% MF";
+        LOGGER.info("[Luck] {} kill counted at {}% Magic Find", questActivity, mf);
+    }
+
+    /** A drop line or inventory gain for {@code name}: decides its key and records it. */
+    static void onDrop(String name, int amount, String source, int mf) {
+        DropTable table = DropTable.get();
+        String key = keyFor(table, name);
+        LuckStore.drop(key, amount, source, mf);
+        if ("chat".equals(source)) {
+            CREDITS.addLast(new Credit(DropTable.normalize(name), System.currentTimeMillis()));
+        }
+        lastDecision = "drop " + key + " (" + source + ")";
+        LOGGER.info("[Luck] Drop {} x{} from {} at {}% MF", key, amount, source, mf);
+        announce(key);
+    }
+
+    /** The drop's key: the slayer boss just killed (or being fought), else the table's only activity for it. */
+    static String keyFor(DropTable table, String name) {
+        long now = System.currentTimeMillis();
+        String slayer = now - lastKillMs < KILL_MEMORY_MS ? lastKillActivity
+                : questActivity != null && now - questSeenMs < QUEST_MEMORY_MS ? questActivity : null;
+        if (slayer != null) {
+            DropTable.Drop d = table.find(slayer, name);
+            if (d != null) {
+                return d.key();
+            }
+        }
+        DropTable.Drop only = null;
+        for (DropTable.Drop d : table.named(name)) {
+            if (d.activity().startsWith("chest:")) {
+                continue; // chest items arrive by claim, not by a line or a pickup
+            }
+            if (only != null && !only.activity().equals(d.activity())) {
+                only = null;
+                break;
+            }
+            only = d;
+        }
+        if (only != null && (slayer == null || !only.activity().startsWith("slayer:"))) {
+            return only.key();
+        }
+        return (slayer != null ? slayer : "other") + "|" + name;
+    }
+
+    private static void announce(String key) {
+        if (!LuckConfig.getInstance().isAnnounce()) {
+            return;
+        }
+        String profile = com.killer560.hub.gui.profit.ProfitScope.currentSkyblockProfile();
+        LuckConfig cfg = LuckConfig.getInstance();
+        for (LuckStore.Row r : LuckStore.rows(profile, cfg.getChestOdds(), false)) {
+            if (!r.key().equals(key)) {
+                continue;
+            }
+            if (r.drop() == null || r.expected() <= 0) {
+                ModChat.send(FEATURE, ModChat.value(r.name()), ModChat.dim(" counted (" + r.got() + " so far)"));
+                return;
+            }
+            ModChat.send(FEATURE, ModChat.value(r.name()), ModChat.dim(" " + LuckMath.oneIn(r.drop().chance()) + ": "),
+                    ModChat.text(r.got() + " got, " + LuckMath.expected(r.expected()) + " expected in "
+                            + String.format(Locale.US, "%,d", r.attempts()) + " - "),
+                    r.percentile() >= 0.5 ? ModChat.good(LuckMath.describe(r.percentile()))
+                            : ModChat.bad(LuckMath.describe(r.percentile())));
+            return;
+        }
+    }
+
+    /** Magic Find for an attempt now: the manual value, or the last one Hypixel printed on a drop line (0 before any). */
+    static int magicFind() {
+        LuckConfig cfg = LuckConfig.getInstance();
+        if (cfg.getMagicFindMode() == LuckConfig.MagicFindMode.MANUAL) {
+            return cfg.getManualMagicFind();
+        }
+        Integer seen = MagicFindTracker.getLastMagicFind();
+        return seen == null ? 0 : Math.max(0, seen);
+    }
+
+    // ---- sidebar -----------------------------------------------------------------------------------------------------
+
+    private static void refreshQuest() {
+        Minecraft mc = Minecraft.getInstance();
+        List<String> lines = mc.isSameThread() ? ScoreboardData.sidebarNow(mc) : ScoreboardData.sidebar();
+        String found = questFrom(lines);
+        if (found != null) {
+            questActivity = found;
+            questSeenMs = System.currentTimeMillis();
+        }
+    }
+
+    /** The slayer activity a sidebar shows ("Revenant Horror V" -> slayer:revenant:5), or null. */
+    static String questFrom(List<String> lines) {
+        boolean inQuest = false;
+        for (String line : lines) {
+            String s = ChatFormatting.stripFormatting(line);
+            if (s == null) {
+                continue;
+            }
+            if (s.contains("Slayer Quest")) {
+                inQuest = true;
+                continue;
+            }
+            if (!inQuest) {
+                continue;
+            }
+            Matcher m = SLAYER_SIDEBAR.matcher(s);
+            if (m.find()) {
+                String boss = switch (m.group(1)) {
+                    case "Revenant Horror", "Atoned Horror" -> "revenant";
+                    case "Tarantula Broodfather", "Conjoined Brood" -> "tarantula";
+                    case "Sven Packmaster" -> "sven";
+                    case "Voidgloom Seraph" -> "voidgloom";
+                    case "Inferno Demonlord" -> "inferno";
+                    default -> "vampire";
+                };
+                int tier = m.group(2) == null ? ("Atoned Horror".equals(m.group(1))
+                        || "Conjoined Brood".equals(m.group(1)) ? 5 : 0) : roman(m.group(2));
+                return tier == 0 ? null : "slayer:" + boss + ":" + tier;
+            }
+        }
+        return null;
+    }
+
+    private static int roman(String r) {
+        return switch (r) {
+            case "I" -> 1;
+            case "II" -> 2;
+            case "III" -> 3;
+            case "IV" -> 4;
+            case "V" -> 5;
+            default -> 0;
+        };
+    }
+
+    // ---- tick: sidebar + inventory -----------------------------------------------------------------------------------
+
+    private static void onTick(Minecraft mc) {
+        if (mc.player == null || !active()) {
+            snapshot = null;
+            return;
+        }
+        if (++ticks % 20 == 0) {
+            refreshQuest();
+        }
+        if (!LuckConfig.getInstance().isInventoryDrops()) {
+            snapshot = null;
+            return;
+        }
+        if (McCompat.screen(mc) != null) {
+            snapshot = null; // re-baseline after the screen closes: nothing moved in a menu is a drop
+            return;
+        }
+        if (ticks % 5 == 0) {
+            scanInventory(mc);
+        }
+    }
+
+    private static void scanInventory(Minecraft mc) {
+        long now = System.currentTimeMillis();
+        while (!LOSSES.isEmpty() && now - LOSSES.peekFirst().atMs() > LOSS_MEMORY_MS) {
+            LOSSES.removeFirst();
+        }
+        while (!CREDITS.isEmpty() && now - CREDITS.peekFirst().atMs() > CHAT_CREDIT_MS) {
+            CREDITS.removeFirst();
+        }
+        Map<String, Integer> now0 = new HashMap<>();
+        Map<String, String> newUuidName = new HashMap<>();
+        DropTable table = DropTable.get();
+        for (int i = 0; i < 36; i++) {
+            ItemStack st = mc.player.getInventory().getItem(i);
+            if (st == null || st.isEmpty()) {
+                continue;
+            }
+            String name = ChatFormatting.stripFormatting(st.getHoverName().getString());
+            if (name == null || table.named(name).isEmpty()) {
+                continue;
+            }
+            String norm = DropTable.normalize(name);
+            now0.merge(norm, st.getCount(), Integer::sum);
+            String uuid = ItemProtect.itemUuid(st);
+            if (uuid != null && !uuid.isBlank()) {
+                UUID_NAMES.add(norm);
+                if (SEEN_UUIDS.add(uuid) && snapshot != null) {
+                    newUuidName.put(uuid, name);
+                }
+            }
+        }
+        Map<String, Integer> before = snapshot;
+        snapshot = now0;
+        if (before == null) {
+            return; // baseline (first tick, or a screen just closed): every UUID seen here is "his already"
+        }
+        for (Map.Entry<String, Integer> e : before.entrySet()) {
+            int lost = e.getValue() - now0.getOrDefault(e.getKey(), 0);
+            for (int k = 0; k < lost; k++) {
+                LOSSES.addLast(new Loss(e.getKey(), now));
+            }
+        }
+        for (Map.Entry<String, Integer> e : now0.entrySet()) {
+            int gained = e.getValue() - before.getOrDefault(e.getKey(), 0);
+            for (int k = 0; k < gained; k++) {
+                onGain(e.getKey(), newUuidName, table);
+            }
+        }
+    }
+
+    private static void onGain(String norm, Map<String, String> newUuidName, DropTable table) {
+        if (takeFirst(LOSSES, l -> l.name().equals(norm))) {
+            excludedPickups++;
+            lastDecision = "gain of " + norm + " ignored: it left the inventory in the last 10 minutes";
+            LOGGER.info("[Luck] {} came back into the inventory (thrown or moved out and picked up) - not a drop", norm);
+            return;
+        }
+        if (takeFirst(CREDITS, c -> c.name().equals(norm))) {
+            lastDecision = "gain of " + norm + " is the drop line's";
+            return;
+        }
+        boolean dye = false;
+        String name = null;
+        for (DropTable.Drop d : table.named(norm)) {
+            if (d.activity().startsWith("chest:")) {
+                continue; // a chest dye (Necron, Livid) comes by Croesus claim
+            }
+            dye |= "dye".equals(d.category());
+            name = d.name();
+        }
+        if (!dye) {
+            // Inventory gains count only for items that drop without a line (dyes); the rest come by chat or claim.
+            lastDecision = "gain of " + norm + " left to its drop line / claim";
+            return;
+        }
+        if (UUID_NAMES.contains(norm)) {
+            // Stacks of this item carry a Skyblock UUID: a real drop is a UUID never seen in his inventory before.
+            String fresh = null;
+            for (Map.Entry<String, String> e : newUuidName.entrySet()) {
+                if (DropTable.normalize(e.getValue()).equals(norm)) {
+                    fresh = e.getKey();
+                    break;
+                }
+            }
+            if (fresh == null) {
+                excludedPickups++;
+                lastDecision = "gain of " + norm + " ignored: no new item UUID (an item he already had)";
+                LOGGER.info("[Luck] {} came back with a UUID already seen - not a drop", norm);
+                return;
+            }
+            newUuidName.remove(fresh);
+        }
+        onDrop(name, 1, "inventory", magicFind());
+    }
+
+    private static <T> boolean takeFirst(Deque<T> q, java.util.function.Predicate<T> p) {
+        for (Iterator<T> it = q.iterator(); it.hasNext(); ) {
+            if (p.test(it.next())) {
+                it.remove();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Test hook: forget the inventory baseline, seen UUIDs, losses and slayer memory. */
+    static void resetForTest() {
+        snapshot = null;
+        SEEN_UUIDS.clear();
+        UUID_NAMES.clear();
+        LOSSES.clear();
+        CREDITS.clear();
+        questActivity = null;
+        questSeenMs = 0;
+        lastKillActivity = null;
+        lastKillMs = 0;
+        excludedPickups = 0;
+        lastDecision = "";
+    }
+}

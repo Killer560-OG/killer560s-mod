@@ -16,6 +16,8 @@ public class HelpersTab extends FolderTab {
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 new ExperimentsTab(),
+                // How Lucky Are You (doc-rng-1101): drops against the odds, beside the other trackers' settings.
+                new LuckTab(),
                 // Etherwarp Overlay moved out of New 2026-09-16, then on to General 2026-10-04 (killer560).
                 // Out of the New category, removed 2026-10-07 (killer560).
                 new WaypointRoutesTab(),
