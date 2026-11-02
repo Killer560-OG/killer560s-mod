@@ -165,6 +165,7 @@ public final class BloodCampFeature {
     public static void register() {
         // The box, the kill sound and the Trigger Bot's lead all time themselves by the measured round trip.
         com.killer560.hub.util.PingTracker.register();
+        com.killer560.hub.util.PerTickServerClock.register();
         com.killer560.hub.util.PingTracker.addDemand(() -> BloodCampConfig.getInstance().isEnabled());
         WorldRenderUtils.initThroughWalls();
         BloodCampMoveTimer.register();
@@ -2221,7 +2222,9 @@ public final class BloodCampFeature {
      *  comment) - real ticks remaining until this specific blood mob has settled and become vulnerable
      *  again. */
     static double remainingTicks(BloodMobState data, long nowTick) {
-        long timeTook = nowTick - data.startedAtTick - com.killer560.hub.util.ServerLag.ticksSince(data.lagMark);
+        // Server ticks since the trip's first packet (util.PerTickServerClock: the server's per-tick pings on Hypixel,
+        // client ticks on a server that does not ping every tick). A server stall pauses it as it pauses the mob.
+        long timeTook = com.killer560.hub.util.PerTickServerClock.now() - data.startedAtClock;
         return (data.firstSpawn ? 40 : 0) + 38 - timeTook + 0.8;
     }
 

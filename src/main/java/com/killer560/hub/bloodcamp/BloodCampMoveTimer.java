@@ -72,9 +72,10 @@ public final class BloodCampMoveTimer {
     private static final int COUNTDOWN_SHOW_TICKS = 200;
 
     private static long bloodOpenTick = -1L;
-    /** {@code util.ServerLag.mark()} at the greeting: every timing below counts server ticks since it, stalls left out
+    /** {@code util.PerTickServerClock} at the greeting: every timing below counts server ticks since it, stalls left out
      *  (2026-11-01, NoammAddons times its move timer in server ticks too). */
-    private static long bloodOpenMark = 0L;
+    private static long[] bloodOpenMark;
+    private static long bloodOpenClock;
     /** Lag-free ticks after the greeting at which the Watcher moves, or -1 with no prediction. */
     private static long moveAtElapsed = -1L;
     private static boolean firstSpawns = true;
@@ -116,12 +117,12 @@ public final class BloodCampMoveTimer {
         if (bloodOpenTick < 0 || now < 0) {
             return -1L;
         }
-        return now - bloodOpenTick - com.killer560.hub.util.ServerLag.ticksSince(bloodOpenMark);
+        return com.killer560.hub.util.PerTickServerClock.now() - bloodOpenClock;
     }
 
     /** The server's stall since the greeting, ms (Blood Camp Stats' camp lag). */
     static long lagMsSinceGreeting() {
-        return bloodOpenTick < 0 ? 0L : com.killer560.hub.util.ServerLag.msSince(bloodOpenMark);
+        return bloodOpenTick < 0 ? 0L : com.killer560.hub.util.PerTickServerClock.stallTicksSince(bloodOpenMark) * 50L;
     }
 
     static void reset() {
@@ -176,7 +177,8 @@ public final class BloodCampMoveTimer {
             BloodCampStats.onCampCleared();
         } else if (BLOOD_OPEN.matcher(plain).matches() || (bloodOpenTick < 0 && WATCHER_ANY.matcher(plain).matches())) {
             bloodOpenTick = now;
-            bloodOpenMark = com.killer560.hub.util.ServerLag.mark();
+            bloodOpenMark = com.killer560.hub.util.PerTickServerClock.mark();
+            bloodOpenClock = com.killer560.hub.util.PerTickServerClock.now();
             moveAtElapsed = -1L;
             firstSpawns = true;
             spawningDone = false;
@@ -301,7 +303,7 @@ public final class BloodCampMoveTimer {
             return -1L;
         }
         return bloodOpenTick + moveAtElapsed - BloodCampConfig.getInstance().getKillPopupLeadTicks()
-                + com.killer560.hub.util.ServerLag.ticksSince(bloodOpenMark);
+                + com.killer560.hub.util.PerTickServerClock.stallTicksSince(bloodOpenMark);
     }
 
     /** Whether the kill timer ("KILL") has gone off: what Blood Camp Stats counts lost ticks from. */

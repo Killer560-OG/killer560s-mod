@@ -38,8 +38,8 @@ public final class PingTracker {
     private static final long[] samples = new long[WINDOW];
     /** The same samples less the server stall measured while each request was out (see {@link #automationMsLagFree}). */
     private static final long[] cleanSamples = new long[WINDOW];
-    /** {@link ServerLag#mark()} when the last request went out (its pong is matched by the sent time). */
-    private static volatile long lastSentLagMark = 0L;
+    /** {@link PerTickServerClock#mark()} when the last request went out (its pong is matched by the sent time). */
+    private static volatile long[] lastSentLagMark;
     private static int sampleCount = 0;
     private static int sampleNext = 0;
     private static volatile long lastSampleMs = -1L;
@@ -87,7 +87,7 @@ public final class PingTracker {
             return;
         }
         long now = Util.getMillis();
-        lastSentLagMark = ServerLag.mark();
+        lastSentLagMark = PerTickServerClock.mark();
         lastSentTime = now;
         pingsSent++;
         connection.send(new ServerboundPingRequestPacket(now));
@@ -100,7 +100,7 @@ public final class PingTracker {
             return;
         }
         // A pong for our own request: take out what the server stalled meanwhile (vanilla's F3 pongs carry no mark).
-        long stall = sentTime == lastSentTime ? ServerLag.msSince(lastSentLagMark) : 0L;
+        long stall = sentTime == lastSentTime ? PerTickServerClock.stallTicksSince(lastSentLagMark) * 50L : 0L;
         synchronized (samples) {
             cleanSamples[sampleNext] = Math.max(0L, rtt - stall);
             samples[sampleNext] = rtt;
@@ -162,7 +162,7 @@ public final class PingTracker {
 
     /**
      * {@link #automationMs} with every server stall taken out of each sample: the time the server spent frozen while a
-     * request was out (util/ServerLag, measured from the per-tick pings). killer560, 2026-11-01: Blood Camp's Trigger Bot
+     * request was out ({@link PerTickServerClock}: client ticks the per-tick-pinging server did not tick). killer560, 2026-11-01: Blood Camp's Trigger Bot
      * "comes out really late likely due to auto detect lag finding something wrong" - his 2026-10-29 log had a 1170 ms
      * median across a 20-tick stall. A stall is time, not distance: a countdown that already leaves the stall out
      * (Blood Camp's) must not ALSO lead by it. With the server keeping time this is exactly {@link #automationMs}.

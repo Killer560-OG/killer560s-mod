@@ -6,7 +6,6 @@ import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
-import com.killer560.hub.witherdragons.ServerTickClock;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -31,8 +30,8 @@ import java.util.regex.Pattern;
  *   mob still on its way from the wall is "about to spawn" and does not count.</li>
  *   <li>It stops on "You have proven yourself. You may pass." (the room is cleared).</li>
  * </ol>
- * Ticks are SERVER ticks ({@link ServerTickClock}: one per server ping on Hypixel, client ticks elsewhere), so a server
- * stall adds nothing here: it is reported apart, as the camp's lag ({@code util.ServerLag} since the Watcher's greeting).
+ * Ticks are SERVER ticks ({@code util.PerTickServerClock}: one per server ping on Hypixel, client ticks elsewhere), so a server
+ * stall adds nothing here: it is reported apart, as the camp's lag (the ticks {@code util.PerTickServerClock} saw the server miss since the Watcher's greeting).
  * <p>
  * It is all read from what the client sees - the Watcher's lines and the blood mobs' own entities - so it works from any
  * room the blood mobs are loaded in, whoever camps. Party Message sends it after the run when he camped himself (was in
@@ -49,6 +48,7 @@ public final class BloodCampStats {
     private static boolean camped;
     private static boolean sentThisRun;
     private static Object lastLevel;
+    private static long lastClock = com.killer560.hub.util.PerTickServerClock.now();
     /** Testkit: the last party message sent (or that would have been, with Party Message on). */
     private static String lastMessage;
 
@@ -58,8 +58,17 @@ public final class BloodCampStats {
     }
 
     static void register() {
-        ServerTickClock.register();
-        ServerTickClock.subscribe(BloodCampStats::onServerTick);
+        com.killer560.hub.util.PerTickServerClock.register();
+        // One step per server tick of util.PerTickServerClock (not ServerTickClock, which an anticheat's ~15 pings a
+        // second already make "ping-driven"), stepped at the end of each client tick.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            long now = com.killer560.hub.util.PerTickServerClock.now();
+            long steps = Math.max(0L, Math.min(200L, now - lastClock));
+            lastClock = now;
+            for (long i = 0; i < steps; i++) {
+                onServerTick();
+            }
+        });
         ChatObserver.subscribe(BloodCampStats::onChat);
     }
 
