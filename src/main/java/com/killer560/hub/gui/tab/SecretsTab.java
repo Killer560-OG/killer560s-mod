@@ -32,8 +32,8 @@ public class SecretsTab extends FolderTab {
 
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
-                new SecretSoundTab(),
-                new SecretClickedTab(),
+                // Secret Sound, Secret Clicked and the Secrets HUD share one tab (killer560, 2026-11-01)
+                new SecretTab(),
                 new SecretWaypointsTab(),
                 new EtherwarpTab()
         ));

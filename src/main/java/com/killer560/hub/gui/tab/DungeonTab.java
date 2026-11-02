@@ -23,7 +23,6 @@ public class DungeonTab extends FolderTab {
                 // ---- map, doors, party ----
                 new LiveMapTab(),
                 new ChunkCacheTab(),
-                new DungeonInfoTab(),
                 new DoorKeysTab(),
                 new WitherDoorsTab(),
                 new LeapMenuTab(),
