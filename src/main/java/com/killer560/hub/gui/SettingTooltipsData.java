@@ -2487,9 +2487,9 @@ final class SettingTooltipsData {
         d.put("pet wheel/add page", "Adds an empty page after the last one and switches to it. Open Edit Pets to fill it.");
         d.put("pet wheel/delete page", "Deletes the page shown above (never the last one).");
         d.put("pet wheel/edit pets", "Opens the wheel to edit it: right-click a slot to pick a pet, or drag slices to swap them.");
-        d.put("auction house/auction house browser", "One switch for the whole Auction House: the custom browser (/killer560 ah or a keybind) and Hypixel's real Auction House menus drawn in its look, where every click is the same single click on Hypixel's menu.");
-        d.put("auction house/open key", "Optional keybind that opens the Auction House browser, same as /killer560 ah.");
-        d.put("auction house/open auction house", "Opens the Auction House browser now, the same as /killer560 ah.");
+        d.put("auction house/auction house browser", "One switch for the whole Auction House: the custom browser (its keybind or Open Auction House) and Hypixel's real Auction House menus drawn in its look, where every click is the same single click on Hypixel's menu.");
+        d.put("auction house/open key", "Optional keybind that opens the Auction House browser.");
+        d.put("auction house/open auction house", "Opens the Auction House browser now.");
         d.put("auction house/ah override", "Makes /ah open this browser instead of Hypixel's menu; /hypixelah still opens Hypixel's.");
         d.put("auction house/listing helper", "In Hypixel's Create BIN Auction menu, shows the lowest similar BIN and an estimated value.");
         d.put("auction house/hypixel menu key", "Hold this key to see Hypixel's own Auction House menu instead of the reskin (Escape clears it).");

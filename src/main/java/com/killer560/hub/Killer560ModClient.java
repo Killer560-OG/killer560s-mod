@@ -606,18 +606,9 @@ public class Killer560ModClient implements ClientModInitializer {
                         // whole command tree is already nested 4+ levels deep and another sub-tree
                         // inlined by hand risks exactly the kind of mismatched-paren mistake that's easy
                         // to make and hard to spot in a wall of closing parens.
-                        .then(buildProfileCommand())
-                        // "/killer560 ah" and "/killer560 bz" - item 8.1 (Auction House and Bazaar browsers).
-                        .then(ClientCommands.literal("ah")
-                                .executes(context -> {
-                                    com.killer560.hub.auction.AuctionHouseFeature.openOrExplain();
-                                    return 1;
-                                }))
-                        .then(ClientCommands.literal("bz")
-                                .executes(context -> {
-                                    com.killer560.hub.bazaar.BazaarFeature.openOrExplain();
-                                    return 1;
-                                }))));
+                        .then(buildProfileCommand())));
+                        // "/killer560 ah" and "/killer560 bz" were removed with /killer560ah and /killer560bz (killer560,
+                        // 2026-11-01: "they are not needed"): the browsers open from their keys and Open buttons.
 
         // Posmsg: killer560's request (2026-09-13) for a chat-relayed waypoint system, syntax exactly
         // as he specified it - "/Posmsg add" then the message, then the center coordinate, then the

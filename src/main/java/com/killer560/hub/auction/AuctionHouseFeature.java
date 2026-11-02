@@ -3,7 +3,6 @@ package com.killer560.hub.auction;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.auction.screen.AuctionHouseScreen;
 import com.killer560.hub.util.KeyUtil;
-import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
@@ -15,7 +14,8 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * killer560's item 8.1, part 1+2: "Custom AH search/sell menu... /ah replacement toggle or
- * /killer560 ah, a keybind". This class owns opening the browser (command/keybind) and the real
+ * /killer560 ah, a keybind" (/killer560 ah and /killer560ah were removed 2026-11-01). This class owns opening the
+ * browser (the /ah override, the keybind, the Open button) and the real
  * {@code /ah} override; {@link AuctionHouseApi} owns the actual scan, {@code AuctionHouseScreen} the UI.
  * <p>
  * Never buys, bids or lists anything itself - clicking a listing in the screen runs Hypixel's own real
@@ -78,16 +78,6 @@ public final class AuctionHouseFeature {
     private static boolean shouldOverrideAh() {
         AuctionConfig cfg = AuctionConfig.getInstance();
         return cfg.isAhEnabled() && cfg.isOverrideAhCommand();
-    }
-
-    /** Opens the browser
-     *  if the feature is on, otherwise tells him where to turn it on instead of silently doing nothing. */
-    public static void openOrExplain() {
-        if (!AuctionConfig.getInstance().isAhEnabled()) {
-            ModChat.send("Auction House", ModChat.bad("Turn on the Auction House Browser in the Items tab first."));
-            return;
-        }
-        openDeferred();
     }
 
     public static void openDeferred() {
