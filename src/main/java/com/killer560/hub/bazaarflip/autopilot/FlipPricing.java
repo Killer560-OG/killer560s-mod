@@ -52,6 +52,12 @@ public final class FlipPricing {
 
         /** Coins the NPCs will still pay today. */
         double npcRemaining();
+
+        /** Most units one Bazaar order may hold (wiki, Bazaar: 71,680, or 256 for an item that does not stack). An Insta
+         *  Buy is limited by {@link #room} instead. */
+        default long orderLimit(String productId) {
+            return stackSize(productId) <= 1 ? 256L : 71_680L;
+        }
     }
 
     /**
@@ -191,6 +197,9 @@ public final class FlipPricing {
         }
         if (purse != null) {
             cap = Math.min(cap, (long) Math.floor(purse / buy));
+        }
+        if (!a.instaBuy()) {
+            cap = Math.min(cap, look.orderLimit(p.productId())); // one buy order's limit (256 for an unstackable item)
         }
         if (a.npc()) {
             cap = Math.min(cap, (long) Math.floor(look.npcRemaining() / sell));

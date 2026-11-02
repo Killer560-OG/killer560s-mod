@@ -134,6 +134,22 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
         });
         y += 22;
 
+        // Min Profit Per Cycle (killer560, 2026-11-01: "add a slider for minimum profit per cycle"): Off (0) takes any flip
+        // that pays after fees, as since 2026-10-16.
+        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, minProfitText(cfg), cfg.minProfitSliderValue()) {
+            @Override
+            protected void updateMessage() {
+                setMessage(minProfitText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setMinProfitFromSlider(this.value);
+                saveOnRelease(() -> cfg.save());
+            }
+        });
+        y += 22;
+
         // Max New Orders Per Session: a toggle; when on, the cap is the number beneath it.
         widgets.add(onOffButton("Max New Orders Per Session", cfg::isAutopilotMaxOrdersOn, cfg::setAutopilotMaxOrdersOn,
                 cfg::save, requestRebuild, contentX, y, contentWidth, 18));
@@ -146,6 +162,19 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
             }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
         }
+        // Stop At Max Orders (killer560, 2026-11-01: "an option to not have the bazaar flipper stop at max new orders").
+        widgets.add(onOffButton("Stop At Max Orders", cfg::isStopAtMaxOrders, cfg::setStopAtMaxOrders,
+                cfg::save, requestRebuild, contentX, y, contentWidth, 18));
+        y += 22;
+
+        // What the NPCs have paid today against Hypixel's daily cap (killer560, 2026-11-01: "have it track how much it has
+        // sold to the npc during the timeframe of that npc reset").
+        widgets.add(inertLabel(contentX, y, contentWidth, String.format(Locale.US,
+                "NPC Sales Today: §6%,.0f§7 of %,.0f, resets in %s",
+                com.killer560.hub.bazaarflip.BazaarFlipNpcLimit.soldToday(),
+                com.killer560.hub.bazaarflip.BazaarFlipNpcLimit.DAILY_LIMIT,
+                com.killer560.hub.bazaarflip.BazaarFlipNpcLimit.resetsIn())));
+        y += 20;
 
         // Min Profit Per Run was removed on 2026-10-16 (killer560: "I want it to always choose the best"): the best
         // flip by Rank By is taken whenever its profit after fees is above 0.
@@ -227,6 +256,12 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
 
     private static Component reserveText(BazaarFlipConfig cfg) {
         return Component.literal("Reserve: §6" + cfg.getAutopilotReservePercent() + "% of purse");
+    }
+
+    private static Component minProfitText(BazaarFlipConfig cfg) {
+        long v = cfg.getMinProfitPerCycle();
+        return Component.literal(v <= 0 ? "Min Profit Per Cycle: §6Off"
+                : String.format(Locale.US, "Min Profit Per Cycle: §6%,d coins", v));
     }
 
     private static Component orderCapText(BazaarFlipConfig cfg) {

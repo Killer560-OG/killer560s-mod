@@ -2778,7 +2778,10 @@ final class SettingTooltipsData {
         d.put("open bazaar", "Opens the Bazaar browser now. Without an active Booster Cookie it says why it cannot.");
         d.put("reserve", "The share of your purse the autopilot keeps back, from 0 to 100%. 10% by default.");
         d.put("configure /bzflip", "Opens the same setup screen as /bzflip: the advisor's four answers.");
-        d.put("max new orders per session", "Stops the autopilot after this many new orders in one session. Off means no limit; the number beneath sets the cap.");
+        d.put("max new orders per session", "Caps the new orders and Insta Buys the autopilot places. Off means no limit; the number beneath sets the cap. Stop At Max Orders says what happens when it is reached.");
+        d.put("bazaar flipper/stop at max orders", "On: the autopilot ends once Max New Orders is reached and its orders are done, and stops when Hypixel says every order slot is taken. Off: it starts a new round of orders instead, and waits for a free slot.");
+        d.put("bazaar flipper/min profit per cycle", "The least profit one buy-and-sell cycle must be expected to make before the autopilot opens it, checked again against the live price. Off takes any flip that pays after fees.");
+        d.put("bazaar flipper/npc sales today", "Coins you have sold to NPCs today, counted from every \"You sold\" line on this account (all instances). Hypixel stops paying at 500,000,000 a day and resets at 00:00 UTC.");
         d.put("auto sell/min wait between sells", "The shortest random wait, in ticks, between two sell clicks (1 to 10).");
         d.put("auto sell/max wait between sells", "The longest random wait, in ticks, between two sell clicks (1 to 10). Never below the minimum.");
         d.put("auto sell/toggle item key", "Press it over an item in any container to add that item to the sell list, or take it off. Escape clears it.");
