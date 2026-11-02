@@ -1823,6 +1823,8 @@ final class SettingTooltipsData {
         d.put("fast/auto leap/fast", "This leap fires when you left click with a Spirit Leap or Infinileap here. Works alongside Auto (cheat build only).");
         d.put("fast/auto leap/auto", "This leap fires by itself when its trigger happens: swaps to your leap from the hotbar, opens it, clicks the target, then swaps to Return To (cheat build only).");
         d.put("fast/auto leap/click delay", "Minimum time between fast leap clicks, 100-500 ms (cheat build only).");
+        d.put("fast/auto leap/leap timeout", "How long a leap waits for the Spirit Leap menu, then for the target's head, before it gives up and gives you your inputs back, 0.5-5 s in 0.25 s steps, 2 s by default (cheat build only).");
+        d.put("leap timeout", "How long a leap waits for the menu, then for the target's head, before giving up, 0.5-5 s (cheat build only).");
         d.put("fast/auto leap/block inputs", "Blocks your keyboard and mouse while a fast or auto leap is clicking (cheat build only).");
         d.put("fast/auto leap/fast mode", "Blocks input only between the leap menu opening and the click (cheat build only).");
         d.put("fast/auto leap/return to", "The hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap: your previous slot, Stay on Leap (no swap back), or a fixed slot 1-9 (cheat build only).");
