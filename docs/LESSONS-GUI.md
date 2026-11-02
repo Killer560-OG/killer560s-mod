@@ -387,3 +387,9 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   "Render pass color attachment count must match pipeline color target state count" - Secret Waypoints' through-walls
   lines on 2026-11-01, the first 26.3 run that ever drew one (96-ar). DEBUG_FILLED, GUI and GUI_TEXTURED snippets carry
   the same target on both versions (javap). Wrap any new `RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)`.
+- **26.3: the local player's own render state must stay an `AvatarRenderState`.** 26.3's `LevelExtractor.extractPlayerState`
+  (new; 26.2 has none) extracts the local player a second time through `EntityRenderDispatcher.extractEntity` for the
+  first-person hands and throws `IllegalStateException("Expected an AvatarRenderState for the local player")` otherwise.
+  Play as Mob swapped that call too and crashed the render frame with My Mob set (UI 1018-mob-own, 2026-11-01).
+  `MobSkinLocalPlayerStateMixin` flags the call so the swap skips it; anything else that replaces a player's state at
+  `extractEntity` must do the same.
