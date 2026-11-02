@@ -250,6 +250,12 @@ public final class ActionGate {
         /** The Bazaar-to-NPC Flipper clicking inside Hypixel's Bazaar product menu or the {@code /trades} NPC
          *  menu. {@code BazaarFlipFeature#click} is its only caller. */
         BAZAAR_FLIP_MENU(Kind.SCREEN),
+        /** The AH Flipper macro's {@code /viewauction <id>} (cheat build, 2026-11-01). Same shop bucket as the Bazaar
+         *  Flipper. {@code ahflip.AhFlipMacro#tick} is its only caller. */
+        AH_FLIP_CMD(Kind.COMMAND),
+        /** The AH Flipper macro clicking Buy Item Right Now and Confirm in Hypixel's BIN Auction View / Confirm Purchase.
+         *  {@code ahflip.AhFlipMacro#click} is its only caller. */
+        AH_FLIP_MENU(Kind.SCREEN),
         /** Auto Kick sending "p kick &lt;name&gt;" once a floor's target time is missed (killer560: "create
          *  auto kick... The kick based off of timed comp of a floor and whatnot", ported from Odin's own
          *  auto-kick). A command, not a click, so {@link Kind#COMMAND} - no screen rules, same as

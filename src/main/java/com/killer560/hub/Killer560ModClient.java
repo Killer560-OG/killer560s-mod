@@ -463,6 +463,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.bazaaradvisor.BazaarAdvisorFeature.register();
         com.killer560.hub.bazaaradvisor.BazaarAdvisorCommands.register();
         com.killer560.hub.bazaarflip.BazaarFlipCommands.register();
+        com.killer560.hub.ahflip.AhFlipper.register();
 
         // Four back-to-back END handlers as one listener, same order, each still guarded under its own name.
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.endAll(

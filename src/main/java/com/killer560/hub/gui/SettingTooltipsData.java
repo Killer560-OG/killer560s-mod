@@ -2781,6 +2781,18 @@ final class SettingTooltipsData {
         d.put("max new orders per session", "Caps the new orders and Insta Buys the autopilot places. Off means no limit; the number beneath sets the cap. Stop At Max Orders says what happens when it is reached.");
         d.put("bazaar flipper/stop at max orders", "On: the autopilot ends once Max New Orders is reached and its orders are done, and stops when Hypixel says every order slot is taken. Off: it starts a new round of orders instead, and waits for a free slot.");
         d.put("bazaar flipper/min profit per cycle", "The least profit one buy-and-sell cycle must be expected to make before the autopilot opens it, checked again against the live price. Off takes any flip that pays after fees.");
+        d.put("ah flipper", "Watches new Auction House BINs (Hypixel's public API, no key) and finds ones listed under what the same item sells for. Background puts each in chat with a clickable [Open] that opens the auction for you to buy.");
+        d.put("ah flipper/min profit %", "The least profit a flip must make, as a share of its price, after the listing fee and the 1% collection tax.");
+        d.put("ah flipper/undercut", "How far under the cheapest other BIN the flip is priced to sell. The profit is worked out at that price.");
+        d.put("ah flipper/min profit", "The least profit in coins a flip must make, after fees.");
+        d.put("ah flipper/min sell price", "Flips whose sale price would be under this are ignored. Off: any price.");
+        d.put("ah flipper/max buy price", "The most a flip may cost. Your purse: anything your purse covers.");
+        d.put("ah flipper/min listings", "How many other BINs of the same item must exist before their cheapest is trusted as the sale price. Higher is safer.");
+        d.put("ah flipper/run mode", "Background: flips go in chat and you buy them yourself. Main: the macro opens each flip and buys it (cheat build), only while no menu is open and outside dungeons. Relisting is not automated: the AH Price Copier copies the relist price when you put the item up.");
+        d.put("ah flipper/max buys per session", "The macro stops buying after this many purchases. Switch Run Mode off Main and back to buy again.");
+        d.put("ah price copier", "When you put an item in Hypixel's Create BIN Auction menu, copies its price to your clipboard: your last price for the same item if you just listed one, otherwise its lowest BIN from the AH scan. Never clicks or types.");
+        d.put("ah price copier/undercut", "Coins under the price that are taken off before it is copied. 1 copies the lowest BIN minus one coin.");
+        d.put("ah price copier/use my last price", "When you listed the same item in the last 6 hours, copies the price you listed it at instead of the lowest BIN.");
         d.put("bazaar flipper/npc sales today", "Coins you have sold to NPCs today, counted from every \"You sold\" line on this account (all instances). Hypixel stops paying at 500,000,000 a day and resets at 00:00 UTC.");
         d.put("auto sell/min wait between sells", "The shortest random wait, in ticks, between two sell clicks (1 to 10).");
         d.put("auto sell/max wait between sells", "The longest random wait, in ticks, between two sell clicks (1 to 10). Never below the minimum.");
