@@ -1051,6 +1051,9 @@ public final class Ap3Executor {
      * {@link #triggerUnlessSs}.
      */
     private static void fire(Ap3Node node, Vec3 pos, double bestMover) {
+        if (com.killer560.hub.macrostop.MacroStop.emergencyHeld()) {
+            return; // the Emergency Cancel Key hold: no node starts until he releases it
+        }
         if (node.type.isMover() && node.edgeFraction(pos) > bestMover + MOVER_CENTRE_EPS) {
             moverDeferred.add(node);
             return;

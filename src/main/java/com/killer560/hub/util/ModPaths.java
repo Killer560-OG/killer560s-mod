@@ -296,6 +296,8 @@ public final class ModPaths {
         t.put("autoupdate", "system/autoupdate");
         t.put("reboot", "system/reboot");
         t.put("correctionalarm", "system/correctionalarm");
+        // The mod-wide Emergency Cancel Key for every macro (killer560smod-macrostop.json, 2026-11-01).
+        t.put("macrostop", "system/macrostop");
         t.put("bugreport", "system/bugreport");
         // Auto Report Bans (2026-11-01): its switch and the hashed keys of bans already reported.
         t.put("banreport", "system/banreport");

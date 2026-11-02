@@ -695,8 +695,11 @@ public final class RouteExecutor {
      *  one of these the feature must not re-arm until they have walked clear of every node (2026-09-16
      *  review: tapping W stopped a route and releasing W restarted it, because the player was still
      *  standing inside the ring the bot had just walked them through). */
+    /** The Emergency Cancel Key (macrostop/MacroStop): a stop by him, so it latches like "you moved". */
+    public static final String STOPPED_BY_EMERGENCY = "the Emergency Cancel Key";
+    private static boolean emergencyRefusalLogged;
     private static final java.util.Set<String> USER_STOP_REASONS =
-            java.util.Set.of("you moved", "you moved the camera", STOPPED_BY_COMMAND);
+            java.util.Set.of("you moved", "you moved the camera", STOPPED_BY_COMMAND, STOPPED_BY_EMERGENCY);
 
     private static boolean stoppedByUser;
     /** Set when a route runs to its end. The player is then standing IN the last node, which with
@@ -823,6 +826,14 @@ public final class RouteExecutor {
         justFinished = false;
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
+        if (com.killer560.hub.macrostop.MacroStop.emergencyHeld()) {
+            if (!emergencyRefusalLogged) { // asked every tick he stands in a node: once per hold
+                emergencyRefusalLogged = true;
+                LOGGER.info("[AutoRoutes] start refused: the Emergency Cancel Key hold is on");
+            }
+            return false;
+        }
+        emergencyRefusalLogged = false;
         if (player == null || r == null || f == null || startNode == null) {
             LOGGER.info("[AutoRoutes] start refused: player={} route={} frame={} startNode={} - something it needs is missing",
                     player != null, r == null ? "null" : r.roomName(), f != null, startNode == null ? "null" : startNode.type);

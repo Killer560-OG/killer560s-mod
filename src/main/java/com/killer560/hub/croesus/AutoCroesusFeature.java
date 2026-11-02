@@ -166,6 +166,9 @@ public final class AutoCroesusFeature {
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoCroesusFeature.tick", AutoCroesusFeature::tick));
+        // Escape and the Emergency Cancel Key stop it (killer560, 2026-11-01: not other keys); Escape still closes the menu.
+        com.killer560.hub.macrostop.MacroStop.register("Auto Croesus", com.killer560.hub.macrostop.MacroStop.Kind.CLICK,
+                () -> state != State.IDLE || armed, AutoCroesusFeature::stopByPlayer);
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             if (state != State.IDLE) {
                 stop("world changed", false);
@@ -204,15 +207,22 @@ public final class AutoCroesusFeature {
         }
     }
 
+    /** A run (or a pressed Start button) is in progress: {@link ChestProfitFeature}'s key hook keeps his other keys off
+     *  the menu meanwhile - a stray number key there is a real hotbar-swap packet. */
+    public static boolean isBusy() {
+        return state != State.IDLE || armed;
+    }
+
     /**
-     * killer560: "it will keep going until i press any key while it is going or it finishes." Called from
-     * {@link ChestProfitFeature}'s container key hook for every key press.
+     * Escape or the Emergency Cancel Key ({@code macrostop/MacroStop}; killer560, 2026-11-01: "only make it stop if I
+     * press escape or the emergency cancel key not other keys"). It was any key from 2026-09-20 ("it will keep going
+     * until i press any key while it is going or it finishes").
      *
-     * @return whether something was actually stopped, so the caller can swallow that key press.
+     * @return whether something was actually stopped.
      */
-    public static boolean stopOnKeyPress() {
+    public static boolean stopByPlayer(String what) {
         if (state != State.IDLE) {
-            stop("a key was pressed", false);
+            stop("you pressed " + what, false);
             return true;
         }
         if (armed) {
@@ -271,7 +281,7 @@ public final class AutoCroesusFeature {
         graphics.pose().pushMatrix();
         graphics.pose().translate(pos[0], pos[1]);
         graphics.pose().scale(scale, scale);
-        drawButtonBox(graphics, 0, 0, running ? "Running - any key" : "Start Croesus", running);
+        drawButtonBox(graphics, 0, 0, running ? "Running - Esc stops" : "Start Croesus", running);
         graphics.pose().popMatrix();
     }
 

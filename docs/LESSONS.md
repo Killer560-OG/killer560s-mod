@@ -132,6 +132,11 @@ project CLAUDE.md. Compiling lessons
   glowstone returns after all its clicks went out (`ExperimentSolver.chronomatronRoundsCompleted`), and the stop uses that
   (testkit 2783: closed 3 ticks after the last accepted click, counter 3/3; the old jar took 33 ticks and read 4/3). Ultrasequencer shows its whole series when a round
   starts, so its size check does not wait for anything (2784).
+- **"Is the bot driving?" is the run's state, not its switch.** Auto E-Table's manual-click follow (and the cursor clear
+  and tier peek beside it) tested `cfg.isAutonomousMode()`, so after he stopped a run mid-Ultrasequencer his own clicks
+  never moved the solver on and the 1-6 highlight sat on 1 (killer560, 2026-11-01). They test `autonomous && armed` now,
+  and a stop gives back a click the run had decided (and counted) but not sent (`ExperimentSolver.rewindUnsentClick`).
+  Testkit 1101-menu-etable-resume.
 - A step that closes a menu and sends a command must time out if the screen it waits for never opens. Auto E-Table's
   Guardian swap closed the table, sent /pets, and waited forever when nothing opened; it now gives up after 10 s.
 - **A container scan that commits once must keep reading while the menu is open.** The RNG Meter overlay committed after

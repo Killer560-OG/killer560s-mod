@@ -95,6 +95,9 @@ public final class AutoSellFeature {
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoSellFeature.tick", AutoSellFeature::tick));
+        // Escape (which also closes the menu) and the Emergency Cancel Key stop it (killer560, 2026-11-01).
+        com.killer560.hub.macrostop.MacroStop.register("Auto Sell", com.killer560.hub.macrostop.MacroStop.Kind.CLICK, AutoSellFeature::isRunning,
+                why -> stop("you pressed " + why));
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             if (running) {
                 stop("world changed");

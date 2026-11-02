@@ -179,6 +179,8 @@ public final class AutoClearFeature {
         }
         // START: the use key must be down before handleKeybinds, and the body turned before the movement packet.
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoClearFeature.tick", AutoClearFeature::tick));
+        // Escape, the chat key and the Emergency Cancel Key stop it too (killer560, 2026-11-01); a click no longer does.
+        com.killer560.hub.macrostop.MacroStop.register("Auto Clear", com.killer560.hub.macrostop.MacroStop.Kind.MOVEMENT, () -> running, why -> stop("you pressed " + why));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoClearSettings.capture", AutoClearSettings::pollCapture));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
                 ClientCommands.literal("autoclear")
@@ -4778,11 +4780,12 @@ public final class AutoClearFeature {
         return best;
     }
 
-    private static final String[] KEY_NAMES = {"forward", "back", "left", "right", "jump", "attack"};
+    // Movement keys only (killer560, 2026-11-01): the attack key stopped it until then.
+    private static final String[] KEY_NAMES = {"forward", "back", "left", "right", "jump"};
 
     private static KeyMapping[] watchedKeys(Minecraft client) {
         var o = client.options;
-        return new KeyMapping[]{o.keyUp, o.keyDown, o.keyLeft, o.keyRight, o.keyJump, o.keyAttack};
+        return new KeyMapping[]{o.keyUp, o.keyDown, o.keyLeft, o.keyRight, o.keyJump};
     }
 
     /** The name of a movement/jump/attack key pressed since the last tick (not one held since the start), or null. */

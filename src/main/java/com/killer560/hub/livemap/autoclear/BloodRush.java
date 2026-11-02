@@ -50,6 +50,9 @@ public final class BloodRush {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BloodRush.tick", BloodRush::tick));
+        // Escape, the chat key and the Emergency Cancel Key stop it too (killer560, 2026-11-01).
+        com.killer560.hub.macrostop.MacroStop.register("Blood Rush", com.killer560.hub.macrostop.MacroStop.Kind.MOVEMENT, BloodRush::isRunning,
+                why -> stop("Stopped (you pressed " + why + ")"));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (overlay) {
                 return;
@@ -277,8 +280,9 @@ public final class BloodRush {
 
     private static boolean userInput(Minecraft client) {
         var o = client.options;
+        // Movement keys only (killer560, 2026-11-01): a click (attack / use) stopped it until then.
         return McCompat.screen(client) == null && (o.keyUp.isDown() || o.keyDown.isDown() || o.keyLeft.isDown() || o.keyRight.isDown()
-                || o.keyJump.isDown() || o.keyAttack.isDown() || o.keyUse.isDown());
+                || o.keyJump.isDown());
     }
 
 }

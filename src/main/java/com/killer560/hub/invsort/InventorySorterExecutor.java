@@ -99,6 +99,9 @@ public final class InventorySorterExecutor {
             return;
         }
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("InventorySorterExecutor.tick", InventorySorterExecutor::tick));
+        // Escape (which also closes the inventory) and the Emergency Cancel Key stop it (killer560, 2026-11-01).
+        com.killer560.hub.macrostop.MacroStop.register("Inventory Sorter", com.killer560.hub.macrostop.MacroStop.Kind.CLICK, InventorySorterExecutor::isRunning,
+                why -> stop("you pressed " + why));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InventorySorterExecutor.keys", InventorySorterExecutor::pollKeys));
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             if (isRunning()) {

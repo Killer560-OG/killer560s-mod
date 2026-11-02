@@ -182,6 +182,10 @@ public final class AutoSecretFeature {
             return;
         }
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoSecretFeature.tick", AutoSecretFeature::tick));
+        // Escape, the chat key and the Emergency Cancel Key stop it too (killer560, 2026-11-01: movement macros stop on
+        // "any movement key or escape or chat or the emergency cancel key"); its own movement-key watch stays below.
+        com.killer560.hub.macrostop.MacroStop.register("Auto Secret", com.killer560.hub.macrostop.MacroStop.Kind.MOVEMENT, AutoSecretFeature::isRunning,
+                why -> stop("you pressed " + why, true));
         // START, after Auto Routes' tick and before the Interactive Map runner's (registration order): a route that ends
         // this tick hands over to the next trip this same tick, and a held first warp is let go the tick it may go.
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoSecretFeature.tickStart",

@@ -56,13 +56,15 @@ import com.killer560.hub.compat.McCompat;
  * the always-on behavior that made the Auction House scan a performance complaint in the first place.
  *
  * <h2>Starting and stopping</h2>
- * The configured bind starts it. Any key or mouse button he presses while it runs stops it, and the stop message names
- * it. Until 2026-10-16 the watcher was a per-screen key hook plus a poll that only looked with no screen open, and he
- * reported "right now only escape stopped it": it is now a raw hook at the head of Minecraft's key and mouse handlers
- * ({@code mixin/BazaarFlipStopKeyMixin}, {@code BazaarFlipStopMouseMixin}, {@link #onRawKeyPress}), ahead of the Bazaar
- * menus, the reskin and the sign editor alike. The bind's own press that started a session happened while it was idle
- * (and {@link #START_GRACE_MS} plus {@link #startBindStillHeld} cover the bind still being held), and the amount the
- * flipper types into the sign goes straight to the screen, never through the key handler - so neither can stop it.
+ * The configured bind starts it. Escape, the mod-wide Emergency Cancel Key or a fresh press of the bind stop it, and
+ * the stop message names which (killer560, 2026-11-01: a macro stops on "escape or the emergency cancel key not other
+ * keys"; from 2026-10-16 to then any key or mouse button did). The Escape and Emergency Cancel Key watch is the shared
+ * raw hook at the head of Minecraft's key and mouse handlers ({@code macrostop/MacroStop}), ahead of the Bazaar menus,
+ * the reskin and the sign editor alike; while it runs, every other press in a Bazaar menu or the amount sign is still
+ * swallowed ({@link #swallowPress}), because a stray number key there is a real hotbar-swap packet. The bind's own press
+ * that started a session happened while it was idle (and {@link #START_GRACE_MS} plus {@link #startBindStillHeld} cover
+ * the bind still being held), and the amount the flipper types into the sign goes straight to the screen, never through
+ * the key handler - so neither can stop it.
  *
  * <h2>The cycle (2026-10-11: "make the bazaar flipper work"; Custom Amount 2026-10-16)</h2>
  * Scan, {@code /bz <name>}, then every Bazaar page is read through {@link BazaarPages} (the reskin's classifier) and
@@ -236,6 +238,8 @@ public final class BazaarFlipFeature {
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("BazaarFlipFeature.tick", BazaarFlipFeature::tick));
+        com.killer560.hub.macrostop.MacroStop.register("Bazaar Flip", com.killer560.hub.macrostop.MacroStop.Kind.CLICK,
+                () -> state != State.IDLE, why -> stop("you pressed " + why), BazaarFlipFeature::swallowPress);
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             if (state != State.IDLE) {
                 stop("world changed");
@@ -396,50 +400,22 @@ public final class BazaarFlipFeature {
                 + " 00:00 UTC, in %s", BazaarFlipNpcLimit.DAILY_LIMIT, BazaarFlipNpcLimit.resetsIn());
     }
 
-    // ---- the any-key stop ----------------------------------------------------------------------------
+    // ---- the stop (Escape, the Emergency Cancel Key, the bind) ----------------------------------------
 
     /**
-     * Called for every key press that reaches a watcher this feature owns. Names the key in the stop message
-     * (CLAUDE.md: "key pressed" cannot tell a walk from the feature killing itself).
-     *
-     * @return true if a session was actually stopped, so the caller can swallow the key press
+     * {@code MacroStop}'s word on a press while a session runs. The press that stopped it: Escape still closes a Bazaar
+     * menu (but never the amount sign, where Escape would send whatever the sign holds); the Emergency Cancel Key lands
+     * on nothing. Any other press in a Bazaar menu or the sign is swallowed without stopping anything - a stray number
+     * key there is a real hotbar-swap packet. With no screen open, or chat, a press does what he pressed it for.
      */
-    public static boolean stopOnKeyPress(int keyCode) {
-        if (state == State.IDLE) {
-            return false;
-        }
-        if (System.currentTimeMillis() - startedAtMs < START_GRACE_MS) {
-            // The bind that started this is very likely still physically down.
-            return false;
-        }
-        if (startBindStillHeld && keyCode == BazaarFlipConfig.getInstance().getStartKeyCode()) {
-            return false;
-        }
-        stop("you pressed " + KeyUtil.bindDisplayName(keyCode));
-        return true;
-    }
-
-    /**
-     * Every key and mouse press he makes, raw, before any screen sees it ({@code BazaarFlipStopKeyMixin},
-     * {@code BazaarFlipStopMouseMixin}). A press while running stops the session. With no screen open the press then
-     * does what he pressed it for; with a Bazaar or /trades menu open it is swallowed - a stray number key there is a
-     * real hotbar-swap packet - except Escape, which still closes the menu; in the amount sign it is always swallowed,
-     * because Escape there would send whatever the sign holds.
-     *
-     * @return true to swallow the press
-     */
-    public static boolean onRawKeyPress(int code) {
-        if (state == State.IDLE || !stopOnKeyPress(code)) {
-            return false;
-        }
-        Screen screen = McCompat.screen(Minecraft.getInstance());
-        if (screen == null) {
-            return false;
-        }
+    private static boolean swallowPress(int code, boolean stopped, Screen screen) {
         if (screen instanceof AbstractSignEditScreen) {
             return true;
         }
-        return code != com.killer560.hub.util.Keys.ESCAPE;
+        if (!(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)) {
+            return stopped && code != com.killer560.hub.util.Keys.ESCAPE;
+        }
+        return !(stopped && code == com.killer560.hub.util.Keys.ESCAPE);
     }
 
     // ---- the tick -------------------------------------------------------------------------------------
@@ -467,11 +443,6 @@ public final class BazaarFlipFeature {
         }
         if (client.player == null || client.level == null) {
             stop("left the world");
-            return;
-        }
-        // A key held down from before the start (a walk) stops it once the grace is over. Fresh presses anywhere are
-        // the raw hook's (onRawKeyPress).
-        if (McCompat.screen(client) == null && anyKeyDownInWorld(client)) {
             return;
         }
         int clickCap = state == State.AUTOPILOT ? MAX_AUTOPILOT_CLICKS : MAX_CLICKS_PER_SESSION;
@@ -537,44 +508,17 @@ public final class BazaarFlipFeature {
         // Rising edge, and only with no screen open, so the bind can't fire while he is typing in chat or
         // clicking around this mod's own settings.
         boolean afterMenuDelay = System.currentTimeMillis() - menuClosedAtMs >= MENU_CLOSE_DELAY_MS;
-        if (down && !keyWasDown && !screenOpen && afterMenuDelay && state == State.IDLE) {
+        if (down && !keyWasDown && !screenOpen && state != State.IDLE && !startBindStillHeld
+                && System.currentTimeMillis() - startedAtMs >= START_GRACE_MS) {
+            // The bind is the flip's own start/stop toggle (a fresh press, never the one still held from the start).
+            stop("you pressed " + KeyUtil.bindDisplayName(code));
+        } else if (down && !keyWasDown && !screenOpen && afterMenuDelay && state == State.IDLE) {
             String refusal = start();
             if (refusal != null) {
                 ModChat.send("Bazaar Flip", ModChat.bad("Can't start: "), ModChat.text(refusal));
             }
         }
         keyWasDown = down;
-    }
-
-    /** Any key or mouse button held, polled only when no screen is open. */
-    private static boolean anyKeyDownInWorld(Minecraft client) {
-        if (client.getWindow() == null) {
-            return false;
-        }
-        if (System.currentTimeMillis() - startedAtMs < START_GRACE_MS) {
-            return false;
-        }
-        var window = client.getWindow();
-        // The start bind is skipped only while it has been continuously held since the start - see
-        // startBindStillHeld. The moment it comes up, it stops the session like any other key.
-        int startCode = startBindStillHeld ? BazaarFlipConfig.getInstance().getStartKeyCode() : KeyUtil.NONE;
-        for (int key = com.killer560.hub.util.Keys.SPACE; key <= com.killer560.hub.util.Keys.LAST; key++) {
-            if (key == startCode) {
-                continue;
-            }
-            if (KeyUtil.isKeyDown(window, key)) {
-                return stopOnKeyPress(key);
-            }
-        }
-        for (int button = 0; button <= KeyUtil.MAX_MOUSE_BUTTON; button++) {
-            if (KeyUtil.codeForMouseButton(button) == startCode) {
-                continue;
-            }
-            if (com.killer560.hub.compat.McInput.isStoredButtonDown(window, button)) {
-                return stopOnKeyPress(KeyUtil.codeForMouseButton(button));
-            }
-        }
-        return false;
     }
 
     // ---- states ---------------------------------------------------------------------------------------
