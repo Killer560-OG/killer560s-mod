@@ -3,123 +3,129 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
+import com.killer560.hub.leftclickew.LeftClickEtherwarpConfig;
 import com.killer560.hub.zpew.ZeroPingEtherwarpConfig;
-import net.minecraft.client.Minecraft;
+import com.killer560.hub.zpew.ZpewSource;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Zero Ping Etherwarp - both builds since 2026-10-26: camera only (see {@link com.killer560.hub.zpew.ZeroPingEtherwarp}). */
+/**
+ * The Etherwarp tab (killer560, 2026-11-01, to-do Doc "ZPEW": "the new etherwarp tab. This will contain zpew and left
+ * click etherwarp"): Zero Ping Etherwarp (both builds, camera only: {@link com.killer560.hub.zpew.ZeroPingEtherwarp})
+ * and, in the cheat build, Left Click Etherwarp ({@link com.killer560.hub.leftclickew.LeftClickEtherwarp}) under a red
+ * header at the bottom. Two features side by side, so the card's switch stands for both ({@link #masterToggles}).
+ *
+ * <p>No explanation lines: each row says what it does in its hover tooltip ("If you need to explain it then it should be
+ * text shown when hovering a setting"). Works For comes last in the ZPEW part ("Move the works for to the bottom"). The
+ * class keeps its old name so a starred card and a toggle key (both kept by class name) carry over.
+ */
 public class ZeroPingEtherwarpTab extends BaseTab {
 
     private static final int ROW = 18;
+    public static final String ZPEW = "Zero Ping Etherwarp";
+    public static final String LEFT_CLICK = "Left Click Etherwarp";
 
     public ZeroPingEtherwarpTab() {
-        super("Zero Ping Etherwarp");
+        super("Etherwarp");
+    }
+
+    @Override
+    public String cardDescription() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
+                ? "Instant etherwarp view, and left click etherwarps." : "Instant etherwarp view.";
+    }
+
+    @Override
+    public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, ZPEW, LEFT_CLICK);
     }
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();
-        var font = Minecraft.getInstance().font;
         ZeroPingEtherwarpConfig cfg = ZeroPingEtherwarpConfig.getInstance();
+        boolean cheat = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
         int y = contentY;
-        w.add(SettingsButtonWidget.builder(onOff("Zero Ping Etherwarp", cfg.isEnabled()), btn -> {
+        w.add(SettingsButtonWidget.builder(onOff(ZPEW, cfg.isEnabled()), btn -> {
                     cfg.setEnabled(!cfg.isEnabled());
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 6;
-        if (!cfg.isEnabled()) {
-            return w;
-        }
-        w.add(SectionHeaders.row(contentX, y, contentWidth, "Zero Ping Etherwarp", false));
-        y += 16;
-        String[] help = {
-                "§7Your view jumps to where an etherwarp lands the moment you use it,",
-                "§7instead of a round trip later. Camera only: your character still moves",
-                "§7when the server says so, and nothing extra is sent."
-        };
-        for (String line : help) {
-            w.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal(line), font));
-            y += 11;
-        }
-        y += 6;
-        w.add(SettingsButtonWidget.builder(onOff("Chain From Prediction", cfg.isChain()), btn -> {
-                    cfg.setChain(!cfg.isChain());
-                    cfg.save();
-                    btn.setMessage(onOff("Chain From Prediction", cfg.isChain()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Overlay From Prediction", cfg.isOverlayFromPrediction()), btn -> {
-                    cfg.setOverlayFromPrediction(!cfg.isOverlayFromPrediction());
-                    cfg.save();
-                    btn.setMessage(onOff("Overlay From Prediction", cfg.isOverlayFromPrediction()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
-        y += ROW + 4;
-        double min = ZeroPingEtherwarpConfig.MIN_TIMEOUT_MS;
-        double span = ZeroPingEtherwarpConfig.MAX_TIMEOUT_MS - min;
-        w.add(new ThemedSliderButton(contentX, y, contentWidth, ROW, timeoutText(cfg),
-                Math.max(0.0, Math.min(1.0, (cfg.getTimeoutMs() - min) / span))) {
-            @Override
-            protected void updateMessage() {
-                setMessage(timeoutText(cfg));
-            }
+        if (cfg.isEnabled()) {
+            w.add(onOffButton("Dungeons Only", cfg::isDungeonsOnly, cfg::setDungeonsOnly, cfg::save, null,
+                    contentX, y, contentWidth, ROW));
+            y += ROW + 4;
+            w.add(onOffButton("Chain From Prediction", cfg::isChain, cfg::setChain, cfg::save, null,
+                    contentX, y, contentWidth, ROW));
+            y += ROW + 4;
+            w.add(onOffButton("Overlay From Prediction", cfg::isOverlayFromPrediction, cfg::setOverlayFromPrediction,
+                    cfg::save, null, contentX, y, contentWidth, ROW));
+            y += ROW + 4;
+            double min = ZeroPingEtherwarpConfig.MIN_TIMEOUT_MS;
+            double span = ZeroPingEtherwarpConfig.MAX_TIMEOUT_MS - min;
+            w.add(new ThemedSliderButton(contentX, y, contentWidth, ROW, timeoutText(cfg),
+                    Math.max(0.0, Math.min(1.0, (cfg.getTimeoutMs() - min) / span))) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(timeoutText(cfg));
+                }
 
-            @Override
-            protected void applyValue() {
-                cfg.setTimeoutMs((int) (Math.round((min + this.value * span) / 50.0) * 50));
-                saveOnRelease(() -> cfg.save());
-            }
-        });
-        y += ROW + 6;
-        // Works For (killer560, 2026-10-27: "make an option like things that zpew works for with a list of everything"):
-        // one switch per sender of an etherwarp. The legit ones here, the cheat ones under the red header at the bottom.
-        w.add(SectionHeaders.row(contentX, y, contentWidth, "Works For", false));
-        y += 16;
-        y = sourceRows(w, cfg, contentX, y, contentWidth, false);
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            y += 6;
-            w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Works For", true));
-            y += 16;
-            y = sourceRows(w, cfg, contentX, y, contentWidth, true);
-            // Warps Per Tick (killer560, 2026-10-27: "multiple ether warps done in a single tick"): sends extra warps.
-            y += 6;
-            w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Warps In One Tick", true));
-            y += 16;
-            String[] wptHelp = {
-                    "§7Each of your own etherwarps becomes this many in the same tick, at the",
-                    "§7same look, each from where the last one lands. 1 = off. Each costs mana."
-            };
-            for (String line : wptHelp) {
-                w.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal(line), font));
-                y += 11;
-            }
-            y += 4;
-            w.add(SettingsButtonWidget.cycling(warpsPerTickText(cfg), (btn, dir) -> {
-                        cfg.setWarpsPerTick((int) SettingsButtonWidget.step(cfg.getWarpsPerTick(), 1, 1,
-                                ZeroPingEtherwarpConfig.MAX_WARPS_PER_TICK, dir));
-                        cfg.save();
-                        btn.setMessage(warpsPerTickText(cfg));
-                    }).bounds(contentX, y, contentWidth, ROW).build());
+                @Override
+                protected void applyValue() {
+                    cfg.setTimeoutMs((int) (Math.round((min + this.value * span) / 50.0) * 50));
+                    saveOnRelease(() -> cfg.save());
+                }
+            });
             y += ROW + 6;
-            // Aimed Warps (killer560, 2026-10-27: "Can you make it etherwarp different directions during the same tick?")
-            String[] aimedHelp = {
-                    "§7Clicks inside one tick at different looks each warp their own way, all",
-                    "§7in that tick. Each extra look spends one banked Blink Charge tick."
-            };
-            for (String line : aimedHelp) {
-                w.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal(line), font));
-                y += 11;
+            if (cheat) {
+                // Multi Warps (killer560, 2026-11-01: "Make a toggle for the multi warps. Change that setting to be called
+                // multi warps"): the switch over Warps Per Tick and Aimed Warps, which show only while it is on.
+                w.add(SectionHeaders.row(contentX, y, contentWidth, "Multi Warps", true));
+                y += 16;
+                w.add(SettingsButtonWidget.builder(onOff("Multi Warps", cfg.isMultiWarps()), btn -> {
+                            cfg.setMultiWarps(!cfg.isMultiWarps());
+                            cfg.save();
+                            requestRebuild.run();
+                        }).bounds(contentX, y, contentWidth, ROW).build());
+                y += ROW + 4;
+                if (cfg.isMultiWarps()) {
+                    w.add(SettingsButtonWidget.cycling(warpsPerTickText(cfg), (btn, dir) -> {
+                                cfg.setWarpsPerTick((int) SettingsButtonWidget.step(cfg.getWarpsPerTick(), 1, 1,
+                                        ZeroPingEtherwarpConfig.MAX_WARPS_PER_TICK, dir));
+                                cfg.save();
+                                btn.setMessage(warpsPerTickText(cfg));
+                            }).bounds(contentX, y, contentWidth, ROW).build());
+                    y += ROW + 4;
+                    w.add(onOffButton("Aimed Warps", cfg::isAimedWarps, cfg::setAimedWarps, cfg::save, null,
+                            contentX, y, contentWidth, ROW));
+                    y += ROW + 4;
+                }
+                y += 2;
             }
-            y += 4;
-            w.add(SettingsButtonWidget.builder(onOff("Aimed Warps In One Tick", cfg.isAimedWarps()), btn -> {
-                        cfg.setAimedWarps(!cfg.isAimedWarps());
-                        cfg.save();
-                        btn.setMessage(onOff("Aimed Warps In One Tick", cfg.isAimedWarps()));
+            // Works For (killer560, 2026-10-27), at the bottom since 2026-11-01: one switch per sender of an etherwarp.
+            w.add(SectionHeaders.row(contentX, y, contentWidth, "Works For", false));
+            y += 16;
+            y = sourceRows(w, cfg, contentX, y, contentWidth, false);
+            if (cheat) {
+                y += 6;
+                w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Works For", true));
+                y += 16;
+                y = sourceRows(w, cfg, contentX, y, contentWidth, true);
+            }
+            y += 6;
+        }
+        if (cheat) {
+            LeftClickEtherwarpConfig lce = LeftClickEtherwarpConfig.getInstance();
+            w.add(SectionHeaders.row(contentX, y, contentWidth, LEFT_CLICK, true));
+            y += 16;
+            w.add(SettingsButtonWidget.builder(onOff(LEFT_CLICK, lce.isEnabled()), btn -> {
+                        lce.setEnabled(!lce.isEnabled());
+                        lce.save();
+                        btn.setMessage(onOff(LEFT_CLICK, lce.isEnabled()));
                     }).bounds(contentX, y, contentWidth, ROW).build());
         }
         return w;
@@ -129,20 +135,27 @@ public class ZeroPingEtherwarpTab extends BaseTab {
         return Component.literal("Warps Per Tick: " + cfg.getWarpsPerTick());
     }
 
+    /** A Works For row's label: Left Click Etherwarp's reads "Left Click Etherwarps" here, so it is never taken for the
+     *  Left Click Etherwarp switch further down (the card's switch finds that one by its label). */
+    static String sourceLabel(ZpewSource s) {
+        return s == ZpewSource.LEFT_CLICK ? "Left Click Etherwarps" : s.label();
+    }
+
     /** The Works For switches of one kind, two to a row. @return the y under them */
     private static int sourceRows(List<AbstractWidget> w, ZeroPingEtherwarpConfig cfg, int x, int y, int width,
                                   boolean cheat) {
         int gap = 8;
         int colW = (width - gap) / 2;
         int col = 0;
-        for (com.killer560.hub.zpew.ZpewSource s : com.killer560.hub.zpew.ZpewSource.values()) {
+        for (ZpewSource s : ZpewSource.values()) {
             if (s.cheatOnly() != cheat) {
                 continue;
             }
-            w.add(SettingsButtonWidget.builder(onOff(s.label(), cfg.getWorksForSetting(s)), btn -> {
+            String label = sourceLabel(s);
+            w.add(SettingsButtonWidget.builder(onOff(label, cfg.getWorksForSetting(s)), btn -> {
                         cfg.setWorksFor(s, !cfg.getWorksForSetting(s));
                         cfg.save();
-                        btn.setMessage(onOff(s.label(), cfg.getWorksForSetting(s)));
+                        btn.setMessage(onOff(label, cfg.getWorksForSetting(s)));
                     }).bounds(x + col * (colW + gap), y, colW, ROW).build());
             if (++col == 2) {
                 col = 0;

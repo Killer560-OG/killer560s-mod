@@ -37,6 +37,11 @@ public final class ZeroPingEtherwarpConfig {
     /** Aimed Warps (cheat build only): several clicks of his inside one tick, each at the look it was clicked at, all go
      *  out in that tick - one banked Blink Charge tick per extra look (see {@link ZeroPingEtherwarp#aimedBurst}). Off. */
     private boolean aimedWarps = false;
+    /** Multi Warps (cheat build only, killer560 2026-11-01 "Make a toggle for the multi warps"): the switch over Warps Per
+     *  Tick and Aimed Warps. Off, neither applies. A file from before the switch turns it on when either was in use. */
+    private boolean multiWarps = false;
+    /** Dungeons Only (killer560, 2026-11-01): ZPEW predicts only inside a dungeon (the sim counts). Off by default. */
+    private boolean dungeonsOnly = false;
     /** Works For: which senders' etherwarps are predicted (see {@link ZpewSource}). All on by default - before the list
      *  existed every etherwarp use was predicted, whoever sent it. Saved as {"worksFor": {"MANUAL": true, ...}}. */
     private final java.util.EnumMap<ZpewSource, Boolean> worksFor = new java.util.EnumMap<>(ZpewSource.class);
@@ -68,6 +73,8 @@ public final class ZeroPingEtherwarpConfig {
                 cfg.overlayFromPrediction = ConfigJson.getBool(obj, "overlayFromPrediction", cfg.overlayFromPrediction);
                 cfg.setWarpsPerTick(ConfigJson.getInt(obj, "warpsPerTick", cfg.warpsPerTick));
                 cfg.aimedWarps = ConfigJson.getBool(obj, "aimedWarps", cfg.aimedWarps);
+                cfg.multiWarps = ConfigJson.getBool(obj, "multiWarps", cfg.warpsPerTick > 1 || cfg.aimedWarps);
+                cfg.dungeonsOnly = ConfigJson.getBool(obj, "dungeonsOnly", cfg.dungeonsOnly);
                 if (obj.has("worksFor") && obj.get("worksFor").isJsonObject()) {
                     JsonObject wf = obj.getAsJsonObject("worksFor");
                     for (ZpewSource s : ZpewSource.values()) {
@@ -91,6 +98,8 @@ public final class ZeroPingEtherwarpConfig {
             obj.addProperty("overlayFromPrediction", overlayFromPrediction);
             obj.addProperty("warpsPerTick", warpsPerTick);
             obj.addProperty("aimedWarps", aimedWarps);
+            obj.addProperty("multiWarps", multiWarps);
+            obj.addProperty("dungeonsOnly", dungeonsOnly);
             JsonObject wf = new JsonObject();
             for (ZpewSource s : ZpewSource.values()) {
                 wf.addProperty(s.name(), worksFor.get(s));
@@ -151,14 +160,36 @@ public final class ZeroPingEtherwarpConfig {
         this.aimedWarps = aimedWarps;
     }
 
-    /** Aimed Warps as it applies: never in a legit build. */
-    public boolean effectiveAimedWarps() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && aimedWarps;
+    /** The saved Multi Warps switch, whatever the build. */
+    public boolean isMultiWarps() {
+        return multiWarps;
     }
 
-    /** Warps Per Tick as it applies: always 1 in a legit build (nothing extra is ever sent there). */
+    public void setMultiWarps(boolean multiWarps) {
+        this.multiWarps = multiWarps;
+    }
+
+    public boolean isDungeonsOnly() {
+        return dungeonsOnly;
+    }
+
+    public void setDungeonsOnly(boolean dungeonsOnly) {
+        this.dungeonsOnly = dungeonsOnly;
+    }
+
+    /** ZPEW's switch, and Dungeons Only: whether it predicts where the player is now. */
+    public boolean isActiveHere() {
+        return enabled && (!dungeonsOnly || com.killer560.hub.secrets.DungeonState.isInDungeon());
+    }
+
+    /** Aimed Warps as it applies: never in a legit build, never with Multi Warps off. */
+    public boolean effectiveAimedWarps() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && multiWarps && aimedWarps;
+    }
+
+    /** Warps Per Tick as it applies: always 1 in a legit build (nothing extra is ever sent there) or with Multi Warps off. */
     public int effectiveWarpsPerTick() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? warpsPerTick : 1;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && multiWarps ? warpsPerTick : 1;
     }
 
     /** Whether ZPEW predicts this sender's etherwarps: its Works For switch, and a cheat source only in a cheat build. */
