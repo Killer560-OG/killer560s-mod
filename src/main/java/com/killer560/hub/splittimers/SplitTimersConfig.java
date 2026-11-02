@@ -227,9 +227,9 @@ public final class SplitTimersConfig {
         return tickCounting;
     }
 
-    /** Tick Counting in effect: the switch, in a cheat build (a legit build always counts every 0.01 s). */
+    /** Tick Counting in effect (legit and cheat builds alike since 2026-11-02). */
     public boolean isTickCounting() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && tickCounting;
+        return tickCounting;
     }
 
     public void setTickCounting(boolean v) {
