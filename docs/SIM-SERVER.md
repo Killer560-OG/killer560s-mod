@@ -254,6 +254,10 @@ Two sim options of the sim's own data (`roomsim/SimLiveMobs`), off unless asked 
   burned, `isInvulnerableTo`'s `environmental()` notwithstanding. `SimMobs` now refuses all environmental damage to its
   mobs in Fabric's `ALLOW_DAMAGE`. Also since then (a guess at first, kept as a safety): a death is AFTER_DEATH or the
   entity there and not alive, and a missing mob counts dead only after 200 checks (10 s) in a ticking section.
+- **A sim mob is a subclass only while its chunk stays loaded.** A chunk that unloads saves `SimZombie`/`SimEnderman` as a
+  plain zombie/enderman and loads them back as vanilla ones (AI, no Fel state, the sleeper visible), and the sim's
+  `FelMarker` keeps a stale skull reference that never wakes (Knight's Fel stayed asleep 4 blocks from him, 26.2). A floor
+  with mobs force-loads every chunk of its rooms (`SimMobFloor.forceChunks`, released at the next floor).
 - Mob spots (`SimLiveMobs`) are on the doorways' floor, at most one below and four above it: a key that dropped in a pit
   3 below the floor could not be reached by any etherwarp, and a zombie 8 up on a ledge was skipped as out of reach.
 - **The Blood door** wants `SimKeys.hasBloodKey()` on such a floor; opened, the server says "The BLOOD DOOR has been
