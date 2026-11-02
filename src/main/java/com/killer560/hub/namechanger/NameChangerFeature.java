@@ -203,14 +203,18 @@ public final class NameChangerFeature {
      *  turning Fade on always shows something instead of two identical (invisible) endpoints. */
     static String ownStyled(NameChangerConfig cfg) {
         String styled = ownStyledPlain(cfg);
-        return cfg.isOwnBold() ? NameColor.bold(styled) : styled;
+        styled = cfg.isOwnBold() ? NameColor.bold(styled) : styled;
+        return cfg.isOwnShadow() ? NameColor.shadow(styled) : styled;
     }
 
     private static String ownStyledPlain(NameChangerConfig cfg) {
         String display = colorize(cfg.getOwnDisplayName());
         boolean perChar = cfg.hasOwnCharColors();
         if (!cfg.isOwnColorFadeEnabled() && !perChar) {
-            return NameColor.prefix(cfg.getOwnColor()) + display;
+            int own = cfg.getOwnColor();
+            // Exactly the picked color (2026-11-01): one of the 16 as its code, any other as a true color per letter.
+            return own == NameColor.NONE || NameColor.isLegacy(own) ? NameColor.prefix(own) + display
+                    : NameColor.buildFade(display, own, own);
         }
         int from = cfg.getOwnColor() == NameColor.NONE ? 0xFFFFFFFF : cfg.getOwnColor();
         int to = cfg.getOwnColorFadeTo() == NameColor.NONE ? 0xFFFF5555 : cfg.getOwnColorFadeTo();
@@ -231,7 +235,8 @@ public final class NameChangerFeature {
      */
     public static int[] ownShareColours() {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
-        if (cfg.getOwnDisplayName().isEmpty() || (!cfg.isOwnColorFadeEnabled() && !cfg.hasOwnCharColors())) {
+        boolean trueFlat = cfg.getOwnColor() != NameColor.NONE && !NameColor.isLegacy(cfg.getOwnColor());
+        if (cfg.getOwnDisplayName().isEmpty() || (!cfg.isOwnColorFadeEnabled() && !cfg.hasOwnCharColors() && !trueFlat)) {
             return null;
         }
         int[] colours = NameColor.letterColours(ownStyled(cfg));

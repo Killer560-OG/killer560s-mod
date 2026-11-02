@@ -77,6 +77,7 @@ public class NameChangerTab extends BaseTab {
                 argb -> {
                     cfg.setOwnColor(argb);
                     cfg.save();
+                    preview.setMessage(previewLine()); // the preview follows the pick (2026-11-01)
                 }));
         y += 24;
 
@@ -130,6 +131,15 @@ public class NameChangerTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
+        // "Text Shadow" (killer560, 2026-11-01): your name drawn with a drop shadow everywhere, name tags included.
+        widgets.add(SettingsButtonWidget.builder(onOff("Text Shadow", cfg.isOwnShadow()), btn -> {
+                    cfg.setOwnShadow(!cfg.isOwnShadow());
+                    cfg.save();
+                    preview.setMessage(previewLine());
+                    btn.setMessage(onOff("Text Shadow", cfg.isOwnShadow()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
+
         // "Fade Color" (killer560, cosmetics tab: "also allow them to fade the colour") - a second color
         // endpoint that turns the flat single-color name into a per-letter gradient (NameColor#buildFade).
         // Only the local render sees the gradient - SupportersAutoShare only ever shares the FROM color
@@ -142,6 +152,7 @@ public class NameChangerTab extends BaseTab {
                     "Fade To Color", cfg.getOwnColorFadeTo(), argb -> {
                         cfg.setOwnColorFadeTo(argb);
                         cfg.save();
+                        preview.setMessage(previewLine());
                     }));
         }
         y += 24;

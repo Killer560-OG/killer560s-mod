@@ -2526,6 +2526,7 @@ final class SettingTooltipsData {
         d.put("name changer/clear letter colors", "Removes every per-letter color so the name's normal color or fade shows again.");
         d.put("bold name", "Draws your display name in bold. With Share if Supporter on, other mod users see it bold too.");
         d.put("fade color", "Turns your display name into a two-color gradient instead of one flat color.");
+        d.put("name changer/text shadow", "Draws your display name with a drop shadow everywhere, name tags included, in a dark shade of its own color. Only you see it.");
         d.put("name animation", "Animates your faded or letter-colored name: Wave flows the colors along it to the right, Pulse dims and brightens it. Other players with the mod see it too when Share if Supporter is on.");
         d.put("animation speed", "How fast your name's Wave or Pulse runs, from 0.25x to 3x.");
         d.put("party interop/share dungeon data with party", "Shares your dungeon info (rooms, secrets, mimic, dragons) with your party over the mod relay.");
