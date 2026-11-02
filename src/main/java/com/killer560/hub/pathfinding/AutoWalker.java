@@ -629,7 +629,7 @@ public final class AutoWalker {
             }
             WalkCamera.aim(yaw(into, player), -28f);
             wantForward = Math.abs(Mth.wrapDegrees(into - player.getYRot())) < 50f;
-            centerOnLadder(level, player, pos);
+            centerOnLadder(player, pos);
             return;
         }
 
@@ -1040,7 +1040,7 @@ public final class AutoWalker {
                 wantRight = false;
                 wantBack = false;
                 wantSprint = false;
-                centerOnLadder(level, player, pos);
+                centerOnLadder(player, pos);
                 climbTicks++;
             } else if (player.onGround() && rise > player.maxUpStep() + 0.01 && rise <= jumpH && horizontal < 1.7) {
                 wantJump = true;
@@ -1121,10 +1121,11 @@ public final class AutoWalker {
      * <p>Never on a ladder with water in his box: GrimAC's prediction of the water current on a ladder flags Simulation
      * (.0047/.007 decaying x0.8) for plain vanilla keys too (testkit 1102-fairy-grim-flowladder and the BAYOU_SPILL keys
      * control). The old centering overshot 0.25 on its own momentum and put his box 0.06 into the pool beside the shaft.
-     * So the rest point is predicted from his sideways speed (about ten ticks of air drag), the target moves 0.1 away
-     * from a side with water, and no key ever strafes toward water.
+     * So the rest point is predicted from his sideways speed (about ten ticks of air drag); keepLadderOutOfWater has the
+     * last word near water. (Moving the target 0.1 away from water and never strafing toward it, m12, left him 0.31 off
+     * center with his head caught at y 187.2 on every run.)
      */
-    private static void centerOnLadder(Level level, LocalPlayer player, Vec3 pos) {
+    private static void centerOnLadder(LocalPlayer player, Vec3 pos) {
         if (!player.onClimbable()) {
             return;
         }
@@ -1135,27 +1136,22 @@ public final class AutoWalker {
         double lx = Math.cos(yawRad);
         double lz = Math.sin(yawRad);
         double side = -(ox * lx + oz * lz); // how far to move left (positive) to reach the center
-        boolean waterLeft = waterBeside(level, pos, lx, lz);
-        boolean waterRight = waterBeside(level, pos, -lx, -lz);
-        if (waterLeft != waterRight) {
-            side += waterLeft ? -0.1 : 0.1;
-        }
         Vec3 v = player.getDeltaMovement();
         double need = side - (v.x * lx + v.z * lz) * 10.0; // less what his sideways speed carries him with no key
         wantLeft = false;
         wantRight = false;
         if (Math.abs(need) > 0.08) {
-            wantLeft = need > 0 && !waterLeft;
-            wantRight = need < 0 && !waterRight;
+            wantLeft = need > 0;
+            wantRight = need < 0;
         }
     }
 
     /**
      * The last word on the keys while he is on a ladder, whoever chose them (the climb, a way back, an approach, the
      * route turning at the ladder's top): he must never be on a ladder with water in his box (GrimAC flags the water
-     * current there for vanilla keys too). For each side with water in the next two columns: no key that moves him
-     * toward it, no sprint, and if where his sideways speed carries him (about ten ticks of air drag) would put his box
-     * within 0.05 of that water, the key away from it. Testkit 1102-fairy-spill-ladder: a way back facing the pool held
+     * current there for vanilla keys too). For each side with water in the next two columns, from where his speed
+     * carries him (about ten ticks of air drag): his box within 0.12 of that water, no key toward it and no sprint;
+     * within 0.05, the key away from it. Testkit 1102-fairy-spill-ladder: a way back facing the pool held
      * W off the ladder's column into it, and the route turning toward the next point at the top strafed him in.
      */
     private static void keepLadderOutOfWater(Level level, LocalPlayer player) {
@@ -1186,14 +1182,17 @@ public final class AutoWalker {
                 if (Double.isNaN(face)) {
                     continue;
                 }
-                any = true;
                 double rest = p + vel * 10.0;
-                boolean danger = sign > 0 ? rest + 0.35 > face : rest - 0.35 < face;
+                double gap = sign > 0 ? face - (rest + 0.3) : (rest - 0.3) - face;
+                if (gap >= 0.12) {
+                    continue;
+                }
+                any = true;
                 for (int i = 0; i < 4; i++) {
                     double toward = sign * (axis == 0 ? kx[i] : kz[i]);
                     if (toward > 0.2) {
                         keys[i] = false;
-                    } else if (danger && toward < -0.5) {
+                    } else if (gap < 0.05 && toward < -0.5) {
                         away[i] = true;
                     }
                 }
@@ -1229,17 +1228,6 @@ public final class AutoWalker {
         return false;
     }
 
-    /** Water within 0.75 of his center on that side, from below his feet to a block above his head. */
-    private static boolean waterBeside(Level level, Vec3 pos, double sx, double sz) {
-        double x = pos.x + sx * 0.75;
-        double z = pos.z + sz * 0.75;
-        for (double dy = -0.6; dy <= 2.9; dy += 0.7) {
-            if (level.getBlockState(BlockPos.containing(x, pos.y + dy, z)).getFluidState().is(FluidTags.WATER)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     private static void finishRescue(String how) {
         LOGGER.info("[AutoWalker] back on the route ({}, after {})", how, rescueWhy);
