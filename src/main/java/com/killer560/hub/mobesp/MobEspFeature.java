@@ -823,7 +823,7 @@ public final class MobEspFeature {
     }
 
     private static boolean roomCleared(long key) {
-        if (key < 0) {
+        if (TEST_CLEARED_ROOMS.contains(key) || key < 0) {
             return TEST_CLEARED_ROOMS.contains(key);
         }
         DungeonLayout layout = DungeonLayout.current();
