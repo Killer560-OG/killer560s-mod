@@ -8,7 +8,7 @@ import java.util.Map;
  * MOD-WIDE manual class picks: player -&gt; {@link DungeonClass}. Since 2026-10-15 (killer560: "Remove the class selection
  * overrides setting and instead have it use the /leaporder process") there is no Class Overrides settings tab and no
  * file of its own: the picks live in the Leap Order's data ({@link LeapMenuConfig}, {@code killer560smod-leapmenu.json})
- * and are set in the Leap Order editor ({@code /leaporder}, {@code /class}) or on the class-selection screen. A
+ * and are set in the Leap Order editor ({@code /leaporder}, {@code /class}). A
  * {@code killer560smod-classoverrides.json} from an older version is moved into that data the first time it loads.
  * <p>
  * This class stays as the one static front every feature reads through, so nothing else changed: {@link #classOf} is the

@@ -57,7 +57,7 @@ public class LeapMenuTab extends BaseTab {
 
         y = buildCustomMenuSection(widgets, contentX, y, contentWidth, requestRebuild);
         y = buildLeapMessageSection(widgets, contentX, y, contentWidth, requestRebuild);
-        // The Class Selection section (the Class Selection Overlay switch and Edit Classes) was removed (killer560,
+        // The Class Selection section (the Class Selection Overlay switch and Edit Classes) and the overlay itself were removed (killer560,
         // 2026-11-01: "Remove the class selection settings ... and the edit classes button along with it").
         com.killer560.hub.gui.ScreenThemes.append(widgets, LeapOrderScreen.THEME_ID, contentX, contentWidth, y);
 
