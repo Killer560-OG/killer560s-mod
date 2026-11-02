@@ -91,6 +91,12 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   `ProfileManager.EXCLUDED_FILES` and also holds the Per-Profile Names switch, so the switch is the same in every profile;
   with it on, the names go in the profile's own `killer560smod-namechanger.json`. An install from before the split moves the
   names its profile file holds into it on first load (1552).
+- Your own flat name color was snapped to the nearest of the 16 chat colors (`NameColor.prefix`), so most picks showed
+  another color (killer560, 2026-11-01). A non-chat color is now painted per letter with the `§x` escape fades use; every
+  name path already decodes it through `NameColor.iterateFormatted`, which also reads this mod's `§y` (Text Shadow).
+- An armor ICON draws only a trim's material color, never its pattern (vanilla's item model selects on `trim_material`),
+  so an icon preview "only ever shows one trim pattern". Custom Items previews armor on an armor stand
+  (`InventoryScreen.extractEntityInInventoryFollowsMouse`), which draws the pattern (testkit 1101-menu-customitems-rows).
 - A nametag's height comes from `EntityRenderState.nameTagAttachment` (the entity's dimensions), not from the render-state
   `scale`, so a render-only model scale leaves the tag at 1x height; `SupportersScaleMixin` scales it too (testkit 816).
 

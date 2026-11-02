@@ -49,6 +49,10 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
     /** The armor stand that wears the previewed piece; built on first draw, never added to the world. */
     private ArmorStand stand;
     private ItemStack standWears = ItemStack.EMPTY;
+    private static final int PREVIEW_ID = -110_100;
+    /** Set once the stand preview threw; the icon is drawn from then on. */
+    private static boolean standFailed;
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-armourdye");
 
     public CustomColorScreen(CustomItemsScreen main) {
         super(Component.literal("Customize Custom Color"));
@@ -173,12 +177,32 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
                 panelY + 24, main.selectedKey() == null ? MenuStyle.DIM : MenuStyle.TXT);
         ScreenChrome.well(graphics, panelX + 12, panelY + 40, 124, 124);
         if (!stack.isEmpty()) {
-            ArmorStand wearer = ArmourDye.isArmour(stack) ? standWearing(stack) : null;
+            ArmorStand wearer = ArmourDye.isArmour(stack) && !standFailed ? standWearing(stack) : null;
+            boolean drawn = false;
             if (wearer != null) {
-                InventoryScreen.extractEntityInInventoryFollowsMouse(graphics, panelX + 13, panelY + 41, panelX + 135,
-                        panelY + 163, 46, 0.0625f, mouseX, mouseY, wearer);
-                graphics.item(stack, panelX + 116, panelY + 144); // the icon too, in the corner
-            } else {
+                try {
+                    // The entity is drawn as a picture-in-picture at screen coordinates, past the pose: this screen is
+                    // drawn through Auto Scale's pose scale, so the well's corners (and the mouse) go through the pose
+                    // first, or the stand lands beside the well at the wrong size (seen in testkit 1101, 2026-11-01).
+                    org.joml.Matrix3x2f m = new org.joml.Matrix3x2f(graphics.pose());
+                    org.joml.Vector2f a = m.transformPosition(new org.joml.Vector2f(panelX + 13, panelY + 41));
+                    org.joml.Vector2f b = m.transformPosition(new org.joml.Vector2f(panelX + 135, panelY + 163));
+                    org.joml.Vector2f mouse = m.transformPosition(new org.joml.Vector2f(mouseX, mouseY));
+                    float k = (float) Math.sqrt(m.m00() * m.m00() + m.m01() * m.m01());
+                    InventoryScreen.extractEntityInInventoryFollowsMouse(graphics, Math.round(a.x), Math.round(a.y),
+                            Math.round(b.x), Math.round(b.y), Math.max(1, Math.round(54 * k)), 0.0625f, mouse.x, mouse.y,
+                            wearer);
+                    graphics.item(stack, panelX + 116, panelY + 144); // the icon too, in the corner
+                    drawn = true;
+                } catch (RuntimeException ex) {
+                    // A preview must never take the menu down: the stand is dropped and the icon drawn instead.
+                    if (!standFailed) {
+                        LOGGER.warn("[CustomItems] armor stand preview failed, drawing the icon instead", ex);
+                    }
+                    standFailed = true;
+                }
+            }
+            if (!drawn) {
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(panelX + 24, panelY + 52);
                 graphics.pose().scale(6f, 6f);
@@ -204,6 +228,10 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
         try {
             if (stand == null || stand.level() != mc.level) {
                 stand = new ArmorStand(mc.level, 0, 0, 0);
+                // An entity never added to a level has no id, and extracting its render state asks for one
+                // (ItemModelResolver.updateForLiving -> Entity.getId threw "before ID assignment", 26.3). Any fixed id
+                // will do: it only seeds item model selection, and the stand is looked up nowhere.
+                stand.setId(PREVIEW_ID);
                 stand.setNoBasePlate(true);
                 standWears = ItemStack.EMPTY;
             }

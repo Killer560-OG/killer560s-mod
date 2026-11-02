@@ -63,6 +63,13 @@ project CLAUDE.md. Compiling lessons
   pre-pack look comes from the newest snapshot where an item was not yet a pack model: 26169fe, then 0046933 (the
   parent of the first conversion), then 60e030e (April). With those, 95 of the 1,366 pack-model items have no old
   look anywhere (`tools/items/gen_item_looks.py`); they are the ones with our own textures.
+- Hypixel's public items resource has only ~170 item skins and none for Wither Goggles (checked 2026-11-01), and the old
+  Hypixel Skin list matched by the selected item's full display name ("Heroic Wither Goggles ✪✪✪✪✪" matched nothing). The
+  NEU repo has 180 skins whose lore names the items each applies to; `tools/item-skins-extract.py` bakes them into
+  `armourdye/item-skins.json`, and `ItemSkins.forItem` matches by Skyblock id (STARRED_ dropped) or the cleaned name's end.
+- The Witherborn wither of a full F7 armor set is a `WitherBoss` at `getInvulnerableTicks() == 800` (SkyHanni's "Mini
+  Wither"; Noamm's boss filter excludes 800, so the four F7 bosses never match). Its smoke and swirls are NOT packets:
+  `WitherBoss.aiStep` adds them on the client (three `Level.addParticle` calls), so only a hook there drops them.
 
 ## Bazaar and Croesus
 
