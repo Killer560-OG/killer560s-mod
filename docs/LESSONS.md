@@ -306,3 +306,8 @@ project CLAUDE.md. Compiling lessons
 - **Your own dungeon class is `leapmenu/PartyTracker.selfClass()`** (tab list, plus Party Finder lines, with the
   `ClassOverrides` pick on your own IGN already applied by `classOf`). Fast Leap's Class Targets (2026-10-27) read it;
   `Ap3Feature.selfClass()` wraps it in `ClassOverrides` a second time, which is harmless. Do not write another tab parser.
+- **Simon Says: a grid press on a light the solver did not hold must still count as a click of the attempt.** Before
+  2026-11-01 `onButtonPressed` returned early for it, so `totalClicksThisAttempt` stayed 0, the between-round grid reset took
+  the attempt for a fresh one and re-armed `firstPhase`, and the next round got round 1's reverse/drop (his "highlights the
+  wrong things after I crouch to override"; traced in the code, not reproduced on the old jar - 1101-ss-override-rescan passes
+  with the fix). Count it, and end `firstPhase`.
