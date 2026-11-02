@@ -307,6 +307,18 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   momentum carried him in at 0.03-0.09 a tick - and a guard that refuses every strafe toward a water side left him 0.31
   off center with his head caught under the next block (m12). Testkit 1102-fairy-spill-ladder asserts zero ticks on a
   ladder in water; m8 had 3-8 such ticks on 4 of 4 runs, m13 none in 36 (18 per version).
+- **GrimAC SprintE is a consequence, read it with the Simulation line beside it (doc-fairy-1101 m14, 2026-11-02).** GrimAC
+  2.3.74's SprintE (checks/impl/sprint/SprintE.java) flags a tick where the client is still sprinting, did not just start, and
+  Grim's OWN prediction of the tick before had a hard horizontal collision. Grim judges hard against soft from its predicted
+  vector (MovementTicker.isHorizontalCollisionSoft), so a tick it mispredicted (soul 3's stop on BAYOU_SPILL: Simulation .046
+  then x0.546, ground friction) at a glancing wall touch reads "hard" while the client saw it as minor and kept sprinting.
+  So the pair flagged BEFORE his stop, not on it, and no release order of W and sprint explains it. On 1.21.2+ Grim also forces
+  forward input whenever it believes he sprints (PredictionEngine.loopVectors) and tracks the sprint speed attribute
+  separately (MC-69459). The flag could not be reproduced on demand: 0 in 112 flat arrivals with a pillar corner and 0 in 54
+  soul-3 runs on m13. So the fix removes the precondition instead: the last 8 blocks of a soul's route, and an approach
+  walk, are walked. A running sprint is ended the vanilla way, with one tick with no key on the ground and with no wall
+  contact (aiStep stops a sprint without forward impulse and sends STOP_SPRINTING before that move). Testkit
+  1102-fairy-arrival asserts he is not sprinting on the last W tick: m13 failed that check in 5 of 7 arrivals, m14 in none.
 - **Measure a planner rule on all five islands before keeping it.** "No step up from a ladder's top block" (2026-11-02) read right
   and fixed the one Gold Mines stall it was written for, but the full island run fell from 34/55 to 29/55 (Spider's Den 8 -> 5,
   more "in water, no way back") and it was reverted. Single-island runs also vary by a soul or two between identical jars.
