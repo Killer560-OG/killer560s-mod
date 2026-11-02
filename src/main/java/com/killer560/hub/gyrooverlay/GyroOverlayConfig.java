@@ -64,6 +64,7 @@ public final class GyroOverlayConfig {
             }
         }
         instance = cfg;
+        com.killer560.hub.util.FeatureBits.changed();
     }
 
     public void save() {
@@ -89,6 +90,7 @@ public final class GyroOverlayConfig {
 
     public void setEnabled(boolean value) {
         enabled = value;
+        com.killer560.hub.util.FeatureBits.changed();
     }
 
     public Style getStyle() {
