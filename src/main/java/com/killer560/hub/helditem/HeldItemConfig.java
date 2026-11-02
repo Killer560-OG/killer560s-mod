@@ -29,6 +29,9 @@ public final class HeldItemConfig {
     // fast for the slow-motion look he wanted (0.05x = a 6-tick vanilla swing stretched to 120 ticks).
     public static final float MIN_SWING_SPEED = 0.05f;
     public static final float MAX_SWING_SPEED = 4.0f;
+    /** Swing Range (killer560, 2026-11-01): how far the item travels on each hit, as a multiple of vanilla's. */
+    public static final float MIN_SWING_RANGE = 0.0f;
+    public static final float MAX_SWING_RANGE = 3.0f;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
@@ -92,6 +95,7 @@ public final class HeldItemConfig {
     private boolean noEquip = false;
     private boolean noHandSway = false;
     private float swingSpeed = 1.0f;
+    private float swingRange = 1.0f;
     private final HandTransform mainHand = new HandTransform();
     private final HandTransform offHand = new HandTransform();
 
@@ -116,6 +120,7 @@ public final class HeldItemConfig {
                 cfg.noEquip = ConfigJson.getBool(obj, "noEquip", cfg.noEquip);
                 cfg.noHandSway = ConfigJson.getBool(obj, "noHandSway", cfg.noHandSway);
                 cfg.swingSpeed = clamp(getFloat(obj, "swingSpeed", 1.0f), MIN_SWING_SPEED, MAX_SWING_SPEED);
+                cfg.swingRange = clamp(getFloat(obj, "swingRange", 1.0f), MIN_SWING_RANGE, MAX_SWING_RANGE);
                 JsonObject main = ConfigJson.getObject(obj, "mainHand");
                 if (main != null) {
                     cfg.mainHand.fromJson(main);
@@ -142,6 +147,7 @@ public final class HeldItemConfig {
             obj.addProperty("noEquip", noEquip);
             obj.addProperty("noHandSway", noHandSway);
             obj.addProperty("swingSpeed", swingSpeed);
+            obj.addProperty("swingRange", swingRange);
             obj.add("mainHand", mainHand.toJson());
             obj.add("offHand", offHand.toJson());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -156,6 +162,7 @@ public final class HeldItemConfig {
         noEquip = false;
         noHandSway = false;
         swingSpeed = 1.0f;
+        swingRange = 1.0f;
         mainHand.reset();
         offHand.reset();
     }
@@ -212,6 +219,15 @@ public final class HeldItemConfig {
 
     public void setSwingSpeed(float swingSpeed) {
         this.swingSpeed = clamp(swingSpeed, MIN_SWING_SPEED, MAX_SWING_SPEED);
+    }
+
+    /** Multiplies the swing's travel (the one translate in the hand renderer's {@code swingArm}); 1 = vanilla. */
+    public float getSwingRange() {
+        return swingRange;
+    }
+
+    public void setSwingRange(float swingRange) {
+        this.swingRange = clamp(swingRange, MIN_SWING_RANGE, MAX_SWING_RANGE);
     }
 
     public HandTransform getMainHand() {

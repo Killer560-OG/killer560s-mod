@@ -3,6 +3,8 @@ package com.killer560.hub.helditem.mixin;
 import com.killer560.hub.helditem.HeldItemConfig;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.renderer.FirstPersonHandsAndItemsRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.state.level.FirstPersonHandsAndItemsRenderState;
@@ -87,6 +89,17 @@ public abstract class HeldItemInHandRendererMixin {
     private float killer560smod$heldItemNoSway(float degrees) {
         if (!HeldItemConfig.isActive()) return degrees;
         return HeldItemConfig.getInstance().isNoHandSway() ? 0f : degrees;
+    }
+
+    /** Swing Range (killer560, 2026-11-01): {@code swingArm(float, PoseStack, int, HumanoidArm)} makes exactly one
+     *  {@code PoseStack.translate} (javap 26.2 and 26.3), the item's travel on a hit; it is scaled by the setting. A
+     *  WrapOperation, so another mod hooking the same call still gets it. */
+    @WrapOperation(method = "swingArm",
+            at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;translate(FFF)V"),
+            require = 0)
+    private void killer560smod$swingRange(PoseStack poseStack, float x, float y, float z, Operation<Void> original) {
+        float r = HeldItemConfig.isActive() ? HeldItemConfig.getInstance().getSwingRange() : 1f;
+        original.call(poseStack, x * r, y * r, z * r);
     }
 
     private static float killer560smod$armSign(PlayerRenderState player, InteractionHand hand) {

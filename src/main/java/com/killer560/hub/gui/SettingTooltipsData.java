@@ -793,6 +793,8 @@ final class SettingTooltipsData {
         d.put("no equip animation", "Stops the item dipping down and back up when you switch items.");
         d.put("no hand sway", "Stops your held item lagging behind the camera when you look around.");
         d.put("swing speed", "Speeds up or slows down your swing animation (0.05x-4.0x).");
+        d.put("swing range", "How far the held item travels forward on each hit: 1x is vanilla, 0x keeps it in place, up to 3x.");
+        d.put("held item transform/edit", "Opens the sliders over the game on the side away from your held item, so you can watch it change as you edit.");
         d.put("separate off hand", "Gives the off hand its own size, position and rotation sliders.");
         d.put("storage search", "Searches your cached Ender Chests and Backpacks from one screen; also opens with /k560search.");
         d.put("open key", "Key that opens this feature's screen.");
