@@ -51,6 +51,15 @@ public class AutoUltTab extends BaseTab {
         }).bounds(contentX, y[0], BTN_W, 20).build());
         y[0] += 28;
 
+        // Which of your classes it ults for (killer560, 2026-11-01). "Class" above only says how your class is found.
+        w.add(com.killer560.hub.gui.SectionHeaders.row(contentX, y[0], BTN_W, "Ult For", true));
+        y[0] += 16;
+        for (com.killer560.hub.dungeonclass.DungeonClass c : com.killer560.hub.dungeonclass.DungeonClass.values()) {
+            toggle(w, contentX, y, c.displayName(), () -> cfg.isUltClass(c), v -> cfg.setUltClass(c, v), null);
+        }
+        y[0] += 4;
+        toggle(w, contentX, y, "Wish On Clear", cfg::isWishOnClear, cfg::setWishOnClear, null);
+
         return w;
     }
 

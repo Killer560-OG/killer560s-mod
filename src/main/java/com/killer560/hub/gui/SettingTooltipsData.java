@@ -1058,6 +1058,12 @@ final class SettingTooltipsData {
         d.put("refill below", "Auto GFS refills an item when you hold less than this percent of a stack, 5-95%.");
         d.put("check every", "How often Auto GFS checks your inventory, in seconds (5-60).");
         d.put("auto ult", "Uses your class Ultimate on chosen F7/M7 boss lines (cheat build only).");
+        d.put("auto ult/mage", "Auto Ult fires while you are playing Mage.");
+        d.put("auto ult/tank", "Auto Ult fires while you are playing Tank (on by default).");
+        d.put("auto ult/healer", "Auto Ult fires while you are playing Healer (on by default). Wish On Clear needs it too.");
+        d.put("auto ult/archer", "Auto Ult fires while you are playing Archer.");
+        d.put("auto ult/berserker", "Auto Ult fires while you are playing Berserker.");
+        d.put("auto ult/wish on clear", "Healer only: during the clear, uses Wish when a teammate's health on the sidebar turns red. It tries once, then waits for Hypixel to say Wish is ready again (or for the cooldown Hypixel names), so it never keeps trying while Wish is on cooldown.");
         d.put("on maxor enraged", "Auto Ult fires when the Maxor is enraged message appears.");
         d.put("on goldor factory destroyed", "Auto Ult fires when Goldor says you destroyed the factory.");
         d.put("auto chocolate factory", "Clicks for you while the Chocolate Factory menu is open (cheat build only).");
