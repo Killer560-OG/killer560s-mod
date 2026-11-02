@@ -205,9 +205,21 @@ public final class TerminalSolverFeature {
     private static Integer melodyCurrentColumn;
     private static Integer melodyCorrectColumn;
     private static int lastMelodyClickedRow = -1;
-    /** Rows (bit per index into melodyButtons) Auto Melody has clicked on this board. A lookahead click for a row the
-     *  live match already clicked is dropped, so no row is ever clicked twice by one burst (2026-10-26). */
+    /** Rows (bit per index into melodyButtons) Auto Melody has clicked on this board and not seen MISSED since. Neither
+     *  path clicks a row whose bit is set: a lookahead click for a row the live match already clicked is dropped
+     *  (2026-10-26), and since 2026-11-02 the live match no longer clicks a row a lookahead (or an earlier live) click
+     *  already went to. Until then the live path had only a 250 ms same-row guard: after a lookahead click on the last
+     *  row the client went on seeing the pane on that row's target until the server's answer and close arrived, and once
+     *  that took over 250 ms (a loaded 26.2 client) it clicked the row a second time - a wrong click on a real board
+     *  (testkit 292, "34=2"). A bit clears only when the pane is seen MOVING on that same row after the click
+     *  ({@link #melodyClickedColumn}): the server is still on the row, so the click was a miss and the row is due again.
+     *  A lookahead click's row counts as seen only from its first frame on that row, since a fresh row's pane may start
+     *  anywhere. */
     private static int melodyRowsClicked;
+    /** Per clicked row: the pane's column last seen on that row since the click, or {@link #MELODY_UNSEEN} (a lookahead
+     *  click, whose row the pane has not reached yet). */
+    private static final int[] melodyClickedColumn = new int[8];
+    private static final int MELODY_UNSEEN = -2;
     /** Lookahead clicks actually sent since the game started. Read by the testkit (275-277); nothing in the mod reads it. */
     static int melodyLookaheadFired;
     private static long lastMelodyClickAtMs;
@@ -612,6 +624,7 @@ public final class TerminalSolverFeature {
         melodyCorrectColumn = null;
         lastMelodyClickedRow = -1;
         melodyRowsClicked = 0;
+        java.util.Arrays.fill(melodyClickedColumn, -1);
         lastMelodyClickAtMs = 0;
         scheduledMelodyClicks.clear();
         hoverMelodyCorrectColumn = null;
@@ -1036,6 +1049,18 @@ public final class TerminalSolverFeature {
         if (buttonRow < 0 || buttonRow >= melodyButtons.length) {
             return;
         }
+        if (limeSlot != null && buttonRow < melodyClickedColumn.length && (melodyRowsClicked & (1 << buttonRow)) != 0) {
+            int seen = melodyClickedColumn[buttonRow];
+            if (seen == MELODY_UNSEEN) {
+                melodyClickedColumn[buttonRow] = melodyCurrentColumn;
+            } else if (seen != melodyCurrentColumn) {
+                // The pane is still on this row and has moved since the click: the server never took it (a lookahead
+                // gamble lost, or the click landed after the pane moved on). The row is due again.
+                LOGGER.info("[Melody] row {} clicked with the pane at column {} was missed (pane now at {} on the same row)"
+                        + " - due again", buttonRow, seen, melodyCurrentColumn);
+                melodyRowsClicked &= ~(1 << buttonRow);
+            }
+        }
         if (scheduledMelodyClicks.isEmpty()) {
             // Fake Cursor rests on the row being played, ready for its match: straight there, whether the row is due
             // or not (2026-11-01).
@@ -1050,6 +1075,10 @@ public final class TerminalSolverFeature {
                 // would click the row twice.
                 return;
             }
+        }
+        if ((melodyRowsClicked & (1 << buttonRow)) != 0) {
+            // Already clicked (live or lookahead) and not seen missed: one click per row.
+            return;
         }
         if (!FakeCursor.ready(melodyButtons[buttonRow])) {
             return;
@@ -1066,6 +1095,10 @@ public final class TerminalSolverFeature {
         lastMelodyClickedRow = buttonRow;
         lastMelodyClickAtMs = now;
         melodyRowsClicked |= 1 << buttonRow;
+        if (buttonRow < melodyClickedColumn.length) {
+            melodyClickedColumn[buttonRow] = melodyCurrentColumn;
+        }
+        LOGGER.info("[Melody] live click row {} at column {} (target {})", buttonRow, melodyCurrentColumn, melodyCorrectColumn);
         if (sendTerminalClick(screen, melodyButtons[buttonRow], 0, ContainerInput.CLONE)) {
             noteAutoClick(melodyButtons[buttonRow], now);
         }
@@ -1163,7 +1196,11 @@ public final class TerminalSolverFeature {
             lastMelodyClickedRow = due.row();
             lastMelodyClickAtMs = now;
             melodyRowsClicked |= 1 << due.row();
+            if (due.row() < melodyClickedColumn.length) {
+                melodyClickedColumn[due.row()] = MELODY_UNSEEN;
+            }
             melodyLookaheadFired++;
+            LOGGER.info("[Melody] lookahead click row {} (target column {})", due.row(), melodyCorrectColumn);
             if (sendTerminalClick(screen, melodyButtons[due.row()], 0, ContainerInput.CLONE)) {
                 noteAutoClick(melodyButtons[due.row()], now);
             }
