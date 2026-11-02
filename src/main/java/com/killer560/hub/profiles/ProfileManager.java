@@ -410,6 +410,7 @@ public final class ProfileManager {
                 com.killer560.hub.bazaarflip.BazaarFlipConfig::load,
                 com.killer560.hub.bugreport.BugReportConfig::load,
                 com.killer560.hub.banreport.BanReportConfig::load,
+                com.killer560.hub.intro.IntroConfig::load,
                 com.killer560.hub.sessionrecorder.SessionRecorderConfig::load,
                 com.killer560.hub.invsort.InventorySorterConfig::load,
                 // CrystalHollowsMapConfig, NucleusRunProfitConfig and MiningProfitConfig: shelved until after 2.0

@@ -157,6 +157,11 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   pack. The browser read the bundled `assets/killer560smod/bazaar/products.json` (tools/bazaar, from NEU incl. its
   pre-resource-pack commit 26169fe for old head textures), with a pack model only when `getResource("items/<path>.json")`
   finds it; since Pack Disabler the icons come from the shared `skyblock/item_looks.json` and none fall back (425/432).
+- **A picture-in-picture GUI element ignores the pose.** `GuiGraphicsExtractor.skin(...)` (and the other PIP states) is
+  built from bare coordinates and the scissor, never `pose()` (javap 26.3 and 26.2), so under Auto Scale's pose scale the
+  tour guide drew at 1/1.125 of his place (x off by ~190 px at the right edge of 1920x1080 GUI 2). Put the box through
+  `pose().transformPosition` and scale the model by the transformed height (`intro/Guide`). The Profile Viewer's
+  `PlayerSkinWidget` inside an Auto Scaled screen has the same offset (not fixed, 2026-11-01).
 - A `SkinManager.createLookup` on a bare `new GameProfile(uuid, name)` is always the default skin: SkinManager only unpacks
   the profile's own textures property and never fetches one. Fetch the textured profile (`ProfileViewerApi.fetchSkinProfile`)
   or use the tab list's `PlayerInfo`.

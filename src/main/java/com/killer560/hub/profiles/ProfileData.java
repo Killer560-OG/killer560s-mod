@@ -69,6 +69,8 @@ public final class ProfileData {
             "spotify-setup-guide.txt",
             // The Party Finder's cache of other players' dungeon stats (re-fetched on view).
             "partyfinder-stats-cache.json",
+            // Whether this install has seen the first-launch tour: about the install, not a setup to share.
+            "intro.json",
             // History, not setup: run history and the auto-tracked "best friends" play records (same reason the
             // Croesus and Experiments logs were always left out).
             "runs", "social",
