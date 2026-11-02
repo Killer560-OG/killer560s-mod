@@ -612,10 +612,14 @@ public final class BlinkCharge {
                 // move because no game time passed for him, which is exactly what a banked tick tells the server.
                 // (No settling pause after a teleport since 2026-10-27: the bank is kept through every teleport.)
                 boolean still = frozen || stillThisTick();
-                boolean bank = !busy && banked < cap() && still && shotLeft == 0;
+                boolean settling = settleTicks > 0;
+                if (settling) {
+                    settleTicks--;
+                }
+                boolean bank = !busy && banked < cap() && still && shotLeft == 0 && !settling;
                 // Ticks of a kept bank GrimAC no longer backs (the waiting answers went out early: a hold, a configuration
                 // phase) are backed again first, by withholding still ticks without counting them (campaign-blink-1027).
-                boolean reback = !busy && unbacked > 0 && still && shotLeft == 0;
+                boolean reback = !busy && unbacked > 0 && still && shotLeft == 0 && !settling;
                 if (reback) {
                     if (stash != null && stash.packet() instanceof ServerboundMovePlayerPacket m && m.hasRotation()) {
                         rotationOwed = true;
@@ -670,6 +674,13 @@ public final class BlinkCharge {
             }
             if (packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket) {
                 teleportMoveNext = true;
+                if (!teleportInPlace) {
+                    // GrimAC must see him stand after a moving teleport before the next banked tick: banked from the
+                    // confirm on, the first move it saw after the teleport was the shot's first, sprinting one, and it
+                    // was set back (Simulation .10 decaying; 1026-blink-setback-variants "shot, tp, shot at full", on 26.2
+                    // and 26.3 since the confirm stopped waiting for its ping).
+                    settleTicks = SETTLE_TICKS;
+                }
                 if (stash != null) {
                     sendLocked(stash); // a move made before this confirm goes before it
                     stash = null;
@@ -826,6 +837,9 @@ public final class BlinkCharge {
     }
 
     private static final ArrayDeque<TpSeg> tpSegs = new ArrayDeque<>();
+    /** Ticks after a moving teleport that go out as they are instead of banking. */
+    private static int settleTicks;
+    private static final int SETTLE_TICKS = 2;
     /** Sprint/sneak actions waiting for the next move that is sent (see onSendLocked). */
     private static final ArrayDeque<Held> preHeld = new ArrayDeque<>();
     /** The server pushed him: the next ping's answer and all before it go at once. */
