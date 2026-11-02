@@ -2097,9 +2097,11 @@ final class SettingTooltipsData {
         d.put("chat keybinds/key", "Click, then press a key or mouse button to bind it. Escape clears it.");
         d.put("chat keybinds/delete", "Removes this row.");
         d.put("chat keybinds/command or message", "The line to send; start it with / to run it as a command.");
-        d.put("door keys/pickup range", "How the range you pick a key up from is drawn: Radius, a flat circle at the key's height; Sphere, a see-through ball around it - step inside and the key is yours.");
-        d.put("door keys/circle color", "Color of the pickup circle or sphere outline drawn at a dropped key.");
-        d.put("door keys/sphere fill", "Fill color of the Sphere style's see-through ball.");
+        d.put("door keys/pickup range", "How the range you pick a key up from is drawn: Circle, a flat circle at the key's height; Sphere, a see-through ball around it - step inside and the key is yours.");
+        d.put("door keys/radius", "Radius of the circle or the sphere, in blocks. Far left follows the key pickup range (Auto Clear's Key Base Range + 5).");
+        d.put("door keys/circle color", "Color of the pickup circle. Auto: black for a Wither Key, red for a Blood Key, at 50% alpha. Right-click resets to Auto.");
+        d.put("door keys/sphere color", "Color of the whole sphere. Auto: black for a Wither Key, red for a Blood Key, at 50% alpha. Right-click resets to Auto.");
+        d.put("door keys/tracer color", "Color of the tracer line. Auto matches the circle or sphere color. Right-click resets to Auto.");
         d.put("door keys/tracer thickness", "How thick that tracer line is drawn (1-10).");
         d.put("door keys/esp through walls", "Draws the key circle and tracer through walls (cheat build only).");
         d.put("name changer/color", "Opens the color picker for this name.");
