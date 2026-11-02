@@ -343,3 +343,7 @@ project CLAUDE.md. Compiling lessons
   `Input.sprint()` in `LocalPlayer.aiStep` with `@ModifyExpressionValue`; others call setSprinting each tick); holding
   the sprint KEY is already undone by our movers replacing the key record. `AutoSprintOverrideMixin` refuses a sprint
   start there while one of the mod's movers drives with sprint up (doc-terms-1101, testkit 1101-menu-autosprint).
+- A feature that shares "whatever the other settings say" needs that exception at EVERY gate on its path, not just where it
+  is queued: PartyDataFeature queued Team Melody with Party Dungeon Data off, and drainQueue then cleared the whole queue
+  on `!publishActive()`, so nothing was ever sent (found by testkit 1102-boss-melody-relay-roundtrip with a fake relay,
+  tkdebt-1101; fixed 9c71162c).
