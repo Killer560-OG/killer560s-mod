@@ -77,6 +77,16 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   run, from one post-flying miss on a breaker dig the tick after an etherwarp landing. Seen in 1 of 3 full 26.3 runs and
   1 of 4 26.2 runs on the same DigAim/BeforeMove code as main, under nine test clients. Cause of the first miss not
   pinned (the testkit-gap probe logs places only). A dig the HEARD look already strikes passes both ways.
+- **Breaker Aura aims without steering his walk (ba-rotation-1102).** It dug picks it never looked at: GrimAC RotationBreak
+  (experimental) 87 lines in scenario 50 and 73 of 200 digs canceled. Now only a pick the HEARD look strikes is dug
+  (util/DigAim; Grim also tries (lastYaw, lastPitch), so the next pick's aim can ride the same tick's movement packet), and
+  the look changes only where it cannot move him: pitch freely (horizontal movement uses yaw alone; not in water, lava,
+  gliding or riding), the body's yaw kept on his view's yaw every tick so his mouse still steers; yaw only while no
+  movement key is down and he is not sprinting, snapped back to his view the tick a key goes down, before travel. Picks
+  needing a yaw turn while he walks wait (`dungeonextras/BreakerAim`). Scenario 50: 118 blocks cleared, 0 flags (old: 127
+  cleared, 200 digs, 87 flags). Also: a vanilla-instant break must be predicted at once (as vanilla's startDestroyBlock and
+  Grim's handleDigging do) - kept standing until the server's update, he walked into a block Grim had as air, Simulation
+  x17-19 in 51 once the aura dug one a tick right in front of him.
 - **A vanilla client removes a block it instabreaks the moment it sends the dig, and GrimAC assumes it did**: on an instant
   START_DESTROY_BLOCK (`BlockBreakSpeed.getBlockDamage >= 1`) it sets the block to air in its own world at once
   (`CheckManagerListener.handleDigging`, 2.3.74). Breaker Aura with Zero Ping off kept standing on a picked floor block
