@@ -2679,6 +2679,7 @@ final class SettingTooltipsData {
         d.put("overshoot chance", "How often a Stream Safe move carries past the slot and comes back before clicking, 0-50%.");
         d.put("streamer mode", "Run /streamer to turn it on, and again to turn it off. The option below says what it does while it is on: Disable cheats stops every automated action, and either option hides the cheat parts of the menu.");
         d.put("streamer mode/option", "What Streamer Mode does while it is on: Disable cheats refuses every automated action, Hide cheat UI only hides them.");
+        d.put("auto sprint", "Sprints for you whenever you walk forward (not while sneaking). The mod's own movement - AP3, Auto Routes, the pathfinder - always keeps its own sprint choice, and while one of those is moving you no other mod's auto sprint can start a sprint it did not ask for.");
         d.put("zoom", "Hold the zoom key to narrow the view. While it is held, the mouse wheel changes the zoom.");
         d.put("see other mod users", "Shows a colored diamond before the name of every player who shows as a mod user: green for legit, red for cheat. Off by default.");
         d.put("show me as a mod user", "Lets other mod users see that you run the mod. Off by default; nobody sees your variant until you turn this on.");

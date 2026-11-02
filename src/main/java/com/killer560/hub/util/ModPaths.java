@@ -181,6 +181,8 @@ public final class ModPaths {
         t.put("nucleus-profit", "skyblock/nucleus-profit");
         t.put("chmap", "skyblock/chmap");
         t.put("pathfinding", "skyblock/pathfinding");
+        // Auto Sprint (killer560smod-autosprint.json, 2026-11-01).
+        t.put("autosprint", "skyblock/autosprint");
         t.put("itemprotect", "skyblock/itemprotect");
         t.put("petwheel", "skyblock/petwheel");
         t.put("storage", "skyblock/storage");
