@@ -57,7 +57,7 @@ public final class ModUserTabTag {
             loggedOnce = true;
             LOGGER.info("Mod User Tag: tab list hook ran, tagged a row as {}", variant);
         }
-        return ModUserConfig.getInstance().getTagStyle().tag(variant, shown);
+        return ModUserTag.tag(variant, shown);
     }
 
     private static String variantFor(PlayerInfo info) {
