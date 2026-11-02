@@ -259,6 +259,20 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   mid-fall (a cell he will never stand in: plan on landing), "0 goals" when the route's points are farther apart than the
   planner's 24-block box (goals now include points every 2 blocks along each segment), and a ladder whose top goes nowhere
   held W on it for minutes because "stuck" was ignored while on a ladder.
+- **More walker traps found on the stand-in islands (doc-fairy-1101, 2026-11-02).** Stuck clocks in wall time call a client
+  running at half speed stuck twice as fast: they count client ticks now. A way back measured against its END is "stuck"
+  while it correctly walks away from the end first (round a wall, to a ladder): progress is a cell reached or getting closer
+  to the next cell. A server teleport (warp, correction, the testkit's tp) left the stuck clock on the old distance and the
+  walk was called stuck 2.5 s later: any teleport resets it. Standing beside a fence or wall post, the block holding his
+  feet is the fence's, so a plan from it went straight through the fence line: plan from the open cell on his side of it.
+  A fence or wall top is 1.5 high: no step up onto one his jump does not clear. Way-back goals must cover the stretch from
+  him to the route's first point (the SkyHanni shortcut drops the node behind him, and the next one can be 35 blocks away).
+- **GrimAC and water currents (doc-fairy-1101, OPEN).** On the Backwater Bayou stand-in, at a ladder whose top had water
+  spilling past it, the walker drew Simulation .0070 (or .0047) decaying x0.8 a tick in about 3 runs of 5, on doc-fairy's
+  jars before and after its own changes; .014/k is exactly vanilla's water-current push, x0.8 water's drag, so a tick's
+  current push was predicted differently. A ladder beside STILL water (1102-fairy-grim-ladderwater-*), six pool crossings
+  and six server teleports mid-walk (1102-fairy-grim-tp-*/-water) are clean. The island generator now makes only still
+  water; whether a human's keys in that current flag too is not proven (the replay control diverged).
 - **Simulated key presses (Fabric's `TestInput.pressKey`) never reach a key read with `KeyUtil.isKeyDown`** (GLFW's own
   state): the Start/Stop key poll did not see the testkit's K. The key is taken from `KeyboardHandler.keyPress`, the same
   event the "any key stops it" rule reads, so a press is either the toggle or a stop, never both.
