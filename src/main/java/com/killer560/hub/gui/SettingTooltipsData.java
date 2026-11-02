@@ -784,7 +784,7 @@ final class SettingTooltipsData {
         d.put("split timers/total with lag", "A Total line under the splits with the run's real time, the same clock as Hypixel's own end-of-run time.");
         d.put("split timers/total without lag", "Adds the run's time without server lag in parentheses after the Total: \"Total: 1m 23.45s (1m 20.10s)\". Also on the chat Total.");
         d.put("split timers/lag lost", "A Lag line under the Total: how much of the run server lag cost (the Total minus the time in parentheses).");
-        d.put("split timers/counting", "Every 0.01s shows times as measured; Ticks rounds every split time to the nearest 0.05s, one server tick (cheat build only).");
+        d.put("split timers/counting", "Every 0.01s shows times as measured; Ticks rounds every split time to the nearest 0.05s, one server tick.");
         d.put("split timers/slowest in hud", "Shows the slowest teammate into core, and their time, at the bottom of the Split Timers HUD.");
         d.put("announce in chat", "Posts a private chat message only you can see when this happens.");
         d.put("terminal timers", "Shows terminal solve times and section splits in your own chat during F7/M7 P3.");
