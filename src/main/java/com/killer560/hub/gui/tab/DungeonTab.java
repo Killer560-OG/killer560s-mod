@@ -48,6 +48,7 @@ public class DungeonTab extends FolderTab {
                 new CustomMageBeamTab(),
                 new RagAxeTab(),
                 new MaskInvincibilityTab(),
+                new MaskKeybindsTab(),
                 new BreakerChargesTab(),
                 // ---- timers, score, loot ----
                 new SplitTimersTab(),

@@ -103,11 +103,13 @@ public final class MaskInvincibilityFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MaskInvincibilityFeature", client -> tick()));
         MaskSwapper.register();
         AutoMask.register();
+        MaskKeybind.register();
     }
 
     private static void onChatMessage(Component message) {
         MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
-        if (!cfg.isEnabled()) {
+        // Mask Keybinds reads these cooldowns too (2026-11-01), so a proc is recorded whenever either is on.
+        if (!cfg.isEnabled() && !cfg.isMaskKeyEnabled()) {
             return;
         }
         // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): matched the raw un-stripped
@@ -118,6 +120,9 @@ public final class MaskInvincibilityFeature {
             if (t.pattern.matcher(raw).matches()) {
                 activeRemaining.put(t, t.activeTicks);
                 cooldownRemaining.put(t, t.cooldownTicks);
+                if (!cfg.isEnabled()) {
+                    return;
+                }
                 if (cfg.isAnnounceToParty()) {
                     sendPartyChat(t.label + " popped!");
                 }
@@ -138,6 +143,12 @@ public final class MaskInvincibilityFeature {
     static boolean unusable(MaskSwapper.Target target) {
         Type type = Type.of(target);
         return type == null || cooldownRemaining.getOrDefault(type, 0) > 0 || !shown(type);
+    }
+
+    /** The mask's own cooldown from its last proc is still running (Spirit 30 s, Bonzo 180 s), whatever the HUD shows. */
+    public static boolean onCooldown(MaskSwapper.Target target) {
+        Type type = Type.of(target);
+        return type != null && cooldownRemaining.getOrDefault(type, 0) > 0;
     }
 
     /** {@code /pc <message>} the same way {@code blessings.BlessingTracker#sendPartyMessage} sends it. */

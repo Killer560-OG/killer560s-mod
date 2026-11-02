@@ -2359,6 +2359,11 @@ final class SettingTooltipsData {
         d.put("thorn triggerbot/only when aimed at thorn", "Holds only while your crosshair is on Thorn with no block in the way. Bats and other mobs in between do not stop it.");
         d.put("auto sell/any npc sell menu", "Sells in any Hypixel NPC shop you can sell into (told by the shop's sell slot), not only menus whose title matches the sell pattern like Trades.");
         d.put("auto sell/add defaults", "Adds the dungeon junk list (Oak Sign, Lever, the dungeon armor sets, Earthen Blade, Silent Death, Training Weights, Healing VIII Splash Potion and more) to the sell list. Items already on it stay once; the never-sell list still wins.");
+        d.put("mask keybinds", "While you have the /stats menu open, a key equips Spirit Mask or Bonzo's Mask: one click in that menu per press, skipping a mask that is worn, on cooldown or not in your inventory.");
+        d.put("mask keybinds/equip mask key", "The key that equips a mask while the /stats menu is open. Escape clears it.");
+        d.put("mask keybinds/order", "Which mask it tries first: Spirit First or Bonzo First. If that one is on cooldown it equips the other. Left or right click switches.");
+        d.put("mask keybinds/dungeons only", "The key only works in dungeons.");
+        d.put("mask keybinds/boss only", "The key only works in a boss fight.");
         d.put("wither boss triggerbot", "Cheat build: in the F7/M7 boss, clicks Goldor (or every wither boss) while your crosshair is on him, from any range.");
         d.put("wither boss triggerbot/cps", "Clicks per second, randomized between the two ends of the range.");
         d.put("wither boss triggerbot/click type", "Attack is a left click: an attack in melee reach, the swing alone from further (what a Terminator or a mage beam fires on). Use is a right click for a Terminator or Juju shot.");
