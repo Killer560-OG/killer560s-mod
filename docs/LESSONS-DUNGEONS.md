@@ -114,6 +114,17 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   actually camp blood it never clicked, and its mob search skipped every `Player` - the Watcher's summons are player-model
   NPCs (v2 UUID). Aim is line of sight (48 blocks); only the attack is reach-limited, else the click is a plain swing
   (testkit 686: 16 blocks out it now swings once, 2.7 out it attacks and the mob loses health).
+- **A blood name tag anywhere is not a blood mob.** "Fels", "Skull" and the rest are ordinary dungeon mob names too, so
+  tagging by name tag across the whole floor made every Fel a blood mob for Blood Mobs ESP ("something is highlighting all
+  fels", killer560 2026-11-01). Name tags count only inside the Watcher's room tile and never with a star. The tag-to-mob
+  mapping (the entity one id below the stand) can land on a silverfish (his 2026-10-29 log); silverfish, the Watcher (by id
+  or his skull) and Primal Fears are excluded in one place, `BloodCampFeature.excluded` (testkit 1101-bloodcamp-*).
+- **An anticheat's transaction pings are not server ticks.** `ServerTickClock`/`ServerLag` call a server ping-driven at 15
+  pings a second; GrimAC alone sends about that many, so on the testkit ServerLag read their gaps as stalls and a Blood Camp
+  countdown built on it fell 11-15 ticks a second (177 failed "kill timer never went off"), and a rule of 18 pings a window
+  still trusted Grim now and then (792: a trip 31 ticks slow). Blood Camp times on `util.PerTickServerClock`: trusted only
+  after two 20-tick windows with a ping on at least 19 ticks and at most 24 pings, pings drive it while trusted, client
+  ticks otherwise (logic case 1101-logic-bloodcamp-clock drives it by hand).
 
 ## Terminals and solvers
 
