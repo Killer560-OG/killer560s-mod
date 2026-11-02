@@ -387,3 +387,7 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   "Render pass color attachment count must match pipeline color target state count" - Secret Waypoints' through-walls
   lines on 2026-11-01, the first 26.3 run that ever drew one (96-ar). DEBUG_FILLED, GUI and GUI_TEXTURED snippets carry
   the same target on both versions (javap). Wrap any new `RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)`.
+- A screen that hides the vanilla menu must never draw NOTHING. The custom Spirit Leap menu (spiritleap/SpiritLeapOverlayFeature)
+  hides the chest and drew nothing until a head had settled, so a leap menu with no heads was an open screen that looked like
+  none: mouse freed, camera and movement dead until Escape or the inventory key closed it - the shape of killer560's 2026-11-01
+  Fast Leap report (not yet confirmed as its cause on Hypixel). It now draws a notice after 300 ms (testkit 1344, lastView EMPTY).
