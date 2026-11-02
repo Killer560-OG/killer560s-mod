@@ -64,6 +64,8 @@ public final class ProfileData {
             // Caches and diagnostics: GIF audio converted to WAV, the Pack Disabler's "missing models" list, sim map
             // dumps, old sim measurement output, the sim world-version marker, the generated Spotify guide.
             "gifs-cache", "packdisabler-missing.txt", "mapdumps", "measurements.txt", "sim-world.txt",
+            // The sim's F7 boss room capture (bosssim.BossCapture): a few MB of Hypixel's blocks, re-captured in a boss.
+            "sim-bossarena.bin",
             "spotify-setup-guide.txt",
             // The Party Finder's cache of other players' dungeon stats (re-fetched on view).
             "partyfinder-stats-cache.json",

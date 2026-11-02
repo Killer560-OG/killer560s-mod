@@ -151,6 +151,9 @@ public final class SimMenuNav {
             }));
             y += ITEM_H + ITEM_GAP;
         }
+        // The F7 boss (doc-adm-boss-1101): a chooser of where to start it, not a page of this menu.
+        add.accept(new Item("F7 Boss", false, x, y, w, ITEM_H, () -> McCompat.setScreen(mc,
+                new com.killer560.hub.bosssim.BossStartScreen(McCompat.screen(mc)))));
         add.accept(new Item("Back", false, x, backY(), w, ITEM_H, () -> McCompat.setScreen(mc, parent)));
     }
 

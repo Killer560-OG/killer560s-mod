@@ -77,6 +77,15 @@ public final class ArrowAlignFeature {
             {-1, -1, -1, -1, -1, -1, 1, -1, 1, -1, 7, 1, 7, 1, 3, 1, -1, 1, -1, 1, -1, -1, -1, -1, -1}
     };
 
+    /** Hypixel's layouts (index dy + dz * 5, -1 no frame), copied: the boss sim lays its Arrows device out from them. */
+    public static int[][] solutions() {
+        int[][] out = new int[SOLUTIONS.length][];
+        for (int i = 0; i < SOLUTIONS.length; i++) {
+            out[i] = SOLUTIONS[i].clone();
+        }
+        return out;
+    }
+
     // --- per-frame state, index = dy + dz * 5 ---
     private static final ItemFrame[] frames = new ItemFrame[25];
     private static final int[] observed = new int[25];

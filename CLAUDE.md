@@ -485,6 +485,11 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - `ServerLag`/`ServerTickClock` take ~15 pings a second as "the server pings every tick", which GrimAC's transactions alone
   reach: on a Grim server they read jitter as stalls. Anything that must count exact server ticks uses `util.PerTickServerClock`
   (19 of 20 ticks with a ping, two windows in a row) (doc-blood-1101, docs/LESSONS-DUNGEONS.md).
+- `.gitignore`'s `secrets/` line also matches `src/main/java/com/killer560/hub/secrets/`, so `git add` of a tracked file
+  there (DungeonState, ...) fails with "paths are ignored" and the rest of that add is not staged; use `git add -f` on the
+  tracked file (2026-11-01).
+- The sim's F7 boss (`bosssim/`, docs/SIM-BOSS.md): reference mod ADM is All-Rights-Reserved - facts only, never its code
+  or its arena.bin capture.
 - Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
   (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
   and import keeps the locked update and sharing keys (testkit 981).
