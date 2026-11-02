@@ -160,7 +160,7 @@ public final class ModPaths {
         }
 
         for (String run : new String[]{"run", "splittimers", "scorecalc", "dungeoninfo", "dungeonalerts",
-                "dungeonqueue", "partyfinder", "leap", "fastleap", "spiritleapoverlay", "class", "teammates",
+                "dungeonqueue", "creationcooldown", "instaclearwarning", "partyfinder", "leap", "fastleap", "spiritleapoverlay", "class", "teammates",
                 "blessings", "croesus", "rng", "revertmasterstars", "ticktimers", "mobesp"}) {
             t.put(run, "dungeons/runs");
         }
@@ -193,6 +193,7 @@ public final class ModPaths {
         t.put("pricetooltip", "skyblock/pricetooltip");
         t.put("quiverdisplay", "skyblock/quiverdisplay");
         t.put("ragaxe", "skyblock/ragaxe");
+        t.put("gyrooverlay", "skyblock/gyrooverlay");
         t.put("autosell", "skyblock/autosell");
         t.put("autoanvil", "skyblock/autoanvil");
         t.put("ability", "skyblock/abilities");
@@ -235,6 +236,7 @@ public final class ModPaths {
         t.put("peekchat", "social/peekchat");
         t.put("chattidy", "social/chattidy");
         t.put("chathistory", "social/chathistory");
+        t.put("chattabs", "social/chattabs");
         // Image Preview: its settings and its picture cache (killer560smod-imagepreview-cache/), 2026-10-27.
         t.put("imagepreview", "social/imagepreview");
         t.put("voice", "social/voicetotext");

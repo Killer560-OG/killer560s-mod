@@ -14,7 +14,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 
 Open the menu in game with `/killer560` or the Open Menu Key (backslash by default, set in Home > Mod & HUD): every feature is a card with its own on/off switch in its category (Dungeons, Mining, HUD, Chat, Items, Social, Cosmetics, Misc), clicking a card opens its settings, and Ctrl F searches every feature and setting. Features marked † have extra automation or through-walls options in the cheat build.
 
-**Chat** - Auto Correct, Auto Meow, Chat Emotes, Chat Hider, Chat History, Chat Keybinds, Click Translate, Command Auto Correct, Copy Chat, Cringe, Image Preview, Mod Chat, Party Commands, Peek Chat, Song Tag, Spotify Lyrics, Translate, Voice To Text
+**Chat** - Auto Correct, Auto Meow, Chat Emotes, Chat Hider, Chat History, Chat Keybinds, Chat Tabs, Click Translate, Command Auto Correct, Copy Chat, Cringe, Image Preview, Mod Chat, Party Commands, Peek Chat, Song Tag, Spotify Lyrics, Translate, Voice To Text
 
 **Social & Supporters** - Best Friends, Friends List, Profile Viewer
 
@@ -23,12 +23,14 @@ Open the menu in game with `/killer560` or the Open Menu Key (backslash by defau
 **Party Data & Cross-Mod** - Cross-Mod Bridge, Mod conflict warnings, Party Dungeon Data, Party Interop, Team Melody HUD, Teammate Highlight †, Teammate rooms on the map
 
 **Items, Inventory & Trading** - Auction House Browser, Auto Inventory Sorter, Bazaar Browser, Compactor Preview, Custom Enchant Colors, Experimentation Table Profit Tracker, Experimentation Table Solver †, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Listing Helper, Loadout Keybinds, Pet Wheel, Price Tooltip, Profit Trackers (/profit), Reskin Real Auction House, Reskin Real Bazaar, Revert Master Stars, Scrollable Tooltips, Slot Binds, Slot Text, Storage Item Search, Storage Overlay, Superpairs Overview
+**Items, Inventory & Trading** - Auction House Browser, Auto Inventory Sorter, Bazaar Browser, Compactor Preview, Custom Enchant Colors, Experimentation Table Profit Tracker, Experimentation Table Solver †, Gyrokinetic Wand Overlay, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Listing Helper, Loadout Keybinds, Pet Wheel, Price Tooltip, Profit Trackers (/profit), Reskin Real Auction House, Reskin Real Bazaar, Revert Master Stars, Scrollable Tooltips, Slot Binds, Slot Text, Storage Item Search, Storage Overlay
 
 **HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Advanced Position, Auto Join Skyblock, Chocolate Factory Helper, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, Fairy Souls †, GIF Player, Health and Mana Bars, Map Logger, No Fire, Object Hider, Performance HUD, Quiver Display, Real Time, Screenshot Copy, Session Recorder, Smooth Teleport, Trajectories, Waypoint Routes, Video Browser
 
 **Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Clicked, Secret Waypoints, Simon Says †, Teleport Maze Solver, Terminal Solver † (with Hold To Click), Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver, Wither Doors
 
 **Dungeon: Map, Leap & Party** - Chunk Cache, Custom Leap Menu, Custom Party Finder, Dungeon Map, Dungeon Queue, Leap Message, Leap Order, Posmsg, Zero Ping Etherwarp
+**Dungeon: Map, Leap & Party** - Chunk Cache, Class Selection Overlay, Creation Cooldown, Custom Leap Menu, Custom Party Finder, Dungeon Map, Dungeon Queue, Insta Clear Warning, Leap Message, Leap Order, Posmsg, Zero Ping Etherwarp
 
 **Dungeon: Timers, Score & Boss** - Auto Kick, Blessings, Blood Camp, Boss Health, Breaker Charges, Chest Profit, Croesus (Chest Profit, Profit Logger, Reroll Protection, Kismet Count, Croesus Chests HUD), Custom Mage Beam, Dungeon Alerts, Dungeon Run Summary, Dungeon Score Calculator, F7 Spots (F7/M7), Goldor Frenzy Timer, Low Health Alert, M7 King Relics, M7 Wither Dragons, Mask Invincibility Timers †, Maxor's Crystals (F7/M7 P1), Mob ESP †, P3 Nav (F7/M7) †, P3 Status (F7/M7), P4 Platform Highlight, Rag Axe, RNG Meter, Run HUDs, Score Warning, Sharp Shooter (i4) †, Split Timers, Starred Mob Hitboxes (Blood Mobs, Fel Skulls, Mimic), Terminal Timers, Thorn (F4/M4) †, Tick Timers, Wither Boss Highlight †
 

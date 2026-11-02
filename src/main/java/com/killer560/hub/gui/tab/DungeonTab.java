@@ -29,6 +29,10 @@ public class DungeonTab extends FolderTab {
                 new LeapMenuTab(),
                 new LeapCounterTab(),
                 new DungeonQueueTab(),
+                // Creation Cooldown (to-do Doc 2026-11-01): SkyHanni's 30 s instance creation timer.
+                new CreationCooldownTab(),
+                // Insta Clear Warning (to-do Doc 2026-11-01): a blood rush room cleared without its key.
+                new InstaClearWarningTab(),
                 new CustomPartyFinderTab(),
                 new AutoKickTab(),
                 // Not cheat-only: setting someone's class fixes the normal leap menu and every class-colored display

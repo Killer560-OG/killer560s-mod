@@ -356,6 +356,12 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.routes.WaypointRoutesFeature.register();
         com.killer560.hub.dungeonextras.DungeonExtrasFeature.register();
         com.killer560.hub.dungeonqueue.DungeonQueueFeature.register();
+        com.killer560.hub.creationcooldown.CreationCooldownFeature.register();
+        HudElementRegistry.register(com.killer560.hub.creationcooldown.CreationCooldownFeature.HUD);
+        com.killer560.hub.instaclearwarning.InstaClearWarningFeature.register();
+        com.killer560.hub.gyrooverlay.GyroOverlayFeature.register();
+        com.killer560.hub.chattabs.ChatTabsFeature.register();
+        HudElementRegistry.register(com.killer560.hub.instaclearwarning.InstaClearWarningFeature.HUD);
         com.killer560.hub.motionblur.MotionBlurFeature.register();
         com.killer560.hub.discordrpc.DiscordRpcFeature.register();
         com.killer560.hub.windowlayout.WindowLayoutFeature.register();
