@@ -2062,6 +2062,8 @@ final class SettingTooltipsData {
         d.put("secret waypoints/show crypts", "Also boxes each crypt tomb in your room, found from its slab lid. It goes as soon as you blow it open.");
         d.put("secret waypoints/show princes", "Also boxes the prince's golden crypt when your room has one. It goes as soon as you blow it open.");
         d.put("secret waypoints/crypt color", "Color of the crypt waypoints.");
+        d.put("secret waypoints/hide crypts after 5", "Stops showing crypt waypoints once the tab list counts 5 crypts, the most the score uses.");
+        d.put("secret waypoints/hide princes after 1", "Stops showing prince waypoints once a prince has fallen this run; the bonus comes only once.");
         d.put("secret waypoints/prince color", "Color of the prince waypoints.");
         d.put("dungeon esp", "Boxes starred mobs, secret bats and the F7/M7 wither bosses.");
         d.put("starred mob hitboxes", "Boxes starred mobs and secret bats, and highlights the F7/M7 wither boss.");

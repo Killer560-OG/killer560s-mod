@@ -39,7 +39,10 @@ import java.util.Set;
  * blocks beside it is a wall ledge ({@link #isLedge}): 121 of 134 (Banners, Doors and Hallway now exact). Later on
  * 2026-10-19, a run set flush into a walkway is not a lid ({@link #isWalkway}) and a lid between two braziers on
  * anvils is a prince ({@link #brazierPrince}): 122 of 134 (Flags now exact). The census is
- * {@code killer560s-mod-logs/crypt-census/crypt_scan_port.py}, a port of this class.
+ * {@code killer560s-mod-logs/crypt-census/crypt_scan_port.py}, a port of this class. On 2026-11-01 (his to-do Doc) a lid
+ * laid flat on the floor is not a crypt ({@link #isFloorMat}, Teleport Maze, Buttons, Supertall), Prison Cell's one-row
+ * bench is ({@link #isBench}), and a lid with a gold block against it is the prince ({@link #goldBeside}): 126 of 134
+ * ({@code killer560s-mod-logs/doc-secrets-1101/crypt_1101_rule.py} with that folder's port).
  *
  * <p><b>A prince</b> is the golden crypt: a gold block with a smooth stone slab beside it, a sea lantern walled
  * in by polished andesite on all four sides, or a lid of full smooth stone ringed by bottom smooth stone slabs
@@ -607,6 +610,12 @@ public final class CryptScanner {
                 continue; // mostly top or double slabs: a ledge or a ceiling, not a lid
             }
             if (n < MIN_LID || n > MAX_LID || Math.min(w, d) < 2 || n * 4 < w * d * 3) {
+                if (isBench(level, run) && !touchesAny(run, princeBlocks) && whole(level, f)) {
+                    note(f.anchor(), "CRYPT found (bench)", counts);
+                    cryptCount++;
+                    out.add(f);
+                    continue;
+                }
                 if (loggable) {
                     note(f.anchor(), "crypt rejected (shape)", counts + " needs " + MIN_LID + ".." + MAX_LID
                             + " slabs, 2+ wide both ways, 3/4 of its box filled");
@@ -621,6 +630,7 @@ public final class CryptScanner {
                     : isCovered(level, run) ? "covered (wall panel)"
                     : isLedge(level, run) ? "ledge (no floor within " + LEDGE_DROP + " beside it)"
                     : isWalkway(level, run) ? "walkway (flush floor around it)"
+                    : isFloorMat(level, run) ? "floor mat (lies flat on the floor)"
                     : null;
             if (why != null) {
                 note(f.anchor(), "crypt rejected (" + why + ")", counts);
@@ -628,6 +638,15 @@ public final class CryptScanner {
             }
             if (!whole(level, f)) {
                 note(f.anchor(), "crypt held", counts + " reaches into an unloaded chunk");
+                continue;
+            }
+            List<BlockPos> gold = goldBeside(level, run);
+            if (!gold.isEmpty()) {
+                List<BlockPos> tomb = new ArrayList<>(run);
+                tomb.addAll(gold);
+                note(f.anchor(), "PRINCE found (gold beside a lid)", counts + " gold=" + gold.size());
+                princeCount++;
+                out.add(found(Type.PRINCE, tomb));
                 continue;
             }
             note(f.anchor(), "CRYPT found", counts);
@@ -762,6 +781,181 @@ public final class CryptScanner {
             }
         }
         return !around.isEmpty() && flush * 3 >= around.size();
+    }
+
+    /**
+     * Whether a slab lid lies flat ON the floor rather than standing on a tomb: more than half the cells round its
+     * footprint one layer down are full blocks with air on top, so the floor carries on at the height the slabs rest on.
+     * A tomb stands proud of the floor on its legs or body, and round those is air (or the wall behind it).
+     *
+     * <p>killer560, 2026-11-01: "there is no crypt in teleport maze". Its 3x2 run (capture x 15..17, y 69, z 20..21) is
+     * slabs laid on the stone and andesite floor at y 68: 7 of the 10 cells round it at y 68 are floor with air above.
+     * Census over all 134 captures (killer560s-mod-logs/doc-secrets-1101/crypt_1101_rule.py): only Teleport Maze, Buttons'
+     * 2x3 (7/10) and Supertall's three roof runs at y 141 (7/10, 10/12, 12/12) reach half; every other lid is at 4/14 or
+     * under. All three rooms then match the database's crypt count (125 of 134 rooms exact, up from 122).
+     */
+    private static boolean isFloorMat(Level level, List<BlockPos> run) {
+        Set<Long> cells = new HashSet<>();
+        int y = run.get(0).getY() - 1;
+        for (BlockPos p : run) {
+            cells.add(BlockPos.asLong(p.getX(), 0, p.getZ()));
+        }
+        Set<Long> around = new HashSet<>();
+        int flat = 0;
+        for (BlockPos p : run) {
+            for (Direction dir : HORIZONTAL) {
+                int x = p.getX() + dir.getStepX();
+                int z = p.getZ() + dir.getStepZ();
+                long key = BlockPos.asLong(x, 0, z);
+                if (cells.contains(key) || !around.add(key)) {
+                    continue;
+                }
+                BlockPos side = new BlockPos(x, y, z);
+                if (level.getBlockState(side).isCollisionShapeFullBlock(level, side)
+                        && level.getBlockState(side.above()).isAir()) {
+                    flat++;
+                }
+            }
+        }
+        return !around.isEmpty() && flat * 2 > around.size();
+    }
+
+    /**
+     * The one-row BENCH crypt: a single row of 3 to 5 bottom smooth stone slabs, each on polished andesite with air
+     * above, free-standing at both ends, with no floor flush with it beside (that would be a walkway).
+     *
+     * <p>killer560, 2026-11-01, of Prison Cell: "this shows the top slabs. Those are the only thing that should be
+     * highlighted as a crypt as well as the blocks right below it. Nothing to the side." The room database gives Prison
+     * Cell 1 crypt, and its only smooth stone in the capture is that row: 4x1 at capture x 24..27, y 70, z 21, on
+     * polished andesite against the cell wall, too narrow for a lid. Census over all 134 captures: slab rows on polished
+     * andesite are found in Catwalk (walkway edges that run wall to wall), Doors, Flags, Hallway, Pressure Plates,
+     * Sarcophagus (a prince) and Shadow Assassin; this rule picks out Prison Cell's alone (126 of 134 rooms exact).
+     */
+    private static boolean isBench(Level level, List<BlockPos> run) {
+        int n = run.size();
+        if (n < 3 || n > 5) {
+            return false;
+        }
+        Set<Integer> xs = new HashSet<>();
+        Set<Integer> zs = new HashSet<>();
+        for (BlockPos p : run) {
+            xs.add(p.getX());
+            zs.add(p.getZ());
+            if (!isLidSlab(level.getBlockState(p)) || !level.getBlockState(p.below()).is(Blocks.POLISHED_ANDESITE)
+                    || !level.getBlockState(p.above()).isAir()) {
+                return false;
+            }
+        }
+        if (Math.min(xs.size(), zs.size()) != 1) {
+            return false;
+        }
+        Set<BlockPos> cells = new HashSet<>(run);
+        for (BlockPos p : run) {
+            for (Direction dir : HORIZONTAL) {
+                BlockPos side = p.relative(dir);
+                if (!cells.contains(side) && level.getBlockState(side).isCollisionShapeFullBlock(level, side)
+                        && level.getBlockState(side.above()).isAir()) {
+                    return false;
+                }
+            }
+        }
+        // Free-standing at both ends: a row that runs wall to wall is a catwalk edge, not a tomb.
+        boolean alongX = xs.size() > 1;
+        BlockPos lo = run.get(0);
+        BlockPos hi = run.get(0);
+        for (BlockPos p : run) {
+            if (p.getX() + p.getZ() < lo.getX() + lo.getZ()) {
+                lo = p;
+            }
+            if (p.getX() + p.getZ() > hi.getX() + hi.getZ()) {
+                hi = p;
+            }
+        }
+        BlockPos endLo = alongX ? lo.offset(-1, 0, 0) : lo.offset(0, 0, -1);
+        BlockPos endHi = alongX ? hi.offset(1, 0, 0) : hi.offset(0, 0, 1);
+        return !level.getBlockState(endLo).isCollisionShapeFullBlock(level, endLo)
+                && !level.getBlockState(endHi).isCollisionShapeFullBlock(level, endHi);
+    }
+
+    /**
+     * The gold blocks touching a crypt lid or the layers just under and over it (one block out, two down, one up): the
+     * golden crypt, which is the prince. killer560, 2026-11-01, of the tomb at the back middle of Flags with a gold block
+     * in front of it: "This is a prince in flags" (and a picture of it blown open). No Flags capture has gold anywhere, so
+     * the gold is set in the run; {@link #isPrinceCrown} wants air above its gold and did not draw it. Census over all 134
+     * captures: one lid that passes every other rule has gold this close, Doors' 5x4 at capture x 37..41, y 59 with gold in
+     * its body, which is a prince now instead of a crypt (the room's count of 7 does not move).
+     */
+    private static List<BlockPos> goldBeside(Level level, List<BlockPos> run) {
+        Set<BlockPos> gold = new HashSet<>();
+        for (BlockPos p : run) {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    for (int dy = -2; dy <= 1; dy++) {
+                        BlockPos q = p.offset(dx, dy, dz);
+                        if (!gold.contains(q) && level.getBlockState(q).is(Blocks.GOLD_BLOCK)) {
+                            gold.add(q.immutable());
+                        }
+                    }
+                }
+            }
+        }
+        return new ArrayList<>(gold);
+    }
+
+    /**
+     * The box a find's waypoint is drawn as, {minX, minY, minZ, maxX, maxY, maxZ}: its blocks as they stand, down through
+     * the layer it stands on and up to the top of its tallest block.
+     *
+     * <p>killer560, 2026-11-01: "crypt waypoints should also highlight the stone brick stairs right below them as well. Most
+     * crypts are 2 tall"; of the Flags prince, the box was "the top half of the stairs but not the bottom half"; and "this
+     * style of crypt with the top slab portion as well needs to have the box extended upward half a block". So the bottom
+     * is the layer under the find (its legs or body) when more than half its footprint has a block there - Flags' lids
+     * stand on stone brick stairs, Prison Cell's on polished andesite - and the top is the highest shape among its blocks:
+     * half a block over a lid of bottom slabs, a whole block where it has double slabs (the raised row on Flags' lids) or
+     * a gold or full block. {@code wholeBlocks} (the Full Block box size) rounds the top up to a whole block.
+     */
+    public static double[] tombBox(Level level, Found f, boolean wholeBlocks) {
+        // The layer the tomb's legs hold up: its lowest slab layer (a gold block beside a lid can sit lower, on the floor),
+        // or its lowest block when it has no slab.
+        int baseY = Integer.MAX_VALUE;
+        for (BlockPos p : f.blocks()) {
+            if (level.getBlockState(p).is(Blocks.SMOOTH_STONE_SLAB)) {
+                baseY = Math.min(baseY, p.getY());
+            }
+        }
+        if (baseY == Integer.MAX_VALUE) {
+            baseY = f.minY();
+        }
+        double top = baseY + 0.5;
+        Set<Long> footprint = new HashSet<>();
+        for (BlockPos p : f.blocks()) {
+            if (p.getY() == baseY) {
+                footprint.add(BlockPos.asLong(p.getX(), 0, p.getZ()));
+            }
+            BlockState state = level.getBlockState(p);
+            if (state.isAir()) {
+                continue;
+            }
+            var shape = state.getShape(level, p);
+            double t = shape.isEmpty() ? p.getY() + 1.0 : p.getY() + shape.max(Direction.Axis.Y);
+            top = Math.max(top, t);
+        }
+        if (wholeBlocks) {
+            top = Math.ceil(top);
+        }
+        int bottom = baseY;
+        int held = 0;
+        for (long key : footprint) {
+            BlockPos under = new BlockPos(BlockPos.getX(key), baseY - 1, BlockPos.getZ(key));
+            if (!level.getBlockState(under).getShape(level, under).isEmpty()) {
+                held++;
+            }
+        }
+        if (held * 2 > footprint.size()) {
+            bottom = baseY - 1;
+        }
+        bottom = Math.min(bottom, f.minY());
+        return new double[]{f.minX(), bottom, f.minZ(), f.maxX() + 1, top, f.maxZ() + 1};
     }
 
     private static boolean touchesAny(List<BlockPos> run, Set<BlockPos> others) {

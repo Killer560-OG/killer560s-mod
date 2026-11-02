@@ -72,6 +72,11 @@ public final class SecretWaypointsConfig {
     public static final int DEFAULT_PRINCE_COLOR = 0xFFFFD700;
     private int cryptColor = DEFAULT_CRYPT_COLOR;
     private int princeColor = DEFAULT_PRINCE_COLOR;
+    /** killer560, 2026-11-01: "make an option to not show crypts or princes after you get the 5 crypts or 1 prince."
+     *  Five crypts is the most the score counts, and the prince's bonus comes once a run; on by default, since that is
+     *  what he asked for. */
+    private boolean hideCryptsAfterFive = true;
+    private boolean hidePrincesAfterOne = true;
 
     private SecretWaypointsConfig() {
     }
@@ -108,6 +113,8 @@ public final class SecretWaypointsConfig {
             cfg.showPrinces = ConfigJson.getBool(obj, "showPrinces", false);
             cfg.cryptColor = ConfigJson.getInt(obj, "cryptColor", cfg.cryptColor);
             cfg.princeColor = ConfigJson.getInt(obj, "princeColor", cfg.princeColor);
+            cfg.hideCryptsAfterFive = ConfigJson.getBool(obj, "hideCryptsAfterFive", true);
+            cfg.hidePrincesAfterOne = ConfigJson.getBool(obj, "hidePrincesAfterOne", true);
             if (!obj.has("noammDefaultsV1")) {
                 // One-time: older files saved the old colors and the Full Block size as plain values, so they are
                 // moved onto the new defaults once (colors match NoammAddons, boxes sized to the object).
@@ -158,6 +165,8 @@ public final class SecretWaypointsConfig {
             obj.addProperty("showPrinces", showPrinces);
             obj.addProperty("cryptColor", cryptColor);
             obj.addProperty("princeColor", princeColor);
+            obj.addProperty("hideCryptsAfterFive", hideCryptsAfterFive);
+            obj.addProperty("hidePrincesAfterOne", hidePrincesAfterOne);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -286,5 +295,23 @@ public final class SecretWaypointsConfig {
 
     public void setPrinceColor(int argb) {
         princeColor = argb;
+    }
+
+    /** killer560, 2026-11-01: stop drawing crypts once the tab list's "Crypts:" reaches 5. */
+    public boolean isHideCryptsAfterFive() {
+        return hideCryptsAfterFive;
+    }
+
+    public void setHideCryptsAfterFive(boolean v) {
+        hideCryptsAfterFive = v;
+    }
+
+    /** killer560, 2026-11-01: stop drawing princes once "A Prince falls" has been said this run. */
+    public boolean isHidePrincesAfterOne() {
+        return hidePrincesAfterOne;
+    }
+
+    public void setHidePrincesAfterOne(boolean v) {
+        hidePrincesAfterOne = v;
     }
 }
