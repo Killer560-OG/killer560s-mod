@@ -284,6 +284,10 @@ public final class SimMobs {
      */
     private static final java.util.Set<UUID> STARRED_DEAD = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
+    /** When each starred mob's death was confirmed, in order, so a room's key drops at its LAST death. */
+    private static final java.util.Map<UUID, Long> DEATH_ORDER = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.atomic.AtomicLong DEATH_SEQ = new java.util.concurrent.atomic.AtomicLong();
+
     private static void recordStarred(UUID id, double x, double y, double z) {
         STARRED_AT.put(id, new double[]{x, y, z});
     }
@@ -299,6 +303,7 @@ public final class SimMobs {
         com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
         java.util.Map<String, Boolean> allDead = new java.util.HashMap<>();
         java.util.Map<String, double[]> anyAt = new java.util.HashMap<>();
+        java.util.Map<String, Long> lastOrder = new java.util.HashMap<>();
         for (java.util.Map.Entry<UUID, double[]> e : STARRED_AT.entrySet()) {
             double[] p = e.getValue();
             int room = layout.roomAtWorld(p[0], p[2]);
@@ -308,7 +313,13 @@ public final class SimMobs {
             }
             boolean dead = STARRED_DEAD.contains(e.getKey());
             allDead.merge(name, dead, Boolean::logicalAnd);
-            anyAt.put(name, p);
+            // The key drops where the room's LAST starred mob died (Hypixel's stand appears there), not at whichever
+            // mob the map iterates last: a 2x2's key landed 55 blocks from the kill, out of Auto Clear's 40-block search.
+            long order = DEATH_ORDER.getOrDefault(e.getKey(), 0L);
+            if (!anyAt.containsKey(name) || order > lastOrder.getOrDefault(name, -1L)) {
+                anyAt.put(name, p);
+                lastOrder.put(name, order);
+            }
         }
         for (java.util.Map.Entry<String, Boolean> e : allDead.entrySet()) {
             if (e.getValue() && SimRoomState.markCleared(e.getKey())) {
@@ -924,6 +935,7 @@ public final class SimMobs {
                 if (entity != null || (at != null
                         && level.isPositionEntityTicking(BlockPos.containing(at[0], at[1], at[2])))) {
                     STARRED_DEAD.add(id);
+                    DEATH_ORDER.put(id, DEATH_SEQ.incrementAndGet());
                     // Hypixel's "star ... heart" name goes with its mob; the sim's stand used to stay up forever,
                     // a starred name with nothing under it.
                     UUID tag = STAR_TAGS.remove(id);
@@ -1022,6 +1034,7 @@ public final class SimMobs {
         BATS.clear();
         STARRED_AT.clear();
         STARRED_DEAD.clear();
+        DEATH_ORDER.clear();
         CRYPT_MOBS.clear();
         CRYPT_AT.clear();
         SimMimic.forgetMob();
