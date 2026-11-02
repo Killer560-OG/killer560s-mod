@@ -224,6 +224,14 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
         int keyW = keyWidth(contentWidth);
         int nameW = Math.max(60, Math.min(96, contentWidth / 5));
         int commandW = contentWidth - TOGGLE_W - keyW - nameW - DELETE_W - GAP * 4;
+        // The command box gives up CommitEditBox's Set button width; in a narrow menu the name box pays for it, so the
+        // command box keeps at least 60 px (testkit 621).
+        int commandShort = 60 + CommitEditBox.SET_W + CommitEditBox.SET_GAP - commandW;
+        if (commandShort > 0) {
+            int newNameW = Math.max(44, nameW - commandShort);
+            commandW += nameW - newNameW;
+            nameW = newNameW;
+        }
         // Built after the rows (its y is below them); the rows' responders reach it through this holder.
         StringWidget[] status = new StringWidget[1];
         String firstProblem = null;
