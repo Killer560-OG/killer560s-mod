@@ -159,7 +159,31 @@ public final class ZeroPingEtherwarp {
                 PENDING.clear();
             }
         });
+        // The Emergency Cancel Key (macrostop/MacroStop): the warps this sends by itself - Warps Per Tick's extras and an
+        // Aimed Warps burst - stop at once and stay off while the hold is on. His own click still goes (it is his input).
+        com.killer560.hub.macrostop.MacroStop.onEmergency(() -> {
+            owed = 0;
+            java.util.List<ClickLook> waiting = pendingLooks;
+            if (waiting != null) {
+                pendingLooks = null;
+                aimedDropped += waiting.size();
+                LOGGER.info("[ZPEW] Aimed Warps: {} waiting press(es) dropped (Emergency Cancel Key)", waiting.size());
+            }
+        });
     }
+
+    /** True while the Emergency Cancel Key's hold is on: ZPEW sends nothing of its own (testkit 1102-zpew-ecancel). */
+    private static boolean held(String what) {
+        if (!com.killer560.hub.macrostop.MacroStop.emergencyHeld()) {
+            return false;
+        }
+        heldRefused++;
+        LOGGER.info("[ZPEW] {} not sent: Emergency Cancel Key hold", what);
+        return true;
+    }
+
+    /** Extra or aimed warps refused by the Emergency Cancel Key's hold. */
+    private static long heldRefused;
 
     private static boolean on() {
         return ZeroPingEtherwarpConfig.getInstance().isActiveHere();
@@ -294,6 +318,9 @@ public final class ZeroPingEtherwarp {
                 || !(mc.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker)) {
             return;
         }
+        if (held("Warps Per Tick: " + n + " extra warp(s)")) {
+            return;
+        }
         int sent = 0;
         String stop = null;
         extraSending = true;
@@ -411,6 +438,9 @@ public final class ZeroPingEtherwarp {
         if (!differ) {
             return; // one look: vanilla sends them (and Warps Per Tick adds to them)
         }
+        if (held("Aimed Warps: a burst of " + CLICKS.size() + " press(es) (left to vanilla)")) {
+            return;
+        }
         int bank = com.killer560.hub.blink.BlinkCharge.isActive() ? com.killer560.hub.blink.BlinkCharge.banked() : 0;
         if (bank < 1) {
             aimedUnfunded++;
@@ -465,6 +495,7 @@ public final class ZeroPingEtherwarp {
         }
         LocalPlayer player = mc.player;
         boolean stillOk = player != null && mc.level != null && on()
+                && !com.killer560.hub.macrostop.MacroStop.emergencyHeld()
                 && ZeroPingEtherwarpConfig.getInstance().effectiveAimedWarps()
                 && com.killer560.hub.blink.BlinkCharge.isActive() && com.killer560.hub.blink.BlinkCharge.banked() >= 1
                 && etherwarpRange(player.getItemInHand(InteractionHand.MAIN_HAND)) > 0 && player.getLastSentInput().shift()
@@ -473,7 +504,8 @@ public final class ZeroPingEtherwarp {
             pendingLooks = null;
             aimedDropped += looks.size();
             LOGGER.info("[ZPEW] Aimed Warps: {} waiting press(es) dropped ({})", looks.size(),
-                    stillOk ? "the bank was not covered within " + AIMED_WAIT_MAX_MS + " ms" : "sneak, item, Charge or bank gone");
+                    stillOk ? "the bank was not covered within " + AIMED_WAIT_MAX_MS + " ms"
+                            : "sneak, item, Charge or bank gone, or the Emergency Cancel Key hold");
             return;
         }
         if (!com.killer560.hub.blink.BlinkCharge.shotCovered()) {
@@ -761,6 +793,11 @@ public final class ZeroPingEtherwarp {
 
     public static int lastAimedBurst() {
         return lastAimedBurst;
+    }
+
+    /** Extra or aimed warps the Emergency Cancel Key's hold refused (testkit). */
+    public static long heldRefused() {
+        return heldRefused;
     }
 
     private static String fmt(Vec3 v) {
