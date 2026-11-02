@@ -585,9 +585,14 @@ public class ModScreen extends Screen {
             rows.add(new SideEntry("Legit", "", -1, false, x + SUB_INDENT, ry, w - SUB_INDENT, SUB_ROW_H, items.get(0)));
             ry += SUB_ROW_H;
         }
+        // A group inside the cheat block (the cheat Secrets) sits one step further in, under Cheat: the same name can
+        // appear in both blocks.
+        boolean inCheat = false;
         for (Item h : heads) {
-            rows.add(new SideEntry(sectionLabel(h.text), "", -1, false, x + SUB_INDENT, ry, w - SUB_INDENT, SUB_ROW_H, h));
+            int in = SUB_INDENT + (inCheat ? 6 : 0);
+            rows.add(new SideEntry(sectionLabel(h.text), "", -1, false, x + in, ry, w - in, SUB_ROW_H, h));
             ry += SUB_ROW_H;
+            inCheat |= h.red && h.tab == null && "Cheat".equals(h.text);
         }
         // Whatever follows the categories (a separator and the page rows) still has to fit.
         int after = 0;
