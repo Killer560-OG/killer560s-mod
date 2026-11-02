@@ -129,6 +129,15 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   hover highlight (`extractSlotHighlightBack/Front`) lit the invisible slots and the hotbar-number and drop keys sent
   SWAP/THROW on them (testkit 1015-menu-term-hidden-slots: 1024 px changed, `0/0/SWAP`, `0/0/THROW`). Answer null from
   `getHoveredSlot` while slots are hidden; every hover reader goes quiet at once.
+  That fix went into the terminal only, and the Storage Overlay, AH/Bazaar reskins and Spirit Leap menu kept hovering
+  their hidden slots; the Storage Overlay also let an unclaimed click fall through to vanilla's `mouseClicked`, which
+  picked his Spirit Sceptre out of the hidden slot under blank overlay space (2026-11-01, 26.3). Since then every GUI
+  drawn over a menu goes through `containercover.ContainerCover`: a full-screen reskin calls `registerFull` (or its
+  screen implements `FullyCovered`), a panel calls `coverRect(screen, owner, ...)` each frame it draws.
+  `ContainerCoverMixin` nulls `getHoveredSlot` under a cover and stops `mouseClicked`/`mouseReleased`/`mouseDragged` at
+  their `getHoveredSlot` call (after child widgets had the click; release/drag go to `Screen`'s, so widgets still get
+  them), which also blocks vanilla's -999 "clicked outside" packet. A new overlay over a container registers there.
+  Testkit 1101-menu-cover-*.
 - **Slot Text and Compactor Preview hook points** (javap both versions). Text over an item goes right after the one
   `GuiGraphicsExtractor.itemDecorations(Font, ItemStack, int, int, String)` call in `AbstractContainerScreen.extractSlot`
   (rarity and search fills use the `Slot.isFake` call before the item). A grid inside an item tooltip is a

@@ -238,6 +238,9 @@ public final class RngMeterOverlay {
             scrollOffset = Math.min(scrollOffset, maxScrollOffset(shown.size()));
             renderRanking(graphics, 0, 0, title, shown, committedSelected);
             graphics.pose().popMatrix();
+            int[] size = rankingSize(shown, committedSelected);
+            com.killer560.hub.containercover.ContainerCover.coverRect(screen, "rngmeter.ranking",
+                    pos[0], pos[1], pos[0] + size[0] * scale, pos[1] + size[1] * scale);
         } catch (Exception e) {
             logThrottled("Failed to render RNG Meter overlay", e);
         }
