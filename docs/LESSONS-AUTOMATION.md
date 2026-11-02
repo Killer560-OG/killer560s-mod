@@ -30,9 +30,12 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   RotationBreak: a dig is traced along the NEXT movement packet's look only if that arrives within 15 ms
   (`handleQueuedBreaks`), else along the look before; after one miss every later dig is judged on arrival by the look
   before ("pre-flying"). Digs sent at START with the body turned in the same tick missed whenever the tick was slow. Fix:
-  `util/DigAim` - a dig (breaker, boom tap) goes only once the look the server already heard strikes the block's cube from
-  where it has him; the body turns a tick ahead, and the next block's turn rides the current dig's tick (Grim also tries
-  the previous look), so a run of digs still goes one a tick.
+  a dig (breaker, boom tap) goes at once when the look the server already heard strikes the block's cube from where it
+  has him (`util/DigAim`); otherwise the body turns and the dig is queued for the head of that tick's `sendPosition`
+  (`util/BeforeMove`), right ahead of the movement packet carrying the look - vanilla's own order (dig in handleKeybinds,
+  then sendPosition). After each dig the next block's turn rides the same movement packet (Grim also tries the previous
+  look), so a run of digs goes one a tick from the firing tick. Turning a tick AHEAD instead (first try) was clean too but
+  cost the node its firing tick (96-ar-play's "DUNGEON_BREAKER acted 0 tick").
   PacketOrderE: a `set_carried_item` after a use / block click / interact / attack / release / player command inside one
   server tick (reset by a movement packet, or by `client_tick_end` when no movement packet went that tick; a teleport's
   echo is not a tick packet). Vanilla reads hotbar keys before use keys, so it never sends that order. Cases: Kill Mimic's

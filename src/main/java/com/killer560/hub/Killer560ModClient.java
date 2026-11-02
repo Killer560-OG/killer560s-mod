@@ -145,6 +145,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.util.ServerLag.register();
         // Whether a hotbar swap may go out now or must wait for the next tick (GrimAC Post, grim-post-autopilot-1016).
         com.killer560.hub.util.HotbarSelect.register();
+        com.killer560.hub.util.BeforeMove.register();
         com.killer560.hub.roomsim.SimSpiritSceptre.register();
         // Only so the Terminator's own arrows can be recognized when they land - that is what arms Salvation
         // now that the shot is real entities instead of a ray cast. Nothing else in this file needs it.

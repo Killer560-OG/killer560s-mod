@@ -46,6 +46,9 @@ public abstract class Ap3RotationSendMixin {
 
     @Inject(method = "sendPosition", at = @At("HEAD"), require = 0)
     private void killer560smod$ap3HoldRotation(CallbackInfo ci) {
+        // A dig aimed by a look turned this tick goes here, right ahead of the packet that carries the look
+        // (util/BeforeMove, GrimAC RotationBreak's 15 ms lend) - as vanilla's dig precedes its sendPosition.
+        com.killer560.hub.util.BeforeMove.beforeSendPosition();
         killer560smod$ap3HoldRotationInner();
         // Last, on whatever yaw is about to go out (AP3's swaps included): never repeat the turn before the last block
         // click (GrimAC DuplicateRotPlace, util/PlaceRotationGuard).
