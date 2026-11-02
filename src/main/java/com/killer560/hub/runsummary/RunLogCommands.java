@@ -5,9 +5,8 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.minecraft.client.Minecraft;
 
 /**
- * {@code /log} - opens the run log ({@link RunLogScreen}). killer560, 2026-09-20: "make it its own custom
- * menu from doing /log". {@code /runlog} is accepted too, since {@code /log} is short enough to collide with
- * another mod's command on a modded install.
+ * {@code /runlog} - opens the run log ({@link RunLogScreen}). killer560, 2026-09-20: "make it its own custom
+ * menu from doing /log"; /log itself was removed on 2026-11-01 ("remove /log just keep /runlog").
  */
 public final class RunLogCommands {
 
@@ -17,7 +16,6 @@ public final class RunLogCommands {
     /** Call once from {@code Killer560ModClient#onInitializeClient}. */
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            dispatcher.register(ClientCommands.literal("log").executes(context -> open()));
             dispatcher.register(ClientCommands.literal("runlog").executes(context -> open()));
         });
     }

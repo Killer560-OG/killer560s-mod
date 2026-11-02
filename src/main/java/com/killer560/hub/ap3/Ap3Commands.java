@@ -109,10 +109,11 @@ public final class Ap3Commands {
         STOP("stop", "Stop AP3", "/ap3 stop"),
         TEST_MODE("testmode", "Test Mode", "/ap3 testmode"),
         /** Freeze State (Ap3FreezeState): these three work without AP3 switched on and outside Skyblock - they are
-         *  for placing nodes in singleplayer / p3sim. The two step keys refuse on Hypixel (type /rewind there). */
-        FREEZE_STATE("freezestate", "Freeze State", "/freezestate"),
-        REWIND_TICK("rewind_tick", "Rewind 1 Tick", "/rewind [ticks]"),
-        FORWARD_TICK("forward_tick", "Forward 1 Tick", "/rewind forward [ticks]");
+         *  for placing nodes in singleplayer / p3sim. The two step keys refuse on Hypixel. Keys only: no command (the
+         *  empty command string), since killer560 removed /freezestate and /rewind on 2026-11-01. */
+        FREEZE_STATE("freezestate", "Freeze State", ""),
+        REWIND_TICK("rewind_tick", "Rewind 1 Tick", ""),
+        FORWARD_TICK("forward_tick", "Forward 1 Tick", "");
 
         public final String id;
         public final String label;
@@ -199,39 +200,7 @@ public final class Ap3Commands {
 
     /** Call once from {@code Killer560ModClient#onInitializeClient} (see INTEGRATION.md). */
     public static void register() {
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            // Freeze State. The typed /rewind is the only way to step on Hypixel (the keys refuse there) and every
-            // use there prints the ban warning first - see Ap3FreezeState.
-            ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-                dispatcher.register(ClientCommands.literal("freezestate")
-                        .requires(src -> Ap3Config.getInstance().isEnabledRaw())
-                        .executes(context -> {
-                    Ap3FreezeState.toggle();
-                    return 1;
-                }));
-                dispatcher.register(ClientCommands.literal("rewind")
-                        .requires(src -> Ap3Config.getInstance().isEnabledRaw())
-                        .executes(context -> {
-                            Ap3FreezeState.step(-1, 1, true);
-                            return 1;
-                        })
-                        .then(ClientCommands.argument("ticks", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, Ap3Config.MAX_REWIND_TICKS))
-                                .executes(context -> {
-                                    Ap3FreezeState.step(-1, com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "ticks"), true);
-                                    return 1;
-                                }))
-                        .then(ClientCommands.literal("forward")
-                                .executes(context -> {
-                                    Ap3FreezeState.step(1, 1, true);
-                                    return 1;
-                                })
-                                .then(ClientCommands.argument("ticks", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, Ap3Config.MAX_REWIND_TICKS))
-                                        .executes(context -> {
-                                            Ap3FreezeState.step(1, com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "ticks"), true);
-                                            return 1;
-                                        }))));
-            });
-        }
+        // /freezestate and /rewind were removed (killer560, 2026-11-01): Freeze State runs from its three keys.
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("ap3")
                         // killer560 (2026-09-28): "make it so the commands do not show or try to do anything if
@@ -505,8 +474,8 @@ public final class Ap3Commands {
             try {
                 switch (action) {
                     case FREEZE_STATE -> Ap3FreezeState.toggle();
-                    case REWIND_TICK -> Ap3FreezeState.step(-1, 1, false);
-                    default -> Ap3FreezeState.step(1, 1, false);
+                    case REWIND_TICK -> Ap3FreezeState.step(-1, 1);
+                    default -> Ap3FreezeState.step(1, 1);
                 }
             } catch (Exception e) {
                 LOGGER.warn("[AP3] freeze state action failed", e);
@@ -614,7 +583,9 @@ public final class Ap3Commands {
         ModChat.send(FEATURE, ModChat.text("Commands (F7/M7 boss only - any phase, one chain per area P1 / P2 / S1-S5 / P4 / P5):"));
         ModChat.send(FEATURE, ModChat.dim("There is no start and no order: every node is armed, walking INTO its box fires it. Same tick: stop > align > look > walk > boom > leap, one per tick."));
         for (Action a : Action.values()) {
-            ModChat.send(FEATURE, ModChat.value(a.command), ModChat.dim(" - " + a.label));
+            if (!a.command.isEmpty()) {
+                ModChat.send(FEATURE, ModChat.value(a.command), ModChat.dim(" - " + a.label));
+            }
         }
         for (String[] line : ADD_HELP) {
             ModChat.send(FEATURE, ModChat.value(line[0]), ModChat.dim(" - " + line[1]));

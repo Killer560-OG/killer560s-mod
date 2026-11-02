@@ -28,7 +28,7 @@ import java.util.TreeMap;
  * <p>One {@link Obs} per room entry. Only three outcomes count: {@link Outcome#INSTA} is a success, {@link
  * Outcome#KILLED} and {@link Outcome#NO_CLEAR} are failures, and everything else (no starred mobs, room already
  * cleared, no dungeon map, flip not observable) is kept for the record but proves nothing either way. A manual
- * {@code verdict} set by killer560 with {@code /autosecret instaclear mark} overrides the measured outcome.
+ * {@code verdict} set by killer560 with the Auto Clear tab's Mark Last buttons overrides the measured outcome.
  *
  * <p>The rule ({@link #known}): at least {@link #minSuccesses()} successes and ZERO failures for that exact room and
  * entry key. One failure ever disqualifies the entry, because Auto Secret is only allowed to try an insta clear it

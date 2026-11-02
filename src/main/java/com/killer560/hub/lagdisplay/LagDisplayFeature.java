@@ -91,7 +91,6 @@ public final class LagDisplayFeature {
                 Identifier.fromNamespaceAndPath("killer560smod", "lag_display_click_sampler"),
                 (graphics, deltaTracker) -> sampleClicks());
 
-        StutterCommand.register();
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
     }

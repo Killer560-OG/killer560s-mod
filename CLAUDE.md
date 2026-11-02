@@ -489,7 +489,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   key coming up and released the hold. Rework Grim findings (banked turns, Post on dropped releases, the in-place
   teleport conflict) are in docs/LESSONS-AUTOMATION.md, Blink section.
 - Blink logs every event as one `[Blink]` INFO line through `blink/BlinkLog` (logger `killer560smod-blink`, last 40 kept
-  for `/blink debug`). A release jar (`-Prelease=true`, the GitHub builds) drops INFO, so that logger is
+  for `BlinkCommands.debugLines`, the testkit's readout; /blink itself was removed 2026-11-01). A release jar (`-Prelease=true`, the GitHub builds) drops INFO, so that logger is
   `ModLog.keptWhen(...)`: it logs in a release only while Blink's Debug Log setting is on (testkit 1026-blink-release-log).
   His own jars (deploy-to-instances.py, built without -Prelease) always log. Stress-pass lessons (burst skipping Charge,
   settling after a teleport, latches across a rejoin): docs/LESSONS-AUTOMATION.md, Blink section.
@@ -517,3 +517,11 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - `DisconnectedScreen`'s constructors chain into each other, so a mixin on each of them (accounts/DisconnectedScreenMixin)
   runs up to three times for ONE screen (testkit 4101, 2026-11-01). Anything that must act once per screen keys on the
   screen object (`BanReportFeature.onDisconnectScreen(this, ...)`), not on the call.
+- A Brigadier node with children and no `.executes` answers the bare command with "Unknown or incomplete command", which
+  reads to him as "unknown command": `/killer560 ew` and `/killer560 profile` were registered fine, they only needed a
+  word after them (2026-11-01, both removed). A command meant to be typed bare needs its own `.executes`.
+- Command removals (killer560, 2026-11-01, mod cmdclean-1101): no `/class`, `/log`, `/k560search`, `/lag`, `/k560textures`,
+  `/autoclear`, `/autosecret`, `/blink`, `/freezestate`, `/rewind`, `/test`, and no `/killer560 class|ew|mapdump|profile|sim`.
+  What they reached stays reachable from the menu or a key: Auto Clear's Clear Toggle Key, the Auto Clear tab's Bat Test
+  button and Insta Clear rows, the Freeze State keys, Blink's keys, the Profiles tab, `/runlog`, `/search`, `/ew`. Do not
+  re-add them; testkit 1101-cmdclean-gone fails if any comes back.

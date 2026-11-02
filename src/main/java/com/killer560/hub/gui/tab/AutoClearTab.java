@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.autosecret.AutoSecretConfig;
+import com.killer560.hub.autosecret.InstaClearTracker;
 import com.killer560.hub.autosecret.AutoSecretFeature;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -200,6 +201,34 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
 
         toggle(w, contentX, y[0], half, "Insta Clear First", cfg::isInstaClear, cfg::setInstaClear);
         toggle(w, contentX + half + GAP, y[0], right, "Ice Fill First", cfg::isIceFillFirst, cfg::setIceFillFirst);
+        y[0] += ROW;
+        // The Insta Clear tracker's readout and settings (killer560 removed /autosecret on 2026-11-01).
+        w.add(SettingsButtonWidget.builder(Component.literal("Insta Clear Evidence"),
+                btn -> InstaClearTracker.showSummary()).bounds(contentX, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.builder(Component.literal("Last Insta Clear Entry"),
+                btn -> InstaClearTracker.showLast()).bounds(contentX + half + GAP, y[0], right, 20).build());
+        y[0] += ROW;
+        int tSpan = InstaClearTracker.MAX_THRESHOLD - InstaClearTracker.MIN_THRESHOLD;
+        w.add(normSlider(contentX, y[0], half, 20, () -> "Known After: " + InstaClearTracker.minSuccesses() + " insta clears",
+                (InstaClearTracker.minSuccesses() - InstaClearTracker.MIN_THRESHOLD) / (double) tSpan,
+                v -> InstaClearTracker.setMinSuccesses((int) Math.round(InstaClearTracker.MIN_THRESHOLD + v * tSpan)),
+                InstaClearTracker::saveSettings));
+        int wSpan = InstaClearTracker.MAX_WINDOW_S - InstaClearTracker.MIN_WINDOW_S;
+        w.add(normSlider(contentX + half + GAP, y[0], right, 20, () -> "Clear Window: " + InstaClearTracker.windowSeconds() + "s",
+                (InstaClearTracker.windowSeconds() - InstaClearTracker.MIN_WINDOW_S) / (double) wSpan,
+                v -> InstaClearTracker.setWindowSeconds((int) Math.round(InstaClearTracker.MIN_WINDOW_S + v * wSpan)),
+                InstaClearTracker::saveSettings));
+        y[0] += ROW;
+        String[][] marks = {{"Mark Last Insta", "insta"}, {"Mark Last Not Insta", "notinsta"},
+                {"Mark Last Ignore", "ignore"}, {"Mark Last Measured", "measured"}};
+        int quarter = (contentWidth - 3 * GAP) / 4;
+        for (int i = 0; i < marks.length; i++) {
+            String verdict = marks[i][1];
+            int mx = contentX + i * (quarter + GAP);
+            int mw = i == marks.length - 1 ? contentX + contentWidth - mx : quarter;
+            w.add(SettingsButtonWidget.builder(Component.literal(marks[i][0]), btn -> InstaClearTracker.markLast(verdict))
+                    .bounds(mx, y[0], Math.max(1, mw), 20).build());
+        }
         y[0] += ROW;
         // "Auto Clear Rooms" row removed (killer560, 2026-10-17): Auto Secret always hands uncleared rooms to Auto Clear.
         toggle(w, contentX, y[0], half, "Quiz First", cfg::isQuizFirst, cfg::setQuizFirst);

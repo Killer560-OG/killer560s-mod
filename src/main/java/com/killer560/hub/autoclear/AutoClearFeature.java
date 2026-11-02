@@ -17,8 +17,6 @@ import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ModSounds;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -180,13 +178,7 @@ public final class AutoClearFeature {
         // START: the use key must be down before handleKeybinds, and the body turned before the movement packet.
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoClearFeature.tick", AutoClearFeature::tick));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoClearSettings.capture", AutoClearSettings::pollCapture));
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
-                ClientCommands.literal("autoclear")
-                        .requires(src -> AutoClearConfig.getInstance().isEnabledRaw())
-                        .executes(ctx -> {
-                            toggle();
-                            return 1;
-                        })));
+        // /autoclear was removed (killer560, 2026-11-01): the Clear Toggle Key starts and stops it.
         // Auto Clear's rows in the shared Auto Clear tab (Auto Secret's tab): its switch is the tab's first row, the rest
         // go below Auto Secret's section.
         com.killer560.hub.gui.tab.AutoClearTab.addMaster((widgets, x, y, width, rebuild) -> {
@@ -4867,7 +4859,7 @@ public final class AutoClearFeature {
         return pathFailures;
     }
 
-    /** True while a run started by him (the key, /autoclear) owns it, rather than one room handed over by Auto Secret. */
+    /** True while a run started by him (the Clear Toggle Key) owns it, rather than one room handed over by Auto Secret. */
     public static boolean isStandaloneRun() {
         return running && singleRoom == null;
     }

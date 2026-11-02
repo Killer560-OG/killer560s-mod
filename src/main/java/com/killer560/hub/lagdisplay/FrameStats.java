@@ -41,7 +41,7 @@ import java.util.concurrent.Executors;
  * <p><b>Frame time</b> for the Frame line and the stutter test is the frame's length minus the FPS limiter's sleep: the
  * limiter waiting on purpose (a frame cap, the unfocused-window cap) is not lag. A frame of at least the Stutter Threshold
  * is a stutter: one INFO line goes to the log and to {@code killer560smod-lagdisplay-stutters.log} (rolled at 1 MB, kept
- * out of profiles as a log), and {@code /lag stutters} lists the last ones. 1% Low is from the raw frame lengths (what
+ * out of profiles as a log). 1% Low is from the raw frame lengths (what
  * the screen showed): 1000 / the 99th-percentile frame time over the last five seconds.
  *
  * <p>Off (the Performance HUD off, or Frame, 1% Low and Log Stutters all off) every hook is one static boolean read.
@@ -108,7 +108,7 @@ public final class FrameStats {
     private static volatile int stuttersLastMinute;
 
     // ---- stutters ---------------------------------------------------------------------------------------------------
-    /** One recorded stutter, for {@code /lag stutters} and the testkit. */
+    /** One recorded stutter, for the testkit. */
     public record Stutter(long wallMs, String clock, double frameMs, String text) {
     }
 
@@ -597,7 +597,7 @@ public final class FrameStats {
         return frames;
     }
 
-    /** The last {@code n} stutters, oldest first. */
+    /** The last {@code n} stutters, oldest first (testkit). */
     public static List<Stutter> recent(int n) {
         synchronized (STUTTERS) {
             List<Stutter> all = new ArrayList<>(STUTTERS);
@@ -605,7 +605,7 @@ public final class FrameStats {
         }
     }
 
-    /** Forgets the recorded stutters (the shown numbers follow within a quarter second). */
+    /** Forgets the recorded stutters (testkit; the shown numbers follow within a quarter second). */
     public static void clear() {
         synchronized (STUTTERS) {
             STUTTERS.clear();

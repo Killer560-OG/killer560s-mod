@@ -14,8 +14,6 @@ import com.killer560.hub.util.BodyAim;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ServerCorrections;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -36,11 +34,12 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * {@code /test} (cheat build; killer560, 2026-10-20): a fixed set of Spirit Sceptre shots at a mob in a real dungeon run,
+ * The Bat Test (cheat build; killer560, 2026-10-20): a fixed set of Spirit Sceptre shots at a mob in a real dungeon run,
  * each bat's flight logged by {@link BatLog}, then a summary - so the bat's real speed and whether it curves can be
  * measured on Hypixel and put into {@link WeaponReach#BAT_BLOCKS_PER_TICK}.
  * <p>
- * It never starts itself: only his {@code /test}, in a dungeon's clear, with a Spirit Sceptre in the hotbar and no other
+ * It never starts itself: only his Bat Test button in the Auto Clear tab (it was {@code /test} until killer560 removed the
+ * command on 2026-11-01), in a dungeon's clear, with a Spirit Sceptre in the hotbar and no other
  * automation running. It picks a mob it can see (Auto Clear's starred mobs first, any hostile mob else), and for each
  * shot of {@link #SHOTS} - about 10, 20 and 30 blocks aimed straight at the mob, then 10 blocks aimed 15 degrees to the
  * side and 15 degrees up - moves to a block that far from the mob with a clear line to it (walking with Auto Clear's
@@ -130,24 +129,33 @@ public final class BatTest {
             return;
         }
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("BatTest.tick", BatTest::tick));
-        // A client command: never forwarded to the server (util/ServerCommands).
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
-                ClientCommands.literal("test").executes(ctx -> {
-                    start();
-                    return 1;
-                })));
+    }
+
+    /**
+     * The Auto Clear tab's Bat Test button (and the testkit): starts the test, or ends the one running. A start closes the
+     * menu so the shots can be watched; a refusal leaves it open with the reason in chat.
+     */
+    public static void toggleFromMenu() {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return;
+        }
+        start();
+        Minecraft client = Minecraft.getInstance();
+        if (running && McCompat.screen(client) != null) {
+            McCompat.setScreen(client, null);
+        }
     }
 
     public static boolean isRunning() {
         return running;
     }
 
-    /** /test: refuses unless every condition holds; a second /test while it runs ends it. */
+    /** Refuses unless every condition holds; pressed again while it runs, it ends it. */
     static void start() {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (running) {
-            stop("you typed /test again");
+            stop("Bat Test pressed again");
             return;
         }
         String refused = null;
