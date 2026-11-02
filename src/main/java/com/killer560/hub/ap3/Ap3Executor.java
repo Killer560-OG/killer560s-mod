@@ -19,7 +19,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Input;
@@ -2290,11 +2289,10 @@ public final class Ap3Executor {
                     }
                 }
                 // Same tap Auto Routes' superboom sends: a START on the face the eye sees, and the ABORT with the face
-                // vanilla sends (DOWN) - any other abort face is GrimAC PositionBreakB on every later dig.
-                player.connection.send(new ServerboundPlayerActionPacket(
-                        ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, boomTarget, b.getDirection()));
-                player.connection.send(new ServerboundPlayerActionPacket(
-                        ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, boomTarget, Direction.DOWN));
+                // vanilla sends (DOWN) - any other abort face is GrimAC PositionBreakB on every later dig. The START goes
+                // through vanilla's block-prediction sequence (sendBoomTap): sent bare it carried sequence 0, and GrimAC's
+                // BadPacketsH (experimental) wants every START/use to carry the last sequence + 1 (gridexp-1102).
+                com.killer560.hub.autoroutes.RouteExecutor.sendBoomTap(client, player, boomTarget, b.getDirection());
                 com.killer560.hub.compat.McCompat.swingAttack(player);
                 boomLog(node, String.format(Locale.US, "use sent: Superboom tap on %s from (%.2f, %.2f, %.2f) at look %.2f/%.2f",
                         boomTarget.toShortString(), player.getX(), player.getY(), player.getZ(), player.getYRot(),
