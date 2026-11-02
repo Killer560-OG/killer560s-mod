@@ -91,13 +91,11 @@ public final class SimonSaysConfig {
     private int autoSolveFixedDelayMs = 150;
     // Rotate mode only (killer560's to-do, 2026-10-18: "add a stim option where it will trace the path it just saw
     // after doing lets say the first two set it would 'practice' those two buttons again"). Stim: between rounds the
-    // aim retraces the newest buttons of the round it just finished, look only - it never clicks - and ends back on
-    // the round's first button. Stim Buttons is how many of the newest it retraces.
-    public static final int MIN_STIM_BUTTONS = 1;
-    // 4 since Hypixel's 4-round device (killer560, 2026-10-27: "4 max clicks now instead of 5"); a saved 5 loads as 4.
-    public static final int MAX_STIM_BUTTONS = 4;
+    // aim retraces the round it just finished, look only - it never clicks - and ends back on the round's first button.
+    // Since 2026-11-01 it retraces the WHOLE round, first button to last, fast (killer560: "the stim should retrace from
+    // the first button to the last just like it is doing it normally there shouldnt be a button amount toggle thingy. It
+    // should be pretty fast"): the Stim Buttons setting is gone, and an old file's "autoSolveStimButtons" is ignored.
     private boolean autoSolveStim = false;
-    private int autoSolveStimButtons = 2;
     // Same request: "can you have it carry more momentum through clicks". 0 = off (the aim behaves exactly as before),
     // up to 100. On, a click goes out once the crosshair is on the button face rather than fully settled, the camera
     // carries part of its speed into the next turn, and it starts toward the next button as soon as a click is sent.
@@ -200,7 +198,6 @@ public final class SimonSaysConfig {
             cfg.autoSolveFixedDelayMode = getBool(obj, "autoSolveFixedDelayMode", false);
             cfg.autoSolveFixedDelayMs = getInt(obj, "autoSolveFixedDelayMs", 150);
             cfg.autoSolveStim = getBool(obj, "autoSolveStim", false);
-            cfg.setAutoSolveStimButtons(getInt(obj, "autoSolveStimButtons", 2));
             cfg.setAutoSolveMomentum(getInt(obj, "autoSolveMomentum", 0));
             cfg.autoStartEnabled = getBool(obj, "autoStartEnabled", false);
             cfg.autoStartClicks = getInt(obj, "autoStartClicks", 3);
@@ -245,7 +242,6 @@ public final class SimonSaysConfig {
             obj.addProperty("autoSolveFixedDelayMode", autoSolveFixedDelayMode);
             obj.addProperty("autoSolveFixedDelayMs", autoSolveFixedDelayMs);
             obj.addProperty("autoSolveStim", autoSolveStim);
-            obj.addProperty("autoSolveStimButtons", autoSolveStimButtons);
             obj.addProperty("autoSolveMomentum", autoSolveMomentum);
             obj.addProperty("autoStartEnabled", autoStartEnabled);
             obj.addProperty("autoStartClicks", autoStartClicks);
@@ -453,14 +449,6 @@ public final class SimonSaysConfig {
 
     public void setAutoSolveStim(boolean autoSolveStim) {
         this.autoSolveStim = autoSolveStim;
-    }
-
-    public int getAutoSolveStimButtons() {
-        return autoSolveStimButtons;
-    }
-
-    public void setAutoSolveStimButtons(int n) {
-        this.autoSolveStimButtons = Math.max(MIN_STIM_BUTTONS, Math.min(MAX_STIM_BUTTONS, n));
     }
 
     /** Momentum (Rotate mode), 0-100; 0 is off. Always 0 on the legit build. */
