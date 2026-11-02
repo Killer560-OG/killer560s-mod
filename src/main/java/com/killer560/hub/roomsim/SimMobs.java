@@ -158,6 +158,11 @@ public final class SimMobs {
                     SimLiveMobs.registerCommand(dispatcher);
                 });
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimMobs.tick", SimMobs::tick));
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (STARRED.contains(entity.getUUID())) {
+                KILLED.add(entity.getUUID());
+            }
+        });
         SimMobFloor.register();
     }
 
@@ -283,6 +288,11 @@ public final class SimMobs {
      * "An entity reads back only from a section the server ticks entities in"). Server thread writes, client reads.
      */
     private static final java.util.Set<UUID> STARRED_DEAD = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Starred mobs the server saw die (Fabric AFTER_DEATH), and how many refreshes in a row each has been missing. */
+    private static final java.util.Set<UUID> KILLED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final java.util.Map<UUID, Integer> MISSING = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final int MISSING_TICKS = 3;
 
     /** When each starred mob's death was confirmed, in order, so a room's key drops at its LAST death. */
     private static final java.util.Map<UUID, Long> DEATH_ORDER = new java.util.concurrent.ConcurrentHashMap<>();
@@ -932,8 +942,16 @@ public final class SimMobs {
             Entity entity = level.getEntity(id);
             if ((entity == null || !entity.isAlive()) && !STARRED_DEAD.contains(id)) {
                 double[] at = STARRED_AT.get(id);
-                if (entity != null || (at != null
-                        && level.isPositionEntityTicking(BlockPos.containing(at[0], at[1], at[2])))) {
+                boolean ticking = at != null && level.isPositionEntityTicking(BlockPos.containing(at[0], at[1], at[2]));
+                // Missing is dead only when it STAYS missing from a ticking section (MISSING_TICKS checks in a row) or the
+                // server saw it die (AFTER_DEATH): a mob whose chunk was unloading read as missing for a moment while the
+                // section still said ticking, and whole rooms - key rooms among them - "cleared" with nobody near
+                // (doc-adm-sim-1101: Mossy cleared 3 s after GO while the test stood at another door; its key never dropped).
+                int missing = entity == null && ticking ? MISSING.merge(id, 1, Integer::sum) : 0;
+                if (entity != null || !ticking) {
+                    MISSING.remove(id);
+                }
+                if (entity != null || KILLED.contains(id) || missing >= MISSING_TICKS) {
                     STARRED_DEAD.add(id);
                     DEATH_ORDER.put(id, DEATH_SEQ.incrementAndGet());
                     // Hypixel's "star ... heart" name goes with its mob; the sim's stand used to stay up forever,
@@ -1035,6 +1053,8 @@ public final class SimMobs {
         STARRED_AT.clear();
         STARRED_DEAD.clear();
         DEATH_ORDER.clear();
+        KILLED.clear();
+        MISSING.clear();
         CRYPT_MOBS.clear();
         CRYPT_AT.clear();
         SimMimic.forgetMob();
