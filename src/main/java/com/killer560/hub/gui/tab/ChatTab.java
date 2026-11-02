@@ -22,6 +22,8 @@ public class ChatTab extends FolderTab {
                 new PeekChatTab(),
                 // Chat History (2026-10-18, killer560): an unlimited chat limit.
                 new ChatHistoryTab(),
+                // Chat Tabs (to-do Doc 2026-11-01): All / Party / Guild / Officer / Co-op / Messages above the input.
+                new ChatTabsTab(),
                 // Image Preview (2026-10-27, killer560: "reimplement imgur... it lets you see pictures and things through links").
                 new ImagePreviewTab(),
                 new AutoMeowTab(),

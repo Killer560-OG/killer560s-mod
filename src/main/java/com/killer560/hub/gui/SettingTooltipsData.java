@@ -29,6 +29,9 @@ final class SettingTooltipsData {
         d.put("gyrokinetic wand overlay/style", "Circle Outline, a filled Circle, or a Sphere.");
         d.put("gyro color", "The overlay's color and how see-through it is.");
         d.put("gyrokinetic wand overlay/line width", "How thick the Circle Outline is drawn.");
+        d.put("chat tabs", "Shows tabs above the chat input (All, Party, Guild, Officer, Co-op, Messages): click one to see only that channel's messages.");
+        d.put("switch channel", "Clicking a tab also puts you in that chat (/chat party and so on); with Messages, a line you type goes as /r.");
+        d.put("filter closed chat", "Keeps showing only the selected tab's messages after you close the chat.");
         d.put("key spawn alert", "Shows a title and plays a sound when a Wither Key or Blood Key appears.");
         d.put("pre-boss warning", "When the Watcher lets you pass, lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
         d.put("crypt reminder", "Once the run clock passes the set time with fewer than 5 crypts, shows the crypt count. Outside the boss only, once a run.");

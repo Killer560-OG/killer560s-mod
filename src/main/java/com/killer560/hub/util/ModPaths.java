@@ -234,6 +234,7 @@ public final class ModPaths {
         t.put("peekchat", "social/peekchat");
         t.put("chattidy", "social/chattidy");
         t.put("chathistory", "social/chathistory");
+        t.put("chattabs", "social/chattabs");
         // Image Preview: its settings and its picture cache (killer560smod-imagepreview-cache/), 2026-10-27.
         t.put("imagepreview", "social/imagepreview");
         t.put("voice", "social/voicetotext");
