@@ -406,7 +406,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.p4platform.P4PlatformHighlightFeature.register();
         com.killer560.hub.diorite.DioriteGlassFeature.register();
         com.killer560.hub.partyfinder.PartyFinderOverlay.register();
-        com.killer560.hub.dungeonclass.ClassSelectionOverlay.register();
+        // Class Selection Overlay removed 2026-11-01 (its settings went first; killer560 did not know what it was for).
         com.killer560.hub.commandkeybinds.CommandKeybindsFeature.register();
         com.killer560.hub.inventorysearch.InventorySearchFeature.register();
         com.killer560.hub.inventorytheme.InventoryThemeFeature.register();

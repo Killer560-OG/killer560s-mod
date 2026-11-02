@@ -689,7 +689,6 @@ final class SettingTooltipsData {
         d.put("clear chain key", "Keybind for /ap3 clear.");
         d.put("reload chains file key", "Keybind for /ap3 reload.");
         d.put("stop chain key", "Keybind for /ap3 stop. Works even with AP3 off.");
-        d.put("class selection overlay", "On the class-selection screen, shows your party across the top. Pick a player, then a class box, to set their class; it is the same class the Leap Order editor (/class) sets.");
         d.put("edit classes", "Opens the Leap Order editor (the same screen as /leaporder and /class): pick your class, then set each teammate's class and leap spot.");
         d.put("current party", "Lists your party and their classes; click Override to set a different class.");
         d.put("override", "Left click cycles this player's class override, right click goes back.");
