@@ -72,17 +72,23 @@ public final class ConfineMouseFeature {
      *  than chat open. */
     static boolean shouldConfine(Minecraft client) {
         ConfineMouseConfig cfg = ConfineMouseConfig.getInstance();
-        if (!cfg.isEnabled() || !isBorderless(client) || !client.isWindowActive()) {
-            return false;
-        }
-        if (client.level == null || client.player == null) {
-            return false;
-        }
-        if (cfg.isOnlyInDungeons() && !com.killer560.hub.secrets.DungeonState.isInDungeon()) {
-            return false;
-        }
         Screen screen = McCompat.screen(client);
-        return screen != null && !(screen instanceof ChatScreen);
+        return decide(cfg.isEnabled(), isBorderless(client), client.isWindowActive(),
+                client.level != null && client.player != null, cfg.isOnlyInDungeons(),
+                cfg.isOnlyInDungeons() && com.killer560.hub.secrets.DungeonState.isInDungeon(),
+                screen != null, screen instanceof ChatScreen);
+    }
+
+    /** The rule itself, from plain facts (the testkit walks its table): every condition must hold. */
+    static boolean decide(boolean enabled, boolean borderless, boolean windowActive, boolean inWorld,
+                          boolean onlyInDungeons, boolean inDungeon, boolean screenOpen, boolean chatOpen) {
+        if (!enabled || !borderless || !windowActive || !inWorld) {
+            return false;
+        }
+        if (onlyInDungeons && !inDungeon) {
+            return false;
+        }
+        return screenOpen && !chatOpen;
     }
 
     private static void tick(Minecraft client) {
