@@ -213,8 +213,43 @@ public final class RecordCatalog {
         }
     });
 
+    /** How Lucky Are You (doc-rng-1101): per Skyblock profile, attempts per activity, expected drops (at the odds and
+     *  Magic Find of each attempt) and drops got, all counters; plus a log of the drops themselves. Dungeon chests are
+     *  not here: they are read from {@link #CROESUS_LOG}. The legacy name never existed (a new record). */
+    public static final Kind LUCK = new Kind("killer560smod-luck-records.json", null, "luck.json",
+            Scope.ACCOUNT, new JsonMerge.Policy() {
+        @Override
+        public Function<JsonElement, String> arrayKey(String path) {
+            return path.equals("log") ? JsonMerge.fields("atMs", "drop") : null;
+        }
+
+        @Override
+        public JsonMerge.NumberMode number(String path) {
+            for (String c : new String[]{"profiles.*.attempts.*", "profiles.*.exp.*", "profiles.*.expMf.*",
+                    "profiles.*.got.*"}) {
+                if (JsonMerge.matches(path, c)) {
+                    return JsonMerge.NumberMode.COUNTER;
+                }
+            }
+            return JsonMerge.NumberMode.STATE;
+        }
+
+        @Override
+        public void finish(JsonObject merged) {
+            JsonArray log = sortBy(merged, "log", "atMs", false);
+            // The log is for the screen's "recent drops" list; the counters hold the totals. Keep the newest 500.
+            if (log != null && log.size() > 500) {
+                JsonArray kept = new JsonArray();
+                for (int i = log.size() - 500; i < log.size(); i++) {
+                    kept.add(log.get(i));
+                }
+                merged.add("log", kept);
+            }
+        }
+    });
+
     public static final List<Kind> ALL = List.of(CROESUS_LOG, CROESUS_RUNS, RNG_ITEM_LOG, EXPERIMENTS, BAZAAR_FLIP,
-            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER);
+            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK);
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {

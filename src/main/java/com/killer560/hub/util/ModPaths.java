@@ -167,6 +167,8 @@ public final class ModPaths {
 
         // ---- skyblock --------------------------------------------------------------------------------------------
         t.put("experiments", "skyblock/experiments");
+        // How Lucky Are You's settings (killer560smod-luck.json); its records are in the shared store.
+        t.put("luck", "skyblock/luck");
         // The profit trackers' shared Show Profit / Profit Data settings (killer560smod-profit-trackers.json, 2026-10-15).
         t.put("profit-trackers", "skyblock/profit");
         t.put("auction", "skyblock/auction");

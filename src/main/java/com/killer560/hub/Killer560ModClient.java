@@ -220,6 +220,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.spotify.SpotifyControls.register();
         com.killer560.hub.spotify.SpotifyHudControls.register();
         MagicFindTracker.register();
+        com.killer560.hub.luck.LuckFeature.register();
         RngMeterOverlay.register();
         RngMeterEngine.PRICES.startAutoRefresh();
         LeapMessageFeature.register();
