@@ -92,9 +92,7 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        widgets.add(onOffButton("Instant (0-tick)", cfg::isInstant, cfg::setInstant, cfg::save, requestRebuild,
-                contentX, y, contentWidth, 18));
-        y += 26;
+        y += 4;
 
         widgets.add(tickSlider(contentX, y, contentWidth, "Ticks Between Moves", cfg.getTicksBetweenMoves(),
                 InventorySorterConfig.MIN_TICKS, InventorySorterConfig.MAX_TICKS, v -> {
@@ -119,6 +117,18 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
                         btn.setMessage(Component.literal("Press any key..."));
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 20;
+        }
+
+        // Cheat block (coordinator, 2026-11-01): Instant sends clicks with no inventory open and no close - the shape
+        // that got him limboed for "Bad client inventory move" (killer560s-mod-logs/invwalk-legit-model.md). Compiled out
+        // of the legit build.
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            y += 6;
+            widgets.add(com.killer560.hub.gui.SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Instant", true));
+            y += 16;
+            widgets.add(onOffButton("Instant (0-tick)", cfg::isInstantRaw, cfg::setInstant, cfg::save, requestRebuild,
+                    contentX, y, contentWidth, 18));
+            y += 22;
         }
         return widgets;
     }

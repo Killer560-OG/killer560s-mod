@@ -211,7 +211,12 @@ public final class InventorySorterConfig {
         this.openMenuKey = KeyUtil.sanitizeBind(code);
     }
 
+    /** Cheat build only (javac drops it from legit): Instant clicks with no inventory open, which Hypixel may limbo. */
     public boolean isInstant() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && instant;
+    }
+
+    public boolean isInstantRaw() {
         return instant;
     }
 
