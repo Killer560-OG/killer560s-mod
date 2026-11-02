@@ -627,6 +627,7 @@ public final class AutoWalker {
             }
             WalkCamera.aim(yaw(into, player), -28f);
             wantForward = Math.abs(Mth.wrapDegrees(into - player.getYRot())) < 50f;
+            centerOnLadder(player, pos);
             return;
         }
 
@@ -1037,6 +1038,7 @@ public final class AutoWalker {
                 wantRight = false;
                 wantBack = false;
                 wantSprint = false;
+                centerOnLadder(player, pos);
                 climbTicks++;
             } else if (player.onGround() && rise > player.maxUpStep() + 0.01 && rise <= jumpH && horizontal < 1.7) {
                 wantJump = true;
@@ -1107,6 +1109,28 @@ public final class AutoWalker {
 
     public static int approachesDone() {
         return approachesDone;
+    }
+
+    /**
+     * On a ladder, keep his 0.6-wide box inside the ladder's own column: 0.2 off its center his head catches the block
+     * beside the shaft and he climbs no further (testkit 1101-fairy-island-GOLD_MINES: 0.22 off, stuck at the same height
+     * on every try). One strafe key toward the center, only while he is more than 0.12 off it.
+     */
+    private static void centerOnLadder(LocalPlayer player, Vec3 pos) {
+        if (!player.onClimbable()) {
+            return;
+        }
+        double ox = pos.x - (Math.floor(pos.x) + 0.5);
+        double oz = pos.z - (Math.floor(pos.z) + 0.5);
+        double yawRad = Math.toRadians(player.getYRot());
+        // left of the body in Minecraft's yaw convention
+        double lx = Math.cos(yawRad);
+        double lz = Math.sin(yawRad);
+        double side = -(ox * lx + oz * lz); // how far to move left (positive) to reach the center
+        if (Math.abs(side) > 0.12) {
+            wantLeft = side > 0;
+            wantRight = side < 0;
+        }
     }
 
     private static void finishRescue(String how) {
