@@ -6,6 +6,7 @@ import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.item.ItemStack;
@@ -29,6 +30,9 @@ public final class AutoSellToggleKey {
                 return;
             }
             ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> !handle(s, com.killer560.hub.compat.McInput.key(event)));
+            // A mouse-button toggle key (2026-11-02): only a click whose button IS the bind is taken.
+            ScreenMouseEvents.allowMouseClick(screen).register((s, event) ->
+                    !handle(s, KeyUtil.codeForMouseButton(com.killer560.hub.compat.McInput.button(event))));
         });
     }
 

@@ -80,7 +80,7 @@ public final class AbilityKeybindsFeature {
             return false;
         }
         if (AbilityKeybindsConfig.isMouseCode(code)) {
-            return com.killer560.hub.compat.McInput.isStoredButtonDown(client.getWindow(), AbilityKeybindsConfig.mouseButton(code));
+            return com.killer560.hub.util.KeyUtil.isMouseDown(client.getWindow(), AbilityKeybindsConfig.mouseButton(code));
         }
         return com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
     }

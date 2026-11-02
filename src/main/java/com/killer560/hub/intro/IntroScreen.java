@@ -137,7 +137,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
                     + "I'll be your tour guide and show you a few things about the mod before you get to playing.";
             case OPEN_MENU -> {
                 int code = HudConfig.getInstance().getOpenMenuKeyCode();
-                yield code < 0
+                yield code == com.killer560.hub.util.KeyUtil.NONE
                         ? "To open the mod, type {/killer560} in chat.\nYou can also set an Open Menu key in Home."
                         : "To open the mod, press [" + KeyUtil.keyName(code) + "] or type {/killer560} in chat.";
             }

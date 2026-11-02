@@ -222,7 +222,7 @@ public final class WaypointRoutesFeature {
     private static void pollKeys(Minecraft client, WaypointRoutesConfig cfg) {
         for (int i = 0; i < keyWasDown.length; i++) {
             int code = cfg.getKeyCode(i);
-            boolean down = code >= 0 && client.getWindow() != null && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
+            boolean down = code != com.killer560.hub.util.KeyUtil.NONE && client.getWindow() != null && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
             // Keys typed into chat/any screen still update state, so closing it never fires an action.
             if (down && !keyWasDown[i] && McCompat.screen(client) == null) {
                 onKey(client, cfg, i);

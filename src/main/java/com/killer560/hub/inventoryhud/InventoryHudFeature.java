@@ -64,7 +64,7 @@ public final class InventoryHudFeature {
     private static void tick(Minecraft client) {
         InventoryHudConfig cfg = InventoryHudConfig.getInstance();
         int code = cfg.getKeyCode();
-        if (!cfg.isEnabled() || cfg.getVisibility() != InventoryHudConfig.Visibility.TOGGLE_KEY || code < 0
+        if (!cfg.isEnabled() || cfg.getVisibility() != InventoryHudConfig.Visibility.TOGGLE_KEY || code == com.killer560.hub.util.KeyUtil.NONE
                 || client.player == null || client.getWindow() == null) {
             keyWasDown = false;
             return;
@@ -116,7 +116,7 @@ public final class InventoryHudFeature {
         return switch (cfg.getVisibility()) {
             case ALWAYS -> true;
             case TOGGLE_KEY -> cfg.isToggledVisible();
-            case HOLD_KEY -> cfg.getKeyCode() >= 0 && client.getWindow() != null
+            case HOLD_KEY -> cfg.getKeyCode() != com.killer560.hub.util.KeyUtil.NONE && client.getWindow() != null
                     && !(McCompat.screen(client) instanceof ChatScreen)
                     && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getKeyCode());
         };

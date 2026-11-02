@@ -240,8 +240,7 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
 
     private static Component keyText(ShortsConfig cfg, int index) {
         int code = keyCode(cfg, index);
-        String name = code < 0 ? "Not Set"
-                : com.killer560.hub.util.KeyUtil.keyName(code);
+        String name = com.killer560.hub.util.KeyUtil.bindDisplayName(code);
         return Component.literal(KEY_LABELS[index] + ": §6" + name);
     }
 
@@ -262,6 +261,11 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
     @Override
     public boolean isListeningForKey() {
         return capturing >= 0;
+    }
+
+    @Override
+    public void cancelKeyCapture() {
+        capturing = -1;
     }
 
     @Override

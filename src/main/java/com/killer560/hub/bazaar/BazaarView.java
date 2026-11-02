@@ -1836,7 +1836,7 @@ public final class BazaarView {
     /** "Hold Left Alt: Hypixel's menu", or "" with no Hypixel Menu key set. */
     private static String vanillaHint() {
         int code = AuctionConfig.getInstance().getBazaarVanillaKeyCode();
-        if (code < 0) {
+        if (code == com.killer560.hub.util.KeyUtil.NONE) {
             return "";
         }
         return "Hold " + com.killer560.hub.util.KeyUtil.keyName(code) + ": Hypixel's menu";

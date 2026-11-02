@@ -236,8 +236,16 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturingIndex = NOT_CAPTURING;
+        capturingMods = 0;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
-        if (keyCode == com.killer560.hub.util.Keys.ESCAPE) {
+        // Backspace/Delete (KeyUtil.NONE) clears a bind; on the "add a bind" row there is nothing to clear.
+        if (keyCode == com.killer560.hub.util.Keys.ESCAPE
+                || (keyCode == com.killer560.hub.util.KeyUtil.NONE && capturingIndex == CAPTURING_NEW)) {
             capturingIndex = NOT_CAPTURING;
             capturingMods = 0;
             return;

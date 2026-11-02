@@ -8,6 +8,7 @@ import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
@@ -46,6 +47,9 @@ public final class MaskKeybind {
             if (screen instanceof AbstractContainerScreen<?>) {
                 ScreenKeyboardEvents.allowKeyPress(screen).register(
                         (s, event) -> !onKey(s, com.killer560.hub.compat.McInput.key(event)));
+                // A mouse-button Mask Keybind (2026-11-02): only a click whose button IS the bind is taken.
+                ScreenMouseEvents.allowMouseClick(screen).register((s, event) ->
+                        !onKey(s, KeyUtil.codeForMouseButton(com.killer560.hub.compat.McInput.button(event))));
             }
         });
     }

@@ -125,7 +125,7 @@ public final class BazaarFeature {
             BazaarOrders.tick(client);
         }
         int code = cfg.getOpenBazaarKeyCode();
-        if (code < 0 || client.getWindow() == null) {
+        if (code == com.killer560.hub.util.KeyUtil.NONE || client.getWindow() == null) {
             keyWasDown = false;
             return;
         }

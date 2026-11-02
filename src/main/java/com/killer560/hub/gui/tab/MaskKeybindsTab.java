@@ -25,6 +25,11 @@ public class MaskKeybindsTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturing = false;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
         if (capturing) {

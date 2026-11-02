@@ -140,7 +140,7 @@ public final class ModuleKeybinds {
         return Component.literal(LABEL + ": " + (code == KeyUtil.NONE ? "None" : KeyUtil.bindDisplayName(code)));
     }
 
-    /** The row for the tab {@code tabId} at the bottom of its drawer: a click waits for the key (Escape clears). */
+    /** The row for the tab {@code tabId} at the bottom of its drawer: a click waits for a key or mouse button (Escape cancels, Backspace clears). */
     static SettingsButtonWidget row(String tabId, int x, int y, int w) {
         return SettingsButtonWidget.builder(rowText(tabId), btn -> {
             capturingId = tabId;
@@ -162,6 +162,11 @@ public final class ModuleKeybinds {
         @Override
         public boolean isListeningForKey() {
             return capturingId != null;
+        }
+
+        @Override
+        public void cancelKeyCapture() {
+            capturingId = null;
         }
 
         @Override

@@ -574,7 +574,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (capturingKey) {
-            // A mouse button can be the bind too (KeyUtil's mouse codes); Escape (a key) clears it.
+            // A mouse button can be the bind too (KeyUtil's mouse codes); Escape cancels, Backspace clears.
             bind(KeyUtil.codeForMouseButton(com.killer560.hub.compat.McInput.button(event)));
             return true;
         }
@@ -686,7 +686,15 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         if (capturingKey) {
             // Configs keep GLFW numbers: McInput.key, never the raw event key (an SDL scancode on 26.3, which
             // setLayoutKey's range check turned into "none" - UI suite 584, 2026-11-01).
-            bind(event.key() == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : com.killer560.hub.compat.McInput.key(event));
+            // Escape cancels, Backspace/Delete clears, anything else binds - the rule of every key row (2026-11-02).
+            int stored = com.killer560.hub.compat.McInput.key(event);
+            if (stored == com.killer560.hub.util.Keys.ESCAPE) {
+                capturingKey = false;
+                refreshBindLabel();
+            } else {
+                bind(stored == com.killer560.hub.util.Keys.BACKSPACE || stored == com.killer560.hub.util.Keys.DELETE
+                        ? KeyUtil.NONE : stored);
+            }
             return true;
         }
         return super.keyPressed(event);

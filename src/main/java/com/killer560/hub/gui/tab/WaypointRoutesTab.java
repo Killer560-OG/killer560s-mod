@@ -271,13 +271,18 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
 
     private static Component keyText(WaypointRoutesConfig cfg, int which) {
         int code = cfg.getKeyCode(which);
-        String name = code < 0 ? "Not Set" : com.killer560.hub.util.KeyUtil.keyName(code);
+        String name = com.killer560.hub.util.KeyUtil.bindDisplayName(code);
         return Component.literal(WaypointRoutesConfig.KEY_NAMES[which] + ": §6" + name);
     }
 
     @Override
     public boolean isListeningForKey() {
         return capturingKey >= 0;
+    }
+
+    @Override
+    public void cancelKeyCapture() {
+        capturingKey = -1;
     }
 
     @Override

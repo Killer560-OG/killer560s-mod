@@ -38,6 +38,7 @@ public final class PathfindingFeature {
     private static final String CHAT = "Pathfinding";
 
     private static volatile boolean startKeyPressed;
+    private static boolean resumeMouseWasDown;
 
     private PathfindingFeature() {
     }
@@ -123,6 +124,15 @@ public final class PathfindingFeature {
     /** The Start/Stop key's press, taken at the top of the tick: a fresh press toggles, a held key does nothing more
      *  (the same press event the "any key stops it" rule reads, so the two can never disagree about one press). */
     private static void pollResumeKey(Minecraft client, PathfindingConfig cfg) {
+        // A mouse-button Start/Stop key (2026-11-02) never reaches PathStopKeyMixin (a keyboard hook): poll its edge.
+        int code = cfg.getResumeKeyCode();
+        if (KeyUtil.isMouseCode(code)) {
+            boolean down = KeyUtil.isKeyDown(client.getWindow(), code);
+            if (down && !resumeMouseWasDown && McCompat.screen(client) == null) {
+                startKeyPressed = true;
+            }
+            resumeMouseWasDown = down;
+        }
         if (!startKeyPressed) {
             return;
         }
