@@ -369,8 +369,39 @@ public final class TerminalQolFeature {
     }
 
     private static InputConstants.Key keyFor(int glfwKeyCode) {
+        // A mouse-button drop key (stored as KeyUtil's negative mouse code) is handled by #handleMouseDrop: vanilla's
+        // container screen only drops on a KEY press (AbstractContainerScreen.keyPressed reads keyDrop; mouseClicked never
+        // does, javap 26.3 and 26.2), so the vanilla Drop key is simply parked on nothing while a terminal is open.
         return glfwKeyCode < 0 ? InputConstants.UNKNOWN : com.killer560.hub.compat.McInput.storedKeyInput(glfwKeyCode);
     }
+
+    /** A mouse button bound as the terminal drop key (killer560, 2026-11-01: "I cant set the terminal drop key to my mouse
+     *  buttons"): pressing it in a terminal does what the vanilla Drop key does there, one THROW click on the slot under
+     *  the cursor, the same ContainerClick packet Q sends. With Custom GUI up the vanilla slots are hidden (hoveredSlot is
+     *  null), so it goes through the panel's own click redirect as a left click instead, exactly like a real click there.
+     *  @return whether the press was used (the caller cancels vanilla's handling). */
+    public static boolean handleMouseDrop(AbstractContainerScreen<?> screen, int storedButton, double mouseX, double mouseY) {
+        syncScreen();
+        TerminalQolConfig cfg = TerminalQolConfig.getInstance();
+        int code = cfg.getDropKeyCode();
+        if (!cfg.isDropKeyEnabled() || currentType == null || !com.killer560.hub.util.KeyUtil.isMouseCode(code)
+                || com.killer560.hub.util.KeyUtil.mouseButton(code) != storedButton) {
+            return false;
+        }
+        mouseDrops++;
+        if (TerminalSolverFeature.isCustomGuiActive()) {
+            TerminalSolverFeature.handleCustomGuiClick(screen, mouseX, mouseY, 0);
+            return true;
+        }
+        Slot hovered = ((com.killer560.hub.slotbinds.mixin.AbstractContainerScreenAccessor) screen).killer560smod$getHoveredSlot();
+        if (hovered != null) {
+            TerminalSolverFeature.invokeSlotClicked(screen, hovered, 0, ContainerInput.THROW);
+        }
+        return true;
+    }
+
+    /** Mouse drop-key presses handled since launch (testkit 1101-menu-term-mousedrop). */
+    static int mouseDrops;
 
     // ---- Custom Terminal Scale ----
 

@@ -109,6 +109,11 @@ public final class InventoryThemeFeature {
         if (!cfg.isEnabled()) {
             return false;
         }
+        // A terminal under the Terminal Solver's Custom GUI is that feature's screen: it hides the background, labels and
+        // slots and draws its own panel, so the theme stands down rather than draw a chest panel behind it (2026-11-01).
+        if (com.killer560.hub.terminals.TerminalSolverFeature.shouldHideBackgroundAndLabels()) {
+            return false;
+        }
         if (cfg.isHypixelOnly() && !CheatUtils.isOnDungeonServer(Minecraft.getInstance())) {
             return false;
         }
