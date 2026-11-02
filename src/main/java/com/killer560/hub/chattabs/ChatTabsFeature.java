@@ -335,6 +335,16 @@ public final class ChatTabsFeature {
         return framesDrawn;
     }
 
+    /** The plain text of every message the chat lays out now (newest first, each once). Client thread. */
+    public static java.util.List<String> testShownMessages() {
+        ChatComponent chat = McCompat.chat(Minecraft.getInstance());
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        for (GuiMessage.Line line : ((ChatTabsAccessor) chat).killer560smod$getTrimmedMessages()) {
+            out.add(ChatFormatting.stripFormatting(line.parent().content().getString()));
+        }
+        return new java.util.ArrayList<>(out);
+    }
+
     /** The screen position of a tab's middle on a {@code width x height} screen, "x,y", for a real click. */
     public static String tabCenter(String name, int height) {
         Font font = Minecraft.getInstance().font;

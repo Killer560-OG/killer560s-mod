@@ -14,4 +14,8 @@ public interface ChatTabsAccessor {
 
     @Accessor("visibleMessageFilter")
     Predicate<GuiMessage> killer560smod$getVisibleMessageFilter();
+
+    /** The laid-out chat lines (newest first), read by the testkit through {@code ChatTabsFeature.testShownMessages}. */
+    @Accessor("trimmedMessages")
+    java.util.List<GuiMessage.Line> killer560smod$getTrimmedMessages();
 }
