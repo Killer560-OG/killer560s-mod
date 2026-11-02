@@ -2215,9 +2215,9 @@ final class SettingTooltipsData {
         d.put("auto croesus/use kismets", "Lets Auto Croesus spend a Kismet Feather to reroll a poor Bedrock chest (cheat build only).");
         d.put("auto croesus/reroll below", "A Bedrock chest worth less than this is rerolled with a Kismet Feather before any chest of the run is opened, then the run is judged again (cheat build only).");
         d.put("auto croesus/reroll on floors", "The floors Auto Croesus may spend a Kismet Feather on; green is on, red is off. Click a floor to switch it (cheat build only).");
-        d.put("secret sound/sound", "Picks which sound Secret Sound plays; left click cycles forward, right click back.");
-        d.put("secret sound/volume", "Loudness of the secret sound, 0.0-1.0.");
-        d.put("secret sound/pitch", "Pitch of the secret sound, 0.0-2.0; 1.0 is normal.");
+        d.put("secret/sound", "Picks which sound Secret Sound plays; left click cycles forward, right click back.");
+        d.put("secret/volume", "Loudness of the secret sound, 0.0-1.0.");
+        d.put("secret/pitch", "Pitch of the secret sound, 0.0-2.0; 1.0 is normal.");
         d.put("class colors/tab list", "Colors each teammate's name in the tab list by dungeon class.");
         d.put("class colors/nametags", "Draws a class-colored tag like [M] Name above each teammate.");
         d.put("secret aura/in rooms", "Lets Secret Aura flip levers in dungeon rooms.");
@@ -2395,7 +2395,7 @@ final class SettingTooltipsData {
         d.put("party commands/tps", "!tps replies with the server's tick rate.");
         d.put("party commands/location", "!location replies with your current Skyblock area, read from the tab list.");
         d.put("party commands/discord", "!odin, !od, !killer560 and !k560 reply with this mod's Discord invite link.");
-        d.put("secrets hud/secrets hud", "Shows the secrets found in your current dungeon room over its total, as a small movable HUD.");
+        d.put("secret/secrets hud", "Shows the secrets found in your current dungeon room over its total, as a small movable HUD.");
         d.put("score calculator/bonus kill alerts", "Sends a party message when you get credit for a mimic, prince or bat kill.");
         d.put("score calculator/send 270 now", "Sends the 270 party message immediately, whatever your score is.");
         d.put("score calculator/send 300 now", "Sends the 300 party message immediately, whatever your score is.");
