@@ -11,8 +11,8 @@ final class CardBlurbsData {
     static void register(Map<String, String> d) {
         d.put("SecretClickedTab", "Boxes clicked secrets; mutes.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");
-        d.put("CreationCooldownTab", "30 s new-instance timer.");
-        d.put("InstaClearWarningTab", "Warns when a key room insta clears.");
+        d.put("CreationCooldownTab", "Dungeon join timer.");
+        d.put("InstaClearWarningTab", "Lost-key alert.");
         d.put("GyroOverlayTab", "Shows the Gyro wand's pull ring.");
         d.put("ChatTabsTab", "Party, guild, DM tabs in chat.");
         d.put("ScoreWarningTab", "Boss and crypt warnings.");
