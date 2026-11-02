@@ -23,6 +23,13 @@ import java.util.Set;
 public final class PredictedRoomsPainter {
 
     private static final float GUESS_DARKEN = 0.6f;
+    /**
+     * The name (and secrets line) of a room he has seen into but not entered. killer560 (to-do Doc, 2026-11-01): "If i
+     * have seen into a room to know it is there but not entered it then the name should be a bit more grey than it is
+     * now. The actual color is ok just make the name more grey." It was #E0E0E0, lighter than the #AAAAAA a room he has
+     * entered gets ({@link MapPainter#stateColor}); now it reads grayer than both. The room's fill is unchanged.
+     */
+    static final int PREDICTED_NAME_COLOR = 0xFF8A8A8A;
 
     private PredictedRoomsPainter() {
     }
@@ -175,7 +182,7 @@ public final class PredictedRoomsPainter {
         float[] box = MapPainter.labelBox(p.certainTiles());
         String[] lines = predictionLines(p, cfg.getRoomLabels());
         MapPainter.drawFittedLines(graphics, font, lines, ox + box[0] * ppu, oy + box[1] * ppu, box[2] * ppu, box[3] * ppu,
-                MapPainter.LABEL_SCALE * cfg.getFontScale() * ppu, 0xFFE0E0E0, true);
+                MapPainter.LABEL_SCALE * cfg.getFontScale() * ppu, PREDICTED_NAME_COLOR, true);
     }
 
     /**
@@ -217,7 +224,7 @@ public final class PredictedRoomsPainter {
                         ox + (MapPainter.cellPos(gx) + MapPainter.ROOM_UNITS / 2f) * ppu,
                         oy + (MapPainter.cellPos(gz) + MapPainter.ROOM_UNITS / 2f) * ppu,
                         MapPainter.ROOM_UNITS * ppu, MapPainter.ROOM_UNITS * ppu, MapPainter.LABEL_SCALE * cfg.getFontScale() * ppu,
-                        0xFFE0E0E0, true);
+                        PREDICTED_NAME_COLOR, true);
             }
             return;
         }

@@ -483,3 +483,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
   release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
   `Rows.addKept`).
+- The sim has NO held map during a run's countdown (`HeldMap.emulated()` is false until `SimRun` reaches GO, since doc-map-1101),
+  as Hypixel gives the map only at Mort's first line. A feature that reads `HeldMap` must cope with `available() == false` in
+  the green room; a sim test that needs the stand-in waits for `SimRun.hasStarted()` (or re-arms with `SimRun.begin` to stay pre-run).
