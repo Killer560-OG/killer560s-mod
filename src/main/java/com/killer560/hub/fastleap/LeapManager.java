@@ -209,6 +209,37 @@ public final class LeapManager {
         return incoming != null || pending != null || active != null || returnTo >= 0;
     }
 
+    /** Whether a leap still holds the use key or the movement keys down (the {@link FastLeapStuckLog} line). */
+    static boolean holdsKeys() {
+        return useInputSuppressed || movementSuppressed;
+    }
+
+    /** One line of the manager's state for {@link FastLeapStuckLog}: what is queued or running and what it holds. */
+    static String debugState() {
+        Active a = active;
+        StringBuilder sb = new StringBuilder();
+        sb.append("busy=").append(isBusy())
+                .append(" incoming=").append(incoming == null ? "-" : incoming.target.name())
+                .append(" pending=").append(pending == null ? "-" : pending.target.name()
+                        + " (" + (System.currentTimeMillis() - pending.createdAtMs) + " ms old)")
+                .append(" returnTo=").append(returnTo).append(" returnWait=").append(returnWaitTicks)
+                .append(" blocksInput=").append(blocksInput())
+                .append(" useSuppressed=").append(useInputSuppressed)
+                .append(" movementSuppressed=").append(movementSuppressed);
+        if (a == null) {
+            sb.append(" active=-");
+        } else {
+            sb.append(" active=").append(a.current.name()).append(" step=").append(a.step)
+                    .append(" age=").append(System.currentTimeMillis() - a.startedAtMs).append("ms")
+                    .append(" preOpened=").append(a.preOpened).append(" usedItem=").append(a.usedItem)
+                    .append(" hidden=").append(a.hidden).append(" menu=").append(a.menu == null ? "-" : a.menu.containerId)
+                    .append(" blockInput=").append(a.request.blockInput).append(" fastMode=").append(a.request.fastMode)
+                    .append(" fastBlock=").append(a.fastBlockActive).append(" waits(menu/item/gate)=")
+                    .append(a.waitTicks).append('/').append(a.itemWaitTicks).append('/').append(a.gateWaitTicks);
+        }
+        return sb.toString();
+    }
+
     /** The last leap's steps as "tick step", oldest first (testkit). */
     public static List<String> stepLog() {
         return new java.util.ArrayList<>(STEP_LOG);
