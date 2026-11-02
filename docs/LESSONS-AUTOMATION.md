@@ -26,7 +26,8 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
 - **GrimAC 2.3.74's experimental checks (gridexp-1102, 62-argrim/63-ap3 with `experimental-checks: true`).** Each flag and
   its packet pattern, from Grim's source at tag v2.3.74:
   MultiBreak: a second START_DESTROY_BLOCK on another block or face before the server's next tick packet - Multi Break's
-  burst, and a breaker node's six. Fix: one dig a tick everywhere (Breaker Aura, breaker node, linger, re-dig).
+  burst, and a breaker node's six. Fix: one dig a tick everywhere (Breaker Aura, breaker node, linger, re-dig); Multi Break
+  came back the same day as "back to back, one a tick" (multibreak-1102, next entry).
   RotationBreak: a dig is traced along the NEXT movement packet's look only if that arrives within 15 ms
   (`handleQueuedBreaks`), else along the look before; after one miss every later dig is judged on arrival by the look
   before ("pre-flying"). Digs sent at START with the body turned in the same tick missed whenever the tick was slow. Fix:
@@ -49,6 +50,22 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   BadPacketsH: every START/STOP dig and use must carry the last sequence + 1; AP3's boom START went out with sequence 0
   (the constructor without one). Fix: it goes through `RouteExecutor.sendBoomTap` (vanilla's `startPrediction`).
   BadPacketsV (a position packet that did not move) in 63-ap3's Blink shot cases is Blink's, not fixed here.
+- **One block per server tick is GrimAC's hard limit for digs, from any source (multibreak-1102).** MultiBreak (2.3.74,
+  `checks/impl/breaking/MultiBreak.java` 37-65) flags a START or STOP (not ABORT) on another block or face until a tick
+  packet clears it; the tick packet is a movement packet, or `client_tick_end` only when no movement packet went that tick
+  (`GrimProcessor.isTickPacket` 76-96, `CheckManagerListener` 599-609/781), so exactly one per client tick. Nothing
+  faster is clean: insta-break is not treated differently (only ABORT is skipped), an extra movement packet is Timer, and a
+  second dig sent AFTER the tick's movement packet (END_CLIENT_TICK, a frame) is the next window but GrimAC Post once a
+  transaction answer follows it (`Post.java` 77-102). Multi Break now means every block back to back, one a tick, no
+  cooldown between them (6 picks in 6 server ticks, a node's 10 blocks in 10). And the limit is mod-wide: a breaker
+  linger dig plus a node that fires, or Breaker Aura beside a route, in one tick is the same flag - `util/DigWindow`
+  mirrors MultiBreak from the send tap and every automated dig asks `mayDig` first and waits a tick when the window is
+  taken (a dig queued at `BeforeMove` reserves it). His own hand dig after automation in the same tick is not covered.
+  Testkit `harness/MultiBreakWatch` replays the check on the packets.
+- **A session's first turned dig flags RotationBreak on a fresh server (multibreak-1102).** The first dig a new test server
+  processes takes it longer than GrimAC's 15 ms window, so a dig sent at the movement packet's head as the session's first
+  draws RotationBreak post-flying and then pre-flying on every later dig (36 lines, 62-argrim-breaker run alone on 26.3);
+  the same as RotationPlace's first place (testkit warmPlaces). Not the mod: warm the path with one plain dig first.
 - **A vanilla client removes a block it instabreaks the moment it sends the dig, and GrimAC assumes it did**: on an instant
   START_DESTROY_BLOCK (`BlockBreakSpeed.getBlockDamage >= 1`) it sets the block to air in its own world at once
   (`CheckManagerListener.handleDigging`, 2.3.74). Breaker Aura with Zero Ping off kept standing on a picked floor block
