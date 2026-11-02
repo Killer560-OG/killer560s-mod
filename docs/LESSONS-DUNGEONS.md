@@ -158,6 +158,18 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   still trusted Grim now and then (792: a trip 31 ticks slow). Blood Camp times on `util.PerTickServerClock`: trusted only
   after two 20-tick windows with a ping on at least 19 ticks and at most 24 pings, pings drive it while trusted, client
   ticks otherwise (logic case 1101-logic-bloodcamp-clock drives it by hand).
+- **A player-model mob is still `isAlive()` on the client after the server says it died.** Vanilla's
+  `LivingEntity.handleEntityEvent(3)` (the death event) sets health 0 and calls `die` only `if (!(this instanceof Player))`
+  (javap 26.2 and 26.3), because a player's health comes from its own data. So a killed player-model blood mob counted as
+  alive until Hypixel removed it, and Mob Ticks ran on for seconds after the kills (owner's F7 run, 2026-11-02, 233 ticks).
+  Take event 3 as the death for any tracked mob (`BloodCampFeature.DEAD_IDS`, the hook in `BloodCampPacketMixin`); never
+  read a Hypixel NPC's death off `isAlive()`. Testkit 1102-bloodcamp-npc-deaths checks vanilla still calls it alive.
+- **Mobs Left comes from The Watcher's boss bar, not from the entities** (killer560, 2026-11-02: "that top bar is how many
+  mobs are left"). The client cannot see the mobs still to come, so a count of the ones on the floor read "1+" with a fifth
+  of the camp left. The bar's size is not settled: the wiki says 9 + floor (F7 16, a Hypixel staff quote), Odin and Noamm
+  print the bar against 8 + floor. `bloodcamp/WatcherBar` starts from the wiki's and recalibrates from the bar's own
+  settled steps (k of N is whole only for the right N), rounding up; it logs "[BloodCampStats] Watcher bar ..." each step,
+  so the first real camp's log settles which size Hypixel uses.
 
 ## Terminals and solvers
 

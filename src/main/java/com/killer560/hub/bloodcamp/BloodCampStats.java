@@ -68,6 +68,9 @@ public final class BloodCampStats {
             for (long i = 0; i < steps; i++) {
                 onServerTick();
             }
+            if (phase == Phase.WAITING_KILL || phase == Phase.FIRST || phase == Phase.ALIVE) {
+                WatcherBar.tick(client);
+            }
         });
         ChatObserver.subscribe(BloodCampStats::onChat);
     }
@@ -89,6 +92,7 @@ public final class BloodCampStats {
         campLagMs = 0L;
         camped = false;
         sentThisRun = false;
+        WatcherBar.reset();
     }
 
     /** Every server tick. */
@@ -231,7 +235,7 @@ public final class BloodCampStats {
         List<String> out = new ArrayList<>(3);
         if (preview) {
             if (cfg.isHudMobsLeft()) {
-                out.add("Mobs Left: 4+");
+                out.add("Mobs Left: 4");
             }
             if (cfg.isHudMobTicks()) {
                 out.add("Mob Ticks: 37 (1.85s)");
@@ -241,13 +245,16 @@ public final class BloodCampStats {
             }
             return out;
         }
-        if (phase == Phase.IDLE) {
+        // Gone once the boss is entered (killer560, 2026-11-02: "blood camp hud should go away once boss is entered"):
+        // it stayed up for the rest of the run, since nothing but a world change ends a camp. DungeonState's F7/M7 boss
+        // phase, and the map's per-floor boss room for the other floors (LiveMapFeature.isInBoss reads both). The stats
+        // and the end-of-run party message are untouched.
+        if (phase == Phase.IDLE || com.killer560.hub.livemap.LiveMapFeature.isInBoss()) {
             return out;
         }
         Minecraft client = Minecraft.getInstance();
         if (cfg.isHudMobsLeft() && phase != Phase.DONE) {
-            int[] counts = BloodCampFeature.campCounts(client);
-            out.add("Mobs Left: " + (counts[0] + counts[1]) + (BloodCampMoveTimer.isSpawningDone() ? "" : "+"));
+            out.add("Mobs Left: " + mobsLeftText(client));
         }
         if (cfg.isHudMobTicks()) {
             out.add(String.format(Locale.US, "Mob Ticks: %d (%.2fs)", ticksLost, ticksLost / 20.0));
@@ -256,6 +263,51 @@ public final class BloodCampStats {
             out.add(String.format(Locale.US, "Camp Lag: %.2fs", campLagMs / 1000.0));
         }
         return out;
+    }
+
+    /**
+     * Mobs Left (killer560, 2026-11-02): every blood mob the camp still needs - alive AND not spawned yet - read off the
+     * Watcher's boss bar ({@link WatcherBar}). "1" only when one mob is left in the whole camp. Without his bar the
+     * client cannot see the mobs still to come, so it shows "?" until the Watcher says no more are coming ("That will be
+     * enough for now."), then the mobs it counts (alive, and on their way from the wall): never a low number while more
+     * are due.
+     */
+    static String mobsLeftText(Minecraft client) {
+        int fromBar = WatcherBar.mobsLeft(client);
+        if (fromBar >= 0) {
+            return Integer.toString(fromBar);
+        }
+        if (!BloodCampMoveTimer.isSpawningDone()) {
+            return "?";
+        }
+        int[] counts = BloodCampFeature.campCounts(client);
+        return Integer.toString(counts[0] + counts[1]);
+    }
+
+    /** Testkit: the Mobs Left value as the HUD shows it. */
+    public static String mobsLeftForTest() {
+        return mobsLeftText(Minecraft.getInstance());
+    }
+
+    /** Testkit: the Watcher's bar progress as the client draws it now (eased), or null with no bar of his. */
+    public static Float watcherBarForTest() {
+        float p = WatcherBar.progress(Minecraft.getInstance());
+        return Float.isNaN(p) ? null : p;
+    }
+
+    /** Testkit: the camp size the Watcher's bar was calibrated to (-1 before its first step). */
+    public static int watcherBarSizeForTest() {
+        return WatcherBar.calibratedForTest();
+    }
+
+    /** Testkit: the floor the camp size is read for (null or "" = the run's). */
+    public static void setWatcherBarFloorForTest(String floor) {
+        WatcherBar.setFloorForTest(floor);
+    }
+
+    /** Testkit: blood mobs counted alive now (Mob Ticks counts a tick while this is above 0). */
+    public static int aliveForTest() {
+        return BloodCampFeature.campCounts(Minecraft.getInstance())[0];
     }
 
     /** Testkit: {@link #lines}. */

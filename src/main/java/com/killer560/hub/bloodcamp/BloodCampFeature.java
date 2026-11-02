@@ -449,6 +449,43 @@ public final class BloodCampFeature {
         return step.lengthSqr() < 1e-8 || tripDir.lengthSqr() < 1e-8 || step.dot(tripDir) >= 0.0;
     }
 
+    /**
+     * Mobs the server said died ({@code ClientboundEntityEventPacket} event 3, {@code EntityEvent.DEATH}) that the client
+     * still holds as alive. Owner's F7 run, 2026-11-02 ("the counter kept ticking for about 6s after i killed the first 4
+     * with no mobs spawned"; log bloodcamp-owner-run-1102.log): three of the first four blood mobs were player-model NPCs.
+     * A vanilla client takes event 3 as a death for every living entity EXCEPT a {@link Player} -
+     * {@code LivingEntity.handleEntityEvent(3)} plays the death sound and then sets health 0 and calls {@code die} only
+     * {@code if (!(this instanceof Player))} (javap 26.2 and 26.3) - because a player's health comes from its own data.
+     * So a killed player-model blood mob stayed {@code isAlive()} on the client until Hypixel removed it, and Mob Ticks
+     * counted it alive all that time (233 ticks for that camp). Event 3 is what Hypixel sends for a dungeon mob's death
+     * (the Mimic: Skyblocker's DungeonScore and Noamm's ScoreCalculation both read it), so the blood mob is dead from that
+     * packet on. Cleared with the level; pruned as the entities leave it.
+     */
+    private static final Set<Integer> DEAD_IDS = new java.util.HashSet<>();
+
+    /** Testkit: the ids taken as dead from a death event. */
+    public static Set<Integer> deadIds() {
+        return Set.copyOf(DEAD_IDS);
+    }
+
+    /** {@code ClientPacketListener.handleEntityEvent}, on the render thread before vanilla handles it (BloodCampPacketMixin). */
+    public static void onEntityEvent(int entityId, byte eventId, Level level) {
+        if (eventId != 3 || level == null) {
+            return;
+        }
+        Entity e = level.getEntity(entityId);
+        Minecraft client = Minecraft.getInstance();
+        if (BLOOD_IDS.contains(entityId) || (e != null && client.level == level && isRoomNpc(client, e))) {
+            if (DEAD_IDS.add(entityId)) {
+                LOGGER.info("[BloodCamp] blood mob died (death event): {} tick={}",
+                        e == null ? "#" + entityId : describe(client, e), level.getGameTime());
+            }
+            if (BLOOD_IDS.remove(entityId)) {
+                BloodCampStats.onBloodMobDied(entityId);
+            }
+        }
+    }
+
     public static void onRemoveEntities(ClientboundRemoveEntitiesPacket packet, Level level) {
         if (watcherEntityId != null && McPackets.removedEntityIds(packet).contains(watcherEntityId)) {
             LOGGER.info("[BloodCamp] Watcher removed by the server: entity #{}", watcherEntityId);
@@ -516,6 +553,7 @@ public final class BloodCampFeature {
             }
             lastLevel = client.level;
             TAG_MEMO.clear(); // entity ids belong to the level
+            DEAD_IDS.clear();
             FLOOR_CLICKS.clear();
             bloodMobs.clear();
             watcherEntityId = null;
@@ -1313,14 +1351,17 @@ public final class BloodCampFeature {
     private static void tagBloodMobs(Minecraft client, long now) {
         BLOOD_IDS.removeIf(id -> {
             Entity e = client.level.getEntity(id);
-            if (e != null && !e.isRemoved() && e.isAlive() && !excluded(client, e)) {
+            if (e != null && !e.isRemoved() && e.isAlive() && !DEAD_IDS.contains(id) && !excluded(client, e)) {
                 return false;
             }
-            if (e != null && !e.isAlive()) {
+            if (e != null && (!e.isAlive() || DEAD_IDS.contains(id))) {
                 BloodCampStats.onBloodMobDied(id);
             }
             return true;
         });
+        if (!DEAD_IDS.isEmpty() && now % 20 == 0) {
+            DEAD_IDS.removeIf(id -> client.level.getEntity(id) == null); // gone from the level: ids are not reused
+        }
         // By name, every 5 ticks (killer560, 2026-10-15): a blood mob that landed while he was too far away for the
         // client to see its trip still has its name tag - see BloodMobNames.
         if (now % 5 == 0) {
@@ -1333,13 +1374,15 @@ public final class BloodCampFeature {
                     if (inRoomTile(client, stand.position()) && isBloodTagCached(stand)
                             && !stand.getName().getString().contains("\u272F")) {
                         Entity mob = BloodMobNames.mobFor(client, stand);
-                        if (mob != null && (watcherEntityId == null || mob.getId() != watcherEntityId) && !excluded(client, mob)) {
+                        if (mob != null && (watcherEntityId == null || mob.getId() != watcherEntityId) && !DEAD_IDS.contains(mob.getId())
+                                && !excluded(client, mob)) {
                             if (BLOOD_IDS.add(mob.getId())) {
                                 LOGGER.info("[BloodCamp] blood mob tagged by name tag: {} tick={}", describe(client, mob), now);
                             }
                         }
                     }
-                } else if (BloodMobNames.isNamedNpc(client, e) && inRoomTile(client, e.position()) && !excluded(client, e)) {
+                } else if (BloodMobNames.isNamedNpc(client, e) && !DEAD_IDS.contains(e.getId()) && inRoomTile(client, e.position())
+                        && !excluded(client, e)) {
                     if (BLOOD_IDS.add(e.getId())) {
                         LOGGER.info("[BloodCamp] blood mob tagged as named NPC: {} tick={}", describe(client, e), now);
                     }
@@ -1393,7 +1436,8 @@ public final class BloodCampFeature {
     /** A player-model NPC (version-2 UUID) alive inside the Blood Room tile, the Watcher excluded - see tagBloodMobs. */
     private static boolean isRoomNpc(Minecraft client, Entity e) {
         return e instanceof Player p && p != client.player && p.getUUID().version() == 2 && p.isAlive() && !p.isRemoved()
-                && (watcherEntityId == null || p.getId() != watcherEntityId) && inRoomTile(client, p.position());
+                && !DEAD_IDS.contains(p.getId()) && (watcherEntityId == null || p.getId() != watcherEntityId)
+                && inRoomTile(client, p.position());
     }
 
     /**
@@ -1852,7 +1896,7 @@ public final class BloodCampFeature {
         int alive = 0;
         for (Integer id : BLOOD_IDS) {
             Entity e = client.level == null ? null : client.level.getEntity(id);
-            if (e != null && e.isAlive() && !e.isRemoved()) {
+            if (e != null && e.isAlive() && !e.isRemoved() && !DEAD_IDS.contains(id)) {
                 alive++;
             }
         }
@@ -2180,6 +2224,7 @@ public final class BloodCampFeature {
      *  UUID, real players version 4, the same test {@code leapcounter.LeapTracker} uses) is a mob. */
     private static boolean isAttackableMob(Entity entity) {
         return entity instanceof LivingEntity && entity.isAlive() && !entity.isRemoved()
+                && !DEAD_IDS.contains(entity.getId())
                 && !(entity instanceof ArmorStand)
                 && !(entity instanceof Player && entity.getUUID().version() == 4)
                 && !isPlayerSummon(entity)
