@@ -1574,15 +1574,25 @@ public final class SimBuilder {
                         // better but still a small gap"; testkit 855 counted ~2,500-3,500 such blocks a floor).
                         int skipFrom = Integer.MAX_VALUE;
                         int skipTo = Integer.MIN_VALUE;
+                        int fillTop = Integer.MAX_VALUE;
                         if (door && Math.abs(t) <= 1) {
                             if (doorFloor == null) {
                                 continue;               // no carve recorded: leave the door alone
                             }
                             skipFrom = doorFloor;
                             skipTo = doorFloor + 3;
+                            if (t == 0) {
+                                // The door's middle column keeps Hypixel's roof as its top block: nothing goes above
+                                // the highest block it already holds over the opening. Every door scanner (Wither
+                                // Doors, Door Helpers, the map's world scan - QUOI's rule) finds a door cell by that
+                                // top block being y 73/74/81/82; walled up to the room roofs it read 99-119 and the
+                                // sim had no wither or blood doors at all (testkit 538/678, 2026-10-12 to 11-01).
+                                // A column with nothing over its opening gets Hypixel's y 73 roof and stops there.
+                                fillTop = Math.max(ownTopAbove(level, sx, sz, doorFloor + 4, maxY), doorFloor + 4);
+                            }
                         }
                         placed += fillSeamColumn(level, sx, sz, side[0], side[1], there >= 0, minY, maxY,
-                                skipFrom, skipTo);
+                                skipFrom, skipTo, fillTop);
                     }
                 }
             }
@@ -1590,9 +1600,21 @@ public final class SimBuilder {
         return placed;
     }
 
-    /** One seam column: open blocks filled between the lowest and highest block of the column(s) beside it. */
+    /** The highest non-air block of column ({@code x}, {@code z}) from {@code from} up, or {@code from - 1} if none. */
+    private static int ownTopAbove(ServerLevel level, int x, int z, int from, int maxY) {
+        net.minecraft.core.BlockPos.MutableBlockPos p = new net.minecraft.core.BlockPos.MutableBlockPos();
+        for (int y = maxY; y >= from; y--) {
+            if (!level.getBlockState(p.set(x, y, z)).isAir()) {
+                return y;
+            }
+        }
+        return from - 1;
+    }
+
+    /** One seam column: open blocks filled between the lowest and highest block of the column(s) beside it, never
+     *  above {@code fillTop}. */
     private static int fillSeamColumn(ServerLevel level, int sx, int sz, int dx, int dz, boolean bothSides,
-                                      int minY, int maxY, int skipFrom, int skipTo) {
+                                      int minY, int maxY, int skipFrom, int skipTo, int fillTop) {
         int ix = sx - dx;
         int iz = sz - dz;
         int ox = sx + dx;
@@ -1611,7 +1633,7 @@ public final class SimBuilder {
             return 0;
         }
         int placed = 0;
-        for (int y = lo; y <= hi; y++) {
+        for (int y = lo; y <= Math.min(hi, fillTop); y++) {
             if (y >= skipFrom && y <= skipTo) {
                 continue;                               // a real door's opening
             }
