@@ -191,6 +191,7 @@ public final class ModPaths {
         t.put("pricetooltip", "skyblock/pricetooltip");
         t.put("quiverdisplay", "skyblock/quiverdisplay");
         t.put("ragaxe", "skyblock/ragaxe");
+        t.put("gyrooverlay", "skyblock/gyrooverlay");
         t.put("autosell", "skyblock/autosell");
         t.put("autoanvil", "skyblock/autoanvil");
         t.put("ability", "skyblock/abilities");

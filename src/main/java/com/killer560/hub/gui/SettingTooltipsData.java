@@ -25,6 +25,10 @@ final class SettingTooltipsData {
         d.put("hud popup", "Shows a movable warning on screen with a sound for a few seconds. Move it in the HUD editor.");
         d.put("requeue same floor", "Sends /joininstance for the floor you are on once the 30 s creation cooldown and Auto Requeue's Requeue Delay have passed. Once a run.");
         d.put("party message", "Sends the text below to party chat. Leave it empty for the default line.");
+        d.put("gyrokinetic wand overlay", "While you hold the Gyrokinetic Wand, draws the 10-block ring its ability pulls mobs from, where you are looking (up to 24 blocks away).");
+        d.put("gyrokinetic wand overlay/style", "Circle Outline, a filled Circle, or a Sphere.");
+        d.put("gyro color", "The overlay's color and how see-through it is.");
+        d.put("gyrokinetic wand overlay/line width", "How thick the Circle Outline is drawn.");
         d.put("key spawn alert", "Shows a title and plays a sound when a Wither Key or Blood Key appears.");
         d.put("pre-boss warning", "When the Watcher lets you pass, lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
         d.put("crypt reminder", "Once the run clock passes the set time with fewer than 5 crypts, shows the crypt count. Outside the boss only, once a run.");

@@ -480,6 +480,7 @@ public final class ProfileManager {
                 com.killer560.hub.dungeonqueue.DungeonQueueConfig::load,
                 com.killer560.hub.creationcooldown.CreationCooldownConfig::load,
                 com.killer560.hub.instaclearwarning.InstaClearWarningConfig::load,
+                com.killer560.hub.gyrooverlay.GyroOverlayConfig::load,
                 com.killer560.hub.lfg.LfgConfig::load,
                 com.killer560.hub.dvd.DvdConfig::load,
                 com.killer560.hub.emotes.ChatEmoteConfig::load,
