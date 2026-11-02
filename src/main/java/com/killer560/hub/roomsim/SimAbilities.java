@@ -421,9 +421,10 @@ public final class SimAbilities {
     /**
      * Teleports onto the block being looked at, if it is a place you could stand - from the server's copy of him.
      *
-     * <p>The ray is the PLANNER'S ({@code TeleportUtils.getLook} and {@code traverseVoxels}, sneaking eye height),
-     * run against the server's own level, so a hop lands exactly where the Interactive Map's path search and Auto
-     * Routes' recorded look say it will - the same model of Hypixel's etherwarp the mod uses everywhere else. A
+     * <p>The ray is the PLANNER'S walk ({@code TeleportUtils.traverseVoxels}, sneaking eye height) along the Etherwarp
+     * Overlay's look (vanilla {@code getLookAngle}, since 2026-11-02 - see the line below), run against the server's own
+     * level, so a hop lands where the overlay's box is and where the Interactive Map's path search and Auto Routes'
+     * recorded look say it will - the same model of Hypixel's etherwarp the mod uses everywhere else. A
      * chained hop resolves from where the previous one put him, because the server player is already there, which
      * is what lets hops chain one a tick (killer560, 2026-10-04: "the interactive map etherwarp on sim is really
      * slow"). The overlay's resolver is the same traversal with the same clearance rule.
@@ -434,7 +435,14 @@ public final class SimAbilities {
     private static boolean etherwarp(ServerPlayer sp, ItemStack held) {
         ServerLevel level = (ServerLevel) sp.level();
         double range = ETHERWARP_RANGE + tuners(held);
-        Vec3 look = com.killer560.hub.livemap.autoclear.TeleportUtils.getLook(sp.getYRot(), sp.getXRot());
+        // The LOOK is the Etherwarp Overlay's: vanilla's view vector of the server player's rotation (getLookAngle, Mth's
+        // sine table), not TeleportUtils.getLook (Math.sin). The two differ by up to ~1e-4 rad, which only matters where
+        // the ray passes a voxel corner - and on a carpeted floor it meets the full-cube carpet voxels a block or more
+        // before the carpet he looks at, grazing corner after corner, so there the sim landed one carpet off the box the
+        // overlay drew (testkit 1102-sim-ew-carpet-room, Wizard: box -96 -40 -122, sim -96 -40 -121). killer560
+        // (2026-11-02): the overlay's prediction is right on Hypixel and the trouble was only on the sim. Planned aims
+        // (EtherSearch.holds, +-0.01 degrees) hold under both, so the planner's hops land as before.
+        Vec3 look = sp.getLookAngle();
         Vec3 from = new Vec3(sp.getX(),
                 sp.getY() + com.killer560.hub.livemap.autoclear.TeleportUtils.eyeHeight(true), sp.getZ());
         Vec3 to = from.add(look.scale(range));

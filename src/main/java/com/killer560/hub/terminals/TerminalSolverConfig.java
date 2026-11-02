@@ -225,9 +225,10 @@ public final class TerminalSolverConfig {
     private int melodyLookaheadClicks = 0;
     // Per killer560's explicit "add a skip on edges or skip on all section" request (2026-09-10) - gates
     // WHEN the lookahead burst above is allowed to fire. EDGES (default, safer) only allows it when the
-    // real match happens at row 0 or the last row - the two physical ends of the track, matching the
-    // original "very first spot of the very first row" request; middle rows just click live, one at a
-    // time. ALL fires the burst from a match at ANY row and - per killer560's explicit "click through the
+    // matched target is the first or last slot of the track (killer560, 2026-11-02: "EDGES means only the first
+    // and last slot"), whatever the lookahead; a target on one of the three middle slots is clicked live, one row
+    // at a time. Until 2026-11-02 it meant the first or last ROW, which on the 3-row board let a row-1 match with
+    // lookahead 2 click the whole board. ALL fires the burst from a match at ANY row and - per killer560's explicit "click through the
     // whole row anytime it gets a proper click" - ignores melodyLookaheadClicks entirely and bursts every
     // remaining row down to the last one, not just a capped number of them.
     private MelodySkipMode melodySkipMode = MelodySkipMode.EDGES;

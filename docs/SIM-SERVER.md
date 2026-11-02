@@ -49,7 +49,11 @@ sim, fix the sim.
 - **Landing height is one value.** Etherwarp lands at the collision top + 1.05 (`SimAbilities.ETHERWARP_LANDING_OFFSET`),
   then falls; the planner always plans 1.05 (`EtherwarpPathfinder.STAND_OFFSET`). Instant Transmission lands on a whole
   y - the measured Hypixel behavior, which `ClearNode.AotvNode` (+ 1.0) predicts. The ray is the planner's
-  (`TeleportUtils.traverseVoxels` with a `Level` argument, eye 1.27, `getLook`), run on the server level.
+  walk (`TeleportUtils.traverseVoxels` with a `Level` argument, eye 1.27), run on the server level, along the Etherwarp
+  Overlay's look: vanilla `getLookAngle` (Mth's sine table), not `TeleportUtils.getLook` (Math.sin). The two differ by
+  ~1e-4 rad, enough at a voxel corner; on carpeted floors the ray grazes full-cube carpet voxels corner after corner, and
+  the sim landed one carpet off the overlay's box (killer560 2026-11-02, testkit 1102-sim-ew-carpet-room). Planned aims
+  hold +-0.01 degrees (`EtherSearch.holds`), so they land the same under either.
 - **Weapons aimed by the packet.** Spirit Sceptre and Terminator right clicks are resolved on the server, which hands the
   client-side flight code the server player's eye and rotation through `SimAim`. Their LEFT clicks (Mage beam,
   Salvation, Terminator left shot) are still read off the client's attack key in `SimClass`: a left click in the air

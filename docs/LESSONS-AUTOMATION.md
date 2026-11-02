@@ -680,11 +680,16 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   blocks held; ship3-1027). The same shape in AP3: `Ap3Feature.onChat` returned before reading the leap line whenever no
   node was running, so an armed route never knew a landing was a leap (1027-ap3-live34-beside-leap).
 
-- **Etherwarp passability: carpets go through** (to-do Doc 2026-11-01, "doesnt work right on carpets"). The modern
-  passable tables (Odin, QUOI, ours in EtherwarpOverlayFeature and TeleportUtils) are the 1.8 "valid feet" id list
-  (Skytils/Odin 1.8 `validEtherwarpFeetIds`) carried over block by block, and only carpet (171) and lily pad (111) were
-  dropped. Carpet is now passable in both tables: a look at a carpet lands on the block under it, a carpeted block is a
-  landing (testkit 1101-ew-carpet). Not yet confirmed in game on Hypixel; lily pad left as it was.
+- **Etherwarp passability: carpets are solid** (killer560, 2026-11-02, asked about the to-do Doc's "doesnt work right on
+  carpets": the trouble was only on the sim). The modern passable tables (Odin, QUOI, ours in EtherwarpOverlayFeature and
+  TeleportUtils) are the 1.8 "valid feet" id list carried over block by block with carpet (171) and lily pad (111) dropped;
+  doc-routes 419fd24c added carpet back as passable, which made 62-argrim-1020-midas fail 3 of 3 and was reverted
+  (65199074) before it shipped. A look at a carpet lands ON the carpet; a carpeted block is no landing. Testkit 1101-ew-carpet
+  checks the prediction, 1102-sim-ew-carpet(-room) that the sim's own etherwarp lands where it says. What was wrong on the
+  sim was the LOOK, not the table: it cast along `TeleportUtils.getLook` (Math.sin) while the overlay casts along vanilla
+  `getLookAngle` (Mth's sine table, ~1e-4 rad apart). A ray at a carpet meets the full-cube carpet voxels a block or more
+  before the carpet looked at, grazing voxel corners, so the sim landed one carpet off the box 2 of 23 times in real rooms.
+  The sim now casts along `getLookAngle`. Any two etherwarp models must share the look formula, not only the block table.
 - **Spring Boots charge is countable from sound alone**: `dungeonalerts.SpringBootsOverlay` (Odin's pitch table) counts
   `note_block.pling` notes while crouched in Spring Boots; AP3's Crystal node reads `chargedHeight()` and asks it to
   count with the HUD off (`setCountForAp3`). Its handler is behind the Skyblock gate (DungeonAlertsPackets.guard).

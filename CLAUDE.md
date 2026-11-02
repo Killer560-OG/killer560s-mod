@@ -69,9 +69,10 @@ instance, cheat: Minecraft options only, no mod settings), `26.3 Default` (cheat
 to see what the mod turns on from first download), `26.3 Mod Only Test` / `26.2 Mod Only Test` (cheat; 26.3's carries all of
 26.1.2 Mod Only Test's mod config, 26.2's that of `26.2 Cheat`), `26.3 Legit` / `26.2 Legit` (settings from 26.1.2 Legit), and
 the private `26.3 Untested Cheat` / `26.3 Untested Legit`, which take only `-PtestingBuild` jars. No SIM recording instance.
-Records (profit, run history, stats) are in the shared store, not in any instance. The 26.1.2 instances (Dungeons, Mod
-Only Test, SIM recording, Legit, Untested Cheat/Legit) and `26.2 Cheat` stay until he has checked the new ones; their
-mod config is backed up in `killer560s-mod-logs/instance-backups-1101/`. `Title Screen GUI` (the main-menu preview instance, marker `killer560smod-title-screen-gui`, docs/TESTING-HOOKS.md) was
+Records (profit, run history, stats) are in the shared store, not in any instance. Of the old instances only
+`26.1.2 (Dungeons)` and `26.1.2 (Mod Only Test)` (retired, 26.1.2 jar 67b77105 - never deploy to or boot them) and `26.2 Cheat`
+(deployed like the others) still exist (checked 2026-11-02); delete the 26.1.2 ones only with his OK. Their mod config is
+backed up in `killer560s-mod-logs/instance-backups-1101/`. The handoff file lists every instance with its deployed commit. `Title Screen GUI` (the main-menu preview instance, marker `killer560smod-title-screen-gui`, docs/TESTING-HOOKS.md) was
 retired on 2026-10-16; it and eight older retired instances were deleted on 2026-10-26 (PC cleanup). Every
 `options.txt` is a copy of Dungeons'. Mod Only Test
 does not reach the instance he plays on: after work lands, check every instance by md5 and promote or delete any
@@ -606,8 +607,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   run it never opens unless `-Dkiller560.test.intro=show` (docs/TESTING-HOOKS.md), so title-screen cases are not
   interrupted. A GUI picture-in-picture (`g.skin`, entity, item models) ignores the pose: transform its box yourself
   under Auto Scale (docs/LESSONS-GUI.md).
-- Etherwarp passability (2026-11-01): carpets are passable in BOTH tables (EtherwarpOverlayFeature, TeleportUtils), as in
-  Hypixel's 1.8 feet list; change the two together or the overlay, the sim and Auto Routes/ZPEW disagree (LESSONS-AUTOMATION).
+- Etherwarp passability: carpets are SOLID in both tables (EtherwarpOverlayFeature, TeleportUtils) and in the testkit's
+  HxAbilities (killer560, 2026-11-02: the carpet trouble was only on the sim; doc-routes 419fd24c's passable carpets were
+  reverted in 65199074 and stay out). Change the tables together or the overlay, the sim and Auto Routes/ZPEW disagree
+  (LESSONS-AUTOMATION). The sim's etherwarp must land where they predict: testkit 1102-sim-ew-carpet.
   Trap-room Auto Routes rules are tested without a trap capture through `AutoTrap.testTrapRoom` (testkit 62-argrim-1101-trap*).
 - A cheat setting goes under the legit ones even when the owner asks for a legit block "at the bottom" (testkit 512 checks
   every tab): the Etherwarp tab puts Works For last among legit rows and its cheat rows under it (2026-11-01).
