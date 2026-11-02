@@ -874,6 +874,12 @@ public final class BreakerAuraFeature {
         // consecutive ticks with no cooldown between them; OFF waits the cooldown after each (multibreak-1102).
         int allowed = 1;
         boolean multiBreak = cfg.isBreakerAuraMultiBreak();
+        // Burst Multi Break (owner exception, 2026-11-02): everything in reach this tick, charges the only limit - the
+        // pre-d2da5856 Multi Break. GrimAC's experimental MultiBreak flags it; the setting's label says so.
+        boolean burst = cfg.isBreakerAuraBurstMultiBreak();
+        if (burst) {
+            allowed = available;
+        }
         Vec3 feet = player.position();
         Vec3 vel = player.getDeltaMovement();
         double speed = Math.hypot(vel.x, vel.z);
@@ -908,7 +914,7 @@ public final class BreakerAuraFeature {
         // The gate is still asked - Breaker Aura still takes its turn among the other actors, and still stands
         // down for a screen, a teleport, a world swap or a higher-priority actor. Having won the tick it sends one
         // break (Multi Break, several on one tick, was removed 2026-11-02 for GrimAC MultiBreak).
-        if (!order.isEmpty() && !com.killer560.hub.util.DigWindow.open()) {
+        if (!burst && !order.isEmpty() && !com.killer560.hub.util.DigWindow.open()) {
             // Something already dug (or queued a dig for) this server tick - a route's breaker or boom, his own hand. A
             // second block now is GrimAC MultiBreak; it goes next tick (util/DigWindow).
             com.killer560.hub.util.DigWindow.mayDigOrHold(order.get(0));
@@ -931,7 +937,8 @@ public final class BreakerAuraFeature {
         // is dug - first in the order above that is - and the look for the next one is set in the same tick (BreakerAim).
         // With none struck, this tick aims (pitch only, or a yaw turn while he is not walking) and digs nothing.
         List<BlockPos> inReach = order;
-        if (!order.isEmpty()) {
+        // Burst Multi Break (owner exception, labeled as flagging) sends every pick in reach this tick, unaimed, as before.
+        if (!burst && !order.isEmpty()) {
             BlockPos ready = null;
             for (BlockPos p : order) {
                 if (BreakerAim.digReady(player, p)) {
@@ -1052,7 +1059,9 @@ public final class BreakerAuraFeature {
                 break;
             }
         }
-        if (nextOnLook) {
+        if (burst) {
+            // The burst digs unaimed; nothing to aim for.
+        } else if (nextOnLook) {
             BreakerAim.keep();
         } else {
             for (BlockPos p : inReach) {

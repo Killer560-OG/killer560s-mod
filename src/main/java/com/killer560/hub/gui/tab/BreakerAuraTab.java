@@ -191,6 +191,10 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
         widgets.add(onOffButton("Multi Break", cfg::isBreakerAuraMultiBreak, cfg::setBreakerAuraMultiBreak, cfg::save,
                 null, col2bX, y, col2W, 18));
         y += 20;
+        // Owner exception (killer560, 2026-11-02): the old one-tick burst, opt-in, labeled as flagging.
+        widgets.add(onOffButton("Burst Multi Break (flags newest Grim)", cfg::isBreakerAuraBurstMultiBreakRaw,
+                cfg::setBreakerAuraBurstMultiBreak, cfg::save, null, contentX, y, contentWidth, 18));
+        y += 20;
 
         // How the picks are drawn (2026-10-06): Highlight (the original, depth-tested) or Waypoint (through walls,
         // out to the render distance), each as Outline / Fill / Filled Outline.
