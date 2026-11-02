@@ -873,6 +873,7 @@ public final class RouteExecutor {
         chainAfterLanding = false;
         landingConfirmed = false;
         execTicks = 0;
+        aimTurnPos = null; // execTicks starts again: a count from the last run must not carry over
         // A route most often starts on the map's warp landing (the start node arms on that tick, no hold): a boom there
         // gets the landing-tick retry too.
         lastLandingAt = 0;
@@ -6246,12 +6247,18 @@ public final class RouteExecutor {
     /** Consecutive-tick turns only: a target last turned to more than 2 ticks ago (an earlier node, an earlier run on the
      *  same block - 62-argrim-1102-multibreak's repeats skipped their first block on a stale count) starts again at 1. */
     private static int aimTurns(BlockPos pos) {
-        if (!pos.equals(aimTurnPos) || execTicks - aimTurnTick > 2 || execTicks < aimTurnTick) {
+        if (!pos.equals(aimTurnPos) || (aimTurnTick != Long.MIN_VALUE && (execTicks - aimTurnTick > 2 || execTicks < aimTurnTick))) {
             aimTurnPos = pos.immutable();
             aimTurnCount = 0;
+            aimTurnTick = Long.MIN_VALUE;
         }
-        aimTurnTick = execTicks;
-        return ++aimTurnCount;
+        // One count per tick: the step runs more than once in a tick (a node chained on the same tick), and counting
+        // each call skipped a node's first block before it had been turned to once (62-argrim-1102-multibreak #2/#4/#5).
+        if (execTicks != aimTurnTick) {
+            aimTurnTick = execTicks;
+            aimTurnCount++;
+        }
+        return aimTurnCount;
     }
 
     /**
@@ -6265,6 +6272,7 @@ public final class RouteExecutor {
             return; // the one place a breaker node's dig goes out: never a Fairy room or a guarded secret
         }
         lastDugAt.put(pos, client.level.getGameTime());
+        aimTurnPos = null; // a dig went: the next target's turns count from 1
         // The face the eye actually sees (Breaker Aura's clip, BlockHits). It was always UP, which no dig from below
         // a block's top can carry: GrimAC PositionBreakA flagged and canceled every breaker block above the feet
         // (2026-10-05, 62-argrim), so those blocks never broke.
