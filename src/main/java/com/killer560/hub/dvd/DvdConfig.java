@@ -87,7 +87,9 @@ public final class DvdConfig {
                         if (!e.gifFileName.isBlank() && GifPlayerFeature.fileInFolder(e.gifFileName) == null) {
                             e.gifFileName = "";
                         }
-                        if (!e.cornerHitSoundFile.isBlank()
+                        e.cornerHitVolume = Math.max(0f, Math.min(DvdFeature.MAX_CORNER_VOLUME,
+                                ConfigJson.getFloat(obj, "cornerHitVolume", e.cornerHitVolume)));
+                        if (!e.cornerHitSoundFile.isBlank() && !DvdFeature.isBuiltinSound(e.cornerHitSoundFile)
                                 && GifPlayerFeature.fileInFolder(e.cornerHitSoundFile) == null) {
                             e.cornerHitSoundFile = "";
                         }
@@ -145,6 +147,7 @@ public final class DvdConfig {
                 obj.addProperty("boxHeight", e.boxHeight);
                 obj.addProperty("scale", e.scale);
                 obj.addProperty("cornerHitSoundFile", e.cornerHitSoundFile);
+                obj.addProperty("cornerHitVolume", e.cornerHitVolume);
                 obj.addProperty("cornerHitText", e.cornerHitText);
                 obj.addProperty("changeColorOnCornerHit", e.changeColorOnCornerHit);
                 obj.addProperty("changeColorOnWallHit", e.changeColorOnWallHit);

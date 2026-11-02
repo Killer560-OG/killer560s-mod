@@ -411,7 +411,9 @@ final class SettingTooltipsData {
         d.put("hud elements/width", "Width of the GIF box in pixels; type it, then press Set Width.");
         d.put("width", "Width or line thickness of this element.");
         d.put("height", "Height of the GIF box in pixels; type it, then press Set Height.");
-        d.put("corner sound", "Click to pick which audio file plays when the box hits a corner exactly, or None.");
+        d.put("corner sound", "Click to pick what plays when the box hits a corner exactly: a game sound, one of your audio files, or None.");
+        d.put("corner volume", "How loud the corner sound is, 0% to 500%. Above 100% it plays in layers, so 300% is three copies together.");
+        d.put("on screen corner text", "Text shown on screen when the box hits a corner; {name} becomes the GIF or DVD name.");
         d.put("corner hit message", "Text shown on screen when the box hits a corner; {name} becomes the GIF or DVD name.");
         d.put("done", "Finishes setting up this DVD box and returns to the list.");
         d.put("custom leap menu", "Replaces Hypixel's Spirit Leap menu with 4 big teammate boxes; click one or press 1-4 to leap.");

@@ -392,9 +392,14 @@ public final class DvdFeature {
         if (e.changeColorOnCornerHit || e.changeColorOnWallHit) {
             rt.currentColor = nextColor(rt.currentColor);
         }
-        if (!e.cornerHitSoundFile.isBlank()) {
+        if (!e.cornerHitSoundFile.isBlank() && e.cornerHitVolume > 0f) {
             String soundFile = e.cornerHitSoundFile;
-            SOUND_EXECUTOR.submit(() -> playSound(soundFile));
+            float volume = e.cornerHitVolume;
+            if (isBuiltinSound(soundFile)) {
+                playBuiltin(soundFile, volume);
+            } else {
+                SOUND_EXECUTOR.submit(() -> playSound(soundFile, volume));
+            }
         }
         if (!e.cornerHitText.isBlank()) {
             String nameValue = (e.contentType == DvdContentType.GIF && !e.gifFileName.isBlank())
@@ -455,7 +460,68 @@ public final class DvdFeature {
         graphics.centeredText(font, text, x + w / 2, y + (h - font.lineHeight) / 2, rt.currentColor);
     }
 
-    private static void playSound(String filename) {
+    /** Prefix of a game-sound choice in {@link DvdEntry#cornerHitSoundFile}. */
+    public static final String BUILTIN_PREFIX = "builtin:";
+    /** Corner Volume's top: 500%. */
+    public static final float MAX_CORNER_VOLUME = 5.0f;
+    private static volatile int cornerSoundLayers;
+
+    public static boolean isBuiltinSound(String choice) {
+        return choice != null && choice.startsWith(BUILTIN_PREFIX);
+    }
+
+    /** The game sound a {@code builtin:} choice names (Level Up for an unknown name). */
+    public static com.killer560.hub.dungeonalerts.SecretSound.SoundChoice builtinChoice(String choice) {
+        return com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(choice.substring(BUILTIN_PREFIX.length()));
+    }
+
+    /** The label a corner sound choice shows as. */
+    public static String soundLabel(String choice) {
+        if (choice == null || choice.isBlank()) {
+            return "None";
+        }
+        return isBuiltinSound(choice) ? builtinChoice(choice).label : choice;
+    }
+
+    /** Copies started by corner sounds (one per 100% of volume, rounded up) - testkit evidence; the test client is muted. */
+    public static int cornerSoundLayers() {
+        return cornerSoundLayers;
+    }
+
+    /** Gains of the copies that make {@code volume}: full copies then the remainder (2.5 -> 1, 1, 0.5). */
+    static float[] layers(float volume) {
+        int n = Math.max(1, (int) Math.ceil(volume - 1.0e-4f));
+        float[] out = new float[n];
+        for (int i = 0; i < n; i++) {
+            out[i] = Math.max(0f, Math.min(1.0f, volume - i));
+        }
+        return out;
+    }
+
+    private static void playBuiltin(String choice, float volume) {
+        net.minecraft.sounds.SoundEvent event = builtinChoice(choice).sound();
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> {
+            for (float v : layers(volume)) {
+                try {
+                    client.getSoundManager().play(
+                            net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(event, 1.0f, v));
+                    cornerSoundLayers++;
+                } catch (RuntimeException ex) {
+                    LOGGER.warn("DVD corner sound failed to play: {}", choice, ex);
+                    return;
+                }
+            }
+        });
+    }
+
+    private static void playSound(String filename, float volume) {
+        for (float v : layers(volume)) {
+            playSoundOnce(filename, v);
+        }
+    }
+
+    private static void playSoundOnce(String filename, float gain) {
         try {
             Path folder = GifPlayerFeature.folder();
             Path file = GifPlayerFeature.fileInFolder(filename);
@@ -469,6 +535,13 @@ public final class DvdFeature {
             try (AudioInputStream in = AudioSystem.getAudioInputStream(playable.toFile())) {
                 Clip clip = AudioSystem.getClip();
                 clip.open(in);
+                if (gain < 0.999f && clip.isControlSupported(javax.sound.sampled.FloatControl.Type.MASTER_GAIN)) {
+                    javax.sound.sampled.FloatControl g =
+                            (javax.sound.sampled.FloatControl) clip.getControl(javax.sound.sampled.FloatControl.Type.MASTER_GAIN);
+                    float db = gain <= 0.0001f ? g.getMinimum() : (float) (20.0 * Math.log10(gain));
+                    g.setValue(Math.max(g.getMinimum(), Math.min(g.getMaximum(), db)));
+                }
+                cornerSoundLayers++;
                 clip.addLineListener(event -> {
                     if (event.getType() == LineEvent.Type.STOP) {
                         clip.close();
