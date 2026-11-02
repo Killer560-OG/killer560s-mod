@@ -204,8 +204,10 @@ public final class SimLiveMobs {
                         if (layout.roomAtWorld(x + 0.5, z + 0.5) != room) {
                             continue;
                         }
-                        // c is a tile center at the doorways' feet level + 1: never under that floor, less one (see besideSpot).
-                        for (int y = c.getY() - 2; y <= c.getY() + 8; y++) {
+                        // c is a tile center at the doorways' feet level + 1: never under that floor less one, nor more than four
+                        // above it - a pit or a high ledge was a mob Auto Clear could not reach and a key nobody could pick up
+                        // (doc-adm-sim-1101: Flags' key 3 below the floor, then a zombie 8 above it).
+                        for (int y = c.getY() - 2; y <= c.getY() + 3; y++) {
                             BlockPos feet = new BlockPos(x, y, z);
                             if (solid(level, feet.below()) && !solid(level, feet) && !solid(level, feet.above())
                                     && level.getFluidState(feet).isEmpty()) {
@@ -288,7 +290,7 @@ public final class SimLiveMobs {
             if (dx * dx + dz * dz < 4 || layout.roomAtWorld(x + 0.5, z + 0.5) != room) {
                 continue;
             }
-            for (int y = Math.max(near.getY() - 2, floorMin); y <= near.getY() + 2; y++) {
+            for (int y = Math.max(near.getY() - 2, floorMin); y <= Math.min(near.getY() + 2, floorMin + 5); y++) {
                 BlockPos feet = new BlockPos(x, y, z);
                 if (solid(level, feet.below()) && !solid(level, feet) && !solid(level, feet.above())
                         && !solid(level, feet.above(2)) && level.getFluidState(feet).isEmpty()) {
