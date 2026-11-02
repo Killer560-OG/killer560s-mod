@@ -273,6 +273,11 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   current push was predicted differently. A ladder beside STILL water (1102-fairy-grim-ladderwater-*), six pool crossings
   and six server teleports mid-walk (1102-fairy-grim-tp-*/-water) are clean. The island generator now makes only still
   water; whether a human's keys in that current flag too is not proven (the replay control diverged).
+- **Measure a planner rule on all five islands before keeping it.** "No step up from a ladder's top block" (2026-11-02) read right
+  and fixed the one Gold Mines stall it was written for, but the full island run fell from 34/55 to 29/55 (Spider's Den 8 -> 5,
+  more "in water, no way back") and it was reverted. Single-island runs also vary by a soul or two between identical jars.
+- **A soul whose stand is out of reach must never be clicked anyway**: the pre-doc-fairy jar drew GrimAC Reach 3.02-3.26 on
+  the stand-ins (it clicked once the node was within 3); the click now needs eye-to-box <= 2.85 and a clear line.
 - **Simulated key presses (Fabric's `TestInput.pressKey`) never reach a key read with `KeyUtil.isKeyDown`** (GLFW's own
   state): the Start/Stop key poll did not see the testkit's K. The key is taken from `KeyboardHandler.keyPress`, the same
   event the "any key stops it" rule reads, so a press is either the toggle or a stop, never both.
