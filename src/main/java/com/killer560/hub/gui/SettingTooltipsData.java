@@ -1016,7 +1016,8 @@ final class SettingTooltipsData {
         d.put("peek chat", "Opens the chat history with no text box, so you can read and scroll it. Peek Mode says whether it stays open while the key is held.");
         d.put("peek chat key", "Key or mouse button that opens Peek Chat (in Toggle Peek press it again, or Escape, to close; in Hold To Peek let go of it). Only works with no menu open. Esc while binding clears it.");
         d.put("peek mode", "Toggle Peek: press the key to open the chat, press it again to close. Hold To Peek: the chat is open while you hold the key. The mouse wheel scrolls the chat either way.");
-        d.put("unlimited chat history", "Vanilla forgets everything but the last 100 chat messages. On, the whole session stays in chat and can be scrolled back to. Uses more memory the longer you play.");
+        d.put("chat history", "How many chat messages stay scrollable. Off: vanilla's last 100. Limited: the number set below (200-10000). Unlimited: the whole session, using more memory the longer you play.");
+        d.put("history limit", "How many chat messages Limited keeps, from 200 to 10000 in steps of 200.");
         d.put("open loadouts key", "A key (or mouse button) that runs /loadouts from anywhere with no menu open, like the Open Loadouts button. Needs Loadout Keybinds on. Esc while binding clears it.");
         d.put("open loadouts", "Runs /loadouts: opens Hypixel's Loadout menu. Works whether or not Loadout Keybinds is on.");
         d.put("ability keybinds", "Custom keys for your dungeon class Ability and Ultimate.");
