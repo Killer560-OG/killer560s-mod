@@ -222,6 +222,8 @@ public final class TerminalSolverFeature {
     private static final int MELODY_UNSEEN = -2;
     /** The slot the moving pane was last seen in, and since when (client ms): how long it has stood there. */
     private static int melodyPaneSlot = -1;
+    /** When the Melody board was last scanned (every frame while it is open). */
+    private static long melodyLastScanMs;
     private static long melodyPaneSinceMs;
     /** When the pane last STEPPED (moved column on one row), and on which chest row: the server's step clock. A row
      *  change is not a step - the pane appears on the next row with the server's step clock still running (Hx keeps
@@ -647,6 +649,7 @@ public final class TerminalSolverFeature {
         java.util.Arrays.fill(melodyClickedColumn, -1);
         melodyPaneSlot = -1;
         melodyPaneSinceMs = 0;
+        melodyLastScanMs = 0;
         melodyLastStepAtMs = 0;
         melodyLastStepChestRow = -1;
         // melodyStepSamples stay: the step time is the server's, so a new board starts with the last one's.
@@ -1030,6 +1033,9 @@ public final class TerminalSolverFeature {
      *  {@link #paneDyeColor}/{@link #isMelodyEndpointColor} classification the rendering path already
      *  relies on, instead of a separate, narrower Item check. */
     private static void tickMelodyAutoClick(ContainerScreen screen, List<ItemStack> items) {
+        long scanAt = System.currentTimeMillis();
+        long prevScan = melodyLastScanMs;
+        melodyLastScanMs = scanAt;
         fireDueMelodyLookaheadClicks(screen);
 
         Integer limeSlot = null;
@@ -1060,7 +1066,10 @@ public final class TerminalSolverFeature {
             melodyButtonRow = melodyButtonIndexForChestRow(limeSlot / 9);
             melodyCurrentColumn = limeSlot % 9 - 1;
             if (limeSlot != melodyPaneSlot) {
-                long seenAt = System.currentTimeMillis();
+                // When the pane moved: some time after the previous scan of the board, so the EARLIEST it can have been
+                // is taken - after a frame hitch the step may be most of the hitch old (testkit 292 on a loaded 26.3
+                // client: a step seen 144 ms "ago" that the server had made over 500 ms before the click arrived).
+                long seenAt = prevScan > 0 && scanAt - prevScan < 3000 ? prevScan + 1 : scanAt;
                 int chestRow = limeSlot / 9;
                 if (melodyPaneSlot >= 0 && chestRow == melodyPaneSlot / 9) {
                     // A step on one row. Sampled only against the previous step on this same row.
