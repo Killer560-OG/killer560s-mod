@@ -696,6 +696,9 @@ public final class FakeCursor {
         g.nextStratum();
         g.pose().pushMatrix();
         // Window pixels from here on: the arrow's tip at the pointer, one mask pixel = content-scale screen pixels.
+        // From identity, not from the pose the screen left: one of the mod's own screens (Termism) is drawn under Auto
+        // Scale's factor, which would otherwise scale the pointer's window position too and put it off the board.
+        g.pose().identity();
         g.pose().scale(1f / gui, 1f / gui);
         g.pose().translate(curX, curY);
         g.pose().scale(content, content);

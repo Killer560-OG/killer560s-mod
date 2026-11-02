@@ -412,9 +412,12 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
             return false;
         }
         float scale = scale();
-        out[0] = gridOriginX + (col * CELL_SIZE + 8f) * scale;
-        out[1] = gridOriginY + (row * CELL_SIZE + 8f) * scale;
-        out[2] = 16f * scale;
+        // This screen is laid out on Auto Scale's canvas (AutoScaleScreenMixin): its coordinates times the screen's
+        // factor are GUI units, which is what the cursor works in.
+        float canvas = com.killer560.hub.hud.AutoScale.appliedFactor(this);
+        out[0] = (gridOriginX + (col * CELL_SIZE + 8f) * scale) * canvas;
+        out[1] = (gridOriginY + (row * CELL_SIZE + 8f) * scale) * canvas;
+        out[2] = 16f * scale * canvas;
         return true;
     }
 
