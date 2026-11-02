@@ -454,3 +454,6 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
 - Video Browser: YouTube Shorts loop, so a `<video>` never fires `ended`; Auto Scroll counts a `timeupdate` that finds
   the video under 1 s after one in its last second (caught in capture phase: `timeupdate` does not bubble). Checked in
   headless Chrome with ffmpeg clips (killer560s-mod-logs/docmenu-1101-vb/endhook_test.py).
+- `CommitEditBox.withSet` takes its Set button (SET_W 34 + SET_GAP 4) out of the box's own width, so a row laid out before
+  textbox-1101 can leave a box too narrow: the Command Shortcuts custom row's command box fell to 52 px in the test window
+  (testkit 621 wants 60). Reserve the Set width when sizing the row (ship-1102h, eb3719df: the name box pays for it).
