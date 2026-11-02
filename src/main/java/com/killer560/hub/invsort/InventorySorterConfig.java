@@ -42,6 +42,14 @@ public final class InventorySorterConfig {
     /** Layout name -> key (or mouse-button, {@link KeyUtil#MOUSE_CODE_BASE}) code that applies it. Insertion ordered. */
     private final Map<String, Integer> layoutKeys = new LinkedHashMap<>();
     private final Map<String, Integer> layoutKeysReadOnly = java.util.Collections.unmodifiableMap(layoutKeys);
+    /** Key (or mouse-button) code that opens the layouts menu (killer560, 2026-11-01), {@link KeyUtil#NONE} for none. */
+    private int openMenuKey = KeyUtil.NONE;
+    /** Layout names in the order the menu shows them, dragged there (killer560, 2026-11-01). A name missing from it
+     *  sorts after these, alphabetically. */
+    private final java.util.List<String> layoutOrder = new java.util.ArrayList<>();
+    /** Instant (0-tick): every click of the sort in ONE client tick, without opening the inventory screen. Off by
+     *  default; see docs/FEATURES.md for what it does to the packet pattern. */
+    private boolean instant = false;
 
     private InventorySorterConfig() {
     }
@@ -72,6 +80,16 @@ public final class InventorySorterConfig {
                 cfg.setTicksBetweenMoves(Math.round(min / 50f));
                 cfg.setRandomExtraTicks(Math.round((max - min) / 50f));
             }
+            cfg.openMenuKey = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "openMenuKey", KeyUtil.NONE));
+            cfg.instant = ConfigJson.getBool(obj, "instant", cfg.instant);
+            if (obj.has("layoutOrder") && obj.get("layoutOrder").isJsonArray()) {
+                for (com.google.gson.JsonElement el : obj.getAsJsonArray("layoutOrder")) {
+                    if (el.isJsonPrimitive() && InventoryLayoutStore.validateName(el.getAsString()) == null
+                            && cfg.layoutOrder.size() < 500) {
+                        cfg.layoutOrder.add(el.getAsString());
+                    }
+                }
+            }
             JsonObject keys = ConfigJson.getObject(obj, "layoutKeys");
             if (keys != null) {
                 for (String name : keys.keySet()) {
@@ -99,6 +117,13 @@ public final class InventorySorterConfig {
                 keys.addProperty(e.getKey(), e.getValue());
             }
             obj.add("layoutKeys", keys);
+            obj.addProperty("openMenuKey", openMenuKey);
+            obj.addProperty("instant", instant);
+            com.google.gson.JsonArray order = new com.google.gson.JsonArray();
+            for (String name : layoutOrder) {
+                order.add(name);
+            }
+            obj.add("layoutOrder", order);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -176,5 +201,48 @@ public final class InventorySorterConfig {
     /** A copy: layout name -> key code. */
     public Map<String, Integer> getLayoutKeys() {
         return new LinkedHashMap<>(layoutKeys);
+    }
+
+    public int getOpenMenuKey() {
+        return openMenuKey;
+    }
+
+    public void setOpenMenuKey(int code) {
+        this.openMenuKey = KeyUtil.sanitizeBind(code);
+    }
+
+    public boolean isInstant() {
+        return instant;
+    }
+
+    public void setInstant(boolean instant) {
+        this.instant = instant;
+    }
+
+    /** A copy of the saved menu order (names). */
+    public java.util.List<String> getLayoutOrder() {
+        return new java.util.ArrayList<>(layoutOrder);
+    }
+
+    public void setLayoutOrder(java.util.List<String> names) {
+        layoutOrder.clear();
+        for (String name : names) {
+            if (name != null && layoutOrder.stream().noneMatch(name::equalsIgnoreCase)) {
+                layoutOrder.add(name);
+            }
+        }
+    }
+
+    /** Keeps the order entry with a renamed layout. */
+    public void renameInOrder(String from, String to) {
+        for (int i = 0; i < layoutOrder.size(); i++) {
+            if (layoutOrder.get(i).equalsIgnoreCase(from)) {
+                layoutOrder.set(i, to);
+            }
+        }
+    }
+
+    public void removeFromOrder(String name) {
+        layoutOrder.removeIf(n -> n.equalsIgnoreCase(name));
     }
 }

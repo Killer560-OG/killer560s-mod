@@ -324,6 +324,10 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   (delay); a bow draw start and release together fire nothing. Blink sends hits, every dig edge and charged-use edges live.
 - GrimAC MultiActionsC flags a container click while the server has a movement key in his last input, a sprint or a
   sneak. Inventory Walk holds such a click until a still tick has reached the server (Stop To Click).
+- GrimAC 2.3.74's classes that read a container click (javap, doc-invsort-1101): MultiActionsC, PacketOrderA and K,
+  BadPacketsP, CrashD/F, Post. PacketOrderA (a pickup and a shift-click in one tick) has `isApplicable` = client version
+  1.12.2 or older, so it never judges a 26.x client; none of them counts clicks per tick. The Inventory Sorter's Instant
+  sends a whole plan in one tick for that reason, behind the same still-input wait as every click.
 - MultiActionsD is the same check on the menu CLOSE packet (javap 2.3.74), and GrimAC 2.3.74 has no InventoryA-D: MultiActions
   C/D and PacketOrder are its inventory checks. Both cancel the packet they flag, so a flagged click is never applied and
   the item snaps back. Until campaign-invwalk-1027 every close made while walking with Inventory Walk drew D, a click the

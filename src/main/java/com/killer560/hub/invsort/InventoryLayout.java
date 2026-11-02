@@ -23,20 +23,52 @@ public final class InventoryLayout {
     /** Slot -&gt; vanilla item id ({@code minecraft:diamond_sword}) of the item saved there, so the editor can draw
      *  the layout when that item is not in the inventory right now. Optional; a hand-written file can leave it out. */
     private final Map<Integer, String> slotIcons;
+    /** Storage mode (killer560, 2026-11-01): before sorting, take the layout's missing items out of storage (Ender
+     *  Chest pages and backpacks the Storage Overlay has seen). */
+    private final boolean fetchFromStorage;
+    /** Storage mode's dump page ({@code enderchest_3}, {@code backpack_5}): items in the inventory that the layout does
+     *  not use are shift-clicked into it first. Null for none. */
+    private final String dumpPage;
 
     public InventoryLayout(String name, Map<Integer, String> slotIdentities) {
         this(name, slotIdentities, Map.of());
     }
 
     public InventoryLayout(String name, Map<Integer, String> slotIdentities, Map<Integer, String> slotIcons) {
+        this(name, slotIdentities, slotIcons, false, null);
+    }
+
+    public InventoryLayout(String name, Map<Integer, String> slotIdentities, Map<Integer, String> slotIcons,
+                           boolean fetchFromStorage, String dumpPage) {
         this.name = name;
         this.slotIdentities = new LinkedHashMap<>(slotIdentities);
         this.slotIcons = new LinkedHashMap<>(slotIcons);
+        this.fetchFromStorage = fetchFromStorage;
+        this.dumpPage = dumpPage == null || dumpPage.isBlank() ? null : dumpPage;
     }
 
     /** The same slots under another name. */
     public InventoryLayout renamed(String newName) {
-        return new InventoryLayout(newName, slotIdentities, slotIcons);
+        return new InventoryLayout(newName, slotIdentities, slotIcons, fetchFromStorage, dumpPage);
+    }
+
+    /** The same slots with other storage-mode settings. */
+    public InventoryLayout withStorage(boolean fetch, String dump) {
+        return new InventoryLayout(name, slotIdentities, slotIcons, fetch, dump);
+    }
+
+    public boolean fetchFromStorage() {
+        return fetchFromStorage;
+    }
+
+    /** The dump page's local id ({@code enderchest_3} / {@code backpack_5}), or null. */
+    public String dumpPage() {
+        return dumpPage;
+    }
+
+    /** Whether applying it visits storage first. */
+    public boolean usesStorage() {
+        return fetchFromStorage || dumpPage != null;
     }
 
     /** The vanilla item id saved for {@code slot}'s icon, or null. */

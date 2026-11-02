@@ -2613,8 +2613,10 @@ final class SettingTooltipsData {
      *  distinctive mod-wide, so there's no collision to scope against by top-level tab name. */
     private static void invSortAndAutoSell(Map<String, String> d) {
         d.put("auto inventory sorter", "Re-arranges your inventory into a saved layout, by key or /invsort apply <name>.");
-        d.put("inventory sorter/open layouts", "Opens the layouts menu (/invsort): arrange a copy of your inventory, save it, apply, rename, delete or bind it.");
-        d.put("inventory sorter/ticks between moves", "Client ticks between each click the sorter sends (a hotbar swap is one click, any other move two or three).");
+        d.put("inventory sorter/open layouts", "Opens the layouts menu (/invsort): left click a layout to swap to it, right click to edit it, drag to reorder, and set its key in the cell on its right.");
+        d.put("inventory sorter/open menu key", "Press to capture a key (or mouse button) that opens the layouts menu; Escape clears it.");
+        d.put("inventory sorter/instant (0-tick)", "Sends every click of a sort in one tick, without opening your inventory. Off: one click every Ticks Between Moves.");
+        d.put("inventory sorter/ticks between moves", "Client ticks between each click the sorter sends. It always uses the fewest clicks a sort can take.");
         d.put("inventory sorter/random extra ticks", "Adds 0 up to this many extra ticks, at random, before each click.");
         d.put("inventory sorter/layout key", "Press to capture a key (or mouse button) that applies this layout; Escape clears it.");
         d.put("custom items", "Recolors and reskins items on your screen only; nothing is sent to the server.");
