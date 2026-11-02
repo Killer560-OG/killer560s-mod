@@ -69,9 +69,10 @@ instance, cheat: Minecraft options only, no mod settings), `26.3 Default` (cheat
 to see what the mod turns on from first download), `26.3 Mod Only Test` / `26.2 Mod Only Test` (cheat; 26.3's carries all of
 26.1.2 Mod Only Test's mod config, 26.2's that of `26.2 Cheat`), `26.3 Legit` / `26.2 Legit` (settings from 26.1.2 Legit), and
 the private `26.3 Untested Cheat` / `26.3 Untested Legit`, which take only `-PtestingBuild` jars. No SIM recording instance.
-Records (profit, run history, stats) are in the shared store, not in any instance. The 26.1.2 instances (Dungeons, Mod
-Only Test, SIM recording, Legit, Untested Cheat/Legit) and `26.2 Cheat` stay until he has checked the new ones; their
-mod config is backed up in `killer560s-mod-logs/instance-backups-1101/`. `Title Screen GUI` (the main-menu preview instance, marker `killer560smod-title-screen-gui`, docs/TESTING-HOOKS.md) was
+Records (profit, run history, stats) are in the shared store, not in any instance. Of the old instances only
+`26.1.2 (Dungeons)` and `26.1.2 (Mod Only Test)` (retired, 26.1.2 jar 67b77105 - never deploy to or boot them) and `26.2 Cheat`
+(deployed like the others) still exist (checked 2026-11-02); delete the 26.1.2 ones only with his OK. Their mod config is
+backed up in `killer560s-mod-logs/instance-backups-1101/`. The handoff file lists every instance with its deployed commit. `Title Screen GUI` (the main-menu preview instance, marker `killer560smod-title-screen-gui`, docs/TESTING-HOOKS.md) was
 retired on 2026-10-16; it and eight older retired instances were deleted on 2026-10-26 (PC cleanup). Every
 `options.txt` is a copy of Dungeons'. Mod Only Test
 does not reach the instance he plays on: after work lands, check every instance by md5 and promote or delete any
