@@ -40,10 +40,17 @@ public final class SpotifyHudControls {
             SpotifyControls.Action.PREVIOUS, SpotifyControls.Action.REWIND, SpotifyControls.Action.PLAY_PAUSE,
             SpotifyControls.Action.SKIP_AHEAD, SpotifyControls.Action.NEXT, SpotifyControls.Action.VOLUME_DOWN,
             null, SpotifyControls.Action.VOLUME_UP};
-    private static final String[] LABELS = {"|<", "<<", "||", ">>", ">|", "-", "", "+"};
-    /** Cell x ranges inside the 200-wide panel: five transport cells, a gap, then - / volume / +. */
-    private static final int[] X0 = {0, 24, 48, 72, 96, 128, 146, 184};
-    private static final int[] X1 = {22, 46, 70, 94, 118, 144, 182, 200};
+    private static final String[] LABELS = {"|<", "<<", "", ">>", ">|", "-", "", "+"};
+    /**
+     * Cell x ranges inside the 200-wide panel: five transport cells (Play/Pause the wide one in the middle), a gap, then
+     * - / volume / +. Play/Pause is its own style (killer560, 2026-11-01: "it is just a smaller skip so it can be
+     * mistaken"): wider, filled with the accent, and a drawn triangle or two bars instead of text.
+     */
+    private static final int[] X0 = {0, 22, 44, 76, 98, 128, 146, 184};
+    private static final int[] X1 = {20, 42, 74, 96, 118, 144, 182, 200};
+    /** Index of the Play/Pause cell and of the volume cell. */
+    static final int PLAY_CELL = 2;
+    static final int VOLUME_CELL = 6;
 
     // Render thread only: where the HUD was drawn on its last frame, so a click can be placed.
     private static long drawnAtMs;
@@ -114,20 +121,33 @@ public final class SpotifyHudControls {
         panelW = w;
         panelH = h;
         Minecraft mc = Minecraft.getInstance();
-        if (!chatOpen() || mc.getWindow() == null) {
-            rowShown = false;
-            return;
+        boolean always = SpotifyHudConfig.getInstance().isAlwaysShowControls();
+        double[] m = null;
+        if (chatOpen() && mc.getWindow() != null) {
+            m = mouseLocal(mc.mouseHandler.getScaledXPos(mc.getWindow()), mc.mouseHandler.getScaledYPos(mc.getWindow()));
+            if (m != null && !overPanelOrRow(m[0], m[1])) {
+                m = null;
+            }
         }
-        double[] m = mouseLocal(mc.mouseHandler.getScaledXPos(mc.getWindow()), mc.mouseHandler.getScaledYPos(mc.getWindow()));
-        if (m == null || !overPanelOrRow(m[0], m[1])) {
+        if (m == null && !always) {
             rowShown = false;
             return;
         }
         rowShown = true;
-        int hover = cellAt(m[0], m[1]);
+        drawRow(graphics, font, p, w, h, paused, m == null ? -1 : cellAt(m[0], m[1]));
+    }
+
+    /** Edit HUD with Always Show Controls on: the row as it will look, nothing hovered. */
+    static void drawInEditor(GuiGraphicsExtractor graphics, Font font, OverlayPalette p, int w, int h, boolean paused) {
+        drawRow(graphics, font, p, w, h, paused, -1);
+    }
+
+    private static void drawRow(GuiGraphicsExtractor graphics, Font font, OverlayPalette p, int w, int h, boolean paused,
+                                int hover) {
         int y0 = h + GAP;
         GuiRects r = GuiRects.begin(graphics);
         String reason = null;
+        boolean playOn = SpotifyControls.unavailableReason(SpotifyControls.Action.PLAY_PAUSE) == null;
         for (int i = 0; i < X0.length; i++) {
             SpotifyControls.Action a = ACTIONS[i];
             String why = a == null ? null : SpotifyControls.unavailableReason(a);
@@ -135,26 +155,46 @@ public final class SpotifyHudControls {
             if (i == hover && why != null) {
                 reason = why;
             }
-            r.outline(X0[i], y0, X1[i] - X0[i], ROW_H, a == null ? p.outline() : p.border());
-            int fill = a == null ? p.well() : i == hover && on ? OverlayPalette.alpha(p.accent(), 0x70)
-                    : OverlayPalette.alpha(p.panelDeep(), 0xE8);
+            // The volume reading sits in a box like the buttons beside it (killer560, 2026-11-01).
+            r.outline(X0[i], y0, X1[i] - X0[i], ROW_H, p.border());
+            int fill;
+            if (i == PLAY_CELL) {
+                fill = !playOn ? OverlayPalette.alpha(p.accentDeep(), 0x90) : i == hover ? p.accentHover() : p.accent();
+            } else {
+                fill = i == hover && on ? OverlayPalette.alpha(p.accent(), 0x70) : OverlayPalette.alpha(p.panelDeep(), 0xE8);
+            }
             r.fill(X0[i] + 1, y0 + 1, X1[i] - 1, y0 + ROW_H - 1, fill);
+        }
+        // Play/Pause: a drawn triangle (paused, so it plays) or two bars, in the panel's dark color on the accent.
+        int glyph = OverlayPalette.alpha(p.panelDeep(), 0xFF);
+        int cx = (X0[PLAY_CELL] + X1[PLAY_CELL]) / 2;
+        int cy = y0 + ROW_H / 2;
+        if (paused) {
+            for (int k = 0; k < 9; k++) {
+                int len = 1 + Math.min(k, 8 - k);
+                r.fill(cx - 2, cy - 4 + k, cx - 2 + len, cy - 3 + k, glyph);
+            }
+        } else {
+            r.fill(cx - 4, cy - 4, cx - 1, cy + 5, glyph);
+            r.fill(cx + 1, cy - 4, cx + 4, cy + 5, glyph);
         }
         if (reason != null) {
             r.fill(0, y0 + ROW_H + 1, w, y0 + ROW_H + 1 + NOTE_H, OverlayPalette.alpha(p.panelDeep(), 0xE8));
         }
         r.submit();
+        lastPlayGlyph = paused ? "play" : "pause";
         for (int i = 0; i < X0.length; i++) {
+            if (i == PLAY_CELL) {
+                continue;
+            }
             SpotifyControls.Action a = ACTIONS[i];
             String label = LABELS[i];
-            if (a == SpotifyControls.Action.PLAY_PAUSE) {
-                label = paused ? ">" : "||";
-            } else if (a == null) {
+            if (a == null) {
                 int v = SpotifyControls.volume();
                 label = v < 0 ? "?" : VOLUME_TEXT[v];
             }
             boolean on = a == null || SpotifyControls.unavailableReason(a) == null;
-            int colour = !on ? p.faint() : i == hover ? p.textHover() : p.accentHover();
+            int colour = a == null ? p.textHover() : !on ? p.faint() : i == hover ? p.textHover() : p.accentHover();
             graphics.text(font, label, (X0[i] + X1[i]) / 2 - font.width(label) / 2, y0 + 3, colour, true);
         }
         if (reason != null) {
@@ -162,6 +202,9 @@ public final class SpotifyHudControls {
             graphics.text(font, fitted, 2, y0 + ROW_H + 2, p.faint(), true);
         }
     }
+
+    // Test hook: the glyph the Play/Pause cell drew last ("play" or "pause").
+    private static volatile String lastPlayGlyph = "";
 
     /** "0%".."100%", made once so a frame allocates no string for the volume. */
     private static final String[] VOLUME_TEXT = new String[101];

@@ -83,6 +83,13 @@ public final class SpotifyHud implements HudElement {
 
     @Override
     public int height() {
+        // With Always Show Controls the row under the panel is part of the element, so Edit HUD's box holds it.
+        return panelHeight() + (SpotifyHudConfig.getInstance().isAlwaysShowControls()
+                ? SpotifyHudControls.GAP + SpotifyHudControls.ROW_H : 0);
+    }
+
+    /** The panel alone, without the control row. */
+    static int panelHeight() {
         return SpotifyHudConfig.getInstance().isShowLyrics() ? LYRIC_Y + LYRIC_ROWS * ROW_H + PAD - 2 : BAR_Y + 4 + PAD;
     }
 
@@ -122,10 +129,15 @@ public final class SpotifyHud implements HudElement {
         if (paused && cfg.isHideWhenPaused() && !editor) {
             return;
         }
+        // Paused for over a minute: gone whatever the settings say (killer560, 2026-11-01).
+        if (!editor && SpotifyLyricsFeature.pausedTooLong(snap)) {
+            pauseHides++;
+            return;
+        }
         OverlayPalette p = OverlayThemes.menu();
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
-        int h = height();
+        int h = panelHeight();
         boolean ad = snap.kind() == NowPlaying.Kind.AD;
 
         long now = SpotifyLyricsFeature.nowMs();
@@ -208,9 +220,9 @@ public final class SpotifyHud implements HudElement {
         // ---- title, artist, time ----
         int tx = cx + COVER + 6;
         int textW = x + W - PAD - tx;
-        graphics.text(font, fit(font, ad ? "Advertisement" : snap.title(), textW), tx, y + 6, p.textHover(), true);
+        graphics.text(font, fit(font, ad ? "Advertisement" : shown(snap.title()), textW), tx, y + 6, p.textHover(), true);
         if (!ad && !snap.artist().isEmpty()) {
-            graphics.text(font, fit(font, snap.artist(), textW), tx, y + 17, p.dim(), true);
+            graphics.text(font, fit(font, shown(snap.artist()), textW), tx, y + 17, p.dim(), true);
         }
         String time = clock(elapsed) + (total > 0 ? " / " + clock(total) : "");
         graphics.text(font, time, tx, y + 28, paused ? p.dim() : p.accentHover(), true);
@@ -242,8 +254,18 @@ public final class SpotifyHud implements HudElement {
         }
         if (!editor) {
             HudSeen.markDrawn(id());
-            SpotifyHudControls.draw(graphics, font, p, W, h, paused);   // chat open + mouse over: the control row
+            SpotifyHudControls.draw(graphics, font, p, W, h, paused);   // chat open + mouse over (or always): the row
+        } else if (cfg.isAlwaysShowControls()) {
+            SpotifyHudControls.drawInEditor(graphics, font, p, W, h, paused);
         }
+    }
+
+    // Test hook: frames the HUD skipped because the pause passed a minute.
+    private static volatile long pauseHides;
+
+    /** A word, title or line as the HUD draws it: starred at the Display Censor level, with no formatting codes. */
+    private static String shown(String s) {
+        return clean(SpotifyLyricsFeature.censorDisplay(s));
     }
 
     // ---- Smooth Lyric Scroll (killer560, 2026-10-26: "have a smoother transition of moving the lines up when a line
@@ -323,7 +345,7 @@ public final class SpotifyHud implements HudElement {
         int space = font.width(" ");
         int wx = lx;
         for (int i = outRow[0]; i < outRow[1] && i < words.size(); i++) {
-            String word = clean(words.get(i));
+            String word = shown(words.get(i));
             graphics.text(font, word, wx, y, colour, true);
             wx += font.width(word) + space;
         }
@@ -397,7 +419,7 @@ public final class SpotifyHud implements HudElement {
                 int[] row = plan.rows.get(r);
                 int wx = lx;
                 for (int i = row[0]; i < row[1]; i++) {
-                    int ww = font.width(clean(words.get(i)));
+                    int ww = font.width(shown(words.get(i)));
                     if (i == plan.sung) {
                         plan.chip = new int[]{wx, ly + drawn * ROW_H, wx + ww};
                     }
@@ -429,7 +451,7 @@ public final class SpotifyHud implements HudElement {
             graphics.text(font, "♪", lx, ly, p.accent(), true);
             LyricsEngine.LyricLine next = idx + 1 < snap.lines().size() ? snap.lines().get(idx + 1) : null;
             if (next != null && !next.text().isEmpty()) {
-                graphics.text(font, fit(font, clean(next.text()), lw), lx, ly + ROW_H, p.faint(), true);
+                graphics.text(font, fit(font, shown(next.text()), lw), lx, ly + ROW_H, p.faint(), true);
             }
             return;
         }
@@ -440,7 +462,7 @@ public final class SpotifyHud implements HudElement {
             int[] row = plan.rows.get(r);
             int wx = lx;
             for (int i = row[0]; i < row[1]; i++) {
-                String word = clean(words.get(i));
+                String word = shown(words.get(i));
                 int colour = wordColor(p, i, plan.sung, paused);
                 graphics.text(font, word, wx, ly + drawn * ROW_H, colour, true);
                 wx += font.width(word) + space;
@@ -449,7 +471,7 @@ public final class SpotifyHud implements HudElement {
         if (drawn < LYRIC_ROWS && plan.lineIdx + 1 < snap.lines().size()) {
             String next = snap.lines().get(plan.lineIdx + 1).text();
             if (!next.isEmpty()) {
-                graphics.text(font, fit(font, clean(next), lw), lx, ly + drawn * ROW_H, p.faint(), true);
+                graphics.text(font, fit(font, shown(next), lw), lx, ly + drawn * ROW_H, p.faint(), true);
             }
         }
     }
@@ -493,19 +515,22 @@ public final class SpotifyHud implements HudElement {
     private static int wrapIndex = -1;
     private static int wrapWidth = -1;
     private static List<int[]> wrapRows = List.of();
+    private static ProfanityLevel wrapCensor;
 
     /** The line's words broken into rows that fit {@code width}: each row is {first word, end word (exclusive)}. */
     private static List<int[]> wrap(Font font, List<LyricsEngine.LyricLine> lines, int index, List<String> words,
                                     int width) {
-        if (lines == wrapLines && index == wrapIndex && width == wrapWidth) {
+        ProfanityLevel censor = SpotifyHudConfig.getInstance().getDisplayCensor();
+        if (lines == wrapLines && index == wrapIndex && width == wrapWidth && censor == wrapCensor) {
             return wrapRows;
         }
+        wrapCensor = censor;
         List<int[]> rows = new ArrayList<>();
         int space = font.width(" ");
         int start = 0;
         int used = 0;
         for (int i = 0; i < words.size(); i++) {
-            int ww = font.width(clean(words.get(i)));
+            int ww = font.width(shown(words.get(i)));
             int need = used == 0 ? ww : used + space + ww;
             if (used > 0 && need > width) {
                 rows.add(new int[]{start, i});

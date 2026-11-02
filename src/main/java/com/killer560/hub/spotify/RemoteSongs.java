@@ -10,6 +10,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,16 +27,28 @@ import java.util.regex.Pattern;
  * showing or leaves the supporter list loses the tag at once. Everything in it is hostile: the value is capped at
  * {@link #MAX_VALUE_CHARS} before it is read, every string is cleaned ({@link #clean}: no section signs, control,
  * format, bidi or invisible characters, whitespace collapsed, length capped), a slur in the artist or title hides the
- * tag, and other swear words are starred out at the strict level whatever your own Spotify filter is. Each sender may
- * update at most once per {@link #MIN_INTERVAL_MS}; at most {@link #MAX_SENDERS} are kept; an entry is dropped
- * {@link #EXPIRE_MS} after its last packet (the sender resends every 30 s while playing). The drawn {@link Component}
- * is built once per accepted packet, so the per-frame lookup ({@link #tagFor}) allocates nothing.
+ * tag (a slur in a shared lyric line drops the line), and other swear words are starred at YOUR Display Censor level
+ * (2026-11-01; it was always the strict level before). Each sender may update at most once per {@link #MIN_INTERVAL_MS};
+ * at most {@link #MAX_SENDERS} are kept; an entry is dropped {@link #EXPIRE_MS} after its last packet (the sender resends
+ * every 30 s while playing). The drawn lines are built on the render thread when the look changes, so the per-frame
+ * lookups ({@link #tagFor}, {@link #lyricFor}) normally allocate nothing.
+ * <p>
+ * Since 2026-11-01 a sender may also share the lyric line it is on ({@code line}), how far into it it was when sent
+ * ({@code into}, ms) and each word's start in it ({@code words}, ms from the line's start), per its Share What and Share
+ * Current Word settings. An older client reads only {@code artist}/{@code title} and ignores the rest.
  */
 public final class RemoteSongs {
 
     /** The relay {@code data} key. Versioned like PartyData's {@code dg.v1.*}. */
     public static final String KEY = "np.v1";
-    static final int MAX_VALUE_CHARS = 512;
+    /** Raised from 512 for the shared lyric line (2026-11-01); the relay's own limit is 4 KB a message. */
+    static final int MAX_VALUE_CHARS = 1024;
+    /** A shared lyric line: at most this many characters and words, "into" and word offsets at most a minute. */
+    static final int LINE_MAX = 120;
+    static final int MAX_WORDS = 32;
+    static final long MAX_INTO_MS = 60_000;
+    /** A shared line stays this long after its last word starts, unless the next packet replaces it first. */
+    static final long LINE_LINGER_MS = 8_000;
     static final int MAX_SENDERS = 64;
     static final int ARTIST_MAX = 48;
     static final int TITLE_MAX = 64;
@@ -46,7 +59,37 @@ public final class RemoteSongs {
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_]{1,16}");
     private static final Pattern UUID_DASHLESS = Pattern.compile("[0-9a-fA-F]{32}");
 
-    record Entry(UUID uuid, String artist, String title, Component tag, long atMs) {
+    /**
+     * One sender's state. The song line and the lyric line are built lazily on the render thread and kept until the
+     * viewer's look changes (theme, F5 colors, censor level) or, for the lyric, the lit word moves, so a frame normally
+     * allocates nothing.
+     */
+    static final class Entry {
+        final UUID uuid;
+        final String artist;
+        final String title;
+        /** The shared lyric line's words (empty when none), how far into the line it was when sent, each word's offset
+         *  from the line's start in ms (null: no word is lit), and when it arrived. */
+        final List<String> words;
+        final long intoMs;
+        final int[] wordMs;
+        final long atMs;
+        // Render thread only.
+        Component tag;
+        int tagStyle = Integer.MIN_VALUE;
+        Component lyric;
+        int lyricStyle = Integer.MIN_VALUE;
+        int lyricLit = -2;
+
+        Entry(UUID uuid, String artist, String title, List<String> words, long intoMs, int[] wordMs, long atMs) {
+            this.uuid = uuid;
+            this.artist = artist;
+            this.title = title;
+            this.words = words;
+            this.intoMs = intoMs;
+            this.wordMs = wordMs;
+            this.atMs = atMs;
+        }
     }
 
     private static final Map<String, Entry> SONGS = new ConcurrentHashMap<>();
@@ -125,43 +168,135 @@ public final class RemoteSongs {
         LAST_ACCEPT.put(from, now);
         String artist = clean(string(obj, "artist"), ARTIST_MAX);
         String title = clean(string(obj, "title"), TITLE_MAX);
-        if (title.isEmpty()) {
-            SONGS.remove(from);
-            return "no title";
-        }
+        // The lyric line a sender shares (2026-11-01): plain text, its words split the way the sender split them.
+        String line = clean(string(obj, "line"), LINE_MAX);
         if (SlurFilter.isBlocked(title) || SlurFilter.isBlocked(artist)) {
             SONGS.remove(from);
             return "filtered";
         }
-        artist = SpotifyLyricsFeature.filterProfanity(artist, ProfanityLevel.ALL);
-        title = SpotifyLyricsFeature.filterProfanity(title, ProfanityLevel.ALL);
-        SONGS.put(from, new Entry(uuid, artist, title, buildTag(artist, title), now));
+        if (!line.isEmpty() && SlurFilter.isBlocked(line)) {
+            line = "";   // the song may stay; the line does not
+        }
+        List<String> words = line.isEmpty() ? List.of() : LyricTiming.parse(line, 0).words();
+        if (words.size() > MAX_WORDS) {
+            words = List.copyOf(words.subList(0, MAX_WORDS));
+        }
+        long into = Math.max(0, Math.min(MAX_INTO_MS, number(obj, "into")));
+        int[] wordMs = words.isEmpty() ? null : offsets(obj.get("words"), words.size());
+        if (title.isEmpty() && words.isEmpty()) {
+            SONGS.remove(from);
+            return "no title";
+        }
+        SONGS.put(from, new Entry(uuid, artist, title, words, into, wordMs, now));
         return null;
     }
 
-    /**
-     * The tag to draw above {@code name}'s nametag, or null. Called per player per frame: a map lookup and a few field
-     * reads, no allocation. {@code entityId} must be the uuid the relay stamped, so a packet for one account never
-     * paints another entity that happens to carry the same name.
-     */
-    public static Component tagFor(String name, UUID entityId) {
+    /** A sender's word offsets: exactly one per word, each 0..60 s and never earlier than the one before; else null. */
+    private static int[] offsets(JsonElement e, int n) {
+        if (e == null || !e.isJsonArray() || e.getAsJsonArray().size() != n) {
+            return null;
+        }
+        int[] out = new int[n];
+        int prev = 0;
+        for (int i = 0; i < n; i++) {
+            JsonElement x = e.getAsJsonArray().get(i);
+            if (!x.isJsonPrimitive() || !x.getAsJsonPrimitive().isNumber()) {
+                return null;
+            }
+            double d = x.getAsDouble();
+            if (!(d >= prev) || d > MAX_INTO_MS) {
+                return null;
+            }
+            out[i] = (int) d;
+            prev = out[i];
+        }
+        return out;
+    }
+
+    private static long number(JsonObject obj, String key) {
+        JsonElement e = obj.get(key);
+        if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isNumber()) {
+            return 0;
+        }
+        double d = e.getAsDouble();
+        return Double.isFinite(d) ? (long) d : 0;
+    }
+
+    /** The live entry for {@code name}, or null: every gate checked again on every lookup. */
+    private static Entry live(String name, UUID entityId) {
         if (name == null || entityId == null || SONGS.isEmpty() || !SongShareConfig.getInstance().isShowOthers()
                 || !(testConnected || RelayClient.isConnected())) {
             return null;
         }
         Entry e = SONGS.get(name);
-        if (e == null || !e.uuid().equals(entityId)) {
+        if (e == null || !e.uuid.equals(entityId)) {
             return null;
         }
-        if (System.currentTimeMillis() - e.atMs() > EXPIRE_MS) {
+        if (System.currentTimeMillis() - e.atMs > EXPIRE_MS) {
             SONGS.remove(name, e);
             return null;
         }
         if (ModUsers.variantOf(name) == null || !SupportersFeature.isSupporter(entityId)) {
             return null;
         }
-        return e.tag();
+        return e;
     }
+
+    /**
+     * The tag to draw above {@code name}'s nametag, or null. Called per player per frame: a map lookup and a few field
+     * reads, no allocation unless the look changed. {@code entityId} must be the uuid the relay stamped, so a packet for
+     * one account never paints another entity that happens to carry the same name.
+     */
+    public static Component tagFor(String name, UUID entityId) {
+        Entry e = live(name, entityId);
+        if (e == null || e.title.isEmpty()) {
+            return null;
+        }
+        int style = SpotifyHudConfig.getInstance().getDisplayCensor().ordinal();
+        if (e.tag == null || e.tagStyle != style) {
+            e.tagStyle = style;
+            e.tag = buildTag(SpotifyLyricsFeature.censorDisplay(e.artist), SpotifyLyricsFeature.censorDisplay(e.title));
+        }
+        return e.tag;
+    }
+
+    /**
+     * The lyric line another player shares, drawn over their head like your own My Lyrics In F5 line, in YOUR F5 colors
+     * and censor level, with the word being sung lit when they share it: the word whose offset has passed at the line's
+     * position, which is the "into" they sent plus the time since it arrived. Gone {@link #LINE_LINGER_MS} after the
+     * last word (a sender that stops sending leaves no stale line).
+     */
+    public static Component lyricFor(String name, UUID entityId) {
+        Entry e = live(name, entityId);
+        if (e == null || e.words.isEmpty()) {
+            return null;
+        }
+        long t = e.intoMs + (System.currentTimeMillis() - e.atMs);
+        int lastStart = e.wordMs == null ? 0 : e.wordMs[e.wordMs.length - 1];
+        if (t > lastStart + LINE_LINGER_MS) {
+            return null;
+        }
+        int lit = -1;
+        if (e.wordMs != null) {
+            for (int k = 0; k < e.wordMs.length && e.wordMs[k] <= t; k++) {
+                lit = k;
+            }
+        }
+        com.killer560.hub.gui.OverlayPalette p = com.killer560.hub.gui.OverlayThemes.menu();
+        int style = SongTagDraw.styleKey(p);
+        if (e.lyric == null || e.lyricStyle != style || e.lyricLit != lit) {
+            e.lyricStyle = style;
+            e.lyricLit = lit;
+            e.lyric = SongTagDraw.buildLyric(e.words, lit, false, p);
+            lastRemoteLyric = e.lyric == null ? "" : e.lyric.getString();
+            lastRemoteLit = lit;
+        }
+        return e.lyric;
+    }
+
+    // Test hooks: the last remote lyric line built and the word it lit.
+    private static volatile String lastRemoteLyric = "";
+    private static volatile int lastRemoteLit = -1;
 
     /** A player left the room. */
     static void forget(String name) {
@@ -184,11 +319,20 @@ public final class RemoteSongs {
 
     /** "♪ Title - Artist" in gray italic, plain literal text, never a sender-chosen style or event. */
     static Component buildTag(String artist, String title) {
+        return buildTag(artist, title, -1);
+    }
+
+    /** The same line in {@code argb} instead of gray ({@code -1}: gray), still italic: Song In F5's custom text color. */
+    static Component buildTag(String artist, String title, int argb) {
         String line = artist.isEmpty() ? title : title + " - " + artist;
         if (line.codePointCount(0, line.length()) > DRAWN_MAX) {
             line = line.substring(0, line.offsetByCodePoints(0, DRAWN_MAX - 1)).stripTrailing() + "…";
         }
-        return Component.literal("♪ " + line).withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC);
+        if (argb == -1) {
+            return Component.literal("♪ " + line).withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC);
+        }
+        final int rgb = argb & 0xFFFFFF;
+        return Component.literal("♪ " + line).withStyle(s -> s.withColor(rgb).withItalic(true));
     }
 
     /**

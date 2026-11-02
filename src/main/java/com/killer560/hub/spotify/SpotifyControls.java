@@ -16,8 +16,8 @@ import java.util.function.Consumer;
  * <p>Everything goes to the Spotify desktop app on this PC through Windows' own media controls (the
  * GlobalSystemMediaTransportControls session Spotify publishes, the same one the volume-key flyout drives), sent as one
  * line down {@link SpotifyMediaSession}'s helper process. No Spotify account, password, API key or Premium: the desktop
- * app takes these from Windows on Free too. Volume is Spotify's own slider in the Windows volume mixer (Core Audio),
- * not Spotify's in-app slider, which Windows cannot reach.
+ * app takes these from Windows on Free too. Volume (2026-11-01) moves Spotify's own in-app slider through Windows UI
+ * Automation when Spotify's window can be read, and otherwise Spotify's slider in the Windows volume mixer (Core Audio).
  *
  * <p>Seeking (Rewind, Skip Ahead) is relative to Spotify's own position, worked out by the helper from the reading it
  * takes at that moment, and the lyric clock is moved at once ({@link LyricsEngine#nudge}) and then corrected by
@@ -153,8 +153,26 @@ public final class SpotifyControls {
         cfg.setVolume(v);
         shownVolume = v;
         shownVolumeAtMs = System.currentTimeMillis();
-        send("vol " + v);
+        // A dragged slider calls this once per step. Only the newest value is worth sending: while a send is still
+        // waiting for the poll thread, a newer value just replaces it (the helper also drops all but the last of the
+        // volume commands waiting in its pipe), so the volume follows the slider at once both ways.
+        pendingVolume = v;
+        if (testSink != null) {
+            send("vol " + v);
+            return;
+        }
+        if (!volumeQueued) {
+            volumeQueued = true;
+            lastUseMs = System.currentTimeMillis();
+            SpotifyLyricsFeature.runOffThread(() -> {
+                volumeQueued = false;
+                send("vol " + pendingVolume);
+            });
+        }
     }
+
+    private static volatile int pendingVolume;
+    private static volatile boolean volumeQueued;
 
     /** The volume to show: one just set here for a moment (the reader takes a beat to see it), else Spotify's own,
      *  else the last one set; -1 when none is known. */
@@ -200,7 +218,12 @@ public final class SpotifyControls {
         SpotifyMediaSession m = SpotifyLyricsFeature.media();
         String state = m.state();
         if ("no Spotify session".equals(state)) {
-            return "Spotify is not open on this PC. Only the desktop app can be controlled, not the web player or a phone.";
+            return SpotifyHudConfig.getInstance().getMusicSource() == SpotifyHudConfig.MusicSource.SPOTIFY
+                    ? "Spotify is not open on this PC (Music Source is Spotify App Only)."
+                    : "Nothing on this PC is playing music Windows knows about.";
+        }
+        if ((action == Action.VOLUME_UP || action == Action.VOLUME_DOWN) && !m.fromSpotify()) {
+            return "Volume works for the Spotify app only; this is another player.";
         }
         if ("read failed".equals(state)) {
             return "Windows' media controls did not answer for Spotify.";
