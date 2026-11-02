@@ -319,8 +319,10 @@ final class LocalPlanner {
             // On top of it (its collision ends at or under his feet), not beside a door panel in his own cell.
             var shape = level.getBlockState(p).getCollisionShape(level, p);
             if (shape.max(net.minecraft.core.Direction.Axis.Y) <= pos.y - p.getY() + 0.02) {
-                return p.above();
+                p = p.above();
             }
+        }
+        if (!passable(level, p) && lowTop(level, p) < 0.0) {
             // Beside a fence post, a wall or a pane whose block his feet are counted in: plan from the open cell on HIS
             // side of it. Planned from the fence's own cell, the way crossed the fence line he was standing behind and
             // he pushed into it until the soul was skipped (testkit 1101-fairy-island-GOLD_MINES on terrain v2).
