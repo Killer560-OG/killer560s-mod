@@ -61,6 +61,8 @@ public final class SimRun {
         if (!SimState.canAct(client) || !SimState.isGeneratedFloor()) {
             return;
         }
+        // A floor with mobs: its wither doors and key rooms, before the countdown (SimMobFloor).
+        SimMobFloor.onFloorReady(client);
         begin(client, SimBuilder.entranceDoor());
     }
 
@@ -136,6 +138,9 @@ public final class SimRun {
             if (second != lastSecondAnnounced && second > 0) {
                 lastSecondAnnounced = second;
                 ModChat.send("Sim", ModChat.value(String.valueOf(second)));
+                if (second == 1) {
+                    SimMobFloor.onOneSecond(client);
+                }
             }
             return;
         }
@@ -147,6 +152,7 @@ public final class SimRun {
             // finishes it needs to remove the blocks for the gate. Those infested chizzledd blocks."
             SimDoors.openEntranceGate(client, entranceDoor);
             ModChat.send("Sim", ModChat.text("GO"));
+            SimMobFloor.onGo(client);
             SimLiveMobs.onRunStart(client);
         }
     }

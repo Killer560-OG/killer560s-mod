@@ -303,6 +303,8 @@ public final class AutoClearFeature {
         keyId = -1;
         keyTrip = false;
         keysTried.clear();
+        felTrips.clear();
+        felWaitTicks = 0;
         keyWalkFails.clear();
         keyEntrySaid.clear();
         walkForKeyRoom = -1;
@@ -798,6 +800,31 @@ public final class AutoClearFeature {
             travelToRoom(client, player, layout, room);
             return;
         }
+        // ---- Fels (killer560, Doc 2026-11-01: "the auto clear stuff then needs to be worked around this so it knows to get
+        // fels as well"): a sleeping Fel is a starred tag over an invisible enderman nothing can hurt until a player comes
+        // within its wake range. The awake mobs first; with only sleepers left, go near the nearest and let it wake.
+        Entity sleeper = null;
+        double sleeperD = Double.MAX_VALUE;
+        List<Entity> awake = new java.util.ArrayList<>(mobs.size());
+        for (Entity m : mobs) {
+            if (isSleepingFel(m)) {
+                double d = player.position().distanceTo(m.position());
+                if (d < sleeperD) {
+                    sleeperD = d;
+                    sleeper = m;
+                }
+            } else {
+                awake.add(m);
+            }
+        }
+        if (awake.isEmpty() && sleeper != null) {
+            approachFel(client, player, layout, sleeper, sleeperD);
+            return;
+        }
+        felWaitTicks = 0;
+        if (sleeper != null) {
+            mobs = awake;
+        }
         noMobTicks = 0;
         emptySince = -1;
         midasCheckOpened(client);
@@ -821,6 +848,90 @@ public final class AutoClearFeature {
             return;
         }
         attack(client, player, target, cfg);
+    }
+
+    // ---- Fels -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Blocks from a sleeping Fel within which it wakes: 4, and 5 more since SkyBlock 0.27.2 (hypixel.net patch notes, as the
+     * sim's {@code SimHypixelRules.FEL_WAKE_RADIUS} cites them). The trip stops {@link #FEL_MARGIN} inside it.
+     */
+    static final double FEL_WAKE_BLOCKS = 9.0;
+    static final double FEL_MARGIN = 1.5;
+    /** Ticks (plus server lag) to wait in range for a Fel to show before it is skipped. */
+    static final int FEL_WAIT_TICKS = 30;
+    /** Trips toward one Fel before it is skipped. */
+    static final int FEL_MAX_TRIPS = 3;
+    private static int felWaitTicks = 0;
+    private static long felWaitLag = 0L;
+    private static final java.util.Map<Integer, Integer> felTrips = new java.util.HashMap<>();
+    /** A Fel still asleep: an enderman (Hypixel's Fel, upside down as "Dinnerbone") the server keeps invisible until a
+     *  player comes near. */
+    static boolean isSleepingFel(Entity e) {
+        return e instanceof net.minecraft.world.entity.monster.Enderman && e.isInvisible();
+    }
+
+    /**
+     * Only sleeping Fels left in the room: within wake range wait for the nearest to show, else etherwarp to a landing
+     * inside the range ({@code DungeonKeys.standWithin}, the key's own search). A Fel that never shows, or is never got
+     * near, is skipped like any mob.
+     * @return true (this tick is the Fel's)
+     */
+    private static boolean approachFel(Minecraft client, LocalPlayer player, DungeonLayout layout, Entity fel, double d) {
+        noMobTicks = 0;
+        emptySince = -1;
+        releaseUse(client);
+        double reach = FEL_WAKE_BLOCKS - FEL_MARGIN;
+        Vec3 at = fel.position();
+        if (d <= reach) {
+            action = "waiting for the Fel to wake";
+            if (++felWaitTicks == 1) {
+                felWaitLag = com.killer560.hub.util.ServerLag.mark();
+                LOGGER.info(String.format(Locale.US, "[AutoClear] Fel #%d at %s: %.1f blocks away, inside its wake range"
+                        + " - waiting for it to wake", fel.getId(), fel.blockPosition().toShortString(), d));
+            }
+            if (felWaitTicks > FEL_WAIT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(felWaitLag)) {
+                LOGGER.info("[AutoClear] Fel #{} did not wake after {} ticks {} blocks away - skipping it", fel.getId(),
+                        felWaitTicks, String.format(Locale.US, "%.1f", d));
+                skippedMobs.add(fel.getId());
+                felWaitTicks = 0;
+            }
+            return true;
+        }
+        felWaitTicks = 0;
+        int trips = felTrips.getOrDefault(fel.getId(), 0);
+        if (trips >= FEL_MAX_TRIPS) {
+            LOGGER.info("[AutoClear] Fel #{}: {} trips and still {} blocks away - skipping it", fel.getId(), trips,
+                    String.format(Locale.US, "%.1f", d));
+            skippedMobs.add(fel.getId());
+            return true;
+        }
+        if (!AutoClearUtils.canPath(layout)) {
+            action = "waiting to land before the trip to a Fel";
+            return true;
+        }
+        BlockPos stand = com.killer560.hub.doorkeys.DungeonKeys.standWithin(at, reach - 0.5, player.position());
+        if (stand == null) {
+            stand = TeleportUtils.nearestEtherwarpable(fel.blockPosition());
+        }
+        if (stand == null) {
+            LOGGER.info("[AutoClear] Fel #{}: no block to stand on near it - skipping it", fel.getId());
+            skippedMobs.add(fel.getId());
+            return true;
+        }
+        felTrips.put(fel.getId(), trips + 1);
+        final BlockPos goal = stand;
+        action = "etherwarp to wake a Fel";
+        LOGGER.info(String.format(Locale.US, "[AutoClear] Fel #%d at %s is asleep %.1f blocks away (wakes within %.0f) -"
+                + " trip to %s", fel.getId(), fel.blockPosition().toShortString(), d, FEL_WAKE_BLOCKS, goal.toShortString()));
+        startTrip(client, player, () -> {
+            // Ends on the first landing inside the range, should the warps to the stand pass one.
+            ClearExecutor.etherPathWithin(goal, at, reach, true, null);
+            lastTripGoal = goal.immutable();
+            sameGoalTrips = 1;
+            return true;
+        });
+        return true;
     }
 
     // ---- moving on at the room's last death (autoclear-speed-1020: a player who has killed the last mob he knows of goes

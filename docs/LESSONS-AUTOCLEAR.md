@@ -170,3 +170,7 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
   comes in, so the Progress HUD header must count it as done: counting it nowhere read "0% (0/1)" after the first of two
   rooms (testkit 131 hud, 2026-10-25). `publishPlan` adds the pending rooms not still in the order.
 - Kill speed and key rooms: see "Auto Clear kill speed" and "Key rooms" in [LESSONS-AUTOMATION.md](LESSONS-AUTOMATION.md).
+- A sleeping Fel is a starred tag over an INVISIBLE enderman (Hypixel's, per adm/Odin notes; the sim's `SimMobFloor` floors
+  copy it): `MobEspFeature.starredMobs` resolves it like any mob, and shooting it does nothing until a player is within 9
+  blocks. `AutoClearFeature.approachFel` (2026-11-01) leaves sleepers out of the targets while awake mobs remain, then
+  etherwarps inside 7.5 blocks of the nearest and waits for it to show (testkit 1101-sim-mobfloor).
