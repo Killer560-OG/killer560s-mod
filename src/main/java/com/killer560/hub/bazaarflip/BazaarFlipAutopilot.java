@@ -145,6 +145,14 @@ final class BazaarFlipAutopilot {
     private static long signSeenAtMs;
     private static double quoteEach;
     private static double boughtCoins;
+    /** Units the Bought line(s) of the Insta Buy under way said (0: no line yet). */
+    private static long boughtUnits;
+    /** The carried count CARRIED_UP last saw, and when it last changed: a big buy arrives over several ticks. */
+    private static int carriedLast;
+    private static long carriedChangedAtMs;
+    /** How long the carried count must stay put before a partial delivery is taken as the whole buy. Hypixel delivered
+     *  "Bought 1,472x Gravel" over more than one tick and the first rise read 832 (his log, 2026-10-30 11:01:17). */
+    static final long CARRIED_SETTLE_MS = 750L;
     private static int orderClicks;
     /** Set when Cancel Order was clicked (the next Order options page is not a reason to click again). */
     private static boolean cancelClicked;
@@ -251,6 +259,7 @@ final class BazaarFlipAutopilot {
         idleUntilMs = 0L;
         placed = 0;
         boughtCoins = 0;
+        boughtUnits = 0;
         lastWaitWhy = "";
         chatWarning = null;
         cooldownAskedMs = 0L;
@@ -387,6 +396,7 @@ final class BazaarFlipAutopilot {
         for (Bought b; (b = boughtLines.poll()) != null; ) {
             if (action instanceof FlipAction.InstaBuy ib && b.name().equalsIgnoreCase(ib.name())) {
                 boughtCoins += b.coins();
+                boughtUnits += b.units();
                 continue;
             }
             EstimatedBuy e = estimatedBuy;
@@ -845,6 +855,7 @@ final class BazaarFlipAutopilot {
         orderClicks = 0;
         cancelClicked = false;
         boughtCoins = 0;
+        boughtUnits = 0;
         sellPendingSlot = -1;
         npcSoldUnits = 0;
     }
@@ -901,6 +912,8 @@ final class BazaarFlipAutopilot {
         expectBaseline = baseline;
         expectContainerId = screen == null ? Integer.MIN_VALUE : screen.getMenu().containerId;
         expectSignature = screen == null ? "" : BazaarFlipMenus.signature(screen.getMenu());
+        carriedLast = baseline;
+        carriedChangedAtMs = expectSinceMs;
     }
 
     /** True once what the last click should cause has happened (the step goes on), false while still waiting. */
@@ -910,7 +923,19 @@ final class BazaarFlipAutopilot {
         switch (expect) {
             case CARRIED_UP -> {
                 int have = carried(client, id);
+                if (have != carriedLast) {
+                    carriedLast = have;
+                    carriedChangedAtMs = now;
+                }
                 if (have > expectBaseline) {
+                    // An Insta Buy's units can arrive over several ticks: wait until all the Bought line said are here, or
+                    // the count has stood still (the rest went to sacks), so a partial delivery is not taken as the buy.
+                    boolean whole = action instanceof FlipAction.InstaBuy && boughtUnits > 0
+                            && have - expectBaseline >= boughtUnits;
+                    boolean still = !(action instanceof FlipAction.InstaBuy) || now - carriedChangedAtMs >= CARRIED_SETTLE_MS;
+                    if (!whole && !still) {
+                        return false;
+                    }
                     expect = Expect.NONE;
                     onCarriedUp(client, have - expectBaseline);
                     return false;
@@ -985,7 +1010,13 @@ final class BazaarFlipAutopilot {
             // The true cost is Hypixel's Bought line. When the units come first, the Instant Buy page's quote (rounded to
             // whole coins, and the book plus Hypixel's margin) stands in until the line arrives (takeBoughtLines).
             boolean known = boughtCoins > 0;
-            double each = known ? boughtCoins / delta : quoteEach / (1 + FlipAutopilot.INSTANT_BUY_QUOTE_MARGIN);
+            // Per unit of what the Bought line says was bought: units that went to sacks cost the same.
+            double each = known ? boughtCoins / Math.max(delta, boughtUnits)
+                    : quoteEach / (1 + FlipAutopilot.INSTANT_BUY_QUOTE_MARGIN);
+            if (boughtUnits > delta) {
+                LOGGER.info("[BazaarFlip] Autopilot: {} of the {} {} bought reached the inventory (the rest went to sacks)",
+                        delta, boughtUnits, b.name());
+            }
             addHolding(b.productId(), delta, each);
             if (known) {
                 estimatedBuy = null;

@@ -81,6 +81,7 @@ public final class AhFlipper {
         ClientTickEvents.END_CLIENT_TICK.register(com.killer560.hub.util.FeatureGuard.end("AhFlipper.tick", AhFlipper::tick));
         AhFlipMacro.register();
         AhPriceCopier.register();
+        AhMenuRecorder.register();
     }
 
     private static void tick(Minecraft client) {

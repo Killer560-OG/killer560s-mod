@@ -65,6 +65,14 @@ public class AhFlipperTab extends BaseTab {
             if (cfg.getRunMode() == AhFlipConfig.RunMode.MAIN) {
                 w.add(cycling(contentX, y, contentWidth, () -> "Max Buys Per Session: §6" + cfg.getMacroMaxBuys(),
                         dir -> cfg.stepMacroMaxBuys(dir), cfg));
+                y += 22;
+            }
+            w.add(onOffButton("Auto Relist", cfg::isAutoRelist, cfg::setAutoRelist, cfg::save, requestRebuild,
+                    contentX, y, contentWidth, 18));
+            y += 22;
+            if (cfg.isAutoRelist()) {
+                w.add(SettingsButtonWidget.builder(Component.literal("Relist Now"),
+                        btn -> com.killer560.hub.ahflip.AhRelistMacro.requestNow()).bounds(contentX, y, contentWidth, 18).build());
             }
         }
         return w;

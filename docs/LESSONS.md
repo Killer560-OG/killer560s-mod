@@ -108,6 +108,15 @@ project CLAUDE.md. Compiling lessons
   resized and retried, not skipped (testkit 2791).
 - Hypixel's order-slot refusal reads "[Bazaar] You reached your maximum of 21 Bazaar orders!" (his log, 2026-10-30); 21 is
   his real slot count, not the autopilot's default 14.
+- **A big Bazaar Insta Buy reaches the inventory over more than one tick.** His "Bought 1,472x Gravel" (Fill my inventory!,
+  2026-10-30 11:01:17) was counted as 832 because the autopilot took the first rise of the carried count as the whole buy.
+  It now waits until all the Bought line's units are carried or the count has stood still 750 ms (the rest went to sacks),
+  and costs per bought unit (testkit 2801 delivers in two parts; the old jar recorded 1,152 of 2,304).
+- **Auto Relist's /ah menu names are from public mods, not a recording** (2026-11-02): NEU's Create BIN Auction slots 13
+  (item) / 29 (create) / 31 (price), SkyHanni's "Manage Auctions" and "Status: Sold!/Expired!" lore, Skyblocker's "Collect
+  Auction" and "... Auction View". Every match is a case-insensitive "contains" with the fixed slot only as a fallback, and
+  each page is logged (`[AhRelist]`). Correct them from a `/ahmenudump` recording (`killer560smod-ahflip-menudump.txt`)
+  before trusting it on Hypixel; the price sign's lines and the bids page's claimable lore are the least certain.
 - The Auction House endpoints (`/v2/skyblock/auctions`, `auctions_ended`) need no API key, so the AH Flipper polls Hypixel
   directly; nothing goes through the relay (checked 2026-11-01).
 - **A wait that ends on "the confirm page is open" must not end on the one it just clicked.** That page stays open until the

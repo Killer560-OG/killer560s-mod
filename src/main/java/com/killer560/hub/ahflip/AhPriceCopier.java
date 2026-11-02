@@ -133,17 +133,8 @@ public final class AhPriceCopier {
 
     /** Copies the price for {@code count} of {@code key} and says so. Returns the coins copied, or -1. */
     static long copyFor(Minecraft client, String key, String name, int count, AhFlipConfig cfg) {
-        long now = System.currentTimeMillis();
-        long[] own = OWN.get(key);
-        long each;
-        String source;
-        if (cfg.isCopierOwnPrice() && own != null && now - own[1] <= OWN_PRICE_MS) {
-            each = own[0];
-            source = "your last listing";
-        } else {
-            each = AhMarketIndex.lowestBin(key);
-            source = "lowest BIN";
-        }
+        long each = eachFor(key, cfg);
+        String source = ownFresh(key, cfg) ? "your last listing" : "lowest BIN";
         if (each <= 0) {
             ModChat.send(CHAT, ModChat.dim("No lowest BIN known for " + name + " yet - the AH scan has not seen one."));
             lastCopied = -1;
@@ -190,6 +181,34 @@ public final class AhPriceCopier {
         pendingPrice = -1;
         // The next copy of the same item is that price, not what the clipboard was given before.
         lastCopiedIdentity = "";
+    }
+
+    private static boolean ownFresh(String key, AhFlipConfig cfg) {
+        long[] own = OWN.get(key);
+        return cfg.isCopierOwnPrice() && own != null && System.currentTimeMillis() - own[1] <= OWN_PRICE_MS;
+    }
+
+    /** The copier's price for one of {@code key}: the remembered one when fresh and Use My Last Price is on, else the
+     *  lowest BIN; -1 when neither is known. */
+    private static long eachFor(String key, AhFlipConfig cfg) {
+        return ownFresh(key, cfg) ? OWN.get(key)[0] : AhMarketIndex.lowestBin(key);
+    }
+
+    /** What the copier would copy for {@code count} of {@code key} (its price less the Undercut), or -1. Auto Relist
+     *  types this into Hypixel's price sign. */
+    public static long relistPrice(String key, int count, AhFlipConfig cfg) {
+        long each = eachFor(key, cfg);
+        if (each <= 0) {
+            return -1;
+        }
+        return Math.max(1, each * Math.max(1, count) - cfg.getCopierUndercut());
+    }
+
+    /** Forgets the remembered price of {@code key} (an expired listing: it did not sell at that price). */
+    public static void forget(String key) {
+        if (key != null) {
+            OWN.remove(key);
+        }
     }
 
     /** Remembers {@code each} as the price {@code key} was (or is to be) put up at. */

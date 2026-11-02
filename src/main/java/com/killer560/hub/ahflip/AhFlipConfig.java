@@ -72,6 +72,8 @@ public final class AhFlipConfig {
     private long maxBuyPrice = 0L;
     private int minListings = 3;
     private int macroMaxBuys = 3;
+    /** Cheat build: claim sold/expired/bought auctions and relist (AhRelistMacro). Off by default. */
+    private boolean autoRelist = false;
 
     private AhFlipConfig() {
     }
@@ -100,6 +102,7 @@ public final class AhFlipConfig {
                 cfg.maxBuyPrice = clampCoins(ConfigJson.getLong(o, "maxBuyPrice", cfg.maxBuyPrice));
                 cfg.minListings = clamp(ConfigJson.getInt(o, "minListings", cfg.minListings), 1, 1000);
                 cfg.macroMaxBuys = clamp(ConfigJson.getInt(o, "macroMaxBuys", cfg.macroMaxBuys), 1, 1000);
+                cfg.autoRelist = ConfigJson.getBool(o, "autoRelist", cfg.autoRelist);
             } catch (Exception e) {
                 cfg = new AhFlipConfig();
             }
@@ -123,6 +126,7 @@ public final class AhFlipConfig {
             o.addProperty("maxBuyPrice", maxBuyPrice);
             o.addProperty("minListings", minListings);
             o.addProperty("macroMaxBuys", macroMaxBuys);
+            o.addProperty("autoRelist", autoRelist);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -314,5 +318,19 @@ public final class AhFlipConfig {
 
     public void stepMacroMaxBuys(int dir) {
         macroMaxBuys = stepInt(MAX_BUYS_STEPS, macroMaxBuys, dir);
+    }
+
+    public boolean isAutoRelist() {
+        return autoRelist;
+    }
+
+    public void setAutoRelist(boolean on) {
+        this.autoRelist = on;
+    }
+
+    /** Auto Relist may act: cheat build, the AH Flipper on (its rows sit under the flipper's switch) and Auto Relist on.
+     *  Either Run Mode: in Background it still claims and relists what he bought and listed. */
+    public boolean isRelistActive() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoRelist && isFlipperEnabled();
     }
 }
