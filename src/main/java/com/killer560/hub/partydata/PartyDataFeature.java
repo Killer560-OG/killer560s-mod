@@ -336,7 +336,8 @@ public final class PartyDataFeature {
         }
         refillTokens();
         while (!QUEUE.isEmpty() && tokens >= 1.0) {
-            if (!publishActive()) {
+            boolean all = publishActive();
+            if (!all && !melodyPublishActive()) {
                 // Sharing (or the relay connection) turned off mid-run - drop what's queued rather than
                 // send it the moment it turns back on with a stale run's facts.
                 QUEUE.clear();
@@ -344,6 +345,12 @@ public final class PartyDataFeature {
             }
             JsonObject packet = QUEUE.poll();
             String key = packet.get("key").getAsString();
+            if (!all && !KEY_MELODY.equals(key)) {
+                // Only Team Melody is shared with the other data switches off (2026-11-01: "no matter what setting"). This
+                // check used to clear the whole queue, Melody included, so with Party Dungeon Data or relay data off
+                // publishSnapshot queued the board and it was dropped here every time (testkit 1102-boss-melody-relay).
+                continue;
+            }
             JsonElement payload = packet.get("payload");
             if (RelayClient.sendData(key, payload)) {
                 tokens -= 1.0;

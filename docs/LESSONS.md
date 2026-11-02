@@ -381,3 +381,7 @@ project CLAUDE.md. Compiling lessons
   | ...` (once a spell after 1 s, then `stuck state ended`), `[Raffle] Raffle start (...)` plus one line per nearby entity (once a
   Raffle, Raffle highlight on). Grep his log for these before guessing. The sim's Flags proved `CryptScanner.goldBeside`: a gold
   block one out and one down from the raised-row lid makes that lid the prince (1102-diag-wp-gold).
+- A feature that shares "whatever the other settings say" needs that exception at EVERY gate on its path, not just where it
+  is queued: PartyDataFeature queued Team Melody with Party Dungeon Data off, and drainQueue then cleared the whole queue
+  on `!publishActive()`, so nothing was ever sent (found by testkit 1102-boss-melody-relay-roundtrip with a fake relay,
+  tkdebt-1101; fixed 9c71162c).
