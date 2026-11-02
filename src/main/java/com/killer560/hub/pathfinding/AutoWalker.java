@@ -387,6 +387,7 @@ public final class AutoWalker {
     /** The respawn is done: a fresh start for the path, the camera and the stuck clock. */
     private static void resumeAfterRespawn(LocalPlayer player, String why) {
         respawning = false;
+        settleTicks = SETTLE_TICKS;
         graceUntilMs = Math.max(graceUntilMs, System.currentTimeMillis() + 2_000L);
         lastHurtTime = player.hurtTime;
         WalkCamera.rebase();
@@ -440,6 +441,16 @@ public final class AutoWalker {
         }
         if (player == null || client.level == null) {
             failsafe("disconnected or left the world");
+            return;
+        }
+        if (settleTicks > 0) {
+            settleTicks--;
+            clearKeys();
+            releaseFallbackKey();
+            positionPacketsSeen = ServerCorrections.packetCount();
+            if (viewHeld) {
+                ViewFreeze.hold(player.getYRot(), player.getXRot());
+            }
             return;
         }
         if (viewHeld) {
@@ -1019,6 +1030,13 @@ public final class AutoWalker {
             boolean onLadder = player.onClimbable();
             if (onLadder && rise > 0.3) {
                 wantJump = true; // vanilla climbs while jump is held on a ladder, whichever way he faces
+                // Climbing: no strafe or back key. The model's sideways corrections on a ladder beside water drew GrimAC
+                // Simulation (.007 decaying x0.8, testkit 1101-fairy-island-BACKWATER_BAYOU from 47.5,183,-4.5);
+                // a climb needs only jump, and forward when the cell is ahead of him.
+                wantLeft = false;
+                wantRight = false;
+                wantBack = false;
+                wantSprint = false;
                 climbTicks++;
             } else if (player.onGround() && rise > player.maxUpStep() + 0.01 && rise <= jumpH && horizontal < 1.7) {
                 wantJump = true;
@@ -1114,7 +1132,13 @@ public final class AutoWalker {
     static void acceptServerMoves() {
         positionPacketsSeen = ServerCorrections.packetCount();
         WalkCamera.rebase();
+        // No key the first ticks after a teleport landing: a key pressed the tick after one draws GrimAC Simulation with
+        // no mod involved (testkit 1027-iw-warp's control), and a player does not react that fast either.
+        settleTicks = SETTLE_TICKS;
     }
+
+    private static final int SETTLE_TICKS = 3;
+    private static int settleTicks;
 
     /** After an escape landed (or a skip): walk on from wherever he is now. */
     static void escaped() {
