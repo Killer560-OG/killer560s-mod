@@ -638,6 +638,19 @@ public final class RouteExecutor {
     private static boolean arrivalChain;
     /** A path-less route's WALK node: the real-world yaw it holds a sprint along until the next node fires, or null. */
     private static Float walkHoldYaw;
+    /**
+     * The held walk turns the BODY onto its yaw with the camera held, as AP3's walk node does, instead of easing the camera
+     * and picking keys against wherever he faces (killer560, 2026-11-01, trap rooms: "the walk nodes in there start walking
+     * before it is rotated. They should auto rotate just like walk nodes from ap3"). Trap rooms only.
+     */
+    private static boolean walkHoldBody;
+    /** Trap-room walk holds that turned the body onto the walk before their first moving tick - read by the testkit. */
+    private static int trapWalkTurns;
+
+    public static int trapWalkTurns() {
+        return trapWalkTurns;
+    }
+
     private static Vec3 walkHoldLastPos;
     private static int walkHoldStallTicks;
     /** A held walk that has not moved for this many ticks has hit something and lets go. */
@@ -1861,6 +1874,21 @@ public final class RouteExecutor {
             clearMovement();
             return;
         }
+        if (walkHoldBody) {
+            // Trap room: the body stays exactly on the walk (re-turned if anything else moved it) and the walk is W with
+            // the sprint - no camera ease, no 8-way pick against another facing.
+            float yaw = player.getYRot();
+            float delta = Mth.wrapDegrees(walkHoldYaw - yaw);
+            if (Math.abs(delta) > 1e-3f) {
+                turnBody(player, yaw + delta, player.getXRot());
+            }
+            wantForward = true;
+            wantBackward = wantLeft = wantRight = false;
+            wantJump = false;
+            wantSneak = forceSneak;
+            wantSprint = !wantSneak && !player.isInWater();
+            return;
+        }
         double r = Math.toRadians(walkHoldYaw);
         double dx = -Math.sin(r);
         double dz = Math.cos(r);
@@ -1898,6 +1926,7 @@ public final class RouteExecutor {
 
     private static void endWalkHold() {
         walkHoldYaw = null;
+        walkHoldBody = false;
         walkHoldLastPos = null;
         walkHoldStallTicks = 0;
     }
@@ -2458,6 +2487,17 @@ public final class RouteExecutor {
                     walkHoldYaw = RouteCoords.toRealYaw(frame, node.yaw);
                     walkHoldLastPos = null;
                     walkHoldStallTicks = 0;
+                    walkHoldBody = inTrapRoom();
+                    if (walkHoldBody) {
+                        // The body goes onto the walk now, before any key: this tick's move (and every one after it) is
+                        // along the node's yaw from the first tick, the camera held where he had it (AP3's Freeze View).
+                        float before = player.getYRot();
+                        turnBody(player, before + Mth.wrapDegrees(walkHoldYaw - before), player.getXRot());
+                        trapWalkTurns++;
+                        LOGGER.info("[AutoRoutes] Node #{} WALK in a trap room: body turned {} -> {} before walking "
+                                + "(camera held)", route.indexOf(node) + 1, String.format(Locale.US, "%.2f", before),
+                                String.format(Locale.US, "%.2f", player.getYRot()));
+                    }
                 }
                 logActed(node, (route.path().isEmpty() ? " (sprint starts this tick)" : "")
                         + (wasSneaking ? " (released the held sneak)" : ""));
@@ -3030,7 +3070,9 @@ public final class RouteExecutor {
                 wantSneak = false;
                 Vec3 to = RouteCoords.toReal(frame, dest.relativePos());
                 // Arrive with the feet well inside the second node's ring, so the walk step finds him in it and fires it.
-                double half = Math.max(0.1, dest.radius) / 2.0 * 0.8;
+                // (A trap room's boxed node arrives inside its W x L box's narrower side; a ring node is the same as before.)
+                int destRot = frame == null ? 0 : frame.rotation();
+                double half = Math.min(dest.halfRealX(destRot), dest.halfRealZ(destRot)) * 0.8;
                 final Route walkRoute = route;
                 final RouteCoords.Frame walkFrame = frame;
                 Ap3TrapWalk.begin(client, player, to, half, "Path #" + (route.indexOf(node) + 1) + " -> #"
@@ -6103,7 +6145,9 @@ public final class RouteExecutor {
         // crosshair follows the held view but every packet reports the body, so his own clicks would go out aimed one
         // way and reported another.
         boolean acting = MimicKiller.isBusy() || breakerLingering() || (running && walkHoldYaw == null && !(activeNode != null && awaitHeld)
-                && (activeNode != null || !stackQueue.isEmpty() || settleTicks > 0 || landedFrom != null));
+                && (activeNode != null || !stackQueue.isEmpty() || settleTicks > 0 || landedFrom != null))
+                // A trap room's held walk keeps the body on the walk and the camera held for as long as it lasts.
+                || (running && walkHoldYaw != null && walkHoldBody);
         BODY.tick(client.player, acting);
     }
 

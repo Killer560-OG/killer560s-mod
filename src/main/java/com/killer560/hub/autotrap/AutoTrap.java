@@ -73,8 +73,15 @@ public final class AutoTrap {
      * {@code contains("Trap")} rule made its path pairs walk too.
      */
     public static boolean isTrapRoom(String room) {
-        return room != null && TRAPS.contains(room);
+        return room != null && (TRAPS.contains(room) || room.equals(testTrapRoom));
     }
+
+    /**
+     * Test hook (testkit 62-argrim-1101-trap*): one more room name that counts as a trap room, so the trap-room rules of
+     * Auto Routes (walk nodes turning first, box sizes on any node) can be run in the testkit's pasted room on GrimAC.
+     * Null (always, outside the testkit).
+     */
+    public static volatile String testTrapRoom;
 
     public enum Mode {
         FULL("Full Trap"), CLEARED("Just Cleared");
