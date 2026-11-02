@@ -62,6 +62,8 @@ public final class SimMobFloor {
     private static volatile boolean bloodNeedsKey;
     private static volatile boolean planned;
     private static int fairyDoor = -1;
+    /** This floor's wither door cells (11x11), for tests. */
+    private static final List<Integer> WITHER_CELLS = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static int fairyTicks = -1;
     private static volatile String plan = "";
     /** Each path room's first tile center, by name, taken on the client thread when the floor is planned. */
@@ -117,6 +119,11 @@ public final class SimMobFloor {
         return plan;
     }
 
+    /** This floor's wither door cells in rush order (11x11 index), for tests. */
+    public static List<Integer> witherDoorCellsForTest() {
+        return List.copyOf(WITHER_CELLS);
+    }
+
     /** The key rooms of this floor in rush order, "name|wither" or "name|blood", for tests. */
     public static List<String> keyRoomsForTest() {
         List<String> out = new ArrayList<>();
@@ -135,6 +142,7 @@ public final class SimMobFloor {
     static void onFloorReady(Minecraft client) {
         keyRooms.clear();
         CENTRES.clear();
+        WITHER_CELLS.clear();
         bloodNeedsKey = false;
         planned = false;
         fairyDoor = -1;
@@ -232,6 +240,7 @@ public final class SimMobFloor {
         for (int door : wither) {
             SimDoors.makeWitherDoor(client, door);
         }
+        WITHER_CELLS.addAll(wither);
         if (fairyDoor >= 0) {
             SimDoors.makeWitherDoor(client, fairyDoor);
         }
