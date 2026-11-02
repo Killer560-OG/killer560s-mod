@@ -211,7 +211,7 @@ final class CoreEntryTimes {
     }
 
     private static String format(long ms) {
-        return String.format(Locale.US, "%.2fs", ms / 1000.0);
+        return String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(ms) / 1000.0);
     }
 
     /** The slowest entry recorded so far, or null before anyone has been timed in. Shared by the chat/party

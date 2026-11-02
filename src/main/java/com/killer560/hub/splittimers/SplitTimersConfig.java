@@ -52,6 +52,9 @@ public final class SplitTimersConfig {
      *  Boss, Total With/Without Lag, Lag Lost) and Clear Splits are gone: that layout is now fixed, and their old keys
      *  in a saved file are ignored. */
     private boolean laglessTimes = true;
+    /** killer560, 2026-11-01: "have an option for it to count every .01s or only .05 seconds (a tick counting option).
+     *  It would just round to the nearest .05 for that one." Cheat build only. Default OFF (every 0.01 s). */
+    private boolean tickCounting = false;
 
     private SplitTimersConfig() {
     }
@@ -83,6 +86,7 @@ public final class SplitTimersConfig {
             cfg.coreEntrySlowestParty = ConfigJson.getBool(obj, "coreEntrySlowestParty", false);
             cfg.coreEntrySlowestHud = ConfigJson.getBool(obj, "coreEntrySlowestHud", false);
             cfg.laglessTimes = ConfigJson.getBool(obj, "laglessTimes", true);
+            cfg.tickCounting = ConfigJson.getBool(obj, "tickCounting", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new SplitTimersConfig();
@@ -104,6 +108,7 @@ public final class SplitTimersConfig {
             obj.addProperty("coreEntrySlowestParty", coreEntrySlowestParty);
             obj.addProperty("coreEntrySlowestHud", coreEntrySlowestHud);
             obj.addProperty("laglessTimes", laglessTimes);
+            obj.addProperty("tickCounting", tickCounting);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -193,6 +198,28 @@ public final class SplitTimersConfig {
 
 
 
+
+    /** The stored Tick Counting switch. */
+    public boolean isTickCountingRaw() {
+        return tickCounting;
+    }
+
+    /** Tick Counting in effect: the switch, in a cheat build (a legit build always counts every 0.01 s). */
+    public boolean isTickCounting() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && tickCounting;
+    }
+
+    public void setTickCounting(boolean v) {
+        tickCounting = v;
+    }
+
+    /** A split time as the timers show it: unchanged, or rounded to the nearest 0.05 s (one tick) with Tick Counting. */
+    public static long shown(long ms) {
+        if (ms <= 0L || !getInstance().isTickCounting()) {
+            return ms;
+        }
+        return Math.round(ms / 50.0) * 50L;
+    }
 
     public boolean isLaglessTimes() {
         return laglessTimes;

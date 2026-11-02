@@ -78,7 +78,23 @@ public class SplitTimersTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 26;
 
+        // Cheat only (killer560, 2026-11-01), at the bottom under a red header, with no explanation line (its tooltip has it).
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat", true));
+            y += 14;
+            widgets.add(SettingsButtonWidget.cycling(countingLabel(cfg), (btn, dir) -> {
+                        cfg.setTickCounting(!cfg.isTickCountingRaw());
+                        cfg.save();
+                        btn.setMessage(countingLabel(cfg));
+                    }).bounds(contentX, y, 220, 18).build());
+            y += 26;
+        }
+
         return widgets;
+    }
+
+    private static Component countingLabel(SplitTimersConfig cfg) {
+        return Component.literal("Counting: §6" + (cfg.isTickCountingRaw() ? "Ticks (0.05s)" : "Every 0.01s"));
     }
 
     private static Component p5PosLabel(SplitTimersConfig cfg) {
