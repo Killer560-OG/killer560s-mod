@@ -54,6 +54,7 @@ final class LocalPlanner {
             return List.of();
         }
         int maxUp = Math.max(1, (int) Math.floor(jumpHeight - 0.05));
+        planJump = jumpHeight;
         PriorityQueue<double[]> open = new PriorityQueue<>((a, b) -> Double.compare(a[0], b[0]));
         Map<Long, Double> cost = new HashMap<>();
         Map<Long, Long> parent = new HashMap<>();
@@ -189,12 +190,36 @@ final class LocalPlanner {
                     break; // no headroom over his own column for this jump
                 }
                 if (body(level, lifted) && cell(level, lifted) && !lava(level, lifted)) {
+                    // Onto a fence or a wall the feet end up half a block higher than the cell: a 1.5 rise his jump does
+                    // not clear (testkit 1101-fairy-island-GOLD_MINES: a way back planned on top of a fence line).
+                    if (feetHeight(level, lifted) - feetHeight(level, at) > planJump - 0.05 && !inWater) {
+                        break;
+                    }
                     out.add(new Move(lifted, base + 0.6 + k * 0.5));
                     break;
                 }
             }
         }
         return out;
+    }
+
+    /** The jump height of the plan being made (one plan at a time, on the render thread). */
+    private static double planJump = 1.25;
+
+    /** Where his feet are standing in this cell: on a low block its top, on a fence or wall below it 0.5 above the cell. */
+    static double feetHeight(Level level, BlockPos c) {
+        double low = lowTop(level, c);
+        if (low > 0.0) {
+            return c.getY() + low;
+        }
+        BlockPos below = c.below();
+        if (level.isLoaded(below)) {
+            var shape = level.getBlockState(below).getCollisionShape(level, below);
+            if (!shape.isEmpty()) {
+                return c.getY() + Math.max(0.0, shape.max(net.minecraft.core.Direction.Axis.Y) - 1.0);
+            }
+        }
+        return c.getY();
     }
 
     private static boolean inBounds(BlockPos p, BlockPos origin) {
