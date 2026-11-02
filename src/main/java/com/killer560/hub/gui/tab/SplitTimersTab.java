@@ -64,6 +64,8 @@ public class SplitTimersTab extends BaseTab {
             y += 22;
         }
 
+        y = BloodRushSplitsRows.add(widgets, contentX, y, contentWidth, requestRebuild);
+
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "M7 Phase 5 Lines", false));
         y += 14;
         widgets.add(onOffButton("P5 Dragon Lines", cfg::isP5DragonLines, cfg::setP5DragonLines, cfg::save,

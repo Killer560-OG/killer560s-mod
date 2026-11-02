@@ -556,6 +556,7 @@ public final class ProfileManager {
                 com.killer560.hub.simonsays.SimonSaysConfig::load,
                 com.killer560.hub.slotbinds.SlotBindsConfig::load,
                 com.killer560.hub.spiritleap.SpiritLeapOverlayConfig::load,
+                com.killer560.hub.splittimers.BloodRushSplitsConfig::load,
                 com.killer560.hub.splittimers.SplitTimersConfig::load,
                 com.killer560.hub.splittimers.TerminalTimersConfig::load,
                 com.killer560.hub.storageoverlay.StorageOverlayConfig::load,

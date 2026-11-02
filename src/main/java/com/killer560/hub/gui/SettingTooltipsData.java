@@ -16,7 +16,10 @@ final class SettingTooltipsData {
         d.put("mute chest sounds", "In dungeons, silences chest open and close sounds.");
         d.put("mute lever sounds", "In dungeons, silences lever click sounds.");
         d.put("breaker charges", "Shows your Dungeon Breaker's charges as a HUD line in dungeons. Move it in the HUD editor.");
-        d.put("key spawn alert", "Shows a title and plays a sound when a Wither Key or Blood Key appears.");
+        d.put("blood rush splits", "Times the blood rush room by room on its own HUD: each room's time from the door into it to the door out, how long its key took, and a slow door click.");
+        d.put("rush style", "Compact is one row a room; Detailed lists each room's door down, last mob, pickup, opened and room total.");
+        d.put("rush to chat", "When the Blood door opens, sends you the rush's room times as one chat line (only you see it).");
+        d.put("key spawn alert","Shows a title and plays a sound when a Wither Key or Blood Key appears.");
         d.put("pre-boss warning", "When the Watcher lets you pass, lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
         d.put("crypt reminder", "Once the run clock passes the set time with fewer than 5 crypts, shows the crypt count. Outside the boss only, once a run.");
         d.put("remind at", "The run time at which the Crypt Reminder checks your crypts.");
