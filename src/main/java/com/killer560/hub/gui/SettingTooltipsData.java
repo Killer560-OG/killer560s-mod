@@ -2348,6 +2348,8 @@ final class SettingTooltipsData {
         d.put("storage overlay/storage overlay enabled", "Shows all your Ender Chest pages and backpacks in a grid beside the menu.");
         d.put("storage overlay/overlay theme", "Amber (the original dark look), Dark (neutral grays) or Light, for the grid and the relocated inventory.");
         d.put("storage overlay/columns", "How many storage panels sit side by side.");
+        d.put("thorn triggerbot", "Cheat build: in the F4/M4 Thorn fight, holds right click while you hold the Tribal Spear, so its throw keeps Thorn stunned.");
+        d.put("thorn triggerbot/only when aimed at thorn", "Holds only while your crosshair is on Thorn with no block in the way. Bats and other mobs in between do not stop it.");
         d.put("wither boss triggerbot", "Cheat build: in the F7/M7 boss, clicks Goldor (or every wither boss) while your crosshair is on him, from any range.");
         d.put("wither boss triggerbot/cps", "Clicks per second, randomized between the two ends of the range.");
         d.put("wither boss triggerbot/click type", "Attack is a left click: an attack in melee reach, the swing alone from further (what a Terminator or a mage beam fires on). Use is a right click for a Terminator or Juju shot.");

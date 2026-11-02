@@ -112,6 +112,7 @@ public final class ThornFeature {
                 ThornEspFeature.reset();
             }
         }
+        ThornTriggerbot.tick(client, active);
         if (!active) {
             return;
         }
