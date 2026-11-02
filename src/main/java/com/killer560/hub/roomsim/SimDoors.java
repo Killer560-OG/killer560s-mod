@@ -690,6 +690,20 @@ public final class SimDoors {
         return false;
     }
 
+    /** Whether the door at 11x11 cell {@code idx} is open on the server: none of the blocks a door registered in its center
+     *  column is still solid (a doorway that never had a door is open). Server thread. */
+    static boolean isOpenAtCell(ServerLevel level, int idx) {
+        BlockPos centre = DungeonLayout.cellCenter(idx);
+        for (Door door : DOORS) {
+            for (BlockPos p : door.blocks()) {
+                if (p.getX() == centre.getX() && p.getZ() == centre.getZ() && !level.getBlockState(p).isAir()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     /** Hypixel's "<name> opened a WITHER door!" line, from the server. */
     private static void announceWitherDoor(Minecraft client) {
         var server = client.getSingleplayerServer();

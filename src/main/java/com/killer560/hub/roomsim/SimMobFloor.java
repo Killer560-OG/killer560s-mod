@@ -66,6 +66,8 @@ public final class SimMobFloor {
     private static final List<Integer> WITHER_CELLS = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static int fairyTicks = -1;
     private static volatile String plan = "";
+    /** Each path room's previous path room and the door between ({name, door cell}), by name. */
+    private static final java.util.Map<String, Object[]> BEFORE = new java.util.concurrent.ConcurrentHashMap<>();
     /** Each path room's first tile center, by name, taken on the client thread when the floor is planned. */
     private static final java.util.Map<String, Vec3> CENTRES = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -141,6 +143,7 @@ public final class SimMobFloor {
      */
     static void onFloorReady(Minecraft client) {
         keyRooms.clear();
+        BEFORE.clear();
         CENTRES.clear();
         WITHER_CELLS.clear();
         bloodNeedsKey = false;
@@ -235,6 +238,8 @@ public final class SimMobFloor {
             if (!isBlood && isMobRoom(type)) {
                 sources.push(name);
             }
+            // The room before this one on the path and the door between: what makes it discovered (SimKeyRoom).
+            BEFORE.put(name, new Object[]{layout.name(path.get(i - 1)), door});
             words.append(i > 1 ? " > " : "").append(name);
         }
         for (int door : wither) {
@@ -269,7 +274,7 @@ public final class SimMobFloor {
         }
         broadcast(client, MORT_LINE);
         for (String[] k : keyRooms) {
-            SimKeyRoom.arm(client, k[0], "blood".equals(k[1]));
+            armKey(client, k);
         }
         fairyTicks = fairyDoor >= 0 ? FAIRY_OPEN_TICKS : -1;
     }
@@ -280,8 +285,13 @@ public final class SimMobFloor {
             return;
         }
         for (String[] k : keyRooms) {
-            SimKeyRoom.arm(client, k[0], "blood".equals(k[1]));
+            armKey(client, k);
         }
+    }
+
+    private static void armKey(Minecraft client, String[] k) {
+        Object[] b = BEFORE.get(k[0]);
+        SimKeyRoom.arm(client, k[0], "blood".equals(k[1]), b == null ? null : (String) b[0], b == null ? -1 : (Integer) b[1]);
     }
 
     /** {@link SimLiveMobs}, server thread, right after the GO placement: a key room that got no mob drops its key now. */

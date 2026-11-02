@@ -48,11 +48,25 @@ public final class SimKeyRoom {
         volatile String enteredBy;
         volatile boolean lost;
         volatile boolean dropped;
+        /** The room before it on the path to Blood (its tile boxes) and the door between, or empty / -1 (a test room). */
+        List<int[]> before = List.of();
+        int doorIn = -1;
+        /** Discovered: he has stood in the room before it with the door between open (the map would show it). */
+        volatile boolean discovered;
 
         Armed(String name, boolean blood, List<int[]> boxes) {
             this.name = name;
             this.blood = blood;
             this.boxes = boxes;
+        }
+
+        boolean insideBefore(double x, double z) {
+            for (int[] b : before) {
+                if (x >= b[0] && x < b[2] && z >= b[1] && z < b[3]) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         boolean inside(double x, double z) {
@@ -94,10 +108,37 @@ public final class SimKeyRoom {
      * @return false when the sim cannot act or the room is not on the map
      */
     static boolean arm(Minecraft client, String roomName, boolean blood) {
+        return arm(client, roomName, blood, null, -1);
+    }
+
+    /**
+     * {@link #arm} for a floor with mobs: {@code beforeRoom} is the room before it on the path to Blood and {@code doorIn}
+     * the door between. Once he has stood in that room with that door open the key room is DISCOVERED, and a teleport into
+     * it no longer insta clears it - the evidence (insta-clear.json, 2026-10-20) is an etherwarp into an undiscovered room
+     * insta clearing it 13 times of 15 and into a discovered one 1 of 75.
+     */
+    static boolean arm(Minecraft client, String roomName, boolean blood, String beforeRoom, int doorIn) {
         if (!SimState.canAct(client) || roomName == null) {
             return false;
         }
         DungeonLayout layout = DungeonLayout.capture();
+        List<int[]> out = boxes(layout, roomName);
+        if (out.isEmpty()) {
+            return false;
+        }
+        Armed armed = new Armed(roomName, blood, out);
+        if (beforeRoom != null) {
+            armed.before = boxes(layout, beforeRoom);
+            armed.doorIn = doorIn;
+        }
+        ARMED.put(key(roomName), armed);
+        lastPos = null;
+        LOGGER.info("Sim key room: {} holds the {} ({} tile(s)) - a first entry by teleport insta clears it and loses the"
+                + " key", roomName, blood ? "Blood Key" : "Wither Key", out.size());
+        return true;
+    }
+
+    private static List<int[]> boxes(DungeonLayout layout, String roomName) {
         List<int[]> out = new ArrayList<>();
         for (int r = 0; r < layout.roomCount(); r++) {
             if (!roomName.equalsIgnoreCase(layout.name(r))) {
@@ -108,14 +149,7 @@ public final class SimKeyRoom {
                 out.add(new int[]{c.getX() - 15, c.getZ() - 15, c.getX() + 16, c.getZ() + 16});
             }
         }
-        if (out.isEmpty()) {
-            return false;
-        }
-        ARMED.put(key(roomName), new Armed(roomName, blood, List.copyOf(out)));
-        lastPos = null;
-        LOGGER.info("Sim key room: {} holds the {} ({} tile(s)) - a first entry by teleport insta clears it and loses the"
-                + " key", roomName, blood ? "Blood Key" : "Wither Key", out.size());
-        return true;
+        return List.copyOf(out);
     }
 
     private static String key(String name) {
@@ -195,6 +229,11 @@ public final class SimKeyRoom {
                 return;
             }
             for (Armed a : ARMED.values()) {
+                if (!a.discovered && a.doorIn >= 0 && a.insideBefore(pos.x, pos.z)
+                        && SimDoors.isOpenAtCell(server.overworld(), a.doorIn)) {
+                    a.discovered = true;
+                    LOGGER.info("Sim key room: {} discovered (he is in the room before it and its door is open)", a.name);
+                }
                 if (a.entered || !a.inside(pos.x, pos.z)) {
                     continue;
                 }
@@ -202,7 +241,10 @@ public final class SimKeyRoom {
                 double jump = Math.hypot(pos.x - before.x, pos.z - before.z);
                 boolean teleport = jump > TELEPORT_BLOCKS && !a.inside(before.x, before.z);
                 a.enteredBy = teleport ? "teleport" : "walk";
-                if (teleport) {
+                if (teleport && a.discovered) {
+                    LOGGER.info(String.format(Locale.US, "Sim key room: %s entered by a teleport of %.1f blocks, but it was"
+                            + " discovered - no insta clear; it clears when its starred mobs die", a.name, jump));
+                } else if (teleport) {
                     a.lost = true;
                     SimRoomState.markCleared(a.name);
                     LOGGER.info(String.format(Locale.US, "Sim key room: %s insta cleared - its first entry was a"
