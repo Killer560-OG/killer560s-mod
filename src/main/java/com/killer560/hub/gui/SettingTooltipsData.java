@@ -2691,10 +2691,9 @@ final class SettingTooltipsData {
         d.put("streamer mode", "Run /streamer to turn it on, and again to turn it off. The option below says what it does while it is on: Disable cheats stops every automated action, and either option hides the cheat parts of the menu.");
         d.put("streamer mode/option", "What Streamer Mode does while it is on: Disable cheats refuses every automated action, Hide cheat UI only hides them.");
         d.put("zoom", "Hold the zoom key to narrow the view. While it is held, the mouse wheel changes the zoom.");
-        d.put("see other mod users", "Shows a tag before the name of every player who shows as a mod user (the Tag Style below; each style tells legit from cheat). Off by default.");
-        d.put("tag style", "How mod user tags look to you, one mark before the name: K (a bold orange K, red for cheat), Ember (an orange star, red-orange for cheat) or Classic (a diamond, green or red).");
+        d.put("see other mod users", "Shows a tag before the name of every player who shows as a mod user (a bold K: orange for legit, red for cheat). Off by default.");
         d.put("show me as a mod user", "Lets other mod users see that you run the mod. Off by default; nobody sees your variant until you turn this on.");
-        d.put("show as", "Which variant you show to others: legit (green) or cheat (red). Only the cheat build can show cheat.");
+        d.put("show as", "Which variant you show to others: legit (an orange K) or cheat (a red K). Only the cheat build can show cheat.");
         d.put("cape", "Wear one of the built-in capes (each carries the mod logo in its colors), or pick Make Your Own to choose a pattern and two colors. Only your own player shows it; other players see their own cape.");
         d.put("bazaar advisor", "Legit, read-only: when a Bazaar menu opens, prints what to buy, how much, and the expected profit in chat. It never clicks anything.");
         d.put("bazaar pick", "Ranks by profit per unit times units sold a week: buy at the cheapest sell offer, sell into the best buy order.");
