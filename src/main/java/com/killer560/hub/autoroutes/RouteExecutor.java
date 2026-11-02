@@ -6241,12 +6241,16 @@ public final class RouteExecutor {
     private static final int AIM_TRIES = 3;
     private static BlockPos aimTurnPos;
     private static int aimTurnCount;
+    private static long aimTurnTick;
 
+    /** Consecutive-tick turns only: a target last turned to more than 2 ticks ago (an earlier node, an earlier run on the
+     *  same block - 62-argrim-1102-multibreak's repeats skipped their first block on a stale count) starts again at 1. */
     private static int aimTurns(BlockPos pos) {
-        if (!pos.equals(aimTurnPos)) {
+        if (!pos.equals(aimTurnPos) || execTicks - aimTurnTick > 2 || execTicks < aimTurnTick) {
             aimTurnPos = pos.immutable();
             aimTurnCount = 0;
         }
+        aimTurnTick = execTicks;
         return ++aimTurnCount;
     }
 
