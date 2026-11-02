@@ -2356,6 +2356,8 @@ final class SettingTooltipsData {
         d.put("storage overlay/columns", "How many storage panels sit side by side.");
         d.put("thorn triggerbot", "Cheat build: in the F4/M4 Thorn fight, holds right click while you hold the Tribal Spear, so its throw keeps Thorn stunned.");
         d.put("thorn triggerbot/only when aimed at thorn", "Holds only while your crosshair is on Thorn with no block in the way. Bats and other mobs in between do not stop it.");
+        d.put("auto sell/any npc sell menu", "Sells in any Hypixel NPC shop you can sell into (told by the shop's sell slot), not only menus whose title matches the sell pattern like Trades.");
+        d.put("auto sell/add defaults", "Adds the dungeon junk list (Oak Sign, Lever, the dungeon armor sets, Earthen Blade, Silent Death, Training Weights, Healing VIII Splash Potion and more) to the sell list. Items already on it stay once; the never-sell list still wins.");
         d.put("wither boss triggerbot", "Cheat build: in the F7/M7 boss, clicks Goldor (or every wither boss) while your crosshair is on him, from any range.");
         d.put("wither boss triggerbot/cps", "Clicks per second, randomized between the two ends of the range.");
         d.put("wither boss triggerbot/click type", "Attack is a left click: an attack in melee reach, the swing alone from further (what a Terminator or a mage beam fires on). Use is a right click for a Terminator or Juju shot.");

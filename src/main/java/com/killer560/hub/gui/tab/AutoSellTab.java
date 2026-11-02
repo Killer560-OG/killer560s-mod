@@ -57,6 +57,10 @@ public class AutoSellTab extends BaseTab implements KeyCaptureTab {
             return widgets;
         }
 
+        widgets.add(onOffButton("Any NPC Sell Menu", cfg::isAnyNpcMenu, cfg::setAnyNpcMenu, cfg::save,
+                null, contentX, y, contentWidth, 20));
+        y += 24;
+
         // Random wait between two sell clicks, 0..10 ticks, one slider for each end (killer560, 2026-10-18).
         int tickRange = AutoSellConfig.MAX_TICKS;
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, minTicksText(cfg),
@@ -104,6 +108,12 @@ public class AutoSellTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Sell List"), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new AutoSellListScreen(McCompat.screen(client)));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Add Defaults"), btn -> {
+                    int added = cfg.addDefaults();
+                    cfg.save();
+                    btn.setMessage(Component.literal("Add Defaults (" + added + " added)"));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
