@@ -507,6 +507,11 @@ public final class ScoreCalculatorFeature {
         if (WATCHER_DONE.matcher(plain).find()) {
             expectingBloodUpdate = true;
             ScoreWarnings.onWatcherDone(runTicks);
+            // The Pre-Boss Warning shows on this line, the moment the Portal Entry split starts (killer560, 2026-11-01),
+            // not on the next half-second poll: recalculate now from the last tab read.
+            if (tabDataSeen) {
+                recalculate(ScoreCalculatorConfig.getInstance());
+            }
             return;
         }
         Matcher party = PARTY_MESSAGE.matcher(plain);

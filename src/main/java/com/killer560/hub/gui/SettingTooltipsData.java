@@ -17,9 +17,12 @@ final class SettingTooltipsData {
         d.put("mute lever sounds", "In dungeons, silences lever click sounds.");
         d.put("breaker charges", "Shows your Dungeon Breaker's charges as a HUD line in dungeons. Move it in the HUD editor.");
         d.put("key spawn alert", "Shows a title and plays a sound when a Wither Key or Blood Key appears.");
-        d.put("pre-boss warning", "When the Watcher lets you pass, lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
+        d.put("pre-boss warning", "The moment the Watcher lets you pass (the last blood mob dies), lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
         d.put("crypt reminder", "Once the run clock passes the set time with fewer than 5 crypts, shows the crypt count. Outside the boss only, once a run.");
-        d.put("remind at", "The run time at which the Crypt Reminder checks your crypts.");
+        d.put("remind at", "The run time at which the Crypt Reminder checks your crypts: 0:05 to 2:00 in 5 second steps (default 0:45).");
+        d.put("score warning/mage only", "The Pre-Boss Warning only while you are playing Mage.");
+        d.put("score warning/permanent", "From the Watcher's last line until you enter the boss, a title stays on screen: DO NOT ENTER PORTAL while score is missing, a green ENTER THE PORTAL once nothing is.");
+        d.put("score warning/list missing score", "Lists what is missing (crypts, cleared, secrets) under DO NOT ENTER PORTAL. Off shows that line alone.");
         d.put("score warning/tell party", "Also sends the crypt count to party chat.");
         d.put("warning sound", "Plays a sound with the Score Warning titles.");
         d.put("ice spray alert", "Shows an \"Ice Spray Livid!\" title and a sound the moment Livid's opening invulnerability ends.");
