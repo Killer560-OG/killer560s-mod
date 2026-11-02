@@ -469,7 +469,7 @@ public final class ItemBrowserFeature {
 
                 SkyblockItemEntry entry = filtered.get(itemIndex);
                 ItemStack stack = SkyblockItemStackFactory.build(entry);
-                graphics.item(stack, cellX + 1, cellY + 1);
+                com.killer560.hub.gui.ItemCell.draw(graphics, null, stack, cellX + 1, cellY + 1, CELL_SIZE - 2); // with its rarity box
                 if (minionTiers(entry).size() > 1) {
                     // A stack of every tier: a small orange corner mark, like a bundle.
                     graphics.fill(cellX + CELL_SIZE - 5, cellY + 1, cellX + CELL_SIZE - 1, cellY + 5, menu == null ? 0xFFCC6600 : menu.accent());

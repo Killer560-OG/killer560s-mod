@@ -457,3 +457,9 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
 - `CommitEditBox.withSet` takes its Set button (SET_W 34 + SET_GAP 4) out of the box's own width, so a row laid out before
   textbox-1101 can leave a box too narrow: the Command Shortcuts custom row's command box fell to 52 px in the test window
   (testkit 621 wants 60). Reserve the Set width when sizing the row (ship-1102h, eb3719df: the name box pays for it).
+- **`graphics.item(stack, x + 1, y + 1)` is a vanilla 18-unit slot's draw; in a bigger cell it is a small icon in the
+  top-left corner.** The Inventory Sorter grew its cells to 26 units on 2026-11-01 and kept the 16-unit item at +1,+1, so
+  his items "dont fit" (2026-11-02). And the mod's own grids never pass the `extractSlot` mixin, so none of them drew the
+  Item Rarity box. Draw grid items through `gui/ItemCell.draw(g, font, stack, x, y, inside)`: rarity box sized to the cell
+  (`ItemRarityFeature.drawBox`, same settings), item centered at about 85% of the inside snapped to framebuffer pixels
+  (unscaled at 16), count and bar scaled with it. Testkit 588 measures it from pixels at four window/GUI sizes.

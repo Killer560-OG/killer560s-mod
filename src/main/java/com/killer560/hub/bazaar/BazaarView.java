@@ -668,8 +668,7 @@ public final class BazaarView {
             int ix = sx + (cell - 1 - 16) / 2;
             int iy = sy + (cell - 1 - 16) / 2;
             if (!stack.isEmpty()) {
-                g.item(stack, ix, iy);
-                g.itemDecorations(font, stack, ix, iy);
+                com.killer560.hub.gui.ItemCell.draw(g, font, stack, ix, iy, 16); // with its rarity box
                 if (id == null) {
                     g.fill(sx, sy, sx + cell - 1, sy + cell - 1, t.light() ? 0xB0E8E8E8 : 0xB0000000);
                 }

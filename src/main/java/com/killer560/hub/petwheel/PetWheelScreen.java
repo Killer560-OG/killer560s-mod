@@ -317,6 +317,12 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
             return;
         }
 
+        // The pet's Item Rarity box inside its card, when that feature is on (2026-11-02).
+        try {
+            com.killer560.hub.itemrarity.ItemRarityFeature.drawBox(graphics, iconFor(pet), x0 + 1, y0 + 1, tile - 2);
+        } catch (Throwable ignored) {
+            // visual only
+        }
         int iconPixelSize = Math.round(16 * scale * iconScale);
         float iconMatrixScale = iconPixelSize / 16f;
         graphics.pose().pushMatrix();
