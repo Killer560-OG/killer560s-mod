@@ -32,6 +32,8 @@ public abstract class RightClickSendMixin {
                 com.killer560.hub.util.HotbarSelect.onPacketSent(packet);
                 // GrimAC DuplicateRotPlace: the yaw turn before each block click (util/PlaceRotationGuard).
                 com.killer560.hub.util.PlaceRotationGuard.onPacketSent(packet);
+                // GrimAC MultiBreak: one block dug per server tick (util/DigWindow).
+                com.killer560.hub.util.DigWindow.onPacketSent(packet);
             }
             if (packet instanceof ServerboundUseItemOnPacket || packet instanceof ServerboundUseItemPacket
                     || packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerActionPacket

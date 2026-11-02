@@ -187,7 +187,9 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
 
         widgets.add(onOffButton("Zero Ping", cfg::isBreakerAuraZeroPingRaw, cfg::setBreakerAuraZeroPing, cfg::save,
                 null, contentX, y, col2W, 18));
-        // Multi Break was removed 2026-11-02 (gridexp-1102): several breaks in one tick is GrimAC MultiBreak.
+        // Multi Break (multibreak-1102): every block in reach back to back, one a tick (GrimAC MultiBreak's limit).
+        widgets.add(onOffButton("Multi Break", cfg::isBreakerAuraMultiBreak, cfg::setBreakerAuraMultiBreak, cfg::save,
+                null, col2bX, y, col2W, 18));
         y += 20;
 
         // How the picks are drawn (2026-10-06): Highlight (the original, depth-tested) or Waypoint (through walls,

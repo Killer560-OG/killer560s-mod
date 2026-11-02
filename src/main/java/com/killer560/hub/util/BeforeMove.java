@@ -65,6 +65,7 @@ public final class BeforeMove {
                 ModLog.get("killer560smod-autoroutes").error("[BeforeMove] a queued send threw", e);
             }
         }
+        DigWindow.clearPending(); // a queued dig that was refused never went
     }
 
     /** Sends that went at a movement packet's head / late at the next tick's start (only go up) - read by the testkit. */
@@ -79,5 +80,6 @@ public final class BeforeMove {
     /** Drops anything queued (world change). */
     public static void clear() {
         QUEUE.clear();
+        DigWindow.clearPending();
     }
 }

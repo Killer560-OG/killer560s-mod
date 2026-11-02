@@ -5123,6 +5123,12 @@ public final class RouteExecutor {
                 finishAction();
                 return;
             }
+            if (!com.killer560.hub.util.DigWindow.mayDigOrHold(hit.getBlockPos())) {
+                // The tap is a dig: with another block dug this server tick (a breaker linger) it is GrimAC MultiBreak.
+                logHold("boomwindow:" + traceIndex(node), "node {} BOOM: a dig already went this server tick - the tap goes"
+                        + " next tick (GrimAC MultiBreak)", nodeTag(node));
+                return;
+            }
             boomTarget = hit.getBlockPos();
             boomBefore.clear();
             for (int dx = -BOOM_WATCH_RADIUS; dx <= BOOM_WATCH_RADIUS; dx++) {
@@ -5156,6 +5162,7 @@ public final class RouteExecutor {
                 } else {
                     turnBody(player, player.getYRot() + Mth.wrapDegrees(boomAimYaw - player.getYRot()),
                             Mth.clamp(boomAimPitch, -90f, 90f));
+                    com.killer560.hub.util.DigWindow.reserve(tapAt);
                     com.killer560.hub.util.BeforeMove.queue(() -> {
                         sendBoomTap(client, player, tapAt, tapFace);
                         com.killer560.hub.compat.McCompat.swingAttack(player);
@@ -5501,12 +5508,14 @@ public final class RouteExecutor {
             // QUOI's DungeonBreakerAction: one block per tick, each a start-prediction START_DESTROY_BLOCK and a swing.
             // Obvious mode turns the body (camera held) to the block a tick AHEAD of its dig and every dig carries the
             // face the eye sees, because GrimAC checks both (RotationBreak, PositionBreakA; util/DigAim).
-            // ONE block a tick (gridexp-1102): GrimAC's experimental MultiBreak flags a second START_DESTROY_BLOCK on another
-            // block (or face) inside one server tick, and a vanilla client digs at most one block a tick (destroyDelay
-            // after an instant break), so the old Multi Break burst is gone. One a tick in obvious mode (QUOI's and RSA's
-            // own pace, BreakerNode.kt / BreakNode.java), one per Interact Delay in legit mode as before.
+            // ONE block a tick at most (gridexp-1102, multibreak-1102): GrimAC's experimental MultiBreak flags a second
+            // dig on another block (or face) before the server's next tick packet, and a client sends one tick packet a
+            // tick (util/DigWindow). Breaker Aura's Multi Break (ON) breaks the node's blocks back to back, one every tick
+            // in both modes (QUOI's and RSA's own pace, BreakerNode.kt / BreakNode.java); OFF, legit mode waits its
+            // Interact Delay between blocks as before.
             boolean legitMode = AutoRoutesConfig.getInstance().isLegitMode();
-            int delay = legitMode ? Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks()) : 1;
+            boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraMultiBreak();
+            int delay = legitMode && !multi ? Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks()) : 1;
             if (stepTicks % delay != 0) {
                 return;
             }
@@ -5560,10 +5569,17 @@ public final class RouteExecutor {
                 // Aimed as GrimAC's RotationBreak judges it (util/DigAim): with the look the server already has striking
                 // the block the dig goes now; otherwise the body turns now and the dig goes at the head of this tick's
                 // movement packet, which carries that look (util/BeforeMove) - vanilla's own order.
+                if (!com.killer560.hub.util.DigWindow.mayDigOrHold(pos)) {
+                    // Another dig (the linger, Breaker Aura, his hand) already went this server tick: GrimAC MultiBreak.
+                    logHold("breakerwindow:" + traceIndex(node), "node {} DUNGEON_BREAKER: a dig already went this server"
+                            + " tick - {} goes next tick (GrimAC MultiBreak)", nodeTag(node), pos.toShortString());
+                    return;
+                }
                 boolean atMove = !legitMode && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos);
                 breakerQueue.remove(0);
                 if (atMove) {
                     turnBodyToward(player, Vec3.atCenterOf(pos));
+                    com.killer560.hub.util.DigWindow.reserve(pos);
                     com.killer560.hub.util.BeforeMove.queue(() -> {
                         sendBreak(client, player, pos);
                         com.killer560.hub.compat.McCompat.swingAttack(player);
@@ -5575,10 +5591,14 @@ public final class RouteExecutor {
                 breakerChargesLeft--;
                 sentNow++;
                 if (breakerSent.isEmpty()) {
-                    logActed(node, "");
+                    logActed(node, multi ? " (multi break)" : "");
                 }
                 breakerSent.add(pos);
                 breakerSentAt.put(pos.immutable(), execTicks);
+                if (multi) {
+                    LOGGER.info("[AutoRoutes] Breaker: multi break block {} at {} ({} tick(s) after the first)",
+                            breakerSent.size(), pos.toShortString(), stepTicks);
+                }
                 if (!legitMode && !atMove) {
                     // The next block's turn goes in this tick's movement packet, so it is dug next tick with no turn tick
                     // between (Grim also tries the previous look for this dig, so turning now does not unaim it).
@@ -5635,6 +5655,10 @@ public final class RouteExecutor {
                             pos.toShortString());
                     breakerObsidian.clear();
                     break;
+                }
+                if (!com.killer560.hub.util.DigWindow.mayDigOrHold(pos)) {
+                    breakerObsidian.add(0, pos); // a dig already went this server tick (GrimAC MultiBreak): next tick
+                    return;
                 }
                 select(client, player, slot);
                 Direction face = com.killer560.hub.util.BlockHits.surfaceOrCentre(client.level, pos,
@@ -5756,6 +5780,9 @@ public final class RouteExecutor {
             if (sent > 0) {
                 break;
             }
+            if (!com.killer560.hub.util.DigWindow.mayDigOrHold(pos)) {
+                return false; // a dig already went this server tick (GrimAC MultiBreak): next tick
+            }
             boolean atMove = !AutoRoutesConfig.getInstance().isLegitMode()
                     && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos);
             LOGGER.info("[AutoRoutes] Breaker: {} ({}) still standing {} tick(s) after its dig (round trip {}) - digging it "
@@ -5764,6 +5791,7 @@ public final class RouteExecutor {
             if (atMove) {
                 // Turned this tick: the dig goes at the head of the movement packet carrying the look (util/BeforeMove).
                 turnBodyToward(player, Vec3.atCenterOf(pos));
+                com.killer560.hub.util.DigWindow.reserve(pos);
                 com.killer560.hub.util.BeforeMove.queue(() -> {
                     sendBreak(client, player, pos);
                     com.killer560.hub.compat.McCompat.swingAttack(player);
@@ -5971,9 +5999,11 @@ public final class RouteExecutor {
                 return;
             }
         }
-        // One dig a tick (GrimAC MultiBreak, gridexp-1102): obvious mode every tick, legit mode one per Interact Delay.
+        // One dig a tick at most (GrimAC MultiBreak, util/DigWindow): back to back with Multi Break on or in obvious mode,
+        // one per Interact Delay in legit mode with Multi Break off.
         boolean legitMode = AutoRoutesConfig.getInstance().isLegitMode();
-        int delay = legitMode ? Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks()) : 1;
+        boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraMultiBreak();
+        int delay = legitMode && !multi ? Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks()) : 1;
         if (lingerTicks % delay != 0) {
             return;
         }
@@ -6009,11 +6039,17 @@ public final class RouteExecutor {
             if (sentNow > 0) {
                 break;
             }
+            if (!com.killer560.hub.util.DigWindow.mayDigOrHold(pos)) {
+                LOGGER.debug("[AutoRoutes] Breaker linger: a dig already went this server tick - {} waits (GrimAC MultiBreak)",
+                        pos.toShortString());
+                return;
+            }
             // Aimed as GrimAC's RotationBreak judges it (util/DigAim): the look the server has strikes it, or the body
             // turns now and the dig goes at the head of this tick's movement packet (util/BeforeMove).
             boolean atMove = !legitMode && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos);
             if (atMove) {
                 turnBodyToward(player, Vec3.atCenterOf(pos));
+                com.killer560.hub.util.DigWindow.reserve(pos);
             }
             if (com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(client.level.getBlockState(pos))) {
                 // Obsidian is dug alone and held until the server breaks it - never re-STARTed on a timer, which

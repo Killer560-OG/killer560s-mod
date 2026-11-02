@@ -231,6 +231,8 @@ public final class BreakerAuraFeature {
     // arms a configurable delay and the first break only goes out once that delay has run down.
     private static int swappedFromSlot = -1;
     private static int swapArmedTicks = 0;
+    /** Blocks sent so far in the current Multi Break run (back to back, one a tick); 0 between runs. */
+    private static int multiBreakRun = 0;
     private static int idleSinceSwapTicks = 0;
     private static boolean warnedNoBreakerInHotbar = false;
 
@@ -622,9 +624,9 @@ public final class BreakerAuraFeature {
         if (active != wasActive) {
             wasActive = active;
             LOGGER.info("[DungeonExtras] Breaker Aura {}.", active ? "active" : "inactive");
-            LOGGER.info("[BreakerAura] {}: why={} reach={} cooldown={} zeroPing={} autoSwap={} picks={}"
+            LOGGER.info("[BreakerAura] {}: why={} reach={} cooldown={} multiBreak={} zeroPing={} autoSwap={} picks={}"
                             + " tick={}", active ? "active" : "inactive", inactiveWhy(client, cfg),
-                    fmt2(cfg.getBreakerAuraReach()), cfg.getBreakerAuraCooldownTicks(),
+                    fmt2(cfg.getBreakerAuraReach()), cfg.getBreakerAuraCooldownTicks(), cfg.isBreakerAuraMultiBreak(),
                     cfg.isBreakerAuraZeroPing(), cfg.isBreakerAuraAutoSwap(), selectedBlocks().size(),
                     com.killer560.hub.util.SessionRecorderSink.tick());
             if (!active) {
@@ -839,10 +841,13 @@ public final class BreakerAuraFeature {
         // A departure from "look at how quoi parses multiple blocks and follow it exactly" - deliberately, and
         // only in the order. Which blocks are eligible, and one a tick, are still QUOI's. When he is not moving
         // there is no way to be in, and this falls back to QUOI's rule exactly.
-        // ONE a tick. Multi Break (everything in reach on one tick) was removed 2026-11-02 (gridexp-1102): GrimAC
-        // 2.3.74's experimental MultiBreak flags a second START_DESTROY_BLOCK on another block inside one server tick,
-        // and a setting value that flags never ships (killer560, 2026-10-27).
+        // ONE a tick, whatever Multi Break says. Until 2026-11-02 Multi Break sent everything in reach on one tick; GrimAC
+        // 2.3.74's experimental MultiBreak flags a second dig on another block (or face) before the server's next tick
+        // packet, and a vanilla client sends exactly one of those per client tick (util/DigWindow has the source lines),
+        // so one a tick is the fastest clean pace. Multi Break now means BACK TO BACK: every block in reach goes on
+        // consecutive ticks with no cooldown between them; OFF waits the cooldown after each (multibreak-1102).
         int allowed = 1;
+        boolean multiBreak = cfg.isBreakerAuraMultiBreak();
         Vec3 feet = player.position();
         Vec3 vel = player.getDeltaMovement();
         double speed = Math.hypot(vel.x, vel.z);
@@ -877,6 +882,15 @@ public final class BreakerAuraFeature {
         // The gate is still asked - Breaker Aura still takes its turn among the other actors, and still stands
         // down for a screen, a teleport, a world swap or a higher-priority actor. Having won the tick it sends one
         // break (Multi Break, several on one tick, was removed 2026-11-02 for GrimAC MultiBreak).
+        if (!order.isEmpty() && !com.killer560.hub.util.DigWindow.open()) {
+            // Something already dug (or queued a dig for) this server tick - a route's breaker or boom, his own hand. A
+            // second block now is GrimAC MultiBreak; it goes next tick (util/DigWindow).
+            com.killer560.hub.util.DigWindow.mayDigOrHold(order.get(0));
+            logRated("window", "[BreakerAura] held: a dig already went this server tick (GrimAC MultiBreak), {} target(s)"
+                    + " in reach, first {}", order.size(), order.get(0).toShortString());
+            census("gate"); // another dig owns this server tick
+            return;
+        }
         if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
             gateRefused = true;
             logRated("gate", "[BreakerAura] held: ActionGate refused BREAKER_AURA this tick, {} target(s) in reach,"
@@ -970,10 +984,14 @@ public final class BreakerAuraFeature {
         // old arithmetic a cooldown of 1 meant break, skip, break - half the rate the setting says, and half
         // QUOI's, which has no cooldown in its break loop at all and simply sends one every tick. killer560
         // (2026-09-23): "right now the breaker aura is just way to slow. It isnt how the other clients feel."
-        cooldownTicks = Math.max(0, cfg.getBreakerAuraCooldownTicks() - 1);
+        // Multi Break: no cooldown while blocks of this run are still in reach - the next goes next tick; the cooldown
+        // applies once the run is over (nothing else in reach this tick).
+        boolean moreInRun = multiBreak && order.size() > sent;
+        cooldownTicks = moreInRun ? 0 : Math.max(0, cfg.getBreakerAuraCooldownTicks() - 1);
+        multiBreakRun = moreInRun ? multiBreakRun + sent : 0;
         LOGGER.info("[BreakerAura] tick done: sent={} of {} target(s) | spentSinceLore={} lore={} | swing | cooldown"
-                        + " now {} tick(s) | tick={}", sent, targets.size(), spentSinceLore, charges, cooldownTicks,
-                com.killer560.hub.util.SessionRecorderSink.tick());
+                        + " now {} tick(s) | multiBreak={} run={} | tick={}", sent, targets.size(), spentSinceLore, charges,
+                cooldownTicks, multiBreak, moreInRun ? multiBreakRun : "end", com.killer560.hub.util.SessionRecorderSink.tick());
     }
 
     /** True while Auto Routes is in its block-placing edit mode. AP3 has no edit mode to ask about (see notes). */
