@@ -142,6 +142,7 @@ public final class SimMobFloor {
      * thread (reads the live map's layout); the doors are carved on the integrated server.
      */
     static void onFloorReady(Minecraft client) {
+        releaseChunks(client);
         keyRooms.clear();
         BEFORE.clear();
         CENTRES.clear();
@@ -250,6 +251,7 @@ public final class SimMobFloor {
             SimDoors.makeWitherDoor(client, fairyDoor);
         }
         planned = true;
+        forceChunks(client, layout);
         StringBuilder keys = new StringBuilder();
         for (String[] k : keyRooms) {
             keys.append(keys.length() > 0 ? ", " : "").append(k[0]).append(" (").append(k[1]).append(")");
@@ -330,6 +332,65 @@ public final class SimMobFloor {
             LOGGER.info("[Sim] the Fairy door opens by itself {} ticks after GO ({})", FAIRY_OPEN_TICKS,
                     opened ? "opening" : "no door found");
         }
+    }
+
+    // ---- the floor's chunks stay loaded ---------------------------------------------------------------------------------
+
+    /** Chunks this floor forced, as {x, z}. */
+    private static final List<int[]> FORCED = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * Keeps every chunk of the floor loaded while it has mobs. A sim mob is a {@code SimZombie}/{@code SimEnderman} - a
+     * subclass only while it stays in memory: a chunk that unloads saves it as a plain zombie or enderman and loads it back
+     * as one (vanilla AI, no Fel state, a sleeping Fel now visible and a woken skull a stale reference), and a Fel's skull
+     * the sim holds is no longer the entity in the world (doc-adm-sim-1101: Knight's Fel never woke, 4 blocks from him).
+     */
+    private static void forceChunks(Minecraft client, DungeonLayout layout) {
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        java.util.Set<Long> chunks = new java.util.HashSet<>();
+        for (int r = 0; r < layout.roomCount(); r++) {
+            for (int t : layout.tiles(r)) {
+                BlockPos c = DungeonLayout.cellCenter(t);
+                for (int dx = -16; dx <= 16; dx += 16) {
+                    for (int dz = -16; dz <= 16; dz += 16) {
+                        int cx = (c.getX() + dx) >> 4;
+                        int cz = (c.getZ() + dz) >> 4;
+                        chunks.add(((long) cx << 32) | (cz & 0xffffffffL));
+                    }
+                }
+            }
+        }
+        List<int[]> list = new ArrayList<>();
+        for (long k : chunks) {
+            list.add(new int[]{(int) (k >> 32), (int) k});
+        }
+        FORCED.addAll(list);
+        server.execute(() -> {
+            for (int[] c : list) {
+                server.overworld().setChunkForced(c[0], c[1], true);
+            }
+        });
+        LOGGER.info("[Sim] floor with mobs: {} chunk(s) kept loaded", list.size());
+    }
+
+    private static void releaseChunks(Minecraft client) {
+        if (FORCED.isEmpty()) {
+            return;
+        }
+        List<int[]> list = new ArrayList<>(FORCED);
+        FORCED.clear();
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        server.execute(() -> {
+            for (int[] c : list) {
+                server.overworld().setChunkForced(c[0], c[1], false);
+            }
+        });
     }
 
     // ---- helpers --------------------------------------------------------------------------------------------------------
