@@ -469,11 +469,13 @@ public final class WitherDoorsFeature {
         CACHED.add(new DoorBox(box, rgba[0], rgba[1], rgba[2], fill[0], fill[1], fill[2]));
     }
 
-    /** The boxes the last rebuild produced, for tests: {minX, minY, minZ, maxX, maxY, maxZ} each. */
+    /** The boxes the last rebuild produced, for tests: {minX, minY, minZ, maxX, maxY, maxZ, r, g, b} each (the outline
+     *  color as 0..1, appended 2026-11-01 so a test can tell a Fairy-colored box from a wither one). */
     public static List<double[]> cachedBoxes() {
         List<double[]> out = new ArrayList<>();
         for (DoorBox b : CACHED) {
-            out.add(new double[]{b.box().minX, b.box().minY, b.box().minZ, b.box().maxX, b.box().maxY, b.box().maxZ});
+            out.add(new double[]{b.box().minX, b.box().minY, b.box().minZ, b.box().maxX, b.box().maxY, b.box().maxZ,
+                    b.r(), b.g(), b.b()});
         }
         return out;
     }
