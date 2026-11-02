@@ -386,6 +386,7 @@ public final class Ap3Executor {
         }
         pendingUserStop = null;
         traceEnd();
+        com.killer560.hub.dungeonalerts.SpringBootsOverlay.setCountForAp3(false);
         activeNode = null;
         step = null;
         alignPredValid = false;
@@ -1272,6 +1273,9 @@ public final class Ap3Executor {
             prePlanAfterAlignZ = activeNode.z;
             prePlanAfterAlign = true;
         }
+        if (activeNode != null && activeNode.type == Ap3Node.Type.CRYSTAL) {
+            com.killer560.hub.dungeonalerts.SpringBootsOverlay.setCountForAp3(false);
+        }
         // Release the camera as soon as the node is done - a finished LOOK must not keep pulling the view back.
         RouteRotation.clear();
         // ...and drop the grace window with it. Click-skipping a LEAP used to leave 205 ticks of grace
@@ -1996,6 +2000,7 @@ public final class Ap3Executor {
             case BLOCK -> tickBlock(client, player, node);
             case BLINK_CHARGE -> tickBlinkCharge(player, node);
             case BLINK_RELEASE -> tickBlinkRelease(player, node);
+            case CRYSTAL -> tickCrystal(client, player, node);
             case STOPWATCH -> {
                 toggleStopwatch(node);
                 finishNode();
@@ -4354,6 +4359,104 @@ public final class Ap3Executor {
         if (speed <= Ap3AlignMath.ZERO_VELOCITY || stepTicks > BRAKE_TIMEOUT) {
             finishNode();
         }
+    }
+
+    // ---- CRYSTAL (killer560, 2026-11-01) ---------------------------------------------------------------------------
+    //
+    // "add a crystal node. It should work for getting crystals with spring boots. Itll hold crouch once it hits that node
+    // till it has enough height to get the crystal then release crouch." Spring Boots charge while he crouches: Hypixel
+    // plays a note per charge level and the jump goes off when the crouch is let go. The height those notes add up to is
+    // the Spring Boots HUD's count (dungeonalerts.SpringBootsOverlay, Odin's table), so the node crouches - nothing else
+    // pressed, the walk ended - until that count reaches the height it needs, then lets go: the next tick's input has no
+    // sneak. The height is the node's own (/ap3 add crystal 30), else what puts his body (1.8 tall) at the nearest end
+    // crystal above the node, else the full charge (the count stops growing).
+
+    /** Ticks with no charge note before the node gives up (no Spring Boots, or not on Hypixel). */
+    static final int CRYSTAL_NO_NOTE_TICKS = 40;
+    /** Full-charge mode: the count has not grown for this many ticks. */
+    static final int CRYSTAL_FULL_TICKS = 12;
+    /** The longest a crystal node crouches. */
+    static final int CRYSTAL_MAX_TICKS = 200;
+    /** How far (horizontally) from the node an end crystal counts as its crystal. */
+    static final double CRYSTAL_SEARCH_XZ = 6.0;
+    /** The height charged to, NaN = full charge. */
+    private static double crystalNeed;
+    private static float crystalLastHeight;
+    private static int crystalSameTicks;
+    /** Crystal nodes that let go of the crouch on their height since launch - read by the testkit. */
+    private static int crystalReleases;
+    private static float crystalReleasedAt;
+
+    public static int crystalReleases() {
+        return crystalReleases;
+    }
+
+    public static float crystalReleasedAt() {
+        return crystalReleasedAt;
+    }
+
+    public static double crystalNeed() {
+        return crystalNeed;
+    }
+
+    private static void tickCrystal(Minecraft client, LocalPlayer player, Ap3Node node) {
+        if (step == Step.PREP) {
+            com.killer560.hub.dungeonalerts.SpringBootsOverlay.setCountForAp3(true);
+            crystalNeed = node.crystalHeight > 0 ? node.crystalHeight : crystalAbove(client, player, node);
+            crystalLastHeight = 0f;
+            crystalSameTicks = 0;
+            LOGGER.info("[AP3] crystal #{}: crouching to charge the Spring Boots to {} (feet y {}, wearing them: {})",
+                    number(node), Double.isNaN(crystalNeed) ? "the full charge (no crystal above, no height set)"
+                            : String.format(Locale.US, "%.1f blocks%s", crystalNeed, node.crystalHeight > 0 ? "" : " (the crystal above)"),
+                    String.format(Locale.US, "%.3f", player.getY()),
+                    com.killer560.hub.dungeonalerts.SpringBootsOverlay.wearing(player));
+            step = Step.DO;
+            stepTicks = 0;
+        }
+        float h = com.killer560.hub.dungeonalerts.SpringBootsOverlay.chargedHeight();
+        crystalSameTicks = h > 0f && h == crystalLastHeight ? crystalSameTicks + 1 : 0;
+        crystalLastHeight = h;
+        boolean enough = Double.isNaN(crystalNeed) ? h > 0f && crystalSameTicks >= CRYSTAL_FULL_TICKS : h >= crystalNeed;
+        if (enough || (h > 0f && stepTicks >= CRYSTAL_MAX_TICKS)) {
+            crystalReleases++;
+            crystalReleasedAt = h;
+            LOGGER.info("[AP3] crystal #{}: charged to {} blocks after {} tick(s){} - letting go of the crouch", number(node),
+                    String.format(Locale.US, "%.1f", h), stepTicks, enough ? "" : " (the longest it crouches)");
+            finishNode(); // the next tick's input carries no sneak: the jump goes
+            return;
+        }
+        if (h <= 0f && stepTicks > CRYSTAL_NO_NOTE_TICKS) {
+            failNode(String.format(Locale.US, "crystal #%d heard no Spring Boots charge in %d ticks (wearing Spring Boots: %s)",
+                    number(node), CRYSTAL_NO_NOTE_TICKS,
+                    com.killer560.hub.dungeonalerts.SpringBootsOverlay.wearing(player) ? "yes" : "no"));
+            return;
+        }
+        clearMovement();
+        wantSneak = true;
+    }
+
+    /** The height that puts his body at the nearest end crystal above the node, NaN when there is none. */
+    private static double crystalAbove(Minecraft client, LocalPlayer player, Ap3Node node) {
+        if (client.level == null) {
+            return Double.NaN;
+        }
+        double feet = player.getY();
+        net.minecraft.world.phys.AABB around = new net.minecraft.world.phys.AABB(node.x - CRYSTAL_SEARCH_XZ, feet,
+                node.z - CRYSTAL_SEARCH_XZ, node.x + CRYSTAL_SEARCH_XZ, feet + Ap3Node.MAX_CRYSTAL_HEIGHT + 2.0,
+                node.z + CRYSTAL_SEARCH_XZ);
+        double best = Double.NaN;
+        double bestDist = Double.MAX_VALUE;
+        for (net.minecraft.world.entity.boss.enderdragon.EndCrystal c
+                : client.level.getEntitiesOfClass(net.minecraft.world.entity.boss.enderdragon.EndCrystal.class, around)) {
+            double d = Math.hypot(c.getX() - node.x, c.getZ() - node.z);
+            // His box (1.8 tall) reaches the crystal's bottom when his feet are 1.8 under it; a block of margin over that.
+            double need = c.getY() - feet - 1.0;
+            if (need > 0.5 && d < bestDist) {
+                bestDist = d;
+                best = need;
+            }
+        }
+        return best;
     }
 
     // ---- BLINK_CHARGE / BLINK_RELEASE (killer560, 2026-10-26) ---------------------------------------------------

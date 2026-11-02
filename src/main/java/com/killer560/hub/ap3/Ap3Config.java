@@ -318,6 +318,8 @@ public final class Ap3Config {
             // Blink's red: a charge is a stop that banks, a release is the shot.
             case BLINK_CHARGE -> 0xFFE11D48;
             case BLINK_RELEASE -> 0xFFFB7185;
+            // An energy crystal's pink-violet.
+            case CRYSTAL -> 0xFFD946EF;
         };
     }
 

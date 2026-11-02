@@ -279,6 +279,8 @@ public final class Ap3Feature {
         public Integer blinkTicks;
         /** BLINK_CHARGE {@code stop}: a plain stop instead of frozen momentum. */
         public boolean blinkStop;
+        /** CRYSTAL: the Spring Boots height typed after the type, null = from the crystal above. */
+        public Double crystalHeight;
         /** PATH: the speed window and heading the route must cross this node at, and whether it waits for a term. */
         public Double minSpeed;
         public Double maxSpeed;
@@ -327,6 +329,9 @@ public final class Ap3Feature {
                 node.setBlinkTicks(blinkTicks);
             }
             node.blinkStop = node.type == Ap3Node.Type.BLINK_CHARGE && blinkStop;
+            if (crystalHeight != null && node.type == Ap3Node.Type.CRYSTAL) {
+                node.setCrystalHeight(crystalHeight);
+            }
             if (node.type == Ap3Node.Type.PATH) {
                 if (pathIndex != null) {
                     node.pathIndex = pathIndex;

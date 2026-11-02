@@ -139,7 +139,7 @@ public final class Ap3Commands {
     /** The node-type words {@code /ap3 add <type>} accepts, in the order they are offered. */
     private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "fastalign", "path", "nogo", "termaura", "walk", "run", "leap",
             "leapcounter", "terminal", "stop", "look", "boom", "stopwatch", "jump", "edge", "block", "use", "blinkcharge",
-            "blinkrelease");
+            "blinkrelease", "crystal");
     /** Modifiers offered after any {@code /ap3 add <type>}. */
     private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "precise", "jump", "edge", "ss", "close",
             "leapcounter:", "sectiondone:");
@@ -162,6 +162,8 @@ public final class Ap3Commands {
                 opts.addAll(List.of("1", "2", "3", "4"));
             } else if (t == Ap3Node.Type.PATH) {
                 opts.addAll(PATH_MODS);
+            } else if (t == Ap3Node.Type.CRYSTAL) {
+                opts.addAll(List.of("h:", "20", "30"));
             } else if (t != null && t.usesBlinkTicks()) {
                 opts.addAll(List.of("1", "3", "5", "10", "20"));
                 if (t == Ap3Node.Type.BLINK_CHARGE) {
@@ -818,6 +820,17 @@ public final class Ap3Commands {
                         return null;
                     }
                     spec.blinkTicks = k;
+                } else if (type == Ap3Node.Type.CRYSTAL
+                        && t.matches("(?:h:|height:)?(?:[0-9]{1,2}(?:\\.[0-9]{1,2})?|\\.[0-9]{1,2})")) {
+                    // "/ap3 add crystal 30" (or h:30): charge to that many blocks; no number = the crystal above.
+                    double h = Double.parseDouble(t.substring(t.indexOf(':') + 1));
+                    if (h <= 0 || h > Ap3Node.MAX_CRYSTAL_HEIGHT) {
+                        ModChat.send(FEATURE, ModChat.bad("Crystal height out of range "), ModChat.value(raw),
+                                ModChat.text(" - above 0 up to " + Ap3Node.fmt(Ap3Node.MAX_CRYSTAL_HEIGHT)
+                                        + " blocks, or no number for the crystal above the node."));
+                        return null;
+                    }
+                    spec.crystalHeight = h;
                 } else if (type == Ap3Node.Type.STOPWATCH && raw.matches("[A-Za-z0-9_\\-]{1,16}") && spec.name == null) {
                     // "/ap3 add stopwatch s3" - the name the time is reported under.
                     spec.name = raw;
@@ -827,6 +840,7 @@ public final class Ap3Commands {
                                     + (type == Ap3Node.Type.LEAP ? ", a class, ign <name>" : "")
                                     + (type == Ap3Node.Type.LEAP_COUNTER ? ", a count" : "")
                                     + (type.usesBlinkTicks() ? ", a tick count 1-" + Ap3Node.MAX_BLINK_TICKS : "")
+                                    + (type == Ap3Node.Type.CRYSTAL ? ", a height in blocks" : "")
                                     + (type == Ap3Node.Type.STOPWATCH ? ", a name (one word)" : "") + "."));
                     return null;
                 }
@@ -1189,6 +1203,7 @@ public final class Ap3Commands {
             case AXIS_ALIGN -> sb.append(" wall ").append(node.wallDir() == null ? "?" : node.wallDir().getName());
             case BLINK_CHARGE -> sb.append(node.blinkTicks > 0 ? " " + node.blinkTicks + " ticks" : " max");
             case BLINK_RELEASE -> sb.append(node.blinkTicks > 0 ? " " + node.blinkTicks + " ticks" : " all");
+            case CRYSTAL -> sb.append(node.crystalHeight > 0 ? " " + Ap3Node.fmt(node.crystalHeight) + " blocks" : " to the crystal");
             default -> {
             }
         }
