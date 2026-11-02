@@ -25,12 +25,13 @@ import java.util.function.Consumer;
  * every fresh raw press here, at the head of Minecraft's own key and mouse handlers, ahead of every screen, so Block
  * Input or a menu cannot hide it:
  * <ul>
- *   <li>Escape stops both kinds - with no screen open (it opens the pause menu) or a container open (it closes it).</li>
- *   <li>The Emergency Cancel Key ({@link MacroStopConfig}) stops both kinds - with no screen or a container open.</li>
+ *   <li>Escape stops both kinds - with no screen open (it opens the pause menu), a container open (it closes it) or a
+ *       sign open (Bazaar Flip's amount sign, where its stop press is swallowed).</li>
+ *   <li>The Emergency Cancel Key ({@link MacroStopConfig}) stops both kinds - with no screen, a container or a sign open.</li>
  *   <li>A movement key (forward, back, left, right, jump) or the chat / command key, with no screen open, stops a
  *       movement macro.</li>
  *   <li>Nothing else does: no other key, no mouse button, no scroll. Keys typed into a screen that is not a container
- *       (chat, this mod's menu, a sign) are never counted, per the CLAUDE.md "any key stops it" lesson.</li>
+ *       (chat, this mod's menu) are never counted, per the CLAUDE.md "any key stops it" lesson.</li>
  * </ul>
  * A macro's own Start/Stop key stays its own business (each feature polls it). Auto Routes and AP3 are not here: their
  * stop rules are their own (docs/AP3.md, docs/LESSONS-AUTOMATION.md). Only presses count, never releases or repeats,
@@ -120,7 +121,10 @@ public final class MacroStop {
      */
     public static boolean onPress(int code, String keyName, boolean movementKey, boolean chatKey) {
         Screen screen = McCompat.screen(Minecraft.getInstance());
-        boolean typing = screen != null && !(screen instanceof AbstractContainerScreen<?>);
+        // A sign is not typing here: the only sign open during a macro is Bazaar Flip's amount sign, which the flip fills
+        // itself, and Escape / the Emergency Cancel Key must still stop it there (testkit 2767).
+        boolean typing = screen != null && !(screen instanceof AbstractContainerScreen<?>)
+                && !(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen);
         int cancelKey = MacroStopConfig.getInstance().getEmergencyCancelKeyCode();
         boolean escape = !typing && code == Keys.ESCAPE;
         boolean emergency = !typing && cancelKey != KeyUtil.NONE && code == cancelKey;
