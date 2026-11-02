@@ -49,6 +49,11 @@ public class DisplayOptionsTab extends BaseTab {
                     btn.setMessage(confineMouseText());
                 }).bounds(contentX, y, 220, 20).build());
         y += 22;
+        // Only In Dungeons (killer560, 2026-11-01): confine only during a Catacombs run.
+        widgets.add(onOffButton("Only In Dungeons", () -> ConfineMouseConfig.getInstance().isOnlyInDungeons(),
+                v -> ConfineMouseConfig.getInstance().setOnlyInDungeons(v), () -> ConfineMouseConfig.getInstance().save(),
+                null, contentX + 12, y, 208, 20));
+        y += 22;
 
         widgets.add(SettingsButtonWidget.builder(fullbrightText(), btn -> {
                     FullbrightConfig cfg = FullbrightConfig.getInstance();
