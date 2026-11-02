@@ -173,6 +173,16 @@ public final class QuizSolverFeature {
             return;
         }
 
+        // killer560, 2026-11-01: "if i get one wrong remove the highlight for the correct answer". Oruo's wrong-answer
+        // line (anchored, real name group) fails the puzzle; the answer it shows is of no use any more.
+        if (QuizState.WRONG.matcher(whole).matches()) {
+            boolean shown = getCorrectAnswerPos() != null;
+            clearForNewQuestion();
+            wrongAnswers++;
+            LOGGER.info("[QuizSolver] wrong answer line from Oruo - highlight removed (was shown: {})", shown);
+            return;
+        }
+
         if (msg.startsWith("[STATUE] Oruo the Omniscient: ") && msg.endsWith("correctly!")) {
             if (msg.contains("answered the final question")) {
                 LOGGER.info("[QuizSolver] final question answered - solver reset, puzzle done");
@@ -386,7 +396,7 @@ public final class QuizSolverFeature {
         if (correct < 0 || clicked < 0 || clicked == correct) {
             return false;
         }
-        if (sneaking) {
+        if (sneaking && cfg.isSneakOverride()) {
             LOGGER.info("[QuizSolver] wrong answer {} let through at {} - sneaking overrides Block Wrong Answers",
                     letterOf(clicked), pos.toShortString());
             return false;
@@ -400,14 +410,116 @@ public final class QuizSolverFeature {
                     com.killer560.hub.util.ModChat.value(letterOf(clicked)),
                     com.killer560.hub.util.ModChat.text(" is the wrong answer, the right one is "),
                     com.killer560.hub.util.ModChat.good(letterOf(correct)),
-                    com.killer560.hub.util.ModChat.dim(". Sneak to click it anyway."));
+                    com.killer560.hub.util.ModChat.dim(cfg.isSneakOverride() ? ". Sneak to click it anyway." : "."));
         }
         return true;
+    }
+
+    private static int wrongAnswers = 0;
+
+    /** For the testkit: how many wrong-answer lines have cleared the highlight. */
+    public static int wrongAnswers() {
+        return wrongAnswers;
     }
 
     /** For the testkit: how many clicks Block Wrong Answers has dropped. */
     public static int blockedClicks() {
         return blockedClicks;
+    }
+
+    // ---------------------------------------------------------------- Quiz Timer HUD
+
+    /** The text the Quiz Timer shows now, or null when there is nothing to time (no Quiz in progress). */
+    public static String timerText() {
+        if (!QuizState.inProgress()) {
+            return null;
+        }
+        int q = QuizState.nextQuestion();
+        if (QuizState.answerable()) {
+            return "\u00a7aQuiz " + q + "/3: answer now";
+        }
+        long t = QuizState.ticksUntilAnswerable();
+        if (t < 0) {
+            return null;
+        }
+        return String.format(java.util.Locale.US, "\u00a7eQuiz %d/3: \u00a7f%.1fs", q, t / 20.0);
+    }
+
+    /** Quiz Timer (killer560, 2026-11-01: "a toggleable hud to show how long till you need to come back to answer"; the
+     *  times are QuizState's, NoammAddons' 220/100 server ticks). */
+    public static final class TimerHudElement implements com.killer560.hub.hud.HudElement {
+        private static final String PREVIEW = "\u00a7eQuiz 2/3: \u00a7f3.4s";
+
+        private static String shown() {
+            String t = timerText();
+            return t == null && com.killer560.hub.hud.HudVisibility.editorOpen() ? PREVIEW : t;
+        }
+
+        @Override
+        public String id() {
+            return "quiz_timer";
+        }
+
+        @Override
+        public String displayName() {
+            return "Quiz Timer";
+        }
+
+        @Override
+        public int defaultX() {
+            return 10;
+        }
+
+        @Override
+        public int defaultY() {
+            return 180;
+        }
+
+        @Override
+        public int width() {
+            String t = shown();
+            return net.minecraft.client.Minecraft.getInstance().font.width(t == null ? PREVIEW : t);
+        }
+
+        @Override
+        public int height() {
+            return com.killer560.hub.hud.HudText.ROW;
+        }
+
+        @Override
+        public boolean isEnabledInSettings() {
+            QuizSolverConfig cfg = QuizSolverConfig.getInstance();
+            return cfg.isEnabledRaw() && cfg.isShowTimer();
+        }
+
+        @Override
+        public void render(net.minecraft.client.gui.GuiGraphicsExtractor graphics, int x, int y) {
+            QuizSolverConfig cfg = QuizSolverConfig.getInstance();
+            if (!cfg.isEnabled() || !cfg.isShowTimer() || com.killer560.hub.hud.HudVisibility.hidesHud()) {
+                return;
+            }
+            String text = shown();
+            if (text == null) {
+                return;
+            }
+            timerDraws++;
+            lastTimerText = text;
+            com.killer560.hub.hud.HudSeen.markDrawn(id());
+            graphics.text(net.minecraft.client.Minecraft.getInstance().font, text, x, y, 0xFFFFFFFF, true);
+        }
+    }
+
+    private static int timerDraws = 0;
+    private static String lastTimerText = null;
+
+    /** For the testkit: how many frames the Quiz Timer has drawn. */
+    public static int timerDraws() {
+        return timerDraws;
+    }
+
+    /** For the testkit: the text the Quiz Timer last drew. */
+    public static String lastTimerText() {
+        return lastTimerText;
     }
 
     private static void reset() {

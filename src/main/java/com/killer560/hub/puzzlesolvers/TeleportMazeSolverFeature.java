@@ -366,7 +366,7 @@ public final class TeleportMazeSolverFeature {
         if (!cfg.isEnabled() || tpPads.isEmpty() || client.level == null || client.player == null) {
             return;
         }
-        for (BlockPos pad : tpPads) {
+        for (BlockPos pad : padsToDraw(client.player.position())) {
             VoxelShape shape = client.level.getBlockState(pad).getShape(client.level, pad);
             AABB box = shape.isEmpty() ? new AABB(pad) : shape.bounds().move(pad);
             if (correctPortals.contains(pad)) {
@@ -389,8 +389,32 @@ public final class TeleportMazeSolverFeature {
             // half a block along the view direction makes it a proper line from the crosshair to the pad.
             Vec3 start = WorldRenderUtils.tracerOrigin(context);
             SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TELEPORT_MAZE, context, List.of(start,
-                    new Vec3(target.getX() + 0.5, target.getY() + 0.8, target.getZ() + 0.5)), 0.33f, 1.0f, 1.0f, 1f, 3f);
+                    new Vec3(target.getX() + 0.5, target.getY() + 0.8, target.getZ() + 0.5)),
+                    ((cfg.getTracerColor() >> 16) & 0xFF) / 255f, ((cfg.getTracerColor() >> 8) & 0xFF) / 255f,
+                    (cfg.getTracerColor() & 0xFF) / 255f, 1f, 3f);
         }
+    }
+
+    /**
+     * The pads drawn for him standing at {@code feet} (killer560, 2026-11-01: "only see pads in the cell you are currently
+     * in. also make an option to only highlight the pad you should go to"). Best Pad Only: the pad the tracer goes to
+     * (the best next pad in his cell), or the one exit candidate when only one is left; nothing when neither is known.
+     * Current Cell Only: the four pads of the cell his nearest pad belongs to; at the start or end pad (no cell) every pad
+     * is drawn, as before. Both off: every pad.
+     */
+    public static List<BlockPos> padsToDraw(Vec3 feet) {
+        TeleportMazeSolverConfig cfg = TeleportMazeSolverConfig.getInstance();
+        if (cfg.isBestPadOnly()) {
+            BlockPos only = best != null ? best : correctPortals.size() == 1 ? correctPortals.iterator().next() : null;
+            return only == null ? List.of() : List.of(only);
+        }
+        if (cfg.isCurrentCellOnly() && feet != null) {
+            Set<BlockPos> cell = cellOf(nearestPad(feet));
+            if (cell != null) {
+                return new ArrayList<>(cell);
+            }
+        }
+        return new ArrayList<>(tpPads);
     }
 
     private static void reset() {

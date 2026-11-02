@@ -26,6 +26,8 @@ public final class TicTacToeSolverConfig {
     private boolean fill = false;
     /** Blocks his click on any board square but the highlighted one (killer560, 2026-10-09). Sends nothing. */
     private boolean preventMisclicks = false;
+    /** Sneaking lets a blocked click through (killer560, 2026-11-01: "this needs an option for sneak to override"). */
+    private boolean sneakOverride = true;
 
     private TicTacToeSolverConfig() {
     }
@@ -55,6 +57,7 @@ public final class TicTacToeSolverConfig {
             cfg.showPrediction = ConfigJson.getBool(obj, "showPrediction", false);
             cfg.fill = ConfigJson.getBool(obj, "fill", false);
             cfg.preventMisclicks = ConfigJson.getBool(obj, "preventMisclicks", false);
+            cfg.sneakOverride = ConfigJson.getBool(obj, "sneakOverride", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new TicTacToeSolverConfig();
@@ -69,6 +72,7 @@ public final class TicTacToeSolverConfig {
             obj.addProperty("showPrediction", showPrediction);
             obj.addProperty("fill", fill);
             obj.addProperty("preventMisclicks", preventMisclicks);
+            obj.addProperty("sneakOverride", sneakOverride);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -102,6 +106,14 @@ public final class TicTacToeSolverConfig {
 
     public void setPreventMisclicks(boolean preventMisclicks) {
         this.preventMisclicks = preventMisclicks;
+    }
+
+    public boolean isSneakOverride() {
+        return sneakOverride;
+    }
+
+    public void setSneakOverride(boolean sneakOverride) {
+        this.sneakOverride = sneakOverride;
     }
 
     public boolean isShowPrediction() {

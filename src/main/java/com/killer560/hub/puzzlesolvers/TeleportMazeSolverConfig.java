@@ -22,6 +22,13 @@ public final class TeleportMazeSolverConfig {
 
     private boolean enabled = false;
     private boolean showTracer = true;
+    /** The tracer's color (killer560, 2026-11-01: "an option for the tracer color"); the cyan it always drew. */
+    public static final int DEFAULT_TRACER_COLOR = 0xFF55FFFF;
+    private int tracerColor = DEFAULT_TRACER_COLOR;
+    /** Draw only the pads of the cell he stands in (killer560, 2026-11-01). */
+    private boolean currentCellOnly = false;
+    /** Draw only the pad he should take next (killer560, 2026-11-01). */
+    private boolean bestPadOnly = false;
 
     private TeleportMazeSolverConfig() {
     }
@@ -49,6 +56,9 @@ public final class TeleportMazeSolverConfig {
             TeleportMazeSolverConfig cfg = new TeleportMazeSolverConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.showTracer = ConfigJson.getBool(obj, "showTracer", true);
+            cfg.tracerColor = obj.has("tracerColor") ? (int) obj.get("tracerColor").getAsLong() : DEFAULT_TRACER_COLOR;
+            cfg.currentCellOnly = ConfigJson.getBool(obj, "currentCellOnly", false);
+            cfg.bestPadOnly = ConfigJson.getBool(obj, "bestPadOnly", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new TeleportMazeSolverConfig();
@@ -61,6 +71,9 @@ public final class TeleportMazeSolverConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("showTracer", showTracer);
+            obj.addProperty("tracerColor", tracerColor);
+            obj.addProperty("currentCellOnly", currentCellOnly);
+            obj.addProperty("bestPadOnly", bestPadOnly);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -78,6 +91,30 @@ public final class TeleportMazeSolverConfig {
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    public int getTracerColor() {
+        return tracerColor;
+    }
+
+    public void setTracerColor(int tracerColor) {
+        this.tracerColor = tracerColor;
+    }
+
+    public boolean isCurrentCellOnly() {
+        return currentCellOnly;
+    }
+
+    public void setCurrentCellOnly(boolean currentCellOnly) {
+        this.currentCellOnly = currentCellOnly;
+    }
+
+    public boolean isBestPadOnly() {
+        return bestPadOnly;
+    }
+
+    public void setBestPadOnly(boolean bestPadOnly) {
+        this.bestPadOnly = bestPadOnly;
     }
 
     public boolean isShowTracer() {

@@ -347,6 +347,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.puzzlesolvers.QuizState.register();
         com.killer560.hub.puzzlesolvers.QuizLog.register();   // always on, log only ([QuizLog], 2026-10-18)
         com.killer560.hub.puzzlesolvers.QuizSolverFeature.register();
+        HudElementRegistry.register(new com.killer560.hub.puzzlesolvers.QuizSolverFeature.TimerHudElement());
         com.killer560.hub.puzzlesolvers.IceFillSolverFeature.register();
         com.killer560.hub.puzzlesolvers.WeirdosSolverFeature.register();
         com.killer560.hub.autopuzzles.AutoPuzzlesFeature.register();

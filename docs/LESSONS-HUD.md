@@ -134,3 +134,7 @@ rendering); the mod menu is [LESSONS-MENU.md](LESSONS-MENU.md).
 - **A HUD fed by a FeatureBits-gated tick keeps its last lines after the switch goes off.** The tick stops with the switch, so
   nothing clears the cached lines; Boss Health showed "Bonzo 250k" with the feature off (testkit 1025-bosshp-f1-gate). Gate the
   READ on the switch (`currentLines()` returns nothing while it is off), not only the refresh.
+- **A new HudElement registered with `HudElementRegistry.register` is only movable in the HUD editor; nothing draws it in game**
+  unless its id is in `HudInGameRenderer.UNDRAWN_ELEMENT_IDS` (or it has its own draw path). Advanced Position, Blink and the
+  Quiz Timer (2026-11-01, 1101-pz-quiz: 0 frames drawn) all shipped missing from it at first. Add the id with the element, and
+  have a test count real draws.

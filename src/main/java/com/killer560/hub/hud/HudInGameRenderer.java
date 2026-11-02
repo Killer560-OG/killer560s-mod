@@ -38,7 +38,9 @@ public final class HudInGameRenderer {
             // P3 Status (2026-10-25).
             "p3_status",
             // Croesus Chests (2026-10-25): unclaimed chests from the tab and Kismet Feathers, outside the menu.
-            "croesus_chests");
+            "croesus_chests",
+            // Quiz Timer (2026-11-01) - missing at first, so it never drew (1101-pz-quiz caught it).
+            "quiz_timer");
 
     private HudInGameRenderer() {
     }

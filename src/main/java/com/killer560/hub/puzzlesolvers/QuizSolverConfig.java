@@ -25,6 +25,10 @@ public final class QuizSolverConfig {
     private boolean enabled = false;
     /** Block Wrong Answers: once the solver knows the answer, his click on a wrong answer's button is dropped. */
     private boolean blockWrongAnswers = false;
+    /** Sneaking lets a blocked wrong answer through (killer560, 2026-11-01: "a shift to override option"). */
+    private boolean sneakOverride = true;
+    /** The Quiz Timer HUD: how long until the current question can be answered (killer560, 2026-11-01). */
+    private boolean showTimer = false;
 
     private QuizSolverConfig() {
     }
@@ -53,6 +57,8 @@ public final class QuizSolverConfig {
             QuizSolverConfig cfg = new QuizSolverConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.blockWrongAnswers = ConfigJson.getBool(obj, "blockWrongAnswers", false);
+            cfg.sneakOverride = ConfigJson.getBool(obj, "sneakOverride", true);
+            cfg.showTimer = ConfigJson.getBool(obj, "showTimer", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new QuizSolverConfig();
@@ -65,6 +71,8 @@ public final class QuizSolverConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("blockWrongAnswers", blockWrongAnswers);
+            obj.addProperty("sneakOverride", sneakOverride);
+            obj.addProperty("showTimer", showTimer);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -85,6 +93,22 @@ public final class QuizSolverConfig {
 
     public void setBlockWrongAnswers(boolean blockWrongAnswers) {
         this.blockWrongAnswers = blockWrongAnswers;
+    }
+
+    public boolean isSneakOverride() {
+        return sneakOverride;
+    }
+
+    public void setSneakOverride(boolean sneakOverride) {
+        this.sneakOverride = sneakOverride;
+    }
+
+    public boolean isShowTimer() {
+        return showTimer;
+    }
+
+    public void setShowTimer(boolean showTimer) {
+        this.showTimer = showTimer;
     }
 
     public void setEnabled(boolean enabled) {
