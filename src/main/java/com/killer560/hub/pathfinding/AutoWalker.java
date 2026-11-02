@@ -547,6 +547,7 @@ public final class AutoWalker {
 
         drive(client, player, cfg);
         keepLadderOutOfWater(client.level, player);
+        endSprintBeforeTheStop(player);
         if (!mixinApplied) {
             client.options.keyUp.setDown(wantForward);
             client.options.keyDown.setDown(wantBack);
@@ -560,6 +561,7 @@ public final class AutoWalker {
     }
 
     private static void drive(Minecraft client, LocalPlayer player, PathfindingConfig cfg) {
+        finalApproach = false;
         Level level = client.level;
         Vec3 pos = player.position();
         double jumpH = WalkTerrain.jumpHeight(player);
@@ -680,7 +682,10 @@ public final class AutoWalker {
         double allowed = allowedSpeed(level, player, pos, model);
         double ux = horizontal < 1.0e-6 ? 0 : dx / horizontal;
         double uz = horizontal < 1.0e-6 ? 0 : dz / horizontal;
-        boolean sprintOk = cfg.isAutoSprint() && !player.isInWater() && horizontal > 1.5;
+        NavigationManager.Target soulTarget = NavigationManager.target();
+        finalApproach = soulTarget != null && soulTarget.stayOnArrive
+                && NavigationManager.remainingDistance() < FINAL_WALK_BLOCKS;
+        boolean sprintOk = cfg.isAutoSprint() && !player.isInWater() && horizontal > 1.5 && !finalApproach;
         chooseKeys(model, player.getYRot(), ux * allowed, uz * allowed, sprintOk);
         // At the water surface (feet in the water, eyes out) the keys are not steered either: the same flag came from
         // the walker starting from the surface. He sinks or floats there on his own, and steering resumes once
@@ -1144,6 +1149,44 @@ public final class AutoWalker {
             wantLeft = need > 0;
             wantRight = need < 0;
         }
+    }
+
+    /** The last blocks to a soul's stop are walked, not sprinted (see {@link #endSprintBeforeTheStop}). */
+    static final double FINAL_WALK_BLOCKS = 8.0;
+    /** This tick's route target is a soul and fewer than {@link #FINAL_WALK_BLOCKS} of the route are left. */
+    private static boolean finalApproach;
+
+    /**
+     * Sprint ends BEFORE the stop at a soul, never on it. GrimAC 2.3.74 drew Simulation .046 (decaying x0.546, ground
+     * friction) plus SprintE* at soul 3's stop on BAYOU_SPILL (2 in ~50 runs). SprintE (checks/impl/sprint/SprintE) flags a
+     * tick where Grim's own prediction of the tick before had a HARD horizontal collision and the client is still sprinting
+     * without having just started; Grim decides hard/soft from its predicted vector, so a prediction off by .046 at a
+     * glancing wall touch reads "hard" while the client saw it minor and kept sprinting. With his sprint already over when
+     * he reaches the soul, neither the sprint-only prediction paths (Grim forces forward input while it thinks he sprints,
+     * PredictionEngine.loopVectors; the sprint speed attribute) nor SprintE can apply at the stop. Within the last
+     * {@link #FINAL_WALK_BLOCKS} of a soul's route (and during an approach walk) the sprint key is not held, and a sprint
+     * still running is ended the vanilla way: one tick with no movement key (LocalPlayer.aiStep stops a sprint without
+     * forward impulse and sends STOP_SPRINTING before that tick's move), only on the ground and on a tick with no wall
+     * contact, so no hard-collision stop is pending in the same tick. Discrete keys only.
+     */
+    private static void endSprintBeforeTheStop(LocalPlayer player) {
+        if (!(finalApproach || approaching) || !player.isSprinting() || !player.onGround() || player.horizontalCollision
+                || player.isInWater() || player.onClimbable()) {
+            return;
+        }
+        wantForward = false;
+        wantBack = false;
+        wantLeft = false;
+        wantRight = false;
+        wantSprint = false;
+        sprintEndsBeforeStop++;
+    }
+
+    /** Testkit probe (1102-fairy-arrival): sprints ended by a no-key tick before a soul's stop. */
+    static int sprintEndsBeforeStop;
+
+    public static int sprintEndsBeforeStop() {
+        return sprintEndsBeforeStop;
     }
 
     /**
