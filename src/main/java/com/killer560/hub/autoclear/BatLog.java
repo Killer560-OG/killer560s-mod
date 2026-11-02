@@ -44,7 +44,7 @@ import java.util.Set;
  *       damage), whether it died, and whether the bat flew along the look or bent toward the target.</li>
  * </ul>
  * Passive: it reads the use packets ({@code RightClickSendMixin}) and the client's entities, and sends nothing. The target
- * is the one a caller named ({@link #expectTarget}: Auto Clear's mob, /test's mob), else the living mob nearest the look.
+ * is the one a caller named ({@link #expectTarget}: Auto Clear's mob), else the living mob nearest the look.
  */
 public final class BatLog {
 
@@ -209,7 +209,7 @@ public final class BatLog {
     }
 
     private static final List<Shot> LIVE = new ArrayList<>();
-    /** Every shot by number, the last 40 kept (for /test's summary). */
+    /** Every shot by number, the last 40 kept (kept for the log). */
     private static final Map<Integer, Shot> BY_NO = new LinkedHashMap<>() {
         @Override
         protected boolean removeEldestEntry(Map.Entry<Integer, Shot> eldest) {
@@ -229,7 +229,7 @@ public final class BatLog {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BatLog.tick", BatLog::tick));
     }
 
-    /** The next sceptre use in the next few ticks is aimed at this entity (Auto Clear's mob, /test's mob). */
+    /** The next sceptre use in the next few ticks is aimed at this entity (Auto Clear's mob). */
     public static void expectTarget(int entityId) {
         hintTarget = entityId;
         hintTick = ClearExecutor.clientTick();

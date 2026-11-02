@@ -100,7 +100,7 @@ final class SettingTooltipsData {
         d.put("blink/show server position", "Red box: where the server has you during a hold. Green box: where a charge shot would land you now.");
         d.put("blink/hud style", "Bar: a bar that fills as ticks bank. Text: \"Charge 12/20\". Both: the bar with the numbers.");
         d.put("blink/chat messages", "Says in chat when a hold starts and ends and when Charge starts, fires and stops.");
-        d.put("blink/debug log", "Writes every blink to latest.log on a GitHub build too (your own builds always do); /blink debug shows the state now.");
+        d.put("blink/debug log", "Writes every blink to latest.log on a GitHub build too (your own builds always do).");
         d.put("blink/charge key", "Standing still banks ticks; firing runs them all at once and shoots you forward. Fired standing, it goes off when you move.");
         d.put("blink/charge mode", "Toggle: press to charge, press again to fire. Hold: charge while held, fire when you let go.");
         d.put("blink/charge ticks", "The most ticks Charge banks, so how far a shot goes; also what an AP3 Blink Charge node with no number banks. Past 20, Hypixel sets it back.");
@@ -625,7 +625,7 @@ final class SettingTooltipsData {
         d.put("auto routes/replan for my range", "Saved path warps are planned with Transmission Tuners. On: any warp longer than your etherwarp reaches is planned again for your range.");
         d.put("auto routes/kill mimic", "After you click a trapped chest, kills the mimic straight down: the Hyperion once, the Spirit Sceptre until it dies (5 s at most).");
         // Auto Clear (cheat build; its rows are built by autoclear.AutoClearSettings inside the shared Auto Clear tab).
-        d.put("auto clear", "Cheat build: kills the starred mobs of the dungeon's mob rooms with your Hyperion or Spirit Sceptre; start and stop it with the Clear Toggle Key or /autoclear.");
+        d.put("auto clear", "Cheat build: kills the starred mobs of the dungeon's mob rooms with your Hyperion or Spirit Sceptre; start and stop it with the Clear Toggle Key.");
         d.put("clear mode", "Any Mob Room clears every uncleared mob room; Blood Rush Split clears only the mob rooms on the shortest path from the Entrance to the Blood door.");
         d.put("clear weapon", "What kills the mobs: the Hyperion's Wither Impact where you land, or the Spirit Sceptre's bat, which also reaches a mob inside a wall.");
         d.put("predictive bats", "ON aims a Spirit Sceptre bat where a moving mob will be when the bat reaches it; OFF aims at the mob as it stands.");
@@ -736,7 +736,7 @@ final class SettingTooltipsData {
         d.put("clear chain key", "Keybind for /ap3 clear.");
         d.put("reload chains file key", "Keybind for /ap3 reload.");
         d.put("stop chain key", "Keybind for /ap3 stop. Works even with AP3 off.");
-        d.put("edit classes", "Opens the Leap Order editor (the same screen as /leaporder and /class): pick your class, then set each teammate's class and leap spot.");
+        d.put("edit classes", "Opens the Leap Order editor (the same screen as /leaporder): pick your class, then set each teammate's class and leap spot.");
         d.put("current party", "Lists your party and their classes; click Override to set a different class.");
         d.put("override", "Left click cycles this player's class override, right click goes back.");
         d.put("remove override", "Removes this player's override.");
@@ -849,7 +849,7 @@ final class SettingTooltipsData {
         d.put("swing range", "How far the held item travels forward on each hit: 1x is vanilla, 0x keeps it in place, up to 3x.");
         d.put("held item transform/edit", "Opens the sliders over the game on the side away from your held item, so you can watch it change as you edit.");
         d.put("separate off hand", "Gives the off hand its own size, position and rotation sliders.");
-        d.put("storage search", "Searches your cached Ender Chests and Backpacks from one screen; also opens with /k560search.");
+        d.put("storage search", "Searches your cached Ender Chests and Backpacks from one screen; also opens with /search.");
         d.put("open key", "Key that opens this feature's screen.");
         d.put("open search", "Opens the Storage Search screen right now.");
         d.put("search lore", "Also matches your search against item lore, not just the name.");
@@ -1195,7 +1195,7 @@ final class SettingTooltipsData {
         d.put("storage search/theme", "The colors the Storage Search screen draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
         d.put("croesus/theme", "The colors the Dungeon Profit screen (/croesus) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
         d.put("experiments/theme", "The colors /profit and the Experimentation Table profit screen draw in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
-        d.put("run summary/theme", "The colors the Run Log (/log) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
+        d.put("run summary/theme", "The colors the Run Log (/runlog) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
         d.put("swap accounts theme", "The colors of the title screen's Swap Accounts page and its proxy and session login pages. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors.");
         d.put("hide pause menu icons", "Removes the row of small icon buttons (Report Bugs, Give Feedback, Friends, Player Reporting) from the pause menu and closes the gap. Turn it off to get them back.");
         d.put("themed main menu", "Gives the game's menus the mod's black and orange theme.");
@@ -1754,7 +1754,7 @@ final class SettingTooltipsData {
         d.put("performance hud/stutter threshold", "A frame at least this long counts as a stutter. Left click for more,"
                 + " right click for less.");
         d.put("performance hud/log stutters", "Writes each stutter, with what the frame was spent on and whether your PC"
-                + " rather than the game held it up, to the log and to a stutter log file. /lag stutters lists the last ones.");
+                + " rather than the game held it up, to the log and to a stutter log file.");
 
         // P3 Status (2026-10-25)
         d.put("p3 status", "F7/M7 Phase 3: a HUD of the current section's terminals, device, levers and gate, and short progress titles.");
@@ -2071,7 +2071,7 @@ final class SettingTooltipsData {
         d.put("auto simon says/momentum", "Cheat build, Rotate mode: how much speed the aim carries from one click into the next turn, 0 (off) to 100%.");
         d.put("slot binds/remove", "Deletes this slot bind pair. The items are not moved.");
         d.put("storage overlay/scale", "Resizes the whole storage overlay, grid and inventory panel together.");
-        d.put("storage search/open key", "Key that opens Storage Search in-game; /k560search works too.");
+        d.put("storage search/open key", "Key that opens Storage Search in-game; /search works too.");
         d.put("teammate highlight/style", "Outline Box draws only the edges; Filled Box also fills the box with a faint tint.");
         d.put("teammate highlight/line width", "Thickness of the box outline, 1-10.");
         d.put("teammate highlight/range", "Only teammates within this many blocks (5-128) are highlighted.");
@@ -2419,7 +2419,7 @@ final class SettingTooltipsData {
         d.put("mask invincibility/announce to party", "Sends a /pc message to your party when a mask or Phoenix pops.");
         d.put("auto mask/auto mask", "Cheat build: Auto Mask as a whole - off, nothing here swaps masks or Phoenix for you. Needs Mask Invincibility on.");
         d.put("auto simon says/auto simon says", "Cheat build: Auto Simon Says as a whole - off, Trigger Bot, Auto Start, Auto Solve and Auto Restart all stay idle, whatever their own switches say.");
-        d.put("freeze state/freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freeze State as a whole - off, its keys, /freezestate and /rewind do nothing, and a freeze in progress resumes.");
+        d.put("freeze state/freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freeze State as a whole - off, its keys do nothing, and a freeze in progress resumes.");
         d.put("auto mask/mode", "Keybind: swaps only when you press the Swap Key. Full Auto: swaps on its own once the mask you wear (or Phoenix) procs.");
         d.put("auto mask/swap key", "Keybind mode: press to put on a mask when you wear none, or swap to your other mask when you do (Phoenix where Swap Order puts it first). Skips anything on cooldown. Click, then press a key or mouse button; Escape clears it.");
         d.put("auto mask/swap order", "What a swap goes to next. Mask First: your other mask, then Phoenix. Phoenix First: summon Phoenix through the pet menu or rod, then the masks.");
@@ -2729,10 +2729,10 @@ final class SettingTooltipsData {
         d.put("ap3/node messages", "How much the chat says when you place a node: Simple, Detailed or None.");
         d.put("ap3/default node size", "The box size new nodes are placed with: half a block or a whole block.");
         d.put("freeze state/rewind memory", "!! NEVER ON HYPIXEL - INSTANT BAN !! How many ticks of movement Freeze State remembers for stepping back (20 = 1 second).");
-        d.put("freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freezes your character in place while your camera looks around freely (/freezestate).");
+        d.put("freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freezes your character in place while your camera looks around freely.");
         d.put("rewind 1 tick", "!! NEVER ON HYPIXEL - INSTANT BAN !! Steps your character back one tick.");
         d.put("forward 1 tick", "!! NEVER ON HYPIXEL - INSTANT BAN !! Steps your character forward one tick.");
-        d.put("freeze state key", "Keybind for /freezestate; never use it on Hypixel.");
+        d.put("freeze state key", "Keybind that freezes and resumes your character; never use it on Hypixel.");
         d.put("rewind 1 tick key", "Keybind: one tick back in time. Refused on Hypixel (instant ban).");
         d.put("forward 1 tick key", "Keybind: one tick forward again. Refused on Hypixel (instant ban).");
         d.put("ap3/freeze view (freecam)", "Keeps your screen view steady while an Align or Walk/Run node turns your real yaw.");

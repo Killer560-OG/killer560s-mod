@@ -516,7 +516,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   key coming up and released the hold. Rework Grim findings (banked turns, Post on dropped releases, the in-place
   teleport conflict) are in docs/LESSONS-AUTOMATION.md, Blink section.
 - Blink logs every event as one `[Blink]` INFO line through `blink/BlinkLog` (logger `killer560smod-blink`, last 40 kept
-  for `/blink debug`). A release jar (`-Prelease=true`, the GitHub builds) drops INFO, so that logger is
+  for `BlinkCommands.debugLines`, the testkit's readout; /blink itself was removed 2026-11-01). A release jar (`-Prelease=true`, the GitHub builds) drops INFO, so that logger is
   `ModLog.keptWhen(...)`: it logs in a release only while Blink's Debug Log setting is on (testkit 1026-blink-release-log).
   His own jars (deploy-to-instances.py, built without -Prelease) always log. Stress-pass lessons (burst skipping Charge,
   settling after a teleport, latches across a rejoin): docs/LESSONS-AUTOMATION.md, Blink section.
@@ -569,3 +569,12 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   column up to the roofs, so every QUOI-rule door scanner (top block 73/74/81/82) found no doors in the sim, and the 538/678
   failures were later blamed on 26.3 (doors263-1101: they had failed on 26.1.2 since 2026-10-15). Before blaming a port,
   find the last PASS of the case in killer560s-mod-logs and bisect from it. docs/SIM-DOORS.md has the seam rule.
+- A Brigadier node with children and no `.executes` answers the bare command with "Unknown or incomplete command", which
+  reads to him as "unknown command": `/killer560 ew` and `/killer560 profile` were registered fine, they only needed a
+  word after them (2026-11-01, both removed). A command meant to be typed bare needs its own `.executes`.
+- Command removals (killer560, 2026-11-01, mod cmdclean-1101): no `/class`, `/log`, `/k560search`, `/lag`, `/k560textures`,
+  `/autoclear`, `/autosecret`, `/blink`, `/freezestate`, `/rewind`, `/test`, and no `/killer560 class|ew|mapdump|profile|sim`.
+  What they reached stays reachable from a key or the menu: Auto Clear's Clear Toggle Key, Auto Secret's key, the Freeze
+  State keys, Blink's keys, the Profiles tab, `/runlog`, `/search`, `/ew`. The Bat Test (/test) was dropped entirely and
+  the Insta Clear readout/mark/threshold/window have no UI (his call: "why do i need a bat test? autosecret had its own
+  keybind already"); do not add menu rows for them. Testkit 1101-cmdclean-gone fails if any command comes back.

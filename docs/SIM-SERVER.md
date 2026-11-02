@@ -6,7 +6,7 @@ Part of the sim docs: [SIM.md](SIM.md).
 
 ## Gates and reach
 
-- `DungeonState.toggleSimOverride()` (the `/killer560 sim` command) forces floor, F7 **and boss phase** on together, so
+- `DungeonState.toggleSimOverride()` (the `/killer560 sim` command until 2026-11-01; now only the testkit flips it) forces floor, F7 **and boss phase** on together, so
   it shuts the gate on any feature that requires *not* being in the boss. For a dungeon that is not a boss, let floor
   detection run for real off a scoreboard sidebar line reading "The Catacombs (F7)".
 - Several features gate on `getCurrentServer().ip` containing `hypixel.net` or `p3sim.net`, with no override anywhere.
