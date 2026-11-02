@@ -44,6 +44,8 @@ public final class FairyDoor {
     private static final int PATH_EVERY_TICKS = 10;
 
     private static int door = -1;
+    /** The Fairy door when it is a shut wither door (coal): the normal highlight draws it, in the Fairy color. */
+    private static int shutDoor = -1;
     private static int fairyRoom = -1;
     private static int lastRoom = -1;
     private static boolean entered = false;
@@ -62,6 +64,12 @@ public final class FairyDoor {
         return entered ? -1 : door;
     }
 
+    /** The Fairy door cell while it is still a shut wither door, or -1: the normal highlight draws that door, and draws it
+     *  in the Fairy Door color (killer560, 2026-11-01: "Wither door esp just missed a fairy door"). */
+    public static int shutDoor() {
+        return entered ? -1 : shutDoor;
+    }
+
     /** What the Fairy Door is doing, for logs and tests: "door N (...)", "cleared: ...", or why there is none. */
     public static String status() {
         return status;
@@ -73,6 +81,7 @@ public final class FairyDoor {
 
     static void off() {
         door = -1;
+        shutDoor = -1;
         ticksToPath = 0;
         setStatus("off");
     }
@@ -84,6 +93,7 @@ public final class FairyDoor {
             generation = gen;
             level = client.level;
             door = -1;
+            shutDoor = -1;
             fairyRoom = -1;
             lastRoom = -1;
             entered = false;
@@ -111,6 +121,9 @@ public final class FairyDoor {
         }
         ticksToPath = PATH_EVERY_TICKS;
         int next = decide(layout, fairy);
+        if (next == KEEP) {
+            return;
+        }
         if (next != door) {
             door = next;
             solidDoor = -1;
@@ -122,13 +135,18 @@ public final class FairyDoor {
         }
     }
 
+    /** {@link #decide}: no answer this time - the door (or shut door) already decided stands. */
+    private static final int KEEP = -2;
+
     private static int decide(DungeonLayout layout, int fairy) {
         if (lastRoom < 0) {
             setStatus("no room yet");
+            shutDoor = -1;
             return -1;
         }
         if (fairy < 0) {
             setStatus("no fairy room on the map");
+            shutDoor = -1;
             return -1;
         }
         int blood = layout.bloodDoor();
@@ -145,10 +163,23 @@ public final class FairyDoor {
         }
         if (goal == lastRoom) {
             setStatus("already at " + (toBlood ? "the blood door" : "fairy"));
+            shutDoor = -1;
             return -1;
         }
         List<DungeonMapPathfinder.RoomStep> path = DungeonMapPathfinder.findPath(layout, lastRoom, goal, true);
+        if (path == null && toBlood) {
+            // The map between here and blood is not all known yet (right at the run's start, or a room the map has not
+            // placed): the Fairy always generates on the Entrance-to-Blood path, so the way to the Fairy room itself is
+            // the same door. Until 2026-11-01 this case drew nothing for up to a minute (logs 2026-10-18 22:56:03 to
+            // 22:57:02: "no path from Entrance" then "no path from Tomioka", the door finally drawn when it opened).
+            path = DungeonMapPathfinder.findPath(layout, lastRoom, fairy, true);
+        }
         if (path == null) {
+            if (door >= 0 || shutDoor >= 0) {
+                // A door already decided is still the Fairy door: a passing gap in the map never takes it away.
+                setStatus("no path from " + nameOf(layout, lastRoom) + ", keeping door " + (door >= 0 ? door : shutDoor));
+                return KEEP;
+            }
             setStatus("no path from " + nameOf(layout, lastRoom));
             return -1;
         }
@@ -159,6 +190,7 @@ public final class FairyDoor {
                 int type = d >= 0 ? layout.doorType(d) : DungeonLayout.DOOR_NONE;
                 if (type == DungeonLayout.DOOR_BLOOD) {
                     setStatus("fairy door " + d + " is the blood door (normal highlight)");
+                    shutDoor = -1;
                     return -1;
                 }
                 // killer560, 2026-10-09 (screenshot 2026-10-08_15.48.34): on Hypixel the map draws the door into Fairy
@@ -167,13 +199,19 @@ public final class FairyDoor {
                 // nothing. It is now taken from the map grid and drawn here, unless the scan really found a shut
                 // wither door on that cell (then the normal highlight draws it, once).
                 if (type == DungeonLayout.DOOR_WITHER && WitherDoorScanner.lockedAt(Minecraft.getInstance(), d)) {
-                    setStatus("fairy door " + d + " is a shut wither door (normal highlight)");
+                    setStatus("fairy door " + d + " is a shut wither door (normal highlight, Fairy color)");
+                    if (shutDoor != d) {
+                        shutDoor = d;
+                        WitherDoorsFeature.invalidateCache();
+                    }
                     return -1;
                 }
+                shutDoor = -1;
                 return d;
             }
         }
         setStatus("blood path avoids fairy");
+        shutDoor = -1;
         return -1;
     }
 
@@ -227,6 +265,7 @@ public final class FairyDoor {
     private static boolean clear(String why) {
         entered = true;
         door = -1;
+        shutDoor = -1;
         setStatus("cleared: " + why);
         WitherDoorsFeature.invalidateCache();
         return true;
