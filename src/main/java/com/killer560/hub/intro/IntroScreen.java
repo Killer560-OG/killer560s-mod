@@ -1,6 +1,7 @@
 package com.killer560.hub.intro;
 
 import com.killer560.hub.BuildVariant;
+import com.killer560.hub.autoupdate.AutoUpdateConfig;
 import com.killer560.hub.banreport.BanReportConfig;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.MenuAnim;
@@ -10,10 +11,10 @@ import com.killer560.hub.gui.MenuTheme;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ModScreen;
 import com.killer560.hub.gui.ScreenChrome;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.hud.AutoScale;
 import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.hud.HudConfig;
+import com.killer560.hub.mainmenu.MainMenuThemeConfig;
 import com.killer560.hub.util.ExternalOpen;
 import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -33,12 +34,15 @@ import java.util.Map;
 /**
  * The first-launch tour (killer560, 2026-11-01, "ONBOARDING / INTRO SPEC" in the handoff): killer560 himself, as a 3D
  * player model in his own skin ({@link Guide}), walks the new player through the mod in a few scenes with a themed
- * speech bubble ({@link SpeechBubble}). It runs once, over the title screen, as soon as the game has loaded
- * ({@link IntroLauncher}); Home's Replay Intro runs it again. Escape asks before skipping; Skip Guide skips at once.
+ * speech bubble ({@link SpeechBubble}) whose tail comes from his mouth. It runs once per instance, over the title
+ * screen ({@link IntroLauncher}); Home's Replay Intro runs it again. Escape asks before skipping; Skip Guide skips at
+ * once.
  *
- * <p>Scenes: welcome (time estimate, Skip Guide), how to open the mod (the real Open Menu key), the menu with a theme to
- * pick (the presets cycle until one is clicked), "change it anytime", which variant this is, the cheat build's Auto
- * Report Bans opt-in (No unless Yes is clicked), Auto Update, the menus, then Discord, YouTube and bug reports.
+ * <p>Scenes: welcome (time estimate, Skip Guide), how to open the mod (the real Open Menu key), the menu with a theme and
+ * a main menu style to pick (nothing changes until a choice is clicked), "change it anytime", which variant this is, the
+ * cheat build's Auto Report Bans question and the Auto Update question (each must be answered before Next; Yes is the
+ * suggested answer), the menus, then Discord, YouTube and bug reports. Every button is an {@link IntroButton}, drawn like
+ * the bubble.
  */
 public class IntroScreen extends Screen implements MenuThemedScreen {
 
@@ -53,7 +57,8 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
     private static final int NAV_H = 18;
     private static final int CHIP_H = 16;
     /** The narrowest bubble: the nav row under it (Skip Guide, the dots, Previous, Next) fits its width. */
-    private static final int NAV_MIN_W = 280;
+    private static final int NAV_MIN_W = 300;
+    private static final String TIME_TEXT = "About 1 minute";
 
     private final Screen parent;
     private final List<Scene> scenes = new ArrayList<>();
@@ -65,14 +70,9 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
     private boolean confirmingSkip;
     private boolean finished;
 
-    // theme scene
-    private final MenuTheme themeBefore;
-    private MenuTheme picked;
-    private int previewIndex;
-    private long previewSince = Long.MIN_VALUE;
-    // ban logs scene
-    private boolean banYes;
-    private boolean banSetByTour;
+    /** The answers to the two questions, null until one is clicked (Next waits for it). */
+    private Boolean banChoice;
+    private Boolean updateChoice;
     // menus scene
     private static final String[] TOUR_CATEGORIES = {"Dungeons", "HUD", "Items", "Cosmetics", "Misc", "Home"};
     private int categoryIndex;
@@ -81,15 +81,19 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
     private Scene previewFor;
     /** The size the screen behind was last laid out at. */
     private int parentW = -1;
+    private int parentH = -1;
     /** The nav row's span (the bubble's target width). */
     private int navX0;
     private int navX1;
-    private int parentH = -1;
 
-    /** Widgets drawn inside the bubble (they float with it), by label. */
+    /** Widgets drawn inside the bubble (they float with it). */
     private final List<AbstractWidget> bubbleWidgets = new ArrayList<>();
     /** Every button on screen by its label, for the testkit. */
     private final Map<String, AbstractWidget> buttons = new LinkedHashMap<>();
+    private IntroButton nextButton;
+    /** His mouth this frame (GUI units): the bubble's tail is drawn to it. */
+    private final float[] mouth = {Float.NaN, Float.NaN};
+    private static boolean hideBubbleForTest;
 
     public IntroScreen(Screen parent) {
         super(Component.literal("Killer560's Mod Tour"));
@@ -105,8 +109,6 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         scenes.add(Scene.AUTO_UPDATE);
         scenes.add(Scene.MENUS);
         scenes.add(Scene.COMMUNITY);
-        themeBefore = MenuConfig.getInstance().getTheme();
-        banYes = BanReportConfig.getInstance().isEnabled();
     }
 
     // ---- scenes ----------------------------------------------------------------------------------------------------
@@ -138,9 +140,8 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
                         ? "To open the mod, type {/killer560} in chat.\nYou can also set an Open Menu key in Home."
                         : "To open the mod, press [" + KeyUtil.keyName(code) + "] or type {/killer560} in chat.";
             }
-            case THEME -> picked == null
-                    ? "This is our UI! Please select a {theme}. I'll show you each one until you pick."
-                    : "This is our UI! You picked {" + picked.label + "}. Try another, or press Next.";
+            case THEME -> "This is our UI! Pick a {theme} you like, and a {main menu} style: Fancy is animated, Simple is "
+                    + "calm.";
             case THEME_DONE -> "Great! You can change it anytime in {Home}, or create your own theme in the future.";
             case VARIANT -> BuildVariant.CHEAT_FEATURES_ENABLED
                     ? "Heads up: you're playing the <CHEAT> version.\n"
@@ -150,8 +151,8 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
             case BAN_LOGS -> "Want to share your ban logs? If Hypixel ever bans you, {Auto Report Bans} sends the ban "
                     + "and this session's mod log to my staff, so we can find what caused it. Nothing is sent unless you "
                     + "say yes.";
-            case AUTO_UPDATE -> "{Auto Update} keeps the mod up to date by itself. Its switch and channel are here in "
-                    + "{Home}, along with Check Now.";
+            case AUTO_UPDATE -> "{Auto Update} keeps the mod up to date by itself, installing new versions when you close "
+                    + "the game. Want it on? You can change it anytime in {Home}.";
             case MENUS -> "Every feature has a card, sorted into the categories on the left. Open a card for its "
                     + "settings, or use the {search} at the top to find anything.";
             case COMMUNITY -> "Last thing! Join the {Discord} if you're not in it already, and subscribe to my "
@@ -165,6 +166,15 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
             case THEME_DONE -> Guide.Pose.CHEER;
             case VARIANT -> BuildVariant.CHEAT_FEATURES_ENABLED ? Guide.Pose.POINT : Guide.Pose.WAVE;
             default -> Guide.Pose.POINT;
+        };
+    }
+
+    /** True while the scene waits for an answer: Next (and the Right/Enter keys) do nothing until one is clicked. */
+    public boolean nextBlocked() {
+        return switch (scene()) {
+            case BAN_LOGS -> banChoice == null;
+            case AUTO_UPDATE -> updateChoice == null;
+            default -> false;
         };
     }
 
@@ -230,16 +240,16 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         }
         buttons.clear();
         bubbleWidgets.clear();
+        nextButton = null;
         long now = MenuAnim.now();
         if (confirmingSkip) {
             int cx = this.width / 2;
             int cy = this.height / 2;
-            add(SettingsButtonWidget.builder(Component.literal("Keep Going"), b -> {
+            add(new IntroButton(cx - 104, cy + 8, 100, NAV_H, "Keep Going", IntroButton.Kind.PRIMARY, () -> {
                 confirmingSkip = false;
                 rebuildWidgets();
-            }).bounds(cx - 104, cy + 8, 100, NAV_H).primary().build(), false);
-            add(SettingsButtonWidget.builder(Component.literal("Skip Tour"), b -> finish())
-                    .bounds(cx + 4, cy + 8, 100, NAV_H).build(), false);
+            }), false);
+            add(new IntroButton(cx + 4, cy + 8, 100, NAV_H, "Skip Tour", IntroButton.Kind.PLAIN, this::finish), false);
             return;
         }
         Scene s = scene();
@@ -251,68 +261,74 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         int maxText = Math.max(120, Math.min(250, lane[1] - lane[0] - 2 * SpeechBubble.padX()));
         bubble.setText(text(s), maxText, now);
 
-        // ---- the widgets inside the bubble
-        List<SettingsButtonWidget> row = new ArrayList<>();
+        // ---- the widgets inside the bubble (rows of chips; each list is one row)
+        List<List<IntroButton>> rowsOf = new ArrayList<>();
         switch (s) {
             case THEME -> {
-                MenuTheme shown = MenuConfig.getInstance().getTheme();
+                MenuTheme current = MenuConfig.getInstance().getTheme();
+                List<IntroButton> themes = new ArrayList<>();
                 for (MenuTheme t : MenuTheme.presets()) {
-                    boolean on = picked != null ? t == picked : t == shown;
-                    row.add(chip(t.label, on, () -> pickTheme(t)));
+                    themes.add(chip(t.label, t == current ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN,
+                            () -> pickTheme(t)));
                 }
+                rowsOf.add(themes);
+                MainMenuThemeConfig.SceneMode mode = MainMenuThemeConfig.getInstance().getSceneMode();
+                List<IntroButton> menu = new ArrayList<>();
+                for (MainMenuThemeConfig.SceneMode m : MainMenuThemeConfig.SceneMode.values()) {
+                    menu.add(chip(m.label + " Main Menu", m == mode ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN,
+                            () -> pickMainMenu(m)));
+                }
+                rowsOf.add(menu);
             }
-            case BAN_LOGS -> {
-                row.add(chip("Yes, share them", banYes, () -> chooseBanLogs(true)));
-                row.add(chip("No thanks", !banYes, () -> chooseBanLogs(false)));
-            }
-            case COMMUNITY -> {
-                row.add(chip("Join Discord", false, () -> ExternalOpen.uri(ModScreen.DISCORD_URL)));
-                row.add(chip("YouTube", false, () -> ExternalOpen.uri(ModScreen.YOUTUBE_URL)));
-            }
+            case BAN_LOGS -> rowsOf.add(yesNo("Yes, share them", banChoice, this::chooseBanLogs));
+            case AUTO_UPDATE -> rowsOf.add(yesNo("Yes, keep me updated", updateChoice, this::chooseAutoUpdate));
+            case COMMUNITY -> rowsOf.add(List.of(
+                    chip("Join Discord", IntroButton.Kind.PLAIN, () -> ExternalOpen.uri(ModScreen.DISCORD_URL)),
+                    chip("YouTube", IntroButton.Kind.PLAIN, () -> ExternalOpen.uri(ModScreen.YOUTUBE_URL))));
             default -> {
             }
         }
-        int rowW = 0;
-        for (SettingsButtonWidget b : row) {
-            rowW += b.getWidth() + (rowW > 0 ? GAP : 0);
-        }
-        // A row wider than the text wraps onto a second line of chips.
-        int innerMax = maxText;
-        int rows = row.isEmpty() ? 0 : 1;
-        int lineW = 0;
-        int widestRow = 0;
-        for (SettingsButtonWidget b : row) {
-            int add = b.getWidth() + (lineW > 0 ? GAP : 0);
-            if (lineW > 0 && lineW + add > innerMax) {
-                rows++;
-                widestRow = Math.max(widestRow, lineW);
-                lineW = b.getWidth();
-            } else {
+        // Each row wraps onto further lines when it is wider than the text column.
+        List<List<IntroButton>> lines = new ArrayList<>();
+        int widest = 0;
+        for (List<IntroButton> row : rowsOf) {
+            List<IntroButton> line = new ArrayList<>();
+            int lineW = 0;
+            for (IntroButton b : row) {
+                int add = b.getWidth() + (lineW > 0 ? GAP : 0);
+                if (lineW > 0 && lineW + add > maxText) {
+                    lines.add(line);
+                    widest = Math.max(widest, lineW);
+                    line = new ArrayList<>();
+                    lineW = 0;
+                    add = b.getWidth();
+                }
+                line.add(b);
                 lineW += add;
             }
+            if (!line.isEmpty()) {
+                lines.add(line);
+                widest = Math.max(widest, lineW);
+            }
         }
-        widestRow = Math.max(widestRow, lineW);
-        int innerW = Math.max(bubble.textWidth(), widestRow);
+        int innerW = Math.max(bubble.textWidth(), widest);
         int bw = Math.max(NAV_MIN_W, innerW + 2 * SpeechBubble.padX());
-        int bh = bubble.textHeight() + 2 * SpeechBubble.padY() + (rows > 0 ? rows * (CHIP_H + GAP) + 4 : 0);
+        int bh = bubble.textHeight() + 2 * SpeechBubble.padY() + (lines.isEmpty() ? 0 : lines.size() * (CHIP_H + GAP) + 4);
         int bottom = navY() - 10;
         int bx = guideOnLeft() ? lane[0] : lane[1] - bw;
         int by = bottom - bh;
         bubble.setTarget(bx, by, bw, bh, now);
-        // Place the chips in the bubble's final rectangle.
-        int cx = bx + SpeechBubble.padX();
         int cy = by + SpeechBubble.padY() + bubble.textHeight() + 6;
-        int used = 0;
-        for (SettingsButtonWidget b : row) {
-            if (used > 0 && used + GAP + b.getWidth() > innerW) {
-                cy += CHIP_H + GAP;
-                used = 0;
+        for (List<IntroButton> line : lines) {
+            int cx = bx + SpeechBubble.padX();
+            for (IntroButton b : line) {
+                b.setX(cx);
+                b.setY(cy);
+                cx += b.getWidth() + GAP;
+                bubbleWidgets.add(b);
+                add(b, true);
             }
-            b.setX(cx + used + (used > 0 ? GAP : 0));
-            b.setY(cy);
-            used += b.getWidth() + (used > 0 ? GAP : 0);
-            bubbleWidgets.add(b);
-            add(b, true);
+            cy += CHIP_H + GAP;
         }
 
         // ---- the nav row under the bubble, beside the guide's feet
@@ -320,22 +336,30 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         navX1 = bx + bw;
         int ny = navY();
         boolean last = index == scenes.size() - 1;
-        add(SettingsButtonWidget.builder(Component.literal(last ? "Finish" : "Next"), b -> next())
-                .bounds(navX1 - 64, ny, 64, NAV_H).primary().build(), false);
+        nextButton = new IntroButton(navX1 - 64, ny, 64, NAV_H, last ? "Finish" : "Next", IntroButton.Kind.PRIMARY,
+                this::next);
+        nextButton.active = !nextBlocked();
+        add(nextButton, false);
         if (index > 0) {
-            add(SettingsButtonWidget.builder(Component.literal("Previous"), b -> previous())
-                    .bounds(navX1 - 64 - GAP - 64, ny, 64, NAV_H).build(), false);
+            add(new IntroButton(navX1 - 64 - GAP - 70, ny, 70, NAV_H, "Previous", IntroButton.Kind.PLAIN, this::previous),
+                    false);
         }
         if (!last) {
-            add(SettingsButtonWidget.builder(Component.literal("Skip Guide"), b -> finish())
-                    .bounds(navX0, ny, 70, NAV_H).build(), false);
+            add(new IntroButton(navX0, ny, 74, NAV_H, "Skip Guide", IntroButton.Kind.PLAIN, this::finish), false);
         }
     }
 
-    private SettingsButtonWidget chip(String label, boolean on, Runnable action) {
-        int w = this.font.width(label) + 16;
-        return SettingsButtonWidget.builder(Component.literal(label), b -> action.run())
-                .bounds(0, 0, w, CHIP_H).toggle(on).build();
+    private IntroButton chip(String label, IntroButton.Kind kind, Runnable action) {
+        int w = this.font.width(label) + 18;
+        return new IntroButton(0, 0, w, CHIP_H, label, kind, action);
+    }
+
+    /** A Yes / No pair: Yes is the suggested answer (accent) until one is clicked; then the clicked one is CHOSEN. */
+    private List<IntroButton> yesNo(String yesLabel, Boolean choice, java.util.function.Consumer<Boolean> set) {
+        IntroButton.Kind yesKind = choice == null ? IntroButton.Kind.PRIMARY
+                : choice ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN;
+        IntroButton.Kind noKind = choice != null && !choice ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN;
+        return List.of(chip(yesLabel, yesKind, () -> set.accept(true)), chip("No thanks", noKind, () -> set.accept(false)));
     }
 
     private void add(AbstractWidget w, boolean inBubble) {
@@ -349,8 +373,11 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
 
     // ---- actions ---------------------------------------------------------------------------------------------------
 
-    /** Goes to the next scene, or finishes after the last. */
+    /** Goes to the next scene, or finishes after the last. Does nothing while the scene waits for an answer. */
     public void next() {
+        if (nextBlocked()) {
+            return;
+        }
         if (index >= scenes.size() - 1) {
             finish();
             return;
@@ -366,8 +393,6 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
     }
 
     private void go(int to) {
-        Scene from = scene();
-        leave(from);
         long now = MenuAnim.changeTime();
         index = to;
         Scene s = scene();
@@ -378,9 +403,6 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         if (moves) {
             bubbleWaiting = true; // he walks first; the bubble pops in where he stops
         }
-        if (s == Scene.THEME && picked == null) {
-            previewSince = now;
-        }
         if (s == Scene.MENUS) {
             categoryIndex = 0;
             categorySince = now;
@@ -388,16 +410,8 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         rebuildWidgets();
     }
 
-    /** Undoes what a scene shows only while it is up. */
-    private void leave(Scene s) {
-        if (s == Scene.THEME && picked == null) {
-            MenuConfig.getInstance().previewTheme(themeBefore);
-        }
-    }
-
-    /** Picks a theme: applied and saved at once (the menu and this tour change to it). */
+    /** Picks a theme: applied and saved at once (the menu and this tour change to it). Nothing changes until a click. */
     public void pickTheme(MenuTheme t) {
-        picked = t;
         MenuConfig cfg = MenuConfig.getInstance();
         cfg.setTheme(t);
         cfg.save();
@@ -405,21 +419,29 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         rebuildWidgets();
     }
 
-    /** The ban-log answer: Yes turns Auto Report Bans on; No turns it back off only if this tour turned it on. */
+    /** Picks the main menu style: Home > Menu Theme's own Main Menu: Fancy / Simple setting, saved. */
+    public void pickMainMenu(MainMenuThemeConfig.SceneMode mode) {
+        MainMenuThemeConfig cfg = MainMenuThemeConfig.getInstance();
+        cfg.setSceneMode(mode);
+        cfg.save();
+        rebuildWidgets();
+    }
+
+    /** The ban-log answer: sets Auto Report Bans to it and saves. */
     public void chooseBanLogs(boolean yes) {
         BanReportConfig cfg = BanReportConfig.getInstance();
-        if (yes) {
-            if (!cfg.isEnabled()) {
-                cfg.setEnabled(true);
-                cfg.save();
-                banSetByTour = true;
-            }
-        } else if (banSetByTour) {
-            cfg.setEnabled(false);
-            cfg.save();
-            banSetByTour = false;
-        }
-        banYes = yes;
+        cfg.setEnabled(yes);
+        cfg.save();
+        banChoice = yes;
+        rebuildWidgets();
+    }
+
+    /** The Auto Update answer: sets Auto Update to it and saves. */
+    public void chooseAutoUpdate(boolean yes) {
+        AutoUpdateConfig cfg = AutoUpdateConfig.getInstance();
+        cfg.setEnabled(yes);
+        cfg.save();
+        updateChoice = yes;
         rebuildWidgets();
     }
 
@@ -429,10 +451,6 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
             return;
         }
         finished = true;
-        leave(scene());
-        if (picked == null) {
-            MenuConfig.getInstance().previewTheme(themeBefore);
-        }
         resetPreview();
         IntroConfig cfg = IntroConfig.getInstance();
         cfg.setDone(true);
@@ -553,11 +571,11 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         Scene s = scene();
         tickScene(s, now);
 
-        if (showsMenu(s)) {
+        if (showsMenu(s) && !hideBubbleForTest) {
             drawPreview(g, s, partialTick);
         }
 
-        // The guide, and where his attention goes.
+        // The guide, and where he faces: the way he walks, else what he talks about.
         int top = boxTop();
         float[] target = target(s, now);
         guide.lookAt(target[0], target[1]);
@@ -565,30 +583,30 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
             bubbleWaiting = false;
             bubble.pop(now);
         }
+        guide.update(now);
         guide.draw(g, now, top);
+        mouth[0] = guide.mouthX(now);
+        mouth[1] = guide.mouthY(now, top);
 
-        if (!bubbleWaiting) {
-            float hx = guide.headX(now, top);
-            float hy = guide.headY(now, top);
+        if (!bubbleWaiting && !hideBubbleForTest) {
             boolean ready = bubble.settled(now);
             for (AbstractWidget w : bubbleWidgets) {
                 w.active = ready;
             }
-            bubble.draw(g, now, hx, hy, ready ? () -> {
+            bubble.draw(g, now, mouth[0], mouth[1], ready ? () -> {
                 for (AbstractWidget w : bubbleWidgets) {
                     w.extractRenderState(g, mouseX, mouseY, partialTick);
                 }
             } : null);
         }
 
-        // Nav extras: the time estimate on the first scene, and where you are.
+        // Nav extras, in the bubble's look: the time estimate in its own small box on the first scene, else the dots.
         if (!confirmingSkip) {
-            int ny = navY() + (NAV_H - 8) / 2;
-            int px = navX0 + (index < scenes.size() - 1 ? 76 : 0);
+            int px = navX0 + (index < scenes.size() - 1 ? 74 + GAP + 2 : 0);
             if (index == 0) {
-                ScreenChrome.text(g, "About 1 minute", px, ny, MenuStyle.DIM);
+                drawTimeBox(g, px, navY());
             } else {
-                drawDots(g, px, ny + 2);
+                drawDots(g, px, navY());
             }
         }
 
@@ -600,15 +618,34 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         }
     }
 
+    /** {x, y, w, h} of the time estimate's box (on the first scene). */
+    public int[] timeBox() {
+        int w = this.font.width(TIME_TEXT) + 16;
+        return new int[]{navX0 + 74 + GAP + 2, navY(), w, NAV_H};
+    }
+
+    private void drawTimeBox(GuiGraphicsExtractor g, int x, int y) {
+        int[] fill = SpeechBubble.fill();
+        int w = this.font.width(TIME_TEXT) + 16;
+        SpeechBubble.roundBox(g, x, y, w, NAV_H, NAV_H / 2f, fill[0], fill[1], MenuStyle.alpha(MenuStyle.OR, 0xB0), 1f,
+                true);
+        g.text(this.font, TIME_TEXT, x + 8, y + (NAV_H - 8) / 2 + 1, MenuStyle.DIM, MenuStyle.TEXT_SHADOW);
+    }
+
     private void drawDots(GuiGraphicsExtractor g, int x, int y) {
-        GuiRects r = GuiRects.begin(g);
-        for (int i = 0; i < scenes.size(); i++) {
+        int n = scenes.size();
+        int w = 8 + (n - 1) * 4 + (n - 1) * 3 + 14;
+        int[] fill = SpeechBubble.fill();
+        SpeechBubble.roundBox(g, x, y, w, NAV_H, NAV_H / 2f, fill[0], fill[1], MenuStyle.alpha(MenuStyle.OR, 0xB0), 1f,
+                true);
+        int dx = x + 7;
+        int dy = y + NAV_H / 2 - 2;
+        for (int i = 0; i < n; i++) {
             int c = i == index ? MenuStyle.OR : i < index ? MenuStyle.alpha(MenuStyle.OR, 0x90) : MenuStyle.DIM2;
-            int w = i == index ? 8 : 4;
-            r.fill(x, y, x + w, y + 4, c);
-            x += w + 3;
+            int dw = i == index ? 8 : 4;
+            SpeechBubble.roundBox(g, dx, dy, dw, 4, 2f, c, c, 0, 0f, false);
+            dx += dw + 3;
         }
-        r.submit();
     }
 
     private void drawConfirm(GuiGraphicsExtractor g) {
@@ -619,26 +656,14 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         int h = 64;
         int x = this.width / 2 - w / 2;
         int y = this.height / 2 - 32;
-        ScreenChrome.frame(g, x, y, w, h);
+        int[] fill = SpeechBubble.fill();
+        SpeechBubble.roundBox(g, x, y, w, h, 14f, fill[0], fill[1], MenuStyle.OR, 1.5f, true);
         ScreenChrome.centered(g, "Skip the tour?", this.width / 2, y + 8, MenuStyle.TXT);
         ScreenChrome.centered(g, "You can replay it from Home > Mod & HUD.", this.width / 2, y + 22, MenuStyle.DIM);
     }
 
-    /** Scene clocks: the theme preview cycling, the menus scene stepping through categories. */
+    /** The menus scene steps through a few categories in the picture of the menu. */
     private void tickScene(Scene s, long now) {
-        if (s == Scene.THEME && picked == null && !confirmingSkip) {
-            if (previewSince == Long.MIN_VALUE) {
-                previewSince = now;
-            }
-            int step = (int) ((now - previewSince) / 1_500_000_000L);
-            MenuTheme[] presets = MenuTheme.presets();
-            int want = Math.floorMod(step, presets.length);
-            if (want != previewIndex || MenuConfig.getInstance().getTheme() != presets[want]) {
-                previewIndex = want;
-                MenuConfig.getInstance().previewTheme(presets[want]);
-                rebuildWidgets();
-            }
-        }
         if (s == Scene.MENUS && preview != null) {
             int step = (int) ((now - categorySince) / 1_400_000_000L);
             int want = Math.min(step, TOUR_CATEGORIES.length - 1);
@@ -649,7 +674,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    /** Where the guide points or looks (GUI units). */
+    /** What the guide faces and points at (GUI units): the menu picture, or his bubble. */
     private float[] target(Scene s, long now) {
         if (showsMenu(s)) {
             int[] p = previewRect();
@@ -666,7 +691,9 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         if (!bubbleWaiting) {
             return new float[]{bubble.x() + bubble.w() / 2f, bubble.y() + bubble.h() / 2f};
         }
-        return new float[]{Float.NaN, Float.NaN};
+        // Arriving: face where the bubble will be, never the viewer's blank middle.
+        int[] lane = lane();
+        return new float[]{(lane[0] + lane[1]) / 2f, navY() - 40f};
     }
 
     private void drawPreview(GuiGraphicsExtractor g, Scene s, float partialTick) {
@@ -754,6 +781,12 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         return new LinkedHashMap<>(buttons);
     }
 
+    /** The kind of the tour button {@code label} (PLAIN, PRIMARY or CHOSEN), or null. */
+    public String buttonKind(String label) {
+        AbstractWidget w = buttons.get(label);
+        return w instanceof IntroButton b ? b.kind().name() : null;
+    }
+
     public boolean confirmingSkip() {
         return confirmingSkip;
     }
@@ -764,14 +797,40 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         return !bubbleWaiting && bubble.settled(now) && bubble.typed(now) && !guide.walking(now);
     }
 
+    /** True while the guide is walking between spots. */
+    public boolean guideWalking() {
+        return guide.walking(MenuAnim.now());
+    }
+
     /** How many frames the 3D guide has been submitted (0 means the model never drew). */
     public static long guideFrames() {
         return Guide.drawn;
     }
 
-    /** The guide's last body turn in degrees (0 faces the viewer; he turns toward what he points at). */
+    /** The guide's facing when last drawn, degrees: positive = his face toward the right of the screen. */
     public static float guideTurn() {
-        return Guide.lastTurn;
+        return Guide.lastFacing;
+    }
+
+    /** The guide's last drawn box {x0, y0, x1, y1} in unscaled GUI units of the window (screenshot pixels / scale). */
+    public static int[] guideWindowBox() {
+        return Guide.lastBox.clone();
+    }
+
+    /** Where the bubble's tail point was drawn last {x, y}, GUI units of this screen. */
+    public float[] tailTip() {
+        return new float[]{bubble.lastTipX, bubble.lastTipY};
+    }
+
+    /** Where his mouth was computed last frame {x, y} (GUI units of this screen): the point the tail is drawn to. */
+    public float[] mouth() {
+        return mouth.clone();
+    }
+
+    /** Testkit only: leave the bubble and the menu picture out, so only the guide is drawn over the screen behind and
+     *  his face can be measured. */
+    public static void setHideBubbleForTest(boolean hide) {
+        hideBubbleForTest = hide;
     }
 
     /** {x, y, w, h} of the bubble as drawn, GUI units of this screen. */

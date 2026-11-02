@@ -432,6 +432,8 @@ public final class ItemBrowserFeature {
 
         int localWidth = layout.columns() * CELL_SIZE + PADDING * 2;
         int localHeight = HEADER_HEIGHT + layout.rows() * CELL_SIZE + PADDING * 2 + FOOTER_HEIGHT;
+        com.killer560.hub.containercover.ContainerCover.coverRect(screen, "itembrowser.panel", layout.screenX(), layout.screenY(),
+                layout.screenX() + localWidth * layout.scale(), layout.screenY() + localHeight * layout.scale());
 
         graphics.pose().pushMatrix();
         SkyblockItemEntry hoveredEntry = null;

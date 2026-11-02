@@ -271,7 +271,7 @@ public final class Ap3Config {
     /** Freeze State: how many ticks of position history are kept for stepping back (20 ticks = 1 second). */
     private int rewindTicks = DEFAULT_REWIND_TICKS;
     /** Freeze State as a whole (killer560, 2026-10-13: "make a toggle for that portion as a whole"). On by default, as
-     *  it always was; off, its keys and /freezestate and /rewind refuse, and a freeze in progress resumes. */
+     *  it always was; off, its keys refuse, and a freeze in progress resumes. */
     private boolean freezeStateEnabled = true;
     /** The box every newly placed node gets (killer560, 2026-09-21: "a default size option so I can set the default
      *  nodes to .5 of a block or 1 block"); w/l modifiers on the add command still override it. */

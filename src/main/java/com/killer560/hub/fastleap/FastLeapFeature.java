@@ -139,6 +139,11 @@ public final class FastLeapFeature {
                 net.minecraft.client.KeyMapping.setAll();
             }
         }
+        try {
+            FastLeapStuckLog.tick(client);
+        } catch (RuntimeException e) {
+            LOGGER.error("[FastLeap] stuck-state log failed", e);
+        }
     }
 
     private static void onEndTick(Minecraft client) {

@@ -22,7 +22,7 @@ import com.killer560.hub.compat.McRender;
 
 /**
  * Personal secret/etherwarp-spot bookmarks - killer560's "secret waypoints" request, using
- * {@code /killer560 ew add <name>} (or {@code /ew waypoint add}) to mark whatever block you're currently
+ * {@code /ew waypoint add [name]} to mark whatever block you're currently
  * standing on.
  * <p>
  * Deliberately NOT built on top of {@link com.killer560.hub.posmsg.PosmsgFeature}'s wire format even

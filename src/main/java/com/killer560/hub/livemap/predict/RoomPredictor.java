@@ -353,6 +353,7 @@ public final class RoomPredictor {
                     obsCount, ALL.size(), PREDICTIONS.size());
         }
         Arrays.fill(LOGGED_RULED_OUT, false);
+        Arrays.fill(LOGGED_DISAGREE, false);
         startTile = -1;
         openedSeen = Long.MIN_VALUE + 1;
         loggedFull = false;
@@ -642,6 +643,57 @@ public final class RoomPredictor {
         LOGGER.info("[Predict] tile {} closed: no answer ({}) - {} block(s) seen, {} of {} placement(s) standing{}", where,
                 why, EVIDENCE[t], alive, BY_TILE[t].size(),
                 names.isEmpty() ? "" : ", rooms " + names + ", fewest matches " + fewestMatches);
+        if (EVIDENCE[t] >= MIN_EVIDENCE) {
+            logRuledOutRooms(t);
+        }
+    }
+
+    /** Tiles whose ruled-out rooms {@link #logRuledOutRooms} has logged, once a floor. */
+    private static final boolean[] LOGGED_DISAGREE = new boolean[TILES * TILES];
+    /** How many ruled-out rooms, and how many differing blocks of each, one tile's diagnostic names. */
+    static final int DISAGREE_ROOMS = 3;
+    static final int DISAGREE_BLOCKS = 6;
+
+    /**
+     * Owner evidence for "If i can see through 1 room into another that middle room will stay grey" (to-do item 5,
+     * 2026-11-01): no sim run reproduces it, so the cause is in what Hypixel's blocks look like. Once per tile a floor, when
+     * the tile ends with no answer, the rooms ruled out there that came closest (each room's placement with the lowest
+     * share of mismatches) are logged with the seen blocks that disagreed with them - the blocks that kept the tile gray.
+     * Logging only: nothing it reads is changed.
+     */
+    private static void logRuledOutRooms(int t) {
+        if (LOGGED_DISAGREE[t] || BY_TILE[t] == null) {
+            return;
+        }
+        LOGGED_DISAGREE[t] = true;
+        Map<String, Candidate> best = new HashMap<>();
+        for (Candidate c : BY_TILE[t]) {
+            if (!c.dead) {
+                continue;
+            }
+            Candidate b = best.get(c.room.name);
+            if (b == null || mismatchShare(c) < mismatchShare(b)) {
+                best.put(c.room.name, c);
+            }
+        }
+        List<Candidate> ranked = new ArrayList<>(best.values());
+        ranked.sort(java.util.Comparator.comparingDouble(RoomPredictor::mismatchShare));
+        String where = (t % TILES) + "," + (t / TILES);
+        if (ranked.isEmpty()) {
+            LOGGER.info("[Predict] tile {} ruled out: no room was ruled out here", where);
+            return;
+        }
+        for (int i = 0; i < Math.min(DISAGREE_ROOMS, ranked.size()); i++) {
+            Candidate c = ranked.get(i);
+            LOGGER.info("[Predict] tile {} ruled out {} ({} matches, {} mismatches; closest {} of {} room(s) ruled out here): {}",
+                    where, c.key(), c.matches + c.soft, c.mismatches, i + 1, ranked.size(),
+                    disagreements(c.key(), DISAGREE_BLOCKS));
+        }
+    }
+
+    private static double mismatchShare(Candidate c) {
+        int n = c.matches + c.soft + c.mismatches;
+        return n == 0 ? 1.0 : (double) c.mismatches / n;
     }
 
     /** {@link #isTarget} per tile (tz * TILES + tx) for the sweep in progress; false off the floor. */
@@ -1050,6 +1102,7 @@ public final class RoomPredictor {
                 LOGGED_RULED_OUT[t] = true;
                 LOGGER.info("[Predict] tile {},{}: every one of {} placement(s) ruled out or touching an opened room ({} block(s) seen)",
                         t % TILES, t / TILES, list.size(), EVIDENCE[t]);
+                logRuledOutRooms(t);
             }
             if (pending || standing.isEmpty()) {
                 continue;

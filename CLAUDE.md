@@ -398,6 +398,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   center/feet (the javadoc describing the fault sat directly above the code still doing it); the cooldown
   setter above. When fixing one instance, grep the sibling call sites and fix the set, and update the comment
   that claims they match - two of these said "the same regex as X" after they had stopped being that.
+  Again 2026-11-01: the terminal Custom GUI's "hidden slots never hover" fix was never given to the Storage Overlay, so
+  a click on blank overlay space picked his Spirit Sceptre out of the hidden slot under it. Any GUI drawn over a
+  container now registers with `containercover.ContainerCover` (full screen or a per-frame panel rect); docs/LESSONS-GUI.md.
 - `RouteExecutor.stop()` is already a real cancel - it drops the step machine, `releaseKeys()` zeroes the
   want-flags the input mixin reads, `RouteRotation.clear()` releases the camera, and every per-node buildup
   (breaker queue, boom snapshot, swap/await state) is rebuilt by `beginAction`. BOOM and BREAKER send their
@@ -516,7 +519,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   key coming up and released the hold. Rework Grim findings (banked turns, Post on dropped releases, the in-place
   teleport conflict) are in docs/LESSONS-AUTOMATION.md, Blink section.
 - Blink logs every event as one `[Blink]` INFO line through `blink/BlinkLog` (logger `killer560smod-blink`, last 40 kept
-  for `/blink debug`). A release jar (`-Prelease=true`, the GitHub builds) drops INFO, so that logger is
+  for `BlinkCommands.debugLines`, the testkit's readout; /blink itself was removed 2026-11-01). A release jar (`-Prelease=true`, the GitHub builds) drops INFO, so that logger is
   `ModLog.keptWhen(...)`: it logs in a release only while Blink's Debug Log setting is on (testkit 1026-blink-release-log).
   His own jars (deploy-to-instances.py, built without -Prelease) always log. Stress-pass lessons (burst skipping Charge,
   settling after a teleport, latches across a rejoin): docs/LESSONS-AUTOMATION.md, Blink section.
@@ -561,7 +564,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   username, access_token, refresh_token, expires in Unix seconds), recent rows often only in `app.db-wal`. Its refresh token
   is bound to the app's Xbox device key, so the mod uses the app's current token (`accounts/core/LauncherAccounts`,
   `SqliteReader`, read only; 2026-11-01). Inspect a COPY of app.db, never the live file, and never print a token.
-- The first-launch tour (`intro/`, 2026-11-01) opens over the title screen on a fresh install only; in a client gametest
+- The first-launch tour (`intro/`, 2026-11-01) opens over the title screen once per instance (fresh or updated; `seen` in killer560smod-intro.json, saved as it opens); in a client gametest
   run it never opens unless `-Dkiller560.test.intro=show` (docs/TESTING-HOOKS.md), so title-screen cases are not
   interrupted. A GUI picture-in-picture (`g.skin`, entity, item models) ignores the pose: transform its box yourself
   under Auto Scale (docs/LESSONS-GUI.md).
@@ -573,3 +576,16 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Anything that BUYS sizes by Hypixel's stacking, never the vanilla material's (2026-11-01: Kaleidoscopic Mineral is PAPER,
   stacks to 1, and the Bazaar Flipper typed 254): `bazaarflip/BazaarStackSizes` (catalog `unstackable`/`has_uuid`, reforge
   stones, books, the live "Fill my inventory!"); docs/LESSONS.md "Bazaar and Croesus".
+- A sim change to the world's SHAPE can silently blind a scanner: the 2026-10-12 seam fill walled the door's middle seam
+  column up to the roofs, so every QUOI-rule door scanner (top block 73/74/81/82) found no doors in the sim, and the 538/678
+  failures were later blamed on 26.3 (doors263-1101: they had failed on 26.1.2 since 2026-10-15). Before blaming a port,
+  find the last PASS of the case in killer560s-mod-logs and bisect from it. docs/SIM-DOORS.md has the seam rule.
+- A Brigadier node with children and no `.executes` answers the bare command with "Unknown or incomplete command", which
+  reads to him as "unknown command": `/killer560 ew` and `/killer560 profile` were registered fine, they only needed a
+  word after them (2026-11-01, both removed). A command meant to be typed bare needs its own `.executes`.
+- Command removals (killer560, 2026-11-01, mod cmdclean-1101): no `/class`, `/log`, `/k560search`, `/lag`, `/k560textures`,
+  `/autoclear`, `/autosecret`, `/blink`, `/freezestate`, `/rewind`, `/test`, and no `/killer560 class|ew|mapdump|profile|sim`.
+  What they reached stays reachable from a key or the menu: Auto Clear's Clear Toggle Key, Auto Secret's key, the Freeze
+  State keys, Blink's keys, the Profiles tab, `/runlog`, `/search`, `/ew`. The Bat Test (/test) was dropped entirely and
+  the Insta Clear readout/mark/threshold/window have no UI (his call: "why do i need a bat test? autosecret had its own
+  keybind already"); do not add menu rows for them. Testkit 1101-cmdclean-gone fails if any command comes back.

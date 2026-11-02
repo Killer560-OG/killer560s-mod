@@ -37,6 +37,7 @@ public final class MiningQolFeatures {
             AbilityReadyAlert.tick(client);
             PickobulusEstimate.tick(client);
             MiningHighlights.tick(client);
+            RaffleLog.tick(client);
             MithrilStone.tick(client);
         }));
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(context -> {

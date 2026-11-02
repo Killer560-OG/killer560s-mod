@@ -18,11 +18,12 @@ import java.util.Locale;
  * This should freeze my character where they are. If I want to do /ap3 add ___ it should use my angle even if my
  * character has a different facing angle because it is frozen. Also I should be able to set a keybind for backward
  * or forward in time by 1 tick. It should have a configurable amount of ticks it remembers. Make it so on main I
- * have to type /rewind for it to go back as it will insta ban."
+ * have to type /rewind for it to go back as it will insta ban." /freezestate and /rewind were removed on 2026-11-01
+ * (killer560): the three keys are the only way in, and they refuse to step on Hypixel.
  * <ul>
  * <li><b>History</b>: every client tick while NOT frozen, the player's position, velocity, rotation, ground state
  *     and fall distance are recorded, newest last, up to {@link Ap3Config#getRewindTicks()}.</li>
- * <li><b>Frozen</b> ({@code /freezestate} or its key): {@code mixin/Ap3FreezeMixin} skips {@code LocalPlayer.aiStep}
+ * <li><b>Frozen</b> (its key): {@code mixin/Ap3FreezeMixin} skips {@code LocalPlayer.aiStep}
  *     (no input, no gravity, no travel), so the character stays exactly where it is. The camera is free: the view
  *     yaw/pitch are separate values the mouse steers ({@code Ap3ViewYawMixin}, {@code Ap3MouseYawMixin}), and
  *     {@code /ap3 add} records THOSE angles ({@link #placementYaw}) - the frozen character keeps its own facing.</li>
@@ -31,8 +32,7 @@ import java.util.Locale;
  *     ticks after it are dropped, a new timeline.</li>
  * </ul>
  * <b>This writes the player's position directly.</b> In singleplayer or on p3sim that is the point; on Hypixel the
- * server sees you teleport, which is an instant flag (ban). So on hypixel.net the keys refuse and only the typed
- * {@code /rewind} works, every use behind a loud warning. Cheat build only (registered from {@link Ap3Keybinds}).
+ * server sees you teleport, which is an instant flag (ban). So on hypixel.net the step keys refuse. Cheat build only (registered from {@link Ap3Keybinds}).
  */
 public final class Ap3FreezeState {
 
@@ -137,7 +137,7 @@ public final class Ap3FreezeState {
 
     // ------------------------------------------------------------------------------------------- actions
 
-    /** {@code /freezestate} and its key. */
+    /** The Freeze State key. */
     public static void toggle() {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
@@ -205,9 +205,9 @@ public final class Ap3FreezeState {
      * Forward ({@code +1}): PREDICTED, not replayed (killer560, 2026-09-21: "the go forward should predict my
      * movement and put me there") - the game itself runs exactly one movement tick from the current state (its
      * velocity, the keys you are holding, gravity), then freezes again; anything recorded after this tick is dropped,
-     * since it is a new timeline. No chat per step. {@code typed}: from /rewind; the keys refuse on Hypixel.
+     * since it is a new timeline. No chat per step. Refused on Hypixel.
      */
-    public static void step(int dir, int count, boolean typed) {
+    public static void step(int dir, int count) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
             return;
@@ -215,17 +215,13 @@ public final class Ap3FreezeState {
         if (refuseWhenOff()) {
             return;
         }
-        boolean hypixel = onHypixel();
-        if (hypixel && !typed) {
+        if (onHypixel()) {
             ModChat.send("Freeze State", ModChat.bad("Rewind keys are disabled on Hypixel - it teleports you, which is an "
-                    + "instant ban. If you really mean it, type /rewind."));
+                    + "instant ban."));
             return;
         }
         if (!frozen) {
             freeze(player, false);
-        }
-        if (hypixel) {
-            hypixelWarning("/rewind");
         }
         if (dir > 0) {
             history.subList(cursor + 1, history.size()).clear();

@@ -74,6 +74,7 @@ public final class DungeonState {
     // p3sim.net test (2026-09-14) proved auto-clearing on "any real floor detected" was wrong - real
     // detection can succeed for one signal (floor) while the override is still doing real work for
     // another (e.g. boss-phase state that hasn't caught up yet), so that auto-clear was removed.
+    // The command was removed on 2026-11-01 (killer560); the override stays as the testkit's F7-boss switch.
     private static boolean simOverrideActive = false;
     // Per killer560's "relook through the other mods... otherwise put some sort of logging into my game"
     // request (2026-09-09, round 12) - re-checked NoammAddons' own LocationUtils (decompiled) for how it
@@ -99,7 +100,7 @@ public final class DungeonState {
         ChatObserver.subscribe(DungeonState::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DungeonState", client -> {
             if (client.level == null && simOverrideActive) {
-                LOGGER.info("[Secrets] World unloaded - clearing /killer560 sim override.");
+                LOGGER.info("[Secrets] World unloaded - clearing the F7 sim override.");
                 simOverrideActive = false;
             }
             String floor = computeCurrentFloor();
@@ -210,11 +211,12 @@ public final class DungeonState {
         return simOverrideActive;
     }
 
-    /** For {@code /killer560 sim} - killer560's own manual override for testing on p3sim.net, whose
-     *  real sidebar/chat format this session has no way to observe directly. @return the new state. */
+    /** The F7-boss override: was {@code /killer560 sim}, killer560's manual override for testing on p3sim.net, until he
+     *  removed the command on 2026-11-01. Now only the testkit flips it, to put a client in the F7 boss without a
+     *  real run. @return the new state. */
     public static boolean toggleSimOverride() {
         simOverrideActive = !simOverrideActive;
-        LOGGER.info("[Secrets] /killer560 sim override toggled {}", simOverrideActive ? "ON" : "OFF");
+        LOGGER.info("[Secrets] F7 sim override toggled {}", simOverrideActive ? "ON" : "OFF");
         return simOverrideActive;
     }
 

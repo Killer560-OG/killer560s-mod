@@ -321,11 +321,16 @@ final class SpeechBubble {
 
     private final GuiRects rects = GuiRects.reusable();
 
+    /** Where the tail's point was drawn last (GUI units of the screen; read by the testkit). */
+    float lastTipX = Float.NaN;
+    float lastTipY = Float.NaN;
+
     /**
-     * Draws the bubble with its tail reaching for ({@code headX}, {@code headY}), and its text. {@code inside} draws
-     * anything that must move with the bubble (its buttons), under the bubble's pose.
+     * Draws the bubble with its tail coming from his mouth at ({@code mouthX}, {@code mouthY}) (killer560, 2026-11-01:
+     * "the tail must come from the character's mouth"), and its text. {@code inside} draws anything that must move with
+     * the bubble (its buttons), under the bubble's pose.
      */
-    void draw(GuiGraphicsExtractor g, long now, float headX, float headY, Runnable inside) {
+    void draw(GuiGraphicsExtractor g, long now, float mouthX, float mouthY, Runnable inside) {
         rect(now);
         float pt = Math.min(1f, Math.max(0f, (now - popStart) / (float) POP_NANOS));
         if (popStart == Long.MIN_VALUE) {
@@ -347,10 +352,13 @@ final class SpeechBubble {
         }
         float fl = floatY(now);
 
-        // The tail's tip stops short of the face, on the bubble's side of it.
-        boolean guideLeft = headX < x + w / 2f;
-        float tipX = guideLeft ? headX + 15 : headX - 15;
-        float tipY = headY + 2;
+        // The tail's point sits at the mouth: the shape's point is 1.5 units short of it on the bubble's side, so the
+        // border drawn around the point ends right at the mouth.
+        boolean guideLeft = mouthX < x + w / 2f;
+        float tipX = guideLeft ? mouthX + 1.5f : mouthX - 1.5f;
+        float tipY = mouthY;
+        lastTipX = mouthX;
+        lastTipY = mouthY;
 
         Minecraft mc = Minecraft.getInstance();
         float units = (float) mc.getWindow().getGuiScale() * com.killer560.hub.hud.AutoScale.openScreenFactor();
@@ -436,6 +444,39 @@ final class SpeechBubble {
             }
             yy += LINE_H;
         }
+    }
+
+    private static final GuiRects BOX_RECTS = GuiRects.reusable();
+
+    /**
+     * A rounded box in the bubble's own look - soft shadow, accent border, the theme's card gradient (or the accent
+     * itself for a primary or chosen box) - drawn in device pixels like the bubble. The tour's buttons, its time box and
+     * its page dots all use it, so they match the bubble (killer560, 2026-11-01: "the bottom buttons don't fit the
+     * bubble").
+     */
+    static void roundBox(GuiGraphicsExtractor g, float x, float y, float w, float h, float radius, int fillTop,
+                         int fillBottom, int border, float borderW, boolean shadow) {
+        Minecraft mc = Minecraft.getInstance();
+        float units = (float) mc.getWindow().getGuiScale() * com.killer560.hub.hud.AutoScale.openScreenFactor();
+        int res = Math.max(1, Math.min(4, Math.round(units)));
+        Shape shape = new Shape(x, y, w, h, radius);
+        g.pose().pushMatrix();
+        g.pose().scale(1f / res, 1f / res);
+        GuiRects r = BOX_RECTS.start(g);
+        if (shadow) {
+            layer(r, shape, res, 1.0f, 1.2f, 0.8f, 0x30000000, 0);
+        }
+        if (borderW > 0) {
+            layer(r, shape, res, 0f, 0f, borderW, border, 0);
+        }
+        layerGradient(r, shape, res, fillTop, fillBottom, y, y + h);
+        r.submit();
+        g.pose().popMatrix();
+    }
+
+    /** The bubble's fill colors under the current theme: {top, bottom}. */
+    static int[] fill() {
+        return MenuStyle.LIGHT ? new int[]{0xFFFFFFFF, MenuStyle.CARD_TOP} : new int[]{MenuStyle.CARD_TOP, MenuStyle.CARD_BOTTOM};
     }
 
     private static int mul(int argb, int alpha) {
@@ -560,6 +601,20 @@ final class SpeechBubble {
             }
         }
 
+        /** A rounded rectangle with no tail (the tour's buttons and its small boxes). */
+        Shape(float x, float y, float w, float h, float r) {
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+            this.r = Math.min(r, Math.min(w, h) / 2f);
+            cx = new float[0];
+            cy = new float[0];
+            nx = new float[0];
+            ny = new float[0];
+            hw = new float[0];
+        }
+
         float minY() {
             float m = y;
             for (float v : cy) {
@@ -599,7 +654,10 @@ final class SpeechBubble {
                 parts.add(new float[]{rx0 + inset, rx1 - inset});
             }
             // tail polygon grown by g: left edge out, right edge back
-            int n = STEPS + 1;
+            int n = cx.length;
+            if (n == 0) {
+                return parts.isEmpty() ? null : new float[]{parts.get(0)[0], parts.get(0)[1]};
+            }
             float[] px = new float[n * 2];
             float[] py = new float[n * 2];
             for (int i = 0; i < n; i++) {

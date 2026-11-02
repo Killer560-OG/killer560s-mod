@@ -11,11 +11,16 @@ import net.minecraft.resources.Identifier;
 /**
  * The tour guide: Minecraft's own 3D player model wearing killer560's skin (shipped in the jar, so it works offline),
  * drawn the way vanilla's {@code PlayerSkinWidget} draws one - {@code GuiGraphicsExtractor.skin}, a picture-in-picture
- * render with the player-skin lighting - but posed and animated here: idle breathing, a wave, pointing at what the
- * tour is talking about (turning toward it), and walking between spots.
+ * render with the player-skin lighting - but posed here: a wave, pointing at what the tour is talking about, a cheer,
+ * and walking between spots, always facing the way he walks and, standing, toward what he talks about.
  *
- * <p>{@code Model.Simple.setupAnim} does nothing (javap 26.3 and 26.2), so the part rotations set before
+ * <p>Standing he is still (killer560, 2026-11-01: no idle bob; nothing moves while he stands, so the bubble's tail stays
+ * on his mouth). {@code Model.Simple.setupAnim} does nothing (javap 26.3 and 26.2), so the part rotations set before
  * {@code skin(...)} are the ones the model is drawn with later in the frame; there is one guide, drawn once a frame.
+ *
+ * <p>{@link #facing}: degrees, positive = his face turned toward the right of the screen. {@code skin()}'s rotationY
+ * turns him that way for a positive value (the first version passed the negative and he walked backwards; testkit
+ * 1101-ui-intro-facing reads which side of his head the eyes are on).
  */
 final class Guide {
 
@@ -28,21 +33,22 @@ final class Guide {
     private static final float MODEL_FILL = 0.74f;
     /** Where the feet are, as a fraction of the box height from its top (measured from screenshots). */
     static final float FEET = 0.96f;
-    /** Where the face is, as a fraction of the box height from its top. */
-    static final float FACE = 0.32f;
+    /** Model pixels (1/16 block) above the soles: the mouth (the head's front face, bottom row) is 24.5 up. */
+    private static final float MOUTH_UP_PX = 24.5f;
+    /** The head's front face is 4 model pixels in front of the body's vertical axis. */
+    private static final float FACE_DEPTH_PX = 4f;
+    private static final float TILT_DEG = -4f;
 
     enum Pose { IDLE, WAVE, POINT, CHEER }
 
     private Model.Simple model;
     private ModelPart head;
-    private ModelPart body;
     private ModelPart rightArm;
     private ModelPart leftArm;
     private ModelPart rightLeg;
     private ModelPart leftLeg;
 
     /** Box left edge (GUI units), animated between spots. */
-    private float x;
     private float fromX;
     private float toX;
     private long moveStart = Long.MIN_VALUE;
@@ -51,22 +57,22 @@ final class Guide {
 
     private Pose pose = Pose.IDLE;
     private long poseStart;
-    /** Screen point the guide points or looks at (GUI units), or NaN for the viewer. */
+    /** Screen point he faces and points at when standing (GUI units), or NaN for the viewer. */
     private float targetX = Float.NaN;
     private float targetY = Float.NaN;
-    /** Smoothed body turn, degrees. */
-    private float turn;
-    private float pointBlend;
+    /** His facing now (degrees, see the class doc), eased toward the wanted one. */
+    private float facing;
+    private long lastFrame = Long.MIN_VALUE;
 
     /** Walks (or, the first time, appears) so the box's left edge ends at {@code newX}. */
     void moveTo(float newX, long now) {
         if (!placed) {
-            x = fromX = toX = newX;
+            fromX = toX = newX;
             placed = true;
             return;
         }
-        if (Math.abs(newX - toX) < 0.5f && moveStart != Long.MIN_VALUE) {
-            return;
+        if (Math.abs(newX - toX) < 0.5f) {
+            return; // already there or already going there: never a walk on the spot
         }
         fromX = currentX(now);
         toX = newX;
@@ -105,18 +111,35 @@ final class Guide {
         return toX;
     }
 
-    /** The idle bob (GUI units, up is negative), shared with nothing: the bubble has its own float. */
-    private static float bob(long now) {
-        return (float) Math.sin(now / 1_000_000_000.0 * 2.2) * 0.8f;
+    /** The facing he turns toward now: the way he walks, else toward his target (up to 35 degrees, never past it). */
+    private float wantedFacing(long now, float centerX) {
+        if (walking(now)) {
+            return toX > fromX ? 70f : -70f;
+        }
+        if (Float.isNaN(targetX)) {
+            return 0f;
+        }
+        float dx = targetX - centerX;
+        float max = pose == Pose.POINT ? 35f : 25f;
+        return Math.max(-max, Math.min(max, dx * 0.15f));
     }
 
-    /** Where the head is drawn now (GUI units): the bubble's tail points here. */
-    float headX(long now, int boxTop) {
-        return currentX(now) + BOX_W / 2f;
+    /** Model pixel (1/16 block) size in GUI units. */
+    private static float px() {
+        return BOX_H * MODEL_FILL / (2.125f * 16f);
     }
 
-    float headY(long now, int boxTop) {
-        return boxTop + BOX_H * FACE + bob(now);
+    /** Where his mouth is drawn now (GUI units): the bubble's tail comes from here. */
+    float mouthX(long now) {
+        double f = Math.toRadians(facing);
+        return currentX(now) + BOX_W / 2f + (float) (Math.sin(f) * FACE_DEPTH_PX * px());
+    }
+
+    float mouthY(long now, int boxTop) {
+        // The -4 degree tilt leans the head back a little: its front face rises by depth * sin(tilt) (a hair).
+        double tilt = Math.toRadians(-TILT_DEG);
+        float lean = (float) (Math.sin(tilt) * FACE_DEPTH_PX * Math.cos(Math.toRadians(facing)));
+        return boxTop + BOX_H * FEET - (MOUTH_UP_PX + lean) * px();
     }
 
     private boolean ensureModel() {
@@ -127,7 +150,6 @@ final class Guide {
             ModelPart root = Minecraft.getInstance().getEntityModels().bakeLayer(ModelLayers.PLAYER);
             model = new Model.Simple(root, RenderTypes::entityTranslucent);
             head = root.getChild("head");
-            body = root.getChild("body");
             rightArm = root.getChild("right_arm");
             leftArm = root.getChild("left_arm");
             rightLeg = root.getChild("right_leg");
@@ -139,7 +161,21 @@ final class Guide {
         }
     }
 
-    /** Draws the guide with the box's top at {@code boxTop}. {@code alpha} is unused by the model (always opaque). */
+    /** Eases the facing toward the wanted one (call once a frame, before reading the mouth). */
+    void update(long now) {
+        float centerX = currentX(now) + BOX_W / 2f;
+        float want = wantedFacing(now, centerX);
+        float dt = lastFrame == Long.MIN_VALUE ? 1f : Math.max(0f, (now - lastFrame) / 1_000_000_000f);
+        lastFrame = now;
+        // ~90% of the way in 0.25 s whatever the frame rate; the instant test clock (dt 0) keeps the last value.
+        float k = dt >= 1f ? 1f : 1f - (float) Math.exp(-dt * 9.2);
+        if (com.killer560.hub.intro.SpeechBubble.instant()) {
+            k = 1f;
+        }
+        facing += (want - facing) * k;
+    }
+
+    /** Draws the guide with the box's top at {@code boxTop}. */
     void draw(GuiGraphicsExtractor g, long now, int boxTop) {
         if (!ensureModel()) {
             return;
@@ -151,24 +187,6 @@ final class Guide {
 
         model.resetPose();
 
-        // ---- facing: walking faces the way he goes, pointing turns toward the target, else a 3/4 view at the viewer
-        float wantTurn;
-        float centerX = cx + BOX_W / 2f;
-        if (walk) {
-            wantTurn = toX > fromX ? 62f : -62f;
-        } else if (pose == Pose.POINT && !Float.isNaN(targetX)) {
-            // Up to 40 degrees toward the side the target is on, more the further it is.
-            float dx = targetX - centerX;
-            wantTurn = Math.max(-40f, Math.min(40f, dx * 0.18f));
-        } else if (!Float.isNaN(targetX)) {
-            wantTurn = Math.max(-18f, Math.min(18f, (targetX - centerX) * 0.08f));
-        } else {
-            wantTurn = 0f;
-        }
-        // Critically damped-ish follow, frame-rate independent enough for a GUI (the clock is per frame).
-        turn += (wantTurn - turn) * 0.18f;
-
-        // ---- legs and arms: walk cycle, else breathing
         if (walk) {
             float phase = sec * 9.5f;
             float swing = (float) Math.sin(phase) * 0.75f;
@@ -177,43 +195,38 @@ final class Guide {
             rightArm.xRot = -swing * 0.8f;
             leftArm.xRot = swing * 0.8f;
         } else {
-            float breathe = (float) Math.cos(sec * 1.8f) * 0.05f + 0.05f;
-            rightArm.zRot = breathe;
-            leftArm.zRot = -breathe;
-            rightArm.xRot = (float) Math.sin(sec * 1.3f) * 0.04f;
-            leftArm.xRot = -(float) Math.sin(sec * 1.3f) * 0.04f;
+            // Standing still: arms a hair away from the body, nothing moving.
+            rightArm.zRot = 0.06f;
+            leftArm.zRot = -0.06f;
         }
 
-        // ---- the gesture on top
+        // The gesture: the arm on the target's side of the screen. Facing the viewer his right arm is on the screen's
+        // left, so a target on the left is pointed at with his right arm.
+        float centerX = cx + BOX_W / 2f;
         boolean targetLeft = !Float.isNaN(targetX) && targetX < centerX;
         ModelPart gestureArm = targetLeft ? rightArm : leftArm;
         float side = gestureArm == rightArm ? 1f : -1f; // zRot sign that lifts this arm outward
         if (!walk) {
             switch (pose) {
                 case WAVE -> {
-                    // Up and out, waving at the wrist-less elbow: a big friendly wave, settling after 2.4 s.
                     float k = Math.min(1f, poseT * 5f);
                     float fade = poseT > 2.4f ? Math.max(0f, 1f - (poseT - 2.4f) * 3f) : 1f;
                     float w = (float) Math.sin(poseT * 11f) * 0.32f;
-                    ModelPart arm = rightArm;
-                    arm.zRot = (2.55f + w) * k * fade + arm.zRot * (1 - k * fade);
-                    arm.xRot = -0.15f * k * fade;
+                    rightArm.zRot = (2.55f + w) * k * fade + rightArm.zRot * (1 - k * fade);
+                    rightArm.xRot = -0.15f * k * fade;
                 }
                 case POINT -> {
-                    pointBlend = Math.min(1f, poseT * 4f);
-                    float e = 1 - (1 - pointBlend) * (1 - pointBlend);
-                    // Forward and a little up toward the target; the body turn does the aiming in 3D.
+                    float b = Math.min(1f, poseT * 4f);
+                    float e = 1 - (1 - b) * (1 - b);
                     float up = 0f;
                     if (!Float.isNaN(targetY)) {
                         float dy = (boxTop + BOX_H * 0.35f) - targetY;
                         up = Math.max(-0.35f, Math.min(0.5f, dy * 0.006f));
                     }
                     gestureArm.xRot = -(1.45f + up) * e + gestureArm.xRot * (1 - e);
-                    gestureArm.yRot = side * -0.12f * e;
-                    gestureArm.zRot = side * 0.08f * e;
+                    gestureArm.zRot = side * 0.08f * e + gestureArm.zRot * (1 - e);
                 }
                 case CHEER -> {
-                    // Both arms up for a moment (the theme was picked, the tour is done).
                     float k = Math.min(1f, poseT * 5f);
                     float pump = (float) Math.abs(Math.sin(poseT * 7f)) * 0.25f;
                     float fade = poseT > 1.6f ? Math.max(0f, 1f - (poseT - 1.6f) * 3f) : 1f;
@@ -224,34 +237,27 @@ final class Guide {
                 }
             }
         }
-
-        // ---- head: looks at the target (or the viewer), a small nod while idle
-        float headYaw = 0f;
-        float headPitch = (float) Math.sin(sec * 0.9f) * 0.03f;
-        if (!Float.isNaN(targetX) && !walk) {
-            headYaw = Math.max(-0.5f, Math.min(0.5f, (targetX - centerX) * 0.004f)) - (float) Math.toRadians(turn) * 0.4f;
-            float dy = targetY - (boxTop + BOX_H * FACE);
-            headPitch += Math.max(-0.4f, Math.min(0.4f, dy * 0.004f));
-        }
-        head.yRot = -headYaw;
-        head.xRot = headPitch;
-        body.yRot = 0f;
+        head.yRot = 0f;
+        head.xRot = 0f;
 
         // A picture-in-picture state ignores the pose (GuiGraphicsExtractor.skin passes bare coordinates, javap 26.3 and
         // 26.2), so the box is put through the pose here: the tour is drawn under Auto Scale's pose scale.
-        org.joml.Vector2f a = g.pose().transformPosition(cx, boxTop + bob(now), new org.joml.Vector2f());
-        org.joml.Vector2f b = g.pose().transformPosition(cx + BOX_W, boxTop + bob(now) + BOX_H, new org.joml.Vector2f());
+        org.joml.Vector2f a = g.pose().transformPosition(cx, boxTop, new org.joml.Vector2f());
+        org.joml.Vector2f c = g.pose().transformPosition(cx + BOX_W, boxTop + BOX_H, new org.joml.Vector2f());
         int x0 = Math.round(a.x);
         int y0 = Math.round(a.y);
-        int x1 = Math.round(b.x);
-        int y1 = Math.round(b.y);
+        int x1 = Math.round(c.x);
+        int y1 = Math.round(c.y);
         float scale = (y1 - y0) * MODEL_FILL / 2.125f;
-        g.skin(model, SKIN, scale, -4f, -turn, -1.0625f, x0, y0, x1, y1);
+        g.skin(model, SKIN, scale, TILT_DEG, facing, -1.0625f, x0, y0, x1, y1);
         drawn++;
-        lastTurn = turn;
+        lastFacing = facing;
+        lastBox = new int[]{x0, y0, x1, y1};
     }
 
-    /** Frames the 3D model was submitted, and the body turn it was drawn with last (read by the testkit). */
+    /** Frames the 3D model was submitted, the facing it was drawn with last and its box in window GUI units
+     *  (read by the testkit). */
     static long drawn;
-    static float lastTurn;
+    static float lastFacing;
+    static int[] lastBox = new int[4];
 }

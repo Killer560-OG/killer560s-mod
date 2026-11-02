@@ -1063,7 +1063,7 @@ public final class ProfileManager {
             if (meta.format() > 1) {
                 msg.append(" (made on ").append(meta.describe()).append(")");
             }
-            msg.append(". Use /killer560 profile load ").append(name).append(" to switch to it.");
+            msg.append(". Load it from the Profiles tab to switch to it.");
             if (unreadable > 0) {
                 msg.append(" §e").append(unreadable).append(" damaged setting file(s) were skipped; those settings")
                         .append(" will use their defaults.");

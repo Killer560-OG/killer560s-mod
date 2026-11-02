@@ -130,6 +130,10 @@ public final class StorageOverlayFeature {
     }
 
     public static void register() {
+        // Every real slot of a storage page or the overview is hidden under the overlay: blank overlay space must not
+        // hover or click the slot under it (killer560, 2026-11-01, a Spirit Sceptre picked up through blank space).
+        com.killer560.hub.containercover.ContainerCover.registerFull(s -> StorageOverlayConfig.getInstance().isEnabled()
+                && s instanceof AbstractContainerScreen<?> && shouldHideVanilla(s.getTitle()));
         HudElementRegistry.register(new HudElement() {
             @Override
             public String id() {

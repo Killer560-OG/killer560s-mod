@@ -45,7 +45,7 @@ public final class CroesusCommands {
 
     private static int open(CroesusTrackerScreen.View view) {
         Minecraft client = Minecraft.getInstance();
-        // Deferred like /killer560 and /k560search - the chat screen closing after the command would
+        // Deferred like /killer560 and /search - the chat screen closing after the command would
         // otherwise replace this screen on the same tick.
         client.execute(() -> client.setScreenAndShow(new CroesusTrackerScreen(null, view)));
         return 1;

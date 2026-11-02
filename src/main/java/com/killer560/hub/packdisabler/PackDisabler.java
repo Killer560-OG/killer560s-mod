@@ -1,18 +1,11 @@
 package com.killer560.hub.packdisabler;
 
-import com.killer560.hub.BuildVariant;
-import com.killer560.hub.auction.BazaarApi;
-import com.killer560.hub.auction.BazaarProduct;
 import com.killer560.hub.interop.DetectedMods;
 import com.killer560.hub.util.ItemNbt;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
-import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.SkyblockGate;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -21,15 +14,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ResolvableProfile;
 import org.slf4j.Logger;
-
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Pack Disabler (killer560, 2026-10-07): every SkyBlock item drawn with the look it had before Hypixel's 2026 resource
@@ -54,11 +38,6 @@ public final class PackDisabler {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-packdisabler");
     public static final String HYPIXEL_NAMESPACE = "hypixel_skyblock";
-    private static final Path MISSING_FILE = ModPaths.config("killer560smod-packdisabler-missing.txt");
-    private static final int MAX_MISSING = 5000;
-
-    /** SkyBlock id -> display name, for every item drawn on a Hypixel model this session that has no look of ours. */
-    private static final Map<String, String> MISSING = new ConcurrentHashMap<>();
     private static boolean idleNoticeShown;
 
     private PackDisabler() {
@@ -73,13 +52,6 @@ public final class PackDisabler {
                         ModChat.text(" is installed and already reverts Hypixel's item textures."));
             }
         });
-        if (BuildVariant.DEV_TOOLS) {
-            ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
-                    ClientCommands.literal("k560textures").then(ClientCommands.literal("missing").executes(ctx -> {
-                        reportMissing();
-                        return 1;
-                    }))));
-        }
     }
 
     public static boolean noammInstalled() {
@@ -115,7 +87,6 @@ public final class PackDisabler {
             }
             Identifier model = ItemLooks.modelFor(id);
             if (model == null) {
-                noteMissing(id, stack);
                 return current;
             }
             Identifier dynamic = dynamicModel(id, stack, tag, current);
@@ -179,77 +150,6 @@ public final class PackDisabler {
             }
             default:
                 return null;
-        }
-    }
-
-    // ---- the missing-texture list (dev tool: hand it over after a Hypixel update) -------------------------------------
-
-    private static void noteMissing(String id, ItemStack stack) {
-        if (MISSING.size() >= MAX_MISSING || MISSING.containsKey(id)) {
-            return;
-        }
-        String name;
-        try {
-            name = ChatFormatting.stripFormatting(stack.getHoverName().getString());
-        } catch (Exception e) {
-            name = id;
-        }
-        MISSING.put(id, name == null ? id : name);
-    }
-
-    /** Test hook and the command's body: every id seen without a look, plus live Bazaar products without one. */
-    public static Map<String, String> missingSnapshot() {
-        Map<String, String> out = new TreeMap<>(MISSING);
-        try {
-            for (BazaarProduct p : BazaarApi.getProducts()) {
-                ItemLooks.Look look = ItemLooks.get(p.productId());
-                if (look == null || !look.hasAnyLook()) {
-                    out.putIfAbsent(p.productId(), "(Bazaar product)");
-                }
-            }
-        } catch (Exception ignored) {
-        }
-        return out;
-    }
-
-    /** Forget this session's sightings (test hook). */
-    public static void clearMissing() {
-        MISSING.clear();
-    }
-
-    /** Writes the list to config and returns its path. */
-    public static Path writeMissing() throws Exception {
-        Map<String, String> missing = missingSnapshot();
-        List<String> lines = new ArrayList<>();
-        lines.add("# Pack Disabler: SkyBlock items seen with no pre-pack look and no texture of ours.");
-        lines.add("# id<TAB>name. Hand this list over and textures get drawn (tools/textures).");
-        for (Map.Entry<String, String> e : missing.entrySet()) {
-            lines.add(e.getKey() + "\t" + e.getValue());
-        }
-        Files.createDirectories(MISSING_FILE.getParent());
-        Files.write(MISSING_FILE, lines, StandardCharsets.UTF_8);
-        return MISSING_FILE;
-    }
-
-    private static void reportMissing() {
-        try {
-            Map<String, String> missing = missingSnapshot();
-            Path file = writeMissing();
-            ModChat.send("Pack Disabler", ModChat.value(String.valueOf(missing.size())),
-                    ModChat.text(" item(s) with no texture this session"
-                            + (isActive() ? "" : " (Pack Disabler is not active, so nothing new is being noted)")
-                            + ". Written to "), ModChat.dim(file.toString()));
-            int shown = 0;
-            for (Map.Entry<String, String> e : missing.entrySet()) {
-                if (shown++ >= 15) {
-                    ModChat.send("Pack Disabler", ModChat.dim("... and " + (missing.size() - 15) + " more in the file"));
-                    break;
-                }
-                ModChat.send("Pack Disabler", ModChat.value(e.getKey()), ModChat.dim("  " + e.getValue()));
-            }
-        } catch (Exception e) {
-            LOGGER.warn("[Pack Disabler] could not write the missing list", e);
-            ModChat.send("Pack Disabler", ModChat.bad("Could not write the list: " + e.getMessage()));
         }
     }
 }

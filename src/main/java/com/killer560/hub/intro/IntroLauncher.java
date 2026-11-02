@@ -54,6 +54,11 @@ public final class IntroLauncher {
             return;
         }
         autoShown++;
+        // Once and only once (killer560, 2026-11-01): seen from the moment it opens, so quitting mid-tour does not
+        // bring it back.
+        IntroConfig cfg = IntroConfig.getInstance();
+        cfg.setDone(true);
+        cfg.save();
         McCompat.setScreen(client, new IntroScreen(screen));
     }
 
