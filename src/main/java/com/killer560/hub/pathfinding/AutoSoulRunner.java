@@ -302,14 +302,19 @@ public final class AutoSoulRunner {
             lockedTicks = 0;
             return;
         }
-        AutoWalker.setWalking(true);
         if (AutoWalker.needsEscape()) {
+            AutoWalker.setWalking(true);
             state = State.WALKING; // tickTravel runs the escape / warp / skip
             return;
         }
         if (AutoWalker.isApproaching()) {
+            AutoWalker.setWalking(true);
             return;
         }
+        // Not driven until a walk to the soul is planned: driving the ROUTE here (a stand beside its node, an escape
+        // that landed on the node) read the spot as "off the route" and escaped again, 58 etherwarps in a row
+        // (testkit 1017-fairy-escape-ether on doc-fairy-1101's first jar).
+        AutoWalker.setWalking(false);
         if (!player.onGround() && !player.isInWater() && !player.onClimbable()) {
             return; // plan from where he lands
         }
@@ -323,7 +328,9 @@ public final class AutoSoulRunner {
             AutoWalker.approachFailed(goals.isEmpty() ? "no spot near the soul has it in reach and in sight"
                     : "no walk to a spot in reach of the soul");
             state = State.WALKING;
+            return;
         }
+        AutoWalker.setWalking(true);
     }
 
     /** Reach eye to box with a little margin, and a clear line to the point the click aims at. */
@@ -348,6 +355,10 @@ public final class AutoSoulRunner {
         if (box.contains(eye)) {
             return c;
         }
+        if (box.getSize() < 0.05) {
+            // A box with no size (a marker stand): the point itself, if nothing stands between.
+            return eye.distanceTo(c) <= REACH - 0.05 && clearLine(level, eye, c) ? c : null;
+        }
         Vec3 near = new Vec3(Mth.clamp(eye.x, box.minX + 0.05, box.maxX - 0.05),
                 Mth.clamp(eye.y, box.minY + 0.05, box.maxY - 0.05), Mth.clamp(eye.z, box.minZ + 0.05, box.maxZ - 0.05));
         for (Vec3 p : new Vec3[]{new Vec3(c.x, box.maxY - 0.25, c.z), c, near}) {
@@ -364,6 +375,14 @@ public final class AutoSoulRunner {
             }
         }
         return null;
+    }
+
+    private static boolean clearLine(net.minecraft.world.level.Level level, Vec3 eye, Vec3 p) {
+        net.minecraft.world.phys.HitResult hit = level.clip(new net.minecraft.world.level.ClipContext(eye, p,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE,
+                net.minecraft.world.phys.shapes.CollisionContext.empty()));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS
+                || hit.getLocation().distanceToSqr(eye) >= p.distanceToSqr(eye) - 1.0e-4;
     }
 
     /** Feet cells around the stand he can stand in with the stand in reach (with margin) and in sight. */
@@ -420,6 +439,12 @@ public final class AutoSoulRunner {
     }
 
     private static void tickTravel(LocalPlayer player, PathfindingConfig cfg, Vec3 soulCentre, double distance) {
+        if (escaping && !EtherwarpHopper.isBusy() && !EnderPearlHopper.isBusy()) {
+            // The hop's own done-callback set IDLE before tickEther/tickPearl saw it land: the escape is over, so the
+            // walker's "needs an escape" must go too, or the next tick escapes again (1017-fairy-escape-ether went 58
+            // etherwarps on the spot once a soul in reach no longer skipped this check).
+            endEscape();
+        }
         if (distance <= COLLECT_DISTANCE && !AutoWalker.needsEscape()) {
             // At the node. The stand itself decides: in reach and in sight -> click, else walk the last blocks to it.
             ArmorStand stand = findSoulEntity(Minecraft.getInstance(), soulCentre);
