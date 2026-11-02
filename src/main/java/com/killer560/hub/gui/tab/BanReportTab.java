@@ -37,20 +37,33 @@ public class BanReportTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
-        String[] lines = {
-                "§eIf you get banned on Hypixel, sends one report to killer560's staff:",
-                "§7the ban message (Ban ID hidden), mod version and variant,",
-                "§7the features you had on and their settings, and this session's",
-                "§7mod log with server corrections.",
-                "§7Never sent: tokens, session IDs, other players' chat or names,",
-                "§7IP addresses, API keys. Off by default; only you can turn it on."
-        };
-        for (String line : lines) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal(line), Minecraft.getInstance().font));
-            y += 11;
+        // Short bullets (killer560, 2026-11-02: "this says way to much ... shorter and more bullet point style"). Each
+        // line wraps at the drawer's width instead of being cut off; a wrapped bullet keeps its color and indent.
+        for (String line : LINES) {
+            String color = line.startsWith("§") ? line.substring(0, 2) : "";
+            String body = line.substring(color.length());
+            boolean bullet = body.startsWith("• ");
+            List<String> parts = com.killer560.hub.gui.MenuStyle.wrap(body, Math.max(40, contentWidth - 2), 4);
+            for (int i = 0; i < parts.size(); i++) {
+                String text = color + (i > 0 && bullet ? "  " : "") + parts.get(i);
+                widgets.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal(text), Minecraft.getInstance().font));
+                y += 11;
+            }
         }
         return widgets;
     }
+
+    /** What a report holds and never holds; kept to what {@code BanReportFeature.buildPayload} really sends. */
+    public static final String[] LINES = {
+            "§eIf you're ever banned, this shares with the Discord admins:",
+            "§7• the features you had on and their settings",
+            "§7• this session's mod log",
+            "§7• the ban message and mod version",
+            "§eIt never shares:",
+            "§7• tokens, passwords or session IDs",
+            "§7• other players' names or chat",
+            "§7• your IP or API keys"
+    };
 
     /** "Auto Report Bans: ON" in bold green, or OFF in bold red, so the state is impossible to miss. */
     public static Component switchText(boolean on) {
