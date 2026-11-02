@@ -46,7 +46,7 @@ public final class AutoSellListScreen extends Screen implements MenuThemedScreen
     private int listY;
     private int rows;
     private int scroll;
-    private EditBox input;
+    private com.killer560.hub.gui.CommitEditBox input;
 
     public AutoSellListScreen(Screen parent) {
         super(Component.literal("Auto Sell List"));
@@ -67,6 +67,7 @@ public final class AutoSellListScreen extends Screen implements MenuThemedScreen
         input = new ThemedEditBox(this.font, panelX + PAD, panelY + 24, Math.max(40, inner - addW - GAP), 18,
                 Component.literal("Identity")).hint("item id, e.g. ENCHANTED_REDSTONE_BLOCK");
         input.setMaxLength(64);
+        input.onEnter(this::addTyped);
         addRenderableWidget(input);
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Add"), b -> addTyped())
                 .bounds(panelX + panelW - PAD - addW, panelY + 24, addW, 18).build());

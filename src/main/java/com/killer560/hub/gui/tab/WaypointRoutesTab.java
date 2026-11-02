@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -110,7 +111,7 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
 
         Route sel = RouteStore.byId(cfg.getSelectedRouteId());
         if (sel != null) {
-            EditBox nameField = new EditBox(client.font, contentX, y, contentWidth, 18, Component.literal("Route name"));
+            CommitEditBox nameField = new CommitEditBox(client.font, contentX, y, contentWidth, 18, Component.literal("Route name"));
             nameField.setMaxLength(48);
             nameField.setValue(sel.name);
             nameField.setResponder(text -> {
@@ -120,6 +121,7 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
                 }
             });
             widgets.add(nameField);
+            CommitEditBox.withSet(widgets, nameField);
             y += 22;
 
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", sel.color), btn ->

@@ -1,5 +1,6 @@
 package com.killer560.hub.livemap;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
@@ -79,6 +80,7 @@ public class MapSchemeEditorScreen extends Screen implements MenuThemedScreen {
             cfg.save();
         });
         addRenderableWidget(name);
+        CommitEditBox.withSet(this::addRenderableWidget, name);
         int y = top + 24;
         int colW = (rw - 6) / 2;
         for (int i = 0; i < MapThemes.COUNT; i++) {

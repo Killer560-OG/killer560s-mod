@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.shorts.ShortsConfig;
@@ -159,14 +160,16 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
         y += 20;
 
         if (cfg.getSite() == ShortsConfig.Site.CUSTOM) {
-            EditBox urlField = new EditBox(Minecraft.getInstance().font, col2aX, y, col2W, 18, Component.literal("URL"));
+            CommitEditBox urlField = new CommitEditBox(Minecraft.getInstance().font, col2aX, y, col2W, 18, Component.literal("URL"));
             urlField.setMaxLength(512);
             urlField.setValue(cfg.getCustomUrl());
             widgets.add(urlField);
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Set URL"), btn -> {
+            SettingsButtonWidget urlFieldSet = SettingsButtonWidget.builder(Component.literal("Set URL"), btn -> {
                         cfg.setCustomUrl(urlField.getValue());
                         cfg.save();
-                    }).bounds(col2bX, y, col2W, 18).build());
+                    }).bounds(col2bX, y, col2W, 18).build();
+            widgets.add(urlFieldSet);
+            urlField.pressOnEnter(urlFieldSet);
             y += 20;
         }
 

@@ -58,7 +58,7 @@ public class ColorPickerScreen extends Screen {
     private boolean draggingSv = false;
     private boolean draggingHue = false;
 
-    private EditBox hexBox;
+    private com.killer560.hub.gui.CommitEditBox hexBox;
     private AbstractWidget copyButton;
     private AbstractWidget pasteButton;
     private AlphaSlider alphaSlider;
@@ -223,12 +223,17 @@ public class ColorPickerScreen extends Screen {
         int hexY = alphaY + 24;
         int hexW = 84;
         int btnW = (inW - hexW - 8) / 2;
-        hexBox = new EditBox(this.font, inX, hexY, hexW, 18, Component.literal("Hex"));
+        hexBox = new CommitEditBox(this.font, inX, hexY, hexW, 18, Component.literal("Hex"));
         hexBox.setMaxLength(16);
         syncingHex = true;
         hexBox.setValue(ColourHex.format(argb));
         syncingHex = false;
         hexBox.setResponder(this::onHexTyped);
+        // Enter applies the typed color and closes, as Done does (Done is the picker's commit button).
+        hexBox.onEnter(() -> {
+            onHexTyped(hexBox.getValue());
+            onClose();
+        });
         this.addRenderableWidget(hexBox);
         copyButton = this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Copy"), btn -> copyColour())
                 .bounds(inX + hexW + 4, hexY, btnW, 18).build());

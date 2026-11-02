@@ -476,7 +476,8 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
 
     /** A text box {@code w} wide at {@code x}, {@code shown} drawn in its first {@code labelW} pixels. */
     private void addField(int x, int y, int w, String label, String shown, int labelW) {
-        EditBox box = new ThemedEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(shown));
+        ThemedEditBox box = new ThemedEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(shown));
+        box.onEnter(this::save);
         box.setMaxLength(32);
         box.setValue(pending.getOrDefault(label, ""));
         this.addRenderableWidget(box);

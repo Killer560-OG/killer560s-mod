@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.PaintedPanel;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -101,7 +102,7 @@ public class ProfilesTab extends BaseTab {
         int boxY = y + 22;
         widgets.add(new PaintedPanel(x, y, w, newH, Component.literal("New profile"),
                 (g, px, py, pw, ph, hov) -> paintNewCard(g, px, py, pw, ph, boxW)));
-        EditBox nameField = new EditBox(font, x + 10 + 5, boxY + 5, boxW - 10, 10, Component.literal("Profile name"));
+        CommitEditBox nameField = new CommitEditBox(font, x + 10 + 5, boxY + 5, boxW - 10, 10, Component.literal("Profile name"));
         nameField.setBordered(false);
         nameField.setMaxLength(32);
         nameField.setTextColor(MenuStyle.TXT);
@@ -113,7 +114,7 @@ public class ProfilesTab extends BaseTab {
         widgets.add(nameField);
         int bx = oneLine ? x + 10 + boxW + 8 : x + 10;
         int by = oneLine ? boxY : boxY + 22;
-        widgets.add(SettingsButtonWidget.builder(Component.literal(saveLabel), btn -> {
+        SettingsButtonWidget nameFieldSet = SettingsButtonWidget.builder(Component.literal(saveLabel), btn -> {
                     armedDelete = null;
                     if (newProfileName.isBlank()) {
                         ModOverlayMessage.show("§cType a profile name first.", 2500);
@@ -125,7 +126,9 @@ public class ProfilesTab extends BaseTab {
                         newProfileName = "";
                         requestRebuild.run();
                     }
-                }).bounds(bx, by, saveW, 20).primary().build());
+                }).bounds(bx, by, saveW, 20).primary().build();
+        widgets.add(nameFieldSet);
+        nameField.pressOnEnter(nameFieldSet);
         // killer560 (2026-10-08): "make an option to make a profile with 0 settings on". Named from the box when
         // something is typed there, "Blank" otherwise; made beside the others, not switched to.
         widgets.add(SettingsButtonWidget.builder(Component.literal(blankLabel), btn -> {
@@ -168,7 +171,7 @@ public class ProfilesTab extends BaseTab {
             if (profile.equals(renaming)) {
                 // Rename in place (killer560, 2026-10-15: "make a way to edit the name of them"): the name becomes a box,
                 // Enter or Save renames, Cancel (or Escape elsewhere) leaves it as it was.
-                EditBox box = new EditBox(font, cx + 8 + 4, cy + 6, cw - 16 - 8, 12, Component.literal("New name"));
+                CommitEditBox box = new CommitEditBox(font, cx + 8 + 4, cy + 6, cw - 16 - 8, 12, Component.literal("New name"));
                 box.setBordered(false);
                 box.setMaxLength(32);
                 box.setTextColor(MenuStyle.TXT);
@@ -177,7 +180,7 @@ public class ProfilesTab extends BaseTab {
                 box.setResponder(text -> renameText = text);
                 widgets.add(box);
                 int half = (cw - 16 - 5) / 2;
-                widgets.add(SettingsButtonWidget.builder(Component.literal("Save"), btn -> {
+                SettingsButtonWidget boxSet = SettingsButtonWidget.builder(Component.literal("Save"), btn -> {
                             ProfileManager.Result result = ProfileManager.renameProfile(profile, renameText);
                             if (!result.success()) {
                                 ModOverlayMessage.show(result.message(), 4000);
@@ -185,7 +188,9 @@ public class ProfilesTab extends BaseTab {
                             }
                             renaming = null;
                             requestRebuild.run();
-                        }).bounds(b0, rowY, half, BTN_H).primary().build());
+                        }).bounds(b0, rowY, half, BTN_H).primary().build();
+                widgets.add(boxSet);
+                box.pressOnEnter(boxSet);
                 widgets.add(SettingsButtonWidget.builder(Component.literal("Cancel"), btn -> {
                             renaming = null;
                             requestRebuild.run();

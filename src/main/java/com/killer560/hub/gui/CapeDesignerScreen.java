@@ -82,9 +82,10 @@ public class CapeDesignerScreen extends Screen {
                 }).bounds(panelX + 10, copyY + 28, panelW - 20, 20).build());
 
         // Name it and save it; Load steps through the saved designs (killer560, 2026-10-19).
-        nameBox = new EditBox(this.font, panelX + 10, copyY + 56, panelW - 20 - 60, 20, Component.literal("Design name"));
+        nameBox = new CommitEditBox(this.font, panelX + 10, copyY + 56, panelW - 20 - 60, 20, Component.literal("Design name"));
         nameBox.setMaxLength(24);
         nameBox.setHint(Component.literal("Name this design"));
+        nameBox.onEnter(this::saveNamed);
         this.addRenderableWidget(nameBox);
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Save"), btn -> saveNamed())
                 .bounds(panelX + panelW - 10 - 56, copyY + 56, 56, 20).build());
@@ -99,7 +100,7 @@ public class CapeDesignerScreen extends Screen {
                 }).bounds(panelX + 10, copyY + 84, panelW - 20, 20).build());
     }
 
-    private EditBox nameBox;
+    private com.killer560.hub.gui.CommitEditBox nameBox;
     private int loadIndex = -1;
 
     private Component loadText() {
