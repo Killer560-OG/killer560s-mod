@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.namechanger.NameAnimation;
@@ -59,7 +60,7 @@ public class NameChangerTab extends BaseTab {
         y += 24;
 
         int colorW = 80;
-        EditBox ownField = new EditBox(font, contentX, y, contentWidth - colorW - gap, 18,
+        CommitEditBox ownField = new CommitEditBox(font, contentX, y, contentWidth - colorW - gap, 18,
                 Component.literal("My display name"));
         ownField.setMaxLength(64);
         ownField.setValue(cfg.getOwnDisplayName());
@@ -73,10 +74,12 @@ public class NameChangerTab extends BaseTab {
             preview.setMessage(previewLine());
         });
         widgets.add(ownField);
+        CommitEditBox.withSet(widgets, ownField);
         widgets.add(colorButton(contentX + contentWidth - colorW, y, colorW, "My Name Color", cfg.getOwnColor(),
                 argb -> {
                     cfg.setOwnColor(argb);
                     cfg.save();
+                    preview.setMessage(previewLine()); // the preview follows the pick (2026-11-01)
                 }));
         y += 24;
 
@@ -99,7 +102,7 @@ public class NameChangerTab extends BaseTab {
         }
         y += 24;
         if (cfg.getOwnRank() == NameRank.Preset.CUSTOM) {
-            EditBox rankField = new EditBox(font, contentX, y, contentWidth, 18,
+            CommitEditBox rankField = new CommitEditBox(font, contentX, y, contentWidth, 18,
                     Component.literal("Rank text"));
             rankField.setMaxLength(NameRank.MAX_TEXT);
             rankField.setValue(cfg.getOwnRankCustomText());
@@ -110,6 +113,7 @@ public class NameChangerTab extends BaseTab {
                 preview.setMessage(previewLine());
             });
             widgets.add(rankField);
+            CommitEditBox.withSet(widgets, rankField);
             y += 24;
             widgets.add(SettingsButtonWidget.cycling(rankColorText("Plus Color", cfg.getOwnRankPlusColor()), (btn, dir) -> {
                         cfg.setOwnRankPlusColor(stepColor(cfg.getOwnRankPlusColor(), dir));
@@ -130,6 +134,15 @@ public class NameChangerTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
+        // "Text Shadow" (killer560, 2026-11-01): your name drawn with a drop shadow everywhere, name tags included.
+        widgets.add(SettingsButtonWidget.builder(onOff("Text Shadow", cfg.isOwnShadow()), btn -> {
+                    cfg.setOwnShadow(!cfg.isOwnShadow());
+                    cfg.save();
+                    preview.setMessage(previewLine());
+                    btn.setMessage(onOff("Text Shadow", cfg.isOwnShadow()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
+
         // "Fade Color" (killer560, cosmetics tab: "also allow them to fade the colour") - a second color
         // endpoint that turns the flat single-color name into a per-letter gradient (NameColor#buildFade).
         // Only the local render sees the gradient - SupportersAutoShare only ever shares the FROM color
@@ -142,6 +155,7 @@ public class NameChangerTab extends BaseTab {
                     "Fade To Color", cfg.getOwnColorFadeTo(), argb -> {
                         cfg.setOwnColorFadeTo(argb);
                         cfg.save();
+                        preview.setMessage(previewLine());
                     }));
         }
         y += 24;
@@ -185,7 +199,7 @@ public class NameChangerTab extends BaseTab {
         int fieldW = (contentWidth - deleteW - swatchW - gap * 3 - 14) / 2;
         for (NameChangerConfig.Mapping m : new ArrayList<>(cfg.mappings())) {
             int x = contentX;
-            EditBox realField = new EditBox(font, x, y, fieldW, 18, Component.literal("Real IGN"));
+            CommitEditBox realField = new CommitEditBox(font, x, y, fieldW, 18, Component.literal("Real IGN"));
             realField.setMaxLength(16);
             realField.setValue(m.real);
             realField.setHint(Component.literal("§8Real IGN"));
@@ -194,12 +208,13 @@ public class NameChangerTab extends BaseTab {
                 cfg.save();
             });
             widgets.add(realField);
+            CommitEditBox.withSet(widgets, realField);
             x += fieldW + gap / 2;
 
             widgets.add(new StringWidget(x, y + 3, 14, 12, Component.literal("§7->"), font));
             x += 14 + gap / 2;
 
-            EditBox displayField = new EditBox(font, x, y, fieldW, 18, Component.literal("Shown as"));
+            CommitEditBox displayField = new CommitEditBox(font, x, y, fieldW, 18, Component.literal("Shown as"));
             displayField.setMaxLength(64);
             displayField.setValue(m.display);
             displayField.setHint(Component.literal("§8Shown as"));
@@ -208,6 +223,7 @@ public class NameChangerTab extends BaseTab {
                 cfg.save();
             });
             widgets.add(displayField);
+            CommitEditBox.withSet(widgets, displayField);
             x += fieldW + gap;
 
             widgets.add(colorButton(x, y, swatchW, "Rename Color", m.color, argb -> {

@@ -145,6 +145,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.util.ServerLag.register();
         // Whether a hotbar swap may go out now or must wait for the next tick (GrimAC Post, grim-post-autopilot-1016).
         com.killer560.hub.util.HotbarSelect.register();
+        com.killer560.hub.util.BeforeMove.register();
         com.killer560.hub.roomsim.SimSpiritSceptre.register();
         // Only so the Terminator's own arrows can be recognized when they land - that is what arms Salvation
         // now that the shot is real entities instead of a ray cast. Nothing else in this file needs it.
@@ -242,6 +243,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.util.SackCommands.register();
         ExperimentsFeature.register();
         StorageOverlayFeature.register();
+        // Terminal Custom GUI hides the whole terminal: no hidden slot hovers or takes input (ContainerCover).
+        com.killer560.hub.containercover.ContainerCover.registerFull(
+                s -> com.killer560.hub.terminals.TerminalSolverFeature.isCustomGuiActive());
         DungeonState.register();
         SimDiagnosticFeature.register();
         PosmsgFeature.register();
@@ -284,6 +288,8 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new TickTimersFeature.TickTimersHudElement());
         SplitTimersFeature.register();
         HudElementRegistry.register(new SplitTimersFeature.SplitTimersHudElement());
+        com.killer560.hub.splittimers.BloodRushSplits.register();
+        HudElementRegistry.register(new com.killer560.hub.splittimers.BloodRushSplits.Hud());
         com.killer560.hub.splittimers.TerminalTimersFeature.register();
         com.killer560.hub.itemrarity.ItemRarityFeature.register();
         com.killer560.hub.cheatutils.CheatUtils.register();
@@ -399,6 +405,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.register();
         com.killer560.hub.smoothtp.SmoothTeleport.register();
         com.killer560.hub.freelook.FreelookFeature.register();
+        com.killer560.hub.gui.ModuleKeybinds.register();
         com.killer560.hub.slotbinds.SlotBindsFeature.register();
         com.killer560.hub.partycommands.PartyCommandsFeature.register();
         com.killer560.hub.autokick.AutoKickFeature.register();
@@ -479,6 +486,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.bazaaradvisor.BazaarAdvisorFeature.register();
         com.killer560.hub.bazaaradvisor.BazaarAdvisorCommands.register();
         com.killer560.hub.bazaarflip.BazaarFlipCommands.register();
+        com.killer560.hub.ahflip.AhFlipper.register();
 
         // Four back-to-back END handlers as one listener, same order, each still guarded under its own name.
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.endAll(

@@ -485,6 +485,14 @@ public final class ShortsFeature {
                     } catch (Exception e) {
                         LOGGER.warn("[Shorts] Volume hook install on connect failed: {}", e.toString());
                     }
+                    // The end-of-video watcher for Auto Scroll: installed on every connect (it only counts; the client
+                    // thread decides whether to act, so turning Auto Scroll on needs no reconnect).
+                    try {
+                        persistScript(client, "ended", ENDED_HOOK_JS);
+                        client.evaluate(ENDED_HOOK_JS);
+                    } catch (Exception e) {
+                        LOGGER.warn("[Shorts] End watcher install on connect failed: {}", e.toString());
+                    }
                     return;
                 }
                 lastError = "no page target yet";
@@ -588,6 +596,9 @@ public final class ShortsFeature {
         ticks++;
         if (cfg.isEnabled()) {
             pollKeys(client, cfg);
+            if (cfg.isAutoScroll() && ticks % 10 == 0) {
+                pollEnded();
+            }
         }
 
         long h = browserHwnd;
@@ -1309,19 +1320,80 @@ public final class ShortsFeature {
         }
     }
 
-    public static void next() {
-        command("next", c -> {
-            String r = str(c.evaluate("(()=>{const b=document.querySelector('#navigation-button-down button');"
-                    + "if(b&&!b.disabled){b.click();return 'button'}return 'none'})()"));
-            if ("button".equals(r)) {
-                return "clicked next button";
+    // ------------------------------------------------------------------------------------------------
+    // Auto Scroll (killer560, 2026-11-01, to-do Doc "VIDEO BROWSER": "Add an auto scroll option where if it is something
+    // like yt shorts itll scroll once the vid ends")
+    // ------------------------------------------------------------------------------------------------
+
+    /**
+     * In the page: counts each end of the playing video in {@code window.__k560Ended}. A Short never fires {@code ended}
+     * (YouTube loops it), so a loop counts too: a {@code timeupdate} that finds the video back under its first second
+     * after the last one saw it in its final second. {@code timeupdate} does not bubble, so it is caught on the way down
+     * (capture). Only the active video counts (a preloaded neighbor can play in the background on some sites).
+     */
+    static final String ENDED_HOOK_JS = "(()=>{if(window.__k560EndHook)return 'present';window.__k560EndHook=1;"
+            + "window.__k560Ended=window.__k560Ended||0;"
+            + "const active=()=>" + ACTIVE_VIDEO_JS + ";"
+            + "const end=v=>{const now=Date.now();if(v.__k560EndAt&&now-v.__k560EndAt<1500)return;v.__k560EndAt=now;"
+            + "window.__k560Ended++;};"
+            + "document.addEventListener('ended',e=>{const v=e.target;if(v instanceof HTMLVideoElement&&v===active())end(v);},true);"
+            + "document.addEventListener('timeupdate',e=>{const v=e.target;if(!(v instanceof HTMLVideoElement))return;"
+            + "const t=v.currentTime,d=v.duration,p=v.__k560Prev;v.__k560Prev=t;"
+            + "if(v!==active()||!isFinite(d)||d<2||p===undefined)return;"
+            + "if(p>=d-1&&t<1&&!v.seeking)end(v);},true);"
+            + "return 'installed'})()";
+
+    /** The page's end count when last read, or -1 before the first read (the first read only takes the count). */
+    private static volatile int endedSeen = -1;
+    private static final AtomicBoolean endedPolling = new AtomicBoolean();
+    /** Auto Scroll's Next presses, for the testkit. */
+    private static final AtomicInteger autoScrolls = new AtomicInteger();
+
+    public static int autoScrolls() {
+        return autoScrolls.get();
+    }
+
+    /** Client thread: asks the page (on the browser thread) whether its video ended since the last look. */
+    private static void pollEnded() {
+        CdpClient c = cdp;
+        if (c == null || !c.isOpen() || launching || !endedPolling.compareAndSet(false, true)) {
+            return;
+        }
+        EXEC.execute(() -> {
+            try {
+                String r = str(c.evaluate("String(window.__k560Ended===undefined?-1:window.__k560Ended)"));
+                int n = r == null ? -1 : Integer.parseInt(r.trim());
+                int seen = endedSeen;
+                endedSeen = n;
+                if (n >= 0 && seen >= 0 && n > seen && ShortsConfig.getInstance().isAutoScroll()) {
+                    autoScrolls.incrementAndGet();
+                    LOGGER.info("[Shorts] Auto Scroll: the video ended - next.");
+                    runCommand("auto scroll", ShortsFeature::nextAction);
+                }
+            } catch (Exception e) {
+                LOGGER.debug("[Shorts] Auto Scroll poll failed: {}", e.toString());
+            } finally {
+                endedPolling.set(false);
             }
-            if (commentsOpenGuardBlocks(c)) {
-                return "skipped (comments panel open)";
-            }
-            c.pressKey("ArrowDown", "ArrowDown", 40, null);
-            return "ArrowDown key";
         });
+    }
+
+    public static void next() {
+        command("next", ShortsFeature::nextAction);
+    }
+
+    /** Next's own work on the browser thread: the feed's down button, else (comments closed) a real ArrowDown. */
+    private static String nextAction(CdpClient c) throws Exception {
+        String r = str(c.evaluate("(()=>{const b=document.querySelector('#navigation-button-down button');"
+                + "if(b&&!b.disabled){b.click();return 'button'}return 'none'})()"));
+        if ("button".equals(r)) {
+            return "clicked next button";
+        }
+        if (commentsOpenGuardBlocks(c)) {
+            return "skipped (comments panel open)";
+        }
+        c.pressKey("ArrowDown", "ArrowDown", 40, null);
+        return "ArrowDown key";
     }
 
     public static void previous() {

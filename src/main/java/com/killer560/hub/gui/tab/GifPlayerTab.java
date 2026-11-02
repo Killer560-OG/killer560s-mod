@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.util.ExternalOpen;
 import com.killer560.hub.gifplayer.GifAudioFeature;
 import com.killer560.hub.gifplayer.GifPlayerConfig;
@@ -65,12 +66,12 @@ public class GifPlayerTab extends BaseTab {
                 saveOnRelease(() -> cfg.save());
             }
         });
-        EditBox speedField = new EditBox(Minecraft.getInstance().font, contentX + 166, y, 60, 20,
+        CommitEditBox speedField = new CommitEditBox(Minecraft.getInstance().font, contentX + 166, y, 60, 20,
                 Component.literal("Speed"));
         speedField.setMaxLength(8);
         speedField.setValue(String.format(java.util.Locale.US, "%.2f", GifPlayerConfig.getInstance().getSpeedMultiplier()));
         widgets.add(speedField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
+        SettingsButtonWidget speedFieldSet = SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
                     Float parsed = parseFloat(speedField.getValue());
                     if (parsed == null) {
                         ModOverlayMessage.show("§c[Killer560's Mod] Invalid speed - enter a number like 1.5", 3000);
@@ -80,7 +81,9 @@ public class GifPlayerTab extends BaseTab {
                     cfg.setSpeedMultiplier(Math.max(MIN_SPEED, Math.min(MAX_SPEED, parsed)));
                     cfg.save();
                     requestRebuild.run();
-                }).bounds(contentX + 230, y, contentWidth - 230, 20).build());
+                }).bounds(contentX + 230, y, contentWidth - 230, 20).build();
+        widgets.add(speedFieldSet);
+        speedField.pressOnEnter(speedFieldSet);
         y += 26;
 
         widgets.add(new ThemedSliderButton(contentX, y, 160, 20, volumeText(), GifPlayerConfig.getInstance().getVolume()) {
@@ -97,12 +100,12 @@ public class GifPlayerTab extends BaseTab {
                 GifAudioFeature.applyVolume();
             }
         });
-        EditBox volumeField = new EditBox(Minecraft.getInstance().font, contentX + 166, y, 60, 20,
+        CommitEditBox volumeField = new CommitEditBox(Minecraft.getInstance().font, contentX + 166, y, 60, 20,
                 Component.literal("Volume"));
         volumeField.setMaxLength(8);
         volumeField.setValue(String.format("%.0f", GifPlayerConfig.getInstance().getVolume() * 100));
         widgets.add(volumeField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
+        SettingsButtonWidget volumeFieldSet = SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
                     Float parsed = parseFloat(volumeField.getValue());
                     if (parsed == null) {
                         ModOverlayMessage.show("§c[Killer560's Mod] Invalid volume - enter a number like 50", 3000);
@@ -113,7 +116,9 @@ public class GifPlayerTab extends BaseTab {
                     cfg.save();
                     GifAudioFeature.applyVolume();
                     requestRebuild.run();
-                }).bounds(contentX + 230, y, contentWidth - 230, 20).build());
+                }).bounds(contentX + 230, y, contentWidth - 230, 20).build();
+        widgets.add(volumeFieldSet);
+        volumeField.pressOnEnter(volumeFieldSet);
         y += 30;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open GIF / Audio Folder"), btn -> openFolder())

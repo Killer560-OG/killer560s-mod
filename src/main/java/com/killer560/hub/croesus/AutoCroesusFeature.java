@@ -278,6 +278,8 @@ public final class AutoCroesusFeature {
         // This, not the element's render(), is where the button really appears - render() is only the HUD
         // editor's preview. So this is where the "it was on screen" stamp has to be taken.
         HudSeen.markDrawn(START_BUTTON_ELEMENT_ID);
+        com.killer560.hub.containercover.ContainerCover.coverRectOnCurrentScreen("croesus.start",
+                pos[0], pos[1], pos[0] + START_BUTTON_WIDTH * scale, pos[1] + START_BUTTON_HEIGHT * scale);
         graphics.pose().pushMatrix();
         graphics.pose().translate(pos[0], pos[1]);
         graphics.pose().scale(scale, scale);

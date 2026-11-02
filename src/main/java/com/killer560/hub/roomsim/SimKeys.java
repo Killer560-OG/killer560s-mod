@@ -118,6 +118,11 @@ public final class SimKeys {
         return true;
     }
 
+    /** Whether the team holds the Blood Key. */
+    static boolean hasBloodKey() {
+        return bloodKey;
+    }
+
     static void useBloodKey() {
         bloodKey = false;
     }

@@ -1,5 +1,6 @@
 package com.killer560.hub.social;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
@@ -47,8 +48,8 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     private static final int STATUS_H = 12;
 
     private final Screen parent;
-    private EditBox addBox;
-    private EditBox noteBox;
+    private com.killer560.hub.gui.CommitEditBox addBox;
+    private com.killer560.hub.gui.CommitEditBox noteBox;
     /** The search text (kept across a rebuild). Since 1c0f3686 the search box is {@link #addBox}. */
     private String searchQuery = "";
     private List<FriendsListConfig.Friend> visible = List.of();
@@ -105,6 +106,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
             refresh();
         });
         addRenderableWidget(addBox);
+        addBox.onEnter(this::addByName);
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Add"), btn -> addByName())
                 .bounds(panelX + 6 + addBoxW + 4, panelY + 34, addBtnW, 18).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Refresh"), btn -> {
@@ -146,6 +148,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
                 selected.note = text;
             });
             addRenderableWidget(noteBox);
+            CommitEditBox.withSet(this::addRenderableWidget, noteBox);
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("< Back"), btn -> {
                 FriendsListConfig.getInstance().save();
                 selected = null;

@@ -64,14 +64,15 @@ public final class SuperpairsHud {
                 return 40;
             }
 
+            // The editor's box is the preview's own size (testkit 394: it was 170x94 around a 190x84 preview).
             @Override
             public int width() {
-                return WIDTH;
+                return panelWidth(PREVIEW);
             }
 
             @Override
             public int height() {
-                return 4 + LINE * 9;
+                return 4 + LINE * PREVIEW.size();
             }
 
             @Override
@@ -81,11 +82,27 @@ public final class SuperpairsHud {
 
             @Override
             public void render(GuiGraphicsExtractor graphics, int x, int y) {
-                drawPanel(graphics, x, y, List.of("§6Superpairs", "§7Found:", " §aEnchanted Book (Sharpness VII)",
-                        " §fTitanic Experience Bottle", " §71/2 Grand Experience Bottle", "§7Powerups: §bInstant Find",
-                        "§7Undiscovered pairs: §e3 §7+ up to §e4 §7new", "§7Undiscovered powerups: §7up to §e2"));
+                drawPanel(graphics, x, y, PREVIEW);
             }
         });
+    }
+
+    /** What the HUD editor shows. */
+    private static final List<String> PREVIEW = List.of("§6Superpairs", "§7Found:", " §aEnchanted Book (Sharpness VII)",
+            " §fTitanic Experience Bottle", " §71/2 Grand Experience Bottle", "§7Powerups: §bInstant Find",
+            "§7Undiscovered pairs: §e3 §7+ up to §e4 §7new", "§7Undiscovered powerups: §7up to §e2");
+
+    /** The panel's unscaled width for these lines: {@link #WIDTH}, or wider for a long line. */
+    private static int panelWidth(List<String> lines) {
+        Font font = Minecraft.getInstance().font;
+        int w = WIDTH;
+        if (font == null) {
+            return w;
+        }
+        for (String line : lines) {
+            w = Math.max(w, font.width(line.replaceAll("§.", "")) + 8);
+        }
+        return w;
     }
 
     /** From the container render pass ({@link ExperimentsFeature#renderStartButtonOverContainer}). */
@@ -106,8 +123,10 @@ public final class SuperpairsHud {
         graphics.pose().pushMatrix();
         graphics.pose().translate(pos[0], pos[1]);
         graphics.pose().scale(scale, scale);
-        drawPanel(graphics, 0, 0, lines);
+        int[] size = drawPanel(graphics, 0, 0, lines);
         graphics.pose().popMatrix();
+        com.killer560.hub.containercover.ContainerCover.coverRectOnCurrentScreen("experiments.superpairs",
+                pos[0], pos[1], pos[0] + size[0] * scale, pos[1] + size[1] * scale);
     }
 
     static List<String> lines(ExperimentSolver.SuperpairsSummary s) {
@@ -137,12 +156,10 @@ public final class SuperpairsHud {
         return out;
     }
 
-    private static void drawPanel(GuiGraphicsExtractor graphics, int x, int y, List<String> lines) {
+    /** @return the panel's unscaled {width, height}. */
+    private static int[] drawPanel(GuiGraphicsExtractor graphics, int x, int y, List<String> lines) {
         Font font = Minecraft.getInstance().font;
-        int w = WIDTH;
-        for (String line : lines) {
-            w = Math.max(w, font.width(line.replaceAll("§.", "")) + 8);
-        }
+        int w = panelWidth(lines);
         int h = 4 + LINE * lines.size();
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(
                 com.killer560.hub.gui.OverlayThemes.EXPERIMENTS_START_BUTTONS);
@@ -153,6 +170,7 @@ public final class SuperpairsHud {
             graphics.text(font, line, x + 4, ty, 0xFFFFFFFF, true);
             ty += LINE;
         }
+        return new int[]{w, h};
     }
 
     public static long framesDrawn() {

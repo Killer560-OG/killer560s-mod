@@ -71,7 +71,7 @@ public final class ChoiceListScreen extends Screen implements MenuThemedScreen {
             boolean selected = value.equals(current);
             boolean over = mouseX >= panelX + 8 && mouseX < panelX + panelW - 8 && mouseY >= ry && mouseY < ry + ROW_H;
             ScreenChrome.row(graphics, panelX + 8, ry, panelW - 16, ROW_H, over, selected, row % 2 == 1);
-            String text = (selected ? "> " : "  ") + (value.isEmpty() ? "Off" : value);
+            String text = (selected ? "> " : "  ") + displayName(value);
             MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(text, panelW - 28)),
                     panelX + 12, ry + 5, selected ? MenuStyle.OR_HOVER : MenuStyle.TXT);
         }
@@ -79,6 +79,18 @@ public final class ChoiceListScreen extends Screen implements MenuThemedScreen {
             MenuStyle.text(graphics, "No choices yet (a world must be loaded).", panelX + 8, listY + 4, MenuStyle.DIM);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+    }
+
+    /**
+     * A choice as the player reads it: "Off" for blank, else the identifier without its namespace and with spaces for
+     * underscores - "emerald", not "minecraft:emerald" (killer560, 2026-11-01).
+     */
+    public static String displayName(String value) {
+        if (value == null || value.isBlank()) {
+            return "Off";
+        }
+        int colon = value.indexOf(':');
+        return (colon < 0 ? value : value.substring(colon + 1)).replace('_', ' ');
     }
 
     @Override

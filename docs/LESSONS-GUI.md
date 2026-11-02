@@ -91,6 +91,16 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   `ProfileManager.EXCLUDED_FILES` and also holds the Per-Profile Names switch, so the switch is the same in every profile;
   with it on, the names go in the profile's own `killer560smod-namechanger.json`. An install from before the split moves the
   names its profile file holds into it on first load (1552).
+- Your own flat name color was snapped to the nearest of the 16 chat colors (`NameColor.prefix`), so most picks showed
+  another color (killer560, 2026-11-01). A non-chat color is now painted per letter with the `§x` escape fades use; every
+  name path already decodes it through `NameColor.iterateFormatted`, which also reads this mod's `§y` (Text Shadow).
+- An armor ICON draws only a trim's material color, never its pattern (vanilla's item model selects on `trim_material`),
+  so an icon preview "only ever shows one trim pattern". Custom Items previews armor on an armor stand
+  (`InventoryScreen.extractEntityInInventoryFollowsMouse`), which draws the pattern (testkit 1101-menu-customitems-rows).
+- An entity built only for a GUI preview (never added to a level) needs `setId` first: on 26.3 extracting its render
+  state calls `Entity.getId` (ItemModelResolver.updateForLiving) and threw "before ID assignment", a "Rendering screen"
+  crash. And the GUI entity is a picture-in-picture placed at screen coordinates past the pose, so a screen drawn through
+  Auto Scale must transform the box corners and the mouse by `graphics.pose()` itself (CustomColorScreen, 2026-11-01).
 - A nametag's height comes from `EntityRenderState.nameTagAttachment` (the entity's dimensions), not from the render-state
   `scale`, so a render-only model scale leaves the tag at 1x height; `SupportersScaleMixin` scales it too (testkit 816).
 
@@ -129,6 +139,15 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   hover highlight (`extractSlotHighlightBack/Front`) lit the invisible slots and the hotbar-number and drop keys sent
   SWAP/THROW on them (testkit 1015-menu-term-hidden-slots: 1024 px changed, `0/0/SWAP`, `0/0/THROW`). Answer null from
   `getHoveredSlot` while slots are hidden; every hover reader goes quiet at once.
+  That fix went into the terminal only, and the Storage Overlay, AH/Bazaar reskins and Spirit Leap menu kept hovering
+  their hidden slots; the Storage Overlay also let an unclaimed click fall through to vanilla's `mouseClicked`, which
+  picked his Spirit Sceptre out of the hidden slot under blank overlay space (2026-11-01, 26.3). Since then every GUI
+  drawn over a menu goes through `containercover.ContainerCover`: a full-screen reskin calls `registerFull` (or its
+  screen implements `FullyCovered`), a panel calls `coverRect(screen, owner, ...)` each frame it draws.
+  `ContainerCoverMixin` nulls `getHoveredSlot` under a cover and stops `mouseClicked`/`mouseReleased`/`mouseDragged` at
+  their `getHoveredSlot` call (after child widgets had the click; release/drag go to `Screen`'s, so widgets still get
+  them), which also blocks vanilla's -999 "clicked outside" packet. A new overlay over a container registers there.
+  Testkit 1101-menu-cover-*.
 - **Slot Text and Compactor Preview hook points** (javap both versions). Text over an item goes right after the one
   `GuiGraphicsExtractor.itemDecorations(Font, ItemStack, int, int, String)` call in `AbstractContainerScreen.extractSlot`
   (rarity and search fills use the `Slot.isFake` call before the item). A grid inside an item tooltip is a
@@ -422,3 +441,19 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   at the HEAD of `Screen.extractRenderStateWithTooltipAndSubtitles` (final, calls extractBackground first; javap 26.3
   and 26.2), which nothing cancels. Five features cancel `extractBackground` at HEAD (Inventory Theme, Storage Overlay,
   AH/Bazaar reskins, Spirit Leap): read state anywhere else.
+- The crosshair is `Hud.extractCrosshair(GuiGraphicsExtractor, DeltaTracker)` (private, same descriptor on 26.3 and 26.2,
+  javap 2026-11-01; `Gui` no longer has it). A `pose().pushMatrix()/translate` at HEAD and `popMatrix` at RETURN moves
+  exactly the crosshair and its attack indicator (Etherwarp Overlay's Crosshair On Server Aim, testkit 1101-ew-crosshair:
+  measured -8.82 GUI px against a projected -8.81). `Camera.getFov()` is the vertical fov the level projection uses.
+- `Map.of` takes at most ten key/value pairs; an eleventh is a compile error (no varargs form). `SearchAliases` hit it
+  on 2026-11-01 and is `Map.ofEntries` now; use that for any alias or lookup table that grows.
+- The menu sidebar's section rows (Legit, groups, Cheat) are read from the grid's HEADER items, so `ModScreen.rebuild`
+  must run `buildItems()` BEFORE `layout()`; a new category needs nothing. A testkit harness key press never reaches the
+  GLFW poll `KeyUtil.isBindDown` reads: in-game keys are tested through a `heldForTest` hook (ModuleKeybinds,
+  LoadoutSwapper), menu key capture through `Screen.keyPressed` with `McKeys.nat`.
+- Video Browser: YouTube Shorts loop, so a `<video>` never fires `ended`; Auto Scroll counts a `timeupdate` that finds
+  the video under 1 s after one in its last second (caught in capture phase: `timeupdate` does not bubble). Checked in
+  headless Chrome with ffmpeg clips (killer560s-mod-logs/docmenu-1101-vb/endhook_test.py).
+- `CommitEditBox.withSet` takes its Set button (SET_W 34 + SET_GAP 4) out of the box's own width, so a row laid out before
+  textbox-1101 can leave a box too narrow: the Command Shortcuts custom row's command box fell to 52 px in the test window
+  (testkit 621 wants 60). Reserve the Set width when sizing the row (ship-1102h, eb3719df: the name box pays for it).

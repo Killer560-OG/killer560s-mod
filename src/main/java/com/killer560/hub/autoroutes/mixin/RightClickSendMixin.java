@@ -27,6 +27,12 @@ public abstract class RightClickSendMixin {
     @Inject(method = "send", at = @At("HEAD"), require = 0)
     private void killer560smod$rightClickTap(Packet<?> packet, CallbackInfo ci) {
         try {
+            if (Minecraft.getInstance().isSameThread()) {
+                // GrimAC PacketOrderE: what a held-item change must not follow inside one server tick (util/HotbarSelect).
+                com.killer560.hub.util.HotbarSelect.onPacketSent(packet);
+                // GrimAC DuplicateRotPlace: the yaw turn before each block click (util/PlaceRotationGuard).
+                com.killer560.hub.util.PlaceRotationGuard.onPacketSent(packet);
+            }
             if (packet instanceof ServerboundUseItemOnPacket || packet instanceof ServerboundUseItemPacket
                     || packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerActionPacket
                     || packet instanceof net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket

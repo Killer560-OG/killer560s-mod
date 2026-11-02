@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.fastleap.FastLeapSection;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -165,7 +166,7 @@ public class LeapMenuTab extends BaseTab {
         // is still nearly full width and you can read everything you type.
         // message text "Leaping To message" is also the SettingTooltips key - keep it
         int msgW = Math.max(1, width - SET_W - GAP);
-        EditBox messageField = new EditBox(Minecraft.getInstance().font, x, y, msgW, ROW,
+        CommitEditBox messageField = new CommitEditBox(Minecraft.getInstance().font, x, y, msgW, ROW,
                 Component.literal("Leaping To message"));
         messageField.setMaxLength(200);
         messageField.setValue(LeapMessageConfig.getInstance().getCustomMessage());
@@ -176,12 +177,14 @@ public class LeapMenuTab extends BaseTab {
             cfg.save();
         });
         widgets.add(messageField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
+        SettingsButtonWidget messageFieldSet = SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
                     LeapMessageConfig cfg = LeapMessageConfig.getInstance();
                     cfg.setCustomMessage(messageField.getValue());
                     cfg.save();
                     requestRebuild.run();
-                }).bounds(x + msgW + GAP, y, SET_W, ROW).build());
+                }).bounds(x + msgW + GAP, y, SET_W, ROW).build();
+        widgets.add(messageFieldSet);
+        messageField.pressOnEnter(messageFieldSet);
         y += ROW + GAP;
 
         widgets.add(FastLeapSection.label(x, y, Math.max(1, width),

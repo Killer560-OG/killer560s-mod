@@ -42,6 +42,17 @@ public final class LuckStore {
         final Map<String, Double> exp = new HashMap<>();
         final Map<String, Double> expMf = new HashMap<>();
         final Map<String, Long> got = new HashMap<>();
+        /** Slayer level per boss ("revenant" -> 7), read from Hypixel's "Zombie Slayer LVL 7" line after a kill. */
+        final Map<String, Long> levels = new HashMap<>();
+        /** RNG Meter per meter key ("slayer:revenant"): the selected drop, stored meter XP and the XP it needs. */
+        final Map<String, Meter> meters = new HashMap<>();
+    }
+
+    /** One RNG Meter: its selected drop, the meter XP stored toward it and the XP that fills it. */
+    public record Meter(String item, long xp, long required) {
+        public double progress() {
+            return required <= 0 ? 0 : Math.min(1.0, xp / (double) required);
+        }
     }
 
     /** One drop as it happened. */
@@ -71,6 +82,18 @@ public final class LuckStore {
                 readDoubles(o, "exp", b.exp);
                 readDoubles(o, "expMf", b.expMf);
                 readLongs(o, "got", b.got);
+                readLongs(o, "levels", b.levels);
+                if (o.has("meters") && o.get("meters").isJsonObject()) {
+                    JsonObject ms = o.getAsJsonObject("meters");
+                    for (String k : ms.keySet()) {
+                        try {
+                            JsonObject m = ms.getAsJsonObject(k);
+                            b.meters.put(k, new Meter(str(m, "item"), m.get("xp").getAsLong(), m.get("required").getAsLong()));
+                        } catch (RuntimeException ignored) {
+                            // a hand-edited meter; it is read again from the next RNG Meter menu
+                        }
+                    }
+                }
                 PROFILES.put(p, b);
             }
         }
@@ -102,20 +125,61 @@ public final class LuckStore {
         return revision;
     }
 
-    /** One attempt at {@code activity} (a slayer kill) at {@code magicFind}%: adds every table drop's chance. */
+    /** One attempt at {@code activity} at {@code magicFind}% and nothing else raising the odds. */
     public static synchronized void attempt(String activity, int magicFind) {
+        attempt(activity, LuckMath.Bonus.mf(magicFind));
+    }
+
+    /**
+     * One attempt at {@code activity} (a slayer or mob kill, a Kuudra chest, a Nucleus bundle, an experiment): adds every
+     * unlocked table drop's chance, plain to "exp" and with {@code bonus} (Looting, Magic Find, RNG Meter) to "expMf".
+     * A drop above his slayer level adds nothing to either: it cannot drop.
+     */
+    public static synchronized void attempt(String activity, LuckMath.Bonus bonus) {
         ensure();
         Bucket b = bucket(ProfitScope.currentSkyblockProfile());
         b.attempts.merge(activity, 1L, Long::sum);
         for (DropTable.Drop d : DropTable.get().ofActivity(activity)) {
-            if (!d.tracked()) {
+            if (!d.tracked() || !LuckMath.unlocked(d, bonus)) {
                 continue;
             }
             b.exp.merge(d.key(), d.chance(), Double::sum);
-            b.expMf.merge(d.key(), LuckMath.withMagicFind(d, magicFind), Double::sum);
+            b.expMf.merge(d.key(), LuckMath.adjusted(d, bonus), Double::sum);
         }
         revision++;
         saveAsync();
+    }
+
+    /** His slayer level for {@code boss} on this profile, -1 when no level line was seen yet. */
+    public static synchronized int slayerLevel(String boss) {
+        ensure();
+        Long v = bucket(ProfitScope.currentSkyblockProfile()).levels.get(boss);
+        return v == null ? -1 : v.intValue();
+    }
+
+    public static synchronized void setSlayerLevel(String boss, int level) {
+        ensure();
+        Long old = bucket(ProfitScope.currentSkyblockProfile()).levels.put(boss, (long) level);
+        if (old == null || old != level) {
+            revision++;
+            saveAsync();
+        }
+    }
+
+    /** The RNG Meter remembered for {@code meterKey} on this profile, or null. */
+    public static synchronized Meter meter(String meterKey) {
+        ensure();
+        return bucket(ProfitScope.currentSkyblockProfile()).meters.get(meterKey);
+    }
+
+    public static synchronized void setMeter(String meterKey, Meter m) {
+        ensure();
+        Bucket b = bucket(ProfitScope.currentSkyblockProfile());
+        Meter old = m == null ? b.meters.remove(meterKey) : b.meters.put(meterKey, m);
+        if (!java.util.Objects.equals(old, m)) {
+            revision++;
+            saveAsync();
+        }
     }
 
     /** A drop he got: {@code key} is a table key or {@code "<activity>|<name>"} for one the table does not have. */
@@ -244,10 +308,21 @@ public final class LuckStore {
             if (!mine(c.key(), id) || (profile != null && !profile.equals(c.key().profile()))) {
                 continue;
             }
-            String activity = "chest:" + c.floor() + ":" + c.chest();
+            String floor = "Unknown".equals(c.floor()) ? inferFloor(table, c) : c.floor();
+            String activity = "chest:" + floor + ":" + c.chest();
             List<DropTable.Drop> drops = table.ofActivity(activity);
             if (drops.isEmpty()) {
-                continue; // "Unknown" floor, or a chest the table has no page for
+                if ("Unknown".equals(floor)) {
+                    // Floor not known and not told by its items: one attempt at "chest:Unknown:<chest>", which has no
+                    // table and so no expectation, and its table items as drops - they still show, under Unknown.
+                    attempts.merge(activity, 1L, Long::sum);
+                    for (CroesusProfitLog.LoggedItem item : c.items()) {
+                        if (!table.named(item.name()).isEmpty()) {
+                            got.merge(activity + "|" + item.name(), 1L, Long::sum);
+                        }
+                    }
+                }
+                continue; // otherwise a chest the table has no page for
             }
             attempts.merge(activity, 1L, Long::sum);
             for (DropTable.Drop d : drops) {
@@ -265,6 +340,34 @@ public final class LuckStore {
                 }
             }
         }
+    }
+
+    /**
+     * The floor of a Croesus claim logged with floor "Unknown" (claimed after the run's floor was forgotten), told by its
+     * items: the one floor whose table for that chest holds every claimed item that any floor's table for that chest
+     * holds. "Unknown" when no item tells (books and essence come from every floor) or two floors fit.
+     */
+    static String inferFloor(DropTable table, CroesusProfitLog.Claim c) {
+        java.util.Set<String> fits = null;
+        String suffix = ":" + c.chest();
+        for (CroesusProfitLog.LoggedItem item : c.items()) {
+            java.util.Set<String> floors = new TreeSet<>();
+            for (DropTable.Drop d : table.named(item.name())) {
+                String a = d.activity();
+                if (a.startsWith("chest:") && a.endsWith(suffix)) {
+                    floors.add(a.substring(6, a.length() - suffix.length()));
+                }
+            }
+            if (floors.isEmpty()) {
+                continue; // not a table item of this chest on any floor
+            }
+            if (fits == null) {
+                fits = floors;
+            } else {
+                fits.retainAll(floors);
+            }
+        }
+        return fits != null && fits.size() == 1 ? fits.iterator().next() : "Unknown";
     }
 
     /** The screen's headline over {@code rows}: only rows with something expected count. */
@@ -316,6 +419,16 @@ public final class LuckStore {
             o.add("exp", doubles(b.exp));
             o.add("expMf", doubles(b.expMf));
             o.add("got", longs(b.got));
+            o.add("levels", longs(b.levels));
+            JsonObject ms = new JsonObject();
+            b.meters.forEach((k, m) -> {
+                JsonObject mo = new JsonObject();
+                mo.addProperty("item", m.item());
+                mo.addProperty("xp", m.xp());
+                mo.addProperty("required", m.required());
+                ms.add(k, mo);
+            });
+            o.add("meters", ms);
             ps.add(e.getKey(), o);
         }
         root.add("profiles", ps);

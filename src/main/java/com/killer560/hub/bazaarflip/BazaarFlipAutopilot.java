@@ -145,6 +145,14 @@ final class BazaarFlipAutopilot {
     private static long signSeenAtMs;
     private static double quoteEach;
     private static double boughtCoins;
+    /** Units the Bought line(s) of the Insta Buy under way said (0: no line yet). */
+    private static long boughtUnits;
+    /** The carried count CARRIED_UP last saw, and when it last changed: a big buy arrives over several ticks. */
+    private static int carriedLast;
+    private static long carriedChangedAtMs;
+    /** How long the carried count must stay put before a partial delivery is taken as the whole buy. Hypixel delivered
+     *  "Bought 1,472x Gravel" over more than one tick and the first rise read 832 (his log, 2026-10-30 11:01:17). */
+    static final long CARRIED_SETTLE_MS = 750L;
     private static int orderClicks;
     /** Set when Cancel Order was clicked (the next Order options page is not a reason to click again). */
     private static boolean cancelClicked;
@@ -174,6 +182,18 @@ final class BazaarFlipAutopilot {
     private static String lastWaitWhy = "";
     private static FlipAutopilot.Limits limits = FlipAutopilot.Limits.defaults();
     private static double reserve;
+    /**
+     * Units of a product a live page proved too many this session (its Instant Buy quote or confirm price came out over the
+     * purse above the reserve, or no longer beat the sale), by product id: the next decision sizes under it instead of
+     * skipping the product for the session (killer560, 2026-11-01: "it is more expensive when it actually buys it so it
+     * cannot buy the right amount").
+     */
+    private static final Map<String, Long> unitCap = new HashMap<>();
+    /** Times a product's Insta Buy was sized down and tried again this session; past {@link #MAX_RESIZES} it is skipped. */
+    private static final Map<String, Integer> resizes = new HashMap<>();
+    static final int MAX_RESIZES = 4;
+    /** Rounds started this session with Stop At Max Orders off (1 = the first). */
+    private static int round = 1;
 
     private BazaarFlipAutopilot() {
     }
@@ -189,7 +209,8 @@ final class BazaarFlipAutopilot {
             return String.format(Locale.US, "your purse (%,.0f) is not above the autopilot's reserve (%,.0f).", purse, reserve);
         }
         int orderCap = cfg.isAutopilotMaxOrdersOn() ? cfg.getAutopilotMaxOrders() : Integer.MAX_VALUE;
-        limits = FlipAutopilot.Limits.defaults().withReserve(reserve).withMaxOrdersPerSession(orderCap);
+        limits = FlipAutopilot.Limits.defaults().withReserve(reserve).withMaxOrdersPerSession(orderCap)
+                .withMinCycleProfit(cfg.getMinProfitPerCycle());
         // Every Skyblock item he already carries is his: never flipped, so no sale ever takes his own units.
         if (client.player != null) {
             for (int i = 0; i < 36; i++) {
@@ -203,9 +224,16 @@ final class BazaarFlipAutopilot {
         BazaarApi.refreshAsync();
         productsAskedAtMs = System.currentTimeMillis();
         BazaarAdvisorConfig adv = BazaarAdvisorConfig.getInstance();
+        String npcNote = adv.getMode() == BazaarAdvisorConfig.Mode.NPC ? String.format(Locale.US,
+                " NPC sales today %,.0f of %,.0f (resets at 00:00 UTC, in %s).", BazaarFlipNpcLimit.soldToday(),
+                BazaarFlipNpcLimit.DAILY_LIMIT, BazaarFlipNpcLimit.resetsIn()) : "";
+        String capNote = !cfg.isAutopilotMaxOrdersOn() ? "no cap on new orders"
+                : String.format(Locale.US, "at most %d new orders%s", cfg.getAutopilotMaxOrders(),
+                cfg.isStopAtMaxOrders() ? "" : " a round");
+        String minNote = cfg.getMinProfitPerCycle() > 0
+                ? String.format(Locale.US, ", at least %,d profit a cycle", cfg.getMinProfitPerCycle()) : "";
         ModChat.send(CHAT, ModChat.text("Autopilot started - "), ModChat.value(adv.summary()),
-                ModChat.dim(String.format(Locale.US, ". Reserve %,.0f, at most %d new orders.", reserve,
-                        cfg.getAutopilotMaxOrders())));
+                ModChat.dim(String.format(Locale.US, ". Reserve %,.0f, %s%s.%s", reserve, capNote, minNote, npcNote)));
         LOGGER.info("[BazaarFlip] Autopilot start: purse {}, reserve {}, cap {}, answers {}, {} carried item type(s) left alone",
                 Math.round(purse), Math.round(reserve), cfg.getAutopilotMaxOrders(), adv.summary(), avoid.size());
         return null;
@@ -231,6 +259,7 @@ final class BazaarFlipAutopilot {
         idleUntilMs = 0L;
         placed = 0;
         boughtCoins = 0;
+        boughtUnits = 0;
         lastWaitWhy = "";
         chatWarning = null;
         cooldownAskedMs = 0L;
@@ -242,6 +271,10 @@ final class BazaarFlipAutopilot {
         boughtLines.clear();
         estimatedBuy = null;
         estimatedCost.clear();
+        unitCap.clear();
+        resizes.clear();
+        round = 1;
+        slotsFullLine = null;
     }
 
     /**
@@ -300,11 +333,24 @@ final class BazaarFlipAutopilot {
         lastPlacementCounted = counted;
     }
 
+    /**
+     * Hypixel's order-slot limit, his Dungeons log 2026-10-30 10:35:47: "[Bazaar] You reached your maximum of 21 Bazaar
+     * orders!". Anchored at the start like {@link #BAZAAR_WARNING}; the count is bounded to three digits.
+     */
+    static final Pattern MAX_ORDERS_LINE = Pattern.compile("^\\[Bazaar\\] You reached your maximum of (\\d{1,3}) Bazaar orders!$");
+    /** Set from the chat thread when Stop At Max Orders is off, acted on by the next tick. */
+    private static volatile String slotsFullLine;
+
     /** Color-stripped chat while the autopilot runs (BazaarFlipFeature forward it). Every pattern anchored. */
     static void onChatLine(String line) {
         if (ORDER_COOLDOWN.matcher(line).matches()) {
             cooldownSeenAtMs = System.currentTimeMillis();
             cooldownAskedMs = cooldownMs(line);
+            return;
+        }
+        if (!BazaarFlipConfig.getInstance().isStopAtMaxOrders() && MAX_ORDERS_LINE.matcher(line).matches()) {
+            // Stop At Max Orders off: every slot is taken - wait for one to free up instead of stopping.
+            slotsFullLine = line;
             return;
         }
         if (BAZAAR_WARNING.matcher(line).matches() || COMMANDS_TOO_FAST.matcher(line).matches()) {
@@ -350,6 +396,7 @@ final class BazaarFlipAutopilot {
         for (Bought b; (b = boughtLines.poll()) != null; ) {
             if (action instanceof FlipAction.InstaBuy ib && b.name().equalsIgnoreCase(ib.name())) {
                 boughtCoins += b.coins();
+                boughtUnits += b.units();
                 continue;
             }
             EstimatedBuy e = estimatedBuy;
@@ -391,6 +438,12 @@ final class BazaarFlipAutopilot {
         if (asked > 0) {
             cooldownAskedMs = 0L;
             onCooldown(client, asked, cooldownSeenAtMs, now);
+            return;
+        }
+        String full = slotsFullLine;
+        if (full != null) {
+            slotsFullLine = null;
+            onSlotsFull(client, full, now);
             return;
         }
         if (expect == Expect.NONE) {
@@ -492,6 +545,10 @@ final class BazaarFlipAutopilot {
      * arrived. Said once per pause; a second line during the pause only moves the end later if it asks for later.
      */
     private static void onCooldown(Minecraft client, long askedMs, long seenAtMs, long now) {
+        onCooldown(client, askedMs, seenAtMs, now, true);
+    }
+
+    private static void onCooldown(Minecraft client, long askedMs, long seenAtMs, long now, boolean sayIt) {
         long seen = seenAtMs > 0 ? seenAtMs : now;
         long until = seen + askedMs;
         boolean already = cooldownUntilMs > now;
@@ -518,10 +575,25 @@ final class BazaarFlipAutopilot {
         idleUntilMs = 0L;
         LOGGER.info("[BazaarFlip] Autopilot paused by Hypixel's order cooldown for {} s{}", askedMs / 1000,
                 refused == null ? "" : " (refused, not counted: " + refused + ")");
-        if (!already) {
+        if (!already && sayIt) {
             ModChat.log(CHAT, ModChat.text("Hypixel put order placing on cooldown - "),
                     ModChat.dim(String.format(Locale.US, "pausing %d s, then carrying on.", askedMs / 1000)));
         }
+    }
+
+    /**
+     * Hypixel refused an order because every slot is taken, and Stop At Max Orders is off: the slot count it named becomes
+     * the session's, the refused attempt is dropped uncounted, and nothing new is placed until an order is done - the
+     * pause Hypixel's order cooldown gets, one minute.
+     */
+    private static void onSlotsFull(Minecraft client, String line, long now) {
+        Matcher m = MAX_ORDERS_LINE.matcher(line);
+        int slots = m.matches() ? Integer.parseInt(m.group(1)) : limits.maxOpenOrders();
+        limits = limits.withMaxOpenOrders(slots);
+        onCooldown(client, DEFAULT_COOLDOWN_MS, now, now, false);
+        LOGGER.info("[BazaarFlip] Autopilot: every Bazaar order slot ({}) is taken - waiting for one to free up", slots);
+        ModChat.log(CHAT, ModChat.text("All " + slots + " Bazaar order slots are taken - "),
+                ModChat.dim("waiting for an order to finish, then carrying on."));
     }
 
     private static void decideNext(Minecraft client, long now) {
@@ -570,7 +642,18 @@ final class BazaarFlipAutopilot {
             return;
         }
         FlipPricing.Answers answers = BazaarAdvisorFeature.answers(BazaarAdvisorConfig.getInstance());
-        FlipPricing.Lookups look = BazaarAdvisorFeature.lookups(client.player == null ? null : client.player.inventoryMenu);
+        FlipPricing.Lookups look = capped(BazaarAdvisorFeature.lookups(client.player == null ? null : client.player.inventoryMenu));
+        if (!cfg.isStopAtMaxOrders() && placed >= limits.maxOrdersPerSession() && pending.isEmpty()
+                && orders.stream().noneMatch(FlipOrder::ours)
+                && holdings.values().stream().noneMatch(v -> v != null && v > 0)) {
+            // Stop At Max Orders off (killer560, 2026-11-01): the round's orders are all done - start the next round.
+            round++;
+            placed = 0;
+            LOGGER.info("[BazaarFlip] Autopilot: round {} - the last round's {} new orders are done", round,
+                    limits.maxOrdersPerSession());
+            ModChat.log(CHAT, ModChat.text("Round " + round + ": "),
+                    ModChat.dim("the last round's orders are done - placing new ones."));
+        }
         if (!answers.instaBuy() && products != volumeLoggedFor) {
             logUnknownVolume(products);
         }
@@ -592,6 +675,9 @@ final class BazaarFlipAutopilot {
                 return;
             }
             String why = s.why();
+            if (why.startsWith(FlipAutopilot.STOP_NOTHING_PROFITABLE) && cfg.getMinProfitPerCycle() > 0) {
+                why += String.format(Locale.US, " (at least %,d profit a cycle)", cfg.getMinProfitPerCycle());
+            }
             if (why.startsWith(FlipAutopilot.STOP_NPC_LIMIT)) {
                 why += String.format(Locale.US, " (it resets at 00:00 UTC, in %s)", BazaarFlipNpcLimit.resetsIn());
             }
@@ -613,6 +699,68 @@ final class BazaarFlipAutopilot {
             }
         }
         begin(next, now);
+    }
+
+    /** {@code base} with every product's inventory room capped by what a live page proved too many ({@link #unitCap}). */
+    private static FlipPricing.Lookups capped(FlipPricing.Lookups base) {
+        if (unitCap.isEmpty()) {
+            return base;
+        }
+        return new FlipPricing.Lookups() {
+            @Override
+            public Double npcPrice(String productId) {
+                return base.npcPrice(productId);
+            }
+
+            @Override
+            public int stackSize(String productId) {
+                return base.stackSize(productId);
+            }
+
+            @Override
+            public long room(String productId, String displayName, int stackSize) {
+                long room = base.room(productId, displayName, stackSize);
+                Long cap = unitCap.get(productId);
+                if (cap == null) {
+                    return room;
+                }
+                return room < 0 ? cap : Math.min(room, cap);
+            }
+
+            @Override
+            public double npcRemaining() {
+                return base.npcRemaining();
+            }
+
+            @Override
+            public long orderLimit(String productId) {
+                return base.orderLimit(productId);
+            }
+        };
+    }
+
+    /**
+     * A live page proved {@code tried} units of the current Insta Buy too many: the next decision sizes this product under
+     * {@code fits}, the action is dropped without skipping the product, and after {@link #MAX_RESIZES} it is skipped.
+     */
+    private static void resize(Minecraft client, long tried, long fits, String why) {
+        String id = action == null ? null : productId(action);
+        if (id == null) {
+            abandon(client, why);
+            return;
+        }
+        int n = resizes.merge(id, 1, Integer::sum);
+        long next = Math.min(fits, tried - 1);
+        if (next < 1 || n > MAX_RESIZES) {
+            abandon(client, why);
+            return;
+        }
+        unitCap.merge(id, next, Math::min);
+        ModChat.log(CHAT, ModChat.text("Buying fewer " + productName(action) + ": " + why),
+                ModChat.dim(String.format(Locale.US, " - trying %,d instead of %,d.", next, tried)));
+        LOGGER.info("[BazaarFlip] Autopilot resized {}: {} -> {} ({})", action, tried, next, why);
+        closeMenu(client);
+        done("resized");
     }
 
     /** When a refresh was asked for because the snapshot was too old (0: it is fresh). */
@@ -707,6 +855,7 @@ final class BazaarFlipAutopilot {
         orderClicks = 0;
         cancelClicked = false;
         boughtCoins = 0;
+        boughtUnits = 0;
         sellPendingSlot = -1;
         npcSoldUnits = 0;
     }
@@ -763,6 +912,8 @@ final class BazaarFlipAutopilot {
         expectBaseline = baseline;
         expectContainerId = screen == null ? Integer.MIN_VALUE : screen.getMenu().containerId;
         expectSignature = screen == null ? "" : BazaarFlipMenus.signature(screen.getMenu());
+        carriedLast = baseline;
+        carriedChangedAtMs = expectSinceMs;
     }
 
     /** True once what the last click should cause has happened (the step goes on), false while still waiting. */
@@ -772,7 +923,19 @@ final class BazaarFlipAutopilot {
         switch (expect) {
             case CARRIED_UP -> {
                 int have = carried(client, id);
+                if (have != carriedLast) {
+                    carriedLast = have;
+                    carriedChangedAtMs = now;
+                }
                 if (have > expectBaseline) {
+                    // An Insta Buy's units can arrive over several ticks: wait until all the Bought line said are here, or
+                    // the count has stood still (the rest went to sacks), so a partial delivery is not taken as the buy.
+                    boolean whole = action instanceof FlipAction.InstaBuy && boughtUnits > 0
+                            && have - expectBaseline >= boughtUnits;
+                    boolean still = !(action instanceof FlipAction.InstaBuy) || now - carriedChangedAtMs >= CARRIED_SETTLE_MS;
+                    if (!whole && !still) {
+                        return false;
+                    }
                     expect = Expect.NONE;
                     onCarriedUp(client, have - expectBaseline);
                     return false;
@@ -847,7 +1010,13 @@ final class BazaarFlipAutopilot {
             // The true cost is Hypixel's Bought line. When the units come first, the Instant Buy page's quote (rounded to
             // whole coins, and the book plus Hypixel's margin) stands in until the line arrives (takeBoughtLines).
             boolean known = boughtCoins > 0;
-            double each = known ? boughtCoins / delta : quoteEach / (1 + FlipAutopilot.INSTANT_BUY_QUOTE_MARGIN);
+            // Per unit of what the Bought line says was bought: units that went to sacks cost the same.
+            double each = known ? boughtCoins / Math.max(delta, boughtUnits)
+                    : quoteEach / (1 + FlipAutopilot.INSTANT_BUY_QUOTE_MARGIN);
+            if (boughtUnits > delta) {
+                LOGGER.info("[BazaarFlip] Autopilot: {} of the {} {} bought reached the inventory (the rest went to sacks)",
+                        delta, boughtUnits, b.name());
+            }
             addHolding(b.productId(), delta, each);
             if (known) {
                 estimatedBuy = null;
@@ -1116,7 +1285,24 @@ final class BazaarFlipAutopilot {
                                        FlipAction.InstaBuy b, BazaarFlipConfig cfg) {
         var menu = screen.getMenu();
         int stack = Math.max(1, BazaarAdvisorFeature.lookups(menu).stackSize(b.productId()));
-        long want = Math.min(b.amount(), BazaarFlipMenus.roomFor(menu, b.productId(), b.name(), stack));
+        long room = BazaarFlipMenus.roomFor(menu, b.productId(), b.name(), stack);
+        // "Fill my inventory!" is Hypixel's own count of the room for this item, stacking by Hypixel's rules (killer560,
+        // 2026-11-01: Kaleidoscopic Mineral stacks to 1, and the flipper typed 254). Never ask for more than it offers.
+        BazaarPages.Item fill = BazaarFlipMenus.item(page, "Fill my inventory!");
+        long fillAmount = fill == null ? -1 : BazaarPages.presetAmount(fill);
+        if (fillAmount > 0) {
+            int learned = BazaarStackSizes.learn(b.productId(), fillAmount, BazaarFlipMenus.emptySlots(menu));
+            if (learned != stack) {
+                LOGGER.info("[BazaarFlip] Autopilot: {} stacks to {} (Fill my inventory! offers {}), not {}", b.name(),
+                        learned, fillAmount, stack);
+            }
+            room = Math.min(room, fillAmount);
+        }
+        long want = Math.min(b.amount(), room);
+        Long learnedCap = unitCap.get(b.productId());
+        if (learnedCap != null) {
+            want = Math.min(want, learnedCap);
+        }
         BazaarPages.Item custom = BazaarFlipMenus.item(page, "Custom Amount");
         long upTo = custom == null ? -1 : BazaarFlipFeature.loreBuyUpTo(custom.lore());
         if (upTo > 0) {
@@ -1129,41 +1315,54 @@ final class BazaarFlipAutopilot {
         double sale = saleEach(client, b.productId());
         Double purse = BazaarFlipFeature.readPurse();
         double spendable = purse == null ? 0 : purse - reserve;
+        // The page's presets are the live price. The biggest one at or under the amount is a floor on its price per unit
+        // (the book is eaten cheapest first, so more units never cost less each): if even that no longer beats the sale,
+        // the product is done. A preset ABOVE the amount says nothing about it - it averages in dearer levels - so it no
+        // longer abandons a buy that pays (killer560, 2026-11-01).
         BazaarPages.Item exact = null;
-        BazaarPages.Item bound = null;
-        long boundAmount = Long.MAX_VALUE;
-        double boundPrice = -1;
+        double exactPrice = -1;
+        long floorAmount = 0;
+        double floorEach = -1;
         for (BazaarPages.Item it : BazaarPages.amountPresets(page)) {
             long amount = BazaarPages.presetAmount(it);
             double price = BazaarFlipMenus.lorePrice(it.lore());
             if (amount == want) {
                 exact = it;
+                exactPrice = price;
             }
-            if (amount >= want && price > 0 && amount < boundAmount) {
-                bound = it;
-                boundAmount = amount;
-                boundPrice = price;
+            if (amount > 0 && amount <= want && price > 0 && amount > floorAmount) {
+                floorAmount = amount;
+                floorEach = price / amount;
             }
         }
-        if (bound != null) {
-            double quote = boundPrice / boundAmount;
-            if (sale > 0 && quote / (1 + FlipAutopilot.INSTANT_BUY_QUOTE_MARGIN) >= sale) {
-                abandon(client, String.format(Locale.US, "the live price (up to %,.1f each) no longer beats the sale (%,.1f)",
-                        quote / (1 + FlipAutopilot.INSTANT_BUY_QUOTE_MARGIN), sale));
+        double margin = 1 + FlipAutopilot.INSTANT_BUY_QUOTE_MARGIN;
+        if (floorEach > 0 && sale > 0 && floorEach / margin >= sale) {
+            abandon(client, String.format(Locale.US, "the live price (%,.1f each) no longer beats the sale (%,.1f)",
+                    floorEach / margin, sale));
+            return;
+        }
+        // The quote for the whole amount: exact when a preset states it, else the snapshot's book walked to it plus 4%
+        // (never under the live floor). The top of the book alone under-counted a big buy and let the quote run past the
+        // purse above the reserve.
+        double quote = exact != null && exactPrice > 0 ? exactPrice / want : estimateQuoteEach(b, want, floorEach);
+        if (want * quote > spendable) {
+            BazaarProduct p = product(b.productId());
+            long fits = p != null && floorEach <= 0 ? FlipAutopilot.affordableUnits(p, want, spendable)
+                    : (long) Math.floor(spendable / quote);
+            if (fits < 1) {
+                abandon(client, "the purse above the reserve does not cover even one");
                 return;
             }
-            quoteEach = quote;
-            if (want * quote > spendable) {
-                want = (long) Math.floor(spendable / quote);
-                exact = null;
-                if (want < 1) {
-                    abandon(client, "the purse above the reserve does not cover even one");
-                    return;
-                }
-            }
-        } else {
-            quoteEach = b.expectedEach() * (1 + FlipAutopilot.INSTANT_BUY_QUOTE_MARGIN);
+            want = Math.min(want - 1, fits);
+            exact = null;
+            quote = estimateQuoteEach(b, want, floorEach);
         }
+        if (sale > 0 && cfg.getMinProfitPerCycle() > 0 && (sale - quote / margin) * want < cfg.getMinProfitPerCycle()) {
+            abandon(client, String.format(Locale.US, "%,d at the live price make about %,.0f, under the minimum profit per"
+                    + " cycle (%,d)", want, (sale - quote / margin) * want, cfg.getMinProfitPerCycle()));
+            return;
+        }
+        quoteEach = quote;
         int have = carried(client, b.productId());
         if (exact != null) {
             if (click(client, screen, exact.slot(), ContainerInput.PICKUP, cfg, false)) {
@@ -1187,6 +1386,28 @@ final class BazaarFlipAutopilot {
 
     /** The carried count when Custom Amount was clicked, for the purchase the sign starts. */
     private static int unitsBefore;
+
+    /** The snapshot's product by id, or null. */
+    private static BazaarProduct product(String id) {
+        List<BazaarProduct> all = BazaarApi.peekProducts();
+        if (all == null || id == null) {
+            return null;
+        }
+        for (BazaarProduct p : all) {
+            if (id.equals(p.productId())) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    /** The Instant Buy quote per unit for {@code units}: the snapshot's book walked to that many, plus Hypixel's 4%, never
+     *  under the live page's floor ({@code floorEach}, already a quote; -1 when the page gave none). */
+    private static double estimateQuoteEach(FlipAction.InstaBuy b, long units, double floorEach) {
+        BazaarProduct p = product(b.productId());
+        double walked = p != null && units > 0 ? FlipAutopilot.walkCost(p, units) / units : b.expectedEach();
+        return Math.max(walked * (1 + FlipAutopilot.INSTANT_BUY_QUOTE_MARGIN), floorEach);
+    }
 
     /** Confirm Instant Buy: the one item stating exactly the typed amount, at a price that still beats the sale. */
     private static void confirmInstantBuy(Minecraft client, AbstractContainerScreen<?> screen, FlipAction.InstaBuy b,
@@ -1213,7 +1434,24 @@ final class BazaarFlipAutopilot {
         double sale = saleEach(client, b.productId());
         double each = price / signAmount / (1 + FlipAutopilot.INSTANT_BUY_QUOTE_MARGIN);
         if (sale > 0 && each >= sale) {
-            abandon(client, String.format(Locale.US, "the confirm price (%,.1f each) no longer beats the sale (%,.1f)", each, sale));
+            // The average of this many no longer pays: fewer may (the dear part is the last levels). Half, then retry.
+            resize(client, signAmount, signAmount / 2, String.format(Locale.US,
+                    "the confirm price (%,.1f each) no longer beats the sale (%,.1f)", each, sale));
+            return;
+        }
+        // The exact quote against the purse above the reserve (killer560, 2026-11-01: "It also isnt accounting for the
+        // reserve it seems"): the page used to be clicked whatever it asked.
+        Double purse = BazaarFlipFeature.readPurse();
+        double spendable = purse == null ? 0 : purse - reserve;
+        if (price > spendable) {
+            long fits = (long) Math.floor(signAmount * (spendable / price));
+            resize(client, signAmount, fits, String.format(Locale.US,
+                    "the confirm price (%,.0f) is more than the purse above the reserve (%,.0f)", price, Math.max(0, spendable)));
+            return;
+        }
+        if (sale > 0 && cfg.getMinProfitPerCycle() > 0 && (sale - each) * signAmount < cfg.getMinProfitPerCycle()) {
+            abandon(client, String.format(Locale.US, "the confirm price makes about %,.0f, under the minimum profit per"
+                    + " cycle (%,d)", (sale - each) * signAmount, cfg.getMinProfitPerCycle()));
             return;
         }
         if (click(client, screen, match.index, ContainerInput.PICKUP, cfg, true)) {

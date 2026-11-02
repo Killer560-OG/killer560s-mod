@@ -60,7 +60,7 @@ public final class I4LeapSection {
                 cfg.setTargetClass(c);
                 cfg.save();
             }));
-            case PLAYER -> widgets.add(FastLeapSection.editBox(rightX, y, rightW, cfg.getTargetName(), "Player", 16, v -> {
+            case PLAYER -> FastLeapSection.addEditBox(widgets, FastLeapSection.editBox(rightX, y, rightW, cfg.getTargetName(), "Player", 16, v -> {
                 cfg.setTargetName(v);
                 cfg.save();
             }));
@@ -77,7 +77,7 @@ public final class I4LeapSection {
                         cfg.save();
                     }));
                 } else {
-                    widgets.add(FastLeapSection.editBox(rightX, y, rightW, cfg.getBackupName(), "Backup player", 16, v -> {
+                    FastLeapSection.addEditBox(widgets, FastLeapSection.editBox(rightX, y, rightW, cfg.getBackupName(), "Backup player", 16, v -> {
                         cfg.setBackupName(v);
                         cfg.save();
                     }));

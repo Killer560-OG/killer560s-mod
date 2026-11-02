@@ -63,6 +63,13 @@ project CLAUDE.md. Compiling lessons
   pre-pack look comes from the newest snapshot where an item was not yet a pack model: 26169fe, then 0046933 (the
   parent of the first conversion), then 60e030e (April). With those, 95 of the 1,366 pack-model items have no old
   look anywhere (`tools/items/gen_item_looks.py`); they are the ones with our own textures.
+- Hypixel's public items resource has only ~170 item skins and none for Wither Goggles (checked 2026-11-01), and the old
+  Hypixel Skin list matched by the selected item's full display name ("Heroic Wither Goggles ✪✪✪✪✪" matched nothing). The
+  NEU repo has 180 skins whose lore names the items each applies to; `tools/item-skins-extract.py` bakes them into
+  `armourdye/item-skins.json`, and `ItemSkins.forItem` matches by Skyblock id (STARRED_ dropped) or the cleaned name's end.
+- The Witherborn wither of a full F7 armor set is a `WitherBoss` at `getInvulnerableTicks() == 800` (SkyHanni's "Mini
+  Wither"; Noamm's boss filter excludes 800, so the four F7 bosses never match). Its smoke and swirls are NOT packets:
+  `WitherBoss.aiStep` adds them on the client (three `Level.addParticle` calls), so only a hook there drops them.
 
 ## Bazaar and Croesus
 
@@ -90,6 +97,28 @@ project CLAUDE.md. Compiling lessons
   ("" / "^^^^^^^^^^^^^^^" / "Enter amount" / "to order"). Fill it through the screen itself - `charTyped(new
   CharacterEvent(c))` per digit, then its Done button, whose `removed()` sends `ServerboundSignUpdatePacket` - in one
   tick, so a stray Escape never sends a half-typed number (`AbstractSignEditScreen`, same on 26.1.2 and 26.2; testkit 2761).
+- **Hypixel stacks by its own rules, not the vanilla material's.** Kaleidoscopic Mineral (`SALMON_OPAL`) is PAPER, so the
+  flipper planned 254 for an inventory that holds one per free slot (his log, 2026-10-30 11:02). Hypixel's items API marks
+  539 items `unstackable` and 181 `has_uuid`; the 107 Bazaar reforge stones (category `REFORGE_STONE`) carry neither but
+  do not stack either, and nor do enchanted books. The Instant Buy page's "Fill my inventory!" amount is Hypixel's own
+  room count: never ask for more (`BazaarStackSizes`, testkit 2790). One buy order: 71,680, or 256 unstackable (wiki).
+- **An Instant Buy preset BIGGER than the amount says nothing about its price** - it averages in dearer levels - and the
+  top of the book alone under-prices a big buy. Judge by the biggest preset at or under the amount, walk the book for the
+  rest, and check the Confirm Instant Buy price against the purse above the reserve before clicking it; a dear confirm is
+  resized and retried, not skipped (testkit 2791).
+- Hypixel's order-slot refusal reads "[Bazaar] You reached your maximum of 21 Bazaar orders!" (his log, 2026-10-30); 21 is
+  his real slot count, not the autopilot's default 14.
+- **A big Bazaar Insta Buy reaches the inventory over more than one tick.** His "Bought 1,472x Gravel" (Fill my inventory!,
+  2026-10-30 11:01:17) was counted as 832 because the autopilot took the first rise of the carried count as the whole buy.
+  It now waits until all the Bought line's units are carried or the count has stood still 750 ms (the rest went to sacks),
+  and costs per bought unit (testkit 2801 delivers in two parts; the old jar recorded 1,152 of 2,304).
+- **Auto Relist's /ah menu names are from public mods, not a recording** (2026-11-02): NEU's Create BIN Auction slots 13
+  (item) / 29 (create) / 31 (price), SkyHanni's "Manage Auctions" and "Status: Sold!/Expired!" lore, Skyblocker's "Collect
+  Auction" and "... Auction View". Every match is a case-insensitive "contains" with the fixed slot only as a fallback, and
+  each page is logged (`[AhRelist]`). Correct them from a `/ahmenudump` recording (`killer560smod-ahflip-menudump.txt`)
+  before trusting it on Hypixel; the price sign's lines and the bids page's claimable lore are the least certain.
+- The Auction House endpoints (`/v2/skyblock/auctions`, `auctions_ended`) need no API key, so the AH Flipper polls Hypixel
+  directly; nothing goes through the relay (checked 2026-11-01).
 - **A wait that ends on "the confirm page is open" must not end on the one it just clicked.** That page stays open until the
   server answers, so the Bazaar Flip autopilot read its own clicked Confirm Instant Buy as a new question, dropped its
   wait, and bought from the reopened Instant Buy page a second time (testkit 2762, 2026-10-22). Key such a wait on the
@@ -343,3 +372,16 @@ project CLAUDE.md. Compiling lessons
   `Input.sprint()` in `LocalPlayer.aiStep` with `@ModifyExpressionValue`; others call setSprinting each tick); holding
   the sprint KEY is already undone by our movers replacing the key record. `AutoSprintOverrideMixin` refuses a sprint
   start there while one of the mod's movers drives with sprint up (doc-terms-1101, testkit 1101-menu-autosprint).
+
+- **Owner-evidence log lines (diag-1101, 2026-11-02).** Where a bug's cause needs a Hypixel run, the mod writes one rate-limited
+  INFO line his log will carry (DEBUG never reaches it): `[Predict] tile x,z ruled out <room@rot@ax,az> ...: [seen/expected
+  blocks]` (once per tile a floor, up to 3 rooms), `[SecretWaypoints] room change A (name) -> B (name) ... N outside` (at most one
+  a second) and `still drawing N waypoint(s) outside room ...` (once, within 5 s of a room change), `[CryptScan] gold block, ...`
+  (each gold block with its crown rule and the nearest lid's verdict, once per verdict), `[FastLeap] stuck for N ms: [reasons]
+  | ...` (once a spell after 1 s, then `stuck state ended`), `[Raffle] Raffle start (...)` plus one line per nearby entity (once a
+  Raffle, Raffle highlight on). Grep his log for these before guessing. The sim's Flags proved `CryptScanner.goldBeside`: a gold
+  block one out and one down from the raised-row lid makes that lid the prince (1102-diag-wp-gold).
+- A feature that shares "whatever the other settings say" needs that exception at EVERY gate on its path, not just where it
+  is queued: PartyDataFeature queued Team Melody with Party Dungeon Data off, and drainQueue then cleared the whole queue
+  on `!publishActive()`, so nothing was ever sent (found by testkit 1102-boss-melody-relay-roundtrip with a fake relay,
+  tkdebt-1101; fixed 9c71162c).

@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.rngmeter.RngMeterConfig;
 import com.killer560.hub.rngmeter.RngMeterEngine;
 import net.minecraft.client.Minecraft;
@@ -18,7 +19,7 @@ import java.util.List;
  */
 public class RngMeterTab extends BaseTab {
 
-    private EditBox intervalField;
+    private com.killer560.hub.gui.CommitEditBox intervalField;
 
     public RngMeterTab() {
         super("RNG Meter Overlay");
@@ -43,19 +44,21 @@ public class RngMeterTab extends BaseTab {
                 }).bounds(contentX, y, 260, 20).build());
         y += 26;
 
-        intervalField = new EditBox(Minecraft.getInstance().font, contentX, y, 60, 20, Component.literal("Minutes"));
+        intervalField = new CommitEditBox(Minecraft.getInstance().font, contentX, y, 60, 20, Component.literal("Minutes"));
         intervalField.setMaxLength(3);
         intervalField.setValue(String.valueOf(RngMeterConfig.getInstance().getRefreshIntervalMinutes()));
         widgets.add(intervalField);
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Save"), btn -> {
+        SettingsButtonWidget intervalFieldSet = SettingsButtonWidget.builder(Component.literal("Save"), btn -> {
                     try {
                         int minutes = Integer.parseInt(intervalField.getValue());
                         RngMeterConfig.getInstance().setRefreshIntervalMinutes(minutes);
                         RngMeterConfig.getInstance().save();
                     } catch (NumberFormatException ignored) {
                     }
-                }).bounds(contentX + 66, y, 70, 20).build());
+                }).bounds(contentX + 66, y, 70, 20).build();
+        widgets.add(intervalFieldSet);
+        intervalField.pressOnEnter(intervalFieldSet);
         y += 30;
 
         var prices = RngMeterEngine.PRICES;

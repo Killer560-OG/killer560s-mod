@@ -52,6 +52,8 @@ public final class SimMenuPrefs {
     public RunSort runSort = RunSort.NEWEST;
     /** "All" or a floor key ("F7", "M7"...). */
     public String runFloor = "All";
+    /** The Map Designer's Mobs choice: a floor with mobs, Fels, wither doors and keys ({@link SimMobFloor}). Off. */
+    public boolean mobs = false;
 
     private SimMenuPrefs() {
     }
@@ -65,6 +67,7 @@ public final class SimMenuPrefs {
                 p.roomDescending = ConfigJson.getBool(o, "roomDescending", p.roomDescending);
                 p.runSort = ConfigJson.getEnum(o, "runSort", RunSort.class, p.runSort);
                 p.runFloor = ConfigJson.getString(o, "runFloor", p.runFloor);
+                p.mobs = ConfigJson.getBool(o, "mobs", p.mobs);
             }
         } catch (Exception e) {
             LOGGER.warn("Could not read {}, using the defaults: {}", FILE.getFileName(), e.toString());
@@ -78,6 +81,7 @@ public final class SimMenuPrefs {
         o.addProperty("roomDescending", roomDescending);
         o.addProperty("runSort", runSort.name());
         o.addProperty("runFloor", runFloor);
+        o.addProperty("mobs", mobs);
         try {
             Files.createDirectories(FILE.getParent());
             Files.writeString(FILE, new GsonBuilder().setPrettyPrinting().create().toJson(o), StandardCharsets.UTF_8);

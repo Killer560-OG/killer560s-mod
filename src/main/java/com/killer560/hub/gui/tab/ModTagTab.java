@@ -60,6 +60,6 @@ public class ModTagTab extends BaseTab {
     }
 
     private static Component showAsText(ModUserConfig cfg) {
-        return Component.literal("Show As: " + ("cheat".equals(cfg.getShareAs()) ? "Cheat (red)" : "Legit (green)"));
+        return Component.literal("Show As: " + ("cheat".equals(cfg.getShareAs()) ? "Cheat (red K)" : "Legit (orange K)"));
     }
 }

@@ -639,6 +639,11 @@ public final class RightClick {
         return serverRay(player, sentFeet(player), yaw, pitch);
     }
 
+    /** Where the last movement packet (or teleport answer) put him for the server; his position when none is known. */
+    public static Vec3 heardFeet(LocalPlayer player) {
+        return sentFeet(player);
+    }
+
     private static Vec3 sentFeet(LocalPlayer player) {
         return sentKnown ? new Vec3(sentX, sentY, sentZ) : player.position();
     }

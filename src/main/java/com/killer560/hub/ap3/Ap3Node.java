@@ -41,7 +41,7 @@ public final class Ap3Node {
      *  (a modifier and Breaker Aura respectively) - {@link Ap3Store} migrates those, {@link #parse} does not. */
     public enum Type {
         ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK, FAST_ALIGN,
-        PATH, NO_GO, TERM_AURA, USE, BLINK_CHARGE, BLINK_RELEASE;
+        PATH, NO_GO, TERM_AURA, USE, BLINK_CHARGE, BLINK_RELEASE, CRYSTAL;
 
         public static Type parse(String s) {
             if (s == null) {
@@ -75,6 +75,8 @@ public final class Ap3Node {
                 // killer560 (2026-10-26): "/ap3 add blinkcharge and /ap3 add blinkrelease".
                 case "blinkcharge", "blink_charge", "bcharge" -> BLINK_CHARGE;
                 case "blinkrelease", "blink_release", "brelease" -> BLINK_RELEASE;
+                // killer560 (2026-11-01): "add a crystal node. It should work for getting crystals with spring boots."
+                case "crystal", "springboots", "spring_boots", "spring", "cr" -> CRYSTAL;
                 default -> null;
             };
         }
@@ -103,6 +105,7 @@ public final class Ap3Node {
                 case TERM_AURA -> "Term Aura";
                 case BLINK_CHARGE -> "Blink Charge";
                 case BLINK_RELEASE -> "Blink Release";
+                case CRYSTAL -> "Crystal";
             };
         }
 
@@ -122,7 +125,8 @@ public final class Ap3Node {
         public boolean keepsHold() {
             return switch (this) {
                 // A Blink Charge stops him where it is: Charge banks only ticks he stands still in.
-                case WALK, RUN, STOP, ALIGN, AXIS_ALIGN, FAST_ALIGN, LEAP, PATH, BLINK_CHARGE, TERM_AURA -> false;
+                // A Crystal charges the Spring Boots standing: the walk ends and he crouches where the node is.
+                case WALK, RUN, STOP, ALIGN, AXIS_ALIGN, FAST_ALIGN, LEAP, PATH, BLINK_CHARGE, TERM_AURA, CRYSTAL -> false;
                 default -> true;
             };
         }
@@ -171,6 +175,8 @@ public final class Ap3Node {
                 // after a walk in the same box has started it.
                 case BLINK_CHARGE -> 4;
                 case BLINK_RELEASE -> 7;
+                // Charging waits like a terminal or a Blink Charge does: stand, charge, jump.
+                case CRYSTAL -> 4;
             };
         }
 
@@ -344,6 +350,14 @@ public final class Ap3Node {
      */
     public boolean blinkStop;
     /**
+     * {@link Type#CRYSTAL} (killer560, 2026-11-01: "add a crystal node. It should work for getting crystals with spring
+     * boots. Itll hold crouch once it hits that node till it has enough height to get the crystal then release crouch"):
+     * the Spring Boots height (blocks, as the Spring Boots HUD counts it) to charge before letting go of the crouch.
+     * 0 = from the nearest end crystal above the node; with none in sight, the full charge.
+     */
+    public double crystalHeight;
+    public static final double MAX_CRYSTAL_HEIGHT = 61.0;
+    /**
      * {@link Type#PATH}: which step of the route this node is - killer560 (2026-09-22): "allow me to do add path one,
      * add path four etc. so that way it knows what number in the path it should be. It should always default such
      * that if I don't label it it goes to the lowest number available". Nodes SHARING a number are one step that has
@@ -495,6 +509,9 @@ public final class Ap3Node {
         if (type != Type.BLINK_CHARGE) {
             blinkStop = false;
         }
+        if (type != Type.CRYSTAL) {
+            crystalHeight = 0;
+        }
         // closeGate is the `close` suffix again since 2026-10-27 (killer560: "ap3 needs a close suffix to only go after a
         // terminal is closed"); any node type takes it, so nothing to drop here.
     }
@@ -538,6 +555,11 @@ public final class Ap3Node {
     /** {@link Type#ownsMovement}, for this node ({@link #keepsHoldNow}). */
     public boolean ownsMovementNow() {
         return !keepsHoldNow() && !type.isMover();
+    }
+
+    /** A Crystal node's height, 0 (from the crystal) to {@link #MAX_CRYSTAL_HEIGHT}. */
+    public void setCrystalHeight(double h) {
+        crystalHeight = Double.isFinite(h) ? Math.max(0, Math.min(MAX_CRYSTAL_HEIGHT, h)) : 0;
     }
 
     /** A Blink node's tick count, 0 (the max) to {@link #MAX_BLINK_TICKS}. */
@@ -727,6 +749,8 @@ public final class Ap3Node {
                     : "max").append(blinkStop ? ", stop" : ", momentum kept").append(']');
             case BLINK_RELEASE -> sb.append(" [").append(blinkTicks > 0 ? blinkTicks + (blinkTicks == 1 ? " tick" : " ticks")
                     : "all").append(']');
+            case CRYSTAL -> sb.append(crystalHeight > 0 ? " [charges " + fmt(crystalHeight) + " blocks]"
+                    : " [charges to the crystal above]");
             default -> {
             }
         }
@@ -803,6 +827,7 @@ public final class Ap3Node {
         sectionDone = o.sectionDone;
         blinkTicks = o.blinkTicks;
         blinkStop = o.blinkStop;
+        crystalHeight = o.crystalHeight;
         pathIndex = o.pathIndex;
         pathStart = o.pathStart;
         pathEnd = o.pathEnd;
@@ -822,7 +847,7 @@ public final class Ap3Node {
                 && waitAfterMs == o.waitAfterMs && closeGate == o.closeGate && ssGate == o.ssGate && jumpMod == o.jumpMod
                 && java.util.Objects.equals(useItemId, o.useItemId) && java.util.Objects.equals(name, o.name)
                 && leapMode == o.leapMode && leapClass == o.leapClass && java.util.Objects.equals(leapIgn, o.leapIgn)
-                && leapCount == o.leapCount && leapCounter == o.leapCounter && sectionDone == o.sectionDone && blinkTicks == o.blinkTicks && blinkStop == o.blinkStop && pathIndex == o.pathIndex && pathStart == o.pathStart
+                && leapCount == o.leapCount && leapCounter == o.leapCounter && sectionDone == o.sectionDone && blinkTicks == o.blinkTicks && blinkStop == o.blinkStop && crystalHeight == o.crystalHeight && pathIndex == o.pathIndex && pathStart == o.pathStart
                 && pathEnd == o.pathEnd && minSpeed == o.minSpeed && maxSpeed == o.maxSpeed && hasDir == o.hasDir
                 && dirDeg == o.dirDeg && dirTolDeg == o.dirTolDeg && termWait == o.termWait
                 && java.util.Objects.equals(colour, o.colour);
@@ -847,6 +872,7 @@ public final class Ap3Node {
         n.sectionDone = sectionDone;
         n.blinkTicks = blinkTicks;
         n.blinkStop = blinkStop;
+        n.crystalHeight = crystalHeight;
         n.colour = colour;
         return n;
     }

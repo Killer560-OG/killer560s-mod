@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.dvd.DvdConfig;
 import com.killer560.hub.dvd.DvdContentType;
 import com.killer560.hub.dvd.DvdEntry;
@@ -176,15 +177,17 @@ public class DvdTab extends BaseTab {
         int y = contentY;
 
         // "Box size follows the text automatically" moved into the "Scale" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
-        EditBox textField = new EditBox(Minecraft.getInstance().font, contentX, y, 220, ROW_H, Component.literal("Text"));
+        CommitEditBox textField = new CommitEditBox(Minecraft.getInstance().font, contentX, y, 220, ROW_H, Component.literal("Text"));
         textField.setMaxLength(100);
         textField.setValue(e.text);
         widgets.add(textField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
+        SettingsButtonWidget textFieldSet = SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
                     e.text = textField.getValue();
                     DvdConfig.getInstance().save();
                     requestRebuild.run();
-                }).bounds(contentX + 226, y, contentWidth - 226, ROW_H).build());
+                }).bounds(contentX + 226, y, contentWidth - 226, ROW_H).build();
+        widgets.add(textFieldSet);
+        textField.pressOnEnter(textFieldSet);
         y += ROW_H + 4;
 
         // The color picker (hex box, Copy / Paste, Recent) instead of a bare 6-digit hex field (2026-10-13).
@@ -276,60 +279,68 @@ public class DvdTab extends BaseTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
 
-        EditBox speedField = new EditBox(Minecraft.getInstance().font, contentX, y, 80, ROW_H, Component.literal("Speed"));
+        CommitEditBox speedField = new CommitEditBox(Minecraft.getInstance().font, contentX, y, 80, ROW_H, Component.literal("Speed"));
         speedField.setValue(String.format(java.util.Locale.US, "%.2f", e.speedMultiplier));
         widgets.add(speedField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set Speed (current " + String.format("%.2fx", e.speedMultiplier) + ")"), btn -> {
+        SettingsButtonWidget speedFieldSet = SettingsButtonWidget.builder(Component.literal("Set Speed (current " + String.format("%.2fx", e.speedMultiplier) + ")"), btn -> {
                     Float v = parseFloat(speedField.getValue());
                     if (v != null) {
                         e.speedMultiplier = Math.max(0.05f, v);
                         DvdConfig.getInstance().save();
                     }
                     requestRebuild.run();
-                }).bounds(contentX + 86, y, contentWidth - 86, ROW_H).build());
+                }).bounds(contentX + 86, y, contentWidth - 86, ROW_H).build();
+        widgets.add(speedFieldSet);
+        speedField.pressOnEnter(speedFieldSet);
         y += ROW_H + 4;
 
         if (e.contentType == DvdContentType.GIF) {
             // Width/Height only matter for GIF content - Text sizes itself to the actual text
             // (see DvdFeature), so showing these here would just be dead settings for it.
-            EditBox widthField = new EditBox(Minecraft.getInstance().font, contentX, y, 80, ROW_H, Component.literal("Width"));
+            CommitEditBox widthField = new CommitEditBox(Minecraft.getInstance().font, contentX, y, 80, ROW_H, Component.literal("Width"));
             widthField.setValue(String.valueOf(e.boxWidth));
             widgets.add(widthField);
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Set Width (current " + e.boxWidth + ")"), btn -> {
+            SettingsButtonWidget widthFieldSet = SettingsButtonWidget.builder(Component.literal("Set Width (current " + e.boxWidth + ")"), btn -> {
                         Integer v = parseInt(widthField.getValue());
                         if (v != null) {
                             e.boxWidth = Math.max(4, v);
                             DvdConfig.getInstance().save();
                         }
                         requestRebuild.run();
-                    }).bounds(contentX + 86, y, contentWidth - 86, ROW_H).build());
+                    }).bounds(contentX + 86, y, contentWidth - 86, ROW_H).build();
+            widgets.add(widthFieldSet);
+            widthField.pressOnEnter(widthFieldSet);
             y += ROW_H + 4;
 
-            EditBox heightField = new EditBox(Minecraft.getInstance().font, contentX, y, 80, ROW_H, Component.literal("Height"));
+            CommitEditBox heightField = new CommitEditBox(Minecraft.getInstance().font, contentX, y, 80, ROW_H, Component.literal("Height"));
             heightField.setValue(String.valueOf(e.boxHeight));
             widgets.add(heightField);
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Set Height (current " + e.boxHeight + ")"), btn -> {
+            SettingsButtonWidget heightFieldSet = SettingsButtonWidget.builder(Component.literal("Set Height (current " + e.boxHeight + ")"), btn -> {
                         Integer v = parseInt(heightField.getValue());
                         if (v != null) {
                             e.boxHeight = Math.max(4, v);
                             DvdConfig.getInstance().save();
                         }
                         requestRebuild.run();
-                    }).bounds(contentX + 86, y, contentWidth - 86, ROW_H).build());
+                    }).bounds(contentX + 86, y, contentWidth - 86, ROW_H).build();
+            widgets.add(heightFieldSet);
+            heightField.pressOnEnter(heightFieldSet);
             y += ROW_H + 4;
         }
 
-        EditBox scaleField = new EditBox(Minecraft.getInstance().font, contentX, y, 80, ROW_H, Component.literal("Scale"));
+        CommitEditBox scaleField = new CommitEditBox(Minecraft.getInstance().font, contentX, y, 80, ROW_H, Component.literal("Scale"));
         scaleField.setValue(String.format(java.util.Locale.US, "%.2f", e.scale));
         widgets.add(scaleField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set Scale (current " + String.format("%.2fx", e.scale) + ")"), btn -> {
+        SettingsButtonWidget scaleFieldSet = SettingsButtonWidget.builder(Component.literal("Set Scale (current " + String.format("%.2fx", e.scale) + ")"), btn -> {
                     Float v = parseFloat(scaleField.getValue());
                     if (v != null) {
                         e.scale = Math.max(0.05f, v);
                         DvdConfig.getInstance().save();
                     }
                     requestRebuild.run();
-                }).bounds(contentX + 86, y, contentWidth - 86, ROW_H).build());
+                }).bounds(contentX + 86, y, contentWidth - 86, ROW_H).build();
+        widgets.add(scaleFieldSet);
+        scaleField.pressOnEnter(scaleFieldSet);
         y += ROW_H + 4;
 
         // Game sounds first (killer560, 2026-11-01: "add default corner sounds there arent any"), then his own files.
@@ -359,16 +370,18 @@ public class DvdTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("On Screen Corner Text"), Minecraft.getInstance().font));
         y += 13;
-        EditBox cornerTextField = new EditBox(Minecraft.getInstance().font, contentX, y, 220, ROW_H,
+        CommitEditBox cornerTextField = new CommitEditBox(Minecraft.getInstance().font, contentX, y, 220, ROW_H,
                 Component.literal("Corner hit message"));
         cornerTextField.setMaxLength(150);
         cornerTextField.setValue(e.cornerHitText);
         widgets.add(cornerTextField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
+        SettingsButtonWidget cornerTextFieldSet = SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
                     e.cornerHitText = cornerTextField.getValue();
                     DvdConfig.getInstance().save();
                     requestRebuild.run();
-                }).bounds(contentX + 226, y, contentWidth - 226, ROW_H).build());
+                }).bounds(contentX + 226, y, contentWidth - 226, ROW_H).build();
+        widgets.add(cornerTextFieldSet);
+        cornerTextField.pressOnEnter(cornerTextFieldSet);
         y += ROW_H + 6;
 
         // Already covered by the "Corner Hit Message" tooltip.

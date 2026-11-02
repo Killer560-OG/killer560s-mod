@@ -238,6 +238,9 @@ public final class RngMeterOverlay {
             scrollOffset = Math.min(scrollOffset, maxScrollOffset(shown.size()));
             renderRanking(graphics, 0, 0, title, shown, committedSelected);
             graphics.pose().popMatrix();
+            int[] size = rankingSize(shown, committedSelected);
+            com.killer560.hub.containercover.ContainerCover.coverRect(screen, "rngmeter.ranking",
+                    pos[0], pos[1], pos[0] + size[0] * scale, pos[1] + size[1] * scale);
         } catch (Exception e) {
             logThrottled("Failed to render RNG Meter overlay", e);
         }
@@ -285,6 +288,7 @@ public final class RngMeterOverlay {
             committedTitle = title;
             committedScan = itemsFromLog(groupKey);
             committedSelected = pendingSelected;
+            noteSelected(title, committedSelected);
             scrollOffset = 0;
 
             // Diagnostic: an item with a resolved id but still no price is either a real Bazaar/AH
@@ -323,6 +327,7 @@ public final class RngMeterOverlay {
         ScanResult scan = scanMenu(screen);
         if (scan.selected() != null) {
             committedSelected = scan.selected();
+            noteSelected(title, committedSelected);
         }
         String groupKey = normalizeGroupKey(title);
         Map<String, Long> logged = RngItemLog.get(groupKey);
@@ -338,6 +343,13 @@ public final class RngMeterOverlay {
             committedScan = itemsFromLog(groupKey);
             LOGGER.info("RNG Meter \"{}\": {} more reward(s) read after the page settled: {}", groupKey,
                     toMerge.size(), toMerge.keySet());
+        }
+    }
+
+    /** Hands a slayer meter's selected drop and fill to How Lucky Are You (it raises that drop's odds per kill). */
+    private static void noteSelected(String title, SelectedDropInfo sel) {
+        if (sel != null) {
+            com.killer560.hub.luck.LuckDetector.onMeterMenu(normalizeGroupKey(title), sel.name(), sel.current(), sel.required());
         }
     }
 

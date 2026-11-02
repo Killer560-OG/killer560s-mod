@@ -497,12 +497,16 @@ public final class AutoRoutesCommands {
     }
 
     private static void add(RouteNode.Type type, RouteRecorder.NodeModifiers modifiers, String argument) {
+        add(type, modifiers, argument, null);
+    }
+
+    private static void add(RouteNode.Type type, RouteRecorder.NodeModifiers modifiers, String argument, double[] trapBox) {
         // The recorder owns where the node lands (look target for etherwarp, feet for walk, held item for use...)
         // and returns null having already said why when it refuses. This used to ignore that and print
         // "Added Use Item node" straight after "Hold the item to use first." (2026-09-16 review) - and threw
         // away the detail the recorder had earned: the matched item id, the await condition, and the
         // "no etherwarpable block in sight" warning.
-        String status = RouteRecorder.addNode(type, modifiers, argument);
+        String status = RouteRecorder.addNode(type, modifiers, argument, trapBox);
         if (status == null) {
             return;
         }
@@ -576,11 +580,48 @@ public final class AutoRoutesCommands {
                 argument = RouteNode.fmtSize(box[0]) + " " + RouteNode.fmtSize(box[1]);
                 rest = others.toString().trim();
             }
+            double[] trapBox = null;
+            if (type != RouteNode.Type.ALIGN && rest != null && !rest.isBlank()) {
+                // killer560, 2026-11-01: "make it so i can add a node with something like w3 l3 and such for all nodes but
+                // only in trap". The same box words as an align, on any other type; refused outside a trap room.
+                double[] box = {RouteNode.DEFAULT_ALIGN_SIZE, RouteNode.DEFAULT_ALIGN_SIZE};
+                StringBuilder others = new StringBuilder();
+                boolean any = false;
+                for (String raw : rest.trim().split("\\s+")) {
+                    int took = RouteNode.parseAlignToken(raw, box);
+                    if (took < 0) {
+                        LOGGER.info("[AutoRoutes] /ar add {} refused: box size \"{}\" out of range", key, raw);
+                        ModChat.send(FEATURE, ModChat.bad("\"" + raw + "\" is not a box size"),
+                                ModChat.dim(" - " + RouteNode.fmtSize(RouteNode.MIN_ALIGN_SIZE) + " to "
+                                        + RouteNode.fmtSize(RouteNode.MAX_ALIGN_SIZE) + " blocks, e.g. "),
+                                ModChat.value("/ar add " + key + " w3 l3"), ModChat.dim(". Nothing was added."));
+                        return;
+                    }
+                    if (took > 0) {
+                        any = true;
+                    } else {
+                        others.append(raw).append(' ');
+                    }
+                }
+                if (any) {
+                    RouteCoords.Frame here = RouteCoords.Frame.current();
+                    if (here == null || !com.killer560.hub.autotrap.AutoTrap.isTrapRoom(here.roomName())) {
+                        LOGGER.info("[AutoRoutes] /ar add {} refused: box size outside a trap room ({})", key,
+                                here == null ? "no room" : here.roomName());
+                        ModChat.send(FEATURE, ModChat.bad("Box sizes (w<n> l<n>) are for trap rooms only"),
+                                ModChat.dim(" - elsewhere only "), ModChat.value("/ar add align w<n> l<n>"),
+                                ModChat.dim(" takes one. Nothing was added."));
+                        return;
+                    }
+                    trapBox = box;
+                    rest = others.toString().trim();
+                }
+            }
             RouteRecorder.NodeModifiers modifiers = parseModifiers(rest);
             if (modifiers == null) {
                 return; // parseModifiers already said why
             }
-            add(type, modifiers, argument);
+            add(type, modifiers, argument, trapBox);
         });
     }
 

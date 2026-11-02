@@ -21,7 +21,34 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   eye sees (an always-UP face is PositionBreakA), an ABORT says DOWN as vanilla does (any other face is PositionBreakB on
   every later dig), and no input packet may say sneak while a container is open (MultiActionsD on its close). Both
   executors turn the body with the camera held through `util/BodyAim`, one instance each. Multi Break's six STARTs on one
-  tick, aimed at the first, drew nothing from GrimAC.
+  tick, aimed at the first, drew nothing from GrimAC with experimental checks OFF - and MultiBreak + RotationBreak with
+  them on (next entry); Multi Break is gone.
+- **GrimAC 2.3.74's experimental checks (gridexp-1102, 62-argrim/63-ap3 with `experimental-checks: true`).** Each flag and
+  its packet pattern, from Grim's source at tag v2.3.74:
+  MultiBreak: a second START_DESTROY_BLOCK on another block or face before the server's next tick packet - Multi Break's
+  burst, and a breaker node's six. Fix: one dig a tick everywhere (Breaker Aura, breaker node, linger, re-dig).
+  RotationBreak: a dig is traced along the NEXT movement packet's look only if that arrives within 15 ms
+  (`handleQueuedBreaks`), else along the look before; after one miss every later dig is judged on arrival by the look
+  before ("pre-flying"). Digs sent at START with the body turned in the same tick missed whenever the tick was slow. Fix:
+  a dig (breaker, boom tap) goes at once when the look the server already heard strikes the block's cube from where it
+  has him (`util/DigAim`); otherwise the body turns and the dig is queued for the head of that tick's `sendPosition`
+  (`util/BeforeMove`), right ahead of the movement packet carrying the look - vanilla's own order (dig in handleKeybinds,
+  then sendPosition). After each dig the next block's turn rides the same movement packet (Grim also tries the previous
+  look), so a run of digs goes one a tick from the firing tick. Turning a tick AHEAD instead (first try) was clean too but
+  cost the node its firing tick (96-ar-play's "DUNGEON_BREAKER acted 0 tick").
+  PacketOrderE: a `set_carried_item` after a use / block click / interact / attack / release / player command inside one
+  server tick (reset by a movement packet, or by `client_tick_end` when no movement packet went that tick; a teleport's
+  echo is not a tick packet). Vanilla reads hotbar keys before use keys, so it never sends that order. Cases: Kill Mimic's
+  Hyperion use then the slot handed back in the same tick; his lever click (outside the tick) then the breaker node's swap.
+  Fix: `HotbarSelect.swapWouldFlag()` (fed by the send tap); the route holds a tick, Kill Mimic waits a tick before its
+  swap and hands the slot back the next tick (state RESTORE). Not under a Blink charge (Blink replays the wire).
+  DuplicateRotPlace: a `use_item_on` whose preceding yaw turn is over 2 degrees and equal to 0.0001 to the turn before the
+  previous block click - automation snapping to 45-degree node yaws did it twice in a row. Fix: `util/PlaceRotationGuard`
+  moves the yaw 0.01 for the one send when a turn would repeat (sendPosition head), never in a tick whose movement packet
+  must report a `use_item`'s look (moving it there is BadPacketsJ - 11 flags in 62-argrim-1020-acbat on the first try).
+  BadPacketsH: every START/STOP dig and use must carry the last sequence + 1; AP3's boom START went out with sequence 0
+  (the constructor without one). Fix: it goes through `RouteExecutor.sendBoomTap` (vanilla's `startPrediction`).
+  BadPacketsV (a position packet that did not move) in 63-ap3's Blink shot cases is Blink's, not fixed here.
 - **A vanilla client removes a block it instabreaks the moment it sends the dig, and GrimAC assumes it did**: on an instant
   START_DESTROY_BLOCK (`BlockBreakSpeed.getBlockDamage >= 1`) it sets the block to air in its own world at once
   (`CheckManagerListener.handleDigging`, 2.3.74). Breaker Aura with Zero Ping off kept standing on a picked floor block
@@ -586,3 +613,16 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   change it stayed pending, and a hold pressed later mid-jump waited for the landing (testkit 1025-blink-jump: 2.4 of 6.9
   blocks held; ship3-1027). The same shape in AP3: `Ap3Feature.onChat` returned before reading the leap line whenever no
   node was running, so an armed route never knew a landing was a leap (1027-ap3-live34-beside-leap).
+
+- **Etherwarp passability: carpets go through** (to-do Doc 2026-11-01, "doesnt work right on carpets"). The modern
+  passable tables (Odin, QUOI, ours in EtherwarpOverlayFeature and TeleportUtils) are the 1.8 "valid feet" id list
+  (Skytils/Odin 1.8 `validEtherwarpFeetIds`) carried over block by block, and only carpet (171) and lily pad (111) were
+  dropped. Carpet is now passable in both tables: a look at a carpet lands on the block under it, a carpeted block is a
+  landing (testkit 1101-ew-carpet). Not yet confirmed in game on Hypixel; lily pad left as it was.
+- **Spring Boots charge is countable from sound alone**: `dungeonalerts.SpringBootsOverlay` (Odin's pitch table) counts
+  `note_block.pling` notes while crouched in Spring Boots; AP3's Crystal node reads `chargedHeight()` and asks it to
+  count with the HUD off (`setCountForAp3`). Its handler is behind the Skyblock gate (DungeonAlertsPackets.guard).
+- **Zero Ping Etherwarp's own sends do not pass ActionGate** (Warps Per Tick's `flushExtraWarps` and Aimed Warps' `fireAimed`
+  send through `MultiPlayerGameMode.startPrediction` directly), so a gate added to `ActionGate.tryActInternal` misses them:
+  the Emergency Cancel hold and Streamer Mode's Disable cheats did until zpew2-1101. Any new ActionGate-wide refusal also
+  goes in `ZeroPingEtherwarp.held` (testkit 1102-zpew-ecancel).

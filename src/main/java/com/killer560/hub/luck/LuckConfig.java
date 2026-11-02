@@ -42,6 +42,17 @@ public final class LuckConfig {
         }
     }
 
+    /** Which mob deaths count as his kills: mobs he hit, any named mob within 8 blocks, or none. */
+    public enum MobKills {
+        HIT("Hit By Me"), NEARBY("Within 8 Blocks"), OFF("Off");
+
+        public final String label;
+
+        MobKills(String label) {
+            this.label = label;
+        }
+    }
+
     public static final int MAX_MAGIC_FIND = 1500;
 
     private static LuckConfig instance;
@@ -52,6 +63,7 @@ public final class LuckConfig {
     private ChestOdds chestOdds = ChestOdds.BASE;
     private MagicFindMode magicFindMode = MagicFindMode.AUTO;
     private int manualMagicFind = 0;
+    private MobKills mobKills = MobKills.HIT;
     /** Sends a summary of your luck to the mod users in your relay room. Off until he turns it on (opt-in). */
     private boolean shareMyLuck = false;
 
@@ -77,6 +89,7 @@ public final class LuckConfig {
                 cfg.magicFindMode = ConfigJson.getEnum(o, "magicFindMode", MagicFindMode.class, MagicFindMode.AUTO);
                 cfg.manualMagicFind = clampMf(ConfigJson.getInt(o, "manualMagicFind", 0));
                 cfg.shareMyLuck = ConfigJson.getBool(o, "shareMyLuck", false);
+                cfg.mobKills = ConfigJson.getEnum(o, "mobKills", MobKills.class, MobKills.HIT);
             } catch (Exception e) {
                 ConfigJson.backupBroken(CONFIG_PATH);
             }
@@ -95,6 +108,7 @@ public final class LuckConfig {
             o.addProperty("magicFindMode", magicFindMode.name());
             o.addProperty("manualMagicFind", manualMagicFind);
             o.addProperty("shareMyLuck", shareMyLuck);
+            o.addProperty("mobKills", mobKills.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -158,5 +172,13 @@ public final class LuckConfig {
 
     public void setShareMyLuck(boolean v) {
         shareMyLuck = v;
+    }
+
+    public MobKills getMobKills() {
+        return mobKills;
+    }
+
+    public void setMobKills(MobKills v) {
+        mobKills = v == null ? MobKills.HIT : v;
     }
 }

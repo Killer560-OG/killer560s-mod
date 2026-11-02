@@ -40,7 +40,10 @@ public final class MimicKiller {
     /** Legit Hyperion: how long it keeps aiming down before giving up WITHOUT using it. */
     private static final int AIM_GIVE_UP = 60;
 
-    private enum State { IDLE, PENDING, AIM, USING }
+    /** RESTORE: finished; the slot he held goes back on the first tick a swap does not follow a use (GrimAC PacketOrderE). */
+    private enum State { IDLE, PENDING, AIM, USING, RESTORE }
+    /** Longest a RESTORE waits for a tick with no use before it hands the slot back anyway. */
+    private static final int RESTORE_MAX_TICKS = 10;
 
     private static State state = State.IDLE;
     private static AutoRoutesConfig.KillMimic mode;
@@ -132,6 +135,16 @@ public final class MimicKiller {
             return;
         }
         stateTicks++;
+        if (state == State.RESTORE) {
+            if (com.killer560.hub.util.HotbarSelect.swapWouldFlag() && stateTicks <= RESTORE_MAX_TICKS) {
+                return;
+            }
+            LOGGER.info("[Mimic] slot {} handed back {} tick(s) after finishing (no use before it in that server tick)",
+                    slotBefore + 1, stateTicks);
+            RouteExecutor.select(client, player, slotBefore);
+            state = State.IDLE;
+            return;
+        }
         if (AwaitEvents.mimicKilledSince(armedAt)) {
             finish(client, player, "mimic killed after " + uses + " use(s)");
             return;
@@ -160,6 +173,13 @@ public final class MimicKiller {
             case PENDING -> {
                 // Also wait out an aura's body turn (Secret Aura clicking the chest turns him to it and gives the view
                 // back a tick later): that hand-back writes the rotation, and landing on top of the aim it undid it.
+                if (com.killer560.hub.util.HotbarSelect.swapWouldFlag() && stateTicks <= PENDING_TIMEOUT) {
+                    // The chest click that armed this (or anything else right-clicked) left in this server tick: the swap
+                    // to the item goes next tick, never after it (GrimAC PacketOrderE, 62-argrim-1017-mimicaim).
+                    logWait(AwaitEvents.now(), "pending-orderE", "pending: a " + com.killer560.hub.util.HotbarSelect
+                            .orderConflict() + " already went out this server tick - the swap goes next tick");
+                    return;
+                }
                 if (!RouteExecutor.mayYieldToMimic() || com.killer560.hub.util.TurnFirst.anyTurnOut()) {
                     boolean nodeBusy = !RouteExecutor.mayYieldToMimic();
                     logWait(AwaitEvents.now(), nodeBusy ? "pending-node" : "pending-turn", "pending " + stateTicks + "/"
@@ -369,14 +389,23 @@ public final class MimicKiller {
                 player != null && state != State.PENDING && slotBefore >= 0 && slotBefore <= 8 ? slotBefore + 1 : "none",
                 why);
         lastWaitKey = null;
-        if (player != null && state != State.PENDING && slotBefore >= 0 && slotBefore <= 8) {
-            RouteExecutor.select(client, player, slotBefore);
-        }
+        boolean restore = player != null && state != State.PENDING && slotBefore >= 0 && slotBefore <= 8;
         if (state == State.AIM || state == State.USING) {
             if (AutoRoutesConfig.getInstance().isLegitMode()) {
                 // The camera is the route's again: its next node aims where it needs.
                 RouteRotation.clear();
             }
+        }
+        if (restore && state != State.RESTORE && com.killer560.hub.util.HotbarSelect.swapWouldFlag()
+                && player.getInventory().getSelectedSlot() != slotBefore) {
+            // The use that finished it (a Hyperion's one use) left in this server tick: the slot goes back next tick,
+            // still busy so the route waits for it (62-argrim-mimic: use then swap in one tick, GrimAC PacketOrderE).
+            state = State.RESTORE;
+            stateTicks = 0;
+            return;
+        }
+        if (restore) {
+            RouteExecutor.select(client, player, slotBefore);
         }
         state = State.IDLE;
     }

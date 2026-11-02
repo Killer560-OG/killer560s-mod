@@ -135,8 +135,21 @@ public class ModScreen extends Screen {
     private static final int GRID_PAD = 6;
 
     // ---- sidebar ---------------------------------------------------------------------------------------------------
-    private record SideEntry(String label, String icon, int tab, boolean favourites, int x, int y, int w, int h) {
+    private record SideEntry(String label, String icon, int tab, boolean favourites, int x, int y, int w, int h,
+                             Item jump) {
+        SideEntry(String label, String icon, int tab, boolean favourites, int x, int y, int w, int h) {
+            this(label, icon, tab, favourites, x, y, w, h, null);
+        }
+
+        /** A section row under the selected category (Legit, Cheat, a group): a click scrolls the grid to it. */
+        boolean sub() {
+            return jump != null;
+        }
     }
+
+    /** A section row's height and indent under its category (killer560, 2026-11-01 "MAIN MOD MENU SUBCATEGORIES"). */
+    private static final int SUB_ROW_H = 13;
+    private static final int SUB_INDENT = 10;
 
     private final List<SideEntry> side = new ArrayList<>();
     private final List<Integer> sideSeparators = new ArrayList<>();
@@ -529,6 +542,9 @@ public class ModScreen extends Screen {
             String icon = t instanceof CategoryTab c ? c.icon : "⚑";
             side.add(new SideEntry(t.name, icon, i, false, x, y, w, rowH));
             y += rowH + 1;
+            if (i == selectedTab && !favouritesSelected) {
+                y = addSectionRows(x, y, w);
+            }
         }
         y += 3;
         sideSeparators.add(y - 1);
@@ -540,6 +556,142 @@ public class ModScreen extends Screen {
                 y += rowH + 1;
             }
         }
+    }
+
+    /**
+     * The selected category's sections, as rows under it in the sidebar (killer560, 2026-11-01: "If i click on something
+     * like dungeons ... below it it says something like cheat and legit. If i click on cheat it takes me to the start of
+     * the cheat category"). Read from the grid's own headers, so any category gets them (a new one included): a first
+     * run of cards is "Legit", then one row per header the grid draws (a group such as Secrets, the red Cheat block).
+     * A category with no header has nothing to jump between and gets none, and so does Home (its one header is the
+     * page's own). Rows that would run past the sidebar's bottom are left out. @return the y under the rows
+     */
+    private int addSectionRows(int x, int y, int w) {
+        if (pageMode() || selected() instanceof HomeTab) {
+            return y;
+        }
+        List<Item> heads = new ArrayList<>();
+        for (Item it : items) {
+            if (it.kind == ItemKind.HEADER) {
+                heads.add(it);
+            }
+        }
+        if (heads.isEmpty()) {
+            return y;
+        }
+        List<SideEntry> rows = new ArrayList<>();
+        int ry = y;
+        if (!items.isEmpty() && items.get(0).kind == ItemKind.CARD) {
+            rows.add(new SideEntry("Legit", "", -1, false, x + SUB_INDENT, ry, w - SUB_INDENT, SUB_ROW_H, items.get(0)));
+            ry += SUB_ROW_H;
+        }
+        // A group inside the cheat block (the cheat Secrets) sits one step further in, under Cheat: the same name can
+        // appear in both blocks.
+        boolean inCheat = false;
+        for (Item h : heads) {
+            int in = SUB_INDENT + (inCheat ? 6 : 0);
+            rows.add(new SideEntry(sectionLabel(h.text), "", -1, false, x + in, ry, w - in, SUB_ROW_H, h));
+            ry += SUB_ROW_H;
+            inCheat |= h.red && h.tab == null && "Cheat".equals(h.text);
+        }
+        // Whatever follows the categories (a separator and the page rows) still has to fit.
+        int after = 0;
+        for (BaseTab t : tabs) {
+            if (!(t instanceof FolderTab)) {
+                after += 19;
+            }
+        }
+        if (ry + 8 + after > sideY + sideH - 4) {
+            return y;
+        }
+        side.addAll(rows);
+        return ry + 2;
+    }
+
+    /** A header's text as a sidebar row: "Cheat" stays, an all-caps or lower-case one reads in title case. */
+    private static String sectionLabel(String text) {
+        if (text == null || text.isEmpty()) {
+            return "";
+        }
+        if (!text.equals(text.toUpperCase(Locale.ROOT)) && !text.equals(text.toLowerCase(Locale.ROOT))) {
+            return text;
+        }
+        StringBuilder b = new StringBuilder();
+        for (String word : text.toLowerCase(Locale.ROOT).split(" ")) {
+            if (!word.isEmpty()) {
+                b.append(b.length() == 0 ? "" : " ").append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+            }
+        }
+        return b.toString();
+    }
+
+    /** The section row that holds the grid's current scroll (the last whose start is at or above the top). */
+    private SideEntry currentSection() {
+        SideEntry cur = null;
+        int top = gridY + GRID_PAD;
+        for (SideEntry e : side) {
+            if (e.sub() && (cur == null || e.jump().y - top <= gridScroll + 1)) {
+                cur = e;
+            }
+        }
+        return cur;
+    }
+
+    /** Scrolls the grid so {@code it} is at its top (as far as the grid scrolls). */
+    private void jumpTo(Item it) {
+        gridScroll = Math.max(0, Math.min(gridMax, it.y - (gridY + GRID_PAD)));
+    }
+
+    /** The section rows under the selected category, as drawn. For the testkit. */
+    public List<String> sideSections() {
+        List<String> out = new ArrayList<>();
+        for (SideEntry e : side) {
+            if (e.sub()) {
+                out.add(e.label());
+            }
+        }
+        return out;
+    }
+
+    /** Presses the section row called {@code label} (as a click does); false if there is none. For the testkit. */
+    public boolean pressSection(String label) {
+        for (SideEntry e : side) {
+            if (e.sub() && e.label().equals(label)) {
+                pressSectionRow(e);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The grid's scroll (where its clicks land), and the furthest it scrolls. For the testkit. */
+    public int[] gridScrollState() {
+        return new int[]{gridScroll, gridMax};
+    }
+
+    private void pressSectionRow(SideEntry e) {
+        if (openFeature != null && drawerOverlay) {
+            // The drawer covers the grid: close it, then find the same section in the grid laid out without it.
+            String label = e.label();
+            int nth = 0;
+            for (SideEntry o : side) {
+                if (o == e) {
+                    break;
+                }
+                if (o.sub() && o.label().equals(label)) {
+                    nth++;
+                }
+            }
+            closeDrawer();
+            for (SideEntry o : side) {
+                if (o.sub() && o.label().equals(label) && nth-- == 0) {
+                    jumpTo(o.jump());
+                    return;
+                }
+            }
+            return;
+        }
+        jumpTo(e.jump());
     }
 
     private int indexOf(Class<?> cls) {
@@ -559,6 +711,8 @@ public class ModScreen extends Screen {
         collectRowAnims();
         this.clearWidgets();
         SettingTooltips.clearScopes();
+        // The items come first: the sidebar's section rows under the selected category are read from them.
+        buildItems();
         layout();
         this.addRenderableWidget(searchField);
         drawerMaster = null;
@@ -567,7 +721,6 @@ public class ModScreen extends Screen {
         maxScroll = 0;
         visibleContentHeight = 0;
 
-        buildItems();
         layoutGrid();
 
         if (pageMode()) {
@@ -624,6 +777,7 @@ public class ModScreen extends Screen {
         if (now == before) {
             return;
         }
+        ModuleKeybinds.cancelCapture();
         long t = MenuAnim.changeTime();
         if (before == null) {
             drawerOpenedAt = t;
@@ -765,6 +919,16 @@ public class ModScreen extends Screen {
             drawerMaster = MasterSwitch.of(tab.masterToggles(built));
             if (drawerMaster != null) {
                 FeatureCards.setKnownState(tab, drawerMaster.isOn());
+                // Every module's toggle key, as the drawer's very last row (killer560, 2026-11-01): ModuleKeybinds.
+                int bottom = startY;
+                for (AbstractWidget w : widgets) {
+                    if (w.visible) {
+                        bottom = Math.max(bottom, w.getY() + w.getHeight());
+                    }
+                }
+                AbstractWidget keyRow = ModuleKeybinds.row(id(tab), contentX, bottom + 8, contentW);
+                SettingTooltips.scope(keyRow, tab.name);
+                widgets.add(keyRow);
             }
         }
 
@@ -1237,6 +1401,10 @@ public class ModScreen extends Screen {
         double mx = event.x();
         double my = event.y();
         int button = com.killer560.hub.compat.McInput.button(event);
+        if (button == 0 && !(paletteOpen && !searchQuery.isBlank()) && startScrollDrag(mx, my)) {
+            unfocusSearch();
+            return true;
+        }
         if (paletteOpen) {
             if (paletteClick(mx, my, button)) {
                 return true;
@@ -1274,6 +1442,108 @@ public class ModScreen extends Screen {
             return true;
         }
         return super.mouseClicked(event, doubleClick);
+    }
+
+    // ---- scrollbar dragging (killer560, 2026-11-01: "the bar on the right side that moves when I scroll does not let
+    // me click on it to drag and scroll") -------------------------------------------------------------------------------
+
+    private enum Bar { GRID, CONTENT }
+
+    /** The bar being dragged, or null; and where on its thumb it was taken (units below the thumb's top). */
+    private Bar dragBar;
+    private double dragGrab;
+
+    /**
+     * A scrollbar as drawn {x, top, height, offset, max, view}, or null when there is none to drag. The same numbers the
+     * draw calls hand {@link MenuStyle#scrollbar}.
+     */
+    private int[] barGeometry(Bar bar) {
+        if (bar == Bar.GRID) {
+            if (pageMode() || (drawerOverlay && openFeature != null) || gridMax <= 0) {
+                return null;
+            }
+            return new int[]{gridX + gridW - 7, gridY + 5, gridH - 10, gridScroll, gridMax, gridH - 2 * GRID_PAD};
+        }
+        if (maxScroll <= 0) {
+            return null;
+        }
+        if (pageMode()) {
+            return new int[]{gridX + gridW - 7, gridY + 5, gridH - 10, scrollOffset, maxScroll, visibleContentHeight};
+        }
+        if (openFeature == null) {
+            return null;
+        }
+        return new int[]{drawerX + drawerW - 8, contentY, visibleContentHeight, scrollOffset, maxScroll,
+                visibleContentHeight};
+    }
+
+    /** {thumb top, thumb height} of a bar, exactly as {@link MenuStyle#scrollbar} draws it. */
+    private static int[] thumb(int[] b) {
+        int height = b[2];
+        int content = b[5] + b[4];
+        int th = Math.max(14, height * b[5] / Math.max(1, content));
+        int ty = b[1] + (height - th) * Math.max(0, Math.min(b[3], b[4])) / b[4];
+        return new int[]{ty, th};
+    }
+
+    /** The bar's track {x, y, w, h} that takes a press: the 4-unit bar and a little either side of it. */
+    public int[] scrollbarBounds(String which) {
+        int[] b = barGeometry("grid".equalsIgnoreCase(which) ? Bar.GRID : Bar.CONTENT);
+        return b == null ? null : new int[]{b[0] - 2, b[1], 8, b[2]};
+    }
+
+    /** A press on a bar: on the thumb it takes hold where it was pressed; on the track the thumb jumps under the cursor. */
+    private boolean startScrollDrag(double mx, double my) {
+        for (Bar bar : new Bar[]{Bar.CONTENT, Bar.GRID}) {
+            int[] b = barGeometry(bar);
+            if (b == null || b[2] <= 6 || !inside(mx, my, b[0] - 2, b[1], 8, b[2])) {
+                continue;
+            }
+            int[] t = thumb(b);
+            dragBar = bar;
+            dragGrab = my >= t[0] && my < t[0] + t[1] ? my - t[0] : t[1] / 2.0;
+            dragScroll(my);
+            return true;
+        }
+        return false;
+    }
+
+    private void dragScroll(double my) {
+        int[] b = barGeometry(dragBar);
+        if (b == null) {
+            dragBar = null;
+            return;
+        }
+        int[] t = thumb(b);
+        int travel = Math.max(1, b[2] - t[1]);
+        int to = (int) Math.round((my - dragGrab - b[1]) * b[4] / travel);
+        to = Math.max(0, Math.min(b[4], to));
+        if (dragBar == Bar.GRID) {
+            gridScroll = to;
+            gridScrollShown.snap(to);
+        } else if (to != scrollOffset) {
+            scrollOffset = to;
+            scrollShown.snap(to);
+            rebuild();
+        }
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        if (dragBar != null) {
+            dragScroll(event.y());
+            return true;
+        }
+        return super.mouseDragged(event, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (dragBar != null) {
+            dragBar = null;
+            return true;
+        }
+        return super.mouseReleased(event);
     }
 
     private void unfocusSearch() {
@@ -1328,6 +1598,10 @@ public class ModScreen extends Screen {
         for (SideEntry e : side) {
             if (inside(mx, my, e.x(), e.y(), e.w(), e.h())) {
                 clickSound();
+                if (e.sub()) {
+                    pressSectionRow(e);
+                    return true;
+                }
                 if (e.favourites()) {
                     favouritesSelected = true;
                     gridScroll = 0;
@@ -1626,6 +1900,10 @@ public class ModScreen extends Screen {
             return null;
         }
         BaseTab active = pageMode() ? selected() : openFeature;
+        KeyCaptureTab moduleKey = ModuleKeybinds.listening(openFeature == null || pageMode() ? null : id(openFeature));
+        if (moduleKey != null) {
+            return moduleKey;
+        }
         if (active instanceof KeyCaptureTab captureTab && captureTab.isListeningForKey()) {
             return captureTab;
         }
@@ -2141,7 +2419,7 @@ public class ModScreen extends Screen {
         SideEntry selEntry = null;
         for (int i = 0; i < side.size(); i++) {
             SideEntry e = side.get(i);
-            boolean sel = e.favourites() ? favouritesSelected : (!favouritesSelected && e.tab() == selectedTab);
+            boolean sel = !e.sub() && (e.favourites() ? favouritesSelected : (!favouritesSelected && e.tab() == selectedTab));
             boolean hover = inside(mouseX, mouseY, e.x(), e.y(), e.w(), e.h());
             sideHover[i].set(hover && !sel ? 1f : 0f);
             sideSel[i].set(sel ? 1f : 0f);
@@ -2166,11 +2444,30 @@ public class ModScreen extends Screen {
             r.fill(ex + 1, ey + 1, ex + ew - 1, ey + 2, MenuStyle.HILITE);
             r.fill(ex + 1, ey + 1, ex + 3, ey + eh - 1, MenuStyle.OR);
         }
+        // The section the grid is scrolled to: a short orange bar beside its row, the row's text lit.
+        SideEntry cur = currentSection();
+        if (cur != null) {
+            r.fill(cur.x() - 4, cur.y() + 2, cur.x() - 2, cur.y() + cur.h() - 2, MenuStyle.OR);
+        }
+        for (SideEntry e : side) {
+            if (e.sub()) {
+                r.fill(e.x() - 3, e.y(), e.x() - 3 + 1, e.y() + e.h(), MenuStyle.alpha(MenuStyle.DIM2, 0x60));
+            }
+        }
         r.submit();
         for (int i = 0; i < side.size(); i++) {
             SideEntry e = side.get(i);
             float hv = sideHover[i].get();
             float sl = sideSel[i].get();
+            if (e.sub()) {
+                int ty = e.y() + (e.h() - 8) / 2;
+                boolean red = e.jump().kind == ItemKind.HEADER && e.jump().red;
+                int base = red ? MenuStyle.RED : MenuStyle.DIM;
+                int lit = red ? MenuStyle.RED : MenuStyle.OR2;
+                int tc = e == cur ? lit : MenuStyle.ease(base, MenuStyle.TXT_SOFT, hv);
+                MenuStyle.text(g, MenuStyle.ellipsize(e.label(), e.w() - 6), e.x() + 3, ty, tc);
+                continue;
+            }
             int ty = e.y() + (e.h() - 8) / 2;
             int tc = MenuStyle.ease(MenuStyle.ease(MenuStyle.DIM, MenuStyle.TXT_SOFT, hv), MenuStyle.OR, sl);
             MenuStyle.text(g, e.icon(), e.x() + 7, ty, MenuStyle.ease(MenuStyle.DIM2, MenuStyle.OR, sl));

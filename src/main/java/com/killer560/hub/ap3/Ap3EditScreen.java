@@ -167,6 +167,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             pending.put("Leap counter", String.valueOf(n.leapCounter));
             pending.put("Section done", String.valueOf(n.sectionDone));
             pending.put("Blink ticks", n.blinkTicks > 0 ? String.valueOf(n.blinkTicks) : "");
+            pending.put("Crystal height", n.crystalHeight > 0 ? fmt(n.crystalHeight) : "");
             pending.put("Name", n.name == null ? "" : n.name);
             yawKnown = type.usesYaw();
             pitchKnown = type.usesPitch();
@@ -252,6 +253,9 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
         if (type.usesBlinkTicks()) {
             // Blink Charge / Blink Release: the ticks to bank or fire, 1-20; blank (or 0) = the max.
             addField(x + half + GAP, y, w - half - GAP, "Blink ticks", 58);
+        } else if (type == Ap3Node.Type.CRYSTAL) {
+            // Crystal: the Spring Boots height in blocks, as /ap3 add crystal <n>; blank = the crystal above the node.
+            addField(x + half + GAP, y, w - half - GAP, "Crystal height", "Height", 38);
         }
         y += LINE;
         if (type == Ap3Node.Type.BLINK_CHARGE) {
@@ -476,7 +480,8 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
 
     /** A text box {@code w} wide at {@code x}, {@code shown} drawn in its first {@code labelW} pixels. */
     private void addField(int x, int y, int w, String label, String shown, int labelW) {
-        EditBox box = new ThemedEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(shown));
+        ThemedEditBox box = new ThemedEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(shown));
+        box.onEnter(this::save);
         box.setMaxLength(32);
         box.setValue(pending.getOrDefault(label, ""));
         this.addRenderableWidget(box);
@@ -527,9 +532,17 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
         Double nblink = !type.usesBlinkTicks() || get("Blink ticks").isBlank() ? Double.valueOf(0) : num("Blink ticks");
         Double nyaw = type.usesYaw() ? num("Yaw") : Double.valueOf(0);
         Double npitch = type.usesPitch() ? num("Pitch") : Double.valueOf(0);
+        Double ncrystal = type != Ap3Node.Type.CRYSTAL || get("Crystal height").isBlank() ? Double.valueOf(0)
+                : num("Crystal height");
         if (nx == null || ny == null || nz == null || nyaw == null || npitch == null
-                || nlen == null || nwid == null || nwait == null || nleap == null || nblink == null) {
+                || nlen == null || nwid == null || nwait == null || nleap == null || nblink == null || ncrystal == null) {
             status = "§cOne of the numbers is not a number - nothing was changed.";
+            return;
+        }
+        if (ncrystal < 0 || ncrystal > Ap3Node.MAX_CRYSTAL_HEIGHT) {
+            // The command's rule (/ap3 add crystal <n>): above 0 up to the max, or blank for the crystal above the node.
+            status = "§cCrystal height: above 0 up to " + fmt(Ap3Node.MAX_CRYSTAL_HEIGHT)
+                    + " blocks, or blank for the crystal above - nothing was changed.";
             return;
         }
         if (Math.abs(nx) > Ap3Store.MAX_ABS_COORD || Math.abs(ny) > Ap3Store.MAX_ABS_COORD
@@ -557,6 +570,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             node.sectionDone = nsection == null ? 0 : (int) Math.max(0, Math.min(4, Math.round(nsection)));
             node.setBlinkTicks(newType.usesBlinkTicks() ? (int) Math.round(nblink) : 0);
             node.blinkStop = newType == Ap3Node.Type.BLINK_CHARGE && blinkStop;
+            node.setCrystalHeight(newType == Ap3Node.Type.CRYSTAL ? ncrystal : 0);
             node.type = newType;
             node.jumpMod = jumpMod;
             node.ssGate = ssGate;

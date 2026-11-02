@@ -49,6 +49,8 @@ public final class ObjectHiderConfig {
     private boolean hideArcherPassive = false;
     private boolean hideSheep = false;
     private boolean hideCloakCreepers = false;
+    /** The Witherborn wither minion of a full F7 armor set, and its particles (killer560, 2026-11-01). */
+    private boolean hideWitherborn = false;
     private boolean hideHypeHearts = false;
 
     // --- M7 --------------------------------------------------------------------------------------
@@ -124,7 +126,7 @@ public final class ObjectHiderConfig {
      *  already-cheap injection points and do not touch this per-entity path - see each mixin's own class doc. */
     public boolean hidesAnyEntity() {
         return objectHiderEnabled && (hideFairy || hideHealerOrbs || hideSoulweaverSkulls || hideArcherPassive || hideSheep
-                || hideCloakCreepers || hideDyingDragons || hideWitherKing || hideBossDamageSplash
+                || hideCloakCreepers || hideWitherborn || hideDyingDragons || hideWitherKing || hideBossDamageSplash
                 || cleanEnd || hideGroundedArrows || hideDeathAnimations || hidePlayers);
     }
 
@@ -151,6 +153,7 @@ public final class ObjectHiderConfig {
                 cfg.hideArcherPassive = ConfigJson.getBool(obj, "hideArcherPassive", false);
                 cfg.hideSheep = ConfigJson.getBool(obj, "hideSheep", false);
                 cfg.hideCloakCreepers = ConfigJson.getBool(obj, "hideCloakCreepers", false);
+                cfg.hideWitherborn = ConfigJson.getBool(obj, "hideWitherborn", false);
                 cfg.hideHypeHearts = ConfigJson.getBool(obj, "hideHypeHearts", false);
                 cfg.hideDyingDragons = ConfigJson.getBool(obj, "hideDyingDragons", false);
                 cfg.hideWitherKing = ConfigJson.getBool(obj, "hideWitherKing", false);
@@ -215,6 +218,7 @@ public final class ObjectHiderConfig {
             obj.addProperty("hideArcherPassive", hideArcherPassive);
             obj.addProperty("hideSheep", hideSheep);
             obj.addProperty("hideCloakCreepers", hideCloakCreepers);
+            obj.addProperty("hideWitherborn", hideWitherborn);
             obj.addProperty("hideHypeHearts", hideHypeHearts);
             obj.addProperty("hideDyingDragons", hideDyingDragons);
             obj.addProperty("hideWitherKing", hideWitherKing);
@@ -346,6 +350,18 @@ public final class ObjectHiderConfig {
 
     public void setHideSheep(boolean v) {
         hideSheep = v;
+    }
+
+    public boolean isHideWitherborn() {
+        return objectHiderEnabled && hideWitherborn && SkyblockGate.allows();
+    }
+
+    public boolean getHideWitherbornRaw() {
+        return hideWitherborn;
+    }
+
+    public void setHideWitherborn(boolean v) {
+        hideWitherborn = v;
     }
 
     public boolean isHideCloakCreepers() {

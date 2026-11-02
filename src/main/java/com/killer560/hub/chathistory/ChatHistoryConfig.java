@@ -88,7 +88,8 @@ public final class ChatHistoryConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("mode", mode.name());
             obj.addProperty("limit", customLimit);
-            obj.addProperty("unlimited", mode == Mode.UNLIMITED);
+            // No "unlimited" key any more: load() reads it only from a file with no "mode" (before 2026-11-01), so a saved
+            // copy was a key load() ignores, which hand edits and profile imports silently lost (testkit 310).
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }

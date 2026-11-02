@@ -84,7 +84,9 @@ public final class ProfileData {
             // must not travel to, or be dropped from, another by a profile.
             "session-recorder-disabled",
             // The Performance HUD's stutter log and its rolled copy (stutter-1026): diagnostics of one PC.
-            "lagdisplay-stutters.log", "lagdisplay-stutters.1.log"
+            "lagdisplay-stutters.log", "lagdisplay-stutters.1.log",
+            // /ahmenudump's recording of Hypixel's Auction House menus (ahflip.AhMenuRecorder, 2026-11-02): a log.
+            "ahflip-menudump.txt"
     );
 
     /** Name prefixes (after {@link ModPaths#PREFIX}) that never go in: bug report zips, route-file broken backups. */

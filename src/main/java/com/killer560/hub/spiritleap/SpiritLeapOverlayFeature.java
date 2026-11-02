@@ -157,6 +157,7 @@ public final class SpiritLeapOverlayFeature {
     }
 
     public static void register() {
+        com.killer560.hub.containercover.ContainerCover.registerFull(SpiritLeapOverlayFeature::isHiding);
         ScreenEvents.AFTER_INIT.register(SpiritLeapOverlayFeature::onScreenInit);
     }
 

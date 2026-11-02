@@ -5,8 +5,6 @@ import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedEditBox;
-import com.killer560.hub.itembrowser.SkyblockItemEntry;
-import com.killer560.hub.itembrowser.SkyblockItemRepository;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -18,10 +16,10 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * The Hypixel item skins picker (2026-10-18, killer560: "custom hypixel item skins if they exist"). The public item
- * catalog gives 2,544 items a real skin (a player-head texture value), which is what those items' heads show. Pick one
- * and it becomes the selected item's Look, the same way a pasted head texture does. Search narrows it by name, any
- * word typed matching. Returns to the Custom Items menu on pick or Escape.
+ * The Hypixel item skins picker (2026-10-18, killer560: "custom hypixel item skins if they exist"; rebuilt 2026-11-01 on
+ * {@link ItemSkins}). Lists the skins that can be applied to the selected item - matched by its Skyblock id, so a starred,
+ * recombed or fragged item finds its skins too - with the current one marked. Pick one and it becomes the item's Skin;
+ * search narrows the list, any word typed matching. Returns to the Custom Color page on pick or Escape.
  */
 public final class HypixelSkinScreen extends Screen implements MenuThemedScreen {
 
@@ -30,11 +28,10 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
     private static final int ROW_H = 20;
 
     private final Screen parent;
-    private final Consumer<SkyblockItemEntry> onPick;
-    /** The item being edited; only skins whose name contains it are listed. */
-    private final String targetLabel;
-    private final List<SkyblockItemEntry> all = new ArrayList<>();
-    private final List<SkyblockItemEntry> shown = new ArrayList<>();
+    private final Consumer<ItemSkins.Skin> onPick;
+    private final List<ItemSkins.Skin> all;
+    private final String current;
+    private final List<ItemSkins.Skin> shown = new ArrayList<>();
     private String query = "";
     private int scroll;
     private int panelX;
@@ -45,10 +42,11 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
     private int rows;
     private EditBox search;
 
-    public HypixelSkinScreen(Screen parent, String targetLabel, Consumer<SkyblockItemEntry> onPick) {
+    public HypixelSkinScreen(Screen parent, List<ItemSkins.Skin> skins, String current, Consumer<ItemSkins.Skin> onPick) {
         super(Component.literal("Hypixel Skins"));
         this.parent = parent;
-        this.targetLabel = targetLabel == null ? "" : targetLabel.trim();
+        this.all = skins == null ? List.of() : skins;
+        this.current = current == null ? "" : current;
         this.onPick = onPick;
     }
 
@@ -60,14 +58,6 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
         panelY = Math.max(2, (this.height - panelH) / 2);
         listY = panelY + 48;
         rows = Math.max(1, (panelH - 48 - 22) / ROW_H);
-
-        all.clear();
-        for (SkyblockItemEntry item : SkyblockItemRepository.getItems()) {
-            if (item.skinValue() != null && !item.skinValue().isBlank() && !targetLabel.isEmpty()
-                    && item.name().toLowerCase(java.util.Locale.ROOT).contains(targetLabel.toLowerCase(java.util.Locale.ROOT))) {
-                all.add(item);
-            }
-        }
         applyFilter();
 
         search = new ThemedEditBox(this.font, panelX + 8, panelY + 24, panelW - 16, 18, Component.literal("Search"))
@@ -87,9 +77,9 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
 
     private void applyFilter() {
         shown.clear();
-        for (SkyblockItemEntry item : all) {
-            if (CustomItemsScreen.matchesQuery(item.name(), query)) {
-                shown.add(item);
+        for (ItemSkins.Skin skin : all) {
+            if (CustomItemsScreen.matchesQuery(skin.name(), query)) {
+                shown.add(skin);
             }
         }
         scroll = Math.max(0, Math.min(scroll, Math.max(0, shown.size() - rows)));
@@ -105,14 +95,16 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
         }
 
         for (int row = 0; row < rows && scroll + row < shown.size(); row++) {
-            SkyblockItemEntry item = shown.get(scroll + row);
+            ItemSkins.Skin skin = shown.get(scroll + row);
             int ry = listY + row * ROW_H;
+            boolean selected = skin.name().equals(current);
             boolean over = mouseX >= panelX + 8 && mouseX < panelX + panelW - 8 && mouseY >= ry && mouseY < ry + ROW_H;
-            ScreenChrome.row(graphics, panelX + 8, ry, panelW - 16, ROW_H, over, false, row % 2 == 1);
-            MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(item.name(), panelW - 24)),
-                    panelX + 12, ry + 6, over ? MenuStyle.OR_HOVER : MenuStyle.TXT);
+            ScreenChrome.row(graphics, panelX + 8, ry, panelW - 16, ROW_H, over, selected, row % 2 == 1);
+            String text = (selected ? "> " : "  ") + skin.name();
+            MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(text, panelW - 24)),
+                    panelX + 12, ry + 6, over || selected ? MenuStyle.OR_HOVER : MenuStyle.TXT);
         }
-        if (shown.isEmpty()) {
+        if (shown.isEmpty() && !all.isEmpty()) {
             MenuStyle.text(graphics, "No skin matches that search.", panelX + 8, listY + 4, MenuStyle.DIM);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
@@ -125,7 +117,7 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
         if (x >= panelX + 8 && x < panelX + panelW - 8 && y >= listY && y < listY + rows * ROW_H) {
             int idx = scroll + (int) ((y - listY) / ROW_H);
             if (idx >= 0 && idx < shown.size()) {
-                SkyblockItemEntry picked = shown.get(idx);
+                ItemSkins.Skin picked = shown.get(idx);
                 onPick.accept(picked);
                 onClose();
                 return true;
@@ -133,7 +125,6 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
         }
         return super.mouseClicked(event, doubleClick);
     }
-
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         scroll = Math.max(0, Math.min(scroll - (int) Math.signum(scrollY), Math.max(0, shown.size() - rows)));

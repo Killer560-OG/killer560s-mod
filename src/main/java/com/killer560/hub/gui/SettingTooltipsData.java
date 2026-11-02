@@ -12,11 +12,16 @@ final class SettingTooltipsData {
 
     static void register(Map<String, String> d) {
         d.put("replay intro", "Shows the first-launch tour again: how to open the mod, picking a theme, Auto Update and the menus.");
+        // Every module's last row (ModuleKeybinds, killer560 2026-11-01).
+        d.put("toggle keybind", "A key that turns this feature on and off in game, as its switch does. None by default. Click, then press a key or mouse button; Escape clears it.");
         d.put("secret clicked", "Draws a short box on each secret you collect; the box turns red when the chest was locked.");
         d.put("locked chest sound", "Plays an anvil sound when the chest you clicked was locked.");
         d.put("mute chest sounds", "In dungeons, silences chest open and close sounds.");
         d.put("mute lever sounds", "In dungeons, silences lever click sounds.");
         d.put("breaker charges", "Shows your Dungeon Breaker's charges as a HUD line in dungeons. Move it in the HUD editor.");
+        d.put("blood rush splits", "Times the blood rush room by room on its own HUD: each room's time from the door into it to the door out, how long its key took, and a slow door click.");
+        d.put("rush style", "Compact is one row a room; Detailed lists each room's door down, last mob, pickup, opened and room total.");
+        d.put("rush to chat", "When the Blood door opens, sends you the rush's room times as one chat line (only you see it).");
         d.put("creation cooldown", "Shows how long until Hypixel lets you create another dungeon (30 s after you enter one).");
         d.put("show on all islands", "Also shows the Creation Cooldown outside dungeons, anywhere on Skyblock.");
         d.put("only in green room", "In a dungeon, shows the Creation Cooldown only while you are in the green Entrance room.");
@@ -345,9 +350,9 @@ final class SettingTooltipsData {
         d.put("random delay (max)", "Cheat build: max random extra delay added to every bot click, 0-1000 ms in 50 ms steps, 50 by default. It only adds time.");
         d.put("auto-renew charges", "Cheat build: how many Renew Experiments charges (0-3) the bot buys per day.");
         d.put("max titanic price", "Cheat build: the most the bot pays for a Titanic Experience Bottle, 0 (the default) disables. Drag in 50k steps or type an exact amount.");
-        d.put("chat/set", "Applies the percent typed in the box as the cat sound volume.");
-        d.put("hud elements/set", "Applies the value typed in the box next to it.");
-        d.put("set", "Applies the number typed in the box next to it.");
+        d.put("auto meow/set", "Applies the percent typed in the box as the cat sound volume.");
+        d.put("hud elements/set", "Saves the value typed in the box to its left. Enter in the box does the same.");
+        d.put("set", "Saves what is typed in the box to its left. Enter in the box does the same.");
         d.put("click protection", "Blocks clicks on the wrong Chronomatron or Ultrasequencer slot; hold Shift to click anyway.");
         d.put("notify max clicks reached", "Sends a chat message and sound when you hit the max Superpairs click bonus or run out of clicks.");
         d.put("profit tracker", "Tracks the rewards you claim from the Experimentation Table: coins, Enchanting XP and Bits spent.");
@@ -528,6 +533,7 @@ final class SettingTooltipsData {
         d.put("counter hud", "Shows how many teammates have leaped to you, like 1/4.");
         d.put("leap hud", "Shows the leap count on screen while you are on a countable section.");
         d.put("show at zero", "Shows the count at 0 before the first teammate has leaped to you.");
+        d.put("crosshair on server aim", "While the overlay shows, moves the crosshair to the spot the server's etherwarp ray meets. On p3sim the server casts from a higher eye than your camera, so the plain crosshair is off; on Hypixel the two agree.");
         d.put("etherwarp overlay/style", "How the landing box is drawn: Outline, Filled, or Filled+Outline.");
         d.put("safe color", "Color of the landing box when the etherwarp would work.");
         d.put("failed color", "Color of the landing box when the etherwarp would fail.");
@@ -1526,15 +1532,25 @@ final class SettingTooltipsData {
                 + " An ordinary doorway leaves your camera as it was.");
         d.put("keep chunks loaded", "Cheat build: holds onto unloaded chunks so pathing can still route through rooms you left.");
         d.put("interactive map/ticks between etherwarps", "Cheat build: client ticks from one etherwarp of a map path to the next; 1 warps every tick.");
-        d.put("zero ping etherwarp/manual etherwarps", "Predicts the etherwarps you use yourself (your own right click).");
-        d.put("zero ping etherwarp/left click etherwarp", "Cheat build: predicts Left Click Etherwarp's warps.");
-        d.put("zero ping etherwarp/auto routes", "Cheat build: predicts Auto Routes' etherwarp nodes, path hops and chains. The camera only; Zero Ping Chain in Auto Routes is separate.");
-        d.put("zero ping etherwarp/interactive map", "Cheat build: predicts the Interactive Map's warps: map presses, Go + Secret, Auto Blood Rush and Auto Routes' Go To.");
-        d.put("zero ping etherwarp/auto secret / autopilot", "Cheat build: predicts the warps of Auto Secret and Dungeon Autopilot trips.");
-        d.put("zero ping etherwarp/auto clear", "Cheat build: predicts Auto Clear's etherwarp trips.");
-        d.put("zero ping etherwarp/auto puzzles", "Cheat build: predicts Auto Puzzles' etherwarps (Ice Path's Etherwarp Reposition and the like).");
-        d.put("zero ping etherwarp/ap3", "Cheat build: predicts an AP3 use node's warp when it holds an etherwarp item.");
-        d.put("zero ping etherwarp/pathfinding hopper", "Cheat build: predicts the etherwarp hopper's warps (Auto Fairy Souls).");
+        // The Etherwarp tab (ZeroPingEtherwarpTab, killer560 2026-11-01: no explanation lines, every row explains itself on hover).
+        d.put("etherwarp/zero ping etherwarp", "Your view jumps to where an etherwarp lands the moment you use it, instead of a round trip later. Camera only: your character still moves when the server says so, and nothing extra is sent.");
+        d.put("etherwarp/dungeons only", "Zero Ping Etherwarp works only inside a dungeon (the sim counts). Off: everywhere.");
+        d.put("etherwarp/chain from prediction", "A warp used while the last one is still on its way is predicted from where that one lands, so chained warps line up.");
+        d.put("etherwarp/overlay from prediction", "While a warp is on its way, the Etherwarp Overlay highlights from where it will land.");
+        d.put("etherwarp/give up after", "How long a predicted landing waits for the server's teleport before your view goes back.");
+        d.put("etherwarp/multi warps", "Cheat build: turns on Warps Per Tick and Aimed Warps. Off: one warp per use, as normal.");
+        d.put("etherwarp/warps per tick", "Cheat build: each of your own etherwarps becomes this many in the same tick, at the same look, each from where the last one lands. 1 = off. Each costs mana.");
+        d.put("etherwarp/aimed warps", "Cheat build: clicks inside one tick at different looks each warp their own way, all in that tick. Each extra look spends one banked Blink Charge tick.");
+        d.put("etherwarp/left click etherwarp", "Cheat build: with an etherwarp item in hand, a left click etherwarps. Sneak goes down, the warp goes the next tick (at once if you already sneak), then sneak comes back up. No attack or swing.");
+        d.put("etherwarp/manual etherwarps", "Predicts the etherwarps you use yourself (your own right click).");
+        d.put("etherwarp/left click etherwarps", "Cheat build: predicts Left Click Etherwarp's warps.");
+        d.put("etherwarp/auto routes", "Cheat build: predicts Auto Routes' etherwarp nodes, path hops and chains. The camera only; Zero Ping Chain in Auto Routes is separate.");
+        d.put("etherwarp/interactive map", "Cheat build: predicts the Interactive Map's warps: map presses, Go + Secret, Auto Blood Rush and Auto Routes' Go To.");
+        d.put("etherwarp/auto secret / autopilot", "Cheat build: predicts the warps of Auto Secret and Dungeon Autopilot trips.");
+        d.put("etherwarp/auto clear", "Cheat build: predicts Auto Clear's etherwarp trips.");
+        d.put("etherwarp/auto puzzles", "Cheat build: predicts Auto Puzzles' etherwarps (Ice Path's Etherwarp Reposition and the like).");
+        d.put("etherwarp/ap3", "Cheat build: predicts an AP3 use node's warp when it holds an etherwarp item.");
+        d.put("etherwarp/pathfinding hopper", "Cheat build: predicts the etherwarp hopper's warps (Auto Fairy Souls).");
         d.put("path timeout", "Cheat build: how long the pathfinder may search before giving up, 200-1000 ms.");
         d.put("retarget mid-path", "Cheat build: pressing another room or door mid-path re-plans to the new goal.");
         d.put("double-press secrets", "Cheat build: pressing the Start Key twice quickly paths to the room's Auto Routes start node.");
@@ -1697,6 +1713,7 @@ final class SettingTooltipsData {
         d.put("archer passive", "Hides the spinning bone meal items the archer passive drops.");
         d.put("sheep", "Hides sheep inside dungeons.");
         d.put("wither cloak creepers", "Hides the invisible charged creepers Wither Cloak spawns.");
+        d.put("witherborn wither", "Hides the small wither a full F7 armor set (Witherborn) spawns, and its smoke and swirl particles.");
         d.put("wither shield hearts", "Hides the heart particles from Wither Shield healing.");
         d.put("dying dragons", "Hides M7 dragons once they start dying so P5 stays readable.");
         d.put("wither king model", "Hides the Wither King's model and witch particles in the M7 arena.");
@@ -1979,7 +1996,8 @@ final class SettingTooltipsData {
         d.put("profile viewer", "Run /pv <name> to open any player's Skyblock profile in game.");
         d.put("rng meter overlay", "Ranks RNG Meter rewards by coins per meter point.");
         d.put("how lucky are you", "Counts every drop you get against the drops the odds say you should have got. Open it with /luck.");
-        d.put("rng tracker", "Counts slayer kills, drop lines and dye pickups for How Lucky Are You. Dungeon chests come from your Croesus claim log.");
+        d.put("rng tracker", "Counts slayer and mob kills, Kuudra chests, Nucleus bundles, Superpairs claims, drop lines and dye pickups for How Lucky Are You. Dungeon chests come from your Croesus claim log.");
+        d.put("how lucky are you/mob kills", "Which mob deaths count as your kills: mobs you hit, any named mob within 8 blocks (ability and bow kills), or none. Looting on the weapon you hold counts.");
         d.put("open how lucky are you", "Opens the How Lucky Are You screen (also /luck and /profit luck).");
         d.put("drop chat line", "After a tracked drop, prints how many you got against how many the odds expected.");
         d.put("count dye pickups", "Counts a dye that lands in your inventory with no menu open. An item you dropped and picked back up never counts.");
@@ -2622,6 +2640,7 @@ final class SettingTooltipsData {
         d.put("video browser/placement", "Where the window sits: anchored to a screen edge, at a custom spot, or bouncing like a DVD logo.");
         d.put("video browser/edit window", "Gives the window a title bar so you can drag it to move and resize it, then turn off to save.");
         d.put("video browser/zoom", "Sets the page's zoom level when the window launches.");
+        d.put("video browser/auto scroll", "Goes to the next video when the one playing ends, or loops back to its start as YouTube Shorts do, the same as your Next key. Off by default.");
         d.put("video browser/comments scroll guard", "YouTube Shorts only: stops Next/Previous from scrolling the feed while comments are open.");
         d.put("video browser/sign in to youtube", "Opens a normal browser window so you can sign in to your account by hand.");
         d.put("toggle global cosmetics", "Shows other supporters' custom names and scale; turn off to see everyone's real name.");
@@ -2650,6 +2669,7 @@ final class SettingTooltipsData {
         d.put("name changer/letter colors", "Opens a row with one button per letter of your display name, to color each letter.");
         d.put("name changer/clear letter colors", "Removes every per-letter color so the name's normal color or fade shows again.");
         d.put("bold name", "Draws your display name in bold. With Share if Supporter on, other mod users see it bold too.");
+        d.put("name changer/text shadow", "Draws your display name with a drop shadow everywhere, name tags included, in a dark shade of its own color. Only you see it.");
         d.put("fade color", "Turns your display name into a two-color gradient instead of one flat color.");
         d.put("name animation", "Animates your faded or letter-colored name: Wave flows the colors along it to the right, Pulse dims and brightens it. Other players with the mod see it too when Share if Supporter is on.");
         d.put("animation speed", "How fast your name's Wave or Pulse runs, from 0.25x to 3x.");
@@ -2753,9 +2773,18 @@ final class SettingTooltipsData {
         d.put("custom items", "Recolors and reskins items on your screen only; nothing is sent to the server.");
         d.put("custom items/open custom items", "Opens the Custom Items menu (/customitems): pick an item, then set its color, skin or look.");
         d.put("custom items/reset all", "Removes every saved look; press twice.");
-        d.put("hypixel skin...", "Opens the list of Hypixel item skins from the item catalog; pick one to use its head texture as this item's look.");
-        d.put("show with look", "Previews the item with its saved skin, color, trim and look drawn on it.");
-        d.put("show clear item", "Previews the item as it really is, with no custom skin, color, trim or look drawn on it.");
+        d.put("customize custom item", "Search every Minecraft and Hypixel item and apply one's look to the selected item. Clear there takes it off again.");
+        d.put("customize custom color", "The selected item's color, Hypixel skin, trim color and trim pattern, each with its own clear button.");
+        d.put("clear changes", "Removes every change from the selected item.");
+        d.put("copy look", "Click this, then another item in the grid: that item takes every change the selected item has.");
+        d.put("skin", "Hypixel item skins that fit this item, found by its id, so starred, recombed and fragged items find theirs. N/A when the item has none.");
+        d.put("clear skin", "Takes the item's skin off.");
+        d.put("reset color", "Puts the item's own color back.");
+        d.put("trim color", "The trim's material color, from the trims the game has. Off leaves the real trim alone.");
+        d.put("trim pattern", "The trim's pattern; the preview's armor stand wears it so you can see it.");
+        d.put("clear trim color", "Takes the trim color off.");
+        d.put("clear trim pattern", "Takes the trim pattern off.");
+        d.put("hypixel dyes...", "Opens every Hypixel dye; picking one sets this color. Clear Dye puts the item's own color back.");
         d.put("open layouts folder", "Opens the folder holding your saved inventory layouts.");
         d.put("auto sell", "Sells every stack on your sell list by itself while a sell screen is open; an item added there is sold without reopening it.");
         // Auto Anvil (killer560, 2026-10-07). Scoped under its own tab name: Min/Max Delay and Close When Done are
@@ -2814,9 +2843,9 @@ final class SettingTooltipsData {
         d.put("streamer mode/option", "What Streamer Mode does while it is on: Disable cheats refuses every automated action, Hide cheat UI only hides them.");
         d.put("auto sprint", "Sprints for you whenever you walk forward (not while sneaking). The mod's own movement - AP3, Auto Routes, the pathfinder - always keeps its own sprint choice, and while one of those is moving you no other mod's auto sprint can start a sprint it did not ask for.");
         d.put("zoom", "Hold the zoom key to narrow the view. While it is held, the mouse wheel changes the zoom.");
-        d.put("see other mod users", "Shows a colored diamond before the name of every player who shows as a mod user: green for legit, red for cheat. Off by default.");
+        d.put("see other mod users", "Shows a tag before the name of every player who shows as a mod user (a bold K: orange for legit, red for cheat). Off by default.");
         d.put("show me as a mod user", "Lets other mod users see that you run the mod. Off by default; nobody sees your variant until you turn this on.");
-        d.put("show as", "Which variant you show to others: legit (green) or cheat (red). Only the cheat build can show cheat.");
+        d.put("show as", "Which variant you show to others: legit (an orange K) or cheat (a red K). Only the cheat build can show cheat.");
         d.put("cape", "Wear one of the built-in capes (each carries the mod logo in its colors), or pick Make Your Own to choose a pattern and two colors. Only your own player shows it; other players see their own cape.");
         d.put("bazaar advisor", "Legit, read-only: when a Bazaar menu opens, prints what to buy, how much, and the expected profit in chat. It never clicks anything.");
         d.put("bazaar pick", "Ranks by profit per unit times units sold a week: buy at the cheapest sell offer, sell into the best buy order.");
@@ -2892,7 +2921,6 @@ final class SettingTooltipsData {
         d.put("auto puzzle pathing", "Cheat build: lets Auto Blaze etherwarp straight to a spot it can see by the chest before falling back to the Interactive Map's planned path.");
         d.put("walk out when done", "Cheat build: after the last move, walks back out of the Tic Tac Toe room so you can etherwarp.");
         d.put("breaker aura/edit mode", "ON: Breaker Aura breaks nothing, so you can change its picked blocks without it swinging (cheat build only).");
-        d.put("breaker aura/multi break", "ON: one break cycle may break several picked blocks in reach. OFF: one block per cycle (cheat build only).");
         d.put("breaker aura/pick block key", "Look at a block and press this key to pick it, or unpick it if it is already picked. Default ; (semicolon).");
         d.put("breaker aura/clear picked", "Unpicks every block in the active Breaker Aura config (the number is how many are picked).");
         d.put("fill box", "Fills each blaze's highlight box solid instead of drawing only its outline.");
@@ -2912,7 +2940,24 @@ final class SettingTooltipsData {
         d.put("open bazaar", "Opens the Bazaar browser now. Without an active Booster Cookie it says why it cannot.");
         d.put("reserve", "The share of your purse the autopilot keeps back, from 0 to 100%. 10% by default.");
         d.put("configure /bzflip", "Opens the same setup screen as /bzflip: the advisor's four answers.");
-        d.put("max new orders per session", "Stops the autopilot after this many new orders in one session. Off means no limit; the number beneath sets the cap.");
+        d.put("max new orders per session", "Caps the new orders and Insta Buys the autopilot places. Off means no limit; the number beneath sets the cap. Stop At Max Orders says what happens when it is reached.");
+        d.put("bazaar flipper/stop at max orders", "On: the autopilot ends once Max New Orders is reached and its orders are done, and stops when Hypixel says every order slot is taken. Off: it starts a new round of orders instead, and waits for a free slot.");
+        d.put("bazaar flipper/min profit per cycle", "The least profit one buy-and-sell cycle must be expected to make before the autopilot opens it, checked again against the live price. Off takes any flip that pays after fees.");
+        d.put("ah flipper", "Watches new Auction House BINs (Hypixel's public API, no key) and finds ones listed under what the same item sells for. Background puts each in chat with a clickable [Open] that opens the auction for you to buy.");
+        d.put("ah flipper/min profit %", "The least profit a flip must make, as a share of its price, after the listing fee and the 1% collection tax.");
+        d.put("ah flipper/undercut", "How far under the cheapest other BIN the flip is priced to sell. The profit is worked out at that price.");
+        d.put("ah flipper/min profit", "The least profit in coins a flip must make, after fees.");
+        d.put("ah flipper/min sell price", "Flips whose sale price would be under this are ignored. Off: any price.");
+        d.put("ah flipper/max buy price", "The most a flip may cost. Your purse: anything your purse covers.");
+        d.put("ah flipper/min listings", "How many other BINs of the same item must exist before their cheapest is trusted as the sale price. Higher is safer.");
+        d.put("ah flipper/run mode", "Background: flips go in chat and you buy them yourself. Main: the macro opens each flip and buys it (cheat build), only while no menu is open and outside dungeons. Each bought flip is handed to Auto Relist, and its relist price to the AH Price Copier.");
+        d.put("ah flipper/auto relist", "Cheat build, untested on Hypixel: opens /ah by itself (no menu open, outside dungeons, the macro idle), claims your won bids and your sold and expired auctions, then puts the flips it bought and the expired items back up as BIN auctions at the AH Price Copier's price (the flip's sale price or the lowest BIN, less the copier's Undercut). Runs after a buy or a sale, at most once a minute. Escape or the Emergency Cancel Key stops it; three failed runs in a row halt it.");
+        d.put("ah flipper/relist now", "Runs Auto Relist once as soon as no menu is open, and clears a halt.");
+        d.put("ah flipper/max buys per session", "The macro stops buying after this many purchases. Switch Run Mode off Main and back to buy again.");
+        d.put("ah price copier", "When you put an item in Hypixel's Create BIN Auction menu, copies its price to your clipboard: your last price for the same item if you just listed one, otherwise its lowest BIN from the AH scan. Never clicks or types.");
+        d.put("ah price copier/undercut", "Coins under the price that are taken off before it is copied. 1 copies the lowest BIN minus one coin.");
+        d.put("ah price copier/use my last price", "When you listed the same item in the last 6 hours, copies the price you listed it at instead of the lowest BIN.");
+        d.put("bazaar flipper/npc sales today", "Coins you have sold to NPCs today, counted from every \"You sold\" line on this account (all instances). Hypixel stops paying at 500,000,000 a day and resets at 00:00 UTC.");
         d.put("auto sell/min wait between sells", "The shortest random wait, in ticks, between two sell clicks (1 to 10).");
         d.put("auto sell/max wait between sells", "The longest random wait, in ticks, between two sell clicks (1 to 10). Never below the minimum.");
         d.put("auto sell/toggle item key", "Press it over an item in any container to add that item to the sell list, or take it off. Escape clears it.");

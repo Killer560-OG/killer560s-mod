@@ -559,6 +559,36 @@ public final class AuctionHouseApi {
     // ---------------------------------------------------------------- testkit
 
     /**
+     * Page 0 of {@code /v2/skyblock/auctions} decoded (the newest listings come first; the AH Flipper polls it between full
+     * scans), or null when the fetch failed. Blocking: call it off the render thread. Listings the last full scan already
+     * decoded reuse that decode.
+     */
+    public static PageZero fetchPageZero() {
+        JsonObject page = getJson(pageUrl(0));
+        if (page == null || !page.has("success") || !page.get("success").getAsBoolean()) {
+            return null;
+        }
+        return decodePage(page);
+    }
+
+    /** {@link #fetchPageZero}'s answer: Hypixel's snapshot time and the listings on the page. */
+    public record PageZero(long lastUpdated, List<AuctionListing> listings) {
+    }
+
+    /** One API page body decoded the way a scan decodes it (the testkit feeds pages through here). */
+    public static PageZero decodePage(JsonObject page) {
+        List<AuctionListing> out = new ArrayList<>();
+        collectPage(page, out, byUuid);
+        long updated = page.has("lastUpdated") ? page.get("lastUpdated").getAsLong() : 0L;
+        return new PageZero(updated, out);
+    }
+
+    /** Whether the last full scan holds this auction. */
+    public static boolean inLastScan(UUID uuid) {
+        return uuid != null && byUuid.containsKey(uuid);
+    }
+
+    /**
      * Installs listings parsed from API page bodies exactly as a scan does (same decode, same market index), without
      * the network: the testkit feeds trimmed real {@code /v2/skyblock/auctions} pages through here. Returns the count.
      */

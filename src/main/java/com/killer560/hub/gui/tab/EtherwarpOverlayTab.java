@@ -51,6 +51,10 @@ public class EtherwarpOverlayTab extends BaseTab {
                 null, contentX, y, contentWidth, 18));
         y += 22;
 
+        widgets.add(onOffButton("Crosshair On Server Aim", cfg::isServerCrosshair, cfg::setServerCrosshair, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 22;
+
         // Style + colors (2026-09-16, killer560's testing feedback: a color option and a filled option).
         widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
                     cfg.setStyle(dir > 0 ? cfg.getStyle().next() : cfg.getStyle().previous());

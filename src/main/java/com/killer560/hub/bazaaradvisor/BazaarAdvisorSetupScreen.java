@@ -20,11 +20,10 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
     /** Widest the panel gets; on a narrow screen it shrinks to the screen less a 4 unit margin, like the other compact
      *  screens (Auto Sell List, Custom Items), instead of running off both edges. */
     private static final int PANEL_MAX_W = 320;
-    /** Header, question, the two answers, the saved answers' line and Use last, each with room around it: the answers
-     *  and Use last were 4 units apart in the 110-unit panel. */
-    private static final int PANEL_H = 120;
+    /** Header, question, the two answers and Use last, each with room around it. The saved answers' "Last: ..." line under
+     *  the answers was removed (killer560, 2026-11-01: "there is a line that goes last: npc - ... remove that"). */
+    private static final int PANEL_H = 100;
     private static final int ANSWER_Y = 42;
-    private static final int LAST_LINE_Y = 72;
 
     private int step;
     private int panelX;
@@ -69,7 +68,9 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
             }
         }
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Close"), b -> onClose())
-                .bounds(panelX + panelW - 52, panelY + 3, 44, 16).build());
+                // Inside the 16-high header bar (y+2..y+18), as Choice List's Back button: at 16 high from y+3 it stuck out
+                // under the bar (killer560, 2026-11-01: "the close button is a bit bigger ... than the bar it is on").
+                .bounds(panelX + panelW - 7 - 44, panelY + 3, 44, 14).build());
         // Use last (killer560, 2026-10-19: "on every turn on have it make me select ... or have a button for use last"):
         // keeps the saved answers and carries on without asking again.
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Use last"), b -> useLast())
@@ -121,9 +122,6 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
                 "How do you sell on the Bazaar?"
         };
         ScreenChrome.text(graphics, MenuStyle.ellipsize(questions[step], panelW - 24), panelX + 12, panelY + 27, MenuStyle.TXT);
-        // What Use last keeps: the button alone did not say.
-        ScreenChrome.text(graphics, MenuStyle.ellipsize("Last: " + BazaarAdvisorConfig.getInstance().summary(), panelW - 24),
-                panelX + 12, panelY + LAST_LINE_Y, MenuStyle.DIM);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 

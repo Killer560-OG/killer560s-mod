@@ -233,6 +233,51 @@ Two sim options of the sim's own data (`roomsim/SimLiveMobs`), off unless asked 
   (0.06 an axis) and fly 1.02 a tick to ~29.6 blocks; what Auto Clear does about that, and the Tomioka stand block with
   no etherwarp out, are in [LESSONS-AUTOMATION.md](LESSONS-AUTOMATION.md) ("Auto Clear kill speed").
 
+## A floor with mobs: keys, wither doors and Fels (2026-11-01, doc-adm-sim-1101)
+
+`roomsim/SimMobFloor` (the Map Designer's Mobs button, `SimMenuPrefs.mobs`; `/simmobs on|off`). Off, nothing changes.
+- **The plan** is made in `SimRun.autoStart` (floor published, before the countdown), from `DungeonLayout.capture()`: the
+  room path Entrance to Blood (BFS over door cells). Walking it, each mob room (NORMAL/RARE/CHAMPION) pushes itself as a key
+  source; each later NORMAL door pops the newest source and becomes a coal wither door (`SimDoors.makeWitherDoor`); the
+  Blood door pops one as the Blood Key room; the door INTO Fairy is coal until GO + 30 ticks (`SimDoors.openDoorAtCell`), so
+  the room before Fairy's key opens the door out of Fairy. A door with no source left stays open, so a floor is never
+  unfinishable. Log: `[Sim] floor with mobs: path ...; N wither door(s); key rooms ...; fairy door ...; blood door ...`.
+- **Key rooms** are `SimKeyRoom` (now a map of rooms, each Wither or Blood), armed at GO: last starred death drops the key
+  (`SimKeys.drop`, a named stand, picked up by walking near), a first entry by teleport insta clears the room and loses the
+  key. A key room that got no mob placed drops its key at once (`dropWithoutMobs`, a WARN).
+  Once he has stood in the path room before a key room with the door between open, the key room is DISCOVERED and a
+  teleport into it is no insta clear (the evidence: 13 of 15 undiscovered, 1 of 75 discovered). Without that, Auto Clear
+  lost Museum's key to a trip that landed on Museum's roof right after opening its door (2026-11-01). The key drops where
+  the room's LAST starred mob died (`DEATH_ORDER`), not at whichever mob the map listed last (a 2x2's landed 55 blocks off).
+- **Sim mobs burned in daylight** (2026-11-01): key rooms "cleared" 3 s after GO with nobody near and their keys never
+  dropped (Mossy, Jumping Skulls). The debug death log said `onFire, by nothing`: starred mobs on a sky-lit edge of the floor
+  burned, `isInvulnerableTo`'s `environmental()` notwithstanding. `SimMobs` now refuses all environmental damage to its
+  mobs in Fabric's `ALLOW_DAMAGE`. Also since then (a guess at first, kept as a safety): a death is AFTER_DEATH or the
+  entity there and not alive, and a missing mob counts dead only after 200 checks (10 s) in a ticking section.
+- **A sim mob is a subclass only while its chunk stays loaded.** A chunk that unloads saves `SimZombie`/`SimEnderman` as a
+  plain zombie/enderman and loads them back as vanilla ones (AI, no Fel state, the sleeper visible), and the sim's
+  `FelMarker` keeps a stale skull reference that never wakes (Knight's Fel stayed asleep 4 blocks from him, 26.2). A floor
+  with mobs force-loads every chunk of its rooms (`SimMobFloor.forceChunks`, released at the next floor).
+- Mob spots (`SimLiveMobs`) are on the doorways' floor, at most one below and four above it: a key that dropped in a pit
+  3 below the floor could not be reached by any etherwarp, and a zombie 8 up on a ledge was skipped as out of reach.
+- **The Blood door** wants `SimKeys.hasBloodKey()` on such a floor; opened, the server says "The BLOOD DOOR has been
+  opened!". The floor also says "Starting in 1 second." at the countdown's 1 and Mort's line at GO (nothing else changes).
+- **Fels** (`SimMobs.spawnFel`): an invisible MARKER armor stand (no hitbox) wearing a wither skeleton skull, stood
+  `SKULL_DROP` (1.4375) into the floor so the skull lies on it; a starred one also gets, from the start, an invisible,
+  invulnerable, NoAI enderman under its star tag (`SimEnderman.dormant`), as Hypixel's dormant Fel is an enderman under its
+  tag (adm/Odin notes). Within `FEL_WAKE_RADIUS` (9) of the skull the skull goes and the enderman shows (or an unstarred one
+  is placed), named Dinnerbone (upside down by vanilla's name rule), tag hidden. Log `[Sim] Fel woke at ...`.
+- **`setInvisible(true)` on a mob lasts one tick**: `LivingEntity.updateInvisibilityStatus` (javap 26.2, 26.3) sets it to
+  `hasEffect(INVISIBILITY)` whenever effects are re-read, so the sleeping Fel showed and Auto Clear shot a mob nothing could
+  hurt (12 bats, Banners, 26.2). `SimEnderman` overrides it while dormant; testkit 1101-sim-mobfloor checks the client sees it.
+- **Vanilla's enderman dodges every projectile** (javap 26.3 `Enderman.hurtServer`: an `IS_PROJECTILE` source calls
+  `repeatedlyTryToTeleport` and returns false) and teleports at random: `SimEnderman` overrides `teleport()` to false and
+  turns a player's projectile into `playerAttack`, or a Terminator could never kill a Fel.
+- Auto Clear's side: a sleeping Fel (an invisible enderman) is never shot; with only sleepers left it etherwarps inside
+  the wake range and waits (`AutoClearFeature.approachFel`, LESSONS-AUTOCLEAR.md).
+- Testkit `1101-sim-mobfloor` (floor, keyless-door control, Auto Clear over the floor, Blood door with and without the key,
+  Blood Rush Splits rows).
+
 ## World rules
 
 - **`freezeWorld` runs for the sim world only**: it sat above the pending-code check in `SimWorld.onWorldLoaded` and so

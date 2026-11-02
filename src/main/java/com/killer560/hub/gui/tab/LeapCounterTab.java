@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
@@ -101,7 +102,7 @@ public class LeapCounterTab extends BaseTab {
         y[0] += 22;
         w.add(new StringWidget(contentX, y[0] + 4, contentWidth, 12, Component.literal("§7Alert Text (& color codes)"), mc.font));
         y[0] += 16;
-        EditBox text = new EditBox(mc.font, contentX, y[0], contentWidth, 18, Component.literal("Alert Text"));
+        CommitEditBox text = new CommitEditBox(mc.font, contentX, y[0], contentWidth, 18, Component.literal("Alert Text"));
         text.setMaxLength(100);
         text.setValue(cfg.getAlertText());
         text.setResponder(value -> {
@@ -109,6 +110,7 @@ public class LeapCounterTab extends BaseTab {
             cfg.save();
         });
         w.add(text);
+        CommitEditBox.withSet(w, text);
         y[0] += 24;
 
         // "HUD" alone is the Score Calculator's tooltip key.

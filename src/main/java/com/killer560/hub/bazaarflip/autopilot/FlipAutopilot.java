@@ -67,23 +67,36 @@ public final class FlipAutopilot {
      * @param instaSellSlack       Insta Sell is preferred over a sell offer when it nets at least (1 - this) of the offer
      * @param maxHoldDays          stock or an order expected to take longer than this to sell or fill is sized down or sold
      * @param collectMinFraction   a part-filled order is collected once this share of it is waiting (a full one always)
+     * @param minCycleProfit       coins one new position (an Insta Buy, or a buy order's expected fills) must be expected to
+     *                             make, or it is not opened (killer560, 2026-11-01: "minimum profit per cycle"; 0 = any)
      */
     public record Limits(double reserve, int maxOpenOrders, int maxOrdersPerSession, int maxRelistsPerOrder,
                          long minRelistAgeMs, long maxOrderUnits, double maxSpendFraction, double instaSellSlack,
-                         double maxHoldDays, double collectMinFraction) {
+                         double maxHoldDays, double collectMinFraction, double minCycleProfit) {
 
         public static Limits defaults() {
-            return new Limits(0, 14, 50, 5, 60_000L, 71_680L, 0.34, 0.005, 1.0, 0.25);
+            return new Limits(0, 14, 50, 5, 60_000L, 71_680L, 0.34, 0.005, 1.0, 0.25, 0);
         }
 
         public Limits withReserve(double coins) {
             return new Limits(Math.max(0, coins), maxOpenOrders, maxOrdersPerSession, maxRelistsPerOrder, minRelistAgeMs,
-                    maxOrderUnits, maxSpendFraction, instaSellSlack, maxHoldDays, collectMinFraction);
+                    maxOrderUnits, maxSpendFraction, instaSellSlack, maxHoldDays, collectMinFraction, minCycleProfit);
         }
 
         public Limits withMaxOrdersPerSession(int n) {
             return new Limits(reserve, maxOpenOrders, Math.max(0, n), maxRelistsPerOrder, minRelistAgeMs, maxOrderUnits,
-                    maxSpendFraction, instaSellSlack, maxHoldDays, collectMinFraction);
+                    maxSpendFraction, instaSellSlack, maxHoldDays, collectMinFraction, minCycleProfit);
+        }
+
+        /** Hypixel's real order-slot count (its "You reached your maximum of N Bazaar orders!" line names it). */
+        public Limits withMaxOpenOrders(int n) {
+            return new Limits(reserve, Math.max(1, n), maxOrdersPerSession, maxRelistsPerOrder, minRelistAgeMs, maxOrderUnits,
+                    maxSpendFraction, instaSellSlack, maxHoldDays, collectMinFraction, minCycleProfit);
+        }
+
+        public Limits withMinCycleProfit(double coins) {
+            return new Limits(reserve, maxOpenOrders, maxOrdersPerSession, maxRelistsPerOrder, minRelistAgeMs, maxOrderUnits,
+                    maxSpendFraction, instaSellSlack, maxHoldDays, collectMinFraction, Math.max(0, coins));
         }
     }
 
@@ -103,6 +116,26 @@ public final class FlipAutopilot {
             units += l.amount();
         }
         return units;
+    }
+
+    /**
+     * The most units, up to {@code max}, whose walked cost plus Hypixel's 4% quote fits {@code coins}: the Instant Buy page
+     * wants the whole quote in the purse, and the price climbs as the book is eaten, so the top of the book alone (what the
+     * pick is priced at) under-counts a big purchase (killer560, 2026-11-01: "it is more expensive when it actually buys
+     * it so it cannot buy the right amount"). Binary search: the cost only grows with the count.
+     */
+    public static long affordableUnits(BazaarProduct p, long max, double coins) {
+        long lo = 0;
+        long hi = Math.max(0, max);
+        while (lo < hi) {
+            long mid = lo + (hi - lo + 1) / 2;
+            if (walkCost(p, mid) * (1 + INSTANT_BUY_QUOTE_MARGIN) <= coins) {
+                lo = mid;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        return lo;
     }
 
     /** Coins an Insta Buy of {@code n} units costs, walking the sell offers cheapest first (the last level seen
@@ -458,11 +491,41 @@ public final class FlipAutopilot {
             }
         };
         double budget = ans.instaBuy() ? spendable / (1 + INSTANT_BUY_QUOTE_MARGIN) : spendable * lim.maxSpendFraction();
+        // Products whose sized position falls under the minimum profit per cycle: the next best is tried instead.
+        Set<String> tooSmall = new HashSet<>();
+        for (int attempt = 0; attempt < MAX_MIN_PROFIT_ATTEMPTS; attempt++) {
+            FlipAction a = openOne(s, byId, lim, ans, busy, ourBuys, ourUnfilled, ourTopBid, look, spendable, budget, tooSmall);
+            if (a != TOO_SMALL) {
+                return a;
+            }
+        }
+        return null;
+    }
+
+    /** How many products {@link #open} tries before it gives up on the minimum profit per cycle for this decision. */
+    static final int MAX_MIN_PROFIT_ATTEMPTS = 64;
+    /** {@link #openOne}'s answer when its pick, sized, makes less than the minimum profit per cycle. */
+    private static final FlipAction TOO_SMALL = new FlipAction.Wait("under the minimum profit per cycle");
+
+    /** Coins a position of {@code units} is expected to make: walked for an Insta Buy, by the expected fills for a buy
+     *  order (what a day can fill and sell). */
+    public static double cycleProfit(BazaarProduct p, FlipPricing.Pick pick, long units, double price, boolean instaBuy) {
+        if (instaBuy) {
+            return units * pick.sell() - walkCost(p, units);
+        }
+        long fills = Math.min(units, Math.max(0, pick.expectedSold()));
+        return fills * (pick.sell() - price);
+    }
+
+    private static FlipAction openOne(Situation s, Map<String, BazaarProduct> byId, Limits lim, FlipPricing.Answers ans,
+                                      Set<String> busy, Map<String, Integer> ourBuys, Map<String, Long> ourUnfilled,
+                                      Map<String, Double> ourTopBid, FlipPricing.Lookups look, double spendable,
+                                      double budget, Set<String> tooSmall) {
         // Buy orders: a product is only worth an order if a meaningful part of it can fill in the hold window, and one the
         // session already bids on gets another order only while its orders are fewer than offersFor and leave part of
         // the day's fills uncovered.
         FlipPricing.Pick pick = FlipPricing.best(s.products(), ans, look, budget, id -> {
-            if (busy.contains(id)) {
+            if (busy.contains(id) || tooSmall.contains(id)) {
                 return true;
             }
             BazaarProduct bp = byId.get(id);
@@ -489,13 +552,16 @@ public final class FlipAutopilot {
             units = Math.min(units, Math.max(1, pick.expectedSold())); // never buy more than sells in the horizon
         }
         if (ans.instaBuy()) {
-            // Only the units the offers hold below the sale price, and only what the purse covers at the walked price.
+            // Only the units the offers hold below the sale price, and only what the purse above the reserve covers at the
+            // walked price plus Hypixel's 4% quote (the most that fits, not the first halving that does).
             units = Math.min(units, profitableDepth(p, pick.sell()));
-            while (units >= 1 && walkCost(p, units) * (1 + INSTANT_BUY_QUOTE_MARGIN) > spendable) {
-                units = units / 2;
-            }
+            units = affordableUnits(p, units, spendable);
             if (units < 1) {
                 return null;
+            }
+            if (lim.minCycleProfit() > 0 && cycleProfit(p, pick, units, pick.buy(), true) < lim.minCycleProfit()) {
+                tooSmall.add(pick.productId());
+                return TOO_SMALL;
             }
             return new FlipAction.InstaBuy(pick.productId(), pick.name(), units, pick.buy(), String.format(Locale.US,
                     "best flip: +%.1f each (%.2f%%)", pick.profitEach(), pick.profitPercent()));
@@ -503,8 +569,9 @@ public final class FlipAutopilot {
         double fills = expectedBuyFillsPerDay(p);
         long fillable = (long) Math.floor(fills * lim.maxHoldDays());
         int have = ourBuys.getOrDefault(pick.productId(), 0);
-        // What the session's orders on it do not already cover of the day's fills.
+        // What the session's orders on it do not already cover of the day's fills, and one order's limit.
         units = Math.min(units, fillable - ourUnfilled.getOrDefault(pick.productId(), 0L));
+        units = Math.min(units, look.orderLimit(pick.productId()));
         double price = round1(pick.buy());
         Double ourTop = ourTopBid.get(pick.productId());
         if (ourTop != null && ourTop >= p.topBuyOrderPrice() - PRICE_EPS) {
@@ -519,6 +586,10 @@ public final class FlipAutopilot {
         }
         if (units < 1) {
             return null;
+        }
+        if (lim.minCycleProfit() > 0 && cycleProfit(p, pick, units, price, false) < lim.minCycleProfit()) {
+            tooSmall.add(pick.productId());
+            return TOO_SMALL;
         }
         int offers = offersFor(fills, lim.maxHoldDays(), unitsPerOrder(p, budget, lim));
         return new FlipAction.PlaceBuyOrder(pick.productId(), pick.name(), price, units,

@@ -390,13 +390,109 @@ public final class SecretWaypointsFeature {
         // A new room: rebuild now, not up to a second later, so the room he has just left stops drawing at once
         // (killer560, 2026-11-01: "if i leave trap then it still keeps their waypoints loaded").
         int roomNow = inDungeon ? LiveMapFeature.currentRoomIndex() : -1;
-        if (roomNow != lastRoomIdx) {
+        boolean roomChanged = roomNow != lastRoomIdx;
+        int roomBefore = lastRoomIdx;
+        if (roomChanged) {
             lastRoomIdx = roomNow;
             invalidateCache();
         }
         refreshCacheIfStale(inDungeon);
         dropOpenedCrypts(Minecraft.getInstance());
         watchPickups(Minecraft.getInstance());
+        if (inDungeon && SecretWaypointsConfig.getInstance().isEnabled()) {
+            if (roomChanged) {
+                logRoomChange(roomBefore, roomNow);
+            }
+            watchStrayWaypoints(roomNow);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------ owner-evidence logging
+
+    /** Room changes logged, and when the last one was (at most one line a second: a doorway walked back and forth). */
+    private static long lastRoomLogMs = 0L;
+    static final long ROOM_LOG_GAP_MS = 1000L;
+    /** The room he last left, and until when its waypoints are watched for still being drawn. */
+    private static int leftRoomIdx = -1;
+    private static long strayWatchUntilMs = 0L;
+    private static boolean strayLogged = false;
+    static final long STRAY_WATCH_MS = 5000L;
+
+    private static String roomNameAt(int idx) {
+        if (idx < 0) {
+            return "none";
+        }
+        try {
+            String name = com.killer560.hub.roomsim.SimState.isActive()
+                    ? com.killer560.hub.roomsim.SimRoomIndex.nameAtCell(idx)
+                    : java.util.Optional.ofNullable(LiveMapFeature.roomEntryAt(idx)).map(e -> e.name).orElse(null);
+            return name == null ? "unidentified" : name;
+        } catch (RuntimeException e) {
+            return "unknown";
+        }
+    }
+
+    /** Waypoints in the snapshot whose box center lies outside room {@code idx}'s world bounds (none when it has none). */
+    private static List<Waypoint> outsideRoom(int idx) {
+        List<Waypoint> out = new ArrayList<>();
+        int[] b = idx < 0 ? null : LiveMapFeature.roomWorldBounds(idx);
+        for (Waypoint w : CACHED) {
+            if (b == null || w.centerX() < b[0] - 1 || w.centerX() > b[2] + 2 || w.centerZ() < b[1] - 1
+                    || w.centerZ() > b[3] + 2) {
+                out.add(w);
+            }
+        }
+        return out;
+    }
+
+    private static String describe(List<Waypoint> list) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < Math.min(8, list.size()); i++) {
+            Waypoint w = list.get(i);
+            sb.append(i == 0 ? "" : ", ").append(w.kind()).append('@').append(w.pos().toShortString());
+        }
+        if (list.size() > 8) {
+            sb.append(", +").append(list.size() - 8).append(" more");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Owner evidence for "if i leave trap then it still keeps their waypoints loaded" (to-do item 4, 2026-11-01): the cause
+     * was not found from the code (the snapshot is rebuilt on every room change), so each room change logs the room he left
+     * and the one he is in, what the rebuilt snapshot holds, and how many of its waypoints lie outside the room he is in.
+     * At most one line a second. Logging only.
+     */
+    private static void logRoomChange(int from, int to) {
+        leftRoomIdx = from;
+        strayWatchUntilMs = System.currentTimeMillis() + STRAY_WATCH_MS;
+        strayLogged = false;
+        long now = System.currentTimeMillis();
+        if (now - lastRoomLogMs < ROOM_LOG_GAP_MS) {
+            return;
+        }
+        lastRoomLogMs = now;
+        List<Waypoint> stray = outsideRoom(to);
+        LOGGER.info("[SecretWaypoints] room change {} ({}) -> {} ({}): snapshot {} waypoint(s), {} outside the room he is in{}",
+                from, roomNameAt(from), to, roomNameAt(to), CACHED.size(), stray.size(),
+                stray.isEmpty() ? "" : ": " + describe(stray));
+    }
+
+    /**
+     * For {@link #STRAY_WATCH_MS} after a room change, one line the first time the snapshot holds a waypoint outside the
+     * room he is in: the left room's waypoints still drawn (or any other room's). Logging only.
+     */
+    private static void watchStrayWaypoints(int roomNow) {
+        if (strayLogged || strayWatchUntilMs == 0L || System.currentTimeMillis() > strayWatchUntilMs || CACHED.isEmpty()) {
+            return;
+        }
+        List<Waypoint> stray = outsideRoom(roomNow);
+        if (stray.isEmpty()) {
+            return;
+        }
+        strayLogged = true;
+        LOGGER.info("[SecretWaypoints] still drawing {} waypoint(s) outside room {} ({}) after leaving room {} ({}): {}",
+                stray.size(), roomNow, roomNameAt(roomNow), leftRoomIdx, roomNameAt(leftRoomIdx), describe(stray));
     }
 
     /** Rebuilds {@link #CACHED} at most once per {@link #CACHE_TTL_MS} / {@link #CACHE_MOVE_SQ}, on the tick. */

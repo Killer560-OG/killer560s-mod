@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
@@ -100,7 +101,7 @@ public class RagAxeTab extends BaseTab {
         w.add(new StringWidget(contentX, y[0], contentWidth, 12,
                 Component.literal("§7Prompt text (supports § color codes):"), Minecraft.getInstance().font));
         y[0] += 14;
-        EditBox text = new EditBox(Minecraft.getInstance().font, contentX, y[0], contentWidth, 18,
+        CommitEditBox text = new CommitEditBox(Minecraft.getInstance().font, contentX, y[0], contentWidth, 18,
                 Component.literal("Prompt text"));
         text.setMaxLength(64);
         text.setValue(cfg.getPromptText());
@@ -109,6 +110,7 @@ public class RagAxeTab extends BaseTab {
             cfg.save();
         });
         w.add(text);
+        CommitEditBox.withSet(w, text);
         y[0] += 26;
 
         for (RagAxePrompt prompt : RagAxePrompt.values()) {

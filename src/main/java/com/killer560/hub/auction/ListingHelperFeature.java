@@ -275,6 +275,7 @@ public final class ListingHelperFeature {
         }
         int y = Math.max(2, topPos);
 
+        com.killer560.hub.containercover.ContainerCover.coverRect(screen, "auction.listinghelper", x, y, x + panelW, y + panelH);
         graphics.fill(x, y, x + panelW, y + panelH, PANEL_BG);
         graphics.outline(x, y, panelW, panelH, PANEL_BORDER);
         int ty = y + 4;

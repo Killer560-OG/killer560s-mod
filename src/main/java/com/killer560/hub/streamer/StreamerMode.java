@@ -69,6 +69,21 @@ public final class StreamerMode {
         }
     }
 
+    /**
+     * Reads the file again from scratch, defaults first, so a file a profile removed reads as off. Applying a profile
+     * calls it ({@code ProfileManager.reloadAllConfigs}): before 2026-11-02 the one-time {@link #load()} was the only
+     * read, so a profile's Streamer Mode stayed as it was until a restart, and the next toggle wrote the old state back.
+     */
+    public static synchronized void reload() {
+        active = false;
+        option = Option.HIDE_CHEAT_UI;
+        try {
+            readFile();
+        } finally {
+            loaded = true;
+        }
+    }
+
     private static void readFile() {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED || !Files.exists(CONFIG_PATH)) {
             return;

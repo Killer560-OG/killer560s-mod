@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.shorts.ShortsConfig;
@@ -159,14 +160,16 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
         y += 20;
 
         if (cfg.getSite() == ShortsConfig.Site.CUSTOM) {
-            EditBox urlField = new EditBox(Minecraft.getInstance().font, col2aX, y, col2W, 18, Component.literal("URL"));
+            CommitEditBox urlField = new CommitEditBox(Minecraft.getInstance().font, col2aX, y, col2W, 18, Component.literal("URL"));
             urlField.setMaxLength(512);
             urlField.setValue(cfg.getCustomUrl());
             widgets.add(urlField);
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Set URL"), btn -> {
+            SettingsButtonWidget urlFieldSet = SettingsButtonWidget.builder(Component.literal("Set URL"), btn -> {
                         cfg.setCustomUrl(urlField.getValue());
                         cfg.save();
-                    }).bounds(col2bX, y, col2W, 18).build());
+                    }).bounds(col2bX, y, col2W, 18).build();
+            widgets.add(urlFieldSet);
+            urlField.pressOnEnter(urlFieldSet);
             y += 20;
         }
 
@@ -185,6 +188,10 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
                 ShortsConfig.MIN_ZOOM_PERCENT, ShortsConfig.MAX_ZOOM_PERCENT, v -> "Zoom: " + v + "% §7(next launch)", cfg));
         widgets.add(onOffButton("Comments Scroll Guard", cfg::isCommentsScrollGuard, cfg::setCommentsScrollGuard,
                 cfg::save, null, col2bX, y, col2W, 18));
+        y += 20;
+        // killer560, 2026-11-01 (to-do Doc "VIDEO BROWSER"): next video once the one playing ends.
+        widgets.add(onOffButton("Auto Scroll", cfg::isAutoScroll, cfg::setAutoScroll, cfg::save, null,
+                contentX, y, contentWidth, 18));
         y += 26;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Sign in to " + cfg.getSite().label), btn -> {

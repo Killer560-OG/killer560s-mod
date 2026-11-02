@@ -9,7 +9,6 @@ import com.killer560.hub.bazaarflip.autopilot.FlipPricing;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
-import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -126,8 +125,14 @@ public final class BazaarAdvisorFeature {
 
             @Override
             public int stackSize(String productId) {
-                SkyblockItemEntry entry = SkyblockItemRepository.findById(productId);
-                return entry == null ? 64 : Math.max(1, SkyblockItemStackFactory.materialMaxStackSize(entry.material()));
+                // Hypixel's own stacking, not the vanilla material's (killer560, 2026-11-01: Kaleidoscopic Mineral is PAPER
+                // and stacks to 1): BazaarStackSizes.
+                return com.killer560.hub.bazaarflip.BazaarStackSizes.of(productId);
+            }
+
+            @Override
+            public long orderLimit(String productId) {
+                return com.killer560.hub.bazaarflip.BazaarStackSizes.orderLimitOf(productId);
             }
 
             @Override

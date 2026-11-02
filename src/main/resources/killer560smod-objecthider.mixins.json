@@ -14,7 +14,8 @@
 		"ObjectHiderPacketMixin",
 		"ObjectHiderParticleMixin",
 		"ObjectHiderRenderMixin",
-		"ObjectHiderTextShadowMixin"
+		"ObjectHiderTextShadowMixin",
+		"ObjectHiderWitherMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

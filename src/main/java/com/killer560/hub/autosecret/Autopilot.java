@@ -432,6 +432,11 @@ final class Autopilot {
         return new Order(Type.KEY, null, -1, k.blood(), false, false, why, k);
     }
 
+    /** Whether Auto Secret has given up on this dropped key (twice not picked up from as close as it could stand). */
+    static boolean keyGivenUp(int entityId) {
+        return keysGivenUp.contains(entityId);
+    }
+
     /** Auto Secret went for a key and it is still lying there afterward: twice, and that key is left alone. */
     static void keyNotTaken(int entityId) {
         if (keyTries.merge(entityId, 1, Integer::sum) >= 2) {

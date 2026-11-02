@@ -12,21 +12,38 @@ public final class SearchAliases {
 
     // killer560 (2026-10-12): "etable" should find every Experimentation Table feature, and so should any start
     // of it ("eta", "etab") - not only the full word.
-    private static final Map<String, String> ALIASES = Map.of(
-            "etable", "experiment",
-            "e table", "experiment",
-            "exp table", "experiment",
+    // Map.ofEntries, not Map.of: Map.of stops at ten pairs, and the list reached ten on 2026-10-19.
+    private static final Map<String, String> ALIASES = Map.ofEntries(
+            Map.entry("etable", "experiment"),
+            Map.entry("e table", "experiment"),
+            Map.entry("exp table", "experiment"),
             // killer560 (2026-10-18): "make chat keybinds also pop up if I search something like chat commands" - the tab was
             // renamed from Command Shortcuts, so the old names find it too.
-            "chat command", "chat keybind",
-            "command shortcut", "chat keybind",
-            "command keybind", "chat keybind",
+            Map.entry("chat command", "chat keybind"),
+            Map.entry("command shortcut", "chat keybind"),
+            Map.entry("command keybind", "chat keybind"),
             // killer560 (2026-10-18): "cf" should find the Chocolate Factory tab.
-            "cf", "chocolate factory",
+            Map.entry("cf", "chocolate factory"),
             // killer560 (2026-10-19): "make chocolate factory also show up if you search something like hoppity or egg".
-            "hoppity", "chocolate factory",
-            "egg", "chocolate factory",
-            "egglocator", "chocolate factory");
+            Map.entry("hoppity", "chocolate factory"),
+            Map.entry("egg", "chocolate factory"),
+            Map.entry("egglocator", "chocolate factory"),
+            // killer560 (2026-11-01, to-do Doc "ZPEW"): "make the setting show up if you search zpew". The Zero Ping
+            // Etherwarp switch row of the Etherwarp tab answers it.
+            Map.entry("zpew", "zero ping etherwarp"),
+            // killer560 (2026-11-01, to-do Doc "VIDEO BROWSER"): "make this show up if i search things like tictok or yt or
+            // youtube or web or anything like that".
+            Map.entry("tiktok", "video browser"),
+            Map.entry("tictok", "video browser"),
+            Map.entry("tik tok", "video browser"),
+            Map.entry("yt", "video browser"),
+            Map.entry("youtube", "video browser"),
+            Map.entry("web", "video browser"),
+            Map.entry("browser", "video browser"),
+            Map.entry("reels", "video browser"),
+            Map.entry("instagram", "video browser"),
+            Map.entry("twitch", "video browser"),
+            Map.entry("shorts", "video browser"));
 
     /** A typed prefix shorter than this only matches the alias when typed in full ("e" alone stays plain). */
     private static final int MIN_PREFIX = 2;

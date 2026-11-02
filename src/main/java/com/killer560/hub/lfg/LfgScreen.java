@@ -53,8 +53,8 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
 
     /** The Create page's boxes, read when List Party is pressed. */
     private final Map<String, EditBox> reqBoxes = new LinkedHashMap<>();
-    private EditBox noteBox;
-    private EditBox activityBox;
+    private com.killer560.hub.gui.CommitEditBox noteBox;
+    private com.killer560.hub.gui.CommitEditBox activityBox;
     /** The player's own stats, which fill the Create form's requirements; statsPending while they have not arrived yet. */
     private PartyFinderStatsApi.PlayerStats ownStats;
     private boolean statsPending = false;
@@ -363,6 +363,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
             activityBox = new ThemedEditBox(this.font, listX, y, colW, 18, Component.literal("Activity")).hint("Activity, e.g. Slayer");
             activityBox.setMaxLength(24);
             activityBox.setValue(d.activity);
+            activityBox.onEnter(this::saveDraft);
             addRenderableWidget(activityBox);
         } else {
             List<DropdownWidget.Option<String>> acts = new ArrayList<>();
@@ -396,6 +397,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
             Integer v = LfgRequirements.ownValue(f.key(), ownStats, d.activity, f.max());
             box.setValue(v == null || v <= 0 ? "" : pb ? LfgRequirements.mmSs(v) : String.valueOf(v));
             addRenderableWidget(box);
+            box.onEnter(this::saveDraft);
             reqBoxes.put(f.key(), box);
             i++;
         }
@@ -404,6 +406,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
                 .hint("Note, e.g. requirements in words (80 characters)");
         noteBox.setMaxLength(80);
         noteBox.setValue(d.note);
+        noteBox.onEnter(this::saveDraft);
         addRenderableWidget(noteBox);
         y += 30;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aList Party"), btn -> listParty())
@@ -425,14 +428,34 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         }
     }
 
+    /** Enter in a form box: keeps what is typed in the draft (saved to disk), without listing the party. */
+    private void saveDraft() {
+        if (storeDraft() != null) {
+            message = "Saved. Press List Party to list it.";
+        }
+    }
+
     private void listParty() {
+        Map<String, Integer> reqs = storeDraft();
+        if (reqs == null) {
+            return;
+        }
+        LfgConfig.Draft d = LfgConfig.getInstance().draft(tab);
+        LfgFeature.list(LfgFeature.spec(tab, d.activity, d.note, reqs, d.max, false));
+        creating = false;
+        message = "Listing " + tab.label + " " + d.activity + "...";
+        rebuildWidgets();
+    }
+
+    /** The form into the draft (saved); the requirements that are set, or null when the activity is not valid. */
+    private Map<String, Integer> storeDraft() {
         LfgConfig cfg = LfgConfig.getInstance();
         LfgConfig.Draft d = cfg.draft(tab);
         if (activityBox != null) {
             String a = activityBox.getValue().trim();
             if (!LfgCategory.ACTIVITY.matcher(a).matches()) {
                 message = "Type what the party is for (letters, numbers, spaces, + and -).";
-                return;
+                return null;
             }
             d.activity = a;
         }
@@ -455,10 +478,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         }
         d.note = LfgConfig.clampNote(noteBox == null ? "" : noteBox.getValue());
         cfg.save();
-        LfgFeature.list(LfgFeature.spec(tab, d.activity, d.note, reqs, d.max, false));
-        creating = false;
-        message = "Listing " + tab.label + " " + d.activity + "...";
-        rebuildWidgets();
+        return reqs;
     }
 
     // ---- frame -----------------------------------------------------------------------------------------------------

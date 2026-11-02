@@ -11,6 +11,15 @@ final class CardBlurbsData {
     static void register(Map<String, String> d) {
         d.put("SecretClickedTab", "Boxes clicked secrets; mutes.");
         d.put("SecretTab", "Secret sound, boxes and HUD.");
+        // doc-rng-1101 and doc-mining-1101 cards: their tooltips were cut to fit (testkit 1060, uifix-1102).
+        d.put("LuckTab", "Your drops against the odds.");
+        d.put("MiningAbilityReadyTab", "Pickaxe ability ready popup.");
+        d.put("MiningCarpetTab", "Marks carpets you can't mine.");
+        d.put("MiningCommissionHudTab", "Commissions with waypoints.");
+        d.put("MiningMithrilStoneTab", "Hides mithril you don't need.");
+        d.put("MiningPickobulusTab", "Outlines its break area.");
+        d.put("MiningRaffleTab", "Boxes raffle tickets.");
+        d.put("MiningTitaniumTab", "Outlines Titanium blocks.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");
         d.put("CreationCooldownTab", "Dungeon join timer.");
         d.put("InstaClearWarningTab", "Lost-key alert.");
@@ -169,6 +178,8 @@ final class CardBlurbsData {
         d.put("AutoGfsTab", "Refills dungeon items from sacks.");
         d.put("AutoSellTab", "Sells your sell list on its own.");
         d.put("BazaarFlipTab", "Buy and sell flips.");
+        d.put("AhFlipperTab", "Finds underpriced BINs on the AH.");
+        d.put("AhPriceCopierTab", "Copies a price when you list.");
         d.put("InventorySorterTab", "Sorts to a saved layout.");
         d.put("BestFriendsTab", "Time partied and runs per player.");
         d.put("FriendsListTab", "This mod's Friends List for /fl.");
@@ -193,7 +204,6 @@ final class CardBlurbsData {
         d.put("BlinkTab", "Charge ticks standing still, then shoot ahead.");
         d.put("InventoryWalkTab", "Keep walking while a menu is open.");
         d.put("ZeroPingEtherwarpTab", "Instant etherwarp view.");
-        d.put("LeftClickEtherwarpTab", "Left click etherwarps.");
         d.put("SmoothTeleportTab", "Glides the camera.");
         d.put("SessionRecorderTab", "Logs what features do.");
         d.put("TrajectoriesTab", "Bow, shortbow and pearl flight paths.");

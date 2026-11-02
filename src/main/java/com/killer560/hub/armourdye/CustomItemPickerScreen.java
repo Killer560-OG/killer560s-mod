@@ -24,11 +24,20 @@ import java.util.List;
  * The Custom Item page (2026-10-18): search every Minecraft item and every Hypixel catalog item by name, pick one, and
  * see it large. Apply gives the selected item that item's look (its model, and its head texture when it has one), so
  * the selected item shows as the picked one. Nothing is sent to the server.
+ * <p>
+ * killer560, 2026-11-01: Clear takes the applied item off the selection ("if i press clear it doesnt remove the custom item
+ * for it"), and reopening the page shows the item applied last, picked and scrolled to (the entry keeps its key,
+ * {@link ArmourDyeEntry#customItem}).
  */
 public final class CustomItemPickerScreen extends Screen implements MenuThemedScreen {
 
     /** One searchable item: a Minecraft item or a Hypixel catalog entry. */
     private record Choice(String name, String source, Item minecraft, SkyblockItemEntry hypixel) {
+
+        /** {@code minecraft:<registry id>} or {@code hypixel:<Skyblock id>}: what {@link ArmourDyeEntry#customItem} keeps. */
+        String key() {
+            return hypixel != null ? "hypixel:" + hypixel.id() : "minecraft:" + BuiltInRegistries.ITEM.getKey(minecraft).getPath();
+        }
     }
 
     private static final int MAX_RESULTS = 400;
@@ -70,22 +79,29 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
         listY = panelY + 48;
         rows = Math.max(1, (panelH - 48 - 10) / ROW_H);
 
-        if (all.isEmpty()) {
+        boolean first = all.isEmpty();
+        if (first) {
             loadChoices();
         }
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> onClose())
                 .bounds(panelX + panelW - 7 - 48, panelY + 3, 48, 14).build());
-        // Clear: empties the search box and the list goes back to the full catalog. It sits under Apply to Selected
+        // Clear: takes the applied item off the selection, and empties the search. It sits under Apply to Selected
         // (killer560: "the clear button should be at the bottom below apply to selected").
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Clear"), b -> {
+        SettingsButtonWidget clear = SettingsButtonWidget.builder(Component.literal("Clear"), b -> {
+                    main.clearCustomItem();
+                    picked = null;
+                    pickedStack = ItemStack.EMPTY;
                     query = "";
                     scroll = 0;
                     if (search != null) {
                         search.setValue("");
                     }
                     applyFilter();
-                }).bounds(rightX, panelY + panelH - 24, rightW, 20).build());
+                    rebuildWidgets();
+                }).bounds(rightX, panelY + panelH - 24, rightW, 20).build();
+        clear.active = main.selectedKey() != null;
+        addRenderableWidget(clear);
 
         search = new ThemedEditBox(this.font, panelX + 8, panelY + 24, leftW, 18, Component.literal("Search"))
                 .hint("search Minecraft and Hypixel items");
@@ -95,12 +111,19 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
             scroll = 0;
             applyFilter();
         });
+        if (first) {
+            selectApplied();
+        }
         search.setValue(query);
+        if (first && picked != null) {
+            int at = shown.indexOf(picked);
+            scroll = at < 0 ? 0 : Math.max(0, Math.min(at, Math.max(0, shown.size() - rows)));
+        }
         addRenderableWidget(search);
 
         // Apply: give the selected item the picked item's look.
         SettingsButtonWidget apply = SettingsButtonWidget.builder(Component.literal("Apply to Selected"), b -> {
-                    main.copyLookFrom(pickedStack);
+                    main.copyLookFrom(pickedStack, picked.key());
                     onClose();
                 }).bounds(rightX, panelY + panelH - 48, rightW, 20).build();
         apply.active = picked != null && main.selectedKey() != null;
@@ -124,6 +147,29 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
             }
         }
         applyFilter();
+    }
+
+    /** The item the selection has applied (its saved key), picked and scrolled into view. */
+    private void selectApplied() {
+        ArmourDyeEntry e = main.entry();
+        if (e == null || e.customItem == null || e.customItem.isBlank()) {
+            return;
+        }
+        for (Choice c : all) {
+            if (c.key().equals(e.customItem)) {
+                picked = c;
+                pickedStack = stackFor(c);
+                if (!shown.contains(c)) {
+                    query = c.name(); // past the first MAX_RESULTS rows: search for it, so it is on the list
+                }
+                return;
+            }
+        }
+    }
+
+    /** The item picked on this page now, or null. Public for the testkit. */
+    public String pickedKey() {
+        return picked == null ? null : picked.key();
     }
 
     private void applyFilter() {

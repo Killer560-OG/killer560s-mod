@@ -29,6 +29,55 @@ public final class LuckMath {
         return Math.min(1.0, d.chance() * (1.0 + magicFind / 100.0));
     }
 
+    /**
+     * What raised the odds of one attempt.
+     *
+     * @param magicFind     Magic Find %
+     * @param looting       Looting level of the weapon held at the kill (mob drops only)
+     * @param slayerLevel   his slayer level for the boss killed, -1 when not known (every drop counted as unlocked)
+     * @param meterItem     the RNG Meter's selected drop for this activity, or null
+     * @param meterProgress that meter's fill, 0..1 (1 = full: the drop is guaranteed)
+     */
+    public record Bonus(int magicFind, int looting, int slayerLevel, String meterItem, double meterProgress) {
+        public static Bonus mf(int magicFind) {
+            return new Bonus(magicFind, 0, -1, null, 0);
+        }
+    }
+
+    /** Whether a drop can drop at all: a slayer drop above his slayer level cannot. */
+    public static boolean unlocked(DropTable.Drop d, Bonus b) {
+        return b.slayerLevel() < 0 || d.req() <= b.slayerLevel();
+    }
+
+    /**
+     * A drop's chance for one attempt with {@code b}: Looting first (mob drops: x(1 + 0.15 x level), Looting page), then
+     * Magic Find (slayers: the table's flag; mobs: only while the looted chance is under 5%, Magic Find page), then the RNG
+     * Meter (Pity and RNG Meters: the selected drop's rate goes 1x to 3x as the meter fills, 100% once full; a slayer
+     * Separate-pool drop is not raised until the meter is full). Capped at 1.
+     */
+    public static double adjusted(DropTable.Drop d, Bonus b) {
+        double c = d.chance();
+        if (Double.isNaN(c)) {
+            return c;
+        }
+        if (d.loot() && b.looting() > 0) {
+            c *= 1.0 + 0.15 * Math.min(10, b.looting());
+        }
+        boolean mobDrop = d.activity().startsWith("mob:");
+        boolean mf = mobDrop ? c < 0.05 : d.mf();
+        if (mf && b.magicFind() > 0) {
+            c *= 1.0 + b.magicFind() / 100.0;
+        }
+        if (b.meterItem() != null && DropTable.normalize(b.meterItem()).equals(DropTable.normalize(d.name()))) {
+            if (b.meterProgress() >= 1.0) {
+                c = 1.0;
+            } else if (!"Separate".equals(d.pool())) {
+                c *= 1.0 + 2.0 * Math.max(0, b.meterProgress());
+            }
+        }
+        return Math.min(1.0, c);
+    }
+
     /** {@code P(X = k)} for Poisson(lambda), in logs so 10,000 runs do not overflow. */
     static double poissonPmf(int k, double lambda) {
         if (lambda <= 0) {

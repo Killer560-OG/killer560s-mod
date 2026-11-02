@@ -340,6 +340,7 @@ public final class AutoSecretFeature {
         noRouteSaid.clear();
         instaTried.clear();
         instaKeySaid.clear();
+        keysSeenAtDoor.clear();
         puzzlesDone.clear();
         clearsDone.clear();
         tripFailures.clear();
@@ -2924,6 +2925,36 @@ public final class AutoSecretFeature {
         if (DungeonMapPathfinder.getDoorPos(layout, here, best) == null) {
             return false;
         }
+        // A shut wither door and no key, while a Wither Key lies in a room it can reach: the key first (simmobs2-1101, a sim
+        // floor with mobs: Auto Clear handed Multicolored back the tick its last mob died, before the key's stand reached
+        // the client, and Auto Secret then waited at the door it opens for the rest of the run, 12 minutes).
+        Minecraft client = Minecraft.getInstance();
+        if (!WitherDoorOpener.haveKey(client.player)) {
+            com.killer560.hub.doorkeys.DungeonKeys.Dropped lying = lyingWitherKey(client, layout, dist);
+            if (lying != null) {
+                LOGGER.info(String.format(Locale.US, "[AutoSecret] wither door at cell %d wants a key and Wither Key #%d lies"
+                        + " in %s - picking it up first", best, lying.id(), layout.name(layout.roomAtWorld(lying.x(),
+                        lying.z()))));
+                goKey(lying, "the wither door on the way wants a key");
+                return true;
+            }
+            // No key lying anywhere: a room on this side counted as cleared only for its chest may still hold a key (it
+            // drops at the room's last starred death, and a Wither Key opens any wither door) - clear it now instead of
+            // waiting at the door. Not only KeyRooms' guard of THIS door: the sim keys the room before Fairy or a puzzle
+            // too (26.2 fullclear: Mossy, 25 s at door 27).
+            for (int room : dist.keySet()) {
+                String name = layout.name(room);
+                if (name != null && com.killer560.hub.autoclear.ChestClearRule.clearedInItsEyes(layout, room)
+                        && !com.killer560.hub.autoclear.AutoClearTargets.isClearedOnMap(layout, room)
+                        && com.killer560.hub.autoclear.ChestClearRule.returnNow(name, "no Wither Key lies anywhere and the"
+                        + " wither door at cell " + best + " is shut")) {
+                    LOGGER.info("[AutoSecret] wither door at cell {} wants a key: {} counted as cleared only for its chest"
+                            + " - clearing it first (its key drops at its last starred death)", best, name);
+                    setPhase(Phase.DECIDE);
+                    return true;
+                }
+            }
+        }
         String said = best + "|" + bestWhat;
         if (!said.equals(lastDoorSaid)) {
             lastDoorSaid = said;
@@ -2934,6 +2965,43 @@ public final class AutoSecretFeature {
         }
         goToDoor(layout, best, false, null);
         return true;
+    }
+
+    /** Dropped Wither Keys a wait at a door has already re-decided for (each once). */
+    private static final Set<Integer> keysSeenAtDoor = new HashSet<>();
+
+    /** A dropped Wither Key this door wait has not re-decided for yet (once per key). */
+    private static boolean keyAppearedAtDoor(Minecraft client) {
+        for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
+            if (!k.blood() && !Autopilot.keyGivenUp(k.id()) && keysSeenAtDoor.add(k.id())) {
+                LOGGER.info("[AutoSecret] waiting at the wither door at cell {}: Wither Key #{} appeared - deciding again",
+                        doorCell, k.id());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The nearest dropped Wither Key in a room it can reach now ({@code dist}), not given up on; null when none. */
+    private static com.killer560.hub.doorkeys.DungeonKeys.Dropped lyingWitherKey(Minecraft client, DungeonLayout layout,
+                                                                                Map<Integer, Integer> dist) {
+        com.killer560.hub.doorkeys.DungeonKeys.Dropped best = null;
+        double bestD = Double.MAX_VALUE;
+        for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
+            if (k.blood() || Autopilot.keyGivenUp(k.id())) {
+                continue;
+            }
+            int room = layout.roomAtWorld(k.x(), k.z());
+            if (room < 0 || !dist.containsKey(room) || client.player == null) {
+                continue;
+            }
+            double d = client.player.position().distanceToSqr(k.x(), k.y(), k.z());
+            if (d < bestD) {
+                bestD = d;
+                best = k;
+            }
+        }
+        return best;
     }
 
     /**
@@ -3047,6 +3115,11 @@ public final class AutoSecretFeature {
         if (!key && doorClicks > 0 && phaseTicks - doorLastClickTick < DOOR_OPENING_TICKS) {
             // Our click spent the key ("opened a WITHER door!") and the door is still on its way out.
             status = "Opening the " + kind + " door";
+        } else if (!key && !doorBlood && keyAppearedAtDoor(client)) {
+            // A Wither Key dropped after the decision that brought him here (the room's last mob died that tick and its
+            // key's stand came a tick later, simmobs2-1101): decide again now, not 5 s on, so it is picked up first.
+            setPhase(Phase.DECIDE);
+            return;
         } else if (!key) {
             status = "Waiting at " + kind + " door (no key)";
             if (!noKeySaid) {
