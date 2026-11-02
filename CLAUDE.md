@@ -534,3 +534,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - 26.3's move-entity packet can carry a position with a zero step (`McPackets.moveEntityMoves` is only `hasPosition()`
   there; 26.2's checks xa/ya/za). Blood Camp took those as moves and restarted trips (UI 392/552); it now drops a zero
   `moveEntityDelta`. Any other move-packet reader must do the same.
+- The sim has NO held map during a run's countdown (`HeldMap.emulated()` is false until `SimRun` reaches GO, since doc-map-1101),
+  as Hypixel gives the map only at Mort's first line. A feature that reads `HeldMap` must cope with `available() == false` in
+  the green room; a sim test that needs the stand-in waits for `SimRun.hasStarted()` (or re-arms with `SimRun.begin` to stay pre-run).

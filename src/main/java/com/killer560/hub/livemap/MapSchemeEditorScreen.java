@@ -187,7 +187,7 @@ public class MapSchemeEditorScreen extends Screen implements MenuThemedScreen {
             int x1 = Math.round(ox + (box[0] + box[2]) * ppu);
             int y1 = Math.round(oy + (box[1] + box[3]) * ppu);
             r.fill(x0, y0, x1, y1, color);
-            if (d[3] == 1) {
+            if (d[3] == 1 && LiveMapConfig.getInstance().isWitherDoorOutline()) {
                 r.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
             }
         }

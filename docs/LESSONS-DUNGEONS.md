@@ -55,6 +55,21 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   MIN_MATCHES. The comparison budget charged every seen block in a candidate's span, ruled out or not, so more rays queued
   ticks of work that took a few (1018-predict-hypixel-fresh named at tick 20: 3506 placements, 1712 seen); it now charges
   a compared block 1, a block in another tile 1/16, and nothing after a candidate is ruled out.
+- **Before the run there is no map, and the predictor knew nothing was opened** (to-do Doc 2026-11-01, "PREDICTIVE MAP
+  MODE": dig the green room's gate pre-run, peek into the first room, "once the run starts it bugs out the map entirely"; his
+  picture shows "Grand Library" drawn where his head is and the green room gone). Hypixel hands the map over at Mort's first
+  line, so `HeldMap.available()` is false pre-run; standing in the doorway gap (where he digs) his eye is in no tile, so the
+  start room itself was a target and every placement could cover it, and nothing re-decided the predictions when the map
+  arrived (`decide` ran only on new sightings). Fix: `RoomPredictor.startTile` (the tile he is in while there is no map)
+  counts as opened, and any change in the opened tiles re-decides. The sim used to answer with its stand-in map during the
+  countdown, so this state was never tested; it now has no map until GO (testkit 1101-map-prerun; on main the sim cannot
+  reach the bug at all, the stand-in hides it).
+- **Seeing through one room into another** (same Doc item): in the sim the middle room is named every time (1101-map-
+  seethrough, every straight line on the floor). His Hypixel logs (2026-10-30..11-01) show 372 tiles named right, 1 unknown,
+  and 15 "every placement ruled out" with 61-440 blocks seen - Default x3, Dino Site x3, Redstone Key, Ice Fill, Steps,
+  Temple, Drop, Spikes, Prison Cell, Overgrown Chains, Sarcophagus - all of which have a bundled capture. So a gray middle
+  room on Hypixel is that room's live blocks differing from its capture, not the geometry of a see-through; which blocks
+  differ needs `RoomPredictor.disagreements` on a Hypixel run (not traced yet).
 
 ## Secrets, crypts and waypoints
 

@@ -3139,7 +3139,12 @@ public final class AutoSecretFeature {
         }
         boolean busy = ClearExecutor.isBusy();
         busySeen |= busy;
-        if (busy && phaseTicks < TRAVEL_TIMEOUT_TICKS) {
+        if (busy && (phaseTicks < TRAVEL_TIMEOUT_TICKS || ClearExecutor.waitingForGate())) {
+            // Never timed out while the trip waits for the run to start (the entrance gate, ClearExecutor's pre-run hold):
+            // the countdown before a run can be long, and the trip goes the tick the gate opens.
+            if (ClearExecutor.waitingForGate()) {
+                phaseTicks = 0;
+            }
             return;
         }
         if (busy) {

@@ -112,6 +112,10 @@ public final class LiveMapConfig {
     /** On by default since 2026-10-19: NoammAddons draws every room name and secret count with a shadow
      *  ({@code Render2D.drawCenteredString}, {@code shadow = true}). */
     private boolean textShadow = true;
+    /** The double amber outline round a locked wither door (killer560, 2026-09-20: "wither doors are very hard to see").
+     *  OFF by default since 2026-11-01 (to-do Doc, "PREDICTIVE MAP MODE": "the wither doors should be black and the fairy
+     *  door should be pink no orange highlight. That is the default."). */
+    private boolean witherDoorOutline = false;
     /** Whether the Interactive Map's side panel shows the full Controls list or just its one-line hint
      *  (2026-10-05: "See how cluttered that right side is, clean it up a bit"). Collapsed by default. */
     private boolean mapControlsExpanded = false;
@@ -233,6 +237,7 @@ public final class LiveMapConfig {
                 cfg.setMapScale(ConfigJson.getFloat(obj, "mapScale", 5f));
                 cfg.setFontScale(ConfigJson.getFloat(obj, "fontScale", 1f));
                 cfg.textShadow = ConfigJson.getBool(obj, "textShadow", true);
+                cfg.witherDoorOutline = ConfigJson.getBool(obj, "witherDoorOutline", false);
                 migrateNoammLook(cfg, obj);
                 // "mapRoomLabels" (the Interactive Map's own copy of Room Labels) is gone: killer560 (2026-10-05)
                 // "have the map have the same settings for room name having the secrets ... as the regular map,
@@ -362,6 +367,7 @@ public final class LiveMapConfig {
             obj.addProperty("mapScale", mapScale);
             obj.addProperty("fontScale", fontScale);
             obj.addProperty("textShadow", textShadow);
+            obj.addProperty("witherDoorOutline", witherDoorOutline);
             obj.addProperty("noammLook1019", true);
             obj.addProperty("mapControlsExpanded", mapControlsExpanded);
             obj.addProperty("classBorderColour", classBorderColour);
@@ -854,6 +860,14 @@ public final class LiveMapConfig {
 
     public void setTextShadow(boolean v) {
         this.textShadow = v;
+    }
+
+    public boolean isWitherDoorOutline() {
+        return witherDoorOutline;
+    }
+
+    public void setWitherDoorOutline(boolean v) {
+        this.witherDoorOutline = v;
     }
 
     public boolean isMapControlsExpanded() {

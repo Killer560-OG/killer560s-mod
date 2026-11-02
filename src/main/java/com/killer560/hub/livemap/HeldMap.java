@@ -66,13 +66,18 @@ public final class HeldMap {
     public static boolean emulated() {
         boolean sim = com.killer560.hub.roomsim.SimState.isActive();
         boolean calibrated = DungeonMapScanner.isCalibrated();
-        boolean emulated = sim && !calibrated;
+        // Not during a run's countdown: Hypixel hands the map over when the run starts (Mort's first line), so before it
+        // there is no map to read, and features that may only know what the map knows must cope with none (Predictive
+        // Rooms' pre-run peek, to-do Doc 2026-11-01). The sim answers as the server does.
+        boolean preRun = com.killer560.hub.roomsim.SimRun.isArmed() && !com.killer560.hub.roomsim.SimRun.hasStarted();
+        boolean emulated = sim && !calibrated && !preRun;
         // Asked every frame: logged only when the source of the map's answers changes.
         int source = emulated ? 1 : calibrated ? 2 : 0;
         if (source != lastSource) {
             lastSource = source;
-            LOGGER.info("[HeldMap] map answers now come from {} (sim={} mapCalibrated={})",
-                    source == 1 ? "the sim stand-in" : source == 2 ? "the map item" : "nothing (no map)", sim, calibrated);
+            LOGGER.info("[HeldMap] map answers now come from {} (sim={} mapCalibrated={} preRun={})",
+                    source == 1 ? "the sim stand-in" : source == 2 ? "the map item" : "nothing (no map)", sim, calibrated,
+                    preRun);
         }
         return emulated;
     }
