@@ -340,6 +340,7 @@ public final class AutoSecretFeature {
         noRouteSaid.clear();
         instaTried.clear();
         instaKeySaid.clear();
+        keysSeenAtDoor.clear();
         puzzlesDone.clear();
         clearsDone.clear();
         tripFailures.clear();
@@ -2963,6 +2964,21 @@ public final class AutoSecretFeature {
         return true;
     }
 
+    /** Dropped Wither Keys a wait at a door has already re-decided for (each once). */
+    private static final Set<Integer> keysSeenAtDoor = new HashSet<>();
+
+    /** A dropped Wither Key this door wait has not re-decided for yet (once per key). */
+    private static boolean keyAppearedAtDoor(Minecraft client) {
+        for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
+            if (!k.blood() && !Autopilot.keyGivenUp(k.id()) && keysSeenAtDoor.add(k.id())) {
+                LOGGER.info("[AutoSecret] waiting at the wither door at cell {}: Wither Key #{} appeared - deciding again",
+                        doorCell, k.id());
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The nearest dropped Wither Key in a room it can reach now ({@code dist}), not given up on; null when none. */
     private static com.killer560.hub.doorkeys.DungeonKeys.Dropped lyingWitherKey(Minecraft client, DungeonLayout layout,
                                                                                 Map<Integer, Integer> dist) {
@@ -3096,6 +3112,11 @@ public final class AutoSecretFeature {
         if (!key && doorClicks > 0 && phaseTicks - doorLastClickTick < DOOR_OPENING_TICKS) {
             // Our click spent the key ("opened a WITHER door!") and the door is still on its way out.
             status = "Opening the " + kind + " door";
+        } else if (!key && !doorBlood && keyAppearedAtDoor(client)) {
+            // A Wither Key dropped after the decision that brought him here (the room's last mob died that tick and its
+            // key's stand came a tick later, simmobs2-1101): decide again now, not 5 s on, so it is picked up first.
+            setPhase(Phase.DECIDE);
+            return;
         } else if (!key) {
             status = "Waiting at " + kind + " door (no key)";
             if (!noKeySaid) {
