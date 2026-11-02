@@ -14,8 +14,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Mod User Tag (killer560, 2026-10-19): a colored diamond before the name of a player who shows as a mod user, when you chose
- * to see them. Legit is green, cheat is red. Only the name tag changes; nothing else is drawn or sent.
+ * Mod User Tag (killer560, 2026-10-19): a tag before the name of a player who shows as a mod user, when you chose to see
+ * them. Its look is the Tag Style setting ({@code ModUserTagStyle}, 2026-11-01: orange [K560] by default); every style tells
+ * legit from cheat. Only the name tag changes; nothing else is drawn or sent.
  * {@code EntityRenderer.getNameTag(Entity)} is the same hook the supporter names use.
  */
 @Mixin(EntityRenderer.class)
@@ -49,8 +50,7 @@ public abstract class ModUserNameTagMixin {
         if (variant == null) {
             return;
         }
-        ChatFormatting colour = "cheat".equals(variant) ? ChatFormatting.RED : ChatFormatting.GREEN;
         Component original = cir.getReturnValue() != null ? cir.getReturnValue() : entity.getDisplayName();
-        cir.setReturnValue(Component.literal("◆ ").withStyle(colour).append(original));
+        cir.setReturnValue(cfg.getTagStyle().tag(variant, original));
     }
 }

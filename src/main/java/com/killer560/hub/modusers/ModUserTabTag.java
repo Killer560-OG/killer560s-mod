@@ -53,12 +53,11 @@ public final class ModUserTabTag {
         if (variant == null) {
             return null;
         }
-        ChatFormatting colour = "cheat".equals(variant) ? ChatFormatting.RED : ChatFormatting.GREEN;
         if (!loggedOnce) {
             loggedOnce = true;
             LOGGER.info("Mod User Tag: tab list hook ran, tagged a row as {}", variant);
         }
-        return Component.literal("◆ ").withStyle(colour).append(shown);
+        return ModUserConfig.getInstance().getTagStyle().tag(variant, shown);
     }
 
     private static String variantFor(PlayerInfo info) {

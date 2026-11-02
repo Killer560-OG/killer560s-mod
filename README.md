@@ -18,7 +18,7 @@ Open the menu in game with `/killer560` or the Open Menu Key (backslash by defau
 
 **Social & Supporters** - Best Friends, Friends List, Profile Viewer
 
-**Cosmetics** - Custom Items, Held Item Outline, Nickhider, Player Cosmetics (name changer, name color/fade/letter colors, name animation, player size, play as mob, held item transform, supporter sharing), Ribbon Trail (shareable by supporters), Trail (squares)
+**Cosmetics** - Custom Items, Held Item Outline, Mod User Tag, Nickhider, Player Cosmetics (name changer, name color/fade/letter colors, name animation, player size, play as mob, held item transform, supporter sharing), Ribbon Trail (shareable by supporters), Trail (squares)
 
 **Party Data & Cross-Mod** - Cross-Mod Bridge, Mod conflict warnings, Party Dungeon Data, Party Interop, Team Melody HUD, Teammate Highlight †, Teammate rooms on the map
 
