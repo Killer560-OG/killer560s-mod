@@ -459,14 +459,14 @@ public final class ProfitScope {
         if (prismIds == null) {
             prismIds = new HashMap<>();
             try {
-                for (var acct : com.killer560.hub.accounts.core.PrismAccountStore.load()) {
+                for (var acct : com.killer560.hub.accounts.core.LauncherAccounts.load()) {
                     String id = normalizeUuid(acct.uuid());
                     if (id != null && acct.name() != null) {
                         prismIds.put(acct.name().toLowerCase(Locale.ROOT), id);
                     }
                 }
             } catch (Exception | LinkageError ignored) {
-                // No Prism, or an unreadable file: the name stays a name.
+                // No launcher accounts, or an unreadable file: the name stays a name.
             }
         }
         return prismIds.get(name.toLowerCase(Locale.ROOT));
