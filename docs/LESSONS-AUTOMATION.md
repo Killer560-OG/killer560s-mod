@@ -84,6 +84,15 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   re-dig, obsidian starts and Burst Multi Break now dig only on a look the server has processed: turn, dig next tick
   (none spent when the look is already on it; `RouteExecutor.aimTurns` gives up after 3 turns). BeforeMove's one-write
   batching is kept.
+- **Inventory Walk's held close went out with the route's sneak down (iwcause-1102, GrimAC MultiActionsD).** With Stop To
+  Click on, Inventory Walk holds a container close until a still tick, but lets a held close out AHEAD of any use (a
+  use may open the next menu). A chest the route's await counted opened and was closed between two ticks, so the route
+  never saw a screen (`holdsSneak`/`screenBlocks` only drop the sneak under a visible screen) and kept the etherwarp's
+  sneak; the close was held, and the warp's use flushed it with the server's input still sneaking (62-argrim invwalk-play,
+  v5, once in ~15 runs). Fix: while `InventoryWalkFeature.heldNow() > 0` the route installs no keys and sends no use
+  (etherwarp, USE_ITEM, sceptre); the close goes on its still tick, then the sneak and the use. Testkit
+  62-argrim-1102-iwclose lines it up ("route waited for the close true", clean); a deterministic flag on the old jar
+  was not reached - the route's own waits there let the close out on a still tick.
 - **Breaker Aura aims without steering his walk (ba-rotation-1102).** It dug picks it never looked at: GrimAC RotationBreak
   (experimental) 87 lines in scenario 50 and 73 of 200 digs canceled. Now only a pick the HEARD look strikes is dug
   (util/DigAim; Grim also tries (lastYaw, lastPitch), so the next pick's aim can ride the same tick's movement packet), and
