@@ -1412,11 +1412,46 @@ public final class RouteExecutor {
         // input packet says sneaking is GrimAC MultiActionsD (2026-10-05, 62-argrim: an await met by the chest click
         // itself started the etherwarp's sneak a tick before the chest's window arrived).
         return running && forceSneak && !(activeNode != null && awaitHeld)
-                && !AutoRoutesFeature.screenBlocks(Minecraft.getInstance());
+                && !AutoRoutesFeature.screenBlocks(Minecraft.getInstance()) && !closeHeld();
+    }
+
+    /**
+     * Inventory Walk (Stop To Click) is holding a container click or close until a tick with no movement, jump or sneak
+     * at the server (iwcause-1102). While it does, the route sends no keys and no use: a close that reaches the server
+     * while its input says sneak is GrimAC MultiActionsD, and Inventory Walk lets a held close out ahead of any use (a use
+     * may open the next menu) - in 62-argrim-1027-invwalk-play a chest the route clicked opened and closed in the tick
+     * #6's etherwarp held sneak, and the warp's use flushed the close with the sneak down. The keys go up for a tick, the
+     * close goes, the sneak comes back and the use follows (two or three ticks, only when a close is caught like this).
+     */
+    private static boolean closeHeld() {
+        try {
+            return com.killer560.hub.invwalk.InventoryWalkFeature.heldNow() > 0;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** True (and a hold logged) when a use must wait for Inventory Walk's held close (see {@link #closeHeld}). */
+    private static boolean useWaitsForHeldClose(RouteNode node, String what) {
+        if (!closeHeld()) {
+            return false;
+        }
+        logHold("iwclose:" + traceIndex(node), "{}: Inventory Walk holds a container close for a still tick - keys up and "
+                + "the use waits, so the close never reaches the server with the sneak down (GrimAC MultiActionsD)", what);
+        return true;
     }
 
     /** The {@code Input} record the mixin installs for this tick. */
     public static Input drivenInput() {
+        if (closeHeld()) {
+            // Keys up while Inventory Walk holds a close (closeHeld): its still tick, then the close, then the keys again.
+            if (lastInputBits != 0) {
+                lastInputBits = 0;
+                LOGGER.info("[AutoRoutes] input installed at tick {}: none - Inventory Walk holds a container close (node {})",
+                        execTicks, nodeTag(activeNode));
+            }
+            return new Input(false, false, false, false, false, false, false);
+        }
         int bits = (wantForward ? 1 : 0) | (wantBackward ? 2 : 0) | (wantLeft ? 4 : 0) | (wantRight ? 8 : 0)
                 | (wantJump ? 16 : 0) | (wantSneak ? 32 : 0) | (wantSprint ? 64 : 0);
         if (bits != lastInputBits) {
@@ -3724,6 +3759,9 @@ public final class RouteExecutor {
             teleportPacketSeen = false;
             int eatenBefore = com.killer560.hub.util.RightClick.barePairedUses();
             int seqBefore = com.killer560.hub.util.RightClick.lastUseSequence();
+            if (useWaitsForHeldClose(node, "Etherwarp (" + what + ")")) {
+                return false;
+            }
             boolean chainNext = hopIndex < 0 && bareEtherwarpNext(node) != null;
             blinkChainBefore(node, chainNext);
             useHeldItem(client, player, warpYaw, warpPitch, false);
@@ -4366,6 +4404,9 @@ public final class RouteExecutor {
                         + "(a block click is unpaired)", nodeTag(node));
                 return;
             }
+            if (useWaitsForHeldClose(node, "node " + nodeTag(node) + " USE_ITEM")) {
+                return;
+            }
             actionOrigin = player.position();
             teleportPacketSeen = false;
             useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), node.pitch, true);
@@ -4866,7 +4907,8 @@ public final class RouteExecutor {
             }
         }
         float error = (float) Math.hypot(dYaw, pitch - player.getXRot());
-        if (stepTicks - batLastUse >= BAT_USE_GAP && (!legit || error <= BAT_AIM_TOLERANCE)) {
+        if (stepTicks - batLastUse >= BAT_USE_GAP && (!legit || error <= BAT_AIM_TOLERANCE)
+                && !useWaitsForHeldClose(activeNode, "sceptre use")) {
             batLastUse = stepTicks;
             lastSceptreYaw = yaw;
             lastSceptrePitch = pitch;
