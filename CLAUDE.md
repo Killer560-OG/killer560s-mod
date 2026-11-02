@@ -102,7 +102,9 @@ cheat build that hands back the real SLF4J logger; in a release (`-Prelease=true
 hands back one that drops TRACE/DEBUG/INFO/WARN and forwards only ERROR, so a release jar is quiet without
 a thousand call sites being guarded. `roomsim/` and `bazaarflip/` were the last two packages still calling
 `LoggerFactory` directly, and so the last two still logging in a release; both went through `ModLog` on
-2026-09-30, so a release jar is now quiet everywhere.
+2026-09-30, so a release jar is now quiet everywhere. Since 2026-11-01 every `ModLog` logger is wrapped (`RecordingLogger`) so Auto Report Bans'
+`util/SessionLogTap` can keep the session's INFO+ lines in memory while that opt-in switch is on (also in a release); a logger
+whose lines quote other players (chat, Mod Chat, party, friends) must be added to `SessionLogTap.SKIP`.
 
 Automation chat (killer560, 2026-10-16): a running auto says only that it started or stopped, a server correction and
 a real failure; every progress line goes through `ModChat.log` (same words, logger `killer560smod-chat`, testkit LogTap
@@ -488,3 +490,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Crypt census (CryptScanner rules against all 134 captures): use `killer560s-mod-logs/doc-secrets-1101/crypt_scan_port.py
   --new --rule crypt_1101_rule.py` (paths fixed for 26.3 Mod Only Test); the older copy in `crypt-census/` points at a
   deleted worktree and the wiped 26.1.2 instance. Run `python -I` on a file, never `python -` with stdin redirected.
+- `DisconnectedScreen`'s constructors chain into each other, so a mixin on each of them (accounts/DisconnectedScreenMixin)
+  runs up to three times for ONE screen (testkit 4101, 2026-11-01). Anything that must act once per screen keys on the
+  screen object (`BanReportFeature.onDisconnectScreen(this, ...)`), not on the call.

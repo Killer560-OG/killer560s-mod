@@ -26,6 +26,7 @@ public class ConnectScreenMixin {
     private static void killer560smod$onStartConnecting(Screen parent, Minecraft minecraft, ServerAddress serverAddress,
             ServerData serverData, boolean quickPlay, TransferState transferState, CallbackInfo ci) {
         String host = serverAddress == null ? null : serverAddress.getHost();
+        com.killer560.hub.banreport.BanReportFeature.noteConnect(host);
         if (host != null && host.toLowerCase(Locale.US).contains("hypixel.net")) {
             PendingConnection.markPending();
         } else {

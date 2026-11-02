@@ -408,6 +408,7 @@ public final class ProfileManager {
                 com.killer560.hub.util.CorrectionAlarmConfig::load,
                 com.killer560.hub.bazaarflip.BazaarFlipConfig::load,
                 com.killer560.hub.bugreport.BugReportConfig::load,
+                com.killer560.hub.banreport.BanReportConfig::load,
                 com.killer560.hub.sessionrecorder.SessionRecorderConfig::load,
                 com.killer560.hub.invsort.InventorySorterConfig::load,
                 // CrystalHollowsMapConfig, NucleusRunProfitConfig and MiningProfitConfig: shelved until after 2.0
@@ -1082,7 +1083,9 @@ public final class ProfileManager {
             "killer560smod-modusers.json", Set.of("share", "shareAs"),
             "killer560smod-partydata.json", Set.of("shareEnabled"),
             "killer560smod-teammelody.json", Set.of("shareProgress"),
-            "killer560smod-supporters.json", Set.of("shareIfSupporter", "shareTrail")
+            "killer560smod-supporters.json", Set.of("shareIfSupporter", "shareTrail"),
+            // Auto Report Bans is the player's own consent to send data about him: never set by someone else's profile.
+            "killer560smod-banreport.json", Set.of("enabled", "reported", "sentAt")
     );
 
     /** {@code bytes} (an imported setting file) with its {@link #IMPORT_LOCKED_FIELDS} set to the live values, each in

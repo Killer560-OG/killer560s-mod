@@ -27,7 +27,10 @@ public class HomeTab extends FolderTab {
                 new DescriptionsTab(),
                 new DiscordRpcTab(),
                 new AutoUpdateTab(),
-                new MenuThemeTab()
+                new MenuThemeTab(),
+                // Auto Report Bans (to-do Doc "BAN LOGGER", 2026-11-01): after his ordered cards, in both builds; he asked for
+                // a very noticeable switch, so it sits on Home rather than deep in Misc.
+                new BanReportTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new CorrectionAlarmTab());

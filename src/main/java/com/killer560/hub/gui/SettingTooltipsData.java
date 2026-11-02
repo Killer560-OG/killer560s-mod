@@ -1091,6 +1091,8 @@ final class SettingTooltipsData {
         d.put("swap slot", "Hotbar slot (1-9) to switch to before clicking a secret.");
         d.put("notify me of updates", "Tells you when you join a world if a newer release of the mod exists.");
         d.put("auto update", "Installs new versions for you, on by default. It follows its Channel: Full Release or Beta (the newest dev build).");
+        d.put("ban reports", "Opt-in, off by default. If you get banned on Hypixel, sends one report to killer560's staff so they can tell whether the mod was the cause.");
+        d.put("ban reports/auto report bans", "Off by default. On, a Hypixel ban screen sends one report through the mod's relay to a private staff channel: the ban message (Ban ID hidden), mod version and variant, the features you had on and their settings, and this session's mod log with server corrections. Other players' names and chat, tokens, session IDs, IP addresses and API keys are never sent. Once per ban.");
         d.put("auto update/channel", "Which release Auto Update follows: Full Release (the newest numbered release) or Beta (the rolling dev build, newer and less tested). Left click forward, right click back.");
         d.put("check now", "Checks your Auto Update channel right now and downloads the update if there is one. It installs when you close the game.");
         d.put("this build", "The commit this jar was built from, and its Minecraft version and variant. Auto Update compares the commit with the release's.");
