@@ -48,6 +48,8 @@ public final class ModuleKeybinds {
     private static final Map<String, Boolean> wasDown = new HashMap<>();
     /** Presses that toggled something, for the testkit (a press proves itself by this AND the switch's state). */
     private static int toggles;
+    /** Testkit: a code held down as if pressed (a harness key press never reaches the GLFW poll {@link KeyUtil} reads). */
+    public static volatile Integer heldForTest;
 
     private ModuleKeybinds() {
     }
@@ -195,7 +197,9 @@ public final class ModuleKeybinds {
         }
         boolean free = McCompat.screen(client) == null && client.getWindow() != null;
         for (Map.Entry<String, Integer> e : m.entrySet()) {
-            boolean down = free && KeyUtil.isBindDown(client.getWindow(), e.getValue());
+            Integer held = heldForTest;
+            boolean down = free && ((held != null && held.intValue() == e.getValue())
+                    || KeyUtil.isBindDown(client.getWindow(), e.getValue()));
             Boolean was = wasDown.put(e.getKey(), down);
             if (down && (was == null || !was)) {
                 press(e.getKey());

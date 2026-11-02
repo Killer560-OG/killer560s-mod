@@ -652,7 +652,7 @@ public class ModScreen extends Screen {
     public boolean pressSection(String label) {
         for (SideEntry e : side) {
             if (e.sub() && e.label().equals(label)) {
-                pressSection(e);
+                pressSectionRow(e);
                 return true;
             }
         }
@@ -664,7 +664,7 @@ public class ModScreen extends Screen {
         return new int[]{gridScroll, gridMax};
     }
 
-    private void pressSection(SideEntry e) {
+    private void pressSectionRow(SideEntry e) {
         if (openFeature != null && drawerOverlay) {
             // The drawer covers the grid: close it, then find the same section in the grid laid out without it.
             String label = e.label();
@@ -1594,7 +1594,7 @@ public class ModScreen extends Screen {
             if (inside(mx, my, e.x(), e.y(), e.w(), e.h())) {
                 clickSound();
                 if (e.sub()) {
-                    pressSection(e);
+                    pressSectionRow(e);
                     return true;
                 }
                 if (e.favourites()) {
