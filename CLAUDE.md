@@ -561,7 +561,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   username, access_token, refresh_token, expires in Unix seconds), recent rows often only in `app.db-wal`. Its refresh token
   is bound to the app's Xbox device key, so the mod uses the app's current token (`accounts/core/LauncherAccounts`,
   `SqliteReader`, read only; 2026-11-01). Inspect a COPY of app.db, never the live file, and never print a token.
-- The first-launch tour (`intro/`, 2026-11-01) opens over the title screen on a fresh install only; in a client gametest
+- The first-launch tour (`intro/`, 2026-11-01) opens over the title screen once per instance (fresh or updated; `seen` in killer560smod-intro.json, saved as it opens); in a client gametest
   run it never opens unless `-Dkiller560.test.intro=show` (docs/TESTING-HOOKS.md), so title-screen cases are not
   interrupted. A GUI picture-in-picture (`g.skin`, entity, item models) ignores the pose: transform its box yourself
   under Auto Scale (docs/LESSONS-GUI.md).

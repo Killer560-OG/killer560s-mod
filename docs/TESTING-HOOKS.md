@@ -168,8 +168,7 @@ override read by `MainMenuLook.current()`, `MainMenuTheme.active()` and `MenuSty
 In a client gametest run (`fabric.client.gametest` set) the tour never opens on its own, so the cases that start from the
 title screen are not interrupted; `-Dkiller560.test.intro=show` lets it open as for a player (testkit
 1101-ui-intro-first-show). `IntroLauncher.autoShown()` counts how often it opened on its own this session,
-`resetSessionForTest()` re-arms it, `replay(parent)` opens it now. `IntroConfig.wasFreshInstall()` says whether the config
-held no mod setting at launch. On an open `IntroScreen`: `currentScene()`, `sceneList()`, `bubbleText()`, `buttons()` (label
+`resetSessionForTest()` re-arms it, `replay(parent)` opens it now. On an open `IntroScreen`: `currentScene()`, `sceneList()`, `bubbleText()`, `buttons()` (label
 -> widget), `confirmingSkip()`, `settled()`, `bubbleRect()`, `guideBox()`, `finish()`; `IntroScreen.guideFrames()` counts
 frames the 3D guide was submitted and `guideTurn()` is his last body turn. With `killer560.test.menuAnimClock=instant` the
 bubble appears at once with all its text; driving `MenuAnim.setClockForTest` gives the real pop-in, typing and walk.

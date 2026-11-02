@@ -80,8 +80,6 @@ public class Killer560ModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ModCompatibility.refuseIfFirmamentPresent();
-        // Before anything writes a setting: was this a first install? (The first-launch tour shows only on one.)
-        com.killer560.hub.intro.IntroConfig.captureFirstInstall();
         // The shared record store's account, read once on this (the client) thread so a record touched from another
         // thread later still finds its account folder (SharedRecords.accountId).
         com.killer560.hub.shared.SharedRecords.accountId();
