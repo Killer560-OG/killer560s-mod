@@ -641,6 +641,8 @@ public final class BreakerAuraFeature {
             }
             resetState();
         }
+        // His walk is his own whatever the aura aimed last tick (BreakerAim: yaw back to his view before he moves).
+        BreakerAim.startTick(client, active);
         if (!active) {
             // Only on a change of reason: "switched off" is the normal state and must not repeat every tick.
             String why = inactiveWhy(client, cfg);
@@ -684,6 +686,7 @@ public final class BreakerAuraFeature {
             if (res == com.killer560.hub.dungeonbreaker.ObsidianDig.Result.RUNNING) {
                 lastSkipReason = null;
                 idleSinceSwapTicks = 0;
+                BreakerAim.keep(); // its STOP is judged on the look too
                 census("obsidian");
                 return;
             }
@@ -924,6 +927,37 @@ public final class BreakerAuraFeature {
             LOGGER.debug("[BreakerAura] plan: {} target(s) allowed={} available={} moving={} speed={} first={}",
                     order.size(), allowed, available, !Double.isNaN(dirX), speed, order.get(0).toShortString());
         }
+        // AIMED, every dig (ba-rotation-1102, GrimAC RotationBreak): only a pick the look the server already has strikes
+        // is dug - first in the order above that is - and the look for the next one is set in the same tick (BreakerAim).
+        // With none struck, this tick aims (pitch only, or a yaw turn while he is not walking) and digs nothing.
+        List<BlockPos> inReach = order;
+        if (!order.isEmpty()) {
+            BlockPos ready = null;
+            for (BlockPos p : order) {
+                if (BreakerAim.digReady(player, p)) {
+                    ready = p;
+                    break;
+                }
+            }
+            if (ready == null) {
+                String how = null;
+                BlockPos aimed = null;
+                for (BlockPos p : order) {
+                    how = BreakerAim.aimFor(client, player, p);
+                    if (how != null) {
+                        aimed = p;
+                        break;
+                    }
+                }
+                logRated("aim", "[BreakerAura] aim: no pick on the look the server has - {} ({} target(s) in reach)",
+                        aimed == null ? "none can be aimed without steering his walk, waiting"
+                                : "aimed " + how + " at " + aimed.toShortString() + ", dug next tick", order.size());
+                skip(aimed == null ? "picks need a yaw turn while you walk" : "aiming at the next pick");
+                census("gate");
+                return;
+            }
+            order = List.of(ready);
+        }
         for (BlockPos pos : order) {
             if (sent >= allowed) {
                 break;
@@ -1002,6 +1036,25 @@ public final class BreakerAuraFeature {
             return;
         }
         census("sent");
+        // The next pick's look rides this tick's movement packet (the dig just sent is still judged on the look the
+        // server had: GrimAC tries (lastYaw, lastPitch) too). A pick the current look already strikes needs no turn.
+        BlockPos dugNow = order.get(0);
+        boolean nextOnLook = false;
+        for (BlockPos p : inReach) {
+            if (!p.equals(dugNow) && BreakerAim.digReady(player, p)) {
+                nextOnLook = true;
+                break;
+            }
+        }
+        if (nextOnLook) {
+            BreakerAim.keep();
+        } else {
+            for (BlockPos p : inReach) {
+                if (!p.equals(dugNow) && BreakerAim.aimFor(client, player, p) != null) {
+                    break;
+                }
+            }
+        }
         // One swing however many went out: a hand swings once a tick whatever it is doing.
         com.killer560.hub.compat.McCompat.swingAttack(player);
         // MINUS ONE, because the wait is checked on a later tick and that check costs a tick of its own: with the
@@ -1010,7 +1063,7 @@ public final class BreakerAuraFeature {
         // (2026-09-23): "right now the breaker aura is just way to slow. It isnt how the other clients feel."
         // Multi Break: no cooldown while blocks of this run are still in reach - the next goes next tick; the cooldown
         // applies once the run is over (nothing else in reach this tick).
-        boolean moreInRun = multiBreak && order.size() > sent;
+        boolean moreInRun = multiBreak && inReach.size() > sent;
         cooldownTicks = moreInRun ? 0 : Math.max(0, cfg.getBreakerAuraCooldownTicks() - 1);
         multiBreakRun = moreInRun ? multiBreakRun + sent : 0;
         LOGGER.info("[BreakerAura] tick done: sent={} of {} target(s) | spentSinceLore={} lore={} | swing | cooldown"
