@@ -80,7 +80,7 @@ public class GoldorTriggerbotTab extends BaseTab {
         y += 24;
 
         // Classes it works on (your class from the dungeon tab list); all on = every class, and an unknown class too.
-        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Classes", false));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Classes", true));
         y += 16;
         com.killer560.hub.dungeonclass.DungeonClass[] all = com.killer560.hub.dungeonclass.DungeonClass.values();
         int colW = (contentWidth - GAP * 2) / 3;
