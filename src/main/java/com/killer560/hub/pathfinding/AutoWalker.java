@@ -502,6 +502,9 @@ public final class AutoWalker {
         }
         if (serverMoved) {
             positionPacketsSeen = packets;
+            // Wherever the server put him, progress is measured from here: the distance left jumped when he was moved
+            // back, and the stuck clock called a fine walk "stuck" 2.5 s later (testkit 1102-fairy-grim-tp-walker).
+            clearStuck();
             double moved = ServerCorrections.lastMoveDistance();
             float turned = ServerCorrections.lastRotationChange();
             WalkCamera.rebase();
@@ -849,6 +852,17 @@ public final class AutoWalker {
         List<BlockPos> goals = new ArrayList<>();
         List<Vec3> path = NavigationManager.path();
         int from = aheadOnly && path.size() >= 2 ? NavigationManager.closestSegment(pos) + 1 : 0;
+        if (from == 0 && !path.isEmpty()) {
+            // The route starts at its first graph point, which can be far from him (the first node behind him is dropped):
+            // points on the way from him to it as well, or a long first stretch has no goal in the planner's box.
+            Vec3 a = new Vec3(pos.x, pos.y + 0.5, pos.z);
+            Vec3 b = path.get(0);
+            double len = a.distanceTo(b);
+            for (double t = 3.0; t < len; t += 2.0) {
+                Vec3 q = a.add(b.subtract(a).scale(t / len));
+                addGoal(level, start, BlockPos.containing(q.x, q.y - 0.5 + 0.01, q.z), goals);
+            }
+        }
         for (int i = from; i < path.size(); i++) {
             Vec3 p = path.get(i);
             // The route's own points can be far apart (a long graph edge): points along each segment too, every 2
