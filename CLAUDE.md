@@ -187,6 +187,11 @@ has no switch over the whole: each feature keeps its own, and the tab lists them
 (`gui/MasterSwitch`) is ON while any is on and OFF only when all are; never add a "X as a whole" row that gates independent
 switches (the 2026-10-13 ones were removed 2026-10-14, files with the old key OFF load with every part OFF). Testkit 515-518.
 Testkit 511-514 check it on cheat, legit and testing jars.
+A row whose feature runs on its own flag (not gated by the tab's first switch) is an independent feature and goes in
+`masterToggles`, and it must be built even while the first switch is off (an early `return` hides it from `switchRows`);
+otherwise the card reads OFF while it runs (Architect's First Draft and 11 more, menufix-1102). A row the tab only shows
+under a parent switch must not run without it (Simon Says Party Tracker, Send Melody Progress now follow theirs). Testkit
+525 switches every listed row on alone on every card and pins the 1102 tabs' lists.
 
 Never track a `HANDOFF.md` in the repo; handoff notes live only in
 `C:\Users\Hunter\.claude\killer560s-mod-HANDOFF-PRIVATE.txt`. The Discord bot token lives at
@@ -202,7 +207,7 @@ directly (`setPos`, `setDeltaMovement`) and never use fractional movement input 
 A server correction is always honored (never fought) but never stops anything: see the first lesson below. Never clamp or wrap simulated yaw at 0-360; Hypixel treats an uncapped
 running rotation value as the normal signal. Pitch is always kept within -90..+90. Anticheat *deception*
 features: on 2026-10-25 he asked for Blink, Inventory Walk and Zero Ping Etherwarp and had them built and shipped
-(cheat build only, off by default; blink-1025). Zero Ping Etherwarp stays CAMERA ONLY (his decision 2026-10-25; in both builds since 2026-10-26): the
+(cheat build only, off by default; blink-1025). Zero Ping Etherwarp stays CAMERA ONLY (his decision 2026-10-25; in both builds 2026-10-26 to 2026-11-02, cheat-only again since: "all zero ping etherwarp stuff should be cheat only nothing in legit"): the
 character is never moved client-side ahead of the server, so the setPos rule above stands. Blink AP3 is not built.
 
 A setting that flags is not shipped with that value (killer560, 2026-10-27: "if a setting is flagging then it shouldnt be
