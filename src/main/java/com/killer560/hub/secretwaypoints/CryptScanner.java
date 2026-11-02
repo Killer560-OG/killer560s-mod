@@ -88,6 +88,8 @@ public final class CryptScanner {
     private static final java.util.Map<String, String> NOTED = new java.util.HashMap<>();
     private static final int NOTED_CAP = 4096;
     private static String lastScanSummary;
+    /** This scan's last verdict per anchor (any rule, logged or not), for {@link #logGold}. */
+    private static final java.util.Map<BlockPos, String> SCAN_VERDICT = new java.util.HashMap<>();
 
     /** Logs {@code detail} for a candidate at {@code anchor} when its {@code verdict} differs from the last one logged. */
     private static void note(BlockPos anchor, String verdict, String detail) {
@@ -101,6 +103,9 @@ public final class CryptScanner {
         }
         if (NOTED.size() > NOTED_CAP) {
             NOTED.clear();
+        }
+        if (slot.isEmpty()) {
+            SCAN_VERDICT.put(anchor, verdict);
         }
         if (verdict.equals(NOTED.put(slot + anchor.toShortString(), verdict))) {
             return;
@@ -470,6 +475,8 @@ public final class CryptScanner {
         Set<BlockPos> lidChecked = new HashSet<>();
         Set<BlockPos> brazierChecked = new HashSet<>();
         List<BlockPos> lidPrinces = new ArrayList<>();
+        List<BlockPos> goldSeen = new ArrayList<>();
+        SCAN_VERDICT.clear();
         for (int cx = bounds[0] >> 4; cx <= (bounds[2] >> 4); cx++) {
             for (int cz = bounds[1] >> 4; cz <= (bounds[3] >> 4); cz++) {
                 if (!com.killer560.hub.util.ClientChunks.isLoaded(level, cx, cz)) {
@@ -538,6 +545,9 @@ public final class CryptScanner {
                                     }
                                 } else if (state.is(Blocks.GOLD_BLOCK) || state.is(Blocks.SEA_LANTERN)) {
                                     BlockPos at = new BlockPos(x, baseY + ly, z);
+                                    if (state.is(Blocks.GOLD_BLOCK) && goldSeen.size() < 64) {
+                                        goldSeen.add(at);
+                                    }
                                     if (isPrinceCrown(level, at)) {
                                         crowns.add(at);
                                         note(at, "prince crown found", state.is(Blocks.GOLD_BLOCK)
@@ -588,9 +598,13 @@ public final class CryptScanner {
         // Crypts: lid-shaped slab runs that do not belong to a prince.
         int runCount = 0;
         int cryptCount = 0;
+        java.util.Map<BlockPos, BlockPos> runOf = new java.util.HashMap<>();
         for (List<BlockPos> run : groups(slabs, true)) {
             runCount++;
             Found f = found(Type.CRYPT, run);
+            for (BlockPos p : run) {
+                runOf.put(p, f.anchor());
+            }
             int w = f.maxX() - f.minX() + 1;
             int d = f.maxZ() - f.minZ() + 1;
             int n = run.size();
@@ -644,7 +658,13 @@ public final class CryptScanner {
             if (!gold.isEmpty()) {
                 List<BlockPos> tomb = new ArrayList<>(run);
                 tomb.addAll(gold);
-                note(f.anchor(), "PRINCE found (gold beside a lid)", counts + " gold=" + gold.size());
+                List<String> at = new ArrayList<>();
+                for (BlockPos g : gold) {
+                    at.add(g.toShortString());
+                }
+                note(f.anchor(), "PRINCE found (gold beside a lid)", counts + " gold=" + gold.size() + " at " + at
+                        + " box=" + f.minX() + "," + f.minY() + "," + f.minZ() + ".." + f.maxX() + "," + f.maxY() + ","
+                        + f.maxZ());
                 princeCount++;
                 out.add(found(Type.PRINCE, tomb));
                 continue;
@@ -653,6 +673,7 @@ public final class CryptScanner {
             cryptCount++;
             out.add(f);
         }
+        logGold(level, goldSeen, runOf, crowns);
         String summary = "bounds=" + bounds[0] + "," + bounds[1] + ".." + bounds[2] + "," + bounds[3]
                 + " slabRuns=" + runCount + " crowns=" + crowns.size() + " rulePrinceBlocks=" + lidPrinces.size()
                 + " princes=" + princeCount + " crypts=" + cryptCount;
@@ -661,6 +682,47 @@ public final class CryptScanner {
             LOGGER.info("[CryptScan] scan result changed: {}", summary);
         }
         return out;
+    }
+
+    /**
+     * Owner evidence for Flags' gold prince at the back middle (to-do item 4, p08; killer560 2026-11-01: "This is a prince in
+     * flags"): no capture has that gold, so the rule that should catch it ({@link #goldBeside}) is unverified. Every gold
+     * block a scan meets is logged with its coordinates, whether it is a crown ({@link #isPrinceCrown}), the nearest slab run
+     * within three blocks (its anchor and what the scanner made of it) and how far off it is - once per gold block and
+     * verdict ({@link #note}), so the once-a-second scan does not repeat it. Logging only.
+     */
+    private static void logGold(Level level, List<BlockPos> goldSeen, java.util.Map<BlockPos, BlockPos> runOf,
+                                List<BlockPos> crowns) {
+        for (BlockPos g : goldSeen) {
+            BlockPos nearest = null;
+            int best = Integer.MAX_VALUE;
+            for (int dx = -3; dx <= 3; dx++) {
+                for (int dz = -3; dz <= 3; dz++) {
+                    for (int dy = -1; dy <= 3; dy++) {
+                        BlockPos q = g.offset(dx, dy, dz);
+                        if (!runOf.containsKey(q)) {
+                            continue;
+                        }
+                        int d = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
+                        if (d < best) {
+                            best = d;
+                            nearest = q;
+                        }
+                    }
+                }
+            }
+            String rule = crowns.contains(g) ? "crown" : "not a crown";
+            if (nearest == null) {
+                note(g, "gold:", "gold block, " + rule + ", no slab run within 3",
+                        "air above=" + level.getBlockState(g.above()).isAir());
+                continue;
+            }
+            BlockPos anchor = runOf.get(nearest);
+            String verdict = SCAN_VERDICT.getOrDefault(anchor, "no verdict (run under 4 slabs)");
+            note(g, "gold:", "gold block, " + rule + ", nearest slab run " + anchor.toShortString() + ": " + verdict,
+                    "slab " + nearest.toShortString() + " " + best + " block(s) off (goldBeside reaches 1 out, 2 down, 1 up)"
+                            + " air above=" + level.getBlockState(g.above()).isAir());
+        }
     }
 
     /**
