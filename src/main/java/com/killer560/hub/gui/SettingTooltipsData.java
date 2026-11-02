@@ -11,6 +11,8 @@ final class SettingTooltipsData {
     }
 
     static void register(Map<String, String> d) {
+        // Every module's last row (ModuleKeybinds, killer560 2026-11-01).
+        d.put("toggle keybind", "A key that turns this feature on and off in game, as its switch does. None by default. Click, then press a key or mouse button; Escape clears it.");
         d.put("secret clicked", "Draws a short box on each secret you collect; the box turns red when the chest was locked.");
         d.put("locked chest sound", "Plays an anvil sound when the chest you clicked was locked.");
         d.put("mute chest sounds", "In dungeons, silences chest open and close sounds.");

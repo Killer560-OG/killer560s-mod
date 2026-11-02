@@ -772,6 +772,7 @@ public class ModScreen extends Screen {
         if (now == before) {
             return;
         }
+        ModuleKeybinds.cancelCapture();
         long t = MenuAnim.changeTime();
         if (before == null) {
             drawerOpenedAt = t;
@@ -913,6 +914,16 @@ public class ModScreen extends Screen {
             drawerMaster = MasterSwitch.of(tab.masterToggles(built));
             if (drawerMaster != null) {
                 FeatureCards.setKnownState(tab, drawerMaster.isOn());
+                // Every module's toggle key, as the drawer's very last row (killer560, 2026-11-01): ModuleKeybinds.
+                int bottom = startY;
+                for (AbstractWidget w : widgets) {
+                    if (w.visible) {
+                        bottom = Math.max(bottom, w.getY() + w.getHeight());
+                    }
+                }
+                AbstractWidget keyRow = ModuleKeybinds.row(id(tab), contentX, bottom + 8, contentW);
+                SettingTooltips.scope(keyRow, tab.name);
+                widgets.add(keyRow);
             }
         }
 
@@ -1884,6 +1895,10 @@ public class ModScreen extends Screen {
             return null;
         }
         BaseTab active = pageMode() ? selected() : openFeature;
+        KeyCaptureTab moduleKey = ModuleKeybinds.listening(openFeature == null || pageMode() ? null : id(openFeature));
+        if (moduleKey != null) {
+            return moduleKey;
+        }
         if (active instanceof KeyCaptureTab captureTab && captureTab.isListeningForKey()) {
             return captureTab;
         }

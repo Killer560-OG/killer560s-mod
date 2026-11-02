@@ -416,6 +416,7 @@ public final class ProfileManager {
                 com.killer560.hub.autoupdate.AutoUpdateConfig::load,
                 com.killer560.hub.cringe.CringeConfig::load,
                 com.killer560.hub.gui.MenuConfig::load,
+                com.killer560.hub.gui.ModuleKeybinds::load,
                 com.killer560.hub.clicksound.ClickSoundConfig::load,
                 com.killer560.hub.clicksound.SoundEffectConfig::load,
                 com.killer560.hub.gui.DescriptionConfig::load,
