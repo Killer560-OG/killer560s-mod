@@ -343,3 +343,12 @@ project CLAUDE.md. Compiling lessons
   `Input.sprint()` in `LocalPlayer.aiStep` with `@ModifyExpressionValue`; others call setSprinting each tick); holding
   the sprint KEY is already undone by our movers replacing the key record. `AutoSprintOverrideMixin` refuses a sprint
   start there while one of the mod's movers drives with sprint up (doc-terms-1101, testkit 1101-menu-autosprint).
+
+- **Owner-evidence log lines (diag-1101, 2026-11-02).** Where a bug's cause needs a Hypixel run, the mod writes one rate-limited
+  INFO line his log will carry (DEBUG never reaches it): `[Predict] tile x,z ruled out <room@rot@ax,az> ...: [seen/expected
+  blocks]` (once per tile a floor, up to 3 rooms), `[SecretWaypoints] room change A (name) -> B (name) ... N outside` (at most one
+  a second) and `still drawing N waypoint(s) outside room ...` (once, within 5 s of a room change), `[CryptScan] gold block, ...`
+  (each gold block with its crown rule and the nearest lid's verdict, once per verdict), `[FastLeap] stuck for N ms: [reasons]
+  | ...` (once a spell after 1 s, then `stuck state ended`), `[Raffle] Raffle start (...)` plus one line per nearby entity (once a
+  Raffle, Raffle highlight on). Grep his log for these before guessing. The sim's Flags proved `CryptScanner.goldBeside`: a gold
+  block one out and one down from the raised-row lid makes that lid the prince (1102-diag-wp-gold).
