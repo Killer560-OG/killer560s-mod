@@ -114,10 +114,23 @@ public final class InventoryLayoutStore {
 
     // ------------------------------------------------------------------------------------------- access
 
-    /** Every layout name, sorted - the {@code /invsort list} order. */
+    /** Every layout name in the menu's order: the order he dragged them into ({@link InventorySorterConfig}), then any
+     *  not placed yet, alphabetically - the {@code /invsort list} order too. */
     public List<String> listNames() {
-        List<String> out = new ArrayList<>(layouts.keySet());
-        out.sort(String.CASE_INSENSITIVE_ORDER);
+        List<String> rest = new ArrayList<>(layouts.keySet());
+        rest.sort(String.CASE_INSENSITIVE_ORDER);
+        List<String> out = new ArrayList<>();
+        for (String name : InventorySorterConfig.getInstance().getLayoutOrder()) {
+            for (java.util.Iterator<String> it = rest.iterator(); it.hasNext(); ) {
+                String have = it.next();
+                if (have.equalsIgnoreCase(name)) {
+                    out.add(have);
+                    it.remove();
+                    break;
+                }
+            }
+        }
+        out.addAll(rest);
         return out;
     }
 
@@ -261,8 +274,16 @@ public final class InventoryLayoutStore {
                 }
             }
         }
-        return new InventoryLayout(name, slots, icons);
+        boolean fetch = ConfigJson.getBool(root, "fetchFromStorage", false);
+        String dump = ConfigJson.getString(root, "dumpPage", null);
+        if (dump != null && !DUMP_PAGE.matcher(dump).matches()) {
+            dump = null;
+        }
+        return new InventoryLayout(name, slots, icons, fetch, dump);
     }
+
+    /** {@code enderchest_1}-{@code enderchest_9} or {@code backpack_1}-{@code backpack_18}. */
+    static final Pattern DUMP_PAGE = Pattern.compile("^(?:enderchest_[1-9]|backpack_(?:[1-9]|1[0-8]))$");
 
     private static JsonObject writeLayout(InventoryLayout layout) {
         JsonObject root = new JsonObject();
@@ -280,6 +301,10 @@ public final class InventoryLayoutStore {
             iconsObj.addProperty(String.valueOf(e.getKey()), e.getValue());
         }
         root.add("icons", iconsObj);
+        root.addProperty("fetchFromStorage", layout.fetchFromStorage());
+        if (layout.dumpPage() != null) {
+            root.addProperty("dumpPage", layout.dumpPage());
+        }
         return root;
     }
 }
