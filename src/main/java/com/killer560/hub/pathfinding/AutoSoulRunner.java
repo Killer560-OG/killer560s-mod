@@ -104,12 +104,21 @@ public final class AutoSoulRunner {
     private static int warpsSent;
     private static final long WARP_WAIT_MS = 12_000L;
     /**
-     * Hypixel's /warp destination for an island, used only to get back onto the island it is on. Only names known to
-     * be right; an island missing here simply skips the warp.
+     * Hypixel's /warp destination for each island, used only to get back onto the island it is on. Names from
+     * hypixelskyblock.minecraft.wiki/w/Fast_Travel (2026-11-02): each island's main command. The Rift is left out (going
+     * there spends Rift time). A warp the profile has not unlocked gets Hypixel's refusal, and the soul is skipped after
+     * the wait.
      */
-    private static final java.util.Map<String, String> WARPS = java.util.Map.of(
-            "HUB", "hub", "THE_PARK", "park", "SPIDER_DEN", "spider", "THE_END", "end", "GOLD_MINES", "gold",
-            "DEEP_CAVERNS", "deep", "DWARVEN_MINES", "mines", "THE_FARMING_ISLANDS", "barn", "DUNGEON_HUB", "dungeon_hub");
+    private static final java.util.Map<String, String> WARPS = java.util.Map.ofEntries(
+            java.util.Map.entry("HUB", "hub"), java.util.Map.entry("THE_PARK", "park"),
+            java.util.Map.entry("SPIDER_DEN", "spider"), java.util.Map.entry("THE_END", "end"),
+            java.util.Map.entry("GOLD_MINES", "gold"), java.util.Map.entry("DEEP_CAVERNS", "deep"),
+            java.util.Map.entry("DWARVEN_MINES", "dwarves"), java.util.Map.entry("GLACITE_TUNNELS", "basecamp"),
+            java.util.Map.entry("CRYSTAL_HOLLOWS", "crystals"), java.util.Map.entry("THE_FARMING_ISLANDS", "barn"),
+            java.util.Map.entry("DUNGEON_HUB", "dungeon_hub"), java.util.Map.entry("CRIMSON_ISLE", "isle"),
+            java.util.Map.entry("WINTER", "jerry"), java.util.Map.entry("BACKWATER_BAYOU", "bayou"),
+            java.util.Map.entry("GALATEA", "moonglade"), java.util.Map.entry("LOTUS_ATOLL", "lotus"),
+            java.util.Map.entry("SAFARI", "safari"), java.util.Map.entry("TORRHUS_CANYON", "torrhus"));
 
     private AutoSoulRunner() {
     }
