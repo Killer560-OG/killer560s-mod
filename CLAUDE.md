@@ -11,7 +11,7 @@ Java 25 and a JDK on `JAVA_HOME`. Gradle wrapper, Fabric Loom.
 ./gradlew build                     # legit variant  -> build/libs/killer560smod-1.1.0-26.3-legit.jar
 ./gradlew build -PcheatBuild=true   # cheat variant  -> build/libs/killer560smod-1.1.0-26.3-cheat.jar
 ./gradlew build -Prelease=true      # official release: compiles dev tooling OUT
-./gradlew build [-PcheatBuild=true] -PtestingBuild=true  # killer560's private jar, ...-26.3-<cheat|legit>-testing.jar: Untested category, Mark tested, /k560tested; lists in testing/; deploy ONLY with --testing-instance-cheat/--testing-instance-legit NAME
+./gradlew build [-PcheatBuild=true] -PtestingBuild=true  # killer560's private jar, ...-26.3-<cheat|legit>-testing.jar: Untested and Bugged categories, Mark tested / Mark bugged, /k560tested; lists in testing/; deploy ONLY with --testing-instance-cheat/--testing-instance-legit NAME
 python deploy-to-instances.py [--dry-run] [--jars-dir DIR]   # install into every Prism instance; writes minecraft/killer560smod-no-auto-update in each (Auto Update off there)
 python tools/verify-artifact.py JARS_OR_DIRS [--git REPO]    # secret scan; deploy-to-instances.py, release-assets.py, dev-build.yml and killer560s-mod-logs/verify_gate.py all run it and stop on exit 1
 # --auto-update-instance NAME: leave NAME to the mod's own Auto Update (no jar, marker removed); none uses it (2026-10-24: all 7 have the marker)
@@ -367,6 +367,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   (2026-09-29), and `contains("has obtained Wither Key")` let anyone make the client right-click a door. Even
   an anchored `^(.{1,16}) completed a terminal!` is forgeable, because `[VIP] Bob: a` is sixteen characters -
   a name group must be `[A-Za-z0-9_]{1,16}`, which no chat prefix can be.
+- Nickhider renames by WORD wherever text is drawn (`NameReplacer`), so any name added to its seen set is replaced in
+  every string on screen. `namechanger/ChatNames` (2026-11-01) feeds it names from chat (friend/guild joins, party/guild
+  chat, PMs, notices); each of its patterns is a whole anchored Hypixel line with a `[A-Za-z0-9_]{3,16}` group, because a
+  loose one would turn an ordinary word ("Party", "Maxor") into a fake name everywhere. Testkit 1101-ds-nickhider.
 - `/f7`, `/m7` and the rest are THIS MOD'S client-side shortcuts, not Hypixel commands - they expand to
   `/joininstance catacombs_floor_seven` etc. in `CommandShortcutsFeature.Shortcut`. So automation must send the
   `joininstance` form: `ServerCommands.toServer` deliberately sends below the client dispatcher, so it hands

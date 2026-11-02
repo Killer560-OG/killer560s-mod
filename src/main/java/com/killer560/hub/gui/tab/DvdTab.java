@@ -332,11 +332,16 @@ public class DvdTab extends BaseTab {
                 }).bounds(contentX + 86, y, contentWidth - 86, ROW_H).build());
         y += ROW_H + 4;
 
+        // Game sounds first (killer560, 2026-11-01: "add default corner sounds there arent any"), then his own files.
         List<String> soundOptions = new ArrayList<>();
         soundOptions.add("");
+        for (com.killer560.hub.dungeonalerts.SecretSound.SoundChoice c
+                : com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.values()) {
+            soundOptions.add(DvdFeature.BUILTIN_PREFIX + c.name());
+        }
         soundOptions.addAll(GifAudioFeature.discoverFileNames());
         widgets.add(SettingsButtonWidget.cycling(Component.literal("Corner Sound: §b"
-                        + (e.cornerHitSoundFile.isBlank() ? "None" : e.cornerHitSoundFile)), (btn, dir) -> {
+                        + DvdFeature.soundLabel(e.cornerHitSoundFile)), (btn, dir) -> {
                     int idx = soundOptions.indexOf(e.cornerHitSoundFile);
                     e.cornerHitSoundFile = soundOptions.get(SettingsButtonWidget.step(Math.max(idx, 0), dir, soundOptions.size()));
                     DvdConfig.getInstance().save();
@@ -344,6 +349,16 @@ public class DvdTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, ROW_H).build());
         y += ROW_H + 4;
 
+        // Corner Volume, 0-500% (killer560, 2026-11-01).
+        widgets.add(steppedSlider(contentX, y, contentWidth, ROW_H, cornerVolumeText(e), 0, DvdFeature.MAX_CORNER_VOLUME,
+                e.cornerHitVolume, 0.05, v -> e.cornerHitVolume = (float) v, () -> cornerVolumeText(e),
+                () -> DvdConfig.getInstance().save()));
+        y += ROW_H + 4;
+
+        // The text box's own heading (killer560, 2026-11-01: "put a line that says on screen corner text above").
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("On Screen Corner Text"), Minecraft.getInstance().font));
+        y += 13;
         EditBox cornerTextField = new EditBox(Minecraft.getInstance().font, contentX, y, 220, ROW_H,
                 Component.literal("Corner hit message"));
         cornerTextField.setMaxLength(150);
@@ -367,6 +382,10 @@ public class DvdTab extends BaseTab {
                 }).bounds(contentX + 106, y, contentWidth - 106, ROW_H).build());
 
         return widgets;
+    }
+
+    private static Component cornerVolumeText(DvdEntry e) {
+        return Component.literal("Corner Volume: " + Math.round(e.cornerHitVolume * 100) + "%");
     }
 
     private static Float parseFloat(String text) {

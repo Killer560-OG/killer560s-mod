@@ -195,7 +195,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.registerRender();
         com.killer560.hub.roomsim.SimWhere.register();
         // /mage (dev builds only): re-captures the room he stands in into the sim's room library.
-        com.killer560.hub.roomsim.RoomCapture.register();
+        // /mage (roomsim/RoomCapture, the one-room re-capture) was removed on 2026-11-01: it re-captured Mage and had no
+        // other use (killer560: "look for old code we dont need for things like /mage").
         // The always-on map logger: skulls in each dungeon room, for checking captures against (dev builds only).
         com.killer560.hub.maplog.MapLogger.register();
         com.killer560.hub.roomsim.puzzles.SimBlazePuzzle.register();
@@ -611,18 +612,9 @@ public class Killer560ModClient implements ClientModInitializer {
                         // whole command tree is already nested 4+ levels deep and another sub-tree
                         // inlined by hand risks exactly the kind of mismatched-paren mistake that's easy
                         // to make and hard to spot in a wall of closing parens.
-                        .then(buildProfileCommand())
-                        // "/killer560 ah" and "/killer560 bz" - item 8.1 (Auction House and Bazaar browsers).
-                        .then(ClientCommands.literal("ah")
-                                .executes(context -> {
-                                    com.killer560.hub.auction.AuctionHouseFeature.openOrExplain();
-                                    return 1;
-                                }))
-                        .then(ClientCommands.literal("bz")
-                                .executes(context -> {
-                                    com.killer560.hub.bazaar.BazaarFeature.openOrExplain();
-                                    return 1;
-                                }))));
+                        .then(buildProfileCommand())));
+                        // "/killer560 ah" and "/killer560 bz" were removed with /killer560ah and /killer560bz (killer560,
+                        // 2026-11-01: "they are not needed"): the browsers open from their keys and Open buttons.
 
         // Posmsg: killer560's request (2026-09-13) for a chat-relayed waypoint system, syntax exactly
         // as he specified it - "/Posmsg add" then the message, then the center coordinate, then the

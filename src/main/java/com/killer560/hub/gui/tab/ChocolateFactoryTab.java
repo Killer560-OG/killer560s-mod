@@ -43,6 +43,8 @@ public class ChocolateFactoryTab extends BaseTab {
         toggle(w, contentX, y, "Hoppity Egg Timers", cfg::isEggHud, cfg::setEggHud, requestRebuild);
         if (cfg.isEggHud()) {
             toggle(w, contentX, y, "Egg Extra Info", cfg::isEggExtraInfo, cfg::setEggExtraInfo, null);
+            toggle(w, contentX, y, "Hide Outside Hoppity's Hunt", cfg::isHideOutsideHunt, cfg::setHideOutsideHunt, null);
+            toggle(w, contentX, y, "Hide While Busy", cfg::isHideWhileBusy, cfg::setHideWhileBusy, null);
         }
         toggle(w, contentX, y, "Egglocator Tracer Line", cfg::isEggLocatorLine, cfg::setEggLocatorLine, null);
         toggle(w, contentX, y, "Hoppity Tracker", cfg::isEggTracker, cfg::setEggTracker, null);

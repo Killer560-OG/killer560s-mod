@@ -324,6 +324,11 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   `(PoseStack, float, HumanoidArm, float, int)`. Every mixin on these (Held Item Transform, Held Item Outline, Object
   Hider) has one copy per version directory; Held Item Transform's equip hooks are their own mixin
   (`HeldItemEquipMixin`) because they target a different class on 26.3.
+- **An empty hand never reaches `swingArm`** (26.2 and 26.3): the bare arm is drawn by `renderPlayerArm`, which has its
+  own swing translate; only an item goes `submitArmWithItem` -> `swingArm(float, PoseStack, int, HumanoidArm)`, whose one
+  `PoseStack.translate` Swing Range scales. A test of a hand-item hook must put an item in the hand, and turn Skyblock
+  Only off: `HeldItemConfig.isActive()` includes `SkyblockGate`, so in singleplayer every hook returns early (testkit
+  1101-ds-held-item read 0 hook calls until both were done, 2026-11-01).
 - **The hands moved from `renderLevel` to `GameRenderer.render3dHud`**, which calls `renderItemInHand(CameraRenderState,
   PlayerRenderState, GpuTextureView depth)` and then `ScreenEffectRenderer.submit(float, SubmitNodeCollector,
   PlayerRenderState, CameraRenderState, boolean)`. The hand view matrix is `camera.viewRotationMatrix` (pushed on the

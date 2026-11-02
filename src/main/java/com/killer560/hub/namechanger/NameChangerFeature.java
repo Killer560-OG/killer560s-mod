@@ -61,6 +61,31 @@ public final class NameChangerFeature {
     public static void register() {
         NameChangerConfig.getInstance();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("NameChangerFeature.tick", NameChangerFeature::tick));
+        ChatNames.register();
+    }
+
+    /**
+     * A player name read from a chat line ({@link ChatNames}: a friend or guild member logging in, a private message,
+     * party chat from another server...): it joins the seen players like a tab-list name, so Randomize Others hides it
+     * too. Same checks as a tab-list name, minus the UUID (chat has none). True when it was new.
+     */
+    static boolean noteChatName(String name) {
+        Minecraft client = Minecraft.getInstance();
+        String own = client.getUser() == null ? "" : client.getUser().getName();
+        if (!NameTable.isValidName(name) || name.length() < 3 || name.equalsIgnoreCase(own)) {
+            return false;
+        }
+        boolean added;
+        synchronized (SEEN_PLAYERS) {
+            if (SEEN_PLAYERS.size() >= MAX_SEEN_PLAYERS && !SEEN_PLAYERS.contains(name)) {
+                return false;
+            }
+            added = SEEN_PLAYERS.add(name);
+            if (added) {
+                seenVersion++;
+            }
+        }
+        return added;
     }
 
     private static void tick(Minecraft client) {

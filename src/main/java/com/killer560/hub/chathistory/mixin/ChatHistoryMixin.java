@@ -25,6 +25,7 @@ public abstract class ChatHistoryMixin {
             at = @At(value = "CONSTANT", args = "intValue=100"))
     private int killer560smod$historyLimit(int limit) {
         // Off: pass on whatever the cap is by now (100, or another chat-history mod's larger one), never force 100.
-        return ChatHistoryConfig.getInstance().isUnlimited() ? Integer.MAX_VALUE : limit;
+        // Limited raises it to the chosen limit; Unlimited lifts it.
+        return ChatHistoryConfig.apply(limit);
     }
 }

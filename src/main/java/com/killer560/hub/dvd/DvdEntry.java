@@ -20,9 +20,13 @@ public final class DvdEntry {
     public int boxWidth = 160;
     public int boxHeight = 50;
     public float scale = 1.0f;
-    /** Filename of a companion audio file (from the same folder GIF Player's audio uses) to play on
-     *  a perfect corner hit, or blank for no sound. */
-    public String cornerHitSoundFile = "";
+    /** What plays on a perfect corner hit: a game sound ({@code "builtin:" + SecretSound.SoundChoice} name, killer560
+     *  2026-11-01: "add default corner sounds there arent any"; Level Up for a new box), the file name of an audio file
+     *  in the folder GIF Player's audio uses, or blank for no sound. */
+    public String cornerHitSoundFile = DvdFeature.BUILTIN_PREFIX + "LEVEL_UP";
+    /** Corner sound volume (killer560, 2026-11-01: "a volume slider from 0 to 500%"), 0..5. Above 1 the sound plays
+     *  in layers, like Click Sounds: the sound engine clamps one sound's gain to 1. */
+    public float cornerHitVolume = 1.0f;
     /** Shown on screen (not sent to chat) on a perfect corner hit. Supports {name}, replaced with
      *  the gif's filename (content type GIF) or this entry's own name (content type Text). Blank =
      *  no text shown. */

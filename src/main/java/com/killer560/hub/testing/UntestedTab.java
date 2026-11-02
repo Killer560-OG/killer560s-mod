@@ -9,6 +9,11 @@ import java.util.List;
 public final class UntestedTab extends FolderTab {
 
     public UntestedTab(List<BaseTab> untested) {
-        super(TestingMenu.UNTESTED, untested);
+        this(TestingMenu.UNTESTED, untested);
+    }
+
+    /** Also the "Bugged" category (killer560, 2026-11-01): the tabs he marked bugged. */
+    public UntestedTab(String name, List<BaseTab> tabs) {
+        super(name, tabs);
     }
 }

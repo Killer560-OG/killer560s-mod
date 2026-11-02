@@ -42,6 +42,9 @@ public final class TestedFeatures {
     private static Set<String> repo;
     private static final Set<String> markedTested = new TreeSet<>();
     private static final Set<String> markedUntested = new TreeSet<>();
+    /** Tabs he tested and found broken (killer560, 2026-11-01: "make a new section besides just tested and untested.
+     *  This button puts it into the bugged category"). A bugged tab is neither tested nor untested. */
+    private static final Set<String> markedBugged = new TreeSet<>();
     private static boolean marksLoaded;
 
     private TestedFeatures() {
@@ -54,16 +57,39 @@ public final class TestedFeatures {
     public static synchronized boolean isTested(BaseTab tab) {
         String id = id(tab);
         ensureLoaded();
-        if (markedUntested.contains(id)) {
+        if (markedUntested.contains(id) || markedBugged.contains(id)) {
             return false;
         }
         return markedTested.contains(id) || repo.contains(id);
+    }
+
+    /** True when he marked {@code tab} bugged; it then shows in the Bugged category. */
+    public static synchronized boolean isBugged(BaseTab tab) {
+        ensureLoaded();
+        return markedBugged.contains(id(tab));
+    }
+
+    /** Mark {@code tab} bugged (it moves to the Bugged category), or take the mark off (it goes back to Untested). */
+    public static synchronized void markBugged(BaseTab tab, boolean bugged) {
+        ensureLoaded();
+        String id = id(tab);
+        markedTested.remove(id);
+        if (bugged) {
+            markedUntested.remove(id);
+            markedBugged.add(id);
+        } else {
+            markedBugged.remove(id);
+            markedUntested.add(id);
+        }
+        save();
+        LOGGER.info("[Testing] {} marked {} ({} build)", id, bugged ? "bugged" : "untested", TestingBuild.VARIANT);
     }
 
     /** Record killer560's mark for {@code tab} and save it. */
     public static synchronized void mark(BaseTab tab, boolean tested) {
         ensureLoaded();
         String id = id(tab);
+        markedBugged.remove(id);
         if (tested) {
             markedUntested.remove(id);
             markedTested.add(id);
@@ -90,6 +116,11 @@ public final class TestedFeatures {
         return new ArrayList<>(markedUntested);
     }
 
+    public static synchronized List<String> marksBugged() {
+        ensureLoaded();
+        return new ArrayList<>(markedBugged);
+    }
+
     public static Path marksFile() {
         return ModPaths.config("killer560smod-tested-" + TestingBuild.VARIANT + ".json");
     }
@@ -100,6 +131,7 @@ public final class TestedFeatures {
         marksLoaded = false;
         markedTested.clear();
         markedUntested.clear();
+        markedBugged.clear();
     }
 
     private static void ensureLoaded() {
@@ -142,6 +174,7 @@ public final class TestedFeatures {
             JsonObject o = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
             addAll(o.get("tested"), markedTested);
             addAll(o.get("untested"), markedUntested);
+            addAll(o.get("bugged"), markedBugged);
         } catch (Exception e) {
             LOGGER.warn("[Testing] could not read {}", file, e);
         }
@@ -167,6 +200,9 @@ public final class TestedFeatures {
         markedUntested.forEach(u::add);
         o.add("tested", t);
         o.add("untested", u);
+        JsonArray bug = new JsonArray();
+        markedBugged.forEach(bug::add);
+        o.add("bugged", bug);
         Path file = marksFile();
         try {
             Files.createDirectories(file.getParent());

@@ -111,6 +111,11 @@ ceiling somewhere above the surface before counting it.
 
 ## /mage: re-capturing one room from a real dungeon
 
+**Removed 2026-11-01** (killer560: "look for old code we dont need for things like /mage"): Mage was re-captured, so
+`roomsim/RoomCapture`, the `/mage` command and RoomLibrary's writer (`newCapture`, `writeCapture`, `readFile`, `toJson`,
+`encodeShorts`, `encodeBits`) came out on branch doc-small-1101. To restore them, check them out of that branch's parent
+commit (main a4eecd33). What follows describes it as it was.
+
 `roomsim/RoomCapture` (dev builds only) restores the Room Recorder's read-and-save half for ONE room, from tag
 `room-recorder-last`: the footprint from the live map's tiles (refused unless they fit the room database's shape - the
 recorder's worst damage came from a mis-grouped box), every chunk of it loaded (asked of the chunk source -
