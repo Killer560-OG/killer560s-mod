@@ -35,7 +35,8 @@ import com.killer560.hub.compat.McItems;
  *  one, so practicing here matches the genuine terminal's real click behavior. Deliberately renders the
  *  RAW puzzle with no highlighting at all - unlike Custom GUI mode (which exists to skip reading the
  *  puzzle), the entire point here is practicing reading it yourself. */
-public class TermismPracticeScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
+public class TermismPracticeScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen,
+        com.killer560.hub.terminals.FakeCursor.Host {
 
     /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
     public static final String THEME_ID = "termism";
@@ -242,9 +243,16 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     private int lastAutoClickedSlot = -1;
     private int lastMelodyAutoClickedRow = -1;
     private long lastMelodyAutoClickAtMs;
+    /** Melody lookahead clicks queued by a proper click, {fire at ms, chest row}, in order (the real terminal's
+     *  scheduledMelodyClicks: one row 50 ms after another, dropped once the pane is off the target). */
+    private final java.util.ArrayDeque<long[]> melodyBurst = new java.util.ArrayDeque<>();
+    /** Where Stream Safe's hand finds a slot (chest-style index) on this board, as drawn. */
+    private final com.killer560.hub.terminals.FakeCursor.SlotLocator slotLocator = this::locateSlot;
 
     /** Solver result for the current cells; null after any change to them. */
     private Map<Integer, TerminalSolverFeature.SlotHighlight> cachedHighlights;
+    /** {@link #cachedHighlights} keyed by chest-style slot ({@code row * 9 + column}), for Stream Safe's click order. */
+    private Map<Integer, TerminalSolverFeature.SlotHighlight> cachedChestHighlights;
     /** The cell list {@link #cachedHighlights} was worked out for. */
     private List<ItemStack> cachedFor;
 
@@ -290,6 +298,9 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         lastAutoClickedSlot = -1;
         lastMelodyAutoClickedRow = -1;
         lastMelodyAutoClickAtMs = 0;
+        melodyBurst.clear();
+        // Stream Safe: a fresh hand from the window center and a fresh click-order habit, as for a new real terminal.
+        com.killer560.hub.terminals.PracticeCursor.begin();
         switch (type) {
             case PANES -> generatePanes();
             case RUBIX -> generateRubix();
@@ -372,30 +383,68 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
             result = TerminalSolverFeature.solve(type, syntheticTitle(), cells);
             cachedHighlights = result;
             cachedFor = cells;
+            Map<Integer, TerminalSolverFeature.SlotHighlight> chest = new java.util.LinkedHashMap<>();
+            for (Map.Entry<Integer, TerminalSolverFeature.SlotHighlight> e : result.entrySet()) {
+                chest.put(chestSlot(e.getKey()), e.getValue());
+            }
+            cachedChestHighlights = chest;
         }
         return result;
     }
 
-    /** See the doc comment on {@link #nextAutoClickAllowedAtMs} - only ever runs with Custom GUI on. */
+    /** Cell index to a chest-style slot, nine to a row (Melody's board already is nine wide). */
+    private int chestSlot(int cell) {
+        return cell / columns * 9 + cell % columns;
+    }
+
+    /** Chest-style slot back to this board's cell index, or -1 off the board. */
+    private int cellIndex(int chestSlot) {
+        int col = chestSlot % 9;
+        int row = chestSlot / 9;
+        return col < columns ? row * columns + col : -1;
+    }
+
+    /** Where a chest-style slot is drawn, in GUI units (the same layout #extractRenderState draws and #mouseClicked hits). */
+    private boolean locateSlot(int chestSlot, float[] out) {
+        int col = chestSlot % 9;
+        int row = chestSlot / 9;
+        if (chestSlot < 0 || col >= columns || row >= rows) {
+            return false;
+        }
+        float scale = scale();
+        out[0] = gridOriginX + (col * CELL_SIZE + 8f) * scale;
+        out[1] = gridOriginY + (row * CELL_SIZE + 8f) * scale;
+        out[2] = 16f * scale;
+        return true;
+    }
+
+    /** See the doc comment on {@link #nextAutoClickAllowedAtMs} - only ever runs with Custom GUI on. With Stream Safe on
+     *  (2026-11-02, "auto terms stream safe doesnt show in termism") the board is played the way a real terminal is: the
+     *  human cursor drawn and the clock, the human click order, the opening settle, and Melody's skip rule. */
     private void tickAutoClick() {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-        if (!cfg.isAutoTerminalsEnabled() || !customGuiOn() || solved) {
+        boolean auto = cfg.isAutoTerminalsEnabled() && customGuiOn() && !solved
+                && TerminalSolverFeature.isAutoTypeEnabled(type, cfg);
+        boolean streamSafe = auto && cfg.isAutoStreamSafe();
+        com.killer560.hub.terminals.PracticeCursor.setShowing(streamSafe);
+        if (!auto) {
             return;
         }
+        long now = System.currentTimeMillis();
+        // A real terminal waits its opening settle before the first click, the hand already on its way.
+        boolean settling = streamSafe && now - startedAtMs < com.killer560.hub.terminals.PracticeCursor.SETTLE_MS;
         if (type == TerminalType.MELODY) {
-            if (cfg.isAutoMelodyEnabled()) {
-                tickMelodyAutoClick();
-            }
-            return;
-        }
-        if (!TerminalSolverFeature.isAutoTypeEnabled(type, cfg)) {
+            tickMelodyAutoClick(now, settling);
             return;
         }
         Map<Integer, TerminalSolverFeature.SlotHighlight> highlights = highlights();
         if (highlights.isEmpty()) {
             return;
         }
-        long now = System.currentTimeMillis();
+        if (streamSafe) {
+            tickHumanAutoClick(settling);
+            return;
+        }
         if (now < nextAutoClickAllowedAtMs) {
             return;
         }
@@ -415,17 +464,129 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
      *  ({@link #melodyLimeColumn}/{@link #melodyMagentaColumn}/{@link #melodyCurrentRow}) directly - no
      *  need to re-derive it by scanning cell items the way {@code TerminalSolverFeature}'s real-terminal
      *  version has to (this screen isn't a real container, just a plain local simulation). */
-    private void tickMelodyAutoClick() {
-        if (melodyLimeColumn != melodyMagentaColumn) {
+    private void tickMelodyAutoClick(long now, boolean settling) {
+        if (!settling && fireDueMelodyBurst(now)) {
             return;
         }
-        long now = System.currentTimeMillis();
+        int button = melodyCurrentRow * columns + MELODY_BUTTON_COLUMN;
+        if (melodyBurst.isEmpty()) {
+            // Stream Safe's hand rests on the row being played, due or not (the real terminal's aimQuick).
+            com.killer560.hub.terminals.PracticeCursor.aimQuick(slotLocator, button);
+        }
+        if (settling || melodyLimeColumn != melodyMagentaColumn) {
+            return;
+        }
+        for (long[] queued : melodyBurst) {
+            if (queued[1] == melodyCurrentRow) {
+                return;
+            }
+        }
         if (melodyCurrentRow == lastMelodyAutoClickedRow && now - lastMelodyAutoClickAtMs < 250) {
             return;
         }
-        lastMelodyAutoClickedRow = melodyCurrentRow;
+        if (!com.killer560.hub.terminals.PracticeCursor.ready(button)) {
+            return;
+        }
+        int matchedRow = melodyCurrentRow;
+        int column = melodyMagentaColumn - 1;
+        clickMelodyButton(matchedRow, now);
+        // Skip Mode and Lookahead, the real terminal's rule (EDGES: only a target on the first or last slot bursts).
+        int extra = com.killer560.hub.terminals.PracticeCursor.melodyLookaheadRows(matchedRow - 1, column, melodyBandRows - 1);
+        for (int i = 1; i <= extra; i++) {
+            melodyBurst.addLast(new long[]{now + i * 50L, matchedRow + i});
+        }
+        boolean edge = column == 0 || column == 4;
+        boolean notLast = matchedRow < melodyBandRows;
+        if (edge && notLast) {
+            probeEdgeLiveClicks++;
+        } else if (notLast) {
+            probeMiddleLiveClicks++;
+        }
+        if (extra > 0) {
+            if (edge) {
+                probeEdgeBursts++;
+            } else {
+                probeMiddleBursts++;
+            }
+        }
+    }
+
+    // ---- testkit probes (Termism Stream Safe case): read by reflection, nothing in the mod reads them ----
+    /** Live Melody clicks on a row before the last, with the target on an edge slot (column 0 or 4) or a middle one. */
+    int probeEdgeLiveClicks;
+    int probeMiddleLiveClicks;
+    /** Live Melody clicks that queued a lookahead burst, by where the target was. */
+    int probeEdgeBursts;
+    int probeMiddleBursts;
+    /** Lookahead clicks that went out, and bursts dropped because the pane was off the target. */
+    int probeBurstClicks;
+    int probeBurstsDropped;
+
+    /** The next due lookahead click, as the real terminal fires them: the hand goes to that row's button, and the click
+     *  goes out only while the pane is on the target; once it is not, the rest of the burst is dropped and live play
+     *  takes those rows. @return whether a click went out. */
+    private boolean fireDueMelodyBurst(long now) {
+        while (!melodyBurst.isEmpty() && melodyBurst.peekFirst()[0] <= now) {
+            long[] due = melodyBurst.peekFirst();
+            int row = (int) due[1];
+            if (row != melodyCurrentRow || solved) {
+                melodyBurst.pollFirst();
+                continue;
+            }
+            int button = row * columns + MELODY_BUTTON_COLUMN;
+            com.killer560.hub.terminals.PracticeCursor.aimQuick(slotLocator, button);
+            if (!com.killer560.hub.terminals.PracticeCursor.ready(button)) {
+                return false;
+            }
+            if (melodyLimeColumn != melodyMagentaColumn) {
+                melodyBurst.clear();
+                probeBurstsDropped++;
+                return false;
+            }
+            melodyBurst.pollFirst();
+            clickMelodyButton(row, now);
+            probeBurstClicks++;
+            return true;
+        }
+        return false;
+    }
+
+    private void clickMelodyButton(int row, long now) {
+        lastMelodyAutoClickedRow = row;
         lastMelodyAutoClickAtMs = now;
-        handleCellClick(melodyCurrentRow * columns + MELODY_BUTTON_COLUMN, true);
+        int button = row * columns + MELODY_BUTTON_COLUMN;
+        handleCellClick(button, true);
+        com.killer560.hub.terminals.PracticeCursor.clicked(button, false);
+    }
+
+    /** Stream Safe on a practice board: the real terminal's tickHumanAutoClick without a server. The click order picks
+     *  among the highlights, the hand goes there, and the click goes out when it has arrived and pressed. */
+    private void tickHumanAutoClick(boolean settling) {
+        Map<Integer, TerminalSolverFeature.SlotHighlight> chest = cachedChestHighlights;
+        if (chest == null || chest.isEmpty()) {
+            return;
+        }
+        int slot = com.killer560.hub.terminals.PracticeCursor.next(type, chest);
+        if (slot < 0) {
+            return;
+        }
+        com.killer560.hub.terminals.PracticeCursor.aim(slotLocator, slot);
+        if (settling) {
+            return;
+        }
+        TerminalSolverFeature.SlotHighlight highlight = chest.get(slot);
+        int cell = cellIndex(slot);
+        if (highlight == null || cell < 0) {
+            return;
+        }
+        TerminalSolverFeature.AutoClickTarget target = TerminalSolverFeature.pickAutoClickTarget(type, Map.of(slot, highlight));
+        if (target == null || !com.killer560.hub.terminals.PracticeCursor.ready(slot)) {
+            return;
+        }
+        boolean more = com.killer560.hub.terminals.PracticeCursor.needsMoreClicks(type, highlight);
+        com.killer560.hub.terminals.PracticeCursor.expectRepeat(more);
+        handleCellClick(cell, target.button() == 0);
+        com.killer560.hub.terminals.PracticeCursor.clicked(slot, more);
     }
 
     private void generatePanes() {
@@ -534,7 +695,12 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         Collections.shuffle(combined, random);
 
         for (NamedItem entry : combined) {
-            cells.add(new ItemStack(entry.item()));
+            ItemStack stack = new ItemStack(entry.item());
+            // A glint means "already clicked" on a real board, and the solver skips glinting items: an Enchanted Book or
+            // Experience Bottle (glint by default) was a match nobody could see highlighted or auto-click, so an E board
+            // could never be finished by Auto Terminals (testkit 1102-menu-termism-ss-startswith, 2026-11-02).
+            stack.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, false);
+            cells.add(stack);
         }
         while (cells.size() < startsWithGridSize) {
             cells.add(ItemStack.EMPTY);

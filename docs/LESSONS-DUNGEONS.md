@@ -196,6 +196,11 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 - The Fake Cursor aimed at vanilla slot coordinates, which under Custom GUI are hidden slots nowhere near the drawn
   panel (killer560: "doesn't match the terminal gui"). Anything that points at a terminal slot asks
   `TerminalSolverFeature.slotCenterGui`, which uses the panel layout the render and click hit test use.
+- Stream Safe never showed in Termism (killer560, 2026-11-02): `TermismPracticeScreen` is a plain Screen with its OWN
+  auto-click loop (Min/Max delays, no lookahead), and `FakeCursor` drew and hid the pointer only over
+  `AbstractContainerScreen`. A feature added to the real terminal path does not reach Termism by itself; Termism now plays
+  through `terminals/PracticeCursor` (the same hand, click order, settle and Melody skip rule) and implements
+  `FakeCursor.Host`. Check Termism whenever Auto Terminals changes (testkit 1102-menu-termism-ss-*).
 - Melody Lookahead counted the proper click (1 and 0 both meant none); since 2026-10-26 N is the EXTRA rows, max 2,
   old files move by one on load (`melodyLookaheadVersion`). A lookahead click for a row the live match already clicked
   is dropped, and the live match skips a row with a lookahead queued, so no row is clicked twice (testkit 275-277).
