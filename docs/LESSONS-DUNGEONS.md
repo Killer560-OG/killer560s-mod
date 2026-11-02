@@ -75,6 +75,13 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   every secret back on the same blocks, so after run 1 the aura clicked nothing (his Museum, Map Logger). All three now
   also reset when `LiveMapFeature.resetGeneration()` changes (world change, dungeon entered, sim floor published).
   99-sim-aura-rebuild rebuilds Museum three times in one world and fails on 5008e4d6.
+- The map's per-room secret count (Secrets HUD, Auto Secret) is bumped the moment HE takes a secret
+  (`RouteRunMemory.gotSecret` -> `LiveMapFeature.noteSecretTakenAt`), before the action bar answers. Every chest click
+  counted, so a LOCKED chest (Hypixel: "That chest is locked!") counted too, and every item pickup counted, so an item
+  that came out of a chest he opened (or any non-secret item) read as an item secret (killer560, 2026-11-01). Since
+  doc-dhud-1101 `AwaitEvents` takes a chest back on the locked line within 1.5 s, and counts an item only when its name
+  is one of Noamm's dungeon secret drops and it was not made after his click within 4.5 blocks of that chest (entity id
+  above the highest id his world held at the click). Testkit 1101-dhud-lockedchest / chestdrop.
 
 ## Score and run records
 
@@ -98,6 +105,17 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   so anything asking "is the Interactive Map moving him?" at the landing must use `isBusy()` (true through the arrival
   sync), and read it when the position packet arrives. The insta-clear recorder used `isActive` on the next tick and
   logged every map path's final landing as "teleport by manual" (Mage, Hall, his live F7 runs 2026-10-06).
+- Core Entry Times measured the P4 band (45 < y <= 100, Necron's platform, UNDER the core) until 2026-11-01, so a
+  player was "in the core" only after Goldor died and he dropped; Necron's first line ends the timing, so usually only the
+  first to drop was timed ("4 mages and 1 arch and it only ever gave the arch's time"). The core is the closed room in the
+  middle of the Goldor arena: NoammAddons LeapCounter's in-core box x 42..68, y 106..155, z 54..119 (its INCORE_BOX and our
+  Posmsg "Recore" preset 54.5,115,58.5 sit inside). Testkit 1101-dhud-coreentry.
+- On Hypixel the Fairy door is usually coal until the run starts and opens 1-2 s after "Starting in 1 second." (Mod Only
+  Test logs 2026-10-14..10-20: "fairy door N is a shut wither door" then "door N into Fairy" a second later), and is
+  sometimes a real wither door that takes a key (2026-10-18 22:57:02, opened with the key). At the run start the map
+  often cannot trace Entrance to Blood yet ("no path from Entrance" for up to a minute), which drew no Fairy door at
+  all; FairyDoor now paths to the Fairy room itself then, keeps a door already found, and a shut one is drawn by the
+  wither highlight in the Fairy color (testkit 678 checks the color).
 
 ## Blood Camp
 
