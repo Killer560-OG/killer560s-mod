@@ -538,11 +538,7 @@ public final class EtherwarpOverlayFeature {
                 || block instanceof LadderBlock
                 || block instanceof FlowerPotBlock
                 || block instanceof WebBlock
-                || block instanceof NetherPortalBlock
-                // Carpets: Hypixel's 1.8 feet-block list has them (id 171) beside snow layers, flowers and torches,
-                // which this table already passes; only carpets had been dropped (killer560, 2026-11-01: "the
-                // etherwarp prediction ... doesnt work right on carpets"). Same change in TeleportUtils' table.
-                || block instanceof net.minecraft.world.level.block.CarpetBlock;
+                || block instanceof NetherPortalBlock;
     }
 
     private static boolean blocksFeet(Block block) {

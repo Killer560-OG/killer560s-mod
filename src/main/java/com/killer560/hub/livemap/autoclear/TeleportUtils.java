@@ -112,11 +112,7 @@ public final class TeleportUtils {
                     || block instanceof ButtonBlock || block instanceof LanternBlock
                     || block instanceof SkullBlock || block instanceof WallSkullBlock
                     || block instanceof LadderBlock || block instanceof FlowerPotBlock || block instanceof WebBlock
-                    || block instanceof NetherPortalBlock || block instanceof CandleBlock
-                    // A carpet is in Hypixel's 1.8 feet-block list (id 171) beside snow layers and flowers, which the
-                    // modern tables all kept as passable; carpets alone were dropped (killer560 2026-11-01: "the etherwarp
-                    // prediction ... doesnt work right on carpets"). The ray goes through it and it does not block feet.
-                    || block instanceof net.minecraft.world.level.block.CarpetBlock;
+                    || block instanceof NetherPortalBlock || block instanceof CandleBlock;
             boolean blocksFeet = block instanceof SkullBlock || block instanceof WallSkullBlock
                     || block instanceof FlowerPotBlock || block instanceof LadderBlock;
             int id = Block.getId(state);
