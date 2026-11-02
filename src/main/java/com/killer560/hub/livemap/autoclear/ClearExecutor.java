@@ -219,7 +219,7 @@ public final class ClearExecutor {
     /** True while a path is being searched, queued, executed or waiting for its completion sync. */
     public static boolean isBusy() {
         return pathPending || (nodes != null && !nodes.isEmpty()) || syncDelay != 0 || pendingCompletion != null
-                || replanPending;
+                || replanPending || gateRetry != null;
     }
 
     /**
@@ -455,10 +455,13 @@ public final class ClearExecutor {
         if (pathPending) {
             return;
         }
-        if (adoptPreplan(to, tileIdx, complete, player)) {
+        // Before the run starts the green room's gate is shut: no trip can leave yet, and a plan made in that world
+        // fails ("it will obviously always fail"). Plan through the gate now and hold the first warp until it opens.
+        java.util.List<BlockPos> gate = closedEntranceGate(client, DungeonLayout.current());
+        if (gate == null && adoptPreplan(to, tileIdx, complete, player)) {
             return;
         }
-        if (adoptCached(to, tileIdx, complete, player)) {
+        if (gate == null && adoptCached(to, tileIdx, complete, player)) {
             return;
         }
         Inflight f = inflight;
@@ -503,9 +506,14 @@ public final class ClearExecutor {
             try {
                 // Landings are planned at block top + 1.05, QUOI's figure for Hypixel - and the sim's server now
                 // lands an etherwarp there too (SimAbilities.ETHERWARP_LANDING_OFFSET), so there is one value.
-                path = tileIdx >= 0
-                        ? EtherwarpPathfinder.findDungeonPathToTile(from, to, tileIdx, cfg, hopRange, layout)
-                        : EtherwarpPathfinder.findDungeonPath(from, to, cfg, hopRange, layout, exact);
+                if (gate != null) {
+                    path = EtherwarpPathfinder.findDungeonPathThrough(from, to, tileIdx, cfg, hopRange, layout, exact,
+                            packed(gate), EtherwarpPathfinder.PATH_EXACT_NANOS);
+                } else {
+                    path = tileIdx >= 0
+                            ? EtherwarpPathfinder.findDungeonPathToTile(from, to, tileIdx, cfg, hopRange, layout)
+                            : EtherwarpPathfinder.findDungeonPath(from, to, cfg, hopRange, layout, exact);
+                }
             } catch (Throwable e) {
                 // Throwable, not RuntimeException: anything else escaping here skipped the hand-back below, which
                 // left pathPending set for good and every later click silently refused.
@@ -555,6 +563,16 @@ public final class ClearExecutor {
                     }
                     return;
                 }
+                if (result == null && gate != null) {
+                    // Nothing found through the shut gate in the time given: planned again the tick it opens.
+                    gateRetry = new GateRetry(to, tileIdx, complete, exact, gate);
+                    goalTo = null;
+                    goalComplete = null;
+                    LOGGER.info("[Path] no plan to {} through the shut entrance gate in {} ms - planning again when it opens",
+                            to.toShortString(), took);
+                    ModChat.log(CHAT, ModChat.text("Waiting for the run to start"));
+                    return;
+                }
                 if (result == null) {
                     lastPathFailed = true;
                     goalTo = null;
@@ -566,7 +584,9 @@ public final class ClearExecutor {
                 for (EtherwarpPathfinder.Node n : result) {
                     list.add(ClearNode.toEther(n));
                 }
-                String impossible = implausible(from, list, hopRange);
+                // A plan through the shut gate is checked when the gate opens (tickGate): checked now, its first warp
+                // stops on the gate's own blocks and it would be refused every time.
+                String impossible = gate != null ? null : implausible(from, list, hopRange);
                 if (impossible != null) {
                     // Never run a plan that cannot happen: plan again from here, or stop and say why.
                     LOGGER.warn("[Path] refused an impossible plan of {} warp(s) from {} to {}: {}", list.size(),
@@ -583,9 +603,138 @@ public final class ClearExecutor {
                         list.size(), fmt(from), to, replans > 0 ? " (planned again, " + replans + "/" + MAX_REPLANS + ")"
                                 : "", String.format(java.util.Locale.ROOT, "%.1f", (System.nanoTime() - pressNanos) / 1e6));
                 startQueue(list, complete);
-                improveInBackground(list, to, tileIdx, layout);
+                if (gate != null) {
+                    gateHold = gate;
+                    gateHoldTicks = 0;
+                    LOGGER.info("[Path] planned {} warp(s) through the shut entrance gate ({} block(s)) - the first waits"
+                            + " for the run to start", list.size(), gate.size());
+                    ModChat.log(CHAT, ModChat.text("Route planned - waiting for the door"));
+                } else {
+                    improveInBackground(list, to, tileIdx, layout);
+                }
             });
         });
+    }
+
+    // ------------------------------------------------------------------------------------------- before the run starts
+
+    /**
+     * killer560 (to-do Doc, 2026-11-01): "if i click on a room while in green room in interactive map before the dungeon
+     * opens it will obviously always fail. same for if i activate the auto pilot. make those plan their route then but
+     * wait till the door is open and can etherwarp through it to actually go." The gate blocks a trip was planned through
+     * while its first warp waits; null when nothing waits on the gate.
+     */
+    private static java.util.List<BlockPos> gateHold;
+    private static int gateHoldTicks;
+
+    /** A trip that found no plan through the shut gate: planned again the tick the gate opens. */
+    private record GateRetry(BlockPos to, int tileIdx, Runnable complete, boolean exact, java.util.List<BlockPos> gate) {
+    }
+
+    private static GateRetry gateRetry;
+
+    /** Test hook: whether a trip is waiting on the entrance gate (planned and held, or waiting to plan). */
+    public static boolean waitingForGate() {
+        return gateHold != null || gateRetry != null;
+    }
+
+    /** Test hook: ticks the last gate hold lasted (or has lasted so far). */
+    public static int gateHoldTicks() {
+        return gateHoldTicks;
+    }
+
+    /**
+     * The green room's gate while the run has not started, or null. Before the run there is no dungeon map (Hypixel hands
+     * it over at the start, and the sim's stand-in follows it), and the Entrance's doorway is shut with the gate's
+     * infested chiseled stone bricks (what DoorScanner knows an entrance door by on Hypixel, and what the sim builds).
+     * Found from the layout's entrance door cell, never by searching the floor.
+     */
+    static java.util.List<BlockPos> closedEntranceGate(Minecraft client, DungeonLayout layout) {
+        if (client.level == null || com.killer560.hub.livemap.HeldMap.available()) {
+            return null;
+        }
+        java.util.List<BlockPos> out = new ArrayList<>();
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+        for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
+            if (layout.doorType(idx) != DungeonLayout.DOOR_ENTRANCE) {
+                continue;
+            }
+            BlockPos c = DungeonLayout.doorBlock(idx);
+            for (int dx = -3; dx <= 3; dx++) {
+                for (int dz = -3; dz <= 3; dz++) {
+                    for (int dy = -2; dy <= 5; dy++) {
+                        m.set(c.getX() + dx, c.getY() + dy, c.getZ() + dz);
+                        if (client.level.getBlockState(m).is(
+                                net.minecraft.world.level.block.Blocks.INFESTED_CHISELED_STONE_BRICKS)) {
+                            out.add(m.immutable());
+                        }
+                    }
+                }
+            }
+        }
+        return out.isEmpty() ? null : out;
+    }
+
+    private static java.util.Set<Long> packed(java.util.List<BlockPos> blocks) {
+        java.util.Set<Long> out = new java.util.HashSet<>();
+        for (BlockPos p : blocks) {
+            out.add(EtherSearch.pack(p.getX(), p.getY(), p.getZ()));
+        }
+        return out;
+    }
+
+    private static boolean gateOpen(Minecraft client, java.util.List<BlockPos> gate) {
+        for (BlockPos p : gate) {
+            if (!client.level.getBlockState(p).isAir()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * @return true while a queue waits on the entrance gate this tick (nothing else of it runs). The tick the gate reads
+     * open the first warp is re-aimed from where he stands and goes that same tick; a trip with no plan yet is planned.
+     */
+    private static boolean tickGate(Minecraft client) {
+        GateRetry retry = gateRetry;
+        if (retry != null && client.level != null && gateOpen(client, retry.gate())) {
+            gateRetry = null;
+            LOGGER.info("[Path] the entrance gate is open - planning the waiting trip to {}", retry.to().toShortString());
+            goalExact = retry.exact();
+            plan(retry.to(), retry.tileIdx(), retry.complete());
+            return true;
+        }
+        java.util.List<BlockPos> gate = gateHold;
+        if (gate == null) {
+            return false;
+        }
+        List<ClearNode> current = nodes;
+        if (current == null || current.isEmpty() || !issued.isEmpty() || client.level == null) {
+            gateHold = null;
+            return false;
+        }
+        gateHoldTicks++;
+        if (gateOpen(client, gate)) {
+            gateHold = null;
+            reaimFirstHop(client);
+            String impossible = client.player == null ? null : implausible(client.player.position(), nodes, hopRange());
+            if (impossible != null) {
+                // The world beyond the gate is not what it was planned in: plan again from here, at once.
+                LOGGER.warn("[Path] the gate opened, but the plan made through it cannot happen: {}", impossible);
+                offPath("the plan through the gate was impossible (" + impossible + ")", onComplete);
+                return true;
+            }
+            LOGGER.info("[Path] the entrance gate opened after {} tick(s) held - the first warp goes now", gateHoldTicks);
+            // Planned ahead and primed while it waited: the warp goes on this tick, as a queue planned ahead does.
+            sendNow = true;
+            return false;
+        }
+        ticksSinceProgress = 0;
+        waitReason = "waiting for the run to start (the entrance gate is shut)";
+        // Ready to go the tick the gate opens: AOTV in hand, sneaking, turned to the first warp (as Auto Secret's hold).
+        primeFirstWarp(client, current);
+        return true;
     }
 
     /**
@@ -1016,6 +1165,15 @@ public final class ClearExecutor {
         }
         ticksSinceProgress = 0;
         waitReason = "held for the room's last secrets";
+        primeFirstWarp(client, current);
+        return true;
+    }
+
+    /**
+     * A held first warp made ready to go the tick it is let go: the AOTV in hand, the sneak down and the body turned to
+     * its look, so the server has heard the look before the use. Used by both holds ({@link #tickHold}, {@link #tickGate}).
+     */
+    private static void primeFirstWarp(Minecraft client, List<ClearNode> current) {
         boolean screen = com.killer560.hub.compat.McCompat.screen(client) != null;
         // Never under a container, and hands off while Kill Mimic fights the mimic of a chest just opened: the hold swapped
         // the AOTV back and turned the body to the first warp, so every sceptre use went out as an AOTV use at the warp's
@@ -1039,7 +1197,6 @@ public final class ClearExecutor {
                 }
             }
         }
-        return true;
     }
 
     /**
@@ -1338,6 +1495,8 @@ public final class ClearExecutor {
     }
 
     public static void cancel() {
+        gateHold = null;
+        gateRetry = null;
         eatenHop = null;
         goalFastArrival = false;
         trimGoal = null;
@@ -1515,6 +1674,9 @@ public final class ClearExecutor {
         tickPathSearch();
         tickReplan(client);
         if (!checkLandingsOnce(client)) {
+            return;
+        }
+        if (tickGate(client)) {
             return;
         }
         if (tickHold(client)) {
@@ -1899,6 +2061,8 @@ public final class ClearExecutor {
     }
 
     private static void reset() {
+        gateHold = null;
+        gateRetry = null;
         eatenHop = null;
         awaiting = null;
         inflight = null;

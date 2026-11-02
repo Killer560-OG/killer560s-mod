@@ -305,6 +305,25 @@ public final class EtherwarpPathfinder {
     }
 
     /**
+     * A map trip planned with {@code air} (packed blocks) read as not there: the green room's gate before the run starts,
+     * which opens at the start (ClearExecutor's pre-run hold). {@code tileIdx} -1 for one block, as
+     * {@link #findDungeonPath(Vec3, BlockPos, PathConfig, double, DungeonLayout, boolean)}. The floor graph reads the real
+     * world (the gate shut), so the exact search gets {@code exactNanos} to find the way through it.
+     */
+    public static List<Node> findDungeonPathThrough(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
+                                                    DungeonLayout layout, boolean exact, java.util.Set<Long> air,
+                                                    long exactNanos) {
+        // Room by room first, in the world with the gate gone: the floor graph is shared and keeps the gate shut, and the
+        // exact search over the whole floor took its 1.5 s and found nothing on a 5-warp trip (testkit 1101-prerun-trip,
+        // first run), where the room-by-room legs found it in 10 ms.
+        List<Node> legacy = legacyDungeonPath(from, to, cfg, dist, layout, air);
+        if (legacy != null) {
+            return legacy;
+        }
+        return planFloor(from, to, tileIdx, cfg, dist, layout, exact, exactNanos, false, air);
+    }
+
+    /**
      * Test hook (docs/TESTING-HOOKS.md): every tile click also plans itself without the center preference and logs
      * that plan's warps and landing, so the testkit can check the preference never costs a warp.
      */
@@ -1145,13 +1164,20 @@ public final class EtherwarpPathfinder {
      */
     private static List<Node> legacyDungeonPath(Vec3 from, BlockPos to, PathConfig cfg, double dist,
                                                 DungeonLayout layout) {
+        return legacyDungeonPath(from, to, cfg, dist, layout, null);
+    }
+
+    /** {@link #legacyDungeonPath} reading {@code air} (packed blocks, or null) as not there. */
+    private static List<Node> legacyDungeonPath(Vec3 from, BlockPos to, PathConfig cfg, double dist,
+                                                DungeonLayout layout, java.util.Set<Long> air) {
         Level level = Minecraft.getInstance().level;
         if (level == null) {
             return null;
         }
         long searchStart = System.nanoTime();
         LevelEtherGrid grid = new LevelEtherGrid(level);
-        EtherSearch search = new EtherSearch(grid);
+        EtherSearch.Grid view = AirOverride.wrap(grid, air);
+        EtherSearch search = new EtherSearch(view);
         if (!search.etherwarpable(to.getX(), to.getY(), to.getZ())) {
             LOGGER.info("[Path] {} is not etherwarpable - it is not solid, or there is no standing room over"
                     + " it. Nothing searched.", to);
@@ -1159,7 +1185,7 @@ public final class EtherwarpPathfinder {
         }
         int startRoom = layout.roomAtWorld(from.x, from.z);
         int goalRoom = layout.roomAtWorld(to.getX(), to.getZ());
-        if (startRoom >= 0 && startRoom == goalRoom) {
+        if (startRoom >= 0 && startRoom == goalRoom && view == grid) {
             List<Node> same = sameRoomPath(grid, search, level, from, to, cfg, dist, layout, startRoom,
                     searchStart);
             if (same != null) {
@@ -1167,6 +1193,9 @@ public final class EtherwarpPathfinder {
             }
         }
         if (startRoom < 0 || goalRoom < 0 || startRoom == goalRoom) {
+            if (view != grid) {
+                return null; // findPath reads the real world
+            }
             List<Node> direct = findPath(from, to, cfg, dist, false, layout);
             if (direct == null) {
                 LOGGER.info("[Path] No single-room path from {} to {} (startRoom {}, goalRoom {}) - the"
@@ -1186,7 +1215,7 @@ public final class EtherwarpPathfinder {
             return null;
         }
         long deadline = searchStart + cfg.timeout() * 1_000_000L;
-        EtherSearch.CellTest cover = coverTest(grid, level);
+        EtherSearch.CellTest cover = coverTest(view, level);
         List<EtherSearch.Hop> path = new ArrayList<>();
         EtherSearch.Hop cur = startHop(from);
         path.add(cur);
