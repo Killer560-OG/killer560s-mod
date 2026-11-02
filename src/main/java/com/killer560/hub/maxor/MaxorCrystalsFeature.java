@@ -92,6 +92,14 @@ public final class MaxorCrystalsFeature {
     private static int tickTimer = -1;
     private static int activeCrystals = 0;
     private static int totalCrystals = 0;
+    /**
+     * Server ticks left before the "Active" counter gives up waiting for the next set and drops to 0 on its own; -1 when
+     * no laser line is pending. Armed by the stun line whatever the Respawn Timer switch says. The real signal is the
+     * next set's first crystal appearing on a tower ({@link #watchNextSet}); this is only the backstop for a client that
+     * never sees that entity, so it runs {@link #NEXT_SET_SLACK_TICKS} past Noamm's 34-tick respawn and cannot beat it.
+     */
+    private static int nextSetTicks = -1;
+    private static final int NEXT_SET_SLACK_TICKS = 10;
 
     private MaxorCrystalsFeature() {
     }
@@ -129,6 +137,7 @@ public final class MaxorCrystalsFeature {
         tickTimer = -1;
         activeCrystals = 0;
         totalCrystals = 0;
+        nextSetTicks = -1;
     }
 
     /** MaxorsCrystals.kt's {@code TickEvent.Server} countdown, on this mod's shared server-tick clock. */
@@ -138,6 +147,58 @@ public final class MaxorCrystalsFeature {
         } else if (tickTimer == 0) {
             tickTimer = -1;
         }
+        if (nextSetTicks > 0) {
+            nextSetTicks--;
+        } else if (nextSetTicks == 0) {
+            nextSetReady("backstop, no tower crystal seen");
+        }
+    }
+
+    /**
+     * The laser has fired (the stun line came) and the next set is on its towers: the pads are empty, so the counter
+     * reads 0 of the total, not the old set's full count (killer560, 2026-11-02: it "should go away as 0/2 the second that
+     * the next set can be picked up"; it used to hold 2/2 until the next set's first placement line).
+     */
+    private static void nextSetReady(String why) {
+        nextSetTicks = -1;
+        if (totalCrystals > 0 && activeCrystals != 0) {
+            LOGGER.info("[Maxor] next crystal set up ({}): active {}/{} -> 0/{}", why, activeCrystals, totalCrystals, totalCrystals);
+            activeCrystals = 0;
+        }
+    }
+
+    /**
+     * While a laser line is pending, the first End Crystal seen OFF the pylon height (on a tower, where the next set
+     * spawns) is the next set. The placed crystals sit at {@link #PLACE_Y}; the tower ones are well above it.
+     */
+    private static void watchNextSet(Minecraft client) {
+        if (nextSetTicks < 0) {
+            return;
+        }
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (entity.getType() == McEntities.END_CRYSTAL && (int) Math.floor(entity.getY()) != PLACE_Y) {
+                nextSetReady("crystal on a tower at y " + (int) Math.floor(entity.getY()));
+                return;
+            }
+        }
+    }
+
+    /** True while a laser line waits for the next set (the add-entity packet hook asks this first). */
+    public static boolean awaitingNextSet() {
+        return nextSetTicks >= 0;
+    }
+
+    /** Called from the add-entity packet hook ({@code WitherDragonsPackets.onAddEntity}) while {@link #awaitingNextSet()}. */
+    public static void onEntityAdded(Entity entity) {
+        if (nextSetTicks >= 0 && entity != null && entity.getType() == McEntities.END_CRYSTAL
+                && (int) Math.floor(entity.getY()) != PLACE_Y) {
+            nextSetReady("crystal on a tower at y " + (int) Math.floor(entity.getY()));
+        }
+    }
+
+    /** The counter's numbers, for the testkit: {active, total}; total 0 means no line seen yet (row hidden). */
+    public static int[] activeCounter() {
+        return new int[]{activeCrystals, totalCrystals};
     }
 
     private static void onChat(Component message) {
@@ -165,6 +226,7 @@ public final class MaxorCrystalsFeature {
             if (cfg.isSpawnTimerEnabled()) {
                 tickTimer = RESPAWN_TICKS;
             }
+            nextSetTicks = RESPAWN_TICKS + NEXT_SET_SLACK_TICKS;
         }
         Matcher active = ACTIVE.matcher(plain);
         if (active.matches()) {
@@ -204,6 +266,7 @@ public final class MaxorCrystalsFeature {
         }
         refreshAlert(client);
         refreshHighlightBoxes(client);
+        watchNextSet(client);
         if (pickupTimeMs == 0L) {
             if (!SEEN_CRYSTALS.isEmpty()) {
                 SEEN_CRYSTALS.clear();

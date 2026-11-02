@@ -269,6 +269,13 @@ project CLAUDE.md. Compiling lessons
 
 ## Other features
 
+- **A counter fed only by a server line holds its last value through every gap the server says nothing in.** Maxor's
+  Crystals' Active counter was set only by "X/2 Energy Crystals are now active!", so after the laser it read 2/2 until
+  the next set's first placement (killer560, 2026-11-02), though the pads were empty and the next set was up. The reset
+  now comes from the next set's first End Crystal seen off pylon height (y != 224), armed by Maxor's laser line, with a
+  44-tick backstop. The F7 sim had the next set respawn 20 ticks after Maxor was enraged; it now comes 34 ticks after the
+  laser line (NoammAddons' respawn timer). Testkit 1102-boss-maxorcrys.
+
 - **Spotify's local sources name only the FIRST artist.** The window title and Windows' media session both said "Rosa
   Walton" for a track Spotify credits to "Rosa Walton, Hallie Coggins" (2026-10-20), and lrclib's search returned another
   recording (3:59 against Spotify's 4:06) whose line times were all wrong. Lyrics are matched by title, artist containment

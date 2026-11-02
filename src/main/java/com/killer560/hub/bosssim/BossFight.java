@@ -39,7 +39,8 @@ import java.util.Random;
  * what one player can do alone - the parts the mod's features read are kept exact:
  * <ul>
  * <li><b>P1 Maxor</b>: the two Energy Crystals appear on their towers; walking into one picks it up, using it at a pylon
- * places it; two placed fire the laser, which stuns Maxor; hits on him while he is stunned wear him down; the second
+ * places it; two placed fire the laser, which stuns Maxor and empties the pylons, and the next set is back on the towers
+ * 34 ticks after his laser line; hits on him while he is stunned wear him down; the second
  * stun ends him. Then his floor opens over Storm's.</li>
  * <li><b>P2 Storm</b>: Storm hovers from pillar to pillar; standing on a pillar's pad drops it, and a drop with Storm under
  * it crushes him. Two crushes and he dies; his floor opens over S1.</li>
@@ -98,6 +99,8 @@ public final class BossFight {
     private static final int MAXOR_CRYSTALS = 40;
     private static final int MAXOR_HITS_PER_STUN = 5;
     private static final int MAXOR_STUN_TICKS = 200;
+    /** Server ticks from Maxor's laser line to the next crystal set on the towers (NoammAddons MaxorsCrystals.kt). */
+    private static final int MAXOR_CRYSTAL_RESPAWN = 34;
     private static final int STORM_AFTER = 62;
     private static final int STORM_MOVE_FROM = 186;
     private static final int STORM_SON = 42;
@@ -506,7 +509,6 @@ public final class BossFight {
             stunEndsAt = -1;
             maxor.armour(true);
             BossChat.chat(server, "§c⚠ Maxor is enraged! ⚠");
-            later(20, "maxor crystals again", BossFight::resetCrystals);
         }
     }
 
@@ -569,6 +571,10 @@ public final class BossFight {
             discard(placed[i]);
             placed[i] = null;
         }
+        // The next set is back on its towers 34 server ticks after the line, during the stun, not after it: NoammAddons'
+        // MaxorsCrystals.kt respawn timer (spawnRegex -> tickTimer = 34). It used to come 20 ticks after Maxor was
+        // enraged again, which on Hypixel is well after the second set has been picked up (2026-11-02).
+        later(MAXOR_CRYSTAL_RESPAWN, "maxor crystals again", BossFight::resetCrystals);
     }
 
     private static void resetCrystals() {
@@ -597,7 +603,6 @@ public final class BossFight {
             LOGGER.info("[BossSim] Maxor down at P1 t {}", t);
         } else {
             maxor.armour(true);
-            later(20, "maxor crystals 2", BossFight::resetCrystals);
         }
     }
 
