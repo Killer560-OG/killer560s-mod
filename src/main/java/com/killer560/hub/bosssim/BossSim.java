@@ -62,7 +62,12 @@ public final class BossSim {
                 return InteractionResult.PASS;
             }
             BossStations.Station term = BossStations.terminalOf(entity);
+            if (term == null && entity instanceof net.minecraft.world.entity.decoration.ArmorStand) {
+                LOGGER.info("[BossSim] a stand that is no terminal's was clicked at {}", entity.position());
+            }
             if (term != null) {
+                LOGGER.info("[BossSim] S{} {} clicked ({}, {})", term.section(), term.label(), hand,
+                        BossStations.isDone(term) ? "already done" : "opening");
                 if (hand == InteractionHand.MAIN_HAND && !BossStations.isDone(term)) {
                     BossTerminals.open(sp, term);
                 }
@@ -233,10 +238,8 @@ public final class BossSim {
         if (client.level != lastLevel) {
             lastLevel = client.level;
             if (BossFight.running()) {
-                MinecraftServer server = client.getSingleplayerServer();
-                if (server != null) {
-                    server.execute(() -> BossFight.stop("world changed"));
-                }
+                // The old world's server is gone or going: drop the fight's state here (its entities went with it).
+                BossFight.forget("world changed");
             }
             com.killer560.hub.secrets.DungeonState.simBossEnds();
             return;

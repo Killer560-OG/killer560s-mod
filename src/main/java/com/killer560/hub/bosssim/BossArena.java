@@ -255,8 +255,12 @@ public final class BossArena {
             box(out, g[0], g[1], g[2], g[3], g[4], g[5], "minecraft:iron_block");
         }
         box(out, 52, P3_FLOOR + 1, 58, 57, P3_FLOOR + 6, 58, "minecraft:gold_block");  // the core entrance
+        box(out, BossFight.CORE_HOLE[0], P3_FLOOR - 1, BossFight.CORE_HOLE[1], BossFight.CORE_HOLE[2], P3_FLOOR - 1,
+                BossFight.CORE_HOLE[3], "minecraft:bedrock");
         box(out, BossFight.CORE_HOLE[0], P3_FLOOR, BossFight.CORE_HOLE[1], BossFight.CORE_HOLE[2], P3_FLOOR,
                 BossFight.CORE_HOLE[3], "minecraft:polished_blackstone_bricks");
+        box(out, BossFight.P4_HOLE[0], P4_FLOOR - 1, BossFight.P4_HOLE[1], BossFight.P4_HOLE[2], P4_FLOOR - 1,
+                BossFight.P4_HOLE[3], "minecraft:bedrock");
         box(out, BossFight.P4_HOLE[0], P4_FLOOR, BossFight.P4_HOLE[1], BossFight.P4_HOLE[2], P4_FLOOR, BossFight.P4_HOLE[3],
                 "minecraft:obsidian");
         for (BossStations.Station s : BossStations.all()) {

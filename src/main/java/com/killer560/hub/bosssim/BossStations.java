@@ -144,7 +144,7 @@ public final class BossStations {
     }
 
     private static ArmorStand stand(ServerLevel level, double x, double y, double z, String name, boolean marker) {
-        ArmorStand s = new ArmorStand(level, x, y, z);
+        ArmorStand s = new BossFight.TransientStand(level, x, y, z);
         s.snapTo(x, y, z, 0f, 0f);
         s.setInvisible(true);
         s.setNoGravity(true);

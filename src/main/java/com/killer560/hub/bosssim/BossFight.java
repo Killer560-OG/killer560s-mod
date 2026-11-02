@@ -250,6 +250,24 @@ public final class BossFight {
         BossStations.reset();
         BossDevices.stop();
         BossTerminals.closeAll(server);
+        if (phase != Phase.IDLE) {
+            forceChunks(false);
+        }
+        phase = Phase.IDLE;
+    }
+
+    /** The world the fight was in has closed: forget it without touching its (gone) entities or server. */
+    static void forget(String why) {
+        LOGGER.info("[BossSim] fight forgotten in {} ({})", phase, why);
+        gen++;
+        LATER.clear();
+        maxor = storm = goldor = necron = null;
+        java.util.Arrays.fill(tops, null);
+        java.util.Arrays.fill(placed, null);
+        java.util.Arrays.fill(dragons, null);
+        bar = null;
+        server = null;
+        level = null;
         phase = Phase.IDLE;
     }
 
@@ -265,6 +283,7 @@ public final class BossFight {
         server = s;
         level = s.overworld();
         master = masterMode;
+        forceChunks(true);
         carrying = 0;
         maxorStuns = maxorHits = 0;
         stunEndsAt = maxorKilledAt = -1;
@@ -345,8 +364,9 @@ public final class BossFight {
         }
     }
 
+    /** Opens a hole through a floor (and the bedrock bed under P3's and P4's lava, one block lower). */
     private static void openHole(int[] hole, int y) {
-        BossBlocks.fill(level, hole[0], y, hole[1], hole[2], y, hole[3], BossBlocks.AIR);
+        BossBlocks.fill(level, hole[0], y - 1, hole[1], hole[2], y, hole[3], BossBlocks.AIR);
     }
 
     private static void phase(Phase p) {
@@ -441,7 +461,12 @@ public final class BossFight {
     }
 
     private static EndCrystal crystal(Vec3 at) {
-        EndCrystal c = new EndCrystal(level, at.x, at.y, at.z);
+        EndCrystal c = new EndCrystal(level, at.x, at.y, at.z) {
+            @Override
+            public boolean shouldBeSaved() {
+                return false;
+            }
+        };
         c.setShowBottom(false);
         McEntities.setInvulnerable(c, true);
         level.addFreshEntity(c);
@@ -1004,7 +1029,7 @@ public final class BossFight {
         }
 
         private ArmorStand marker(String text, double dy) {
-            ArmorStand s = new ArmorStand(level, pos.x, pos.y + dy, pos.z);
+            ArmorStand s = new TransientStand(level, pos.x, pos.y + dy, pos.z);
             s.setInvisible(true);
             s.setNoGravity(true);
             s.setSilent(true);
@@ -1099,6 +1124,11 @@ public final class BossFight {
         }
 
         @Override
+        public boolean shouldBeSaved() {
+            return false;
+        }
+
+        @Override
         public boolean hurtServer(ServerLevel lvl, DamageSource source, float amount) {
             if (source.getEntity() instanceof ServerPlayer) {
                 onHurt(this);
@@ -1112,6 +1142,11 @@ public final class BossFight {
         SimDragon(Level level) {
             super(McEntities.ENDER_DRAGON, level);
             setNoAi(true);
+        }
+
+        @Override
+        public boolean shouldBeSaved() {
+            return false;
         }
 
         @Override
@@ -1132,6 +1167,37 @@ public final class BossFight {
                 onHurt(this);
             }
             return false;
+        }
+    }
+
+    /**
+     * A stand the fight owns: never written with its chunk, so a world closed mid-fight cannot bring back a stale copy.
+     * (The arena's chunks are kept loaded for the whole fight - {@link #forceChunks} - so nothing unloads under it.)
+     */
+    static final class TransientStand extends ArmorStand {
+        TransientStand(Level level, double x, double y, double z) {
+            super(level, x, y, z);
+        }
+
+        @Override
+        public boolean shouldBeSaved() {
+            return false;
+        }
+    }
+
+    /**
+     * Keeps every chunk of the boss room loaded while a fight runs. Without it a section he is far from unloads, and its
+     * stands, frames and bosses come back as NEW objects the fight does not know (2026-11-01: S2's far terminal "was no
+     * terminal's" when clicked, 1101-boss-p3).
+     */
+    private static void forceChunks(boolean on) {
+        if (level == null) {
+            return;
+        }
+        for (int cx = BossArena.X0 >> 4; cx <= (BossArena.X0 + BossArena.W - 1) >> 4; cx++) {
+            for (int cz = BossArena.Z0 >> 4; cz <= (BossArena.Z0 + BossArena.D - 1) >> 4; cz++) {
+                level.setChunkForced(cx, cz, on);
+            }
         }
     }
 

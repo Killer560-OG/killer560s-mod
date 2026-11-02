@@ -129,7 +129,12 @@ public final class BossDevices {
                 continue;
             }
             int dy = i % 5, dz = i / 5;
-            ItemFrame f = new ItemFrame(level, new BlockPos(ARROW_X, ARROW_Y + dy, ARROW_Z + dz), Direction.EAST);
+            ItemFrame f = new ItemFrame(level, new BlockPos(ARROW_X, ARROW_Y + dy, ARROW_Z + dz), Direction.EAST) {
+                @Override
+                public boolean shouldBeSaved() {
+                    return false;
+                }
+            };
             f.setItem(new ItemStack(Items.ARROW), false);
             f.setRotation(arrowsDone ? solution[i] : RNG.nextInt(8));
             level.addFreshEntity(f);

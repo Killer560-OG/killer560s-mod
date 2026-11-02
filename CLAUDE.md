@@ -437,6 +437,11 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - A testkit `-PseedConfig` copied from Mod Only Test carries his Proxy Client config (`system/proxy/proxyclient.json`, SOCKS5,
   enabled): the test client then dials the local server through his real proxy, which refuses it ("socks5 ... FORBIDDEN",
   00-smoke fails, 2026-11-01). Leave that file out of a seed.
+- `.gitignore`'s `secrets/` line also matches `src/main/java/com/killer560/hub/secrets/`, so `git add` of a tracked file
+  there (DungeonState, ...) fails with "paths are ignored" and the rest of that add is not staged; use `git add -f` on the
+  tracked file (2026-11-01).
+- The sim's F7 boss (`bosssim/`, docs/SIM-BOSS.md): reference mod ADM is All-Rights-Reserved - facts only, never its code
+  or its arena.bin capture.
 - Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
   (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
   and import keeps the locked update and sharing keys (testkit 981).

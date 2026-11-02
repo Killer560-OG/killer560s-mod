@@ -16,6 +16,8 @@ topic on 2026-10-25 when this file passed 3,000 lines. Read the file for the are
   Superboom, princes, levers, keys.
 - [SIM-SERVER.md](SIM-SERVER.md): the sim as Hypixel's server - gates and reach, packets and abilities, trap rooms,
   teleports, weapons, mobs and damage, minibosses, live mobs, world rules, tab list and sidebar, per-tick cost.
+- [SIM-BOSS.md](SIM-BOSS.md): the F7/M7 boss in the sim (`bosssim/`) - the room, the phases, P3's stations and
+  terminals, the reference mod ADM and what of it may be used (facts only).
 - [SIM-MAP.md](SIM-MAP.md): the live map in the sim, the Interactive Map's executor and its etherwarp planning (path
   search, the warp graph, the quick floor graph, the exact search).
 
