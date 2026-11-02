@@ -11,6 +11,7 @@ final class SettingTooltipsData {
     }
 
     static void register(Map<String, String> d) {
+        d.put("replay intro", "Shows the first-launch tour again: how to open the mod, picking a theme, Auto Update and the menus.");
         d.put("secret clicked", "Draws a short box on each secret you collect; the box turns red when the chest was locked.");
         d.put("locked chest sound", "Plays an anvil sound when the chest you clicked was locked.");
         d.put("mute chest sounds", "In dungeons, silences chest open and close sounds.");

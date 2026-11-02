@@ -503,3 +503,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - `DisconnectedScreen`'s constructors chain into each other, so a mixin on each of them (accounts/DisconnectedScreenMixin)
   runs up to three times for ONE screen (testkit 4101, 2026-11-01). Anything that must act once per screen keys on the
   screen object (`BanReportFeature.onDisconnectScreen(this, ...)`), not on the call.
+- The first-launch tour (`intro/`, 2026-11-01) opens over the title screen on a fresh install only; in a client gametest
+  run it never opens unless `-Dkiller560.test.intro=show` (docs/TESTING-HOOKS.md), so title-screen cases are not
+  interrupted. A GUI picture-in-picture (`g.skin`, entity, item models) ignores the pose: transform its box yourself
+  under Auto Scale (docs/LESSONS-GUI.md).

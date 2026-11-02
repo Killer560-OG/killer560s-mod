@@ -80,6 +80,8 @@ public class Killer560ModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ModCompatibility.refuseIfFirmamentPresent();
+        // Before anything writes a setting: was this a first install? (The first-launch tour shows only on one.)
+        com.killer560.hub.intro.IntroConfig.captureFirstInstall();
         // The shared record store's account, read once on this (the client) thread so a record touched from another
         // thread later still finds its account folder (SharedRecords.accountId).
         com.killer560.hub.shared.SharedRecords.accountId();
@@ -135,6 +137,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.compat.McRender.registerBatching();
         com.killer560.hub.compat.McRender.registerTextWidths();
         com.killer560.hub.autodebuff.AutoDebuffFeature.register();
+        // The first-launch tour over the title screen (killer560, 2026-11-01).
+        com.killer560.hub.intro.IntroLauncher.register();
         // The sim's entry point is the title screen's "Dungeon Sim" row, which MainMenuTitleLayout
         // places under Multiplayer - so there is nothing to register here.
         com.killer560.hub.roomsim.SimAbilities.register();

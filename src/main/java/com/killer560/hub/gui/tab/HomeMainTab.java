@@ -63,6 +63,13 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
+        // The first-launch tour again (killer560, 2026-11-01: "a way to replay it from the mod menu").
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Replay Intro"), btn ->
+                        com.killer560.hub.intro.IntroLauncher.replay(com.killer560.hub.compat.McCompat.screen(
+                                net.minecraft.client.Minecraft.getInstance())))
+                .bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
+
         // Sweat Mode is the button at the top of Home only (killer560, 2026-10-18), not a row in Mod or HUD.
         y += 4;
 
