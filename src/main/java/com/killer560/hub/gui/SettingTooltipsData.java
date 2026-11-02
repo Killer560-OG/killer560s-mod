@@ -21,6 +21,10 @@ final class SettingTooltipsData {
         d.put("only in green room", "In a dungeon, shows the Creation Cooldown only while you are in the green Entrance room.");
         d.put("chat when over", "Says in chat when the dungeon creation cooldown is over.");
         d.put("block instance creation", "Holds back /joininstance (and the /f7-style shortcuts) while the creation cooldown runs.");
+        d.put("insta clear warning", "Warns when a room on the way to blood (the one before a wither, fairy or blood door) is cleared on the map and no key dropped or was picked up.");
+        d.put("hud popup", "Shows a movable warning on screen with a sound for a few seconds. Move it in the HUD editor.");
+        d.put("requeue same floor", "Sends /joininstance for the floor you are on once the 30 s creation cooldown and Auto Requeue's Requeue Delay have passed. Once a run.");
+        d.put("party message", "Sends the text below to party chat. Leave it empty for the default line.");
         d.put("key spawn alert", "Shows a title and plays a sound when a Wither Key or Blood Key appears.");
         d.put("pre-boss warning", "When the Watcher lets you pass, lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
         d.put("crypt reminder", "Once the run clock passes the set time with fewer than 5 crypts, shows the crypt count. Outside the boss only, once a run.");

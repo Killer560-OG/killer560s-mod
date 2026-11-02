@@ -160,7 +160,7 @@ public final class ModPaths {
         }
 
         for (String run : new String[]{"run", "splittimers", "scorecalc", "dungeoninfo", "dungeonalerts",
-                "dungeonqueue", "creationcooldown", "partyfinder", "leap", "fastleap", "spiritleapoverlay", "class", "teammates",
+                "dungeonqueue", "creationcooldown", "instaclearwarning", "partyfinder", "leap", "fastleap", "spiritleapoverlay", "class", "teammates",
                 "blessings", "croesus", "rng", "revertmasterstars", "ticktimers", "mobesp"}) {
             t.put(run, "dungeons/runs");
         }
