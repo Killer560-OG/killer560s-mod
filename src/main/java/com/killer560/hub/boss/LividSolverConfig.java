@@ -50,6 +50,8 @@ public final class LividSolverConfig {
 
     private boolean enabled = false;
     private boolean showTimer = true;
+    /** killer560, 2026-11-01: "an option for seconds as well as ticks" - the invuln timer in seconds instead of ticks. */
+    private boolean timerSeconds = false;
     /** killer560, 2026-09-20: "add an option to draw a line to the correct livid". */
     private boolean showLine = true;
     private float tracerThickness = DEFAULT_TRACER_THICKNESS;
@@ -88,6 +90,7 @@ public final class LividSolverConfig {
             LividSolverConfig cfg = new LividSolverConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.showTimer = ConfigJson.getBool(obj, "showTimer", true);
+            cfg.timerSeconds = ConfigJson.getBool(obj, "timerSeconds", false);
             cfg.showLine = ConfigJson.getBool(obj, "showLine", true);
             cfg.tracerThickness = clampThickness(ConfigJson.getFloat(obj, "tracerThickness", DEFAULT_TRACER_THICKNESS));
             cfg.colourMode = ConfigJson.getEnum(obj, "colourMode", ColourMode.class, ColourMode.MATCH);
@@ -108,6 +111,7 @@ public final class LividSolverConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("showTimer", showTimer);
+            obj.addProperty("timerSeconds", timerSeconds);
             obj.addProperty("showLine", showLine);
             obj.addProperty("tracerThickness", tracerThickness);
             obj.addProperty("colourMode", colourMode.name());
@@ -141,6 +145,14 @@ public final class LividSolverConfig {
 
     public void setShowTimer(boolean showTimer) {
         this.showTimer = showTimer;
+    }
+
+    public boolean isTimerSeconds() {
+        return timerSeconds;
+    }
+
+    public void setTimerSeconds(boolean timerSeconds) {
+        this.timerSeconds = timerSeconds;
     }
 
     public boolean isShowLine() {

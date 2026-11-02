@@ -209,6 +209,8 @@ public final class SplitTimersFeature {
 
         if (SplitTimersConfig.getInstance().isEnabled()) {
             WatcherMoveTracker.tick();
+        }
+        if (SplitTimersConfig.getInstance().isCoreEntryActive()) {
             CoreEntryTimes.tick();
         }
 
@@ -224,10 +226,25 @@ public final class SplitTimersFeature {
 
     private static void onChatMessage(Component message) {
         if (!SplitTimersConfig.getInstance().isEnabled()) {
+            // Split Timers off: only Core Entry's own three lines, when it is kept on its own (2026-11-01).
+            if (SplitTimersConfig.getInstance().isCoreEntryAlone()) {
+                onCoreLine(ChatObserver.strip(message));
+            }
             return;
         }
         // Stripped: real Hypixel lines can embed §-codes mid-word.
         onLine(ChatObserver.strip(message), System.currentTimeMillis());
+    }
+
+    /** The lines Core Entry reads, for when it runs without the splits: run start, the core opening, Necron's entry. */
+    static void onCoreLine(String raw) {
+        if ("Starting in 1 second.".equals(raw)) {
+            CoreEntryTimes.reset();
+        } else if ("The Core entrance is opening!".equals(raw)) {
+            CoreEntryTimes.onCoreOpening();
+        } else if ("[BOSS] Necron: You went further than any human before, congratulations.".equals(raw)) {
+            CoreEntryTimes.onPhaseFourStarted();
+        }
     }
 
     /** One chat line at {@code now}. Package-private so the testkit can drive a run with exact times. */
@@ -353,7 +370,7 @@ public final class SplitTimersFeature {
         if (!on || laglessMs < 0L || !SplitLagClock.isTrustworthy()) {
             return "";
         }
-        return " (" + (seconds ? String.format(Locale.US, "%.2fs", laglessMs / 1000.0) : formatTime(laglessMs)) + ")";
+        return " (" + (seconds ? String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(laglessMs) / 1000.0) : formatTime(laglessMs)) + ")";
     }
 
     private static Component tookLine(String name, String time, String end) {
@@ -469,15 +486,15 @@ public final class SplitTimersFeature {
 
     /** "3.35s": lag is always shown in seconds. */
     static String lagSeconds(long ms) {
-        return String.format(Locale.US, "%.2fs", ms / 1000.0);
+        return String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(ms) / 1000.0);
     }
 
-    /** Odin's Utils.formatTime(time, 2): "1h 2m 3.45s". */
+    /** Odin's Utils.formatTime(time, 2): "1h 2m 3.45s" (to the nearest 0.05 s with Tick Counting). */
     static String formatTime(long timeMs) {
         if (timeMs == 0L) {
             return "0s";
         }
-        long remaining = timeMs;
+        long remaining = SplitTimersConfig.shown(timeMs);
         long hours = remaining / 3600000L;
         remaining -= hours * 3600000L;
         long minutes = remaining / 60000L;
@@ -591,6 +608,18 @@ public final class SplitTimersFeature {
         private static List<Line> buildLayout(boolean editor) {
             List<Line> out = new ArrayList<>();
             int lineY = 0;
+            if (!SplitTimersConfig.getInstance().isEnabled()) {
+                // Core Entry on its own (Show With Splits Off): its rows alone, where the splits would start.
+                for (String line : coreLines()) {
+                    out.add(new Line(line, 0, lineY));
+                    lineY += ROW_HEIGHT;
+                }
+                for (String line : slowestCoreLine()) {
+                    out.add(new Line(line, 0, lineY));
+                    lineY += ROW_HEIGHT;
+                }
+                return out;
+            }
             List<String> rows = editor ? editorRows() : rowTexts(layoutRows(System.currentTimeMillis()));
             for (String row : rows) {
                 out.add(new Line(row, 0, lineY));
@@ -644,7 +673,8 @@ public final class SplitTimersFeature {
             // A finished split's row reads the same every frame; only the running one changes. Its text is reused
             // while the row (a record: name, times, kind) and the lagless switch are unchanged, so a boss run draws
             // one String.format a frame instead of one or two per row (2026-10-15). Render thread only.
-            boolean reuse = lagless == lastRowsLagless && Minecraft.getInstance().isSameThread();
+            boolean ticks = SplitTimersConfig.getInstance().isTickCounting();
+            boolean reuse = lagless == lastRowsLagless && ticks == lastRowsTicks && Minecraft.getInstance().isSameThread();
             List<String> out = new ArrayList<>(rows.size());
             for (int i = 0; i < rows.size(); i++) {
                 SplitRow row = rows.get(i);
@@ -663,6 +693,7 @@ public final class SplitTimersFeature {
                 lastRows = rows;
                 lastRowTexts = out;
                 lastRowsLagless = lagless;
+                lastRowsTicks = ticks;
             }
             return out;
         }
@@ -670,6 +701,7 @@ public final class SplitTimersFeature {
         private static List<SplitRow> lastRows = List.of();
         private static List<String> lastRowTexts = List.of();
         private static boolean lastRowsLagless;
+        private static boolean lastRowsTicks;
 
         /** A finished M7 run, for positioning the element in the HUD editor. */
         private static List<String> editorRows() {
@@ -734,12 +766,12 @@ public final class SplitTimersFeature {
 
         @Override
         public boolean isEnabledInSettings() {
-            return SplitTimersConfig.getInstance().isEnabled();
+            return SplitTimersConfig.getInstance().isEnabled() || SplitTimersConfig.getInstance().isCoreEntryAlone();
         }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!SplitTimersConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
+            if (!isEnabledInSettings() || HudVisibility.hidesHud()) {
                 return;
             }
             List<Line> lines = layout();

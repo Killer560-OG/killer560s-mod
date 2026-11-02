@@ -33,9 +33,12 @@ final class SettingTooltipsData {
         d.put("switch channel", "Clicking a tab also puts you in that chat (/chat party and so on); with Messages, a line you type goes as /r.");
         d.put("filter closed chat", "Keeps showing only the selected tab's messages after you close the chat.");
         d.put("key spawn alert", "Shows a title and plays a sound when a Wither Key or Blood Key appears.");
-        d.put("pre-boss warning", "When the Watcher lets you pass, lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
+        d.put("pre-boss warning", "The moment the Watcher lets you pass (the last blood mob dies), lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
         d.put("crypt reminder", "Once the run clock passes the set time with fewer than 5 crypts, shows the crypt count. Outside the boss only, once a run.");
-        d.put("remind at", "The run time at which the Crypt Reminder checks your crypts.");
+        d.put("remind at", "The run time at which the Crypt Reminder checks your crypts: 0:05 to 2:00 in 5 second steps (default 0:45).");
+        d.put("score warning/mage only", "The Pre-Boss Warning only while you are playing Mage.");
+        d.put("score warning/permanent", "From the Watcher's last line until you enter the boss, a title stays on screen: DO NOT ENTER PORTAL while score is missing, a green ENTER THE PORTAL once nothing is.");
+        d.put("score warning/list missing score", "Lists what is missing (crypts, cleared, secrets) under DO NOT ENTER PORTAL. Off shows that line alone.");
         d.put("score warning/tell party", "Also sends the crypt count to party chat.");
         d.put("warning sound", "Plays a sound with the Score Warning titles.");
         d.put("ice spray alert", "Shows an \"Ice Spray Livid!\" title and a sound the moment Livid's opening invulnerability ends.");
@@ -774,6 +777,7 @@ final class SettingTooltipsData {
         d.put("split timers/total with lag", "A Total line under the splits with the run's real time, the same clock as Hypixel's own end-of-run time.");
         d.put("split timers/total without lag", "Adds the run's time without server lag in parentheses after the Total: \"Total: 1m 23.45s (1m 20.10s)\". Also on the chat Total.");
         d.put("split timers/lag lost", "A Lag line under the Total: how much of the run server lag cost (the Total minus the time in parentheses).");
+        d.put("split timers/counting", "Every 0.01s shows times as measured; Ticks rounds every split time to the nearest 0.05s, one server tick (cheat build only).");
         d.put("split timers/slowest in hud", "Shows the slowest teammate into core, and their time, at the bottom of the Split Timers HUD.");
         d.put("announce in chat", "Posts a private chat message only you can see when this happens.");
         d.put("terminal timers", "Shows terminal solve times and section splits in your own chat during F7/M7 P3.");
@@ -948,6 +952,8 @@ final class SettingTooltipsData {
         d.put("show order lines", "Draws lines connecting the next few blazes in kill order.");
         d.put("livid solver", "Outlines the real Livid on F5/M5.");
         d.put("show invuln timer", "Shows a HUD countdown of Livid's opening invulnerability.");
+        d.put("blessings/boss only", "Shows the Blessings HUD only in the floor's boss room.");
+        d.put("livid solver/timer unit", "Livid's invuln timer in ticks (120t) or in seconds (6.0s).");
         d.put("quiver display", "Shows how many arrows you have left in a HUD line.");
         d.put("quiver text color", "Color of the Quiver Display's HUD line.");
         d.put("low arrow alert", "Shows a title on screen once your arrows drop below the threshold.");
@@ -1794,7 +1800,8 @@ final class SettingTooltipsData {
         d.put("skip dead", "Skips teammates the tab list currently shows as DEAD.");
         d.put("clear splits", "Splits the clear phase into Blood Rush, Blood Open, Watcher Dialogue and Blood Clear.");
         d.put("watcher move", "Adds a row for how long after the blood door opens the Watcher starts moving.");
-        d.put("core entry times", "Times how long each player takes to enter the core after the Phase 3 terminals.");
+        d.put("core entry times", "Times how long each player takes to step inside the core after \"The Core entrance is opening!\".");
+        d.put("split timers/show with splits off", "Keeps Core Entry Times and their HUD rows going with Split Timers turned off.");
         d.put("slowest to chat", "Prints the slowest player into the core in your own chat once per run.");
         d.put("slowest to party", "Sends the slowest core entry line to party chat once per run.");
         d.put("ability cooldowns/display", "How the cooldown list is drawn and how many lines it may use.");
@@ -2157,7 +2164,7 @@ final class SettingTooltipsData {
         d.put("starred mob hitboxes/wither style", "Picks how the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
         d.put("solver highlight", "Whether this solver draws its boxes, waypoints and lines in the world. Off, it still solves (and its chat and HUD lines stay); only the world drawing stops.");
         d.put("solver highlight through walls", "Draws this solver's highlights through blocks so you can see answers early.");
-        d.put("solver highlight style", "Draws this solver's waypoints as an outline or a see-through full block.");
+        d.put("solver highlight style", "Draws this solver's waypoints as an outline or a see-through fill.");
         d.put("livid color", "Livid Solver: Match Livid draws the highlight and the tracer in the Livid's own wool color. Custom uses the Highlight Color and Tracer Color you set below.");
         d.put("livid solver/highlight color", "Livid Solver, Custom color mode: the color of the box drawn around Livid.");
         d.put("tracer color", "Livid Solver, Custom color mode: the color of the line from you to Livid.");
@@ -2172,9 +2179,11 @@ final class SettingTooltipsData {
         d.put("chat keybinds/key", "Click, then press a key or mouse button to bind it. Escape clears it.");
         d.put("chat keybinds/delete", "Removes this row.");
         d.put("chat keybinds/command or message", "The line to send; start it with / to run it as a command.");
-        d.put("door keys/pickup range", "How the range you pick a key up from is drawn: Radius, a flat circle at the key's height; Sphere, a see-through ball around it - step inside and the key is yours.");
-        d.put("door keys/circle color", "Color of the pickup circle or sphere outline drawn at a dropped key.");
-        d.put("door keys/sphere fill", "Fill color of the Sphere style's see-through ball.");
+        d.put("door keys/pickup range", "How the range you pick a key up from is drawn: Circle, a flat circle at the key's height; Sphere, a see-through ball around it - step inside and the key is yours.");
+        d.put("door keys/radius", "Radius of the circle or the sphere, in blocks. Far left follows the key pickup range (Auto Clear's Key Base Range + 5).");
+        d.put("door keys/circle color", "Color of the pickup circle. Auto: black for a Wither Key, red for a Blood Key, at 50% alpha. Right-click resets to Auto.");
+        d.put("door keys/sphere color", "Color of the whole sphere. Auto: black for a Wither Key, red for a Blood Key, at 50% alpha. Right-click resets to Auto.");
+        d.put("door keys/tracer color", "Color of the tracer line. Auto matches the circle or sphere color. Right-click resets to Auto.");
         d.put("door keys/tracer thickness", "How thick that tracer line is drawn (1-10).");
         d.put("door keys/esp through walls", "Draws the key circle and tracer through walls (cheat build only).");
         d.put("name changer/color", "Opens the color picker for this name.");

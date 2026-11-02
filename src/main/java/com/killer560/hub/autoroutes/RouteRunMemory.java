@@ -132,6 +132,28 @@ public final class RouteRunMemory {
         }
     }
 
+    /**
+     * Takes back a secret that turned out to be none - a locked chest, which Hypixel answers with "That chest is locked!"
+     * after the click already counted (killer560, 2026-11-01: "it shouldnt count locked chests"). Undoes the map's count
+     * and the chest rule's clock too. @return whether it was remembered.
+     */
+    static boolean forgetSecret(String key) {
+        check();
+        Got g = got.remove(key);
+        if (g == null) {
+            return false;
+        }
+        claimed.remove(key);
+        if (g.pos() != null) {
+            LiveMapFeature.noteSecretUndoneAt(g.pos().x, g.pos().z);
+        }
+        if (g.what() != null && g.what().startsWith("chest")) {
+            com.killer560.hub.autoclear.ChestClearRule.forgetChest(g.what());
+        }
+        LOGGER.info("[RouteMemory] forgot secret {} [{}]: not a secret after all ({} this run)", g.what(), key, got.size());
+        return true;
+    }
+
     /** Whether a secret under this key ("bat 67") was already got this run. */
     static boolean has(String key) {
         check();
