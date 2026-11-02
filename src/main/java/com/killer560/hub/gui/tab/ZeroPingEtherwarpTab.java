@@ -19,7 +19,8 @@ import java.util.List;
  * header at the bottom. Two features side by side, so the card's switch stands for both ({@link #masterToggles}).
  *
  * <p>No explanation lines: each row says what it does in its hover tooltip ("If you need to explain it then it should be
- * text shown when hovering a setting"). Works For comes last in the ZPEW part ("Move the works for to the bottom"). The
+ * text shown when hovering a setting"). Works For is the last of ZPEW's legit rows ("Move the works for to the bottom");
+ * the cheat rows follow it at the bottom, as everywhere. The
  * class keeps its old name so a starred card and a toggle key (both kept by class name) carry over.
  */
 public class ZeroPingEtherwarpTab extends BaseTab {
@@ -81,7 +82,20 @@ public class ZeroPingEtherwarpTab extends BaseTab {
                 }
             });
             y += ROW + 6;
+            // Works For (killer560, 2026-10-27), last of the legit rows since 2026-11-01 ("Move the works for to the
+            // bottom"): one switch per sender. The cheat rows (its cheat senders, Multi Warps, Left Click Etherwarp) stay
+            // under it, as every cheat setting goes at the bottom of its tab (testkit 512).
+            w.add(SectionHeaders.row(contentX, y, contentWidth, "Works For", false));
+            y += 16;
+            y = sourceRows(w, cfg, contentX, y, contentWidth, false);
             if (cheat) {
+                y += 6;
+                w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Works For", true));
+                y += 16;
+                y = sourceRows(w, cfg, contentX, y, contentWidth, true);
+            }
+            if (cheat) {
+                y += 6;
                 // Multi Warps (killer560, 2026-11-01: "Make a toggle for the multi warps. Change that setting to be called
                 // multi warps"): the switch over Warps Per Tick and Aimed Warps, which show only while it is on.
                 w.add(SectionHeaders.row(contentX, y, contentWidth, "Multi Warps", true));
@@ -105,16 +119,6 @@ public class ZeroPingEtherwarpTab extends BaseTab {
                     y += ROW + 4;
                 }
                 y += 2;
-            }
-            // Works For (killer560, 2026-10-27), at the bottom since 2026-11-01: one switch per sender of an etherwarp.
-            w.add(SectionHeaders.row(contentX, y, contentWidth, "Works For", false));
-            y += 16;
-            y = sourceRows(w, cfg, contentX, y, contentWidth, false);
-            if (cheat) {
-                y += 6;
-                w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Works For", true));
-                y += 16;
-                y = sourceRows(w, cfg, contentX, y, contentWidth, true);
             }
             y += 6;
         }
