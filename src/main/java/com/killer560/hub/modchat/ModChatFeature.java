@@ -59,10 +59,11 @@ public final class ModChatFeature {
         // The relay also carries party dungeon data (hub/partydata, Team Melody), which is ON by default and must
         // not depend on Mod Chat being on. Without Mod Chat, data always uses the party room - never a lobby room.
         boolean chatOn = cfg.isEnabled();
-        boolean dataOn = com.killer560.hub.interop.InteropConfig.getInstance().isEnabled()
+        // Team Melody needs the party room whatever the other data switches say (killer560, 2026-11-01).
+        boolean dataOn = (com.killer560.hub.interop.InteropConfig.getInstance().isEnabled()
                 && com.killer560.hub.interop.InteropConfig.getInstance().isRelayData()
-                && (com.killer560.hub.partydata.PartyDataConfig.getInstance().isShareEnabled()
-                    || com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress());
+                && com.killer560.hub.partydata.PartyDataConfig.getInstance().isShareEnabled())
+                || com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress();
         // Crystal Hollows structure sharing (which forced a LOBBY room here) is shelved until after 2.0 - see
         // shelved/mining/README.md. A "ch.v1.find" data packet from an older client still in our room reaches
         // only listeners that switch on their own keys, so it is ignored.

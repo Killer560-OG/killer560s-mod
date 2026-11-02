@@ -530,6 +530,7 @@ public final class ProfileManager {
                 com.killer560.hub.interop.InteropConfig::load,
                 com.killer560.hub.namechanger.NameChangerConfig::load,
                 com.killer560.hub.nofire.NoFireConfig::load,
+                com.killer560.hub.autosprint.AutoSprintConfig::load,
                 com.killer560.hub.objecthider.ObjectHiderConfig::load,
                 com.killer560.hub.lagdisplay.LagDisplayConfig::load,
                 com.killer560.hub.abilitycooldown.AbilityCooldownConfig::load,

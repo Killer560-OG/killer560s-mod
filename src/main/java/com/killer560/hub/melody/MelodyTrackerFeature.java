@@ -82,6 +82,7 @@ public final class MelodyTrackerFeature {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MelodyTrackerFeature.tick", MelodyTrackerFeature::tick));
+        com.killer560.hub.util.ChatObserver.subscribe(message -> onChat(com.killer560.hub.util.ChatObserver.strip(message)));
         HudElementRegistry.register(HUD);
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "team_melody_hud"),
@@ -90,7 +91,94 @@ public final class MelodyTrackerFeature {
 
     private static void tick(Minecraft client) {
         tickSelf(client);
+        tickLifetime();
         rebuildRows();
+    }
+
+    // ------------------------------------------------------------------ lifetime (2026-11-01)
+
+    /** "&lt;name&gt; activated a terminal! (n/m)" - a real username, anchored, so no chat prefix can forge it. */
+    private static final Pattern TERMINAL_DONE =
+            Pattern.compile("^([A-Za-z0-9_]{1,16}) activated a terminal! \\(\\d/\\d\\)(?:\\s.*)?$");
+    /** A party line, sender anchored (the same shape I4 Leap reads Melody callouts with). */
+    private static final Pattern PARTY_LINE = Pattern.compile("^Party > (?:\\[[^\\]]{1,20}\\] )?([A-Za-z0-9_]{1,16}): (.{1,120})$");
+    /** A Melody progress callout: "Melody 1/3 - 33%", "Melody 67%", "mel 2/4". Bounded digits. */
+    private static final Pattern PROGRESS = Pattern.compile("(?i)\\bmel(?:ody)?\\b\\D{0,6}(?:(\\d)/(\\d)|(\\d{1,3})%)");
+
+    /** When our own Melody was last finished (0 = not this section). */
+    private static long selfDoneAtMs;
+    /** When our own Melody screen last closed, for the completion line that follows it. */
+    private static long selfClosedAtMs;
+    private static Floor7Tracker.Stage lastStage;
+    private static boolean lastInP3;
+
+    /** @return when our own Melody was finished, 0 if not recently; polled by {@code PartyDataFeature} to share it. */
+    public static long selfDoneAtMs() {
+        return selfDoneAtMs;
+    }
+
+    /** Section changes and staleness (killer560, 2026-11-01: "if a section ends then it removes it or at max it is there
+     *  for 15s without an update"). */
+    private static void tickLifetime() {
+        boolean inP3 = Floor7Tracker.inPhase(Floor7Tracker.Phase.P3);
+        Floor7Tracker.Stage stage = Floor7Tracker.getStage();
+        if (inP3 != lastInP3 || (inP3 && stage != lastStage)) {
+            MelodyIntel.clear();
+            selfDoneAtMs = 0;
+        }
+        lastInP3 = inP3;
+        lastStage = stage;
+        MelodyIntel.expire(System.currentTimeMillis());
+    }
+
+    static void onChat(String plain) {
+        if (plain == null || plain.isEmpty() || !Floor7Tracker.inF7Boss()) {
+            return;
+        }
+        java.util.regex.Matcher done = TERMINAL_DONE.matcher(plain);
+        if (done.matches()) {
+            String who = done.group(1);
+            String self = selfIgn();
+            long now = System.currentTimeMillis();
+            if (self != null && self.equals(who)) {
+                if (open || now - selfClosedAtMs <= MelodyIntel.CLOSED_GRACE_MS) {
+                    selfDoneAtMs = now;
+                    MelodyIntel.markDone(self);
+                }
+            } else {
+                MelodyIntel.onTerminalCompleted(who);
+            }
+            return;
+        }
+        if (!plain.startsWith("Party > ")) {
+            return;
+        }
+        java.util.regex.Matcher party = PARTY_LINE.matcher(plain);
+        if (!party.matches()) {
+            return;
+        }
+        String sender = party.group(1);
+        if (!PartyTracker.teammates().stream().anyMatch(sender::equalsIgnoreCase)) {
+            return;
+        }
+        java.util.regex.Matcher m = PROGRESS.matcher(party.group(2));
+        if (!m.find()) {
+            return;
+        }
+        int percent;
+        if (m.group(1) != null) {
+            int done2 = Integer.parseInt(m.group(1));
+            int of = Integer.parseInt(m.group(2));
+            if (of <= 0 || done2 > of) {
+                return;
+            }
+            percent = Math.round(done2 * 100f / of);
+        } else {
+            percent = Integer.parseInt(m.group(3));
+        }
+        if (percent >= 0 && percent < 100) {
+            MelodyIntel.offerChat(sender, percent);
+        }
     }
 
     // ------------------------------------------------------------------ our own read
@@ -142,6 +230,7 @@ public final class MelodyTrackerFeature {
     private static void closeIfOpen() {
         if (open) {
             open = false;
+            selfClosedAtMs = System.currentTimeMillis();
             lastSentDone = 0;
             lastLitRow = -1;
             lastTarget = -1;
@@ -210,6 +299,11 @@ public final class MelodyTrackerFeature {
         String name = "";
         String label = "";
         int percent = -1;
+        /** A teammate on this mod or Odin: their board (target, moving column, button row) is drawn, not a bar. */
+        boolean board;
+        int clay = -1;
+        int target = -1;
+        int current = -1;
     }
 
     /** Client tick only: refreshes {@link #ROWS}/{@link #rowCount} from {@link MelodyIntel}, which is itself
@@ -236,8 +330,14 @@ public final class MelodyTrackerFeature {
             if (percent != row.percent || !mate.equals(row.name)) {
                 row.name = mate;
                 row.percent = percent;
-                row.label = percent < 0 ? mate + ": ..." : mate + ": " + percent + "%";
+                row.label = percent < 0 ? mate + ": ..." : percent >= 100 ? mate + ": 100% (done)" : mate + ": " + percent + "%";
             }
+            // Their own board when it came from a teammate's mod; a chat callout only gives the bar (killer560, 2026-11-01:
+            // "if someone is sharing as a part of our mod then have it show the actual melody screen they are seeing").
+            row.board = p.hasBoard() && !p.done();
+            row.clay = p.clayRow();
+            row.target = p.target();
+            row.current = p.current();
         }
         rowCount = n;
     }
@@ -254,6 +354,10 @@ public final class MelodyTrackerFeature {
 
     /** Movable in the HUD editor like every other element. Amber-themed: dim-orange bar background, bright
      *  orange fill, the mod's own off-white text color (see {@code ModChat}). Default OFF, New tab. */
+    /** Testkit probes (1101-melody-*): boards and bars drawn since launch. */
+    static int boardsDrawn;
+    static int barsDrawn;
+
     private static final class TeamMelodyHudElement implements HudElement {
         static final TeamMelodyHudElement INSTANCE = new TeamMelodyHudElement();
 
@@ -289,8 +393,7 @@ public final class MelodyTrackerFeature {
 
         @Override
         public int width() {
-            // What render() draws: the waiting line, or the widest of the shown rows' labels and bars (it was a
-            // fixed bar + 10 by four rows, round a one-line "waiting..." most of the time).
+            // What render() draws: the waiting line, or the widest of the shown rows' labels, bars and boards.
             Font font = Minecraft.getInstance().font;
             if (rowCount == 0) {
                 return font.width(WAITING);
@@ -298,6 +401,9 @@ public final class MelodyTrackerFeature {
             int w = BAR_WIDTH;
             for (int i = 0; i < Math.min(rowCount, VISIBLE_ROWS); i++) {
                 w = Math.max(w, font.width(ROWS[i].label));
+                if (ROWS[i].board) {
+                    w = Math.max(w, boardWidth());
+                }
             }
             return w;
         }
@@ -307,8 +413,59 @@ public final class MelodyTrackerFeature {
             if (rowCount == 0) {
                 return com.killer560.hub.hud.HudText.ROW;
             }
-            // Each row is a label with its bar 10 below; rows are ROW_HEIGHT apart.
-            return (Math.min(rowCount, VISIBLE_ROWS) - 1) * ROW_HEIGHT + 10 + BAR_HEIGHT;
+            int h = 0;
+            for (int i = 0; i < Math.min(rowCount, VISIBLE_ROWS); i++) {
+                h += rowHeight(ROWS[i]);
+            }
+            return h - (ROW_HEIGHT - 10 - BAR_HEIGHT);
+        }
+
+        // ---- the board: what the teammate's Melody screen shows, cell for cell ----
+        private static final int CELL = 5;
+        private static final int GAP = 1;
+        private static final int COLUMNS = 5;
+        private static final int COLOR_CELL = 0xFF3A2A1C;
+        private static final int COLOR_TARGET = 0xFFD24BD2;
+        private static final int COLOR_MOVING = 0xFF7CE04A;
+        private static final int COLOR_ROW_DONE = 0xFF3F8F3F;
+        private static final int COLOR_BUTTON_WAIT = 0xFFA33A2A;
+
+        private static int boardRows() {
+            return Math.max(1, Math.min(BridgeTables.MELODY_MAX_CLAY_ROW, com.killer560.hub.terminals.TerminalLayouts.melodyRows()));
+        }
+
+        private static int boardWidth() {
+            return (COLUMNS + 1) * (CELL + GAP) + 2;
+        }
+
+        private static int boardHeight() {
+            return (boardRows() + 1) * (CELL + GAP);
+        }
+
+        private static int rowHeight(Row row) {
+            return row.board ? 10 + boardHeight() + 3 : ROW_HEIGHT;
+        }
+
+        /** Top strip: the target column (purple on the real board). Then one line per button row: rows already played are
+         *  green, the active row shows the moving pane at its column and a lit button, later rows wait. */
+        private static void drawBoard(GuiGraphicsExtractor graphics, Row row, int x, int y) {
+            int rows = boardRows();
+            int active = row.clay - 1;
+            for (int c = 0; c < COLUMNS; c++) {
+                int cx = x + c * (CELL + GAP);
+                graphics.fill(cx, y, cx + CELL, y + CELL, c == row.target ? COLOR_TARGET : COLOR_CELL);
+            }
+            for (int r = 0; r < rows; r++) {
+                int ry = y + (r + 1) * (CELL + GAP);
+                for (int c = 0; c < COLUMNS; c++) {
+                    int cx = x + c * (CELL + GAP);
+                    int color = r < active ? COLOR_ROW_DONE : (r == active && c == row.current ? COLOR_MOVING : COLOR_CELL);
+                    graphics.fill(cx, ry, cx + CELL, ry + CELL, color);
+                }
+                int bx = x + COLUMNS * (CELL + GAP) + 2;
+                int button = r < active ? COLOR_ROW_DONE : r == active ? COLOR_MOVING : COLOR_BUTTON_WAIT;
+                graphics.fill(bx, ry, bx + CELL, ry + CELL, button);
+            }
         }
 
         private static final String WAITING = "Team Melody: waiting...";
@@ -337,13 +494,19 @@ public final class MelodyTrackerFeature {
             for (int i = 0; i < shown; i++) {
                 Row row = ROWS[i];
                 graphics.text(font, row.label, x, lineY, COLOR_TEXT, false);
-                int barY = lineY + 10;
-                graphics.fill(x, barY, x + BAR_WIDTH, barY + BAR_HEIGHT, COLOR_BAR_BG);
-                int filled = row.percent <= 0 ? 0 : Math.round(BAR_WIDTH * (row.percent / 100f));
-                if (filled > 0) {
-                    graphics.fill(x, barY, x + filled, barY + BAR_HEIGHT, COLOR_BAR_FILL);
+                if (row.board) {
+                    drawBoard(graphics, row, x, lineY + 10);
+                    boardsDrawn++;
+                } else {
+                    int barY = lineY + 10;
+                    graphics.fill(x, barY, x + BAR_WIDTH, barY + BAR_HEIGHT, COLOR_BAR_BG);
+                    int filled = row.percent <= 0 ? 0 : Math.round(BAR_WIDTH * (Math.min(100, row.percent) / 100f));
+                    if (filled > 0) {
+                        graphics.fill(x, barY, x + filled, barY + BAR_HEIGHT, COLOR_BAR_FILL);
+                    }
+                    barsDrawn++;
                 }
-                lineY += ROW_HEIGHT;
+                lineY += rowHeight(row);
             }
         }
     }

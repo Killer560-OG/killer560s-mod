@@ -1770,7 +1770,7 @@ final class SettingTooltipsData {
 
         // Hover Terminals + Run Summary
         d.put("hover terminals", "Cheat build only. Resting the mouse on a correct terminal slot clicks it for you.");
-        d.put("hover delay", "Cheat build only. How long the mouse must rest on a slot before it clicks, 0-1000 ms.");
+        d.put("hover delay", "Cheat build only. The least time between two hover clicks, 0-300 ms. A correct slot under the mouse clicks at once when that long has passed since the last one.");
         d.put("hover jitter", "Cheat build only. Adds a random extra delay to each hover click.");
         d.put("hover melody", "Cheat build only. Rest the mouse on a Melody row button and it clicks once when the moving pane reaches the right column.");
         d.put("hold to click", "Hold left click in a terminal and the slot under the mouse is clicked again and again, like holding the drop key, but only when it is a correct click.");
@@ -2647,8 +2647,8 @@ final class SettingTooltipsData {
         d.put("party interop/odin bridge", "Shows Odin users' Melody progress in F7/M7 P3, and shares yours if Share My Progress is on.");
         d.put("dungeon map/mark reported rooms", "Marks rooms and doors your party shared that you haven't seen yourself.");
         d.put("dungeon map/player heads", "Draws you and your teammates as their skin faces, turned to face the way they look.");
-        d.put("team melody/team melody hud", "Shows each teammate's Melody terminal progress during Phase 3.");
-        d.put("team melody/share my progress", "Lets teammates see your live Melody terminal progress.");
+        d.put("team melody/team melody hud", "Shows each teammate's Melody terminal during Phase 3: their board (target, moving pane, rows done) for a teammate on this mod or Odin, a progress bar for one who only calls it in party chat. A finished Melody reads 100%; a player drops off when the section ends or after 15 s with no update.");
+        d.put("team melody/share my progress", "Lets teammates see your live Melody terminal, and when you finish it. On by default, and it shares whatever Party Dungeon Data and the relay data switch are set to.");
         d.put("team melody/scale", "Resizes the Team Melody HUD.");
         d.put("full block/width", "How wide the hitbox is; far left is normal, far right is a full block.");
         d.put("full block/height", "How tall the hitbox is; far left is normal, far right is a full block.");
@@ -2794,12 +2794,13 @@ final class SettingTooltipsData {
         d.put("bazaar flipper", "Buys items from the Bazaar and sells them to the /trades NPC.");
         d.put("hide mouse cursor", "With Stream Safe off: while auto terminal clicks are landing, the real mouse pointer is hidden and no pointer is drawn, so a screen share shows nothing moving. It comes back as soon as the clicks stop.");
         d.put("stream safe", "On: auto terminal clicks come from a drawn mouse pointer that moves like a hand (curves, misses, overshoots, a varied order) and clicks only once it is on the slot, so a stream looks like you playing. Off: the Min and Max delays, and no pointer is drawn.");
-        d.put("cursor speed", "How fast the Stream Safe pointer moves, in percent of a typical hand, 50-200%. Clicks wait for it, so slower is slower.");
+        d.put("cursor speed", "How fast the Stream Safe pointer moves, in percent of a typical hand, 50-300%. Clicks wait for it, so slower is slower.");
         d.put("reaction time", "The usual pause before the Stream Safe pointer starts each move, 60-400 ms (130 by default); each pause varies round it.");
         d.put("miss chance", "How often a Stream Safe move lands a little off (the slot edge or the next slot) and corrects before clicking, 0-30%. A wrong click is never sent.");
         d.put("overshoot chance", "How often a Stream Safe move carries past the slot and comes back before clicking, 0-50%.");
         d.put("streamer mode", "Run /streamer to turn it on, and again to turn it off. The option below says what it does while it is on: Disable cheats stops every automated action, and either option hides the cheat parts of the menu.");
         d.put("streamer mode/option", "What Streamer Mode does while it is on: Disable cheats refuses every automated action, Hide cheat UI only hides them.");
+        d.put("auto sprint", "Sprints for you whenever you walk forward (not while sneaking). The mod's own movement - AP3, Auto Routes, the pathfinder - always keeps its own sprint choice, and while one of those is moving you no other mod's auto sprint can start a sprint it did not ask for.");
         d.put("zoom", "Hold the zoom key to narrow the view. While it is held, the mouse wheel changes the zoom.");
         d.put("see other mod users", "Shows a colored diamond before the name of every player who shows as a mod user: green for legit, red for cheat. Off by default.");
         d.put("show me as a mod user", "Lets other mod users see that you run the mod. Off by default; nobody sees your variant until you turn this on.");

@@ -410,3 +410,10 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   hides the chest and drew nothing until a head had settled, so a leap menu with no heads was an open screen that looked like
   none: mouse freed, camera and movement dead until Escape or the inventory key closed it - the shape of killer560's 2026-11-01
   Fast Leap report (not yet confirmed as its cause on Hypixel). It now draws a notice after 300 ms (testkit 1344, lastView EMPTY).
+- **Per-frame screen state never hangs off a background hook another feature cancels.** The Terminal Solver refreshed at
+  the HEAD of `ContainerScreen.extractBackground`; Inventory Theme cancels that same method at HEAD, and with it on
+  (his 26.3 Untested Cheat config) no terminal was ever tracked - no solver, Custom GUI or Auto Terminals (doc-terms-1101,
+  testkit 1101-menu-term-instcfg with that config: all six types untracked on main, tracked after). The refresh now runs
+  at the HEAD of `Screen.extractRenderStateWithTooltipAndSubtitles` (final, calls extractBackground first; javap 26.3
+  and 26.2), which nothing cancels. Five features cancel `extractBackground` at HEAD (Inventory Theme, Storage Overlay,
+  AH/Bazaar reskins, Spirit Leap): read state anywhere else.

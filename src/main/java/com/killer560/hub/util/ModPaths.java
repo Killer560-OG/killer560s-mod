@@ -185,6 +185,8 @@ public final class ModPaths {
         // The pre-2.0 mining features (miningqol/, 2026-11-01).
         t.put("miningqol", "skyblock/miningqol");
         t.put("pathfinding", "skyblock/pathfinding");
+        // Auto Sprint (killer560smod-autosprint.json, 2026-11-01).
+        t.put("autosprint", "skyblock/autosprint");
         t.put("itemprotect", "skyblock/itemprotect");
         t.put("petwheel", "skyblock/petwheel");
         t.put("storage", "skyblock/storage");

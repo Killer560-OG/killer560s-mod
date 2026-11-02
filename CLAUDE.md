@@ -553,3 +553,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Inventory Sorter clicks come from `invsort/InvSortPlanner`, which is proven minimal (docs/INVSORT-OPTIMALITY.md). After any
   change to it, rerun `tools/invsort-optimality` (javac both files, ~5 min, every instance must print "exactly minimal"); its
   first run found a case the hand argument had missed (a hotbar slot already holding a matching copy is a free swap pivot).
+- Five features cancel `ContainerScreen.extractBackground` at HEAD (Inventory Theme, Storage Overlay, AH/Bazaar reskins,
+  Spirit Leap), so nothing may read per-frame state from a hook there: the Terminal Solver did, and with Inventory Theme on
+  no terminal was ever tracked (2026-11-01, doc-terms-1101). Use the HEAD of `Screen.extractRenderStateWithTooltipAndSubtitles`.

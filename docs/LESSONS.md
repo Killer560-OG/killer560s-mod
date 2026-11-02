@@ -336,3 +336,10 @@ project CLAUDE.md. Compiling lessons
   the attempt for a fresh one and re-armed `firstPhase`, and the next round got round 1's reverse/drop (his "highlights the
   wrong things after I crouch to override"; traced in the code, not reproduced on the old jar - 1101-ss-override-rescan passes
   with the fix). Count it, and end `firstPhase`.
+- A mouse button bound to vanilla's Drop key does nothing in a container screen: `AbstractContainerScreen.keyPressed`
+  reads `keyDrop`, `mouseClicked` never does (javap 26.3 and 26.2). The Terminal Drop Key handles a mouse bind itself
+  (`TerminalQolFeature.handleMouseDrop`: the same THROW click on the hovered slot, or the Custom GUI's own click).
+- Another mod's auto sprint ends in `LivingEntity.setSprinting(true)` whichever way it is built (Odin answers
+  `Input.sprint()` in `LocalPlayer.aiStep` with `@ModifyExpressionValue`; others call setSprinting each tick); holding
+  the sprint KEY is already undone by our movers replacing the key record. `AutoSprintOverrideMixin` refuses a sprint
+  start there while one of the mod's movers drives with sprint up (doc-terms-1101, testkit 1101-menu-autosprint).
