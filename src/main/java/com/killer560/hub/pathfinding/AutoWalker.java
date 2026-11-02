@@ -7,6 +7,7 @@ import com.killer560.hub.util.ViewFreeze;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -51,7 +52,11 @@ import java.util.Locale;
 public final class AutoWalker {
 
     private static final double[] CARROT_TRIES = {8.0, 6.0, 4.5, 3.2, 2.2, 1.4};
-    private static final long STUCK_MS = 2500L;
+    /** No progress for this many client ticks (50 = 2.5 s at 20 tps) is stuck. Counted in ticks, not wall time: on a
+     *  client running at half speed 2.5 s of wall time was 25 ticks, so a way back was called stuck mid-climb. */
+    private static final long STUCK_TICKS = 50L;
+    /** Client ticks of this session (the stuck clocks count these). */
+    private static long walkerTicks;
     private static final double STUCK_PROGRESS = 1.0;
     /** A server move larger than this is a teleport (warp, pad), which NavigationManager re-plans on - not a correction. */
     private static final double CORRECTION_MAX_BLOCKS = 8.0;
@@ -143,7 +148,7 @@ public final class AutoWalker {
         backoffTicks = 0;
         climbing = false;
         bestRemaining = Double.MAX_VALUE;
-        bestRemainingAtMs = System.currentTimeMillis();
+        bestRemainingAtMs = walkerTicks;
         WalkCamera.clear();
         respawning = false;
         graceUntilMs = 0L;
@@ -154,7 +159,7 @@ public final class AutoWalker {
         LocalPlayer player = Minecraft.getInstance().player;
         lastHurtTime = player == null ? 0 : player.hurtTime;
         viewHeld = false;
-        if (player != null && PathfindingConfig.getInstance().isAutoWalk()) {
+        if (player != null && PathfindingConfig.getInstance().isAutoWalk() && PathfindingConfig.getInstance().isFreecam()) {
             viewHeld = true;
             ViewFreeze.hold(player.getYRot(), Mth.clamp(player.getXRot(), -90f, 90f));
         }
@@ -244,7 +249,7 @@ public final class AutoWalker {
             releaseFallbackKey();
         }
         bestRemaining = Double.MAX_VALUE;
-        bestRemainingAtMs = System.currentTimeMillis();
+        bestRemainingAtMs = walkerTicks;
     }
 
     /** Forget the last applied rotation after a server-driven one (the etherwarp teleport reply). */
@@ -255,7 +260,7 @@ public final class AutoWalker {
     public static void clearStuck() {
         stuck = false;
         bestRemaining = Double.MAX_VALUE;
-        bestRemainingAtMs = System.currentTimeMillis();
+        bestRemainingAtMs = walkerTicks;
     }
 
     /** A new soul (or a fresh route): the rescue budget starts over. */
@@ -344,7 +349,7 @@ public final class AutoWalker {
             // movement macros it should be any movement key or escape or chat or the emergency cancel key"); any other
             // key or a click no longer does.
             com.killer560.hub.macrostop.MacroStop.register("Auto Fairy Souls",
-                    com.killer560.hub.macrostop.MacroStop.Kind.MOVEMENT, () -> sessionActive && viewHeld,
+                    com.killer560.hub.macrostop.MacroStop.Kind.MOVEMENT, () -> sessionActive && (viewHeld || PathfindingConfig.getInstance().isAutoWalk()),
                     why -> stop("you pressed " + why));
         }
     }
@@ -383,6 +388,7 @@ public final class AutoWalker {
     /** The respawn is done: a fresh start for the path, the camera and the stuck clock. */
     private static void resumeAfterRespawn(LocalPlayer player, String why) {
         respawning = false;
+        settleTicks = SETTLE_TICKS;
         graceUntilMs = Math.max(graceUntilMs, System.currentTimeMillis() + 2_000L);
         lastHurtTime = player.hurtTime;
         WalkCamera.rebase();
@@ -419,10 +425,33 @@ public final class AutoWalker {
             releaseFallbackKey();
             return;
         }
+        walkerTicks++;
         LocalPlayer player = client.player;
         PathfindingConfig cfg = PathfindingConfig.getInstance();
+        if (AutoSoulRunner.isWarping()) {
+            // The runner's warp back to the island's spawn: the server switch, its loading screen and its teleport are
+            // the warp, not a failsafe, a screen or a correction. Nothing is driven until it lands.
+            clearKeys();
+            releaseFallbackKey();
+            positionPacketsSeen = ServerCorrections.packetCount();
+            WalkCamera.rebase();
+            if (viewHeld && player != null) {
+                ViewFreeze.hold(player.getYRot(), player.getXRot());
+            }
+            return;
+        }
         if (player == null || client.level == null) {
             failsafe("disconnected or left the world");
+            return;
+        }
+        if (settleTicks > 0) {
+            settleTicks--;
+            clearKeys();
+            releaseFallbackKey();
+            positionPacketsSeen = ServerCorrections.packetCount();
+            if (viewHeld) {
+                ViewFreeze.hold(player.getYRot(), player.getXRot());
+            }
             return;
         }
         if (viewHeld) {
@@ -485,6 +514,9 @@ public final class AutoWalker {
         }
         if (serverMoved) {
             positionPacketsSeen = packets;
+            // Wherever the server put him, progress is measured from here: the distance left jumped when he was moved
+            // back, and the stuck clock called a fine walk "stuck" 2.5 s later (testkit 1102-fairy-grim-tp-walker).
+            clearStuck();
             double moved = ServerCorrections.lastMoveDistance();
             float turned = ServerCorrections.lastRotationChange();
             WalkCamera.rebase();
@@ -514,6 +546,8 @@ public final class AutoWalker {
         }
 
         drive(client, player, cfg);
+        keepLadderOutOfWater(client.level, player);
+        endSprintBeforeTheStop(player);
         if (!mixinApplied) {
             client.options.keyUp.setDown(wantForward);
             client.options.keyDown.setDown(wantBack);
@@ -527,6 +561,7 @@ public final class AutoWalker {
     }
 
     private static void drive(Minecraft client, LocalPlayer player, PathfindingConfig cfg) {
+        finalApproach = false;
         Level level = client.level;
         Vec3 pos = player.position();
         double jumpH = WalkTerrain.jumpHeight(player);
@@ -562,7 +597,15 @@ public final class AutoWalker {
 
         // ---- off the route: water, lava, fallen below it, or blocked - ahead of the route's own ladders, so a pit
         // with a ladder in it is planned out of, not taken for the route's climb (testkit 1017-fairy-pit)
-        String why = player.onClimbable() ? null : offRouteReason(level, player, pos, carrot, jumpH);
+        // On a ladder the route's own climb is not "off the route" - unless it has stopped getting anywhere: a ladder
+        // whose top is blocked, or the wrong ladder, held him on it with forward pressed for minutes (testkit
+        // 1101-fairy-island-GOLD_MINES / BACKWATER_BAYOU, before and after the other fixes alike).
+        String why = player.onClimbable() && !stuck ? null : offRouteReason(level, player, pos, carrot, jumpH);
+        if (why != null && !player.onGround() && !player.isInWater() && !player.isInLava() && !player.onClimbable()) {
+            // Still falling: a way back planned from mid-air starts from a cell he will not be in (testkit 1101-fairy-
+            // island-THE_PARK: "stuck" 40 blocks into a fall, no way back, soul skipped). Plan from where he lands.
+            return;
+        }
         if (why != null) {
             startRescue(level, player, pos, jumpH, why);
             if (rescuePath != null) {
@@ -588,6 +631,7 @@ public final class AutoWalker {
             }
             WalkCamera.aim(yaw(into, player), -28f);
             wantForward = Math.abs(Mth.wrapDegrees(into - player.getYRot())) < 50f;
+            centerOnLadder(player, pos);
             return;
         }
 
@@ -638,7 +682,10 @@ public final class AutoWalker {
         double allowed = allowedSpeed(level, player, pos, model);
         double ux = horizontal < 1.0e-6 ? 0 : dx / horizontal;
         double uz = horizontal < 1.0e-6 ? 0 : dz / horizontal;
-        boolean sprintOk = cfg.isAutoSprint() && !player.isInWater() && horizontal > 1.5;
+        NavigationManager.Target soulTarget = NavigationManager.target();
+        finalApproach = soulTarget != null && soulTarget.stayOnArrive
+                && NavigationManager.remainingDistance() < FINAL_WALK_BLOCKS;
+        boolean sprintOk = cfg.isAutoSprint() && !player.isInWater() && horizontal > 1.5 && !finalApproach;
         chooseKeys(model, player.getYRot(), ux * allowed, uz * allowed, sprintOk);
         // At the water surface (feet in the water, eyes out) the keys are not steered either: the same flag came from
         // the walker starting from the surface. He sinks or floats there on his own, and steering resumes once
@@ -762,7 +809,7 @@ public final class AutoWalker {
         // No straight walk to the carrot is NOT a reason by itself: real island paths fail the strict check past
         // fences, slabs and foliage all the time, and the carrot fallback and the wall sidestep handle those
         // (testkit 746 planned eight ways back round one wall end before this). Blocked against something while
-        // making no progress is: that is "stuck", after STUCK_MS - or sooner when he is pressed against a wall
+        // making no progress is: that is "stuck", after STUCK_TICKS - or sooner when he is pressed against a wall
         // with no straight walk anywhere ahead.
         boolean anyWalkable = carrot != null && WalkTerrain.walkable(level, pos, new Vec3(carrot.x, carrot.y - 0.5, carrot.z), jumpH);
         if (!anyWalkable && player.onGround() && player.horizontalCollision) {
@@ -785,7 +832,7 @@ public final class AutoWalker {
             fail("tried " + MAX_RESCUES_PER_TARGET + " ways back for this soul");
             return;
         }
-        BlockPos start = BlockPos.containing(pos.x, pos.y + 0.01, pos.z);
+        BlockPos start = LocalPlanner.startCell(level, pos);
         boolean ahead = why.startsWith("blocked") || why.startsWith("stuck");
         List<BlockPos> goals = rescueGoals(level, pos, start, ahead);
         long t0 = System.nanoTime();
@@ -799,12 +846,12 @@ public final class AutoWalker {
             fail(why + ", and no way back on foot");
             return;
         }
-        rescuePath = LocalPlanner.toPoints(cells);
+        rescuePath = LocalPlanner.toPoints(level, cells);
         rescueIndex = 1;
         rescueWhy = why;
         rescueTarget = rescuePath.get(rescuePath.size() - 1);
         rescueBest = Double.MAX_VALUE;
-        rescueBestAtMs = System.currentTimeMillis();
+        rescueBestAtMs = walkerTicks;
         ModChat.log("Auto Fairy Souls", ModChat.text("Off the route (" + why + ") - "),
                 ModChat.dim(cells.size() + " steps back"));
         LOGGER.info("[AutoWalker] {} at {} - {} step(s) back to {} ({} us)", why, start, cells.size(), cells.get(cells.size() - 1), us);
@@ -824,8 +871,32 @@ public final class AutoWalker {
         List<BlockPos> goals = new ArrayList<>();
         List<Vec3> path = NavigationManager.path();
         int from = aheadOnly && path.size() >= 2 ? NavigationManager.closestSegment(pos) + 1 : 0;
+        if (from == 0 && !path.isEmpty()) {
+            // The route starts at its first graph point, which can be far from him (the first node behind him is dropped):
+            // points on the way from him to it as well, or a long first stretch has no goal in the planner's box.
+            Vec3 a = new Vec3(pos.x, pos.y + 0.5, pos.z);
+            Vec3 b = path.get(0);
+            double len = a.distanceTo(b);
+            for (double t = 3.0; t < len; t += 2.0) {
+                Vec3 q = a.add(b.subtract(a).scale(t / len));
+                addGoal(level, start, BlockPos.containing(q.x, q.y - 0.5 + 0.01, q.z), goals);
+            }
+        }
         for (int i = from; i < path.size(); i++) {
             Vec3 p = path.get(i);
+            // The route's own points can be far apart (a long graph edge): points along each segment too, every 2
+            // blocks, or a stretch with no point within the planner's reach has no goal at all (testkit
+            // 1101-fairy-island-THE_PARK: "0 goals", soul skipped, 12 times).
+            if (i >= 1) {
+                Vec3 a = path.get(i - 1);
+                double len = a.distanceTo(p);
+                for (double t = 2.0; t < len; t += 2.0) {
+                    Vec3 q = a.add(p.subtract(a).scale(t / len));
+                    if (!aheadOnly || Math.hypot(q.x - pos.x, q.z - pos.z) >= 2.5) {
+                        addGoal(level, start, BlockPos.containing(q.x, q.y - 0.5 + 0.01, q.z), goals);
+                    }
+                }
+            }
             if (aheadOnly && Math.hypot(p.x - pos.x, p.z - pos.z) < 2.5) {
                 continue;
             }
@@ -865,6 +936,7 @@ public final class AutoWalker {
 
     private static void clearRescueState() {
         rescuePath = null;
+        approaching = false;
         rescueIndex = 0;
         blockedTicks = 0;
         needsEscape = false;
@@ -885,6 +957,14 @@ public final class AutoWalker {
             }
         }
         if (rescueIndex >= pts.size()) {
+            if (approaching) {
+                // In place to click: the runner takes it from here (it checks reach and sight itself).
+                approaching = false;
+                rescuePath = null;
+                approachesDone++;
+                clearKeys();
+                return;
+            }
             finishRescue("arrived");
             return;
         }
@@ -907,15 +987,29 @@ public final class AutoWalker {
         }
         if (off > 3.0) {
             rescuePath = null;
+            if (approaching) {
+                approaching = false; // the runner plans the approach again from here
+                return;
+            }
             startRescue(level, player, pos, jumpH, "off the way back");
             return;
         }
-        double toEnd = pos.distanceTo(rescueTarget);
-        if (toEnd < rescueBest - 0.5) {
-            rescueBest = toEnd;
-            rescueBestAtMs = System.currentTimeMillis();
-        } else if (System.currentTimeMillis() - rescueBestAtMs > STUCK_MS) {
+        // Progress is a cell reached or getting closer to the cell he is heading for, not to the way's END: a way that
+        // first leads away from its end (round a wall, to a ladder) was called stuck while following it exactly.
+        double toNext = pos.distanceTo(pts.get(rescueIndex)) - rescueIndex * 1000.0;
+        if (toNext < rescueBest - 0.3) {
+            rescueBest = toNext;
+            rescueBestAtMs = walkerTicks;
+        } else if (walkerTicks - rescueBestAtMs > STUCK_TICKS) {
+            LOGGER.info(String.format(Locale.US, "[AutoWalker] no progress on the way back: at %.2f %.2f %.2f, step %d of %d "
+                            + "(%.1f %.1f %.1f), ground %s, ladder %s, water %s", pos.x, pos.y, pos.z, rescueIndex,
+                    pts.size() - 1, pts.get(rescueIndex).x, pts.get(rescueIndex).y, pts.get(rescueIndex).z,
+                    player.onGround(), player.onClimbable(), player.isInWater()));
             rescuePath = null;
+            if (approaching) {
+                approaching = false;
+                return;
+            }
             startRescue(level, player, pos, jumpH, "stuck on the way back");
             return;
         }
@@ -944,6 +1038,14 @@ public final class AutoWalker {
             boolean onLadder = player.onClimbable();
             if (onLadder && rise > 0.3) {
                 wantJump = true; // vanilla climbs while jump is held on a ladder, whichever way he faces
+                // Climbing: no strafe or back key. The model's sideways corrections on a ladder beside water drew GrimAC
+                // Simulation (.007 decaying x0.8, testkit 1101-fairy-island-BACKWATER_BAYOU from 47.5,183,-4.5);
+                // a climb needs only jump, and forward when the cell is ahead of him.
+                wantLeft = false;
+                wantRight = false;
+                wantBack = false;
+                wantSprint = false;
+                centerOnLadder(player, pos);
                 climbTicks++;
             } else if (player.onGround() && rise > player.maxUpStep() + 0.01 && rise <= jumpH && horizontal < 1.7) {
                 wantJump = true;
@@ -951,6 +1053,224 @@ public final class AutoWalker {
             }
         }
     }
+
+    // ---- the last few blocks to the soul itself (killer560, 2026-11-01 picture: it stopped 3.7 blocks from a soul that
+    // sat on a ledge 3.6 blocks from its graph node, because "arrived" meant the node, not the soul)
+
+    private static boolean approaching;
+    private static int approachesPlanned;
+    private static int approachesDone;
+
+    /**
+     * Plans a walk to one of {@code goals} - feet cells the soul is in reach and in sight from (the runner picks them)
+     * - and follows it with the way-back driver. False when no such walk exists over the loaded blocks.
+     */
+    static boolean approach(Level level, LocalPlayer player, List<BlockPos> goals) {
+        Vec3 pos = player.position();
+        BlockPos start = LocalPlanner.startCell(level, pos);
+        rescuePath = null;
+        approaching = false;
+        needsEscape = false;
+        long t0 = System.nanoTime();
+        List<BlockPos> cells = LocalPlanner.plan(level, start, goals, WalkTerrain.jumpHeight(player), true);
+        long us = (System.nanoTime() - t0) / 1000;
+        approachesPlanned++;
+        if (cells.size() < 2) {
+            LOGGER.info("[AutoWalker] no walk to a spot the soul is in reach from ({} spots, from {}, {} us)", goals.size(),
+                    start, us);
+            return false;
+        }
+        rescuePath = LocalPlanner.toPoints(level, cells);
+        rescueIndex = 1;
+        rescueWhy = "to the soul";
+        rescueTarget = rescuePath.get(rescuePath.size() - 1);
+        rescueBest = Double.MAX_VALUE;
+        rescueBestAtMs = walkerTicks;
+        approaching = true;
+        LOGGER.info("[AutoWalker] {} step(s) to {}, where the soul is in reach ({} us)", cells.size(),
+                cells.get(cells.size() - 1), us);
+        return true;
+    }
+
+    static boolean isApproaching() {
+        return sessionActive && approaching && rescuePath != null;
+    }
+
+    static void cancelApproach() {
+        if (approaching) {
+            approaching = false;
+            rescuePath = null;
+            clearKeys();
+        }
+    }
+
+    /** No spot in reach of the soul can be walked to: the runner's escape / warp / skip takes over. */
+    static void approachFailed(String why) {
+        cancelApproach();
+        fail(why);
+    }
+
+    public static int approachesPlanned() {
+        return approachesPlanned;
+    }
+
+    public static int approachesDone() {
+        return approachesDone;
+    }
+
+    /**
+     * On a ladder, keep his 0.6-wide box inside the ladder's own column: 0.2 off its center his head catches the block
+     * beside the shaft and he climbs no further (testkit 1101-fairy-island-GOLD_MINES: 0.22 off, stuck at the same height
+     * on every try). One strafe key toward the center, only while he would still come to rest more than 0.08 off it.
+     *
+     * <p>Never on a ladder with water in his box: GrimAC's prediction of the water current on a ladder flags Simulation
+     * (.0047/.007 decaying x0.8) for plain vanilla keys too (testkit 1102-fairy-grim-flowladder and the BAYOU_SPILL keys
+     * control). The old centering overshot 0.25 on its own momentum and put his box 0.06 into the pool beside the shaft.
+     * So the rest point is predicted from his sideways speed (about ten ticks of air drag); keepLadderOutOfWater has the
+     * last word near water. (Moving the target 0.1 away from water and never strafing toward it, m12, left him 0.31 off
+     * center with his head caught at y 187.2 on every run.)
+     */
+    private static void centerOnLadder(LocalPlayer player, Vec3 pos) {
+        if (!player.onClimbable()) {
+            return;
+        }
+        double ox = pos.x - (Math.floor(pos.x) + 0.5);
+        double oz = pos.z - (Math.floor(pos.z) + 0.5);
+        double yawRad = Math.toRadians(player.getYRot());
+        // left of the body in Minecraft's yaw convention
+        double lx = Math.cos(yawRad);
+        double lz = Math.sin(yawRad);
+        double side = -(ox * lx + oz * lz); // how far to move left (positive) to reach the center
+        Vec3 v = player.getDeltaMovement();
+        double need = side - (v.x * lx + v.z * lz) * 10.0; // less what his sideways speed carries him with no key
+        wantLeft = false;
+        wantRight = false;
+        if (Math.abs(need) > 0.08) {
+            wantLeft = need > 0;
+            wantRight = need < 0;
+        }
+    }
+
+    /** The last blocks to a soul's stop are walked, not sprinted (see {@link #endSprintBeforeTheStop}). */
+    static final double FINAL_WALK_BLOCKS = 8.0;
+    /** This tick's route target is a soul and fewer than {@link #FINAL_WALK_BLOCKS} of the route are left. */
+    private static boolean finalApproach;
+
+    /**
+     * Sprint ends BEFORE the stop at a soul, never on it. GrimAC 2.3.74 drew Simulation .046 (decaying x0.546, ground
+     * friction) plus SprintE* at soul 3's stop on BAYOU_SPILL (2 in ~50 runs). SprintE (checks/impl/sprint/SprintE) flags a
+     * tick where Grim's own prediction of the tick before had a HARD horizontal collision and the client is still sprinting
+     * without having just started; Grim decides hard/soft from its predicted vector, so a prediction off by .046 at a
+     * glancing wall touch reads "hard" while the client saw it minor and kept sprinting. With his sprint already over when
+     * he reaches the soul, neither the sprint-only prediction paths (Grim forces forward input while it thinks he sprints,
+     * PredictionEngine.loopVectors; the sprint speed attribute) nor SprintE can apply at the stop. Within the last
+     * {@link #FINAL_WALK_BLOCKS} of a soul's route (and during an approach walk) the sprint key is not held, and a sprint
+     * still running is ended the vanilla way: one tick with no movement key (LocalPlayer.aiStep stops a sprint without
+     * forward impulse and sends STOP_SPRINTING before that tick's move), only on the ground and on a tick with no wall
+     * contact, so no hard-collision stop is pending in the same tick. Discrete keys only.
+     */
+    private static void endSprintBeforeTheStop(LocalPlayer player) {
+        if (!(finalApproach || approaching) || !player.isSprinting() || !player.onGround() || player.horizontalCollision
+                || player.isInWater() || player.onClimbable()) {
+            return;
+        }
+        wantForward = false;
+        wantBack = false;
+        wantLeft = false;
+        wantRight = false;
+        wantSprint = false;
+        sprintEndsBeforeStop++;
+    }
+
+    /** Testkit probe (1102-fairy-arrival): sprints ended by a no-key tick before a soul's stop. */
+    static int sprintEndsBeforeStop;
+
+    public static int sprintEndsBeforeStop() {
+        return sprintEndsBeforeStop;
+    }
+
+    /**
+     * The last word on the keys while he is on a ladder, whoever chose them (the climb, a way back, an approach, the
+     * route turning at the ladder's top): he must never be on a ladder with water in his box (GrimAC flags the water
+     * current there for vanilla keys too). For each side with water in the next two columns, from where his speed
+     * carries him (about ten ticks of air drag): his box within 0.12 of that water, no key toward it and no sprint;
+     * within 0.05, the key away from it. Testkit 1102-fairy-spill-ladder: a way back facing the pool held
+     * W off the ladder's column into it, and the route turning toward the next point at the top strafed him in.
+     */
+    private static void keepLadderOutOfWater(Level level, LocalPlayer player) {
+        if (level == null || !player.onClimbable()) {
+            return;
+        }
+        Vec3 pos = player.position();
+        Vec3 v = player.getDeltaMovement();
+        double yawRad = Math.toRadians(player.getYRot());
+        // world x and z of each key's push: forward, back, left, right
+        double[] kx = {-Math.sin(yawRad), Math.sin(yawRad), Math.cos(yawRad), -Math.cos(yawRad)};
+        double[] kz = {Math.cos(yawRad), -Math.cos(yawRad), Math.sin(yawRad), -Math.sin(yawRad)};
+        boolean[] keys = {wantForward, wantBack, wantLeft, wantRight};
+        boolean[] away = new boolean[4];
+        boolean any = false;
+        for (int axis = 0; axis < 2; axis++) {
+            double p = axis == 0 ? pos.x : pos.z;
+            double other = axis == 0 ? pos.z : pos.x;
+            double vel = axis == 0 ? v.x : v.z;
+            for (int sign = -1; sign <= 1; sign += 2) {
+                double face = Double.NaN;
+                for (int k = 1; k <= 2 && Double.isNaN(face); k++) {
+                    int c = Mth.floor(p) + sign * k;
+                    if (waterColumn(level, axis, c, other, pos.y)) {
+                        face = sign > 0 ? c : c + 1;
+                    }
+                }
+                if (Double.isNaN(face)) {
+                    continue;
+                }
+                double rest = p + vel * 10.0;
+                double gap = sign > 0 ? face - (rest + 0.3) : (rest - 0.3) - face;
+                if (gap >= 0.12) {
+                    continue;
+                }
+                any = true;
+                for (int i = 0; i < 4; i++) {
+                    double toward = sign * (axis == 0 ? kx[i] : kz[i]);
+                    if (toward > 0.2) {
+                        keys[i] = false;
+                    } else if (gap < 0.05 && toward < -0.5) {
+                        away[i] = true;
+                    }
+                }
+            }
+        }
+        if (!any) {
+            return;
+        }
+        for (int i = 0; i < 4; i++) {
+            if (away[i] && !away[i ^ 1]) {
+                keys[i] = true;
+                keys[i ^ 1] = false;
+            }
+        }
+        wantForward = keys[0];
+        wantBack = keys[1];
+        wantLeft = keys[2];
+        wantRight = keys[3];
+        wantSprint = false;
+    }
+
+    /** Water in that column (x = c for axis 0, z = c for axis 1) across his box's width, from below his feet to above his head. */
+    private static boolean waterColumn(Level level, int axis, int c, double other, double y) {
+        for (double o = -0.3; o <= 0.3; o += 0.6) {
+            for (double dy = -0.6; dy <= 2.9; dy += 0.7) {
+                BlockPos b = axis == 0 ? BlockPos.containing(c + 0.5, y + dy, other + o)
+                        : BlockPos.containing(other + o, y + dy, c + 0.5);
+                if (level.getBlockState(b).getFluidState().is(FluidTags.WATER)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
 
     private static void finishRescue(String how) {
         LOGGER.info("[AutoWalker] back on the route ({}, after {})", how, rescueWhy);
@@ -970,6 +1290,18 @@ public final class AutoWalker {
     public static String escapeWhy() {
         return escapeWhy;
     }
+
+    /** The runner's warp landed: its teleport packet is the warp's, not a correction to report. */
+    static void acceptServerMoves() {
+        positionPacketsSeen = ServerCorrections.packetCount();
+        WalkCamera.rebase();
+        // No key the first ticks after a teleport landing: a key pressed the tick after one draws GrimAC Simulation with
+        // no mod involved (testkit 1027-iw-warp's control), and a player does not react that fast either.
+        settleTicks = SETTLE_TICKS;
+    }
+
+    private static final int SETTLE_TICKS = 3;
+    private static int settleTicks;
 
     /** After an escape landed (or a skip): walk on from wherever he is now. */
     static void escaped() {
@@ -1044,10 +1376,10 @@ public final class AutoWalker {
                 : NavigationManager.remainingDistance();
         if (remaining < bestRemaining - STUCK_PROGRESS) {
             bestRemaining = remaining;
-            bestRemainingAtMs = System.currentTimeMillis();
-        } else if (System.currentTimeMillis() - bestRemainingAtMs > STUCK_MS) {
+            bestRemainingAtMs = walkerTicks;
+        } else if (walkerTicks - bestRemainingAtMs > STUCK_TICKS) {
             stuck = rescuePath == null && !needsEscape;
-            bestRemainingAtMs = System.currentTimeMillis();
+            bestRemainingAtMs = walkerTicks;
         }
     }
 

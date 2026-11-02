@@ -73,6 +73,13 @@ public class AutoFairySoulsTab extends BaseTab implements KeyCaptureTab {
         widgets.add(onOffButton("Sprint", cfg::isAutoSprint, cfg::setAutoSprint, cfg::save,
                 null, contentX, y, contentWidth, 18));
         y += 20;
+        // killer560, 2026-11-01: "have the freecam as an option for it", and "if it gets stuck you can have it do stuff
+        // like /hub and pathfind back to the island it was on".
+        widgets.add(onOffButton("Free Camera", cfg::isFreecam, cfg::setFreecam, cfg::save,
+                null, contentX, y, col2W, 18));
+        widgets.add(onOffButton("Warp When Stuck", cfg::isWarpWhenStuck, cfg::setWarpWhenStuck, cfg::save,
+                null, col2bX, y, col2W, 18));
+        y += 20;
         widgets.add(SettingsButtonWidget.builder(capturingResumeKey
                         ? Component.literal("Press any key...") : resumeKeyText(cfg), btn -> {
                     capturingResumeKey = true;

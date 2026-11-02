@@ -61,7 +61,7 @@ public final class AutoSoulRunner {
     private static final long GRAPH_WAIT_MS = 30_000L;
 
     private enum State {
-        IDLE, WAIT_GRAPH, WALKING, ETHER, PEARL, COLLECTING
+        IDLE, WAIT_GRAPH, WALKING, APPROACH, ETHER, PEARL, COLLECTING, WARPING
     }
 
     private static State state = State.IDLE;
@@ -91,6 +91,34 @@ public final class AutoSoulRunner {
     private static int noWayOuts;
     /** Souls given up on this run (killer560, 2026-09-21: never call a run with skipped souls "Done"). */
     private static int skippedThisRun;
+    /** Walks planned to a spot in reach of the current soul (each try re-plans from where he is). */
+    private static int approachTries;
+    /** The warp back to the island's spawn (killer560, 2026-11-01: "if it gets stuck you can have it do stuff like /hub
+     *  and pathfind back to the island it was on"): once per soul, and how it is going. */
+    private static boolean warpedForSoul;
+    private static String warpIsland;
+    private static long warpSentMs;
+    private static Object warpFromLevel;
+    private static Vec3 warpFromPos;
+    private static int warpFromPackets;
+    private static int warpsSent;
+    private static final long WARP_WAIT_MS = 12_000L;
+    /**
+     * Hypixel's /warp destination for each island, used only to get back onto the island it is on. Names from
+     * hypixelskyblock.minecraft.wiki/w/Fast_Travel (2026-11-02): each island's main command. The Rift is left out (going
+     * there spends Rift time). A warp the profile has not unlocked gets Hypixel's refusal, and the soul is skipped after
+     * the wait.
+     */
+    private static final java.util.Map<String, String> WARPS = java.util.Map.ofEntries(
+            java.util.Map.entry("HUB", "hub"), java.util.Map.entry("THE_PARK", "park"),
+            java.util.Map.entry("SPIDER_DEN", "spider"), java.util.Map.entry("THE_END", "end"),
+            java.util.Map.entry("GOLD_MINES", "gold"), java.util.Map.entry("DEEP_CAVERNS", "deep"),
+            java.util.Map.entry("DWARVEN_MINES", "dwarves"), java.util.Map.entry("GLACITE_TUNNELS", "basecamp"),
+            java.util.Map.entry("CRYSTAL_HOLLOWS", "crystals"), java.util.Map.entry("THE_FARMING_ISLANDS", "barn"),
+            java.util.Map.entry("DUNGEON_HUB", "dungeon_hub"), java.util.Map.entry("CRIMSON_ISLE", "isle"),
+            java.util.Map.entry("WINTER", "jerry"), java.util.Map.entry("BACKWATER_BAYOU", "bayou"),
+            java.util.Map.entry("GALATEA", "moonglade"), java.util.Map.entry("LOTUS_ATOLL", "lotus"),
+            java.util.Map.entry("SAFARI", "safari"), java.util.Map.entry("TORRHUS_CANYON", "torrhus"));
 
     private AutoSoulRunner() {
     }
@@ -189,6 +217,9 @@ public final class AutoSoulRunner {
         }
         PathfindingConfig cfg = PathfindingConfig.getInstance();
         LocalPlayer player = client.player;
+        if (player == null && state == State.WARPING && cfg.isAutoSouls()) {
+            return; // between two worlds on the warp back
+        }
         if (player == null || !cfg.isAutoSouls()) {
             stop("Auto Fairy Souls turned off", true);
             return;
@@ -199,6 +230,10 @@ public final class AutoSoulRunner {
         }
         if (AutoWalker.isRespawning()) {
             return; // dead: nothing to walk to or click until the respawn (AutoWalker re-plans then)
+        }
+        if (state == State.WARPING) {
+            tickWarp(client, player);
+            return;
         }
         if (state == State.WAIT_GRAPH) {
             tickWaitGraph(client);
@@ -232,6 +267,8 @@ public final class AutoSoulRunner {
         if (soul.index != soulIndexMarker) {
             soulIndexMarker = soul.index;
             chainTriedForSoul = false;
+            approachTries = 0;
+            warpedForSoul = false;
             clicksForSoul = 0;
             noStandTicks = 0;
             lockedTicks = 0;
@@ -246,9 +283,144 @@ public final class AutoSoulRunner {
         switch (state) {
             case ETHER -> tickEther(player);
             case PEARL -> tickPearl();
+            case APPROACH -> tickApproach(client, player, cfg, soulCentre);
             case COLLECTING -> tickCollect(client, player, soulCentre, distance);
             default -> tickTravel(player, cfg, soulCentre, distance);
         }
+    }
+
+    // ------------------------------------------------------------------ the last blocks to the soul
+
+    /**
+     * The soul stand is out of reach or out of sight from here: walk to a spot it is in both from. On Hypixel the stand
+     * sits up to 3.6 blocks from its graph node (NEU's soul list against SkyHanni's graph, Hub), often on a ledge, so
+     * "at the node" is not "at the soul" (killer560's 2026-11-01 picture: stopped 3.7 blocks from the stand's box).
+     */
+    private static void tickApproach(Minecraft client, LocalPlayer player, PathfindingConfig cfg, Vec3 soulCentre) {
+        ArmorStand stand = findSoulEntity(client, soulCentre);
+        if (stand == null || !cfg.isAutoWalk()) {
+            AutoWalker.cancelApproach();
+            state = State.COLLECTING; // no stand: COLLECTING skips it after its wait; no Auto Walk: he steps closer
+            return;
+        }
+        if (inReach(player, stand)) {
+            AutoWalker.cancelApproach();
+            AutoWalker.setWalking(false);
+            state = State.COLLECTING;
+            noStandTicks = 0;
+            lockedTicks = 0;
+            return;
+        }
+        if (AutoWalker.needsEscape()) {
+            AutoWalker.setWalking(true);
+            state = State.WALKING; // tickTravel runs the escape / warp / skip
+            return;
+        }
+        if (AutoWalker.isApproaching()) {
+            AutoWalker.setWalking(true);
+            return;
+        }
+        // Not driven until a walk to the soul is planned: driving the ROUTE here (a stand beside its node, an escape
+        // that landed on the node) read the spot as "off the route" and escaped again, 58 etherwarps in a row
+        // (testkit 1017-fairy-escape-ether on doc-fairy-1101's first jar).
+        AutoWalker.setWalking(false);
+        if (!player.onGround() && !player.isInWater() && !player.onClimbable()) {
+            return; // plan from where he lands
+        }
+        if (++approachTries > 4) {
+            AutoWalker.approachFailed("no spot in reach of the soul could be walked to");
+            state = State.WALKING;
+            return;
+        }
+        List<BlockPos> goals = reachCells(player.level(), stand);
+        if (goals.isEmpty() || !AutoWalker.approach(player.level(), player, goals)) {
+            AutoWalker.approachFailed(goals.isEmpty() ? "no spot near the soul has it in reach and in sight"
+                    : "no walk to a spot in reach of the soul");
+            state = State.WALKING;
+            return;
+        }
+        AutoWalker.setWalking(true);
+    }
+
+    /** Reach eye to box with a little margin, and a clear line to the point the click aims at. */
+    private static boolean inReach(LocalPlayer player, ArmorStand stand) {
+        Vec3 eye = player.getEyePosition();
+        AABB box = stand.getBoundingBox();
+        if (box.contains(eye)) {
+            return true;
+        }
+        if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, box) > (REACH - 0.15) * (REACH - 0.15)) {
+            return false;
+        }
+        return aimPoint(player.level(), eye, box) != null;
+    }
+
+    /**
+     * A point on the stand's box the eye sees with nothing in between: the head first (what a player clicks), then the
+     * box center, then the nearest point; null when every one is behind a block.
+     */
+    private static Vec3 aimPoint(net.minecraft.world.level.Level level, Vec3 eye, AABB box) {
+        Vec3 c = box.getCenter();
+        if (box.contains(eye)) {
+            return c;
+        }
+        if (box.getSize() < 0.05) {
+            // A box with no size (a marker stand): the point itself, if nothing stands between.
+            return eye.distanceTo(c) <= REACH - 0.05 && clearLine(level, eye, c) ? c : null;
+        }
+        Vec3 near = new Vec3(Mth.clamp(eye.x, box.minX + 0.05, box.maxX - 0.05),
+                Mth.clamp(eye.y, box.minY + 0.05, box.maxY - 0.05), Mth.clamp(eye.z, box.minZ + 0.05, box.maxZ - 0.05));
+        for (Vec3 p : new Vec3[]{new Vec3(c.x, box.maxY - 0.25, c.z), c, near}) {
+            Optional<Vec3> onBox = box.clip(eye, eye.add(p.subtract(eye).normalize().scale(eye.distanceTo(p) + 1.0)));
+            if (onBox.isEmpty() || onBox.get().distanceTo(eye) > REACH - 0.05) {
+                continue;
+            }
+            net.minecraft.world.phys.HitResult hit = level.clip(new net.minecraft.world.level.ClipContext(eye, onBox.get(),
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE,
+                    net.minecraft.world.phys.shapes.CollisionContext.empty()));
+            if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS
+                    || hit.getLocation().distanceToSqr(eye) >= onBox.get().distanceToSqr(eye) - 1.0e-4) {
+                return onBox.get();
+            }
+        }
+        return null;
+    }
+
+    private static boolean clearLine(net.minecraft.world.level.Level level, Vec3 eye, Vec3 p) {
+        net.minecraft.world.phys.HitResult hit = level.clip(new net.minecraft.world.level.ClipContext(eye, p,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE,
+                net.minecraft.world.phys.shapes.CollisionContext.empty()));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS
+                || hit.getLocation().distanceToSqr(eye) >= p.distanceToSqr(eye) - 1.0e-4;
+    }
+
+    /** Feet cells around the stand he can stand in with the stand in reach (with margin) and in sight. */
+    private static List<BlockPos> reachCells(net.minecraft.world.level.Level level, ArmorStand stand) {
+        AABB box = stand.getBoundingBox();
+        BlockPos base = BlockPos.containing(box.getCenter().x, box.minY, box.getCenter().z);
+        List<BlockPos> out = new ArrayList<>();
+        for (int dy = -3; dy <= 3; dy++) {
+            for (int dx = -4; dx <= 4; dx++) {
+                for (int dz = -4; dz <= 4; dz++) {
+                    BlockPos c = base.offset(dx, dy, dz);
+                    if (dx == 0 && dz == 0) {
+                        continue; // not inside the stand itself: its column is often a lone ledge with no way off
+                    }
+                    if (!LocalPlanner.cell(level, c) || LocalPlanner.water(level, c) || LocalPlanner.lava(level, c)) {
+                        continue;
+                    }
+                    double feetY = c.getY() + Math.max(0.0, LocalPlanner.lowTop(level, c));
+                    Vec3 eye = new Vec3(c.getX() + 0.5, feetY + 1.62, c.getZ() + 0.5);
+                    if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, box) > (REACH - 0.3) * (REACH - 0.3)) {
+                        continue;
+                    }
+                    if (aimPoint(level, eye, box) != null) {
+                        out.add(c);
+                    }
+                }
+            }
+        }
+        return out;
     }
 
     /** Waits for the island graph (it may never have been loaded with Fairy Souls off), then starts the route. */
@@ -279,9 +451,17 @@ public final class AutoSoulRunner {
     }
 
     private static void tickTravel(LocalPlayer player, PathfindingConfig cfg, Vec3 soulCentre, double distance) {
-        if (distance <= COLLECT_DISTANCE) {
+        if (escaping && !EtherwarpHopper.isBusy() && !EnderPearlHopper.isBusy()) {
+            // The hop's own done-callback set IDLE before tickEther/tickPearl saw it land: the escape is over, so the
+            // walker's "needs an escape" must go too, or the next tick escapes again (1017-fairy-escape-ether went 58
+            // etherwarps on the spot once a soul in reach no longer skipped this check).
+            endEscape();
+        }
+        if (distance <= COLLECT_DISTANCE && !AutoWalker.needsEscape()) {
+            // At the node. The stand itself decides: in reach and in sight -> click, else walk the last blocks to it.
+            ArmorStand stand = findSoulEntity(Minecraft.getInstance(), soulCentre);
             AutoWalker.setWalking(false);
-            state = State.COLLECTING;
+            state = stand != null && !inReach(player, stand) && cfg.isAutoWalk() ? State.APPROACH : State.COLLECTING;
             noStandTicks = 0;
             lockedTicks = 0;
             return;
@@ -372,6 +552,9 @@ public final class AutoSoulRunner {
                 }
             }
         }
+        if (cfg.isWarpWhenStuck() && !warpedForSoul && startWarp(player)) {
+            return;
+        }
         noWayOuts++;
         String tools = cfg.getAutoMode().etherwarps() || cfg.isAllowPearls()
                 ? "no etherwarp or pearl lands anywhere useful" : "etherwarp and pearls are not allowed";
@@ -385,6 +568,73 @@ public final class AutoSoulRunner {
         skippedThisRun++;
         AutoWalker.escaped();
         FairySoulsFeature.skipCurrent();
+    }
+
+    // ------------------------------------------------------------------ warp back when stuck
+
+    /** A warp back to the island's spawn is under way (the world change and the screen it brings are not failsafes). */
+    public static boolean isWarping() {
+        return active && state == State.WARPING;
+    }
+
+    public static int warpsSent() {
+        return warpsSent;
+    }
+
+    /**
+     * Stuck with no way out on foot or by an allowed tool: /warp to this island's own spawn, then walk back to the same
+     * soul. Once per soul; false (skip as before) when the island has no known warp.
+     */
+    private static boolean startWarp(LocalPlayer player) {
+        String island = IslandDetector.graphIsland();
+        String warp = island == null ? null : WARPS.get(island);
+        if (warp == null || !com.killer560.hub.util.ServerCommands.toServer("warp " + warp)) {
+            return false;
+        }
+        warpedForSoul = true;
+        warpsSent++;
+        warpIsland = island;
+        warpSentMs = System.currentTimeMillis();
+        warpFromLevel = player.level();
+        warpFromPos = player.position();
+        warpFromPackets = com.killer560.hub.util.ServerCorrections.packetCount();
+        AutoWalker.setWalking(false);
+        state = State.WARPING;
+        ModChat.send(CHAT, ModChat.text("Stuck "), ModChat.dim("(" + AutoWalker.escapeWhy() + ")"),
+                ModChat.text(" - warping to the island's spawn ("), ModChat.value("/warp " + warp),
+                ModChat.text(") to walk back."));
+        return true;
+    }
+
+    /** Waits for the warp to land on the same island, then walks on to the same soul; skips it if nothing happened. */
+    private static void tickWarp(Minecraft client, LocalPlayer player) {
+        AutoWalker.setWalking(false);
+        // Landed: a new world (another server of the island), or the server's teleport packet (even onto the spot he
+        // was stuck at, when that is the spawn).
+        boolean moved = player.level() != warpFromLevel
+                || com.killer560.hub.util.ServerCorrections.packetCount() != warpFromPackets;
+        boolean ready = moved && warpIsland.equals(IslandDetector.graphIsland())
+                && GraphRepository.get(warpIsland) != null && com.killer560.hub.compat.McCompat.screen(client) == null
+                && (player.onGround() || player.isInWater());
+        if (ready) {
+            ModChat.log(CHAT, ModChat.text("Warped - walking back to the soul."));
+            AutoWalker.acceptServerMoves();
+            AutoWalker.escaped();
+            AutoWalker.rebaseCamera();
+            state = State.IDLE;
+            if (!NavigationManager.isActive()) {
+                FairySoulsFeature.navigateToCurrent();
+            }
+            return;
+        }
+        if (System.currentTimeMillis() - warpSentMs > WARP_WAIT_MS) {
+            noWayOuts++;
+            ModChat.send(CHAT, ModChat.bad("The warp did not take him anywhere"), ModChat.dim(" - skipping this soul."));
+            skippedThisRun++;
+            AutoWalker.escaped();
+            state = State.IDLE;
+            FairySoulsFeature.skipCurrent();
+        }
     }
 
     /**
@@ -506,18 +756,19 @@ public final class AutoSoulRunner {
             return;
         }
         noStandTicks = 0;
-        if (!AutoWalker.holdsView()) {
+        if (!AutoWalker.holdsView() && cfg.isFreecam()) {
             // Auto Walk is off: hold the camera just for this click, so only the body turns to the soul.
             clickViewHeld = true;
             ViewFreeze.hold(player.getYRot(), player.getXRot());
         }
         Vec3 eye = player.getEyePosition();
         AABB box = stand.getBoundingBox();
-        if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, box) > REACH * REACH) {
-            // Out of reach from here (the soul sits up on something): a step closer.
+        if (!inReach(player, stand)) {
+            // Out of reach or out of sight from here (the soul sits up on a ledge, round a corner): walk to a spot it is
+            // in both from. Before 2026-11-01 this went back to WALKING, whose next tick saw the node within 3 blocks and
+            // came straight back here, so he stood still 3.7 blocks from the soul until he gave up (killer560's picture).
             if (cfg.isAutoWalk()) {
-                AutoWalker.setWalking(true);
-                state = State.WALKING;
+                state = State.APPROACH;
             }
             return;
         }
@@ -528,8 +779,7 @@ public final class AutoSoulRunner {
             lockedTicks++;
         } else {
             lockedTicks = 0;
-            Vec3 centre = box.getCenter();
-            Optional<Vec3> aim = box.contains(eye) ? Optional.of(centre) : box.clip(eye, eye.add(centre.subtract(eye).normalize().scale(eye.distanceTo(centre) + 1.0)));
+            Optional<Vec3> aim = Optional.ofNullable(aimPoint(player.level(), eye, box));
             if (aim.isEmpty()) {
                 return;
             }
