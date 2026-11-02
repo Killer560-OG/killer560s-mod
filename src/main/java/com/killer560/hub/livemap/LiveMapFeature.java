@@ -1444,6 +1444,18 @@ public final class LiveMapFeature {
         }
     }
 
+    /** {@link #noteSecretTakenAt} taken back: what was counted at (x, z) was no secret (a locked chest). */
+    public static void noteSecretUndoneAt(double x, double z) {
+        DungeonLayout layout = DungeonLayout.capture();
+        int id = layout.roomAtWorld(x, z);
+        String name = id < 0 ? null : layout.name(id);
+        Integer prev = name == null ? null : foundSecretsByRoom.get(name);
+        if (prev != null && prev > 0) {
+            foundSecretsByRoom.put(name, prev - 1);
+            mapVersion++;
+        }
+    }
+
     static int foundSecrets(String roomName) {
         Integer found = roomName == null ? null : foundSecretsByRoom.get(roomName);
         return found == null ? -1 : found;

@@ -91,6 +91,11 @@ public final class SecretSound {
             "Treasure Talisman", "Revive Stone", "Architect's First Draft",
             "Secret Dye", "Candycomb");
 
+    /** Whether an item with this (formatting-stripped) name is one of Noamm's dungeon secret item drops. */
+    public static boolean isDungeonItemDrop(String name) {
+        return name != null && DUNGEON_ITEM_DROPS.contains(name);
+    }
+
     private static long lastChestMs = System.currentTimeMillis();
     private static BlockPos lastInteractPos = null;
     private static long lastInteractMs = 0;
