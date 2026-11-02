@@ -29,6 +29,23 @@ public class TeleportMazeSolverTab extends BaseTab {
 
         widgets.add(onOffButton("Tracer To Best Pad", cfg::isShowTracer, cfg::setShowTracer, cfg::save,
                 null, contentX, y, contentWidth, 18));
+        y += 22;
+        widgets.add(com.killer560.hub.gui.SettingsButtonWidget.builder(
+                com.killer560.hub.gui.ColorSwatch.label("Tracer Color", cfg.getTracerColor()), btn -> {
+                    net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+                    com.killer560.hub.compat.McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(
+                            com.killer560.hub.compat.McCompat.screen(client), "Tracer Color", cfg.getTracerColor(),
+                            TeleportMazeSolverConfig.DEFAULT_TRACER_COLOR, argb -> {
+                                cfg.setTracerColor(argb);
+                                cfg.save();
+                            }));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+        widgets.add(onOffButton("Current Cell Only", cfg::isCurrentCellOnly, cfg::setCurrentCellOnly, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 22;
+        widgets.add(onOffButton("Best Pad Only", cfg::isBestPadOnly, cfg::setBestPadOnly, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TELEPORT_MAZE, contentX, contentWidth, y, true);
 
