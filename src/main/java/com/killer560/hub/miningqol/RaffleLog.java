@@ -151,6 +151,6 @@ public final class RaffleLog {
     }
 
     private static String stack(ItemStack s) {
-        return s.isEmpty() ? "-" : s.getItem() + "x" + s.getCount() + " \"" + s.getHoverName().getString() + "\"";
+        return s.isEmpty() ? "-" : s.getItem() + " x" + s.getCount() + " \"" + s.getHoverName().getString() + "\"";
     }
 }
