@@ -82,19 +82,32 @@ public class AutoKickTab extends BaseTab {
                         } else {
                             ModChat.send("Auto Kick",
                                     ModChat.text("Set "), ModChat.value(String.valueOf(result.floorsSet())),
-                                    ModChat.text(" floor time(s) from your S+ personal bests."));
+                                    ModChat.text(" floor time(s) to your S+ personal best + 20 s."));
                         }
                         requestRebuild.run();
                     }));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
+        // Two headed groups (killer560, 2026-11-02: "separate them by mastermode and regular"), each floor with its own
+        // switch at the row's left: OFF and Auto Kick never judges or kicks anyone for that floor.
         Floor[] floors = Floor.values();
-        // First 7 = F1-F7, next 7 = M1-M7 (see Floor's own declaration order) - left/right columns.
-        for (int i = 0; i < 7; i++) {
-            widgets.add(floorSlider(cfg, floors[i], contentX, y, colW));
-            widgets.add(floorSlider(cfg, floors[i + 7], colBX, y, colW));
-            y += 22;
+        int switchW = 50;
+        int sliderX = contentX + switchW + 4;
+        int sliderW = Math.max(40, contentWidth - switchW - 4);
+        for (boolean master : new boolean[]{false, true}) {
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, master ? "Master Mode" : "Normal Floors", false));
+            y += 16;
+            for (Floor f : floors) {
+                if (f.master() != master) {
+                    continue;
+                }
+                widgets.add(onOffButton(f.name(), () -> cfg.isFloorEnabled(f), v -> cfg.setFloorEnabled(f, v), cfg::save,
+                        null, contentX, y, switchW, 18));
+                widgets.add(floorSlider(cfg, f, sliderX, y, sliderW));
+                y += 22;
+            }
+            y += 4;
         }
 
         return widgets;
@@ -143,7 +156,8 @@ public class AutoKickTab extends BaseTab {
 
             @Override
             protected void applyValue() {
-                int secs = (int) (Math.round((min + this.value * (max - min)) / 5.0) * 5);
+                int step = AutoKickConfig.SLIDER_STEP_SECONDS;
+                int secs = (int) (Math.round((min + this.value * (max - min)) / (double) step) * step);
                 cfg.setTargetSeconds(floor, secs);
                 saveOnRelease(() -> cfg.save());
             }

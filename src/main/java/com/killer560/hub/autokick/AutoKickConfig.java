@@ -29,6 +29,8 @@ public final class AutoKickConfig {
 
     /** Every floor's slider starts here. */
     public static final int MIN_TARGET_SECONDS = 30;
+    /** The floor sliders move in steps of this many seconds. */
+    public static final int SLIDER_STEP_SECONDS = 5;
 
     /** F1-F7 and Master Mode M1-M7 - the tokens {@code DungeonState#getFloor()} returns ("F7" / "M7"). */
     public enum Floor {
@@ -67,6 +69,11 @@ public final class AutoKickConfig {
 
         String key() {
             return "target." + raw;
+        }
+
+        /** The JSON key of this floor's own on/off ("judge.F1" ... "judge.M7", menufix-1102). */
+        String judgeKey() {
+            return "judge." + raw;
         }
 
         /** @return the {@link Floor} for {@code DungeonState.getFloor()}'s token, or null (Entrance, unknown). */
@@ -136,10 +143,14 @@ public final class AutoKickConfig {
     /** The floor used when {@link #floorSource} is FIXED (the JSON key "queueFloor", kept from before 2026-10-11). */
     private Floor queueFloor = Floor.F7;
     private final EnumMap<Floor, Integer> targetSeconds = new EnumMap<>(Floor.class);
+    /** Each floor's own on/off (killer560, 2026-11-02: "make auto kick have a toggle for each floor as well"). OFF: Auto
+     *  Kick never judges or kicks anyone for that floor. Every floor defaults ON, so an older file behaves as before. */
+    private final EnumMap<Floor, Boolean> floorEnabled = new EnumMap<>(Floor.class);
 
     private AutoKickConfig() {
         for (Floor f : Floor.values()) {
             targetSeconds.put(f, f.maxSeconds());
+            floorEnabled.put(f, true);
         }
     }
 
@@ -166,6 +177,7 @@ public final class AutoKickConfig {
                         : fixed != null ? FloorSource.FIXED : FloorSource.DETECT;
                 for (Floor f : Floor.values()) {
                     cfg.setTargetSeconds(f, ConfigJson.getInt(obj, f.key(), 0));
+                    cfg.setFloorEnabled(f, ConfigJson.getBool(obj, f.judgeKey(), true));
                 }
             } catch (Exception ignored) {
                 // Unreadable file: keep the defaults above (off, every floor at the top of its range).
@@ -184,6 +196,7 @@ public final class AutoKickConfig {
             obj.addProperty("queueFloor", queueFloor.name());
             for (Floor f : Floor.values()) {
                 obj.addProperty(f.key(), getTargetSeconds(f));
+                obj.addProperty(f.judgeKey(), isFloorEnabled(f));
             }
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -232,6 +245,17 @@ public final class AutoKickConfig {
         } else {
             queueFloor = floor;
             floorSource = FloorSource.FIXED;
+        }
+    }
+
+    /** Whether Auto Kick judges joiners for {@code floor} at all (its own switch beside its slider). */
+    public boolean isFloorEnabled(Floor floor) {
+        return floor != null && floorEnabled.getOrDefault(floor, true);
+    }
+
+    public void setFloorEnabled(Floor floor, boolean on) {
+        if (floor != null) {
+            floorEnabled.put(floor, on);
         }
     }
 

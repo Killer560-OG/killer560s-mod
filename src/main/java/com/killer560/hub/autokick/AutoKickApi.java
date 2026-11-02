@@ -24,8 +24,10 @@ import java.util.concurrent.CompletableFuture;
  * <b>Field used (since 2026-10-09):</b> {@link SbProfile.Floor#fastestSPlus()} - Hypixel's
  * {@code fastest_time_s_plus}, in MILLISECONDS, rounded up to whole seconds - because Auto Kick now judges Party Finder
  * joiners by their timed (S+) completion, and the number it compares against should come from the same field. Every
- * floor the profile has an S+ time on is set (clamped into that floor's 30 s - 4/6/7 min range); a floor without one is
- * left as it was. It is an explicit button press or command, so it overwrites.
+ * floor the profile has an S+ time on is set to that PB + 20 s, rounded to the slider's nearest step and clamped into
+ * the floor's 30 s - 4/6/7 min range (killer560, 2026-11-02: "populate 20s higher than their pb rounded to the nearest
+ * increment of the slider"); a floor without one is left as it was. The floors' own on/off switches are never touched.
+ * It is an explicit button press or command, so it overwrites.
  */
 public final class AutoKickApi {
 
@@ -76,9 +78,9 @@ public final class AutoKickApi {
             for (AutoKickConfig.Floor floor : AutoKickConfig.Floor.values()) {
                 Map<Integer, SbProfile.Floor> floors = floor.master() ? profile.dungeons.master() : profile.dungeons.normal();
                 SbProfile.Floor f = floors.get(floor.number());
-                long seconds = f == null ? 0L : targetSecondsFromMillis(f.fastestSPlus());
+                int seconds = f == null ? 0 : populatedSeconds(f.fastestSPlus(), AutoKickConfig.SLIDER_STEP_SECONDS, floor);
                 if (seconds > 0) {
-                    cfg.setTargetSeconds(floor, (int) Math.min(seconds, floor.maxSeconds()));
+                    cfg.setTargetSeconds(floor, seconds);
                     set++;
                 } else {
                     noData++;
@@ -90,6 +92,26 @@ public final class AutoKickApi {
         }
 
         return new PopulateResult(playerName, set, noData, alreadySet);
+    }
+
+    /** How much slower than his own PB a populated floor's limit is. */
+    public static final int POPULATE_MARGIN_SECONDS = 20;
+
+    /**
+     * The slider value Populate gives a floor: the PB ({@code pbMillis}) plus {@link #POPULATE_MARGIN_SECONDS}, rounded
+     * to the nearest multiple of {@code stepSeconds} (half up) and clamped into the floor's range; 0 when there is no PB.
+     * 2:37.4 + 20 s = 2:57.4 reads 2:57 on a 1 s step and 2:55 on a 5 s step.
+     */
+    public static int populatedSeconds(long pbMillis, int stepSeconds, AutoKickConfig.Floor floor) {
+        if (pbMillis <= 0) {
+            return 0;
+        }
+        int step = Math.max(1, stepSeconds);
+        long totalMs = pbMillis + POPULATE_MARGIN_SECONDS * 1000L;
+        long stepMs = step * 1000L;
+        long rounded = Math.floorDiv(totalMs + stepMs / 2, stepMs) * step;
+        int max = floor == null ? Integer.MAX_VALUE : floor.maxSeconds();
+        return (int) Math.max(AutoKickConfig.MIN_TARGET_SECONDS, Math.min(max, rounded));
     }
 
     /** A profile's {@code fastest_time_s} (milliseconds) as whole seconds, rounded up; 0 stays 0 (no clear). */

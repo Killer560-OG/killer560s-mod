@@ -129,6 +129,11 @@ public final class AutoKickFeature {
             decide(name + " no floor -> none");
             return;
         }
+        if (!cfg.isFloorEnabled(floor)) {
+            // That floor's own switch is off: nobody is judged or kicked for it (menufix-1102).
+            decide(name + " " + floor.name() + " floor off -> none");
+            return;
+        }
         waiting.put(name.toLowerCase(Locale.ROOT), new Pending(name, floor, System.currentTimeMillis()));
         PartyFinderStatsApi.requestHot(List.of(name));
     }
@@ -172,6 +177,11 @@ public final class AutoKickFeature {
     }
 
     private static void judge(AutoKickConfig cfg, String name, Floor floor, PartyFinderStatsApi.PlayerStats stats) {
+        if (!cfg.isFloorEnabled(floor)) {
+            // Switched off while the lookup was out.
+            decide(name + " " + floor.name() + " floor off -> none");
+            return;
+        }
         int limit = cfg.getTargetSeconds(floor);
         int sPlus = pbSeconds(stats, floor, "s_plus");
         int s = pbSeconds(stats, floor, "s");
