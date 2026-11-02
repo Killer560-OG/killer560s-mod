@@ -180,6 +180,8 @@ public final class ModPaths {
         t.put("mining-profit", "skyblock/mining-profit");
         t.put("nucleus-profit", "skyblock/nucleus-profit");
         t.put("chmap", "skyblock/chmap");
+        // The pre-2.0 mining features (miningqol/, 2026-11-01).
+        t.put("miningqol", "skyblock/miningqol");
         t.put("pathfinding", "skyblock/pathfinding");
         t.put("itemprotect", "skyblock/itemprotect");
         t.put("petwheel", "skyblock/petwheel");

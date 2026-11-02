@@ -415,6 +415,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.chattidy.ChatTidy.register();
         com.killer560.hub.abilitycooldown.AbilityCooldownFeature.register();
         HudElementRegistry.register(new com.killer560.hub.abilitycooldown.AbilityCooldownFeature.CooldownHudElement());
+        // Pre-2.0 mining features (to-do Doc 2026-11-01): Commission HUD, Pickobulus Estimate, Ability Ready Alert,
+        // Carpet Highlighter, Mithril As Stone, Titanium Highlight, Raffle Ticket Highlight.
+        com.killer560.hub.miningqol.MiningQolFeatures.register();
         com.killer560.hub.lagdisplay.LagDisplayFeature.register();
         HudElementRegistry.register(new com.killer560.hub.lagdisplay.LagDisplayFeature.LagHudElement());
         com.killer560.hub.terminals.TerminalQolFeature.register();

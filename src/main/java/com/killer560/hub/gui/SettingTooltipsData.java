@@ -45,6 +45,32 @@ final class SettingTooltipsData {
         priceTooltip(d);
         settingsSweep(d);
         blink(d);
+        miningQol(d);
+    }
+
+    /** The pre-2.0 Mining category (miningqol/, to-do Doc 2026-11-01). */
+    private static void miningQol(Map<String, String> d) {
+        d.put("commission hud", "Shows your commissions from the tab list on a movable HUD, with waypoints to where each is done.");
+        d.put("commission hud/color by progress", "Colors each commission's progress: red under 25%, gold under 75%, yellow above, green when DONE.");
+        d.put("commission hud/commission waypoints", "Labels in the world at the area or gemstone spots each open commission needs.");
+        d.put("commission hud/emissary waypoints", "When a commission is DONE, labels every Emissary so you can turn it in at the nearest.");
+        d.put("pickobulus estimate", "While you hold a Pickobulus tool and it is ready, outlines every block it would break where you aim.");
+        d.put("pickobulus estimate/outline color", "The color of the outlines.");
+        d.put("ability ready alert", "Shows a big \"READY\" popup when a pickaxe ability is available again. Move it in the HUD editor.");
+        d.put("ability ready alert/cooldown timer", "A HUD line counting down each pickaxe ability until it is ready again.");
+        d.put("ability ready alert/ready sound", "Plays a ding with the popup.");
+        d.put("carpet highlighter", "In the Dwarven Mines, fills the unbreakable carpets in ore veins so you stop swinging at them.");
+        d.put("carpet highlighter/carpet color", "The color the carpets are filled with.");
+        d.put("mithril as stone", "In the Dwarven Mines, draws mithril as stone unless a commission wants mithril or titanium in the area you are in.");
+        d.put("mithril as stone/universal area access", "Turn on if your commissions count in every area: all mithril shows again.");
+        d.put("titanium highlight", "Outlines Titanium (polished diorite) in the Dwarven Mines.");
+        d.put("titanium highlight/show", "Always: every titanium block. Commission Area: only while a commission wants titanium where you are.");
+        d.put("titanium highlight/universal area access", "Turn on if your commissions count in every area: titanium shows everywhere.");
+        d.put("titanium highlight/titanium color", "The color of the titanium outline.");
+        d.put("titanium highlight/through walls", "Cheat build: draws the titanium boxes through blocks.");
+        d.put("raffle ticket highlight", "During the Dwarven Mines Raffle, boxes each raffle ticket on the ground.");
+        d.put("raffle ticket highlight/ticket color", "The color of the ticket boxes.");
+        d.put("raffle ticket highlight/through walls", "Cheat build: draws the ticket boxes through blocks.");
     }
 
     /** Blink's rows (killer560, 2026-10-26: no explanation lines in the tab, just the settings and short hovers). */

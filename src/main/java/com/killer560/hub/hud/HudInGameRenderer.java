@@ -38,7 +38,9 @@ public final class HudInGameRenderer {
             // P3 Status (2026-10-25).
             "p3_status",
             // Croesus Chests (2026-10-25): unclaimed chests from the tab and Kismet Feathers, outside the menu.
-            "croesus_chests");
+            "croesus_chests",
+            // The pre-2.0 mining HUDs (2026-11-01): missing at first, so testkit 1101-mining-commissions/-ability failed.
+            "mining_commissions", "mining_ability_ready", "mining_ability_timer");
 
     private HudInGameRenderer() {
     }
