@@ -1085,6 +1085,12 @@ public final class AutoWalker {
         return escapeWhy;
     }
 
+    /** The runner's warp landed: its teleport packet is the warp's, not a correction to report. */
+    static void acceptServerMoves() {
+        positionPacketsSeen = ServerCorrections.packetCount();
+        WalkCamera.rebase();
+    }
+
     /** After an escape landed (or a skip): walk on from wherever he is now. */
     static void escaped() {
         clearRescueState();

@@ -483,3 +483,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
   release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
   `Rows.addKept`).
+- A Fairy Soul's stand sits up to 3.6 blocks from its SkyHanni graph node (NEU fairy_souls.json vs the graph), so "arrived at
+  the node" is not "in reach": Auto Fairy Souls walks to a cell the stand is in reach and sight from (doc-fairy-1101; walker
+  lessons in docs/LESSONS-AUTOMATION.md "Walking, fairy souls").

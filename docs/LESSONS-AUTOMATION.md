@@ -250,6 +250,15 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   (1017-fairy-overshoot, before -> after): past the corner at Skyblock 400 +2.28 -> -0.14/+0.08, at 600 +3.47 ->
   +0.10/+0.75, 600 with Jump Boost II +2.63 -> +0.27/+0.24; past the soul at 600 +0.70 -> -1.73 (stopping 1.7 short). Walk,
   sprint and Speed II were never past.
+- **A soul's stand is not at its graph node** (doc-fairy-1101). NEU's `constants/fairy_souls.json` ("the soul itself") against
+  SkyHanni's `fairy_soul` nodes: Hub offsets 0 to 3.6 blocks, often a block up or down (his 2026-11-01 picture: node
+  90,68,-152, soul 87,68,-154). "Arrived" at the node with the stand's box 3.7 from his eye bounced WALKING/COLLECTING every
+  tick and he stood there for good (testkit 1101-fairy-ledgesoul and every 1101-fairy-island run on the old jar: stuck on
+  the first such soul). The runner now walks to a cell the stand is in reach and in sight from (`APPROACH`).
+- **The walker's way back can fail for reasons that are not the terrain** (doc-fairy-1101, 1101-fairy-island-*): planned
+  mid-fall (a cell he will never stand in: plan on landing), "0 goals" when the route's points are farther apart than the
+  planner's 24-block box (goals now include points every 2 blocks along each segment), and a ladder whose top goes nowhere
+  held W on it for minutes because "stuck" was ignored while on a ladder.
 - **Simulated key presses (Fabric's `TestInput.pressKey`) never reach a key read with `KeyUtil.isKeyDown`** (GLFW's own
   state): the Start/Stop key poll did not see the testkit's K. The key is taken from `KeyboardHandler.keyPress`, the same
   event the "any key stops it" rule reads, so a press is either the toggle or a stop, never both.

@@ -380,7 +380,7 @@ public final class AutoSoulRunner {
                     }
                     double feetY = c.getY() + Math.max(0.0, LocalPlanner.lowTop(level, c));
                     Vec3 eye = new Vec3(c.getX() + 0.5, feetY + 1.62, c.getZ() + 0.5);
-                    if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, box) > (REACH - 0.45) * (REACH - 0.45)) {
+                    if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, box) > (REACH - 0.3) * (REACH - 0.3)) {
                         continue;
                     }
                     if (aimPoint(level, eye, box) != null) {
@@ -581,6 +581,7 @@ public final class AutoSoulRunner {
                 && (player.onGround() || player.isInWater());
         if (ready) {
             ModChat.log(CHAT, ModChat.text("Warped - walking back to the soul."));
+            AutoWalker.acceptServerMoves();
             AutoWalker.escaped();
             AutoWalker.rebaseCamera();
             state = State.IDLE;
