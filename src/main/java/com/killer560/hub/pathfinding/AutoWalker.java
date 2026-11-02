@@ -546,6 +546,7 @@ public final class AutoWalker {
         }
 
         drive(client, player, cfg);
+        keepLadderOutOfWater(client.level, player);
         if (!mixinApplied) {
             client.options.keyUp.setDown(wantForward);
             client.options.keyDown.setDown(wantBack);
@@ -1146,6 +1147,46 @@ public final class AutoWalker {
         if (Math.abs(need) > 0.08) {
             wantLeft = need > 0 && !waterLeft;
             wantRight = need < 0 && !waterRight;
+        }
+    }
+
+    /**
+     * The last word on the keys while he is on a ladder, whoever chose them (the climb, a way back, an approach): no
+     * key moves him toward water, and if his box already touches water the key away from it is pressed. A way back
+     * that faced the pool and held W walked him off the ladder's column into it (testkit 1102-fairy-spill-ladder,
+     * z -5.73 to -5.94 at 0.07 a tick, GrimAC Simulation every time); on a ladder jump alone climbs.
+     */
+    private static void keepLadderOutOfWater(Level level, LocalPlayer player) {
+        if (level == null || !player.onClimbable()) {
+            return;
+        }
+        Vec3 pos = player.position();
+        double yawRad = Math.toRadians(player.getYRot());
+        double fx = -Math.sin(yawRad);
+        double fz = Math.cos(yawRad);
+        double lx = Math.cos(yawRad);
+        double lz = Math.sin(yawRad);
+        boolean waterAhead = waterBeside(level, pos, fx, fz);
+        boolean waterBehind = waterBeside(level, pos, -fx, -fz);
+        boolean waterLeft = waterBeside(level, pos, lx, lz);
+        boolean waterRight = waterBeside(level, pos, -lx, -lz);
+        if (!(waterAhead || waterBehind || waterLeft || waterRight)) {
+            return;
+        }
+        wantSprint = false;
+        wantForward &= !waterAhead;
+        wantBack &= !waterBehind;
+        wantLeft &= !waterLeft;
+        wantRight &= !waterRight;
+        if (player.isInWater()) {
+            if (waterAhead != waterBehind) {
+                wantForward = waterBehind;
+                wantBack = waterAhead;
+            }
+            if (waterLeft != waterRight) {
+                wantLeft = waterRight;
+                wantRight = waterLeft;
+            }
         }
     }
 
