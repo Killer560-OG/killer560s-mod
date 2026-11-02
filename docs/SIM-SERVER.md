@@ -249,11 +249,11 @@ Two sim options of the sim's own data (`roomsim/SimLiveMobs`), off unless asked 
   teleport into it is no insta clear (the evidence: 13 of 15 undiscovered, 1 of 75 discovered). Without that, Auto Clear
   lost Museum's key to a trip that landed on Museum's roof right after opening its door (2026-11-01). The key drops where
   the room's LAST starred mob died (`DEATH_ORDER`), not at whichever mob the map listed last (a 2x2's landed 55 blocks off).
-- **A starred mob missing from an entity-ticking section is not dead** (2026-11-01). `refreshStarred` used to count one
-  missing read as a death; a far room's chunk unloading read that way, and whole rooms - key rooms among them - "cleared"
-  3 s after GO with nobody near, so their keys never dropped and the floor could not be finished (Mossy, three runs). A
-  death is now Fabric's `ServerLivingEntityEvents.AFTER_DEATH` for a starred mob, or the entity there and not alive;
-  missing counts only after 200 checks in a row (10 s). `[Sim] starred mob ... counted dead without dying` logs the rest.
+- **Sim mobs burned in daylight** (2026-11-01): key rooms "cleared" 3 s after GO with nobody near and their keys never
+  dropped (Mossy, Jumping Skulls). The debug death log said `onFire, by nothing`: starred mobs on a sky-lit edge of the floor
+  burned, `isInvulnerableTo`'s `environmental()` notwithstanding. `SimMobs` now refuses all environmental damage to its
+  mobs in Fabric's `ALLOW_DAMAGE`. Also since then (a guess at first, kept as a safety): a death is AFTER_DEATH or the
+  entity there and not alive, and a missing mob counts dead only after 200 checks (10 s) in a ticking section.
 - Mob spots (`SimLiveMobs`) are on the doorways' floor, at most one below and four above it: a key that dropped in a pit
   3 below the floor could not be reached by any etherwarp, and a zombie 8 up on a ledge was skipped as out of reach.
 - **The Blood door** wants `SimKeys.hasBloodKey()` on such a floor; opened, the server says "The BLOOD DOOR has been

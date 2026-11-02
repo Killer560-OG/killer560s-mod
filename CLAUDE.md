@@ -483,5 +483,5 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
   release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
   `Rows.addKept`).
-- The sim counted a starred mob "dead" on one missing read from a ticking section; a far chunk unloading did that and
-  cleared key rooms with nobody near (2026-11-01). Deaths are Fabric AFTER_DEATH or the entity there and not alive (docs/SIM-SERVER.md).
+- Sim mobs burned in daylight ("onFire, by nothing") and cleared key rooms at GO with nobody near, despite their
+  `isInvulnerableTo`; `SimMobs` refuses environmental damage in Fabric ALLOW_DAMAGE (2026-11-01, docs/SIM-SERVER.md).
