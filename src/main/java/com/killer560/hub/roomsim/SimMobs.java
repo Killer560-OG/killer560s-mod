@@ -105,16 +105,50 @@ public final class SimMobs {
     private SimMobs() {
     }
 
-    /** A dormant Fel: an invisible armor stand wearing a skull. See {@link #spawnFel}. */
+    /** A dormant Fel: an invisible armor stand wearing a skull, and for a starred one the sleeping enderman under its
+     *  tag. See {@link #spawnFel}. */
     private static final class FelMarker {
         final ArmorStand skull;
         final boolean starred;
+        /** The starred Fel's sleeping enderman (invisible, untouchable) that wakes in place; null for an unstarred one. */
+        final SimEnderman sleeper;
         boolean woken;
 
-        FelMarker(ArmorStand skull, boolean starred) {
+        FelMarker(ArmorStand skull, boolean starred, SimEnderman sleeper) {
             this.skull = skull;
             this.starred = starred;
+            this.sleeper = sleeper;
         }
+    }
+
+    private static final java.util.concurrent.atomic.AtomicInteger FELS_PLACED = new java.util.concurrent.atomic.AtomicInteger();
+    private static final java.util.concurrent.atomic.AtomicInteger FELS_WOKEN = new java.util.concurrent.atomic.AtomicInteger();
+    private static volatile String lastFelWake;
+
+    /** Fels placed since the last {@link #forget}, for tests and the log. */
+    public static int felsPlaced() {
+        return FELS_PLACED.get();
+    }
+
+    /** Fels woken since the last {@link #forget}. */
+    public static int felsWoken() {
+        return FELS_WOKEN.get();
+    }
+
+    /** The last wake: "x y z|distance to the player|starred", or null. */
+    public static String lastFelWake() {
+        return lastFelWake;
+    }
+
+    /** Every dormant Fel's skull position as {x, y, z}, for tests (the skull sits on the floor block's top). */
+    public static java.util.List<double[]> dormantFels() {
+        java.util.List<double[]> out = new java.util.ArrayList<>();
+        for (FelMarker f : FELS) {
+            if (!f.woken) {
+                out.add(new double[]{f.skull.getX(), f.skull.getY() + SKULL_DROP, f.skull.getZ()});
+            }
+        }
+        return out;
     }
 
     public static void register() {
@@ -124,6 +158,25 @@ public final class SimMobs {
                     SimLiveMobs.registerCommand(dispatcher);
                 });
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimMobs.tick", SimMobs::tick));
+        // No sim mob dies to the world: starred mobs on a floor's sky-lit edge burned in the daylight ("onFire, by nothing")
+        // within 3 s of GO, and whole key rooms cleared with nobody there (doc-adm-sim-1101). isInvulnerableTo's
+        // environmental() did not stop it; refusing the damage outright does.
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            if (SPAWNED.contains(entity.getUUID()) && environmental(source)) {
+                entity.clearFire();
+                return false;
+            }
+            return true;
+        });
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (STARRED.contains(entity.getUUID())) {
+                KILLED.add(entity.getUUID());
+                com.killer560.hub.util.ModLog.get("killer560smod-sim").debug("[Sim] starred {} died at {} ({}, by {})",
+                        entity.getName().getString(), entity.blockPosition().toShortString(), source.getMsgId(),
+                        source.getEntity() == null ? "nothing" : source.getEntity().getName().getString());
+            }
+        });
+        SimMobFloor.register();
     }
 
     private static void tick(Minecraft client) {
@@ -249,6 +302,17 @@ public final class SimMobs {
      */
     private static final java.util.Set<UUID> STARRED_DEAD = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
+    /** Starred mobs the server saw die (Fabric AFTER_DEATH), and how many refreshes in a row each has been missing. */
+    private static final java.util.Set<UUID> KILLED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final java.util.Map<UUID, Integer> MISSING = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Ten seconds of checks: a chunk unloading far away read "ticking, entity missing" for longer than three (Mossy, 8 s
+     *  after GO, 120 blocks away). A real death is AFTER_DEATH or the entity there and not alive; this is only the fallback. */
+    private static final int MISSING_TICKS = 200;
+
+    /** When each starred mob's death was confirmed, in order, so a room's key drops at its LAST death. */
+    private static final java.util.Map<UUID, Long> DEATH_ORDER = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.atomic.AtomicLong DEATH_SEQ = new java.util.concurrent.atomic.AtomicLong();
+
     private static void recordStarred(UUID id, double x, double y, double z) {
         STARRED_AT.put(id, new double[]{x, y, z});
     }
@@ -264,6 +328,7 @@ public final class SimMobs {
         com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
         java.util.Map<String, Boolean> allDead = new java.util.HashMap<>();
         java.util.Map<String, double[]> anyAt = new java.util.HashMap<>();
+        java.util.Map<String, Long> lastOrder = new java.util.HashMap<>();
         for (java.util.Map.Entry<UUID, double[]> e : STARRED_AT.entrySet()) {
             double[] p = e.getValue();
             int room = layout.roomAtWorld(p[0], p[2]);
@@ -273,7 +338,13 @@ public final class SimMobs {
             }
             boolean dead = STARRED_DEAD.contains(e.getKey());
             allDead.merge(name, dead, Boolean::logicalAnd);
-            anyAt.put(name, p);
+            // The key drops where the room's LAST starred mob died (Hypixel's stand appears there), not at whichever
+            // mob the map iterates last: a 2x2's key landed 55 blocks from the kill, out of Auto Clear's 40-block search.
+            long order = DEATH_ORDER.getOrDefault(e.getKey(), 0L);
+            if (!anyAt.containsKey(name) || order > lastOrder.getOrDefault(name, -1L)) {
+                anyAt.put(name, p);
+                lastOrder.put(name, order);
+            }
         }
         for (java.util.Map.Entry<String, Boolean> e : allDead.entrySet()) {
             if (e.getValue() && SimRoomState.markCleared(e.getKey())) {
@@ -756,23 +827,59 @@ public final class SimMobs {
     }
 
     /**
-     * Places a dormant Fel: an invisible, no-base-plate armor stand wearing a skull, so only the skull shows -
-     * an invisible armor stand still renders its equipped items, which is the whole trick. It is invulnerable
-     * while dormant because a Fel is not a fightable mob yet on Hypixel either; it only becomes one once it
-     * wakes, in {@link #wake}.
+     * How far below the floor a skull's armor stand stands, so the skull it wears rests ON the floor: a full-size stand's
+     * head slot draws from about 1.44 blocks over its feet (the head pivot, 23 model pixels up). killer560 (Doc,
+     * 2026-11-01): "Fels should just be skulls on the ground black fel skulls that you cannot interact with."
+     */
+    static final double SKULL_DROP = 1.4375;
+
+    /**
+     * Places a dormant Fel (killer560, Doc 2026-11-01: "black fel skulls that you cannot interact with. Once you get close
+     * to them then a enderman upside down spawns ... name them dinnerbone ... and not have the nametag show"):
+     * <ul>
+     *   <li>the skull: an invisible MARKER armor stand (no hitbox, so nothing can hit or click it) wearing a wither
+     *       skeleton skull, stood {@link #SKULL_DROP} into the floor so the black skull lies on the ground;</li>
+     *   <li>a starred Fel also has its star tag from the start, over a sleeping enderman named Dinnerbone - invisible,
+     *       untouchable, never moving - so every client feature that reads star tags (Mob ESP, Auto Clear) knows a
+     *       starred mob is there before it wakes, as Hypixel's dormant Fel is an enderman under its tag (the reference
+     *       mods' notes: "an invisible Fel shows only its head", "an enderman counts whether it can be seen or not").</li>
+     * </ul>
+     * It wakes ({@link #wake}) once a player is within {@link #FEL_WAKE_RADIUS}. Server thread.
      */
     private static void spawnFel(ServerLevel level, BlockPos pos, boolean starred) {
-        ArmorStand skull = new ArmorStand(level, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+        double x = pos.getX() + 0.5;
+        double z = pos.getZ() + 0.5;
+        ArmorStand skull = new ArmorStand(level, x, pos.getY() - SKULL_DROP, z);
         skull.setInvisible(true);
         skull.setNoBasePlate(true);
         skull.setShowArms(false);
+        skull.setNoGravity(true);
         com.killer560.hub.compat.McEntities.setInvulnerable(skull, true);
-        skull.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.SKELETON_SKULL));
+        byte flags = skull.getEntityData().get(ArmorStand.DATA_CLIENT_FLAGS);
+        skull.getEntityData().set(ArmorStand.DATA_CLIENT_FLAGS, (byte) (flags | ArmorStand.CLIENT_FLAG_MARKER));
+        skull.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.WITHER_SKELETON_SKULL));
         level.addFreshEntity(skull);
-        FELS.add(new FelMarker(skull, starred));
+        SimEnderman sleeper = null;
         if (starred) {
-            recordStarred(skull.getUUID(), skull.getX(), skull.getY(), skull.getZ());
+            sleeper = new SimEnderman(McEntities.ENDERMAN, level);
+            sleeper.dormant = true;
+            sleeper.setInvisible(true);
+            spawnDummy(level, sleeper, pos, pos.getY(), true, ONE_HP);
+            STAR_NAMES.put(sleeper.getUUID(), "Fel");
+            UUID tagId = STAR_TAGS.get(sleeper.getUUID());
+            Entity tag = tagId == null ? null : level.getEntity(tagId);
+            if (tag != null) {
+                tag.setCustomName(Component.literal(" \u272F Fel " + shortHealth(ONE_HP) + "\u2764"));
+            }
+            LIVE.add(sleeper.getUUID());
         }
+        FELS.add(new FelMarker(skull, starred, sleeper));
+        FELS_PLACED.incrementAndGet();
+    }
+
+    /** {@link #spawnFel} for {@link SimLiveMobs} (server thread). */
+    static void spawnFelLive(ServerLevel level, BlockPos pos, boolean starred) {
+        spawnFel(level, pos, starred);
     }
 
     /** Checks every dormant Fel against every player each tick and wakes the ones close enough. */
@@ -788,13 +895,23 @@ public final class SimMobs {
             if (fel.woken || fel.skull.isRemoved()) {
                 continue;
             }
+            double sx = fel.skull.getX();
+            double sy = fel.skull.getY() + SKULL_DROP;
+            double sz = fel.skull.getZ();
             for (ServerPlayer player : players) {
                 // A placed miniboss IS a ServerPlayer and so is in level.players() - it must not wake a Fel.
                 if (SimMiniboss.isPlaced(player)) {
                     continue;
                 }
-                if (player.distanceToSqr(fel.skull) <= FEL_WAKE_RADIUS_SQ) {
+                double d2 = player.distanceToSqr(sx, sy, sz);
+                if (d2 <= FEL_WAKE_RADIUS_SQ) {
                     wake(level, fel);
+                    lastFelWake = String.format(java.util.Locale.US, "%.1f %.1f %.1f|%.2f|%s", sx, sy, sz, Math.sqrt(d2),
+                            fel.starred);
+                    com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] Fel woke at {} {} {} ({} blocks"
+                            + " from {}, {})", (int) Math.floor(sx), (int) Math.floor(sy), (int) Math.floor(sz),
+                            String.format(java.util.Locale.US, "%.1f", Math.sqrt(d2)), player.getGameProfile().name(),
+                            fel.starred ? "starred" : "not starred");
                     break;
                 }
             }
@@ -802,42 +919,33 @@ public final class SimMobs {
     }
 
     /**
-     * Replaces a dormant Fel with an enderman where it stood.
+     * The skull goes and the Fel is an enderman where it lay: a starred Fel's sleeping enderman shows and can be hit, an
+     * unstarred one is placed now.
      *
-     * <p><b>Upside down, using vanilla's own rule.</b> killer560's spec is explicit that the woken form is "the
-     * upside down Enderman". This needs no renderer and no mixin: {@code LivingEntityRenderer} checks whether an
-     * entity is named "Dinnerbone" or "Grumm" and sets {@code isUpsideDown} on the render state, which flips the
-     * model (verified in the 26.1.2 bytecode, 2026-09-28). So the enderman is named Grumm and the name tag is
-     * hidden - the flip is a property of the NAME, not of the tag being drawn, so hiding it costs nothing.
-     *
-     * <p>That is worth preferring over a mixin even though a mixin would work: this is a rendering behavior
-     * the game already has, and a mixin on an entity renderer is a thing that breaks quietly on the next
-     * Minecraft version.
+     * <p><b>Upside down, using vanilla's own rule.</b> {@code LivingEntityRenderer.isUpsideDownName} flips anything named
+     * "Dinnerbone" or "Grumm" (javap, 26.1.2 and 26.3), so the enderman is named Dinnerbone (his word, and the reference
+     * mods' reading of Hypixel's Fel) and the tag is hidden: the flip comes from the name being set, not drawn.
      */
     private static void wake(ServerLevel level, FelMarker fel) {
         fel.woken = true;
+        FELS_WOKEN.incrementAndGet();
         double x = fel.skull.getX();
-        double y = fel.skull.getY();
+        double y = fel.skull.getY() + SKULL_DROP;
         double z = fel.skull.getZ();
         fel.skull.discard();
-
+        if (fel.sleeper != null && !fel.sleeper.isRemoved()) {
+            fel.sleeper.dormant = false;
+            fel.sleeper.setInvisible(false);
+            return;
+        }
         SimEnderman enderman = new SimEnderman(McEntities.ENDERMAN, level);
         enderman.getAttribute(Attributes.MAX_HEALTH).setBaseValue(ONE_HP);
         enderman.setHealth((float) ONE_HP);
         enderman.setPersistenceRequired();
-        // Vanilla flips anything called Grumm or Dinnerbone. The tag itself is hidden: the flip comes from the
-        // name being set, not from it being drawn.
-        enderman.setCustomName(net.minecraft.network.chat.Component.literal("Grumm"));
-        enderman.setCustomNameVisible(false);
+        enderman.setNoAi(true);
         enderman.setPos(x, y, z);
         level.addFreshEntity(enderman);
         SPAWNED.add(enderman.getUUID());
-        if (fel.starred) {
-            STARRED.add(enderman.getUUID());
-            // Recorded BEFORE the skull counts as gone below, so the room never reads "all dead" in between.
-            recordStarred(enderman.getUUID(), x, y, z);
-            STARRED_DEAD.add(fel.skull.getUUID());
-        }
     }
 
     /**
@@ -849,9 +957,23 @@ public final class SimMobs {
             Entity entity = level.getEntity(id);
             if ((entity == null || !entity.isAlive()) && !STARRED_DEAD.contains(id)) {
                 double[] at = STARRED_AT.get(id);
-                if (entity != null || (at != null
-                        && level.isPositionEntityTicking(BlockPos.containing(at[0], at[1], at[2])))) {
+                boolean ticking = at != null && level.isPositionEntityTicking(BlockPos.containing(at[0], at[1], at[2]));
+                // Missing is dead only when it STAYS missing from a ticking section (MISSING_TICKS checks in a row, ten seconds) or the
+                // server saw it die (AFTER_DEATH): a mob whose chunk was unloading read as missing for a moment while the
+                // section still said ticking, and whole rooms - key rooms among them - "cleared" with nobody near
+                // (doc-adm-sim-1101: Mossy cleared 3 s after GO while the test stood at another door; its key never dropped).
+                int missing = entity == null && ticking ? MISSING.merge(id, 1, Integer::sum) : 0;
+                if (entity != null || !ticking) {
+                    MISSING.remove(id);
+                }
+                if (entity != null || KILLED.contains(id) || missing >= MISSING_TICKS) {
                     STARRED_DEAD.add(id);
+                    if (!KILLED.contains(id)) {
+                        com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] starred mob {} counted dead"
+                                + " without dying: {}", id, entity != null ? "removed (" + entity.getRemovalReason() + ")"
+                                : "missing " + missing + " checks");
+                    }
+                    DEATH_ORDER.put(id, DEATH_SEQ.incrementAndGet());
                     // Hypixel's "star ... heart" name goes with its mob; the sim's stand used to stay up forever,
                     // a starred name with nothing under it.
                     UUID tag = STAR_TAGS.remove(id);
@@ -950,6 +1072,9 @@ public final class SimMobs {
         BATS.clear();
         STARRED_AT.clear();
         STARRED_DEAD.clear();
+        DEATH_ORDER.clear();
+        KILLED.clear();
+        MISSING.clear();
         CRYPT_MOBS.clear();
         CRYPT_AT.clear();
         SimMimic.forgetMob();
@@ -959,6 +1084,9 @@ public final class SimMobs {
         TAG_HEALTH.clear();
         LIVE.clear();
         FELS.clear();
+        FELS_PLACED.set(0);
+        FELS_WOKEN.set(0);
+        lastFelWake = null;
     }
 
     /**
@@ -1040,14 +1168,68 @@ public final class SimMobs {
         }
     }
 
-    /** Plain {@link Enderman} minus {@code checkDespawn()} - see {@link #wake}. */
+    /**
+     * A Fel's enderman: never despawns, never teleports, and takes a player's projectile (the Terminator's arrows) like any
+     * other hit - vanilla's enderman dodges every projectile by teleporting (javap 26.3 {@code Enderman.hurtServer}: an
+     * {@code IS_PROJECTILE} source teleports and returns false), and a Fel that did that could never be cleared. While
+     * {@link #dormant} (a starred Fel still a skull) nothing hurts it. Named Dinnerbone with the tag hidden, so it is drawn
+     * upside down.
+     */
     private static final class SimEnderman extends Enderman {
+        volatile boolean dormant;
+
         SimEnderman(EntityType<? extends Enderman> type, Level level) {
             super(type, level);
+            setCustomName(net.minecraft.network.chat.Component.literal("Dinnerbone"));
+            setCustomNameVisible(false);
         }
 
         @Override
         public void checkDespawn() {
+        }
+
+        @Override
+        protected boolean teleport() {
+            return false;
+        }
+
+        /**
+         * A sleeping Fel stays invisible. {@code LivingEntity.updateInvisibilityStatus} (javap 26.2 and 26.3) sets
+         * {@code setInvisible(hasEffect(INVISIBILITY))} whenever the effects are re-read - with none, visible - so a plain
+         * {@code setInvisible(true)} lasted one tick, the sleeper showed, and Auto Clear shot at a Fel nothing could hurt
+         * (doc-adm-sim-1101, Banners on 26.2: "12 bats from here and none touched it").
+         */
+        @Override
+        protected void updateInvisibilityStatus() {
+            if (dormant) {
+                setInvisible(true);
+                return;
+            }
+            super.updateInvisibilityStatus();
+        }
+
+        @Override
+        public boolean isSensitiveToWater() {
+            return false;
+        }
+
+        @Override
+        public boolean isInvulnerableTo(net.minecraft.server.level.ServerLevel level,
+                                        net.minecraft.world.damagesource.DamageSource source) {
+            return dormant || environmental(source) || super.isInvulnerableTo(level, source);
+        }
+
+        @Override
+        public boolean hurtServer(net.minecraft.server.level.ServerLevel level,
+                                  net.minecraft.world.damagesource.DamageSource source, float amount) {
+            if (dormant) {
+                return false;
+            }
+            if (source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)
+                    && source.getEntity() instanceof net.minecraft.world.entity.player.Player p) {
+                return super.hurtServer(level, level.damageSources().playerAttack(p), amount);
+            }
+            return super.hurtServer(level, source, amount);
         }
     }
     /**

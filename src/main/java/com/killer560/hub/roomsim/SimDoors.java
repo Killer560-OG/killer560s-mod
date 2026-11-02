@@ -371,8 +371,13 @@ public final class SimDoors {
                 if (hand != InteractionHand.MAIN_HAND) {
                     return InteractionResult.PASS;
                 }
+                // A floor with mobs (SimMobFloor) wants the team's Blood Key, dropped by the last mob room before it.
+                if (SimMobFloor.bloodDoorNeedsKey() && !SimKeys.hasBloodKey()) {
+                    return InteractionResult.PASS;
+                }
                 SimKeys.useBloodKey();
                 openDoor(client, door, null);
+                SimMobFloor.onBloodDoorOpened(client);
                 return InteractionResult.SUCCESS;
             }
             ItemStack held = player.getItemInHand(hand);
@@ -651,6 +656,52 @@ public final class SimDoors {
             com.killer560.hub.livemap.LiveMapFeature.setSimDoorWither(idx);
         }
         return doors.size();
+    }
+
+    /**
+     * Turns the plain door at 11x11 cell {@code idx} into a shut WITHER door: coal in the world (the carve a built wither door
+     * gets, registered so the team's key opens it) and a wither door on the live map. Client thread; the carve runs on the
+     * integrated server. A floor with mobs ({@link SimMobFloor}) builds its path doors with it.
+     */
+    public static void makeWitherDoor(Minecraft client, int idx) {
+        var server = client.getSingleplayerServer();
+        if (!SimState.canAct(client) || server == null || idx < 0 || idx >= DungeonLayout.GRID * DungeonLayout.GRID) {
+            return;
+        }
+        boolean alongX = (idx % DungeonLayout.GRID) % 2 != 0;
+        BlockPos centre = DungeonLayout.cellCenter(idx);
+        server.execute(() -> carveDoorway(server.overworld(), centre, alongX, DungeonLayout.DOOR_WITHER));
+        com.killer560.hub.livemap.LiveMapFeature.setSimDoorWither(idx);
+    }
+
+    /**
+     * Opens the shut door at 11x11 cell {@code idx} with no key and no click (the Fairy door at the run start), through the
+     * same barrier-then-air sequence a key opens. @return whether a shut door was found there
+     */
+    public static boolean openDoorAtCell(Minecraft client, int idx) {
+        BlockPos centre = DungeonLayout.cellCenter(idx);
+        for (Door door : DOORS) {
+            for (BlockPos p : door.blocks()) {
+                if (p.getX() == centre.getX() && p.getZ() == centre.getZ()) {
+                    return openForTest(client, p);
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Whether the door at 11x11 cell {@code idx} is open on the server: none of the blocks a door registered in its center
+     *  column is still solid (a doorway that never had a door is open). Server thread. */
+    static boolean isOpenAtCell(ServerLevel level, int idx) {
+        BlockPos centre = DungeonLayout.cellCenter(idx);
+        for (Door door : DOORS) {
+            for (BlockPos p : door.blocks()) {
+                if (p.getX() == centre.getX() && p.getZ() == centre.getZ() && !level.getBlockState(p).isAir()) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /** Hypixel's "<name> opened a WITHER door!" line, from the server. */

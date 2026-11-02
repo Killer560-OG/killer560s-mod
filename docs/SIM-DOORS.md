@@ -85,6 +85,9 @@ Each looked identical from the verdict line; only the numbers told them apart.
 
 ## The sim never builds a wither door; theoretical wither doors (2026-10-04)
 
+Since 2026-11-01 a floor built with Mobs (`SimMobFloor`) DOES build them: the path doors after the first, keyed from the
+mob rooms before them (SIM-SERVER.md, "A floor with mobs"). What follows is the floor without mobs.
+
 Generated doors come out of `plan()` as NORMAL, BLOOD or ENTRANCE only. Real wither doors are not a drawing change:
 `SimMobs` fires the key drop once, when the LAST starred mob on the floor dies, so one key exists per floor and the blood
 door needs it; wither doors on the blood path would be unfinishable until keys drop per room.

@@ -296,7 +296,11 @@ public final class AutoClearFeature {
         doorTarget = -1;
         keyId = -1;
         keyTrip = false;
+        keyAnyRange = false;
         keysTried.clear();
+        keysRetried.clear();
+        felTrips.clear();
+        felWaitTicks = 0;
         keyWalkFails.clear();
         keyEntrySaid.clear();
         walkForKeyRoom = -1;
@@ -607,9 +611,22 @@ public final class AutoClearFeature {
             // A trip to a dropped key is the key's business: its failure is not the room's (pathFailures).
             keyTrip = false;
             if (travelStarted && failed && keyId >= 0) {
-                LOGGER.info("[AutoClear] key: the trip to the Wither Key #{} failed - leaving it", keyId);
-                keysTried.add(keyId);
-                keyId = -1;
+                // No way onto that stand (a key in a pit: its nearest stand was down in it): another stand in range, up to
+                // KEY_STAND_TRIES, before the key is left (doc-adm-sim-1101: one failed trip left the key for good).
+                if (lastKeyStand != null) {
+                    keyStandsFailed.add(lastKeyStand);
+                }
+                if (keyStandsFailed.size() < KEY_STAND_TRIES) {
+                    LOGGER.info("[AutoClear] key: the trip to Wither Key #{} failed ({} of {}) - trying another stand", keyId,
+                            keyStandsFailed.size(), KEY_STAND_TRIES);
+                    keyTripDone = false;
+                } else if (keyWalkTried) {
+                    LOGGER.info("[AutoClear] key: the trip to the Wither Key #{} failed - leaving it", keyId);
+                    keysTried.add(keyId);
+                    keyId = -1;
+                } else {
+                    LOGGER.info("[AutoClear] key: the trips to Wither Key #{} failed - walking to it next", keyId);
+                }
             }
             travelStarted = false;
             // He is no longer where a trip to the door left him (the key dropped after he got there: testkit
@@ -792,6 +809,31 @@ public final class AutoClearFeature {
             travelToRoom(client, player, layout, room);
             return;
         }
+        // ---- Fels (killer560, Doc 2026-11-01: "the auto clear stuff then needs to be worked around this so it knows to get
+        // fels as well"): a sleeping Fel is a starred tag over an invisible enderman nothing can hurt until a player comes
+        // within its wake range. The awake mobs first; with only sleepers left, go near the nearest and let it wake.
+        Entity sleeper = null;
+        double sleeperD = Double.MAX_VALUE;
+        List<Entity> awake = new java.util.ArrayList<>(mobs.size());
+        for (Entity m : mobs) {
+            if (isSleepingFel(m)) {
+                double d = player.position().distanceTo(m.position());
+                if (d < sleeperD) {
+                    sleeperD = d;
+                    sleeper = m;
+                }
+            } else {
+                awake.add(m);
+            }
+        }
+        if (awake.isEmpty() && sleeper != null) {
+            approachFel(client, player, layout, sleeper, sleeperD);
+            return;
+        }
+        felWaitTicks = 0;
+        if (sleeper != null) {
+            mobs = awake;
+        }
         noMobTicks = 0;
         emptySince = -1;
         midasCheckOpened(client);
@@ -815,6 +857,102 @@ public final class AutoClearFeature {
             return;
         }
         attack(client, player, target, cfg);
+    }
+
+    // ---- Fels -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Blocks from a sleeping Fel within which it wakes: 4, and 5 more since SkyBlock 0.27.2 (hypixel.net patch notes, as the
+     * sim's {@code SimHypixelRules.FEL_WAKE_RADIUS} cites them). The trip stops {@link #FEL_MARGIN} inside it.
+     */
+    static final double FEL_WAKE_BLOCKS = 9.0;
+    static final double FEL_MARGIN = 1.5;
+    /** Ticks (plus server lag) to wait in range for a Fel to show before it is skipped. */
+    static final int FEL_WAIT_TICKS = 30;
+    /** Trips toward one Fel before it is skipped. */
+    static final int FEL_MAX_TRIPS = 3;
+    /** The longest walk a forced walk (a goal etherwarps failed to reach) plans. */
+    static final double FORCED_WALK_MAX_BLOCKS = 32.0;
+    private static int felWaitTicks = 0;
+    private static long felWaitLag = 0L;
+    private static final java.util.Map<Integer, Integer> felTrips = new java.util.HashMap<>();
+    /** A Fel still asleep: an enderman (Hypixel's Fel, upside down as "Dinnerbone") the server keeps invisible until a
+     *  player comes near. */
+    static boolean isSleepingFel(Entity e) {
+        return e instanceof net.minecraft.world.entity.monster.Enderman && e.isInvisible();
+    }
+
+    /**
+     * Only sleeping Fels left in the room: within wake range wait for the nearest to show, else etherwarp to a landing
+     * inside the range ({@code DungeonKeys.standWithin}, the key's own search). A Fel that never shows, or is never got
+     * near, is skipped like any mob.
+     * @return true (this tick is the Fel's)
+     */
+    private static boolean approachFel(Minecraft client, LocalPlayer player, DungeonLayout layout, Entity fel, double d) {
+        noMobTicks = 0;
+        emptySince = -1;
+        releaseUse(client);
+        double reach = FEL_WAKE_BLOCKS - FEL_MARGIN;
+        Vec3 at = fel.position();
+        if (d <= reach) {
+            action = "waiting for the Fel to wake";
+            if (++felWaitTicks == 1) {
+                felWaitLag = com.killer560.hub.util.ServerLag.mark();
+                LOGGER.info(String.format(Locale.US, "[AutoClear] Fel #%d at %s: %.1f blocks away, inside its wake range"
+                        + " - waiting for it to wake", fel.getId(), fel.blockPosition().toShortString(), d));
+            }
+            if (felWaitTicks > FEL_WAIT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(felWaitLag)) {
+                LOGGER.info("[AutoClear] Fel #{} did not wake after {} ticks {} blocks away - skipping it", fel.getId(),
+                        felWaitTicks, String.format(Locale.US, "%.1f", d));
+                skippedMobs.add(fel.getId());
+                felWaitTicks = 0;
+            }
+            return true;
+        }
+        felWaitTicks = 0;
+        int trips = felTrips.getOrDefault(fel.getId(), 0);
+        if (trips >= FEL_MAX_TRIPS) {
+            LOGGER.info("[AutoClear] Fel #{}: {} trips and still {} blocks away - skipping it", fel.getId(), trips,
+                    String.format(Locale.US, "%.1f", d));
+            skippedMobs.add(fel.getId());
+            return true;
+        }
+        if (!AutoClearUtils.canPath(layout)) {
+            action = "waiting to land before the trip to a Fel";
+            return true;
+        }
+        BlockPos stand = com.killer560.hub.doorkeys.DungeonKeys.standWithin(at, reach - 0.5, player.position());
+        if (stand == null) {
+            stand = TeleportUtils.nearestEtherwarpable(fel.blockPosition());
+        }
+        if (stand == null) {
+            LOGGER.info("[AutoClear] Fel #{}: no block to stand on near it - skipping it", fel.getId());
+            skippedMobs.add(fel.getId());
+            return true;
+        }
+        felTrips.put(fel.getId(), trips + 1);
+        final BlockPos goal = stand;
+        if (trips >= 1) {
+            // An etherwarp toward it already ended out of range: walk there instead when there is a way on foot.
+            targetId = fel.getId();
+            targetName = fel.getName().getString();
+            if (walkInsteadOfTrip(client, player, goal, feet -> feet.distanceTo(at) <= reach, "a sleeping Fel", false, true)) {
+                LOGGER.info(String.format(Locale.US, "[AutoClear] Fel #%d: the etherwarp ended %.1f blocks away - walking",
+                        fel.getId(), d));
+                return true;
+            }
+        }
+        action = "etherwarp to wake a Fel";
+        LOGGER.info(String.format(Locale.US, "[AutoClear] Fel #%d at %s is asleep %.1f blocks away (wakes within %.0f) -"
+                + " trip to %s", fel.getId(), fel.blockPosition().toShortString(), d, FEL_WAKE_BLOCKS, goal.toShortString()));
+        startTrip(client, player, () -> {
+            // Ends on the first landing inside the range, should the warps to the stand pass one.
+            ClearExecutor.etherPathWithin(goal, at, reach, true, null);
+            lastTripGoal = goal.immutable();
+            sameGoalTrips = 1;
+            return true;
+        });
+        return true;
     }
 
     // ---- moving on at the room's last death (autoclear-speed-1020: a player who has killed the last mob he knows of goes
@@ -1542,8 +1680,10 @@ public final class AutoClearFeature {
             final BlockPos stand = goal;
             final BlockPos click = target;
             double eyeHeight = player.getEyeHeight();
+            // After a failed etherwarp toward it (a pocket the warp graph cannot leave), walk whenever there is a way on foot.
             if (!walkOffDoor && walkInsteadOfTrip(client, player, stand,
-                    feet -> doorInReach(player, feet.add(0, eyeHeight, 0), click), "the wither door", true)) {
+                    feet -> doorInReach(player, feet.add(0, eyeHeight, 0), click), "the wither door", true,
+                    pathFailures > 0)) {
                 return;
             }
             action = "etherwarp to the wither door";
@@ -1558,6 +1698,9 @@ public final class AutoClearFeature {
             return;
         }
         boolean key = witherKeyCount(player) > 0;
+        if (key) {
+            keyAnyRange = false;
+        }
         long now = ClearExecutor.clientTick();
         if (doorClicks > 0) {
             // The door still stands (target != null above): it is open only when its blocks go.
@@ -1594,6 +1737,21 @@ public final class AutoClearFeature {
                         doorClickSeq >= 0 && com.killer560.hub.util.ChestWindows.acked(doorClickSeq), doorClicks + 1,
                         DOOR_MAX_CLICKS);
             }
+        }
+        if (!key && !keyAnyRange && !witherKeyInView(client)) {
+            // A key left earlier (no way to it then) may be reachable now that more doors are open: once more each.
+            for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
+                if (!k.blood() && keysTried.contains(k.id()) && keysRetried.add(k.id())) {
+                    keysTried.remove(k.id());
+                    LOGGER.info("[AutoClear] at wither door {} with no key - trying Wither Key #{} again, left earlier", door,
+                            k.id());
+                }
+            }
+        }
+        if (!key && !keyAnyRange && witherKeyInView(client)) {
+            keyAnyRange = true;
+            LOGGER.info("[AutoClear] at wither door {} with no key, and a Wither Key lies in view - going for it", door);
+            return;
         }
         if (!key) {
             action = "waiting at the wither door - no Wither Key";
@@ -1683,6 +1841,20 @@ public final class AutoClearFeature {
     /** Keys further than this from him are left to Auto Secret / Autopilot (or him): a detour across the map is not "on
      *  the way". A key stand is only tracked by the client within its entity range anyway. */
     static final double KEY_SEARCH_RANGE = 40.0;
+    /** Set while a shut wither door waits on a key: the key search has no range then. Cleared when a key is held. */
+    private static boolean keyAnyRange = false;
+    /** Keys given another go after they had been left (one retry each). */
+    private static final Set<Integer> keysRetried = new HashSet<>();
+
+    /** Whether a dropped Wither Key not yet given up on is in the client's world. */
+    private static boolean witherKeyInView(Minecraft client) {
+        for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
+            if (!k.blood() && !keysTried.contains(k.id())) {
+                return true;
+            }
+        }
+        return false;
+    }
     /** Ticks to stand in pickup range of a key before calling the try failed (Auto Secret's KEY_WAIT_TICKS). */
     static final int KEY_WAIT_TICKS = 40;
     /** Within this many blocks a key vanishing from the client means it was taken (Auto Secret's KEY_GONE_NEAR). */
@@ -1694,6 +1866,12 @@ public final class AutoClearFeature {
     private static boolean keyTrip = false;
     /** A trip to this key has finished: out of range after it means the map cannot get closer, so it is left. */
     private static boolean keyTripDone = false;
+    /** Stands a trip to the current key could not reach, and the one the trip under way goes to. */
+    private static final Set<BlockPos> keyStandsFailed = new HashSet<>();
+    private static BlockPos lastKeyStand = null;
+    static final int KEY_STAND_TRIES = 3;
+    /** The one walk toward the current key (after its etherwarps got no closer) has been tried. */
+    private static boolean keyWalkTried = false;
     private static int keyWaitTicks = 0;
     private static long keyWaitLag = 0L;
     private static int keyCountBefore = 0;
@@ -1735,7 +1913,9 @@ public final class AutoClearFeature {
             keyLastDist = player.position().distanceTo(e.position());
         } else {
             com.killer560.hub.doorkeys.DungeonKeys.Dropped best = null;
-            double bestD = KEY_SEARCH_RANGE;
+            // Waiting at a shut wither door with no key: a key anywhere in view is the way on (doc-adm-sim-1101: a 2x2
+            // room's key dropped 50 blocks from the door he went to wait at, and he waited there for 12 minutes).
+            double bestD = keyAnyRange ? Double.MAX_VALUE : KEY_SEARCH_RANGE;
             for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k
                     : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
                 if (k.blood() || keysTried.contains(k.id())) {
@@ -1752,6 +1932,9 @@ public final class AutoClearFeature {
             }
             keyId = best.id();
             keyTripDone = false;
+            keyWalkTried = false;
+            keyStandsFailed.clear();
+            lastKeyStand = null;
             keyWaitTicks = 0;
             keyCountBefore = com.killer560.hub.doorkeys.DungeonKeys.witherKeys();
             keyLastDist = bestD;
@@ -1784,6 +1967,21 @@ public final class AutoClearFeature {
             }
             return true;
         }
+        if ((keyTripDone || keyStandsFailed.size() >= KEY_STAND_TRIES) && !keyWalkTried) {
+            // The etherwarps get no closer (a key on a ledge the warp graph cannot land on, doc-adm-sim-1101): walk to it once.
+            keyWalkTried = true;
+            BlockPos walkTo = com.killer560.hub.doorkeys.DungeonKeys.standWithin(keyPos, reach, player.position());
+            final double keyReach = reach;
+            targetId = keyId;
+            targetName = "Wither Key";
+            if (walkTo != null && walkInsteadOfTrip(client, player, walkTo, feet -> feet.distanceTo(keyPos) <= keyReach,
+                    "the Wither Key", false, true)) {
+                LOGGER.info(String.format(Locale.US, "[AutoClear] key: the etherwarps ended %.2f blocks from Wither Key #%d"
+                        + " - walking to it", keyLastDist, keyId));
+                keyTripDone = false;
+                return true;
+            }
+        }
         if (keyTripDone) {
             LOGGER.info(String.format(Locale.US, "[AutoClear] key: the trip ended %.2f blocks from Wither Key #%d (reach"
                     + " %.1f) - the map gets no closer, leaving it", keyLastDist, keyId, reach));
@@ -1795,8 +1993,8 @@ public final class AutoClearFeature {
             action = "waiting to land before the trip to the Wither Key";
             return true;
         }
-        BlockPos goal = com.killer560.hub.doorkeys.DungeonKeys.standWithin(keyPos, reach, player.position());
-        if (goal == null) {
+        BlockPos goal = com.killer560.hub.doorkeys.DungeonKeys.standWithin(keyPos, reach, player.position(), keyStandsFailed);
+        if (goal == null && keyStandsFailed.isEmpty()) {
             goal = TeleportUtils.nearestEtherwarpable(BlockPos.containing(keyPos));
         }
         if (goal == null) {
@@ -1806,6 +2004,7 @@ public final class AutoClearFeature {
             return false;
         }
         final BlockPos stand0 = goal;
+        lastKeyStand = goal.immutable();
         action = "etherwarp to the Wither Key";
         startTrip(client, player, () -> {
             // The trip ends on the first landing in range should the warps to the stand pass one (etherPathWithin).
@@ -3441,6 +3640,14 @@ public final class AutoClearFeature {
      *  (since 2026-10-20), and counted as a trip to it (tripEnded) when it arrives. */
     private static boolean walkInsteadOfTrip(Minecraft client, LocalPlayer player, BlockPos spot,
                                              java.util.function.Predicate<Vec3> doneAt, String what, boolean forDoor) {
+        return walkInsteadOfTrip(client, player, spot, doneAt, what, forDoor, false);
+    }
+
+    /** As above; {@code force}: walk whenever a way on foot exists (up to {@link #FORCED_WALK_MAX_BLOCKS}), whatever an
+     *  etherwarp would take - for a goal the etherwarps have already failed to reach (a sleeping Fel, doc-adm-sim-1101). */
+    private static boolean walkInsteadOfTrip(Minecraft client, LocalPlayer player, BlockPos spot,
+                                             java.util.function.Predicate<Vec3> doneAt, String what, boolean forDoor,
+                                             boolean force) {
         AutoClearConfig cfg = AutoClearConfig.getInstance();
         if (!cfg.isWalkWhenFaster() || !player.onGround() || !ShortWalk.mixinApplied()
                 || (forDoor ? walkOffDoor : doneAt != null ? walkOffFor == targetId : walkOffRoam)) {
@@ -3452,7 +3659,7 @@ public final class AutoClearFeature {
         }
         Vec3 goalFeet = new Vec3(spot.getX() + 0.5, spot.getY() + 1.0, spot.getZ() + 0.5);
         double straight = feet.distanceTo(goalFeet);
-        String key = BlockPos.containing(feet).asLong() + "|" + spot.asLong() + "|" + what;
+        String key = BlockPos.containing(feet).asLong() + "|" + spot.asLong() + "|" + what + (force ? "|force" : "");
         if (!key.equals(walkDecisionKey)) {
             walkWarps = warpsTo(feet, spot);
         }
@@ -3461,14 +3668,14 @@ public final class AutoClearFeature {
         if (!key.equals(walkDecisionKey)) {
             walkDecisionKey = key;
             walkDecisionPlan = null;
-            if (straight > WALK_MAX_BLOCKS) {
+            if (straight > (force ? FORCED_WALK_MAX_BLOCKS : WALK_MAX_BLOCKS)) {
                 LOGGER.info(String.format(Locale.US, "[AutoClear] move to %s: etherwarp ~%d ticks (%d warp(s)); walk not"
                         + " planned - %.1f blocks away, over %.0f", what, etherTicks, warps, straight, WALK_MAX_BLOCKS));
             } else {
                 long t0 = System.nanoTime();
                 ShortWalk.Plan plan = ShortWalk.plan(client.level, player, spot.above(), doneAt);
                 double ms = (System.nanoTime() - t0) / 1e6;
-                boolean walk = plan != null && plan.ticks() < etherTicks;
+                boolean walk = plan != null && (force || plan.ticks() < etherTicks);
                 walkDecisionPlan = walk ? plan : null;
                 LOGGER.info(String.format(Locale.US, "[AutoClear] move to %s: walk %s vs etherwarp ~%d ticks (%d warp(s),"
                                 + " %.1f blocks straight) - %s (%.1f ms)", what,

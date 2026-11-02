@@ -561,6 +561,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
   release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
   `Rows.addKept`).
+- Sim mobs burned in daylight ("onFire, by nothing") and cleared key rooms at GO with nobody near, despite their
+  `isInvulnerableTo`; `SimMobs` refuses environmental damage in Fabric ALLOW_DAMAGE (2026-11-01, docs/SIM-SERVER.md).
 - `.gitignore`'s `secrets/` matches the source package `hub/secrets/`, so `git add <path>/secrets/X.java` aborts the WHOLE
   add with "paths are ignored" although the file is tracked (2026-11-01). Stage it with `git add -u -- <paths>`.
 - Crypt census (CryptScanner rules against all 134 captures): use `killer560s-mod-logs/doc-secrets-1101/crypt_scan_port.py
