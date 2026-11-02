@@ -78,6 +78,13 @@ public final class SimMobFloor {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SimMobFloor.tick", SimMobFloor::tick));
         net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback.EVENT.register((d, r) ->
                 d.register(ClientCommands.literal("simmobs")
+                        // Bare: says which way it is (a node with children and no executes answers "Unknown or
+                        // incomplete command", CLAUDE.md).
+                        .executes(ctx -> {
+                            ModChat.send("Sim", ModChat.text("Mobs are " + (enabled ? "on" : "off")
+                                    + " for the next floor - /simmobs on|off"));
+                            return 1;
+                        })
                         .then(ClientCommands.literal("on").executes(ctx -> say(true)))
                         .then(ClientCommands.literal("off").executes(ctx -> say(false)))));
     }
