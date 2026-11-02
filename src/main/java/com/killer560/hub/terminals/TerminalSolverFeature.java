@@ -1279,13 +1279,15 @@ public final class TerminalSolverFeature {
             if (!FakeCursor.ready(melodyButtons[due.row()])) {
                 break;
             }
-            if (melodyTooLate(now)) {
-                // The gamble only wins while the server's pane is still on the target column: a lookahead click that
+            if (melodyTooLate(now) || melodyCurrentColumn == null || !melodyCurrentColumn.equals(melodyCorrectColumn)) {
+                // The gamble only wins while the server's pane is still on the target column (and the column is the one
+                // the client sees now: a pane already seen stepping off it has lost the gamble, 2026-11-02 loop 3): a lookahead click that
                 // arrives after it stepped is a sure wrong click (testkit 292: the Stream Safe hand reached row 3's
                 // button after the step, and the row was then clicked again live). Drop the rest of the burst; live
                 // play takes those rows.
-                LOGGER.info("[Melody] lookahead burst dropped at row {}: the pane has stood {} ms of a {} ms step -"
-                        + " too late to reach it", due.row(), melodyPaneAge(now), melodyStepMs());
+                LOGGER.info("[Melody] lookahead burst dropped at row {}: the pane is at column {} (target {}), stood {} ms"
+                        + " of a {} ms step - it would not reach the target", due.row(), melodyCurrentColumn,
+                        melodyCorrectColumn, melodyPaneAge(now), melodyStepMs());
                 melodyLookaheadDropped += scheduledMelodyClicks.size();
                 scheduledMelodyClicks.clear();
                 break;
