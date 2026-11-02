@@ -104,6 +104,10 @@ public final class LuckDetector {
     private static String lastMobActivity;
     private static long lastMobMs;
     private static List<String> nucleusItems;
+    private static long nucleusAtMs;
+    /** The loot message ends with the same bar it opens with, and ChatObserver drops a line repeated within 250 ms,
+     *  so the closing bar can be swallowed: the bundle also ends this long after its header. */
+    private static final long NUCLEUS_MAX_MS = 1_500;
 
     private static Map<String, Integer> snapshot;
     private static final Set<String> SEEN_UUIDS = new HashSet<>();
@@ -152,6 +156,7 @@ public final class LuckDetector {
         }
         if (NUCLEUS_START.matcher(text).matches()) {
             nucleusItems = new java.util.ArrayList<>();
+            nucleusAtMs = System.currentTimeMillis();
             return;
         }
         text = text.trim();
@@ -355,9 +360,7 @@ public final class LuckDetector {
             return;
         }
         if (NUCLEUS_END.matcher(plain).matches()) {
-            List<String> items = nucleusItems;
-            nucleusItems = null;
-            onClaim("nucleus", items, "nucleus");
+            finishNucleus();
             return;
         }
         if (nucleusItems.size() > 64) {
@@ -373,6 +376,14 @@ public final class LuckDetector {
         String name = p.matches() ? p.group(2) : s.matches() ? s.group(1) : line;
         if (!name.isBlank()) {
             nucleusItems.add(name.trim());
+        }
+    }
+
+    private static void finishNucleus() {
+        List<String> items = nucleusItems;
+        nucleusItems = null;
+        if (items != null) {
+            onClaim("nucleus", items, "nucleus");
         }
     }
 
@@ -545,6 +556,9 @@ public final class LuckDetector {
         }
         if (++ticks % 20 == 0) {
             refreshQuest();
+        }
+        if (nucleusItems != null && System.currentTimeMillis() - nucleusAtMs > NUCLEUS_MAX_MS) {
+            finishNucleus(); // its closing bar was dropped as a repeat of the opening one
         }
         if (pendingKill != null && System.currentTimeMillis() - pendingKill.atMs() > LEVEL_WAIT_MS) {
             finishSlayerKill(); // no level line came: count it with the last level seen
