@@ -61,6 +61,9 @@ final class InvSortStorage {
     private final InventoryLayout layout;
     private final List<Visit> visits = new ArrayList<>();
     private Visit visit;
+    /** Inventory slots already shift-clicked on this page: a late full-state packet from the server can show a moved
+     *  stack back for a tick, and clicking it again sends a second click on an empty slot (26.2 run c262, 2026-11-01). */
+    private final java.util.Set<Integer> clickedThisPage = new java.util.HashSet<>();
     private Phase phase = Phase.SEND;
     private int ticks;
     private String failure;
@@ -236,6 +239,7 @@ final class InvSortStorage {
                 return Result.DONE;
             }
             visit = visits.remove(0);
+            clickedThisPage.clear();
             phase = Phase.SEND;
             ticks = 0;
         }
@@ -322,8 +326,9 @@ final class InvSortStorage {
             }
             if (room) {
                 for (int s : dumpSlots(client)) {
-                    Slot slot = playerSlot(menu, inv, s);
+                    Slot slot = clickedThisPage.contains(s) ? null : playerSlot(menu, inv, s);
                     if (slot != null) {
+                        clickedThisPage.add(s);
                         return new int[]{slot.index, 1};
                     }
                 }
