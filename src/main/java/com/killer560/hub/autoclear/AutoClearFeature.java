@@ -625,10 +625,12 @@ public final class AutoClearFeature {
                     LOGGER.info("[AutoClear] key: the trip to Wither Key #{} failed ({} of {}) - trying another stand", keyId,
                             keyStandsFailed.size(), KEY_STAND_TRIES);
                     keyTripDone = false;
-                } else {
+                } else if (keyWalkTried) {
                     LOGGER.info("[AutoClear] key: the trip to the Wither Key #{} failed - leaving it", keyId);
                     keysTried.add(keyId);
                     keyId = -1;
+                } else {
+                    LOGGER.info("[AutoClear] key: the trips to Wither Key #{} failed - walking to it next", keyId);
                 }
             }
             travelStarted = false;
@@ -1859,6 +1861,8 @@ public final class AutoClearFeature {
     private static final Set<BlockPos> keyStandsFailed = new HashSet<>();
     private static BlockPos lastKeyStand = null;
     static final int KEY_STAND_TRIES = 3;
+    /** The one walk toward the current key (after its etherwarps got no closer) has been tried. */
+    private static boolean keyWalkTried = false;
     private static int keyWaitTicks = 0;
     private static long keyWaitLag = 0L;
     private static int keyCountBefore = 0;
@@ -1919,6 +1923,7 @@ public final class AutoClearFeature {
             }
             keyId = best.id();
             keyTripDone = false;
+            keyWalkTried = false;
             keyStandsFailed.clear();
             lastKeyStand = null;
             keyWaitTicks = 0;
@@ -1952,6 +1957,21 @@ public final class AutoClearFeature {
                 return false;
             }
             return true;
+        }
+        if ((keyTripDone || keyStandsFailed.size() >= KEY_STAND_TRIES) && !keyWalkTried) {
+            // The etherwarps get no closer (a key on a ledge the warp graph cannot land on, doc-adm-sim-1101): walk to it once.
+            keyWalkTried = true;
+            BlockPos walkTo = com.killer560.hub.doorkeys.DungeonKeys.standWithin(keyPos, reach, player.position());
+            final double keyReach = reach;
+            targetId = keyId;
+            targetName = "Wither Key";
+            if (walkTo != null && walkInsteadOfTrip(client, player, walkTo, feet -> feet.distanceTo(keyPos) <= keyReach,
+                    "the Wither Key", false, true)) {
+                LOGGER.info(String.format(Locale.US, "[AutoClear] key: the etherwarps ended %.2f blocks from Wither Key #%d"
+                        + " - walking to it", keyLastDist, keyId));
+                keyTripDone = false;
+                return true;
+            }
         }
         if (keyTripDone) {
             LOGGER.info(String.format(Locale.US, "[AutoClear] key: the trip ended %.2f blocks from Wither Key #%d (reach"
