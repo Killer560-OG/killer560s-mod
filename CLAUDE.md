@@ -488,3 +488,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Crypt census (CryptScanner rules against all 134 captures): use `killer560s-mod-logs/doc-secrets-1101/crypt_scan_port.py
   --new --rule crypt_1101_rule.py` (paths fixed for 26.3 Mod Only Test); the older copy in `crypt-census/` points at a
   deleted worktree and the wiped 26.1.2 instance. Run `python -I` on a file, never `python -` with stdin redirected.
+- The Modrinth App starts the game through `com.modrinth.theseus.MinecraftLaunch` (so `sun.java.command` names it) and keeps
+  its signed-in accounts in `%APPDATA%\ModrinthApp\app.db`, SQLite in WAL mode: table `minecraft_users` (uuid, active,
+  username, access_token, refresh_token, expires in Unix seconds), recent rows often only in `app.db-wal`. Its refresh token
+  is bound to the app's Xbox device key, so the mod uses the app's current token (`accounts/core/LauncherAccounts`,
+  `SqliteReader`, read only; 2026-11-01). Inspect a COPY of app.db, never the live file, and never print a token.
