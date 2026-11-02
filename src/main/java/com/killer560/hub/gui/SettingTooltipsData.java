@@ -2132,6 +2132,8 @@ final class SettingTooltipsData {
         d.put("custom mage beam/width", "How thick the custom Mage beam is drawn.");
         d.put("custom mage beam/duration", "How long each custom Mage beam stays drawn, 5-100 ticks.");
         d.put("custom mage beam/shape", "How the custom Mage beam is drawn: Square, Flat or Cylinder.");
+        d.put("custom mage beam/color mode", "Solid: the Beam Color. Fade: from the Beam Color at the start to the Fade Color at the end. Rotating: a rainbow along the beam that turns over time.");
+        d.put("custom mage beam/fade color", "The color the beam fades to at its far end in the Fade color mode.");
         d.put("auto dialogue/delay", "How long Auto Dialogue waits before clicking the option, 0-40 ticks (cheat build only).");
         d.put("echoes of the lost", "Dungeon Sim only: charges each secret gives back to the Dungeon Breaker (0 is off; default is the maxed perk, 5).");
         d.put("breaker aura/reach", "How far from your eyes a picked block can be and still be broken, 1.0 up to the measured limit (cheat build only).");

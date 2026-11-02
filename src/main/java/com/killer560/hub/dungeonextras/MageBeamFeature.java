@@ -159,10 +159,68 @@ public final class MageBeamFeature {
             // low width still reads at range, where a 5cm solid is under a pixel wide.
             // 2026-10-18: "should not rotate as I run around it" - the body used to be one quad turned to face the
             // camera, so it swung round with every step. It is now fixed to the beam (see beamQuads).
-            renderBeamBody(context, beam.quads(shape, widthBlocks), rgba[0], rgba[1], rgba[2], alpha);
+            int mode = cfg.getMageBeamColorMode();
+            renderBeamBody(context, beam.quads(shape, widthBlocks), cfg.getMageBeamColor(), cfg.getMageBeamColor2(),
+                    mode, alpha, now);
+            // The core line only where the body is too thin to see (killer560, 2026-11-01: with Flat and a wide beam "the
+            // very middle is still a bit darker than the rest ... for all variants"): the 2 px core was drawn over the
+            // body in the same translucent color, so wherever both showed, the middle doubled up. Now it is drawn only
+            // while the body is under 2 px on screen, at range or at the thinnest widths.
             // beam.core is only replaced, never changed, so the render callback may read it later in the frame (26.2).
-            WorldRenderUtils.renderLineStrip(context, beam.core, rgba[0], rgba[1], rgba[2], alpha, 2f);
+            if (coreNeeded(context, beam.min(), beam.max(), widthBlocks)) {
+                float[] c = colorAt(cfg.getMageBeamColor(), cfg.getMageBeamColor2(), mode, 0f, now);
+                WorldRenderUtils.renderLineStrip(context, beam.core, c[0], c[1], c[2], alpha, 2f);
+                coreDraws++;
+            }
+            bodyDraws++;
         }
+    }
+
+    private static volatile int coreDraws;
+    private static volatile int bodyDraws;
+
+    /** Beam bodies drawn, and of those how many also drew the core line (testkit evidence). */
+    public static int[] drawCounts() {
+        return new int[]{bodyDraws, coreDraws};
+    }
+
+    /** Whether the body's width at its nearest point to the camera is under 2 screen pixels, so the core line must show it. */
+    static boolean coreNeeded(LevelRenderContext context, Vec3 start, Vec3 end, float widthBlocks) {
+        Vec3 cam = com.killer560.hub.compat.McRender.cameraPos(context);
+        if (cam == null) {
+            return true;
+        }
+        Vec3 ab = end.subtract(start);
+        double len2 = ab.lengthSqr();
+        double t = len2 < 1.0E-9 ? 0 : Math.max(0, Math.min(1, cam.subtract(start).dot(ab) / len2));
+        double dist = Math.max(0.05, cam.distanceTo(start.add(ab.scale(t))));
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        double vfov = Math.toRadians(Math.max(30, Math.min(110, mc.options.fov().get())));
+        double screenH = mc.getWindow().getHeight();
+        double px = widthBlocks / (2.0 * dist * Math.tan(vfov / 2.0)) * screenH;
+        return px < 2.0;
+    }
+
+    /** RGB (0..1) at {@code s} (0 = the beam's start, 1 = its end) for the color mode, at time {@code nowMs}. */
+    static float[] colorAt(int c1, int c2, int mode, float s, long nowMs) {
+        int argb;
+        if (mode == DungeonExtrasConfig.BEAM_COLOR_FADE) {
+            argb = lerpColor(c1, c2, s);
+        } else if (mode == DungeonExtrasConfig.BEAM_COLOR_ROTATING) {
+            // One full rainbow along the beam, turning once every two seconds.
+            float hue = (float) (((nowMs % 2000L) / 2000.0 + s) % 1.0);
+            argb = java.awt.Color.HSBtoRGB(hue, 0.85f, 1f);
+        } else {
+            argb = c1;
+        }
+        return new float[]{((argb >> 16) & 0xFF) / 255f, ((argb >> 8) & 0xFF) / 255f, (argb & 0xFF) / 255f};
+    }
+
+    private static int lerpColor(int a, int b, float t) {
+        int r = Math.round(((a >> 16) & 0xFF) + (((b >> 16) & 0xFF) - ((a >> 16) & 0xFF)) * t);
+        int g = Math.round(((a >> 8) & 0xFF) + (((b >> 8) & 0xFF) - ((a >> 8) & 0xFF)) * t);
+        int bl = Math.round((a & 0xFF) + ((b & 0xFF) - (a & 0xFF)) * t);
+        return (r << 16) | (g << 8) | bl;
     }
 
     /**
@@ -203,27 +261,51 @@ public final class MageBeamFeature {
         return quads;
     }
 
-    /** Draws {@link #beamQuads} with both windings, so face culling can't hide a side. */
-    private static void renderBeamBody(LevelRenderContext context, List<Vec3[]> quads,
-                                       float r, float g, float b, float a) {
+    /** Pieces a beam is cut into along its length for Rotating, so the rainbow runs along it; Solid and Fade need one
+     *  (a fade between the two ends is exactly what the vertex colors blend). */
+    private static final int ROTATING_PIECES = 24;
+
+    /** Draws {@link #beamQuads} with both windings, so face culling cannot hide a side. Each quad's corners 0 and 3 are
+     *  at the beam's start and 1 and 2 at its end, so the color can run from start to end. */
+    private static void renderBeamBody(LevelRenderContext context, List<Vec3[]> quads, int c1, int c2, int mode,
+                                       float a, long now) {
         if (quads.isEmpty()) {
             return;
+        }
+        int pieces = mode == DungeonExtrasConfig.BEAM_COLOR_ROTATING ? ROTATING_PIECES : 1;
+        float[][] colors = new float[pieces + 1][];
+        for (int k = 0; k <= pieces; k++) {
+            colors[k] = colorAt(c1, c2, mode, k / (float) pieces, now);
         }
         McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
             org.joml.Matrix4f matrix = pose.pose();
             for (Vec3[] q : quads) {
-                quad(buffer, matrix, q[0], q[1], q[2], q[3], r, g, b, a);
-                quad(buffer, matrix, q[3], q[2], q[1], q[0], r, g, b, a);
+                for (int k = 0; k < pieces; k++) {
+                    double s0 = k / (double) pieces;
+                    double s1 = (k + 1) / (double) pieces;
+                    Vec3 p0 = lerp(q[0], q[1], s0);
+                    Vec3 p1 = lerp(q[0], q[1], s1);
+                    Vec3 p2 = lerp(q[3], q[2], s1);
+                    Vec3 p3 = lerp(q[3], q[2], s0);
+                    float[] ca = colors[k];
+                    float[] cb = colors[k + 1];
+                    quad(buffer, matrix, p0, p1, p2, p3, ca, cb, cb, ca, a);
+                    quad(buffer, matrix, p3, p2, p1, p0, ca, cb, cb, ca, a);
+                }
             }
         });
     }
 
+    private static Vec3 lerp(Vec3 from, Vec3 to, double t) {
+        return t <= 0 ? from : t >= 1 ? to : from.add(to.subtract(from).scale(t));
+    }
+
     private static void quad(VertexConsumer buffer, org.joml.Matrix4f matrix, Vec3 p0, Vec3 p1, Vec3 p2, Vec3 p3,
-                             float r, float g, float b, float a) {
-        vertex(buffer, matrix, p0, r, g, b, a);
-        vertex(buffer, matrix, p1, r, g, b, a);
-        vertex(buffer, matrix, p2, r, g, b, a);
-        vertex(buffer, matrix, p3, r, g, b, a);
+                             float[] c0, float[] c1, float[] c2, float[] c3, float a) {
+        vertex(buffer, matrix, p0, c0[0], c0[1], c0[2], a);
+        vertex(buffer, matrix, p1, c1[0], c1[1], c1[2], a);
+        vertex(buffer, matrix, p2, c2[0], c2[1], c2[2], a);
+        vertex(buffer, matrix, p3, c3[0], c3[1], c3[2], a);
     }
 
     private static void vertex(VertexConsumer buffer, org.joml.Matrix4f matrix, Vec3 p,

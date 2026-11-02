@@ -79,6 +79,29 @@ public class CustomMageBeamTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
 
+        // Color Mode (killer560, 2026-11-01): Solid, Fade (start to end) or Rotating (a rainbow along the beam).
+        widgets.add(SettingsButtonWidget.cycling(colorModeText(cfg), (btn, dir) -> {
+                    cfg.setMageBeamColorMode(SettingsButtonWidget.step(cfg.getMageBeamColorMode(), dir,
+                            DungeonExtrasConfig.BEAM_COLOR_MODE_NAMES.length));
+                    cfg.save();
+                    btn.setMessage(colorModeText(cfg));
+                    if (requestRebuild != null) {
+                        requestRebuild.run();
+                    }
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
+        if (cfg.getMageBeamColorMode() == DungeonExtrasConfig.BEAM_COLOR_FADE) {
+            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Fade Color", cfg.getMageBeamColor2()), btn -> {
+                        Minecraft client = Minecraft.getInstance();
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Fade Color",
+                                cfg.getMageBeamColor2(), DungeonExtrasConfig.DEFAULT_BEAM_COLOR_2, argb -> {
+                            cfg.setMageBeamColor2(argb);
+                            cfg.save();
+                        }));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 20;
+        }
+
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, durationText(cfg),
                 (cfg.getMageBeamDurationTicks() - 5) / 95.0) {
             @Override
@@ -103,6 +126,10 @@ public class CustomMageBeamTab extends BaseTab {
 
     private static Component shapeText(DungeonExtrasConfig cfg) {
         return Component.literal("Shape: " + DungeonExtrasConfig.BEAM_SHAPE_NAMES[cfg.getMageBeamShape()]);
+    }
+
+    private static Component colorModeText(DungeonExtrasConfig cfg) {
+        return Component.literal("Color Mode: " + DungeonExtrasConfig.BEAM_COLOR_MODE_NAMES[cfg.getMageBeamColorMode()]);
     }
 
     private static Component durationText(DungeonExtrasConfig cfg) {
