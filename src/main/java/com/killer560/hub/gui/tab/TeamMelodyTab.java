@@ -26,6 +26,14 @@ public class TeamMelodyTab extends BaseTab {
         super("Team Melody");
     }
 
+    /** Share My Progress publishes with the HUD off. Several independent features side by side, so the card is ON while any is on
+     *  (CLAUDE.md masterToggles rule; menufix-1102 sweep). */
+    @Override
+    public java.util.List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(
+            java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
+        return switchRows(built, "Team Melody HUD", "Share My Progress");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();

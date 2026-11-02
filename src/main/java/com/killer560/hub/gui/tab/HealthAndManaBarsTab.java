@@ -107,6 +107,14 @@ public class HealthAndManaBarsTab extends BaseTab {
      * readouts and the vanilla hides. Every setting is the same field as before; only where its row sits changed. The
      * "Hide Vanilla XP Bar" row was a second copy of Hide's "XP Bar And Level" and is gone (the setting stays there).
      */
+    /** The XP bar and stat text hides never depended on Stat Bars. Several independent features side by side, so the card is ON while any is on
+     *  (CLAUDE.md masterToggles rule; menufix-1102 sweep). */
+    @Override
+    public java.util.List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(
+            java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
+        return switchRows(built, "Stat Bars", "XP Bar And Level", "Hypixel Stat Text");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();

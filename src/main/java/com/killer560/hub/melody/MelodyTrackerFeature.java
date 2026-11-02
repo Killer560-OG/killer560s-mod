@@ -208,7 +208,8 @@ public final class MelodyTrackerFeature {
      * terminal closing says that), never twice for the same step.
      */
     private static void maybeSendProgress(int clayRow) {
-        if (!com.killer560.hub.terminals.TerminalSolverConfig.getInstance().isMelodySendProgress()
+        com.killer560.hub.terminals.TerminalSolverConfig solver = com.killer560.hub.terminals.TerminalSolverConfig.getInstance();
+        if (!solver.isEnabled() || !solver.isMelodyEnabled() || !solver.isMelodySendProgress()
                 || !com.killer560.hub.fastleap.Floor7Tracker.inF7Boss()) {
             return;
         }

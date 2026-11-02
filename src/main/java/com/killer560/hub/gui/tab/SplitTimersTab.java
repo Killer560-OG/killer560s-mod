@@ -17,6 +17,17 @@ public class SplitTimersTab extends BaseTab {
         super("Split Timers");
     }
 
+    /** Core Entry Times runs with the splits off only while Show With Splits Off is on (isCoreEntryActive). Several independent features side by side, so the card is ON while any is on
+     *  (CLAUDE.md masterToggles rule; menufix-1102 sweep). */
+    @Override
+    public java.util.List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(
+            java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
+        com.killer560.hub.splittimers.SplitTimersConfig cfg = com.killer560.hub.splittimers.SplitTimersConfig.getInstance();
+        return cfg.isCoreEntryWithoutSplits()
+                ? switchRows(built, "Split Timers", "Core Entry Times")
+                : switchRows(built, "Split Timers");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();

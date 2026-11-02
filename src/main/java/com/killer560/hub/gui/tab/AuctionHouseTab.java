@@ -26,6 +26,14 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
         super("Auction House");
     }
 
+    /** The Listing Helper runs with the browser off (ListingHelperFeature). Several independent features side by side, so the card is ON while any is on
+     *  (CLAUDE.md masterToggles rule; menufix-1102 sweep). */
+    @Override
+    public java.util.List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(
+            java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
+        return switchRows(built, "Auction House Browser", "Listing Helper");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
@@ -38,6 +46,11 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
         widgets.add(onOffButton("Auction House Browser", cfg::isAhEnabledRaw, cfg::setAhEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
+
+        // Its own feature (works with the browser off), so it is built before the browser's early return.
+        widgets.add(onOffButton("Listing Helper", cfg::isListingHelperEnabledRaw, cfg::setListingHelperEnabled,
+                cfg::save, null, contentX, y, contentWidth, 18));
+        y += 24;
 
         if (!cfg.isAhEnabledRaw()) {
             return widgets;
@@ -64,9 +77,6 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
                 .bounds(colBX, y, colW, 18).build());
         y += 26;
 
-        widgets.add(onOffButton("Listing Helper", cfg::isListingHelperEnabledRaw, cfg::setListingHelperEnabled,
-                cfg::save, null, contentX, y, contentWidth, 18));
-        y += 24;
 
         // The unified Auction House (2026-10-07): Hypixel's real AH menus drawn in the browser's look - part of the
         // Auction House Browser switch above since 2026-10-11, so only its Hypixel Menu key is left here.

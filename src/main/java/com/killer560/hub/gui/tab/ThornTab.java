@@ -32,7 +32,7 @@ public class ThornTab extends BaseTab {
     /** The card is ON while any part is on, OFF only when all are; turning it on turns on the Spirit Bear HUD. */
     @Override
     public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Spirit Bear HUD", "Show Overkill", "Overkill Chat", "Overkill To Party",
+        return switchRows(built, "Spirit Bear HUD", "Overkill Chat",
                 "Thorn Highlight", "Spirit Bear Highlight", "Spirit Mob Highlight", "Spirit Bow Highlight",
                 "Stun Spot Waypoints", "All Mobs Through Walls", "Bats Through Walls");
     }

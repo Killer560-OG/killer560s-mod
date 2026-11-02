@@ -357,7 +357,7 @@ public final class SimonSaysConfig {
     }
 
     public boolean isPartyProgressTrackerEnabled() {
-        return partyProgressTrackerEnabled && com.killer560.hub.util.SkyblockGate.allows();
+        return partyProgressTrackerEnabled && enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setPartyProgressTrackerEnabled(boolean partyProgressTrackerEnabled) {
