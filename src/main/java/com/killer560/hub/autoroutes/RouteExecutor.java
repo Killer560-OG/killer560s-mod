@@ -5129,6 +5129,20 @@ public final class RouteExecutor {
                         + " next tick (GrimAC MultiBreak)", nodeTag(node));
                 return;
             }
+            if (!AutoRoutesConfig.getInstance().isLegitMode()
+                    && !com.killer560.hub.util.DigAim.heardLookStrikes(player, hit.getBlockPos())) {
+                // The tap is a dig: it goes only on a look the server has already processed (rbcause-1102, killer560
+                // 2026-11-02 "Spend the extra tick"). Turn now; the tap goes next tick.
+                if (aimTurns(hit.getBlockPos()) <= AIM_TRIES) {
+                    turnBody(player, player.getYRot() + Mth.wrapDegrees(boomAimYaw - player.getYRot()),
+                            Mth.clamp(boomAimPitch, -90f, 90f));
+                    logHold("boomturn:" + traceIndex(node), "node {} BOOM: turning to the tap's look - it goes next tick",
+                            nodeTag(node));
+                    return;
+                }
+                LOGGER.info("[AutoRoutes] Node #{} BOOM: the look the server has never struck {} after {} turn(s) - "
+                        + "tapping anyway", route.indexOf(node) + 1, hit.getBlockPos().toShortString(), AIM_TRIES);
+            }
             boomTarget = hit.getBlockPos();
             boomBefore.clear();
             for (int dx = -BOOM_WATCH_RADIUS; dx <= BOOM_WATCH_RADIUS; dx++) {
@@ -5579,19 +5593,25 @@ public final class RouteExecutor {
                             + " tick - {} goes next tick (GrimAC MultiBreak)", nodeTag(node), pos.toShortString());
                     return;
                 }
-                boolean atMove = !legitMode && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos);
-                breakerQueue.remove(0);
-                if (atMove) {
+                // Dug only on a look the server has ALREADY processed (killer560, 2026-11-02: "Spend the extra tick").
+                // A dig that rides the next movement packet's look is judged by it only when the server processes that
+                // packet within 15 ms of the dig, which a loaded server did not do (rbcause-1102): turn now, dig next
+                // tick. No tick is spent when the look is already on it, and each later block's turn rides a dig's tick.
+                if (!legitMode && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos)) {
+                    if (aimTurns(pos) > AIM_TRIES) {
+                        breakerQueue.remove(0);
+                        LOGGER.info("[AutoRoutes] Breaker block {} skipped: no look the server had struck it after {} "
+                                + "turn(s) (left to the linger)", pos.toShortString(), AIM_TRIES);
+                        continue;
+                    }
                     turnBodyToward(player, Vec3.atCenterOf(pos));
-                    com.killer560.hub.util.DigWindow.reserve(pos);
-                    com.killer560.hub.util.BeforeMove.queue(() -> {
-                        sendBreak(client, player, pos);
-                        com.killer560.hub.compat.McCompat.swingAttack(player);
-                    });
-                } else {
-                    sendBreak(client, player, pos);
-                    com.killer560.hub.compat.McCompat.swingAttack(player);
+                    logHold("breakeraim:" + traceIndex(node), "node {} DUNGEON_BREAKER: turning to {} - dug next tick on"
+                            + " the look the server then has", nodeTag(node), pos.toShortString());
+                    return;
                 }
+                breakerQueue.remove(0);
+                sendBreak(client, player, pos);
+                com.killer560.hub.compat.McCompat.swingAttack(player);
                 breakerChargesLeft--;
                 sentNow++;
                 if (breakerSent.isEmpty()) {
@@ -5603,7 +5623,7 @@ public final class RouteExecutor {
                     LOGGER.info("[AutoRoutes] Breaker: multi break block {} at {} ({} tick(s) after the first)",
                             breakerSent.size(), pos.toShortString(), stepTicks);
                 }
-                if (!legitMode && !atMove) {
+                if (!legitMode) {
                     // The next block's turn goes in this tick's movement packet, so it is dug next tick with no turn tick
                     // between (Grim also tries the previous look for this dig, so turning now does not unaim it).
                     BlockPos next = nextBreakerTarget(client, eye);
@@ -5662,6 +5682,13 @@ public final class RouteExecutor {
                 }
                 if (!com.killer560.hub.util.DigWindow.mayDigOrHold(pos)) {
                     breakerObsidian.add(0, pos); // a dig already went this server tick (GrimAC MultiBreak): next tick
+                    return;
+                }
+                if (!AutoRoutesConfig.getInstance().isLegitMode()
+                        && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos) && aimTurns(pos) <= AIM_TRIES) {
+                    // Started only on a look the server has already processed (rbcause-1102): turn now, start next tick.
+                    breakerObsidian.add(0, pos);
+                    turnBodyToward(player, Vec3.atCenterOf(pos));
                     return;
                 }
                 select(client, player, slot);
@@ -5799,23 +5826,17 @@ public final class RouteExecutor {
             if (!com.killer560.hub.util.DigWindow.mayDigOrHold(pos)) {
                 return false; // a dig already went this server tick (GrimAC MultiBreak): next tick
             }
-            boolean atMove = !AutoRoutesConfig.getInstance().isLegitMode()
-                    && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos);
+            if (!AutoRoutesConfig.getInstance().isLegitMode()
+                    && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos)) {
+                // Dug next tick on the look the server then has (rbcause-1102: never on a look still in flight).
+                turnBodyToward(player, Vec3.atCenterOf(pos));
+                return true;
+            }
             LOGGER.info("[AutoRoutes] Breaker: {} ({}) still standing {} tick(s) after its dig (round trip {}) - digging it "
                             + "again", pos.toShortString(), client.level.getBlockState(pos).getBlock().getName().getString(),
                     execTicks - breakerSentAt.get(pos), wait);
-            if (atMove) {
-                // Turned this tick: the dig goes at the head of the movement packet carrying the look (util/BeforeMove).
-                turnBodyToward(player, Vec3.atCenterOf(pos));
-                com.killer560.hub.util.DigWindow.reserve(pos);
-                com.killer560.hub.util.BeforeMove.queue(() -> {
-                    sendBreak(client, player, pos);
-                    com.killer560.hub.compat.McCompat.swingAttack(player);
-                });
-            } else {
-                sendBreak(client, player, pos);
-                com.killer560.hub.compat.McCompat.swingAttack(player);
-            }
+            sendBreak(client, player, pos);
+            com.killer560.hub.compat.McCompat.swingAttack(player);
             breakerSentAt.put(pos, execTicks);
             breakerRedigs++;
             sent++;
@@ -6075,13 +6096,13 @@ public final class RouteExecutor {
                         pos.toShortString());
                 return;
             }
-            // Aimed as GrimAC's RotationBreak judges it (util/DigAim): the look the server has strikes it, or the body
-            // turns now and the dig goes at the head of this tick's movement packet (util/BeforeMove).
-            boolean atMove = !legitMode && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos);
-            if (atMove) {
+            // Aimed as GrimAC's RotationBreak judges it (util/DigAim): only on a look the server has already processed;
+            // otherwise turn now and dig it next tick (rbcause-1102).
+            if (!legitMode && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos)) {
                 turnBodyToward(player, Vec3.atCenterOf(pos));
-                com.killer560.hub.util.DigWindow.reserve(pos);
+                return;
             }
+            boolean atMove = false;
             if (com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(client.level.getBlockState(pos))) {
                 // Obsidian is dug alone and held until the server breaks it - never re-STARTed on a timer, which
                 // restarts the server's dig.
@@ -6114,7 +6135,7 @@ public final class RouteExecutor {
             lingerSentAt.put(pos, lingerTicks);
             lingerBroken++;
             sentNow++;
-            if (!legitMode && !atMove && inReach.size() > 1) {
+            if (!legitMode && inReach.size() > 1) {
                 // The next block's turn rides this tick's movement packet: dug next tick with no turn tick between.
                 BlockPos next = inReach.get(inReach.indexOf(pos) + 1 < inReach.size() ? inReach.indexOf(pos) + 1 : 0);
                 if (!next.equals(pos) && !com.killer560.hub.util.DigAim.strikes(player.position(),
@@ -6141,6 +6162,7 @@ public final class RouteExecutor {
         Vec3 eye = player.getEyePosition();
         int sentNow = 0;
         boolean turned = false;
+        BlockPos pendingTurn = null;
         boolean atMove = false;
         List<BlockPos> burst = new ArrayList<>();
         java.util.Iterator<BlockPos> it = breakerQueue.iterator();
@@ -6167,13 +6189,15 @@ public final class RouteExecutor {
                 breakerChargesLeft--;
                 continue; // dug alone after the others (CONFIRM)
             }
-            if (!turned && !legitMode && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos)) {
-                // Turned this tick: the burst goes at the head of the movement packet carrying the look, in one write
-                // with it (util/BeforeMove), as a single dig does.
-                turnBodyToward(player, Vec3.atCenterOf(pos));
-                atMove = true;
+            if (!legitMode && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos)) {
+                // Burst digs are aimed too (killer560, 2026-11-02): only blocks the look the server has already
+                // processed strikes go in this tick's burst; the rest wait for the turn below and go next tick.
+                if (!turned) {
+                    turned = true;
+                    pendingTurn = pos;
+                }
+                continue;
             }
-            turned = true;
             it.remove();
             burst.add(pos);
             breakerChargesLeft--;
@@ -6198,8 +6222,32 @@ public final class RouteExecutor {
             }
             LOGGER.info("[AutoRoutes] Breaker: {} block(s) on one tick (burst multi break)", sentNow);
         }
+        if (pendingTurn != null && !breakerQueue.isEmpty() && breakerChargesLeft > 0) {
+            if (aimTurns(pendingTurn) <= AIM_TRIES) {
+                // The rest of the burst goes next tick on the look this tick's movement packet carries.
+                turnBodyToward(player, Vec3.atCenterOf(pendingTurn));
+                return;
+            }
+            LOGGER.info("[AutoRoutes] Breaker: {} burst block(s) never on the look the server had - left to the linger",
+                    breakerQueue.size());
+            breakerQueue.clear();
+        }
         step = Step.CONFIRM;
         stepTicks = 0;
+    }
+
+    /** Turns made toward one dig target in a row (reset when the target changes); a dig whose look the server never
+     *  confirms after {@link #AIM_TRIES} turns is given up (a moving player, an unreachable face). */
+    private static final int AIM_TRIES = 3;
+    private static BlockPos aimTurnPos;
+    private static int aimTurnCount;
+
+    private static int aimTurns(BlockPos pos) {
+        if (!pos.equals(aimTurnPos)) {
+            aimTurnPos = pos.immutable();
+            aimTurnCount = 0;
+        }
+        return ++aimTurnCount;
     }
 
     /**
