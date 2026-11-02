@@ -7,6 +7,7 @@ import com.killer560.hub.util.ViewFreeze;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -627,7 +628,7 @@ public final class AutoWalker {
             }
             WalkCamera.aim(yaw(into, player), -28f);
             wantForward = Math.abs(Mth.wrapDegrees(into - player.getYRot())) < 50f;
-            centerOnLadder(player, pos);
+            centerOnLadder(level, player, pos);
             return;
         }
 
@@ -1038,7 +1039,7 @@ public final class AutoWalker {
                 wantRight = false;
                 wantBack = false;
                 wantSprint = false;
-                centerOnLadder(player, pos);
+                centerOnLadder(level, player, pos);
                 climbTicks++;
             } else if (player.onGround() && rise > player.maxUpStep() + 0.01 && rise <= jumpH && horizontal < 1.7) {
                 wantJump = true;
@@ -1114,9 +1115,15 @@ public final class AutoWalker {
     /**
      * On a ladder, keep his 0.6-wide box inside the ladder's own column: 0.2 off its center his head catches the block
      * beside the shaft and he climbs no further (testkit 1101-fairy-island-GOLD_MINES: 0.22 off, stuck at the same height
-     * on every try). One strafe key toward the center, only while he is more than 0.12 off it.
+     * on every try). One strafe key toward the center, only while he would still come to rest more than 0.08 off it.
+     *
+     * <p>Never on a ladder with water in his box: GrimAC's prediction of the water current on a ladder flags Simulation
+     * (.0047/.007 decaying x0.8) for plain vanilla keys too (testkit 1102-fairy-grim-flowladder and the BAYOU_SPILL keys
+     * control). The old centering overshot 0.25 on its own momentum and put his box 0.06 into the pool beside the shaft.
+     * So the rest point is predicted from his sideways speed (about ten ticks of air drag), the target moves 0.1 away
+     * from a side with water, and no key ever strafes toward water.
      */
-    private static void centerOnLadder(LocalPlayer player, Vec3 pos) {
+    private static void centerOnLadder(Level level, LocalPlayer player, Vec3 pos) {
         if (!player.onClimbable()) {
             return;
         }
@@ -1127,10 +1134,31 @@ public final class AutoWalker {
         double lx = Math.cos(yawRad);
         double lz = Math.sin(yawRad);
         double side = -(ox * lx + oz * lz); // how far to move left (positive) to reach the center
-        if (Math.abs(side) > 0.12) {
-            wantLeft = side > 0;
-            wantRight = side < 0;
+        boolean waterLeft = waterBeside(level, pos, lx, lz);
+        boolean waterRight = waterBeside(level, pos, -lx, -lz);
+        if (waterLeft != waterRight) {
+            side += waterLeft ? -0.1 : 0.1;
         }
+        Vec3 v = player.getDeltaMovement();
+        double need = side - (v.x * lx + v.z * lz) * 10.0; // less what his sideways speed carries him with no key
+        wantLeft = false;
+        wantRight = false;
+        if (Math.abs(need) > 0.08) {
+            wantLeft = need > 0 && !waterLeft;
+            wantRight = need < 0 && !waterRight;
+        }
+    }
+
+    /** Water within 0.55 of his center on that side, from his feet to a block above his head. */
+    private static boolean waterBeside(Level level, Vec3 pos, double sx, double sz) {
+        double x = pos.x + sx * 0.55;
+        double z = pos.z + sz * 0.55;
+        for (double dy = 0.0; dy <= 2.9; dy += 0.95) {
+            if (level.getBlockState(BlockPos.containing(x, pos.y + dy, z)).getFluidState().is(FluidTags.WATER)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void finishRescue(String how) {
