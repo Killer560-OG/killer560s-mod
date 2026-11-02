@@ -43,6 +43,20 @@ public class ModTagTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
+        // Tag Style (killer560, 2026-11-01: "Make it look like something that more resembles our mod"): how tags look to
+        // you, with a preview of yours beside it. Left click steps forward, right click back.
+        int styleW = contentWidth * 3 / 5;
+        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
+                    cfg.setTagStyle(SettingsButtonWidget.step(cfg.getTagStyle(), dir));
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, styleW, 18).build());
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        String me = mc.player != null ? mc.player.getGameProfile().name() : "Player";
+        widgets.add(new net.minecraft.client.gui.components.StringWidget(contentX + styleW + 6, y + 5, contentWidth - styleW - 6,
+                10, cfg.getTagStyle().tag(cfg.getShareAs(), Component.literal(me)), mc.font));
+        y += 22;
+
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
             // A cheat-only row: at the bottom of the tab, under the red Cheat header.
             y += 6;
@@ -54,9 +68,14 @@ public class ModTagTab extends BaseTab {
                         cfg.save();
                         ModUsers.announce();
                         btn.setMessage(showAsText(cfg));
+                        requestRebuild.run(); // the Tag Style preview shows the variant too
                     }).bounds(contentX, y, contentWidth, 18).build());
         }
         return widgets;
+    }
+
+    private static Component styleText(ModUserConfig cfg) {
+        return Component.literal("Tag Style: " + cfg.getTagStyle().label);
     }
 
     private static Component showAsText(ModUserConfig cfg) {

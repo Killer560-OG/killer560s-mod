@@ -7,13 +7,11 @@ import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedEditBox;
-import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -25,11 +23,14 @@ import java.util.Optional;
 
 /**
  * The Custom Items menu (killer560, 2026-10-08; main page redesigned 2026-10-18). Left: a search box and the grid of
- * the player's own items (armor, inventory, hotbar). Right: the selected item's preview and four buttons:
+ * the player's own items (armor, inventory, hotbar). Right: the selected item's preview, always drawn with its look
+ * (killer560, 2026-11-01: the Show With Look switch is gone), and four buttons:
  * <ul>
- *   <li><b>Custom Item</b> - {@link CustomItemPickerScreen}: search Minecraft and Hypixel items and apply one's look.</li>
- *   <li><b>Custom Color</b> - {@link CustomColorScreen}: a large preview with the color, skin, trim and pattern controls.</li>
- *   <li><b>Clear Changes</b> - removes every change from the selected item.</li>
+ *   <li><b>Customize Custom Item</b> - {@link CustomItemPickerScreen}: search Minecraft and Hypixel items and apply one's
+ *       look.</li>
+ *   <li><b>Customize Custom Color</b> - {@link CustomColorScreen}: a large preview with one row per change (color, skin,
+ *       trim color, trim pattern), each with its own clear button.</li>
+ *   <li><b>Clear Changes</b> - removes every change from the selected item (at the bottom, 2026-11-01).</li>
  *   <li><b>Copy Look</b> - click Copy Look, then an item in the grid: that item takes the selected item's changes.</li>
  * </ul>
  * The child pages share this screen's selection through the public methods below, and every change they make is saved
@@ -56,8 +57,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
     private String selectedKey;
     private String selectedLabel = "";
     private boolean copyingLook;
-    /** True: the preview draws the clear item. Reset on every new selection. Any change turns it off. */
-    private boolean showClear = true;
     /** The search text, kept across rebuilds. */
     private String query = "";
     private String status = "";
@@ -111,17 +110,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return selectedLabel;
     }
 
-    /** True when the preview draws the clear item: Show Clear chosen, or nothing applied to the selection. */
-    boolean clearShown() {
-        ArmourDyeEntry e = entry();
-        return showClear || e == null || e.isEmpty() || !e.enabled;
-    }
-
-    /** Any change to the look switches the preview to showing it. */
-    void showLook() {
-        showClear = false;
-    }
-
     /** Selects a real item. Its existing look is found by UUID first, then by id; a new look defaults to every copy. */
     public void select(ItemStack stack) {
         copyingLook = false;
@@ -130,7 +118,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         }
         selectedStack = stack;
         selectedLabel = stack.getHoverName().getString();
-        showClear = true;
         String key = keyFor(stack);
         if (key == null) {
             selectedKey = null;
@@ -187,32 +174,73 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         e.color = argb;
         e.colorEnabled = true;
         cfg().save();
-        showLook();
     }
 
-    void toggleUseColour() {
-        ArmourDyeEntry e = editable();
+    /** Reset Color (it replaced Use Color, killer560 2026-11-01): the item's own color again. Also what Clear Dye does. */
+    void resetColour() {
+        ArmourDyeEntry e = entry();
         if (e == null) {
             return;
         }
-        e.colorEnabled = !e.colorEnabled;
-        cfg().save();
-        showLook();
+        e.colorEnabled = false;
+        e.color = 0xFFFFFFFF;
+        saveOrDrop(e);
     }
 
-    /** Cycles the armor skin; {@code forward} false goes back one. */
-    void cycleSkin(boolean forward) {
-        ArmourDyeEntry e = editable();
+    /**
+     * Clear Skin: the Hypixel skin goes, and so does an armor-type skin an older version set (the Skin row no longer
+     * offers those - killer560, 2026-11-01: "If they want to make a leather chestplate diamond they will use the custom
+     * item thing").
+     */
+    void clearSkin() {
+        ArmourDyeEntry e = entry();
         if (e == null) {
             return;
         }
-        ArmourSkin next = forward ? e.skin.next() : e.skin.previous();
-        if (next == ArmourSkin.CUSTOM) {
-            next = forward ? next.next() : next.previous(); // a raw asset id is a hand-edited file thing
+        if (!e.skinName.isBlank()) {
+            e.headTexture = "";
         }
-        e.skin = next;
+        e.skinName = "";
+        e.skin = ArmourSkin.NONE;
+        e.skinAsset = "";
+        saveOrDrop(e);
+    }
+
+    /** Clear on the Customize Custom Item page: the picked item's look comes off (its model and head texture). */
+    void clearCustomItem() {
+        ArmourDyeEntry e = entry();
+        if (e == null) {
+            return;
+        }
+        if (e.skinName.isBlank()) {
+            e.headTexture = "";
+        }
+        e.iconModel = "";
+        e.customItem = "";
+        saveOrDrop(e);
+    }
+
+    /** Clear Trim Color ({@code material}) / Clear Trim Pattern. */
+    void clearTrim(boolean material) {
+        ArmourDyeEntry e = entry();
+        if (e == null) {
+            return;
+        }
+        if (material) {
+            e.trimMaterial = "";
+        } else {
+            e.trimPattern = "";
+        }
+        saveOrDrop(e);
+    }
+
+    /** Saves after a clear; an entry left with nothing in it is removed, so the grid's "has a look" mark goes too. */
+    private void saveOrDrop(ArmourDyeEntry e) {
+        if (e.isEmpty() && e.customItem.isBlank() && e.skinName.isBlank() && e.trimMaterial.isBlank()
+                && e.trimPattern.isBlank()) {
+            cfg().remove(selectedKey);
+        }
         cfg().save();
-        showLook();
     }
 
     /** Sets the trim material or pattern picked from a list (blank = none). */
@@ -227,25 +255,26 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             e.trimPattern = value;
         }
         cfg().save();
-        showLook();
-        say((material ? "Trim" : "Pattern") + " set to " + (value.isEmpty() ? "none" : value) + ".", false);
     }
 
-    /** Sets a head texture from the Hypixel item catalog (its real item skin) as the Look. */
-    void applyHypixelSkin(SkyblockItemEntry item) {
+    /** Sets a Hypixel item skin ({@link ItemSkins}) as the item's head texture: the Skin row. */
+    void applyHypixelSkin(ItemSkins.Skin skin) {
         ArmourDyeEntry e = editable();
-        if (e == null || item == null || item.skinValue() == null) {
+        if (e == null || skin == null || skin.texture() == null) {
             return;
         }
-        e.headTexture = item.skinValue().trim();
+        e.headTexture = skin.texture().trim();
         e.iconModel = "";
+        e.skinName = skin.name();
+        e.customItem = "";
         cfg().save();
-        showLook();
-        say("Skin set to " + item.name() + ".", false);
     }
 
-    /** Applies another item's model and head texture as the selection's Look (the Custom Item page). */
-    void copyLookFrom(ItemStack source) {
+    /**
+     * Applies another item's model and head texture as the selection's Look (the Customize Custom Item page).
+     * {@code pickedKey} ({@code minecraft:<id>} / {@code hypixel:<id>}) is kept so the page shows the pick again on reopen.
+     */
+    void copyLookFrom(ItemStack source, String pickedKey) {
         ArmourDyeEntry e = editable();
         if (e == null || source == null || source.isEmpty()) {
             return;
@@ -254,9 +283,9 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         Identifier model = ArmourDye.itemModelOf(source);
         e.headTexture = head == null ? "" : head;
         e.iconModel = head != null || model == null ? "" : model.toString();
+        e.customItem = pickedKey == null ? "" : pickedKey;
+        e.skinName = "";
         cfg().save();
-        showLook();
-        say("Look copied from " + source.getHoverName().getString() + ".", false);
     }
 
     /** Removes every change from the selected item (its whole saved entry). */
@@ -353,33 +382,25 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         boolean has = selectedKey != null;
         ArmourDyeEntry e = entry();
 
-        // Preview switch, under the preview.
-        SettingsButtonWidget preview = SettingsButtonWidget.builder(
-                        Component.literal(showClear ? "Show With Look" : "Show Clear Item"),
-                        b -> {
-                            showClear = !showClear;
-                            refresh();
-                        }).bounds(rightX, row(0), rightW, BTN_H).build();
-        preview.active = !selectedStack.isEmpty();
-        addRenderableWidget(preview);
-
-        // The four buttons.
-        SettingsButtonWidget customItem = SettingsButtonWidget.builder(Component.literal("Custom Item"),
+        // The two pages, under the preview.
+        SettingsButtonWidget customItem = SettingsButtonWidget.builder(Component.literal("Customize Custom Item"),
                         b -> minecraft.setScreenAndShow(new CustomItemPickerScreen(this)))
-                .bounds(rightX, row(1), rightW, BTN_H).build();
+                .bounds(rightX, row(0), rightW, BTN_H).build();
         customItem.active = has;
         addRenderableWidget(customItem);
 
-        SettingsButtonWidget customColor = SettingsButtonWidget.builder(Component.literal("Custom Color"),
+        SettingsButtonWidget customColor = SettingsButtonWidget.builder(Component.literal("Customize Custom Color"),
                         b -> minecraft.setScreenAndShow(new CustomColorScreen(this)))
-                .bounds(rightX, row(2), rightW, BTN_H).build();
+                .bounds(rightX, row(1), rightW, BTN_H).build();
         customColor.active = has;
         addRenderableWidget(customColor);
 
+        // Clear Changes and Copy Look at the bottom of the panel (killer560, 2026-11-01).
+        int bottom = panelY + panelH - 8 - BTN_H;
         SettingsButtonWidget clear = SettingsButtonWidget.builder(Component.literal("Clear Changes"), b -> {
                     clearChanges();
                     refresh();
-                }).bounds(rightX, row(3), rightW, BTN_H).build();
+                }).bounds(rightX, bottom - BTN_STEP, rightW, BTN_H).build();
         clear.active = e != null;
         addRenderableWidget(clear);
 
@@ -388,12 +409,12 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
                         b -> {
                             copyingLook = !copyingLook;
                             refresh();
-                        }).bounds(rightX, row(4), rightW, BTN_H).build();
+                        }).bounds(rightX, bottom, rightW, BTN_H).build();
         copy.active = has;
         addRenderableWidget(copy);
     }
 
-    /** Y of right-column button {@code k}. Row 0 is the preview switch. */
+    /** Y of right-column button {@code k}, under the preview. */
     private int row(int k) {
         return panelY + 100 + k * BTN_STEP;
     }
@@ -486,17 +507,9 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             graphics.pose().pushMatrix();
             graphics.pose().translate(rightX + 6, panelY + 46);
             graphics.pose().scale(2.75f, 2.75f);
-            if (clearShown()) {
-                ArmourDye.withoutOverrides(() -> graphics.item(selectedStack, 0, 0));
-            } else {
-                graphics.item(selectedStack, 0, 0);
-            }
+            graphics.item(selectedStack, 0, 0);
             graphics.pose().popMatrix();
         }
-
-        // Left column under the grid: the status line.
-        MenuStyle.text(graphics, this.font.plainSubstrByWidth(status, GRID_W), gridX,
-                gridY + 5 * SLOT + 14, statusBad ? ScreenChrome.bad() : ScreenChrome.good());
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 

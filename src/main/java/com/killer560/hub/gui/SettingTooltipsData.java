@@ -1708,6 +1708,7 @@ final class SettingTooltipsData {
         d.put("archer passive", "Hides the spinning bone meal items the archer passive drops.");
         d.put("sheep", "Hides sheep inside dungeons.");
         d.put("wither cloak creepers", "Hides the invisible charged creepers Wither Cloak spawns.");
+        d.put("witherborn wither", "Hides the small wither a full F7 armor set (Witherborn) spawns, and its smoke and swirl particles.");
         d.put("wither shield hearts", "Hides the heart particles from Wither Shield healing.");
         d.put("dying dragons", "Hides M7 dragons once they start dying so P5 stays readable.");
         d.put("wither king model", "Hides the Wither King's model and witch particles in the M7 arena.");
@@ -2662,6 +2663,7 @@ final class SettingTooltipsData {
         d.put("name changer/letter colors", "Opens a row with one button per letter of your display name, to color each letter.");
         d.put("name changer/clear letter colors", "Removes every per-letter color so the name's normal color or fade shows again.");
         d.put("bold name", "Draws your display name in bold. With Share if Supporter on, other mod users see it bold too.");
+        d.put("name changer/text shadow", "Draws your display name with a drop shadow everywhere, name tags included, in a dark shade of its own color. Only you see it.");
         d.put("fade color", "Turns your display name into a two-color gradient instead of one flat color.");
         d.put("name animation", "Animates your faded or letter-colored name: Wave flows the colors along it to the right, Pulse dims and brightens it. Other players with the mod see it too when Share if Supporter is on.");
         d.put("animation speed", "How fast your name's Wave or Pulse runs, from 0.25x to 3x.");
@@ -2765,9 +2767,18 @@ final class SettingTooltipsData {
         d.put("custom items", "Recolors and reskins items on your screen only; nothing is sent to the server.");
         d.put("custom items/open custom items", "Opens the Custom Items menu (/customitems): pick an item, then set its color, skin or look.");
         d.put("custom items/reset all", "Removes every saved look; press twice.");
-        d.put("hypixel skin...", "Opens the list of Hypixel item skins from the item catalog; pick one to use its head texture as this item's look.");
-        d.put("show with look", "Previews the item with its saved skin, color, trim and look drawn on it.");
-        d.put("show clear item", "Previews the item as it really is, with no custom skin, color, trim or look drawn on it.");
+        d.put("customize custom item", "Search every Minecraft and Hypixel item and apply one's look to the selected item. Clear there takes it off again.");
+        d.put("customize custom color", "The selected item's color, Hypixel skin, trim color and trim pattern, each with its own clear button.");
+        d.put("clear changes", "Removes every change from the selected item.");
+        d.put("copy look", "Click this, then another item in the grid: that item takes every change the selected item has.");
+        d.put("skin", "Hypixel item skins that fit this item, found by its id, so starred, recombed and fragged items find theirs. N/A when the item has none.");
+        d.put("clear skin", "Takes the item's skin off.");
+        d.put("reset color", "Puts the item's own color back.");
+        d.put("trim color", "The trim's material color, from the trims the game has. Off leaves the real trim alone.");
+        d.put("trim pattern", "The trim's pattern; the preview's armor stand wears it so you can see it.");
+        d.put("clear trim color", "Takes the trim color off.");
+        d.put("clear trim pattern", "Takes the trim pattern off.");
+        d.put("hypixel dyes...", "Opens every Hypixel dye; picking one sets this color. Clear Dye puts the item's own color back.");
         d.put("open layouts folder", "Opens the folder holding your saved inventory layouts.");
         d.put("auto sell", "Sells every stack on your sell list by itself while a sell screen is open; an item added there is sold without reopening it.");
         // Auto Anvil (killer560, 2026-10-07). Scoped under its own tab name: Min/Max Delay and Close When Done are
@@ -2826,7 +2837,8 @@ final class SettingTooltipsData {
         d.put("streamer mode/option", "What Streamer Mode does while it is on: Disable cheats refuses every automated action, Hide cheat UI only hides them.");
         d.put("auto sprint", "Sprints for you whenever you walk forward (not while sneaking). The mod's own movement - AP3, Auto Routes, the pathfinder - always keeps its own sprint choice, and while one of those is moving you no other mod's auto sprint can start a sprint it did not ask for.");
         d.put("zoom", "Hold the zoom key to narrow the view. While it is held, the mouse wheel changes the zoom.");
-        d.put("see other mod users", "Shows a colored diamond before the name of every player who shows as a mod user: green for legit, red for cheat. Off by default.");
+        d.put("see other mod users", "Shows a tag before the name of every player who shows as a mod user (the Tag Style below; each style tells legit from cheat). Off by default.");
+        d.put("tag style", "How mod user tags look to you, one mark before the name: K (a bold orange K, red for cheat), Ember (an orange star, red-orange for cheat) or Classic (a diamond, green or red).");
         d.put("show me as a mod user", "Lets other mod users see that you run the mod. Off by default; nobody sees your variant until you turn this on.");
         d.put("show as", "Which variant you show to others: legit (green) or cheat (red). Only the cheat build can show cheat.");
         d.put("cape", "Wear one of the built-in capes (each carries the mod logo in its colors), or pick Make Your Own to choose a pattern and two colors. Only your own player shows it; other players see their own cape.");
