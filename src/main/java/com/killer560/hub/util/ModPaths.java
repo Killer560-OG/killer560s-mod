@@ -295,6 +295,8 @@ public final class ModPaths {
         t.put("reboot", "system/reboot");
         t.put("correctionalarm", "system/correctionalarm");
         t.put("bugreport", "system/bugreport");
+        // Auto Report Bans (2026-11-01): its switch and the hashed keys of bans already reported.
+        t.put("banreport", "system/banreport");
         t.put("bug-reports", "system/bugreport");
         // Session Recorder (2026-10-19): its switch, and its per-session files plus the "disabled here" marker, which
         // live in killer560/diagnostics/ (the marker is normally written straight into killer560/ by the deploy script).

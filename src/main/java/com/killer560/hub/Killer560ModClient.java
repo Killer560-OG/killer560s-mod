@@ -213,6 +213,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.reboot.RebootFeature.register();
         com.killer560.hub.packdisabler.PackDisabler.register();
         HypixelJoinWatcher.register();
+        // Auto Report Bans (opt-in, OFF by default): loads its switch, which starts the session log tap when on.
+        com.killer560.hub.banreport.BanReportFeature.register();
         AutoJoinSkyblockFeature.register();
         ProxyConfig.load();
         SpotifyLyricsFeature.init();

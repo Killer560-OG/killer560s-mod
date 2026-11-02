@@ -57,6 +57,8 @@ import java.util.concurrent.CompletableFuture;
  *       {@code relay}, so a harness can fake it without touching Mod Chat or Supporters</li>
  *   <li>{@code lfg-relay} - the relay's {@code /lfg/*} only (Custom Party Finder), applied on top of {@code relay} and
  *       read on every call</li>
+ *   <li>{@code banreport-relay} - the relay's {@code /ban-report} only (Auto Report Bans), applied on top of {@code relay}
+ *       and read on every call</li>
  *   <li>{@code lrclib} - lrclib.net: Spotify lyrics</li>
  *   <li>{@code google-translate} - translate.googleapis.com</li>
  *   <li>{@code mymemory} - api.mymemory.translated.net: the translate fallback</li>

@@ -64,7 +64,9 @@ public final class BugReportFeature {
     /** JSON-key substrings (case-insensitive) that mark a value as secret - exactly the list the feature
      *  request specifies. "key" is handled separately below because it also matches keybind settings. */
     private static final String[] SECRET_KEY_MARKERS = {
-            "token", "secret", "password", "auth", "session", "cookie"
+            "token", "secret", "password", "auth", "session", "cookie",
+            // A Discord webhook URL is a credential too (added with Auto Report Bans, 2026-11-01).
+            "webhook"
     };
 
     /** "key" alone would redact every keybind in the mod (abilityKeyCode, editKeyCode, Ap3's keybinds map,
@@ -110,7 +112,7 @@ public final class BugReportFeature {
             "(?i)(?:[A-Z]:[\\\\/]+Users[\\\\/]+|/home/|/Users/)[^\\\\/\\s\"':]{1,64}");
 
     /** Applies {@link #TOKEN_SHAPES} and {@link #HOME_PATH} to any text going into the zip. */
-    static String redactShapes(String text) {
+    public static String redactShapes(String text) {
         String out = JWT_PATTERN.matcher(text).replaceAll("[redacted]");
         for (Pattern p : TOKEN_SHAPES) {
             out = p.matcher(out).replaceAll("$1[redacted]");
@@ -217,7 +219,7 @@ public final class BugReportFeature {
 
     // ------------------------------------------------------------------ configs
 
-    private static List<Path> listConfigFiles() {
+    public static List<Path> listConfigFiles() {
         List<Path> files = new ArrayList<>();
         try {
             // Every killer560smod-*.json across the config/killer560 tree - ModPaths keeps the names unchanged.
@@ -235,7 +237,7 @@ public final class BugReportFeature {
     /** @return the pretty-printed, redacted JSON text for {@code file}, or {@code null} if it couldn't be
      *  parsed as JSON - a file that doesn't parse as an object is skipped rather than shipped raw, since an
      *  unparseable file can't be redacted with any confidence. */
-    private static String redactConfigFile(Path file) {
+    public static String redactConfigFile(Path file) {
         try {
             String text = Files.readString(file, StandardCharsets.UTF_8);
             JsonElement root = JsonParser.parseString(text);
@@ -328,7 +330,7 @@ public final class BugReportFeature {
         }
     }
 
-    private static String redactLogLine(String line) {
+    public static String redactLogLine(String line) {
         String redacted = JWT_PATTERN.matcher(line).replaceAll("[redacted]");
 
         Matcher kv = KEY_VALUE_PATTERN.matcher(redacted);

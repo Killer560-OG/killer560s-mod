@@ -43,6 +43,8 @@ public class DisconnectedScreenMixin {
     }
 
     private void handle(Component reason) {
+        // Auto Report Bans (opt-in) reads every disconnect screen, joined or not; it does its own Hypixel and ban checks.
+        com.killer560.hub.banreport.BanReportFeature.onDisconnectScreen(this, reason);
         if (!PendingConnection.isPending()) {
             return;
         }

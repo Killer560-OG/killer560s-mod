@@ -43,9 +43,9 @@ public final class ModLog {
         Logger real = LoggerFactory.getLogger(name);
         Logger base = BuildVariant.DEV_TOOLS ? real : new ReleaseLogger(real);
         // The Session Recorder (2026-10-19) copies the INFO/WARN/ERROR lines of a few feature loggers into its own file
-        // while it is switched on. What reaches the game log is unchanged either way.
-        String recorded = SessionRecorderSink.featureFor(name);
-        return recorded == null ? base : new RecordingLogger(base, recorded);
+        // while it is switched on, and Auto Report Bans (2026-11-01) keeps every logger's in memory while it is on
+        // (SessionLogTap). What reaches the game log is unchanged either way.
+        return new RecordingLogger(base, SessionRecorderSink.featureFor(name));
     }
 
     /**
@@ -56,8 +56,7 @@ public final class ModLog {
     public static Logger keptWhen(String name, java.util.function.BooleanSupplier keep) {
         Logger real = LoggerFactory.getLogger(name);
         Logger base = BuildVariant.DEV_TOOLS ? real : new OptInLogger(real, keep);
-        String recorded = SessionRecorderSink.featureFor(name);
-        return recorded == null ? base : new RecordingLogger(base, recorded);
+        return new RecordingLogger(base, SessionRecorderSink.featureFor(name));
     }
 
     /** A release logger that forwards INFO and WARN too while {@code keep} is true; ERROR always; never DEBUG/TRACE. */
@@ -130,9 +129,10 @@ public final class ModLog {
     }
 
     /**
-     * Passes every call to {@code delegate} unchanged, and while {@link SessionRecorderSink#active()} also hands the
-     * INFO, WARN and ERROR lines to the recorder. INFO counts as enabled while recording even where the delegate drops
-     * it (a release jar), so those lines still reach the session file without reaching the log.
+     * Passes every call to {@code delegate} unchanged, and while {@link SessionRecorderSink#active()} (for a recorded
+     * {@code feature}; null for every other logger) also hands the INFO, WARN and ERROR lines to the recorder, and while
+     * {@link SessionLogTap#wants} to the ban-report tap. INFO counts as enabled while either is on even where the
+     * delegate drops it (a release jar), so those lines still reach them without reaching the log.
      */
     private static final class RecordingLogger extends LegacyAbstractLogger {
 
@@ -154,10 +154,18 @@ public final class ModLog {
         protected void handleNormalizedLoggingCall(Level level, Marker marker, String pattern,
                                                    Object[] arguments, Throwable throwable) {
             Object[] args = arguments == null ? new Object[0] : arguments;
-            if (SessionRecorderSink.active() && (level == Level.INFO || level == Level.WARN || level == Level.ERROR)) {
+            boolean kept = level == Level.INFO || level == Level.WARN || level == Level.ERROR;
+            boolean toRecorder = kept && feature != null && SessionRecorderSink.active();
+            boolean toTap = kept && SessionLogTap.wants(name);
+            if (toRecorder || toTap) {
                 try {
                     String message = org.slf4j.helpers.MessageFormatter.arrayFormat(pattern, args).getMessage();
-                    SessionRecorderSink.record(feature, level.name(), message, throwable);
+                    if (toRecorder) {
+                        SessionRecorderSink.record(feature, level.name(), message, throwable);
+                    }
+                    if (toTap) {
+                        SessionLogTap.record(name, level.name(), message, throwable);
+                    }
                 } catch (RuntimeException ignored) {
                     // A recorder fault must never break the feature that logged.
                 }
@@ -186,19 +194,23 @@ public final class ModLog {
             return delegate.isDebugEnabled();
         }
 
+        private boolean extra() {
+            return (feature != null && SessionRecorderSink.active()) || SessionLogTap.wants(name);
+        }
+
         @Override
         public boolean isInfoEnabled() {
-            return delegate.isInfoEnabled() || SessionRecorderSink.active();
+            return delegate.isInfoEnabled() || extra();
         }
 
         @Override
         public boolean isWarnEnabled() {
-            return delegate.isWarnEnabled() || SessionRecorderSink.active();
+            return delegate.isWarnEnabled() || extra();
         }
 
         @Override
         public boolean isErrorEnabled() {
-            return delegate.isErrorEnabled() || SessionRecorderSink.active();
+            return delegate.isErrorEnabled() || extra();
         }
     }
 

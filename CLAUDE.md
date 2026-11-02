@@ -102,7 +102,9 @@ cheat build that hands back the real SLF4J logger; in a release (`-Prelease=true
 hands back one that drops TRACE/DEBUG/INFO/WARN and forwards only ERROR, so a release jar is quiet without
 a thousand call sites being guarded. `roomsim/` and `bazaarflip/` were the last two packages still calling
 `LoggerFactory` directly, and so the last two still logging in a release; both went through `ModLog` on
-2026-09-30, so a release jar is now quiet everywhere.
+2026-09-30, so a release jar is now quiet everywhere. Since 2026-11-01 every `ModLog` logger is wrapped (`RecordingLogger`) so Auto Report Bans'
+`util/SessionLogTap` can keep the session's INFO+ lines in memory while that opt-in switch is on (also in a release); a logger
+whose lines quote other players (chat, Mod Chat, party, friends) must be added to `SessionLogTap.SKIP`.
 
 Automation chat (killer560, 2026-10-16): a running auto says only that it started or stopped, a server correction and
 a real failure; every progress line goes through `ModChat.log` (same words, logger `killer560smod-chat`, testkit LogTap
@@ -483,3 +485,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
   release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
   `Rows.addKept`).
+- `DisconnectedScreen`'s constructors chain into each other, so a mixin on each of them (accounts/DisconnectedScreenMixin)
+  runs up to three times for ONE screen (testkit 4101, 2026-11-01). Anything that must act once per screen keys on the
+  screen object (`BanReportFeature.onDisconnectScreen(this, ...)`), not on the call.
