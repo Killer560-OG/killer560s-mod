@@ -616,9 +616,20 @@ public final class AutoClearFeature {
             // A trip to a dropped key is the key's business: its failure is not the room's (pathFailures).
             keyTrip = false;
             if (travelStarted && failed && keyId >= 0) {
-                LOGGER.info("[AutoClear] key: the trip to the Wither Key #{} failed - leaving it", keyId);
-                keysTried.add(keyId);
-                keyId = -1;
+                // No way onto that stand (a key in a pit: its nearest stand was down in it): another stand in range, up to
+                // KEY_STAND_TRIES, before the key is left (doc-adm-sim-1101: one failed trip left the key for good).
+                if (lastKeyStand != null) {
+                    keyStandsFailed.add(lastKeyStand);
+                }
+                if (keyStandsFailed.size() < KEY_STAND_TRIES) {
+                    LOGGER.info("[AutoClear] key: the trip to Wither Key #{} failed ({} of {}) - trying another stand", keyId,
+                            keyStandsFailed.size(), KEY_STAND_TRIES);
+                    keyTripDone = false;
+                } else {
+                    LOGGER.info("[AutoClear] key: the trip to the Wither Key #{} failed - leaving it", keyId);
+                    keysTried.add(keyId);
+                    keyId = -1;
+                }
             }
             travelStarted = false;
             // He is no longer where a trip to the door left him (the key dropped after he got there: testkit
@@ -1832,6 +1843,10 @@ public final class AutoClearFeature {
     private static boolean keyTrip = false;
     /** A trip to this key has finished: out of range after it means the map cannot get closer, so it is left. */
     private static boolean keyTripDone = false;
+    /** Stands a trip to the current key could not reach, and the one the trip under way goes to. */
+    private static final Set<BlockPos> keyStandsFailed = new HashSet<>();
+    private static BlockPos lastKeyStand = null;
+    static final int KEY_STAND_TRIES = 3;
     private static int keyWaitTicks = 0;
     private static long keyWaitLag = 0L;
     private static int keyCountBefore = 0;
@@ -1892,6 +1907,8 @@ public final class AutoClearFeature {
             }
             keyId = best.id();
             keyTripDone = false;
+            keyStandsFailed.clear();
+            lastKeyStand = null;
             keyWaitTicks = 0;
             keyCountBefore = com.killer560.hub.doorkeys.DungeonKeys.witherKeys();
             keyLastDist = bestD;
@@ -1935,8 +1952,8 @@ public final class AutoClearFeature {
             action = "waiting to land before the trip to the Wither Key";
             return true;
         }
-        BlockPos goal = com.killer560.hub.doorkeys.DungeonKeys.standWithin(keyPos, reach, player.position());
-        if (goal == null) {
+        BlockPos goal = com.killer560.hub.doorkeys.DungeonKeys.standWithin(keyPos, reach, player.position(), keyStandsFailed);
+        if (goal == null && keyStandsFailed.isEmpty()) {
             goal = TeleportUtils.nearestEtherwarpable(BlockPos.containing(keyPos));
         }
         if (goal == null) {
@@ -1946,6 +1963,7 @@ public final class AutoClearFeature {
             return false;
         }
         final BlockPos stand0 = goal;
+        lastKeyStand = goal.immutable();
         action = "etherwarp to the Wither Key";
         startTrip(client, player, () -> {
             // The trip ends on the first landing in range should the warps to the stand pass one (etherPathWithin).

@@ -174,3 +174,6 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
   copy it): `MobEspFeature.starredMobs` resolves it like any mob, and shooting it does nothing until a player is within 9
   blocks. `AutoClearFeature.approachFel` (2026-11-01) leaves sleepers out of the targets while awake mobs remain, then
   etherwarps inside 7.5 blocks of the nearest and waits for it to show (testkit 1101-sim-mobfloor).
+- Waiting at a shut wither door with no key, Auto Clear only looked for keys within 40 blocks (`KEY_SEARCH_RANGE`): the
+  key it needed dropped 50 blocks away the tick it set off for the door, and it waited 12 minutes. `keyAnyRange` (2026-11-01)
+  takes a Wither Key anywhere in view while a door waits on one (testkit 1101-sim-mobfloor).

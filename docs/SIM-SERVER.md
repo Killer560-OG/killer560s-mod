@@ -245,6 +245,10 @@ Two sim options of the sim's own data (`roomsim/SimLiveMobs`), off unless asked 
 - **Key rooms** are `SimKeyRoom` (now a map of rooms, each Wither or Blood), armed at GO: last starred death drops the key
   (`SimKeys.drop`, a named stand, picked up by walking near), a first entry by teleport insta clears the room and loses the
   key. A key room that got no mob placed drops its key at once (`dropWithoutMobs`, a WARN).
+  Once he has stood in the path room before a key room with the door between open, the key room is DISCOVERED and a
+  teleport into it is no insta clear (the evidence: 13 of 15 undiscovered, 1 of 75 discovered). Without that, Auto Clear
+  lost Museum's key to a trip that landed on Museum's roof right after opening its door (2026-11-01). The key drops where
+  the room's LAST starred mob died (`DEATH_ORDER`), not at whichever mob the map listed last (a 2x2's landed 55 blocks off).
 - **The Blood door** wants `SimKeys.hasBloodKey()` on such a floor; opened, the server says "The BLOOD DOOR has been
   opened!". The floor also says "Starting in 1 second." at the countdown's 1 and Mort's line at GO (nothing else changes).
 - **Fels** (`SimMobs.spawnFel`): an invisible MARKER armor stand (no hitbox) wearing a wither skeleton skull, stood
