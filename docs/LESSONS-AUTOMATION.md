@@ -80,7 +80,10 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   written as ONE flush (BeforeMove now holds the flush like Ap3SendTogetherMixin) the server processed a boom tap's START,
   ABORT and the movement packet 16, 14 and 0 ms apart - its netty thread starved between packets of one read. Not fixable
   from the client. A dig the look the server ALREADY processed strikes passes either way (Breaker Aura, ba-rotation-1102:
-  0 flags in 8 loaded runs); for nodes that costs the first block a tick when it is not already aimed - his call.
+  0 flags in 8 loaded runs). killer560 (2026-11-02): "Spend the extra tick." Breaker nodes, boom taps, the linger, the
+  re-dig, obsidian starts and Burst Multi Break now dig only on a look the server has processed: turn, dig next tick
+  (none spent when the look is already on it; `RouteExecutor.aimTurns` gives up after 3 turns). BeforeMove's one-write
+  batching is kept.
 - **Breaker Aura aims without steering his walk (ba-rotation-1102).** It dug picks it never looked at: GrimAC RotationBreak
   (experimental) 87 lines in scenario 50 and 73 of 200 digs canceled. Now only a pick the HEARD look strikes is dug
   (util/DigAim; Grim also tries (lastYaw, lastPitch), so the next pick's aim can ride the same tick's movement packet), and

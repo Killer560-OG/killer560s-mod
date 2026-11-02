@@ -937,13 +937,20 @@ public final class BreakerAuraFeature {
         // is dug - first in the order above that is - and the look for the next one is set in the same tick (BreakerAim).
         // With none struck, this tick aims (pitch only, or a yaw turn while he is not walking) and digs nothing.
         List<BlockPos> inReach = order;
-        // Burst Multi Break (owner exception, labeled as flagging) sends every pick in reach this tick, unaimed, as before.
-        if (!burst && !order.isEmpty()) {
+        // Burst Multi Break (owner exception, labeled as flagging) sends every pick in reach on the look the server has
+        // this tick - aimed too (killer560, 2026-11-02: only its MultiBreak is accepted, never RotationBreak).
+        if (!order.isEmpty()) {
             BlockPos ready = null;
+            List<BlockPos> onLook = new ArrayList<>();
             for (BlockPos p : order) {
                 if (BreakerAim.digReady(player, p)) {
-                    ready = p;
-                    break;
+                    if (ready == null) {
+                        ready = p;
+                    }
+                    onLook.add(p);
+                    if (!burst) {
+                        break;
+                    }
                 }
             }
             if (ready == null) {
@@ -963,7 +970,7 @@ public final class BreakerAuraFeature {
                 census("gate");
                 return;
             }
-            order = List.of(ready);
+            order = burst ? onLook : List.of(ready);
         }
         for (BlockPos pos : order) {
             if (sent >= allowed) {
@@ -1059,9 +1066,7 @@ public final class BreakerAuraFeature {
                 break;
             }
         }
-        if (burst) {
-            // The burst digs unaimed; nothing to aim for.
-        } else if (nextOnLook) {
+        if (nextOnLook) {
             BreakerAim.keep();
         } else {
             for (BlockPos p : inReach) {
