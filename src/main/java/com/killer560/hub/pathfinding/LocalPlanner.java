@@ -186,10 +186,10 @@ final class LocalPlanner {
             int up = inWater ? 1 : maxUp;
             if (onLadder && (WalkTerrain.climbable(level, at.below()) || !standOn(level, at.below()))
                     && !WalkTerrain.climbable(level, at.above())) {
-                // At a ladder's top block with nothing under his feet: he cannot jump from there, and climbing ends here,
-                // so no step up onto a ledge higher than the ladder (testkit 1101-fairy-island-GOLD_MINES: a way back
-                // planned from a ladder's top onto a ledge a block above it, tried until the soul was skipped).
-                up = 0;
+                // At a ladder's top block: the climb lifts his feet to the top of that block and no further, and he cannot
+                // jump from there - so the ledge beside it at that height (k = 1), never one a block higher (testkit
+                // 1101-fairy-island-GOLD_MINES: a way back planned from a ladder's top onto a ledge a block above it).
+                up = 1;
             }
             for (int k = 1; k <= up; k++) {
                 BlockPos lifted = side.above(k);
