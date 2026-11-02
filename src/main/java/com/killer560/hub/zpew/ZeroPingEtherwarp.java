@@ -189,7 +189,8 @@ public final class ZeroPingEtherwarp {
     private static long heldRefused;
 
     private static boolean on() {
-        return ZeroPingEtherwarpConfig.getInstance().isActiveHere();
+        // Cheat-only since 2026-11-02: a legit jar folds every path behind this to nothing.
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && ZeroPingEtherwarpConfig.getInstance().isActiveHere();
     }
 
     /**
@@ -474,6 +475,9 @@ public final class ZeroPingEtherwarp {
     private static volatile float wireYaw = Float.NaN;
 
     public static void onWireYaw(float yaw) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return;
+        }
         wireYaw = yaw;
     }
 
@@ -594,6 +598,9 @@ public final class ZeroPingEtherwarp {
 
     /** {@code mixin/ZpewPositionMixin}: a server position packet, render thread, before vanilla applies it. */
     public static void onServerPosition(Vec3 from, Vec3 to) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return;
+        }
         Prediction head;
         int left;
         synchronized (PENDING) {

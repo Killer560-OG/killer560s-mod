@@ -209,10 +209,9 @@ public final class SmoothTeleport {
             cancel();
             return;
         }
-        if (com.killer560.hub.zpew.ZeroPingEtherwarp.claims(to)) {
-            // Zero Ping Etherwarp already drew him there; a glide from the old spot would jump the camera back. Both
-            // builds: the cheat-only gate left here when ZPEW moved to the legit build made a legit jar glide every
-            // predicted warp from where he WAS (zpew campaign 1027, testkit 1027-zpewc-smoothtp).
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && com.killer560.hub.zpew.ZeroPingEtherwarp.claims(to)) {
+            // Zero Ping Etherwarp already drew him there; a glide from the old spot would jump the camera back (testkit
+            // 1027-zpewc-smoothtp). ZPEW is cheat-only again since 2026-11-02, so a legit jar folds this out.
             if (!PENDING.isEmpty()) {
                 PENDING.removeFirst();
             }

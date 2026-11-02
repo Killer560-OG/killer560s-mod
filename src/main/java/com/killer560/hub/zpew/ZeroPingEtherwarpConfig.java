@@ -179,7 +179,7 @@ public final class ZeroPingEtherwarpConfig {
 
     /** ZPEW's switch, and Dungeons Only: whether it predicts where the player is now. */
     public boolean isActiveHere() {
-        return enabled && (!dungeonsOnly || com.killer560.hub.secrets.DungeonState.isInDungeon());
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled && (!dungeonsOnly || com.killer560.hub.secrets.DungeonState.isInDungeon());
     }
 
     /** Aimed Warps as it applies: never in a legit build, never with Multi Warps off. */

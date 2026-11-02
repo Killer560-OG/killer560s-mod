@@ -14,9 +14,10 @@ import java.util.List;
 
 /**
  * The Etherwarp tab (killer560, 2026-11-01, to-do Doc "ZPEW": "the new etherwarp tab. This will contain zpew and left
- * click etherwarp"): Zero Ping Etherwarp (both builds, camera only: {@link com.killer560.hub.zpew.ZeroPingEtherwarp})
- * and, in the cheat build, Left Click Etherwarp ({@link com.killer560.hub.leftclickew.LeftClickEtherwarp}) under a red
- * header at the bottom. Two features side by side, so the card's switch stands for both ({@link #masterToggles}).
+ * click etherwarp"): Zero Ping Etherwarp ({@link com.killer560.hub.zpew.ZeroPingEtherwarp}) and Left Click Etherwarp
+ * ({@link com.killer560.hub.leftclickew.LeftClickEtherwarp}) under a red header at the bottom. The whole tab is
+ * cheat-only since 2026-11-02 (killer560: "all zero ping etherwarp stuff should be cheat only nothing in legit"): it
+ * is built only in DungeonTab's cheat block. Two features side by side, so the card's switch stands for both ({@link #masterToggles}).
  *
  * <p>No explanation lines: each row says what it does in its hover tooltip ("If you need to explain it then it should be
  * text shown when hovering a setting"). Works For is the last of ZPEW's legit rows ("Move the works for to the bottom");
@@ -34,9 +35,13 @@ public class ZeroPingEtherwarpTab extends BaseTab {
     }
 
     @Override
+    public boolean isCheatOnly() {
+        return true;
+    }
+
+    @Override
     public String cardDescription() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
-                ? "Instant etherwarp; left click warps." : "Instant etherwarp view.";
+        return "Instant etherwarp; left click warps.";
     }
 
     @Override

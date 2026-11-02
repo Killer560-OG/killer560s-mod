@@ -474,8 +474,10 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.zoom.ZoomFeature.register();
         com.killer560.hub.imagepreview.ImagePreviewFeature.register();
         com.killer560.hub.gfs.LegitGfs.register();
-        com.killer560.hub.zpew.ZeroPingEtherwarp.register();
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // Zero Ping Etherwarp is cheat-only since 2026-11-02 (killer560: "all zero ping etherwarp stuff should be
+            // cheat only nothing in legit").
+            com.killer560.hub.zpew.ZeroPingEtherwarp.register();
             com.killer560.hub.streamer.StreamerCommands.register();
             com.killer560.hub.blink.BlinkFeature.register();
             com.killer560.hub.invwalk.InventoryWalkFeature.register();

@@ -85,9 +85,6 @@ public class DungeonTab extends FolderTab {
                 new PosmsgTab(),
                 new P4PlatformHighlightTab(),
                 new WitherDragonsTab(),
-                // Camera only, so legit since 2026-10-26 (killer560: "the camera movement only one ... will go in the legit
-                // version"). The Etherwarp tab since 2026-11-01, with Left Click Etherwarp at its bottom in the cheat build.
-                new ZeroPingEtherwarpTab(),
                 // ---- the sim ----
                 new SimSettingsTab(),
                 new SimKeybindsTab()
@@ -124,7 +121,9 @@ public class DungeonTab extends FolderTab {
             // Out of the Croesus tab, 2026-10-12 (killer560: "just like etable and auto etable").
             tabs.add(new AutoCroesusTab());
             tabs.add(new BlinkTab());
-            // Left Click Etherwarp lives in the Etherwarp tab's cheat block since 2026-11-01 (ZeroPingEtherwarpTab).
+            // The Etherwarp tab (Zero Ping Etherwarp + Left Click Etherwarp): cheat-only since 2026-11-02 (killer560: "all
+            // zero ping etherwarp stuff should be cheat only nothing in legit"); it was legit 2026-10-26 to 2026-11-02.
+            tabs.add(new ZeroPingEtherwarpTab());
         }
         return tabs;
     }
