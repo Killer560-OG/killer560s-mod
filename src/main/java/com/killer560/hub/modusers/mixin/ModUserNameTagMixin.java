@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Mod User Tag (killer560, 2026-10-19): a tag before the name of a player who shows as a mod user, when you chose to see
- * them. Its look is the Tag Style setting ({@code ModUserTagStyle}, 2026-11-01: orange [K560] by default); every style tells
+ * them. Its look is the Tag Style setting ({@code ModUserTagStyle}, 2026-11-01: a bold orange K by default); every style tells
  * legit from cheat. Only the name tag changes; nothing else is drawn or sent.
  * {@code EntityRenderer.getNameTag(Entity)} is the same hook the supporter names use.
  */

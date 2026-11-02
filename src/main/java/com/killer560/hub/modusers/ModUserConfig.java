@@ -28,8 +28,8 @@ public final class ModUserConfig {
     private boolean share = false;
     /** "legit" or "cheat"; the legit build always uses legit. */
     private String shareAs = "legit";
-    /** How tags look to you ({@link ModUserTagStyle}, 2026-11-01); Badge by default. Local only. */
-    private ModUserTagStyle tagStyle = ModUserTagStyle.BADGE;
+    /** How tags look to you ({@link ModUserTagStyle}, 2026-11-01); K by default. Local only. */
+    private ModUserTagStyle tagStyle = ModUserTagStyle.MARK;
 
     private ModUserConfig() {
     }
@@ -52,7 +52,7 @@ public final class ModUserConfig {
             cfg.seeOthers = ConfigJson.getBool(obj, "seeOthers", false);
             cfg.share = ConfigJson.getBool(obj, "share", false);
             cfg.shareAs = ConfigJson.getString(obj, "shareAs", "legit");
-            cfg.tagStyle = ModUserTagStyle.byName(ConfigJson.getString(obj, "tagStyle", "BADGE"));
+            cfg.tagStyle = ModUserTagStyle.byName(ConfigJson.getString(obj, "tagStyle", "MARK"));
             instance = cfg;
         } catch (Exception e) {
             instance = new ModUserConfig();
@@ -98,7 +98,7 @@ public final class ModUserConfig {
     }
 
     public void setTagStyle(ModUserTagStyle tagStyle) {
-        this.tagStyle = tagStyle == null ? ModUserTagStyle.BADGE : tagStyle;
+        this.tagStyle = tagStyle == null ? ModUserTagStyle.MARK : tagStyle;
     }
 
     /** The variant shown when sharing. Always legit on the legit build. */
