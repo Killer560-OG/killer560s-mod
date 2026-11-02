@@ -161,6 +161,9 @@ public final class SimMobs {
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
             if (STARRED.contains(entity.getUUID())) {
                 KILLED.add(entity.getUUID());
+                com.killer560.hub.util.ModLog.get("killer560smod-sim").debug("[Sim] starred {} died at {} ({}, by {})",
+                        entity.getName().getString(), entity.blockPosition().toShortString(), source.getMsgId(),
+                        source.getEntity() == null ? "nothing" : source.getEntity().getName().getString());
             }
         });
         SimMobFloor.register();
@@ -955,6 +958,11 @@ public final class SimMobs {
                 }
                 if (entity != null || KILLED.contains(id) || missing >= MISSING_TICKS) {
                     STARRED_DEAD.add(id);
+                    if (!KILLED.contains(id)) {
+                        com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] starred mob {} counted dead"
+                                + " without dying: {}", id, entity != null ? "removed (" + entity.getRemovalReason() + ")"
+                                : "missing " + missing + " checks");
+                    }
                     DEATH_ORDER.put(id, DEATH_SEQ.incrementAndGet());
                     // Hypixel's "star ... heart" name goes with its mob; the sim's stand used to stay up forever,
                     // a starred name with nothing under it.
