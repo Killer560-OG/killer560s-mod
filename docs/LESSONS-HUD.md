@@ -51,7 +51,8 @@ rendering); the mod menu is [LESSONS-MENU.md](LESSONS-MENU.md).
   center every frame and only the saved y is honored (testkit 453, six window/GUI sizes with a saved x 0).
 - **`width()`/`height()` must measure the SAME lines `render()` draws** (one `lines()`/`layout()` method both read, sizes
   via `hud/HudText`): fixed guesses left 20 of 50 boxes more than 3 units off (Split Timers +70, Autopilot -76); testkit
-  390-ui-hud-boxes checks every element. Centered elements (Room Alerts, blood camp popup) keep a fixed box, since their
+  390-ui-hud-boxes checks every element. The Superpairs Overview (doc-etable, 2026-11-01) broke it again with a fixed
+  `170 x (4 + 9 lines)` box around an 8-line, 190-wide preview (testkit 394); fixed by measuring the preview list. Centered elements (Room Alerts, blood camp popup) keep a fixed box, since their
   center is the anchor and a hugging box would move the text.
 - **A right-anchored HUD box drawn from a rounded x drifts.** The Custom Scoreboard's right wall was `round(x) + width *
   scale`, so at a non-integer drawn scale (Auto Scale makes nearly every real one so) it moved up to a pixel whenever the
