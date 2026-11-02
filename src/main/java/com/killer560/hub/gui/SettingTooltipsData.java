@@ -767,7 +767,9 @@ final class SettingTooltipsData {
         d.put("mimic room color", "Cheat build: the mimic room's tint. Its alpha is how strongly it is blended over the room's own color (20% red by default).");
         d.put("extra info overlay", "Shows two rows under the Dungeon Map: score, secrets for S+ and crypts, then deaths and the bonus kills - M Mimic, P Prince, B Murkbat bat. Works with Score Calculator off.");
         d.put("extra info scale", "Size of the Extra Info text under the Dungeon Map, 0.5x to 2x. A row too wide for the map at that size moves its last fields onto another row.");
-        d.put("wither door outline", "Draws an amber outline round each locked wither door on the map. Off by default: wither doors are plain black.");
+        d.put("wither door outline", "Draws an outline round each locked wither door on the map, in the color and thickness below. Off by default: wither doors are plain black.");
+        d.put("wither door outline color", "Color of the outline round a locked wither door on the map. Amber by default.");
+        d.put("wither door outline thickness", "How thick the wither door outline is, 1 to 4 px (2 by default).");
         d.put("etherwarp waypoints/etherwarp waypoints", "Use /ew waypoint add [name] to mark the block you stand on with a box.");
         d.put("clear all", "Removes every etherwarp waypoint added this run.");
         d.put("tick timers", "Shows a countdown HUD for the F7/M7 boss phases.");
@@ -2149,7 +2151,7 @@ final class SettingTooltipsData {
         d.put("custom checkmark sprite", "Off: the map's checks, crosses and question marks are Hypixel's own, copied off your hotbar map. On: the mod's outlined marks, or your own pictures.");
         d.put("dungeon map/sprite", "Which custom marks to draw: the mod's own, or Your Own - PNG pictures you make, in the sprite folder.");
         d.put("open sprite folder", "Opens the folder for your own marks: put green.png, cleared.png, failed.png and unopened.png in it (small pixel art, up to 64x64). A missing one uses the mod's mark.");
-        d.put("darken unexplored", "How much darker unopened rooms are drawn, 0 to 0.9 (0 by default). On Funny Map, every room your hotbar map has not opened yet.");
+        d.put("darken unexplored", "How much darker unopened rooms are drawn, 0 to 0.9 (0 by default). On Funny Map, every room your hotbar map has not opened yet; at 0 Funny Map draws them in their own color, the same before and after the run starts.");
         d.put("dungeon map/map theme", "The map's room colors: Real Map (Hypixel's), Amber, Dark, Light, Ocean, Green, Match Menu Theme (follows the mod menu's theme) or Custom (your own schemes).");
         d.put("dungeon map/scheme", "Which of your saved Custom schemes the map uses.");
         d.put("edit scheme", "Opens this scheme on a sample map: rename it, change each room and door color, reset it or delete it.");

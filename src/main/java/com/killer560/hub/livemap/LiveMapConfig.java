@@ -116,6 +116,14 @@ public final class LiveMapConfig {
      *  OFF by default since 2026-11-01 (to-do Doc, "PREDICTIVE MAP MODE": "the wither doors should be black and the fairy
      *  door should be pink no orange highlight. That is the default."). */
     private boolean witherDoorOutline = false;
+    /** The outline's color and thickness in rings of 1 px (killer560, 2026-11-02: "add an option to change the wither door
+     *  outline in dungeon map"). The defaults are the look it always had: the mod's amber, two rings. */
+    public static final int DEFAULT_WITHER_DOOR_OUTLINE_COLOR = 0xFFFFAA00;
+    public static final int DEFAULT_WITHER_DOOR_OUTLINE_THICKNESS = 2;
+    public static final int MIN_WITHER_DOOR_OUTLINE_THICKNESS = 1;
+    public static final int MAX_WITHER_DOOR_OUTLINE_THICKNESS = 4;
+    private int witherDoorOutlineColor = DEFAULT_WITHER_DOOR_OUTLINE_COLOR;
+    private int witherDoorOutlineThickness = DEFAULT_WITHER_DOOR_OUTLINE_THICKNESS;
     /** Whether the Interactive Map's side panel shows the full Controls list or just its one-line hint
      *  (2026-10-05: "See how cluttered that right side is, clean it up a bit"). Collapsed by default. */
     private boolean mapControlsExpanded = false;
@@ -238,6 +246,9 @@ public final class LiveMapConfig {
                 cfg.setFontScale(ConfigJson.getFloat(obj, "fontScale", 1f));
                 cfg.textShadow = ConfigJson.getBool(obj, "textShadow", true);
                 cfg.witherDoorOutline = ConfigJson.getBool(obj, "witherDoorOutline", false);
+                cfg.witherDoorOutlineColor = ConfigJson.getInt(obj, "witherDoorOutlineColor", DEFAULT_WITHER_DOOR_OUTLINE_COLOR);
+                cfg.setWitherDoorOutlineThickness(ConfigJson.getInt(obj, "witherDoorOutlineThickness",
+                        DEFAULT_WITHER_DOOR_OUTLINE_THICKNESS));
                 migrateNoammLook(cfg, obj);
                 // "mapRoomLabels" (the Interactive Map's own copy of Room Labels) is gone: killer560 (2026-10-05)
                 // "have the map have the same settings for room name having the secrets ... as the regular map,
@@ -368,6 +379,8 @@ public final class LiveMapConfig {
             obj.addProperty("fontScale", fontScale);
             obj.addProperty("textShadow", textShadow);
             obj.addProperty("witherDoorOutline", witherDoorOutline);
+            obj.addProperty("witherDoorOutlineColor", witherDoorOutlineColor);
+            obj.addProperty("witherDoorOutlineThickness", witherDoorOutlineThickness);
             obj.addProperty("noammLook1019", true);
             obj.addProperty("mapControlsExpanded", mapControlsExpanded);
             obj.addProperty("classBorderColour", classBorderColour);
@@ -868,6 +881,23 @@ public final class LiveMapConfig {
 
     public void setWitherDoorOutline(boolean v) {
         this.witherDoorOutline = v;
+    }
+
+    public int getWitherDoorOutlineColor() {
+        return witherDoorOutlineColor;
+    }
+
+    public void setWitherDoorOutlineColor(int argb) {
+        this.witherDoorOutlineColor = argb;
+    }
+
+    public int getWitherDoorOutlineThickness() {
+        return witherDoorOutlineThickness;
+    }
+
+    public void setWitherDoorOutlineThickness(int rings) {
+        this.witherDoorOutlineThickness = Math.max(MIN_WITHER_DOOR_OUTLINE_THICKNESS,
+                Math.min(MAX_WITHER_DOOR_OUTLINE_THICKNESS, rings));
     }
 
     public boolean isMapControlsExpanded() {

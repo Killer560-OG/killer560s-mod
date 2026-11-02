@@ -218,6 +218,11 @@ public final class MapPainter {
         fullScan = before;
     }
 
+    /** Whether the Interactive Map's full-scan render is in progress (render thread). */
+    static boolean fullScanActive() {
+        return fullScan;
+    }
+
     private MapPainter() {
     }
 
@@ -577,7 +582,33 @@ public final class MapPainter {
      * ({@code MapRenderer.renderRooms}); Darken Unexplored darkens further from there, 0 by default.
      */
     static int unexploredFill(int argb, LiveMapConfig cfg) {
+        if (cfg.isFunnyMap()) {
+            // killer560, 2026-11-02: "the dungeon map when using funny map is one color while in green room then once the
+            // door drops it gets alot darker. have it be the same color and not change." Hypixel hands the map item over
+            // when the run starts, and "unopened" is the map item's word: before it every scanned room is drawn in its own
+            // color, after it every room not yet opened went two darker() steps down at once. On Funny Map an unopened
+            // room keeps its own color, as before the run; only Darken Unexplored (0 by default) darkens it.
+            return multiply(argb, 1f - cfg.getDarkenUnopened());
+        }
         return multiply(awtDarker(awtDarker(argb)), 1f - cfg.getDarkenUnopened());
+    }
+
+    /** Something that draws a 1 px rectangle outline: {@code GuiRects.outline} or {@code GuiGraphicsExtractor.outline}. */
+    @FunctionalInterface
+    interface Outliner {
+        void outline(int x, int y, int w, int h, int argb);
+    }
+
+    /**
+     * The Wither Door Outline round a door drawn at {@code x0,y0..x1,y1}: Wither Door Outline Thickness rings of 1 px in
+     * its color, the innermost on the door's own edge and each further one 1 px outside it. The defaults (2 rings, amber
+     * 0xFFFFAA00) are the two outlines it was always drawn with, one on the edge and one just outside.
+     */
+    static void witherDoorOutline(Outliner out, int x0, int y0, int x1, int y1, LiveMapConfig cfg) {
+        int color = cfg.getWitherDoorOutlineColor();
+        for (int ring = cfg.getWitherDoorOutlineThickness() - 1; ring >= 0; ring--) {
+            out.outline(x0 - ring, y0 - ring, x1 - x0 + 2 * ring, y1 - y0 + 2 * ring, color);
+        }
     }
 
     /** {@code java.awt.Color.darker()}: each channel times 0.7, truncated; alpha kept. */
@@ -1337,8 +1368,8 @@ public final class MapPainter {
                 // for a locked wither door is near-black (default #101010), which vanishes into the HUD background.
                 // A double amber outline (the mod's own accent color) makes it read as a warning at a glance
                 // without touching the fill color itself, which is still the real map's own and still a picker.
-                rects.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
-                rects.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
+                // Its color and thickness are settings since 2026-11-02; the defaults draw exactly the old two amber rings.
+                witherDoorOutline(rects::outline, x0, y0, x1, y1, cfg);
             }
             if (theoreticalWither) {
                 rects.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
@@ -1391,8 +1422,7 @@ public final class MapPainter {
             int y1 = px(oy, uz + uh, ppu);
             graphics.fill(x0, y0, x1, y1, color);
             if (type == DungeonLayout.DOOR_WITHER && cfg.isWitherDoorOutline()) {
-                graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
-                graphics.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
+                witherDoorOutline(graphics::outline, x0, y0, x1, y1, cfg);
             }
             if (mark) {
                 int m = Math.max(2, Math.round(3 * ppu));

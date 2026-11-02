@@ -1830,7 +1830,8 @@ public final class LiveMapFeature {
                     .add(cfg.isCustomCheckmarks()).add(cfg.getCheckmarkSource()).add(cfg.isFunnyMap())
                     .add(cfg.isMimicScan()).add(cfg.getMimicColor()).add(cfg.isColourByType()).add(cfg.getRoomLabels())
                     .add(cfg.getFontScale()).add(cfg.isTextShadow()).add(cfg.isMarkReportedRooms()).add(cfg.getRoomPx())
-                    .add(cfg.isWitherDoorOutline())
+                    .add(cfg.isWitherDoorOutline()).add(cfg.getWitherDoorOutlineColor())
+                    .add(cfg.getWitherDoorOutlineThickness())
                     .add(extraInfoLines().size()); // the frame wraps the Extra Info rows too
             com.killer560.hub.livemap.predict.PredictiveRoomsConfig pc =
                     com.killer560.hub.livemap.predict.PredictiveRoomsConfig.getInstance();
