@@ -387,3 +387,12 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   "Render pass color attachment count must match pipeline color target state count" - Secret Waypoints' through-walls
   lines on 2026-11-01, the first 26.3 run that ever drew one (96-ar). DEBUG_FILLED, GUI and GUI_TEXTURED snippets carry
   the same target on both versions (javap). Wrap any new `RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)`.
+- `Map.of` takes at most ten key/value pairs; an eleventh is a compile error (no varargs form). `SearchAliases` hit it
+  on 2026-11-01 and is `Map.ofEntries` now; use that for any alias or lookup table that grows.
+- The menu sidebar's section rows (Legit, groups, Cheat) are read from the grid's HEADER items, so `ModScreen.rebuild`
+  must run `buildItems()` BEFORE `layout()`; a new category needs nothing. A testkit harness key press never reaches the
+  GLFW poll `KeyUtil.isBindDown` reads: in-game keys are tested through a `heldForTest` hook (ModuleKeybinds,
+  LoadoutSwapper), menu key capture through `Screen.keyPressed` with `McKeys.nat`.
+- Video Browser: YouTube Shorts loop, so a `<video>` never fires `ended`; Auto Scroll counts a `timeupdate` that finds
+  the video under 1 s after one in its last second (caught in capture phase: `timeupdate` does not bubble). Checked in
+  headless Chrome with ffmpeg clips (killer560s-mod-logs/docmenu-1101-vb/endhook_test.py).

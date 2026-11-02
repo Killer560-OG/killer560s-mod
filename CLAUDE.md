@@ -483,3 +483,5 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
   release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
   `Rows.addKept`).
+- A cheat setting goes under the legit ones even when the owner asks for a legit block "at the bottom" (testkit 512 checks
+  every tab): the Etherwarp tab puts Works For last among legit rows and its cheat rows under it (2026-11-01).
