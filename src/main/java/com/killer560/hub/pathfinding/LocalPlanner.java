@@ -321,6 +321,22 @@ final class LocalPlanner {
             if (shape.max(net.minecraft.core.Direction.Axis.Y) <= pos.y - p.getY() + 0.02) {
                 return p.above();
             }
+            // Beside a fence post, a wall or a pane whose block his feet are counted in: plan from the open cell on HIS
+            // side of it. Planned from the fence's own cell, the way crossed the fence line he was standing behind and
+            // he pushed into it until the soul was skipped (testkit 1101-fairy-island-GOLD_MINES on terrain v2).
+            double rx = pos.x - p.getX() - 0.5;
+            double rz = pos.z - p.getZ() - 0.5;
+            int sx = Math.abs(rx) > 0.15 ? (rx > 0 ? 1 : -1) : 0;
+            int sz = Math.abs(rz) > 0.15 ? (rz > 0 ? 1 : -1) : 0;
+            for (int[] d : new int[][]{{sx, sz}, {sx, 0}, {0, sz}}) {
+                if (d[0] == 0 && d[1] == 0) {
+                    continue;
+                }
+                BlockPos q = p.offset(d[0], 0, d[1]);
+                if (cell(level, q)) {
+                    return q;
+                }
+            }
         }
         return p;
     }
