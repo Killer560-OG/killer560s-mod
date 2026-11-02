@@ -288,6 +288,12 @@ public final class BloodCampFeature {
         // exact step (/ 4096.0), which put the start, and so the predicted landing spot, one step too far along.
         // The packet's step in 26.2's wire units (1/4096 block); McPackets decodes 26.3's stepped delta to the same.
         long[] step = McPackets.moveEntityDelta(packet, entity);
+        if (step[0] == 0L && step[2] == 0L) {
+            // NoammAddons reads only a packet with a horizontal move (hasHorizontalMove). A still stand's position packet
+            // (testkit 392 on doc-blood-1101: one two ticks after the stand spawned) used to start a trip at the wall that
+            // the real movement then restarted 12 ticks later, so the countdown began 12 ticks late.
+            return;
+        }
         Vec3 packetVec = new Vec3(
                 entity.getX() + step[0] / 4096,
                 entity.getY() + step[1] / 4096,
