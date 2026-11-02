@@ -292,7 +292,9 @@ public final class SimMobs {
     /** Starred mobs the server saw die (Fabric AFTER_DEATH), and how many refreshes in a row each has been missing. */
     private static final java.util.Set<UUID> KILLED = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private static final java.util.Map<UUID, Integer> MISSING = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final int MISSING_TICKS = 3;
+    /** Ten seconds of checks: a chunk unloading far away read "ticking, entity missing" for longer than three (Mossy, 8 s
+     *  after GO, 120 blocks away). A real death is AFTER_DEATH or the entity there and not alive; this is only the fallback. */
+    private static final int MISSING_TICKS = 200;
 
     /** When each starred mob's death was confirmed, in order, so a room's key drops at its LAST death. */
     private static final java.util.Map<UUID, Long> DEATH_ORDER = new java.util.concurrent.ConcurrentHashMap<>();
@@ -943,7 +945,7 @@ public final class SimMobs {
             if ((entity == null || !entity.isAlive()) && !STARRED_DEAD.contains(id)) {
                 double[] at = STARRED_AT.get(id);
                 boolean ticking = at != null && level.isPositionEntityTicking(BlockPos.containing(at[0], at[1], at[2]));
-                // Missing is dead only when it STAYS missing from a ticking section (MISSING_TICKS checks in a row) or the
+                // Missing is dead only when it STAYS missing from a ticking section (MISSING_TICKS checks in a row, ten seconds) or the
                 // server saw it die (AFTER_DEATH): a mob whose chunk was unloading read as missing for a moment while the
                 // section still said ticking, and whole rooms - key rooms among them - "cleared" with nobody near
                 // (doc-adm-sim-1101: Mossy cleared 3 s after GO while the test stood at another door; its key never dropped).
