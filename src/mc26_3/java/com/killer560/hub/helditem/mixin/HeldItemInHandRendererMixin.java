@@ -99,6 +99,9 @@ public abstract class HeldItemInHandRendererMixin {
             require = 0)
     private void killer560smod$swingRange(PoseStack poseStack, float x, float y, float z, Operation<Void> original) {
         float r = HeldItemConfig.isActive() ? HeldItemConfig.getInstance().getSwingRange() : 1f;
+        if (r != 1f) {
+            HeldItemConfig.swingRangeApplied++;
+        }
         original.call(poseStack, x * r, y * r, z * r);
     }
 

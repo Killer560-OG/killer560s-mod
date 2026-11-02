@@ -226,6 +226,9 @@ public final class HeldItemConfig {
         return swingRange;
     }
 
+    /** Swings Swing Range scaled (its mixin ran with a range other than 1) - testkit evidence that the hook applied. */
+    public static volatile int swingRangeApplied;
+
     public void setSwingRange(float swingRange) {
         this.swingRange = clamp(swingRange, MIN_SWING_RANGE, MAX_SWING_RANGE);
     }
