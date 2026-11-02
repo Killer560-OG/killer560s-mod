@@ -156,6 +156,30 @@ public final class DungeonState {
         return roomSimActive;
     }
 
+    /** The sim's F7 boss fight is on (bosssim.BossFight): set however it started, P1 or straight into a later phase. */
+    private static boolean simBoss;
+
+    /**
+     * The sim's boss fight began. Started at P1 Maxor's own line already sets the boss phase; started straight into a
+     * later phase there is no such line (the sim says only what Hypixel says), so it is set here.
+     */
+    public static void simBossBegins() {
+        if (roomSimActive) {
+            simBoss = true;
+            bossPhaseActive = true;
+            LOGGER.info("[Secrets] Boss phase started (sim boss fight)");
+        }
+    }
+
+    /** The sim's boss fight is over or left: the clear features come back. Does nothing unless a sim fight set it. */
+    public static void simBossEnds() {
+        if (simBoss) {
+            simBoss = false;
+            bossPhaseActive = false;
+            LOGGER.info("[Secrets] Boss phase ended (sim boss fight over)");
+        }
+    }
+
     public static boolean isInDungeon() {
         return simOverrideActive || roomSimActive || cachedFloor != null;
     }
