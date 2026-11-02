@@ -874,6 +874,8 @@ public final class AutoClearFeature {
     static final int FEL_WAIT_TICKS = 30;
     /** Trips toward one Fel before it is skipped. */
     static final int FEL_MAX_TRIPS = 3;
+    /** The longest walk a forced walk (a goal etherwarps failed to reach) plans. */
+    static final double FORCED_WALK_MAX_BLOCKS = 32.0;
     private static int felWaitTicks = 0;
     private static long felWaitLag = 0L;
     private static final java.util.Map<Integer, Integer> felTrips = new java.util.HashMap<>();
@@ -933,6 +935,16 @@ public final class AutoClearFeature {
         }
         felTrips.put(fel.getId(), trips + 1);
         final BlockPos goal = stand;
+        if (trips >= 1) {
+            // An etherwarp toward it already ended out of range: walk there instead when there is a way on foot.
+            targetId = fel.getId();
+            targetName = fel.getName().getString();
+            if (walkInsteadOfTrip(client, player, goal, feet -> feet.distanceTo(at) <= reach, "a sleeping Fel", false, true)) {
+                LOGGER.info(String.format(Locale.US, "[AutoClear] Fel #%d: the etherwarp ended %.1f blocks away - walking",
+                        fel.getId(), d));
+                return true;
+            }
+        }
         action = "etherwarp to wake a Fel";
         LOGGER.info(String.format(Locale.US, "[AutoClear] Fel #%d at %s is asleep %.1f blocks away (wakes within %.0f) -"
                 + " trip to %s", fel.getId(), fel.blockPosition().toShortString(), d, FEL_WAKE_BLOCKS, goal.toShortString()));
@@ -3599,6 +3611,14 @@ public final class AutoClearFeature {
      *  (since 2026-10-20), and counted as a trip to it (tripEnded) when it arrives. */
     private static boolean walkInsteadOfTrip(Minecraft client, LocalPlayer player, BlockPos spot,
                                              java.util.function.Predicate<Vec3> doneAt, String what, boolean forDoor) {
+        return walkInsteadOfTrip(client, player, spot, doneAt, what, forDoor, false);
+    }
+
+    /** As above; {@code force}: walk whenever a way on foot exists (up to {@link #FORCED_WALK_MAX_BLOCKS}), whatever an
+     *  etherwarp would take - for a goal the etherwarps have already failed to reach (a sleeping Fel, doc-adm-sim-1101). */
+    private static boolean walkInsteadOfTrip(Minecraft client, LocalPlayer player, BlockPos spot,
+                                             java.util.function.Predicate<Vec3> doneAt, String what, boolean forDoor,
+                                             boolean force) {
         AutoClearConfig cfg = AutoClearConfig.getInstance();
         if (!cfg.isWalkWhenFaster() || !player.onGround() || !ShortWalk.mixinApplied()
                 || (forDoor ? walkOffDoor : doneAt != null ? walkOffFor == targetId : walkOffRoam)) {
@@ -3619,14 +3639,14 @@ public final class AutoClearFeature {
         if (!key.equals(walkDecisionKey)) {
             walkDecisionKey = key;
             walkDecisionPlan = null;
-            if (straight > WALK_MAX_BLOCKS) {
+            if (straight > (force ? FORCED_WALK_MAX_BLOCKS : WALK_MAX_BLOCKS)) {
                 LOGGER.info(String.format(Locale.US, "[AutoClear] move to %s: etherwarp ~%d ticks (%d warp(s)); walk not"
                         + " planned - %.1f blocks away, over %.0f", what, etherTicks, warps, straight, WALK_MAX_BLOCKS));
             } else {
                 long t0 = System.nanoTime();
                 ShortWalk.Plan plan = ShortWalk.plan(client.level, player, spot.above(), doneAt);
                 double ms = (System.nanoTime() - t0) / 1e6;
-                boolean walk = plan != null && plan.ticks() < etherTicks;
+                boolean walk = plan != null && (force || plan.ticks() < etherTicks);
                 walkDecisionPlan = walk ? plan : null;
                 LOGGER.info(String.format(Locale.US, "[AutoClear] move to %s: walk %s vs etherwarp ~%d ticks (%d warp(s),"
                                 + " %.1f blocks straight) - %s (%.1f ms)", what,
