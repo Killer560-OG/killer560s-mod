@@ -2190,6 +2190,15 @@ public final class BloodCampFeature {
      * {@link #isBloodMob}/{@link #isAttackableMob}, so one rule covers all three.
      */
     static boolean excluded(Minecraft client, Entity e) {
+        try {
+            return excluded0(client, e);
+        } catch (IllegalStateException notInLevel) {
+            // An entity with no id yet (never added to a level: testkit 686 asks about one it built) is not in the room.
+            return false;
+        }
+    }
+
+    private static boolean excluded0(Minecraft client, Entity e) {
         if (e instanceof net.minecraft.world.entity.monster.Silverfish) {
             return true;
         }

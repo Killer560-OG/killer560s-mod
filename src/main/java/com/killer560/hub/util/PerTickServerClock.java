@@ -19,7 +19,9 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * row that fail it (one failing window is what a stall itself looks like). The first rule, at 18 pings a window, still
  * trusted GrimAC now and then and ran testkit 792's first trip 31 ticks slow.
  * <p>
- * The clock is one count: each ping advances it while the server is trusted, each client tick while it is not. So it is
+ * The clock is one count: each ping advances it while the server is trusted; while it is not, it follows the client's
+ * game time (a tick a tick, plus the server's set-time corrections), exactly the clock Blood Camp used before - testkit 392
+ * (singleplayer, whose game time outran the client's ticks by 12 in a trip) failed on plain client ticks. So it is
  * continuous across a change of source, a stall stops it, and a burst of pings after a network spike (the server kept
  * ticking) catches it up. {@link #stallTicksSince} is how far it fell behind the client's own ticks.
  */
@@ -44,6 +46,10 @@ public final class PerTickServerClock {
     private static volatile int lastWindowPings = -1;
     private static boolean registered;
     private static Object lastLevel;
+    /** Client ticks and pings counted while trusted: the stall is the ticks the pings did not keep up with. */
+    private static long trustedTicks;
+    private static long trustedPings;
+    private static long lastGameTime;
 
     private PerTickServerClock() {
     }
@@ -56,11 +62,17 @@ public final class PerTickServerClock {
         ServerTickClock.register();
         ServerTickClock.subscribeRawPing(PerTickServerClock::onPing);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PerTickServerClock", client -> {
+            long gameTime = client.level == null ? lastGameTime : client.level.getGameTime();
+            long delta = gameTime - lastGameTime;
             if (client.level != lastLevel) {
                 lastLevel = client.level;
                 untrust();
+                delta = 1L; // a new world's game time says nothing about the old one's
             }
-            onClientTick();
+            lastGameTime = gameTime;
+            // Untrusted, the clock follows the client's game time, as Blood Camp always did: a tick a tick, plus the
+            // server's own time corrections (set-time packets). A wild jump (a /time command) counts as one tick.
+            onClientTick(Math.abs(delta) > 100L ? 1L : delta);
         }));
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> untrust());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> untrust());
@@ -81,13 +93,16 @@ public final class PerTickServerClock {
         pingsThisTick++;
         if (trusted) {
             clock++;
+            trustedPings++;
         }
     }
 
-    private static synchronized void onClientTick() {
+    private static synchronized void onClientTick(long untrustedStep) {
         clientTicks++;
         if (!trusted) {
-            clock++;
+            clock += untrustedStep;
+        } else {
+            trustedTicks++;
         }
         if (pingsThisTick > 0) {
             windowTicksWithPing++;
@@ -125,9 +140,9 @@ public final class PerTickServerClock {
         return clock;
     }
 
-    /** Both counters at once, for {@link #stallTicksSince}: {clock, clientTicks}. */
+    /** Both counters at once, for {@link #stallTicksSince}: {pings while trusted, client ticks while trusted}. */
     public static synchronized long[] mark() {
-        return new long[]{clock, clientTicks};
+        return new long[]{trustedPings, trustedTicks};
     }
 
     /** Client ticks since {@code mark} that the server did not tick (0 while it is not trusted), never negative. */
@@ -135,7 +150,7 @@ public final class PerTickServerClock {
         if (mark == null) {
             return 0L;
         }
-        return Math.max(0L, (clientTicks - mark[1]) - (clock - mark[0]));
+        return Math.max(0L, (trustedTicks - mark[1]) - (trustedPings - mark[0]));
     }
 
     public static boolean trusted() {
@@ -148,7 +163,7 @@ public final class PerTickServerClock {
     }
 
     public static void tickForTest() {
-        onClientTick();
+        onClientTick(1L);
     }
 
     public static void untrustForTest() {
