@@ -34,6 +34,16 @@ public final class MicrosoftAuthFlow {
             .build();
 
     public AuthResult refresh(PrismAccount account) throws AuthException {
+        if (account.source() == PrismAccount.Source.MODRINTH) {
+            // The Modrinth App's refresh token is bound to its own Xbox device key, so its current Minecraft token is
+            // used as is (validated by the profile fetch, sent only to Minecraft's own services).
+            long now = System.currentTimeMillis() / 1000L;
+            if (account.accessToken() == null || account.accessTokenExpiresEpochSeconds() <= now + 60) {
+                throw new AuthException("The Modrinth App's sign-in for " + account.displayName() + " has expired. "
+                        + "Restart the Modrinth App (it refreshes every account when it starts), then try again.");
+            }
+            return loginWithSessionToken(account.accessToken());
+        }
         try {
             String msaAccessToken = refreshMsaToken(account);
             XblResult xbl = authenticateXbl(msaAccessToken);

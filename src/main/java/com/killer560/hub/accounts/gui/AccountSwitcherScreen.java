@@ -4,7 +4,7 @@ import com.killer560.hub.accounts.AccountApplier;
 import com.killer560.hub.accounts.core.AuthException;
 import com.killer560.hub.accounts.core.MicrosoftAuthFlow;
 import com.killer560.hub.accounts.core.PrismAccount;
-import com.killer560.hub.accounts.core.PrismAccountStore;
+import com.killer560.hub.accounts.core.LauncherAccounts;
 import com.killer560.hub.accounts.core.SharedBanStatusStore;
 import com.killer560.hub.accounts.core.StoredBanStatus;
 import com.killer560.hub.compat.McCompat;
@@ -136,12 +136,14 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
     protected void init() {
         if (this.accounts.isEmpty() && this.statusMessage == null) {
             try {
-                this.accounts = PrismAccountStore.load();
+                this.accounts = LauncherAccounts.load();
                 if (this.accounts.isEmpty()) {
-                    setStatus("No Microsoft accounts found in Prism Launcher.", Kind.ERROR);
+                    setStatus("No Microsoft accounts found in " + LauncherAccounts.current().displayName() + ".",
+                            Kind.ERROR);
                 }
-            } catch (IOException e) {
-                setStatus("Couldn't read Prism's accounts.json: " + e.getMessage(), Kind.ERROR);
+            } catch (IOException | RuntimeException e) {
+                setStatus("Couldn't read the " + LauncherAccounts.current().displayName() + "'s accounts: "
+                        + e.getMessage(), Kind.ERROR);
             }
         }
         this.banStatuses = SharedBanStatusStore.load();

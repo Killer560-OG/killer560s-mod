@@ -556,3 +556,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Five features cancel `ContainerScreen.extractBackground` at HEAD (Inventory Theme, Storage Overlay, AH/Bazaar reskins,
   Spirit Leap), so nothing may read per-frame state from a hook there: the Terminal Solver did, and with Inventory Theme on
   no terminal was ever tracked (2026-11-01, doc-terms-1101). Use the HEAD of `Screen.extractRenderStateWithTooltipAndSubtitles`.
+- The Modrinth App starts the game through `com.modrinth.theseus.MinecraftLaunch` (so `sun.java.command` names it) and keeps
+  its signed-in accounts in `%APPDATA%\ModrinthApp\app.db`, SQLite in WAL mode: table `minecraft_users` (uuid, active,
+  username, access_token, refresh_token, expires in Unix seconds), recent rows often only in `app.db-wal`. Its refresh token
+  is bound to the app's Xbox device key, so the mod uses the app's current token (`accounts/core/LauncherAccounts`,
+  `SqliteReader`, read only; 2026-11-01). Inspect a COPY of app.db, never the live file, and never print a token.
