@@ -17,7 +17,7 @@ final class CardBlurbsData {
         d.put("MiningCarpetTab", "Marks carpets you can't mine.");
         d.put("MiningCommissionHudTab", "Commissions with waypoints.");
         d.put("MiningMithrilStoneTab", "Hides mithril you don't need.");
-        d.put("MiningPickobulusTab", "Shows what Pickobulus breaks.");
+        d.put("MiningPickobulusTab", "Outlines its break area.");
         d.put("MiningRaffleTab", "Boxes raffle tickets.");
         d.put("MiningTitaniumTab", "Outlines Titanium blocks.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");
