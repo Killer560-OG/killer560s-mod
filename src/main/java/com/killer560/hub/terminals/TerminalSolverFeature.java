@@ -223,6 +223,12 @@ public final class TerminalSolverFeature {
     /** The slot the moving pane was last seen in, and since when (client ms): how long it has stood there. */
     private static int melodyPaneSlot = -1;
     private static long melodyPaneSinceMs;
+    /** When the pane last STEPPED (moved column on one row), and on which chest row: the server's step clock. A row
+     *  change is not a step - the pane appears on the next row with the server's step clock still running (Hx keeps
+     *  the column and the clock; testkit 292 caught a click judged "100 ms into its stay" whose pane had in truth stood
+     *  there a whole step on the row before). */
+    private static long melodyLastStepAtMs;
+    private static int melodyLastStepChestRow = -1;
     /** The last few times between two pane steps on one row (ms); their median is the board's step time. */
     private static final long[] melodyStepSamples = new long[5];
     private static int melodyStepCount;
@@ -639,6 +645,8 @@ public final class TerminalSolverFeature {
         java.util.Arrays.fill(melodyClickedColumn, -1);
         melodyPaneSlot = -1;
         melodyPaneSinceMs = 0;
+        melodyLastStepAtMs = 0;
+        melodyLastStepChestRow = -1;
         // melodyStepSamples stay: the step time is the server's, so a new board starts with the last one's.
         lastMelodyClickAtMs = 0;
         scheduledMelodyClicks.clear();
@@ -1051,12 +1059,18 @@ public final class TerminalSolverFeature {
             melodyCurrentColumn = limeSlot % 9 - 1;
             if (limeSlot != melodyPaneSlot) {
                 long seenAt = System.currentTimeMillis();
-                if (melodyPaneSlot >= 0 && limeSlot / 9 == melodyPaneSlot / 9 && melodyPaneSinceMs > 0) {
-                    long step = seenAt - melodyPaneSinceMs;
-                    if (step >= 40 && step <= 3000) {
-                        melodyStepSamples[melodyStepCount % melodyStepSamples.length] = step;
-                        melodyStepCount++;
+                int chestRow = limeSlot / 9;
+                if (melodyPaneSlot >= 0 && chestRow == melodyPaneSlot / 9) {
+                    // A step on one row. Sampled only against the previous step on this same row.
+                    if (melodyLastStepChestRow == chestRow && melodyLastStepAtMs > 0) {
+                        long step = seenAt - melodyLastStepAtMs;
+                        if (step >= 40 && step <= 3000) {
+                            melodyStepSamples[melodyStepCount % melodyStepSamples.length] = step;
+                            melodyStepCount++;
+                        }
                     }
+                    melodyLastStepAtMs = seenAt;
+                    melodyLastStepChestRow = chestRow;
                 }
                 melodyPaneSlot = limeSlot;
                 melodyPaneSinceMs = seenAt;
@@ -1119,7 +1133,9 @@ public final class TerminalSolverFeature {
             com.killer560.hub.util.PingTracker.addDemand(() -> currentType == TerminalType.MELODY);
         }
         long step = melodyStepMs();
-        long age = now - melodyPaneSinceMs;
+        // How long the server's pane has stood where it is: by the step clock once known (the time since the last step
+        // seen, modulo the step time - right across a row change), else since this client first saw it there.
+        long age = step > 0 && melodyLastStepAtMs > 0 ? (now - melodyLastStepAtMs) % step : now - melodyPaneSinceMs;
         int rtt = com.killer560.hub.util.PingTracker.automationMs();
         if (step > 0 && age + rtt + MELODY_LATE_MARGIN_MS > step) {
             // TOO LATE IN THE PANE'S STAY (2026-11-02, ship gate 1102k "34=2"). The click is judged where the SERVER's
