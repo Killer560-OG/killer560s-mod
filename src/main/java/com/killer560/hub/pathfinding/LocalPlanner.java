@@ -184,6 +184,13 @@ final class LocalPlanner {
             }
             // Blocked at the feet: a step up (a jump, or out of the water over a one-block bank).
             int up = inWater ? 1 : maxUp;
+            if (onLadder && (WalkTerrain.climbable(level, at.below()) || !standOn(level, at.below()))
+                    && !WalkTerrain.climbable(level, at.above())) {
+                // At a ladder's top block with nothing under his feet: he cannot jump from there, and climbing ends here,
+                // so no step up onto a ledge higher than the ladder (testkit 1101-fairy-island-GOLD_MINES: a way back
+                // planned from a ladder's top onto a ledge a block above it, tried until the soul was skipped).
+                up = 0;
+            }
             for (int k = 1; k <= up; k++) {
                 BlockPos lifted = side.above(k);
                 if (!passable(level, at.above(k + 1))) {
