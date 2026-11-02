@@ -36,6 +36,10 @@ public final class PingTracker {
 
     private static final java.util.List<BooleanSupplier> DEMAND = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static final long[] samples = new long[WINDOW];
+    /** The same samples less the server stall measured while each request was out (see {@link #automationMsLagFree}). */
+    private static final long[] cleanSamples = new long[WINDOW];
+    /** {@link ServerLag#mark()} when the last request went out (its pong is matched by the sent time). */
+    private static volatile long lastSentLagMark = 0L;
     private static int sampleCount = 0;
     private static int sampleNext = 0;
     private static volatile long lastSampleMs = -1L;
@@ -83,6 +87,7 @@ public final class PingTracker {
             return;
         }
         long now = Util.getMillis();
+        lastSentLagMark = ServerLag.mark();
         lastSentTime = now;
         pingsSent++;
         connection.send(new ServerboundPingRequestPacket(now));
@@ -94,7 +99,10 @@ public final class PingTracker {
         if (rtt < 0 || rtt > MAX_SAMPLE_MS) {
             return;
         }
+        // A pong for our own request: take out what the server stalled meanwhile (vanilla's F3 pongs carry no mark).
+        long stall = sentTime == lastSentTime ? ServerLag.msSince(lastSentLagMark) : 0L;
         synchronized (samples) {
+            cleanSamples[sampleNext] = Math.max(0L, rtt - stall);
             samples[sampleNext] = rtt;
             sampleNext = (sampleNext + 1) % WINDOW;
             if (sampleCount < WINDOW) {
@@ -143,6 +151,26 @@ public final class PingTracker {
         synchronized (samples) {
             if (sampleCount > 0) {
                 long[] sorted = java.util.Arrays.copyOf(samples, sampleCount);
+                java.util.Arrays.sort(sorted);
+                int mid = sampleCount / 2;
+                long median = sampleCount % 2 == 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid] + 1) / 2;
+                return (int) median;
+            }
+        }
+        return Math.max(0, tabListMs());
+    }
+
+    /**
+     * {@link #automationMs} with every server stall taken out of each sample: the time the server spent frozen while a
+     * request was out (util/ServerLag, measured from the per-tick pings). killer560, 2026-11-01: Blood Camp's Trigger Bot
+     * "comes out really late likely due to auto detect lag finding something wrong" - his 2026-10-29 log had a 1170 ms
+     * median across a 20-tick stall. A stall is time, not distance: a countdown that already leaves the stall out
+     * (Blood Camp's) must not ALSO lead by it. With the server keeping time this is exactly {@link #automationMs}.
+     */
+    public static int automationMsLagFree() {
+        synchronized (samples) {
+            if (sampleCount > 0) {
+                long[] sorted = java.util.Arrays.copyOf(cleanSamples, sampleCount);
                 java.util.Arrays.sort(sorted);
                 int mid = sampleCount / 2;
                 long median = sampleCount % 2 == 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid] + 1) / 2;

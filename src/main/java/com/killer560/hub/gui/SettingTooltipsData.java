@@ -2151,7 +2151,8 @@ final class SettingTooltipsData {
             d.put("auto blood camp/aura", "Cheat build, Blood Room only: turns you to the next blood mob you can see and clicks it at your weapon's attack speed until it dies; moving your mouse takes over.");
             d.put("auto blood camp/never miss", "The first hit waits until the mob is really there - on the spot, in reach and in sight - and goes that tick, instead of on the kill timer.");
             d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
-            d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: below 0 clicks late, above 0 early. -1 by default.");
+            d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: left (below 0) clicks early, right (above 0) late. +1 by default.");
+            d.put("auto blood camp/mage only", "The Trigger Bot and the Aura act only while the dungeon tab list says you are the Mage.");
             d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
             d.put("auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
@@ -2555,6 +2556,12 @@ final class SettingTooltipsData {
         d.put("blood camp/start sound type", "Which sound Countdown Start Sound plays. Left click cycles forward, right click back.");
         d.put("blood camp/kill sound type", "Which sound Kill Sound plays. Left click cycles forward, right click back.");
         d.put("blood camp/sound volume", "Volume of the Kill Sound, 0-1.");
+        d.put("blood camp/mobs left hud", "Blood Camp Stats HUD: blood mobs still alive plus those on their way; a + while the Watcher is still sending more.");
+        d.put("blood camp/mob ticks hud", "Blood Camp Stats HUD: server ticks lost to slow kills - every tick from the kill timer to the first kill, then every tick a blood mob is alive on the floor.");
+        d.put("blood camp/camp lag hud", "Blood Camp Stats HUD: how long the server lagged since the Watcher's greeting.");
+        d.put("blood camp/party message", "After the run, sends the mob ticks lost to party chat if you camped the Blood Room.");
+        d.put("blood camp/send for any class", "Sends the party message even when someone else camped: the ticks are counted from any room the blood mobs are loaded in.");
+        d.put("blood camp/include camp lag", "Adds the server lag during the camp to the party message.");
         d.put("ap3/align timer (dev)", "Dev builds only: prints how long each Align took.");
         d.put("advanced position/advanced position", "Shows your exact X, Y and Z as a small movable HUD.");
         d.put("advanced position/decimal places", "How many decimal places the HUD shows (0-8).");

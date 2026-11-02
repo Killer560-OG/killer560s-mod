@@ -53,11 +53,14 @@ public final class BloodCampConfig {
     private boolean auraEnabled = false;
     private boolean autoDetectLag = true;
     /** Trigger Bot: ticks from the kill timer (the moment the box turns green and the Kill Sound plays) to the click -
-     *  positive clicks that many ticks EARLY, negative that many ticks LATE (killer560, 2026-10-15: "there needs to be a
-     *  negative option as well where it will attack late. Have the slider go from -10 to 10 and have it default to -1").
-     *  Replaces Hit Lead (0-10, 3), whose old value is not carried over: it counted from a different moment. */
+     *  positive clicks that many ticks LATE, negative that many ticks EARLY. killer560, 2026-11-01: "make the slider for
+     *  trigger offset be such that if i slide it left it is early and right it is late" - the sign was flipped from the
+     *  2026-10-15 slider (positive early); a file without {@code triggerOffsetVersion} 2 is negated on load, so his
+     *  saved click moment is unchanged. Default 1 (one tick late), the old -1. */
     private int triggerOffsetTicks = DEFAULT_TRIGGER_OFFSET_TICKS;
-    public static final int DEFAULT_TRIGGER_OFFSET_TICKS = -1;
+    public static final int DEFAULT_TRIGGER_OFFSET_TICKS = 1;
+    /** {@code triggerOffsetVersion}: 2 = positive is late. */
+    private static final int TRIGGER_OFFSET_VERSION = 2;
     public static final int MIN_TRIGGER_OFFSET_TICKS = -10;
     public static final int MAX_TRIGGER_OFFSET_TICKS = 10;
     /** Aura: turn the body only, the camera stays where his mouse puts it (killer560, 2026-10-15: "have an option for
@@ -87,6 +90,18 @@ public final class BloodCampConfig {
     private String countdownStartSoundId = com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.PLING.name();
     private String killSoundId = com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.ARROW_HIT.name();
     private float soundVolume = DEFAULT_SOUND_VOLUME;
+    /** Auto Blood Camp acts only while his dungeon class is Mage (killer560, 2026-11-01: "Have an option to only toggle
+     *  as mage"). Cheat. */
+    private boolean mageOnly = false;
+    /** Blood Camp Stats HUD lines (killer560, 2026-11-01): mobs left, mob ticks alive (the ticks lost to slow kills) and
+     *  the server lag during the camp. Legit. */
+    private boolean hudMobsLeft = false;
+    private boolean hudMobTicks = false;
+    private boolean hudCampLag = false;
+    /** End of run party message with the ticks lost, optionally the camp's lag, optionally when he did not camp himself. */
+    private boolean partyMessage = false;
+    private boolean partyMessageLag = false;
+    private boolean partyMessageAnyClass = false;
 
     private BloodCampConfig() {
     }
@@ -125,7 +140,11 @@ public final class BloodCampConfig {
             cfg.autoDetectLag = ConfigJson.getBool(obj, "autoDetectLag", true);
             // The old hitLeadTicks / manualTickOffset keys are ignored on purpose: they counted from the server-side
             // due moment, this counts from the kill timer he sees, so the old number would not mean the same click.
-            cfg.setTriggerOffsetTicks(ConfigJson.getInt(obj, "triggerOffsetTicks", DEFAULT_TRIGGER_OFFSET_TICKS));
+            int offset = ConfigJson.getInt(obj, "triggerOffsetTicks", DEFAULT_TRIGGER_OFFSET_TICKS);
+            if (obj.has("triggerOffsetTicks") && ConfigJson.getInt(obj, "triggerOffsetVersion", 1) < TRIGGER_OFFSET_VERSION) {
+                offset = -offset; // saved as "positive early": the same click moment on the new slider
+            }
+            cfg.setTriggerOffsetTicks(offset);
             cfg.auraFreecam = ConfigJson.getBool(obj, "auraFreecam", false);
             cfg.neverMiss = ConfigJson.getBool(obj, "neverMiss", false);
             cfg.killPopup = ConfigJson.getBool(obj, "killPopup", false);
@@ -139,6 +158,13 @@ public final class BloodCampConfig {
             cfg.setCountdownStartSoundId(ConfigJson.getString(obj, "countdownStartSoundId", cfg.countdownStartSoundId));
             cfg.setKillSoundId(ConfigJson.getString(obj, "killSoundId", cfg.killSoundId));
             cfg.setSoundVolume(ConfigJson.getFloat(obj, "soundVolume", DEFAULT_SOUND_VOLUME));
+            cfg.mageOnly = ConfigJson.getBool(obj, "mageOnly", false);
+            cfg.hudMobsLeft = ConfigJson.getBool(obj, "hudMobsLeft", false);
+            cfg.hudMobTicks = ConfigJson.getBool(obj, "hudMobTicks", false);
+            cfg.hudCampLag = ConfigJson.getBool(obj, "hudCampLag", false);
+            cfg.partyMessage = ConfigJson.getBool(obj, "partyMessage", false);
+            cfg.partyMessageLag = ConfigJson.getBool(obj, "partyMessageLag", false);
+            cfg.partyMessageAnyClass = ConfigJson.getBool(obj, "partyMessageAnyClass", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new BloodCampConfig();
@@ -155,6 +181,7 @@ public final class BloodCampConfig {
             obj.addProperty("auraEnabled", auraEnabled);
             obj.addProperty("autoDetectLag", autoDetectLag);
             obj.addProperty("triggerOffsetTicks", triggerOffsetTicks);
+            obj.addProperty("triggerOffsetVersion", TRIGGER_OFFSET_VERSION);
             obj.addProperty("auraFreecam", auraFreecam);
             obj.addProperty("neverMiss", neverMiss);
             obj.addProperty("killPopup", killPopup);
@@ -168,6 +195,13 @@ public final class BloodCampConfig {
             obj.addProperty("countdownStartSoundId", countdownStartSoundId);
             obj.addProperty("killSoundId", killSoundId);
             obj.addProperty("soundVolume", soundVolume);
+            obj.addProperty("mageOnly", mageOnly);
+            obj.addProperty("hudMobsLeft", hudMobsLeft);
+            obj.addProperty("hudMobTicks", hudMobTicks);
+            obj.addProperty("hudCampLag", hudCampLag);
+            obj.addProperty("partyMessage", partyMessage);
+            obj.addProperty("partyMessageLag", partyMessageLag);
+            obj.addProperty("partyMessageAnyClass", partyMessageAnyClass);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -260,7 +294,7 @@ public final class BloodCampConfig {
         this.autoDetectLag = autoDetectLag;
     }
 
-    /** Ticks EARLY (positive) or LATE (negative) relative to the kill timer the Trigger Bot clicks; -10..10. */
+    /** Ticks LATE (positive) or EARLY (negative) relative to the kill timer the Trigger Bot clicks; -10..10. */
     public int getTriggerOffsetTicks() {
         return triggerOffsetTicks;
     }
@@ -376,5 +410,70 @@ public final class BloodCampConfig {
 
     public void setSoundVolume(float soundVolume) {
         this.soundVolume = Float.isNaN(soundVolume) ? DEFAULT_SOUND_VOLUME : Math.max(0f, Math.min(1f, soundVolume));
+    }
+
+    // ---- 2026-11-01 (doc-blood-1101) ----
+
+    /** Cheat: Trigger Bot and Aura act only while his class is Mage. */
+    public boolean isMageOnly() {
+        return mageOnly;
+    }
+
+    public void setMageOnly(boolean mageOnly) {
+        this.mageOnly = mageOnly;
+    }
+
+    public boolean isHudMobsLeft() {
+        return hudMobsLeft;
+    }
+
+    public void setHudMobsLeft(boolean v) {
+        this.hudMobsLeft = v;
+    }
+
+    public boolean isHudMobTicks() {
+        return hudMobTicks;
+    }
+
+    public void setHudMobTicks(boolean v) {
+        this.hudMobTicks = v;
+    }
+
+    public boolean isHudCampLag() {
+        return hudCampLag;
+    }
+
+    public void setHudCampLag(boolean v) {
+        this.hudCampLag = v;
+    }
+
+    /** Any Blood Camp Stats line is on. */
+    public boolean isStatsHudAny() {
+        return hudMobsLeft || hudMobTicks || hudCampLag;
+    }
+
+    public boolean isPartyMessage() {
+        return partyMessage;
+    }
+
+    public void setPartyMessage(boolean v) {
+        this.partyMessage = v;
+    }
+
+    public boolean isPartyMessageLag() {
+        return partyMessageLag;
+    }
+
+    public void setPartyMessageLag(boolean v) {
+        this.partyMessageLag = v;
+    }
+
+    /** Send the message even when he did not camp the Blood Room himself (another class, watching from another room). */
+    public boolean isPartyMessageAnyClass() {
+        return partyMessageAnyClass;
+    }
+
+    public void setPartyMessageAnyClass(boolean v) {
+        this.partyMessageAnyClass = v;
     }
 }

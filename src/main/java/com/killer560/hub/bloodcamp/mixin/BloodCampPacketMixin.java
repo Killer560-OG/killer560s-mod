@@ -2,7 +2,9 @@ package com.killer560.hub.bloodcamp.mixin;
 
 import com.killer560.hub.bloodcamp.BloodCampFeature;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import com.killer560.hub.util.ModLog;
@@ -54,6 +56,36 @@ public abstract class BloodCampPacketMixin {
             BloodCampFeature.onMoveEntity(packet, ((ClientPacketListener) (Object) this).getLevel());
         } catch (RuntimeException e) {
             killer560smod$bloodCampHandlerThrew("moveEntity", e);
+        }
+    }
+
+    /** A blood mob's skull stand moved by an absolute position (doc-blood-1101: a trip whose first movement came this way
+     *  was never tracked). Same hook point as the move packet: after the thread hand-off, before vanilla moves it. Target
+     *  javap-checked on 26.3 and 26.2: both handlers start with ensureRunningOnSameThread. */
+    @Inject(method = "handleEntityPositionSync", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER))
+    private void killer560smod$onPositionSync(ClientboundEntityPositionSyncPacket packet, CallbackInfo ci) {
+        try {
+            BloodCampFeature.onAbsoluteMove(com.killer560.hub.compat.McPackets.positionSyncId(packet),
+                    com.killer560.hub.compat.McPackets.positionSyncPos(packet), ((ClientPacketListener) (Object) this).getLevel(),
+                    "position sync");
+        } catch (RuntimeException e) {
+            killer560smod$bloodCampHandlerThrew("positionSync", e);
+        }
+    }
+
+    @Inject(method = "handleTeleportEntity", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER))
+    private void killer560smod$onTeleportEntity(ClientboundTeleportEntityPacket packet, CallbackInfo ci) {
+        try {
+            // A teleport relative on any axis is a delta, not a place: left to the move model's next packet.
+            if (packet.relatives().contains(net.minecraft.world.entity.Relative.X)
+                    || packet.relatives().contains(net.minecraft.world.entity.Relative.Y)
+                    || packet.relatives().contains(net.minecraft.world.entity.Relative.Z)) {
+                return;
+            }
+            BloodCampFeature.onAbsoluteMove(packet.id(), packet.change().position(),
+                    ((ClientPacketListener) (Object) this).getLevel(), "teleport");
+        } catch (RuntimeException e) {
+            killer560smod$bloodCampHandlerThrew("teleportEntity", e);
         }
     }
 
