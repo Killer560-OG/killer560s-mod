@@ -46,6 +46,9 @@ public final class SplitTimersConfig {
      *  chat/party announce toggles above - killer560, 2026-09-20: "at the very bottom of the split timers show
      *  the slowest person into core and their time." Default OFF like every new HUD line here. */
     private boolean coreEntrySlowestHud = false;
+    /** killer560, 2026-11-01: "split timers should have an option to show recore stuff even if split timers are off" -
+     *  Core Entry times (and their HUD rows) run with the Split Timers switch off. Default OFF. */
+    private boolean coreEntryWithoutSplits = false;
 
     /** Lagless time (see SplitLagClock) in "(...)" after every time the splits show. ON by default since the
      *  2026-10-08 layout, whose every row reads "real (lagless)". The 2026-09-20 layout toggles (divider, Boss Entry,
@@ -85,6 +88,7 @@ public final class SplitTimersConfig {
             cfg.coreEntrySlowestChat = ConfigJson.getBool(obj, "coreEntrySlowestChat", false);
             cfg.coreEntrySlowestParty = ConfigJson.getBool(obj, "coreEntrySlowestParty", false);
             cfg.coreEntrySlowestHud = ConfigJson.getBool(obj, "coreEntrySlowestHud", false);
+            cfg.coreEntryWithoutSplits = ConfigJson.getBool(obj, "coreEntryWithoutSplits", false);
             cfg.laglessTimes = ConfigJson.getBool(obj, "laglessTimes", true);
             cfg.tickCounting = ConfigJson.getBool(obj, "tickCounting", false);
             instance = cfg;
@@ -107,6 +111,7 @@ public final class SplitTimersConfig {
             obj.addProperty("coreEntrySlowestChat", coreEntrySlowestChat);
             obj.addProperty("coreEntrySlowestParty", coreEntrySlowestParty);
             obj.addProperty("coreEntrySlowestHud", coreEntrySlowestHud);
+            obj.addProperty("coreEntryWithoutSplits", coreEntryWithoutSplits);
             obj.addProperty("laglessTimes", laglessTimes);
             obj.addProperty("tickCounting", tickCounting);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -162,6 +167,24 @@ public final class SplitTimersConfig {
 
     public void setWatcherMoveSplit(boolean watcherMoveSplit) {
         this.watcherMoveSplit = watcherMoveSplit;
+    }
+
+    public boolean isCoreEntryWithoutSplits() {
+        return coreEntryWithoutSplits;
+    }
+
+    public void setCoreEntryWithoutSplits(boolean v) {
+        coreEntryWithoutSplits = v;
+    }
+
+    /** Core Entry times are being kept: the Core Entry switch, and Split Timers on or Show With Splits Off set. */
+    public boolean isCoreEntryActive() {
+        return coreEntryTimes && com.killer560.hub.util.SkyblockGate.allows() && (enabled || coreEntryWithoutSplits);
+    }
+
+    /** Core Entry runs on its own: Split Timers is off but Show With Splits Off keeps the core times going. */
+    public boolean isCoreEntryAlone() {
+        return isCoreEntryActive() && !isEnabled();
     }
 
     public boolean isCoreEntryTimes() {

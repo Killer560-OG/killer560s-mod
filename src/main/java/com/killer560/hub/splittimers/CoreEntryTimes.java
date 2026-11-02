@@ -23,13 +23,16 @@ import java.util.Map;
  * {@code goldorfrenzy/} keys off. Fed in from {@link SplitTimersFeature}'s chat handler, so there is no second chat
  * subscription.
  * <p>
- * <b>Entry detection:</b> Hypixel never announces who entered the core, so entry is a position crossing. The core
- * (Necron's arena) is the P4 band of the F7/M7 boss room: {@code 45 &lt; y &lt;= 100}. That band is not invented here -
- * it is this repo's own {@code fastleap.Floor7Tracker.getPhaseAt()} ({@code y > 210} P1, {@code > 155} P2,
- * {@code > 100} P3, {@code > 45} P4, else P5), ported from QUOI {@code enums/Phase.kt}, and it is confirmed
- * independently by NoammAddons {@code utils/location/LocationUtils.kt}'s {@code getPhase(y)}, which uses the exact
- * same five thresholds. {@code Floor7Tracker.getPhaseAt()} only reads the local player, so the same band is applied
- * by hand to each teammate's own Y.
+ * <b>Entry detection:</b> Hypixel never announces who entered the core, so entry is a position crossing: the first tick
+ * a player stands inside the core itself, the closed room in the middle of the Goldor arena whose entrance opens on that
+ * line. The box is NoammAddons' {@code LeapCounter} "in core" check ({@code aabb(68, 106, 54, 42, 155, 119)}: x 42..68,
+ * y 106..155, z 54..119; its {@code INCORE_BOX} leap spot is the {@code CORE_BOX} entrance moved 6 blocks in, at z 55..60,
+ * and this mod's own Posmsg "Recore" preset sits at 54.5, 115, 58.5 inside it).
+ * <p>
+ * Until 2026-11-01 it was the P4 band {@code 45 < y <= 100} instead - Necron's platform, under the core - so a player was
+ * "in" only once Goldor was dead and they had dropped to Necron, and Necron's first line (which ends the timing) usually
+ * came after only the first to drop had been timed: killer560, "We are using 4 mages and 1 arch and it only ever gave
+ * the arch's time".
  * <p>
  * <b>Positions:</b> {@link LeapMenuFeature#currentPartyMembers()} - the loaded-player list the Live Map already draws
  * its teammate dots from. No new packet handling. A player outside the server's entity-tracking range has <b>no</b>
@@ -45,9 +48,16 @@ import java.util.Map;
  */
 final class CoreEntryTimes {
 
-    /** Floor7Tracker / NoammAddons LocationUtils: P4 (the core) is 45 &lt; y &lt;= 100. */
-    private static final double CORE_MAX_Y = 100.0;
-    private static final double CORE_MIN_Y = 45.0;
+    /** Inside the core (NoammAddons LeapCounter's in-core box): x 42..68, y 106..155, z 54..119. */
+    static final double CORE_MIN_X = 42.0, CORE_MAX_X = 68.0;
+    static final double CORE_MIN_Y = 106.0, CORE_MAX_Y = 155.0;
+    static final double CORE_MIN_Z = 54.0, CORE_MAX_Z = 119.0;
+
+    /** True for a position inside the core. */
+    static boolean inCore(double x, double y, double z) {
+        return x >= CORE_MIN_X && x <= CORE_MAX_X && y >= CORE_MIN_Y && y <= CORE_MAX_Y
+                && z >= CORE_MIN_Z && z <= CORE_MAX_Z;
+    }
     private static final String CHAT = "Split Timers";
 
     private static long openedMs = 0L;
@@ -87,7 +97,7 @@ final class CoreEntryTimes {
     }
 
     static void tick() {
-        if (openedMs == 0L || !SplitTimersConfig.getInstance().isCoreEntryTimes()) {
+        if (openedMs == 0L || !SplitTimersConfig.getInstance().isCoreEntryActive()) {
             return;
         }
         Minecraft client = Minecraft.getInstance();
@@ -154,8 +164,7 @@ final class CoreEntryTimes {
         if (containsKeyIgnoreCase(ENTRIES, name)) {
             return;
         }
-        double y = player.getY();
-        if (y > CORE_MAX_Y || y <= CORE_MIN_Y) {
+        if (!inCore(player.getX(), player.getY(), player.getZ())) {
             return;
         }
         if (!containsIgnoreCase(EXPECTED, name)) {
@@ -164,6 +173,15 @@ final class CoreEntryTimes {
             EXPECTED.add(name);
         }
         ENTRIES.put(name, now - openedMs);
+    }
+
+    private static Long getIgnoreCase(Map<String, Long> map, String name) {
+        for (Map.Entry<String, Long> e : map.entrySet()) {
+            if (e.getKey().equalsIgnoreCase(name)) {
+                return e.getValue();
+            }
+        }
+        return null;
     }
 
     private static boolean containsKeyIgnoreCase(Map<String, Long> map, String name) {
@@ -178,14 +196,19 @@ final class CoreEntryTimes {
         return false;
     }
 
+    /** For the testkit: player name -> ms from the core opening to entering it. */
+    static Map<String, Long> entries() {
+        return new LinkedHashMap<>(ENTRIES);
+    }
+
     /** HUD/chat rows: everyone expected, in party order, with a dash for anyone never seen inside the core. */
     static List<String> lines() {
-        if (openedMs == 0L || EXPECTED.isEmpty() || !SplitTimersConfig.getInstance().isCoreEntryTimes()) {
+        if (openedMs == 0L || EXPECTED.isEmpty() || !SplitTimersConfig.getInstance().isCoreEntryActive()) {
             return List.of();
         }
         List<String> out = new ArrayList<>(EXPECTED.size());
         for (String name : EXPECTED) {
-            Long ms = ENTRIES.get(name);
+            Long ms = getIgnoreCase(ENTRIES, name);   // the tab list's name and the entity's may differ in case
             out.add(colorFor(name) + name + "§f: " + (ms == null ? "§7-" : format(ms)));
         }
         return out;
@@ -233,7 +256,7 @@ final class CoreEntryTimes {
         }
         announced = true;
         SplitTimersConfig cfg = SplitTimersConfig.getInstance();
-        if (!cfg.isCoreEntryTimes() || (!cfg.isCoreEntrySlowestChat() && !cfg.isCoreEntrySlowestParty())) {
+        if (!cfg.isCoreEntryActive() || (!cfg.isCoreEntrySlowestChat() && !cfg.isCoreEntrySlowestParty())) {
             return;
         }
         Map.Entry<String, Long> slowest = slowestEntry();

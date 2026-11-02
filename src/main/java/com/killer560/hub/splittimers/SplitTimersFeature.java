@@ -209,6 +209,8 @@ public final class SplitTimersFeature {
 
         if (SplitTimersConfig.getInstance().isEnabled()) {
             WatcherMoveTracker.tick();
+        }
+        if (SplitTimersConfig.getInstance().isCoreEntryActive()) {
             CoreEntryTimes.tick();
         }
 
@@ -224,10 +226,25 @@ public final class SplitTimersFeature {
 
     private static void onChatMessage(Component message) {
         if (!SplitTimersConfig.getInstance().isEnabled()) {
+            // Split Timers off: only Core Entry's own three lines, when it is kept on its own (2026-11-01).
+            if (SplitTimersConfig.getInstance().isCoreEntryAlone()) {
+                onCoreLine(ChatObserver.strip(message));
+            }
             return;
         }
         // Stripped: real Hypixel lines can embed §-codes mid-word.
         onLine(ChatObserver.strip(message), System.currentTimeMillis());
+    }
+
+    /** The lines Core Entry reads, for when it runs without the splits: run start, the core opening, Necron's entry. */
+    static void onCoreLine(String raw) {
+        if ("Starting in 1 second.".equals(raw)) {
+            CoreEntryTimes.reset();
+        } else if ("The Core entrance is opening!".equals(raw)) {
+            CoreEntryTimes.onCoreOpening();
+        } else if ("[BOSS] Necron: You went further than any human before, congratulations.".equals(raw)) {
+            CoreEntryTimes.onPhaseFourStarted();
+        }
     }
 
     /** One chat line at {@code now}. Package-private so the testkit can drive a run with exact times. */
@@ -591,6 +608,18 @@ public final class SplitTimersFeature {
         private static List<Line> buildLayout(boolean editor) {
             List<Line> out = new ArrayList<>();
             int lineY = 0;
+            if (!SplitTimersConfig.getInstance().isEnabled()) {
+                // Core Entry on its own (Show With Splits Off): its rows alone, where the splits would start.
+                for (String line : coreLines()) {
+                    out.add(new Line(line, 0, lineY));
+                    lineY += ROW_HEIGHT;
+                }
+                for (String line : slowestCoreLine()) {
+                    out.add(new Line(line, 0, lineY));
+                    lineY += ROW_HEIGHT;
+                }
+                return out;
+            }
             List<String> rows = editor ? editorRows() : rowTexts(layoutRows(System.currentTimeMillis()));
             for (String row : rows) {
                 out.add(new Line(row, 0, lineY));
@@ -737,12 +766,12 @@ public final class SplitTimersFeature {
 
         @Override
         public boolean isEnabledInSettings() {
-            return SplitTimersConfig.getInstance().isEnabled();
+            return SplitTimersConfig.getInstance().isEnabled() || SplitTimersConfig.getInstance().isCoreEntryAlone();
         }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!SplitTimersConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
+            if (!isEnabledInSettings() || HudVisibility.hidesHud()) {
                 return;
             }
             List<Line> lines = layout();

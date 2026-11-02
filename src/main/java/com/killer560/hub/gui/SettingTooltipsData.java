@@ -1731,7 +1731,8 @@ final class SettingTooltipsData {
         d.put("skip dead", "Skips teammates the tab list currently shows as DEAD.");
         d.put("clear splits", "Splits the clear phase into Blood Rush, Blood Open, Watcher Dialogue and Blood Clear.");
         d.put("watcher move", "Adds a row for how long after the blood door opens the Watcher starts moving.");
-        d.put("core entry times", "Times how long each player takes to enter the core after the Phase 3 terminals.");
+        d.put("core entry times", "Times how long each player takes to step inside the core after \"The Core entrance is opening!\".");
+        d.put("split timers/show with splits off", "Keeps Core Entry Times and their HUD rows going with Split Timers turned off.");
         d.put("slowest to chat", "Prints the slowest player into the core in your own chat once per run.");
         d.put("slowest to party", "Sends the slowest core entry line to party chat once per run.");
         d.put("ability cooldowns/display", "How the cooldown list is drawn and how many lines it may use.");
