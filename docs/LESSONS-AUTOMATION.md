@@ -273,7 +273,13 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   W+A+jump) at the spot - it flags the same way every run (26.3 8 of 8, 26.2 3 of 3; 1101-fairy-island-BAYOU_SPILL with
   -Pfairy.keys); W alone, W+jump, W+D never get him into that state and are clean. The walker flags only when it is in that same
   state. A ladder beside STILL water, or flowing water only over the ladder's top (1102-fairy-grim-flowladder-*, 12 runs per
-  version, keys and walker), is clean.
+  version, keys and walker), is clean. Grim's or not, it is a flag, so the walker must never be in that state:
+  `AutoWalker.keepLadderOutOfWater` has the last word on the keys while he is on a ladder (water within two columns: no
+  key toward it once where his speed carries him is within 0.12, the key away within 0.05), and the ladder centering
+  predicts his rest point from his sideways speed (it overshot 0.25 into the pool). Releasing a key is not enough - his
+  momentum carried him in at 0.03-0.09 a tick - and a guard that refuses every strafe toward a water side left him 0.31
+  off center with his head caught under the next block (m12). Testkit 1102-fairy-spill-ladder asserts zero ticks on a
+  ladder in water; m8 had 3-8 such ticks on 4 of 4 runs, m13 none in 36 (18 per version).
 - **Measure a planner rule on all five islands before keeping it.** "No step up from a ladder's top block" (2026-11-02) read right
   and fixed the one Gold Mines stall it was written for, but the full island run fell from 34/55 to 29/55 (Spider's Den 8 -> 5,
   more "in water, no way back") and it was reverted. Single-island runs also vary by a soul or two between identical jars.
