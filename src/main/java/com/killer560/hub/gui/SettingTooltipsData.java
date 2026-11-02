@@ -16,6 +16,11 @@ final class SettingTooltipsData {
         d.put("mute chest sounds", "In dungeons, silences chest open and close sounds.");
         d.put("mute lever sounds", "In dungeons, silences lever click sounds.");
         d.put("breaker charges", "Shows your Dungeon Breaker's charges as a HUD line in dungeons. Move it in the HUD editor.");
+        d.put("creation cooldown", "Shows how long until Hypixel lets you create another dungeon (30 s after you enter one).");
+        d.put("show on all islands", "Also shows the Creation Cooldown outside dungeons, anywhere on Skyblock.");
+        d.put("only in green room", "In a dungeon, shows the Creation Cooldown only while you are in the green Entrance room.");
+        d.put("chat when over", "Says in chat when the dungeon creation cooldown is over.");
+        d.put("block instance creation", "Holds back /joininstance (and the /f7-style shortcuts) while the creation cooldown runs.");
         d.put("key spawn alert", "Shows a title and plays a sound when a Wither Key or Blood Key appears.");
         d.put("pre-boss warning", "When the Watcher lets you pass, lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
         d.put("crypt reminder", "Once the run clock passes the set time with fewer than 5 crypts, shows the crypt count. Outside the boss only, once a run.");

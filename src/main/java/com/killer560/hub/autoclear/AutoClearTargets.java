@@ -13,7 +13,7 @@ import java.util.Set;
  * Which rooms Auto Clear works through, read off the live map ({@link DungeonLayout}) - the same room graph the
  * Interactive Map and Auto Blood Rush path over. Client thread.
  */
-final class AutoClearTargets {
+public final class AutoClearTargets {
 
     private AutoClearTargets() {
     }
@@ -40,7 +40,7 @@ final class AutoClearTargets {
     }
 
     /** Cleared on the map (the checkmark, green or white) on any of its tiles. */
-    static boolean isClearedOnMap(DungeonLayout layout, int room) {
+    public static boolean isClearedOnMap(DungeonLayout layout, int room) {
         int[] tiles = layout.tiles(room);
         if (tiles == null) {
             return false;
@@ -65,7 +65,7 @@ final class AutoClearTargets {
         return -1;
     }
 
-    static int entranceRoom(DungeonLayout layout) {
+    public static int entranceRoom(DungeonLayout layout) {
         for (int r = 0; r < layout.roomCount(); r++) {
             RoomEntry e = layout.entry(r);
             if ((e != null && "ENTRANCE".equalsIgnoreCase(e.type)) || "Entrance".equalsIgnoreCase(layout.name(r))) {
