@@ -204,6 +204,8 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
 
     @Override
     protected void init() {
+        // The designer's Mobs choice is remembered (SimMenuPrefs); the floor Play builds follows it.
+        SimMobFloor.setEnabled(SimMenuPrefs.load().mobs);
         RoomLibrary.loadAsync();
         // The room DATABASE too, not just the captures.
         //
@@ -310,7 +312,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // Save went (killer560, 2026-10-15: "Remove the save and load buttons in exchange for one load button"): Play
         // records the floor in the Load list itself, so there is nothing to name or save by hand. Back went too: the
         // left column's Back closes the menu, and its entries are the way to the other pages.
-        int count = 3;
+        int count = 4;
         int bw = (cw - 6 * (count - 1)) / count;
         // The division's remainder (0-2 units) goes one unit each to the first buttons, so the three stay within a unit
         // of each other and Play's right edge meets Generate's above it exactly.
@@ -348,6 +350,18 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             status = panel == Panel.MAPS ? "pick a floor you played" : "";
         }).bounds(bx, by, bw + (extra > 1 ? 1 : 0), 20).build());
         bx += bw + (extra > 1 ? 1 : 0) + 6;
+
+        // Mobs (killer560, Doc 2026-11-01: "There should be an option for it to have mobs or not have mobs when you create
+        // it"): the floor Play builds gets starred mobs, Fels, wither doors and keys (SimMobFloor). Remembered.
+        addRenderableWidget(SettingsButtonWidget.cycling(mobsLabel(), (b, dir) -> {
+            SimMenuPrefs prefs = SimMenuPrefs.load();
+            prefs.mobs = !prefs.mobs;
+            prefs.save();
+            SimMobFloor.setEnabled(prefs.mobs);
+            b.setMessage(mobsLabel());
+            status = prefs.mobs ? "mobs, fels, wither doors and keys on the next floor" : "no mobs on the next floor";
+        }).bounds(bx, by, bw + (extra > 2 ? 1 : 0), 20).build());
+        bx += bw + (extra > 2 ? 1 : 0) + 6;
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aPlay"), b -> play())
                 .bounds(bx, by, cx + cw - bx, 20).primary().build());
@@ -657,6 +671,10 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             }
         }
         rebuildOccupancy();
+    }
+
+    private static Component mobsLabel() {
+        return Component.literal("Mobs: " + (SimMobFloor.isEnabled() ? "\u00a7aOn" : "\u00a77Off"));
     }
 
     private void play() {

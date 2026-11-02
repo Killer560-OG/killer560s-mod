@@ -431,6 +431,11 @@ public final class RouteRecorder {
     /** As above, plus a free-text argument for node types that need one ({@code COMMAND}'s command line - not
      *  currently reachable from {@code /ar add}, kept for parity with the type's own data). */
     public static String addNode(RouteNode.Type type, NodeModifiers modifiers, String argument) {
+        return addNode(type, modifiers, argument, null);
+    }
+
+    /** As above; {@code trapBox} (width, length) makes the node's trigger that box - a trap room only (RouteNode#trapBox). */
+    public static String addNode(RouteNode.Type type, NodeModifiers modifiers, String argument, double[] trapBox) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
@@ -526,6 +531,15 @@ public final class RouteRecorder {
             }
             default -> {
             }
+        }
+        if (trapBox != null && type != RouteNode.Type.ALIGN) {
+            if (!com.killer560.hub.autotrap.AutoTrap.isTrapRoom(f.roomName())) {
+                return bad("Box sizes (w<n> l<n>) are for trap rooms only - elsewhere only /ar add align takes one.");
+            }
+            node.trapBox = true;
+            node.alignWidth = RouteNode.clampAlignSize(trapBox[0]);
+            node.alignLength = RouteNode.clampAlignSize(trapBox[1]);
+            extra += " [box W" + RouteNode.fmtSize(node.alignWidth) + " L" + RouteNode.fmtSize(node.alignLength) + "]";
         }
         // ---- modifiers: start and await apply on top of the type-specific handling above, to any node type ----
         boolean movedStart = false;

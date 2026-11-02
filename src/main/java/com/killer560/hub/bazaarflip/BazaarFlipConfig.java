@@ -71,6 +71,22 @@ public final class BazaarFlipConfig {
     private boolean autopilotMaxOrdersOn = true;
     /** The order caps the tab steps through. */
     public static final int[] AUTOPILOT_ORDER_CAPS = {5, 10, 20, 50, 100};
+    /**
+     * Whether reaching a max-orders limit ends the session (killer560, 2026-11-01: "Make an option to not have the bazaar
+     * flipper stop at max new orders"). On (the old behavior): the session's Max New Orders cap ends it once its orders are
+     * done, and Hypixel's "You reached your maximum of N Bazaar orders!" stops it. Off: the cap is per ROUND - when the
+     * round's orders are all done a new round starts - and Hypixel's line pauses it until a slot frees up.
+     */
+    private boolean stopAtMaxOrders = true;
+    /**
+     * Least profit, in coins, one cycle (one Insta Buy or buy order and its sale) must be expected to make before the
+     * autopilot opens it (killer560, 2026-11-01: "add a slider for minimum profit per cycle"). 0 = any profit above 0, the
+     * behavior since 2026-10-16. Stepped by {@link #MIN_PROFIT_STEPS}.
+     */
+    private long minProfitPerCycle = 0L;
+    /** The slider's stops, in coins. */
+    public static final long[] MIN_PROFIT_STEPS = {0L, 1_000L, 5_000L, 10_000L, 25_000L, 50_000L, 100_000L, 250_000L,
+            500_000L, 1_000_000L, 2_500_000L, 5_000_000L, 10_000_000L};
 
     private BazaarFlipConfig() {
     }
@@ -103,6 +119,8 @@ public final class BazaarFlipConfig {
             cfg.autopilotReservePercent = clampPercent(ConfigJson.getInt(obj, "autopilotReservePercent", cfg.autopilotReservePercent));
             cfg.autopilotMaxOrders = clampOrderCap(ConfigJson.getInt(obj, "autopilotMaxOrders", cfg.autopilotMaxOrders));
             cfg.autopilotMaxOrdersOn = ConfigJson.getBool(obj, "autopilotMaxOrdersOn", cfg.autopilotMaxOrdersOn);
+            cfg.stopAtMaxOrders = ConfigJson.getBool(obj, "stopAtMaxOrders", cfg.stopAtMaxOrders);
+            cfg.minProfitPerCycle = clampMinProfit(ConfigJson.getLong(obj, "minProfitPerCycle", cfg.minProfitPerCycle));
             instance = cfg;
         } catch (Exception e) {
             instance = new BazaarFlipConfig();
@@ -123,6 +141,8 @@ public final class BazaarFlipConfig {
             obj.addProperty("autopilotReservePercent", autopilotReservePercent);
             obj.addProperty("autopilotMaxOrders", autopilotMaxOrders);
             obj.addProperty("autopilotMaxOrdersOn", autopilotMaxOrdersOn);
+            obj.addProperty("stopAtMaxOrders", stopAtMaxOrders);
+            obj.addProperty("minProfitPerCycle", minProfitPerCycle);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -333,6 +353,45 @@ public final class BazaarFlipConfig {
             }
         }
         autopilotMaxOrders = AUTOPILOT_ORDER_CAPS[Math.floorMod(at + dir, AUTOPILOT_ORDER_CAPS.length)];
+    }
+
+    public boolean isStopAtMaxOrders() {
+        return stopAtMaxOrders;
+    }
+
+    public void setStopAtMaxOrders(boolean stop) {
+        this.stopAtMaxOrders = stop;
+    }
+
+    // ---- minimum profit per cycle ----
+
+    public long getMinProfitPerCycle() {
+        return minProfitPerCycle;
+    }
+
+    public void setMinProfitPerCycle(long coins) {
+        this.minProfitPerCycle = clampMinProfit(coins);
+    }
+
+    /** The slider position (0 to 1) of the saved value: the nearest stop at or under it. */
+    public double minProfitSliderValue() {
+        int at = 0;
+        for (int i = 0; i < MIN_PROFIT_STEPS.length; i++) {
+            if (MIN_PROFIT_STEPS[i] <= minProfitPerCycle) {
+                at = i;
+            }
+        }
+        return at / (double) (MIN_PROFIT_STEPS.length - 1);
+    }
+
+    /** Sets the value from a slider position (0 to 1), snapped to a stop. */
+    public void setMinProfitFromSlider(double value) {
+        int i = (int) Math.round(Math.max(0, Math.min(1, value)) * (MIN_PROFIT_STEPS.length - 1));
+        minProfitPerCycle = MIN_PROFIT_STEPS[i];
+    }
+
+    private static long clampMinProfit(long v) {
+        return Math.max(0L, Math.min(MAX_TARGET_PURSE, v));
     }
 
     private static int clampOrderCap(int v) {

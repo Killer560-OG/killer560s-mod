@@ -168,6 +168,17 @@ public final class RouteNode {
      *  room turns the box with it). Every other type keeps its {@link #radius} ring and ignores these. */
     public double alignWidth = DEFAULT_ALIGN_SIZE;
     public double alignLength = DEFAULT_ALIGN_SIZE;
+    /**
+     * Any other type in a TRAP room: its trigger is the {@link #alignWidth} x {@link #alignLength} box instead of the
+     * ring (killer560, 2026-11-01: "make it so i can add a node with something like w3 l3 and such for all nodes but only
+     * in trap"). Set only by {@code /ar add <type> w<n> l<n>} in a trap room or the editor; saved as "box".
+     */
+    public boolean trapBox;
+
+    /** True when the trigger is a W x L box (an align, or a trap room's boxed node) rather than the ring. */
+    public boolean hasBox() {
+        return type == Type.ALIGN || trapBox;
+    }
 
     public static double clampAlignSize(double v) {
         if (Double.isNaN(v)) {
@@ -223,7 +234,7 @@ public final class RouteNode {
 
     /** Half the trigger box along REAL x in a room turned {@code rotation} degrees: a quarter turn swaps the two sides. */
     public double halfRealX(int rotation) {
-        if (type != Type.ALIGN) {
+        if (!hasBox()) {
             return Math.max(0.1, radius) / 2.0;
         }
         return Math.max(0.05, (quarterTurned(rotation) ? alignLength : alignWidth) / 2.0);
@@ -231,7 +242,7 @@ public final class RouteNode {
 
     /** Half the trigger box along REAL z (see {@link #halfRealX}). */
     public double halfRealZ(int rotation) {
-        if (type != Type.ALIGN) {
+        if (!hasBox()) {
             return Math.max(0.1, radius) / 2.0;
         }
         return Math.max(0.05, (quarterTurned(rotation) ? alignWidth : alignLength) / 2.0);
@@ -480,6 +491,9 @@ public final class RouteNode {
             default -> {
             }
         }
+        if (trapBox && type != Type.ALIGN) {
+            sb.append(" [box W").append(fmtSize(alignWidth)).append(" L").append(fmtSize(alignLength)).append(']');
+        }
         if (type == Type.PATH && !pathHops.isEmpty()) {
             sb.append(" [").append(pathHops.size()).append(" warp(s) saved]");
         }
@@ -590,6 +604,7 @@ public final class RouteNode {
         jumpCount = o.jumpCount;
         alignWidth = o.alignWidth;
         alignLength = o.alignLength;
+        trapBox = o.trapBox;
         landingX = o.landingX;
         landingY = o.landingY;
         landingZ = o.landingZ;
@@ -636,6 +651,7 @@ public final class RouteNode {
                 && java.util.Objects.equals(item, o.item) && awaitCondition == o.awaitCondition
                 && awaitAmount == o.awaitAmount && java.util.Objects.equals(command, o.command)
                 && jumpCount == o.jumpCount && alignWidth == o.alignWidth && alignLength == o.alignLength
+                && trapBox == o.trapBox
                 && landingX == o.landingX && landingY == o.landingY && landingZ == o.landingZ
                 && hasLanding == o.hasLanding && pathHops.equals(o.pathHops)
                 && hasPlaceEye == o.hasPlaceEye && placeEyeX == o.placeEyeX && placeEyeY == o.placeEyeY

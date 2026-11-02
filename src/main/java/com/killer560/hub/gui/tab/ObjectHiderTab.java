@@ -102,6 +102,8 @@ public class ObjectHiderTab extends BaseTab {
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Wither Cloak Creepers", cfg::getHideCloakCreepersRaw, cfg::setHideCloakCreepers);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Witherborn Wither", cfg::getHideWitherbornRaw, cfg::setHideWitherborn);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Wither Shield Hearts", cfg::getHideHypeHeartsRaw, cfg::setHideHypeHearts);
 
         header(widgets, contentX, contentWidth, y, "M7 Boss");

@@ -48,6 +48,12 @@ public final class SimLiveMobs {
     private static volatile boolean wander = false;
     private static volatile boolean minibosses = true;
     private static volatile boolean trapCleared = false;
+    /** Fels beside the starred mobs (a floor with mobs, {@link SimMobFloor}). */
+    private static volatile boolean fels = false;
+    /** Starred mobs placed in each room at the last GO (fels included), by room name. */
+    private static final Map<String, Integer> PLACED_IN = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Each room's first placed spot at the last GO, by room name (a key with no mob to kill drops here). */
+    private static final Map<String, BlockPos> FIRST_SPOT = new java.util.concurrent.ConcurrentHashMap<>();
     /** Clear-on-entry as it was before live mobs switched it off, to put it back. */
     private static volatile Boolean entryBefore = null;
 
@@ -75,14 +81,37 @@ public final class SimLiveMobs {
         LOGGER.info("[Sim] live mobs: {}", describe());
     }
 
+    /** Fels from the next GO on: some mob rooms get a starred Fel beside one of their starred mobs, and some an unstarred
+     *  one (killer560, Doc 2026-11-01: "make it so fels can spawn for the mobs"). */
+    public static void setFels(boolean on) {
+        fels = on;
+    }
+
+    public static boolean isFels() {
+        return fels;
+    }
+
+    public static boolean isOn() {
+        return perTile > 0;
+    }
+
+    /** Starred mobs placed in {@code roomName} at the last GO (fels included), or -1 when the room got none placed. */
+    public static int placedIn(String roomName) {
+        return roomName == null ? -1 : PLACED_IN.getOrDefault(roomName, -1);
+    }
+
+    static BlockPos firstSpot(String roomName) {
+        return roomName == null ? null : FIRST_SPOT.get(roomName);
+    }
+
     public static void setTrapCleared(boolean on) {
         trapCleared = on;
         LOGGER.info("[Sim] trap room counted cleared with all its secrets: {}", on ? "on" : "off");
     }
 
     public static String describe() {
-        return perTile <= 0 ? "off" : String.format(Locale.US, "%d a tile, %.0f HP, %s, minibosses %s", perTile, health,
-                wander ? "walking" : "standing", minibosses ? "on" : "off");
+        return perTile <= 0 ? "off" : String.format(Locale.US, "%d a tile, %.0f HP, %s, minibosses %s, fels %s", perTile,
+                health, wander ? "walking" : "standing", minibosses ? "on" : "off", fels ? "on" : "off");
     }
 
     /** Whether the trap room's secrets are left out of the build (SimSecrets.place asks). */
@@ -154,9 +183,14 @@ public final class SimLiveMobs {
         double hp = health;
         boolean walk = wander;
         boolean bosses = minibosses;
+        boolean withFels = fels;
+        PLACED_IN.clear();
+        FIRST_SPOT.clear();
         server.execute(() -> {
             ServerLevel level = server.overworld();
             int placed = 0;
+            int starredFels = 0;
+            int plainFels = 0;
             List<String> per = new ArrayList<>();
             for (Map.Entry<String, List<BlockPos>> e : tiles.entrySet()) {
                 java.util.Random rng = new java.util.Random((code + "|" + e.getKey()).hashCode());
@@ -170,7 +204,10 @@ public final class SimLiveMobs {
                         if (layout.roomAtWorld(x + 0.5, z + 0.5) != room) {
                             continue;
                         }
-                        for (int y = c.getY() - 6; y <= c.getY() + 8; y++) {
+                        // c is a tile center at the doorways' feet level + 1: never under that floor less one, nor more than four
+                        // above it - a pit or a high ledge was a mob Auto Clear could not reach and a key nobody could pick up
+                        // (doc-adm-sim-1101: Flags' key 3 below the floor, then a zombie 8 above it).
+                        for (int y = c.getY() - 2; y <= c.getY() + 3; y++) {
                             BlockPos feet = new BlockPos(x, y, z);
                             if (solid(level, feet.below()) && !solid(level, feet) && !solid(level, feet.above())
                                     && level.getFluidState(feet).isEmpty()) {
@@ -198,14 +235,77 @@ public final class SimLiveMobs {
                     k++;
                     placed++;
                 }
-                per.add(e.getKey() + " " + got.size() + (bosses && champion.get(e.getKey()) ? "+boss" : ""));
+                String felNote = "";
+                if (withFels && !got.isEmpty()) {
+                    // Starred mobs spawn by each other (killer560, Doc 2026-11-01), so a Fel lies a few blocks from one of
+                    // the room's starred mobs: a starred one in about two rooms of five, an unstarred one in one of three.
+                    if (rng.nextInt(5) < 2) {
+                        BlockPos f = besideSpot(level, layout, room, got.get(rng.nextInt(got.size())), got, rng);
+                        if (f != null) {
+                            SimMobs.spawnFelLive(level, f, true);
+                            got.add(f);
+                            starredFels++;
+                            placed++;
+                            felNote += "+fel";
+                        }
+                    }
+                    if (rng.nextInt(3) == 0) {
+                        BlockPos f = besideSpot(level, layout, room, got.get(rng.nextInt(got.size())), got, rng);
+                        if (f != null) {
+                            SimMobs.spawnFelLive(level, f, false);
+                            plainFels++;
+                            felNote += "+skull";
+                        }
+                    }
+                }
+                PLACED_IN.put(e.getKey(), got.size());
+                if (!got.isEmpty()) {
+                    FIRST_SPOT.put(e.getKey(), got.get(0));
+                }
+                per.add(e.getKey() + " " + got.size() + (bosses && champion.get(e.getKey()) ? "+boss" : "") + felNote);
             }
             LOGGER.info("[Sim] live mobs placed: {} starred mob(s) in {} mob room(s) ({}): {}", placed, tiles.size(),
                     describe(), String.join(", ", per));
+            if (withFels) {
+                LOGGER.info("[Sim] fels placed: {} starred, {} not starred", starredFels, plainFels);
+            }
+            SimMobFloor.onMobsPlaced(client);
             int n = placed;
             client.execute(() -> ModChat.send("Sim", ModChat.text("Live mobs: "), ModChat.value(String.valueOf(n)),
                     ModChat.dim(" starred in " + tiles.size() + " room(s)")));
         });
+    }
+
+    /** An open floor spot 2-4 blocks from {@code near}, in the same room and clear of {@code taken}, or null. */
+    private static BlockPos besideSpot(ServerLevel level, DungeonLayout layout, int room, BlockPos near, List<BlockPos> taken,
+                                       java.util.Random rng) {
+        // Never below the floor the doorways stand on, less one: a pit or the hollow under a floor is no place for a mob (a
+        // key that drops there cannot be reached; doc-adm-sim-1101, a Flags key 3 below the floor).
+        int floorMin = DungeonLayout.doorBlock(0).getY() - 1;
+        for (int tries = 0; tries < 60; tries++) {
+            int x = near.getX() + rng.nextInt(9) - 4;
+            int z = near.getZ() + rng.nextInt(9) - 4;
+            int dx = x - near.getX();
+            int dz = z - near.getZ();
+            if (dx * dx + dz * dz < 4 || layout.roomAtWorld(x + 0.5, z + 0.5) != room) {
+                continue;
+            }
+            for (int y = Math.max(near.getY() - 2, floorMin); y <= Math.min(near.getY() + 2, floorMin + 5); y++) {
+                BlockPos feet = new BlockPos(x, y, z);
+                if (solid(level, feet.below()) && !solid(level, feet) && !solid(level, feet.above())
+                        && !solid(level, feet.above(2)) && level.getFluidState(feet).isEmpty()) {
+                    boolean far = true;
+                    for (BlockPos o : taken) {
+                        far &= o.distSqr(feet) >= 4;
+                    }
+                    if (far) {
+                        return feet;
+                    }
+                    break;
+                }
+            }
+        }
+        return null;
     }
 
     private static boolean solid(ServerLevel level, BlockPos p) {

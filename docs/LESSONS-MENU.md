@@ -73,7 +73,9 @@ Problem, then fix; verified only. Part of the GUI lessons: [LESSONS-GUI.md](LESS
   takes one line, two (~26) when it takes two. The first sentence of the master toggle's tooltip (60-150 characters) was cut
   by `MenuStyle.wrap` with "..." on all 169 cards (testkit 1060). The long tooltip is the hover text (`FeatureCards.longDescription`);
   `FeatureCards.cardText` is the one place a card's text is laid out, and `autoCut()` lists any tab the menu had to trim,
-  which 1060 requires to be empty. A new tab needs a blurb in `CardBlurbsData` (or `cardDescription()`).
+  which 1060 requires to be empty. A new tab needs a blurb in `CardBlurbsData` (or `cardDescription()`). The count is pixels, not
+  characters: "Shows what Pickobulus breaks." (29) was cut on a two-line-name card where "Hides mithril you don't need." (29)
+  fit (uifix-1102); the eight doc-rng/doc-mining cards shipped with none and were all cut.
 
 ## Sliders
 

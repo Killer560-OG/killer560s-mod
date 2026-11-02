@@ -118,11 +118,12 @@ public class BreakerAuraConfigScreen extends Screen implements MenuThemedScreen 
         statusY = y;
         y += 16;
 
-        EditBox nameBox = new ThemedEditBox(this.font, x, y, w - NEW_W - GAP, ROW, Component.literal("New config name"));
+        ThemedEditBox nameBox = new ThemedEditBox(this.font, x, y, w - NEW_W - GAP, ROW, Component.literal("New config name"));
         nameBox.setMaxLength(BreakerAuraStore.MAX_CONFIG_NAME + 5); // room for a typed ".json"
         ((ThemedEditBox) nameBox).hint("new config name");
         nameBox.setValue(newName);
         nameBox.setResponder(text -> newName = text == null ? "" : text);
+        nameBox.onEnter(this::create);
         this.addRenderableWidget(nameBox);
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("New Config"), btn -> create())
                 .bounds(x + w - NEW_W, y, NEW_W, ROW).build());

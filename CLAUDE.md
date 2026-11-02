@@ -134,10 +134,17 @@ feature folders. `MapLogger` keeps the newest 20 map logs.
 
 Every setting must survive a restart: add the field, load it, save it, and expose a getter and setter. A new config
 class's `load` also goes in `ProfileManager.reloadAllConfigs`, or applying a profile is undone by its next save (testkit
-320 names the class; Pack Disabler missed it, 2026-10-07).
+320 names the class; Pack Disabler missed it, 2026-10-07). That includes a class that is not a `*Config` singleton: one that
+reads its file once behind a `loaded` flag needs a public `reload()` that puts the defaults back first and then reads (a
+profile without the file deletes it). Streamer Mode, Legit GFS, the sim loadout, Cape and the sim filters were missing until
+2026-11-02; 320's name audit now reads every class in the jar and fails on any that names a profile setting file without
+ProfileManager naming the class (`ProfileReloadCases.NAME_ALLOWED` holds the few reasoned exceptions).
 Any other file or folder a feature keeps under `config/killer560/` (named `killer560smod-*`) rides in profiles by default
 (`profiles/ProfileData`, since 2026-10-13): if it is a secret, cache, download, log or history, add it to
 `ProfileData.EXCLUDED_NAMES`; if the feature holds it in memory, add its re-read to `ProfileManager.refreshDerivedState`.
+A plain `killer560smod-*.json` file is a SETTING file to the profile code whatever it holds, so a data `.json` (orders, caches,
+records) goes in `ProfileManager.EXCLUDED_FILES`, or a profile apply copies an old copy in or deletes it; until 2026-11-02 the
+`.json` names in `ProfileData.EXCLUDED_NAMES` did nothing (ProfileData only judges data entries; `isProfileSettingFile` honors them now).
 A new feature gets its name in the README list and its full text in `docs/FEATURES.md`, then the features
 Google Doc is regenerated. Sharing and receiving settings default ON. The GUI is orange-themed. Never carry
 his typos into a command, label or alias.
@@ -152,6 +159,11 @@ Croesus run memory (`croesus/CroesusRunMemory.java`) never guesses: a run it can
 hidden and never another run's state. A run moves later only by as many joins as the time since it was seen allows, it
 crosses into a later page only behind a join that page's own runs show, and a head at the front of page 1 that fits no
 remembered run is a new run (testkit 888, 906-908).
+Every mod text box is a `gui/CommitEditBox` (`ThemedEditBox` extends it), never a bare `EditBox` (killer560, 2026-11-01:
+"any text box I type into if i press enter should save that value ... If it doesnt have a set button add it as well"):
+wire Enter with `pressOnEnter(<its Set/Save/Add button>)`, `onEnter(<the save method>)` or `enterRunsResponder()`, and a
+box with no commit button gets one from `CommitEditBox.withSet(widgets, box)`. Search boxes / live filters, chat inputs and
+sign screens stay unwired. Testkit 1101-ui-textbox-enter types into every reachable box, presses Enter, checks the disk.
 A setting that steps through values is built with `SettingsButtonWidget.cycling(label, (btn, dir) -> ...)` and its
 `step` helpers: left click forward, right click back, wrapping (killer560, 2026-10-11); testkit 806 finds them by `isCycling()`,
 which since 2026-10-20 is true only for `cycling(...)`: a plain `builder(...).secondaryPress(...)` (Door Keys' colour rows,
@@ -474,7 +486,17 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   `/Master_Mode_Loot` subpages' per-chest averages; Revenant's page has weights only (chance = weight/(token+main)).
 - How Lucky Are You never counts a dungeon chest itself: chest attempts and drops are derived from the Croesus claim log
   (`CroesusProfitLog.allClaims`, resets ignored), so a new chest-counting hook would double count. Its own record
-  (`RecordCatalog.LUCK`, `luck.json`) holds slayer kills, drop lines and dye pickups only.
+  (`RecordCatalog.LUCK`, `luck.json`) holds slayer and mob kills, Kuudra / Nucleus / Superpairs claims, drop lines, dye
+  pickups, and per profile the slayer levels and slayer RNG Meters it read (luck2-1101). A claim with floor "Unknown" is
+  given the one floor its items fit (`LuckStore.inferFloor`), else counted under `chest:Unknown:<chest>` with no odds.
+- `tools/rng-table/fetch_mobs.py` gets every page using a wiki template in one request per 50 pages: `api.php?action=query&
+  generator=embeddedin&geititle=Template:Mob_Drops_Table&prop=revisions&rvprop=content&rvslots=main` (590 mob and sea
+  creature pages, 2026-11-02; api.php has no bot check either). Mob drop odds: Looting x(1+0.15L) first, then Magic Find
+  only if the looted chance is under 5% (wiki Looting and Magic Find pages); Looting never applies to slayers or pets.
+- ChatObserver drops a line equal to (or a 12+ character prefix of) one seen in the last 250 ms, so a Hypixel message that
+  opens and closes with the same ▬ bar never hands its closing bar to subscribers. How Lucky Are You's Nucleus reader also
+  ends the block 1.5 s after its header (luck2-1101, testkit 1102-luck-nucleus); any block parser keyed on a repeated
+  closing line needs the same.
 - A testkit `-PseedConfig` copied from Mod Only Test carries his Proxy Client config (`system/proxy/proxyclient.json`, SOCKS5,
   enabled): the test client then dials the local server through his real proxy, which refuses it ("socks5 ... FORBIDDEN",
   00-smoke fails, 2026-11-01). Leave that file out of a seed.
@@ -493,6 +515,14 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   tracked file (2026-11-01).
 - The sim's F7 boss (`bosssim/`, docs/SIM-BOSS.md): reference mod ADM is All-Rights-Reserved - facts only, never its code
   or its arena.bin capture.
+- GrimAC 2.3.74's EXPERIMENTAL checks (gridexp-1102; the owner's rule counts them): never two digs on one tick
+  (MultiBreak - Multi Break was removed for it), a dig goes at once only when the look the server already HEARD strikes the
+  block (`util/DigAim`), else the body turns and the dig goes at the head of that tick's `sendPosition` (`util/BeforeMove`;
+  RotationBreak lends the next movement packet's look only within 15 ms), no `set_carried_item` after a
+  use / click / attack / command inside one server tick (`HotbarSelect.swapWouldFlag()`, PacketOrderE), no yaw turn over
+  2 degrees that repeats the turn before the previous block click (`util/PlaceRotationGuard`, DuplicateRotPlace - but never
+  move the look in a tick that carries a `use_item`, that is BadPacketsJ), and every dig START / use through vanilla's
+  `startPrediction` (BadPacketsH). Details per check: docs/LESSONS-AUTOMATION.md.
 - Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
   (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
   and import keeps the locked update and sharing keys (testkit 981).
@@ -539,6 +569,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
   release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
   `Rows.addKept`).
+- Sim mobs burned in daylight ("onFire, by nothing") and cleared key rooms at GO with nobody near, despite their
+  `isInvulnerableTo`; `SimMobs` refuses environmental damage in Fabric ALLOW_DAMAGE (2026-11-01, docs/SIM-SERVER.md).
 - `.gitignore`'s `secrets/` matches the source package `hub/secrets/`, so `git add <path>/secrets/X.java` aborts the WHOLE
   add with "paths are ignored" although the file is tracked (2026-11-01). Stage it with `git add -u -- <paths>`.
 - Crypt census (CryptScanner rules against all 134 captures): use `killer560s-mod-logs/doc-secrets-1101/crypt_scan_port.py
@@ -568,6 +600,14 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   run it never opens unless `-Dkiller560.test.intro=show` (docs/TESTING-HOOKS.md), so title-screen cases are not
   interrupted. A GUI picture-in-picture (`g.skin`, entity, item models) ignores the pose: transform its box yourself
   under Auto Scale (docs/LESSONS-GUI.md).
+- Etherwarp passability (2026-11-01): carpets are passable in BOTH tables (EtherwarpOverlayFeature, TeleportUtils), as in
+  Hypixel's 1.8 feet list; change the two together or the overlay, the sim and Auto Routes/ZPEW disagree (LESSONS-AUTOMATION).
+  Trap-room Auto Routes rules are tested without a trap capture through `AutoTrap.testTrapRoom` (testkit 62-argrim-1101-trap*).
+- A cheat setting goes under the legit ones even when the owner asks for a legit block "at the bottom" (testkit 512 checks
+  every tab): the Etherwarp tab puts Works For last among legit rows and its cheat rows under it (2026-11-01).
+- Anything that BUYS sizes by Hypixel's stacking, never the vanilla material's (2026-11-01: Kaleidoscopic Mineral is PAPER,
+  stacks to 1, and the Bazaar Flipper typed 254): `bazaarflip/BazaarStackSizes` (catalog `unstackable`/`has_uuid`, reforge
+  stones, books, the live "Fill my inventory!"); docs/LESSONS.md "Bazaar and Croesus".
 - A sim change to the world's SHAPE can silently blind a scanner: the 2026-10-12 seam fill walled the door's middle seam
   column up to the roofs, so every QUOI-rule door scanner (top block 73/74/81/82) found no doors in the sim, and the 538/678
   failures were later blamed on 26.3 (doors263-1101: they had failed on 26.1.2 since 2026-10-15). Before blaming a port,

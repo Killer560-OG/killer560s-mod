@@ -45,6 +45,13 @@ public final class SimRoomFilters {
         DESIGNER.load();
     }
 
+    /** Re-reads all three filter files (a profile applied: ProfileManager.reloadAllConfigs, 2026-11-02). */
+    public static void reloadAll() {
+        DESIGNER.load();
+        PICKER.load();
+        CYCLE.load();
+    }
+
     /** The designer's filter back to none. */
     public static void reset() {
         DESIGNER.clear();

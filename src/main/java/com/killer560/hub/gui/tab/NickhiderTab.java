@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.namechanger.NameChangerConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -40,7 +41,7 @@ public class NickhiderTab extends BaseTab {
         y += 24;
 
         if (cfg.isRandomizedName()) {
-            EditBox baseField = new EditBox(Minecraft.getInstance().font, contentX, y, contentWidth, 18,
+            CommitEditBox baseField = new CommitEditBox(Minecraft.getInstance().font, contentX, y, contentWidth, 18,
                     Component.literal("Base name"));
             baseField.setMaxLength(32);
             baseField.setValue(cfg.getRandomBaseName());
@@ -50,6 +51,7 @@ public class NickhiderTab extends BaseTab {
                 cfg.save();
             });
             widgets.add(baseField);
+            CommitEditBox.withSet(widgets, baseField);
         }
         return widgets;
     }

@@ -38,6 +38,61 @@ public final class HotbarSelect {
         ClientTickEvents.END_CLIENT_TICK.register(HEAD, client -> inTick = false);
     }
 
+    // ------------------------------------------------------------------ GrimAC PacketOrderE (gridexp-1102)
+
+    /**
+     * What has left this client since the server's last TICK packet that a held-item change must not follow. GrimAC
+     * 2.3.74's experimental PacketOrderE flags a {@code set_carried_item} that arrives after a use, a block click, an
+     * entity interact or attack, a release, or a player command (sprint, glide, bed, mount jump) inside one of the
+     * server's ticks ({@code PacketOrderProcessor}, reset by every tick packet). A vanilla client can never send that
+     * order: its hotbar keys are read before the use and attack keys in {@code handleKeybinds}, and the carried item goes
+     * out from {@code ensureHasSentCarriedItem} ahead of the action. The server's tick packet is a movement packet (not a
+     * teleport's echo, which vanilla sends on the Connection past the send tap), or {@code client_tick_end} when no
+     * movement packet went before it in that tick ({@code GrimProcessor.isTickPacket}). 62-argrim-mimic: the Hyperion's
+     * use straight down and the slot handed back in the same tick; 62-argrim-1017-breakerwarp: his lever click, then the
+     * breaker node's swap, in one server tick.
+     */
+    private static String orderConflict;
+    private static boolean movedBeforeTickEnd;
+
+    /** From the send tap ({@code RightClickSendMixin}), every packet through the listener, client thread. */
+    public static void onPacketSent(net.minecraft.network.protocol.Packet<?> p) {
+        if (p instanceof net.minecraft.network.protocol.game.ServerboundMovePlayerPacket) {
+            orderConflict = null;
+            movedBeforeTickEnd = true;
+        } else if (p instanceof net.minecraft.network.protocol.game.ServerboundClientTickEndPacket) {
+            if (!movedBeforeTickEnd) {
+                orderConflict = null;
+            }
+            movedBeforeTickEnd = false;
+        } else if (p instanceof net.minecraft.network.protocol.game.ServerboundUseItemPacket) {
+            orderConflict = "use_item";
+        } else if (p instanceof net.minecraft.network.protocol.game.ServerboundUseItemOnPacket) {
+            orderConflict = "use_item_on";
+        } else if (p instanceof net.minecraft.network.protocol.game.ServerboundInteractPacket) {
+            orderConflict = "interact";
+        } else if (p instanceof net.minecraft.network.protocol.game.ServerboundAttackPacket) {
+            orderConflict = "attack";
+        } else if (p instanceof net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket) {
+            orderConflict = "player_command";
+        } else if (p instanceof net.minecraft.network.protocol.game.ServerboundPlayerActionPacket a
+                && (a.getAction() == net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.RELEASE_USE_ITEM
+                || a.getAction() == net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.STAB)) {
+            orderConflict = "player_action " + a.getAction();
+        }
+    }
+
+    /** True when a held-item change sent now would follow a use / click / attack / command inside one server tick
+     *  (GrimAC PacketOrderE): wait for the next tick before swapping. */
+    public static boolean swapWouldFlag() {
+        return orderConflict != null;
+    }
+
+    /** What a swap now would follow (for the hold's log line), or null. */
+    public static String orderConflict() {
+        return orderConflict;
+    }
+
     /** Whether a held-item change sent now goes ahead of this tick's {@code client_tick_end}. */
     public static boolean inTick() {
         return inTick && Minecraft.getInstance().isSameThread();

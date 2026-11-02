@@ -20,6 +20,10 @@ import com.killer560.hub.util.ChatColors;
  * colors - so a picked color is snapped to the nearest of those, not written as a true RGB style.
  * {@link #migrate} pulls the color out of a display name that was typed with {@code &} / {@code §} codes
  * before this change, so an existing setup keeps looking exactly the same.
+ * <p>
+ * Your OWN name is not snapped any more (killer560, 2026-11-01: "the color i select is not what always shows up for the
+ * preview or my actual color"): a color that is not one of the 16 is painted as a true color per letter, the same
+ * {@code §x} escape a fade uses, which every place this mod paints a name already decodes ({@link #iterateFormatted}).
  */
 public final class NameColor {
 
@@ -67,6 +71,11 @@ public final class NameColor {
             }
         }
         return ChatColors.code(best);
+    }
+
+    /** True when {@code argb} is exactly one of the 16 chat colors, so a legacy code paints it unchanged. */
+    public static boolean isLegacy(int argb) {
+        return argb != NONE && (argbForCode(codeFor(argb)) & 0xFFFFFF) == (argb & 0xFFFFFF);
     }
 
     /** "" for {@link #NONE}, otherwise the "§x" prefix to put in front of a display name. */
@@ -136,6 +145,7 @@ public final class NameColor {
         }
         int n = s.length();
         Style style = base;
+        boolean shadow = false;
         int i = 0;
         while (i < n) {
             char c = s.charAt(i);
@@ -144,6 +154,11 @@ public final class NameColor {
                     break;
                 }
                 char code = s.charAt(i + 1);
+                if (code == SHADOW_CODE) {
+                    shadow = true;
+                    i += 2;
+                    continue;
+                }
                 if ((code == 'x' || code == 'X') && i + 13 < n) {
                     int rgb = hexEscape(s, i + 2);
                     if (rgb >= 0) {
@@ -155,17 +170,67 @@ public final class NameColor {
                 ChatFormatting f = ChatFormatting.getByCode(code);
                 if (f != null) {
                     style = f == ChatFormatting.RESET ? base : style.applyLegacyFormat(f);
+                    if (f == ChatFormatting.RESET || ChatColors.isColor(f)) {
+                        shadow = false; // ends where bold ends, so it never runs on past the name
+                    }
                 }
                 i += 2;
                 continue;
             }
             int cp = s.codePointAt(i);
-            if (!sink.accept(i, style, cp)) {
+            if (!sink.accept(i, shadow ? withShadow(style) : style, cp)) {
                 return false;
             }
             i += Character.charCount(cp);
         }
         return true;
+    }
+
+    /**
+     * This mod's own "draw a shadow" code, {@code §y} (Text Shadow, 2026-11-01). Vanilla skips it as an unknown code;
+     * {@link #iterateFormatted} gives every letter after it a shadow in the letter's own color darkened to a quarter (what
+     * vanilla's own shadow is), which {@code Font} draws even where the text is drawn without one - a name tag
+     * ({@code Font.PreparedTextBuilder.getShadowColor}, javap 26.3/26.2: a style's shadow color wins). Ends like bold.
+     */
+    public static final char SHADOW_CODE = 'y';
+
+    private static Style withShadow(Style style) {
+        TextColor c = style.getColor();
+        int rgb = c == null ? 0xFFFFFF : c.getValue() & 0xFFFFFF;
+        int r = ((rgb >> 16) & 0xFF) / 4;
+        int g = ((rgb >> 8) & 0xFF) / 4;
+        int b = (rgb & 0xFF) / 4;
+        return style.withShadowColor(0xFF000000 | (r << 16) | (g << 8) | b);
+    }
+
+    /** {@code text} with a shadow all through: {@code §y} at the start and after every legacy color code and {@code §r},
+     *  the same places {@link #bold} puts its {@code §l}. */
+    public static String shadow(String text) {
+        if (text == null || text.isEmpty()) {
+            return text == null ? "" : text;
+        }
+        StringBuilder sb = new StringBuilder(text.length() + 8).append('§').append(SHADOW_CODE);
+        int i = 0;
+        while (i < text.length()) {
+            char c = text.charAt(i);
+            if (c == '§' && i + 1 < text.length()) {
+                char code = Character.toLowerCase(text.charAt(i + 1));
+                if (code == 'x' && i + 13 < text.length()) {
+                    sb.append(text, i, i + 14);
+                    i += 14;
+                    continue;
+                }
+                sb.append(c).append(text.charAt(i + 1));
+                if ("0123456789abcdefr".indexOf(code) >= 0) {
+                    sb.append('§').append(SHADOW_CODE);
+                }
+                i += 2;
+                continue;
+            }
+            sb.append(c);
+            i++;
+        }
+        return sb.toString();
     }
 
     /** The RGB of the six {@code §<hex>} pairs starting at {@code from}, or -1 when they are not six such pairs. */

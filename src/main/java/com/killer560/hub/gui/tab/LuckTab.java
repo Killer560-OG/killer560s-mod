@@ -55,6 +55,12 @@ public class LuckTab extends BaseTab {
             requestRebuild.run();
         }).bounds(contentX + half + GAP, y, half, 18).build());
         y += 22;
+        widgets.add(SettingsButtonWidget.cycling(mobKillsText(), (btn, dir) -> {
+            cfg.setMobKills(SettingsButtonWidget.step(cfg.getMobKills(), dir));
+            cfg.save();
+            btn.setMessage(mobKillsText());
+        }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
         if (cfg.getMagicFindMode() == LuckConfig.MagicFindMode.MANUAL) {
             widgets.add(normSlider(contentX, y, contentWidth, 18,
                     () -> "Magic Find: " + cfg.getManualMagicFind() + "%",
@@ -75,6 +81,10 @@ public class LuckTab extends BaseTab {
 
     private static Component chestOddsText() {
         return Component.literal("Chest Odds: " + LuckConfig.getInstance().getChestOdds().label);
+    }
+
+    private static Component mobKillsText() {
+        return Component.literal("Mob Kills: " + LuckConfig.getInstance().getMobKills().label);
     }
 
     private static Component mfModeText() {

@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
@@ -143,7 +144,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                 null, col2bX, y, col2W, 18));
         y += 20;
 
-        EditBox resetMsgField = new EditBox(Minecraft.getInstance().font, contentX, y, contentWidth, 18,
+        CommitEditBox resetMsgField = new CommitEditBox(Minecraft.getInstance().font, contentX, y, contentWidth, 18,
                 Component.literal("Reset message"));
         resetMsgField.setMaxLength(100);
         resetMsgField.setValue(cfg.getResetMessageText());
@@ -152,6 +153,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
             cfg.save();
         });
         widgets.add(resetMsgField);
+        CommitEditBox.withSet(widgets, resetMsgField);
         y += 30;
 
         return widgets;

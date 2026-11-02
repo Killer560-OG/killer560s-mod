@@ -28,7 +28,7 @@ import net.minecraft.world.phys.Vec3;
  * Boots resets. HUD: "Height: " + value colored §c &lt;= 13.5, §e &lt;= 22.5, §6 &lt;= 33, §a &lt;= 43.5, else §b.
  * Optional red wireframe box at the player's position + height (Odin's render).
  */
-final class SpringBootsOverlay {
+public final class SpringBootsOverlay {
 
     private static final float[] HIGH_PITCHES = {0.82539684f, 0.8888889f, 0.93650794f, 1.0476191f, 1.1746032f, 1.3174603f, 1.7777778f};
     private static final float LOW_PITCH = 0.6984127f;
@@ -48,6 +48,33 @@ final class SpringBootsOverlay {
     private static int boxesDrawn = 0;
 
     private SpringBootsOverlay() {
+    }
+
+    /**
+     * While an AP3 Crystal node charges (killer560, 2026-11-01), the charge is counted whether or not the HUD is on: the
+     * node lets go of the crouch on this count. Set and cleared by {@code ap3.Ap3Executor}.
+     */
+    private static volatile boolean countForAp3;
+    /** Charge notes counted since launch (the HUD's or AP3's) - read by the testkit. */
+    private static int notesCounted;
+
+    public static void setCountForAp3(boolean on) {
+        countForAp3 = on;
+    }
+
+    /** The height the Spring Boots are charged to now, in blocks (0 = none): the HUD's "Height". */
+    public static float chargedHeight() {
+        return blockAmount;
+    }
+
+    /** Charge notes (low and high) counted since launch. */
+    public static int notesCounted() {
+        return notesCounted;
+    }
+
+    /** Whether the player wears Spring Boots (the feet slot's Skyblock id). */
+    public static boolean wearing(LocalPlayer player) {
+        return player != null && wearingSpringBoots(player);
     }
 
     static void register() {
@@ -70,7 +97,7 @@ final class SpringBootsOverlay {
 
     static void onSoundPacket(ClientboundSoundPacket packet) {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (!DungeonAlertsConfig.getInstance().springBootsEnabled || player == null) {
+        if ((!DungeonAlertsConfig.getInstance().springBootsEnabled && !countForAp3) || player == null) {
             return;
         }
         Identifier id = packet.getSound().value().location();
@@ -78,10 +105,12 @@ final class SpringBootsOverlay {
         if (SoundEvents.NOTE_BLOCK_PLING.value().location().equals(id) && player.isCrouching() && wearingSpringBoots(player)) {
             if (pitch == LOW_PITCH) {
                 lowCount = Math.min(lowCount + 1, 2);
+                notesCounted++;
             } else {
                 for (float p : HIGH_PITCHES) {
                     if (p == pitch) {
                         highCount++;
+                        notesCounted++;
                         break;
                     }
                 }

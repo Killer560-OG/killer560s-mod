@@ -42,6 +42,17 @@ public final class BazaarFlipMenus {
         return menu.slots.subList(Math.max(0, total - 36), total);
     }
 
+    /** Empty slots among the player's 36. */
+    public static int emptySlots(AbstractContainerMenu menu) {
+        int n = 0;
+        for (Slot slot : playerSlots(menu)) {
+            if (slot.getItem().isEmpty()) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     /** Plain, color-code-free name of whatever is in a slot, or "" for an empty slot. */
     public static String nameOf(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {

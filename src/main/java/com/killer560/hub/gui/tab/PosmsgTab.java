@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -102,7 +103,7 @@ public class PosmsgTab extends BaseTab {
 
         // The message line first - it's the whole point of the waypoint, so it gets the widest row.
         int msgW = Math.max(1, contentWidth - SET_W - GAP);
-        EditBox messageField = new EditBox(Minecraft.getInstance().font, contentX, y, msgW, ROW,
+        CommitEditBox messageField = new CommitEditBox(Minecraft.getInstance().font, contentX, y, msgW, ROW,
                 Component.literal("Message"));
         messageField.setMaxLength(100);
         messageField.setValue(e.message == null ? "" : e.message);
@@ -115,11 +116,13 @@ public class PosmsgTab extends BaseTab {
             PosmsgConfig.getInstance().save();
         });
         widgets.add(messageField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
+        SettingsButtonWidget messageFieldSet = SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
                     e.message = messageField.getValue();
                     PosmsgConfig.getInstance().save();
                     requestRebuild.run();
-                }).bounds(contentX + msgW + GAP, y, SET_W, ROW).build());
+                }).bounds(contentX + msgW + GAP, y, SET_W, ROW).build();
+        widgets.add(messageFieldSet);
+        messageField.pressOnEnter(messageFieldSet);
         y += ROW + GAP;
 
         int colW = (contentWidth - GAP * 2) / 3;

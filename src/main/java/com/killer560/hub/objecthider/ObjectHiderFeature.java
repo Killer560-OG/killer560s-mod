@@ -41,6 +41,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Guardian;
 import net.minecraft.world.entity.monster.skeleton.WitherSkeleton;
+import net.minecraft.world.entity.boss.wither.WitherBoss;
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -101,6 +102,14 @@ import com.killer560.hub.compat.McEntities;
  * <li><b>Sheep</b> - Devonian {@code features/dungeons/HideSheeps.kt}: {@code entity instanceof Sheep}.</li>
  * <li><b>Wither Cloak Creepers</b> - Devonian {@code features/misc/hiders/HideCloakCreepers.kt}: a
  *     {@link Creeper} that {@code isInvisible() && isPowered() && health == 20f}.</li>
+ * <li><b>Witherborn Wither</b> - killer560, 2026-11-01: "When wearing full f7 armor of some sort it can have this wither.
+ *     I want an option to hide it and the particles it makes as well." The full set bonus (Witherborn: "Spawns a wither
+ *     minion every 30 seconds up to a maximum of 1 wither", hypixelskyblock.minecraft.wiki) is a {@link WitherBoss} that
+ *     sits at {@code getInvulnerableTicks() == 800} - SkyHanni {@code MobFilter} names exactly that wither "Mini Wither",
+ *     and NoammAddons' boss ESP excludes it from the four F7 bosses on the same test, so the bosses are never hidden. Its
+ *     particles are not packets: {@code WitherBoss.aiStep} spawns the smoke from its heads and the swirls of its spawning
+ *     shield client side (javap 26.3/26.2: three {@code Level.addParticle} calls), so {@code ObjectHiderWitherMixin}
+ *     drops those for a hidden wither.</li>
  * <li><b>Wither Shield Hearts</b> - Devonian {@code features/misc/hiders/HideHypeHearts.kt}: a
  *     {@code ClientboundLevelParticlesPacket} of {@code ParticleTypes.HEART} with {@code count == 3},
  *     {@code alwaysShow()} and {@code isOverrideLimiter()}.</li>
@@ -380,6 +389,9 @@ public final class ObjectHiderFeature {
                 && ((AbstractArrowInGroundAccessor) arrow).killer560smod$isInGround()) {
             return true;
         }
+        if (cfg.isHideWitherborn() && isWitherborn(entity)) {
+            return true;
+        }
         if (cfg.isHideCloakCreepers() && entity instanceof Creeper creeper
                 && creeper.isInvisible() && creeper.isPowered() && creeper.getHealth() == 20.0f) {
             return true;
@@ -443,6 +455,16 @@ public final class ObjectHiderFeature {
     // -------------------------------------------------------------------------------------------
     // Particles
     // -------------------------------------------------------------------------------------------
+
+    /** The Witherborn minion: a wither at 800 invulnerable ticks (see the class doc). Never one of the F7 bosses. */
+    public static boolean isWitherborn(Entity entity) {
+        return entity instanceof WitherBoss wither && wither.getInvulnerableTicks() == 800;
+    }
+
+    /** True when {@code wither}'s own client particles are to be dropped (ObjectHiderWitherMixin). */
+    public static boolean hidesWitherParticles(WitherBoss wither) {
+        return ObjectHiderConfig.getInstance().isHideWitherborn() && isWitherborn(wither);
+    }
 
     /** @return true to drop this particle before it is added to the engine (ParticleEngine.add HEAD). */
     public static boolean shouldHideParticle(Particle particle) {

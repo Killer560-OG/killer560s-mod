@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.crosshair.CrosshairRenderer;
 import com.killer560.hub.crosshair.CustomCrosshairConfig;
@@ -212,20 +213,22 @@ public class CrosshairTab extends BaseTab {
         }
         Minecraft mc = Minecraft.getInstance();
         int saveW = 60;
-        EditBox nameBox = new EditBox(mc.font, sx, y[0], sw - saveW - COL_GAP, ROW, Component.literal("Preset name"));
+        CommitEditBox nameBox = new CommitEditBox(mc.font, sx, y[0], sw - saveW - COL_GAP, ROW, Component.literal("Preset name"));
         nameBox.setMaxLength(32);
         nameBox.setHint(Component.literal("Preset name..."));
         nameBox.setValue(presetName);
         nameBox.setResponder(text -> presetName = text);
         w.add(nameBox);
-        w.add(SettingsButtonWidget.builder(Component.literal("Save Preset"), btn -> {
+        SettingsButtonWidget nameBoxSet = SettingsButtonWidget.builder(Component.literal("Save Preset"), btn -> {
             String saved = cfg.savePreset(presetName);
             status = saved == null ? "Type a name first (letters, digits, space, - and _)." : "Saved preset " + saved + ".";
             if (saved != null) {
                 presetName = "";
             }
             requestRebuild.run();
-        }).bounds(sx + sw - saveW, y[0], saveW, ROW).build());
+        }).bounds(sx + sw - saveW, y[0], saveW, ROW).build();
+        w.add(nameBoxSet);
+        nameBox.pressOnEnter(nameBoxSet);
         y[0] += STEP;
         int delW = 50;
         for (String name : CustomCrosshairConfig.listPresets()) {

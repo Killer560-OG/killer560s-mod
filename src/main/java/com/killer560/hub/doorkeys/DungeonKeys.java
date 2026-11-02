@@ -66,6 +66,13 @@ public final class DungeonKeys {
      */
     public static net.minecraft.core.BlockPos standWithin(net.minecraft.world.phys.Vec3 key, double reach,
                                                           net.minecraft.world.phys.Vec3 from) {
+        return standWithin(key, reach, from, java.util.Set.of());
+    }
+
+    /** {@link #standWithin}, never one of {@code exclude} (stands a trip could not reach). */
+    public static net.minecraft.core.BlockPos standWithin(net.minecraft.world.phys.Vec3 key, double reach,
+                                                          net.minecraft.world.phys.Vec3 from,
+                                                          java.util.Set<net.minecraft.core.BlockPos> exclude) {
         int r = (int) Math.ceil(reach);
         net.minecraft.core.BlockPos centre = net.minecraft.core.BlockPos.containing(key);
         net.minecraft.core.BlockPos best = null;
@@ -80,7 +87,8 @@ public final class DungeonKeys {
                         continue;
                     }
                     double toHim = feet.distanceToSqr(from);
-                    if (toHim >= bestD || !com.killer560.hub.livemap.autoclear.TeleportUtils.etherwarpable(p)
+                    if (toHim >= bestD || exclude.contains(p)
+                            || !com.killer560.hub.livemap.autoclear.TeleportUtils.etherwarpable(p)
                             || !com.killer560.hub.livemap.autoclear.TeleportUtils.underCover(p)) {
                         continue;
                     }

@@ -59,8 +59,9 @@ public final class SkyblockItemRepository {
             ModPaths.config("killer560smod-itembrowser-items-cache.json");
     private static final long CACHE_TTL_MS = 12L * 60 * 60 * 1000;
     /** Bump when the cache gains a field. Schema 2 added leather {@code color}; an older cache is still served
-     *  but treated as stale, so one refresh rewrites it with color. */
-    private static final int CACHE_SCHEMA = 2;
+     *  but treated as stale, so one refresh rewrites it with color. Schema 3 added {@code unstackable} (the Bazaar Flipper's
+     *  stack sizes, 2026-11-01). */
+    private static final int CACHE_SCHEMA = 3;
     private static final long SCHEMA_RETRY_MS = 5L * 60 * 1000;
 
     private static final HttpClient HTTP = HttpClient.newBuilder()
@@ -93,7 +94,24 @@ public final class SkyblockItemRepository {
     private static volatile boolean schemaStale = false;
     private static volatile long schemaRetryAtMs = 0;
 
+    /**
+     * Ids Hypixel's catalog marks {@code unstackable} or {@code has_uuid} (each copy is unique, so none stack): 539 and 181
+     * items of 5,682 on 2026-11-01. Kept beside the entries, not in {@link SkyblockItemEntry}, so the record keeps its shape.
+     * Only grows within a session: an item that turned stackable is wrong here until the next start, the safe direction for
+     * the Bazaar Flipper, which reads it to size purchases.
+     */
+    private static final java.util.Set<String> UNSTACKABLE = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private SkyblockItemRepository() {
+    }
+
+    /** Whether the catalog says {@code id} never stacks ({@code unstackable} or {@code has_uuid}). */
+    public static boolean isUnstackable(String id) {
+        if (id == null) {
+            return false;
+        }
+        ensureLoaded();
+        return UNSTACKABLE.contains(id);
     }
 
     public static List<SkyblockItemEntry> getItems() {
@@ -224,6 +242,10 @@ public final class SkyblockItemRepository {
             String rawColor = item.has("color") && item.get("color").isJsonPrimitive() ? item.get("color").getAsString() : null;
             Integer dyeColor = DyeColors.parse(rawColor);
 
+            if (flag(item, "unstackable") || flag(item, "has_uuid")) {
+                UNSTACKABLE.add(id);
+            }
+
             RecipeData recipe = parseRecipe(item);
             List<String> obtainLines = buildObtainLines(item);
 
@@ -233,6 +255,14 @@ public final class SkyblockItemRepository {
                     recipe == null ? 0 : recipe.outputCount, obtainLines, dyeColor));
         }
         return result;
+    }
+
+    private static boolean flag(JsonObject item, String key) {
+        try {
+            return item.has(key) && item.get(key).isJsonPrimitive() && item.get(key).getAsBoolean();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private record RecipeData(List<String> ingredients, String outputId, int outputCount) {
@@ -500,6 +530,9 @@ public final class SkyblockItemRepository {
                 }
                 if (entry.npcSellPrice() != null) {
                     obj.addProperty("npc_sell_price", entry.npcSellPrice());
+                }
+                if (UNSTACKABLE.contains(entry.id())) {
+                    obj.addProperty("unstackable", true);
                 }
                 // Real description tokens were already converted to section-sign codes on first parse -
                 // re-wrapping them back in %%white%% keeps the cache round-trippable through the same

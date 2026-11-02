@@ -217,6 +217,8 @@ Testkit 1018-sim-prince-stairs / -withermancer / -sloth / -red-blue / -grass-rui
 
 ## Keys
 
+- **Keys on a floor with mobs** (2026-11-01): `SimMobFloor` arms one key room per wither door and one for the Blood
+  door (SIM-SERVER.md, "A floor with mobs"); the paragraph below is the floor WITHOUT mobs.
 - **No Wither Key drop.** The last starred death no longer calls `SimDoors.dropKeyAt` (the only key the sim made), so the
   **blood door opens on a plain right-click** (main hand, nothing consumed). Wither doors still need a key, but generated
   floors build none and drop no keys. Bring the drop back with per-room keys if they ever are.

@@ -734,8 +734,11 @@ public final class MobEspFeature {
             return false;
         }
         net.minecraft.world.item.ItemStack head = stand.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD);
+        // A wither skeleton skull too (simmobs2-1101): his Doc has Fels as "black fel skulls", and that is what the sim places;
+        // with only the player head and the plain skull, Fel Skulls drew none of the sim's sleeping Fels.
         if (head.isEmpty() || !(head.is(net.minecraft.world.item.Items.PLAYER_HEAD)
-                || head.is(net.minecraft.world.item.Items.SKELETON_SKULL))) {
+                || head.is(net.minecraft.world.item.Items.SKELETON_SKULL)
+                || head.is(net.minecraft.world.item.Items.WITHER_SKELETON_SKULL))) {
             return false;
         }
         if (!stand.isInvisible()) {

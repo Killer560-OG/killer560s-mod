@@ -1,5 +1,6 @@
 package com.killer560.hub.fastleap;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.fastleap.FastLeapConfig.LeapGroup;
@@ -332,7 +333,7 @@ public final class FastLeapSection {
                     continue;
                 }
                 String hint = (group == LeapGroup.P3 ? t.label + " " : "") + "Keywords";
-                widgets.add(editBox(ix, y, iw, cfg.getTargetKeywords(t), hint, 128, v -> {
+                addEditBox(widgets, editBox(ix, y, iw, cfg.getTargetKeywords(t), hint, 128, v -> {
                     cfg.setTargetKeywords(t, v);
                     cfg.save();
                 }));
@@ -560,8 +561,14 @@ public final class FastLeapSection {
         }).bounds(x, y, Math.max(1, w), ROW).build();
     }
 
-    static EditBox editBox(int x, int y, int w, String value, String hint, int maxLength, Consumer<String> onChange) {
-        EditBox box = new EditBox(Minecraft.getInstance().font, x, y, Math.max(1, w), ROW, Component.literal(hint));
+    /** Adds {@code box} with its Set button (Enter and Set both run its responder). */
+    static void addEditBox(List<AbstractWidget> widgets, CommitEditBox box) {
+        widgets.add(box);
+        CommitEditBox.withSet(widgets, box);
+    }
+
+    static CommitEditBox editBox(int x, int y, int w, String value, String hint, int maxLength, Consumer<String> onChange) {
+        CommitEditBox box = new CommitEditBox(Minecraft.getInstance().font, x, y, Math.max(1, w), ROW, Component.literal(hint));
         box.setMaxLength(maxLength);
         box.setValue(value == null ? "" : value);
         box.setHint(Component.literal("§8" + hint));

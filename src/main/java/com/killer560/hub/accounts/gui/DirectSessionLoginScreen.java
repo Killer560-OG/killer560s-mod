@@ -43,7 +43,7 @@ public class DirectSessionLoginScreen extends Screen implements MenuThemedScreen
     /** Where a successful connect closes all the way out to - matches how picking a saved account
      *  from the list also closes the whole account-switcher flow, not just this sub-screen. */
     private final Screen successTarget;
-    private EditBox tokenField;
+    private com.killer560.hub.gui.CommitEditBox tokenField;
     private String statusMessage;
     private boolean busy;
 
@@ -120,6 +120,7 @@ public class DirectSessionLoginScreen extends Screen implements MenuThemedScreen
                 .build();
         connectButton.active = !this.busy;
         this.addRenderableWidget(connectButton);
+        this.tokenField.pressOnEnter(connectButton);
 
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), btn -> onBack())
                 .bounds(centerX - fieldWidth / 2, y + 52, fieldWidth, 20)

@@ -85,6 +85,8 @@ public final class ArmourDyeConfig {
                             entry.headTexture = ConfigJson.getString(e, "headTexture", "");
                             entry.trimMaterial = ConfigJson.getString(e, "trimMaterial", "");
                             entry.trimPattern = ConfigJson.getString(e, "trimPattern", "");
+                            entry.customItem = ConfigJson.getString(e, "customItem", "");
+                            entry.skinName = ConfigJson.getString(e, "skinName", "");
                             cfg.entries.put(id, entry);
                         } catch (Exception ignored) {
                         }
@@ -117,6 +119,8 @@ public final class ArmourDyeConfig {
                 e.addProperty("headTexture", entry.headTexture);
                 e.addProperty("trimMaterial", entry.trimMaterial);
                 e.addProperty("trimPattern", entry.trimPattern);
+                e.addProperty("customItem", entry.customItem);
+                e.addProperty("skinName", entry.skinName);
                 arr.add(e);
             }
             obj.add("entries", arr);

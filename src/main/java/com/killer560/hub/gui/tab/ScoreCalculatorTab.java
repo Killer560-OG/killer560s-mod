@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
@@ -155,7 +156,7 @@ public class ScoreCalculatorTab extends BaseTab {
 
     private static int textBox(List<AbstractWidget> widgets, String label, String value, Consumer<String> setter,
                                ScoreCalculatorConfig cfg, int x, int y, int w) {
-        EditBox box = new EditBox(Minecraft.getInstance().font, x, y, w, 18, Component.literal(label));
+        CommitEditBox box = new CommitEditBox(Minecraft.getInstance().font, x, y, w, 18, Component.literal(label));
         box.setMaxLength(200);
         box.setValue(value);
         box.setResponder(text -> {
@@ -163,6 +164,7 @@ public class ScoreCalculatorTab extends BaseTab {
             cfg.save();
         });
         widgets.add(box);
+        CommitEditBox.withSet(widgets, box);
         return y + 22;
     }
 

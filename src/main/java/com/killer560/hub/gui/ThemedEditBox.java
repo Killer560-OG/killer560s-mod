@@ -3,22 +3,21 @@ package com.killer560.hub.gui;
 import com.killer560.hub.hud.GuiRects;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 
 /**
  * A text box in the menu theme for {@link MenuThemedScreen}s: a recessed well (accent ring when focused or hovered) with
  * the text in the theme's color. Vanilla's bordered box draws a fixed dark sprite and a shadowed hint, unreadable on
- * the Light theme (docs/LESSONS-GUI.md, the Profiles name box), so this is an unbordered {@link EditBox} placed inside
+ * the Light theme (docs/LESSONS-GUI.md, the Profiles name box), so this is an unbordered {@link net.minecraft.client.gui.components.EditBox} placed inside
  * the outer box it was asked for, painting the well and its own hint, and taking clicks anywhere on the outer box
  * ({@code AbstractWidget.mouseClicked} asks {@link #isMouseOver}, javap 26.1.2). Its getters still report the inner
  * text line; {@link #outer()} is the box as drawn.
  */
-public class ThemedEditBox extends EditBox {
+public class ThemedEditBox extends CommitEditBox {
 
     private int ox;
     private int oy;
-    private final int ow;
+    private int ow;
     private final int oh;
     private String themedHint = "";
     private boolean brightHint;
@@ -55,6 +54,18 @@ public class ThemedEditBox extends EditBox {
     /** {x, y, w, h} of the box as drawn. */
     public int[] outer() {
         return new int[]{ox, oy, ow, oh};
+    }
+
+    @Override
+    public int[] drawnBox() {
+        return outer();
+    }
+
+    /** Makes the drawn box (the well) {@code w} wide, the text line inside it following. */
+    @Override
+    public void setDrawnWidth(int w) {
+        this.ow = w;
+        super.setDrawnWidth(Math.max(8, w - 10));
     }
 
     /** Moves the drawn box (and the text line inside it) so its left edge is at {@code x} (screen sweep C: the

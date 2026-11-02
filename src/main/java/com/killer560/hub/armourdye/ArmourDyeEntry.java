@@ -47,6 +47,14 @@ public final class ArmourDyeEntry {
     /** Raw trim pattern identifier (e.g. {@code minecraft:sentry}). Blank = leave the real trim alone. */
     public String trimPattern = "";
 
+    /** What the Customize Custom Item page applied (the Look's source), so reopening the page shows it again:
+     *  {@code minecraft:<item id>} or {@code hypixel:<Skyblock id>}. Blank = none. A label only; the Look itself is
+     *  {@link #iconModel} / {@link #headTexture}. */
+    public String customItem = "";
+
+    /** The name of the Hypixel item skin applied as {@link #headTexture} (Skin row), or blank for none. A label only. */
+    public String skinName = "";
+
     public ArmourDyeEntry(String itemId, String label) {
         this.itemId = itemId;
         this.label = label == null || label.isBlank() ? itemId : label;
@@ -64,6 +72,8 @@ public final class ArmourDyeEntry {
         e.headTexture = headTexture;
         e.trimMaterial = trimMaterial;
         e.trimPattern = trimPattern;
+        e.customItem = customItem;
+        e.skinName = skinName;
         return e;
     }
 

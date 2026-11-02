@@ -81,7 +81,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     private int listY;
     private int listW;
 
-    private EditBox nameBox;
+    private com.killer560.hub.gui.CommitEditBox nameBox;
     private SettingsButtonWidget bindButton;
     private SettingsButtonWidget fetchButton;
     private SettingsButtonWidget dumpButton;
@@ -420,6 +420,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                 .hint("Layout name");
         nameBox.setMaxLength(InventoryLayoutStore.MAX_NAME);
         nameBox.setValue(typed);
+        nameBox.onEnter(this::saveTyped);
         addRenderableWidget(nameBox);
 
         int bw = (9 * SLOT - 12) / 4;

@@ -27,6 +27,8 @@ public final class DyePickerScreen extends Screen implements MenuThemedScreen {
 
     private final Screen parent;
     private final IntConsumer onPick;
+    /** Clear Dye (killer560, 2026-11-01: "Make the dye option for this have a clear option as well"), or null. */
+    private final Runnable onClear;
     private final List<HypixelDyes.Dye> dyes = HypixelDyes.all();
     private int scroll;
     private int panelX;
@@ -37,9 +39,14 @@ public final class DyePickerScreen extends Screen implements MenuThemedScreen {
     private int rows;
 
     public DyePickerScreen(Screen parent, IntConsumer onPick) {
+        this(parent, onPick, null);
+    }
+
+    public DyePickerScreen(Screen parent, IntConsumer onPick, Runnable onClear) {
         super(Component.literal("Dyes"));
         this.parent = parent;
         this.onPick = onPick;
+        this.onClear = onClear;
     }
 
     @Override
@@ -53,6 +60,12 @@ public final class DyePickerScreen extends Screen implements MenuThemedScreen {
         scroll = Math.max(0, Math.min(scroll, Math.max(0, dyes.size() - rows)));
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> onClose())
                 .bounds(panelX + panelW - 7 - 48, panelY + 3, 48, 14).build());
+        if (onClear != null) {
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Clear Dye"), b -> {
+                        onClear.run();
+                        onClose();
+                    }).bounds(panelX + panelW - 7 - 48 - 4 - 64, panelY + 3, 64, 14).build());
+        }
     }
 
     @Override

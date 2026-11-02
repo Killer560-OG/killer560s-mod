@@ -277,6 +277,25 @@ public final class ChestClearRule {
         }
     }
 
+    /**
+     * The come-back falls due now, not 30 s after the chest: {@code name} holds the key to a shut door nobody has a key
+     * for, and that key drops only at the room's last starred death (simmobs2-1101: Waterfall counted as cleared for its
+     * chest, and Auto Secret waited 20 s at the wither door it opens). Once a run, like the timed one.
+     * @return true when the room was counted as cleared for its chest and is not any more
+     */
+    public static boolean returnNow(String name, String why) {
+        check();
+        Entry e = name == null ? null : rooms.get(name);
+        if (e == null || e.state != State.CLEARED) {
+            return false;
+        }
+        e.state = State.RETURNED;
+        returnsDue.add(name);
+        LOGGER.info("[AutoClear] chest rule: {} no longer counts as cleared - {}; Auto Clear / Auto Secret may come back to"
+                + " it (once this run)", name, why);
+        return true;
+    }
+
     /** One line for the floor dump: every room the rule holds and its state. */
     public static String describe() {
         check();

@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.commandkeybinds.CommandKeybindsConfig;
 import com.killer560.hub.commandshortcuts.CommandShortcutsConfig;
 import com.killer560.hub.commandshortcuts.CommandShortcutsConfig.CustomShortcut;
@@ -159,7 +160,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(x, y, keyW, 18).build());
             x += keyW + GAP;
 
-            EditBox textField = new EditBox(font, x, y, textW, 18, Component.literal("Command or message"));
+            CommitEditBox textField = new CommitEditBox(font, x, y, textW, 18, Component.literal("Command or message"));
             textField.setMaxLength(200);
             textField.setValue(bind.text);
             textField.setHint(Component.literal("§8/pets  or  gg"));
@@ -168,6 +169,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
                 cfg.save();
             });
             widgets.add(textField);
+            CommitEditBox.withSet(widgets, textField);
             x += textW + GAP;
 
             widgets.add(SettingsButtonWidget.builder(Component.literal("§cDelete"), btn -> {
@@ -222,6 +224,14 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
         int keyW = keyWidth(contentWidth);
         int nameW = Math.max(60, Math.min(96, contentWidth / 5));
         int commandW = contentWidth - TOGGLE_W - keyW - nameW - DELETE_W - GAP * 4;
+        // The command box gives up CommitEditBox's Set button width; in a narrow menu the name box pays for it, so the
+        // command box keeps at least 60 px (testkit 621).
+        int commandShort = 60 + CommitEditBox.SET_W + CommitEditBox.SET_GAP - commandW;
+        if (commandShort > 0) {
+            int newNameW = Math.max(44, nameW - commandShort);
+            commandW += nameW - newNameW;
+            nameW = newNameW;
+        }
         // Built after the rows (its y is below them); the rows' responders reach it through this holder.
         StringWidget[] status = new StringWidget[1];
         String firstProblem = null;
@@ -241,7 +251,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(x, y, keyW, 18).build());
             x += keyW + GAP;
 
-            EditBox nameField = new EditBox(font, x, y, nameW, 18, Component.literal("Shortcut Name"));
+            CommitEditBox nameField = new CommitEditBox(font, x, y, nameW, 18, Component.literal("Shortcut Name"));
             nameField.setMaxLength(CommandShortcutsConfig.MAX_CUSTOM_NAME);
             String pending = refusedName.get(c);
             nameField.setValue(pending != null ? pending : c.name());
@@ -266,9 +276,11 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
                 }
             });
             widgets.add(nameField);
+            // The name box is narrow: Enter in it saves the row, and the row's one Set button sits after the command box.
+            nameField.enterRunsResponder();
             x += nameW + GAP;
 
-            EditBox commandField = new EditBox(font, x, y, commandW, 18, Component.literal("Sends Command"));
+            CommitEditBox commandField = new CommitEditBox(font, x, y, commandW, 18, Component.literal("Sends Command"));
             commandField.setMaxLength(CommandShortcutsConfig.MAX_CUSTOM_COMMAND);
             commandField.setValue(c.command());
             commandField.setHint(Component.literal("§8/warp dh"));
@@ -278,6 +290,13 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
                 CommandShortcutsFeature.customsChanged();
             });
             widgets.add(commandField);
+            Runnable saveRow = () -> {
+                nameField.runResponder();
+                commandField.runResponder();
+            };
+            nameField.onEnter(saveRow);
+            commandField.onEnter(saveRow);
+            CommitEditBox.withSet(widgets, commandField);
             x += commandW + GAP;
 
             widgets.add(SettingsButtonWidget.builder(Component.literal("§cDelete"), btn -> {

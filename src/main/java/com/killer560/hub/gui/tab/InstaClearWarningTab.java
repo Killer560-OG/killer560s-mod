@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.instaclearwarning.InstaClearWarningConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -41,7 +42,7 @@ public class InstaClearWarningTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 18));
         y += 20;
         if (cfg.isPartyMessage()) {
-            EditBox message = new EditBox(Minecraft.getInstance().font, contentX, y, contentWidth, 18,
+            CommitEditBox message = new CommitEditBox(Minecraft.getInstance().font, contentX, y, contentWidth, 18,
                     Component.literal("Party Message Text"));
             message.setMaxLength(InstaClearWarningConfig.MAX_MESSAGE);
             message.setHint(Component.literal("§8" + InstaClearWarningConfig.DEFAULT_MESSAGE));
@@ -51,6 +52,7 @@ public class InstaClearWarningTab extends BaseTab {
                 cfg.save();
             });
             widgets.add(message);
+            CommitEditBox.withSet(widgets, message);
         }
         return widgets;
     }

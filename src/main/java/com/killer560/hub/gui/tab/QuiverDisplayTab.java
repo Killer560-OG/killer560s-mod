@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
@@ -84,7 +85,7 @@ public class QuiverDisplayTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y + 2, contentWidth, 12,
                 Component.literal("§7Low Arrow Text (& color codes, {count} = arrows left)"), mc.font));
         y += 14;
-        EditBox text = new EditBox(mc.font, contentX, y, contentWidth, 18, Component.literal("Low Arrow Text"));
+        CommitEditBox text = new CommitEditBox(mc.font, contentX, y, contentWidth, 18, Component.literal("Low Arrow Text"));
         text.setMaxLength(100);
         text.setValue(cfg.getAlertText());
         text.setResponder(value -> {
@@ -92,6 +93,7 @@ public class QuiverDisplayTab extends BaseTab {
             cfg.save();
         });
         widgets.add(text);
+        CommitEditBox.withSet(widgets, text);
 
         return widgets;
     }

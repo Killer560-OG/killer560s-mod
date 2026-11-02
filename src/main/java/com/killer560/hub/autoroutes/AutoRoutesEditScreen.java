@@ -189,7 +189,8 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
         boolean breaker = type == RouteNode.Type.DUNGEON_BREAKER;
         boolean path = type == RouteNode.Type.PATH && node.type == RouteNode.Type.PATH;
         boolean jump = type == RouteNode.Type.JUMP;
-        boolean align = type == RouteNode.Type.ALIGN;
+        // A trap room's boxed node (RouteNode#trapBox, /ar add <type> w3 l3) edits its box here too.
+        boolean align = type == RouteNode.Type.ALIGN || node.trapBox;
         int line = ROW + GAP;
         int sections = 2 + (aim ? 1 : 0) + (use ? 1 : 0) + (breaker ? 1 : 0) + (path ? 1 : 0) + (jump ? 1 : 0)
                 + (align ? 1 : 0);
@@ -335,7 +336,13 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
 
     /** A text box {@code w} wide at {@code x}, its label drawn in the first {@code labelW} pixels (0: no label). */
     private void addField(int x, int y, int w, String label, int labelW) {
-        EditBox box = new ThemedEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(label));
+        ThemedEditBox box = new ThemedEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(label));
+        // Enter is the Save button: save, and close when it saved (the same as clicking it).
+        box.onEnter(() -> {
+            if (save()) {
+                onClose();
+            }
+        });
         box.setMaxLength(label.equals("Item") ? RouteStore.MAX_ITEM_ID : 32);
         box.setValue(pending.getOrDefault(label, ""));
         if (label.equals("Item")) {
@@ -429,7 +436,7 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
         if (type == RouteNode.Type.JUMP) {
             edited.jumpCount = jumps;
         }
-        if (type == RouteNode.Type.ALIGN && (!same("Width") || !same("Length"))) {
+        if ((type == RouteNode.Type.ALIGN || edited.trapBox) && (!same("Width") || !same("Length"))) {
             Double nw = num("Width");
             Double nl = num("Length");
             if (nw == null || nl == null || nw < RouteNode.MIN_ALIGN_SIZE || nw > RouteNode.MAX_ALIGN_SIZE

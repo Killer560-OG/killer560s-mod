@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
@@ -172,7 +173,7 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(nextX, y, sideW, 18).build());
-        net.minecraft.client.gui.components.EditBox pageName = new net.minecraft.client.gui.components.EditBox(font,
+        CommitEditBox pageName = new CommitEditBox(font,
                 nameX, y, nameW, 18, Component.literal("Page Name"));
         pageName.setMaxLength(PetWheelConfig.MAX_PAGE_NAME);
         pageName.setValue(cfg.getCurrentPageName());
@@ -183,6 +184,7 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
             cfg.save();
         });
         widgets.add(pageName);
+        CommitEditBox.withSet(widgets, pageName);
         y += 22;
         widgets.add(SettingsButtonWidget.builder(Component.literal("Add Page"), btn -> {
                     if (cfg.addPage()) {

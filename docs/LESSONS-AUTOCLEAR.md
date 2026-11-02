@@ -170,3 +170,29 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
   comes in, so the Progress HUD header must count it as done: counting it nowhere read "0% (0/1)" after the first of two
   rooms (testkit 131 hud, 2026-10-25). `publishPlan` adds the pending rooms not still in the order.
 - Kill speed and key rooms: see "Auto Clear kill speed" and "Key rooms" in [LESSONS-AUTOMATION.md](LESSONS-AUTOMATION.md).
+- A sleeping Fel is a starred tag over an INVISIBLE enderman (Hypixel's, per adm/Odin notes; the sim's `SimMobFloor` floors
+  copy it): `MobEspFeature.starredMobs` resolves it like any mob, and shooting it does nothing until a player is within 9
+  blocks. `AutoClearFeature.approachFel` (2026-11-01) leaves sleepers out of the targets while awake mobs remain, then
+  etherwarps inside 7.5 blocks of the nearest and waits for it to show (testkit 1101-sim-mobfloor).
+- Waiting at a shut wither door with no key, Auto Clear only looked for keys within 40 blocks (`KEY_SEARCH_RANGE`): the
+  key it needed dropped 50 blocks away the tick it set off for the door, and it waited 12 minutes. `keyAnyRange` (2026-11-01)
+  takes a Wither Key anywhere in view while a door waits on one (testkit 1101-sim-mobfloor).
+- Pockets the etherwarp graph cannot land in or leave (Banners' ledge in the sim, 2026-11-01): a key or a sleeping Fel there
+  was left for good after one failed trip, and from inside it the door trip failed four times. Now: up to 3 stands for a key,
+  then one forced walk (`walkInsteadOfTrip(..., force)`, up to 32 blocks, whatever the etherwarp estimate); a Fel trip that
+  ended out of range walks; a door after a failed trip walks; and at a door with no key a key left earlier gets one more go.
+- A key room's single-room clear ends on "room cleared" in the tick its last mob dies, before the key's stand reaches the
+  client, so Auto Clear hands back with the key lying there (simmobs2-1101, 1016-sim-fullclear on a mob floor: Multicolored's
+  key, then Auto Secret waited at the door it opens for 12 minutes). Auto Secret now picks up a reachable lying Wither Key
+  before it waits at a shut wither door, and when none lies anywhere and the door's key room counted as cleared only for its
+  chest (ChestClearRule), the come-back falls due at once (`ChestClearRule.returnNow`) so the room is cleared for its key.
+- On the Grim arena (62-argrim) the Auto Clear cases leave starred mobs alive (acbat's: the server has no bat). A later case
+  that counts on its own mobs only must kill the leftovers first: 62-argrim-1102-acfel saw 5 starred mobs and its Fel was
+  woken by a hop kill beside it, so no Fel trip ran (2026-11-02).
+- Insta Clear Warning's key rooms are KeyRooms.guards: the room BESIDE a shut door. The sim keys the room before Fairy for
+  the wither door after Fairy (Museum > Fairy > Mines), which the map rule never calls a key room, so its insta clear is not
+  warned (1102-sim-instaclear, 2026-11-02). Which room holds that key on Hypixel is unknown; left for the owner.
+- The sim reports the floor as M7 (`DungeonState.getFloor`, on purpose), so Insta Clear Warning's requeue in the sim is
+  /joininstance master_catacombs_floor_seven.
+- Dungeon ESP's Fel Skulls took only a player head or a plain skull; the sim's sleeping Fels wear a wither skeleton skull
+  (his "black fel skulls"), so none was drawn. It takes all three now (1102-sim-felskulls).
