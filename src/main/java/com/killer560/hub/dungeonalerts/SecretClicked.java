@@ -21,6 +21,10 @@ import java.util.List;
  * every secret you collect - the same detections Secret Sound uses (chest, lever, essence, key skull, bat, item) - and
  * the box turns red, with an anvil sound, when Hypixel answers the chest click with "That chest is locked!". The
  * locked line is matched whole (a player's message always carries a prefix, so it cannot be forged).</li>
+ * <li>Since 2026-11-02 the gold box on a secret that was simply taken is behind <b>Box On Every Secret</b> (off).
+ *     killer560 took a Wither Essence and saw "it still shows it is there" for seconds: Secret Waypoints had dropped
+ *     the essence's (black) waypoint on the click tick, and the box still on the spot was this one, a full-block gold
+ *     box that reads as a waypoint left behind. With the option off, a box is drawn only once it turns red.</li>
  * <li><b>Mute Chest Sounds / Mute Lever Sounds</b> (SkyHanni {@code SecretChimeConfig}): in a dungeon, the server's
  * chest open/close and lever click sounds are dropped before they play. Nothing is sent; only those sound packets are
  * cancelled ({@code DungeonAlertsPacketMixin}).</li>
@@ -106,12 +110,18 @@ public final class SecretClicked {
         if (!wanted() || !DungeonState.isInDungeon()) {
             return;
         }
+        boolean everySecret = DungeonAlertsConfig.getInstance().isSecretClickedTakenBox();
+        boolean any = false;
         for (Box b : boxes) {
+            if (!b.locked && !everySecret) {
+                continue; // a secret simply taken shows nothing - see the class doc
+            }
+            any = true;
             float[] c = b.locked ? RED : GOLD;
             WorldRenderUtils.renderFilledBox(context, b.aabb, c[0], c[1], c[2], c[3] * 0.35f);
             WorldRenderUtils.renderOutlineBox(context, b.aabb, c[0], c[1], c[2], c[3], 2f);
         }
-        if (!boxes.isEmpty()) {
+        if (any) {
             boxesDrawnFrames++;
         }
     }

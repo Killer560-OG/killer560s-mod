@@ -14,7 +14,8 @@ final class SettingTooltipsData {
         d.put("replay intro", "Shows the first-launch tour again: how to open the mod, picking a theme, Auto Update and the menus.");
         // Every module's last row (ModuleKeybinds, killer560 2026-11-01).
         d.put("toggle keybind", "A key that turns this feature on and off in game, as its switch does. None by default. Click, then press a key or mouse button; Escape clears it.");
-        d.put("secret clicked", "Draws a short box on each secret you collect; the box turns red when the chest was locked.");
+        d.put("secret clicked", "Draws a red box on a chest you clicked that was locked (and, with Box On Every Secret, a short gold box on each secret you collect).");
+        d.put("box on every secret", "Also draws a gold box for 7 seconds on each secret you collect. Off: a taken secret shows nothing once taken.");
         d.put("locked chest sound", "Plays an anvil sound when the chest you clicked was locked.");
         d.put("mute chest sounds", "In dungeons, silences chest open and close sounds.");
         d.put("mute lever sounds", "In dungeons, silences lever click sounds.");

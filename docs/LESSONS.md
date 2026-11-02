@@ -385,3 +385,7 @@ project CLAUDE.md. Compiling lessons
   is queued: PartyDataFeature queued Team Melody with Party Dungeon Data off, and drainQueue then cleared the whole queue
   on `!publishActive()`, so nothing was ever sent (found by testkit 1102-boss-melody-relay-roundtrip with a fake relay,
   tkdebt-1101; fixed 9c71162c).
+- "The waypoint is still there after I took it" may be another feature's box on the same spot. On 2026-11-02 his log showed
+  the Wither Essence waypoint leave on the click tick (`waypoints changed ... wither=0`, before the chat line); the gold
+  box left behind was Secret Clicked's 7-second box (on in his config). Read the log's waypoint counts and his config for
+  every feature that draws there before touching detection. The gold box is now behind Box On Every Secret (off).
