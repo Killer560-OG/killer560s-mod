@@ -547,6 +547,15 @@ final class BloodCampAim {
         lastAppliedPitch = player.getXRot();
     }
 
+    /** The longest {@link #plan} can make a turn of this error (its Fitts' time at +15%, or the cap stretch), ticks. */
+    static double maxTurnTicks(float errYaw, float errPitch) {
+        float d = (float) Math.hypot(errYaw, errPitch);
+        double fitts = (2.5 + 1.6 * (Math.log(1.0 + d / 2.5) / Math.log(2.0))) * 1.15;
+        double minYaw = 1.875 * Math.abs(errYaw) / (YAW_CAP * 0.85);
+        double minPitch = 1.875 * Math.abs(errPitch) / (PITCH_CAP * 0.85);
+        return Math.max(4.0, Math.max(fitts, Math.max(minYaw, minPitch)));
+    }
+
     static double minJerk(double tau) {
         double x = Mth.clamp(tau, 0.0, 1.0);
         return x * x * x * (10 - 15 * x + 6 * x * x);

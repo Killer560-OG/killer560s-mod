@@ -595,11 +595,11 @@ public final class BloodCampFeature {
         // killer560, 2026-11-01: "Dont have it track until the timer is about to go off then it can start tracking if it
         // is in the room." The Aura used to start turning 35 ticks before a mob was due - as soon as it left the wall, a
         // second and a half of a crosshair glued to an empty spot. Now nothing is picked until the click moment (the kill
-        // timer, moved by Trigger Offset) is within AURA_LEAD_TICKS: about a reaction time plus one turn.
+        // timer, moved by Trigger Offset) is a reaction time plus the turn to it away ({@link #auraLeadTicks}): it starts as
+        // late as it can and still be on the mob when it may click.
         double clickBelowAura = triggerTargetTicks(cfg, client);
         long killIn = BloodCampMoveTimer.ticksUntilKillOpen(cfg.getTriggerOffsetTicks());
-        boolean auraWindow = killIn <= AURA_LEAD_TICKS;
-        if (cfg.isAuraEnabled() && inRoom && auraWindow) {
+        if (cfg.isAuraEnabled() && inRoom && killIn <= AURA_MAX_LEAD_TICKS) {
             double best = Double.MAX_VALUE;
             // Stay on the mob already being turned to while it is still a target (killer560, 2026-11-01: "it was doing kind
             // of this snap thing if a mob was spawned with a new one being spawned close to it"): a second mob landing
@@ -611,19 +611,24 @@ public final class BloodCampFeature {
                     continue;
                 }
                 double remaining = remainingTicks(data, now);
-                if (remaining - clickBelowAura > AURA_LEAD_TICKS || remaining >= best) {
+                boolean current = java.util.Objects.equals(lastAuraKeyLogged, entry.getKey().getId());
+                if (!current && (remaining - clickBelowAura > AURA_MAX_LEAD_TICKS || remaining >= best)) {
                     continue; // not due yet, or it cannot beat the one already picked (saves its line-of-sight rays)
+                }
+                double lead = auraLeadTicks(client, aimPoint(client, data));
+                if (!current && (remaining - clickBelowAura > lead || killIn > lead)) {
+                    continue;
                 }
                 Entity mob = nearestMob(client, data.endVector);
                 if (!visible(client, mob != null ? mob.getBoundingBox() : aimBox(data.endVector))) {
                     continue;
                 }
+                if (current) {
+                    keep = entry;
+                }
                 if (remaining < best) {
                     best = remaining;
                     auraTrip = entry;
-                }
-                if (java.util.Objects.equals(lastAuraKeyLogged, entry.getKey().getId())) {
-                    keep = entry;
                 }
             }
             // A mob already on the floor is killable now: it goes ahead of a trip still more than its own angle away.
@@ -633,8 +638,12 @@ public final class BloodCampFeature {
             for (Entity mob : floorMobs(client, now)) {
                 float[] a = BloodCampAim.angles(client.player.getEyePosition(), mob.getBoundingBox().getCenter());
                 double score = (Math.abs(net.minecraft.util.Mth.wrapDegrees(a[0] - yaw)) + Math.abs(a[1] - pitch)) * 0.01;
+                boolean current = ("mob" + mob.getId()).equals(lastAuraKeyLogged);
+                if (!current && killIn > auraLeadTicks(client, mob.getBoundingBox().getCenter())) {
+                    continue;
+                }
                 boolean seen = visible(client, mob.getBoundingBox());
-                if (seen && ("mob" + mob.getId()).equals(lastAuraKeyLogged)) {
+                if (seen && current) {
                     keepFloor = mob;
                 }
                 if (score < best && seen) {
@@ -649,6 +658,9 @@ public final class BloodCampFeature {
             } else if (keep != null) {
                 auraFloor = null;
                 auraTrip = keep;
+            }
+            if ((auraTrip != null || auraFloor != null) && lastAuraKeyLogged == null) {
+                auraPickedAtRemaining = auraTrip != null ? remainingTicks(auraTrip.getValue(), now) - clickBelowAura : -killIn;
             }
         }
         Vec3 auraPoint = auraFloor != null ? aimPoint(auraFloor, auraFloor.getId())
@@ -1649,8 +1661,25 @@ public final class BloodCampFeature {
 
     /** Ticks before a mob is due the explain-why log still looks at it (a trip is 38.8 ticks, the first wave 78.8). */
     private static final double AURA_START_TICKS = 35.0;
-    /** The Aura picks a target only this many ticks before its click moment: a reaction (3-6 ticks) plus one turn. */
-    static final double AURA_LEAD_TICKS = 10.0;
+    /** The most ticks before its click moment the Aura ever picks a target (a 180 degree turn plus the slowest reaction). */
+    static final double AURA_MAX_LEAD_TICKS = 24.0;
+    /** Testkit: ticks between the Aura picking its last target from rest and that target's click moment. */
+    private static double auraPickedAtRemaining = Double.NaN;
+
+    public static double auraPickedAtRemaining() {
+        return auraPickedAtRemaining;
+    }
+
+    /**
+     * How long before a mob's click moment the Aura has to pick it to be on it in time: its slowest reaction (6 ticks), the
+     * longest the human turn to {@code point} can take ({@link BloodCampAim#maxTurnTicks}), and one tick to spare.
+     */
+    static double auraLeadTicks(Minecraft client, Vec3 point) {
+        float[] a = BloodCampAim.angles(client.player.getEyePosition(), point);
+        float dy = net.minecraft.util.Mth.wrapDegrees(a[0] - client.player.getYRot());
+        float dp = a[1] - client.player.getXRot();
+        return Math.min(AURA_MAX_LEAD_TICKS, 6.0 + BloodCampAim.maxTurnTicks(dy, dp) + 1.0);
+    }
     private static boolean lastClassOkLogged = true;
     private static boolean lastTriggerUsable;
 
