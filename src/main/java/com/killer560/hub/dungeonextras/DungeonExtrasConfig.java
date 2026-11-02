@@ -102,6 +102,14 @@ public final class DungeonExtrasConfig {
      * "false" and the next load switched Multi Break back on over his "off" (testkit 310, 2026-10-22). Only a file
      * with no such key, written before 2026-09-29, gets the one-time switch. */
     private boolean breakerAuraMultiBreakDefaulted = true;
+
+    /**
+     * Burst Multi Break (owner exception, killer560 2026-11-02: "Have a setting that says use multibreak - flags newest
+     * test grim. So someone can still use the old one because I don't think it flags on hypixel yet."). With Multi Break
+     * on, every block in reach goes on ONE tick, exactly as Multi Break did before 2026-11-02 (d2da5856). GrimAC 2.3.74's
+     * experimental MultiBreak flags it, and its label says so. Default OFF; nothing while Multi Break is off.
+     */
+    private boolean breakerAuraBurstMultiBreak = false;
      /**
       * Edit Mode: show the picked blocks and let him change them, but break NOTHING.
       *
@@ -239,6 +247,7 @@ public final class DungeonExtrasConfig {
                             "[DungeonExtras] Multi Break switched on once (new default). Turn it off in the Breaker Aura"
                                     + " tab for one block per break cycle.");
                 }
+                cfg.breakerAuraBurstMultiBreak = bool(o, "breakerAuraBurstMultiBreak", false);
                 cfg.breakerAuraCooldownTicks = clampInt(o.has("breakerAuraCooldownTicks") ? o.get("breakerAuraCooldownTicks").getAsInt() : cfg.breakerAuraCooldownTicks, 0, 20);
                 cfg.breakerAuraZeroPing = bool(o, "breakerAuraZeroPing", cfg.breakerAuraZeroPing);
                 cfg.breakerAuraRespectEditMode = bool(o, "breakerAuraRespectEditMode", cfg.breakerAuraRespectEditMode);
@@ -278,6 +287,7 @@ public final class DungeonExtrasConfig {
             o.addProperty("breakerAuraReach", breakerAuraReach);
             o.addProperty("breakerAuraMultiBreak", breakerAuraMultiBreak);
             o.addProperty("breakerAuraMultiBreakDefaulted", breakerAuraMultiBreakDefaulted);
+            o.addProperty("breakerAuraBurstMultiBreak", breakerAuraBurstMultiBreak);
             o.addProperty("breakerAuraBlocksPerCycle", breakerAuraBlocksPerCycle);
             o.addProperty("breakerAuraSelectKey", breakerAuraSelectKey);
             com.google.gson.JsonArray sel = new com.google.gson.JsonArray();
@@ -377,6 +387,13 @@ public final class DungeonExtrasConfig {
     public boolean isBreakerAuraEditMode() { return breakerAuraEditMode; }
     public void setBreakerAuraEditMode(boolean v) { breakerAuraEditMode = v; }
     public boolean isBreakerAuraMultiBreak() { return breakerAuraMultiBreak; }
+    /** The switch itself (the menu row). */
+    public boolean isBreakerAuraBurstMultiBreakRaw() { return breakerAuraBurstMultiBreak; }
+    public void setBreakerAuraBurstMultiBreak(boolean v) { breakerAuraBurstMultiBreak = v; }
+    /** True when breaks go as the old burst: Multi Break AND Burst Multi Break on, cheat build only. */
+    public boolean isBreakerAuraBurstMultiBreak() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && breakerAuraMultiBreak && breakerAuraBurstMultiBreak;
+    }
     public void setBreakerAuraMultiBreak(boolean v) { breakerAuraMultiBreak = v; }
     public int getBreakerAuraCooldownTicks() { return breakerAuraCooldownTicks; }
     // Lower bound is 0, matching the field's own default and what the loader accepts. It clamped to 1, so once

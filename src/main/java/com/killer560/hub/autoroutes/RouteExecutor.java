@@ -5519,6 +5519,10 @@ public final class RouteExecutor {
             if (stepTicks % delay != 0) {
                 return;
             }
+            if (com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraBurstMultiBreak()) {
+                burstBreak(client, player, node, legitMode);
+                return;
+            }
             Vec3 eye = player.getEyePosition();
             int sentNow = 0;
             while (!breakerQueue.isEmpty()) {
@@ -5775,8 +5779,20 @@ public final class RouteExecutor {
         }
         select(client, player, slot);
         int sent = 0;
+        boolean burst = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraBurstMultiBreak();
         for (BlockPos pos : again) {
-            // One dig a tick (GrimAC MultiBreak), aimed by the look the server already has (util/DigAim, RotationBreak).
+            // One dig a tick (GrimAC MultiBreak), aimed by the look the server already has (util/DigAim, RotationBreak);
+            // Burst Multi Break (owner exception): all of them now, as many as there are charges.
+            if (burst) {
+                if (sent >= charges[0]) {
+                    break;
+                }
+                sendBreak(client, player, pos);
+                breakerSentAt.put(pos, execTicks);
+                breakerRedigs++;
+                sent++;
+                continue;
+            }
             if (sent > 0) {
                 break;
             }
@@ -5803,6 +5819,9 @@ public final class RouteExecutor {
             breakerSentAt.put(pos, execTicks);
             breakerRedigs++;
             sent++;
+        }
+        if (burst && sent > 0) {
+            com.killer560.hub.compat.McCompat.swingAttack(player);
         }
         noteSecretGap("re-dug " + sent + " breaker block(s) the server had not broken");
         return true;
@@ -6035,7 +6054,19 @@ public final class RouteExecutor {
         select(client, player, slot);
         int sentNow = 0;
         boolean lingerQueued = false;
+        boolean burst = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraBurstMultiBreak();
         for (BlockPos pos : inReach) {
+            if (burst && !com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(client.level.getBlockState(pos))) {
+                // Burst Multi Break (owner exception): every block in reach this tick, charges the only limit.
+                if (sentNow >= charges[0]) {
+                    break;
+                }
+                sendBreak(client, player, pos);
+                lingerSentAt.put(pos, lingerTicks);
+                lingerBroken++;
+                sentNow++;
+                continue;
+            }
             if (sentNow > 0) {
                 break;
             }
@@ -6097,6 +6128,63 @@ public final class RouteExecutor {
         }
         LOGGER.info("[AutoRoutes] Breaker linger: {} block(s) broken {} tick(s) after the node, eye y {}", sentNow,
                 lingerTicks, String.format(java.util.Locale.US, "%.2f", eye.y));
+    }
+
+    /**
+     * Burst Multi Break (owner exception, killer560 2026-11-02, default OFF, labeled "flags newest Grim"): the breaker
+     * node's DO step as it was before d2da5856 - every queued block that is loaded, standing and in reach goes out on
+     * this tick, as many as the breaker has charges, then ONE swing; the body turned (camera held) to the first block in
+     * obvious mode. GrimAC 2.3.74's experimental MultiBreak flags the second and later digs; the owner accepts that.
+     * Digs nothing util/DigWindow would hold: the burst is the point.
+     */
+    private static void burstBreak(Minecraft client, LocalPlayer player, RouteNode node, boolean legitMode) {
+        Vec3 eye = player.getEyePosition();
+        int sentNow = 0;
+        boolean turned = false;
+        java.util.Iterator<BlockPos> it = breakerQueue.iterator();
+        while (it.hasNext()) {
+            BlockPos pos = it.next();
+            if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()
+                    || com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, pos)
+                    || dugRecently(client, pos)) {
+                it.remove();
+                continue;
+            }
+            if (breakerChargesLeft <= 0) {
+                LOGGER.info("[AutoRoutes] Breaker: out of charges - {} block(s) not sent", breakerQueue.size());
+                breakerQueue.clear();
+                break;
+            }
+            if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) > BREAKER_RANGE_SQ) {
+                it.remove();
+                continue; // left to the linger
+            }
+            if (com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(client.level.getBlockState(pos))) {
+                it.remove();
+                breakerObsidian.add(pos);
+                breakerChargesLeft--;
+                continue; // dug alone after the others (CONFIRM)
+            }
+            if (!turned && !legitMode && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos)) {
+                turnBodyToward(player, Vec3.atCenterOf(pos));
+            }
+            turned = true;
+            it.remove();
+            sendBreak(client, player, pos);
+            breakerChargesLeft--;
+            sentNow++;
+            if (breakerSent.isEmpty()) {
+                logActed(node, " (burst multi break)");
+            }
+            breakerSent.add(pos);
+            breakerSentAt.put(pos.immutable(), execTicks);
+        }
+        if (sentNow > 0) {
+            com.killer560.hub.compat.McCompat.swingAttack(player);
+            LOGGER.info("[AutoRoutes] Breaker: {} block(s) on one tick (burst multi break)", sentNow);
+        }
+        step = Step.CONFIRM;
+        stepTicks = 0;
     }
 
     /**
