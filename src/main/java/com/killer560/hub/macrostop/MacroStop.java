@@ -33,13 +33,29 @@ import java.util.function.Consumer;
  *   <li>Nothing else does: no other key, no mouse button, no scroll. Keys typed into a screen that is not a container
  *       (chat, this mod's menu) are never counted, per the CLAUDE.md "any key stops it" lesson.</li>
  * </ul>
- * A macro's own Start/Stop key stays its own business (each feature polls it). Auto Routes and AP3 are not here: their
- * stop rules are their own (docs/AP3.md, docs/LESSONS-AUTOMATION.md). Only presses count, never releases or repeats,
- * so a key held from before a start never stops it.
+ * A macro's own Start/Stop key stays its own business (each feature polls it). Only presses count, never releases or
+ * repeats, so a key held from before a start never stops it.
+ * <p>
+ * <b>The Emergency Cancel Key stops everything automatic</b> (killer560, 2026-11-01: "an emergency cancel that misses
+ * half the automation would be surprising"). Automation with stop rules of its own - Auto Routes, AP3, Mimic Killer, the
+ * Interactive Map's executor and the etherwarp / pearl hoppers - registers as {@link Kind#EMERGENCY}: only this key stops
+ * it here, and its own rules are untouched. Automation that acts by itself whenever it is on (auras, triggerbots, Auto
+ * Terminals, the auto puzzles, Auto I4...) has nothing to "stop", so the key also starts an <b>emergency hold</b>: every
+ * automated interaction through {@code util/ActionGate} is refused (his own binds - Slot Binds, Pet Wheel, Loadout
+ * Keybinds - excepted), the auto puzzles are reset and do not act, Auto Routes and AP3 do not start a node, and Auto I4
+ * does not fire. The hold ends when he presses the key again with nothing running, on a world change, or when he starts
+ * a click or movement macro himself. Chat says each.
  */
 public final class MacroStop {
 
-    public enum Kind { CLICK, MOVEMENT }
+    public enum Kind {
+        /** Clicks in menus: Escape or the Emergency Cancel Key. */
+        CLICK,
+        /** Moves him: also a movement key or the chat key, with no screen open. */
+        MOVEMENT,
+        /** Has stop rules of its own (Auto Routes, AP3...): only the Emergency Cancel Key, here. */
+        EMERGENCY
+    }
 
     /** What a macro wants done with a press: the stop decision is made here; the macro says whether the press then
      *  still reaches the game. */
@@ -54,6 +70,34 @@ public final class MacroStop {
     }
 
     private static final List<Macro> MACROS = new CopyOnWriteArrayList<>();
+    /** Run when an emergency hold starts (the auto puzzles reset themselves). */
+    private static final List<Runnable> ON_EMERGENCY = new CopyOnWriteArrayList<>();
+    private static volatile boolean emergencyHold = false;
+    /** Whether a CLICK or MOVEMENT macro was running last tick: one starting releases the hold (he started it). */
+    private static boolean userMacroWasRunning = false;
+    private static volatile int emergencies = 0;
+
+    static {
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            boolean running = false;
+            for (Macro m : MACROS) {
+                if (m.kind() != Kind.EMERGENCY && running(m)) {
+                    running = true;
+                    break;
+                }
+            }
+            if (running && !userMacroWasRunning && emergencyHold) {
+                release("a macro was started");
+            }
+            userMacroWasRunning = running;
+        });
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register(
+                (client, level) -> {
+                    if (emergencyHold) {
+                        release("the world changed");
+                    }
+                });
+    }
 
     /** The last stop (macro name and reason) and how many macros it has stopped - testkit evidence. */
     private static volatile String lastStop = "";
@@ -79,7 +123,7 @@ public final class MacroStop {
 
     /** From {@code MacroStopKeyMixin}: a fresh key press (action 1). @return true to cancel it. */
     public static boolean onKey(KeyEvent event, int code) {
-        if (MACROS.isEmpty() || !anyRunning()) {
+        if (!isCancelKey(code) && (MACROS.isEmpty() || !anyRunning())) {
             return false;
         }
         Options o = Minecraft.getInstance().options;
@@ -91,11 +135,59 @@ public final class MacroStop {
 
     /** From {@code MacroStopMouseMixin}: a fresh mouse button press. Only the Emergency Cancel Key can be one. */
     public static boolean onMouseButton(int button) {
-        if (MACROS.isEmpty() || !anyRunning()) {
+        int code = KeyUtil.codeForMouseButton(button);
+        if (!isCancelKey(code) && (MACROS.isEmpty() || !anyRunning())) {
             return false;
         }
-        int code = KeyUtil.codeForMouseButton(button);
         return onPress(code, KeyUtil.bindDisplayName(code), false, false);
+    }
+
+    /** Something to do the moment an emergency hold starts (it runs on the render thread, from the key press). */
+    public static void onEmergency(Runnable action) {
+        ON_EMERGENCY.add(action);
+    }
+
+    /** True while the Emergency Cancel Key's hold is on: automation acting by itself must not act. */
+    public static boolean emergencyHeld() {
+        return emergencyHold;
+    }
+
+    /** Emergency Cancel Key presses that started a hold (testkit). */
+    public static int emergencies() {
+        return emergencies;
+    }
+
+    /** Ends the hold (testkit, and the release rules). */
+    public static void release(String why) {
+        if (!emergencyHold) {
+            return;
+        }
+        emergencyHold = false;
+        com.killer560.hub.util.ModLog.get("killer560smod-macrostop").info("[MacroStop] emergency hold released: {}", why);
+        com.killer560.hub.util.ModChat.send("Emergency Cancel", com.killer560.hub.util.ModChat.text("Automation released ("
+                + why + ")."));
+    }
+
+    private static void startHold(List<String> stopped) {
+        emergencyHold = true;
+        emergencies++;
+        for (Runnable r : ON_EMERGENCY) {
+            try {
+                r.run();
+            } catch (RuntimeException e) {
+                com.killer560.hub.util.ModLog.get("killer560smod-macrostop").error("[MacroStop] emergency action failed", e);
+            }
+        }
+        com.killer560.hub.util.ModLog.get("killer560smod-macrostop").info("[MacroStop] emergency hold: stopped {}",
+                stopped.isEmpty() ? "nothing running" : stopped);
+        com.killer560.hub.util.ModChat.send("Emergency Cancel", com.killer560.hub.util.ModChat.bad("All automation stopped"),
+                com.killer560.hub.util.ModChat.text(stopped.isEmpty() ? "" : " (" + String.join(", ", stopped) + ")"),
+                com.killer560.hub.util.ModChat.dim(" - press the key again, change worlds or start a macro to release it."));
+    }
+
+    private static boolean isCancelKey(int code) {
+        int cancelKey = MacroStopConfig.getInstance().getEmergencyCancelKeyCode();
+        return cancelKey != KeyUtil.NONE && code == cancelKey;
     }
 
     private static boolean anyRunning() {
@@ -132,14 +224,17 @@ public final class MacroStop {
         String why = emergency ? "the Emergency Cancel Key (" + keyName + ")"
                 : escape ? "Escape" : chatKey ? "opening chat (" + keyName + ")" : "the " + keyName + " key";
         boolean cancel = false;
+        List<String> stopped = new java.util.ArrayList<>();
         for (Macro m : MACROS) {
             if (!running(m)) {
                 continue;
             }
-            boolean stop = escape || emergency || (m.kind() == Kind.MOVEMENT && worldKey);
+            boolean stop = emergency || (m.kind() != Kind.EMERGENCY && escape)
+                    || (m.kind() == Kind.MOVEMENT && worldKey);
             if (stop) {
                 lastStop = m.name() + ": " + why;
                 stops++;
+                stopped.add(m.name());
                 try {
                     m.stop().accept(why);
                 } catch (RuntimeException e) {
@@ -149,6 +244,14 @@ public final class MacroStop {
             if (m.swallow().swallow(code, stop, screen)) {
                 cancel = true;
             }
+        }
+        if (emergency) {
+            if (emergencyHold && stopped.isEmpty()) {
+                release("the Emergency Cancel Key again");
+            } else {
+                startHold(stopped);
+            }
+            cancel = true; // the panic button lands on nothing else
         }
         return cancel;
     }

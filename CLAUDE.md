@@ -365,7 +365,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   pressed" cannot tell a walk from the feature killing itself.
   Since 2026-11-01 (killer560) no macro stops on "any key": every macro registers with `macrostop/MacroStop` (click
   macros: Escape or the Emergency Cancel Key; movement macros: also W/A/S/D/jump or the chat key, no screen open), which
-  owns the one raw key/mouse hook. A new macro registers there; it does not get a key mixin of its own.
+  owns the one raw key/mouse hook. A new macro registers there; it does not get a key mixin of its own. The Emergency
+  Cancel Key stops EVERYTHING automatic (killer560, 2026-11-01): automation with its own stop rules registers as
+  `Kind.EMERGENCY`, and anything that acts by itself is held by `MacroStop.emergencyHeld()` (checked in `ActionGate`,
+  the puzzle dispatcher, Auto Routes/AP3 starts, Auto I4). New automation must honor one of the two.
 - **A fix applied to one of a set is the thing to go looking for.** The 2026-09-30 audit found four, all of
   the same shape: the Wither Key line was anchored and the Blood Key line beside it left on `contains()`;
   `Floor7Tracker` and `LeverAura` got the `[A-Za-z0-9_]{1,16}` name group and `Ap3Feature`'s copy of the same

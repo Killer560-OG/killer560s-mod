@@ -184,7 +184,11 @@ public final class AutoI4Feature {
         // Shots go out at the start of the tick, after tick() has planned them; only Rotate's camera turn runs per frame.
         // Both ran from this frame hook until 2026-10-11, and a use sent from a frame follows the tick's movement
         // packet: GrimAC Post (testkit 833).
-        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoI4Feature.fire", client -> fire()));
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoI4Feature.fire", client -> {
+            if (!com.killer560.hub.macrostop.MacroStop.emergencyHeld()) {
+                fire();
+            }
+        }));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> frame());
         // Real bug found and fixed (2026-09-14, real Hypixel F7 log): Fabric's CHAT/GAME events never fired for
         // the real "completed a device!" line with Odin's Terminal Splits installed (it cancels the line via

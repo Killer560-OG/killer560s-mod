@@ -99,6 +99,9 @@ public final class Ap3Feature {
 
     /** Call once from {@code Killer560ModClient#onInitializeClient} (see API.md). */
     public static void register() {
+        // Emergency Cancel Key (killer560, 2026-11-01): stops AP3 on top of its own stop rules.
+        com.killer560.hub.macrostop.MacroStop.register("AP3", com.killer560.hub.macrostop.MacroStop.Kind.EMERGENCY, Ap3Executor::isRunning,
+                why -> Ap3Executor.stop("the Emergency Cancel Key"));
         // The placed-block grace waits out the measured round trip (Ap3Executor.placedGraceTicks).
         com.killer560.hub.util.PingTracker.register();
         com.killer560.hub.util.PingTracker.addDemand(() -> Ap3Config.getInstance().isEnabled());

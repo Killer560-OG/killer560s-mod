@@ -189,6 +189,8 @@ public final class ClearExecutor {
             net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "client_tick_count");
 
     public static void register() {
+        com.killer560.hub.macrostop.MacroStop.register("Interactive Map warps", com.killer560.hub.macrostop.MacroStop.Kind.EMERGENCY, ClearExecutor::isActive,
+                why -> cancel());
         ClientTickEvents.START_CLIENT_TICK.addPhaseOrdering(TICK_COUNT_PHASE, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
         ClientTickEvents.START_CLIENT_TICK.register(TICK_COUNT_PHASE, client -> {
             clientTicks++;
