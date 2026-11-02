@@ -36,6 +36,11 @@ public final class ChocolateFactoryConfig {
     /** Egg Extra Info (killer560, 2026-10-19): the HUD's lines past the six egg timers - the hunt's progress, next egg,
      *  Egglocator, tracker, session and duplicate values. Off, so a fresh config shows just the six timers. */
     private boolean eggExtraInfo = false;
+    /** Hide Outside Hoppity's Hunt (killer560, 2026-11-01): the egg timers HUD only while the hunt runs. */
+    private boolean hideOutsideHunt = false;
+    /** Hide While Busy (killer560, 2026-11-01): the egg timers HUD hides while busy - for now in dungeons only; other
+     *  events can be added to {@code HoppityEggs.busy()} later. */
+    private boolean hideWhileBusy = false;
     /** Egglocator Tracer Line: the green line from the crosshair to the Egglocator's guess. The guess box and label are
      *  drawn either way. */
     private boolean eggLocatorLine = true;
@@ -72,6 +77,8 @@ public final class ChocolateFactoryConfig {
                 cfg.eggDupeValues = ConfigJson.getBool(o, "eggDupeValues", true);
                 // No fallback to eggDupeValues (on in every saved file): he asked for the six timers alone by default.
                 cfg.eggExtraInfo = ConfigJson.getBool(o, "eggExtraInfo", false);
+                cfg.hideOutsideHunt = ConfigJson.getBool(o, "hideOutsideHunt", false);
+                cfg.hideWhileBusy = ConfigJson.getBool(o, "hideWhileBusy", false);
                 cfg.eggLocatorLine = ConfigJson.getBool(o, "eggLocatorLine", true);
                 cfg.eggEsp = ConfigJson.getBool(o, "eggEsp", false);
                 cfg.eggEspHideFound = ConfigJson.getBool(o, "eggEspHideFound", true);
@@ -100,6 +107,8 @@ public final class ChocolateFactoryConfig {
             o.addProperty("eggTracker", eggTracker);
             o.addProperty("eggDupeValues", eggDupeValues);
             o.addProperty("eggExtraInfo", eggExtraInfo);
+            o.addProperty("hideOutsideHunt", hideOutsideHunt);
+            o.addProperty("hideWhileBusy", hideWhileBusy);
             o.addProperty("eggLocatorLine", eggLocatorLine);
             o.addProperty("eggEsp", eggEsp);
             o.addProperty("eggEspHideFound", eggEspHideFound);
@@ -168,6 +177,22 @@ public final class ChocolateFactoryConfig {
 
     public void setEggTracker(boolean v) {
         eggTracker = v;
+    }
+
+    public boolean isHideOutsideHunt() {
+        return hideOutsideHunt;
+    }
+
+    public void setHideOutsideHunt(boolean v) {
+        hideOutsideHunt = v;
+    }
+
+    public boolean isHideWhileBusy() {
+        return hideWhileBusy;
+    }
+
+    public void setHideWhileBusy(boolean v) {
+        hideWhileBusy = v;
     }
 
     public boolean isEggHud() {
