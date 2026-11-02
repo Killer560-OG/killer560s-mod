@@ -560,3 +560,7 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
 - **Spring Boots charge is countable from sound alone**: `dungeonalerts.SpringBootsOverlay` (Odin's pitch table) counts
   `note_block.pling` notes while crouched in Spring Boots; AP3's Crystal node reads `chargedHeight()` and asks it to
   count with the HUD off (`setCountForAp3`). Its handler is behind the Skyblock gate (DungeonAlertsPackets.guard).
+- **Zero Ping Etherwarp's own sends do not pass ActionGate** (Warps Per Tick's `flushExtraWarps` and Aimed Warps' `fireAimed`
+  send through `MultiPlayerGameMode.startPrediction` directly), so a gate added to `ActionGate.tryActInternal` misses them:
+  the Emergency Cancel hold and Streamer Mode's Disable cheats did until zpew2-1101. Any new ActionGate-wide refusal also
+  goes in `ZeroPingEtherwarp.held` (testkit 1102-zpew-ecancel).
