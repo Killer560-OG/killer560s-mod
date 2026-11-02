@@ -66,6 +66,17 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   processes takes it longer than GrimAC's 15 ms window, so a dig sent at the movement packet's head as the session's first
   draws RotationBreak post-flying and then pre-flying on every later dig (36 lines, 62-argrim-breaker run alone on 26.3);
   the same as RotationPlace's first place (testkit warmPlaces). Not the mod: warm the path with one plain dig first.
+- **Breaker Aura's 200 ms re-dig dug air on a busy server (multibreak-1102).** It sent a block's START again 200 ms
+  after the first if the client still showed it; with the server's block update ~700 ms late (nine test clients), the
+  same snow block was dug twice more after the server had broken it - GrimAC AirLiquidBreak x2 (1102-breaker-aura-
+  multibreak-off, 26.2). A re-dig now waits for the server's ack of the first dig's prediction sequence
+  (`ChestWindows.acked`, from ClientboundBlockChangedAckPacket) or 1.5 s; 10/10 clean on both versions after.
+- **One RotationBreak post-flying miss poisons the rest of the session (multibreak-1102, 26.3).** After a miss Grim's
+  buffer is 1 and every later dig is judged on arrival by the look before ("pre-flying"), decaying 0.1 per clean
+  post-flying dig, so every turned dig at the movement packet's head flags until ten clean ones - 64 lines in one 62-argrim
+  run, from one post-flying miss on a breaker dig the tick after an etherwarp landing. Seen in 1 of 3 full 26.3 runs and
+  1 of 4 26.2 runs on the same DigAim/BeforeMove code as main, under nine test clients. Cause of the first miss not
+  pinned (the testkit-gap probe logs places only). A dig the HEARD look already strikes passes both ways.
 - **A vanilla client removes a block it instabreaks the moment it sends the dig, and GrimAC assumes it did**: on an instant
   START_DESTROY_BLOCK (`BlockBreakSpeed.getBlockDamage >= 1`) it sets the block to air in its own world at once
   (`CheckManagerListener.handleDigging`, 2.3.74). Breaker Aura with Zero Ping off kept standing on a picked floor block
