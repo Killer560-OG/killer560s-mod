@@ -21,8 +21,8 @@ import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 import com.killer560.hub.compat.McCompat;
 
-/** Thorn (F4/M4 boss) settings - see {@link ThornFeature}. Spirit Bear counter, Thorn ESP (Through Walls is cheat build
- *  only, in its own red section) and stun-spot waypoints. */
+/** Thorn (F4/M4 boss) settings - see {@link ThornFeature}. Spirit Bear counter, Thorn ESP and stun-spot waypoints; the
+ *  cheat build adds the through-walls switches and Thorn Triggerbot in its red section at the bottom. */
 public class ThornTab extends BaseTab {
 
     public ThornTab() {
@@ -34,7 +34,7 @@ public class ThornTab extends BaseTab {
     public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
         return switchRows(built, "Spirit Bear HUD", "Overkill Chat",
                 "Thorn Highlight", "Spirit Bear Highlight", "Spirit Mob Highlight", "Spirit Bow Highlight",
-                "Stun Spot Waypoints", "All Mobs Through Walls", "Bats Through Walls");
+                "Stun Spot Waypoints", "All Mobs Through Walls", "Bats Through Walls", "Thorn Triggerbot");
     }
 
     @Override
@@ -138,12 +138,24 @@ public class ThornTab extends BaseTab {
         // Cheat build: at the bottom of the tab, below every legit section (killer560, 2026-10-07: cheat settings go at
         // the bottom, not right under the setting they belong with). It sat between Thorn Highlights and Stun Spots.
         if (cheat) {
-            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Thorn ESP", true));
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Thorn", true));
             y += 16;
             widgets.add(toggle(contentX, y, colW, "Thorn ESP Through Walls", cfg::getThroughWallsRaw, cfg::setThroughWalls));
             y += 22;
             widgets.add(toggle(contentX, y, colW, "All Mobs Through Walls", cfg::getAllMobsThroughWallsRaw, cfg::setAllMobsThroughWalls));
             widgets.add(toggle(col2X, y, colW, "Bats Through Walls", cfg::getBatsThroughWallsRaw, cfg::setBatsThroughWalls));
+            y += 22;
+            // Thorn Triggerbot: its own card until killer560, 2026-11-02 ("move thorn triggerbot under the thorn stuff
+            // already built with that cheat build section"). Same config keys; its toggle key keeps the old card's id
+            // (ModuleKeybinds.THORN_TRIGGERBOT_ID), so a bind made on the card carries over.
+            widgets.add(onOffButton("Thorn Triggerbot", cfg::isTriggerbotRaw, cfg::setTriggerbot, cfg::save, requestRebuild,
+                    contentX, y, colW, 18));
+            if (cfg.isTriggerbotRaw()) {
+                widgets.add(toggle(col2X, y, colW, "Only When Aimed At Thorn", cfg::isTriggerbotAimed, cfg::setTriggerbotAimed));
+            }
+            y += 22;
+            widgets.add(com.killer560.hub.gui.ModuleKeybinds.row(com.killer560.hub.gui.ModuleKeybinds.THORN_TRIGGERBOT_ID,
+                    contentX, y, contentWidth));
         }
         return widgets;
     }
