@@ -91,6 +91,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
     /** Every button on screen by its label, for the testkit. */
     private final Map<String, AbstractWidget> buttons = new LinkedHashMap<>();
     private IntroButton nextButton;
+    private final List<List<int[]>> chipRows = new ArrayList<>();
     /** His mouth this frame (GUI units): the bubble's tail is drawn to it. */
     private final float[] mouth = {Float.NaN, Float.NaN};
     private static boolean hideBubbleForTest;
@@ -288,46 +289,56 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
             default -> {
             }
         }
-        // Each row wraps onto further lines when it is wider than the text column.
+        // The chips are a grid (killer560, 2026-11-02: "the bubbles dont fit quite right ... awkwardly spaced"): every line
+        // spans the bubble's whole content width with equal gaps, and the chips of a line share it equally. A row whose
+        // chips do not fit side by side in the lane is split into lines of as many as fit.
+        int avail = Math.max(60, lane[1] - lane[0] - 2 * SpeechBubble.padX());
         List<List<IntroButton>> lines = new ArrayList<>();
-        int widest = 0;
+        int need = 0;
         for (List<IntroButton> row : rowsOf) {
-            List<IntroButton> line = new ArrayList<>();
-            int lineW = 0;
+            int cell = 0;
             for (IntroButton b : row) {
-                int add = b.getWidth() + (lineW > 0 ? GAP : 0);
-                if (lineW > 0 && lineW + add > maxText) {
-                    lines.add(line);
-                    widest = Math.max(widest, lineW);
-                    line = new ArrayList<>();
-                    lineW = 0;
-                    add = b.getWidth();
-                }
-                line.add(b);
-                lineW += add;
+                cell = Math.max(cell, b.getWidth());
             }
-            if (!line.isEmpty()) {
+            int k = row.size();
+            while (k > 1 && k * cell + (k - 1) * GAP > avail) {
+                k--;
+            }
+            for (int i = 0; i < row.size(); i += k) {
+                List<IntroButton> line = row.subList(i, Math.min(row.size(), i + k));
                 lines.add(line);
-                widest = Math.max(widest, lineW);
+                need = Math.max(need, line.size() * cell + (line.size() - 1) * GAP);
             }
         }
-        int innerW = Math.max(bubble.textWidth(), widest);
-        int bw = Math.max(NAV_MIN_W, innerW + 2 * SpeechBubble.padX());
+        int innerW = gridWidth(Math.max(Math.max(bubble.textWidth(), need), NAV_MIN_W - 2 * SpeechBubble.padX()),
+                Math.max(avail, need), lines);
+        int bw = innerW + 2 * SpeechBubble.padX();
         int bh = bubble.textHeight() + 2 * SpeechBubble.padY() + (lines.isEmpty() ? 0 : lines.size() * (CHIP_H + GAP) + 4);
         int bottom = navY() - 10;
         int bx = guideOnLeft() ? lane[0] : lane[1] - bw;
         int by = bottom - bh;
         bubble.setTarget(bx, by, bw, bh, now);
         int cy = by + SpeechBubble.padY() + bubble.textHeight() + 6;
+        chipRows.clear();
         for (List<IntroButton> line : lines) {
+            int m = line.size();
+            int room = innerW - (m - 1) * GAP;
+            int cell = room / m;
+            int extra = room - cell * m; // 0 whenever gridWidth found a width that divides evenly
             int cx = bx + SpeechBubble.padX();
-            for (IntroButton b : line) {
+            List<int[]> cells = new ArrayList<>();
+            for (int i = 0; i < m; i++) {
+                IntroButton b = line.get(i);
+                int w = cell + (i < extra ? 1 : 0);
                 b.setX(cx);
                 b.setY(cy);
-                cx += b.getWidth() + GAP;
+                b.setWidth(w);
+                cells.add(new int[]{cx, cy, w, CHIP_H, this.font.width(b.getMessage().getString())});
+                cx += w + GAP;
                 bubbleWidgets.add(b);
                 add(b, true);
             }
+            chipRows.add(cells);
             cy += CHIP_H + GAP;
         }
 
@@ -347,6 +358,50 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         if (!last) {
             add(new IntroButton(navX0, ny, 74, NAV_H, "Skip Guide", IntroButton.Kind.PLAIN, this::finish), false);
         }
+    }
+
+    /**
+     * The content width for a chip grid: at least {@code min}, preferring a width every line divides evenly (equal
+     * chips, equal gaps, the same two edges for every line), searched upward to {@code max} and then downward.
+     */
+    private static int gridWidth(int min, int max, List<List<IntroButton>> lines) {
+        if (lines.isEmpty()) {
+            return min;
+        }
+        for (int w = min; w <= Math.max(min, max) && w < min + 120; w++) {
+            if (divides(w, lines)) {
+                return w;
+            }
+        }
+        return min;
+    }
+
+    private static boolean divides(int w, List<List<IntroButton>> lines) {
+        for (List<IntroButton> line : lines) {
+            int m = line.size();
+            if ((w - (m - 1) * GAP) % m != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Each chip line as laid out: per chip {x, y, w, h, text width}, GUI units of this screen (read by the testkit). */
+    public List<List<int[]>> chipRows() {
+        List<List<int[]>> out = new ArrayList<>();
+        for (List<int[]> row : chipRows) {
+            List<int[]> copy = new ArrayList<>();
+            for (int[] c : row) {
+                copy.add(c.clone());
+            }
+            out.add(copy);
+        }
+        return out;
+    }
+
+    /** {left, right} of the bubble's content (its text and chip lines), GUI units of this screen. */
+    public int[] contentEdges() {
+        return new int[]{navX0 + SpeechBubble.padX(), navX1 - SpeechBubble.padX()};
     }
 
     private IntroButton chip(String label, IntroButton.Kind kind, Runnable action) {
@@ -602,11 +657,10 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
 
         // Nav extras, in the bubble's look: the time estimate in its own small box on the first scene, else the dots.
         if (!confirmingSkip) {
-            int px = navX0 + (index < scenes.size() - 1 ? 74 + GAP + 2 : 0);
             if (index == 0) {
-                drawTimeBox(g, px, navY());
+                drawTimeBox(g, timeBox()[0], navY());
             } else {
-                drawDots(g, px, navY());
+                drawDots(g, middleX(dotsWidth()), navY());
             }
         }
 
@@ -621,7 +675,21 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
     /** {x, y, w, h} of the time estimate's box (on the first scene). */
     public int[] timeBox() {
         int w = this.font.width(TIME_TEXT) + 16;
-        return new int[]{navX0 + 74 + GAP + 2, navY(), w, NAV_H};
+        return new int[]{middleX(w), navY(), w, NAV_H};
+    }
+
+    /** Left x for a box of width {@code w} centered in the nav row's free space: between Skip Guide (or the bubble's
+     *  left edge on the last scene) and Previous (or Next on the first scene), so the row's gaps are even. */
+    private int middleX(int w) {
+        boolean last = index == scenes.size() - 1;
+        int left = last ? navX0 : navX0 + 74;
+        int right = navX1 - 64 - (index > 0 ? GAP + 70 : 0);
+        return left + Math.max(GAP, (right - left - w) / 2);
+    }
+
+    private int dotsWidth() {
+        int n = scenes.size();
+        return 8 + (n - 1) * 4 + (n - 1) * 3 + 14;
     }
 
     private void drawTimeBox(GuiGraphicsExtractor g, int x, int y) {
@@ -634,7 +702,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
 
     private void drawDots(GuiGraphicsExtractor g, int x, int y) {
         int n = scenes.size();
-        int w = 8 + (n - 1) * 4 + (n - 1) * 3 + 14;
+        int w = dotsWidth();
         int[] fill = SpeechBubble.fill();
         SpeechBubble.roundBox(g, x, y, w, NAV_H, NAV_H / 2f, fill[0], fill[1], MenuStyle.alpha(MenuStyle.OR, 0xB0), 1f,
                 true);
