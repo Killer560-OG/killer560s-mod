@@ -108,7 +108,9 @@ public final class ProfileManager {
             "killer560smod-storagesearch-chests.json",
             "killer560smod-storagesearch-extras.json",
             "killer560smod-eggtracker.json",
-            "killer560smod-luck-records.json"
+            "killer560smod-luck-records.json",
+            // The old Save button's designs, folded once into the Design a Map list (SimMapHistory), which is history.
+            "killer560smod-simmaps.json"
     );
 
     /** Whether a file name is one of this mod's own setting files that profiles may copy. Applied on
