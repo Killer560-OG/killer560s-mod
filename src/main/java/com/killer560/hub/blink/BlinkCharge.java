@@ -661,6 +661,10 @@ public final class BlinkCharge {
                 if (stash != null) {
                     sendLocked(stash);
                     stash = null;
+                } else {
+                    // A tick that goes out without a move (vanilla sends none when he has not moved): its held actions go
+                    // now, inside their own tick, not after it.
+                    flushPreLocked();
                 }
                 return false;
             }
