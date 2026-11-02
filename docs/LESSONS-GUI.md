@@ -422,3 +422,7 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   at the HEAD of `Screen.extractRenderStateWithTooltipAndSubtitles` (final, calls extractBackground first; javap 26.3
   and 26.2), which nothing cancels. Five features cancel `extractBackground` at HEAD (Inventory Theme, Storage Overlay,
   AH/Bazaar reskins, Spirit Leap): read state anywhere else.
+- The crosshair is `Hud.extractCrosshair(GuiGraphicsExtractor, DeltaTracker)` (private, same descriptor on 26.3 and 26.2,
+  javap 2026-11-01; `Gui` no longer has it). A `pose().pushMatrix()/translate` at HEAD and `popMatrix` at RETURN moves
+  exactly the crosshair and its attack indicator (Etherwarp Overlay's Crosshair On Server Aim, testkit 1101-ew-crosshair:
+  measured -8.82 GUI px against a projected -8.81). `Camera.getFov()` is the vertical fov the level projection uses.

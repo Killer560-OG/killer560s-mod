@@ -551,3 +551,12 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   change it stayed pending, and a hold pressed later mid-jump waited for the landing (testkit 1025-blink-jump: 2.4 of 6.9
   blocks held; ship3-1027). The same shape in AP3: `Ap3Feature.onChat` returned before reading the leap line whenever no
   node was running, so an armed route never knew a landing was a leap (1027-ap3-live34-beside-leap).
+
+- **Etherwarp passability: carpets go through** (to-do Doc 2026-11-01, "doesnt work right on carpets"). The modern
+  passable tables (Odin, QUOI, ours in EtherwarpOverlayFeature and TeleportUtils) are the 1.8 "valid feet" id list
+  (Skytils/Odin 1.8 `validEtherwarpFeetIds`) carried over block by block, and only carpet (171) and lily pad (111) were
+  dropped. Carpet is now passable in both tables: a look at a carpet lands on the block under it, a carpeted block is a
+  landing (testkit 1101-ew-carpet). Not yet confirmed in game on Hypixel; lily pad left as it was.
+- **Spring Boots charge is countable from sound alone**: `dungeonalerts.SpringBootsOverlay` (Odin's pitch table) counts
+  `note_block.pling` notes while crouched in Spring Boots; AP3's Crystal node reads `chargedHeight()` and asks it to
+  count with the HUD off (`setCountForAp3`). Its handler is behind the Skyblock gate (DungeonAlertsPackets.guard).

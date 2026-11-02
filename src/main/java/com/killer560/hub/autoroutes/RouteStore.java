@@ -457,7 +457,9 @@ public final class RouteStore {
         n.command = cleanString(ConfigJson.getString(o, "command", null), MAX_COMMAND);
         // A jump node saved before the count existed (killer560, 2026-10-12) jumps once, as it always did.
         n.jumpCount = Math.max(RouteNode.MIN_JUMPS, Math.min(RouteNode.MAX_JUMPS, ConfigJson.getInt(o, "jumps", 1)));
-        if (type == RouteNode.Type.ALIGN) {
+        // A trap room's boxed node of any other type (RouteNode#trapBox) keeps its W x L under the same keys as an align.
+        n.trapBox = type != RouteNode.Type.ALIGN && ConfigJson.getBool(o, "box", false);
+        if (type == RouteNode.Type.ALIGN || n.trapBox) {
             n.alignWidth = RouteNode.clampAlignSize(ConfigJson.getDouble(o, "width", RouteNode.DEFAULT_ALIGN_SIZE));
             n.alignLength = RouteNode.clampAlignSize(ConfigJson.getDouble(o, "length", RouteNode.DEFAULT_ALIGN_SIZE));
         }
@@ -682,6 +684,11 @@ public final class RouteStore {
             }
             default -> {
             }
+        }
+        if (n.trapBox && n.type != RouteNode.Type.ALIGN) {
+            o.addProperty("box", true);
+            o.addProperty("width", round(n.alignWidth, 2));
+            o.addProperty("length", round(n.alignLength, 2));
         }
         if (n.type == RouteNode.Type.PATH && !n.pathHops.isEmpty()) {
             // The saved warps (see RouteNode#pathHops) - planned once, replayed every run.

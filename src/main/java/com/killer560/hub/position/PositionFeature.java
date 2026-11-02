@@ -141,7 +141,7 @@ public final class PositionFeature {
         boolean frozen = !Float.isNaN(heldYaw) && !Float.isNaN(heldPitch);
         float yaw = frozen ? heldYaw : bodyYaw;
         float pitch = frozen ? heldPitch : bodyPitch;
-        Vec3 velocity = showVelocity ? player.getDeltaMovement() : Vec3.ZERO;
+        Vec3 velocity = showVelocity ? shownVelocity(player) : Vec3.ZERO;
         BlockPos block = showBlock ? player.blockPosition() : BlockPos.ZERO;
 
         if (cacheValid && lastX == x && lastY == y && lastZ == z && lastYaw == yaw && lastPitch == pitch
@@ -235,6 +235,21 @@ public final class PositionFeature {
         lastLines = out;
         cacheValid = true;
         return out;
+    }
+
+    /**
+     * The velocity the HUD shows. killer560 (2026-11-01): "never sets the y velocity all the way back to 0." Vanilla
+     * applies gravity AFTER each move, so a player standing still holds y velocity -0.0784 (-0.08 x 0.98) on every tick
+     * he stands; the ground stops it at the next move and it is set again. Standing on the ground the y he will move is
+     * none, so a downward y is shown as 0 there (a jump's upward y is kept). x and z already reach 0: vanilla zeroes them
+     * under 0.003. Display only; nothing is written to the player.
+     */
+    public static Vec3 shownVelocity(LocalPlayer player) {
+        Vec3 v = player.getDeltaMovement();
+        if (player.onGround() && v.y < 0.0) {
+            return new Vec3(v.x, 0.0, v.z);
+        }
+        return v;
     }
 
     private static String coordLine(String axis, double value, int decimalPlaces) {

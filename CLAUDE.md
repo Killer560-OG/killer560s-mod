@@ -565,3 +565,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   run it never opens unless `-Dkiller560.test.intro=show` (docs/TESTING-HOOKS.md), so title-screen cases are not
   interrupted. A GUI picture-in-picture (`g.skin`, entity, item models) ignores the pose: transform its box yourself
   under Auto Scale (docs/LESSONS-GUI.md).
+- Etherwarp passability (2026-11-01): carpets are passable in BOTH tables (EtherwarpOverlayFeature, TeleportUtils), as in
+  Hypixel's 1.8 feet list; change the two together or the overlay, the sim and Auto Routes/ZPEW disagree (LESSONS-AUTOMATION).
+  Trap-room Auto Routes rules are tested without a trap capture through `AutoTrap.testTrapRoom` (testkit 62-argrim-1101-trap*).

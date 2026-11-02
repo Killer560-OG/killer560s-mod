@@ -528,6 +528,7 @@ final class SettingTooltipsData {
         d.put("counter hud", "Shows how many teammates have leaped to you, like 1/4.");
         d.put("leap hud", "Shows the leap count on screen while you are on a countable section.");
         d.put("show at zero", "Shows the count at 0 before the first teammate has leaped to you.");
+        d.put("crosshair on server aim", "While the overlay shows, moves the crosshair to the spot the server's etherwarp ray meets. On p3sim the server casts from a higher eye than your camera, so the plain crosshair is off; on Hypixel the two agree.");
         d.put("etherwarp overlay/style", "How the landing box is drawn: Outline, Filled, or Filled+Outline.");
         d.put("safe color", "Color of the landing box when the etherwarp would work.");
         d.put("failed color", "Color of the landing box when the etherwarp would fail.");

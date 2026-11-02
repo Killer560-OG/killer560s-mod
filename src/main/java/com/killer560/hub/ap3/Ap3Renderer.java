@@ -172,6 +172,7 @@ public final class Ap3Renderer {
             case NO_GO -> sb.append("no go");
             case BLINK_CHARGE -> sb.append(node.blinkTicks > 0 ? node.blinkTicks + "t" : "max");
             case BLINK_RELEASE -> sb.append(node.blinkTicks > 0 ? node.blinkTicks + "t" : "all");
+            case CRYSTAL -> sb.append(node.crystalHeight > 0 ? Ap3Node.fmt(node.crystalHeight) + "b" : "crystal");
             default -> {
             }
         }
