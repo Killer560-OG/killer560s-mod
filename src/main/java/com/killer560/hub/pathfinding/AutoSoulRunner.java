@@ -572,10 +572,10 @@ public final class AutoSoulRunner {
     /** Waits for the warp to land on the same island, then walks on to the same soul; skips it if nothing happened. */
     private static void tickWarp(Minecraft client, LocalPlayer player) {
         AutoWalker.setWalking(false);
-        // Landed: a new world (another server of the island), or the server's teleport packet moved him off the spot.
+        // Landed: a new world (another server of the island), or the server's teleport packet (even onto the spot he
+        // was stuck at, when that is the spawn).
         boolean moved = player.level() != warpFromLevel
-                || (com.killer560.hub.util.ServerCorrections.packetCount() != warpFromPackets
-                    && player.position().distanceTo(warpFromPos) > 2.0);
+                || com.killer560.hub.util.ServerCorrections.packetCount() != warpFromPackets;
         boolean ready = moved && warpIsland.equals(IslandDetector.graphIsland())
                 && GraphRepository.get(warpIsland) != null && com.killer560.hub.compat.McCompat.screen(client) == null
                 && (player.onGround() || player.isInWater());

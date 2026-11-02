@@ -846,6 +846,19 @@ public final class AutoWalker {
         int from = aheadOnly && path.size() >= 2 ? NavigationManager.closestSegment(pos) + 1 : 0;
         for (int i = from; i < path.size(); i++) {
             Vec3 p = path.get(i);
+            // The route's own points can be far apart (a long graph edge): points along each segment too, every 2
+            // blocks, or a stretch with no point within the planner's reach has no goal at all (testkit
+            // 1101-fairy-island-THE_PARK: "0 goals", soul skipped, 12 times).
+            if (i >= 1) {
+                Vec3 a = path.get(i - 1);
+                double len = a.distanceTo(p);
+                for (double t = 2.0; t < len; t += 2.0) {
+                    Vec3 q = a.add(p.subtract(a).scale(t / len));
+                    if (!aheadOnly || Math.hypot(q.x - pos.x, q.z - pos.z) >= 2.5) {
+                        addGoal(level, start, BlockPos.containing(q.x, q.y - 0.5 + 0.01, q.z), goals);
+                    }
+                }
+            }
             if (aheadOnly && Math.hypot(p.x - pos.x, p.z - pos.z) < 2.5) {
                 continue;
             }
