@@ -505,18 +505,18 @@ public final class ScoreCalculatorFeature {
             return;
         }
         if (WATCHER_DONE.matcher(plain).find()) {
+            // The Pre-Boss Warning shows on this line, the moment the Portal Entry split starts (killer560, 2026-11-01),
+            // not on the next half-second poll. Read the tab list and the sidebar first (the last poll can be half a
+            // second old: testkit 1101-dhud-preboss once warned "Cleared 13%"), and BEFORE expectingBloodUpdate is set,
+            // or a "Cleared" change from before the line reads as blood's own clear (it once warned 84% for 88%).
+            Minecraft mc = Minecraft.getInstance();
+            if (tabDataSeen && mc.level != null && mc.player != null) {
+                readTabList(mc);
+                readSidebar(mc);
+            }
             expectingBloodUpdate = true;
             ScoreWarnings.onWatcherDone(runTicks);
-            // The Pre-Boss Warning shows on this line, the moment the Portal Entry split starts (killer560, 2026-11-01),
-            // not on the next half-second poll: read and recalculate now.
             if (tabDataSeen) {
-                // Read the tab list and the sidebar first: the last poll can be up to half a second old (testkit
-                // 1101-dhud-preboss once warned "Cleared 13%" off a sidebar the poll had not read yet).
-                Minecraft mc = Minecraft.getInstance();
-                if (mc.level != null && mc.player != null) {
-                    readTabList(mc);
-                    readSidebar(mc);
-                }
                 recalculate(ScoreCalculatorConfig.getInstance());
             }
             return;
