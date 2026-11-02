@@ -304,6 +304,7 @@ public final class AutoClearFeature {
         keyTrip = false;
         keyAnyRange = false;
         keysTried.clear();
+        keysRetried.clear();
         felTrips.clear();
         felWaitTicks = 0;
         keyWalkFails.clear();
@@ -1743,6 +1744,16 @@ public final class AutoClearFeature {
                         DOOR_MAX_CLICKS);
             }
         }
+        if (!key && !keyAnyRange && !witherKeyInView(client)) {
+            // A key left earlier (no way to it then) may be reachable now that more doors are open: once more each.
+            for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
+                if (!k.blood() && keysTried.contains(k.id()) && keysRetried.add(k.id())) {
+                    keysTried.remove(k.id());
+                    LOGGER.info("[AutoClear] at wither door {} with no key - trying Wither Key #{} again, left earlier", door,
+                            k.id());
+                }
+            }
+        }
         if (!key && !keyAnyRange && witherKeyInView(client)) {
             keyAnyRange = true;
             LOGGER.info("[AutoClear] at wither door {} with no key, and a Wither Key lies in view - going for it", door);
@@ -1838,6 +1849,8 @@ public final class AutoClearFeature {
     static final double KEY_SEARCH_RANGE = 40.0;
     /** Set while a shut wither door waits on a key: the key search has no range then. Cleared when a key is held. */
     private static boolean keyAnyRange = false;
+    /** Keys given another go after they had been left (one retry each). */
+    private static final Set<Integer> keysRetried = new HashSet<>();
 
     /** Whether a dropped Wither Key not yet given up on is in the client's world. */
     private static boolean witherKeyInView(Minecraft client) {
