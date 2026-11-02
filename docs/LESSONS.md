@@ -306,3 +306,10 @@ project CLAUDE.md. Compiling lessons
 - **Your own dungeon class is `leapmenu/PartyTracker.selfClass()`** (tab list, plus Party Finder lines, with the
   `ClassOverrides` pick on your own IGN already applied by `classOf`). Fast Leap's Class Targets (2026-10-27) read it;
   `Ap3Feature.selfClass()` wraps it in `ClassOverrides` a second time, which is harmless. Do not write another tab parser.
+- A mouse button bound to vanilla's Drop key does nothing in a container screen: `AbstractContainerScreen.keyPressed`
+  reads `keyDrop`, `mouseClicked` never does (javap 26.3 and 26.2). The Terminal Drop Key handles a mouse bind itself
+  (`TerminalQolFeature.handleMouseDrop`: the same THROW click on the hovered slot, or the Custom GUI's own click).
+- Another mod's auto sprint ends in `LivingEntity.setSprinting(true)` whichever way it is built (Odin answers
+  `Input.sprint()` in `LocalPlayer.aiStep` with `@ModifyExpressionValue`; others call setSprinting each tick); holding
+  the sprint KEY is already undone by our movers replacing the key record. `AutoSprintOverrideMixin` refuses a sprint
+  start there while one of the mod's movers drives with sprint up (doc-terms-1101, testkit 1101-menu-autosprint).

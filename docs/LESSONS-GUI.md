@@ -387,3 +387,10 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   "Render pass color attachment count must match pipeline color target state count" - Secret Waypoints' through-walls
   lines on 2026-11-01, the first 26.3 run that ever drew one (96-ar). DEBUG_FILLED, GUI and GUI_TEXTURED snippets carry
   the same target on both versions (javap). Wrap any new `RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)`.
+- **Per-frame screen state never hangs off a background hook another feature cancels.** The Terminal Solver refreshed at
+  the HEAD of `ContainerScreen.extractBackground`; Inventory Theme cancels that same method at HEAD, and with it on
+  (his 26.3 Untested Cheat config) no terminal was ever tracked - no solver, Custom GUI or Auto Terminals (doc-terms-1101,
+  testkit 1101-menu-term-instcfg with that config: all six types untracked on main, tracked after). The refresh now runs
+  at the HEAD of `Screen.extractRenderStateWithTooltipAndSubtitles` (final, calls extractBackground first; javap 26.3
+  and 26.2), which nothing cancels. Five features cancel `extractBackground` at HEAD (Inventory Theme, Storage Overlay,
+  AH/Bazaar reskins, Spirit Leap): read state anywhere else.
