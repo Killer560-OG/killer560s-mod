@@ -96,7 +96,23 @@ public final class ProfileManager {
             // The profit trackers' Show Profit (This Account / All Accounts) and Profit Data (Shared Across Profiles /
             // Per Mod Profile) settings (2026-10-15): the same in every profile, like the profit logs they choose from,
             // so applying a profile never changes which profit is shown.
-            "killer560smod-profit-trackers.json"
+            "killer560smod-profit-trackers.json",
+            // Found by the profreload-1102 audit: data, not settings, so a profile must neither carry them nor delete
+            // them on apply. His own Bazaar orders as Hypixel's menu last showed them (live server state); every egg
+            // spot this client has seen (a cache); the sim's measured floor sizes (a log) and its recently used rooms
+            // (history); Storage Search's opened island chests and wardrobe/pet pages (caches of what he owns); and
+            // the Egg Tracker's and Luck's old per-instance record files, folded into the shared records store like
+            // the Croesus log above.
+            "killer560smod-bazaar-orders.json",
+            "killer560smod-eggpositions.json",
+            "killer560smod-floor-sizes.json",
+            "killer560smod-sim-recent.json",
+            "killer560smod-storagesearch-chests.json",
+            "killer560smod-storagesearch-extras.json",
+            "killer560smod-eggtracker.json",
+            "killer560smod-luck-records.json",
+            // The old Save button's designs, folded once into the Design a Map list (SimMapHistory), which is history.
+            "killer560smod-simmaps.json"
     );
 
     /** Whether a file name is one of this mod's own setting files that profiles may copy. Applied on
@@ -109,6 +125,10 @@ public final class ProfileManager {
                 && fileName.startsWith("killer560smod-")
                 && fileName.endsWith(".json")
                 && !EXCLUDED_FILES.contains(fileName)
+                // ProfileData's list names a few .json files too (intro.json, sim-map-history.json,
+                // partyfinder-stats-cache.json), but ProfileData only judges data entries and a plain .json is a
+                // setting file to it, so until 2026-11-02 those three still rode in profiles as settings.
+                && !ProfileData.EXCLUDED_NAMES.contains(fileName.substring(ModPaths.PREFIX.length()))
                 && !ModPaths.isRetired(fileName);
     }
 
@@ -619,6 +639,14 @@ public final class ProfileManager {
                 com.killer560.hub.zoom.ZoomConfig::load,
                 com.killer560.hub.modusers.ModUserConfig::load,
                 com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig::load,
+                // Missing until the profreload-1102 audit: each read its file once per session (Streamer Mode, Legit
+                // GFS, the sim loadout) or was never in this list (Cape, the sim room filters), so a profile's value
+                // stayed as it was until a restart and the next save wrote the old one back.
+                com.killer560.hub.streamer.StreamerMode::reload,
+                com.killer560.hub.gfs.LegitGfs::reload,
+                com.killer560.hub.cape.CapeConfig::load,
+                com.killer560.hub.roomsim.SimLoadout::reload,
+                com.killer560.hub.roomsim.SimRoomFilters::reloadAll,
         };
         int failed = 0;
         for (Runnable loader : loaders) {

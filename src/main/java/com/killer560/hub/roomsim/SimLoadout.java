@@ -191,6 +191,14 @@ public final class SimLoadout {
         ModChat.send("Sim", ModChat.dim("/simloadout save | apply | clear | auto | slot <0-35> <ID>"));
     }
 
+    /** Reads the file again, defaults first (a profile applied: ProfileManager.reloadAllConfigs, 2026-11-02). */
+    public static synchronized void reload() {
+        loaded = false;
+        slots = new String[SLOTS];
+        applyOnLoad = true;
+        load();
+    }
+
     private static synchronized void load() {
         if (loaded) {
             return;
