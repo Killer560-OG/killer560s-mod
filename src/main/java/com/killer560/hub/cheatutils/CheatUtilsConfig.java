@@ -119,6 +119,11 @@ public final class CheatUtilsConfig {
     private boolean ultGoldorFactory = true;
     /** "AUTO" = read own class from the tab list; otherwise a {@link com.killer560.hub.dungeonclass.DungeonClass} name. */
     private String ultClassOverride = "AUTO";
+    /** Which of your classes Auto Ult fires for (killer560, 2026-11-01); Healer and Tank, as it always did, by default. */
+    private final java.util.EnumSet<com.killer560.hub.dungeonclass.DungeonClass> ultClasses = java.util.EnumSet.of(
+            com.killer560.hub.dungeonclass.DungeonClass.HEALER, com.killer560.hub.dungeonclass.DungeonClass.TANK);
+    /** Healer: Wish during the clear when a teammate's sidebar health turns red; never while Wish is on cooldown. */
+    private boolean wishOnClear = false;
 
     // ---- Auto Chocolate Factory (QUOI ChocolateFactory.kt, from OdinLegacy) ----
     public static final int MIN_CF_DELAY_MS = 50;
@@ -179,6 +184,16 @@ public final class CheatUtilsConfig {
                 cfg.ultMaxorEnraged = bool(o, "ultMaxorEnraged", true);
                 cfg.ultGoldorFactory = bool(o, "ultGoldorFactory", true);
                 cfg.ultClassOverride = normalizeUltClass(str(o, "ultClassOverride", "AUTO"));
+                cfg.wishOnClear = bool(o, "wishOnClear", false);
+                if (o.has("ultClasses")) {
+                    cfg.ultClasses.clear();
+                    for (String n : str(o, "ultClasses", "").split(",")) {
+                        com.killer560.hub.dungeonclass.DungeonClass c = com.killer560.hub.dungeonclass.DungeonClass.byName(n.trim());
+                        if (c != null) {
+                            cfg.ultClasses.add(c);
+                        }
+                    }
+                }
 
                 cfg.chocolateEnabled = bool(o, "chocolateEnabled", false);
                 cfg.cfClickCookie = bool(o, "cfClickCookie", true);
@@ -228,6 +243,8 @@ public final class CheatUtilsConfig {
             o.addProperty("ultMaxorEnraged", ultMaxorEnraged);
             o.addProperty("ultGoldorFactory", ultGoldorFactory);
             o.addProperty("ultClassOverride", ultClassOverride);
+            o.addProperty("wishOnClear", wishOnClear);
+            o.addProperty("ultClasses", String.join(",", ultClasses.stream().map(Enum::name).toList()));
 
             o.addProperty("chocolateEnabled", chocolateEnabled);
             o.addProperty("cfClickCookie", cfClickCookie);
@@ -335,6 +352,19 @@ public final class CheatUtilsConfig {
     public boolean isUltGoldorFactory() { return ultGoldorFactory; }
     public void setUltGoldorFactory(boolean v) { ultGoldorFactory = v; }
     public String getUltClassOverride() { return ultClassOverride; }
+    public boolean isUltClass(com.killer560.hub.dungeonclass.DungeonClass c) { return c != null && ultClasses.contains(c); }
+    public void setUltClass(com.killer560.hub.dungeonclass.DungeonClass c, boolean on) {
+        if (c == null) {
+            return;
+        }
+        if (on) {
+            ultClasses.add(c);
+        } else {
+            ultClasses.remove(c);
+        }
+    }
+    public boolean isWishOnClear() { return wishOnClear; }
+    public void setWishOnClear(boolean v) { wishOnClear = v; }
     public void cycleUltClassOverride() {
         cycleUltClassOverride(1);
     }

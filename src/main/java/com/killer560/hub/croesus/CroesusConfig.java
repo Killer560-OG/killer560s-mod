@@ -146,6 +146,11 @@ public final class CroesusConfig {
     /** Spend a Kismet Feather on a Bedrock chest whose profit is below {@link #autoRerollBelowK}. */
     private boolean autoUseKismets = false;
     private int autoRerollBelowK = 1_000;
+    /** The floors Auto Croesus may spend a Kismet on (killer560, 2026-11-01: "I should be able to select which floors I
+     *  want it to reroll on"); every floor by default, as before. "F1".."F7", "M1".."M7". */
+    private final java.util.Set<String> rerollFloors = new java.util.LinkedHashSet<>(ALL_FLOORS);
+    public static final java.util.List<String> ALL_FLOORS = java.util.List.of(
+            "F1", "F2", "F3", "F4", "F5", "F6", "F7", "M1", "M2", "M3", "M4", "M5", "M6", "M7");
     /** Reroll Protection (NoammAddons ChestProfit.kt "Reroll Value"): his click on a reward chest's Kismet "Reroll Chest"
      *  button is dropped while the chest's profit is above {@link #rerollProtectAboveK}. Ctrl lets it through. */
     private boolean rerollProtection = false;
@@ -223,6 +228,14 @@ public final class CroesusConfig {
             }
             cfg.autoUseKismets = ConfigJson.getBool(obj, "autoUseKismets", cfg.autoUseKismets);
             cfg.autoRerollBelowK = clamp(ConfigJson.getInt(obj, "autoRerollBelowK", cfg.autoRerollBelowK), 0, MAX_MIN_PROFIT_K);
+            if (obj.has("rerollFloors")) {
+                cfg.rerollFloors.clear();
+                for (String f : ConfigJson.getString(obj, "rerollFloors", "").split(",")) {
+                    if (ALL_FLOORS.contains(f.trim())) {
+                        cfg.rerollFloors.add(f.trim());
+                    }
+                }
+            }
             cfg.rerollProtection = ConfigJson.getBool(obj, "rerollProtection", cfg.rerollProtection);
             cfg.rerollProtectAboveK = clamp(ConfigJson.getInt(obj, "rerollProtectAboveK", cfg.rerollProtectAboveK), 0, MAX_MIN_PROFIT_K);
             cfg.kismetCount = ConfigJson.getBool(obj, "kismetCount", cfg.kismetCount);
@@ -269,6 +282,7 @@ public final class CroesusConfig {
             obj.addProperty("chestKeyModeDefaulted", chestKeyModeDefaulted);
             obj.addProperty("autoUseKismets", autoUseKismets);
             obj.addProperty("autoRerollBelowK", autoRerollBelowK);
+            obj.addProperty("rerollFloors", String.join(",", rerollFloors));
             obj.addProperty("rerollProtection", rerollProtection);
             obj.addProperty("rerollProtectAboveK", rerollProtectAboveK);
             obj.addProperty("kismetCount", kismetCount);
@@ -517,6 +531,26 @@ public final class CroesusConfig {
 
     public void setAutoRerollBelowK(int v) {
         this.autoRerollBelowK = clamp(v, 0, MAX_MIN_PROFIT_K);
+    }
+
+    public boolean isRerollFloor(String floor) {
+        return floor != null && rerollFloors.contains(floor);
+    }
+
+    public void setRerollFloor(String floor, boolean on) {
+        if (!ALL_FLOORS.contains(floor)) {
+            return;
+        }
+        if (on) {
+            rerollFloors.add(floor);
+        } else {
+            rerollFloors.remove(floor);
+        }
+    }
+
+    /** Every floor is selected - then a run whose floor could not be read may still be rerolled. */
+    public boolean isRerollEveryFloor() {
+        return rerollFloors.containsAll(ALL_FLOORS);
     }
 
     public boolean isRerollProtection() {

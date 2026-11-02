@@ -53,6 +53,8 @@ public final class AutoSellConfig {
     private final Set<String> neverSellIdentities = new LinkedHashSet<>();
     /** Key that adds or removes the hovered inventory item on the sell list (killer560, 2026-10-18). {@code KeyUtil.NONE} = unset. */
     private int toggleKeyCode = KeyUtil.NONE;
+    /** Sell in any Hypixel NPC shop, not only screens the title pattern matches (killer560, 2026-11-01). */
+    private boolean anyNpcMenu = true;
     /** Bumped on every change to either list (not saved): lets Auto Sell run again on a screen it already finished
      *  on when an item is added there (killer560, 2026-10-20). */
     private static int listVersion = 0;
@@ -89,6 +91,7 @@ public final class AutoSellConfig {
             readIdentities(obj, "sellIdentities", cfg.sellIdentities);
             readIdentities(obj, "neverSellIdentities", cfg.neverSellIdentities);
             cfg.toggleKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "toggleKeyCode", cfg.toggleKeyCode));
+            cfg.anyNpcMenu = ConfigJson.getBool(obj, "anyNpcMenu", true);
             instance = cfg;
             listVersion++;
         } catch (Exception e) {
@@ -127,6 +130,7 @@ public final class AutoSellConfig {
             neverSellIdentities.forEach(never::add);
             obj.add("neverSellIdentities", never);
             obj.addProperty("toggleKeyCode", toggleKeyCode);
+            obj.addProperty("anyNpcMenu", anyNpcMenu);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -204,6 +208,100 @@ public final class AutoSellConfig {
     /** Unmodifiable view - what Auto Sell will NEVER click, even if it's also on the sell list. */
     public Set<String> getNeverSellIdentities() {
         return java.util.Collections.unmodifiableSet(neverSellIdentities);
+    }
+
+    /**
+     * Add Defaults (killer560, 2026-11-01): the dungeon junk his own Personal Deletor holds, as he listed it, each once.
+     * Skyblock ids from Hypixel's items resource; "a set" is all four armor pieces, the Skeleton Master set without its
+     * chestplate. The Healing VIII Splash Potion has no id of its own (Hypixel potions share POTION), so it goes by its
+     * name - see {@code AutoSellFeature.identityOf}.
+     */
+    public static final java.util.List<String> DEFAULT_SELL_IDENTITIES = java.util.List.of(
+            "SIGN",
+            "LEVER",
+            "EARTH_SHARD",
+            "SILENT_DEATH",
+            "ZOMBIE_LORD_HELMET",
+            "ZOMBIE_LORD_CHESTPLATE",
+            "ZOMBIE_LORD_LEGGINGS",
+            "ZOMBIE_LORD_BOOTS",
+            "SUPER_HEAVY_HELMET",
+            "SUPER_HEAVY_CHESTPLATE",
+            "SUPER_HEAVY_LEGGINGS",
+            "SUPER_HEAVY_BOOTS",
+            "ZOMBIE_KNIGHT_HELMET",
+            "ZOMBIE_KNIGHT_CHESTPLATE",
+            "ZOMBIE_KNIGHT_LEGGINGS",
+            "ZOMBIE_KNIGHT_BOOTS",
+            "ZOMBIE_SOLDIER_HELMET",
+            "ZOMBIE_SOLDIER_CHESTPLATE",
+            "ZOMBIE_SOLDIER_LEGGINGS",
+            "ZOMBIE_SOLDIER_BOOTS",
+            "BOUNCY_HELMET",
+            "BOUNCY_CHESTPLATE",
+            "BOUNCY_LEGGINGS",
+            "BOUNCY_BOOTS",
+            "SKELETOR_HELMET",
+            "SKELETOR_CHESTPLATE",
+            "SKELETOR_LEGGINGS",
+            "SKELETOR_BOOTS",
+            "SKELETON_GRUNT_HELMET",
+            "SKELETON_GRUNT_CHESTPLATE",
+            "SKELETON_GRUNT_LEGGINGS",
+            "SKELETON_GRUNT_BOOTS",
+            "HEAVY_HELMET",
+            "HEAVY_CHESTPLATE",
+            "HEAVY_LEGGINGS",
+            "HEAVY_BOOTS",
+            "ROTTEN_HELMET",
+            "ROTTEN_CHESTPLATE",
+            "ROTTEN_LEGGINGS",
+            "ROTTEN_BOOTS",
+            "SKELETON_LORD_HELMET",
+            "SKELETON_LORD_CHESTPLATE",
+            "SKELETON_LORD_LEGGINGS",
+            "SKELETON_LORD_BOOTS",
+            "ZOMBIE_COMMANDER_HELMET",
+            "ZOMBIE_COMMANDER_CHESTPLATE",
+            "ZOMBIE_COMMANDER_LEGGINGS",
+            "ZOMBIE_COMMANDER_BOOTS",
+            "SKELETON_SOLDIER_HELMET",
+            "SKELETON_SOLDIER_CHESTPLATE",
+            "SKELETON_SOLDIER_LEGGINGS",
+            "SKELETON_SOLDIER_BOOTS",
+            "SKELETON_MASTER_HELMET",
+            "SKELETON_MASTER_LEGGINGS",
+            "SKELETON_MASTER_BOOTS",
+            "VITAMIN_DEATH",
+            "MACHINE_GUN_BOW",
+            "CRYPT_BOW",
+            "PREMIUM_FLESH",
+            "CANDYCOMB",
+            "TRAINING_WEIGHTS",
+            "DEFUSE_KIT",
+            "TRIPWIRE_HOOK",
+            "STONE_BUTTON",
+            "HEALING_VIII_SPLASH_POTION"
+    );
+
+    /** Adds every {@link #DEFAULT_SELL_IDENTITIES} entry not on the sell list yet; returns how many were new. Never touches
+     *  the never-sell list, which still wins. */
+    public int addDefaults() {
+        int added = 0;
+        for (String id : DEFAULT_SELL_IDENTITIES) {
+            if (addSellIdentity(id)) {
+                added++;
+            }
+        }
+        return added;
+    }
+
+    public boolean isAnyNpcMenu() {
+        return anyNpcMenu;
+    }
+
+    public void setAnyNpcMenu(boolean v) {
+        anyNpcMenu = v;
     }
 
     public boolean addSellIdentity(String identity) {

@@ -159,6 +159,24 @@ public class AutoCroesusTab extends BaseTab {
                     }
                 });
                 y += 24;
+                // Reroll Floors: which floors a Kismet may be spent on (killer560, 2026-11-01), 7 a row
+                widgets.add(label(contentX + INDENT, y, contentWidth - INDENT, "§7Reroll on floors:"));
+                y += 12;
+                int cols = 7;
+                int cellW = Math.max(16, (contentWidth - INDENT - (cols - 1) * 2) / cols);
+                java.util.List<String> floors = CroesusConfig.ALL_FLOORS;
+                for (int i = 0; i < floors.size(); i++) {
+                    String f = floors.get(i);
+                    int col = i % cols;
+                    int row = i / cols;
+                    widgets.add(SettingsButtonWidget.builder(floorLabel(cfg, f), btn -> {
+                                CroesusConfig c = CroesusConfig.getInstance();
+                                c.setRerollFloor(f, !c.isRerollFloor(f));
+                                c.save();
+                                btn.setMessage(floorLabel(c, f));
+                            }).bounds(contentX + INDENT + col * (cellW + 2), y + row * 20, cellW, 18).build());
+                }
+                y += 42;
             }
             // Live status only - the button that actually starts it is drawn over the Croesus menu itself.
             widgets.add(label(contentX, y, contentWidth, AutoCroesusFeature.isRunning()
@@ -191,6 +209,10 @@ public class AutoCroesusTab extends BaseTab {
 
     private static Component chestKeyModeText(CroesusConfig cfg) {
         return Component.literal("Use Key Based On: §6" + cfg.getChestKeyMode().label);
+    }
+
+    private static Component floorLabel(CroesusConfig cfg, String floor) {
+        return Component.literal((cfg.isRerollFloor(floor) ? "§a" : "§c") + floor);
     }
 
     private static Component rerollBelowText() {

@@ -46,6 +46,12 @@ public final class MaskInvincibilityConfig {
     private AutoMaskMode autoMaskMode = AutoMaskMode.FULL_AUTO;
     private SwapOrder swapOrder = SwapOrder.MASK_FIRST;
     private int swapKey = com.killer560.hub.util.KeyUtil.NONE;
+    // ---- Mask Keybinds (legit, killer560 2026-11-01) - see MaskKeybind ----
+    private boolean maskKeyEnabled = false;
+    private int maskKey = com.killer560.hub.util.KeyUtil.NONE;
+    private boolean maskKeyBonzoFirst = false;
+    private boolean maskKeyDungeonsOnly = true;
+    private boolean maskKeyBossOnly = false;
     private boolean autoMaskDungeonsOnly = true;
     private boolean autoMaskBossOnly = false;
     private int swapStepDelayTicks = DEFAULT_STEP_DELAY_TICKS;
@@ -143,6 +149,12 @@ public final class MaskInvincibilityConfig {
             cfg.swapKey = com.killer560.hub.util.KeyUtil.sanitizeBind(
                     ConfigJson.getInt(obj, "autoMaskSwapKey", com.killer560.hub.util.KeyUtil.NONE));
             cfg.autoMaskDungeonsOnly = ConfigJson.getBool(obj, "autoMaskDungeonsOnly", true);
+            cfg.maskKeyEnabled = ConfigJson.getBool(obj, "maskKeyEnabled", false);
+            cfg.maskKey = com.killer560.hub.util.KeyUtil.sanitize(
+                    ConfigJson.getInt(obj, "maskKey", com.killer560.hub.util.KeyUtil.NONE));
+            cfg.maskKeyBonzoFirst = ConfigJson.getBool(obj, "maskKeyBonzoFirst", false);
+            cfg.maskKeyDungeonsOnly = ConfigJson.getBool(obj, "maskKeyDungeonsOnly", true);
+            cfg.maskKeyBossOnly = ConfigJson.getBool(obj, "maskKeyBossOnly", false);
             cfg.autoMaskBossOnly = ConfigJson.getBool(obj, "autoMaskBossOnly", false);
             cfg.rodReturnToPreviousSlot = ConfigJson.getBool(obj, "rodReturnToPreviousSlot", true);
             cfg.phoenixRoute = ConfigJson.getEnum(obj, "phoenixRoute", PhoenixRoute.class, PhoenixRoute.ROD);
@@ -180,6 +192,11 @@ public final class MaskInvincibilityConfig {
             obj.addProperty("autoMaskSwapOrder", getSwapOrder().name());
             obj.addProperty("autoMaskSwapKey", swapKey);
             obj.addProperty("autoMaskDungeonsOnly", autoMaskDungeonsOnly);
+            obj.addProperty("maskKeyEnabled", maskKeyEnabled);
+            obj.addProperty("maskKey", maskKey);
+            obj.addProperty("maskKeyBonzoFirst", maskKeyBonzoFirst);
+            obj.addProperty("maskKeyDungeonsOnly", maskKeyDungeonsOnly);
+            obj.addProperty("maskKeyBossOnly", maskKeyBossOnly);
             obj.addProperty("autoMaskBossOnly", autoMaskBossOnly);
             obj.addProperty("swapStepDelayTicks", swapStepDelayTicks);
             obj.addProperty("rodReturnToPreviousSlot", rodReturnToPreviousSlot);
@@ -390,5 +407,50 @@ public final class MaskInvincibilityConfig {
 
     public void setAutoSwapEnabled(boolean autoSwapEnabled) {
         this.autoSwapEnabled = autoSwapEnabled;
+    }
+
+    // ---- Mask Keybinds ----
+    public boolean isMaskKeyEnabled() {
+        return maskKeyEnabled && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    public boolean isMaskKeyEnabledRaw() {
+        return maskKeyEnabled;
+    }
+
+    public void setMaskKeyEnabled(boolean v) {
+        maskKeyEnabled = v;
+    }
+
+    public int getMaskKey() {
+        return maskKey;
+    }
+
+    public void setMaskKey(int code) {
+        maskKey = com.killer560.hub.util.KeyUtil.sanitize(code);
+    }
+
+    public boolean isMaskKeyBonzoFirst() {
+        return maskKeyBonzoFirst;
+    }
+
+    public void setMaskKeyBonzoFirst(boolean v) {
+        maskKeyBonzoFirst = v;
+    }
+
+    public boolean isMaskKeyDungeonsOnly() {
+        return maskKeyDungeonsOnly;
+    }
+
+    public void setMaskKeyDungeonsOnly(boolean v) {
+        maskKeyDungeonsOnly = v;
+    }
+
+    public boolean isMaskKeyBossOnly() {
+        return maskKeyBossOnly;
+    }
+
+    public void setMaskKeyBossOnly(boolean v) {
+        maskKeyBossOnly = v;
     }
 }

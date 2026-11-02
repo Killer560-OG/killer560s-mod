@@ -11,7 +11,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -35,7 +34,16 @@ public final class AutoUltFeature {
 
     private static final String MAXOR_ENRAGED = "⚠ Maxor is enraged! ⚠";
     private static final String GOLDOR_FACTORY = "[BOSS] Goldor: You have done it, you destroyed the factory…";
-    private static final Set<DungeonClass> ULT_CLASSES = EnumSet.of(DungeonClass.HEALER, DungeonClass.TANK);
+    /** Hypixel's Wish lines (DungeonChatHider's ABILITY family, the Healer's ultimate by name). */
+    private static final String WISH_USED = "Used Wish!";
+    private static final String WISH_READY = "Wish is ready to use! Press DROP to activate it!";
+    private static final String WISH_AVAILABLE = "Your Healer ULTIMATE Wish is now available!";
+    private static final Pattern ON_COOLDOWN = Pattern.compile("^This ability is on cooldown for (\\d{1,3})s\\.$");
+    /** A cooldown line this soon after our own Wish answers it (any later one is some other ability's). */
+    private static final long COOLDOWN_REPLY_MS = 1500L;
+    /** No line came back at all: treat the Wish as used and wait the Healer's base cooldown before trying again. */
+    private static final long WISH_FALLBACK_COOLDOWN_MS = 120_000L;
+    private static final int WISH_POLL_TICKS = 5;
     private static final Pattern TABLIST = Pattern.compile("^\\[(\\d+)] (?:\\[\\w+] )*(\\w+) .*?\\((\\w+)(?: (\\w+))*\\)$");
 
     /** Ticks a decided-but-not-yet-sent ult keeps asking {@link ActionGate} before it is given up on - two
@@ -49,6 +57,11 @@ public final class AutoUltFeature {
     private static int classScanCooldown = 0;
     private static String pendingUltTrigger = null;
     private static int pendingUltTicksLeft = 0;
+    /** Wish on Clear: no Wish is sent before this (cooldown known from Hypixel's lines, or the fallback). */
+    private static long wishBlockedUntilMs = 0L;
+    private static long wishSentAtMs = -1L;
+    private static int wishPoll = 0;
+    private static int wishesSent = 0;
 
     private AutoUltFeature() {
     }
@@ -63,6 +76,8 @@ public final class AutoUltFeature {
             firedThisWorld.clear();
             tabClass = null;
             pendingUltTrigger = null;
+            wishBlockedUntilMs = 0L;
+            wishSentAtMs = -1L;
         }
         CheatUtilsConfig cfg = CheatUtilsConfig.getInstance();
         if (!cfg.isAutoUltEnabled() || !DungeonState.isInDungeon()) {
@@ -72,6 +87,7 @@ public final class AutoUltFeature {
             return;
         }
         firePendingUlt(client);
+        tickWishOnClear(client, cfg);
         // With a class override set the tab list is never read (effectiveClass returns the override first).
         if ("AUTO".equalsIgnoreCase(cfg.getUltClassOverride())) {
             rescanTabClass(client);
@@ -94,6 +110,7 @@ public final class AutoUltFeature {
         if (!cfg.isAutoUltEnabled()) {
             return;
         }
+        onWishLine(plain.trim());
         String trigger;
         if (MAXOR_ENRAGED.equals(plain.trim()) && cfg.isUltMaxorEnraged()) {
             trigger = "Maxor enraged";
@@ -114,8 +131,8 @@ public final class AutoUltFeature {
             return;
         }
         DungeonClass clazz = effectiveClass(cfg);
-        if (clazz == null || !ULT_CLASSES.contains(clazz)) {
-            CheatUtils.LOGGER.info("[CheatUtils] AutoUlt '{}' skipped: class={} (needs Healer/Tank)", trigger, clazz);
+        if (clazz == null || !cfg.isUltClass(clazz)) {
+            CheatUtils.LOGGER.info("[CheatUtils] AutoUlt '{}' skipped: class={} (not a selected class)", trigger, clazz);
             return;
         }
         if (!firedThisWorld.add(trigger)) {
@@ -166,6 +183,87 @@ public final class AutoUltFeature {
                     ModChat.dim(" (" + pendingUltTrigger + ") - nothing was sent."));
             pendingUltTrigger = null;
         }
+    }
+
+    // ---- Wish on Clear (killer560, 2026-11-01: "add an option for wish on clear if someone is low. (make sure it doesnt
+    // keep trying to wish if they dont have the cooldown for wish.)") ----
+
+    /** Hypixel's own lines keep the cooldown: Used Wish -> blocked until the ready line (or the fallback); a cooldown
+     *  line answering our Wish -> blocked for exactly that long; the ready/available line -> free again. */
+    private static void onWishLine(String line) {
+        long now = System.currentTimeMillis();
+        if (WISH_USED.equals(line)) {
+            wishBlockedUntilMs = now + WISH_FALLBACK_COOLDOWN_MS;
+            wishSentAtMs = -1L;
+        } else if (WISH_READY.equals(line) || WISH_AVAILABLE.equals(line)) {
+            wishBlockedUntilMs = 0L;
+        } else if (wishSentAtMs >= 0 && now - wishSentAtMs <= COOLDOWN_REPLY_MS) {
+            Matcher m = ON_COOLDOWN.matcher(line);
+            if (m.matches()) {
+                wishBlockedUntilMs = now + Integer.parseInt(m.group(1)) * 1000L + 500L;
+                wishSentAtMs = -1L;
+                CheatUtils.LOGGER.info("[AutoUlt] Wish on cooldown for {}s - not trying again before then", m.group(1));
+            }
+        }
+    }
+
+    private static void tickWishOnClear(Minecraft client, CheatUtilsConfig cfg) {
+        if (!cfg.isWishOnClear() || pendingUltTrigger != null || client.player == null) {
+            return;
+        }
+        if (++wishPoll < WISH_POLL_TICKS) {
+            return;
+        }
+        wishPoll = 0;
+        long now = System.currentTimeMillis();
+        if (wishSentAtMs >= 0 && now - wishSentAtMs > COOLDOWN_REPLY_MS) {
+            // nothing answered our Wish (no "Used Wish!", no cooldown line): never assume it is free - wait it out
+            wishBlockedUntilMs = Math.max(wishBlockedUntilMs, wishSentAtMs + WISH_FALLBACK_COOLDOWN_MS);
+            wishSentAtMs = -1L;
+        }
+        if (now < wishBlockedUntilMs || wishSentAtMs >= 0) {
+            return;
+        }
+        if (LiveMapFeature.isInBoss() || !CheatUtils.isOnDungeonServer(client)) {
+            return;
+        }
+        DungeonClass clazz = effectiveClass(cfg);
+        if (clazz != DungeonClass.HEALER || !cfg.isUltClass(DungeonClass.HEALER)) {
+            return;
+        }
+        String low = lowTeammate(client);
+        if (low == null) {
+            return;
+        }
+        wishSentAtMs = now;
+        wishBlockedUntilMs = now + COOLDOWN_REPLY_MS; // one attempt, then only Hypixel's answer frees it
+        wishesSent++;
+        CheatUtils.LOGGER.info("[AutoUlt] Wish on Clear queued: {} is low", low);
+        pendingUltTrigger = "Wish: " + low + " is low";
+        pendingUltTicksLeft = ULT_GATE_BUDGET_TICKS;
+    }
+
+    /** The first teammate whose dungeon-sidebar health Hypixel colors red (SkyHanni's low-health rule), or null. */
+    private static String lowTeammate(Minecraft client) {
+        String self = client.player.getGameProfile().name();
+        for (String line : com.killer560.hub.scoreboard.ScoreboardData.sidebarNow(client)) {
+            Matcher m = com.killer560.hub.scoreboard.ScoreboardPattern.TEAMMATES.matcher(line);
+            if (!m.matches()) {
+                continue;
+            }
+            String name = m.group("username");
+            String health = m.group("health");
+            if (name != null && health != null && !name.equals(self) && "c".equals(m.group("color"))
+                    && !"DEAD".equals(health)) {
+                return name;
+            }
+        }
+        return null;
+    }
+
+    /** Wishes Wish on Clear has sent this session - for the testkit. */
+    public static int wishesSent() {
+        return wishesSent;
     }
 
     private static DungeonClass effectiveClass(CheatUtilsConfig cfg) {

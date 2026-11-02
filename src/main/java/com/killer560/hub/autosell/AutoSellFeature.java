@@ -145,17 +145,29 @@ public final class AutoSellFeature {
         if (!(open instanceof AbstractContainerScreen<?> screen)) {
             return;
         }
-        if (screen == refusedScreen && cfg.getScreenTitlePattern().equals(refusedPattern)) {
+        if (screen == refusedScreen && cfg.getScreenTitlePattern().equals(refusedPattern) && !cfg.isAnyNpcMenu()) {
             return;
         }
         // killer560, 2026-10-20: an item added to the list while the Trades menu is open is sold in that menu
         // without reopening it, so a finished screen starts again once either list has changed.
         boolean again = screen == doneScreen;
+        boolean ghost = false;
         if (again && cfg.getListVersion() == doneListVersion) {
-            return;
+            // ...and once a stack it sold comes back (a ghost sell), it is sold again in the same menu (2026-11-01)
+            if (visit == null || visitScreen != screen) {
+                return;
+            }
+            tickNo++;
+            List<AutoSellVisit.Stack> stacks = stacksOf(playerSlots(screen.getMenu()));
+            int before = visit.ghostRetries();
+            visit.track(stacks, tickNo);
+            if (visit.ghostRetries() == before || visit.next(stacks, lists(cfg)) == null) {
+                return;
+            }
+            ghost = true;
         }
         String title = titleOf(screen);
-        if (!compileOrDefault(cfg.getScreenTitlePattern()).matcher(title).matches()) {
+        if (!isSellScreen(screen, cfg)) {
             // killer560, 2026-10-19: the /trades menu was never sold to. Said once per title, so the real one shows in the log.
             refusedScreen = screen;
             refusedPattern = cfg.getScreenTitlePattern();
@@ -171,7 +183,9 @@ public final class AutoSellFeature {
             visitScreen = screen;
             tickNo = 0;
         }
-        if (again) {
+        if (ghost) {
+            LOGGER.info("[AutoSell] a sold stack came back in \"{}\" (ghost sell) - selling it again", titleOf(screen));
+        } else if (again) {
             LOGGER.info("[AutoSell] sell list changed while \"{}\" is open - selling again in it", titleOf(screen));
         }
         clicksSent = 0;
@@ -217,8 +231,7 @@ public final class AutoSellFeature {
             return;
         }
         String title = titleOf(screen);
-        Pattern pattern = compileOrDefault(AutoSellConfig.getInstance().getScreenTitlePattern());
-        if (!pattern.matcher(title).matches()) {
+        if (screen != sessionScreen && !isSellScreen(screen, AutoSellConfig.getInstance())) {
             stop("screen changed to \"" + title + "\"");
             return;
         }
@@ -227,6 +240,7 @@ public final class AutoSellFeature {
         visit.observe(menu.getStateId(), tickNo);
         List<Slot> slots = playerSlots(menu);
         lastStacks = stacksOf(slots);
+        visit.track(lastStacks, tickNo);
         if (settling) {
             if (visit.next(lastStacks, lists(AutoSellConfig.getInstance())) != null) {
                 settling = false; // an item was added while waiting for the answers: back to clicking
@@ -275,7 +289,7 @@ public final class AutoSellFeature {
         for (Slot slot : slots) {
             ItemStack stack = slot.getItem();
             if (!stack.isEmpty()) {
-                out.add(new AutoSellVisit.Stack(slot.index, ItemIdentity.of(stack), stack.getCount()));
+                out.add(new AutoSellVisit.Stack(slot.index, identityOf(stack), stack.getCount()));
             }
         }
         return out;
@@ -304,6 +318,37 @@ public final class AutoSellFeature {
         int total = menu.slots.size();
         int start = Math.max(0, total - 36);
         return menu.slots.subList(start, total);
+    }
+
+    /**
+     * A screen Auto Sell sells in: its title matches the sell pattern ("Trades" and anything with "sell"/"trade"), or
+     * - with Any NPC Sell Menu on (killer560, 2026-11-01: "it should sell in any npc menu that you can sell into not just
+     * the trades menu") - it is a Hypixel NPC shop, told by the hopper in slot 49 whose lore says "Click items in your
+     * inventory to sell" or ends "Click to buyback" (Item Protection's sell-menu test, from Devonian).
+     */
+    static boolean isSellScreen(AbstractContainerScreen<?> screen, AutoSellConfig cfg) {
+        if (compileOrDefault(cfg.getScreenTitlePattern()).matcher(titleOf(screen)).matches()) {
+            return true;
+        }
+        return cfg.isAnyNpcMenu() && com.killer560.hub.itemprotect.ItemProtect.lossScreenOf(screen)
+                == com.killer560.hub.itemprotect.ItemProtect.LossScreen.SELL;
+    }
+
+    /** The identity Auto Sell keys an item on: {@link ItemIdentity#of}, except that a potion (every Hypixel potion shares
+     *  the id POTION) goes by its name - "Healing VIII Splash Potion" is HEALING_VIII_SPLASH_POTION - so a default for
+     *  the dungeon healing potion never sells every other potion too. */
+    public static String identityOf(ItemStack stack) {
+        String id = ItemIdentity.of(stack);
+        if ("POTION".equals(id) || "SPLASH_POTION".equals(id)) {
+            String named = ItemIdentity.fromName(stack.getHoverName().getString());
+            return named == null ? id : named;
+        }
+        return id;
+    }
+
+    /** Ghost-sold stacks clicked again in the current/last visit - for the testkit. */
+    public static int ghostRetries() {
+        return visit == null ? 0 : visit.ghostRetries();
     }
 
     private static String titleOf(AbstractContainerScreen<?> screen) {

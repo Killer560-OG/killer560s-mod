@@ -217,6 +217,9 @@ public final class SpiritLeapOverlayFeature {
                     }
                     lastDrawnSpots = List.of(names);
                     render(graphics, s.width, s.height, spots, mouseX, mouseY);
+                    if (state.targets.isEmpty() && (System.nanoTime() - openedAtNanos) / 1_000_000L >= EMPTY_NOTICE_MS) {
+                        renderEmptyNotice(graphics, s.width, s.height);
+                    }
                 }
             }
         });
@@ -268,6 +271,26 @@ public final class SpiritLeapOverlayFeature {
             // because it would act on whatever hidden slot the mouse happens to be over.
             return key == InputConstants.KEY_ESCAPE || client.options.keyInventory.matches(event);
         });
+    }
+
+    /** A leap menu with nothing to leap to yet is drawn as this after {@link #EMPTY_NOTICE_MS}, never as nothing: the
+     *  overlay hides the chest, so an empty menu used to be an invisible open screen - the mouse freed, the camera and
+     *  every movement key dead until Escape or the inventory key closed it (killer560, 2026-11-01: "i cant move my mouse
+     *  or walk or anything. I have to alt tab out of the game and back in and open my inventory"). */
+    private static final long EMPTY_NOTICE_MS = 300L;
+
+    private static void renderEmptyNotice(GuiGraphicsExtractor graphics, int width, int height) {
+        var font = Minecraft.getInstance().font;
+        String line1 = "Spirit Leap: no one to leap to yet";
+        String line2 = "Esc closes this menu";
+        int w = Math.max(font.width(line1), font.width(line2)) + 16;
+        int x0 = width / 2 - w / 2;
+        int y0 = height / 2 - 14;
+        graphics.fill(x0, y0, x0 + w, y0 + 28, 0xCC0D0D0D);
+        graphics.outline(x0, y0, w, 28, 0xFFCC6600);
+        graphics.centeredText(font, line1, width / 2, y0 + 5, 0xFFFFFFFF);
+        graphics.centeredText(font, line2, width / 2, y0 + 16, 0xFFAAAAAA);
+        lastView = "EMPTY";
     }
 
     private static LeapTarget byName(List<LeapTarget> targets, String name) {

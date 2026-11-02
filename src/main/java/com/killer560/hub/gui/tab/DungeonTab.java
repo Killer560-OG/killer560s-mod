@@ -23,7 +23,6 @@ public class DungeonTab extends FolderTab {
                 // ---- map, doors, party ----
                 new LiveMapTab(),
                 new ChunkCacheTab(),
-                new DungeonInfoTab(),
                 new DoorKeysTab(),
                 new WitherDoorsTab(),
                 new LeapMenuTab(),
@@ -53,6 +52,7 @@ public class DungeonTab extends FolderTab {
                 new CustomMageBeamTab(),
                 new RagAxeTab(),
                 new MaskInvincibilityTab(),
+                new MaskKeybindsTab(),
                 new BreakerChargesTab(),
                 // ---- timers, score, loot ----
                 new SplitTimersTab(),
@@ -115,6 +115,7 @@ public class DungeonTab extends FolderTab {
             tabs.add(new RelicHelpersTab());
             tabs.add(new DioriteGlassTab());
             tabs.add(new GoldorTriggerbotTab());
+            tabs.add(new ThornTriggerbotTab());
             // Out of Secret Aura's In Boss, 2026-10-15 (killer560: "It should be its own cheat").
             tabs.add(new LightsDeviceTab());
             tabs.add(new AutoUltTab());

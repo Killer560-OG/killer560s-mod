@@ -4,15 +4,13 @@ import com.killer560.hub.goldor.GoldorTriggerbotConfig;
 import com.killer560.hub.gui.RangeSliderWidget;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
-/** Goldor Triggerbot settings - cheat build only, so the whole tab only exists on the cheat jar and its header is
+/** Wither Boss Triggerbot (Goldor Triggerbot until 2026-11-01) settings - cheat build only, so the whole tab only exists on the cheat jar and its header is
  *  drawn red. The rate is a two-handled CPS range ({@link RangeSliderWidget}, the same control i4 Sensors uses),
  *  with the millisecond band it works out to shown alongside it so it lines up with Arrow Align's delays. See
  *  {@code GoldorTriggerbotFeature}. */
@@ -22,7 +20,7 @@ public class GoldorTriggerbotTab extends BaseTab {
     private static final int GAP = 6;
 
     public GoldorTriggerbotTab() {
-        super("Goldor Triggerbot");
+        super("Wither Boss Triggerbot");
     }
 
     @Override
@@ -38,10 +36,10 @@ public class GoldorTriggerbotTab extends BaseTab {
         int halfW = (contentWidth - GAP) / 2;
         int rightW = Math.max(1, contentWidth - halfW - GAP);
 
-        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Goldor Triggerbot", true));
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Wither Boss Triggerbot", true));
         y += 16;
 
-        widgets.add(onOffButton("Goldor Triggerbot", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+        widgets.add(onOffButton("Wither Boss Triggerbot", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
@@ -77,21 +75,25 @@ public class GoldorTriggerbotTab extends BaseTab {
                 }).bounds(contentX + halfW + GAP, y, rightW, ROW).build());
         y += ROW + GAP;
 
-        double minRange = GoldorTriggerbotConfig.MIN_RANGE;
-        double maxRange = GoldorTriggerbotConfig.MAX_RANGE;
-        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, ROW, rangeText(cfg),
-                (cfg.getRange() - minRange) / (maxRange - minRange)) {
-            @Override
-            protected void updateMessage() {
-                setMessage(rangeText(cfg));
-            }
+        widgets.add(onOffButton("All Wither Bosses", cfg::isAllWithers, cfg::setAllWithers, cfg::save,
+                null, contentX, y, contentWidth, 20));
+        y += 24;
 
-            @Override
-            protected void applyValue() {
-                cfg.setRange(minRange + this.value * (maxRange - minRange));
-                saveOnRelease(() -> cfg.save());
+        // Classes it works on (your class from the dungeon tab list); all on = every class, and an unknown class too.
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Classes", true));
+        y += 16;
+        com.killer560.hub.dungeonclass.DungeonClass[] all = com.killer560.hub.dungeonclass.DungeonClass.values();
+        int colW = (contentWidth - GAP * 2) / 3;
+        for (int i = 0; i < all.length; i++) {
+            com.killer560.hub.dungeonclass.DungeonClass c = all[i];
+            int col = i % 3;
+            if (i > 0 && col == 0) {
+                y += 24;
             }
-        });
+            widgets.add(onOffButton(c.displayName(), () -> cfg.isClassEnabled(c), v -> cfg.setClassEnabled(c, v),
+                    cfg::save, null, contentX + col * (colW + GAP), y, colW, 20));
+        }
+        y += 24;
         return widgets;
     }
 
@@ -112,7 +114,4 @@ public class GoldorTriggerbotTab extends BaseTab {
         return Component.literal("Aim Delay: " + cfg.getAimDelayMs() + "ms");
     }
 
-    private static Component rangeText(GoldorTriggerbotConfig cfg) {
-        return Component.literal(String.format(Locale.US, "Range: %.1f", cfg.getRange()));
-    }
 }

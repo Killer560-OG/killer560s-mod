@@ -27,6 +27,10 @@ final class AutoSellVisit {
     static final int ANSWER_TIMEOUT_TICKS = 20;
     /** Ticks without a menu update before the stacks left are judged. */
     static final int QUIET_TICKS = 2;
+    /** How often one slot is clicked again after a ghost sell (see {@link #track}). */
+    static final int MAX_RETRIES = 2;
+    /** Ticks an answered click's stack may sit untouched in its slot before it counts as refused and is clicked again. */
+    static final int REFUSED_RETRY_TICKS = 10;
 
     record Stack(int slot, String identity, int count) {
     }
@@ -44,6 +48,8 @@ final class AutoSellVisit {
         final int stateId;
         final int tick;
         boolean answered;
+        /** The slot was seen without this stack after the click (sold, or a ghost sell's trip into the menu). */
+        boolean goneSeen;
 
         Click(int slot, String identity, int count, int stateId, int tick) {
             this.slot = slot;
@@ -61,6 +67,8 @@ final class AutoSellVisit {
     private Integer lastStateId;
     private int lastStateChangeTick;
     private int lastClickTick;
+    private final Map<Integer, Integer> retriesBySlot = new HashMap<>();
+    private int ghostRetries;
 
     /** @param listAtStart the sell list when the visit began (upper case), to tell a mid-visit addition apart. */
     AutoSellVisit(Set<String> listAtStart) {
@@ -95,6 +103,43 @@ final class AutoSellVisit {
             return s;
         }
         return null;
+    }
+
+    /**
+     * Ghost sells (killer560, 2026-11-01: "itll click to sell an item but it gets a ghost sell where it goes into the menu
+     * quickly then back into the inventory, but it never resells it"). Call with every scan. A clicked slot that was seen
+     * empty (or holding something else) and then holds the clicked identity again is a stack that came BACK; one that the
+     * server answered but that never left its slot for {@link #REFUSED_RETRY_TICKS} was refused. Either is forgotten as
+     * clicked, so {@link #next} offers it again - at most {@link #MAX_RETRIES} times per slot.
+     */
+    void track(List<Stack> stacks, int tick) {
+        Map<Integer, Stack> bySlot = new HashMap<>();
+        for (Stack s : stacks) {
+            bySlot.put(s.slot(), s);
+        }
+        java.util.Iterator<Click> it = clicks.values().iterator();
+        while (it.hasNext()) {
+            Click c = it.next();
+            Stack now = bySlot.get(c.slot);
+            boolean holds = now != null && c.identity.equals(now.identity());
+            if (!holds) {
+                c.goneSeen = true;
+                continue;
+            }
+            boolean cameBack = c.goneSeen;
+            boolean refused = !c.goneSeen && c.answered && tick - c.tick >= REFUSED_RETRY_TICKS;
+            if ((cameBack || refused) && retriesBySlot.getOrDefault(c.slot, 0) < MAX_RETRIES) {
+                retriesBySlot.merge(c.slot, 1, Integer::sum);
+                clicksPerIdentity.merge(c.identity, -1, Integer::sum);
+                ghostRetries++;
+                it.remove();
+            }
+        }
+    }
+
+    /** Clicks forgotten by {@link #track} so the stack is sold again. */
+    int ghostRetries() {
+        return ghostRetries;
     }
 
     void clicked(Stack s, int stateId, int tick) {

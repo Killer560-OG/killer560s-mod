@@ -10,6 +10,7 @@ final class CardBlurbsData {
 
     static void register(Map<String, String> d) {
         d.put("SecretClickedTab", "Boxes clicked secrets; mutes.");
+        d.put("SecretTab", "Secret sound, boxes and HUD.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");
         d.put("CreationCooldownTab", "Dungeon join timer.");
         d.put("InstaClearWarningTab", "Lost-key alert.");
@@ -105,7 +106,9 @@ final class CardBlurbsData {
         d.put("DungeonBreakerTab", "Instant Breaker blocks.");
         d.put("FastLeapTab", "Leaps without the menu.");
         d.put("FreezeStateTab", "!! NEVER ON HYPIXEL: BAN !!");
-        d.put("GoldorTriggerbotTab", "Clicks Goldor on aim.");
+        d.put("GoldorTriggerbotTab", "Clicks wither bosses on aim.");
+        d.put("MaskKeybindsTab", "Key equips a mask in /stats.");
+        d.put("ThornTriggerbotTab", "Holds the Tribal Spear on Thorn.");
         d.put("DioriteGlassTab", "Storm's diorite pillars as glass.");
         d.put("InteractiveMapTab", "Full-screen map pathing.");
         d.put("FullBlockTab", "Bigger click boxes for secrets.");

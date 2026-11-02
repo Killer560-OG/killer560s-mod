@@ -90,6 +90,10 @@ public final class ThornConfig {
     // ---- Stun spots ----
     private boolean stunSpots = false;
     private boolean stunSpotLabels = true;
+
+    // ---- Thorn Triggerbot (cheat build, killer560 2026-11-01) ----
+    private boolean triggerbot = false;
+    private boolean triggerbotAimed = true;
     private int stunSpotColor = DEFAULT_STUN_SPOT_COLOR;
     private final List<StunSpot> stunSpotList = new ArrayList<>(DEFAULT_STUN_SPOTS);
 
@@ -145,6 +149,8 @@ public final class ThornConfig {
             cfg.batsThroughWalls = ConfigJson.getBool(obj, "batsThroughWalls", false);
             cfg.stunSpots = ConfigJson.getBool(obj, "stunSpots", false);
             cfg.stunSpotLabels = ConfigJson.getBool(obj, "stunSpotLabels", true);
+            cfg.triggerbot = ConfigJson.getBool(obj, "triggerbot", false);
+            cfg.triggerbotAimed = ConfigJson.getBool(obj, "triggerbotAimed", true);
             cfg.stunSpotColor = ConfigJson.getInt(obj, "stunSpotColor", DEFAULT_STUN_SPOT_COLOR);
             if (legacyWholeOff) {
                 cfg.bearHud = false;
@@ -203,6 +209,8 @@ public final class ThornConfig {
             obj.addProperty("batsThroughWalls", batsThroughWalls);
             obj.addProperty("stunSpots", stunSpots);
             obj.addProperty("stunSpotLabels", stunSpotLabels);
+            obj.addProperty("triggerbot", triggerbot);
+            obj.addProperty("triggerbotAimed", triggerbotAimed);
             obj.addProperty("stunSpotColor", stunSpotColor);
             JsonArray spots = new JsonArray();
             for (StunSpot s : stunSpotList) {
@@ -308,6 +316,14 @@ public final class ThornConfig {
     public boolean isStunSpotsEnabled() { return stunSpots && live(); }
     public boolean getStunSpotsRaw() { return stunSpots; }
     public void setStunSpots(boolean v) { stunSpots = v; }
+
+    /** Thorn Triggerbot: hold right click while holding the Tribal Spear in the Thorn fight. Cheat build only. */
+    public boolean isTriggerbotEnabled() { return cheat() && triggerbot && live(); }
+    public boolean isTriggerbotRaw() { return triggerbot; }
+    public void setTriggerbot(boolean v) { triggerbot = v; }
+    /** Only while the crosshair line meets Thorn with no BLOCK in the way (bats and other mobs do not count). */
+    public boolean isTriggerbotAimed() { return triggerbotAimed; }
+    public void setTriggerbotAimed(boolean v) { triggerbotAimed = v; }
 
     public boolean isStunSpotLabels() { return stunSpotLabels; }
     public void setStunSpotLabels(boolean v) { stunSpotLabels = v; }

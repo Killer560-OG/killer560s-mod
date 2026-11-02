@@ -649,6 +649,36 @@ public final class AutoCroesusFeature {
         CroesusConfig cfg = CroesusConfig.getInstance();
         long minProfit = cfg.getAutoMinProfitK() * 1000L;
 
+        // Kismet first (killer560, 2026-11-01: "For kismet it should reroll a chest before opening if it is bad enough to
+        // deem it needs a reroll. Also I should be able to select which floors I want it to reroll on"). Before any chest
+        // of the run is claimed, a Bedrock chest worth less than Reroll Below is rerolled - whatever else the run holds -
+        // and the run is judged again from the rerolled chest (the chest screen claims it, or refuses it and walks back).
+        // Only a Bedrock chest, once per run, while a Kismet Feather is on you, on a selected floor (2026-09-20 rules).
+        if (cfg.isAutoUseKismets() && kismetAvailable && !rerolledThisRun && !claimedThisRun
+                && (cfg.isRerollFloor(currentRunFloor) || (currentRunFloor == null && cfg.isRerollEveryFloor()))) {
+            ChestValue bedrock = null;
+            for (ChestValue c : chests) {
+                if (!c.opened() && c.slot() >= 0 && c.type() == ChestType.BEDROCK
+                        && !refusedChests.contains(chestKey(c.slot()))) {
+                    bedrock = c;
+                    break;
+                }
+            }
+            long rerollBelow = cfg.getAutoRerollBelowK() * 1000L;
+            if (bedrock != null && !bedrock.requiresKey() && bedrock.profit() < rerollBelow) {
+                if (!click(client, screen, bedrock.slot())) {
+                    return;
+                }
+                LOGGER.info("[Croesus] Rerolling the Bedrock chest of run {} ({}) first: {} is under {}", currentRunKey,
+                        currentRunFloor, bedrock.profit(), rerollBelow);
+                targetType = bedrock.type();
+                targetSlot = bedrock.slot();
+                pendingReroll = true;
+                setState(State.WAIT_CHEST, now);
+                return;
+            }
+        }
+
         ChestValue target = null;
         for (ChestValue c : chests) {
             if (c.opened() || c.slot() < 0 || refusedChests.contains(chestKey(c.slot()))) {
@@ -683,30 +713,6 @@ public final class AutoCroesusFeature {
             }
             setState(State.WAIT_CHEST, now);
             return;
-        }
-
-        // Nothing worth claiming as it stands - killer560, 2026-09-20: "for auto croeseus add the ability to
-        // reroll as well". Only a Bedrock chest can be rerolled, only once per run, and only while a Kismet
-        // Feather is actually on you (quoi AutoCroesus.kt reads that off the slot-50 button itself).
-        if (cfg.isAutoUseKismets() && kismetAvailable && !rerolledThisRun) {
-            ChestValue bedrock = null;
-            for (ChestValue c : chests) {
-                if (!c.opened() && c.slot() >= 0 && c.type() == ChestType.BEDROCK) {
-                    bedrock = c;
-                    break;
-                }
-            }
-            long rerollBelow = cfg.getAutoRerollBelowK() * 1000L;
-            if (bedrock != null && bedrock.profit() < rerollBelow) {
-                if (!click(client, screen, bedrock.slot())) {
-                    return;
-                }
-                targetType = bedrock.type();
-                targetSlot = bedrock.slot();
-                pendingReroll = true;
-                setState(State.WAIT_CHEST, now);
-                return;
-            }
         }
 
         // The skip bookkeeping and its chat line only happen once the "go back" click has actually gone out -
