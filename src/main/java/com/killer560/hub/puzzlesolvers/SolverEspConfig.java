@@ -46,7 +46,7 @@ public final class SolverEspConfig {
     }
 
     public enum WaypointStyle {
-        OUTLINE("Outline"), FULL("Full Block");
+        OUTLINE("Outline"), FULL("Fill"); // killer560, 2026-11-01: "instead of being called full block it is called fill"
 
         public final String label;
 

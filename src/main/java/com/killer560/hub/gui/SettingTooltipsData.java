@@ -898,6 +898,7 @@ final class SettingTooltipsData {
         d.put("show order lines", "Draws lines connecting the next few blazes in kill order.");
         d.put("livid solver", "Outlines the real Livid on F5/M5.");
         d.put("show invuln timer", "Shows a HUD countdown of Livid's opening invulnerability.");
+        d.put("livid solver/timer unit", "Livid's invuln timer in ticks (120t) or in seconds (6.0s).");
         d.put("quiver display", "Shows how many arrows you have left in a HUD line.");
         d.put("quiver text color", "Color of the Quiver Display's HUD line.");
         d.put("low arrow alert", "Shows a title on screen once your arrows drop below the threshold.");
@@ -2080,7 +2081,7 @@ final class SettingTooltipsData {
         d.put("starred mob hitboxes/wither style", "Picks how the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
         d.put("solver highlight", "Whether this solver draws its boxes, waypoints and lines in the world. Off, it still solves (and its chat and HUD lines stay); only the world drawing stops.");
         d.put("solver highlight through walls", "Draws this solver's highlights through blocks so you can see answers early.");
-        d.put("solver highlight style", "Draws this solver's waypoints as an outline or a see-through full block.");
+        d.put("solver highlight style", "Draws this solver's waypoints as an outline or a see-through fill.");
         d.put("livid color", "Livid Solver: Match Livid draws the highlight and the tracer in the Livid's own wool color. Custom uses the Highlight Color and Tracer Color you set below.");
         d.put("livid solver/highlight color", "Livid Solver, Custom color mode: the color of the box drawn around Livid.");
         d.put("tracer color", "Livid Solver, Custom color mode: the color of the line from you to Livid.");
