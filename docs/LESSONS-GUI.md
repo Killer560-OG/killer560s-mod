@@ -457,3 +457,9 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
 - `CommitEditBox.withSet` takes its Set button (SET_W 34 + SET_GAP 4) out of the box's own width, so a row laid out before
   textbox-1101 can leave a box too narrow: the Command Shortcuts custom row's command box fell to 52 px in the test window
   (testkit 621 wants 60). Reserve the Set width when sizing the row (ship-1102h, eb3719df: the name box pays for it).
+- **"The box is missing most of its faces" can be a box that is the wrong size, not a broken draw.** killer560's F7 picture
+  (2026-11-02, Red Blue) showed a tall one-block yellow sliver beside a slab tomb: Secret Waypoints drew the box whole,
+  but the prince was boxed from its three gold crown blocks only, and the 3x4 smooth stone slab lid beside them was merely
+  "rejected (part of a prince)". The renderer (no-depth types, cull off, drawn over terrain and mobs on 26.3) was fine in
+  every valid view of testkit 98-prince-box. A lid touching a prince now widens the prince's box (`CryptScanner.scan`);
+  the crown blocks still decide when it is opened. Check the logged box against the blocks before touching the pipeline.
