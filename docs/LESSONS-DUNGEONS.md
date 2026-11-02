@@ -199,6 +199,16 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 - Melody Lookahead counted the proper click (1 and 0 both meant none); since 2026-10-26 N is the EXTRA rows, max 2,
   old files move by one on load (`melodyLookaheadVersion`). A lookahead click for a row the live match already clicked
   is dropped, and the live match skips a row with a lookahead queued, so no row is clicked twice (testkit 275-277).
+- A Melody "double click" (ship gate 1102k, testkit 292 "34=2") was almost never two sends of one decision: it was a click
+  that reached the server after its pane had stepped (a wrong click), and the row clicked again later. Causes found under
+  load: the live path's only re-click guard was 250 ms; a click sent late in the pane's stay (Stream Safe's hand); a lookahead
+  click sent after the pane was already seen off the target; a pane age measured from when it appeared on a new row (Hx keeps
+  the column and the step clock across a row change); and a step seen late after a frame hitch. Now (`TerminalSolverFeature`):
+  one click per row until the pane is seen MOVING on that row (a miss), a live or lookahead click goes only if age since the
+  last step (dated to the scan before the one that saw it) + measured ping + 50 ms is under the board's step time, and a
+  lookahead only while the pane is on the target. The Hx click event carries the server's lime/target/msSinceStep: judge a
+  wrong Melody click by those, never by the client's log. A server catching up after "Can't keep up" burst-ticks steps; no
+  client rule covers that.
 - A migration marker key must end in `Version` (or match testkit 310's marker pattern: seeded, migrated, defaulted, V2,
   a year). 310 flips every other number in a saved file and reloads; it flipped terms-1026's `hoverMelodyFormat` 2 -> 1,
   the load re-ran the migration and `hoverMelodyEnabled` came back ON (found by another agent, 2026-10-27). The keys are
