@@ -36,6 +36,47 @@ public final class SongShareConfig {
      */
     private volatile boolean highlightWordInF5 = true;
 
+    /**
+     * What Share My Song sends (killer560, 2026-11-01: "have the option to show what word you are on or not as a sharing
+     * portion from each player. Same with sharing the name of the song or just lyrics or just the name"). Each sender
+     * picks; a receiver draws what arrives. Song Name by default: what it always sent.
+     */
+    public enum ShareWhat {
+        SONG("Song Name"),
+        LYRICS("Lyrics"),
+        BOTH("Song Name + Lyrics");
+
+        public final String label;
+
+        ShareWhat(String label) {
+            this.label = label;
+        }
+
+        public boolean song() {
+            return this != LYRICS;
+        }
+
+        public boolean lyrics() {
+            return this != SONG;
+        }
+    }
+
+    private volatile ShareWhat shareWhat = ShareWhat.SONG;
+    /** Share Current Word: a shared lyric line carries each word's time, so receivers light the word being sung. */
+    private volatile boolean shareWord = true;
+    /**
+     * Song In F5 (killer560, 2026-11-01: "add an option for in f5 to also show song title and artist"): your own song
+     * line over your head in third person, local only, with or without Share My Song.
+     */
+    private volatile boolean songInF5 = false;
+    /** F5 colors (2026-11-01): off follows the menu theme like the HUD; on uses the two colors below. */
+    private volatile boolean customF5Colors = false;
+    private volatile int f5TextColor = DEFAULT_F5_TEXT;
+    private volatile int f5HighlightColor = DEFAULT_F5_HIGHLIGHT;
+
+    public static final int DEFAULT_F5_TEXT = 0xFFFFFFFF;
+    public static final int DEFAULT_F5_HIGHLIGHT = 0xFFFFAA00;
+
     private SongShareConfig() {
     }
 
@@ -57,6 +98,12 @@ public final class SongShareConfig {
                 cfg.showOthers = ConfigJson.getBool(obj, "showOthers", false);
                 cfg.lyricsOverHead = ConfigJson.getBool(obj, "lyricsOverHead", false);
                 cfg.highlightWordInF5 = ConfigJson.getBool(obj, "highlightWordInF5", true);
+                cfg.shareWhat = ConfigJson.getEnum(obj, "shareWhat", ShareWhat.class, ShareWhat.SONG);
+                cfg.shareWord = ConfigJson.getBool(obj, "shareWord", true);
+                cfg.songInF5 = ConfigJson.getBool(obj, "songInF5", false);
+                cfg.customF5Colors = ConfigJson.getBool(obj, "customF5Colors", false);
+                cfg.f5TextColor = ConfigJson.getInt(obj, "f5TextColor", DEFAULT_F5_TEXT) | 0xFF000000;
+                cfg.f5HighlightColor = ConfigJson.getInt(obj, "f5HighlightColor", DEFAULT_F5_HIGHLIGHT) | 0xFF000000;
             } catch (Exception ignored) {
                 // a broken file loads as the defaults
             }
@@ -72,6 +119,12 @@ public final class SongShareConfig {
             obj.addProperty("showOthers", showOthers);
             obj.addProperty("lyricsOverHead", lyricsOverHead);
             obj.addProperty("highlightWordInF5", highlightWordInF5);
+            obj.addProperty("shareWhat", shareWhat.name());
+            obj.addProperty("shareWord", shareWord);
+            obj.addProperty("songInF5", songInF5);
+            obj.addProperty("customF5Colors", customF5Colors);
+            obj.addProperty("f5TextColor", f5TextColor);
+            obj.addProperty("f5HighlightColor", f5HighlightColor);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -107,5 +160,53 @@ public final class SongShareConfig {
 
     public void setHighlightWordInF5(boolean highlightWordInF5) {
         this.highlightWordInF5 = highlightWordInF5;
+    }
+
+    public ShareWhat getShareWhat() {
+        return shareWhat;
+    }
+
+    public void setShareWhat(ShareWhat shareWhat) {
+        this.shareWhat = shareWhat == null ? ShareWhat.SONG : shareWhat;
+    }
+
+    public boolean isShareWord() {
+        return shareWord;
+    }
+
+    public void setShareWord(boolean shareWord) {
+        this.shareWord = shareWord;
+    }
+
+    public boolean isSongInF5() {
+        return songInF5;
+    }
+
+    public void setSongInF5(boolean songInF5) {
+        this.songInF5 = songInF5;
+    }
+
+    public boolean isCustomF5Colors() {
+        return customF5Colors;
+    }
+
+    public void setCustomF5Colors(boolean customF5Colors) {
+        this.customF5Colors = customF5Colors;
+    }
+
+    public int getF5TextColor() {
+        return f5TextColor;
+    }
+
+    public void setF5TextColor(int argb) {
+        this.f5TextColor = argb | 0xFF000000;
+    }
+
+    public int getF5HighlightColor() {
+        return f5HighlightColor;
+    }
+
+    public void setF5HighlightColor(int argb) {
+        this.f5HighlightColor = argb | 0xFF000000;
     }
 }

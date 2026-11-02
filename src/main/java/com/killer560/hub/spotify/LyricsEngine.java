@@ -472,10 +472,30 @@ public final class LyricsEngine {
             NowPlaying nowPlaying = source.fetch();
             long now = System.currentTimeMillis();
             lastAlbum = session == null ? "" : session.album();
-            pollAt(nowPlaying, session == null ? null : session.latest(now), now, fullLyricsMode);
+            SpotifyMediaSession.Timeline timeline = session == null ? null : session.latest(now);
+            if (timeline != null && !session.fromSpotify()) {
+                // Another player (2026-11-01: web Spotify, Apple Music...): the helper picked it because the Spotify app
+                // is not playing, so it is what plays. Its own title and artist are the track; a length of 0 means it
+                // reports no clock, and then its position is not believed either.
+                if (nowPlaying.kind() != NowPlaying.Kind.TRACK && nowPlaying.kind() != NowPlaying.Kind.AD) {
+                    nowPlaying = otherPlayer(timeline);
+                }
+                if (timeline.endMs() <= 0) {
+                    timeline = null;
+                }
+            }
+            pollAt(nowPlaying, timeline, now, fullLyricsMode);
         } catch (Exception e) {
             SpotifyLyricsFeature.LOGGER.warn("Poll failed: {}", String.valueOf(e), e);
         }
+    }
+
+    /** What another player's reading says is playing: its track while it plays, paused otherwise. */
+    static NowPlaying otherPlayer(SpotifyMediaSession.Timeline t) {
+        if (t.playing() && !t.title().isBlank()) {
+            return NowPlaying.track(t.artist(), t.title());
+        }
+        return NowPlaying.paused();
     }
 
     /**

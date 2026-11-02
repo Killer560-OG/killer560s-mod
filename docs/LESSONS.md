@@ -274,6 +274,26 @@ project CLAUDE.md. Compiling lessons
   packet was blocked) and his account is not in the supporter list; nothing said so. A local line must not wait for a
   network send. Also: vanilla never draws the camera entity's name, so a line over your own name needs the name forced on
   (`OwnNameTagF5Mixin` now also asks `SongTagDraw.hasOwnLine`).
+- **The Spotify HUD never showed a cover (2026-11-01): PowerShell could not open the thumbnail stream.** The helper's
+  `[System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ras)` failed with "Cannot find an overload" on every
+  track, because the awaited `IRandomAccessStreamWithContentType` reaches PowerShell as a bare `__ComObject` that its
+  binder will not pass as `IInputStream`; the catch around `SaveCover` hid it. Calling the method through reflection
+  (`GetMethod('AsStreamForRead', [type[]]@($inputType)).Invoke($null, @($ras))`) casts it. A file-backed
+  `RandomAccessStreamReference` reproduces both (killer560s-mod-logs/spotify-1101/cover_test.py: main fails, the fix writes
+  64x64). Test a helper's PowerShell outside the game before trusting a silent catch.
+- **Song Tag never reached anyone (2026-11-01): nothing connected the relay for it.** `ModChatFeature` turned the relay on
+  only for Mod Chat or party data and used the PARTY room otherwise, so with Mod Chat off and no Hypixel party (his test:
+  two accounts and a friend standing together) the socket never opened; the testkit fed `RemoteSongs` directly and never
+  saw it. Song Tag now keeps the relay up in the LOBBY room (Mod Chat's room when Mod Chat is on, the party's in a dungeon).
+  Testkit 2866 checks the room choice and 2867 runs the whole path through a local `wrangler dev` relay.
+- **A dragged volume slider lagged seconds behind (2026-11-01, "making the volume quieter takes a long time").** Every 1 %
+  step was a `vol N` line, and the helper ran one per reading cycle, so a long drag queued dozens; down sounded slower than
+  up because the last steps of a drag down are the audible ones. The helper now takes every waiting command at once and
+  runs only the last `vol` (testkit 2868: 51 at once, 1 ran, 50 skipped), and the game sends only the newest value.
+- Windows' media sessions are per app, not per site: Chrome publishes one session (`SourceAppUserModelId` "Chrome") with a
+  timeline and a thumbnail for whatever tab plays. A music site fills `AlbumTitle`, a plain video does not, which is what
+  Music Source "Music Players" keys on (checked on his PC 2026-11-01 with a video tab: excluded in that mode, followed in
+  Anything Playing).
 - The media-session helper's stdin is the control channel (`SpotifyMediaSession.send`): the script waits on
   `StreamReader.ReadLineAsync` from `OpenStandardInput()`, not `[Console]::In` (its ReadLineAsync is synchronous on .NET
   Framework), and exits when stdin closes. Per-app volume is Core Audio `ISimpleAudioVolume` compiled by `Add-Type` on

@@ -193,9 +193,16 @@ public final class SpotifyLyricsFeature {
         // because the tag shows the song name alone, and the media reader runs only for those two as well (the tag
         // reads the window title's track and pause state, which needs no helper process).
         boolean hud = SpotifyHudConfig.getInstance().isHudEnabled();
-        boolean sharing = SongShareConfig.getInstance().isShareSong();
-        // My Lyrics In F5 (2026-10-26) shows the lyric being sung over your own head, so it needs the lyrics too.
-        boolean lyricsWanted = enabled || hud || SongShareConfig.getInstance().isLyricsOverHead();
+        SongShareConfig tag = SongShareConfig.getInstance();
+        boolean sharing = tag.isShareSong();
+        // My Lyrics In F5 (2026-10-26) shows the lyric being sung over your own head, so it needs the lyrics too, and so
+        // do Song In F5 (its pause timeout reads the lyric state) and sharing your lyric line (2026-11-01).
+        boolean lyricsWanted = enabled || hud || tag.isLyricsOverHead() || tag.isSongInF5()
+                || (sharing && tag.getShareWhat().lyrics());
+        // Players other than the Spotify app (2026-11-01) are only seen through Windows' media controls, so the helper
+        // runs whenever anything is read and they are allowed.
+        boolean otherPlayers = SpotifyHudConfig.getInstance().getMusicSource() != SpotifyHudConfig.MusicSource.SPOTIFY;
+        MEDIA.setSourceMode(SpotifyHudConfig.getInstance().getMusicSource().ordinal());
         // Spotify Controls (2026-10-26) talk to Spotify through the same helper: it stays up while a control key is bound,
         // and for two minutes after a control or the tab was used.
         boolean controls = SpotifyControls.sessionWanted(System.currentTimeMillis());
@@ -208,13 +215,13 @@ public final class SpotifyLyricsFeature {
             ENGINE.forgetNowPlaying();
             return;
         }
-        if (lyricsWanted || controls) {
+        if (lyricsWanted || controls || otherPlayers) {
             MEDIA.ensureRunning();
         } else {
             MEDIA.stop();
         }
         ENGINE.setFetchLyrics(lyricsWanted);
-        ENGINE.poll(DESKTOP, lyricsWanted ? MEDIA : null, fullLyrics);
+        ENGINE.poll(DESKTOP, lyricsWanted || otherPlayers ? MEDIA : null, fullLyrics);
         if (!enabled) {
             return;
         }
@@ -292,6 +299,67 @@ public final class SpotifyLyricsFeature {
     public static long nowMs() {
         long t = testNowMs;
         return t > 0 ? t : System.currentTimeMillis();
+    }
+
+    /**
+     * How long a pause may last before the HUD and the F5 lines go away whatever the settings say (killer560, 2026-11-01:
+     * "make the hud go away if a song is paused for more than 1m no matter their settings ... It should also time out the
+     * lyrics above my head after that same minute").
+     */
+    public static final long PAUSE_HIDE_MS = 60_000;
+    // Render thread only (the HUD and the F5 lines both ask from there): when the pause they see began, 0 while playing.
+    private static long pausedSinceMs;
+    private static String pausedTitle = "";
+    private static volatile boolean pauseHidden;
+
+    /** Whether {@code snap} has been paused for more than {@link #PAUSE_HIDE_MS}. Render thread. */
+    public static boolean pausedTooLong(LyricsEngine.Snapshot snap) {
+        if (snap == null || snap.kind() != NowPlaying.Kind.PAUSED || !snap.hasTrack()) {
+            pausedSinceMs = 0;
+            pauseHidden = false;
+            return false;
+        }
+        long now = nowMs();
+        // A new pause has a new key: the title and the position it stopped at. Keyed, not just "was it paused last
+        // frame", because nothing may draw while it plays (HUD off, F5 off), and a stale start would hide the next pause
+        // at once.
+        String key = snap.title() + "|" + snap.playedMs();
+        if (pausedSinceMs == 0 || now < pausedSinceMs || !key.equals(pausedTitle)) {
+            pausedSinceMs = now;
+            pausedTitle = key;
+        }
+        pauseHidden = now - pausedSinceMs > PAUSE_HIDE_MS;
+        return pauseHidden;
+    }
+
+    // Display Censor: one cache per level, so a frame that draws the same words again allocates nothing.
+    @SuppressWarnings("unchecked")
+    private static final java.util.Map<String, String>[] CENSORED = new java.util.Map[]{
+            new java.util.concurrent.ConcurrentHashMap<String, String>(),
+            new java.util.concurrent.ConcurrentHashMap<String, String>(),
+            new java.util.concurrent.ConcurrentHashMap<String, String>()};
+
+    /** {@code text} as the HUD and the F5 lines show it: starred at the Display Censor level. Any thread. */
+    public static String censorDisplay(String text) {
+        return censor(text, SpotifyHudConfig.getInstance().getDisplayCensor());
+    }
+
+    /** {@code text} starred at {@code level}, cached. */
+    public static String censor(String text, ProfanityLevel level) {
+        if (text == null || text.isEmpty() || level == null || level == ProfanityLevel.NONE) {
+            return text == null ? "" : text;
+        }
+        java.util.Map<String, String> cache = CENSORED[level.ordinal()];
+        String hit = cache.get(text);
+        if (hit != null) {
+            return hit;
+        }
+        String out = filterProfanity(text, level);
+        if (cache.size() > 4096) {
+            cache.clear();
+        }
+        cache.put(text, out);
+        return out;
     }
 
     /** Test hook: what {@link #snapshot()} answers instead of the engine's (null = the engine's). */
@@ -389,13 +457,10 @@ public final class SpotifyLyricsFeature {
                 "dyke", "dykes",
                 "tranny",
                 "retard", "retarded", "retards",
-                "spastic",
-                "cocksucker",
-                "motherfucker", "motherfucking",
-                "dick", "dicks", "dickhead",
-                "thot",
-                "drug", "drugs"
+                "spastic"
         ));
+        // Minimal is slurs only (killer560, 2026-11-01: "minimal is only racial slur level of stuff"). The swears that
+        // used to sit here as well moved to All, so All stars exactly what it did before.
         MINIMAL_BANNED_WORDS = Collections.unmodifiableSet(w);
     }
 
@@ -403,6 +468,11 @@ public final class SpotifyLyricsFeature {
     static {
         Set<String> w = new HashSet<>(MINIMAL_BANNED_WORDS);
         w.addAll(Arrays.asList(
+                "cocksucker",
+                "motherfucker", "motherfucking",
+                "dick", "dicks", "dickhead",
+                "thot",
+                "drug", "drugs",
                 "fuck", "fucking", "fucked", "fucker", "fucks",
                 "shit", "shitting", "shitty", "bullshit", "shithead",
                 "ass", "asshole", "jackass", "dumbass", "smartass",

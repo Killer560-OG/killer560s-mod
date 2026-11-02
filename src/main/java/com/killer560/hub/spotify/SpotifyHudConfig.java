@@ -38,6 +38,43 @@ public final class SpotifyHudConfig {
      * reads it.
      */
     private volatile boolean wordTimedLyrics = true;
+    /**
+     * Always Show Controls (killer560, 2026-11-01: "add an option on the hud to always see the skip buttons and such"):
+     * the control row under the HUD is drawn all the time, not only with chat open and the mouse over it. Clicks still
+     * need chat open, where the mouse is free.
+     */
+    private boolean alwaysShowControls = false;
+    /**
+     * Display Censor (killer560, 2026-11-01: "all is all minimal is only racial slur level of stuff and none is none of
+     * it"): what the HUD, the F5 lines and other players' shared lines star out. Chat lyrics keep their own Profanity
+     * Filter. Volatile: the relay thread reads it.
+     */
+    private volatile ProfanityLevel displayCensor = ProfanityLevel.MINIMAL;
+    /**
+     * Music Source (killer560, 2026-11-01: "make it work for web browser spotify as well ... other music apps like apple
+     * music"). Volatile: the poll thread reads it.
+     */
+    private volatile MusicSource musicSource = MusicSource.MUSIC_PLAYERS;
+
+    /** Which player the feature follows, through Windows' media controls. Spotify's desktop app always comes first. */
+    public enum MusicSource {
+        /** The Spotify desktop app only (what it always was). */
+        SPOTIFY("Spotify App Only"),
+        /**
+         * Also any other player that tells Windows what it plays (Apple Music, iTunes, Tidal, Deezer...), and a browser
+         * tab that names an album, which a music site does (Spotify's web player, YouTube Music, Apple Music on the web)
+         * and a plain video does not.
+         */
+        MUSIC_PLAYERS("Music Players"),
+        /** Anything playing that tells Windows about it, plain browser videos included. */
+        ANYTHING("Anything Playing");
+
+        public final String label;
+
+        MusicSource(String label) {
+            this.label = label;
+        }
+    }
 
     private SpotifyHudConfig() {
     }
@@ -63,6 +100,9 @@ public final class SpotifyHudConfig {
                 cfg.hideWhenPaused = ConfigJson.getBool(obj, "hideWhenPaused", cfg.hideWhenPaused);
                 cfg.smoothScroll = ConfigJson.getBool(obj, "smoothScroll", cfg.smoothScroll);
                 cfg.wordTimedLyrics = ConfigJson.getBool(obj, "wordTimedLyrics", cfg.wordTimedLyrics);
+                cfg.alwaysShowControls = ConfigJson.getBool(obj, "alwaysShowControls", cfg.alwaysShowControls);
+                cfg.displayCensor = ConfigJson.getEnum(obj, "displayCensor", ProfanityLevel.class, cfg.displayCensor);
+                cfg.musicSource = ConfigJson.getEnum(obj, "musicSource", MusicSource.class, cfg.musicSource);
             } catch (Exception e) {
                 SpotifyLyricsFeature.LOGGER.warn("Could not read Spotify HUD config: {}", e.getMessage());
             }
@@ -80,6 +120,9 @@ public final class SpotifyHudConfig {
             obj.addProperty("hideWhenPaused", hideWhenPaused);
             obj.addProperty("smoothScroll", smoothScroll);
             obj.addProperty("wordTimedLyrics", wordTimedLyrics);
+            obj.addProperty("alwaysShowControls", alwaysShowControls);
+            obj.addProperty("displayCensor", displayCensor.name());
+            obj.addProperty("musicSource", musicSource.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception e) {
             SpotifyLyricsFeature.LOGGER.warn("Could not save Spotify HUD config: {}", e.getMessage());
@@ -132,5 +175,29 @@ public final class SpotifyHudConfig {
 
     public void setWordTimedLyrics(boolean wordTimedLyrics) {
         this.wordTimedLyrics = wordTimedLyrics;
+    }
+
+    public boolean isAlwaysShowControls() {
+        return alwaysShowControls;
+    }
+
+    public void setAlwaysShowControls(boolean alwaysShowControls) {
+        this.alwaysShowControls = alwaysShowControls;
+    }
+
+    public ProfanityLevel getDisplayCensor() {
+        return displayCensor;
+    }
+
+    public void setDisplayCensor(ProfanityLevel level) {
+        this.displayCensor = level == null ? ProfanityLevel.MINIMAL : level;
+    }
+
+    public MusicSource getMusicSource() {
+        return musicSource;
+    }
+
+    public void setMusicSource(MusicSource source) {
+        this.musicSource = source == null ? MusicSource.MUSIC_PLAYERS : source;
     }
 }

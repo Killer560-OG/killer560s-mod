@@ -437,6 +437,13 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - A testkit `-PseedConfig` copied from Mod Only Test carries his Proxy Client config (`system/proxy/proxyclient.json`, SOCKS5,
   enabled): the test client then dials the local server through his real proxy, which refuses it ("socks5 ... FORBIDDEN",
   00-smoke fails, 2026-11-01). Leave that file out of a seed.
+- Whether the relay connects, and to which room, is decided in ONE place, `ModChatFeature.onTick`. A feature that sends or
+  reads relay `data` must be named there, or nothing connects for it: Song Tag never was, so no song was ever shared with
+  Mod Chat off and no party (fixed 2026-11-01, lobby room; testkit 2866/2867). Testing the receiver by feeding it packets
+  does not prove the socket opens.
+- A `try { ... } catch { }` around a PowerShell helper step hides a binding failure for good: the Spotify cover never showed
+  because `AsStreamForRead` could not take a WinRT COM object (2026-11-01, docs/LESSONS.md). Run a helper script's step outside
+  the game against a real or file-backed input before trusting it.
 - Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
   (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
   and import keeps the locked update and sharing keys (testkit 981).
