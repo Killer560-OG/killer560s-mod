@@ -36,6 +36,7 @@ final class BossPortal {
     private static int bloodTicks;
     private static BlockPos portal;
     private static int particleTick;
+    private static boolean steppedOut;
 
     private BossPortal() {
     }
@@ -69,6 +70,7 @@ final class BossPortal {
             watcherSeen = watcherDone = false;
             bloodTicks = 0;
             portal = null;
+            steppedOut = false;
         }
         if (!SimState.canAct(client) || !SimState.isGeneratedFloor() || BossFight.running() || BossSim.isBuilding()) {
             return;
@@ -80,7 +82,12 @@ final class BossPortal {
         if (portal != null) {
             double dx = client.player.getX() - (portal.getX() + 0.5), dz = client.player.getZ() - (portal.getZ() + 0.5);
             double dy = client.player.getY() - (portal.getY() + 1);
-            if (dx * dx + dz * dz <= 2.25 && dy > -0.5 && dy < 2.0) {
+            boolean in = dx * dx + dz * dz <= 2.25 && dy > -0.5 && dy < 2.0;
+            if (!in) {
+                steppedOut = true;
+            }
+            // Only a step INTO it: standing on the spot when it opens (where /goto lands) does not take him in.
+            if (in && steppedOut) {
                 LOGGER.info("[BossSim] into the boss through the Blood room's portal");
                 BossSim.start(client, BossFight.Start.P1, !"F7".equalsIgnoreCase(SimState.floorLabel()));
                 return;
@@ -109,6 +116,7 @@ final class BossPortal {
         BlockPos center = DungeonLayout.cellCenter(gx, gz);
         BlockPos at = new BlockPos(center.getX(), client.player.getBlockY() - 1, center.getZ());
         portal = at;
+        steppedOut = false;
         LOGGER.info("[BossSim] Blood done ({}) - portal at {}", watcherDone ? "the Watcher's line" : "stand-in", at.toShortString());
         server.execute(() -> {
             ServerLevel level = server.overworld();
