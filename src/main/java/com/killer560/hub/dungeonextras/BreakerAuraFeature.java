@@ -997,7 +997,13 @@ public final class BreakerAuraFeature {
             // Inside a Blink Charge shot the break is predicted at once: the shot's next ticks move him into that spot before
             // the server's answer can arrive, and a block still there stopped him at the wall it had just mined (testkit
             // 1025-blink-shot-breaker, 2026-10-25).
-            boolean predict = cfg.isBreakerAuraZeroPing() || stands || com.killer560.hub.blink.BlinkCharge.inShot();
+            // A break a vanilla client would make instantly is predicted as vanilla's startDestroyBlock predicts it, and
+            // as GrimAC does (CheckManagerListener.handleDigging: getBlockDamage >= 1 sets the block to air at once). Kept
+            // standing until the server's update, the block stopped him where GrimAC had him walking on: Simulation x18 in
+            // 51-breaker-aura-multi once the aura dug one a tick right in front of him (ba-rotation-1102).
+            boolean vanillaInstant = level.getBlockState(pos).getDestroyProgress(player, level, pos) >= 1.0f;
+            boolean predict = cfg.isBreakerAuraZeroPing() || stands || vanillaInstant
+                    || com.killer560.hub.blink.BlinkCharge.inShot();
             if (predict && com.killer560.hub.blink.BlinkCharge.isActive()
                     && level.getBlockState(pos).getDestroyProgress(player, level, pos) < 1.0f) {
                 // While Blink Charge holds the ping answers, never predict a break GrimAC does not predict: it sets the block
