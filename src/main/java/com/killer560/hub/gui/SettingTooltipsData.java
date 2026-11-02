@@ -1977,7 +1977,8 @@ final class SettingTooltipsData {
         d.put("profile viewer", "Run /pv <name> to open any player's Skyblock profile in game.");
         d.put("rng meter overlay", "Ranks RNG Meter rewards by coins per meter point.");
         d.put("how lucky are you", "Counts every drop you get against the drops the odds say you should have got. Open it with /luck.");
-        d.put("rng tracker", "Counts slayer kills, drop lines and dye pickups for How Lucky Are You. Dungeon chests come from your Croesus claim log.");
+        d.put("rng tracker", "Counts slayer and mob kills, Kuudra chests, Nucleus bundles, Superpairs claims, drop lines and dye pickups for How Lucky Are You. Dungeon chests come from your Croesus claim log.");
+        d.put("how lucky are you/mob kills", "Which mob deaths count as your kills: mobs you hit, any named mob within 8 blocks (ability and bow kills), or none. Looting on the weapon you hold counts.");
         d.put("open how lucky are you", "Opens the How Lucky Are You screen (also /luck and /profit luck).");
         d.put("drop chat line", "After a tracked drop, prints how many you got against how many the odds expected.");
         d.put("count dye pickups", "Counts a dye that lands in your inventory with no menu open. An item you dropped and picked back up never counts.");
