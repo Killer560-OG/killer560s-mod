@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.bloodcamp.BloodCampConfig;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -118,6 +119,28 @@ public class BloodCampTab extends BaseTab {
                 y += 22;
             }
         }
+
+        // Blood Camp Stats (killer560, 2026-11-01): mobs left, mob ticks alive, camp lag, and the end-of-run party message.
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Blood Camp Stats", false));
+        y += 16;
+        widgets.add(onOffButton("Mobs Left HUD", cfg::isHudMobsLeft, cfg::setHudMobsLeft, cfg::save,
+                null, col2aX, y, col2W, 18));
+        widgets.add(onOffButton("Mob Ticks HUD", cfg::isHudMobTicks, cfg::setHudMobTicks, cfg::save,
+                null, col2bX, y, col2W, 18));
+        y += 22;
+        widgets.add(onOffButton("Camp Lag HUD", cfg::isHudCampLag, cfg::setHudCampLag, cfg::save,
+                null, col2aX, y, col2W, 18));
+        widgets.add(onOffButton("Party Message", cfg::isPartyMessage, cfg::setPartyMessage, cfg::save,
+                requestRebuild, col2bX, y, col2W, 18));
+        y += 22;
+        if (cfg.isPartyMessage()) {
+            widgets.add(onOffButton("Send For Any Class", cfg::isPartyMessageAnyClass, cfg::setPartyMessageAnyClass, cfg::save,
+                    null, col2aX, y, col2W, 18));
+            widgets.add(onOffButton("Include Camp Lag", cfg::isPartyMessageLag, cfg::setPartyMessageLag, cfg::save,
+                    null, col2bX, y, col2W, 18));
+            y += 22;
+        }
+        y += 4;
 
         // Kill Sound (killer560, 2026-10-07; 2026-10-18 "The sound should play only on the tick the trigger bot should
         // hit to kill a mob, not every tick while a mob is on the wall or starting to spawn"): one sound, on the hit tick.

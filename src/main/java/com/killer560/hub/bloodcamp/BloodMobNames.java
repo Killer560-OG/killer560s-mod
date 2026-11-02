@@ -28,7 +28,9 @@ final class BloodMobNames {
     static final List<String> NAMES = List.of(
             // undead, every floor
             "Mr. Dead", "Revoker", "Tear", "Skull", "Walker", "Cannibal", "Frost", "Putrid", "Reaper", "Vader", "Flamer",
-            "Freak", "Leech", "Mute", "Ooze", "Parasite", "Psycho", "Wandering Soul", "Doze", "Fels", "Watchful Eye",
+            "Freak", "Leech", "Mute", "Ooze", "Parasite", "Psycho", "Wandering Soul", "Doze", "Fels",
+            // ("Watchful Eye" was here from the wiki's list until 2026-11-01, killer560: "on occasion it can highlight the
+            // watcher and the watchful eyes it shouldnt be able to.")
             // reincarnated bosses (Floor III on)
             "Bonzo", "Scarf", "Spirit Bear", "Livid",
             // Floor VII: Sadan's giants. The reanimated one's tag reads just "Giant" after its affix ("Boomer Giant 25.3M❤",

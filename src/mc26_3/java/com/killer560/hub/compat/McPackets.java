@@ -1,6 +1,7 @@
 package com.killer560.hub.compat;
 
 import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
@@ -127,5 +128,15 @@ public final class McPackets {
 
     public static int chunkZ(ClientboundLevelChunkWithLightPacket p) {
         return p.z();
+    }
+
+    /** The absolute position an entity position-sync packet puts its entity at, or null when it carries none (26.3:
+     *  {@code position().endPosition()} behind {@code hasPosition()}; 26.2: {@code values().position()}). */
+    public static Vec3 positionSyncPos(ClientboundEntityPositionSyncPacket p) {
+        return p.hasPosition() ? p.position().endPosition() : null;
+    }
+
+    public static int positionSyncId(ClientboundEntityPositionSyncPacket p) {
+        return p.id();
     }
 }

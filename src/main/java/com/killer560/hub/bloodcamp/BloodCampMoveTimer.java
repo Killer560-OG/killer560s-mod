@@ -72,8 +72,15 @@ public final class BloodCampMoveTimer {
     private static final int COUNTDOWN_SHOW_TICKS = 200;
 
     private static long bloodOpenTick = -1L;
-    private static long moveAtTick = -1L;
+    /** {@code util.PerTickServerClock} at the greeting: every timing below counts server ticks since it, stalls left out
+     *  (2026-11-01, NoammAddons times its move timer in server ticks too). */
+    private static long[] bloodOpenMark;
+    private static long bloodOpenClock;
+    /** Lag-free ticks after the greeting at which the Watcher moves, or -1 with no prediction. */
+    private static long moveAtElapsed = -1L;
     private static boolean firstSpawns = true;
+    /** "That will be enough for now." - the Watcher has sent his last mob. */
+    private static boolean spawningDone;
 
     private BloodCampMoveTimer() {
     }
@@ -89,19 +96,44 @@ public final class BloodCampMoveTimer {
         return firstSpawns;
     }
 
-    /** Testkit: whether {@link #killTimerAllows} lets an attack through now at {@code offsetTicks}. */
-    public static boolean killTimerAllowsForTest(int offsetTicks) {
-        return killTimerAllows(offsetTicks);
+    /** Testkit: whether {@link #killTimerAllows} lets an attack through now at {@code lateTicks}. */
+    public static boolean killTimerAllowsForTest(int lateTicks) {
+        return killTimerAllows(lateTicks);
+    }
+
+    /** True once the Watcher said "That will be enough for now." (no more mobs come). */
+    static boolean isSpawningDone() {
+        return spawningDone;
+    }
+
+    /** Whether the greeting was seen in this level. */
+    static boolean greetingSeen() {
+        return bloodOpenTick >= 0;
+    }
+
+    /** Lag-free ticks since the greeting (server ticks: client ticks less every server stall), or -1 without one. */
+    static long elapsedSinceGreeting() {
+        long now = nowTick();
+        if (bloodOpenTick < 0 || now < 0) {
+            return -1L;
+        }
+        return com.killer560.hub.util.PerTickServerClock.now() - bloodOpenClock;
+    }
+
+    /** The server's stall since the greeting, ms (Blood Camp Stats' camp lag). */
+    static long lagMsSinceGreeting() {
+        return bloodOpenTick < 0 ? 0L : com.killer560.hub.util.PerTickServerClock.stallTicksSince(bloodOpenMark) * 50L;
     }
 
     static void reset() {
-        if (bloodOpenTick >= 0 || moveAtTick >= 0 || !firstSpawns) {
+        if (bloodOpenTick >= 0 || moveAtElapsed >= 0 || !firstSpawns) {
             LOGGER.info("[BloodCamp] move timer reset (greeting tick {}, move tick {}, firstSpawns {})", bloodOpenTick,
-                    moveAtTick, firstSpawns);
+                    moveAtElapsed, firstSpawns);
         }
         bloodOpenTick = -1L;
-        moveAtTick = -1L;
+        moveAtElapsed = -1L;
         firstSpawns = true;
+        spawningDone = false;
     }
 
     private static void onChat(Component message) {
@@ -121,27 +153,40 @@ public final class BloodCampMoveTimer {
                 LOGGER.info("[BloodCamp] Watcher's last-wave line seen with no greeting - no move prediction.");
                 return;
             }
-            double gapSeconds = (now - bloodOpenTick) / 20.0;
+            long elapsed = elapsedSinceGreeting();
+            double gapSeconds = elapsed / 20.0;
             if (gapSeconds < FAST_WATCHER_GAP_SECONDS) {
-                moveAtTick = bloodOpenTick + FAST_WATCHER_MOVE_TICKS;
-                LOGGER.info("[BloodCamp] Last wave out {} s after the greeting - the 0.27.2 fast Watcher -> kill {} ticks "
-                        + "after the greeting ({} ticks away).", String.format(Locale.US, "%.2f", gapSeconds),
-                        FAST_WATCHER_MOVE_TICKS, moveAtTick - now);
+                moveAtElapsed = fastWatcherMoveTicks(com.killer560.hub.secrets.DungeonState.getFloor());
+                LOGGER.info("[BloodCamp] Last wave out {} s after the greeting - the 0.27.2 fast Watcher on {} -> kill {} "
+                        + "server ticks after the greeting ({} ticks away, {} ms of server lag left out).",
+                        String.format(Locale.US, "%.2f", gapSeconds), com.killer560.hub.secrets.DungeonState.getFloor(),
+                        moveAtElapsed, moveAtElapsed - elapsed, lagMsSinceGreeting());
                 return;
             }
             double moveAtSeconds = moveAtSeconds(gapSeconds);
-            moveAtTick = bloodOpenTick + Math.round(moveAtSeconds * 20.0);
+            moveAtElapsed = Math.round(moveAtSeconds * 20.0);
             LOGGER.info("[BloodCamp] Last wave out {} s after the greeting -> Watcher moves at {} s ({} ticks away, KILL shown "
                             + "at tick {}).", String.format(Locale.US, "%.2f", gapSeconds),
-                    String.format(Locale.US, "%.0f", moveAtSeconds), moveAtTick - now, killShownTick());
+                    String.format(Locale.US, "%.0f", moveAtSeconds), moveAtElapsed - elapsed, killShownTick());
+        } else if (SPAWNING_DONE.matcher(plain).matches()) {
+            spawningDone = true;
+            LOGGER.info("[BloodCamp] Watcher: last mob sent (\"That will be enough for now.\") at tick {}", now);
+        } else if (CAMP_DONE.matcher(plain).matches()) {
+            spawningDone = true;
+            LOGGER.info("[BloodCamp] Watcher: camp cleared (\"You have proven yourself.\") at tick {}", now);
+            BloodCampStats.onCampCleared();
         } else if (BLOOD_OPEN.matcher(plain).matches() || (bloodOpenTick < 0 && WATCHER_ANY.matcher(plain).matches())) {
             bloodOpenTick = now;
-            moveAtTick = -1L;
+            bloodOpenMark = com.killer560.hub.util.PerTickServerClock.mark();
+            bloodOpenClock = com.killer560.hub.util.PerTickServerClock.now();
+            moveAtElapsed = -1L;
             firstSpawns = true;
+            spawningDone = false;
             LOGGER.info("[BloodCamp] Watcher greeting seen at tick {} - move prediction armed.", now);
+            BloodCampStats.onGreeting();
         } else {
-            LOGGER.debug("[BloodCamp] other Watcher line at tick {} (greeting tick {}, move tick {})", now, bloodOpenTick,
-                    moveAtTick);
+            LOGGER.debug("[BloodCamp] other Watcher line at tick {} (greeting tick {}, move after {})", now, bloodOpenTick,
+                    moveAtElapsed);
         }
     }
 
@@ -157,6 +202,40 @@ public final class BloodCampMoveTimer {
      *  after the greeting, so this lands 4-5 s after it. The table above stays for a gap of 18 s or more, in case the
      *  old pacing still happens; Noamm applies 400 to every run. */
     static final int FAST_WATCHER_MOVE_TICKS = 400;
+
+    /**
+     * NoammAddons' per-floor move times (its BloodCamp.kt {@code moveTimes}, "feat(BloodCamp): Watcher Move Timer",
+     * 2026-10-16, CC0): server ticks after the first Watcher line, indexed by floor number - Entrance 480, F1 600, F2-F4
+     * 500, F5-F6 470, F7 420 (Master Mode by the same number). It replaced the flat 400 ("watcher always moves after 400
+     * server ticks", 2026-10-05) this class had copied. A floor this cannot read keeps 400.
+     */
+    private static final int[] FLOOR_MOVE_TICKS = {480, 600, 500, 500, 500, 470, 470, 420};
+
+    static int fastWatcherMoveTicks(String floor) {
+        if (floor == null || floor.isEmpty()) {
+            return FAST_WATCHER_MOVE_TICKS;
+        }
+        char last = floor.charAt(floor.length() - 1);
+        if (floor.equalsIgnoreCase("E") || floor.toUpperCase(Locale.ROOT).startsWith("E")) {
+            return FLOOR_MOVE_TICKS[0];
+        }
+        if (last >= '1' && last <= '7') {
+            return FLOOR_MOVE_TICKS[last - '0'];
+        }
+        return FAST_WATCHER_MOVE_TICKS;
+    }
+
+    /** Testkit: {@link #fastWatcherMoveTicks}. */
+    public static int fastWatcherMoveTicksForTest(String floor) {
+        return fastWatcherMoveTicks(floor);
+    }
+
+    /** "That will be enough for now." - the Watcher's last summon (NoammAddons' DungeonListener reads the same line). */
+    private static final Pattern SPAWNING_DONE =
+            Pattern.compile("^\\[BOSS] The Watcher: That will be enough for now\\.$");
+    /** "You have proven yourself. You may pass." - the Blood Room is cleared. */
+    private static final Pattern CAMP_DONE =
+            Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.$");
 
     /** Seconds after the greeting at which the Watcher moves - see this class's own doc for the source. */
     private static double moveAtSeconds(double gapSeconds) {
@@ -195,20 +274,41 @@ public final class BloodCampMoveTimer {
      *   <li>Greeting seen, last wave not out yet: the kill timer has not gone off, so nothing is attacked yet.</li>
      * </ul>
      */
-    static boolean killTimerAllows(int offsetTicks) {
-        if (bloodOpenTick < 0) {
-            return true;
-        }
-        if (moveAtTick < 0) {
-            return false;
-        }
-        long now = nowTick();
-        return now < 0 || now >= killShownTick() - offsetTicks;
+    static boolean killTimerAllows(int lateTicks) {
+        return ticksUntilKillOpen(lateTicks) <= 0;
     }
 
-    /** The game tick the popup turns to "KILL" (the predicted move less Kill Popup Lead), or -1 with no prediction. */
+    /**
+     * Lag-free ticks until {@link #killTimerAllows} opens at {@code lateTicks} (Trigger Offset, positive late): 0 or less
+     * once open, 0 with no greeting (nothing to wait for), {@link Long#MAX_VALUE} / 4 while the last wave is not out.
+     */
+    static long ticksUntilKillOpen(int lateTicks) {
+        if (bloodOpenTick < 0) {
+            return 0L;
+        }
+        if (moveAtElapsed < 0) {
+            return Long.MAX_VALUE / 4;
+        }
+        long elapsed = elapsedSinceGreeting();
+        if (elapsed < 0) {
+            return 0L;
+        }
+        return moveAtElapsed - BloodCampConfig.getInstance().getKillPopupLeadTicks() + lateTicks - elapsed;
+    }
+
+    /** The game tick the popup turns (or turned) to "KILL" (the predicted move less Kill Popup Lead, plus the server
+     *  lag since the greeting), or -1 with no prediction. */
     static long killShownTick() {
-        return moveAtTick < 0 ? -1L : moveAtTick - BloodCampConfig.getInstance().getKillPopupLeadTicks();
+        if (moveAtElapsed < 0 || bloodOpenTick < 0) {
+            return -1L;
+        }
+        return bloodOpenTick + moveAtElapsed - BloodCampConfig.getInstance().getKillPopupLeadTicks()
+                + com.killer560.hub.util.PerTickServerClock.stallTicksSince(bloodOpenMark);
+    }
+
+    /** Whether the kill timer ("KILL") has gone off: what Blood Camp Stats counts lost ticks from. */
+    static boolean killReached() {
+        return ticksUntilKillOpen(0) <= 0 && moveAtElapsed >= 0;
     }
 
     /** Testkit: {@link #killShownTick()}. */
@@ -218,11 +318,11 @@ public final class BloodCampMoveTimer {
 
     /** Ticks until the Watcher is predicted to move, or {@link Double#NaN} while there is no prediction. */
     private static double ticksUntilMove() {
-        long now = nowTick();
-        if (moveAtTick < 0 || now < 0) {
+        long elapsed = elapsedSinceGreeting();
+        if (moveAtElapsed < 0 || elapsed < 0) {
             return Double.NaN;
         }
-        return (double) (moveAtTick - now);
+        return (double) (moveAtElapsed - elapsed);
     }
 
     private static boolean relevant() {
