@@ -2534,8 +2534,8 @@ final class SettingTooltipsData {
         d.put("party interop/odin bridge", "Shows Odin users' Melody progress in F7/M7 P3, and shares yours if Share My Progress is on.");
         d.put("dungeon map/mark reported rooms", "Marks rooms and doors your party shared that you haven't seen yourself.");
         d.put("dungeon map/player heads", "Draws you and your teammates as their skin faces, turned to face the way they look.");
-        d.put("team melody/team melody hud", "Shows each teammate's Melody terminal progress during Phase 3.");
-        d.put("team melody/share my progress", "Lets teammates see your live Melody terminal progress.");
+        d.put("team melody/team melody hud", "Shows each teammate's Melody terminal during Phase 3: their board (target, moving pane, rows done) for a teammate on this mod or Odin, a progress bar for one who only calls it in party chat. A finished Melody reads 100%; a player drops off when the section ends or after 15 s with no update.");
+        d.put("team melody/share my progress", "Lets teammates see your live Melody terminal, and when you finish it. On by default, and it shares whatever Party Dungeon Data and the relay data switch are set to.");
         d.put("team melody/scale", "Resizes the Team Melody HUD.");
         d.put("full block/width", "How wide the hitbox is; far left is normal, far right is a full block.");
         d.put("full block/height", "How tall the hitbox is; far left is normal, far right is a full block.");
