@@ -419,9 +419,9 @@ final class SettingTooltipsData {
         d.put("custom leap menu", "Replaces Hypixel's Spirit Leap menu with 4 big teammate boxes; click one or press 1-4 to leap.");
         d.put("use class colors", "Colors each leap menu box by that teammate's class; off draws every box in orange.");
         d.put("show player heads", "Draws each teammate's face (their real skin) at the left of their leap menu box.");
-        d.put("leap style", "Boxes: the four teammate boxes. Map in Clear: the dungeon map with each teammate's face during the clear, boxes again in the boss. Keys 1-4 work in both.");
+        d.put("show map during clear", "On: during the clear the leap menu is the dungeon map with each teammate's face; boxes again in the boss. Off: the four teammate boxes everywhere. Keys 1-4 work in both.");
         d.put("default order", "Where each teammate goes by class until you move them by hand: Odin, A-Z Class, Z-A Class or Hypixel's own order.");
-        d.put("open leap order", "Opens the Leap Order editor to set which teammate goes in each of the 4 spots.");
+        d.put("open custom leap order editor", "Opens the Leap Order editor to set which teammate goes in each of the 4 spots.");
         d.put("fast leap", "Left-clicking a Spirit Leap or Infinileap leaps straight to your target (cheat build only).");
         d.put("target mode", "How leaps pick their target: Per Leap (each leap's own Target) or Posmsg (whoever announced the spot, with the leap's Target as backup) (cheat build only).");
         d.put("block inputs", "Blocks keyboard and mouse input while a fast or auto leap runs.");
