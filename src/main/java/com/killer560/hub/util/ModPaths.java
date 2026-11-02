@@ -176,6 +176,8 @@ public final class ModPaths {
         // The Bazaar screen's settings and recent products (killer560smod-bazaar.json, -bazaar-recent.json).
         t.put("bazaar", "skyblock/auction");
         t.put("bazaarflip", "skyblock/bazaarflip");
+        // AH Flipper and AH Price Copier (killer560smod-ahflip.json, 2026-11-01).
+        t.put("ahflip", "skyblock/ahflip");
         // The three mining rows are KEPT although mining is shelved until after 2.0 (shelved/mining/README.md):
         // they only name folders, and dropping them would make migrateAll move an old root mining file into
         // other/, where the restored features would not find it. Nothing reads these files while shelved.

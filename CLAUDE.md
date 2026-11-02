@@ -570,3 +570,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   Trap-room Auto Routes rules are tested without a trap capture through `AutoTrap.testTrapRoom` (testkit 62-argrim-1101-trap*).
 - A cheat setting goes under the legit ones even when the owner asks for a legit block "at the bottom" (testkit 512 checks
   every tab): the Etherwarp tab puts Works For last among legit rows and its cheat rows under it (2026-11-01).
+- Anything that BUYS sizes by Hypixel's stacking, never the vanilla material's (2026-11-01: Kaleidoscopic Mineral is PAPER,
+  stacks to 1, and the Bazaar Flipper typed 254): `bazaarflip/BazaarStackSizes` (catalog `unstackable`/`has_uuid`, reforge
+  stones, books, the live "Fill my inventory!"); docs/LESSONS.md "Bazaar and Croesus".
