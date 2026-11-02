@@ -1704,7 +1704,7 @@ final class SettingTooltipsData {
 
         // Hover Terminals + Run Summary
         d.put("hover terminals", "Cheat build only. Resting the mouse on a correct terminal slot clicks it for you.");
-        d.put("hover delay", "Cheat build only. How long the mouse must rest on a slot before it clicks, 0-1000 ms.");
+        d.put("hover delay", "Cheat build only. The least time between two hover clicks, 0-300 ms. A correct slot under the mouse clicks at once when that long has passed since the last one.");
         d.put("hover jitter", "Cheat build only. Adds a random extra delay to each hover click.");
         d.put("hover melody", "Cheat build only. Rest the mouse on a Melody row button and it clicks once when the moving pane reaches the right column.");
         d.put("hold to click", "Hold left click in a terminal and the slot under the mouse is clicked again and again, like holding the drop key, but only when it is a correct click.");
@@ -2673,7 +2673,7 @@ final class SettingTooltipsData {
         d.put("bazaar flipper", "Buys items from the Bazaar and sells them to the /trades NPC.");
         d.put("hide mouse cursor", "With Stream Safe off: while auto terminal clicks are landing, the real mouse pointer is hidden and no pointer is drawn, so a screen share shows nothing moving. It comes back as soon as the clicks stop.");
         d.put("stream safe", "On: auto terminal clicks come from a drawn mouse pointer that moves like a hand (curves, misses, overshoots, a varied order) and clicks only once it is on the slot, so a stream looks like you playing. Off: the Min and Max delays, and no pointer is drawn.");
-        d.put("cursor speed", "How fast the Stream Safe pointer moves, in percent of a typical hand, 50-200%. Clicks wait for it, so slower is slower.");
+        d.put("cursor speed", "How fast the Stream Safe pointer moves, in percent of a typical hand, 50-300%. Clicks wait for it, so slower is slower.");
         d.put("reaction time", "The usual pause before the Stream Safe pointer starts each move, 60-400 ms (130 by default); each pause varies round it.");
         d.put("miss chance", "How often a Stream Safe move lands a little off (the slot edge or the next slot) and corrects before clicking, 0-30%. A wrong click is never sent.");
         d.put("overshoot chance", "How often a Stream Safe move carries past the slot and comes back before clicking, 0-50%.");

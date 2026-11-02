@@ -16,7 +16,7 @@ import java.util.Random;
 /** Hover Terminals - per killer560's own request (2026-09-16): "make hover terms. It will go in the
  *  cheat version and if you hover a button that needs to be pressed it'll press it. Add a delay option
  *  as well in ms." While a Floor 7 terminal is open, simply resting the mouse over a slot the Terminal
- *  Solver already says is correct sends that slot's click for you after a configurable dwell, so a run
+ *  Solver already says is correct sends that slot's click for you (at most one click per Hover Delay), so a run
  *  becomes "sweep the mouse over the right slots" instead of clicking each one.
  *  <p>
  *  This is a REAL macro (it sends clicks you never made), so like Auto Terminals it is gated three ways:
@@ -53,13 +53,14 @@ public final class HoverTerminalFeature {
 
     private static final Random RANDOM = new Random();
 
-    /** The terminal-grid slot the mouse is currently resting on, or -1. Changing this (including to -1)
-     *  restarts the dwell - that is the whole "a hover has to be deliberate" rule: brushing the cursor
-     *  across a correct slot on the way somewhere else never reaches the delay. */
+    /** The terminal-grid slot the mouse is over, or -1. */
     private static int hoveredSlot = -1;
-    private static long hoverStartedAtMs;
-    /** Rolled once per dwell, not per frame (see {@link #rollDelayMs}) - so the jitter varies click to
-     *  click instead of the threshold itself jittering underneath a hover that is already in progress. */
+    /** When the last hover click went out (0 = none yet this terminal). The Hover Delay is the least time between two
+     *  hover clicks, NOT a dwell (killer560, 2026-11-01: "It should be how long between clicks it should have to wait not
+     *  how long i have to be on the item for it to click"): a correct slot under the mouse clicks as soon as that much
+     *  time has passed since the previous hover click, the first one at once. */
+    private static long lastHoverClickAtMs;
+    /** Rolled once per click (see {@link #rollDelayMs}), so the jitter varies click to click. */
     private static int armedDelayMs;
     /** Melody's once-per-row guard, shared with Hold To Click: the button last clicked, when, and where the moving pane
      *  was then. The same button is not clicked again while the pane has not moved off that slot (a click's answer can
@@ -76,7 +77,7 @@ public final class HoverTerminalFeature {
      *  was started in. */
     static void reset() {
         hoveredSlot = -1;
-        hoverStartedAtMs = 0;
+        lastHoverClickAtMs = 0;
         armedDelayMs = 0;
         lastMelodyClickedSlot = -1;
         lastMelodyClickAtMs = 0;
@@ -120,12 +121,8 @@ public final class HoverTerminalFeature {
 
         long now = System.currentTimeMillis();
         int slot = resolveHoveredSlot(screen);
-        if (slot != hoveredSlot) {
-            hoveredSlot = slot;
-            hoverStartedAtMs = now;
-            armedDelayMs = rollDelayMs(cfg);
-        }
-        if (slot < 0 || now - hoverStartedAtMs < armedDelayMs) {
+        hoveredSlot = slot;
+        if (slot < 0 || (lastHoverClickAtMs != 0 && now - lastHoverClickAtMs < armedDelayMs)) {
             return;
         }
 
@@ -168,8 +165,9 @@ public final class HoverTerminalFeature {
         ItemStack snapshot = slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY;
         TerminalSolverFeature.registerHoverClick(slot, snapshot, now);
         TerminalSolverFeature.sendTerminalClick(screen, target.slot(), target.button(), target.clickType());
-        hoverStartedAtMs = now;
+        lastHoverClickAtMs = now;
         armedDelayMs = rollDelayMs(cfg);
+        hoverClicks++;
     }
 
     /** Melody has no solved/correct set at all (see {@link TerminalSolverFeature#solve}), so "a button
@@ -195,7 +193,13 @@ public final class HoverTerminalFeature {
         }
         noteMelodyClick(slot, now);
         TerminalSolverFeature.sendTerminalClick(screen, slot, 0, ContainerInput.CLONE);
+        lastHoverClickAtMs = now;
+        armedDelayMs = rollDelayMs(cfg);
+        hoverClicks++;
     }
+
+    /** Hover clicks sent since launch (testkit 1101-menu-term-hover-gap). */
+    static int hoverClicks;
 
     /** @return the terminal-grid slot index under the mouse, or -1.
      *  <p>
@@ -233,7 +237,7 @@ public final class HoverTerminalFeature {
         return index >= 0 && index < terminalSlots ? index : -1;
     }
 
-    /** @return this dwell's real threshold: the configured delay plus a fresh random 0..jitter ms. Jitter
+    /** @return the gap before the next hover click: the configured delay plus a fresh random 0..jitter ms. Jitter
      *  defaults to 0 (pure, predictable delay); it exists because a perfectly constant hover-to-click gap
      *  is a trivially detectable signature, and is cheap here since the dwell is already re-armed on
      *  every hover change. */
