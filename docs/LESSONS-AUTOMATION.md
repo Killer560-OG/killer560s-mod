@@ -71,12 +71,16 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   same snow block was dug twice more after the server had broken it - GrimAC AirLiquidBreak x2 (1102-breaker-aura-
   multibreak-off, 26.2). A re-dig now waits for the server's ack of the first dig's prediction sequence
   (`ChestWindows.acked`, from ClientboundBlockChangedAckPacket) or 1.5 s; 10/10 clean on both versions after.
-- **One RotationBreak post-flying miss poisons the rest of the session (multibreak-1102, 26.3).** After a miss Grim's
-  buffer is 1 and every later dig is judged on arrival by the look before ("pre-flying"), decaying 0.1 per clean
-  post-flying dig, so every turned dig at the movement packet's head flags until ten clean ones - 64 lines in one 62-argrim
-  run, from one post-flying miss on a breaker dig the tick after an etherwarp landing. Seen in 1 of 3 full 26.3 runs and
-  1 of 4 26.2 runs on the same DigAim/BeforeMove code as main, under nine test clients. Cause of the first miss not
-  pinned (the testkit-gap probe logs places only). A dig the HEARD look already strikes passes both ways.
+- **A turned dig that rides the next movement packet's look misses GrimAC's 15 ms lend on a loaded server, and one miss
+  poisons the session (rbcause-1102).** Grim lends a dig the next movement packet's look only when it PROCESSES that packet
+  within 15 ms of the dig (`handleQueuedBreaks`, server currentTimeMillis); after one miss its buffer judges every later dig
+  on arrival by the look before, so every turned dig flags until ten clean ones (64 lines in one 62-argrim run). Probes
+  (testkit [testkit-dig] server, [digflush] client) under five parallel sessions: the client wrote the dig, its swing and
+  the movement packet within 0.2-0.6 ms; sent as separate flushes the server processed them 28-168 ms apart, and even
+  written as ONE flush (BeforeMove now holds the flush like Ap3SendTogetherMixin) the server processed a boom tap's START,
+  ABORT and the movement packet 16, 14 and 0 ms apart - its netty thread starved between packets of one read. Not fixable
+  from the client. A dig the look the server ALREADY processed strikes passes either way (Breaker Aura, ba-rotation-1102:
+  0 flags in 8 loaded runs); for nodes that costs the first block a tick when it is not already aimed - his call.
 - **A vanilla client removes a block it instabreaks the moment it sends the dig, and GrimAC assumes it did**: on an instant
   START_DESTROY_BLOCK (`BlockBreakSpeed.getBlockDamage >= 1`) it sets the block to air in its own world at once
   (`CheckManagerListener.handleDigging`, 2.3.74). Breaker Aura with Zero Ping off kept standing on a picked floor block
