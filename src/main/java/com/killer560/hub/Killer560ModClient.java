@@ -195,7 +195,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.registerRender();
         com.killer560.hub.roomsim.SimWhere.register();
         // /mage (dev builds only): re-captures the room he stands in into the sim's room library.
-        com.killer560.hub.roomsim.RoomCapture.register();
+        // /mage (roomsim/RoomCapture, the one-room re-capture) was removed on 2026-11-01: it re-captured Mage and had no
+        // other use (killer560: "look for old code we dont need for things like /mage").
         // The always-on map logger: skulls in each dungeon room, for checking captures against (dev builds only).
         com.killer560.hub.maplog.MapLogger.register();
         com.killer560.hub.roomsim.puzzles.SimBlazePuzzle.register();

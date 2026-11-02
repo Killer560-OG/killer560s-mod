@@ -70,14 +70,8 @@ public final class AuctionHouseFeature {
                 forwardToServer("ah " + StringArgumentType.getString(ctx, "args"));
                 return 1;
             })));
-            // Self-registered alias, same pattern as ProfileViewerFeature's "/pv" + "/killer560pv" (no
-            // edit to the big inline "/killer560 ..." tree needed for this one). The brief's literal
-            // "/killer560 ah" (with the space) is a tiny patch to that existing tree instead - see this
-            // package's staging notes for the exact snippet, since that file isn't owned by this task.
-            dispatcher.register(ClientCommands.literal("killer560ah").executes(ctx -> {
-                openOrExplain();
-                return 1;
-            }));
+            // /killer560ah was removed (killer560, 2026-11-01: "they are not needed"); the browser opens from /ah
+            // (with Override /ah on), its key and the Items tab.
         });
     }
 
@@ -86,7 +80,7 @@ public final class AuctionHouseFeature {
         return cfg.isAhEnabled() && cfg.isOverrideAhCommand();
     }
 
-    /** Used by both "/killer560ah" and the "/killer560 ah" patch (see staging notes) - opens the browser
+    /** Opens the browser
      *  if the feature is on, otherwise tells him where to turn it on instead of silently doing nothing. */
     public static void openOrExplain() {
         if (!AuctionConfig.getInstance().isAhEnabled()) {

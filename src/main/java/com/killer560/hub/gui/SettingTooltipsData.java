@@ -2495,9 +2495,9 @@ final class SettingTooltipsData {
         d.put("auction house/hypixel menu key", "Hold this key to see Hypixel's own Auction House menu instead of the reskin (Escape clears it).");
         d.put("auction house/recent searches & items", "Keeps your recent searches and viewed auctions on the left of the Auction House.");
         d.put("auction house/clear recents", "Forgets the recent searches and viewed auctions.");
-        d.put("bazaar/bazaar browser", "Turns the Bazaar browser on or off (/killer560bz, or its keybind). Needs an active Booster Cookie, as Hypixel's remote Bazaar does.");
+        d.put("bazaar/bazaar browser", "Turns the Bazaar browser on or off (open it with its keybind or Open Bazaar). Needs an active Booster Cookie, as Hypixel's remote Bazaar does.");
         d.put("bazaar/hypixel menu key", "Hold this key while a Bazaar menu is open to see and use Hypixel's own menu instead.");
-        d.put("bazaar/open key", "Optional keybind that opens the Bazaar screen, same as /killer560bz (needs an active Booster Cookie).");
+        d.put("bazaar/open key", "Optional keybind that opens the Bazaar screen (needs an active Booster Cookie).");
         d.put("bazaar/track my orders", "Reads your buy orders and sell offers whenever you open Hypixel's Manage Orders, so each order shows whether it is still the top one. Read only: nothing is clicked.");
         d.put("bazaar/open manage orders", "Opens Hypixel's Bazaar and presses Manage Orders for you, as the follow-up to this click (needs an active Booster Cookie and Follow-up Click).");
         d.put("bazaar/follow-up click", "When you click a product, the Bazaar clicks the one matching search result for you, so you land on the product.");
