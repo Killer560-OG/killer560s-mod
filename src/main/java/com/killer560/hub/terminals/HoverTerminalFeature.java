@@ -60,6 +60,10 @@ public final class HoverTerminalFeature {
      *  how long i have to be on the item for it to click"): a correct slot under the mouse clicks as soon as that much
      *  time has passed since the previous hover click, the first one at once. */
     private static long lastHoverClickAtMs;
+    /** Melody only: when the pointer arrived on the button it rests on. */
+    private static long hoverStartedAtMs;
+    /** Melody's least rest on a row button before it may click, whatever the delay (0 included). */
+    private static final long MELODY_MIN_REST_MS = 100;
     /** Rolled once per click (see {@link #rollDelayMs}), so the jitter varies click to click. */
     private static int armedDelayMs;
     /** Melody's once-per-row guard, shared with Hold To Click: the button last clicked, when, and where the moving pane
@@ -77,6 +81,7 @@ public final class HoverTerminalFeature {
      *  was started in. */
     static void reset() {
         hoveredSlot = -1;
+        hoverStartedAtMs = 0;
         lastHoverClickAtMs = 0;
         armedDelayMs = 0;
         lastMelodyClickedSlot = -1;
@@ -121,13 +126,25 @@ public final class HoverTerminalFeature {
 
         long now = System.currentTimeMillis();
         int slot = resolveHoveredSlot(screen);
-        hoveredSlot = slot;
-        if (slot < 0 || (lastHoverClickAtMs != 0 && now - lastHoverClickAtMs < armedDelayMs)) {
+        if (slot != hoveredSlot) {
+            hoveredSlot = slot;
+            hoverStartedAtMs = now;
+        }
+        if (slot < 0) {
             return;
         }
 
         if (type == TerminalType.MELODY) {
+            // Melody keeps the rest on the button as its arming (the delay, then the click fires on the row's match): a
+            // click the instant the pointer reached the next row's button read a board the last click had not finished
+            // changing and was wrong (testkit 271 on 26.2, doc-terms-1101: row 3 judged wrong 2 ticks after the move).
+            if (now - hoverStartedAtMs < Math.max(MELODY_MIN_REST_MS, cfg.getHoverDelayMs())) {
+                return;
+            }
             tickMelody(screen, items, slot, now, cfg);
+            return;
+        }
+        if (lastHoverClickAtMs != 0 && now - lastHoverClickAtMs < armedDelayMs) {
             return;
         }
 
