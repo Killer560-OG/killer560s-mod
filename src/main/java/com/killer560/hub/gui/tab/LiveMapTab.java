@@ -112,6 +112,10 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         widgets.add(slider("Font Scale", cfg::getFontScale, v -> cfg.setFontScale((float) v), 0.5, 3, "x", cfg, contentX, y, colW));
         widgets.add(toggle("Text Shadow", cfg::isTextShadow, cfg::setTextShadow, cfg, colB, y, colW));
         y += 20;
+        // OFF by default (to-do Doc, 2026-11-01: wither doors black, "no orange highlight. That is the default").
+        widgets.add(toggle("Wither Door Outline", cfg::isWitherDoorOutline, cfg::setWitherDoorOutline, cfg, contentX, y,
+                full));
+        y += 20;
         widgets.add(onOffButton("Custom Checkmark Sprite", cfg::isCustomCheckmarks, cfg::setCustomCheckmarks, cfg::save,
                 requestRebuild, contentX, y, full, 18));
         y += 20;
@@ -178,7 +182,10 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Map Extras", false));
         y += 16;
         widgets.add(mappingToggle("Extra Info Overlay", mapping::isExtraInfoEnabled, mapping::setExtraInfoEnabled, mapping,
-                contentX, y, full));
+                contentX, y, colW));
+        // to-do Doc, 2026-11-01: "Make the extra info overlay have a slider bar for the scale of it."
+        widgets.add(slider("Extra Info Scale", mapping::getExtraInfoScale, v -> mapping.setExtraInfoScale((float) v),
+                MappingConfig.MIN_EXTRA_INFO_SCALE, MappingConfig.MAX_EXTRA_INFO_SCALE, "x", mapping::save, colB, y, colW));
         y += 24;
 
         // ---------------------------------------------------------------- cheat build: Funny Map, at the bottom
@@ -248,6 +255,12 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
 
     static AbstractWidget slider(String label, DoubleSupplier get, DoubleConsumer set, double min, double max, String unit,
                                  LiveMapConfig cfg, int x, int y, int w) {
+        return slider(label, get, set, min, max, unit, cfg::save, x, y, w);
+    }
+
+    /** {@link #slider} for a setting another config class saves. */
+    static AbstractWidget slider(String label, DoubleSupplier get, DoubleConsumer set, double min, double max, String unit,
+                                 Runnable save, int x, int y, int w) {
         Supplier<Component> text = () -> {
             double v = get.getAsDouble();
             String num = v == Math.rint(v) ? String.valueOf((long) v) : String.format(Locale.US, "%.2f", v);
@@ -262,7 +275,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 set.accept(min + this.value * (max - min));
-                saveOnRelease(() -> cfg.save());
+                saveOnRelease(save);
             }
         };
     }

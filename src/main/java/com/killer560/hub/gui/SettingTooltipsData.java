@@ -712,6 +712,8 @@ final class SettingTooltipsData {
         d.put("show mimic room", "Cheat build, Funny Map: tints the room the mimic's trapped chest is in before anyone opens it. Without it a room still turns red once you kill the mimic there.");
         d.put("mimic room color", "Cheat build: the mimic room's tint. Its alpha is how strongly it is blended over the room's own color (20% red by default).");
         d.put("extra info overlay", "Shows two rows under the Dungeon Map: score, secrets for S+ and crypts, then deaths and the bonus kills - M Mimic, P Prince, B Murkbat bat. Works with Score Calculator off.");
+        d.put("extra info scale", "Size of the Extra Info text under the Dungeon Map, 0.5x to 2x. A row too wide for the map at that size moves its last fields onto another row.");
+        d.put("wither door outline", "Draws an amber outline round each locked wither door on the map. Off by default: wither doors are plain black.");
         d.put("etherwarp waypoints/etherwarp waypoints", "Use /ew waypoint add [name] to mark the block you stand on with a box.");
         d.put("clear all", "Removes every etherwarp waypoint added this run.");
         d.put("tick timers", "Shows a countdown HUD for the F7/M7 boss phases.");
@@ -2297,7 +2299,7 @@ final class SettingTooltipsData {
         d.put("wither doors/blood door (key) color", "Color the Blood door turns once you have the Blood Key.");
         d.put("wither doors/fairy door", "Highlights the door into the Fairy room once you know it is one: your map draws it like a Wither door but you have seen its doorway is empty. Clears when you or a teammate enter Fairy.");
         d.put("wither doors/fairy door color", "Color of the Fairy door highlight. Style and fill follow the settings above.");
-        d.put("dungeon map/predictive rooms", "Names a room you have not entered from what you saw of it through a doorway; tiles it is not sure of stay \"?\".");
+        d.put("dungeon map/predictive rooms", "Names a room you have not entered from what you saw of it through a doorway, its name in gray until you go in; tiles it is not sure of stay \"?\".");
         d.put("dungeon map/special room guess", "Splits an unopened one-tile room on your map into the colors of the special rooms it can still be (Puzzle, Trap, Miniboss), from what your map shows.");
         d.put("wither doors/door labels", "Puts a waypoint label (\"Wither Door 34m\") over each highlighted door, readable through walls.");
         d.put("mask invincibility/spirit", "Whether you own Spirit Mask; controls its HUD timer and Auto Mask.");

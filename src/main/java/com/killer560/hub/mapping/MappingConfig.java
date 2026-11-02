@@ -29,6 +29,11 @@ public final class MappingConfig {
 
     private boolean enabled = false;
     private boolean extraInfoEnabled = false;
+    /** Extra Info Scale: the overlay's text size against its usual size (to-do Doc, 2026-11-01: "Make the extra info
+     *  overlay have a slider bar for the scale of it"). 0.5 to 2, 1 by default. */
+    public static final float MIN_EXTRA_INFO_SCALE = 0.5f;
+    public static final float MAX_EXTRA_INFO_SCALE = 2f;
+    private float extraInfoScale = 1f;
 
     private MappingConfig() {
     }
@@ -51,6 +56,7 @@ public final class MappingConfig {
             MappingConfig cfg = new MappingConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.extraInfoEnabled = ConfigJson.getBool(obj, "extraInfoEnabled", false);
+            cfg.setExtraInfoScale(ConfigJson.getFloat(obj, "extraInfoScale", 1f));
             instance = cfg;
         } catch (Exception e) {
             instance = new MappingConfig();
@@ -63,6 +69,7 @@ public final class MappingConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("extraInfoEnabled", extraInfoEnabled);
+            obj.addProperty("extraInfoScale", extraInfoScale);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -84,5 +91,13 @@ public final class MappingConfig {
 
     public void setExtraInfoEnabled(boolean extraInfoEnabled) {
         this.extraInfoEnabled = extraInfoEnabled;
+    }
+
+    public float getExtraInfoScale() {
+        return extraInfoScale;
+    }
+
+    public void setExtraInfoScale(float v) {
+        this.extraInfoScale = Float.isNaN(v) ? 1f : Math.max(MIN_EXTRA_INFO_SCALE, Math.min(MAX_EXTRA_INFO_SCALE, v));
     }
 }
