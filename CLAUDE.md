@@ -325,6 +325,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   `tools/lunar/lunar-mixin-scan.py` + `lunar-redirect-collide.py` list Lunar's redirects that collide with ours (jars in
   `%USERPROFILE%\.lunarclient\offline\multiver`). Lunar game log: `%USERPROFILE%\.lunarclient\profiles\<major>\logs\latest.log`
   and `ichor-boot.log`; launcher log `%USERPROFILE%\.lunarclient\logs\launcher\main.log`. Lunar boots as Guest (no login).
+- A rule over OUTGOING commands needs two hooks: Fabric's `ClientSendMessageEvents.ALLOW_COMMAND` sees only typed ones,
+  and the mod's own sends (`ServerCommands.toServer`: /f7 shortcuts, Party Commands, requeues) leave below it. Creation
+  Cooldown's /joininstance block checks in both (doc-extras-1101). Chat filtering goes through vanilla's
+  `ChatComponent.setVisibleMessageFilter` (Chat Tabs), not a ChatScreen redirect: docs/LESSONS-MINECRAFT.md "Chat and commands".
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
   StackOverflows. Send below the dispatcher via `util/ServerCommands.toServer`.
 - When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
