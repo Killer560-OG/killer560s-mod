@@ -1069,7 +1069,7 @@ public final class TerminalSolverFeature {
         if (sendTerminalClick(screen, melodyButtons[buttonRow], 0, ContainerInput.CLONE)) {
             noteAutoClick(melodyButtons[buttonRow], now);
         }
-        queueMelodyLookaheadClicks(buttonRow);
+        queueMelodyLookaheadClicks(buttonRow, melodyCorrectColumn);
     }
 
     /** @return the index into {@link #melodyButtons} of the button on chest row {@code chestRow}, or -1. */
@@ -1089,23 +1089,24 @@ public final class TerminalSolverFeature {
      *  tick/50ms further out per additional row) - re-validated against the terminal still being the
      *  current Melody handler right before each one actually fires (see
      *  {@link #fireDueMelodyLookaheadClicks}), since the real board can close or change mid-burst.
-     *  <p>Per killer560's explicit "add a skip on edges or skip on all section" request (2026-09-10):
-     *  {@link TerminalSolverConfig.MelodySkipMode#EDGES} (default) only allows this burst at all when
-     *  {@code matchedRow} is the first or the last row - the two physical ends of the track - and even
-     *  then stays capped at {@link TerminalSolverConfig#getMelodyLookaheadClicks} extra rows; a match on a middle row
-     *  just clicks live, one row at a time, no burst. {@link TerminalSolverConfig.MelodySkipMode#ALL}
-     *  fires from a match at ANY row and - per killer560's explicit "click through the whole row anytime
-     *  it gets a proper click" - ignores the lookahead count entirely, bursting every remaining row down
-     *  to the last one. */
-    private static void queueMelodyLookaheadClicks(int matchedRow) {
+     *  <p>Per killer560's explicit "add a skip on edges or skip on all section" request (2026-09-10), and his answer of
+     *  2026-11-02 ("EDGES means only the first and last slot"): {@link TerminalSolverConfig.MelodySkipMode#EDGES}
+     *  (default) allows this burst only when the matched target is the FIRST or LAST slot of the track
+     *  ({@code matchedColumn} {@value #MELODY_FIRST_TRACK_COLUMN} or {@value #MELODY_LAST_TRACK_COLUMN}), whatever the
+     *  lookahead, and then clicks {@link TerminalSolverConfig#getMelodyLookaheadClicks} extra rows; a match on any
+     *  of the three middle slots just clicks live, one row at a time, no burst. Until 2026-11-02 EDGES meant the first
+     *  or last ROW, so on the 3-row board a row-1 match with lookahead 2 clicked the whole board whatever the slot.
+     *  {@link TerminalSolverConfig.MelodySkipMode#ALL} fires from a match at ANY row and slot and - per killer560's
+     *  explicit "click through the whole row anytime it gets a proper click" - ignores the lookahead count entirely,
+     *  bursting every remaining row down to the last one. */
+    private static void queueMelodyLookaheadClicks(int matchedRow, int matchedColumn) {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
         int lastRow = melodyButtons.length - 1;
         int extraRows;
         if (cfg.getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.ALL) {
             extraRows = lastRow - matchedRow;
         } else {
-            boolean isEdgeRow = matchedRow == 0 || matchedRow == lastRow;
-            if (!isEdgeRow) {
+            if (!isMelodyEdgeSlot(matchedColumn)) {
                 return;
             }
             // Lookahead N = the proper click plus N more rows (2026-10-26), so N is the extra row count itself.
@@ -1122,6 +1123,15 @@ public final class TerminalSolverFeature {
         for (int i = 1; i <= extraRows; i++) {
             scheduledMelodyClicks.add(new ScheduledMelodyClick(now + i * 50L, matchedRow + i));
         }
+    }
+
+    /** Melody's track is chest columns 1-5, columns 0-4 as {@link #melodyCorrectColumn} counts them. */
+    static final int MELODY_FIRST_TRACK_COLUMN = 0;
+    static final int MELODY_LAST_TRACK_COLUMN = 4;
+
+    /** Whether a Melody target column is the first or last slot of the track - Skip Mode EDGES' only burst spots. */
+    static boolean isMelodyEdgeSlot(int column) {
+        return column == MELODY_FIRST_TRACK_COLUMN || column == MELODY_LAST_TRACK_COLUMN;
     }
 
     private static void fireDueMelodyLookaheadClicks(ContainerScreen screen) {

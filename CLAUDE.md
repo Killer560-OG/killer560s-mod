@@ -603,8 +603,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   run it never opens unless `-Dkiller560.test.intro=show` (docs/TESTING-HOOKS.md), so title-screen cases are not
   interrupted. A GUI picture-in-picture (`g.skin`, entity, item models) ignores the pose: transform its box yourself
   under Auto Scale (docs/LESSONS-GUI.md).
-- Etherwarp passability (2026-11-01): carpets are passable in BOTH tables (EtherwarpOverlayFeature, TeleportUtils), as in
-  Hypixel's 1.8 feet list; change the two together or the overlay, the sim and Auto Routes/ZPEW disagree (LESSONS-AUTOMATION).
+- Etherwarp passability: carpets are SOLID in both tables (EtherwarpOverlayFeature, TeleportUtils) and in the testkit's
+  HxAbilities (killer560, 2026-11-02: the carpet trouble was only on the sim; doc-routes 419fd24c's passable carpets were
+  reverted in 65199074 and stay out). Change the tables together or the overlay, the sim and Auto Routes/ZPEW disagree
+  (LESSONS-AUTOMATION). The sim's etherwarp must land where they predict: testkit 1102-sim-ew-carpet.
   Trap-room Auto Routes rules are tested without a trap capture through `AutoTrap.testTrapRoom` (testkit 62-argrim-1101-trap*).
 - A cheat setting goes under the legit ones even when the owner asks for a legit block "at the bottom" (testkit 512 checks
   every tab): the Etherwarp tab puts Works For last among legit rows and its cheat rows under it (2026-11-01).
