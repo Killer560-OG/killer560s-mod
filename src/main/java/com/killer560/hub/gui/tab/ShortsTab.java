@@ -185,6 +185,10 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
                 ShortsConfig.MIN_ZOOM_PERCENT, ShortsConfig.MAX_ZOOM_PERCENT, v -> "Zoom: " + v + "% §7(next launch)", cfg));
         widgets.add(onOffButton("Comments Scroll Guard", cfg::isCommentsScrollGuard, cfg::setCommentsScrollGuard,
                 cfg::save, null, col2bX, y, col2W, 18));
+        y += 20;
+        // killer560, 2026-11-01 (to-do Doc "VIDEO BROWSER"): next video once the one playing ends.
+        widgets.add(onOffButton("Auto Scroll", cfg::isAutoScroll, cfg::setAutoScroll, cfg::save, null,
+                contentX, y, contentWidth, 18));
         y += 26;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Sign in to " + cfg.getSite().label), btn -> {

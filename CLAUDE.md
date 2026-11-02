@@ -568,3 +568,5 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Etherwarp passability (2026-11-01): carpets are passable in BOTH tables (EtherwarpOverlayFeature, TeleportUtils), as in
   Hypixel's 1.8 feet list; change the two together or the overlay, the sim and Auto Routes/ZPEW disagree (LESSONS-AUTOMATION).
   Trap-room Auto Routes rules are tested without a trap capture through `AutoTrap.testTrapRoom` (testkit 62-argrim-1101-trap*).
+- A cheat setting goes under the legit ones even when the owner asks for a legit block "at the bottom" (testkit 512 checks
+  every tab): the Etherwarp tab puts Works For last among legit rows and its cheat rows under it (2026-11-01).

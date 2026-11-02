@@ -12,6 +12,8 @@ final class SettingTooltipsData {
 
     static void register(Map<String, String> d) {
         d.put("replay intro", "Shows the first-launch tour again: how to open the mod, picking a theme, Auto Update and the menus.");
+        // Every module's last row (ModuleKeybinds, killer560 2026-11-01).
+        d.put("toggle keybind", "A key that turns this feature on and off in game, as its switch does. None by default. Click, then press a key or mouse button; Escape clears it.");
         d.put("secret clicked", "Draws a short box on each secret you collect; the box turns red when the chest was locked.");
         d.put("locked chest sound", "Plays an anvil sound when the chest you clicked was locked.");
         d.put("mute chest sounds", "In dungeons, silences chest open and close sounds.");
@@ -1525,15 +1527,25 @@ final class SettingTooltipsData {
                 + " An ordinary doorway leaves your camera as it was.");
         d.put("keep chunks loaded", "Cheat build: holds onto unloaded chunks so pathing can still route through rooms you left.");
         d.put("interactive map/ticks between etherwarps", "Cheat build: client ticks from one etherwarp of a map path to the next; 1 warps every tick.");
-        d.put("zero ping etherwarp/manual etherwarps", "Predicts the etherwarps you use yourself (your own right click).");
-        d.put("zero ping etherwarp/left click etherwarp", "Cheat build: predicts Left Click Etherwarp's warps.");
-        d.put("zero ping etherwarp/auto routes", "Cheat build: predicts Auto Routes' etherwarp nodes, path hops and chains. The camera only; Zero Ping Chain in Auto Routes is separate.");
-        d.put("zero ping etherwarp/interactive map", "Cheat build: predicts the Interactive Map's warps: map presses, Go + Secret, Auto Blood Rush and Auto Routes' Go To.");
-        d.put("zero ping etherwarp/auto secret / autopilot", "Cheat build: predicts the warps of Auto Secret and Dungeon Autopilot trips.");
-        d.put("zero ping etherwarp/auto clear", "Cheat build: predicts Auto Clear's etherwarp trips.");
-        d.put("zero ping etherwarp/auto puzzles", "Cheat build: predicts Auto Puzzles' etherwarps (Ice Path's Etherwarp Reposition and the like).");
-        d.put("zero ping etherwarp/ap3", "Cheat build: predicts an AP3 use node's warp when it holds an etherwarp item.");
-        d.put("zero ping etherwarp/pathfinding hopper", "Cheat build: predicts the etherwarp hopper's warps (Auto Fairy Souls).");
+        // The Etherwarp tab (ZeroPingEtherwarpTab, killer560 2026-11-01: no explanation lines, every row explains itself on hover).
+        d.put("etherwarp/zero ping etherwarp", "Your view jumps to where an etherwarp lands the moment you use it, instead of a round trip later. Camera only: your character still moves when the server says so, and nothing extra is sent.");
+        d.put("etherwarp/dungeons only", "Zero Ping Etherwarp works only inside a dungeon (the sim counts). Off: everywhere.");
+        d.put("etherwarp/chain from prediction", "A warp used while the last one is still on its way is predicted from where that one lands, so chained warps line up.");
+        d.put("etherwarp/overlay from prediction", "While a warp is on its way, the Etherwarp Overlay highlights from where it will land.");
+        d.put("etherwarp/give up after", "How long a predicted landing waits for the server's teleport before your view goes back.");
+        d.put("etherwarp/multi warps", "Cheat build: turns on Warps Per Tick and Aimed Warps. Off: one warp per use, as normal.");
+        d.put("etherwarp/warps per tick", "Cheat build: each of your own etherwarps becomes this many in the same tick, at the same look, each from where the last one lands. 1 = off. Each costs mana.");
+        d.put("etherwarp/aimed warps", "Cheat build: clicks inside one tick at different looks each warp their own way, all in that tick. Each extra look spends one banked Blink Charge tick.");
+        d.put("etherwarp/left click etherwarp", "Cheat build: with an etherwarp item in hand, a left click etherwarps. Sneak goes down, the warp goes the next tick (at once if you already sneak), then sneak comes back up. No attack or swing.");
+        d.put("etherwarp/manual etherwarps", "Predicts the etherwarps you use yourself (your own right click).");
+        d.put("etherwarp/left click etherwarps", "Cheat build: predicts Left Click Etherwarp's warps.");
+        d.put("etherwarp/auto routes", "Cheat build: predicts Auto Routes' etherwarp nodes, path hops and chains. The camera only; Zero Ping Chain in Auto Routes is separate.");
+        d.put("etherwarp/interactive map", "Cheat build: predicts the Interactive Map's warps: map presses, Go + Secret, Auto Blood Rush and Auto Routes' Go To.");
+        d.put("etherwarp/auto secret / autopilot", "Cheat build: predicts the warps of Auto Secret and Dungeon Autopilot trips.");
+        d.put("etherwarp/auto clear", "Cheat build: predicts Auto Clear's etherwarp trips.");
+        d.put("etherwarp/auto puzzles", "Cheat build: predicts Auto Puzzles' etherwarps (Ice Path's Etherwarp Reposition and the like).");
+        d.put("etherwarp/ap3", "Cheat build: predicts an AP3 use node's warp when it holds an etherwarp item.");
+        d.put("etherwarp/pathfinding hopper", "Cheat build: predicts the etherwarp hopper's warps (Auto Fairy Souls).");
         d.put("path timeout", "Cheat build: how long the pathfinder may search before giving up, 200-1000 ms.");
         d.put("retarget mid-path", "Cheat build: pressing another room or door mid-path re-plans to the new goal.");
         d.put("double-press secrets", "Cheat build: pressing the Start Key twice quickly paths to the room's Auto Routes start node.");
@@ -2621,6 +2633,7 @@ final class SettingTooltipsData {
         d.put("video browser/placement", "Where the window sits: anchored to a screen edge, at a custom spot, or bouncing like a DVD logo.");
         d.put("video browser/edit window", "Gives the window a title bar so you can drag it to move and resize it, then turn off to save.");
         d.put("video browser/zoom", "Sets the page's zoom level when the window launches.");
+        d.put("video browser/auto scroll", "Goes to the next video when the one playing ends, or loops back to its start as YouTube Shorts do, the same as your Next key. Off by default.");
         d.put("video browser/comments scroll guard", "YouTube Shorts only: stops Next/Previous from scrolling the feed while comments are open.");
         d.put("video browser/sign in to youtube", "Opens a normal browser window so you can sign in to your account by hand.");
         d.put("toggle global cosmetics", "Shows other supporters' custom names and scale; turn off to see everyone's real name.");

@@ -426,3 +426,12 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   javap 2026-11-01; `Gui` no longer has it). A `pose().pushMatrix()/translate` at HEAD and `popMatrix` at RETURN moves
   exactly the crosshair and its attack indicator (Etherwarp Overlay's Crosshair On Server Aim, testkit 1101-ew-crosshair:
   measured -8.82 GUI px against a projected -8.81). `Camera.getFov()` is the vertical fov the level projection uses.
+- `Map.of` takes at most ten key/value pairs; an eleventh is a compile error (no varargs form). `SearchAliases` hit it
+  on 2026-11-01 and is `Map.ofEntries` now; use that for any alias or lookup table that grows.
+- The menu sidebar's section rows (Legit, groups, Cheat) are read from the grid's HEADER items, so `ModScreen.rebuild`
+  must run `buildItems()` BEFORE `layout()`; a new category needs nothing. A testkit harness key press never reaches the
+  GLFW poll `KeyUtil.isBindDown` reads: in-game keys are tested through a `heldForTest` hook (ModuleKeybinds,
+  LoadoutSwapper), menu key capture through `Screen.keyPressed` with `McKeys.nat`.
+- Video Browser: YouTube Shorts loop, so a `<video>` never fires `ended`; Auto Scroll counts a `timeupdate` that finds
+  the video under 1 s after one in its last second (caught in capture phase: `timeupdate` does not bubble). Checked in
+  headless Chrome with ffmpeg clips (killer560s-mod-logs/docmenu-1101-vb/endhook_test.py).

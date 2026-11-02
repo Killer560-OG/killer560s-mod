@@ -193,7 +193,6 @@ final class CardBlurbsData {
         d.put("BlinkTab", "Charge ticks standing still, then shoot ahead.");
         d.put("InventoryWalkTab", "Keep walking while a menu is open.");
         d.put("ZeroPingEtherwarpTab", "Instant etherwarp view.");
-        d.put("LeftClickEtherwarpTab", "Left click etherwarps.");
         d.put("SmoothTeleportTab", "Glides the camera.");
         d.put("SessionRecorderTab", "Logs what features do.");
         d.put("TrajectoriesTab", "Bow, shortbow and pearl flight paths.");

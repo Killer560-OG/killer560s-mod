@@ -162,7 +162,7 @@ public final class ZeroPingEtherwarp {
     }
 
     private static boolean on() {
-        return ZeroPingEtherwarpConfig.getInstance().isEnabled();
+        return ZeroPingEtherwarpConfig.getInstance().isActiveHere();
     }
 
     /**
