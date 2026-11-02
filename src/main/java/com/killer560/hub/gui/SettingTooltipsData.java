@@ -1677,7 +1677,7 @@ final class SettingTooltipsData {
         d.put("performance hud/text color", "Color of every line when Color By Value is off, and of the CPS line.");
         d.put("performance hud", "Shows TPS, ping, FPS, frame times and a click counter in one movable HUD element.");
         d.put("tps", "Shows the server's ticks per second, capped at 20.");
-        d.put("ping", "Shows your ping, colored from green to red.");
+        d.put("ping", "Shows your ping, colored: green under 100 ms, yellow under 150, orange under 200, red from 200.");
         d.put("fps", "Shows your current frames per second.");
         d.put("cps counter", "Shows your left and right clicks per second.");
         d.put("color by value", "Colors the TPS, ping and FPS numbers by how good they are.");
