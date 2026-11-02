@@ -226,15 +226,6 @@ final class SettingTooltipsData {
         d.put("auto clear/ice fill first", "When the floor has Ice Fill and Auto Ice Fill is on, go there first and let Auto Ice Fill do it.");
         d.put("auto clear/chat feedback", "Chat lines for each room Auto Secret goes to or skips. Stops and server corrections are always said.");
         d.put("auto clear/puzzle wait", "At the end, how long to stand in an unfinished puzzle for it to be done before moving on.");
-        d.put("auto clear/insta clear evidence", "Lists in chat every room the Insta Clear tracker has recorded, with its entries, insta clears, failures and how many entries are known.");
-        d.put("auto clear/last insta clear entry", "Shows in chat the last room entry the Insta Clear tracker recorded this session: how you got in, the mobs seen and the outcome.");
-        d.put("auto clear/known after", "How many insta clears (and not one failure) an entry needs before Insta Clear First trusts it. 2 by default.");
-        d.put("auto clear/clear window", "How long after you enter a room it has to show cleared on the map for the entry to count as an insta clear. 15 seconds by default.");
-        d.put("auto clear/mark last insta", "Marks the last recorded entry as an insta clear, whatever was measured.");
-        d.put("auto clear/mark last not insta", "Marks the last recorded entry as not an insta clear, whatever was measured.");
-        d.put("auto clear/mark last ignore", "Leaves the last recorded entry out of the counts.");
-        d.put("auto clear/mark last measured", "Takes back a mark on the last recorded entry: it counts as measured again.");
-        d.put("auto clear/bat test", "Cheat build: in a dungeon's clear with a Spirit Sceptre in your hotbar, fires a set of shots at a mob and logs each bat's flight, then a summary. The menu closes; any movement key ends it, and pressing it again ends it too.");
         d.put("auto clear/route stall", "A route with no node fired for this long is waiting for a walk nobody will make: stopped, and the next room taken.");
     }
 

@@ -96,11 +96,6 @@ public final class AutoClearSettings {
             cfg.save();
             btn.setMessage(oneTapText(cfg));
         }).bounds(x, y[0], half, 20).build());
-        // The Bat Test (was /test until killer560 removed the command, 2026-11-01): starts it, or ends the one running.
-        widgets.add(SettingsButtonWidget.builder(batTestText(), btn -> {
-            BatTest.toggleFromMenu();
-            btn.setMessage(batTestText());
-        }).bounds(x + half + GAP, y[0], right, 20).build());
         y[0] += 24;
 
         int span = AutoClearConfig.MAX_MOB_TIMEOUT_TICKS - AutoClearConfig.MIN_MOB_TIMEOUT_TICKS;
@@ -170,10 +165,6 @@ public final class AutoClearSettings {
 
     private static Component oneTapText(AutoClearConfig cfg) {
         return Component.literal("One-Tap Warp: §e" + cfg.getOneTap().label());
-    }
-
-    private static Component batTestText() {
-        return Component.literal("Bat Test: " + (BatTest.isRunning() ? "§aRunning" : "§7Start"));
     }
 
     private static Component keyText(AutoClearConfig cfg) {

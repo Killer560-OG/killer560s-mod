@@ -66,7 +66,7 @@ import java.util.regex.Pattern;
  * A starred stand that disappears counts as a kill only while he is inside the room.
  *
  * <p><b>Known rule</b> ({@link #knownToInstaClear}): {@code >= N} INSTA observations and no KILLED/NO_CLEAR at all
- * for that room + entry key, N = 2 by default (the Auto Clear tab's Known After slider).
+ * for that room + entry key, N = 2 by default.
  *
  * <p>Persisted to {@code config/killer560/dungeons/autosecret/insta-clear.json} after every closed observation.
  */
@@ -254,57 +254,6 @@ public final class InstaClearTracker {
     public static int minSuccesses() {
         ensureLoaded();
         return STORE.minSuccesses();
-    }
-
-    // ---- the Auto Clear tab's Insta Clear rows (cheat build) ----
-
-    public static final int MIN_THRESHOLD = 1;
-    public static final int MAX_THRESHOLD = 50;
-    public static final int MIN_WINDOW_S = 2;
-    public static final int MAX_WINDOW_S = 120;
-
-    public static int windowSeconds() {
-        ensureLoaded();
-        return STORE.windowSeconds();
-    }
-
-    /** Known After: insta clears an entry needs (and no failure). Not saved until {@link #saveSettings}. */
-    public static void setMinSuccesses(int n) {
-        ensureLoaded();
-        STORE.setMinSuccesses(Math.max(MIN_THRESHOLD, Math.min(MAX_THRESHOLD, n)));
-    }
-
-    /** Clear Window: seconds after an entry the room has to flip. Not saved until {@link #saveSettings}. */
-    public static void setWindowSeconds(int seconds) {
-        ensureLoaded();
-        STORE.setWindowSeconds(Math.max(MIN_WINDOW_S, Math.min(MAX_WINDOW_S, seconds)));
-    }
-
-    public static void saveSettings() {
-        if (BuildVariant.CHEAT_FEATURES_ENABLED) {
-            save();
-        }
-    }
-
-    /** "Insta Clear Evidence": every room with its entries, insta / fail counts and how many are known, in chat. */
-    public static void showSummary() {
-        if (BuildVariant.CHEAT_FEATURES_ENABLED) {
-            summary();
-        }
-    }
-
-    /** "Last Entry": the last entry recorded this session, in chat. */
-    public static void showLast() {
-        if (BuildVariant.CHEAT_FEATURES_ENABLED) {
-            last();
-        }
-    }
-
-    /** "Mark Last" buttons: {@code insta}, {@code notinsta}, {@code ignore} or {@code measured} (back to the measured outcome). */
-    public static void markLast(String verdict) {
-        if (BuildVariant.CHEAT_FEATURES_ENABLED) {
-            mark(verdict);
-        }
     }
 
     /** {@code LiveMapFeature.scanConsumers}: keep the dungeon map sampled while the recorder needs its states. */
@@ -811,55 +760,6 @@ public final class InstaClearTracker {
         return out;
     }
 
-    private static void summary() {
-        List<String> lines = summaryLines();
-        ModChat.send(FEATURE, ModChat.text(lines.get(0)));
-        for (int i = 1; i < lines.size(); i++) {
-            ModChat.send(FEATURE, ModChat.dim(lines.get(i)));
-        }
-        if (lines.size() == 1) {
-            ModChat.send(FEATURE, ModChat.dim("Nothing yet - enter rooms in a dungeon and it records each entry."));
-        }
-    }
-
-    private static void last() {
-        ensureLoaded();
-        InstaClearStore.Obs o = STORE.last();
-        if (o == null) {
-            ModChat.send(FEATURE, ModChat.dim("No entry recorded this session yet."));
-            return;
-        }
-        ModChat.send(FEATURE, ModChat.value(STORE.lastRoom()), ModChat.text(" " + STORE.lastKey()));
-        ModChat.send(FEATURE, ModChat.dim(o.method + " by " + o.driver + " from " + o.from + " (" + o.fromState
-                + "), room was " + o.before + "; stars " + o.stars + ", kills " + o.kills + ", alive at flip "
-                + o.aliveAtFlip + ", flip " + o.flipMs + " ms -> " + o.outcome
-                + (o.verdict != null ? " (marked " + o.verdict + ")" : "")));
-    }
-
-    private static void mark(String verdict) {
-        ensureLoaded();
-        InstaClearStore.Obs o = STORE.last();
-        if (o == null) {
-            ModChat.send(FEATURE, ModChat.bad("No entry recorded this session to mark."));
-            return;
-        }
-        InstaClearStore.Outcome v = switch (verdict.toLowerCase(Locale.ROOT)) {
-            case "insta" -> InstaClearStore.Outcome.INSTA;
-            case "notinsta" -> InstaClearStore.Outcome.NOT_INSTA;
-            case "ignore" -> InstaClearStore.Outcome.IGNORE;
-            case "measured" -> null;
-            default -> InstaClearStore.Outcome.IGNORE;
-        };
-        if (!List.of("insta", "notinsta", "ignore", "measured").contains(verdict.toLowerCase(Locale.ROOT))) {
-            ModChat.send(FEATURE, ModChat.bad("Use insta, notinsta, ignore or measured."));
-            return;
-        }
-        o.verdict = v;
-        save();
-        ModChat.send(FEATURE, ModChat.text("Marked the last entry ("), ModChat.value(STORE.lastRoom()),
-                ModChat.text(") " + (v == null ? "back to its measured outcome " + o.outcome : v.name())));
-    }
-
     // ============================================================================================== test hooks
     // For the testkit's logic and sim cases (reflection). None of these is used by the mod itself.
 
@@ -897,7 +797,7 @@ public final class InstaClearTracker {
         save();
     }
 
-    /** Sets the threshold N and saves (the same as the tab's Known After slider). */
+    /** Sets the threshold N and saves. */
     public static void testSetMinSuccesses(int n) {
         ensureLoaded();
         STORE.setMinSuccesses(n);

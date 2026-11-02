@@ -522,6 +522,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   word after them (2026-11-01, both removed). A command meant to be typed bare needs its own `.executes`.
 - Command removals (killer560, 2026-11-01, mod cmdclean-1101): no `/class`, `/log`, `/k560search`, `/lag`, `/k560textures`,
   `/autoclear`, `/autosecret`, `/blink`, `/freezestate`, `/rewind`, `/test`, and no `/killer560 class|ew|mapdump|profile|sim`.
-  What they reached stays reachable from the menu or a key: Auto Clear's Clear Toggle Key, the Auto Clear tab's Bat Test
-  button and Insta Clear rows, the Freeze State keys, Blink's keys, the Profiles tab, `/runlog`, `/search`, `/ew`. Do not
-  re-add them; testkit 1101-cmdclean-gone fails if any comes back.
+  What they reached stays reachable from a key or the menu: Auto Clear's Clear Toggle Key, Auto Secret's key, the Freeze
+  State keys, Blink's keys, the Profiles tab, `/runlog`, `/search`, `/ew`. The Bat Test (/test) was dropped entirely and
+  the Insta Clear readout/mark/threshold/window have no UI (his call: "why do i need a bat test? autosecret had its own
+  keybind already"); do not add menu rows for them. Testkit 1101-cmdclean-gone fails if any command comes back.

@@ -4107,11 +4107,10 @@ public final class AutoClearFeature {
      * Whether a run of Auto Clear holds back every automatic secret click (Secret Aura, the Secret Triggerbot): a run is
      * going and no Auto Routes route is running (killer560, 2026-10-20: "Secret clicks are for Auto Routes running a
      * route, or for Auto Secret"). A secret taken while it kills is one the route through that room then has to find
-     * gone; under a route, {@code RouteExecutor.secretAuraMayClick} decides as always. /test ({@link BatTest}) holds them
-     * the same way: it is not a route either, and an aura click would put its own use beside the shot's.
+     * gone; under a route, {@code RouteExecutor.secretAuraMayClick} decides as always.
      */
     public static boolean holdsSecretClicks() {
-        return (running || BatTest.isRunning()) && !com.killer560.hub.autoroutes.RouteExecutor.isRunning();
+        return running && !com.killer560.hub.autoroutes.RouteExecutor.isRunning();
     }
 
     // =========================================================================================== corrections
