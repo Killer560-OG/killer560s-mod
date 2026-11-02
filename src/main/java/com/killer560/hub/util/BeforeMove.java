@@ -1,0 +1,83 @@
+package com.killer560.hub.util;
+
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.event.Event;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Packets that must go right ahead of this tick's movement packet, as vanilla sends a dig or a click it aims with a look
+ * turned in the same tick (gridexp-1102). Vanilla's order inside one tick is {@code handleKeybinds} (the dig) and then
+ * {@code sendPosition} (the movement packet carrying the look that aimed it), nothing between; GrimAC's RotationBreak
+ * (experimental) and RotationPlace lend a dig or place the next movement packet's look only when that packet arrives within
+ * 15 ms of it. Automation acting at START_CLIENT_TICK leaves the whole tick between the two - a slow tick opened the gap
+ * (AP3's places, 2026-10-18; Auto Routes' breaker digs, 62-argrim with experimental checks on). So a dig whose look is
+ * turned in the same tick is queued here and sent at the head of {@code LocalPlayer.sendPosition}
+ * ({@code Ap3RotationSendMixin}); one still queued when the next tick starts (no sendPosition ran) goes at that tick's
+ * start, when the server has heard its look. Render thread only.
+ */
+public final class BeforeMove {
+
+    private static final Identifier HEAD = Identifier.fromNamespaceAndPath("killer560smod", "before_move_head");
+    private static final List<Runnable> QUEUE = new ArrayList<>();
+    private static int sentAtMove;
+    private static int sentLate;
+
+    private BeforeMove() {
+    }
+
+    public static void register() {
+        ClientTickEvents.START_CLIENT_TICK.addPhaseOrdering(HEAD, Event.DEFAULT_PHASE);
+        ClientTickEvents.START_CLIENT_TICK.register(HEAD, client -> {
+            if (!QUEUE.isEmpty()) {
+                sentLate += QUEUE.size();
+                flush();
+            }
+        });
+    }
+
+    /** Queues {@code send} for the head of this tick's {@code sendPosition}. */
+    public static void queue(Runnable send) {
+        QUEUE.add(send);
+    }
+
+    /** From {@code Ap3RotationSendMixin} at the head of {@code sendPosition}. */
+    public static void beforeSendPosition() {
+        if (!QUEUE.isEmpty()) {
+            sentAtMove += QUEUE.size();
+            flush();
+        }
+    }
+
+    private static void flush() {
+        if (!Minecraft.getInstance().isSameThread()) {
+            return;
+        }
+        List<Runnable> now = new ArrayList<>(QUEUE);
+        QUEUE.clear();
+        for (Runnable r : now) {
+            try {
+                r.run();
+            } catch (RuntimeException e) {
+                ModLog.get("killer560smod-autoroutes").error("[BeforeMove] a queued send threw", e);
+            }
+        }
+    }
+
+    /** Sends that went at a movement packet's head / late at the next tick's start (only go up) - read by the testkit. */
+    public static int sentAtMove() {
+        return sentAtMove;
+    }
+
+    public static int sentLate() {
+        return sentLate;
+    }
+
+    /** Drops anything queued (world change). */
+    public static void clear() {
+        QUEUE.clear();
+    }
+}

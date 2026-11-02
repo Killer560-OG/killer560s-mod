@@ -515,6 +515,14 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   tracked file (2026-11-01).
 - The sim's F7 boss (`bosssim/`, docs/SIM-BOSS.md): reference mod ADM is All-Rights-Reserved - facts only, never its code
   or its arena.bin capture.
+- GrimAC 2.3.74's EXPERIMENTAL checks (gridexp-1102; the owner's rule counts them): never two digs on one tick
+  (MultiBreak - Multi Break was removed for it), a dig goes at once only when the look the server already HEARD strikes the
+  block (`util/DigAim`), else the body turns and the dig goes at the head of that tick's `sendPosition` (`util/BeforeMove`;
+  RotationBreak lends the next movement packet's look only within 15 ms), no `set_carried_item` after a
+  use / click / attack / command inside one server tick (`HotbarSelect.swapWouldFlag()`, PacketOrderE), no yaw turn over
+  2 degrees that repeats the turn before the previous block click (`util/PlaceRotationGuard`, DuplicateRotPlace - but never
+  move the look in a tick that carries a `use_item`, that is BadPacketsJ), and every dig START / use through vanilla's
+  `startPrediction` (BadPacketsH). Details per check: docs/LESSONS-AUTOMATION.md.
 - Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
   (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
   and import keeps the locked update and sharing keys (testkit 981).

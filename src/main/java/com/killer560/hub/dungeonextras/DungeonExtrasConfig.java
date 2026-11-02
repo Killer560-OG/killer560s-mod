@@ -81,45 +81,10 @@ public final class DungeonExtrasConfig {
      *  "Choose Breaker Aura Config". Always a plain {@code *.json} name {@link BreakerAuraStore#validateConfigName}
      *  accepts; anything else in a hand-edited settings file falls back to the default. */
     private String breakerAuraConfigFile = BreakerAuraStore.DEFAULT_CONFIG_NAME;
-    /**
-      * Multi Break: break everything in your path that is in reach, every tick, capped only by the charges you
-      * actually have left.
-      * <p>
-      * killer560 (2026-09-27): "make it a setting that doesnt have a slider [...] on multibreak means I should
-      * never outrun the breaker aura", and then the acceptance test in one line: "the only breaker command thing
-      * I care about is that i never am able to run into a wall while it is breaking."
-      * <p>
-      * So there is no number to tune. A per-tick cap was the wrong shape for the goal: any fixed number is either
-      * higher than the wall needs, in which case it does nothing, or lower than it needs, in which case you walk
-      * into the wall - and which of those it is changes with your speed. The only setting that can promise "never
-      * outrun it" is no cap at all.
-      * <p>
-      * Replaces the old Blocks Per Cycle slider (1-5). The old value is still read from the config once, purely so
-      * anyone who had set it above 1 gets Multi Break on rather than silently losing what they had asked for.
-      */
-     /**
-      * Multi Break: several breaks on one client tick.
-      *
-      * <p>Default ON since 2026-09-29, and switched on ONCE for a config that predates that - see
-      * {@link #breakerAuraMultiBreakDefaulted}. killer560: "for breaker aura it can multibreak if it doesnt
-      * flag." Measured against a real GrimAC on the harness the same day, scenario 51 against scenario 50 as
-      * the control: 904 break-starts over 139 ticks with up to TEN on a single tick, 930 blocks cleared,
-      * <b>zero violations</b>, zero Post violations, furthest reach 4.50 to the box - and the positive
-      * control fired in the same run, so the detector was demonstrably still watching. It is about twice as
-      * fast through a wall: 0.54 blocks a tick against 0.28.
-      *
-      * <p>What that does NOT mean: GrimAC is not Watchdog. Ten interaction packets inside one client tick is
-      * not a pattern a hand can produce and is visible as such to anything that looks for it, whether or not
-      * Grim names it. Nothing here tries to disguise that - no jitter, no shaped spacing - because disguising
-      * it is a different thing from doing it.
-      */
-     private boolean breakerAuraMultiBreak = true;
-
-     /** Whether the Multi Break default has already been applied to this config. One-time, like Interop's. A new
-      * install starts with it applied (Multi Break is already on): with false here, a fresh client's first save wrote
-      * "false" and the next load switched Multi Break back on over his "off" (testkit 310, 2026-10-22). Only a file
-      * with no such key, written before 2026-09-29, gets the one-time switch. */
-     private boolean breakerAuraMultiBreakDefaulted = true;
+    // Multi Break (several breaks on one client tick) was REMOVED on 2026-11-02 (gridexp-1102): GrimAC 2.3.74's
+    // experimental MultiBreak check flags a second START_DESTROY_BLOCK on another block inside one server tick, and a
+    // setting value that flags never ships (killer560, 2026-10-27). Breaker Aura and Auto Routes' breaker nodes send
+    // one break a tick. Old files keep their "breakerAuraMultiBreak" keys; they are ignored and dropped on the next save.
      /**
       * Edit Mode: show the picked blocks and let him change them, but break NOTHING.
       *
@@ -128,7 +93,7 @@ public final class DungeonExtrasConfig {
       * - and with it off the boxes were still drawn, which was the other half of the complaint.
       */
      private boolean breakerAuraEditMode = false;
-     /** Legacy, read at load only, to migrate a Blocks Per Cycle above 1 into {@link #breakerAuraMultiBreak}. */
+     /** Legacy Blocks Per Cycle, read and written back unchanged; nothing uses it (one break a tick). */
      private int breakerAuraBlocksPerCycle = 1;
     /**
      * Ticks to wait between breaks, on top of the one-a-tick the gate already enforces. Zero by default now: the
@@ -241,25 +206,6 @@ public final class DungeonExtrasConfig {
                     }
                 }
                 cfg.breakerAuraBlocksPerCycle = clampInt(o.has("breakerAuraBlocksPerCycle") ? o.get("breakerAuraBlocksPerCycle").getAsInt() : cfg.breakerAuraBlocksPerCycle, 1, 20);
-                // Migration: a config written before Multi Break existed carries only the old slider. Above 1 meant
-                // "send more than one a tick", so that is what it becomes. A config that already knows about Multi
-                // Break is authoritative and the old number is ignored.
-                cfg.breakerAuraMultiBreak = o.has("breakerAuraMultiBreak")
-                        ? o.get("breakerAuraMultiBreak").getAsBoolean()
-                        : cfg.breakerAuraBlocksPerCycle > 1;
-                // The new default, applied ONCE. A config written before 2026-09-29 carries the old "false"
-                // and would otherwise never see the change; after this it is his setting again and is never
-                // touched, so turning it back off sticks.
-                cfg.breakerAuraMultiBreakDefaulted =
-                        bool(o, "breakerAuraMultiBreakDefaulted", false);
-                if (!cfg.breakerAuraMultiBreakDefaulted) {
-                    cfg.breakerAuraMultiBreakDefaulted = true;
-                    cfg.breakerAuraMultiBreak = true;
-                    com.killer560.hub.util.ModLog.get("killer560smod-dungeonextras").info(
-                            "[DungeonExtras] Multi Break switched on once (new default - measured clean "
-                                    + "against GrimAC on 2026-09-29). Turn it off in the Breaker Aura tab if "
-                                    + "you would rather it sent one break a tick.");
-                }
                 cfg.breakerAuraCooldownTicks = clampInt(o.has("breakerAuraCooldownTicks") ? o.get("breakerAuraCooldownTicks").getAsInt() : cfg.breakerAuraCooldownTicks, 0, 20);
                 cfg.breakerAuraZeroPing = bool(o, "breakerAuraZeroPing", cfg.breakerAuraZeroPing);
                 cfg.breakerAuraRespectEditMode = bool(o, "breakerAuraRespectEditMode", cfg.breakerAuraRespectEditMode);
@@ -297,8 +243,6 @@ public final class DungeonExtrasConfig {
             o.addProperty("autoDialogueOutsideDungeons", autoDialogueOutsideDungeons);
             o.addProperty("breakerAuraEnabled", breakerAuraEnabled);
             o.addProperty("breakerAuraReach", breakerAuraReach);
-            o.addProperty("breakerAuraMultiBreak", breakerAuraMultiBreak);
-            o.addProperty("breakerAuraMultiBreakDefaulted", breakerAuraMultiBreakDefaulted);
             o.addProperty("breakerAuraBlocksPerCycle", breakerAuraBlocksPerCycle);
             o.addProperty("breakerAuraSelectKey", breakerAuraSelectKey);
             com.google.gson.JsonArray sel = new com.google.gson.JsonArray();
@@ -397,8 +341,6 @@ public final class DungeonExtrasConfig {
     public void setBreakerAuraReach(double v) { breakerAuraReach = clamp((float) v, 1f, (float) com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH); }
     public boolean isBreakerAuraEditMode() { return breakerAuraEditMode; }
     public void setBreakerAuraEditMode(boolean v) { breakerAuraEditMode = v; }
-    public boolean isBreakerAuraMultiBreak() { return breakerAuraMultiBreak; }
-    public void setBreakerAuraMultiBreak(boolean v) { breakerAuraMultiBreak = v; }
     public int getBreakerAuraCooldownTicks() { return breakerAuraCooldownTicks; }
     // Lower bound is 0, matching the field's own default and what the loader accepts. It clamped to 1, so once
     // this setter had been called there was no way back to the shipped value of "no cooldown".

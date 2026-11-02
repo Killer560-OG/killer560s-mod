@@ -2919,7 +2919,6 @@ final class SettingTooltipsData {
         d.put("auto puzzle pathing", "Cheat build: lets Auto Blaze etherwarp straight to a spot it can see by the chest before falling back to the Interactive Map's planned path.");
         d.put("walk out when done", "Cheat build: after the last move, walks back out of the Tic Tac Toe room so you can etherwarp.");
         d.put("breaker aura/edit mode", "ON: Breaker Aura breaks nothing, so you can change its picked blocks without it swinging (cheat build only).");
-        d.put("breaker aura/multi break", "ON: one break cycle may break several picked blocks in reach. OFF: one block per cycle (cheat build only).");
         d.put("breaker aura/pick block key", "Look at a block and press this key to pick it, or unpick it if it is already picked. Default ; (semicolon).");
         d.put("breaker aura/clear picked", "Unpicks every block in the active Breaker Aura config (the number is how many are picked).");
         d.put("fill box", "Fills each blaze's highlight box solid instead of drawing only its outline.");

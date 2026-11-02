@@ -622,9 +622,9 @@ public final class BreakerAuraFeature {
         if (active != wasActive) {
             wasActive = active;
             LOGGER.info("[DungeonExtras] Breaker Aura {}.", active ? "active" : "inactive");
-            LOGGER.info("[BreakerAura] {}: why={} reach={} cooldown={} multiBreak={} zeroPing={} autoSwap={} picks={}"
+            LOGGER.info("[BreakerAura] {}: why={} reach={} cooldown={} zeroPing={} autoSwap={} picks={}"
                             + " tick={}", active ? "active" : "inactive", inactiveWhy(client, cfg),
-                    fmt2(cfg.getBreakerAuraReach()), cfg.getBreakerAuraCooldownTicks(), cfg.isBreakerAuraMultiBreak(),
+                    fmt2(cfg.getBreakerAuraReach()), cfg.getBreakerAuraCooldownTicks(),
                     cfg.isBreakerAuraZeroPing(), cfg.isBreakerAuraAutoSwap(), selectedBlocks().size(),
                     com.killer560.hub.util.SessionRecorderSink.tick());
             if (!active) {
@@ -839,13 +839,10 @@ public final class BreakerAuraFeature {
         // A departure from "look at how quoi parses multiple blocks and follow it exactly" - deliberately, and
         // only in the order. Which blocks are eligible, and one a tick, are still QUOI's. When he is not moving
         // there is no way to be in, and this falls back to QUOI's rule exactly.
-        // MULTI BREAK: everything in reach this tick, or one. No number in between.
-        //
-        // killer560 (2026-09-27): "the only breaker command thing I care about is that i never am able to run
-        // into a wall while it is breaking." A per-tick cap cannot deliver that, because the number of blocks
-        // that must go before he arrives depends on his speed, and in a dungeon that is not a constant. Charges
-        // are the only real limit, so charges are the only limit applied.
-        int allowed = cfg.isBreakerAuraMultiBreak() ? available : 1;
+        // ONE a tick. Multi Break (everything in reach on one tick) was removed 2026-11-02 (gridexp-1102): GrimAC
+        // 2.3.74's experimental MultiBreak flags a second START_DESTROY_BLOCK on another block inside one server tick,
+        // and a setting value that flags never ships (killer560, 2026-10-27).
+        int allowed = 1;
         Vec3 feet = player.position();
         Vec3 vel = player.getDeltaMovement();
         double speed = Math.hypot(vel.x, vel.z);
@@ -878,16 +875,8 @@ public final class BreakerAuraFeature {
         // ONE claim for the whole tick, not one per block.
         //
         // The gate is still asked - Breaker Aura still takes its turn among the other actors, and still stands
-        // down for a screen, a teleport, a world swap or a higher-priority actor. What changed is that having
-        // won the tick it may now send every break the path needs on it, when Multi Break is on.
-        //
-        // killer560 asked for this directly, twice, after the measurements ruled everything else out
-        // (2026-09-24): "If there is 0 other bug then allow it to break multiple at once." It is worth being
-        // plain about what it costs, because he built the gate for exactly this reason: several interaction
-        // packets inside one client tick is not a pattern a hand can produce, and it is visible as such. There
-        // is deliberately nothing here that tries to disguise it - no jitter, no shaped spacing - because
-        // disguising it is a different thing from doing it, and he is choosing the risk with the numbers in
-        // front of him. The default stays 1, which is the human-shaped rate.
+        // down for a screen, a teleport, a world swap or a higher-priority actor. Having won the tick it sends one
+        // break (Multi Break, several on one tick, was removed 2026-11-02 for GrimAC MultiBreak).
         if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
             gateRefused = true;
             logRated("gate", "[BreakerAura] held: ActionGate refused BREAKER_AURA this tick, {} target(s) in reach,"
