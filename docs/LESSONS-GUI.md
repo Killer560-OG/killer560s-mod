@@ -387,3 +387,7 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   "Render pass color attachment count must match pipeline color target state count" - Secret Waypoints' through-walls
   lines on 2026-11-01, the first 26.3 run that ever drew one (96-ar). DEBUG_FILLED, GUI and GUI_TEXTURED snippets carry
   the same target on both versions (javap). Wrap any new `RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)`.
+- The crosshair is `Hud.extractCrosshair(GuiGraphicsExtractor, DeltaTracker)` (private, same descriptor on 26.3 and 26.2,
+  javap 2026-11-01; `Gui` no longer has it). A `pose().pushMatrix()/translate` at HEAD and `popMatrix` at RETURN moves
+  exactly the crosshair and its attack indicator (Etherwarp Overlay's Crosshair On Server Aim, testkit 1101-ew-crosshair:
+  measured -8.82 GUI px against a projected -8.81). `Camera.getFov()` is the vertical fov the level projection uses.

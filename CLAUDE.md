@@ -483,3 +483,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
   release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
   `Rows.addKept`).
+- Etherwarp passability (2026-11-01): carpets are passable in BOTH tables (EtherwarpOverlayFeature, TeleportUtils), as in
+  Hypixel's 1.8 feet list; change the two together or the overlay, the sim and Auto Routes/ZPEW disagree (LESSONS-AUTOMATION).
+  Trap-room Auto Routes rules are tested without a trap capture through `AutoTrap.testTrapRoom` (testkit 62-argrim-1101-trap*).
