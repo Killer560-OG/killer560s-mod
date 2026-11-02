@@ -33,9 +33,10 @@ import java.util.regex.Pattern;
  * random 250-500 ms between steps. It stops buying after Max Buys Per Session, after three failed buys in a row, and when
  * Main mode or the flipper is turned off.
  *
- * <p>Relisting is not automated yet: claiming the item and Hypixel's Create Auction flow have no recorded menu dump in this
- * repo, and a macro that guesses menus is not shipped. After a buy, the relist price is left with the AH Price Copier, so
- * putting the item up copies it.
+ * <p>After a buy, the relist price is left with the AH Price Copier, so putting the item up by hand copies it, and the
+ * item is handed to {@link AhRelistMacro} (Auto Relist, off by default), which claims it from View Bids and lists it.
+ * Registered with {@link com.killer560.hub.macrostop.MacroStop} as a click macro: Escape or the Emergency Cancel Key ends
+ * the buy in progress and stops buying until Run Mode is switched off Main and back.
  */
 public final class AhFlipMacro {
 
@@ -78,6 +79,12 @@ public final class AhFlipMacro {
         }
         ClientTickEvents.START_CLIENT_TICK.register(com.killer560.hub.util.FeatureGuard.start("AhFlipMacro.tick",
                 AhFlipMacro::tick));
+        com.killer560.hub.macrostop.MacroStop.register("AH Flipper", com.killer560.hub.macrostop.MacroStop.Kind.CLICK,
+                () -> step != Step.IDLE, why -> {
+                    drop(Minecraft.getInstance(), "you pressed " + why);
+                    halt("you pressed " + why);
+                });
+        AhRelistMacro.register();
         com.killer560.hub.util.ChatObserver.subscribe(message -> {
             String line = com.killer560.hub.util.ChatObserver.strip(message).trim();
             if (PURCHASED_LINE.matcher(line).matches()) {
@@ -123,8 +130,8 @@ public final class AhFlipMacro {
         if (halted || QUEUE.isEmpty()) {
             return;
         }
-        if (screen != null || com.killer560.hub.secrets.DungeonState.isInDungeon()) {
-            return; // never over a menu he has open, never in a run
+        if (screen != null || com.killer560.hub.secrets.DungeonState.isInDungeon() || AhRelistMacro.isRunning()) {
+            return; // never over a menu he has open, never in a run, never over Auto Relist's cycle
         }
         AhFlipper.Found f = QUEUE.peekFirst();
         if (now - f.atMs() > AhFlipper.FLIP_MAX_AGE_MS) {
@@ -209,6 +216,7 @@ public final class AhFlipMacro {
             failsInARow = 0;
             AhFlipPricing.Flip f = current.flip();
             AhPriceCopier.remember(f.key(), f.sellAt());
+            AhRelistMacro.noteBought(f.key(), f.name());
             ModChat.send(CHAT, ModChat.good("Bought "), ModChat.value(f.name()), ModChat.text(" for "),
                     ModChat.value(DungeonChestValuer.formatCoins(paid)),
                     ModChat.dim(String.format(Locale.US, " - relist at %s (the AH Price Copier will copy it). Buy %d of %d.",
@@ -282,6 +290,11 @@ public final class AhFlipMacro {
         step = Step.IDLE;
         current = null;
         clickedContainer = Integer.MIN_VALUE;
+    }
+
+    /** A buy in progress, or flips waiting: Auto Relist does not start over it. */
+    static boolean isBusy() {
+        return step != Step.IDLE || !QUEUE.isEmpty();
     }
 
     /** Testkit: buys so far this session, whether it halted, and why. */

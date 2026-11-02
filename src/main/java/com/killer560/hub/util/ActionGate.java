@@ -256,6 +256,12 @@ public final class ActionGate {
         /** The AH Flipper macro clicking Buy Item Right Now and Confirm in Hypixel's BIN Auction View / Confirm Purchase.
          *  {@code ahflip.AhFlipMacro#click} is its only caller. */
         AH_FLIP_MENU(Kind.SCREEN),
+        /** Auto Relist's {@code /ah} and its Done on Hypixel's price sign (cheat build, 2026-11-02). Same shop bucket.
+         *  {@code ahflip.AhRelistMacro#reopen} and {@code #fillSign} are its callers. */
+        AH_RELIST_CMD(Kind.COMMAND),
+        /** Auto Relist clicking in /ah's menus (View Bids, Manage Auctions, Collect Auction, Create BIN Auction, Confirm).
+         *  {@code ahflip.AhRelistMacro#click} is its only caller. */
+        AH_RELIST_MENU(Kind.SCREEN),
         /** Auto Kick sending "p kick &lt;name&gt;" once a floor's target time is missed (killer560: "create
          *  auto kick... The kick based off of timed comp of a floor and whatnot", ported from Odin's own
          *  auto-kick). A command, not a click, so {@link Kind#COMMAND} - no screen rules, same as
