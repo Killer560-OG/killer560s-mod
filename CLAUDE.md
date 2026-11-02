@@ -152,6 +152,11 @@ Croesus run memory (`croesus/CroesusRunMemory.java`) never guesses: a run it can
 hidden and never another run's state. A run moves later only by as many joins as the time since it was seen allows, it
 crosses into a later page only behind a join that page's own runs show, and a head at the front of page 1 that fits no
 remembered run is a new run (testkit 888, 906-908).
+Every mod text box is a `gui/CommitEditBox` (`ThemedEditBox` extends it), never a bare `EditBox` (killer560, 2026-11-01:
+"any text box I type into if i press enter should save that value ... If it doesnt have a set button add it as well"):
+wire Enter with `pressOnEnter(<its Set/Save/Add button>)`, `onEnter(<the save method>)` or `enterRunsResponder()`, and a
+box with no commit button gets one from `CommitEditBox.withSet(widgets, box)`. Search boxes / live filters, chat inputs and
+sign screens stay unwired. Testkit 1101-ui-textbox-enter types into every reachable box, presses Enter, checks the disk.
 A setting that steps through values is built with `SettingsButtonWidget.cycling(label, (btn, dir) -> ...)` and its
 `step` helpers: left click forward, right click back, wrapping (killer560, 2026-10-11); testkit 806 finds them by `isCycling()`,
 which since 2026-10-20 is true only for `cycling(...)`: a plain `builder(...).secondaryPress(...)` (Door Keys' colour rows,
