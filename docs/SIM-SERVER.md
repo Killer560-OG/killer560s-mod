@@ -263,6 +263,9 @@ Two sim options of the sim's own data (`roomsim/SimLiveMobs`), off unless asked 
   invulnerable, NoAI enderman under its star tag (`SimEnderman.dormant`), as Hypixel's dormant Fel is an enderman under its
   tag (adm/Odin notes). Within `FEL_WAKE_RADIUS` (9) of the skull the skull goes and the enderman shows (or an unstarred one
   is placed), named Dinnerbone (upside down by vanilla's name rule), tag hidden. Log `[Sim] Fel woke at ...`.
+- **`setInvisible(true)` on a mob lasts one tick**: `LivingEntity.updateInvisibilityStatus` (javap 26.2, 26.3) sets it to
+  `hasEffect(INVISIBILITY)` whenever effects are re-read, so the sleeping Fel showed and Auto Clear shot a mob nothing could
+  hurt (12 bats, Banners, 26.2). `SimEnderman` overrides it while dormant; testkit 1101-sim-mobfloor checks the client sees it.
 - **Vanilla's enderman dodges every projectile** (javap 26.3 `Enderman.hurtServer`: an `IS_PROJECTILE` source calls
   `repeatedlyTryToTeleport` and returns false) and teleports at random: `SimEnderman` overrides `teleport()` to false and
   turns a player's projectile into `playerAttack`, or a Terminator could never kill a Fel.
