@@ -40,7 +40,7 @@ import java.util.Optional;
  * in the hotbar, else an Ender Pearl in Walk With Pearls mode and a pearl in the hotbar, aimed at the route or the
  * soul. With neither it says so once and moves on to the next soul.
  * <p>
- * Stops on any key or mouse button he presses ({@link AutoWalker}), a screen, or a failsafe (a world change or
+ * Stops on a movement key, Escape, chat or the Emergency Cancel Key ({@link AutoWalker}), a screen, or a failsafe (a world change or
  * disconnect). Damage carries on, knockback and death re-path; a server correction or a server-set rotation never
  * stops it.
  */
@@ -160,7 +160,7 @@ public final class AutoSoulRunner {
         clickViewHeld = false;
         AutoWalker.startSession();
         ModChat.send(CHAT, ModChat.text("Started in mode "), ModChat.value(cfg.getAutoMode().label),
-                ModChat.dim(" (" + AutoWalker.jumpSummary(client.player) + ") - any key or click stops it."));
+                ModChat.dim(" (" + AutoWalker.jumpSummary(client.player) + ") - a movement key, Escape, chat or the Emergency Cancel Key stops it."));
         tickWaitGraph(client);
     }
 

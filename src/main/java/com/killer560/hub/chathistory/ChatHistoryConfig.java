@@ -27,7 +27,23 @@ public final class ChatHistoryConfig {
 
     private static volatile ChatHistoryConfig instance;
 
-    private boolean unlimited = false;
+    /** Chat history length (killer560, 2026-11-01): vanilla's 100, a chosen limit, or no limit. */
+    public enum Mode {
+        OFF("Off"), LIMITED("Limited"), UNLIMITED("Unlimited");
+
+        public final String label;
+
+        Mode(String label) {
+            this.label = label;
+        }
+    }
+
+    public static final int LIMIT_MIN = 200;
+    public static final int LIMIT_MAX = 10000;
+    public static final int LIMIT_STEP = 200;
+
+    private Mode mode = Mode.OFF;
+    private int customLimit = 1000;
 
     private ChatHistoryConfig() {
     }
@@ -44,7 +60,21 @@ public final class ChatHistoryConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.unlimited = ConfigJson.getBool(obj, "unlimited", cfg.unlimited);
+                if (obj.has("mode")) {
+                    try {
+                        cfg.mode = Mode.valueOf(obj.get("mode").getAsString());
+                    } catch (Exception ignored) {
+                        cfg.mode = Mode.OFF;
+                    }
+                } else if (ConfigJson.getBool(obj, "unlimited", false)) {
+                    cfg.mode = Mode.UNLIMITED; // files from before the Limited mode (2026-11-01)
+                }
+                if (obj.has("limit")) {
+                    try {
+                        cfg.setCustomLimit(obj.get("limit").getAsInt());
+                    } catch (Exception ignored) {
+                    }
+                }
             } catch (Exception e) {
                 cfg = new ChatHistoryConfig();
             }
@@ -56,22 +86,56 @@ public final class ChatHistoryConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("unlimited", unlimited);
+            obj.addProperty("mode", mode.name());
+            obj.addProperty("limit", customLimit);
+            obj.addProperty("unlimited", mode == Mode.UNLIMITED);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
     }
 
     public boolean isUnlimited() {
-        return unlimited;
+        return mode == Mode.UNLIMITED;
     }
 
     public void setUnlimited(boolean unlimited) {
-        this.unlimited = unlimited;
+        this.mode = unlimited ? Mode.UNLIMITED : Mode.OFF;
     }
 
-    /** How many messages the chat window keeps: vanilla's cap, or no cap at all. Read on the chat's add path. */
+    public Mode getMode() {
+        return mode;
+    }
+
+    public void setMode(Mode mode) {
+        this.mode = mode == null ? Mode.OFF : mode;
+    }
+
+    public int getCustomLimit() {
+        return customLimit;
+    }
+
+    /** Clamped to 200..10000 and snapped to a multiple of 200. */
+    public void setCustomLimit(int limit) {
+        int snapped = Math.round(limit / (float) LIMIT_STEP) * LIMIT_STEP;
+        this.customLimit = Math.max(LIMIT_MIN, Math.min(LIMIT_MAX, snapped));
+    }
+
+    /**
+     * The cap the chat window applies, given the cap already in place ({@code current}: vanilla's 100, or another
+     * chat-history mod's). Off passes it through; Limited raises it to the chosen limit (never lowers another mod's
+     * larger one); Unlimited lifts it.
+     */
+    public static int apply(int current) {
+        ChatHistoryConfig cfg = getInstance();
+        return switch (cfg.mode) {
+            case OFF -> current;
+            case LIMITED -> Math.max(current, cfg.customLimit);
+            case UNLIMITED -> Integer.MAX_VALUE;
+        };
+    }
+
+    /** How many messages the chat window keeps with no other chat-history mod present. */
     public static int limit() {
-        return getInstance().unlimited ? Integer.MAX_VALUE : VANILLA_LIMIT;
+        return apply(VANILLA_LIMIT);
     }
 }

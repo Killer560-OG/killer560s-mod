@@ -126,7 +126,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
     }
 
     private static String sortText(BestFriendsConfig.SortMode mode) {
-        return "Sort: §b" + mode.label;
+        return "Sort: §f" + mode.label; // white, not aqua (killer560, 2026-11-01)
     }
 
     private static String filterText(boolean dungeonOnly) {
@@ -294,7 +294,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
             int nameX = listX + 3 + HEAD_SIZE + 6;
             String right = formatCompact(BestFriendsTracker.liveTotalMs(record)) + "  §8|§r  " + record.totalDungeonRuns() + " runs";
             int rightW = this.font.width(this.font.plainSubstrByWidth(right, listW - 12));
-            ScreenChrome.text(graphics, right, listX + listW - 6 - rightW, textY, MenuStyle.OR_LIGHT);
+            ScreenChrome.text(graphics, right, listX + listW - 6 - rightW, textY, MenuStyle.TXT); // white (2026-11-01)
             int nameSpace = listW - (nameX - listX) - rightW - 10;
             ScreenChrome.text(graphics, this.font.plainSubstrByWidth(name, Math.max(10, nameSpace)), nameX, textY, MenuStyle.TXT);
         }

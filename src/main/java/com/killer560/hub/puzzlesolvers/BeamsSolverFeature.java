@@ -44,19 +44,32 @@ public final class BeamsSolverFeature {
     private record CandidatePair(int x1, int y1, int z1, int x2, int y2, int z2) {
     }
 
-    private record ActivePair(BlockPos a, BlockPos b, int colorIndex, boolean misaligned) {
+    private record ActivePair(BlockPos a, BlockPos b, int colorIndex, boolean misaligned, int candidate) {
     }
 
-    private static final float[][] COLORS = {
-            {1.0f, 0.8f, 0.0f}, // gold
-            {0.2f, 0.9f, 0.2f}, // green
-            {0.9f, 0.4f, 0.9f}, // light purple
-            {0.0f, 0.6f, 0.6f}, // dark aqua
-            {1.0f, 1.0f, 0.2f}, // yellow
-            {0.2f, 0.5f, 1.0f}, // blue (was dark red - red now only means a misaligned pair)
+    /**
+     * One color per pair, every one clearly apart from the others (killer560, 2026-11-01: "sometimes the beam colors can be
+     * very similar. Make sure they are not. I just had one with two yellows in it"). The old list had gold AND yellow, and
+     * a pair took {@code candidate index % 8}, so two pairs whose indices were 8 apart drew the same color. Now each pair
+     * in the room takes the first palette color no other pair in the room holds ({@link #colorFor}), and the palette is
+     * eight hues far apart; a room has four pairs, so the first four (yellow, green, cyan, magenta) are what is seen. Red
+     * is not in it: red only ever means a misaligned pair.
+     */
+    static final float[][] COLORS = {
+            {1.0f, 1.0f, 0.0f}, // yellow
+            {0.1f, 1.0f, 0.1f}, // green
+            {0.0f, 0.9f, 1.0f}, // cyan
+            {1.0f, 0.2f, 1.0f}, // magenta
+            {1.0f, 0.5f, 0.0f}, // orange
+            {0.25f, 0.35f, 1.0f}, // blue
             {1.0f, 1.0f, 1.0f}, // white
-            {0.5f, 0.0f, 0.5f}, // dark purple
+            {0.55f, 0.25f, 0.0f}, // brown
     };
+
+    /** Candidate index -> palette index, for this visit to the room: a pair keeps its color until it is done. */
+    private static final java.util.Map<Integer, Integer> assigned = new java.util.HashMap<>();
+    /** The pairs One At A Time / Next shows, in the order they were picked (candidate indices). */
+    private static final List<Integer> shownOrder = new ArrayList<>();
 
     private static final List<CandidatePair> CANDIDATES = loadCandidates();
     private static List<ActivePair> activePairs = new ArrayList<>();
@@ -154,6 +167,8 @@ public final class BeamsSolverFeature {
         if (current != lastRoomEntry) {
             lastRoomEntry = current;
             activePairs = new ArrayList<>();
+            assigned.clear();
+            shownOrder.clear();
         }
         if (current == null || !"Creeper Beams".equals(current.name)) {
             if (!"none".equals(roomLogKey)) {
@@ -185,17 +200,113 @@ public final class BeamsSolverFeature {
             boolean litA = level.getBlockState(a).is(Blocks.SEA_LANTERN);
             boolean litB = level.getBlockState(b).is(Blocks.SEA_LANTERN);
             if (litA && litB) {
-                found.add(new ActivePair(a, b, i % COLORS.length, false));
+                found.add(new ActivePair(a, b, -1, false, i));
             } else if (litA != litB && (usedUp(level, a) || usedUp(level, b))) {
                 // Misaligned (killer560, 2026-09-21: "if I misshoot something and they are not aligned properly, then
                 // the blocks and line they make should be red"): one lantern of this solution pair was used up
                 // with the WRONG partner (it turned to prismarine) while its right partner is still lit - that
                 // lantern can no longer be finished correctly. Red box on both, red line.
-                found.add(new ActivePair(a, b, i % COLORS.length, true));
+                found.add(new ActivePair(a, b, -1, true, i));
             }
         }
-        activePairs = found;
+        // A pair that is no longer lit is done (or was never lit): free its color for a pair seen later.
+        java.util.Set<Integer> live = new java.util.HashSet<>();
+        for (ActivePair p : found) {
+            live.add(p.candidate());
+        }
+        assigned.keySet().retainAll(live);
+        shownOrder.retainAll(live);
+        List<ActivePair> colored = new ArrayList<>(found.size());
+        for (ActivePair p : found) {
+            colored.add(new ActivePair(p.a(), p.b(), colorFor(p.candidate()), p.misaligned(), p.candidate()));
+        }
+        activePairs = colored;
         logScan(found);
+    }
+
+    /** The palette color for a candidate pair: the one it already holds, else the first no other live pair holds. */
+    private static int colorFor(int candidate) {
+        Integer have = assigned.get(candidate);
+        if (have != null) {
+            return have;
+        }
+        java.util.Set<Integer> taken = new java.util.HashSet<>(assigned.values());
+        int pick = 0;
+        for (int c = 0; c < COLORS.length; c++) {
+            if (!taken.contains(c)) {
+                pick = c;
+                break;
+            }
+        }
+        assigned.put(candidate, pick);
+        return pick;
+    }
+
+    /**
+     * The lit pairs to draw under the Show setting (killer560, 2026-11-01: "an option for one at a time where it only shows
+     * one beam at a time till you are done. Add a next option as well where itll only show 2"). All: every pair. One At A
+     * Time: one pair until it is done (its lanterns go out), then the next. Next: that pair and the one after it. A pair
+     * once shown stays shown until done; a new one is the lit pair nearest {@code eye}. Misaligned (red) pairs are always
+     * drawn: they are a mistake to see, not a step to take.
+     */
+    static List<ActivePair> pairsToDraw(List<ActivePair> pairs, BeamsSolverConfig.ShowMode mode, Vec3 eye) {
+        if (mode == BeamsSolverConfig.ShowMode.ALL) {
+            return pairs;
+        }
+        int limit = mode == BeamsSolverConfig.ShowMode.ONE ? 1 : 2;
+        List<ActivePair> lit = new ArrayList<>();
+        for (ActivePair p : pairs) {
+            if (!p.misaligned()) {
+                lit.add(p);
+            }
+        }
+        while (shownOrder.size() < limit) {
+            ActivePair nearest = null;
+            double best = Double.MAX_VALUE;
+            for (ActivePair p : lit) {
+                if (shownOrder.contains(p.candidate())) {
+                    continue;
+                }
+                double d = eye == null ? 0 : Math.min(eye.distanceToSqr(Vec3.atCenterOf(p.a())),
+                        eye.distanceToSqr(Vec3.atCenterOf(p.b())));
+                if (d < best) {
+                    best = d;
+                    nearest = p;
+                }
+            }
+            if (nearest == null) {
+                break;
+            }
+            shownOrder.add(nearest.candidate());
+        }
+        List<ActivePair> out = new ArrayList<>();
+        for (int i = 0; i < shownOrder.size() && i < limit; i++) {
+            for (ActivePair p : lit) {
+                if (p.candidate() == shownOrder.get(i)) {
+                    out.add(p);
+                }
+            }
+        }
+        for (ActivePair p : pairs) {
+            if (p.misaligned()) {
+                out.add(p);
+            }
+        }
+        return out;
+    }
+
+    /** For the testkit: the pairs drawn now, as {a, b, colorIndex} with misaligned ones colorIndex -1. */
+    public static List<Object[]> drawnPairsForTest(Vec3 eye) {
+        List<Object[]> out = new ArrayList<>();
+        for (ActivePair p : pairsToDraw(activePairs, BeamsSolverConfig.getInstance().getShowMode(), eye)) {
+            out.add(new Object[]{p.a(), p.b(), p.misaligned() ? -1 : p.colorIndex()});
+        }
+        return out;
+    }
+
+    /** For the testkit: the color (r, g, b) of palette index {@code i}. */
+    public static float[] paletteColor(int i) {
+        return COLORS[i].clone();
     }
 
     /** Logging only: one line when the set of lit / misaligned pairs changes. */
@@ -243,7 +354,9 @@ public final class BeamsSolverFeature {
         if (current == null || !"Creeper Beams".equals(current.name)) {
             return;
         }
-        for (ActivePair pair : activePairs) {
+        Minecraft client = Minecraft.getInstance();
+        Vec3 eye = client.player == null ? null : client.player.getEyePosition();
+        for (ActivePair pair : pairsToDraw(activePairs, cfg.getShowMode(), eye)) {
             float[] color = pair.misaligned() ? new float[]{1.0f, 0.15f, 0.15f} : COLORS[pair.colorIndex()];
             SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BEAMS, context, new AABB(pair.a()), color[0], color[1], color[2], 2f);
             SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BEAMS, context, new AABB(pair.b()), color[0], color[1], color[2], 2f);

@@ -37,7 +37,8 @@ public final class SongTagDraw {
     public static Component tagFor(Entity entity, double distanceSq) {
         Minecraft mc = Minecraft.getInstance();
         if (entity == mc.player) {
-            return SongShare.ownTag();
+            Component shared = SongShare.ownTag();
+            return shared != null ? shared : ownSongLine();
         }
         if (distanceSq > MAX_DISTANCE_SQ) {
             return null;
@@ -47,9 +48,56 @@ public final class SongTagDraw {
     }
 
     /**
+     * Song In F5 (killer560, 2026-11-01: "add an option for in f5 to also show song title and artist"): "♪ Title -
+     * Artist" over your own head, local only, for everyone (not a supporter perk: nothing is sent). Held while paused,
+     * gone after a minute of pause like the lyric line. Built once per song, color or censor change.
+     */
+    private static Component ownSongLine() {
+        SongShareConfig cfg = SongShareConfig.getInstance();
+        if (!cfg.isSongInF5()) {
+            return null;
+        }
+        LyricsEngine.Snapshot snap = SpotifyLyricsFeature.snapshot();
+        if (!snap.hasTrack() || snap.kind() == NowPlaying.Kind.AD || SpotifyLyricsFeature.pausedTooLong(snap)) {
+            return null;
+        }
+        String title = RemoteSongs.clean(SpotifyLyricsFeature.censorDisplay(snap.title()), RemoteSongs.TITLE_MAX);
+        String artist = RemoteSongs.clean(SpotifyLyricsFeature.censorDisplay(snap.artist()), RemoteSongs.ARTIST_MAX);
+        int colour = cfg.isCustomF5Colors() ? cfg.getF5TextColor() : -1;
+        String key = title + "\n" + artist + "\n" + colour;
+        if (!key.equals(songKey)) {
+            songKey = key;
+            songLine = title.isEmpty() ? null : RemoteSongs.buildTag(artist, title, colour);
+            lastOwnSong = songLine == null ? "" : songLine.getString();
+        }
+        return songLine;
+    }
+
+    // Render thread only.
+    private static String songKey = "";
+    private static Component songLine;
+    // Test hook: the Song In F5 line last built.
+    private static volatile String lastOwnSong = "";
+
+    /**
+     * The lyric line over a player's head this frame, or null: your own (My Lyrics In F5), or another player's that they
+     * share (Share My Song set to share lyrics), drawn by {@link RemoteSongs#lyricFor}.
+     */
+    public static Component lyricFor(Entity entity, double distanceSq) {
+        Minecraft mc = Minecraft.getInstance();
+        if (entity == mc.player) {
+            return lyricFor(entity);
+        }
+        if (distanceSq > MAX_DISTANCE_SQ) {
+            return null;
+        }
+        return RemoteSongs.lyricFor(entity.getName().getString(), entity.getUUID());
+    }
+
+    /**
      * My Lyrics In F5: the lyric line being sung, for your own player only, or null. One Component per lyric line, made
-     * when the line changes, so a frame allocates nothing. Held while paused; nothing before the first line, in an
-     * instrumental gap, on an ad or while Spotify has nothing.
+     * when the line changes, so a frame allocates nothing. Held while paused, gone after a minute of pause (killer560,
+     * 2026-11-01); nothing before the first line, in an instrumental gap, on an ad or while Spotify has nothing.
      */
     public static Component lyricFor(Entity entity) {
         Minecraft mc = Minecraft.getInstance();
@@ -60,31 +108,30 @@ public final class SongTagDraw {
         if (!snap.hasTrack() || snap.lines().isEmpty()) {
             return null;
         }
+        if (SpotifyLyricsFeature.pausedTooLong(snap)) {
+            pauseHides++;
+            return null;
+        }
         double elapsed = snap.elapsedSeconds(SpotifyLyricsFeature.nowMs());
         int idx = snap.lineAt(elapsed);
         if (idx < 0) {
             return null;
         }
         boolean paused = snap.kind() == NowPlaying.Kind.PAUSED;
-        // Highlight Word In F5: the same word and the same colors as the HUD (SpotifyHud.sungWord / wordColor).
+        // Highlight Word In F5: the same word as the HUD (SpotifyHud.sungWord), in the F5 colors.
         int sung = SongShareConfig.getInstance().isHighlightWordInF5() && !paused ? SpotifyHud.sungWord(snap, idx, elapsed) : -1;
         com.killer560.hub.gui.OverlayPalette p = com.killer560.hub.gui.OverlayThemes.menu();
-        int c0 = p.text();
-        int c1 = p.textHover();
-        int c2 = p.accentHover();
-        int c3 = p.faint();
-        // Rebuilt only when the line, the lit word, the pause or the theme changes: a frame normally allocates nothing.
+        int style = styleKey(p);
+        // Rebuilt only when the line, the lit word, the pause, the theme, the F5 colors or the censor change: a frame
+        // normally allocates nothing.
         if (snap.lines() != lyricLines || idx != lyricIndex || sung != lyricSung || paused != lyricPaused
-                || c0 != lyricC0 || c1 != lyricC1 || c2 != lyricC2 || c3 != lyricC3) {
+                || style != lyricStyle) {
             lyricLines = snap.lines();
             lyricIndex = idx;
             lyricSung = sung;
             lyricPaused = paused;
-            lyricC0 = c0;
-            lyricC1 = c1;
-            lyricC2 = c2;
-            lyricC3 = c3;
-            lyricTag = buildLyric(snap.lines().get(idx), sung, paused, p);
+            lyricStyle = style;
+            lyricTag = buildLyric(snap.lines().get(idx).parsed().words(), sung, paused, p);
             lastOwnLyric = lyricTag == null ? "" : lyricTag.getString();
             lastF5Word = sung;
             lyricBuilds++;
@@ -92,24 +139,60 @@ public final class SongTagDraw {
         return lyricTag;
     }
 
-    /** The F5 line: "♫ " and the line's words, each in the HUD's color for it; the lit word also underlined, as the HUD's
-     *  chip is. Cut after {@link #LYRIC_MAX} characters. */
-    private static Component buildLyric(LyricsEngine.LyricLine line, int sung, boolean paused,
-                                        com.killer560.hub.gui.OverlayPalette p) {
-        java.util.List<String> words = line.parsed().words();
+    /** One number that changes when anything an F5 line's look depends on changes: theme, F5 colors, censor level. */
+    static int styleKey(com.killer560.hub.gui.OverlayPalette p) {
+        SongShareConfig c = SongShareConfig.getInstance();
+        int h = p.text();
+        h = 31 * h + p.textHover();
+        h = 31 * h + p.accentHover();
+        h = 31 * h + p.faint();
+        h = 31 * h + (c.isCustomF5Colors() ? 1 : 0);
+        h = 31 * h + c.getF5TextColor();
+        h = 31 * h + c.getF5HighlightColor();
+        h = 31 * h + SpotifyHudConfig.getInstance().getDisplayCensor().ordinal();
+        return h;
+    }
+
+    /**
+     * Word {@code i}'s color in an F5 line: the HUD's colors while the F5 colors follow the theme; with custom F5 colors
+     * (killer560, 2026-11-01: "a highlight color for the f5 stuff and the text color for all of it") the text color for
+     * every word, the highlight color for the word being sung, and words still to come a shade darker.
+     */
+    static int f5Color(com.killer560.hub.gui.OverlayPalette p, int i, int sung, boolean paused) {
+        SongShareConfig c = SongShareConfig.getInstance();
+        if (!c.isCustomF5Colors()) {
+            return SpotifyHud.wordColor(p, i, sung, paused);
+        }
+        int text = c.getF5TextColor();
+        if (paused || sung < 0 || i < sung) {
+            return text;
+        }
+        if (i == sung) {
+            return c.getF5HighlightColor();
+        }
+        int r = ((text >> 16) & 255) * 3 / 5;
+        int g = ((text >> 8) & 255) * 3 / 5;
+        int b = (text & 255) * 3 / 5;
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
+    }
+
+    /** An F5 lyric line: "♫ " and the words, each in its F5 color; the lit word also underlined, as the HUD's chip is.
+     *  Starred at the Display Censor level, cut after {@link #LYRIC_MAX} characters. */
+    static Component buildLyric(java.util.List<String> words, int sung, boolean paused,
+                                com.killer560.hub.gui.OverlayPalette p) {
         if (words.isEmpty()) {
             return null;
         }
-        net.minecraft.network.chat.MutableComponent out = Component.literal("\u266b ")
-                .withStyle(s -> s.withColor(SpotifyHud.wordColor(p, -1, -1, paused) & 0xFFFFFF));
+        net.minecraft.network.chat.MutableComponent out = Component.literal("♫ ")
+                .withStyle(s -> s.withColor(f5Color(p, -1, -1, paused) & 0xFFFFFF));
         int used = 2;
         for (int i = 0; i < words.size(); i++) {
-            String word = words.get(i).replace('\u00a7', '?');
+            String word = SpotifyLyricsFeature.censorDisplay(words.get(i)).replace('§', '?');
             if (used + word.length() > LYRIC_MAX) {
-                out.append(Component.literal("\u2026").withStyle(s -> s.withColor(p.faint() & 0xFFFFFF)));
+                out.append(Component.literal("…").withStyle(s -> s.withColor(p.faint() & 0xFFFFFF)));
                 break;
             }
-            final int colour = SpotifyHud.wordColor(p, i, sung, paused) & 0xFFFFFF;
+            final int colour = f5Color(p, i, sung, paused) & 0xFFFFFF;
             final boolean lit = i == sung;
             out.append(Component.literal(i + 1 < words.size() ? word + " " : word)
                     .withStyle(s -> s.withColor(colour).withUnderlined(lit)));
@@ -118,6 +201,9 @@ public final class SongTagDraw {
         return out;
     }
 
+    // Test hook: frames the F5 lyric skipped because the pause passed a minute.
+    private static volatile long pauseHides;
+
     /** A lyric line longer than this is cut, so the line over your head stays a sensible width. */
     private static final int LYRIC_MAX = 60;
     // Render thread only.
@@ -125,10 +211,7 @@ public final class SongTagDraw {
     private static int lyricIndex = -1;
     private static int lyricSung = -2;
     private static boolean lyricPaused;
-    private static int lyricC0;
-    private static int lyricC1;
-    private static int lyricC2;
-    private static int lyricC3;
+    private static int lyricStyle;
     private static Component lyricTag;
     // Test hooks: the word the F5 line lit when last built (-1 = none) and how many times it was built.
     private static volatile int lastF5Word = -1;
@@ -141,7 +224,7 @@ public final class SongTagDraw {
      */
     public static boolean hasOwnLine() {
         Minecraft mc = Minecraft.getInstance();
-        return mc.player != null && (SongShare.ownTag() != null || lyricFor(mc.player) != null);
+        return mc.player != null && (tagFor(mc.player, 0) != null || lyricFor(mc.player) != null);
     }
 
     public static void submit(EntityRenderState state, PoseStack poseStack, SubmitNodeCollector collector,

@@ -30,6 +30,8 @@ public final class BlessingsConfig {
 
     private boolean hud = false;
     private boolean romanNumerals = false;
+    /** killer560, 2026-11-01: "add a boss only option" - the HUD shows only in a floor's boss room. */
+    private boolean bossOnly = false;
     /** Which blessings appear on the HUD / in announcements. Power and Time default on (NoammAddons'
      *  {@code BlessingDisplay.kt} defaults: Power true, Time true, the other three false) - the whole HUD is
      *  still OFF until "Blessings HUD" is switched on. */
@@ -63,6 +65,7 @@ public final class BlessingsConfig {
         if (obj != null) {
             cfg.hud = ConfigJson.getBool(obj, "hud", false);
             cfg.romanNumerals = ConfigJson.getBool(obj, "romanNumerals", false);
+            cfg.bossOnly = ConfigJson.getBool(obj, "bossOnly", false);
             for (Blessing blessing : Blessing.values()) {
                 cfg.shown.put(blessing, ConfigJson.getBool(obj, showKey(blessing), cfg.isShownRaw(blessing)));
                 cfg.colors.put(blessing, ConfigJson.getInt(obj, colorKey(blessing), blessing.defaultColor()));
@@ -77,6 +80,7 @@ public final class BlessingsConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("hud", hud);
             obj.addProperty("romanNumerals", romanNumerals);
+            obj.addProperty("bossOnly", bossOnly);
             for (Blessing blessing : Blessing.values()) {
                 obj.addProperty(showKey(blessing), isShownRaw(blessing));
                 obj.addProperty(colorKey(blessing), getColor(blessing));
@@ -104,6 +108,14 @@ public final class BlessingsConfig {
 
     public void setHud(boolean v) {
         hud = v;
+    }
+
+    public boolean isBossOnly() {
+        return bossOnly;
+    }
+
+    public void setBossOnly(boolean v) {
+        bossOnly = v;
     }
 
     public boolean isRomanNumerals() {

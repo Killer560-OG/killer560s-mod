@@ -22,7 +22,6 @@ import net.minecraft.client.gui.screens.Screen;
 import com.killer560.hub.leapmessage.LeapMessageFeature;
 import com.killer560.hub.i4sensors.I4SensorsFeature;
 import com.killer560.hub.livemap.LiveMapFeature;
-import com.killer560.hub.mapping.MappingFeature;
 import com.killer560.hub.maskinvincibility.MaskInvincibilityFeature;
 import com.killer560.hub.mobesp.MobEspFeature;
 import com.killer560.hub.modchat.ModChatFeature;
@@ -135,6 +134,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.compat.McRender.registerBatching();
         com.killer560.hub.compat.McRender.registerTextWidths();
         com.killer560.hub.autodebuff.AutoDebuffFeature.register();
+        // The first-launch tour over the title screen (killer560, 2026-11-01).
+        com.killer560.hub.intro.IntroLauncher.register();
         // The sim's entry point is the title screen's "Dungeon Sim" row, which MainMenuTitleLayout
         // places under Multiplayer - so there is nothing to register here.
         com.killer560.hub.roomsim.SimAbilities.register();
@@ -166,6 +167,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.SimMobs.register();
         com.killer560.hub.roomsim.SimSecretItems.register();
         com.killer560.hub.roomsim.SimRun.register();
+        // The F7 boss in the sim (doc-adm-boss-1101): its own package, after the sim it builds into.
+        com.killer560.hub.bosssim.BossSim.register();
         // The sim's Catacombs sidebar. Without it DungeonState sees no dungeon inside the sim, and every
         // feature that gates on it - the live map, secret waypoints, every solver, the timers, the score -
         // stays switched off there.
@@ -195,7 +198,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.registerRender();
         com.killer560.hub.roomsim.SimWhere.register();
         // /mage (dev builds only): re-captures the room he stands in into the sim's room library.
-        com.killer560.hub.roomsim.RoomCapture.register();
+        // /mage (roomsim/RoomCapture, the one-room re-capture) was removed on 2026-11-01: it re-captured Mage and had no
+        // other use (killer560: "look for old code we dont need for things like /mage").
         // The always-on map logger: skulls in each dungeon room, for checking captures against (dev builds only).
         com.killer560.hub.maplog.MapLogger.register();
         com.killer560.hub.roomsim.puzzles.SimBlazePuzzle.register();
@@ -213,6 +217,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.reboot.RebootFeature.register();
         com.killer560.hub.packdisabler.PackDisabler.register();
         HypixelJoinWatcher.register();
+        // Auto Report Bans (opt-in, OFF by default): loads its switch, which starts the session log tap when on.
+        com.killer560.hub.banreport.BanReportFeature.register();
         AutoJoinSkyblockFeature.register();
         ProxyConfig.load();
         SpotifyLyricsFeature.init();
@@ -220,6 +226,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.spotify.SpotifyControls.register();
         com.killer560.hub.spotify.SpotifyHudControls.register();
         MagicFindTracker.register();
+        com.killer560.hub.luck.LuckFeature.register();
         RngMeterOverlay.register();
         RngMeterEngine.PRICES.startAutoRefresh();
         LeapMessageFeature.register();
@@ -290,9 +297,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autoroutes.AutoRoutesKeybinds.register();
         com.killer560.hub.autoroutes.AutoRoutesEditInput.register();
         com.killer560.hub.autoclear.AutoClearFeature.register();
-        // Every Spirit Sceptre bat's life (log only, both builds) and /test, the bat measurement (cheat build).
+        // Every Spirit Sceptre bat's life (log only, both builds). The Bat Test (/test) was removed on 2026-11-01.
         com.killer560.hub.autoclear.BatLog.register();
-        com.killer560.hub.autoclear.BatTest.register();
         com.killer560.hub.util.CommandTreeRefresh.watch(() -> com.killer560.hub.autoclear.AutoClearConfig.getInstance().isEnabledRaw());
         com.killer560.hub.autosecret.AutoSecretFeature.register();
         com.killer560.hub.autotrap.AutoTrap.register();
@@ -345,6 +351,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.puzzlesolvers.QuizState.register();
         com.killer560.hub.puzzlesolvers.QuizLog.register();   // always on, log only ([QuizLog], 2026-10-18)
         com.killer560.hub.puzzlesolvers.QuizSolverFeature.register();
+        HudElementRegistry.register(new com.killer560.hub.puzzlesolvers.QuizSolverFeature.TimerHudElement());
         com.killer560.hub.puzzlesolvers.IceFillSolverFeature.register();
         com.killer560.hub.puzzlesolvers.WeirdosSolverFeature.register();
         com.killer560.hub.autopuzzles.AutoPuzzlesFeature.register();
@@ -352,6 +359,12 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.routes.WaypointRoutesFeature.register();
         com.killer560.hub.dungeonextras.DungeonExtrasFeature.register();
         com.killer560.hub.dungeonqueue.DungeonQueueFeature.register();
+        com.killer560.hub.creationcooldown.CreationCooldownFeature.register();
+        HudElementRegistry.register(com.killer560.hub.creationcooldown.CreationCooldownFeature.HUD);
+        com.killer560.hub.instaclearwarning.InstaClearWarningFeature.register();
+        com.killer560.hub.gyrooverlay.GyroOverlayFeature.register();
+        com.killer560.hub.chattabs.ChatTabsFeature.register();
+        HudElementRegistry.register(com.killer560.hub.instaclearwarning.InstaClearWarningFeature.HUD);
         com.killer560.hub.motionblur.MotionBlurFeature.register();
         com.killer560.hub.discordrpc.DiscordRpcFeature.register();
         com.killer560.hub.windowlayout.WindowLayoutFeature.register();
@@ -405,7 +418,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.p4platform.P4PlatformHighlightFeature.register();
         com.killer560.hub.diorite.DioriteGlassFeature.register();
         com.killer560.hub.partyfinder.PartyFinderOverlay.register();
-        com.killer560.hub.dungeonclass.ClassSelectionOverlay.register();
+        // Class Selection Overlay removed 2026-11-01 (its settings went first; killer560 did not know what it was for).
         com.killer560.hub.commandkeybinds.CommandKeybindsFeature.register();
         com.killer560.hub.inventorysearch.InventorySearchFeature.register();
         com.killer560.hub.inventorytheme.InventoryThemeFeature.register();
@@ -415,6 +428,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.chattidy.ChatTidy.register();
         com.killer560.hub.abilitycooldown.AbilityCooldownFeature.register();
         HudElementRegistry.register(new com.killer560.hub.abilitycooldown.AbilityCooldownFeature.CooldownHudElement());
+        // Pre-2.0 mining features (to-do Doc 2026-11-01): Commission HUD, Pickobulus Estimate, Ability Ready Alert,
+        // Carpet Highlighter, Mithril As Stone, Titanium Highlight, Raffle Ticket Highlight.
+        com.killer560.hub.miningqol.MiningQolFeatures.register();
         com.killer560.hub.lagdisplay.LagDisplayFeature.register();
         HudElementRegistry.register(new com.killer560.hub.lagdisplay.LagDisplayFeature.LagHudElement());
         com.killer560.hub.terminals.TerminalQolFeature.register();
@@ -521,12 +537,10 @@ public class Killer560ModClient implements ClientModInitializer {
                                 .executes(context -> EtherwarpFeature.redo() ? 1 : 0))
                         .then(ewDeleteBranch("delete"))
                         .then(ewDeleteBranch("remove"))));
-        // killer560, 2026-10-15: "have it use the /leaporder process. Also have /class which opens the same menu to edit the
-        // same things" - both bare commands open the Leap Order editor, the one place a player's class is set.
+        // /leaporder opens the Leap Order editor, the one place a player's class is set. /class did the same until killer560
+        // removed it (2026-11-01).
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(ClientCommands.literal("leaporder")
-                    .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()));
-            dispatcher.register(ClientCommands.literal("class")
                     .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()));
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
@@ -549,74 +563,14 @@ public class Killer560ModClient implements ClientModInitializer {
                         .then(ClientCommands.literal("bugreport")
                                 .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate()))
                         // "/Killer560 leaporder" (2026-09-13 request) - opens the Leap Order menu
-                        // directly rather than going through the mod menu's Dungeon folder. "/killer560 class" is the
-                        // same screen (2026-10-15), as are the bare /leaporder and /class registered below.
+                        // directly rather than going through the mod menu's Dungeon folder.
+                        // "/killer560 class", "ew", "mapdump", "profile" and "sim" were removed (killer560, 2026-11-01):
+                        // /leaporder opens the same editor, /ew keeps the waypoints, the Profiles tab has every profile
+                        // action, and the testkit flips DungeonState.toggleSimOverride directly.
                         .then(ClientCommands.literal("leaporder")
-                                .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()))
-                        .then(ClientCommands.literal("class")
-                                .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()))
-                        // Real, working data-gathering tool for the Mapping tab's placeholders - see
-                        // MappingFeature's class doc. Dumps whatever map you're holding right now.
-                        .then(ClientCommands.literal("mapdump")
-                                .executes(context -> {
-                                    ModOverlayMessage.show(MappingFeature.dumpHeldMap(), 4000);
-                                    return 1;
-                                }))
-                        // "/killer560 ew add <name>" - killer560's "secret waypoints" request
-                        // (2026-09-13), exact syntax as requested. Deliberately its own local-only
-                        // system, not built on Posmsg's add - see EtherwarpFeature's class doc for why
-                        // (Posmsg's add immediately broadcasts to real Party Chat; this never does).
-                        .then(ClientCommands.literal("ew")
-                                .then(ClientCommands.literal("add")
-                                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
-                                                .executes(context -> {
-                                                    if (blockedBySkyblockOnly()) {
-                                                        return 0;
-                                                    }
-                                                    // killer560, 2026-09-27: "Do not pop up the hud when they
-                                                    // are added."
-                                                    String name = StringArgumentType.getString(context, "name");
-                                                    EtherwarpFeature.addAtFeet(name);
-                                                    return 1;
-                                                })))
-                                .then(ClientCommands.literal("clear")
-                                        // killer560, 2026-09-27: "If i do clear it should only clear the ones in
-                                        // the room I am in." Says how many in chat.
-                                        .executes(context -> EtherwarpFeature.clearCurrentRoom() ? 1 : 0)))
-                        // "/killer560 chat" was removed 2026-10-08 (killer560: "Remove the /killer560 chat
-                        // command"); Mod Chat is sent with /kc and /chat k - see modchat/ModChatChannel.
-                        // "/killer560 sim" (2026-09-14) - killer560's own request: p3sim.net's real
-                        // sidebar/chat format isn't something this session can observe directly, so
-                        // rather than guess at matching it, this is a manual override telling every
-                        // F7/M7-gated feature "treat me as if I'm in the real F7 boss fight right now."
-                        // See DungeonState#toggleSimOverride's doc comment for exactly when it
-                        // auto-clears (a real floor gets detected, or the world unloads).
-                        .then(ClientCommands.literal("sim")
-                                .executes(context -> {
-                                    boolean nowActive = com.killer560.hub.secrets.DungeonState.toggleSimOverride();
-                                    ModOverlayMessage.show(nowActive
-                                            ? "[Sim] Treating you as if you're in the real F7 boss fight."
-                                            : "[Sim] Override off - back to real automatic detection.", 3000);
-                                    return 1;
-                                }))
-                        // "/killer560 profile ..." - killer560's custom settings-profile request. See
-                        // ProfileManager's class doc for why "load" needs a restart to fully apply.
-                        // Built as its own method (buildProfileCommand) rather than inlined here - this
-                        // whole command tree is already nested 4+ levels deep and another sub-tree
-                        // inlined by hand risks exactly the kind of mismatched-paren mistake that's easy
-                        // to make and hard to spot in a wall of closing parens.
-                        .then(buildProfileCommand())
-                        // "/killer560 ah" and "/killer560 bz" - item 8.1 (Auction House and Bazaar browsers).
-                        .then(ClientCommands.literal("ah")
-                                .executes(context -> {
-                                    com.killer560.hub.auction.AuctionHouseFeature.openOrExplain();
-                                    return 1;
-                                }))
-                        .then(ClientCommands.literal("bz")
-                                .executes(context -> {
-                                    com.killer560.hub.bazaar.BazaarFeature.openOrExplain();
-                                    return 1;
-                                }))));
+                                .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()))));
+                        // "/killer560 ah" and "/killer560 bz" were removed with /killer560ah and /killer560bz (killer560,
+                        // 2026-11-01: "they are not needed"): the browsers open from their keys and Open buttons.
 
         // Posmsg: killer560's request (2026-09-13) for a chat-relayed waypoint system, syntax exactly
         // as he specified it - "/Posmsg add" then the message, then the center coordinate, then the
@@ -720,81 +674,6 @@ public class Killer560ModClient implements ClientModInitializer {
                                 return 1;
                             })));
         });
-    }
-
-    /** Builds the whole "/killer560 profile ..." subcommand tree as its own self-contained node -
-     *  kept out of the main command registration chain (see the call site's comment) since nesting
-     *  this many more levels of {@code .then(...)} inline would make an already deep chain very easy
-     *  to mis-close by hand. */
-    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<FabricClientCommandSource> buildProfileCommand() {
-        return ClientCommands.literal("profile")
-                .then(ClientCommands.literal("blank")
-                        .executes(context -> {
-                            ModOverlayMessage.show(
-                                    com.killer560.hub.profiles.ProfileManager.createBlankProfile("").message(), 5000);
-                            return 1;
-                        })
-                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
-                                .executes(context -> {
-                                    String name = StringArgumentType.getString(context, "name");
-                                    ModOverlayMessage.show(
-                                            com.killer560.hub.profiles.ProfileManager.createBlankProfile(name).message(), 5000);
-                                    return 1;
-                                })))
-                .then(ClientCommands.literal("save")
-                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
-                                .executes(context -> {
-                                    String name = StringArgumentType.getString(context, "name");
-                                    ModOverlayMessage.show(
-                                            com.killer560.hub.profiles.ProfileManager.saveCurrentAsProfile(name).message(), 4000);
-                                    return 1;
-                                })))
-                .then(ClientCommands.literal("load")
-                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
-                                .executes(context -> {
-                                    String name = StringArgumentType.getString(context, "name");
-                                    var result = com.killer560.hub.profiles.ProfileManager.applyProfile(name);
-                                    if (!result.success()) {
-                                        ModOverlayMessage.show(result.message(), 5000);
-                                    }
-                                    return 1;
-                                })))
-                .then(ClientCommands.literal("delete")
-                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
-                                .executes(context -> {
-                                    String name = StringArgumentType.getString(context, "name");
-                                    ModOverlayMessage.show(
-                                            com.killer560.hub.profiles.ProfileManager.deleteProfile(name).message(), 3000);
-                                    return 1;
-                                })))
-                .then(ClientCommands.literal("export")
-                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
-                                .executes(context -> {
-                                    String name = StringArgumentType.getString(context, "name");
-                                    ModOverlayMessage.show(
-                                            com.killer560.hub.profiles.ProfileManager.shareProfile(name).message(), 6000);
-                                    return 1;
-                                })))
-                .then(ClientCommands.literal("import")
-                        .then(ClientCommands.argument("file", StringArgumentType.string())
-                                .then(ClientCommands.argument("newName", StringArgumentType.greedyString())
-                                        .executes(context -> {
-                                            String file = StringArgumentType.getString(context, "file");
-                                            String newName = StringArgumentType.getString(context, "newName");
-                                            ModOverlayMessage.show(
-                                                    com.killer560.hub.profiles.ProfileManager.importProfile(file, newName).message(), 5000);
-                                            return 1;
-                                        }))))
-                .then(ClientCommands.literal("list")
-                        .executes(context -> {
-                            java.util.List<String> profiles = com.killer560.hub.profiles.ProfileManager.listProfiles();
-                            String active = com.killer560.hub.profiles.ProfileManager.getActiveProfile();
-                            ModOverlayMessage.show(profiles.isEmpty()
-                                    ? "[Profiles] None saved yet."
-                                    : "[Profiles] " + String.join(", ", profiles) + " (active: " + (active != null ? active : "none") + ")",
-                                    5000);
-                            return 1;
-                        }));
     }
 
     /** Parses {@code /posmsg add <message...> <x> <y> <z> <radius>} - the message itself can contain

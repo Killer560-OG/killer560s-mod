@@ -163,6 +163,16 @@ override read by `MainMenuLook.current()`, `MainMenuTheme.active()` and `MenuSty
 `MainMenuScenes.setAmberScene` / `setGreenScene` and `GreenTheme.setGradient` are the runtime choices behind it (the
 `AMBER_SCENE` / `GREEN_SCENE` / `DEFAULT_GRADIENT` constants stay the defaults).
 
+## First-launch tour (`intro/`)
+
+In a client gametest run (`fabric.client.gametest` set) the tour never opens on its own, so the cases that start from the
+title screen are not interrupted; `-Dkiller560.test.intro=show` lets it open as for a player (testkit
+1101-ui-intro-first-show). `IntroLauncher.autoShown()` counts how often it opened on its own this session,
+`resetSessionForTest()` re-arms it, `replay(parent)` opens it now. On an open `IntroScreen`: `currentScene()`, `sceneList()`, `bubbleText()`, `buttons()` (label
+-> widget), `confirmingSkip()`, `settled()`, `bubbleRect()`, `guideBox()`, `finish()`; `IntroScreen.guideFrames()` counts
+frames the 3D guide was submitted and `guideTurn()` is his last body turn. With `killer560.test.menuAnimClock=instant` the
+bubble appears at once with all its text; driving `MenuAnim.setClockForTest` gives the real pop-in, typing and walk.
+
 ## World render batch (`compat/McRender`, 26.1.2 only - dropped 2026-11-01)
 Inside `AFTER_TRANSLUCENT_FEATURES` and `AFTER_TRANSLUCENT_TERRAIN`, `McRender.inCameraSpace` writes into the mod's own
 buffer source and draws each render type once after the event's last listener (see `McRender.registerBatching`).

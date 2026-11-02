@@ -25,7 +25,9 @@ import java.util.concurrent.ThreadLocalRandom;
  *       (cubic Bezier with curvature that varies move to move and leans one way per terminal) at minimum-jerk speed for a
  *       Fitts-law duration with per-move variance. Sometimes the move overshoots past the slot and comes back; sometimes
  *       it misses (lands at the slot's edge or on a neighbor), pauses and corrects; on a long move it sometimes stops
- *       part way for a second look. Every plan ends ON the slot, then a short press. A tiny tremor rides on top.</li>
+ *       part way for a second look. Every plan ends ON the slot. Since 2026-11-01 a new target bends the motion
+ *       already under way (velocity carries over), an approach lands still gliding, the press goes out a moment after
+ *       the cursor is on the slot for good, and the hand settles inside the slot after it; no tremor (it read as jitter).</li>
  *   <li><b>The same slot again</b> (a Rubix pane needing 2) is known before the first click, so the cursor stays and
  *       clicks again after a double-click-like gap; it never leaves and comes back.</li>
  *   <li>Per-terminal randomness (speed, reaction, curvature lean) so two terminals never look the same, all bounded.</li>
@@ -75,12 +77,21 @@ public final class FakeCursor {
     private static final float[] C2Y = new float[MAX_SEGMENTS];
     private static final float[] EX = new float[MAX_SEGMENTS];
     private static final float[] EY = new float[MAX_SEGMENTS];
+    /** Time map of each segment: a quintic with s(0)=0, s(1)=1, no acceleration at either end, and these normalized
+     *  speeds at the start and the end. 0/0 is the minimum-jerk profile; a move that starts while the hand is already
+     *  moving carries that speed in (A), and an approach arrives still moving a little (B) so the hand glides on. */
+    private static final float[] SEG_A = new float[MAX_SEGMENTS];
+    private static final float[] SEG_B = new float[MAX_SEGMENTS];
     private static int segCount;
     private static long planEndMs;
-    /** Build cursor while planning: where the next segment starts and when. */
+    /** The press: when the click may go out (the cursor has been on the slot a moment), and whether it is a repeat. */
+    private static long clickAtMs;
+    /** Build cursor while planning: where the next segment starts, when, and the hand's velocity there (px/ms). */
     private static float bx;
     private static float by;
     private static long bt;
+    private static float bvx;
+    private static float bvy;
 
     private static boolean placed;
     private static float curX;
@@ -93,15 +104,13 @@ public final class FakeCursor {
     private static boolean hidden;
     private static boolean showing;
     private static long lastShownMs;
+    /** The next click on the aimed slot is followed by another on it (a Rubix pane needing 2): keep the hand on it. */
+    private static boolean repeatNext;
 
     // ---- this terminal's own hand ----
     private static float sessionSpeed = 1f;
     private static float sessionReaction = 1f;
     private static float sessionLean;
-    private static float tremorPhase1;
-    private static float tremorPhase2;
-    private static float tremorF1 = 8f;
-    private static float tremorF2 = 11f;
 
     // ---- testkit probes (280-289): read by reflection, nothing in the mod reads them ----
     static float startX = -1f;
@@ -123,6 +132,12 @@ public final class FakeCursor {
     static int doubleTakes;
     static int hesitations;
     static int repeats;
+    /** Window px the cursor travelled in the 150 ms after each click (summed): the glide a hand keeps after pressing. */
+    static float glideAfterClickPx;
+    /** ms from the terminal opening to its first Stream Safe click, -1 until then. */
+    static long firstClickAfterOpenMs = -1;
+    private static long openedAtMs;
+    private static long lastClickMs;
     /** Farthest the cursor got from a slot between two clicks on that same slot (window px). */
     static float repeatMaxPx;
     private static boolean inRepeat;
@@ -131,6 +146,7 @@ public final class FakeCursor {
     private static long lastFrameMs;
 
     private static final float[] SCRATCH = new float[3];
+    private static final float[] SCRATCH2 = new float[2];
 
     private FakeCursor() {
     }
@@ -165,14 +181,12 @@ public final class FakeCursor {
         planEndMs = 0;
         firstMove = true;
         inRepeat = false;
+        repeatNext = false;
+        clickAtMs = 0;
         ThreadLocalRandom r = ThreadLocalRandom.current();
         sessionSpeed = clamp(1f + 0.08f * (float) r.nextGaussian(), 0.85f, 1.18f);
         sessionReaction = clamp(1f + 0.12f * (float) r.nextGaussian(), 0.8f, 1.25f);
         sessionLean = (r.nextBoolean() ? 1f : -1f) * (0.02f + 0.06f * r.nextFloat());
-        tremorPhase1 = r.nextFloat() * 6.283f;
-        tremorPhase2 = r.nextFloat() * 6.283f;
-        tremorF1 = 7f + 3f * r.nextFloat();
-        tremorF2 = 10f + 3f * r.nextFloat();
         startX = -1f;
         startY = -1f;
         frames = 0;
@@ -181,6 +195,10 @@ public final class FakeCursor {
         clickCount = 0;
         clicksWaited = 0;
         repeatMaxPx = 0f;
+        glideAfterClickPx = 0f;
+        firstClickAfterOpenMs = -1;
+        openedAtMs = System.currentTimeMillis();
+        lastClickMs = 0;
         lastFrameX = Float.NaN;
         lastFrameY = Float.NaN;
         HumanClickOrder.begin();
@@ -216,6 +234,17 @@ public final class FakeCursor {
 
     /** Heads for {@code slot}; a no-op while already headed there. */
     static void aim(AbstractContainerScreen<?> screen, int slot) {
+        aim(screen, slot, false);
+    }
+
+    /** Melody's row button (killer560, 2026-11-01: "for melody have it insta go to the right side on the nodes to click.
+     *  Wether it is time or not"): straight there, no reaction pause, no miss or overshoot, quicker than a normal move, so
+     *  the hand is already resting on the button when the row comes due. */
+    static void aimQuick(AbstractContainerScreen<?> screen, int slot) {
+        aim(screen, slot, true);
+    }
+
+    private static void aim(AbstractContainerScreen<?> screen, int slot, boolean quick) {
         if (!showing || slot == aimedSlot) {
             return;
         }
@@ -224,6 +253,18 @@ public final class FakeCursor {
         }
         ensurePlaced();
         long now = System.currentTimeMillis();
+        // Where the hand is and how fast it is going right now: a new target bends the motion already under way into an
+        // arc toward it instead of stopping and starting again.
+        float vx = 0f;
+        float vy = 0f;
+        if (segCount > 0 && now < planEndMs) {
+            evalAt(now - 8, SCRATCH2);
+            float px = SCRATCH2[0];
+            float py = SCRATCH2[1];
+            evalAt(now, SCRATCH2);
+            vx = (SCRATCH2[0] - px) / 8f;
+            vy = (SCRATCH2[1] - py) / 8f;
+        }
         position(now);
         double gui = Minecraft.getInstance().getWindow().getGuiScale();
         aimedSlot = slot;
@@ -231,10 +272,19 @@ public final class FakeCursor {
         aimedY = (float) (SCRATCH[1] * gui);
         aimedHalf = (float) Math.max(2.0, SCRATCH[2] * gui / 2.0);
         inRepeat = false;
-        plan(now);
+        repeatNext = false;
+        plan(now, vx, vy, quick);
     }
 
-    private static void plan(long now) {
+    /**
+     * One move, rebuilt from where the hand is (and how it is moving) whenever the target changes (killer560, 2026-11-01:
+     * "When a human clicks they may click it the first pixel they are on but their mouse will keep moving for a fraction of
+     * a second and make more of an arcing motion. It should click things close together faster and things far away
+     * longer"). Fitts-law duration (near is quick, far is longer), a curved path that leaves in the direction the hand was
+     * already going, an arrival that is still gliding, and a short follow-through that settles inside the slot. The press
+     * comes a moment after the cursor is on the slot for good, not after it has stopped.
+     */
+    private static void plan(long now, float vx, float vy, boolean quick) {
         ThreadLocalRandom r = ThreadLocalRandom.current();
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
         float speed = cfg.getFakeCursorSpeed() / 100f;
@@ -243,103 +293,192 @@ public final class FakeCursor {
         bx = curX;
         by = curY;
         bt = now;
+        bvx = vx;
+        bvy = vy;
+        boolean moving = Math.hypot(vx, vy) > 0.05;
 
-        // Reaction before the hand moves; the first look at a fresh board takes a little longer.
-        float reaction = logNormal(r, cfg.getCursorReactionMs() * sessionReaction * (firstMove ? 1.35f : 1f), 0.28f, 0.45f, 2.2f);
-        firstMove = false;
-        if (r.nextFloat() < 0.06f) {
-            reaction += 150f + 230f * r.nextFloat();
-            hesitations++;
+        // A reaction only from rest: a hand already moving toward the board re-aims on the way.
+        if (!quick && !moving) {
+            float reaction = logNormal(r, cfg.getCursorReactionMs() * sessionReaction, 0.28f, 0.45f, 2.2f);
+            if (firstMove) {
+                // The first look at a fresh board: the terminal's opening settle already covers most of it.
+                reaction *= 0.6f;
+            } else if (r.nextFloat() < 0.06f) {
+                reaction += 150f + 230f * r.nextFloat();
+                hesitations++;
+            }
+            hold(reaction);
         }
-        hold(reaction);
+        firstMove = false;
 
-        // Where the press lands: round the center, inside the slot.
+        // Where the hand lands: round the center, inside the slot.
         float lx = aimedX + clamp((float) r.nextGaussian() * 0.12f * cell, -0.3f * cell, 0.3f * cell);
         float ly = aimedY + clamp((float) r.nextGaussian() * 0.12f * cell, -0.3f * cell, 0.3f * cell);
         float dx = lx - bx;
         float dy = ly - by;
         float dist = (float) Math.sqrt(dx * dx + dy * dy);
+        int approach = -1;
         if (dist >= 1f) {
             moves++;
-            if (dist > 3.2f * cell && r.nextFloat() < 0.12f) {
+            if (!quick && dist > 3.2f * cell && r.nextFloat() < 0.12f) {
                 // A second look on a long move: stop part way (a little off the line), then go on.
                 float f = 0.4f + 0.2f * r.nextFloat();
                 float off = (r.nextFloat() - 0.5f) * 0.3f * dist;
                 float mx = bx + dx * f - dy / dist * off;
                 float my = by + dy * f + dx / dist * off;
-                move(mx, my, cell, speed, r, 0.95f);
+                move(mx, my, cell, speed, r, 0.95f, 0f);
                 hold(110f + 150f * r.nextFloat());
                 doubleTakes++;
             }
-            float roll = r.nextFloat() * 100f;
+            float roll = quick ? 100f : r.nextFloat() * 100f;
             if (roll < cfg.getCursorMissChance()) {
                 // A miss: the move ends at the slot's edge or on a neighbor, a corrective pause, then onto the slot.
                 double a = r.nextDouble() * Math.PI * 2.0;
                 float err = (0.55f + 0.6f * r.nextFloat()) * cell;
-                move(lx + (float) Math.cos(a) * err, ly + (float) Math.sin(a) * err, cell, speed, r, 1f);
+                move(lx + (float) Math.cos(a) * err, ly + (float) Math.sin(a) * err, cell, speed, r, 1f, 0f);
                 hold(logNormal(r, 170f, 0.25f, 0.6f, 1.6f));
-                move(lx, ly, cell, speed, r, 1.1f);
+                approach = move(lx, ly, cell, speed, r, 1.1f, glide(r));
                 misses++;
             } else if (roll < cfg.getCursorMissChance() + cfg.getCursorOvershootChance()) {
                 // An overshoot: carried past the slot along the move, a beat, then back onto it.
                 float ux = (lx - bx) / Math.max(1f, (float) Math.hypot(lx - bx, ly - by));
                 float uy = (ly - by) / Math.max(1f, (float) Math.hypot(lx - bx, ly - by));
                 float past = (0.35f + 0.6f * r.nextFloat()) * cell;
-                move(lx + ux * past, ly + uy * past, cell, speed, r, 1f);
+                move(lx + ux * past, ly + uy * past, cell, speed, r, 1f, 0f);
                 hold(40f + 90f * r.nextFloat());
-                move(lx, ly, cell, speed, r, 1.15f);
+                approach = move(lx, ly, cell, speed, r, 1.15f, glide(r));
                 overshoots++;
             } else {
-                move(lx, ly, cell, speed, r, 1f);
+                approach = move(lx, ly, cell, speed, r, quick ? 0.6f : 1f, glide(r));
             }
         }
-        // The press.
-        hold(logNormal(r, 45f, 0.3f, 0.5f, 2.2f));
+        long landMs = bt;
+        followThrough(r);
         planEndMs = bt;
+        clickAtMs = pressTime(approach, landMs, r);
     }
 
-    /** Another click on the slot the cursor is already on: a double-click-like gap, no movement. */
+    /** How fast an approach is still going as it lands, as a share of an even pace: a hand glides onto a target. */
+    private static float glide(ThreadLocalRandom r) {
+        return 0.15f + 0.2f * r.nextFloat();
+    }
+
+    /** The glide after landing: the hand runs on in the direction it was going and slows to a stop, never leaving the slot
+     *  (the click may still be on its way, and a Rubix pane's second click needs the hand still on it). */
+    private static void followThrough(ThreadLocalRandom r) {
+        float v = (float) Math.hypot(bvx, bvy);
+        if (v < 0.01f) {
+            return;
+        }
+        float ms = 60f + 70f * r.nextFloat();
+        float limit = aimedHalf * 0.85f;
+        float k = 1f;
+        for (int i = 0; i < 8; i++) {
+            float ex = bx + bvx * k * ms / 2f;
+            float ey = by + bvy * k * ms / 2f;
+            if (Math.hypot(ex - aimedX, ey - aimedY) <= limit) {
+                break;
+            }
+            k *= 0.5f;
+        }
+        float ex = bx + bvx * k * ms / 2f;
+        float ey = by + bvy * k * ms / 2f;
+        if (k < 0.05f || Math.hypot(ex - aimedX, ey - aimedY) > limit) {
+            bvx = 0f;
+            bvy = 0f;
+            return;
+        }
+        add(bx, by, bx + bvx * k * ms / 3f, by + bvy * k * ms / 3f, ex, ey, ex, ey, ms, 1f, 0f);
+        bvx = 0f;
+        bvy = 0f;
+    }
+
+    /** When the press goes out: a moment after the approach has brought the cursor onto the slot for good (the first
+     *  pixels on it, not the stop), never later than the end of the glide. */
+    private static long pressTime(int approach, long landMs, ThreadLocalRandom r) {
+        long press = (long) (10f + 35f * r.nextFloat());
+        if (approach < 0) {
+            return Math.min(bt, landMs + press + 20);
+        }
+        long t0 = SEG_START[approach];
+        long t1 = t0 + (long) Math.ceil(SEG_DUR[approach]);
+        long enter = t1;
+        for (long t = t1; t >= t0; t -= 2) {
+            evalAt(t, SCRATCH2);
+            if (!insideAimed(SCRATCH2[0], SCRATCH2[1], 0.8f)) {
+                break;
+            }
+            enter = t;
+        }
+        return Math.min(Math.max(enter + press, t0), bt);
+    }
+
+    private static boolean insideAimed(float x, float y, float share) {
+        float lim = aimedHalf * share;
+        return Math.abs(x - aimedX) <= lim && Math.abs(y - aimedY) <= lim;
+    }
+
+    /** Another click on the slot the cursor is already on: a double-click-like gap, the hand still on it. */
     private static void planRepeat(long now) {
         ThreadLocalRandom r = ThreadLocalRandom.current();
-        segCount = 0;
-        bx = curX;
-        by = curY;
-        bt = now;
-        hold(logNormal(r, 125f, 0.25f, 0.6f, 1.9f));
-        planEndMs = bt;
+        clickAtMs = now + (long) logNormal(r, 125f, 0.25f, 0.6f, 1.9f);
         inRepeat = true;
         repeats++;
     }
 
     private static void hold(float ms) {
-        add(bx, by, bx, by, bx, by, bx, by, ms);
+        add(bx, by, bx, by, bx, by, bx, by, ms, 0f, 0f);
+        bvx = 0f;
+        bvy = 0f;
     }
 
-    private static void move(float tx, float ty, float cell, float speed, ThreadLocalRandom r, float durScale) {
+    /** @return the index of the segment added, or -1. Leaves {@link #bvx}/{@link #bvy} at the speed it arrives with. */
+    private static int move(float tx, float ty, float cell, float speed, ThreadLocalRandom r, float durScale, float endSpeed) {
         float dx = tx - bx;
         float dy = ty - by;
         float dist = (float) Math.sqrt(dx * dx + dy * dy);
         if (dist < 0.5f) {
-            return;
+            return -1;
         }
         float fitts = FITTS_A_MS + FITTS_B_MS * (float) (Math.log(dist / Math.max(4f, cell) + 1.0) / Math.log(2.0));
         float variance = clamp(1f + 0.12f * (float) r.nextGaussian(), 0.75f, 1.35f);
-        float dur = Math.max(MIN_MOVE_MS, fitts * variance * sessionSpeed * durScale / speed);
+        float dur = Math.max(MIN_MOVE_MS / Math.max(1f, speed), fitts * variance * sessionSpeed * durScale / speed);
         // Curvature: leans one way for this terminal, varies move to move.
         float k = clamp(sessionLean + 0.07f * (float) r.nextGaussian(), -0.2f, 0.2f);
         float px = -dy;
         float py = dx;
-        float k1 = k * (0.6f + 0.6f * r.nextFloat());
         float k2 = k * (0.3f + 0.6f * r.nextFloat());
-        add(bx, by,
-                bx + dx * 0.3f + px * k1, by + dy * 0.3f + py * k1,
-                bx + dx * 0.72f + px * k2, by + dy * 0.72f + py * k2,
-                tx, ty, dur);
+        float c2x = bx + dx * 0.72f + px * k2;
+        float c2y = by + dy * 0.72f + py * k2;
+        float c1x;
+        float c1y;
+        float a = 0f;
+        float v0 = (float) Math.hypot(bvx, bvy);
+        if (v0 > 0.01f) {
+            // Leave the way the hand is already going: the first control point along the current velocity, with the time
+            // map's start speed set so the velocity carries over exactly. Kept within half the move.
+            float lead = v0 * dur / 3f;
+            float cap = 0.5f * dist;
+            float scale = lead > cap ? cap / lead : 1f;
+            c1x = bx + bvx * dur / 3f * scale;
+            c1y = by + bvy * dur / 3f * scale;
+            a = clamp(1f / scale, 0f, 2.5f);
+        } else {
+            float k1 = k * (0.6f + 0.6f * r.nextFloat());
+            c1x = bx + dx * 0.3f + px * k1;
+            c1y = by + dy * 0.3f + py * k1;
+        }
+        int i = add(bx, by, c1x, c1y, c2x, c2y, tx, ty, dur, a, endSpeed);
+        // Arrival velocity: B'(1) * s'(1) / dur, with B'(1) = 3 (end - c2).
+        bvx = 3f * (tx - c2x) * endSpeed / dur;
+        bvy = 3f * (ty - c2y) * endSpeed / dur;
+        return i;
     }
 
-    private static void add(float sx, float sy, float c1x, float c1y, float c2x, float c2y, float ex, float ey, float ms) {
+    private static int add(float sx, float sy, float c1x, float c1y, float c2x, float c2y, float ex, float ey, float ms,
+                           float startSpeed, float endSpeed) {
         if (segCount >= MAX_SEGMENTS) {
-            return;
+            return -1;
         }
         int i = segCount++;
         SEG_START[i] = bt;
@@ -352,26 +491,39 @@ public final class FakeCursor {
         C2Y[i] = c2y;
         EX[i] = ex;
         EY[i] = ey;
+        SEG_A[i] = startSpeed;
+        SEG_B[i] = endSpeed;
         bt += (long) Math.ceil(ms);
         bx = ex;
         by = ey;
+        return i;
     }
 
     // ------------------------------------------------------------------ the click gate
 
-    /** @return true when the cursor has arrived on {@code slot} and pressed - the click may go out now. */
+    /** @return true when the cursor is on {@code slot} and its press is due - the click may go out now. */
     static boolean ready(int slot) {
         if (!showing) {
             return true;
         }
-        boolean arrived = slot == aimedSlot && placed && System.currentTimeMillis() >= planEndMs;
+        long now = System.currentTimeMillis();
+        boolean arrived = slot == aimedSlot && placed && now >= clickAtMs;
+        if (arrived) {
+            position(now);
+            arrived = insideAimed(curX, curY, 1f) || now >= planEndMs;
+        }
         if (!arrived) {
             clicksWaited++;
         }
         return arrived;
     }
 
-    /** A click on {@code slot} went out. The next click on the same slot waits for a fresh press gap. */
+    /** The click about to go out on the aimed slot is followed by another on the same slot (a Rubix pane needing 2+). */
+    static void expectRepeat(boolean repeat) {
+        repeatNext = repeat;
+    }
+
+    /** A click on {@code slot} went out. The hand keeps gliding; a repeat on the same slot waits for a fresh press gap. */
     static void clicked(int slot) {
         if (!showing) {
             return;
@@ -386,35 +538,63 @@ public final class FakeCursor {
         CLICK_TY[i] = aimedY;
         CLICK_HALF[i] = aimedHalf;
         clickCount++;
-        if (slot == aimedSlot) {
-            planRepeat(now);
+        if (firstClickAfterOpenMs < 0) {
+            firstClickAfterOpenMs = now - openedAtMs;
         }
+        lastClickMs = now;
+        if (slot == aimedSlot) {
+            if (repeatNext) {
+                planRepeat(now);
+            } else {
+                // Not this slot again before a fresh press, should anything ask (a retry of an unanswered click).
+                clickAtMs = now + 120;
+            }
+        }
+        repeatNext = false;
     }
 
     // ------------------------------------------------------------------ evaluation and drawing
+
+    /** The plan's point at {@code t} into {@code out[0..1]} (the last point once the plan has ended). */
+    private static void evalAt(long t, float[] out) {
+        if (segCount == 0) {
+            out[0] = curX;
+            out[1] = curY;
+            return;
+        }
+        int i = 0;
+        while (i < segCount - 1 && t >= SEG_START[i] + (long) Math.ceil(SEG_DUR[i])) {
+            i++;
+        }
+        float u0 = SEG_DUR[i] <= 0f ? 1f : clamp((t - SEG_START[i]) / SEG_DUR[i], 0f, 1f);
+        float s = timeMap(u0, SEG_A[i], SEG_B[i]);
+        float u = 1f - s;
+        out[0] = u * u * u * SX[i] + 3f * u * u * s * C1X[i] + 3f * u * s * s * C2X[i] + s * s * s * EX[i];
+        out[1] = u * u * u * SY[i] + 3f * u * u * s * C1Y[i] + 3f * u * s * s * C2Y[i] + s * s * s * EY[i];
+    }
+
+    /** Quintic Hermite: s(0)=0, s(1)=1, s'(0)=a, s'(1)=b, s''(0)=s''(1)=0. a=b=0 is minimum jerk. */
+    private static float timeMap(float t, float a, float b) {
+        float t2 = t * t;
+        float t3 = t2 * t;
+        float t4 = t3 * t;
+        float t5 = t4 * t;
+        float h1 = t - 6f * t3 + 8f * t4 - 3f * t5;
+        float h4 = -4f * t3 + 7f * t4 - 3f * t5;
+        float h5 = 10f * t3 - 15f * t4 + 6f * t5;
+        return clamp(a * h1 + b * h4 + h5, -0.25f, 1.25f);
+    }
 
     /** Sets {@link #curX}/{@link #curY} for {@code now} from the plan. */
     private static void position(long now) {
         if (!placed || segCount == 0) {
             return;
         }
-        int i = 0;
-        while (i < segCount - 1 && now >= SEG_START[i] + (long) Math.ceil(SEG_DUR[i])) {
-            i++;
-        }
-        float t = SEG_DUR[i] <= 0f ? 1f : clamp((now - SEG_START[i]) / SEG_DUR[i], 0f, 1f);
-        float s = t * t * t * (10f + t * (-15f + 6f * t));
-        float u = 1f - s;
-        float x = u * u * u * SX[i] + 3f * u * u * s * C1X[i] + 3f * u * s * s * C2X[i] + s * s * s * EX[i];
-        float y = u * u * u * SY[i] + 3f * u * u * s * C1Y[i] + 3f * u * s * s * C2Y[i] + s * s * s * EY[i];
-        // Physiological tremor: well under a pixel, two slow sines.
-        float sec = (now % 100000L) / 1000f;
-        x += 0.35f * (float) (0.6 * Math.sin(6.283 * tremorF1 * sec + tremorPhase1) + 0.4 * Math.sin(6.283 * tremorF2 * sec + tremorPhase2));
-        y += 0.35f * (float) (0.6 * Math.cos(6.283 * tremorF2 * sec + tremorPhase2) + 0.4 * Math.sin(6.283 * tremorF1 * sec + tremorPhase1));
-        curX = x;
-        curY = y;
+        evalAt(now, SCRATCH2);
+        curX = SCRATCH2[0];
+        curY = SCRATCH2[1];
         if (inRepeat) {
-            repeatMaxPx = Math.max(repeatMaxPx, (float) Math.hypot(x - aimedX, y - aimedY) - aimedHalf);
+            repeatMaxPx = Math.max(repeatMaxPx, (float) Math.hypot(curX - aimedX, curY - aimedY) - aimedHalf);
         }
     }
 
@@ -463,6 +643,9 @@ public final class FakeCursor {
             float dy = curY - lastFrameY;
             float step = (float) Math.sqrt(dx * dx + dy * dy);
             maxFramePx = Math.max(maxFramePx, step);
+            if (lastClickMs > 0 && now - lastClickMs <= 150) {
+                glideAfterClickPx += step;
+            }
             if (now > lastFrameMs) {
                 maxPxPerMs = Math.max(maxPxPerMs, step / (now - lastFrameMs));
             }
@@ -478,7 +661,7 @@ public final class FakeCursor {
         g.pose().pushMatrix();
         // Window pixels from here on: the arrow's tip at the pointer, one mask pixel = content-scale screen pixels.
         g.pose().scale(1f / gui, 1f / gui);
-        g.pose().translate(Math.round(curX), Math.round(curY));
+        g.pose().translate(curX, curY);
         g.pose().scale(content, content);
         for (int[] run : RUNS) {
             g.fill(run[1], run[0], run[2], run[0] + 1, run[3]);

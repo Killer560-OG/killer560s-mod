@@ -125,10 +125,8 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                 y += 18;
             }
 
-            int savedItems = cfg.getProtectedKeys().size();
-            widgets.add(new StringWidget(contentX, y, half, 12,
-                    Component.literal("§7Items saved by ID: §f" + savedItems), mc.font));
-            y += 22;
+            // The "Items saved by ID: N" line was removed (killer560, 2026-11-01).
+            y += 4;
         }
 
         // ---------------- Starred ----------------

@@ -46,7 +46,7 @@ public final class TerminalSolverConfig {
     public static final int MAX_HOLD_REPEAT_MS = 500;
     /** Stream Safe's Cursor Speed, percent of a practiced hand (FakeCursor's motion model, 100 = typical). */
     public static final int MIN_FAKE_CURSOR_SPEED = 50;
-    public static final int MAX_FAKE_CURSOR_SPEED = 200;
+    public static final int MAX_FAKE_CURSOR_SPEED = 300;
     /** Stream Safe's Reaction Time: the median pause before each move, ms. Not a simple reaction test (~200 ms): the next
      *  slot is already in view while the hand is moving, so a practiced player's pause between clicks is shorter. */
     public static final int MIN_CURSOR_REACTION_MS = 60;
@@ -57,12 +57,12 @@ public final class TerminalSolverConfig {
 
     // Hover Terminals (2026-09-16, killer560: "make hover terms... if you hover a button that needs to be
     // pressed it'll press it. Add a delay option as well in ms.") - a real macro like Auto Terminals, and
-    // gated the same three ways (cheat build + Skyblock + its own toggle). The delay is a DWELL, not a
-    // cooldown: the mouse has to stay on the same slot this long before the click is sent, so brushing
-    // the cursor across a correct slot on the way somewhere else never fires one. 0 is allowed (instant)
-    // because that is a legitimate choice for someone who wants the fastest possible sweep.
+    // gated the same three ways (cheat build + Skyblock + its own toggle). Since 2026-11-01 the delay is the least
+    // time BETWEEN two hover clicks, max 300 ms (killer560: "the hover delay should be a max of 300ms. It should be how
+    // long between clicks it should have to wait not how long i have to be on the item for it to click"); until then it
+    // was a dwell on the slot, max 1000. 0 = as fast as one click a tick.
     public static final int MIN_HOVER_DELAY_MS = 0;
-    public static final int MAX_HOVER_DELAY_MS = 1000;
+    public static final int MAX_HOVER_DELAY_MS = 300;
     public static final int MIN_HOVER_JITTER_MS = 0;
     public static final int MAX_HOVER_JITTER_MS = 250;
 

@@ -35,7 +35,8 @@ public abstract class TerminalSolverBackgroundMixin {
 
     @Inject(method = "extractBackground", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideTerminalBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        TerminalSolverFeature.refreshState();
+        // State is already fresh: TerminalSolverStateRefreshMixin refreshes at the HEAD of the whole screen draw, which
+        // runs before this and cannot be canceled by another background hook (2026-11-01).
         if (TerminalSolverFeature.shouldHideBackgroundAndLabels()) {
             ci.cancel();
         }

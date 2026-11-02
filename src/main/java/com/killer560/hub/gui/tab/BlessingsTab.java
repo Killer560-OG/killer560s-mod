@@ -42,6 +42,8 @@ public class BlessingsTab extends BaseTab {
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Blessings HUD", cfg::getHudRaw, cfg::setHud));
         widgets.add(toggle(col2X, y, colW, "Roman Numerals", cfg::isRomanNumerals, cfg::setRomanNumerals));
+        y += 22;
+        widgets.add(toggle(contentX, y, colW, "Boss Only", cfg::isBossOnly, cfg::setBossOnly));
         y += 28;
 
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Shown Blessings", false));

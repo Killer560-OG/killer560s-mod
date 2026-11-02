@@ -114,6 +114,7 @@ public final class IceFillSolverFeature {
             return;
         }
         RoomEntry current = LiveMapFeature.currentRoomEntry();
+        inIceFill = current != null && "Ice Fill".equals(current.name);
         if (current != lastRoomEntry) {
             lastRoomEntry = current;
             currentPath.clear();
@@ -214,12 +215,160 @@ public final class IceFillSolverFeature {
             return;
         }
         // killer560, 2026-09-20: "ice fill's line shouldn't be blue, hard to see - make it configurable".
-        IceFillSolverConfig.LineColor color = IceFillSolverConfig.getInstance().getLineColor();
-        SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.ICE_FILL, context, currentPath, color.r, color.g, color.b, 1f, 3f);
+        int argb = IceFillSolverConfig.getInstance().getLineColorArgb();
+        float a = ((argb >>> 24) & 0xFF) / 255f;
+        SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.ICE_FILL, context, currentPath,
+                ((argb >> 16) & 0xFF) / 255f, ((argb >> 8) & 0xFF) / 255f, (argb & 0xFF) / 255f, a <= 0f ? 1f : a, 3f);
     }
 
     private static void reset() {
         lastRoomEntry = null;
         currentPath.clear();
+        inIceFill = false;
+    }
+
+    // ---------------------------------------------------------------- Etherwarp Protection
+
+    /** He is in the Ice Fill room (the map says so), set every tick by the solver's tick. */
+    private static boolean inIceFill = false;
+    private static int blockedWarps = 0;
+    private static long lastBlockChatMs = 0L;
+    private static String lastVerdict = "none";
+
+    /**
+     * Etherwarp Protection (killer560, 2026-11-01): "If i am on the ice and etherwarp and the etherwarp would put me to the
+     * propper next spot then it will allow it as long as the block below my feet is already updated to the packed or blue
+     * ice thing that it updates too. If the block i have chosen is wrong or the block below my feet isnt updated then it
+     * wont take the etherwarp. Also if i am not standing on ice at all but in the room then i should be able to etherwarp
+     * freely."
+     *
+     * <p>The tile under his feet decides: plain ICE (not registered yet) blocks every warp; packed or blue ice (registered)
+     * allows only a warp whose landing is the next tile of the drawn path (or the next tile still to fill, so a warp from
+     * the end of one floor onto the next floor's first tile is not refused); anything else (the stone around the floors,
+     * the stairs) allows everything. With no path known, nothing is refused.
+     *
+     * @param feet   where he stands
+     * @param target the block the etherwarp would land ON (the overlay's own trace), or null when it would fail
+     * @return "allow: ..." or "block: ..."
+     */
+    public static String etherwarpVerdict(Level level, Vec3 feet, BlockPos target, List<Vec3> path) {
+        BlockPos here = BlockPos.containing(feet.x, feet.y + 0.01, feet.z);
+        var under = level.getBlockState(here.below());
+        if (under.is(net.minecraft.world.level.block.Blocks.ICE)) {
+            return "block: the tile under you has not turned to packed ice yet";
+        }
+        if (!under.is(net.minecraft.world.level.block.Blocks.PACKED_ICE)
+                && !under.is(net.minecraft.world.level.block.Blocks.BLUE_ICE)) {
+            return "allow: not standing on the ice";
+        }
+        if (path == null || path.isEmpty()) {
+            return "allow: no path known";
+        }
+        if (target == null) {
+            return "allow: the etherwarp has nowhere to land";
+        }
+        List<BlockPos> tiles = pathTiles(path);
+        int at = -1;
+        for (int i = 0; i < tiles.size(); i++) {
+            BlockPos t = tiles.get(i);
+            if (t.getX() == here.getX() && t.getZ() == here.getZ() && Math.abs(t.getY() - here.getY()) <= 1) {
+                at = i;
+            }
+        }
+        if (at < 0) {
+            return "block: you are on packed ice off the path";
+        }
+        BlockPos landing = target.above();
+        if (at + 1 < tiles.size() && sameTile(tiles.get(at + 1), landing)) {
+            return "allow: the next spot on the path";
+        }
+        for (int j = at + 1; j < tiles.size(); j++) {
+            if (level.getBlockState(tiles.get(j).below()).is(net.minecraft.world.level.block.Blocks.ICE)) {
+                if (sameTile(tiles.get(j), landing)) {
+                    return "allow: the next tile still to fill";
+                }
+                break;
+            }
+        }
+        return "block: " + landing.toShortString() + " is not the next spot on the path";
+    }
+
+    private static boolean sameTile(BlockPos tile, BlockPos landing) {
+        return tile.getX() == landing.getX() && tile.getZ() == landing.getZ() && Math.abs(tile.getY() - landing.getY()) <= 1;
+    }
+
+    /** The path as the blocks his feet pass through, in order: each straight run filled in, repeats dropped. */
+    static List<BlockPos> pathTiles(List<Vec3> path) {
+        List<BlockPos> out = new ArrayList<>();
+        for (int i = 0; i < path.size(); i++) {
+            Vec3 p1 = path.get(i);
+            if (i + 1 < path.size()) {
+                Vec3 p2 = path.get(i + 1);
+                double dx = p2.x - p1.x;
+                double dy = p2.y - p1.y;
+                double dz = p2.z - p1.z;
+                int steps = (int) Math.max(1, Math.round(Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)))));
+                for (int s = 0; s < steps; s++) {
+                    double r = (double) s / steps;
+                    addTile(out, BlockPos.containing(p1.x + dx * r, p1.y + dy * r, p1.z + dz * r));
+                }
+            } else {
+                addTile(out, BlockPos.containing(p1));
+            }
+        }
+        return out;
+    }
+
+    private static void addTile(List<BlockPos> out, BlockPos p) {
+        if (out.isEmpty() || !out.get(out.size() - 1).equals(p)) {
+            out.add(p);
+        }
+    }
+
+    /**
+     * From {@code IceFillEtherwarpMixin} at the start of vanilla's right click: true to drop it (nothing is sent). Only
+     * his own right click (and Left Click Etherwarp, which goes through the same method); Auto Ice Fill's warps do not
+     * come this way, and Auto Routes / Auto Clear holding the use key are let through.
+     */
+    public static boolean shouldBlockRightClick(Minecraft client) {
+        IceFillSolverConfig cfg = IceFillSolverConfig.getInstance();
+        if (!cfg.isEnabled() || !cfg.isEtherwarpProtection() || !inIceFill || client.player == null
+                || client.level == null || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
+            return false;
+        }
+        if (com.killer560.hub.autoroutes.RouteExecutor.isRunning() || com.killer560.hub.autoclear.AutoClearFeature.isBusy()) {
+            return false;
+        }
+        double distance = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.etherwarpDistance(client.player);
+        if (distance <= 0) {
+            return false;
+        }
+        Vec3 feet = client.player.position();
+        BlockPos target = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.resolveTarget(client.level, feet,
+                client.player, distance);
+        String verdict = etherwarpVerdict(client.level, feet, target, currentPath);
+        lastVerdict = verdict;
+        if (!verdict.startsWith("block")) {
+            return false;
+        }
+        blockedWarps++;
+        LOGGER.info("[IceFillSolver] Etherwarp Protection: warp to {} not sent - {} ({} blocked so far)",
+                target == null ? "nowhere" : target.toShortString(), verdict.substring(7), blockedWarps);
+        long now = System.currentTimeMillis();
+        if (now - lastBlockChatMs > 2000L) {
+            lastBlockChatMs = now;
+            com.killer560.hub.util.ModChat.send("Ice Fill Solver", com.killer560.hub.util.ModChat.text("Etherwarp blocked: "),
+                    com.killer560.hub.util.ModChat.dim(verdict.substring(7) + "."));
+        }
+        return true;
+    }
+
+    /** For the testkit: warps Etherwarp Protection has dropped, and its last verdict. */
+    public static int blockedWarps() {
+        return blockedWarps;
+    }
+
+    public static String lastVerdict() {
+        return lastVerdict;
     }
 }

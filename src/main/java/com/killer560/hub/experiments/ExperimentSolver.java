@@ -166,6 +166,8 @@ final class ExperimentSolver {
     /** Every slot ever seen showing a powerup, so a powerup tile that covers back up is never counted as a
      *  hidden reward tile by {@link #readBoard}. */
     private final Set<Integer> superpairsPowerupSlotsSeen = new HashSet<>();
+    /** What each powerup tile seen on this board said (its name), for the Superpairs HUD. */
+    private final Map<Integer, String> superpairsPowerupNames = new java.util.TreeMap<>();
     /** When each slot was last clicked by the solver - picks which of a kind's revealed tiles is the turn's open
      *  one when a kind has three revealed (a claimed pair plus one just turned over). */
     private final Map<Integer, Long> superpairsClickedAtMs = new HashMap<>();
@@ -842,6 +844,7 @@ final class ExperimentSolver {
                 continue;
             }
             if (isPowerupTile(cell)) {
+                superpairsPowerupNames.putIfAbsent(slot, powerupName(cell));
                 // Turned over in front of us: an Instant Find arms the next click (stacking), whichever click of
                 // a turn it was; any other powerup has already applied. Counted once per tile.
                 if (superpairsPowerupSlotsSeen.add(slot) && superpairsSeenCovered.contains(slot) && armsNextClick(cell)) {
@@ -907,6 +910,34 @@ final class ExperimentSolver {
             timeout += Math.max(0, Math.min(SUPERPAIRS_MAX_LAG_EXTENSION_MS, lagSinceSend));
         }
         return timeout;
+    }
+
+    /** A run stopped between deciding a click and sending it (2026-11-01, the resume path): the decide step already
+     *  counted it, so the sequence index goes back one step and a Superpairs tile is no longer waited on - his own next
+     *  click, or the next run, is matched against the step that is really next on the board. */
+    void rewindUnsentClick() {
+        switch (mode) {
+            case CHRONOMATRON -> chronomatronClickIndex = Math.max(0, chronomatronClickIndex - 1);
+            case ULTRASEQUENCER -> ultrasequencerClickIndex = Math.max(0, ultrasequencerClickIndex - 1);
+            case SUPERPAIRS -> {
+                if (superpairsAwaitingConfirmSlot != null && !superpairsClickSent) {
+                    if (superpairsAwaitingConfirmSlot.equals(superpairsSingleSpendSlot)) {
+                        queuedPairSlots.remove(superpairsAwaitingConfirmSlot);
+                        superpairsSingleSpendSlot = null;
+                    }
+                    superpairsAwaitingConfirmSlot = null;
+                    superpairsAwaitingConfirmPriorCell = null;
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
+    /** The Chronomatron / Ultrasequencer step the solver expects next (testkit). */
+    int sequenceClickIndex() {
+        return mode == Mode.CHRONOMATRON ? chronomatronClickIndex
+                : mode == Mode.ULTRASEQUENCER ? ultrasequencerClickIndex : -1;
     }
 
     void superpairsClickSent(int slot, long sentAtMs) {
@@ -1061,6 +1092,88 @@ final class ExperimentSolver {
         Integer deducedPowerup() {
             return consistent() && singles.isEmpty() && unknown.size() == 1 ? unknown.get(0) : null;
         }
+    }
+
+    /**
+     * The Superpairs HUD's numbers (killer560, 2026-11-01: "show how many things are left for superpairs ... found stuff
+     * undiscovered pairs and undiscovered powers", like SkyHanni's). Read from the same board facts the solver plays by:
+     * {@code found} is every reward kind seen, with how many of its two tiles were seen and whether it is claimed;
+     * {@code halfFound} counts kinds with one tile seen (the partner is certainly still covered); {@code unseen} counts
+     * covered tiles never seen, which are those partners, whole pairs never seen, or powerups. How many powerups a board
+     * holds is not published (hypixelskyblock wiki, 2026-11-01) and varies, so the split of the unseen tiles is exact only
+     * where the counting rule forces it - see {@link SuperpairsSummary#newPairsMax} and {@link SuperpairsSummary#powerupsExact}.
+     */
+    record SuperpairsSummary(List<FoundKind> found, List<String> powerups, int halfFound, int unseen, boolean consistent) {
+        /** Unseen tiles that are not a known kind's partner: whole pairs (two tiles each) or powerups. */
+        int hidden() {
+            return Math.max(0, unseen - halfFound);
+        }
+
+        /** At most this many pairs neither of whose tiles was seen. */
+        int newPairsMax() {
+            return hidden() / 2;
+        }
+
+        /** Pairs still to find at least one tile of, at least: every half-found kind's partner. */
+        int undiscoveredPairsMin() {
+            return halfFound;
+        }
+
+        /** Powerups still covered, when the board says exactly: none left once every unseen tile is a partner, one
+         *  when a single unseen tile is left over. -1 when it cannot be told yet. */
+        int powerupsExact() {
+            if (!consistent) {
+                return -1;
+            }
+            return hidden() == 0 ? 0 : hidden() == 1 ? 1 : -1;
+        }
+    }
+
+    /** One reward kind seen on the board: its name, tiles of it seen (1 or 2), and whether the pair is claimed. */
+    record FoundKind(String name, int seen, boolean claimed) {
+    }
+
+    /** @return the HUD's summary of the board in {@code cells}, or null when Superpairs is not the open game. */
+    SuperpairsSummary superpairsSummary(List<Cell> cells) {
+        if (mode != Mode.SUPERPAIRS || cells == null || cells.isEmpty()) {
+            return null;
+        }
+        Map<Integer, Cell> bySlot = new HashMap<>();
+        for (Cell cell : cells) {
+            bySlot.put(cell.slot(), cell);
+        }
+        BoardFacts board = readBoard(bySlot);
+        Map<String, int[]> counts = new java.util.LinkedHashMap<>(); // key -> {seen, claimed tiles}
+        Map<String, String> names = new HashMap<>();
+        for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+            Cell cell = bySlot.get(slot);
+            Cell known = knownSuperpairsCells.get(slot);
+            Cell face = cell != null && isRevealedPair(cell) && !isPowerupTile(cell) ? cell : known;
+            if (face == null || isPowerupTile(face)) continue;
+            String key = pairKey(face);
+            int[] c = counts.computeIfAbsent(key, k -> new int[2]);
+            c[0]++;
+            if (board.claimed.contains(slot)) {
+                c[1]++;
+            }
+            names.putIfAbsent(key, face.name());
+        }
+        List<FoundKind> found = new ArrayList<>();
+        for (Map.Entry<String, int[]> e : counts.entrySet()) {
+            int seen = Math.min(2, e.getValue()[0]);
+            found.add(new FoundKind(names.get(e.getKey()), seen, e.getValue()[1] >= 2));
+        }
+        return new SuperpairsSummary(found, new ArrayList<>(superpairsPowerupNames.values()), board.singles.size(),
+                board.unknown.size(), board.consistent());
+    }
+
+    private static String powerupName(Cell cell) {
+        String name = cell.name() == null ? "" : cell.name().replaceAll("§.", "").trim();
+        String lore = cell.lore() == null ? "" : cell.lore().toLowerCase(Locale.ROOT);
+        if (lore.contains("powerup for next click") || name.toLowerCase(Locale.ROOT).contains("instant find")) {
+            return "Instant Find";
+        }
+        return name.isEmpty() ? "Powerup" : name;
     }
 
     private BoardFacts readBoard(Map<Integer, Cell> bySlot) {
@@ -1987,6 +2100,7 @@ final class ExperimentSolver {
         superpairsSeenCovered.clear();
         superpairsSingleSpendSlot = null;
         superpairsPowerupSlotsSeen.clear();
+        superpairsPowerupNames.clear();
         superpairsClickedAtMs.clear();
         superpairsTwoOpenSinceMs = 0;
         superpairsLoggedOnce.clear();

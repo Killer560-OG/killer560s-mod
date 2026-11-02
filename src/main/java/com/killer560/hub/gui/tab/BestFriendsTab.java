@@ -54,6 +54,6 @@ public class BestFriendsTab extends BaseTab {
     }
 
     private static Component sortText(BestFriendsConfig cfg) {
-        return Component.literal("Sort: §b" + cfg.getSortMode().label);
+        return Component.literal("Sort: §f" + cfg.getSortMode().label); // white, not aqua (killer560, 2026-11-01)
     }
 }

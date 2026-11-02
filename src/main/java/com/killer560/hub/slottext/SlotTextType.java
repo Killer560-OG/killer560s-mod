@@ -5,7 +5,7 @@ package com.killer560.hub.slottext;
 public enum SlotTextType {
     PET_LEVEL("Pet Level", "A pet's level, top left. Pets in the pets menu, the choose-pet menu and your inventory.", true),
     ENCHANT_LEVEL("Enchanted Book Level", "The level of the enchantment on an enchanted book, bottom left. Also Bazaar book listings.", true),
-    ENCHANT_ABBREVIATION("Enchantment Abbreviation", "A short tag for the enchantment on a book, top left (SHA for Sharpness, BB for Big Brain). Ultimate enchantments are purple.", false),
+    ENCHANT_ABBREVIATION("Enchantment Abbreviation", "A short tag for the enchantment on a book, top left (TL for Thunderlord, SH for Sharpness, GK for Giant Killer, UW for Ultimate Wise: the short names other Skyblock mods use). Ultimate enchantments are purple.", false),
     MINION_TIER("Minion Tier", "A minion's tier as a number, top right.", true),
     POTION_LEVEL("Potion Level", "A potion's level, bottom right.", true),
     RANCHER_SPEED("Rancher's Boots Speed", "The speed cap set on Rancher's Boots, bottom left.", true),

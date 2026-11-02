@@ -75,7 +75,7 @@ public abstract class FolderTab extends BaseTab {
     /** Testing build only: a Mark tested / Mark untested row above a feature tab's own rows. */
     private static int markRow(BaseTab sub, int x, int y, int width, List<AbstractWidget> widgets) {
         if (com.killer560.hub.BuildVariant.TESTING && !(sub instanceof FolderTab)) {
-            widgets.add(com.killer560.hub.testing.TestingMenu.markButton(sub, x, y, width));
+            widgets.addAll(com.killer560.hub.testing.TestingMenu.markButtons(sub, x, y, width));
             return y + com.killer560.hub.testing.TestingMenu.MARK_ROW_HEIGHT;
         }
         return y;

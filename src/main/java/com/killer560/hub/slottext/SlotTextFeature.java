@@ -378,10 +378,179 @@ public final class SlotTextFeature {
         return lines;
     }
 
-    /** "bane_of_arthropods" -> "BA", "sharpness" -> "SHA", "ultimate_wise" -> "WIS": initials of the words, or the first
-     *  three letters of a single word. Public for the tests. */
+    /**
+     * The short names a single-enchant book shows (killer560, 2026-11-01: "For things like thunderlord ours says thu and
+     * they will have tl. I prefer the tl style"). The table follows the abbreviations Skyblock players and the other
+     * Skyblock mods use (Thunderlord TL, Sharpness SH, Giant Killer GK, Ultimate Wise UW, Soul Eater SE, One For All OFA),
+     * at most three letters so it fits a slot corner. Ultimate enchants have their own table (keyed without
+     * "ultimate_"), since they are drawn in purple and may share letters with a normal one. An enchant missing from both
+     * (a new one) falls back to its initials, or the first three letters of a single word.
+     */
+    private static final java.util.Map<String, String> ABBREVIATIONS = new java.util.HashMap<>();
+    private static final java.util.Map<String, String> ULTIMATE_ABBREVIATIONS = new java.util.HashMap<>();
+
+    static {
+        ABBREVIATIONS.put("absorb", "AB");
+        ABBREVIATIONS.put("angler", "AN");
+        ABBREVIATIONS.put("aqua_affinity", "AA");
+        ABBREVIATIONS.put("bane_of_arthropods", "BOA");
+        ABBREVIATIONS.put("big_brain", "BB");
+        ABBREVIATIONS.put("blast_protection", "BP");
+        ABBREVIATIONS.put("blessing", "BL");
+        ABBREVIATIONS.put("caster", "CA");
+        ABBREVIATIONS.put("cayenne", "CY");
+        ABBREVIATIONS.put("champion", "CHM");
+        ABBREVIATIONS.put("chance", "CHN");
+        ABBREVIATIONS.put("charm", "CHR");
+        ABBREVIATIONS.put("cleave", "CL");
+        ABBREVIATIONS.put("compact", "CMP");
+        ABBREVIATIONS.put("corruption", "COR");
+        ABBREVIATIONS.put("counter_strike", "CS");
+        ABBREVIATIONS.put("critical", "CR");
+        ABBREVIATIONS.put("cubism", "CUB");
+        ABBREVIATIONS.put("cultivating", "CUL");
+        ABBREVIATIONS.put("dedication", "DED");
+        ABBREVIATIONS.put("delicate", "DEL");
+        ABBREVIATIONS.put("depth_strider", "DS");
+        ABBREVIATIONS.put("divine_gift", "DG");
+        ABBREVIATIONS.put("dragon_hunter", "DH");
+        ABBREVIATIONS.put("efficiency", "EF");
+        ABBREVIATIONS.put("ender_slayer", "ES");
+        ABBREVIATIONS.put("execute", "EXE");
+        ABBREVIATIONS.put("experience", "XP");
+        ABBREVIATIONS.put("expertise", "EPR");
+        ABBREVIATIONS.put("feast", "FE");
+        ABBREVIATIONS.put("feather_falling", "FF");
+        ABBREVIATIONS.put("ferocious_mana", "FM");
+        ABBREVIATIONS.put("fire_aspect", "FA");
+        ABBREVIATIONS.put("fire_protection", "FPR");
+        ABBREVIATIONS.put("first_strike", "FS");
+        ABBREVIATIONS.put("flame", "FL");
+        ABBREVIATIONS.put("fortune", "FO");
+        ABBREVIATIONS.put("frail", "FR");
+        ABBREVIATIONS.put("giant_killer", "GK");
+        ABBREVIATIONS.put("great_spook", "GS");
+        ABBREVIATIONS.put("green_thumb", "GT");
+        ABBREVIATIONS.put("growth", "GR");
+        ABBREVIATIONS.put("hardened_mana", "HM");
+        ABBREVIATIONS.put("harvesting", "HRV");
+        ABBREVIATIONS.put("hecatomb", "HEC");
+        ABBREVIATIONS.put("ice_cold", "IC");
+        ABBREVIATIONS.put("impaling", "IMP");
+        ABBREVIATIONS.put("infinite_quiver", "IQ");
+        ABBREVIATIONS.put("karma", "KA");
+        ABBREVIATIONS.put("knockback", "KB");
+        ABBREVIATIONS.put("lapidary", "LAP");
+        ABBREVIATIONS.put("lethality", "LE");
+        ABBREVIATIONS.put("life_steal", "LS");
+        ABBREVIATIONS.put("looting", "LO");
+        ABBREVIATIONS.put("luck", "LU");
+        ABBREVIATIONS.put("luck_of_the_sea", "LTS");
+        ABBREVIATIONS.put("lure", "LR");
+        ABBREVIATIONS.put("magnet", "MAG");
+        ABBREVIATIONS.put("mana_steal", "MS");
+        ABBREVIATIONS.put("mana_vampire", "MV");
+        ABBREVIATIONS.put("overload", "OV");
+        ABBREVIATIONS.put("paleontologist", "PAL");
+        ABBREVIATIONS.put("pesterminator", "PES");
+        ABBREVIATIONS.put("piercing", "PI");
+        ABBREVIATIONS.put("piscary", "PSC");
+        ABBREVIATIONS.put("power", "POW");
+        ABBREVIATIONS.put("pristine", "PRI");
+        ABBREVIATIONS.put("projectile_protection", "PP");
+        ABBREVIATIONS.put("prosecute", "PRS");
+        ABBREVIATIONS.put("prosperity", "PSP");
+        ABBREVIATIONS.put("protection", "PRO");
+        ABBREVIATIONS.put("punch", "PU");
+        ABBREVIATIONS.put("quantum", "QU");
+        ABBREVIATIONS.put("quick_bite", "QB");
+        ABBREVIATIONS.put("rainbow", "RB");
+        ABBREVIATIONS.put("reflection", "REF");
+        ABBREVIATIONS.put("rejuvenate", "RJ");
+        ABBREVIATIONS.put("replenish", "REP");
+        ABBREVIATIONS.put("respiration", "RES");
+        ABBREVIATIONS.put("respite", "RSP");
+        ABBREVIATIONS.put("scavenger", "SCV");
+        ABBREVIATIONS.put("scuba", "SCU");
+        ABBREVIATIONS.put("sharpness", "SH");
+        ABBREVIATIONS.put("silk_touch", "ST");
+        ABBREVIATIONS.put("small_brain", "SB");
+        ABBREVIATIONS.put("smarty_pants", "SP");
+        ABBREVIATIONS.put("smelting_touch", "SMT");
+        ABBREVIATIONS.put("smite", "SMI");
+        ABBREVIATIONS.put("smoldering", "SML");
+        ABBREVIATIONS.put("snipe", "SN");
+        ABBREVIATIONS.put("spiked_hook", "SPH");
+        ABBREVIATIONS.put("stealth", "STL");
+        ABBREVIATIONS.put("strong_mana", "SM");
+        ABBREVIATIONS.put("sugar_rush", "SR");
+        ABBREVIATIONS.put("syphon", "SY");
+        ABBREVIATIONS.put("tabasco", "TAB");
+        ABBREVIATIONS.put("thorns", "TH");
+        ABBREVIATIONS.put("thunderbolt", "TB");
+        ABBREVIATIONS.put("thunderlord", "TL");
+        ABBREVIATIONS.put("tidal", "TD");
+        ABBREVIATIONS.put("titan_killer", "TK");
+        ABBREVIATIONS.put("toxophilite", "TX");
+        ABBREVIATIONS.put("transylvanian", "TRN");
+        ABBREVIATIONS.put("triple_strike", "TS");
+        ABBREVIATIONS.put("true_protection", "TP");
+        ABBREVIATIONS.put("turbo_cactus", "TCC");
+        ABBREVIATIONS.put("turbo_cane", "TCN");
+        ABBREVIATIONS.put("turbo_carrot", "TCR");
+        ABBREVIATIONS.put("turbo_coco", "TCO");
+        ABBREVIATIONS.put("turbo_melon", "TME");
+        ABBREVIATIONS.put("turbo_moonflower", "TMO");
+        ABBREVIATIONS.put("turbo_mushrooms", "TMU");
+        ABBREVIATIONS.put("turbo_potato", "TPO");
+        ABBREVIATIONS.put("turbo_pumpkin", "TPU");
+        ABBREVIATIONS.put("turbo_rose", "TRO");
+        ABBREVIATIONS.put("turbo_sunflower", "TSU");
+        ABBREVIATIONS.put("turbo_warts", "TWA");
+        ABBREVIATIONS.put("turbo_wheat", "TWH");
+        ABBREVIATIONS.put("vampirism", "VMP");
+        ABBREVIATIONS.put("venomous", "VEN");
+        ABBREVIATIONS.put("vicious", "VIC");
+        ULTIMATE_ABBREVIATIONS.put("bank", "BK");
+        ULTIMATE_ABBREVIATIONS.put("bobbin_time", "BT");
+        ULTIMATE_ABBREVIATIONS.put("chimera", "CHI");
+        ULTIMATE_ABBREVIATIONS.put("combo", "CO");
+        ULTIMATE_ABBREVIATIONS.put("crop_fever", "CF");
+        ULTIMATE_ABBREVIATIONS.put("duplex", "DUP");
+        ULTIMATE_ABBREVIATIONS.put("reiterate", "DUP");
+        ULTIMATE_ABBREVIATIONS.put("fatal_tempo", "FT");
+        ULTIMATE_ABBREVIATIONS.put("first_impression", "FI");
+        ULTIMATE_ABBREVIATIONS.put("flash", "FLA");
+        ULTIMATE_ABBREVIATIONS.put("flowstate", "FLW");
+        ULTIMATE_ABBREVIATIONS.put("habanero_tactics", "HT");
+        ULTIMATE_ABBREVIATIONS.put("inferno", "INF");
+        ULTIMATE_ABBREVIATIONS.put("jerry", "UJ");
+        ULTIMATE_ABBREVIATIONS.put("last_stand", "LST");
+        ULTIMATE_ABBREVIATIONS.put("legion", "LEG");
+        ULTIMATE_ABBREVIATIONS.put("missile", "MIS");
+        ULTIMATE_ABBREVIATIONS.put("no_pain_no_gain", "NP");
+        ULTIMATE_ABBREVIATIONS.put("one_for_all", "OFA");
+        ULTIMATE_ABBREVIATIONS.put("refrigerate", "RFG");
+        ULTIMATE_ABBREVIATIONS.put("rend", "RN");
+        ULTIMATE_ABBREVIATIONS.put("soul_eater", "SE");
+        ULTIMATE_ABBREVIATIONS.put("sunset", "SUN");
+        ULTIMATE_ABBREVIATIONS.put("swarm", "SW");
+        ULTIMATE_ABBREVIATIONS.put("the_one", "TO");
+        ULTIMATE_ABBREVIATIONS.put("wise", "UW");
+        ULTIMATE_ABBREVIATIONS.put("wisdom", "WIS");
+    }
+
+    /** "thunderlord" -> "TL", "sharpness" -> "SH", "ultimate_wise" -> "UW" from the tables above; an enchant in
+     *  neither gets the initials of its words ("some_new_enchant" -> "SNE") or a single word's first three letters.
+     *  Public for the tests. */
     public static String abbreviate(String enchantId) {
-        String id = enchantId.startsWith("ultimate_") ? enchantId.substring("ultimate_".length()) : enchantId;
+        String lower = enchantId.toLowerCase(Locale.ROOT);
+        boolean ultimate = lower.startsWith("ultimate_");
+        String id = ultimate ? lower.substring("ultimate_".length()) : lower;
+        String known = ultimate ? ULTIMATE_ABBREVIATIONS.get(id) : ABBREVIATIONS.get(id);
+        if (known != null) {
+            return known;
+        }
         List<String> words = new ArrayList<>();
         for (String w : id.split("_")) {
             if (!w.isEmpty() && !w.equals("of") && !w.equals("the")) {

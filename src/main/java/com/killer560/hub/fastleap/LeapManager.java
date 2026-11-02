@@ -58,9 +58,10 @@ import com.killer560.hub.compat.McCompat;
 public final class LeapManager {
 
     private static final String LEAP_MENU_TITLE = "spirit leap";
-    /** Ticks from the item use to the leap menu arriving before "the leap menu did not open" (polled once a tick). */
+    /** Default ticks from the item use to the leap menu arriving before "the leap menu did not open" (polled once a
+     *  tick). The live value is the Leap Timeout setting ({@link FastLeapConfig#getTimeoutTicks()}). */
     static final int MENU_TIMEOUT_TICKS = 40;
-    /** Ticks from the menu arriving to the target's head showing before "not in the leap menu". */
+    /** Default ticks from the menu arriving to the target's head showing before "not in the leap menu" (Leap Timeout). */
     static final int ITEM_TIMEOUT_TICKS = 40;
     /** Ticks a step may wait for {@link ActionGate} to give it a tick before the leap gives up on it. */
     static final int GATE_TIMEOUT_TICKS = 20;
@@ -115,6 +116,8 @@ public final class LeapManager {
         boolean fastBlockFinished;
         /** The menu was swallowed by {@link #interceptLeapScreen} - it has no screen, so it must be closed by hand. */
         boolean hidden;
+        /** When this leap started, for the {@link #watchdogMs()} safety net. */
+        final long startedAtMs = System.currentTimeMillis();
 
         Active(Request request, boolean preOpened) {
             this.request = request;
@@ -223,7 +226,18 @@ public final class LeapManager {
     /** QUOI {@code ContainerTask.blocksInput}: {@code blockInput && (!fastMode || fastBlockActive)} while a leap runs. */
     public static boolean blocksInput() {
         Active a = active;
-        return a != null && a.request.blockInput && (!a.request.fastMode || a.fastBlockActive);
+        return a != null && a.request.blockInput && (!a.request.fastMode || a.fastBlockActive) && !overdue(a);
+    }
+
+    /** The longest any leap can legitimately run: the menu wait and the head wait (Leap Timeout each) plus three gate
+     *  waits and a second of slack. Past it, the leap is dropped and every input handed back, whatever step it is on -
+     *  a leap must never be able to hold the player's mouse and movement keys (killer560, 2026-11-01). */
+    static long watchdogMs() {
+        return 2L * FastLeapConfig.getInstance().getTimeoutMs() + 3L * GATE_TIMEOUT_TICKS * 50L + 1000L;
+    }
+
+    private static boolean overdue(Active a) {
+        return System.currentTimeMillis() - a.startedAtMs > watchdogMs();
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -355,6 +369,12 @@ public final class LeapManager {
             incoming = null;
             startLeap(client, req);
         }
+        // A queued leap that never got its moment is dropped once it is too old to be wanted: left sitting, it kept
+        // isBusy() true, which swallowed every later left click with the leap held and kept I4 Leap's Prevent Inputs on.
+        if (pending != null && System.currentTimeMillis() - pending.createdAtMs > QUEUE_EXPIRY_MS) {
+            FastLeapFeature.LOGGER.info("[FastLeap] Queued leap to {} expired unrun", pending.target.name());
+            pending = null;
+        }
         // QUOI TickEvent.Server: run a queued leap once no screen/container/task (or Return To swap) is open
         if (pending != null && active == null && returnTo < 0 && McCompat.screen(client) == null
                 && player.containerMenu == player.inventoryMenu) {
@@ -367,6 +387,10 @@ public final class LeapManager {
 
         a = active;
         if (a == null) {
+            return;
+        }
+        if (overdue(a)) {
+            finish(a, Result.FAILURE, "timed out after " + watchdogMs() + " ms (step " + a.step + ")");
             return;
         }
         switch (a.step) {
@@ -535,7 +559,7 @@ public final class LeapManager {
                 finish(a, Result.FAILURE, "Wrong container name. Got " + other.getTitle().getString() + ", needed Spirit Leap");
                 return;
             } else {
-                if (++a.waitTicks > MENU_TIMEOUT_TICKS) {
+                if (++a.waitTicks > FastLeapConfig.getInstance().getTimeoutTicks()) {
                     finish(a, Result.FAILURE, "the leap menu did not open");
                 }
                 return;
@@ -583,7 +607,7 @@ public final class LeapManager {
             return;
         }
         if (match == null) {
-            if (++a.itemWaitTicks > ITEM_TIMEOUT_TICKS) {
+            if (++a.itemWaitTicks > FastLeapConfig.getInstance().getTimeoutTicks()) {
                 finish(a, Result.FAILURE, "not in the leap menu");
             }
             return;

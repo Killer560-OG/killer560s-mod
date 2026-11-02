@@ -196,8 +196,10 @@ public final class ExperimentsFeature {
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ExperimentsFeature", client -> tick()));
-        net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register(
-                (client, screen, w, h) -> onScreenOpened(screen));
+        // Escape and the Emergency Cancel Key stop a run, nothing else (killer560, 2026-11-01); the press that stops it
+        // is swallowed, so it lands on nothing and the board stays open to finish by hand.
+        com.killer560.hub.macrostop.MacroStop.register("Auto E-Table", com.killer560.hub.macrostop.MacroStop.Kind.CLICK,
+                () -> armed, ExperimentsFeature::stopRun, com.killer560.hub.macrostop.MacroStop.SWALLOW_STOP);
         // Superpairs' Adaptive Timeout extends its confirm wait by however long the server stalls.
         com.killer560.hub.util.ServerLag.register();
         // Profit tracker (2026-09-15 roadmap) - its own tick/chat hooks, gated only on its own toggle
@@ -232,6 +234,7 @@ public final class ExperimentsFeature {
         // below the container. Registered here but drawn from renderStartButtonOverContainer (called
         // from the container screen's OWN render pass, not this HUD-level one) - see that method's
         // doc for why the render pass matters.
+        SuperpairsHud.register();
         HudElementRegistry.markContainerOnly(START_BUTTON_ELEMENT_ID);
         HudElementRegistry.register(new HudElement() {
             @Override
@@ -334,6 +337,9 @@ public final class ExperimentsFeature {
         // automation toggle (2026-09-30 split) and each is now drawn independently of the other.
         if (cfg.isEnabled()) {
             renderHighlights(graphics, cfg);
+        }
+        if (lastLoggedMode == ExperimentSolver.Mode.SUPERPAIRS) {
+            SuperpairsHud.renderOverContainer(graphics, SOLVER.superpairsSummary(lastCells));
         }
         if (shouldShowStartButton()) {
             int[] pos = resolveStartButtonPosition();
@@ -834,7 +840,10 @@ public final class ExperimentsFeature {
                 // are two separate 1s-paced steps now (see GuardianPetSwapper's WAITING_TO_SEND_PETS
                 // state), and the gap between them has no container screen open at all - the swapper
                 // needs to keep ticking through that gap too, not just while a screen is open.
-                if (armed && cfg.isAutoSwapGuardianPet() && GUARDIAN_SWAPPER.isPending()) {
+                if (McCompat.screen(client) != null) {
+                    // He opened chat or a menu mid-run: that no longer stops it (only Escape and the Emergency Cancel
+                    // Key do, 2026-11-01), so the run waits instead of re-opening the table over what he is doing.
+                } else if (armed && cfg.isAutoSwapGuardianPet() && GUARDIAN_SWAPPER.isPending()) {
                     GuardianPetSwapper.Result swap = GUARDIAN_SWAPPER.tick("", null, now);
                     if (swap.action() != GuardianPetSwapper.Action.NONE) {
                         applyGuardianSwapAction(swap, null, now, cfg);
@@ -880,7 +889,7 @@ public final class ExperimentsFeature {
             // solver/automation split: the tick can now run with the solver off, and this reacted to a
             // carried item in that state while the block itself never applied.
             if ((mode == ExperimentSolver.Mode.CHRONOMATRON || mode == ExperimentSolver.Mode.ULTRASEQUENCER)
-                    && cfg.isEnabled() && cfg.isClickProtectionEnabled() && !cfg.isAutonomousMode()) {
+                    && cfg.isEnabled() && cfg.isClickProtectionEnabled() && !runDriving(cfg)) {
                 ItemStack carried = menu.getCarried();
                 boolean holdingNow = carried != null && !carried.isEmpty();
                 if (holdingNow && !wasHoldingCarriedItem) {
@@ -951,7 +960,7 @@ public final class ExperimentsFeature {
             // clicks a tier himself - so this passively scans whatever screen is open for the same
             // rounds-needed lore Autonomous mode's navigator would have discovered while picking a
             // tier itself. No-op unless a real tier-pick screen is actually showing right now.
-            if (!cfg.isAutonomousMode()) {
+            if (!runDriving(cfg)) {
                 NAVIGATOR.peekTierScreenForRoundsNeeded(menu, title);
             }
         }
@@ -1389,9 +1398,14 @@ public final class ExperimentsFeature {
      *  @return true if the click should be BLOCKED (canceled). */
     public static boolean shouldBlockManualMisclick(MouseButtonEvent event) {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isClickProtectionEnabled() || cfg.isAutonomousMode()) {
+        // His own clicks are followed whenever a run is not driving the board - Solver Only, or Auto E-Table on but not
+        // started or stopped mid-puzzle. It used to test the Auto E-Table SWITCH, so after he stopped a run and finished
+        // the 1-6 by hand the solver never moved on (killer560, 2026-11-01). Click protection only decides whether a
+        // wrong click is swallowed; with it off his clicks still go through as they are, and a right one is still counted.
+        if ((!cfg.isEnabled() && !cfg.isAutonomousMode()) || runDriving(cfg)) {
             return false;
         }
+        boolean protect = cfg.isEnabled() && cfg.isClickProtectionEnabled();
         if (lastLoggedMode != ExperimentSolver.Mode.CHRONOMATRON && lastLoggedMode != ExperimentSolver.Mode.ULTRASEQUENCER) {
             return false;
         }
@@ -1414,6 +1428,12 @@ public final class ExperimentsFeature {
         boolean correct = lastLoggedMode == ExperimentSolver.Mode.CHRONOMATRON
                 ? SOLVER.confirmManualChronomatronClick(slot, snapshot(menu))
                 : SOLVER.confirmManualUltrasequencerClick(slot, snapshot(menu));
+        if (correct) {
+            manualClicksFollowed++;
+        }
+        if (!protect) {
+            return false;
+        }
         if (correct) {
             clickSlot(menu.containerId, slot);
             return true;
@@ -1450,7 +1470,7 @@ public final class ExperimentsFeature {
      *  itself checks before ever hit-testing a specific slot. */
     public static boolean shouldBlockManualDragOrRelease() {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isClickProtectionEnabled() || cfg.isAutonomousMode()) {
+        if (!cfg.isEnabled() || !cfg.isClickProtectionEnabled() || runDriving(cfg)) {
             return false;
         }
         return lastLoggedMode == ExperimentSolver.Mode.CHRONOMATRON || lastLoggedMode == ExperimentSolver.Mode.ULTRASEQUENCER;
@@ -1470,39 +1490,23 @@ public final class ExperimentsFeature {
         return -1;
     }
 
-    /**
-     * Any input of his stops a run (killer560, 2026-10-13: it replaced the Emergency Cancel Key): every key, mouse
-     * button and scroll, but not moving the mouse. Called raw from {@code ExperimentsStopKeyMixin} /
-     * {@code ExperimentsStopMouseMixin} at the head of Minecraft's own key and mouse handlers, so it is ahead of every
-     * screen and Block Input cannot hide it; and from {@link #onScreenOpened} for a screen the run did not open.
-     * <p>
-     * The input that STARTED the run is never counted: the Start ETable click reaches the handler head before
-     * {@link #tryClickStartButton} arms the run, and only presses count, so its release is ignored too. Keys typed
-     * into a screen that is not a container (chat, this mod's menu) are ignored, per the CLAUDE.md "any key stops it"
-     * lesson - opening that screen is what stops the run. The run's own clicks and its Escape go straight to the game
-     * and never pass here.
-     * <p>
-     * Never closes anything ("just stop the script from doing any more actions"), and names what stopped it in chat.
-     * @return true when it stopped a run, so the caller swallows that press (nothing lands on the puzzle).
-     */
-    public static boolean stopOnPlayerInput(String what) {
-        if (!armed) {
-            return false;
-        }
-        Screen screen = McCompat.screen(Minecraft.getInstance());
-        if (screen != null && !(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)) {
-            return false;
-        }
-        stopRun(what);
-        return true;
+    /** A run is clicking the board right now: Auto E-Table on AND started (Start ETable pressed, not stopped or
+     *  finished). Anything else - Solver Only, or a run he stopped - leaves the board to him, and his clicks move the
+     *  solver on (shouldBlockManualMisclick). */
+    private static boolean runDriving(ExperimentsConfig cfg) {
+        return cfg.isAutonomousMode() && armed;
     }
 
-    /** A screen that is not a container opened during a run: he opened it (chat, inventory, a menu), so the run stops. */
-    private static void onScreenOpened(Screen screen) {
-        if (armed && !(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)) {
-            String title = screen.getTitle().getString();
-            stopRun(title.isBlank() ? screen.getClass().getSimpleName() + " opening" : "opening " + title);
-        }
+    /** Correct clicks of his own the solver followed (testkit: the resume path, 2026-11-01). */
+    private static volatile int manualClicksFollowed = 0;
+
+    public static int manualClicksFollowed() {
+        return manualClicksFollowed;
+    }
+
+    /** The Chronomatron / Ultrasequencer step the solver expects next, -1 elsewhere (testkit). */
+    public static int solverSequenceIndex() {
+        return SOLVER.sequenceClickIndex();
     }
 
     private static void stopRun(String what) {
@@ -1512,7 +1516,7 @@ public final class ExperimentsFeature {
         ModChat.send("Auto E-Table", ModChat.text("Stopped by "), ModChat.value(what));
     }
 
-    /** What stopped the last run ("the W key", "left click", "scroll wheel", "opening Chat"; testkit). */
+    /** What stopped the last run ("Escape", "the Emergency Cancel Key (K)"; testkit). */
     private static volatile String lastStopReason = "";
 
     public static String lastStopReason() {
@@ -1524,21 +1528,17 @@ public final class ExperimentsFeature {
         return armed;
     }
 
-    public static String mouseButtonName(int button) {
-        return switch (button) {
-            case 0 -> "left click";
-            case 1 -> "right click";
-            case 2 -> "middle click";
-            default -> "mouse button " + (button + 1);
-        };
-    }
-
-    /** Shared by {@link #stopOnPlayerInput} and the natural DONE_SIGNAL stop (see the navigator branch
+    /** Shared by {@link #stopRun} (Escape or the Emergency Cancel Key, via MacroStop) and the natural DONE_SIGNAL stop (see the navigator branch
      *  in {@link #tickUnsafe()}) - un-arms the run and resets everything back to idle, without touching
      *  whatever screen is currently open. Extracted (2026-09-06) once a second caller needed the exact
      *  same reset, per killer560's "it should stop on this screen" - a natural stop should leave the
      *  screen alone exactly like an emergency cancel already does. */
     private static void resetRunState() {
+        if (puzzleClickInFlight) {
+            // A click the solver had decided (and counted) but that never went out: give it back, so his own next click
+            // - or the next run - is matched against the step that is really next on the board.
+            SOLVER.rewindUnsentClick();
+        }
         armed = false;
         NAVIGATOR.reset();
         GUARDIAN_SWAPPER.reset();

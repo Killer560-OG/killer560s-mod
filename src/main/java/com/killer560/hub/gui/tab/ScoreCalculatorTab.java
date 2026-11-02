@@ -12,7 +12,6 @@ import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -83,13 +82,13 @@ public class ScoreCalculatorTab extends BaseTab {
         // ---- Bonus Kill Alerts (moved from DungeonInfoTab 2026-09-21 - see class doc) ----
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Bonus Kill Alerts", false));
         y += 16;
-        y = alertRow(widgets, "Mimic Killed Msg", "§7Trigger: baby zombie (mimic) dies, F6/F7 clear",
+        y = alertRow(widgets, "Mimic Killed Msg",
                 contentX, y, contentWidth, cfg.isMimicAlertEnabled(), cfg::setMimicAlertEnabled,
                 cfg.getMimicAlertMessage(), cfg::setMimicAlertMessage);
-        y = alertRow(widgets, "Prince Killed Msg", "§7Trigger: \"A Prince falls. +1 Bonus Score\"",
+        y = alertRow(widgets, "Prince Killed Msg",
                 contentX, y, contentWidth, cfg.isPrinceAlertEnabled(), cfg::setPrinceAlertEnabled,
                 cfg.getPrinceAlertMessage(), cfg::setPrinceAlertMessage);
-        y = alertRow(widgets, "Bat Killed Msg", "§7Trigger: \"A Bat has been slain. +1 Bonus Score\"",
+        y = alertRow(widgets, "Bat Killed Msg",
                 contentX, y, contentWidth, cfg.isBatAlertEnabled(), cfg::setBatAlertEnabled,
                 cfg.getBatAlertMessage(), cfg::setBatAlertMessage);
         y += 6;
@@ -169,7 +168,7 @@ public class ScoreCalculatorTab extends BaseTab {
 
     /** A bonus-kill alert row (toggle + trigger description + its message text box) - ported from the old
      *  {@code DungeonInfoTab.buildAlertRow} 2026-09-21 when the mimic/prince/bat alerts moved here. */
-    private static int alertRow(List<AbstractWidget> widgets, String label, String triggerText, int contentX, int y, int contentWidth,
+    private static int alertRow(List<AbstractWidget> widgets, String label, int contentX, int y, int contentWidth,
                                  boolean enabled, Consumer<Boolean> enabledSetter, String message, Consumer<String> messageSetter) {
         ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
         boolean[] state = {enabled};
@@ -180,8 +179,7 @@ public class ScoreCalculatorTab extends BaseTab {
                     btn.setMessage(onOff(label, state[0]));
                 }).bounds(contentX, y, 160, 18).build());
 
-        widgets.add(new StringWidget(contentX + 166, y + 5, Math.max(0, contentWidth - 166), 12,
-                Component.literal(triggerText), Minecraft.getInstance().font));
+        // No gray "Trigger: ..." line beside the switch (removed, killer560 2026-11-01); its tooltip names the trigger.
         y += 20;
 
         return textBox(widgets, label + " message", message, messageSetter, cfg, contentX, y, contentWidth);

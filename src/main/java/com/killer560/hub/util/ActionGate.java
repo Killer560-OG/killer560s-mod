@@ -546,10 +546,21 @@ public final class ActionGate {
         spacingNanos = rollSpacing();
     }
 
+    /** Actors that only ever act on a bind he pressed that tick: the emergency hold leaves them alone. */
+    private static boolean playerBind(Actor actor) {
+        return actor == Actor.SLOT_BIND || actor == Actor.PET_WHEEL_MENU || actor == Actor.PET_WHEEL_CMD
+                || actor == Actor.LOADOUT_SWAP_MENU || actor == Actor.LOADOUT_SWAP_CMD;
+    }
+
     private static boolean tryActInternal(Actor actor, Screen ownScreen, AbstractContainerMenu headlessMenu) {
         // Streamer mode, Disable cheats option (killer560, 2026-10-19): no automated action goes out at all.
         if (com.killer560.hub.streamer.StreamerMode.disablesCheats()) {
             return false;
+        }
+        // The Emergency Cancel Key's hold (macrostop/MacroStop, killer560 2026-11-01): nothing automatic acts until he
+        // releases it. His own binds (Slot Binds, Pet Wheel, Loadout Keybinds) are his input, not automation.
+        if (com.killer560.hub.macrostop.MacroStop.emergencyHeld() && !playerBind(actor)) {
+            return deny(actor, "Emergency Cancel Key hold");
         }
         WANTED_THIS_TICK[actor.ordinal()] = true;
         Minecraft client = Minecraft.getInstance();

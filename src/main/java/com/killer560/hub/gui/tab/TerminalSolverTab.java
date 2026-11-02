@@ -10,7 +10,6 @@ import com.killer560.hub.terminals.TerminalSolverConfig;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -46,6 +45,20 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
     @Override
     public boolean isListeningForKey() {
         return capturingDropKey;
+    }
+
+    /** The drop key can be a mouse button (killer560, 2026-11-01: "I cant set the terminal drop key to my mouse buttons"). */
+    @Override
+    public boolean supportsMouseCapture() {
+        return true;
+    }
+
+    @Override
+    public void onMouseCaptured(int button) {
+        TerminalQolConfig cfg = TerminalQolConfig.getInstance();
+        cfg.setDropKeyCode(com.killer560.hub.util.KeyUtil.codeForMouseButton(button));
+        capturingDropKey = false;
+        cfg.save();
     }
 
     @Override
@@ -170,7 +183,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(contentX, y, 220, 20).build());
             y += 24;
         }
-        y += 6;
 
         widgets.add(SettingsButtonWidget.builder(numbersThreeTierText(), btn -> {
                     TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
@@ -179,28 +191,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(numbersThreeTierText());
                 }).bounds(contentX, y, 220, 20).build());
         y += 24;
-
-        // Hold To Click (killer560, 2026-10-26, legit: "make drop terms in the legit version not cheat"). It repeats his
-        // own held left click on the slot under his cursor, and only when the solver marks that slot correct.
-        widgets.add(SettingsButtonWidget.builder(holdToClickText(), btn -> {
-                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                    cfg.setHoldToClickEnabled(!cfg.isHoldToClickEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
-        y += 24;
-        if (TerminalSolverConfig.getInstance().isHoldToClickEnabledRaw()) {
-            int half = (contentWidth - 8) / 2;
-            widgets.add(holdSlider(contentX, y, half, TerminalSolverConfig.MIN_HOLD_FIRST_DELAY_MS, TerminalSolverConfig.MAX_HOLD_FIRST_DELAY_MS,
-                    () -> TerminalSolverConfig.getInstance().getHoldToClickFirstDelayMs(),
-                    v -> TerminalSolverConfig.getInstance().setHoldToClickFirstDelayMs(v),
-                    () -> Component.literal("Hold First Delay: " + TerminalSolverConfig.getInstance().getHoldToClickFirstDelayMs() + "ms")));
-            widgets.add(holdSlider(contentX + half + 8, y, half, TerminalSolverConfig.MIN_HOLD_REPEAT_MS, TerminalSolverConfig.MAX_HOLD_REPEAT_MS,
-                    () -> TerminalSolverConfig.getInstance().getHoldToClickRepeatMs(),
-                    v -> TerminalSolverConfig.getInstance().setHoldToClickRepeatMs(v),
-                    () -> Component.literal("Hold Repeat: " + TerminalSolverConfig.getInstance().getHoldToClickRepeatMs() + "ms")));
-            y += 24;
-        }
 
         widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.TERMINAL_SOLVER,
                 contentX, y, 220, 20));
@@ -241,17 +231,36 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
      *  section is five buttons tall until something is actually turned on. */
     private int buildQolSection(List<AbstractWidget> widgets, int contentX, int y, int contentWidth,
                                 Runnable requestRebuild) {
-        Minecraft mc = Minecraft.getInstance();
         TerminalQolConfig cfg = TerminalQolConfig.getInstance();
         int gap = 8;
         int col2W = (contentWidth - gap) / 2;
         int col2bX = contentX + col2W + gap;
 
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Terminal QoL", false));
-        y += 14;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Works with the solver above on or off."), mc.font));
         y += 16;
+
+        // Hold To Click (killer560, 2026-10-26, legit: "make drop terms in the legit version not cheat"; moved into Terminal
+        // QoL 2026-11-01: "move the hold to click option to the terminal qol section"). It repeats his
+        // own held left click on the slot under his cursor, and only when the solver marks that slot correct.
+        widgets.add(SettingsButtonWidget.builder(holdToClickText(), btn -> {
+                    TerminalSolverConfig solver = TerminalSolverConfig.getInstance();
+                    solver.setHoldToClickEnabled(!solver.isHoldToClickEnabledRaw());
+                    solver.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        if (TerminalSolverConfig.getInstance().isHoldToClickEnabledRaw()) {
+            int half = (contentWidth - gap) / 2;
+            widgets.add(holdSlider(contentX, y, half, TerminalSolverConfig.MIN_HOLD_FIRST_DELAY_MS, TerminalSolverConfig.MAX_HOLD_FIRST_DELAY_MS,
+                    () -> TerminalSolverConfig.getInstance().getHoldToClickFirstDelayMs(),
+                    v -> TerminalSolverConfig.getInstance().setHoldToClickFirstDelayMs(v),
+                    () -> Component.literal("Hold First Delay: " + TerminalSolverConfig.getInstance().getHoldToClickFirstDelayMs() + "ms")));
+            widgets.add(holdSlider(contentX + half + gap, y, half, TerminalSolverConfig.MIN_HOLD_REPEAT_MS, TerminalSolverConfig.MAX_HOLD_REPEAT_MS,
+                    () -> TerminalSolverConfig.getInstance().getHoldToClickRepeatMs(),
+                    v -> TerminalSolverConfig.getInstance().setHoldToClickRepeatMs(v),
+                    () -> Component.literal("Hold Repeat: " + TerminalSolverConfig.getInstance().getHoldToClickRepeatMs() + "ms")));
+            y += 24;
+        }
 
         // ---- Terminal Protection ----
         widgets.add(onOffButton("Terminal Protection", cfg::isProtectionEnabledRaw, cfg::setProtectionEnabled,
@@ -287,7 +296,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         if (cfg.isDropKeyEnabledRaw()) {
             widgets.add(SettingsButtonWidget.builder(dropKeyText(cfg), btn -> {
                         capturingDropKey = true;
-                        btn.setMessage(Component.literal("Press any key..."));
+                        btn.setMessage(Component.literal("Press a key or button..."));
                     }).bounds(contentX, y, col2W, 18).build());
             y += 20;
         }
@@ -361,10 +370,10 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
 
     private Component dropKeyText(TerminalQolConfig cfg) {
         if (capturingDropKey) {
-            return Component.literal("Press any key...");
+            return Component.literal("Press a key or button...");
         }
         int key = cfg.getDropKeyCode();
-        String name = key == -1 ? "Unbound" : com.killer560.hub.util.KeyUtil.keyName(key);
+        String name = key == -1 ? "Unbound" : com.killer560.hub.util.KeyUtil.bindDisplayName(key);
         return Component.literal("Drop Key: " + name);
     }
 

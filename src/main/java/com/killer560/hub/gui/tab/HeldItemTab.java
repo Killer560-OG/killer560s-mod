@@ -28,14 +28,32 @@ public class HeldItemTab extends BaseTab {
         int y = contentY;
         HeldItemConfig cfg = HeldItemConfig.getInstance();
 
+        // The switch and an Edit button on one row (killer560, 2026-11-01): Edit opens the sliders over the game, on the
+        // side away from the held item, so the item can be watched while it is set.
+        int editW = 56;
         widgets.add(onOffButton("Held Item Transform", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
+                requestRebuild, contentX, y, Math.max(1, contentWidth - editW - 4), 20));
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Edit"), btn -> {
+                    Minecraft mc = Minecraft.getInstance();
+                    com.killer560.hub.compat.McCompat.setScreen(mc,
+                            new com.killer560.hub.helditem.HeldItemEditScreen(com.killer560.hub.compat.McCompat.screen(mc)));
+                }).bounds(contentX + contentWidth - editW, y, editW, 20).build());
         y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
         }
+        buildSettings(widgets, contentX, y, contentWidth, requestRebuild);
+        return widgets;
+    }
 
+    /**
+     * Every Held Item Transform row under the switch (animations, swing speed and range, both hands, reset), from
+     * {@code y}; returns the y under the last row. Shared by this tab and {@link com.killer560.hub.helditem.HeldItemEditScreen}.
+     */
+    public static int buildSettings(List<AbstractWidget> widgets, int contentX, int y, int contentWidth,
+                                    Runnable requestRebuild) {
+        HeldItemConfig cfg = HeldItemConfig.getInstance();
         // ---- Animations (both hands) ----
         widgets.add(label(contentX, y, contentWidth, "§6Animations"));
         y += 14;
@@ -56,6 +74,11 @@ public class HeldItemTab extends BaseTab {
             widgets.add(slider(contentX, y, contentWidth, "Swing Speed", "x",
                     HeldItemConfig.MIN_SWING_SPEED, HeldItemConfig.MAX_SWING_SPEED, 0.05f, 2,
                     cfg::getSwingSpeed, cfg::setSwingSpeed, cfg));
+            y += 22;
+            // Swing Range (killer560, 2026-11-01): how far the item travels forward on each hit.
+            widgets.add(slider(contentX, y, contentWidth, "Swing Range", "x",
+                    HeldItemConfig.MIN_SWING_RANGE, HeldItemConfig.MAX_SWING_RANGE, 0.05f, 2,
+                    cfg::getSwingRange, cfg::setSwingRange, cfg));
             y += 22;
         }
 
@@ -82,8 +105,8 @@ public class HeldItemTab extends BaseTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
-
-        return widgets;
+        y += 22;
+        return y;
     }
 
     private static int addHandSliders(List<AbstractWidget> widgets, int x, int y, int width,

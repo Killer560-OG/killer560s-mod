@@ -10,7 +10,12 @@ final class CardBlurbsData {
 
     static void register(Map<String, String> d) {
         d.put("SecretClickedTab", "Boxes clicked secrets; mutes.");
+        d.put("SecretTab", "Secret sound, boxes and HUD.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");
+        d.put("CreationCooldownTab", "Dungeon join timer.");
+        d.put("InstaClearWarningTab", "Lost-key alert.");
+        d.put("GyroOverlayTab", "Shows the Gyro wand's pull ring.");
+        d.put("ChatTabsTab", "Party, guild, DM tabs in chat.");
         d.put("ScoreWarningTab", "Boss and crypt warnings.");
         d.put("LowHealthAlertTab", "Warns when a teammate is low.");
         d.put("HomeMainTab", "Update notice, HUD keys and scale.");
@@ -19,6 +24,7 @@ final class CardBlurbsData {
         d.put("LightsDeviceTab", "F7 lights aura and trigger.");
         d.put("DiscordRpcTab", "Shows the mod on Discord.");
         d.put("AutoUpdateTab", "Installs new mod versions.");
+        d.put("BanReportTab", "Opt-in: reports a Hypixel ban to staff.");
         d.put("CorrectionAlarmTab", "Siren on a position fix.");
         d.put("ArchitectDraftTab", "Chat link for a draft.");
         d.put("ArrowAlignTab", "Shows the Arrow Align solution.");
@@ -100,7 +106,9 @@ final class CardBlurbsData {
         d.put("DungeonBreakerTab", "Instant Breaker blocks.");
         d.put("FastLeapTab", "Leaps without the menu.");
         d.put("FreezeStateTab", "!! NEVER ON HYPIXEL: BAN !!");
-        d.put("GoldorTriggerbotTab", "Clicks Goldor on aim.");
+        d.put("GoldorTriggerbotTab", "Clicks wither bosses on aim.");
+        d.put("MaskKeybindsTab", "Key equips a mask in /stats.");
+        d.put("ThornTriggerbotTab", "Holds the Tribal Spear on Thorn.");
         d.put("DioriteGlassTab", "Storm's diorite pillars as glass.");
         d.put("InteractiveMapTab", "Full-screen map pathing.");
         d.put("FullBlockTab", "Bigger click boxes for secrets.");
@@ -180,6 +188,7 @@ final class CardBlurbsData {
         d.put("PathfindingTab", "Waypoints and a route to missing souls.");
         d.put("GeneralMainTab", "Runs /skyblock when you join.");
         d.put("MotionBlurTab", "Blends frames for motion blur.");
+        d.put("AutoSprintTab", "Sprints when you walk forward.");
         d.put("FreelookTab", "F5 rear view; hold a key to pan.");
         d.put("BlinkTab", "Charge ticks standing still, then shoot ahead.");
         d.put("InventoryWalkTab", "Keep walking while a menu is open.");

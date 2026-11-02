@@ -55,6 +55,21 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   MIN_MATCHES. The comparison budget charged every seen block in a candidate's span, ruled out or not, so more rays queued
   ticks of work that took a few (1018-predict-hypixel-fresh named at tick 20: 3506 placements, 1712 seen); it now charges
   a compared block 1, a block in another tile 1/16, and nothing after a candidate is ruled out.
+- **Before the run there is no map, and the predictor knew nothing was opened** (to-do Doc 2026-11-01, "PREDICTIVE MAP
+  MODE": dig the green room's gate pre-run, peek into the first room, "once the run starts it bugs out the map entirely"; his
+  picture shows "Grand Library" drawn where his head is and the green room gone). Hypixel hands the map over at Mort's first
+  line, so `HeldMap.available()` is false pre-run; standing in the doorway gap (where he digs) his eye is in no tile, so the
+  start room itself was a target and every placement could cover it, and nothing re-decided the predictions when the map
+  arrived (`decide` ran only on new sightings). Fix: `RoomPredictor.startTile` (the tile he is in while there is no map)
+  counts as opened, and any change in the opened tiles re-decides. The sim used to answer with its stand-in map during the
+  countdown, so this state was never tested; it now has no map until GO (testkit 1101-map-prerun; on main the sim cannot
+  reach the bug at all, the stand-in hides it).
+- **Seeing through one room into another** (same Doc item): in the sim the middle room is named every time (1101-map-
+  seethrough, every straight line on the floor). His Hypixel logs (2026-10-30..11-01) show 372 tiles named right, 1 unknown,
+  and 15 "every placement ruled out" with 61-440 blocks seen - Default x3, Dino Site x3, Redstone Key, Ice Fill, Steps,
+  Temple, Drop, Spikes, Prison Cell, Overgrown Chains, Sarcophagus - all of which have a bundled capture. So a gray middle
+  room on Hypixel is that room's live blocks differing from its capture, not the geometry of a see-through; which blocks
+  differ needs `RoomPredictor.disagreements` on a Hypixel run (not traced yet).
 
 ## Secrets, crypts and waypoints
 
@@ -75,6 +90,13 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   every secret back on the same blocks, so after run 1 the aura clicked nothing (his Museum, Map Logger). All three now
   also reset when `LiveMapFeature.resetGeneration()` changes (world change, dungeon entered, sim floor published).
   99-sim-aura-rebuild rebuilds Museum three times in one world and fails on 5008e4d6.
+- The map's per-room secret count (Secrets HUD, Auto Secret) is bumped the moment HE takes a secret
+  (`RouteRunMemory.gotSecret` -> `LiveMapFeature.noteSecretTakenAt`), before the action bar answers. Every chest click
+  counted, so a LOCKED chest (Hypixel: "That chest is locked!") counted too, and every item pickup counted, so an item
+  that came out of a chest he opened (or any non-secret item) read as an item secret (killer560, 2026-11-01). Since
+  doc-dhud-1101 `AwaitEvents` takes a chest back on the locked line within 1.5 s, and counts an item only when its name
+  is one of Noamm's dungeon secret drops and it was not made after his click within 4.5 blocks of that chest (entity id
+  above the highest id his world held at the click). Testkit 1101-dhud-lockedchest / chestdrop.
 
 ## Score and run records
 
@@ -98,6 +120,17 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   so anything asking "is the Interactive Map moving him?" at the landing must use `isBusy()` (true through the arrival
   sync), and read it when the position packet arrives. The insta-clear recorder used `isActive` on the next tick and
   logged every map path's final landing as "teleport by manual" (Mage, Hall, his live F7 runs 2026-10-06).
+- Core Entry Times measured the P4 band (45 < y <= 100, Necron's platform, UNDER the core) until 2026-11-01, so a
+  player was "in the core" only after Goldor died and he dropped; Necron's first line ends the timing, so usually only the
+  first to drop was timed ("4 mages and 1 arch and it only ever gave the arch's time"). The core is the closed room in the
+  middle of the Goldor arena: NoammAddons LeapCounter's in-core box x 42..68, y 106..155, z 54..119 (its INCORE_BOX and our
+  Posmsg "Recore" preset 54.5,115,58.5 sit inside). Testkit 1101-dhud-coreentry.
+- On Hypixel the Fairy door is usually coal until the run starts and opens 1-2 s after "Starting in 1 second." (Mod Only
+  Test logs 2026-10-14..10-20: "fairy door N is a shut wither door" then "door N into Fairy" a second later), and is
+  sometimes a real wither door that takes a key (2026-10-18 22:57:02, opened with the key). At the run start the map
+  often cannot trace Entrance to Blood yet ("no path from Entrance" for up to a minute), which drew no Fairy door at
+  all; FairyDoor now paths to the Fairy room itself then, keeps a door already found, and a shut one is drawn by the
+  wither highlight in the Fairy color (testkit 678 checks the color).
 
 ## Blood Camp
 
@@ -114,6 +147,17 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   actually camp blood it never clicked, and its mob search skipped every `Player` - the Watcher's summons are player-model
   NPCs (v2 UUID). Aim is line of sight (48 blocks); only the attack is reach-limited, else the click is a plain swing
   (testkit 686: 16 blocks out it now swings once, 2.7 out it attacks and the mob loses health).
+- **A blood name tag anywhere is not a blood mob.** "Fels", "Skull" and the rest are ordinary dungeon mob names too, so
+  tagging by name tag across the whole floor made every Fel a blood mob for Blood Mobs ESP ("something is highlighting all
+  fels", killer560 2026-11-01). Name tags count only inside the Watcher's room tile and never with a star. The tag-to-mob
+  mapping (the entity one id below the stand) can land on a silverfish (his 2026-10-29 log); silverfish, the Watcher (by id
+  or his skull) and Primal Fears are excluded in one place, `BloodCampFeature.excluded` (testkit 1101-bloodcamp-*).
+- **An anticheat's transaction pings are not server ticks.** `ServerTickClock`/`ServerLag` call a server ping-driven at 15
+  pings a second; GrimAC alone sends about that many, so on the testkit ServerLag read their gaps as stalls and a Blood Camp
+  countdown built on it fell 11-15 ticks a second (177 failed "kill timer never went off"), and a rule of 18 pings a window
+  still trusted Grim now and then (792: a trip 31 ticks slow). Blood Camp times on `util.PerTickServerClock`: trusted only
+  after two 20-tick windows with a ping on at least 19 ticks and at most 24 pings, pings drive it while trusted, client
+  ticks otherwise (logic case 1101-logic-bloodcamp-clock drives it by hand).
 
 ## Terminals and solvers
 

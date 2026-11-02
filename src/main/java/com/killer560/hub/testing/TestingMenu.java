@@ -21,6 +21,8 @@ import java.util.Map;
 public final class TestingMenu {
 
     public static final String UNTESTED = "Untested";
+    /** The category of tabs he marked bugged (killer560, 2026-11-01), right under Untested. */
+    public static final String BUGGED = "Bugged";
     public static final int MARK_ROW_HEIGHT = 18;
 
     /** Every feature tab of the normal menu (class simple name -> "Category > ... > Tab"), from the last
@@ -40,6 +42,7 @@ public final class TestingMenu {
         }
         CATEGORY.clear();
         List<BaseTab> untested = new ArrayList<>();
+        List<BaseTab> bugged = new ArrayList<>();
         List<BaseTab> out = new ArrayList<>();
         for (BaseTab top : tabs) {
             if (top instanceof HomeTab) {
@@ -48,11 +51,13 @@ public final class TestingMenu {
             }
             record(top, top.name);
             if (top instanceof FolderTab folder) {
-                if (prune(folder, untested)) {
+                if (prune(folder, untested, bugged)) {
                     out.add(top);
                 }
             } else if (TestedFeatures.isTested(top)) {
                 out.add(top);
+            } else if (TestedFeatures.isBugged(top)) {
+                bugged.add(top);
             } else {
                 untested.add(top);
             }
@@ -61,22 +66,28 @@ public final class TestingMenu {
         while (at < out.size() && out.get(at) instanceof HomeTab) {
             at++;
         }
+        if (!bugged.isEmpty()) {
+            out.add(at, new UntestedTab(BUGGED, bugged));
+        }
         if (!untested.isEmpty()) {
-            out.add(at, new UntestedTab(untested));
+            out.add(at, new UntestedTab(UNTESTED, untested));
         }
         return out;
     }
 
-    /** Takes every untested leaf out of {@code folder} (recursively) into {@code untested}; false if nothing is left. */
-    private static boolean prune(FolderTab folder, List<BaseTab> untested) {
+    /** Takes every untested leaf out of {@code folder} (recursively) into {@code untested}, and every bugged one into
+     *  {@code bugged}; false if nothing is left. */
+    private static boolean prune(FolderTab folder, List<BaseTab> untested, List<BaseTab> bugged) {
         List<BaseTab> keep = new ArrayList<>();
         for (BaseTab sub : folder.subTabs()) {
             if (sub instanceof FolderTab inner) {
-                if (prune(inner, untested)) {
+                if (prune(inner, untested, bugged)) {
                     keep.add(sub);
                 }
             } else if (TestedFeatures.isTested(sub)) {
                 keep.add(sub);
+            } else if (TestedFeatures.isBugged(sub)) {
+                bugged.add(sub);
             } else {
                 untested.add(sub);
             }
@@ -114,7 +125,7 @@ public final class TestingMenu {
      * it normally lives in ("dungeon/..."), so the testing menu shows exactly the text the normal one does.
      */
     public static String tooltipCategory(String selectedTop, String scope) {
-        if (UNTESTED.equals(selectedTop) && scope != null) {
+        if ((UNTESTED.equals(selectedTop) || BUGGED.equals(selectedTop)) && scope != null) {
             String c = CATEGORY.get(scope);
             if (c != null) {
                 return c;
@@ -131,5 +142,25 @@ public final class TestingMenu {
             TestedFeatures.mark(tab, !tested);
             ModScreen.reloadTabs();
         }).bounds(x, y, Math.min(width, 110), MARK_ROW_HEIGHT - 4).build();
+    }
+
+    /** The Mark bugged / Unmark bugged button beside Mark tested (killer560, 2026-11-01): a tab he tested and found
+     *  broken goes to the Bugged category; unmarked, it goes back to Untested. */
+    public static AbstractWidget buggedButton(BaseTab tab, int x, int y, int width) {
+        boolean bugged = TestedFeatures.isBugged(tab);
+        Component label = Component.literal(bugged ? "§eUnmark bugged" : "§cMark bugged");
+        int bx = x + Math.min(width, 110) + 4;
+        return SettingsButtonWidget.builder(label, b -> {
+            TestedFeatures.markBugged(tab, !bugged);
+            ModScreen.reloadTabs();
+        }).bounds(bx, y, Math.max(1, Math.min(width - (bx - x), 110)), MARK_ROW_HEIGHT - 4).build();
+    }
+
+    /** Mark tested and Mark bugged, side by side, for the row above a feature tab. */
+    public static List<AbstractWidget> markButtons(BaseTab tab, int x, int y, int width) {
+        List<AbstractWidget> out = new ArrayList<>();
+        out.add(markButton(tab, x, y, width));
+        out.add(buggedButton(tab, x, y, width));
+        return out;
     }
 }

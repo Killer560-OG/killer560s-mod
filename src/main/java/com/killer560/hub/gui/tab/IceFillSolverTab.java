@@ -34,20 +34,25 @@ public class IceFillSolverTab extends BaseTab {
                 null, contentX, y, contentWidth, 18));
         y += 22;
 
-        // killer560, 2026-09-20: "ice fill's line shouldn't be blue, hard to see - make it configurable".
-        widgets.add(SettingsButtonWidget.cycling(colorLabel(cfg.getLineColor()), (btn, dir) -> {
-                    cfg.cycleLineColor(dir);
-                    cfg.save();
-                    btn.setMessage(colorLabel(cfg.getLineColor()));
+        // killer560, 2026-11-01: "line color should be a customizable box not a toggle through".
+        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("Line Color", cfg.getLineColorArgb()),
+                btn -> {
+                    net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+                    com.killer560.hub.compat.McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(
+                            com.killer560.hub.compat.McCompat.screen(client), "Line Color", cfg.getLineColorArgb(),
+                            IceFillSolverConfig.DEFAULT_LINE_COLOR, argb -> {
+                                cfg.setLineColorArgb(argb);
+                                cfg.save();
+                            }));
                 }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+        // Only drops his own etherwarp click (nothing is sent), like Block Wrong Answers: legit.
+        widgets.add(onOffButton("Etherwarp Protection", cfg::isEtherwarpProtection, cfg::setEtherwarpProtection, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.ICE_FILL, contentX, contentWidth, y, false);
 
         return widgets;
     }
 
-    private static Component colorLabel(com.killer560.hub.puzzlesolvers.IceFillSolverConfig.LineColor color) {
-        return Component.literal("Line Color: " + color.name().charAt(0)
-                + color.name().substring(1).toLowerCase(java.util.Locale.ROOT));
-    }
 }

@@ -17,8 +17,6 @@ import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ModSounds;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -179,14 +177,10 @@ public final class AutoClearFeature {
         }
         // START: the use key must be down before handleKeybinds, and the body turned before the movement packet.
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoClearFeature.tick", AutoClearFeature::tick));
+        // Escape, the chat key and the Emergency Cancel Key stop it too (killer560, 2026-11-01); a click no longer does.
+        com.killer560.hub.macrostop.MacroStop.register("Auto Clear", com.killer560.hub.macrostop.MacroStop.Kind.MOVEMENT, () -> running, why -> stop("you pressed " + why));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoClearSettings.capture", AutoClearSettings::pollCapture));
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
-                ClientCommands.literal("autoclear")
-                        .requires(src -> AutoClearConfig.getInstance().isEnabledRaw())
-                        .executes(ctx -> {
-                            toggle();
-                            return 1;
-                        })));
+        // /autoclear was removed (killer560, 2026-11-01): the Clear Toggle Key starts and stops it.
         // Auto Clear's rows in the shared Auto Clear tab (Auto Secret's tab): its switch is the tab's first row, the rest
         // go below Auto Secret's section.
         com.killer560.hub.gui.tab.AutoClearTab.addMaster((widgets, x, y, width, rebuild) -> {
@@ -4115,11 +4109,10 @@ public final class AutoClearFeature {
      * Whether a run of Auto Clear holds back every automatic secret click (Secret Aura, the Secret Triggerbot): a run is
      * going and no Auto Routes route is running (killer560, 2026-10-20: "Secret clicks are for Auto Routes running a
      * route, or for Auto Secret"). A secret taken while it kills is one the route through that room then has to find
-     * gone; under a route, {@code RouteExecutor.secretAuraMayClick} decides as always. /test ({@link BatTest}) holds them
-     * the same way: it is not a route either, and an aura click would put its own use beside the shot's.
+     * gone; under a route, {@code RouteExecutor.secretAuraMayClick} decides as always.
      */
     public static boolean holdsSecretClicks() {
-        return (running || BatTest.isRunning()) && !com.killer560.hub.autoroutes.RouteExecutor.isRunning();
+        return running && !com.killer560.hub.autoroutes.RouteExecutor.isRunning();
     }
 
     // =========================================================================================== corrections
@@ -4778,11 +4771,12 @@ public final class AutoClearFeature {
         return best;
     }
 
-    private static final String[] KEY_NAMES = {"forward", "back", "left", "right", "jump", "attack"};
+    // Movement keys only (killer560, 2026-11-01): the attack key stopped it until then.
+    private static final String[] KEY_NAMES = {"forward", "back", "left", "right", "jump"};
 
     private static KeyMapping[] watchedKeys(Minecraft client) {
         var o = client.options;
-        return new KeyMapping[]{o.keyUp, o.keyDown, o.keyLeft, o.keyRight, o.keyJump, o.keyAttack};
+        return new KeyMapping[]{o.keyUp, o.keyDown, o.keyLeft, o.keyRight, o.keyJump};
     }
 
     /** The name of a movement/jump/attack key pressed since the last tick (not one held since the start), or null. */
@@ -4867,7 +4861,7 @@ public final class AutoClearFeature {
         return pathFailures;
     }
 
-    /** True while a run started by him (the key, /autoclear) owns it, rather than one room handed over by Auto Secret. */
+    /** True while a run started by him (the Clear Toggle Key) owns it, rather than one room handed over by Auto Secret. */
     public static boolean isStandaloneRun() {
         return running && singleRoom == null;
     }

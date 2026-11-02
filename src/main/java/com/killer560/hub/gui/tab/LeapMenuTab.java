@@ -47,7 +47,7 @@ public class LeapMenuTab extends BaseTab {
     /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): the Custom Leap Menu and the Leap Message are separate features. */
     @Override
     public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Custom Leap Menu", "Leap Message Enabled", "Class Selection Overlay");
+        return switchRows(built, "Custom Leap Menu", "Leap Message Enabled");
     }
 
     @Override
@@ -57,7 +57,8 @@ public class LeapMenuTab extends BaseTab {
 
         y = buildCustomMenuSection(widgets, contentX, y, contentWidth, requestRebuild);
         y = buildLeapMessageSection(widgets, contentX, y, contentWidth, requestRebuild);
-        buildClassSelectionSection(widgets, contentX, y, contentWidth);
+        // The Class Selection section (the Class Selection Overlay switch and Edit Classes) and the overlay itself were removed (killer560,
+        // 2026-11-01: "Remove the class selection settings ... and the edit classes button along with it").
         com.killer560.hub.gui.ScreenThemes.append(widgets, LeapOrderScreen.THEME_ID, contentX, contentWidth, y);
 
         return widgets;
@@ -74,7 +75,8 @@ public class LeapMenuTab extends BaseTab {
         SpiritLeapOverlayConfig cfg = SpiritLeapOverlayConfig.getInstance();
         widgets.add(onOffButton("Custom Leap Menu", cfg::isEnabled, cfg::setEnabled, cfg::save,
                 requestRebuild, x, y, half, ROW));
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Leap Order"), btn -> {
+        // Renamed from "Open Leap Order" (killer560, 2026-11-01).
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Custom Leap Order Editor"), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     client.setScreenAndShow(new LeapOrderScreen(McCompat.screen(client)));
                 }).bounds(rightX, y, rightW, ROW).build());
@@ -117,37 +119,16 @@ public class LeapMenuTab extends BaseTab {
             // 2026-10-11: each box shows the teammate's face; and the map style for the clear (boxes again in boss).
             widgets.add(onOffButton("Show Player Heads", cfg::isShowHeads, cfg::setShowHeads, cfg::save,
                     null, x, y, half, ROW));
-            widgets.add(SettingsButtonWidget.cycling(leapStyleText(cfg), (btn, dir) -> {
-                        cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
-                        cfg.save();
-                        btn.setMessage(leapStyleText(cfg));
-                    }).bounds(rightX, y, rightW, ROW).build());
+            // Leap Style became a switch (killer560, 2026-11-01: "change leap style to a toggle for show map during
+            // clear"): on is the Map in Clear style, off the boxes. Same saved "style" key.
+            widgets.add(onOffButton("Show Map During Clear",
+                    () -> cfg.getStyle() == SpiritLeapOverlayConfig.LeapStyle.MAP_IN_CLEAR,
+                    v -> cfg.setStyle(v ? SpiritLeapOverlayConfig.LeapStyle.MAP_IN_CLEAR : SpiritLeapOverlayConfig.LeapStyle.BOXES),
+                    cfg::save, null, rightX, y, rightW, ROW));
             y += ROW + GAP;
         }
 
         return y + SECTION_GAP;
-    }
-
-    /** Class Selection (killer560, 2026-10-15): the Class Overrides tab is gone - a player's class is set in the Leap Order
-     *  editor ({@code /leaporder}, {@code /class}), and the overlay on Hypixel's class-selection screen writes the same
-     *  picks. Its switch moved here from that tab. */
-    private void buildClassSelectionSection(List<AbstractWidget> widgets, int x, int y, int width) {
-        widgets.add(sectionHeader(x, y, width, "Class Selection", false));
-        y += HEADER_H;
-        int half = (width - GAP) / 2;
-        int rightX = x + half + GAP;
-        int rightW = Math.max(1, width - half - GAP);
-        com.killer560.hub.dungeonclass.ClassSelectionOverlayConfig overlay =
-                com.killer560.hub.dungeonclass.ClassSelectionOverlayConfig.getInstance();
-        widgets.add(SettingsButtonWidget.builder(onOff("Class Selection Overlay", overlay.isEnabledRaw()), btn -> {
-                    overlay.setEnabled(!overlay.isEnabledRaw());
-                    overlay.save();
-                    btn.setMessage(onOff("Class Selection Overlay", overlay.isEnabledRaw()));
-                }).bounds(x, y, half, ROW).build());
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Classes"), btn -> {
-                    Minecraft client = Minecraft.getInstance();
-                    client.setScreenAndShow(new LeapOrderScreen(McCompat.screen(client)));
-                }).bounds(rightX, y, rightW, ROW).build());
     }
 
     private int buildLeapMessageSection(List<AbstractWidget> widgets, int x, int y, int width, Runnable requestRebuild) {
@@ -214,10 +195,6 @@ public class LeapMenuTab extends BaseTab {
 
     private static Component scaleText(SpiritLeapOverlayConfig cfg) {
         return Component.literal(String.format(Locale.US, "Scale: %.0f%%", cfg.getScale() * 100));
-    }
-
-    private static Component leapStyleText(SpiritLeapOverlayConfig cfg) {
-        return Component.literal("Leap Style: §6" + cfg.getStyle().label());
     }
 
     private static Component leapMessageEnabledText() {

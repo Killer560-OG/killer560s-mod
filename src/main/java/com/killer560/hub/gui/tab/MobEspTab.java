@@ -46,7 +46,7 @@ public class MobEspTab extends BaseTab {
     /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): Starred Mob and Bat hitboxes, the Wither Boss Highlight and the cheat ESP are separate features. */
     @Override
     public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Starred Mobs", "Bats", "Blood Mobs", "Wither Boss Highlight", "ESP");
+        return switchRows(built, "Starred Mobs", "Bats", "Blood Mobs", "Fel Skulls", "Mimic", "Wither Boss Highlight", "ESP");
     }
 
     @Override
@@ -71,6 +71,13 @@ public class MobEspTab extends BaseTab {
         // will highlight them red". Same style and rules as the rows above; never limited by Range or Room Scoped.
         targetRow(widgets, contentX, col2X, y, colW, "Blood Mobs", cfg::getBloodMobsRaw, cfg::setBloodMobs,
                 "Blood Mob", cfg::getBloodColor, cfg::setBloodColor, MobEspConfig.DEFAULT_BLOOD_COLOR);
+        y += 22;
+        // killer560, 2026-11-01: "Make that a toggle to highlight fels" and "Add an option for mimic highlight as well".
+        targetRow(widgets, contentX, col2X, y, colW, "Fel Skulls", cfg::getFelSkullsRaw, cfg::setFelSkulls,
+                "Fel Skull", cfg::getFelColor, cfg::setFelColor, MobEspConfig.DEFAULT_FEL_COLOR);
+        y += 22;
+        targetRow(widgets, contentX, col2X, y, colW, "Mimic", cfg::getMimicRaw, cfg::setMimic,
+                "Mimic", cfg::getMimicColor, cfg::setMimicColor, MobEspConfig.DEFAULT_MIMIC_COLOR);
         y += 26;
 
         widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {

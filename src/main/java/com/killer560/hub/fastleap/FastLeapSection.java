@@ -148,6 +148,24 @@ public final class FastLeapSection {
             y += ROW + GAP;
         }
 
+        // Leap Timeout (killer560, 2026-11-01): how long a leap waits for the menu / the target's head before giving up
+        double tnorm = (cfg.getTimeoutMs() - FastLeapConfig.MIN_TIMEOUT_MS)
+                / (double) (FastLeapConfig.MAX_TIMEOUT_MS - FastLeapConfig.MIN_TIMEOUT_MS);
+        widgets.add(new ThemedSliderButton(x, y, Math.max(1, width), ROW, Component.literal(timeoutLabel(cfg)), tnorm) {
+            @Override
+            protected void updateMessage() {
+                setMessage(Component.literal(timeoutLabel(cfg)));
+            }
+
+            @Override
+            protected void applyValue() {
+                int range = FastLeapConfig.MAX_TIMEOUT_MS - FastLeapConfig.MIN_TIMEOUT_MS;
+                cfg.setTimeoutMs(FastLeapConfig.MIN_TIMEOUT_MS + (int) Math.round(this.value * range));
+                saveOnRelease(() -> cfg.save());
+            }
+        });
+        y += ROW + GAP;
+
         // Return To (2026-10-13): one setting for every Auto leap, not one per leap - an Auto leap that had to swap to
         // the leap item always swaps back, and where to is a property of his hotbar, not of the boss phase
         widgets.add(SettingsButtonWidget.cycling(returnLabel(cfg.getReturnToSlot()), (btn, dir) -> {
@@ -571,6 +589,10 @@ public final class FastLeapSection {
     /** The plain-string half of {@link #onOff}, for the list rows (which are labels, not buttons). */
     static String onOffText(String label, boolean value) {
         return label + ": " + (value ? "§aON" : "§cOFF");
+    }
+
+    private static String timeoutLabel(FastLeapConfig cfg) {
+        return "Leap Timeout: " + String.format(java.util.Locale.ROOT, "%.2f", cfg.getTimeoutMs() / 1000.0) + "s";
     }
 
     private static String delayLabel(FastLeapConfig cfg) {

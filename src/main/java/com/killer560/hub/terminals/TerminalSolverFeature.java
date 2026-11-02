@@ -650,7 +650,12 @@ public final class TerminalSolverFeature {
         }
         if (System.currentTimeMillis() - stabilizedAtMs < INITIAL_CLICK_SETTLE_MS) {
             // Round 31 - see stabilizedAtMs's own doc. Lets a freshly-opened terminal's real double-open
-            // finish before this class ever attempts its first click against it.
+            // finish before this class ever attempts its first click against it. Stream Safe's hand already sets off
+            // meanwhile (killer560, 2026-11-01: "The first click is really slow"): it used to start its reaction and move
+            // only once this window had passed, so the first click came a whole reaction plus a move after it.
+            if (cfg.isAutoStreamSafe() && isAutoTypeEnabled(type, cfg)) {
+                preAimStreamSafe(screen, type);
+            }
             return;
         }
         if (type == TerminalType.MELODY) {
@@ -747,6 +752,25 @@ public final class TerminalSolverFeature {
         noteAutoClick(target.slot(), now);
     }
 
+    /** Stream Safe during the opening settle: the hand heads for the first slot it will click (Melody: the current row's
+     *  button, or the first row's) without clicking anything. */
+    private static void preAimStreamSafe(ContainerScreen screen, TerminalType type) {
+        if (type == TerminalType.MELODY) {
+            if (melodyButtons.length > 0) {
+                int row = melodyButtonRow != null && melodyButtonRow >= 0 && melodyButtonRow < melodyButtons.length ? melodyButtonRow : 0;
+                FakeCursor.aimQuick(screen, melodyButtons[row]);
+            }
+            return;
+        }
+        if (currentHighlights.isEmpty()) {
+            return;
+        }
+        int slot = HumanClickOrder.next(type, currentHighlights, s -> false);
+        if (slot >= 0) {
+            FakeCursor.aim(screen, slot);
+        }
+    }
+
     /** Auto Terminals' slot that still needs clicks after its last one (Min/Max mode), or -1. */
     private static int stickySlot = -1;
 
@@ -804,11 +828,14 @@ public final class TerminalSolverFeature {
         pendingClicks.put(slot, waiting != null
                 ? new PendingClick(slot, waiting.firstSentAtMs(), now, waiting.snapshot(), waiting.attempt() + 1)
                 : new PendingClick(slot, now, now, snapshot, 1));
+        boolean more = needsMoreClicks(type, highlight);
+        // A pane needing another click keeps the hand on it; any other click lets it glide on toward the next slot.
+        FakeCursor.expectRepeat(more);
         if (!sendTerminalClick(screen, slot, target.button(), target.clickType())) {
+            FakeCursor.expectRepeat(false);
             pendingClicks.remove(slot);
             return;
         }
-        boolean more = needsMoreClicks(type, highlight);
         noteAutoClick(slot, now);
         HumanClickOrder.clicked(slot, more);
     }
@@ -996,6 +1023,13 @@ public final class TerminalSolverFeature {
             melodyCurrentColumn = limeSlot % 9 - 1;
         }
         if (melodyButtonRow == null || melodyCurrentColumn == null || melodyCorrectColumn == null) {
+            // Nothing to time yet: the Stream Safe hand still goes straight to the button side (the first row's button),
+            // so it is there before the first match (killer560, 2026-11-01: "It shouldnt get there fast enough to click
+            // the first button").
+            if (melodyButtons.length > 0 && scheduledMelodyClicks.isEmpty()) {
+                int row = melodyButtonRow != null && melodyButtonRow >= 0 && melodyButtonRow < melodyButtons.length ? melodyButtonRow : 0;
+                FakeCursor.aimQuick(screen, melodyButtons[row]);
+            }
             return;
         }
         int buttonRow = melodyButtonRow;
@@ -1003,8 +1037,9 @@ public final class TerminalSolverFeature {
             return;
         }
         if (scheduledMelodyClicks.isEmpty()) {
-            // Fake Cursor rests on the row being played, ready for its match.
-            FakeCursor.aim(screen, melodyButtons[buttonRow]);
+            // Fake Cursor rests on the row being played, ready for its match: straight there, whether the row is due
+            // or not (2026-11-01).
+            FakeCursor.aimQuick(screen, melodyButtons[buttonRow]);
         }
         if (!melodyCurrentColumn.equals(melodyCorrectColumn)) {
             return;
@@ -1102,7 +1137,7 @@ public final class TerminalSolverFeature {
                 scheduledMelodyClicks.pollFirst();
                 continue;
             }
-            FakeCursor.aim(screen, melodyButtons[due.row()]);
+            FakeCursor.aimQuick(screen, melodyButtons[due.row()]);
             if (!FakeCursor.ready(melodyButtons[due.row()])) {
                 break;
             }

@@ -289,8 +289,11 @@ public final class WitherDoorsFeature {
         double maxSq = (double) cfg.getRenderDistance() * cfg.getRenderDistance();
         boolean showAll = cfg.isShowAllDoors();
 
+        // The Fairy door, when it is a shut wither door, is drawn here in the Fairy Door color (FairyDoor.shutDoor).
+        int fairyShut = cfg.isFairyDoor() ? FairyDoor.shutDoor() : -1;
         if (nearestWither != null && nearestDistSq <= maxSq) {
-            int color = witherKeyHeld ? cfg.getWitherReadyColor() : cfg.getWitherLockedColor();
+            int color = nearestWither.idx() == fairyShut ? cfg.getFairyDoorColor()
+                    : witherKeyHeld ? cfg.getWitherReadyColor() : cfg.getWitherLockedColor();
             addBox(nearestWither, color);
         }
         if (!showAll) {
@@ -299,7 +302,7 @@ public final class WitherDoorsFeature {
         for (WitherDoorScanner.Door door : locked) {
             if (door.type() == WitherDoorScanner.DoorType.WITHER && door != nearestWither
                     && eye.distanceToSqr(center(door)) <= maxSq) {
-                addBox(door, cfg.getWitherLockedColor());
+                addBox(door, door.idx() == fairyShut ? cfg.getFairyDoorColor() : cfg.getWitherLockedColor());
             }
         }
         if (bloodDoor != null && eye.distanceToSqr(center(bloodDoor)) <= maxSq) {
@@ -394,6 +397,11 @@ public final class WitherDoorsFeature {
         }
     }
 
+    /** Test hook: the Fairy door as {cell drawn by the Fairy Door, shut fairy door cell drawn by the normal highlight}. */
+    public static int[] fairyDoorNow() {
+        return new int[]{FairyDoor.door(), FairyDoor.shutDoor()};
+    }
+
     /** Test hook: the doors the held-map rule would draw now, as {cell, kind ordinal (0 wither, 1 blood, 2 fairy)}. */
     public static List<int[]> mapDoorsNow() {
         List<int[]> out = new ArrayList<>();
@@ -461,11 +469,13 @@ public final class WitherDoorsFeature {
         CACHED.add(new DoorBox(box, rgba[0], rgba[1], rgba[2], fill[0], fill[1], fill[2]));
     }
 
-    /** The boxes the last rebuild produced, for tests: {minX, minY, minZ, maxX, maxY, maxZ} each. */
+    /** The boxes the last rebuild produced, for tests: {minX, minY, minZ, maxX, maxY, maxZ, r, g, b} each (the outline
+     *  color as 0..1, appended 2026-11-01 so a test can tell a Fairy-colored box from a wither one). */
     public static List<double[]> cachedBoxes() {
         List<double[]> out = new ArrayList<>();
         for (DoorBox b : CACHED) {
-            out.add(new double[]{b.box().minX, b.box().minY, b.box().minZ, b.box().maxX, b.box().maxY, b.box().maxZ});
+            out.add(new double[]{b.box().minX, b.box().minY, b.box().minZ, b.box().maxX, b.box().maxY, b.box().maxZ,
+                    b.r(), b.g(), b.b()});
         }
         return out;
     }

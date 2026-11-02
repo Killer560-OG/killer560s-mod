@@ -15,6 +15,7 @@ public class GeneralTab extends FolderTab {
                 new EtherwarpOverlayTab(),
                 // Visual-only camera glide on teleports (2026-10-07), beside the other teleport visual.
                 new SmoothTeleportTab(),
+                new AutoSprintTab(),
                 // Was its own top-level tab; killer560, 2026-10-07: "Crosshair should not be its own tab, put it in
                 // General."
                 new CrosshairTab(),

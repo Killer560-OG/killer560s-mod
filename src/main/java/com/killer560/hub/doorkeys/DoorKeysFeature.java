@@ -51,8 +51,8 @@ public final class DoorKeysFeature {
     /** The circle's center (the key's stand, at its height) and radius: {x, y, z, r}, or null. */
     private static volatile double[] ring = null;
     private static final int RING_SEGMENTS = 64;
-    /** How opaque the Sphere style's shading is: enough to see the edge of the range, not enough to hide the room. */
-    private static final float SPHERE_ALPHA = 0.22f;
+    /** The Auto color's alpha, for the circle, the sphere and the tracer alike (killer560, 2026-11-01: 50%). */
+    static final float AUTO_ALPHA = 0.5f;
 
     private DoorKeysFeature() {
     }
@@ -117,7 +117,7 @@ public final class DoorKeysFeature {
             }
             if ("Wither Key".equals(name) && cfg.isHighlightWither()) {
                 currentKey = entity;
-                currentColor = new float[]{0.1f, 0.1f, 0.1f};
+                currentColor = new float[]{0f, 0f, 0f};   // full black (2026-11-01)
                 currentBlood = false;
                 break;
             }
@@ -136,7 +136,7 @@ public final class DoorKeysFeature {
     /** The pickup circle for {@code key}: centered on its stand, at the stand's own height. */
     private static double[] ringFor(Minecraft client, Entity key) {
         Vec3 p = key.position();
-        double radius = com.killer560.hub.autosecret.AutoSecretConfig.getInstance().keyPickupRange();
+        double radius = DoorKeysConfig.getInstance().drawnRadius();
         double[] last = ring;
         if (last != null && last[0] == p.x && last[1] == p.y && last[2] == p.z && last[3] == radius) {
             return last; // unchanged: keep it, and the ring points built from it
@@ -210,7 +210,14 @@ public final class DoorKeysFeature {
         return new double[]{p.x, p.y, p.z, r[3]};
     }
 
-    /** For the testkit: the style the last frame drew ("radius", "sphere"), or "" before any. */
+    /** For the testkit: the last frame's circle/sphere color and tracer color, r g b a each, or null before any. */
+    private static volatile float[][] lastColors = null;
+
+    public static float[][] lastDrawnColors() {
+        return lastColors;
+    }
+
+    /** For the testkit: the style the last frame drew ("radius" for the Circle style, "sphere"), or "" before any. */
     private static volatile String lastDrawn = "";
 
     public static String lastDrawnStyle() {
@@ -231,8 +238,11 @@ public final class DoorKeysFeature {
             return;
         }
         // Built on the ring's change, not every frame (65 Vec3 and a list per frame before; FPS pass).
-        float[] circleRgba = resolveColor(cfg.getCircleColor(), currentColor, 1f);
-        float[] tracerRgba = resolveColor(cfg.getTracerColor(), currentColor, 1f);
+        // One color for the circle and the sphere (killer560, 2026-11-01: "Make it all the same color"), and an Auto
+        // tracer is that same color ("the radial line should match the color of the sphere").
+        float[] circleRgba = resolveColor(cfg.getCircleColor(), currentColor, AUTO_ALPHA);
+        float[] tracerRgba = cfg.getTracerColor() == DoorKeysConfig.COLOR_AUTO ? circleRgba
+                : WorldRenderUtils.argbToFloats(cfg.getTracerColor());
         boolean sphere = cfg.getRangeStyle() == DoorKeysConfig.RANGE_SPHERE;
         Vec3[] points = ringPoints(circle, sphere ? circle[1]
                 : circleY(circle[1], currentKey.getBbHeight(), cfg.getCircleLift()));
@@ -251,19 +261,21 @@ public final class DoorKeysFeature {
         Vec3 keyPos = currentKey.position();
         Vec3 target = tracerTarget(keyPos, currentKey.getBbHeight(), cfg.getCircleLift(), sphere);
         float thickness = cfg.getTracerThickness();
+        lastColors = new float[][]{circleRgba.clone(), tracerRgba.clone()};
         if (sphere) {
-            // A see-through shaded ball of the pickup radius around the stand: step inside it and the key is his.
-            // The Wither Key's own near-black would vanish as a fill, so it is drawn as the light gray of its name.
-            float[] c = currentColor[0] < 0.2f && currentColor[1] < 0.2f ? new float[]{0.75f, 0.75f, 0.8f} : currentColor;
-            float[] fill = resolveColor(cfg.getFillColor(), c, SPHERE_ALPHA);
-            WorldRenderUtils.renderFilledSphere(context, keyPos, circle[3], 12, 24, fill[0], fill[1], fill[2], fill[3]);
-            lastDrawn = "sphere";   // the circle below is its equator
+            // A see-through ball of the radius around the stand, in the one Circle Color and nothing else: the thick
+            // equator line it used to carry (black over a light gray fill) is gone (killer560, 2026-11-01).
+            WorldRenderUtils.renderFilledSphere(context, keyPos, circle[3], 12, 24,
+                    circleRgba[0], circleRgba[1], circleRgba[2], circleRgba[3]);
+            lastDrawn = "sphere";
         } else {
             lastDrawn = "radius";
         }
 
         if (!cfg.isThroughWalls()) {
-            WorldRenderUtils.renderLineStrip(context, points, circleRgba[0], circleRgba[1], circleRgba[2], circleRgba[3], circleWidth);
+            if (!sphere) {
+                WorldRenderUtils.renderLineStrip(context, points, circleRgba[0], circleRgba[1], circleRgba[2], circleRgba[3], circleWidth);
+            }
             if (cfg.isShowTracer()) {
                 WorldRenderUtils.renderLineStrip(context, List.of(tracerStart, target),
                         tracerRgba[0], tracerRgba[1], tracerRgba[2], tracerRgba[3], thickness);
@@ -272,7 +284,7 @@ public final class DoorKeysFeature {
         }
 
         McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
-            for (int i = 0; i + 1 < points.length; i++) {
+            for (int i = 0; !sphere && i + 1 < points.length; i++) {
                 line(pose, buffer, points[i], points[i + 1], circleWidth, circleRgba);
             }
             if (cfg.isShowTracer()) {

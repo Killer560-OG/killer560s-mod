@@ -51,6 +51,8 @@ public class CosmeticsTab extends BaseTab {
             "share ribbon trail", "show others' trails", "trail", "ribbon trail", "ribbon", "custom names", "my name in f5", "player size",
             "my size", "others' size", "width", "height", "thickness", "held item", "play as mob", "my mob",
             "show others' mobs", "mob", "cape", "custom cape",
+            "spotify in f5", "my lyrics in f5", "highlight word in f5", "song in f5", "f5 colors", "f5 text color",
+            "f5 highlight color",
             "copy settings for global cosmetics", "reset cosmetics");
 
     private final NameChangerTab nameChangerTab = new NameChangerTab();
@@ -71,6 +73,7 @@ public class CosmeticsTab extends BaseTab {
     private boolean playAsMobOpen = false;
     private boolean ribbonTrailOpen = false;
     private boolean capeOpen = false;
+    private boolean spotifyF5Open = false;
 
     public CosmeticsTab() {
         super("Player Cosmetics");
@@ -155,6 +158,22 @@ public class CosmeticsTab extends BaseTab {
         widgets.add(onOffButton("My Name in F5", cfg::isOwnNameInF5, cfg::setOwnNameInF5, cfg::save,
                 null, contentX, y, contentWidth, 18));
         y += 22;
+
+        // --- Spotify In F5 (killer560, 2026-11-01: "move the whole f5 section to there as well. But actually double face
+        // them"): the Spotify Lyrics tab's Lyrics In F5 rows, built by the same SpotifyF5Rows and sharing their values.
+        y = CollapsibleSection.header(widgets, contentX, y, contentWidth, "Spotify In F5", false, spotifyF5Open,
+                () -> {
+                    spotifyF5Open = !spotifyF5Open;
+                    requestRebuild.run();
+                });
+        if (spotifyF5Open) {
+            List<AbstractWidget> f5 = new ArrayList<>();
+            y = SpotifyF5Rows.build(f5, contentX, y, contentWidth, false, requestRebuild) + 4;
+            for (AbstractWidget w : f5) {
+                SettingTooltips.scope(w, "Spotify Lyrics");   // the same hover text as in the Spotify Lyrics tab
+            }
+            widgets.addAll(f5);
+        }
 
         // --- Custom Names
         y = CollapsibleSection.header(widgets, contentX, y, contentWidth, "Custom Names", false, customNamesOpen,

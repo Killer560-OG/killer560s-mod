@@ -67,6 +67,15 @@ public class SecretWaypointsTab extends BaseTab {
 
         widgets.add(onOffButton("Show Princes", cfg::isShowPrinces, cfg::setShowPrinces, cfg::save,
                 null, contentX, y, 220, 18));
+        y += 22;
+
+        // killer560, 2026-11-01: "make an option to not show crypts or princes after you get the 5 crypts or 1 prince."
+        widgets.add(onOffButton("Hide Crypts After 5", cfg::isHideCryptsAfterFive, cfg::setHideCryptsAfterFive, cfg::save,
+                null, contentX, y, 220, 18));
+        y += 22;
+
+        widgets.add(onOffButton("Hide Princes After 1", cfg::isHidePrincesAfterOne, cfg::setHidePrincesAfterOne, cfg::save,
+                null, contentX, y, 220, 18));
         y += 26;
 
         // Per-type colors (killer560, 2026-09-27: "You can choose the colour for levers" - and there was no

@@ -356,6 +356,15 @@ public final class CroesusProfitLog {
         return out;
     }
 
+    /** Every claim in the log, oldest first, resets ignored: How Lucky Are You counts every chest he ever opened
+     *  ({@code luck/LuckStore}), whatever the profit screen was last reset to. */
+    public static synchronized List<Claim> allClaims() {
+        if (!loaded) {
+            load();
+        }
+        return parsedClaims();
+    }
+
     private static boolean hidden(Claim c) {
         for (Reset r : RESETS) {
             if (c.timestampMs() < r.atMs() && c.key().matches(r.filter())) {

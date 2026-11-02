@@ -41,7 +41,14 @@ public final class DoorKeysConfig {
     private int rangeStyle = RANGE_RADIUS;
     public static final int RANGE_RADIUS = 0;
     public static final int RANGE_SPHERE = 1;
-    public static final String[] RANGE_STYLE_NAMES = {"Radius", "Sphere"};
+    /** "Radius" was renamed "Circle" on 2026-11-01: the Radius is now its own setting, applied to both styles. */
+    public static final String[] RANGE_STYLE_NAMES = {"Circle", "Sphere"};
+    /** The circle's / sphere's radius in blocks; {@link #RADIUS_PICKUP} (0) follows the key pickup range (killer560,
+     *  2026-11-01: "the radius should apply for the sphere and the circle options"). */
+    public static final float RADIUS_PICKUP = 0f;
+    public static final float MIN_RADIUS = 1f;
+    public static final float MAX_RADIUS = 10f;
+    private float radius = RADIUS_PICKUP;
 
     public static final float MIN_CIRCLE_THICKNESS = 1f;
     public static final float MAX_CIRCLE_THICKNESS = 10f;
@@ -49,7 +56,8 @@ public final class DoorKeysConfig {
      *  for the circle is too low"). The default height is the middle of the key stand's box. */
     public static final float MIN_CIRCLE_LIFT = -2f;
     public static final float MAX_CIRCLE_LIFT = 3f;
-    /** Color 0 means "the key's own color" (near-black for a Wither Key, red for a Blood Key). */
+    /** Color 0 means "the key's own color" at 50% alpha (black for a Wither Key, red for a Blood Key; killer560,
+     *  2026-11-01: "Make the circles default 50% alpha on full black ... For blood ... the red for the ring at 50%"). */
     public static final int COLOR_AUTO = 0;
     private float circleThickness = 7f;
     private float circleLift = 0.0f;
@@ -97,6 +105,7 @@ public final class DoorKeysConfig {
             cfg.setRangeStyle(ConfigJson.getInt(obj, "rangeStyle", RANGE_RADIUS));
             cfg.setCircleThickness(ConfigJson.getFloat(obj, "circleThickness", cfg.circleThickness));
             cfg.setCircleLift(ConfigJson.getFloat(obj, "circleLift", cfg.circleLift));
+            cfg.setRadius(ConfigJson.getFloat(obj, "radius", RADIUS_PICKUP));
             cfg.tracerColor = ConfigJson.getInt(obj, "tracerColor", COLOR_AUTO);
             cfg.circleColor = ConfigJson.getInt(obj, "circleColor", COLOR_AUTO);
             cfg.fillColor = ConfigJson.getInt(obj, "fillColor", COLOR_AUTO);
@@ -119,6 +128,7 @@ public final class DoorKeysConfig {
             obj.addProperty("rangeStyle", rangeStyle);
             obj.addProperty("circleThickness", circleThickness);
             obj.addProperty("circleLift", circleLift);
+            obj.addProperty("radius", radius);
             obj.addProperty("tracerColor", tracerColor);
             obj.addProperty("circleColor", circleColor);
             obj.addProperty("fillColor", fillColor);
@@ -204,6 +214,24 @@ public final class DoorKeysConfig {
         circleLift = Float.isNaN(v) ? 0.0f : Math.max(MIN_CIRCLE_LIFT, Math.min(MAX_CIRCLE_LIFT, v));
     }
 
+    /** The stored radius: {@link #RADIUS_PICKUP} or {@link #MIN_RADIUS}..{@link #MAX_RADIUS}. */
+    public float getRadius() {
+        return radius;
+    }
+
+    public void setRadius(float v) {
+        if (Float.isNaN(v) || v < MIN_RADIUS * 0.5f) {
+            radius = RADIUS_PICKUP;
+        } else {
+            radius = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, v));
+        }
+    }
+
+    /** The radius both styles draw: the setting, or the key pickup range while it is on Pickup Range. */
+    public double drawnRadius() {
+        return radius == RADIUS_PICKUP ? com.killer560.hub.autosecret.AutoSecretConfig.getInstance().keyPickupRange() : radius;
+    }
+
     /** ARGB, or {@link #COLOR_AUTO}. */
     public int getTracerColor() {
         return tracerColor;
@@ -221,6 +249,7 @@ public final class DoorKeysConfig {
         circleColor = argb;
     }
 
+    /** Unused since 2026-11-01 (the sphere is drawn in the Circle Color); kept so an old file and profile still load. */
     public int getFillColor() {
         return fillColor;
     }

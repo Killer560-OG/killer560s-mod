@@ -17,7 +17,7 @@ import com.killer560.hub.compat.McCompat;
 
 /** Etherwarp/secret-spot waypoint settings - see {@link EtherwarpFeature}'s class doc for the 2026-09-27
  *  room-relative rewrite (why these now persist across restarts, and why the list below only ever shows
- *  the room you're currently standing in). Use "/killer560 ew add &lt;name&gt;" in-game while looking at
+ *  the room you're currently standing in). Use "/ew waypoint add [name]" in-game while looking at
  *  the spot you want to remember; this tab just shows/manages what's been added. Moved from a top-level
  *  {@code NewTab} entry into the "Secrets" folder 2026-09-21 (see {@link SecretsTab}) per killer560's
  *  menu-structure request - no behavior change, just a different accordion home. */

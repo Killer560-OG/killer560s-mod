@@ -49,7 +49,7 @@ import java.util.List;
  * <b>The cheat build's Bazaar flipper</b> (killer560, 2026-10-11: "have reskin work at the same time"): the reskin keeps
  * drawing while it runs. The flipper reads and clicks the real menu underneath ({@code handleContainerInput}, never
  * through this view), so nothing here is in its way; the view only shows each page it reaches. A press or key on the
- * view while it runs does not act on the page - it stops the flipper (its "any key stops it"), Escape still closes.
+ * view while it runs does not act on the page - it no longer stops the flipper (only Escape and the Emergency Cancel Key do, 2026-11-01); Escape still closes.
  */
 public final class BazaarReskin {
 
@@ -167,9 +167,8 @@ public final class BazaarReskin {
                 return true;
             }
             if (com.killer560.hub.bazaarflip.BazaarFlipFeature.isRunning()) {
-                // The flipper's own key watcher sits after this one and would never see the key: stop it here.
-                // Escape still closes the menu (which the flipper reports as "the Bazaar menu closed").
-                com.killer560.hub.bazaarflip.BazaarFlipFeature.stopOnKeyPress(com.killer560.hub.compat.McInput.key(event));
+                // Only Escape and the Emergency Cancel Key stop the flipper (macrostop/MacroStop, raw, before this hook);
+                // every other key is kept off the menu it drives. Escape still closes the menu.
                 return event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE;
             }
             if (BazaarView.key(event)) {
@@ -362,8 +361,8 @@ public final class BazaarReskin {
             return true;
         }
         if (com.killer560.hub.bazaarflip.BazaarFlipFeature.isRunning()) {
-            // A press while the flipper drives this menu is him intervening, never a click on its page.
-            com.killer560.hub.bazaarflip.BazaarFlipFeature.stopOnKeyPress(KeyUtil.codeForMouseButton(button));
+            // A press while the flipper drives this menu is never a click on its page (and no longer stops it: only Escape
+            // and the Emergency Cancel Key do, macrostop/MacroStop).
             return false;
         }
         if (st.frozen) {

@@ -73,6 +73,9 @@ public final class ExperimentsConfig {
      *  highlights, or both. Same {@code "enabled"} JSON key and same default as before the split. */
     private boolean enabled = true;
     private boolean superpairsEnabled = true;
+    /** Superpairs Overview HUD (killer560, 2026-11-01: "show how many things are left for superpairs ... like
+     *  skyhanni's"): found rewards and powerups, undiscovered pairs and powerups, beside the board. ON by default. */
+    private boolean superpairsHudEnabled = true;
     /** false (default) = pair every revealed match; true = skip the plain "Experience" reward tiles
      *  (always a dye-family item - see {@link ExperimentSolver#isValuablePair}) and pair everything
      *  else - useful since Superpairs clicks are a limited resource (base amount plus whatever bonus
@@ -193,6 +196,7 @@ public final class ExperimentsConfig {
             ExperimentsConfig cfg = new ExperimentsConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
             cfg.superpairsEnabled = ConfigJson.getBool(obj, "superpairsEnabled", true);
+            cfg.superpairsHudEnabled = ConfigJson.getBool(obj, "superpairsHudEnabled", true);
             cfg.superpairsValuableOnly = ConfigJson.getBool(obj, "superpairsValuableOnly", DEFAULT_SUPERPAIRS_VALUABLE_ONLY);
             cfg.skipGrandExpBottles = ConfigJson.getBool(obj, "skipGrandExpBottles", DEFAULT_SKIP_GRAND_EXP_BOTTLES);
             cfg.skipGuardianPets = ConfigJson.getBool(obj, "skipGuardianPets", DEFAULT_SKIP_GUARDIAN_PETS);
@@ -265,6 +269,7 @@ public final class ExperimentsConfig {
             obj.addProperty("configVersion", CURRENT_CONFIG_VERSION);
             obj.addProperty("enabled", enabled);
             obj.addProperty("superpairsEnabled", superpairsEnabled);
+            obj.addProperty("superpairsHudEnabled", superpairsHudEnabled);
             obj.addProperty("superpairsValuableOnly", superpairsValuableOnly);
             obj.addProperty("skipGrandExpBottles", skipGrandExpBottles);
             obj.addProperty("skipGuardianPets", skipGuardianPets);
@@ -298,6 +303,14 @@ public final class ExperimentsConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isSuperpairsHudEnabled() {
+        return superpairsHudEnabled;
+    }
+
+    public void setSuperpairsHudEnabled(boolean v) {
+        superpairsHudEnabled = v;
     }
 
     public boolean isSuperpairsEnabled() {

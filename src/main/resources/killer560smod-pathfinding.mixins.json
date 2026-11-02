@@ -6,8 +6,7 @@
 	"client": [
 		"PathWalkInputMixin",
 		"PathMotionPacketMixin",
-		"PathStopKeyMixin",
-		"PathStopMouseMixin"
+		"PathStopKeyMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

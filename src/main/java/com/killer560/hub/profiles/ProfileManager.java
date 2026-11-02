@@ -406,8 +406,11 @@ public final class ProfileManager {
                 com.killer560.hub.autoclear.AutoClearConfig::load,
                 com.killer560.hub.autosecret.AutoSecretConfig::load,
                 com.killer560.hub.util.CorrectionAlarmConfig::load,
+                com.killer560.hub.macrostop.MacroStopConfig::load,
                 com.killer560.hub.bazaarflip.BazaarFlipConfig::load,
                 com.killer560.hub.bugreport.BugReportConfig::load,
+                com.killer560.hub.banreport.BanReportConfig::load,
+                com.killer560.hub.intro.IntroConfig::load,
                 com.killer560.hub.sessionrecorder.SessionRecorderConfig::load,
                 com.killer560.hub.invsort.InventorySorterConfig::load,
                 // CrystalHollowsMapConfig, NucleusRunProfitConfig and MiningProfitConfig: shelved until after 2.0
@@ -467,9 +470,11 @@ public final class ProfileManager {
                 com.killer560.hub.peekchat.PeekChatConfig::load,
                 com.killer560.hub.chattidy.ChatTidyConfig::load,
                 com.killer560.hub.chathistory.ChatHistoryConfig::load,
+                com.killer560.hub.chattabs.ChatTabsConfig::load,
                 com.killer560.hub.imagepreview.ImagePreviewConfig::load,
                 com.killer560.hub.croesus.CroesusConfig::load,
                 com.killer560.hub.diorite.DioriteGlassConfig::load,
+                com.killer560.hub.miningqol.MiningQolConfig::load,
                 com.killer560.hub.doorkeys.DoorKeysConfig::load,
                 com.killer560.hub.witherdoors.WitherDoorsConfig::load,
                 com.killer560.hub.goldor.GoldorTriggerbotConfig::load,
@@ -478,6 +483,9 @@ public final class ProfileManager {
                 com.killer560.hub.dungeonextras.DungeonExtrasConfig::load,
                 com.killer560.hub.dungeoninfo.DungeonInfoConfig::load,
                 com.killer560.hub.dungeonqueue.DungeonQueueConfig::load,
+                com.killer560.hub.creationcooldown.CreationCooldownConfig::load,
+                com.killer560.hub.instaclearwarning.InstaClearWarningConfig::load,
+                com.killer560.hub.gyrooverlay.GyroOverlayConfig::load,
                 com.killer560.hub.lfg.LfgConfig::load,
                 com.killer560.hub.dvd.DvdConfig::load,
                 com.killer560.hub.emotes.ChatEmoteConfig::load,
@@ -493,6 +501,7 @@ public final class ProfileManager {
                 com.killer560.hub.zpew.ZeroPingEtherwarpConfig::load,
                 com.killer560.hub.leftclickew.LeftClickEtherwarpConfig::load,
                 com.killer560.hub.experiments.ExperimentsConfig::load,
+                com.killer560.hub.luck.LuckConfig::load,
                 com.killer560.hub.fastleap.FastLeapConfig::load,
                 com.killer560.hub.fastleap.I4LeapConfig::load,
                 com.killer560.hub.fullbright.FullbrightConfig::load,
@@ -522,6 +531,7 @@ public final class ProfileManager {
                 com.killer560.hub.interop.InteropConfig::load,
                 com.killer560.hub.namechanger.NameChangerConfig::load,
                 com.killer560.hub.nofire.NoFireConfig::load,
+                com.killer560.hub.autosprint.AutoSprintConfig::load,
                 com.killer560.hub.objecthider.ObjectHiderConfig::load,
                 com.killer560.hub.lagdisplay.LagDisplayConfig::load,
                 com.killer560.hub.abilitycooldown.AbilityCooldownConfig::load,
@@ -573,7 +583,6 @@ public final class ProfileManager {
                 com.killer560.hub.autoroutes.RouteStore::reload,
                 com.killer560.hub.ap3.Ap3Config::load,
                 com.killer560.hub.ap3.Ap3Store::reload,
-                com.killer560.hub.dungeonclass.ClassSelectionOverlayConfig::load,
                 com.killer560.hub.leapcounter.LeapCounterConfig::load,
                 com.killer560.hub.armourdye.ArmourDyeConfig::load,
                 com.killer560.hub.tooltipscroll.TooltipScrollConfig::load,
@@ -1052,7 +1061,7 @@ public final class ProfileManager {
             if (meta.format() > 1) {
                 msg.append(" (made on ").append(meta.describe()).append(")");
             }
-            msg.append(". Use /killer560 profile load ").append(name).append(" to switch to it.");
+            msg.append(". Load it from the Profiles tab to switch to it.");
             if (unreadable > 0) {
                 msg.append(" §e").append(unreadable).append(" damaged setting file(s) were skipped; those settings")
                         .append(" will use their defaults.");
@@ -1082,7 +1091,9 @@ public final class ProfileManager {
             "killer560smod-modusers.json", Set.of("share", "shareAs"),
             "killer560smod-partydata.json", Set.of("shareEnabled"),
             "killer560smod-teammelody.json", Set.of("shareProgress"),
-            "killer560smod-supporters.json", Set.of("shareIfSupporter", "shareTrail")
+            "killer560smod-supporters.json", Set.of("shareIfSupporter", "shareTrail"),
+            // Auto Report Bans is the player's own consent to send data about him: never set by someone else's profile.
+            "killer560smod-banreport.json", Set.of("enabled", "reported", "sentAt")
     );
 
     /** {@code bytes} (an imported setting file) with its {@link #IMPORT_LOCKED_FIELDS} set to the live values, each in

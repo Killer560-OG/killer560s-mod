@@ -308,6 +308,29 @@ public final class EtherwarpOverlayFeature {
         return pos != null && pos.succeeded() ? pos.pos() : null;
     }
 
+    /**
+     * How far a right click by {@code player} right now would etherwarp (57 plus Tuned Transmission), or -1 when it would
+     * not etherwarp at all: no etherwarp item in the main hand, or not sneaking with anything but the bare conduit. The
+     * same item test the overlay draws by (Ice Fill's Etherwarp Protection asks it, 2026-11-01).
+     */
+    public static double etherwarpDistance(net.minecraft.world.entity.player.Player player) {
+        if (player == null) {
+            return -1;
+        }
+        ItemStack mainHand = player.getMainHandItem();
+        CompoundTag data = getEtherwarpData(mainHand);
+        if (data == null) {
+            return -1;
+        }
+        if (!player.isShiftKeyDown()) {
+            String id = data.contains("id") ? data.getStringOr("id", null) : null;
+            if (!ETHERWARP_CONDUIT_ID.equals(id)) {
+                return -1;
+            }
+        }
+        return 57.0 + data.getIntOr("tuned_transmission", 0);
+    }
+
     /** Where the feet end up when standing on {@code target} - the top of its real collision box. */
     public static double standYOn(Level level, BlockPos target) {
         var shape = level.getBlockState(target).getCollisionShape(level, target);

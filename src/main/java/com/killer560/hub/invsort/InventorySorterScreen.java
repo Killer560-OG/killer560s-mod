@@ -37,17 +37,24 @@ import java.util.Optional;
  * that menu as well."
  * <p>
  * The grid on the left is a COPY of the inventory - moving items here never clicks anything. Click an item to pick it
- * up and click another slot to swap (or drag it there). Type a name and press Save. On the right, the saved
- * layouts: click one to load it into the grid and select it, then Apply / Rename (to the typed name) / Delete / Bind
- * Key act on the selected one. Apply closes the menu and the executor sorts the real inventory.
+ * up and click another slot to swap (or drag it there). Type a name and press Save. On the right, the saved layouts
+ * (killer560, 2026-11-01): LEFT-click one to swap to it (the menu closes and the sorter runs - there is no Apply
+ * button), RIGHT-click one to load it into the grid to edit, rename, delete or set its storage mode, drag one up or down
+ * to reorder them, and click the key cell at the right of a row to set that layout's key. The menu sizes itself to the
+ * window (bigger slots and rows on a normal screen than before).
  */
 public class InventorySorterScreen extends Screen implements MenuThemedScreen {
 
-    private static final int SLOT = 18;
-    private static final int PANEL_W = 356;
-    private static final int PANEL_H = 176;
-    private static final int LIST_ROW = 13;
-    private static final int LIST_ROWS = 7;
+    /** Slot size and list row height, picked in {@link #init} from the window (18 / 13 was the old fixed size). */
+    private int SLOT = 18;
+    private int PANEL_W = 356;
+    private int PANEL_H = 176;
+    private int LIST_ROW = 13;
+    private int LIST_ROWS = 7;
+    private static final int LIST_W = 196;
+    private static final int KEY_W = 50;
+    /** Pixels the mouse must move with a row held before it is a drag, not a click. */
+    private static final int DRAG_START = 3;
 
     private final Screen parent;
 
@@ -76,6 +83,15 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
 
     private EditBox nameBox;
     private SettingsButtonWidget bindButton;
+    private SettingsButtonWidget fetchButton;
+    private SettingsButtonWidget dumpButton;
+
+    /** The list row a press started on (index into the names), its button and where; -1 when none. */
+    private int pressedRow = -1;
+    private int pressedButton;
+    private double pressX;
+    private double pressY;
+    private boolean draggingRow;
 
     public InventorySorterScreen(Screen parent) {
         super(Component.literal("Inventory Sorter"));
@@ -202,6 +218,10 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             return;
         }
         InventoryLayout layout = toLayout(name);
+        InventoryLayout existing = InventoryLayoutStore.getInstance().get(name);
+        if (existing != null) {
+            layout = layout.withStorage(existing.fetchFromStorage(), existing.dumpPage());
+        }
         if (layout.isEmpty()) {
             say("Nothing to save - the grid is empty.", true);
             return;
@@ -228,7 +248,19 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             nameBox.setValue(layout.name());
         }
         refreshBindLabel();
+        refreshStorageLabels();
         say("Loaded " + layout.name() + ".", false);
+    }
+
+    /** Swaps to a saved layout: the menu closes and the sorter runs (killer560, 2026-11-01: "click on a loadout to swap
+     *  to it not that you have to click apply"). Public for tests. */
+    public void applyLayout(String name) {
+        InventoryLayout layout = InventoryLayoutStore.getInstance().get(name);
+        if (layout == null) {
+            return;
+        }
+        this.minecraft.setScreenAndShow(null);
+        InventorySorterExecutor.applyByName(layout.name());
     }
 
     /** Applies the selected layout to the real inventory. Public for tests. */
@@ -256,6 +288,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         }
         InventorySorterConfig cfg = InventorySorterConfig.getInstance();
         cfg.renameLayoutKey(selected, to);
+        cfg.renameInOrder(selected, to);
         cfg.save();
         say("Renamed " + selected + " to " + to + ".", false);
         selected = to;
@@ -271,12 +304,78 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         if (InventoryLayoutStore.getInstance().delete(name)) {
             InventorySorterConfig cfg = InventorySorterConfig.getInstance();
             cfg.setLayoutKey(name, KeyUtil.NONE);
+            cfg.removeFromOrder(name);
             cfg.save();
             say("Deleted " + name + ".", false);
         }
         selected = null;
         capturingKey = false;
         refreshBindLabel();
+        refreshStorageLabels();
+    }
+
+    /** Moves the layout at {@code from} to {@code to} in the menu's order and saves it. Public for tests. */
+    public void moveLayout(int from, int to) {
+        List<String> names = new ArrayList<>(InventoryLayoutStore.getInstance().listNames());
+        if (from < 0 || from >= names.size()) {
+            return;
+        }
+        String name = names.remove(from);
+        names.add(Math.max(0, Math.min(names.size(), to)), name);
+        InventorySorterConfig cfg = InventorySorterConfig.getInstance();
+        cfg.setLayoutOrder(names);
+        cfg.save();
+    }
+
+    /** Turns the selected layout's "fetch from storage" on or off. Public for tests. */
+    public void toggleFetch() {
+        InventoryLayout layout = selected == null ? null : InventoryLayoutStore.getInstance().get(selected);
+        if (layout == null) {
+            say("Right-click a saved layout first.", true);
+            return;
+        }
+        InventoryLayoutStore.getInstance().save(layout.withStorage(!layout.fetchFromStorage(), layout.dumpPage()));
+        refreshStorageLabels();
+    }
+
+    /** The dump pages a layout can name, "None" first. */
+    static final List<String> DUMP_PAGES = new ArrayList<>();
+
+    static {
+        DUMP_PAGES.add(null);
+        for (int i = 1; i <= 9; i++) {
+            DUMP_PAGES.add("enderchest_" + i);
+        }
+        for (int i = 1; i <= 18; i++) {
+            DUMP_PAGES.add("backpack_" + i);
+        }
+    }
+
+    /** Steps the selected layout's dump page by {@code dir} (left click forward, right click back). Public for tests. */
+    public void stepDumpPage(int dir) {
+        InventoryLayout layout = selected == null ? null : InventoryLayoutStore.getInstance().get(selected);
+        if (layout == null) {
+            say("Right-click a saved layout first.", true);
+            return;
+        }
+        int at = Math.max(0, DUMP_PAGES.indexOf(layout.dumpPage()));
+        String next = DUMP_PAGES.get(SettingsButtonWidget.step(at, dir, DUMP_PAGES.size()));
+        InventoryLayoutStore.getInstance().save(layout.withStorage(layout.fetchFromStorage(), next));
+        refreshStorageLabels();
+    }
+
+    private void refreshStorageLabels() {
+        InventoryLayout layout = selected == null ? null : InventoryLayoutStore.getInstance().get(selected);
+        if (fetchButton != null) {
+            fetchButton.setMessage(Component.literal("Fetch From Storage: " + (layout == null ? "-"
+                    : layout.fetchFromStorage() ? "ON" : "OFF")));
+            fetchButton.active = layout != null;
+        }
+        if (dumpButton != null) {
+            dumpButton.setMessage(Component.literal("Put Others In: " + (layout == null ? "-"
+                    : InvSortStorage.label(layout.dumpPage()))));
+            dumpButton.active = layout != null;
+        }
     }
 
     private void say(String text, boolean bad) {
@@ -300,6 +399,12 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
 
     @Override
     protected void init() {
+        // Bigger on a real screen (killer560, 2026-11-01: "Make the menu a bit larger it is really small"): slots up to
+        // 26 px and rows 16 px, shrinking to the old 18 / 13 in a small window.
+        SLOT = Math.max(18, Math.min(26, Math.min((this.height - 120) / 4, (this.width - LIST_W - 40) / 9)));
+        LIST_ROW = SLOT >= 22 ? 16 : 13;
+        PANEL_W = 9 * SLOT + 12 + LIST_W + 16;
+        PANEL_H = 22 + (4 * SLOT + 4) + 6 + 16 + 4 + 18 + 22;
         panelX = (this.width - PANEL_W) / 2;
         panelY = Math.max(4, (this.height - PANEL_H) / 2);
         gridX = panelX + 8;
@@ -309,6 +414,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         listW = panelX + PANEL_W - 8 - listX;
 
         int below = gridY + 4 * SLOT + 4 + 6;
+        LIST_ROWS = Math.max(3, (below - 4 - 42 - listY) / LIST_ROW);
         String typed = nameBox == null ? (selected == null ? "" : selected) : nameBox.getValue();
         nameBox = new ThemedEditBox(this.font, gridX, below, 9 * SLOT, 16, Component.literal("Layout name"))
                 .hint("Layout name");
@@ -316,31 +422,31 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         nameBox.setValue(typed);
         addRenderableWidget(nameBox);
 
-        int half = (9 * SLOT - 4) / 2;
+        int bw = (9 * SLOT - 12) / 4;
+        int bx = gridX;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Save"), b -> saveTyped())
-                .bounds(gridX, below + 20, half, 18).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset Grid"), b -> {
+                .bounds(bx, below + 20, bw, 18).build());
+        bx += bw + 4;
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset"), b -> {
                     resetToInventory();
                     say("Grid reset to your inventory.", false);
-                }).bounds(gridX + half + 4, below + 20, 9 * SLOT - half - 4, 18).build());
-
-        int actionsY = listY + LIST_ROWS * LIST_ROW + 4;
-        int bw = (listW - 4) / 2;
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Apply"), b -> applySelected())
-                .bounds(listX, actionsY, bw, 18).build());
+                }).bounds(bx, below + 20, bw, 18).build());
+        bx += bw + 4;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Rename"), b -> renameSelected())
-                .bounds(listX + bw + 4, actionsY, listW - bw - 4, 18).build());
+                .bounds(bx, below + 20, bw, 18).build());
+        bx += bw + 4;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§cDelete"), b -> deleteSelected())
-                .bounds(listX, actionsY + 22, bw, 18).build());
-        bindButton = SettingsButtonWidget.builder(Component.literal("Key"), b -> {
-                    if (selected == null) {
-                        say("Pick a saved layout on the right first.", true);
-                        return;
-                    }
-                    capturingKey = true;
-                    refreshBindLabel();
-                }).bounds(listX + bw + 4, actionsY + 22, listW - bw - 4, 18).build();
-        addRenderableWidget(bindButton);
+                .bounds(bx, below + 20, gridX + 9 * SLOT - bx, 18).build());
+
+        // The selected (right-clicked) layout's storage mode, under the list.
+        int storageY = listY + LIST_ROWS * LIST_ROW + 4;
+        fetchButton = SettingsButtonWidget.builder(Component.literal("Fetch From Storage"), b -> toggleFetch())
+                .bounds(listX, storageY, listW, 18).build();
+        addRenderableWidget(fetchButton);
+        dumpButton = SettingsButtonWidget.cycling(Component.literal("Put Others In"), (b, dir) -> stepDumpPage(dir))
+                .bounds(listX, storageY + 22, listW, 18).build();
+        addRenderableWidget(dumpButton);
+        refreshStorageLabels();
         refreshBindLabel();
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), b -> onClose())
                 .bounds(panelX + PANEL_W - 48, panelY + 4, 40, 14).build());
@@ -378,6 +484,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         MenuStyle.text(graphics, "layouts", panelX + 11 + this.font.width("Inventory Sorter") + 6, panelY + 7,
                 MenuStyle.DIM2);
         MenuStyle.text(graphics, "SAVED LAYOUTS", listX, gridY, MenuStyle.DIM);
+        MenuStyle.text(graphics, "KEY", listX + listW - 1 - KEY_W / 2 - this.font.width("KEY") / 2, gridY, MenuStyle.DIM);
 
         ItemStack hover = ItemStack.EMPTY;
         for (int i = 0; i < 36; i++) {
@@ -398,24 +505,55 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             }
         }
 
-        // Saved layouts.
+        // Saved layouts: name (left click swaps to it, right click edits it, drag reorders), key cell on the right.
+        if (pressedRow >= 0 && !draggingRow && pressedButton == 0
+                && (Math.abs(mouseY - pressY) > DRAG_START || Math.abs(mouseX - pressX) > DRAG_START)) {
+            draggingRow = true;
+        }
         List<String> names = InventoryLayoutStore.getInstance().listNames();
         listScroll = Math.max(0, Math.min(listScroll, Math.max(0, names.size() - LIST_ROWS)));
         ScreenChrome.well(graphics, listX, listY, listW, LIST_ROWS * LIST_ROW + 1);
         if (names.isEmpty()) {
             MenuStyle.text(graphics, "None yet - arrange, name, Save", listX + 4, listY + 3, MenuStyle.DIM2);
         }
+        int dropAt = draggingRow ? dropIndex(mouseY, names.size()) : -1;
+        int nameW = listW - 2 - KEY_W - 2;
         for (int row = 0; row < LIST_ROWS && listScroll + row < names.size(); row++) {
-            String name = names.get(listScroll + row);
+            int index = listScroll + row;
+            String name = names.get(index);
             int ry = listY + 1 + row * LIST_ROW;
             boolean sel = name.equalsIgnoreCase(selected);
-            boolean over = mouseX >= listX && mouseX < listX + listW && mouseY >= ry && mouseY < ry + LIST_ROW;
-            ScreenChrome.row(graphics, listX + 1, ry, listW - 2, LIST_ROW, over, sel, (row) % 2 == 1);
+            boolean dragged = draggingRow && index == pressedRow;
+            boolean overName = !draggingRow && mouseX >= listX && mouseX < listX + 1 + nameW && mouseY >= ry
+                    && mouseY < ry + LIST_ROW;
+            ScreenChrome.row(graphics, listX + 1, ry, nameW, LIST_ROW, overName, sel || dragged, row % 2 == 1);
+            int textY = ry + (LIST_ROW - 8) / 2;
+            MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(name, nameW - 8)),
+                    listX + 4, textY, dragged ? MenuStyle.DIM2 : sel ? MenuStyle.OR_HOVER : MenuStyle.TXT);
+            // The key cell, to the right of the layout (killer560, 2026-11-01).
+            int kx = listX + 1 + nameW + 2;
+            boolean overKey = !draggingRow && mouseX >= kx && mouseX < kx + KEY_W && mouseY >= ry && mouseY < ry + LIST_ROW;
+            ScreenChrome.row(graphics, kx, ry, KEY_W, LIST_ROW, overKey, capturingKey && sel, row % 2 == 1);
             int code = InventorySorterConfig.getInstance().getLayoutKey(name);
-            String key = code == KeyUtil.NONE ? "" : " [" + CommandKeybindsTab.bindName(code) + "]";
-            MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(name + key, listW - 8)),
-                    listX + 4, ry + 3, sel ? MenuStyle.OR_HOVER : MenuStyle.TXT);
+            String key = capturingKey && sel ? "Press..." : code == KeyUtil.NONE ? "Set key"
+                    : CommandKeybindsTab.bindName(code);
+            key = this.font.plainSubstrByWidth(key, KEY_W - 6);
+            MenuStyle.text(graphics, key, kx + (KEY_W - this.font.width(key)) / 2, textY,
+                    code == KeyUtil.NONE && !(capturingKey && sel) ? MenuStyle.DIM2 : MenuStyle.TXT);
+            if (dropAt == index && dropAt != pressedRow) {
+                graphics.fill(listX + 1, ry - 1, listX + listW - 1, ry + 1, MenuStyle.OR_HOVER);
+            }
         }
+        if (dropAt == names.size() && names.size() - listScroll <= LIST_ROWS) {
+            int ry = listY + 1 + (names.size() - listScroll) * LIST_ROW;
+            graphics.fill(listX + 1, ry - 1, listX + listW - 1, ry + 1, MenuStyle.OR_HOVER);
+        }
+        if (draggingRow && pressedRow < names.size()) {
+            MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(names.get(pressedRow), nameW)),
+                    mouseX + 6, mouseY - 4, MenuStyle.OR_HOVER);
+        }
+        MenuStyle.text(graphics, this.font.plainSubstrByWidth("Left: swap  Right: edit  Drag: reorder", PANEL_W - 16),
+                panelX + 8, panelY + PANEL_H - 30, MenuStyle.DIM2);
 
         MenuStyle.text(graphics, this.font.plainSubstrByWidth(status, PANEL_W - 80), panelX + 8,
                 panelY + PANEL_H - 18, statusBad ? ScreenChrome.bad() : ScreenChrome.good());
@@ -456,7 +594,19 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             int row = (int) ((event.y() - listY - 1) / LIST_ROW);
             List<String> names = InventoryLayoutStore.getInstance().listNames();
             if (row >= 0 && listScroll + row < names.size()) {
-                select(names.get(listScroll + row));
+                String name = names.get(listScroll + row);
+                if (event.x() >= listX + listW - 1 - KEY_W) {
+                    // The key cell: capture this layout's key (the same capture as before, now per row).
+                    select(name);
+                    capturingKey = true;
+                    refreshBindLabel();
+                    return true;
+                }
+                pressedRow = listScroll + row;
+                pressedButton = com.killer560.hub.compat.McInput.button(event) == 1 ? 1 : 0;
+                pressX = event.x();
+                pressY = event.y();
+                draggingRow = false;
             }
             return true;
         }
@@ -466,12 +616,49 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         return super.mouseClicked(event, doubleClick);
     }
 
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        if (pressedRow >= 0) {
+            if (!draggingRow && pressedButton == 0
+                    && (Math.abs(event.y() - pressY) > DRAG_START || Math.abs(event.x() - pressX) > DRAG_START)) {
+                draggingRow = true;
+            }
+            return true;
+        }
+        return super.mouseDragged(event, dragX, dragY);
+    }
+
+    /** Where a dragged row would land: the gap index (0..size) nearest the mouse. */
+    private int dropIndex(double mouseY, int size) {
+        int gap = (int) Math.round((mouseY - listY - 1) / LIST_ROW) + listScroll;
+        return Math.max(0, Math.min(size, gap));
+    }
+
     private boolean isOverWidget(double x, double y) {
         return x >= panelX && x < panelX + PANEL_W && y >= panelY && y < panelY + PANEL_H;
     }
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+        if (pressedRow >= 0) {
+            int row = pressedRow;
+            boolean drag = draggingRow;
+            int button = pressedButton;
+            pressedRow = -1;
+            draggingRow = false;
+            List<String> names = InventoryLayoutStore.getInstance().listNames();
+            if (row < names.size()) {
+                if (drag) {
+                    int to = dropIndex(event.y(), names.size());
+                    moveLayout(row, to > row ? to - 1 : to);
+                } else if (button == 1) {
+                    select(names.get(row));
+                } else {
+                    applyLayout(names.get(row));
+                }
+            }
+            return true;
+        }
         if (pressedSlot >= 0) {
             int slot = slotAt(event.x(), event.y());
             if (slot >= 0 && slot != pressedSlot && held == pressedSlot) {
@@ -496,7 +683,9 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (capturingKey) {
-            bind(event.key() == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : event.key());
+            // Configs keep GLFW numbers: McInput.key, never the raw event key (an SDL scancode on 26.3, which
+            // setLayoutKey's range check turned into "none" - UI suite 584, 2026-11-01).
+            bind(event.key() == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : com.killer560.hub.compat.McInput.key(event));
             return true;
         }
         return super.keyPressed(event);

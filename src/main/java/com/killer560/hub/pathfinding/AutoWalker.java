@@ -26,8 +26,10 @@ import java.util.Locale;
  * <b>Free camera</b> (killer560, 2026-10-17: "have it put the player in freecam like auto routes and such things and
  * only if they press a key have it stop"): for the whole session the camera is held on its own view with
  * {@code util/ViewFreeze} - his mouse steers that view - while the walker turns the real body ({@link WalkCamera}).
- * Any key or mouse button he presses with no screen open stops it ({@code PathStopKeyMixin}), the Start/Stop key
- * excepted (that one is the toggle); moving the mouse does not. At the end the body is turned back under the view he
+ * A movement key, Escape, the chat key or the Emergency Cancel Key stops it ({@code macrostop/MacroStop}, 2026-11-01;
+ * until then any key or mouse button did), and so does its own Start/Stop key (the toggle, {@code PathStopKeyMixin});
+ * moving the mouse, another key or a click does not. A screen opening still ends it: walking with a menu open is an
+ * inventory walk, which this mod does not do. At the end the body is turned back under the view he
  * is looking at, so nothing on screen jumps.
  * <p>
  * <b>Keys from a model, not from a rule</b> ({@link WalkPhysics}): every tick each of the nine key combinations (and
@@ -264,24 +266,16 @@ public final class AutoWalker {
     }
 
     /**
-     * A key or mouse button he pressed, from {@code PathStopKeyMixin} (no screen open). Stops the session - the
-     * "any key" rule - unless it is the Start/Stop key (the poll toggles on that one) or Auto Walk is off (then he is
-     * the one walking and his keys are his).
+     * A key he pressed, from {@code PathStopKeyMixin} (no screen open): only the Start/Stop key matters here (the toggle,
+     * taken on the next tick). What else stops a session is {@code macrostop/MacroStop}'s movement-macro rule.
      */
-    public static void onPlayerInput(String what, int keyCode) {
+    public static void onPlayerInput(int keyCode) {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || McCompat.screen(Minecraft.getInstance()) != null) {
             return; // a key typed into chat or a menu is not his input to the world
         }
-        if (keyCode != Integer.MIN_VALUE && keyCode == PathfindingConfig.getInstance().getResumeKeyCode()) {
-            PathfindingFeature.onStartKey(); // the toggle, taken on the next tick; never an "any key" stop
-            return;
+        if (keyCode == PathfindingConfig.getInstance().getResumeKeyCode()) {
+            PathfindingFeature.onStartKey();
         }
-        // He takes over whenever the walk is his character's (Auto Walk), free camera or not; with Auto Walk off he is
-        // the one walking and only a held click view is the run's.
-        if (!sessionActive || !(viewHeld || PathfindingConfig.getInstance().isAutoWalk())) {
-            return;
-        }
-        stop("you pressed " + what);
     }
 
     public static void onMixinApplied() {
@@ -346,6 +340,12 @@ public final class AutoWalker {
         if (!chatSubscribed) {
             chatSubscribed = true;
             com.killer560.hub.util.ChatObserver.subscribe(AutoWalker::onChat);
+            // A movement key, Escape, the chat key or the Emergency Cancel Key stops it (killer560, 2026-11-01: "for
+            // movement macros it should be any movement key or escape or chat or the emergency cancel key"); any other
+            // key or a click no longer does.
+            com.killer560.hub.macrostop.MacroStop.register("Auto Fairy Souls",
+                    com.killer560.hub.macrostop.MacroStop.Kind.MOVEMENT, () -> sessionActive && (viewHeld || PathfindingConfig.getInstance().isAutoWalk()),
+                    why -> stop("you pressed " + why));
         }
     }
 

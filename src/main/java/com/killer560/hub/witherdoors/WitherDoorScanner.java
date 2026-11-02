@@ -31,6 +31,11 @@ final class WitherDoorScanner {
             return new BlockPos(x, y, z);
         }
 
+        /** The 11x11 cell (x + z * 11, {@code DungeonLayout}'s numbering). */
+        int idx() {
+            return (x - START) / HALF_ROOM + (z - START) / HALF_ROOM * GRID;
+        }
+
         /** True if this door's wall runs along Z (i.e. it connects rooms that are side-by-side in X) -
          *  used only to orient the highlight box; the lock/type detection above never needs it. */
         boolean wallAlongZ() {

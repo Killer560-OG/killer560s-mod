@@ -42,8 +42,17 @@ public class LividSolverTab extends BaseTab {
         }
 
         widgets.add(onOffButton("Show Invuln Timer", cfg::isShowTimer, cfg::setShowTimer, cfg::save,
-                null, contentX, y, contentWidth, 18));
+                requestRebuild, contentX, y, contentWidth, 18));
         y += 24;
+
+        if (cfg.isShowTimer()) {
+            widgets.add(SettingsButtonWidget.cycling(timerUnitText(cfg), (btn, dir) -> {
+                        cfg.setTimerSeconds(!cfg.isTimerSeconds());
+                        cfg.save();
+                        btn.setMessage(timerUnitText(cfg));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 24;
+        }
 
         widgets.add(onOffButton("Ice Spray Alert", cfg::isIceSprayAlert, cfg::setIceSprayAlert, cfg::save,
                 null, contentX, y, contentWidth, 18));
@@ -128,6 +137,10 @@ public class LividSolverTab extends BaseTab {
             y = Math.max(y, w.getY() + w.getHeight() + 6);
         }
         return y;
+    }
+
+    private static Component timerUnitText(LividSolverConfig cfg) {
+        return Component.literal("Timer Unit: §6" + (cfg.isTimerSeconds() ? "Seconds" : "Ticks"));
     }
 
     private static Component colourModeText(LividSolverConfig cfg) {

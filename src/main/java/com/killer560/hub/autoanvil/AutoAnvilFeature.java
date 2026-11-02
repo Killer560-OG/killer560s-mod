@@ -111,6 +111,9 @@ public final class AutoAnvilFeature {
             return;
         }
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoAnvilFeature.tick", AutoAnvilFeature::tick));
+        // Escape (which also closes the anvil) and the Emergency Cancel Key stop it (killer560, 2026-11-01).
+        com.killer560.hub.macrostop.MacroStop.register("Auto Anvil", com.killer560.hub.macrostop.MacroStop.Kind.CLICK, AutoAnvilFeature::isRunning,
+                why -> stop("you pressed " + why));
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> reset());
     }
 

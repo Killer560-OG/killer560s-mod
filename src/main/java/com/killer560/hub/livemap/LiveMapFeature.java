@@ -1444,6 +1444,18 @@ public final class LiveMapFeature {
         }
     }
 
+    /** {@link #noteSecretTakenAt} taken back: what was counted at (x, z) was no secret (a locked chest). */
+    public static void noteSecretUndoneAt(double x, double z) {
+        DungeonLayout layout = DungeonLayout.capture();
+        int id = layout.roomAtWorld(x, z);
+        String name = id < 0 ? null : layout.name(id);
+        Integer prev = name == null ? null : foundSecretsByRoom.get(name);
+        if (prev != null && prev > 0) {
+            foundSecretsByRoom.put(name, prev - 1);
+            mapVersion++;
+        }
+    }
+
     static int foundSecrets(String roomName) {
         Integer found = roomName == null ? null : foundSecretsByRoom.get(roomName);
         return found == null ? -1 : found;
@@ -1531,7 +1543,9 @@ public final class LiveMapFeature {
 
         /** The Extra Info text size, in map units per font unit. */
         static float extraTextScale() {
-            return Math.min(1f, mapPx() / EXTRA_TEXT_MAP);
+            // Times Extra Info Scale (to-do Doc, 2026-11-01: "Make the extra info overlay have a slider bar for the scale").
+            return Math.min(1f, mapPx() / EXTRA_TEXT_MAP)
+                    * com.killer560.hub.mapping.MappingConfig.getInstance().getExtraInfoScale();
         }
 
         /** One Extra Info row: a line's glyphs (8 font units) at {@link #extraTextScale()} and one unit under it. */
@@ -1566,9 +1580,41 @@ public final class LiveMapFeature {
             int tick = tickCount();
             if (extraLinesTick != tick || extraLines == null) {
                 extraLinesTick = tick;
-                extraLines = com.killer560.hub.scorecalc.ScoreCalculatorFeature.mapInfoLines(false);
+                extraLines = wrapExtraLines(com.killer560.hub.scorecalc.ScoreCalculatorFeature.mapInfoLines(false));
             }
             return extraLines;
+        }
+
+        /**
+         * The Extra Info rows at {@link #extraTextScale()}: a row too wide for the map at that size is split between its
+         * fields (they are joined by three spaces) onto more rows, so a larger Extra Info Scale really draws larger text
+         * instead of being shrunk back to fit. A single field still too wide is shrunk ({@link #extraDrawScale}).
+         */
+        static List<String> wrapExtraLines(List<String> lines) {
+            net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+            float s = extraTextScale();
+            int room = mapPx() - 2 * EXTRA_SIDE;
+            List<String> out = new ArrayList<>();
+            for (String line : lines) {
+                if (font == null || font.width(line) * s <= room) {
+                    out.add(line);
+                    continue;
+                }
+                StringBuilder row = new StringBuilder();
+                for (String part : line.split(" {3}")) {
+                    String joined = row.length() == 0 ? part : row + "   " + part;
+                    if (row.length() > 0 && font.width(joined) * s > room) {
+                        out.add(row.toString());
+                        row = new StringBuilder(part);
+                    } else {
+                        row = new StringBuilder(joined);
+                    }
+                }
+                if (row.length() > 0) {
+                    out.add(row.toString());
+                }
+            }
+            return out;
         }
 
         private static List<String> extraLines;
@@ -1656,7 +1702,7 @@ public final class LiveMapFeature {
                     int ey = y + mapPx();
                     MapDrawCache.Key k = MapDrawCache.frameKey(EXTRA_KEY.begin(), graphics);
                     k.add(x).add(ey).add(mapPx()).add(cfg.getMapBackground()).add(cfg.getMapBorderColor())
-                            .add(cfg.isTextShadow()).ref(lines);
+                            .add(cfg.isTextShadow()).add(extraTextScale()).ref(lines);
                     paintGraphics = graphics;
                     paintX = x;
                     paintY = ey;
@@ -1784,6 +1830,7 @@ public final class LiveMapFeature {
                     .add(cfg.isCustomCheckmarks()).add(cfg.getCheckmarkSource()).add(cfg.isFunnyMap())
                     .add(cfg.isMimicScan()).add(cfg.getMimicColor()).add(cfg.isColourByType()).add(cfg.getRoomLabels())
                     .add(cfg.getFontScale()).add(cfg.isTextShadow()).add(cfg.isMarkReportedRooms()).add(cfg.getRoomPx())
+                    .add(cfg.isWitherDoorOutline())
                     .add(extraInfoLines().size()); // the frame wraps the Extra Info rows too
             com.killer560.hub.livemap.predict.PredictiveRoomsConfig pc =
                     com.killer560.hub.livemap.predict.PredictiveRoomsConfig.getInstance();

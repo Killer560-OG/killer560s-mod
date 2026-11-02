@@ -63,6 +63,7 @@ public final class DungeonAlertsFeature {
             }
             LowHealthAlert.tick(client);
             KeySpawnAlert.tick(client);
+            SecretSound.tick(client);
         }));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(DungeonAlertsFeature::onWorldRender);
 

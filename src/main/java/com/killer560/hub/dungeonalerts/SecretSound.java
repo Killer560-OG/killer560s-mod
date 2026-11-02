@@ -91,6 +91,11 @@ public final class SecretSound {
             "Treasure Talisman", "Revive Stone", "Architect's First Draft",
             "Secret Dye", "Candycomb");
 
+    /** Whether an item with this (formatting-stripped) name is one of Noamm's dungeon secret item drops. */
+    public static boolean isDungeonItemDrop(String name) {
+        return name != null && DUNGEON_ITEM_DROPS.contains(name);
+    }
+
     private static long lastChestMs = System.currentTimeMillis();
     private static BlockPos lastInteractPos = null;
     private static long lastInteractMs = 0;
@@ -98,7 +103,23 @@ public final class SecretSound {
     private SecretSound() {
     }
 
+    /** A chest's sound waits for proof it was not locked (killer560, 2026-11-01: "Make sure the secret sound doesnt play
+     *  on a locked chest"): the chest's menu opening plays it at once, Hypixel's whole "That chest is locked!" line drops
+     *  it, and with neither it plays after {@link #CHEST_CONFIRM_MS} (a round trip on any sane ping). */
+    static final long CHEST_CONFIRM_MS = 500L;
+    private static final String LOCKED_LINE = "That chest is locked!";
+    private static long pendingChestSinceMs = -1L;
+    private static int chestSoundsPlayed = 0;
+    private static int lockedChestSoundsDropped = 0;
+
     static void register() {
+        com.killer560.hub.util.ChatObserver.subscribe(message -> {
+            if (pendingChestSinceMs >= 0
+                    && LOCKED_LINE.equals(com.killer560.hub.util.ChatObserver.strip(message).trim())) {
+                pendingChestSinceMs = -1L;
+                lockedChestSoundsDropped++;
+            }
+        });
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
             if (level.isClientSide() && player == Minecraft.getInstance().player && hitResult != null) {
                 onInteract(hitResult.getBlockPos());
@@ -204,8 +225,29 @@ public final class SecretSound {
         }
         if (type == SecretType.CHEST) {
             lastChestMs = now;
+            pendingChestSinceMs = now; // played by tick() once the chest is known not to be locked
+            return;
         }
         play();
+    }
+
+    /** Plays a held chest sound once the chest's menu is up or {@link #CHEST_CONFIRM_MS} passed with no locked line. */
+    static void tick(Minecraft client) {
+        if (pendingChestSinceMs < 0) {
+            return;
+        }
+        boolean opened = com.killer560.hub.compat.McCompat.screen(client)
+                instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>;
+        if (opened || System.currentTimeMillis() - pendingChestSinceMs >= CHEST_CONFIRM_MS) {
+            pendingChestSinceMs = -1L;
+            chestSoundsPlayed++;
+            play();
+        }
+    }
+
+    /** For the testkit: {chest sounds played, chest sounds dropped because the chest was locked}. */
+    public static int[] chestSoundCounts() {
+        return new int[]{chestSoundsPlayed, lockedChestSoundsDropped};
     }
 
     /** Noamm's "Play Sound" action - the configured sound 5 times at once. Also used by the tab's test button. */

@@ -5,8 +5,6 @@
 	"package": "com.killer560.hub.experiments.mixin",
 	"client": [
 		"ExperimentsInputBlockMixin",
-		"ExperimentsStopMouseMixin",
-		"ExperimentsStopKeyMixin",
 		"ExperimentsContainerRenderMixin",
 		"ExperimentsSlotItemMixin",
 		"AbstractContainerScreenAccessor",

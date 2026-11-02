@@ -79,6 +79,14 @@ final class BloodCampAim {
     private double tremorPeriodB;
     private float tremorAmp;
 
+    /** Where the aim is actually going: {@link #point} followed with a lag ({@link #FOLLOW_TAU_TICKS}), never jumped to. */
+    private Vec3 followPoint;
+    private double followT;
+    /** Time constant of that follow, ticks: a target that moves is chased like a hand tracks, in about three ticks. */
+    static final double FOLLOW_TAU_TICKS = 1.5;
+    /** Testkit: the biggest single-frame body turn while resting on a target that moved (the "snap"). */
+    float maxRestingFrameYaw;
+
     // ---- time ----
     private long ticks;
     private double lastT;
@@ -197,6 +205,7 @@ final class BloodCampAim {
         if (newTarget) {
             ThreadLocalRandom r = ThreadLocalRandom.current();
             planned = false;
+            followPoint = null;
             reactionEnd = ticks + (straightOn ? 1 + r.nextInt(3) : 3 + r.nextInt(4));
             pickedAtTick = ticks;
             fromIdle = !straightOn;
@@ -260,6 +269,7 @@ final class BloodCampAim {
         planned = false;
         handingBack = false;
         idleTicks = 0;
+        followPoint = null;
         lastAppliedYaw = Float.NaN;
         lastAppliedPitch = Float.NaN;
     }
@@ -401,8 +411,33 @@ final class BloodCampAim {
                 return;
             }
             plan(player, point, t, false);
+            followPoint = point;
+            followT = t;
         }
-        write(player, client, point, t);
+        // killer560, 2026-11-01: "for aura sometimes it is a bit too snappy", "this snap thing if a mob was spawned with a
+        // new one being spawned close to it". The planned movement is an error relative to the target point, so when the
+        // point itself jumped (the empty landing spot becoming the mob's chest, the landing refining, a second mob beside
+        // it) the body jumped with it, up to the per-tick cap in one frame. The point is now followed, not jumped to: it
+        // moves toward the real one with a time constant of FOLLOW_TAU_TICKS, the way a hand chases a target that moved.
+        Vec3 aim = follow(point, t);
+        float before = player.getYRot();
+        write(player, client, aim, t);
+        if (t >= t2) {
+            maxRestingFrameYaw = Math.max(maxRestingFrameYaw, Math.abs(Mth.wrapDegrees(player.getYRot() - before)));
+        }
+    }
+
+    private Vec3 follow(Vec3 target, double t) {
+        if (followPoint == null) {
+            followPoint = target;
+            followT = t;
+            return target;
+        }
+        double dt = Math.max(0.0, t - followT);
+        followT = t;
+        double a = 1.0 - Math.exp(-dt / FOLLOW_TAU_TICKS);
+        followPoint = followPoint.add(target.subtract(followPoint).scale(a));
+        return followPoint;
     }
 
     /** Rolls one approach from where the body is now to {@code target}. */
@@ -510,6 +545,15 @@ final class BloodCampAim {
         }
         lastAppliedYaw = player.getYRot();
         lastAppliedPitch = player.getXRot();
+    }
+
+    /** The longest {@link #plan} can make a turn of this error (its Fitts' time at +15%, or the cap stretch), ticks. */
+    static double maxTurnTicks(float errYaw, float errPitch) {
+        float d = (float) Math.hypot(errYaw, errPitch);
+        double fitts = (2.5 + 1.6 * (Math.log(1.0 + d / 2.5) / Math.log(2.0))) * 1.15;
+        double minYaw = 1.875 * Math.abs(errYaw) / (YAW_CAP * 0.85);
+        double minPitch = 1.875 * Math.abs(errPitch) / (PITCH_CAP * 0.85);
+        return Math.max(4.0, Math.max(fitts, Math.max(minYaw, minPitch)));
     }
 
     static double minJerk(double tau) {

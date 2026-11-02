@@ -1,6 +1,6 @@
 package com.killer560.hub.streamer;
 
-import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ModLog;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 
@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 public final class StreamerCommands {
 
     private static final String FEATURE = "Streamer Mode";
+    private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-streamer");
 
     private StreamerCommands() {
     }
@@ -25,13 +26,11 @@ public final class StreamerCommands {
         });
     }
 
+    /** Flips it without a word in chat (killer560, 2026-11-01: "do not have the chat line for turning it on or off show
+     *  up when i toggle it"): a chat line saying Streamer Mode is on is exactly what a stream must not show. The new
+     *  state goes to the log only. */
     private static void toggle() {
         boolean on = StreamerMode.toggle();
-        if (on) {
-            ModChat.send(FEATURE, ModChat.text("On - "), ModChat.value(StreamerMode.option().label),
-                    ModChat.dim(". Run the command again to turn it off and restore everything."));
-        } else {
-            ModChat.send(FEATURE, ModChat.good("Off"), ModChat.text(" - everything is back as it was."));
-        }
+        LOGGER.info("[{}] {} by command", FEATURE, on ? "on" : "off");
     }
 }

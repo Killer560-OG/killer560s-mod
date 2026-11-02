@@ -67,13 +67,28 @@ public final class ConfineMouseFeature {
         return WindowModeConfig.getInstance().isBorderlessFullscreenEnabled() && !com.killer560.hub.compat.McWindow.isFullscreen(client.getWindow());
     }
 
-    /** The confinement rule: setting on, borderless, window focused, and a screen other than chat open. */
+    /** The confinement rule: setting on, borderless, window focused, in a world (killer560, 2026-11-01: never on the
+     *  title screen or any other menu outside the game), in a dungeon when Only In Dungeons is on, and a screen other
+     *  than chat open. */
     static boolean shouldConfine(Minecraft client) {
-        if (!ConfineMouseConfig.getInstance().isEnabled() || !isBorderless(client) || !client.isWindowActive()) {
+        ConfineMouseConfig cfg = ConfineMouseConfig.getInstance();
+        Screen screen = McCompat.screen(client);
+        return decide(cfg.isEnabled(), isBorderless(client), client.isWindowActive(),
+                client.level != null && client.player != null, cfg.isOnlyInDungeons(),
+                cfg.isOnlyInDungeons() && com.killer560.hub.secrets.DungeonState.isInDungeon(),
+                screen != null, screen instanceof ChatScreen);
+    }
+
+    /** The rule itself, from plain facts (the testkit walks its table): every condition must hold. */
+    static boolean decide(boolean enabled, boolean borderless, boolean windowActive, boolean inWorld,
+                          boolean onlyInDungeons, boolean inDungeon, boolean screenOpen, boolean chatOpen) {
+        if (!enabled || !borderless || !windowActive || !inWorld) {
             return false;
         }
-        Screen screen = McCompat.screen(client);
-        return screen != null && !(screen instanceof ChatScreen);
+        if (onlyInDungeons && !inDungeon) {
+            return false;
+        }
+        return screenOpen && !chatOpen;
     }
 
     private static void tick(Minecraft client) {

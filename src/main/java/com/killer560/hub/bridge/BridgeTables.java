@@ -238,6 +238,9 @@ public final class BridgeTables {
     public static final int MELODY_TYPE_CLAY = 1;
     public static final int MELODY_TYPE_PURPLE = 2;
     public static final int MELODY_TYPE_PANE = 5;
+    /** Our relay only (never Odin's socket): the sender finished their Melody (2026-11-01). Older builds ignore an unknown
+     *  type ({@code PartyDataProtocol.readMelodyType}), so it is safe to send to them. */
+    public static final int MELODY_TYPE_DONE = 9;
 
     /**
      * <b>The spec left this unresolved (3.4, 3.8 item 4); it is resolved here</b> from

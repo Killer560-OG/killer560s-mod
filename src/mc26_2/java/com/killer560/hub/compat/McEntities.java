@@ -29,6 +29,8 @@ public final class McEntities {
     public static final EntityType<net.minecraft.world.entity.monster.Silverfish> SILVERFISH = EntityTypes.SILVERFISH;
     public static final EntityType<net.minecraft.world.entity.monster.skeleton.Skeleton> SKELETON = EntityTypes.SKELETON;
     public static final EntityType<net.minecraft.world.entity.monster.zombie.Zombie> ZOMBIE = EntityTypes.ZOMBIE;
+    public static final EntityType<net.minecraft.world.entity.boss.wither.WitherBoss> WITHER = EntityTypes.WITHER;
+    public static final EntityType<net.minecraft.world.entity.boss.enderdragon.EnderDragon> ENDER_DRAGON = EntityTypes.ENDER_DRAGON;
 
     /**
      * Horizontal knockback, the way a Skyblock ability applies it.

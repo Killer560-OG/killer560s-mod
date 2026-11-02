@@ -35,6 +35,9 @@ public class TicTacToeSolverTab extends BaseTab {
         widgets.add(onOffButton("Prevent Misclicks", cfg::isPreventMisclicks, cfg::setPreventMisclicks, cfg::save,
                 null, contentX, y, contentWidth, 18));
         y += 22;
+        widgets.add(onOffButton("Sneak To Override", cfg::isSneakOverride, cfg::setSneakOverride, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 22;
         widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
                     cfg.setFill(!cfg.isFill());
                     cfg.save();

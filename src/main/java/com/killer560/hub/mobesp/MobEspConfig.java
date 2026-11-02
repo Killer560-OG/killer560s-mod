@@ -64,6 +64,10 @@ public final class MobEspConfig {
     /** Blood Mobs (killer560, 2026-10-15: "blood mob ESP ... will highlight them red"). */
     public static final int DEFAULT_BLOOD_COLOR = 0xFFFF0000;
     public static final int DEFAULT_WITHER_COLOR = 0xFFFF0000;
+    /** Fel Skulls: NoammAddons' fel color (pink). */
+    public static final int DEFAULT_FEL_COLOR = 0xFFFF69B4;
+    /** Mimic: purple. */
+    public static final int DEFAULT_MIMIC_COLOR = 0xFFAA00FF;
     public static final float MIN_LINE_WIDTH = 1.0f;
     public static final float MAX_LINE_WIDTH = 10.0f;
     public static final double MIN_RANGE = 5.0;
@@ -79,6 +83,13 @@ public final class MobEspConfig {
     /** The Watcher's blood mobs (the ones Blood Camp tracks), highlighted like starred mobs, wherever they walk. */
     private boolean bloodMobs = false;
     private int bloodColor = DEFAULT_BLOOD_COLOR;
+    /** killer560, 2026-11-01: "Make that a toggle to highlight fels" - dormant Fel skulls beside starred mobs, then the
+     *  room's other Fel skulls once its starred mobs and predicted Fels are dead. */
+    private boolean felSkulls = false;
+    private int felColor = DEFAULT_FEL_COLOR;
+    /** killer560, 2026-11-01: "Add an option for mimic highlight as well." */
+    private boolean mimic = false;
+    private int mimicColor = DEFAULT_MIMIC_COLOR;
     /** Cheat build only (was Cheat Utils' Wither ESP) - see {@link #isWithersEnabled()}. */
     private boolean withers = false;
     /** killer560, 2026-09-21: "for the esp also have an option to have a tracer line to him." One setting for both
@@ -146,6 +157,10 @@ public final class MobEspConfig {
             cfg.bats = ConfigJson.getBool(obj, "bats", false);
             cfg.bloodMobs = ConfigJson.getBool(obj, "bloodMobs", false);
             cfg.bloodColor = ConfigJson.getInt(obj, "bloodColor", DEFAULT_BLOOD_COLOR);
+            cfg.felSkulls = ConfigJson.getBool(obj, "felSkulls", false);
+            cfg.felColor = ConfigJson.getInt(obj, "felColor", DEFAULT_FEL_COLOR);
+            cfg.mimic = ConfigJson.getBool(obj, "mimic", false);
+            cfg.mimicColor = ConfigJson.getInt(obj, "mimicColor", DEFAULT_MIMIC_COLOR);
 
             if (obj.has("starredColor")) {
                 cfg.starredColor = ConfigJson.getInt(obj, "starredColor", DEFAULT_STARRED_COLOR);
@@ -241,6 +256,10 @@ public final class MobEspConfig {
             obj.addProperty("bats", bats);
             obj.addProperty("bloodMobs", bloodMobs);
             obj.addProperty("bloodColor", bloodColor);
+            obj.addProperty("felSkulls", felSkulls);
+            obj.addProperty("felColor", felColor);
+            obj.addProperty("mimic", mimic);
+            obj.addProperty("mimicColor", mimicColor);
             obj.addProperty("withers", withers);
             obj.addProperty("witherTracer", witherTracer);
             obj.addProperty("witherTracerThickness", witherTracerThickness);
@@ -279,6 +298,16 @@ public final class MobEspConfig {
     public void setBloodMobs(boolean v) { bloodMobs = v; }
     public int getBloodColor() { return bloodColor; }
     public void setBloodColor(int v) { bloodColor = v; }
+    public boolean isFelSkullsEnabled() { return felSkulls && com.killer560.hub.util.SkyblockGate.allows(); }
+    public boolean getFelSkullsRaw() { return felSkulls; }
+    public void setFelSkulls(boolean v) { felSkulls = v; }
+    public int getFelColor() { return felColor; }
+    public void setFelColor(int v) { felColor = v; }
+    public boolean isMimicEnabled() { return mimic && com.killer560.hub.util.SkyblockGate.allows(); }
+    public boolean getMimicRaw() { return mimic; }
+    public void setMimic(boolean v) { mimic = v; }
+    public int getMimicColor() { return mimicColor; }
+    public void setMimicColor(int v) { mimicColor = v; }
 
     /** Cheat build only, same as the Cheat Utils Wither ESP it replaces - a legit jar never reports true. */
     public boolean isWithersEnabled() { return cheat() && esp && com.killer560.hub.util.SkyblockGate.allows(); }

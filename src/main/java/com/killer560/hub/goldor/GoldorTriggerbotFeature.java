@@ -21,7 +21,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Goldor Triggerbot - killer560, 2026-09-21: "Create goldore triggerbot with cps range". While the crosshair is
+ * Wither Boss Triggerbot (Goldor Triggerbot until 2026-11-01; "All Wither Bosses" widens it past Goldor, and it works
+ * from any range) - killer560, 2026-09-21: "Create goldore triggerbot with cps range". While the crosshair is
  * actually on the F7/M7 P3 boss wither (Goldor), click him at a rate rolled inside the configured CPS band.
  * Cheat build only, default OFF.
  * <p>
@@ -105,7 +106,10 @@ public final class GoldorTriggerbotFeature {
             gate = "dead";
         } else if (!WitherEspFeature.isWitherBossActive(client)) {
             gate = "not in the F7/M7 boss";
-        } else if (!Floor7Tracker.inPhase(Floor7Tracker.Phase.P3) && !Floor7Tracker.inPhaseAt(Floor7Tracker.Phase.P3)) {
+        } else if (!classAllowed(cfg)) {
+            gate = "class not selected";
+        } else if (!cfg.isAllWithers()
+                && !Floor7Tracker.inPhase(Floor7Tracker.Phase.P3) && !Floor7Tracker.inPhaseAt(Floor7Tracker.Phase.P3)) {
             // Chat-driven phase OR the y-band one, so joining mid-run (no Goldor line seen) still works, and so
             // does p3sim, where the phase lines arrive exactly as they do on Hypixel.
             gate = "not in P3";
@@ -116,7 +120,7 @@ public final class GoldorTriggerbotFeature {
         }
 
         long now = ActionGate.currentTick();
-        Entity target = aimedAtBoss(client, player, cfg.getRange(), 1.0f);
+        Entity target = aimedAtBoss(client, player, GoldorTriggerbotConfig.AIM_DISTANCE, 1.0f);
         if (target == null) {
             clearAim();
             return;
@@ -130,26 +134,24 @@ public final class GoldorTriggerbotFeature {
         if (now < nextClickDueTick) {
             return;
         }
-        // MELEE HAS TO BE IN MELEE RANGE. The Range setting governs how far away the crosshair test will still
-        // call you "aimed at Goldor", and 25 blocks is right for that - a Terminator shot is fired from across
-        // the room and the shot itself has no reach limit. An ATTACK is different: a server accepts an entity
-        // attack only within about 3 blocks, and measurement on the sim (2026-09-28) showed an interaction at
-        // 3.26 blocks drawing a Reach violation that names the distance. At the shipped default of 25 every
-        // single attack would be refused and flagged on the way, so in Attack mode the range is clamped to what
-        // an attack can actually do.
-        //
-        // Checked BEFORE the gate is claimed, so an out-of-range tick does not burn this feature's one
-        // interaction for the tick and does not disturb the rolled interval.
+        // An ATTACK only reaches about 3 blocks (a Reach violation names the distance past that, 2026-09-28), but a left
+        // click is not only an attack: from range it is what a vanilla miss sends - the swing alone - and that is what
+        // a Terminator, a mage's beam and Hypixel's other left-click weapons fire on (killer560, 2026-11-01: "i cranked
+        // range to 50 and on goldore it only worked if i could mele him ... I could be holding a bow or my mage beam").
+        // So in reach it attacks, out of reach it swings; and where vanilla would hit a BLOCK under the crosshair (and
+        // start digging it) nothing is sent, because the swing alone is not what that click would have been.
+        boolean melee = true;
         if (cfg.getClickType() == GoldorTriggerbotConfig.ClickType.ATTACK) {
             double reachSq = com.killer560.hub.util.BlockHits.boxDistanceSq(
                     player.getEyePosition(), target.getBoundingBox());
             double limit = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
-            if (reachSq > limit * limit) {
+            melee = reachSq <= limit * limit;
+            if (!melee && client.hitResult != null
+                    && client.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
                 if (!warnedOutOfMeleeRange) {
                     warnedOutOfMeleeRange = true;
-                    LOGGER.info("[Goldor] Aimed at the boss but {} blocks away - an attack only reaches {}, so "
-                                    + "nothing is sent. Use Shoot for a bow, or get closer.",
-                            String.format(java.util.Locale.US, "%.1f", Math.sqrt(reachSq)), limit);
+                    LOGGER.info("[Goldor] Aimed at the boss from {} blocks but a block is under the crosshair - a left "
+                            + "click there would dig it, so nothing is sent", String.format(java.util.Locale.US, "%.1f", Math.sqrt(reachSq)));
                 }
                 return;
             }
@@ -160,9 +162,15 @@ public final class GoldorTriggerbotFeature {
             return;
         }
         if (cfg.getClickType() == GoldorTriggerbotConfig.ClickType.ATTACK) {
-            client.gameMode.attack(player, target);
+            if (melee) {
+                client.gameMode.attack(player, target);
+                attacks++;
+            } else {
+                swings++;
+            }
             com.killer560.hub.compat.McCompat.swingAttack(player);
         } else {
+            uses++;
             // Terminator / Juju: the shot is a plain item use in the direction you are already looking - the same
             // call AutoI4Feature fires the bow with. useItem does its own swing handling, so none is sent here. A block
             // click unpaired on the server gets vanilla's block half first (util/RightClick).
@@ -212,6 +220,27 @@ public final class GoldorTriggerbotFeature {
             }
         }
         return best;
+    }
+
+    private static int attacks;
+    private static int swings;
+    private static int uses;
+
+    /** Clicks sent this session, {attacks, ranged swings, uses} - for the testkit. */
+    public static int[] clickCounts() {
+        return new int[]{attacks, swings, uses};
+    }
+
+    /** Your class (tab list / override) is one of the selected ones; an unknown class passes only when all are on. */
+    private static boolean classAllowed(GoldorTriggerbotConfig cfg) {
+        boolean all = true;
+        for (com.killer560.hub.dungeonclass.DungeonClass c : com.killer560.hub.dungeonclass.DungeonClass.values()) {
+            all &= cfg.isClassEnabled(c);
+        }
+        if (all) {
+            return true;
+        }
+        return cfg.isClassEnabled(com.killer560.hub.leapmenu.PartyTracker.selfClass());
     }
 
     private static void clearAim() {

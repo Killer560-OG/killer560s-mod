@@ -24,8 +24,10 @@ import java.util.function.IntConsumer;
  */
 public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
 
-    /** The layout whose key is being captured, or null. */
+    /** The layout whose key is being captured, {@link #OPEN_MENU} for the menu key, or null. */
     private String capturingFor;
+    /** Not a legal layout name (validateName refuses it), so it can never collide with one. */
+    private static final String OPEN_MENU = "/open-menu";
 
     public InventorySorterTab() {
         super("Inventory Sorter");
@@ -47,7 +49,12 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
             return;
         }
         InventorySorterConfig cfg = InventorySorterConfig.getInstance();
-        cfg.setLayoutKey(capturingFor, keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
+        int code = keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode;
+        if (OPEN_MENU.equals(capturingFor)) {
+            cfg.setOpenMenuKey(code);
+        } else {
+            cfg.setLayoutKey(capturingFor, code);
+        }
         cfg.save();
         capturingFor = null;
     }
@@ -74,7 +81,18 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
                         mc.setScreenAndShow(new InventorySorterScreen(com.killer560.hub.compat.McCompat.screen(mc)));
                     }
                 }).bounds(contentX, y, contentWidth, 20).build());
-        y += 26;
+        y += 22;
+
+        // A key that opens the layouts menu (killer560, 2026-11-01).
+        boolean openListening = OPEN_MENU.equals(capturingFor);
+        widgets.add(SettingsButtonWidget.builder(Component.literal(openListening ? "Press any key..."
+                        : "Open Menu Key: " + CommandKeybindsTab.bindName(cfg.getOpenMenuKey())), btn -> {
+                    capturingFor = OPEN_MENU;
+                    btn.setMessage(Component.literal("Press any key..."));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
+        y += 4;
 
         widgets.add(tickSlider(contentX, y, contentWidth, "Ticks Between Moves", cfg.getTicksBetweenMoves(),
                 InventorySorterConfig.MIN_TICKS, InventorySorterConfig.MAX_TICKS, v -> {
@@ -99,6 +117,18 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
                         btn.setMessage(Component.literal("Press any key..."));
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 20;
+        }
+
+        // Cheat block (coordinator, 2026-11-01): Instant sends clicks with no inventory open and no close - the shape
+        // that got him limboed for "Bad client inventory move" (killer560s-mod-logs/invwalk-legit-model.md). Compiled out
+        // of the legit build.
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            y += 6;
+            widgets.add(com.killer560.hub.gui.SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Instant", true));
+            y += 16;
+            widgets.add(onOffButton("Instant (0-tick)", cfg::isInstantRaw, cfg::setInstant, cfg::save, requestRebuild,
+                    contentX, y, contentWidth, 18));
+            y += 22;
         }
         return widgets;
     }
