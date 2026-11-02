@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.dungeonqueue.DungeonQueueConfig;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
@@ -184,20 +185,22 @@ public class DungeonQueueTab extends BaseTab {
         // Name, Save, Delete.
         int actW = 62;
         int nameW = Math.max(60, contentWidth - 2 * actW - 8);
-        EditBox name = new EditBox(client.font, contentX, y, nameW, 18, Component.literal("Style Name"));
+        CommitEditBox name = new CommitEditBox(client.font, contentX, y, nameW, 18, Component.literal("Style Name"));
         name.setMaxLength(PartyFinderOverlayConfig.MAX_STYLE_NAME);
         name.setHint(Component.literal("\u00a78Style name"));
         name.setValue(pendingStyleName.isEmpty() ? pf.getActiveStyle() : pendingStyleName);
         name.setResponder(text -> pendingStyleName = text);
         widgets.add(name);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Save Style"), btn -> {
+        SettingsButtonWidget nameSet = SettingsButtonWidget.builder(Component.literal("Save Style"), btn -> {
                     String wanted = name.getValue().isBlank() ? pf.getActiveStyle() : name.getValue();
                     if (pf.saveStyle(wanted, pf.getCustomStyle())) {
                         pendingStyleName = pf.getActiveStyle();
                         pf.save();
                         requestRebuild.run();
                     }
-                }).bounds(contentX + nameW + 4, y, actW, 18).build());
+                }).bounds(contentX + nameW + 4, y, actW, 18).build();
+        widgets.add(nameSet);
+        name.pressOnEnter(nameSet);
         widgets.add(SettingsButtonWidget.builder(Component.literal("\u00a7cDelete"), btn -> {
                     String wanted = name.getValue().isBlank() ? pf.getActiveStyle() : name.getValue();
                     if (pf.deleteStyle(wanted)) {
@@ -209,7 +212,7 @@ public class DungeonQueueTab extends BaseTab {
         y += 20;
 
         // The style text itself.
-        EditBox style = new EditBox(client.font, contentX, y, contentWidth, 18, Component.literal("Custom Style"));
+        CommitEditBox style = new CommitEditBox(client.font, contentX, y, contentWidth, 18, Component.literal("Custom Style"));
         style.setMaxLength(PartyFinderOverlayConfig.MAX_STYLE_LENGTH);
         style.setHint(Component.literal("Custom Style"));
         style.setValue(pf.getCustomStyle());
@@ -218,6 +221,7 @@ public class DungeonQueueTab extends BaseTab {
             pf.save();
         });
         widgets.add(style);
+        CommitEditBox.withSet(widgets, style);
         y += 20;
 
         // Placeholder buttons: each adds its $Word to the end of the style text.

@@ -28,9 +28,9 @@ public class ProxyConfigScreen extends Screen implements MenuThemedScreen {
     private final Screen parent;
     private final ProxyConfig target;
 
-    private EditBox addressField;
-    private EditBox usernameField;
-    private EditBox passwordField;
+    private com.killer560.hub.gui.CommitEditBox addressField;
+    private com.killer560.hub.gui.CommitEditBox usernameField;
+    private com.killer560.hub.gui.CommitEditBox passwordField;
     private SettingsButtonWidget socks4Button;
     private SettingsButtonWidget socks5Button;
 
@@ -96,6 +96,7 @@ public class ProxyConfigScreen extends Screen implements MenuThemedScreen {
                 Component.literal("Address")).hint("127.0.0.1:1080").brightHint();
         this.addressField.setMaxLength(256);
         this.addressField.setValue(config.getAddressString());
+        this.addressField.onEnter(this::apply);
         this.addRenderableWidget(this.addressField);
 
         // --- Login (optional) section ---
@@ -103,6 +104,7 @@ public class ProxyConfigScreen extends Screen implements MenuThemedScreen {
                 Component.literal("Username")).hint("Username").brightHint();
         this.usernameField.setMaxLength(256);
         this.usernameField.setValue(config.getUsername());
+        this.usernameField.onEnter(this::apply);
         this.addRenderableWidget(this.usernameField);
 
         this.passwordField = new ThemedEditBox(this.font, fieldX, passwordFieldTop, FIELD_WIDTH, FIELD_HEIGHT,
@@ -112,6 +114,7 @@ public class ProxyConfigScreen extends Screen implements MenuThemedScreen {
         this.passwordField.addFormatter((text, offset) -> net.minecraft.util.FormattedCharSequence.forward(
                 "*".repeat(text.length()), net.minecraft.network.chat.Style.EMPTY));
         this.passwordField.setValue(config.getPassword());
+        this.passwordField.onEnter(this::apply);
         this.addRenderableWidget(this.passwordField);
 
         // --- Action buttons (Apply / Go Back / Reset) ---

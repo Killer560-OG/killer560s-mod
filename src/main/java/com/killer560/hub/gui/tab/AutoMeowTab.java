@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.automeow.AutoMeowConfig;
 import com.killer560.hub.notify.ModOverlayMessage;
 import net.minecraft.client.Minecraft;
@@ -56,12 +57,12 @@ public class AutoMeowTab extends BaseTab {
                 saveOnRelease(() -> cfg.save());
             }
         });
-        EditBox volumeField = new EditBox(Minecraft.getInstance().font, contentX + 166, y, 60, 20,
+        CommitEditBox volumeField = new CommitEditBox(Minecraft.getInstance().font, contentX + 166, y, 60, 20,
                 Component.literal("Volume"));
         volumeField.setMaxLength(8);
         volumeField.setValue(String.format("%.0f", AutoMeowConfig.getInstance().getCatVolume() * 100));
         widgets.add(volumeField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
+        SettingsButtonWidget volumeFieldSet = SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
                     Float parsed = parseFloat(volumeField.getValue());
                     if (parsed == null) {
                         ModOverlayMessage.show("§c[Killer560's Mod] Invalid volume - enter a number like 100 (%)", 3000);
@@ -71,7 +72,9 @@ public class AutoMeowTab extends BaseTab {
                     cfg.setCatVolume(Math.max(0f, Math.min(200f, parsed)) / 100f);
                     cfg.save();
                     requestRebuild.run();
-                }).bounds(contentX + 230, y, contentWidth - 230, 20).build());
+                }).bounds(contentX + 230, y, contentWidth - 230, 20).build();
+        widgets.add(volumeFieldSet);
+        volumeField.pressOnEnter(volumeFieldSet);
 
         return widgets;
     }

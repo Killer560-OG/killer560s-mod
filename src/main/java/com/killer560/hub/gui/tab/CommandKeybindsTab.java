@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.commandkeybinds.CommandKeybindsConfig;
 import com.killer560.hub.commandshortcuts.CommandShortcutsConfig;
 import com.killer560.hub.commandshortcuts.CommandShortcutsConfig.CustomShortcut;
@@ -159,7 +160,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(x, y, keyW, 18).build());
             x += keyW + GAP;
 
-            EditBox textField = new EditBox(font, x, y, textW, 18, Component.literal("Command or message"));
+            CommitEditBox textField = new CommitEditBox(font, x, y, textW, 18, Component.literal("Command or message"));
             textField.setMaxLength(200);
             textField.setValue(bind.text);
             textField.setHint(Component.literal("§8/pets  or  gg"));
@@ -168,6 +169,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
                 cfg.save();
             });
             widgets.add(textField);
+            CommitEditBox.withSet(widgets, textField);
             x += textW + GAP;
 
             widgets.add(SettingsButtonWidget.builder(Component.literal("§cDelete"), btn -> {
@@ -241,7 +243,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(x, y, keyW, 18).build());
             x += keyW + GAP;
 
-            EditBox nameField = new EditBox(font, x, y, nameW, 18, Component.literal("Shortcut Name"));
+            CommitEditBox nameField = new CommitEditBox(font, x, y, nameW, 18, Component.literal("Shortcut Name"));
             nameField.setMaxLength(CommandShortcutsConfig.MAX_CUSTOM_NAME);
             String pending = refusedName.get(c);
             nameField.setValue(pending != null ? pending : c.name());
@@ -266,9 +268,11 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
                 }
             });
             widgets.add(nameField);
+            // The name box is narrow: Enter in it saves the row, and the row's one Set button sits after the command box.
+            nameField.enterRunsResponder();
             x += nameW + GAP;
 
-            EditBox commandField = new EditBox(font, x, y, commandW, 18, Component.literal("Sends Command"));
+            CommitEditBox commandField = new CommitEditBox(font, x, y, commandW, 18, Component.literal("Sends Command"));
             commandField.setMaxLength(CommandShortcutsConfig.MAX_CUSTOM_COMMAND);
             commandField.setValue(c.command());
             commandField.setHint(Component.literal("§8/warp dh"));
@@ -278,6 +282,13 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
                 CommandShortcutsFeature.customsChanged();
             });
             widgets.add(commandField);
+            Runnable saveRow = () -> {
+                nameField.runResponder();
+                commandField.runResponder();
+            };
+            nameField.onEnter(saveRow);
+            commandField.onEnter(saveRow);
+            CommitEditBox.withSet(widgets, commandField);
             x += commandW + GAP;
 
             widgets.add(SettingsButtonWidget.builder(Component.literal("§cDelete"), btn -> {

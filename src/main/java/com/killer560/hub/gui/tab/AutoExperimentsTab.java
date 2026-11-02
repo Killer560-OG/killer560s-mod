@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.experiments.ExperimentsConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
@@ -219,9 +220,11 @@ public class AutoExperimentsTab extends BaseTab {
         // The slider snaps to 50k; the box beside it takes an exact amount with no snapping, per
         // killer560's "still allow for me to manually type in the coin portion for something more
         // precise... but it wont ever snap there." Since 2026-10-04 the box applies as you type (killer560:
-        // "remove the set button it isn't needed") - anything that is not a number in range is ignored.
+        // "remove the set button it isn't needed") - anything that is not a number in range is ignored. The Set button
+        // came back on 2026-11-01 with every other text box ("If it doesnt have a set button add it as well"); it and
+        // Enter apply the same as typing does.
         TitanicSlider titanicSlider = new TitanicSlider(contentX, y, titanicSliderWidth);
-        EditBox titanicField = new EditBox(Minecraft.getInstance().font, titanicFieldX, y, titanicFieldWidth, 20,
+        CommitEditBox titanicField = new CommitEditBox(Minecraft.getInstance().font, titanicFieldX, y, titanicFieldWidth, 20,
                 Component.literal("Max Titanic Price"));
         titanicField.setMaxLength(10);
         titanicField.setValue(String.format("%.0f", cfg.getTitanicMaxPriceCoins()));
@@ -240,6 +243,7 @@ public class AutoExperimentsTab extends BaseTab {
         });
         widgets.add(titanicSlider);
         widgets.add(titanicField);
+        CommitEditBox.withSet(widgets, titanicField);
 
         return widgets;
     }

@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.profileviewer.ProfileViewerConfig;
 import com.killer560.hub.profileviewer.ProfileViewerFeature;
@@ -68,7 +69,7 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
         y += 13;
 
         int clearW = 50;
-        EditBox keyBox = new EditBox(mc.font, contentX, y, contentWidth - clearW - 4, 18, Component.literal("Hypixel API Key"));
+        CommitEditBox keyBox = new CommitEditBox(mc.font, contentX, y, contentWidth - clearW - 4, 18, Component.literal("Hypixel API Key"));
         keyBox.setMaxLength(64);
         keyBox.setHint(Component.literal("Paste key..."));
         // Masked: the key is drawn as asterisks and never shown in clear text.
@@ -82,6 +83,7 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
             }
         });
         widgets.add(keyBox);
+        CommitEditBox.withSet(widgets, keyBox);
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Clear"), btn -> {
                     cfg.setApiKey("");

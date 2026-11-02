@@ -347,9 +347,9 @@ final class SettingTooltipsData {
         d.put("random delay (max)", "Cheat build: max random extra delay added to every bot click, 0-1000 ms in 50 ms steps, 50 by default. It only adds time.");
         d.put("auto-renew charges", "Cheat build: how many Renew Experiments charges (0-3) the bot buys per day.");
         d.put("max titanic price", "Cheat build: the most the bot pays for a Titanic Experience Bottle, 0 (the default) disables. Drag in 50k steps or type an exact amount.");
-        d.put("chat/set", "Applies the percent typed in the box as the cat sound volume.");
-        d.put("hud elements/set", "Applies the value typed in the box next to it.");
-        d.put("set", "Applies the number typed in the box next to it.");
+        d.put("auto meow/set", "Applies the percent typed in the box as the cat sound volume.");
+        d.put("hud elements/set", "Saves the value typed in the box to its left. Enter in the box does the same.");
+        d.put("set", "Saves what is typed in the box to its left. Enter in the box does the same.");
         d.put("click protection", "Blocks clicks on the wrong Chronomatron or Ultrasequencer slot; hold Shift to click anyway.");
         d.put("notify max clicks reached", "Sends a chat message and sound when you hit the max Superpairs click bonus or run out of clicks.");
         d.put("profit tracker", "Tracks the rewards you claim from the Experimentation Table: coins, Enchanting XP and Bits spent.");

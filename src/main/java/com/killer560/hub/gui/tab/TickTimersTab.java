@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SectionHeaders;
@@ -125,7 +126,7 @@ public class TickTimersTab extends BaseTab {
         y += 22;
         widgets.add(new StringWidget(contentX, y + 4, colW, 12, Component.literal("§7Crush Trigger Text (optional)"), mc.font));
         y += 18;
-        EditBox trigger = new EditBox(mc.font, contentX, y, contentWidth, 18, Component.literal("Crush Trigger Text"));
+        CommitEditBox trigger = new CommitEditBox(mc.font, contentX, y, contentWidth, 18, Component.literal("Crush Trigger Text"));
         trigger.setMaxLength(120);
         trigger.setValue(cfg.getCrushExtraTrigger());
         trigger.setResponder(text -> {
@@ -133,6 +134,7 @@ public class TickTimersTab extends BaseTab {
             cfg.save();
         });
         widgets.add(trigger);
+        CommitEditBox.withSet(widgets, trigger);
 
         return widgets;
     }

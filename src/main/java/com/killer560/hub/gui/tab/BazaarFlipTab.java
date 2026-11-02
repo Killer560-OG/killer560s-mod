@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.bazaarflip.BazaarFlipConfig;
 import com.killer560.hub.bazaarflip.BazaarFlipFeature;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -187,7 +188,7 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
         }).bounds(contentX, y, col2W, 18).build();
         purseLabel.active = false;
         widgets.add(purseLabel);
-        EditBox purseBox = new EditBox(Minecraft.getInstance().font, col2bX, y, col2W, 18,
+        CommitEditBox purseBox = new CommitEditBox(Minecraft.getInstance().font, col2bX, y, col2W, 18,
                 Component.literal("Target Purse"));
         purseBox.setMaxLength(24);
         purseBox.setValue(cfg.getTargetPurse() > 0 ? String.format(Locale.US, "%,d", cfg.getTargetPurse()) : "");
@@ -204,6 +205,7 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
             purseLabel.setMessage(targetPurseText(cfg.getTargetPurse()));
         });
         widgets.add(purseBox);
+        CommitEditBox.withSet(widgets, purseBox);
         y += 22;
 
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, speedText(cfg),

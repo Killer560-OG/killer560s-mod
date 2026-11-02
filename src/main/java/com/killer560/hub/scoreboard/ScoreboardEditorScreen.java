@@ -1,5 +1,6 @@
 package com.killer560.hub.scoreboard;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.compat.McCompat;
@@ -278,6 +279,9 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
                     }
                     r.setY(y);
                     out.add(r);
+                    if (r instanceof CommitEditBox box) {
+                        CommitEditBox.withSet(out, box);
+                    }
                     y += STEP;
                 }
             }
@@ -1033,8 +1037,8 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         }.steps(range); // a whole number: the knob stops on each one
     }
 
-    private EditBox textBox(String name, String value, java.util.function.Consumer<String> setter, int x, int y, int w) {
-        EditBox box = new ThemedEditBox(Minecraft.getInstance().font, x, y, w, ROW, Component.literal(name));
+    private ThemedEditBox textBox(String name, String value, java.util.function.Consumer<String> setter, int x, int y, int w) {
+        ThemedEditBox box = new ThemedEditBox(Minecraft.getInstance().font, x, y, w, ROW, Component.literal(name));
         box.setMaxLength(256);
         box.setValue(value);
         ((ThemedEditBox) box).hint(name);

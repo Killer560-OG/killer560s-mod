@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
@@ -129,7 +130,7 @@ public class MenuThemeTab extends BaseTab {
                         armedDelete = -1;
                         requestRebuild.run();
                     }).bounds(contentX, y, useW, 18).build());
-            EditBox name = new EditBox(font, contentX + useW + gap, y, nameW, 18, Component.literal("Theme name"));
+            CommitEditBox name = new CommitEditBox(font, contentX + useW + gap, y, nameW, 18, Component.literal("Theme name"));
             name.setMaxLength(MenuConfig.MAX_THEME_NAME);
             name.setTextShadow(com.killer560.hub.gui.MenuStyle.TEXT_SHADOW);
             name.setValue(t.name);
@@ -139,6 +140,7 @@ public class MenuThemeTab extends BaseTab {
                 c.save();
             });
             widgets.add(name);
+            CommitEditBox.withSet(widgets, name);
             boolean armed = armedDelete == i && System.currentTimeMillis() - armedAt <= ARM_MS;
             widgets.add(SettingsButtonWidget.builder(Component.literal(armed ? "Confirm" : "Delete"), btn -> {
                         if (armedDelete != index || System.currentTimeMillis() - armedAt > ARM_MS) {
