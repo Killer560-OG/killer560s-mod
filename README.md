@@ -12,7 +12,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 
 **Full descriptions of every feature: [Killer560's Mod - Features](https://docs.google.com/document/d/e/2PACX-1vQsLEy_hlz-Dv518bH7AgYjyoGgdNl2jSAF4T8vzQHawmkg0f56q6Yrp67Zqncc8h9N-pdAvFLC5_D-/pub)**
 
-Open the menu in game with `/killer560` or the Open Menu Key (backslash by default, set in Home > Mod & HUD): every feature is a card with its own on/off switch in its category (Dungeons, HUD, Chat, Items, Social, Cosmetics, Misc), clicking a card opens its settings, and Ctrl F searches every feature and setting. Features marked † have extra automation or through-walls options in the cheat build.
+Open the menu in game with `/killer560` or the Open Menu Key (backslash by default, set in Home > Mod & HUD): every feature is a card with its own on/off switch in its category (Dungeons, Mining, HUD, Chat, Items, Social, Cosmetics, Misc), clicking a card opens its settings, and Ctrl F searches every feature and setting. Features marked † have extra automation or through-walls options in the cheat build.
 
 **Chat** - Auto Correct, Auto Meow, Chat Emotes, Chat Hider, Chat History, Chat Keybinds, Click Translate, Command Auto Correct, Copy Chat, Cringe, Image Preview, Mod Chat, Party Commands, Peek Chat, Song Tag, Spotify Lyrics, Translate, Voice To Text
 
@@ -32,7 +32,7 @@ Open the menu in game with `/killer560` or the Open Menu Key (backslash by defau
 
 **Dungeon: Timers, Score & Boss** - Auto Kick, Blessings, Blood Camp, Boss Health, Breaker Charges, Chest Profit, Croesus (Chest Profit, Profit Logger, Reroll Protection, Kismet Count, Croesus Chests HUD), Custom Mage Beam, Dungeon Alerts, Dungeon Run Summary, Dungeon Score Calculator, F7 Spots (F7/M7), Goldor Frenzy Timer, Low Health Alert, M7 King Relics, M7 Wither Dragons, Mask Invincibility Timers †, Maxor's Crystals (F7/M7 P1), Mob ESP †, P3 Nav (F7/M7) †, P3 Status (F7/M7), P4 Platform Highlight, Rag Axe, RNG Meter, Run HUDs, Score Warning, Sharp Shooter (i4) †, Split Timers, Starred Mob Hitboxes, Terminal Timers, Thorn (F4/M4) †, Tick Timers, Wither Boss Highlight †
 
-**Mining** - shelved until after the 2.0 release; not in the jar (see `shelved/mining/`)
+**Mining** - Ability Ready Alert, Carpet Highlighter, Commission HUD, Mithril As Stone, Pickobulus Estimate, Raffle Ticket Highlight, Titanium Highlight (the rest of mining is shelved until after the 2.0 release, see `shelved/mining/`)
 
 **Display & Menus** - Borderless Fullscreen, Confine Mouse In Menus, Custom Crosshair, Freelook, Fullbright, Hide Pause Menu Icons, Motion Blur, Pack Disabler, Skyblock Only, Sound Effects (arrow hits, attacks, block hits, mob deaths, block breaks), Sweat Mode, Themed Main Menu, Window Layout
 

@@ -239,6 +239,14 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
 
 ## World rendering
 
+- **A render-only block swap goes in the chunk mesher, not the world.** `SectionCompiler.compile` calls
+  `ModelBlockRenderer.tesselateBlock(BlockQuadOutput, float, float, float, BlockAndTintGetter, BlockPos, BlockState,
+  BlockStateModel, long)` once per block, with the state and its position (same descriptor on 26.3 and 26.2, javap
+  2026-11-01); a `@WrapOperation` there that passes another state and `blockModelSet.get(thatState)` draws the block as
+  something else while the client world, collision and the server keep the real block (Mithril As Stone,
+  `miningqol/mixin/MithrilStoneSectionMixin`). It runs on the section-compile threads, so its decision is a volatile snapshot.
+  To re-mesh what is already built, `ClientLevel.setSectionRangeDirty(minSecX, minSecY, minSecZ, maxSecX, maxSecY, maxSecZ)`
+  (both versions). `level.setBlock` (I Hate Diorite's way) changes the client world instead and cannot be undone cleanly.
 - **To replace a vanilla HUD piece, wrap its Fabric layer instead of mixing into `Gui`:**
   `HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> ...)` (identical in Fabric API 0.155.2+26.1.2
   and 0.160.0+26.2, javap) calls the vanilla layer only when you do, so there is no 26.2 descriptor to break (Custom

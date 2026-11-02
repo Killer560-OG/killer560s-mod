@@ -1,0 +1,52 @@
+package com.killer560.hub.miningqol;
+
+import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.util.WorldRenderUtils;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+
+/**
+ * The pre-2.0 mining features (killer560's to-do Doc, 2026-11-01, "MINING FEATURES PRE 2.0"): one registration for all
+ * seven, one client tick that updates them in order (state first), one world-render pass. The post-2.0 mining work lives
+ * on the staging-mining* branches and is not part of this.
+ */
+public final class MiningQolFeatures {
+
+    private static volatile boolean resetRequested = false;
+
+    private MiningQolFeatures() {
+    }
+
+    public static void register() {
+        WorldRenderUtils.initThroughWalls();
+        AbilityReadyAlert.register();
+        HudElementRegistry.register(new CommissionHud.Element());
+        HudElementRegistry.register(new AbilityReadyAlert.Popup());
+        HudElementRegistry.register(new AbilityReadyAlert.Timer());
+        // DISCONNECT runs on the Netty thread: only a flag here, the tick clears.
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> resetRequested = true);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MiningQolFeatures", client -> {
+            if (resetRequested) {
+                resetRequested = false;
+                AbilityReadyAlert.reset();
+            }
+            MiningState.tick(client);
+            CommissionHud.tick(client);
+            AbilityReadyAlert.tick(client);
+            PickobulusEstimate.tick(client);
+            MiningHighlights.tick(client);
+            MithrilStone.tick(client);
+        }));
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(context -> {
+            try {
+                MiningHighlights.render(context);
+                PickobulusEstimate.render(context);
+                CommissionHud.render(context);
+            } catch (RuntimeException e) {
+                com.killer560.hub.util.ModLog.get("killer560smod-miningqol").error("[MiningQol] render failed", e);
+            }
+        });
+    }
+}

@@ -402,6 +402,16 @@ public final class WorldRenderUtils {
         RenderType unused = ThroughWalls.LINES;
     }
 
+    /** The through-walls line type the batched methods use, for a {@link BoxBatch} (needs {@link #initThroughWalls()}). */
+    public static RenderType throughWallsLines() {
+        return ThroughWalls.LINES;
+    }
+
+    /** The through-walls fill type the batched methods use, for a {@link BoxBatch} (needs {@link #initThroughWalls()}). */
+    public static RenderType throughWallsFilled() {
+        return ThroughWalls.FILLED;
+    }
+
     /** Holder idiom. Same no-depth construction as SecretWaypointsRenderer / EtherwarpWaypointsRenderer, with
      *  its own pipeline ids so the registrations cannot collide. */
     private static final class ThroughWalls {

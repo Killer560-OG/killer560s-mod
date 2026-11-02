@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The Option A menu's categories (2026-10-12; killer560 left the grouping to us): Home, then Dungeons, HUD, Chat, Items,
- * Social, Cosmetics, Misc, then Profiles - Favorites sits after Home in the sidebar but is not a category of its own.
+ * The Option A menu's categories (2026-10-12; killer560 left the grouping to us): Home, then Dungeons, Mining (the pre-2.0
+ * mining features, 2026-11-01), HUD, Chat, Items, Social, Cosmetics, Misc, then Profiles - Favorites sits after Home in the sidebar but is not a category of its own.
  *
  * <p>The feature tabs themselves are still made by the old category folders ({@link DungeonTab}, {@link HudElementsTab},
  * {@link GeneralTab}, {@link DisplayTab}, {@link HelpersTab}, ...), which keep every {@code CHEAT_FEATURES_ENABLED} gate
@@ -32,7 +32,7 @@ public final class MenuCategories {
     public static final String HOME = "Home";
     public static final String PROFILES = "Profiles";
 
-    /** The top-level list: Home, the seven categories, Profiles. */
+    /** The top-level list: Home, the eight categories, Profiles. */
     public static List<BaseTab> build() {
         LEGACY.clear();
         HomeTab home = new HomeTab();
@@ -46,18 +46,22 @@ public final class MenuCategories {
         FolderTab hud = new HudElementsTab();
         FolderTab helpers = new HelpersTab();
         FolderTab dungeon = new DungeonTab();
-        for (BaseTab t : List.of(home, profiles, general, display, chat, social, cosmetics, items, hud, helpers, dungeon)) {
+        // The pre-2.0 Mining category (to-do Doc, 2026-11-01): its tabs are made by MiningQolTab, like the other folders.
+        FolderTab mining = new MiningQolTab();
+        for (BaseTab t : List.of(home, profiles, general, display, chat, social, cosmetics, items, hud, helpers, dungeon,
+                mining)) {
             remember(t, t.name);
         }
 
         Map<Class<?>, BaseTab> pool = new LinkedHashMap<>();
-        for (FolderTab f : List.of(general, display, chat, social, cosmetics, items, hud, helpers, dungeon)) {
+        for (FolderTab f : List.of(general, display, chat, social, cosmetics, items, hud, helpers, dungeon, mining)) {
             for (BaseTab sub : f.subTabs()) {
                 pool.put(sub.getClass(), sub);
             }
         }
 
         List<BaseTab> dungeons = take(pool, dungeon.subTabs());
+        List<BaseTab> miningList = take(pool, mining.subTabs());
         List<BaseTab> hudList = new ArrayList<>();
         // Gather the HUD tabs; the order they are shown in is the alphabetical one cheatLast gives every category.
         for (Class<?> c : List.of(HealthAndManaBarsTab.class, CustomScoreboardTab.class, StorageOverlayTab.class,
@@ -86,6 +90,7 @@ public final class MenuCategories {
         List<BaseTab> top = new ArrayList<>();
         top.add(home);
         top.add(new CategoryTab("Dungeons", "⚔", cheatLast(dungeons)));
+        top.add(new CategoryTab("Mining", "⛏", cheatLast(miningList)));
         top.add(new CategoryTab("HUD", "▣", cheatLast(hudList)));
         top.add(new CategoryTab("Chat", "✉", cheatLast(chatList)));
         top.add(new CategoryTab("Items", "◆", cheatLast(itemsList)));

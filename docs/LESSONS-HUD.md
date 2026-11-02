@@ -19,6 +19,10 @@ rendering); the mod menu is [LESSONS-MENU.md](LESSONS-MENU.md).
   and any other mod's, in a check of `BazaarHud.hidesHud()`; no draw site changed. Testkit 485 adds two probe layers (one
   last, one after MISC_OVERLAYS): ~120 draws in 20 ticks with no screen, 0 with the Bazaar open and the gate on, ~120 with
   it off, over the menu-less screen and over a reskinned chest.
+- **A new movable HUD element only draws in game if its id is in `HudInGameRenderer.UNDRAWN_ELEMENT_IDS`.** Registering it
+  with `HudElementRegistry.register` puts it in the HUD editor and nothing more. Advanced Position, Blink's line and the three
+  pre-2.0 mining HUDs (2026-11-01, caught by testkit 1101-mining-commissions/-ability asserting `HudSeen.drawnRecently`) each
+  shipped or nearly shipped missing from it. Add the id there and have a test assert the element was drawn.
 - Layer order and the in-game screen dim are in [LESSONS-GUI.md](LESSONS-GUI.md) ("Fabric's `addLast` HUD layers draw ABOVE
   an open in-game screen's dim").
 
