@@ -2213,7 +2213,8 @@ final class SettingTooltipsData {
         d.put("auto croesus/use key based on", "What a key chest's profit must clear before a key is spent: your own number or the key's live price (cheat build only).");
         d.put("auto croesus/chest key min profit", "Minimum profit, after the key's price, for a key chest to be opened: 0 to 2,000,000 in 20k steps (cheat build only).");
         d.put("auto croesus/use kismets", "Lets Auto Croesus spend a Kismet Feather to reroll a poor Bedrock chest (cheat build only).");
-        d.put("auto croesus/reroll below", "Bedrock chests worth less than this get rerolled with a Kismet Feather (cheat build only).");
+        d.put("auto croesus/reroll below", "A Bedrock chest worth less than this is rerolled with a Kismet Feather before any chest of the run is opened, then the run is judged again (cheat build only).");
+        d.put("auto croesus/reroll on floors", "The floors Auto Croesus may spend a Kismet Feather on; green is on, red is off. Click a floor to switch it (cheat build only).");
         d.put("secret sound/sound", "Picks which sound Secret Sound plays; left click cycles forward, right click back.");
         d.put("secret sound/volume", "Loudness of the secret sound, 0.0-1.0.");
         d.put("secret sound/pitch", "Pitch of the secret sound, 0.0-2.0; 1.0 is normal.");
