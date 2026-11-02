@@ -42,7 +42,8 @@ import java.util.function.Consumer;
  * it here, and its own rules are untouched. Automation that acts by itself whenever it is on (auras, triggerbots, Auto
  * Terminals, the auto puzzles, Auto I4...) has nothing to "stop", so the key also starts an <b>emergency hold</b>: every
  * automated interaction through {@code util/ActionGate} is refused (his own binds - Slot Binds, Pet Wheel, Loadout
- * Keybinds - excepted), the auto puzzles are reset and do not act, Auto Routes and AP3 do not start a node, and Auto I4
+ * Keybinds - excepted), Zero Ping Etherwarp's own warps (Warps Per Tick extras, Aimed Warps; they do not pass ActionGate)
+ * are not sent, the auto puzzles are reset and do not act, Auto Routes and AP3 do not start a node, and Auto I4
  * does not fire. The hold ends when he presses the key again with nothing running, on a world change, or when he starts
  * a click or movement macro himself. Chat says each.
  */

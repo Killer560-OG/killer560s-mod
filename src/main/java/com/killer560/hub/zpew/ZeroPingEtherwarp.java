@@ -174,11 +174,14 @@ public final class ZeroPingEtherwarp {
 
     /** True while the Emergency Cancel Key's hold is on: ZPEW sends nothing of its own (testkit 1102-zpew-ecancel). */
     private static boolean held(String what) {
-        if (!com.killer560.hub.macrostop.MacroStop.emergencyHeld()) {
+        // Streamer Mode's Disable cheats too: ActionGate refuses every automated action under it, and these sends never
+        // pass ActionGate (the same gap as the hold).
+        boolean streamer = com.killer560.hub.streamer.StreamerMode.disablesCheats();
+        if (!streamer && !com.killer560.hub.macrostop.MacroStop.emergencyHeld()) {
             return false;
         }
         heldRefused++;
-        LOGGER.info("[ZPEW] {} not sent: Emergency Cancel Key hold", what);
+        LOGGER.info("[ZPEW] {} not sent: {}", what, streamer ? "Streamer Mode disables cheats" : "Emergency Cancel Key hold");
         return true;
     }
 
@@ -496,6 +499,7 @@ public final class ZeroPingEtherwarp {
         LocalPlayer player = mc.player;
         boolean stillOk = player != null && mc.level != null && on()
                 && !com.killer560.hub.macrostop.MacroStop.emergencyHeld()
+                && !com.killer560.hub.streamer.StreamerMode.disablesCheats()
                 && ZeroPingEtherwarpConfig.getInstance().effectiveAimedWarps()
                 && com.killer560.hub.blink.BlinkCharge.isActive() && com.killer560.hub.blink.BlinkCharge.banked() >= 1
                 && etherwarpRange(player.getItemInHand(InteractionHand.MAIN_HAND)) > 0 && player.getLastSentInput().shift()
