@@ -898,6 +898,7 @@ final class SettingTooltipsData {
         d.put("show order lines", "Draws lines connecting the next few blazes in kill order.");
         d.put("livid solver", "Outlines the real Livid on F5/M5.");
         d.put("show invuln timer", "Shows a HUD countdown of Livid's opening invulnerability.");
+        d.put("blessings/boss only", "Shows the Blessings HUD only in the floor's boss room.");
         d.put("livid solver/timer unit", "Livid's invuln timer in ticks (120t) or in seconds (6.0s).");
         d.put("quiver display", "Shows how many arrows you have left in a HUD line.");
         d.put("quiver text color", "Color of the Quiver Display's HUD line.");
