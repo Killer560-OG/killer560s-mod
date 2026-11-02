@@ -483,3 +483,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
   release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
   `Rows.addKept`).
+- Inventory Sorter clicks come from `invsort/InvSortPlanner`, which is proven minimal (docs/INVSORT-OPTIMALITY.md). After any
+  change to it, rerun `tools/invsort-optimality` (javac both files, ~5 min, every instance must print "exactly minimal"); its
+  first run found a case the hand argument had missed (a hotbar slot already holding a matching copy is a free swap pivot).
