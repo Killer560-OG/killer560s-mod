@@ -1685,8 +1685,10 @@ public final class AutoClearFeature {
             final BlockPos stand = goal;
             final BlockPos click = target;
             double eyeHeight = player.getEyeHeight();
+            // After a failed etherwarp toward it (a pocket the warp graph cannot leave), walk whenever there is a way on foot.
             if (!walkOffDoor && walkInsteadOfTrip(client, player, stand,
-                    feet -> doorInReach(player, feet.add(0, eyeHeight, 0), click), "the wither door", true)) {
+                    feet -> doorInReach(player, feet.add(0, eyeHeight, 0), click), "the wither door", true,
+                    pathFailures > 0)) {
                 return;
             }
             action = "etherwarp to the wither door";
@@ -3650,7 +3652,7 @@ public final class AutoClearFeature {
         }
         Vec3 goalFeet = new Vec3(spot.getX() + 0.5, spot.getY() + 1.0, spot.getZ() + 0.5);
         double straight = feet.distanceTo(goalFeet);
-        String key = BlockPos.containing(feet).asLong() + "|" + spot.asLong() + "|" + what;
+        String key = BlockPos.containing(feet).asLong() + "|" + spot.asLong() + "|" + what + (force ? "|force" : "");
         if (!key.equals(walkDecisionKey)) {
             walkWarps = warpsTo(feet, spot);
         }
