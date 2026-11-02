@@ -1183,6 +1183,21 @@ public final class SimMobs {
             return false;
         }
 
+        /**
+         * A sleeping Fel stays invisible. {@code LivingEntity.updateInvisibilityStatus} (javap 26.2 and 26.3) sets
+         * {@code setInvisible(hasEffect(INVISIBILITY))} whenever the effects are re-read - with none, visible - so a plain
+         * {@code setInvisible(true)} lasted one tick, the sleeper showed, and Auto Clear shot at a Fel nothing could hurt
+         * (doc-adm-sim-1101, Banners on 26.2: "12 bats from here and none touched it").
+         */
+        @Override
+        protected void updateInvisibilityStatus() {
+            if (dormant) {
+                setInvisible(true);
+                return;
+            }
+            super.updateInvisibilityStatus();
+        }
+
         @Override
         public boolean isSensitiveToWater() {
             return false;
