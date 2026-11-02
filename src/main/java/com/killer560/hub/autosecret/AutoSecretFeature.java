@@ -2938,15 +2938,18 @@ public final class AutoSecretFeature {
                 goKey(lying, "the wither door on the way wants a key");
                 return true;
             }
-            // No key lying anywhere: the door's key room counted as cleared for its chest still holds the key (it drops at
-            // the room's last starred death) - clear it now instead of waiting at the door.
-            for (com.killer560.hub.autoclear.KeyRooms.Guard g : com.killer560.hub.autoclear.KeyRooms.guards(layout)) {
-                String name = layout.name(g.room());
-                if (g.door() == best && !g.blood() && name != null && dist.containsKey(g.room())
-                        && com.killer560.hub.autoclear.ChestClearRule.returnNow(name, "it holds the key to the shut wither"
-                        + " door at cell " + best + " and no key lies anywhere")) {
-                    LOGGER.info("[AutoSecret] wither door at cell {} wants a key: its key room {} counted as cleared for its"
-                            + " chest - clearing it first", best, name);
+            // No key lying anywhere: a room on this side counted as cleared only for its chest may still hold a key (it
+            // drops at the room's last starred death, and a Wither Key opens any wither door) - clear it now instead of
+            // waiting at the door. Not only KeyRooms' guard of THIS door: the sim keys the room before Fairy or a puzzle
+            // too (26.2 fullclear: Mossy, 25 s at door 27).
+            for (int room : dist.keySet()) {
+                String name = layout.name(room);
+                if (name != null && com.killer560.hub.autoclear.ChestClearRule.clearedInItsEyes(layout, room)
+                        && !com.killer560.hub.autoclear.AutoClearTargets.isClearedOnMap(layout, room)
+                        && com.killer560.hub.autoclear.ChestClearRule.returnNow(name, "no Wither Key lies anywhere and the"
+                        + " wither door at cell " + best + " is shut")) {
+                    LOGGER.info("[AutoSecret] wither door at cell {} wants a key: {} counted as cleared only for its chest"
+                            + " - clearing it first (its key drops at its last starred death)", best, name);
                     setPhase(Phase.DECIDE);
                     return true;
                 }
