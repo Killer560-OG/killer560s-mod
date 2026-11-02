@@ -267,12 +267,13 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   feet is the fence's, so a plan from it went straight through the fence line: plan from the open cell on his side of it.
   A fence or wall top is 1.5 high: no step up onto one his jump does not clear. Way-back goals must cover the stretch from
   him to the route's first point (the SkyHanni shortcut drops the node behind him, and the next one can be 35 blocks away).
-- **GrimAC and water currents (doc-fairy-1101, OPEN).** On the Backwater Bayou stand-in, at a ladder whose top had water
-  spilling past it, the walker drew Simulation .0070 (or .0047) decaying x0.8 a tick in about 3 runs of 5, on doc-fairy's
-  jars before and after its own changes; .014/k is exactly vanilla's water-current push, x0.8 water's drag, so a tick's
-  current push was predicted differently. A ladder beside STILL water (1102-fairy-grim-ladderwater-*), six pool crossings
-  and six server teleports mid-walk (1102-fairy-grim-tp-*/-water) are clean. The island generator now makes only still
-  water; whether a human's keys in that current flag too is not proven (the replay control diverged).
+- **GrimAC and water currents: Grim's, not ours (doc-fairy-1101, settled 2026-11-02).** On a ladder with flowing water
+  touching his box, GrimAC 2.3.74 (experimental checks on) reports Simulation .004667/.0070 (= vanilla's current push .014/k)
+  for the ticks he is on the ladder in the current, then decaying x0.8. With NO automation - the testkit holding plain W+A (or
+  W+A+jump) at the spot - it flags the same way every run (26.3 8 of 8, 26.2 3 of 3; 1101-fairy-island-BAYOU_SPILL with
+  -Pfairy.keys); W alone, W+jump, W+D never get him into that state and are clean. The walker flags only when it is in that same
+  state. A ladder beside STILL water, or flowing water only over the ladder's top (1102-fairy-grim-flowladder-*, 12 runs per
+  version, keys and walker), is clean.
 - **Measure a planner rule on all five islands before keeping it.** "No step up from a ladder's top block" (2026-11-02) read right
   and fixed the one Gold Mines stall it was written for, but the full island run fell from 34/55 to 29/55 (Spider's Den 8 -> 5,
   more "in water, no way back") and it was reverted. Single-island runs also vary by a soul or two between identical jars.
