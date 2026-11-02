@@ -79,12 +79,40 @@ final class WalkTerrain {
         double surface = feetY;
         for (int i = 0; i < 5; i++) {
             BlockPos p = new BlockPos(bx, by + i, bz);
-            if (!solid(level, p)) {
+            // Only what stands under his footprint here counts: an open door's panel at the edge of the column is
+            // beside him, not a two-block wall in front of him (before 2026-11-01 every doorway read as one).
+            if (!solid(level, p) || !underFootprint(level, p, x, z)) {
                 break;
             }
             surface = Math.max(surface, top(level, p));
         }
         return surface - feetY;
+    }
+
+    /** Half the width of the square a walking player covers, a little under his 0.3 so a panel he brushes is beside him. */
+    static final double FOOTPRINT = 0.25;
+
+    /** Whether the block's collision reaches into the square of half-width {@link #FOOTPRINT} around {@code (x, z)}. */
+    static boolean underFootprint(Level level, BlockPos p, double x, double z) {
+        return collidesNear(level, p, x, z, FOOTPRINT);
+    }
+
+    /** Whether the block's collision reaches into the square of half-width {@code half} around {@code (x, z)}. */
+    static boolean collidesNear(Level level, BlockPos p, double x, double z, double half) {
+        VoxelShape shape = level.getBlockState(p).getCollisionShape(level, p);
+        if (shape.isEmpty()) {
+            return false;
+        }
+        double lx = x - half - p.getX();
+        double hx = x + half - p.getX();
+        double lz = z - half - p.getZ();
+        double hz = z + half - p.getZ();
+        for (net.minecraft.world.phys.AABB b : shape.toAabbs()) {
+            if (b.maxX > lx && b.minX < hx && b.maxZ > lz && b.minZ < hz) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Room for a 1.8-tall player standing at {@code feetY} in that column. */
@@ -95,7 +123,7 @@ final class WalkTerrain {
         int hi = (int) Math.floor(feetY + 1.79);
         for (int y = lo; y <= hi; y++) {
             BlockPos p = new BlockPos(bx, y, bz);
-            if (solid(level, p) && top(level, p) > feetY + 0.01) {
+            if (solid(level, p) && top(level, p) > feetY + 0.01 && underFootprint(level, p, x, z)) {
                 return false;
             }
         }
@@ -163,7 +191,7 @@ final class WalkTerrain {
                 double sx = x + px * side;
                 double sz = z + pz * side;
                 BlockPos body = BlockPos.containing(sx, y + 1.2, sz);
-                if (solid(level, body)) {
+                if (solid(level, body) && collidesNear(level, body, sx, sz, 0.02)) {
                     return false;
                 }
             }

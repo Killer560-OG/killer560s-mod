@@ -277,6 +277,53 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   (1017-fairy-overshoot, before -> after): past the corner at Skyblock 400 +2.28 -> -0.14/+0.08, at 600 +3.47 ->
   +0.10/+0.75, 600 with Jump Boost II +2.63 -> +0.27/+0.24; past the soul at 600 +0.70 -> -1.73 (stopping 1.7 short). Walk,
   sprint and Speed II were never past.
+- **A soul's stand is not at its graph node** (doc-fairy-1101). NEU's `constants/fairy_souls.json` ("the soul itself") against
+  SkyHanni's `fairy_soul` nodes: Hub offsets 0 to 3.6 blocks, often a block up or down (his 2026-11-01 picture: node
+  90,68,-152, soul 87,68,-154). "Arrived" at the node with the stand's box 3.7 from his eye bounced WALKING/COLLECTING every
+  tick and he stood there for good (testkit 1101-fairy-ledgesoul and every 1101-fairy-island run on the old jar: stuck on
+  the first such soul). The runner now walks to a cell the stand is in reach and in sight from (`APPROACH`).
+- **The walker's way back can fail for reasons that are not the terrain** (doc-fairy-1101, 1101-fairy-island-*): planned
+  mid-fall (a cell he will never stand in: plan on landing), "0 goals" when the route's points are farther apart than the
+  planner's 24-block box (goals now include points every 2 blocks along each segment), and a ladder whose top goes nowhere
+  held W on it for minutes because "stuck" was ignored while on a ladder.
+- **More walker traps found on the stand-in islands (doc-fairy-1101, 2026-11-02).** Stuck clocks in wall time call a client
+  running at half speed stuck twice as fast: they count client ticks now. A way back measured against its END is "stuck"
+  while it correctly walks away from the end first (round a wall, to a ladder): progress is a cell reached or getting closer
+  to the next cell. A server teleport (warp, correction, the testkit's tp) left the stuck clock on the old distance and the
+  walk was called stuck 2.5 s later: any teleport resets it. Standing beside a fence or wall post, the block holding his
+  feet is the fence's, so a plan from it went straight through the fence line: plan from the open cell on his side of it.
+  A fence or wall top is 1.5 high: no step up onto one his jump does not clear. Way-back goals must cover the stretch from
+  him to the route's first point (the SkyHanni shortcut drops the node behind him, and the next one can be 35 blocks away).
+- **GrimAC and water currents: Grim's, not ours (doc-fairy-1101, settled 2026-11-02).** On a ladder with flowing water
+  touching his box, GrimAC 2.3.74 (experimental checks on) reports Simulation .004667/.0070 (= vanilla's current push .014/k)
+  for the ticks he is on the ladder in the current, then decaying x0.8. With NO automation - the testkit holding plain W+A (or
+  W+A+jump) at the spot - it flags the same way every run (26.3 8 of 8, 26.2 3 of 3; 1101-fairy-island-BAYOU_SPILL with
+  -Pfairy.keys); W alone, W+jump, W+D never get him into that state and are clean. The walker flags only when it is in that same
+  state. A ladder beside STILL water, or flowing water only over the ladder's top (1102-fairy-grim-flowladder-*, 12 runs per
+  version, keys and walker), is clean. Grim's or not, it is a flag, so the walker must never be in that state:
+  `AutoWalker.keepLadderOutOfWater` has the last word on the keys while he is on a ladder (water within two columns: no
+  key toward it once where his speed carries him is within 0.12, the key away within 0.05), and the ladder centering
+  predicts his rest point from his sideways speed (it overshot 0.25 into the pool). Releasing a key is not enough - his
+  momentum carried him in at 0.03-0.09 a tick - and a guard that refuses every strafe toward a water side left him 0.31
+  off center with his head caught under the next block (m12). Testkit 1102-fairy-spill-ladder asserts zero ticks on a
+  ladder in water; m8 had 3-8 such ticks on 4 of 4 runs, m13 none in 36 (18 per version).
+- **GrimAC SprintE is a consequence, read it with the Simulation line beside it (doc-fairy-1101 m14, 2026-11-02).** GrimAC
+  2.3.74's SprintE (checks/impl/sprint/SprintE.java) flags a tick where the client is still sprinting, did not just start, and
+  Grim's OWN prediction of the tick before had a hard horizontal collision. Grim judges hard against soft from its predicted
+  vector (MovementTicker.isHorizontalCollisionSoft), so a tick it mispredicted (soul 3's stop on BAYOU_SPILL: Simulation .046
+  then x0.546, ground friction) at a glancing wall touch reads "hard" while the client saw it as minor and kept sprinting.
+  So the pair flagged BEFORE his stop, not on it, and no release order of W and sprint explains it. On 1.21.2+ Grim also forces
+  forward input whenever it believes he sprints (PredictionEngine.loopVectors) and tracks the sprint speed attribute
+  separately (MC-69459). The flag could not be reproduced on demand: 0 in 112 flat arrivals with a pillar corner and 0 in 54
+  soul-3 runs on m13. So the fix removes the precondition instead: the last 8 blocks of a soul's route, and an approach
+  walk, are walked. A running sprint is ended the vanilla way, with one tick with no key on the ground and with no wall
+  contact (aiStep stops a sprint without forward impulse and sends STOP_SPRINTING before that move). Testkit
+  1102-fairy-arrival asserts he is not sprinting on the last W tick: m13 failed that check in 5 of 7 arrivals, m14 in none.
+- **Measure a planner rule on all five islands before keeping it.** "No step up from a ladder's top block" (2026-11-02) read right
+  and fixed the one Gold Mines stall it was written for, but the full island run fell from 34/55 to 29/55 (Spider's Den 8 -> 5,
+  more "in water, no way back") and it was reverted. Single-island runs also vary by a soul or two between identical jars.
+- **A soul whose stand is out of reach must never be clicked anyway**: the pre-doc-fairy jar drew GrimAC Reach 3.02-3.26 on
+  the stand-ins (it clicked once the node was within 3); the click now needs eye-to-box <= 2.85 and a clear line.
 - **Simulated key presses (Fabric's `TestInput.pressKey`) never reach a key read with `KeyUtil.isKeyDown`** (GLFW's own
   state): the Start/Stop key poll did not see the testkit's K. The key is taken from `KeyboardHandler.keyPress`, the same
   event the "any key stops it" rule reads, so a press is either the toggle or a stop, never both.
