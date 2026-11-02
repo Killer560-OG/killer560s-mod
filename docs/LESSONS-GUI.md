@@ -97,6 +97,10 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
 - An armor ICON draws only a trim's material color, never its pattern (vanilla's item model selects on `trim_material`),
   so an icon preview "only ever shows one trim pattern". Custom Items previews armor on an armor stand
   (`InventoryScreen.extractEntityInInventoryFollowsMouse`), which draws the pattern (testkit 1101-menu-customitems-rows).
+- An entity built only for a GUI preview (never added to a level) needs `setId` first: on 26.3 extracting its render
+  state calls `Entity.getId` (ItemModelResolver.updateForLiving) and threw "before ID assignment", a "Rendering screen"
+  crash. And the GUI entity is a picture-in-picture placed at screen coordinates past the pose, so a screen drawn through
+  Auto Scale must transform the box corners and the mouse by `graphics.pose()` itself (CustomColorScreen, 2026-11-01).
 - A nametag's height comes from `EntityRenderState.nameTagAttachment` (the entity's dimensions), not from the render-state
   `scale`, so a render-only model scale leaves the tag at 1x height; `SupportersScaleMixin` scales it too (testkit 816).
 
