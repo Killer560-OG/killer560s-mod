@@ -134,10 +134,17 @@ feature folders. `MapLogger` keeps the newest 20 map logs.
 
 Every setting must survive a restart: add the field, load it, save it, and expose a getter and setter. A new config
 class's `load` also goes in `ProfileManager.reloadAllConfigs`, or applying a profile is undone by its next save (testkit
-320 names the class; Pack Disabler missed it, 2026-10-07).
+320 names the class; Pack Disabler missed it, 2026-10-07). That includes a class that is not a `*Config` singleton: one that
+reads its file once behind a `loaded` flag needs a public `reload()` that puts the defaults back first and then reads (a
+profile without the file deletes it). Streamer Mode, Legit GFS, the sim loadout, Cape and the sim filters were missing until
+2026-11-02; 320's name audit now reads every class in the jar and fails on any that names a profile setting file without
+ProfileManager naming the class (`ProfileReloadCases.NAME_ALLOWED` holds the few reasoned exceptions).
 Any other file or folder a feature keeps under `config/killer560/` (named `killer560smod-*`) rides in profiles by default
 (`profiles/ProfileData`, since 2026-10-13): if it is a secret, cache, download, log or history, add it to
 `ProfileData.EXCLUDED_NAMES`; if the feature holds it in memory, add its re-read to `ProfileManager.refreshDerivedState`.
+A plain `killer560smod-*.json` file is a SETTING file to the profile code whatever it holds, so a data `.json` (orders, caches,
+records) goes in `ProfileManager.EXCLUDED_FILES`, or a profile apply copies an old copy in or deletes it; until 2026-11-02 the
+`.json` names in `ProfileData.EXCLUDED_NAMES` did nothing (ProfileData only judges data entries; `isProfileSettingFile` honors them now).
 A new feature gets its name in the README list and its full text in `docs/FEATURES.md`, then the features
 Google Doc is regenerated. Sharing and receiving settings default ON. The GUI is orange-themed. Never carry
 his typos into a command, label or alias.
