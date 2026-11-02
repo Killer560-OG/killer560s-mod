@@ -371,6 +371,7 @@ public final class SimonSaysFeature {
     private static boolean autoStartClickedThisPhase = false;
     /** This round's first light was dropped by the skip re-light rule (detectGridChanges); the size-3 drop then stays off. */
     private static boolean skipDropped = false;
+    private static BlockPos skipDroppedLantern = null;
     // Testkit counters: first lights dropped by the re-light rule, and presses on a light the sequence did not hold.
     private static int skipRelightDrops = 0;
     private static int unknownPresses = 0;
@@ -966,6 +967,7 @@ public final class SimonSaysFeature {
         clickInOrder.clear();
         clickNeeded = 0;
         skipDropped = false;
+        skipDroppedLantern = null;
         // Deliberately does NOT touch firstPhase - matching Odin's own real resetSolution(), which
         // never does either. Real bug found and fixed (2026-09-14): this used to force firstPhase=true
         // right here, unconditionally - but this method is also called on the routine "grid reset
@@ -1099,12 +1101,16 @@ public final class SimonSaysFeature {
                 // reveal settles.
                 BlockPos dropped = clickInOrder.remove(0);
                 skipDropped = true;
+                skipDroppedLantern = dropped.immutable();
                 skipRelightDrops++;
                 updateRememberedFirstButton(clickInOrder.get(0));
                 LOGGER.info("[SimonSays] Skip: {} lit again before any click after a skip attempt - the skip landed;"
                         + " dropped the first light {}, next is {}", pos, dropped, clickInOrder.get(0));
             }
-            if (now.is(Blocks.OBSIDIAN) && old.is(Blocks.SEA_LANTERN) && !clickInOrder.contains(pos)) {
+            // The dropped first light goes dark again in the replay: it is the satisfied round, not a new step (the
+            // first 1101-ss-skip-relight run re-added it and read B, A, C).
+            if (now.is(Blocks.OBSIDIAN) && old.is(Blocks.SEA_LANTERN) && !clickInOrder.contains(pos)
+                    && !(skipDropped && pos.equals(skipDroppedLantern))) {
                 clickInOrder.add(pos.immutable());
                 lastLanternChangeTick = 0;
                 if (clickInOrder.size() >= TerminalLayouts.OLD_SIMON_ROUNDS) {
