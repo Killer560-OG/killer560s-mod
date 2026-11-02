@@ -11,6 +11,15 @@ final class CardBlurbsData {
     static void register(Map<String, String> d) {
         d.put("SecretClickedTab", "Boxes clicked secrets; mutes.");
         d.put("SecretTab", "Secret sound, boxes and HUD.");
+        // doc-rng-1101 and doc-mining-1101 cards: their tooltips were cut to fit (testkit 1060, uifix-1102).
+        d.put("LuckTab", "Your drops against the odds.");
+        d.put("MiningAbilityReadyTab", "Pickaxe ability ready popup.");
+        d.put("MiningCarpetTab", "Marks carpets you can't mine.");
+        d.put("MiningCommissionHudTab", "Commissions with waypoints.");
+        d.put("MiningMithrilStoneTab", "Hides mithril you don't need.");
+        d.put("MiningPickobulusTab", "Outlines its break area.");
+        d.put("MiningRaffleTab", "Boxes raffle tickets.");
+        d.put("MiningTitaniumTab", "Outlines Titanium blocks.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");
         d.put("CreationCooldownTab", "Dungeon join timer.");
         d.put("InstaClearWarningTab", "Lost-key alert.");
