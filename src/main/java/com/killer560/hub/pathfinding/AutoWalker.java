@@ -574,8 +574,11 @@ public final class AutoWalker {
 
         // ---- off the route: water, lava, fallen below it, or blocked - ahead of the route's own ladders, so a pit
         // with a ladder in it is planned out of, not taken for the route's climb (testkit 1017-fairy-pit)
-        String why = player.onClimbable() ? null : offRouteReason(level, player, pos, carrot, jumpH);
-        if (why != null && !player.onGround() && !player.isInWater() && !player.isInLava()) {
+        // On a ladder the route's own climb is not "off the route" - unless it has stopped getting anywhere: a ladder
+        // whose top is blocked, or the wrong ladder, held him on it with forward pressed for minutes (testkit
+        // 1101-fairy-island-GOLD_MINES / BACKWATER_BAYOU, before and after the other fixes alike).
+        String why = player.onClimbable() && !stuck ? null : offRouteReason(level, player, pos, carrot, jumpH);
+        if (why != null && !player.onGround() && !player.isInWater() && !player.isInLava() && !player.onClimbable()) {
             // Still falling: a way back planned from mid-air starts from a cell he will not be in (testkit 1101-fairy-
             // island-THE_PARK: "stuck" 40 blocks into a fall, no way back, soul skipped). Plan from where he lands.
             return;
