@@ -84,6 +84,7 @@ public abstract class Ap3RotationSendMixin {
     @Inject(method = "sendPosition", at = @At("RETURN"), require = 0)
     private void killer560smod$ap3RestoreRotation(CallbackInfo ci) {
         Ap3Executor.afterSendPosition((LocalPlayer) (Object) this);
+        com.killer560.hub.util.BeforeMove.afterSendPosition((LocalPlayer) (Object) this);
         if (!Float.isNaN(killer560smod$unNudgedYaw)) {
             if (!killer560smod$swapped) {
                 ((LocalPlayer) (Object) this).setYRot(killer560smod$unNudgedYaw);

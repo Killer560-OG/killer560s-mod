@@ -44,11 +44,54 @@ public final class BeforeMove {
         QUEUE.add(send);
     }
 
-    /** From {@code Ap3RotationSendMixin} at the head of {@code sendPosition}. */
+    /**
+     * From {@code Ap3RotationSendMixin} at the head of {@code sendPosition}. The queued packets are WRITTEN, not flushed
+     * ({@code Ap3SendTogetherMixin} reads {@link #holdFlush}): the movement packet sendPosition sends next flushes them
+     * with it in one write, so the server reads the dig and the packet carrying its look together (rbcause-1102). Sent
+     * as two flushes they were two reads on the server, and under load GrimAC's 15 ms lending window
+     * ({@code CheckManagerListener.handleQueuedBreaks}, server {@code currentTimeMillis} at each read) was missed though
+     * the client wrote them 0.1-1.3 ms apart: RotationBreak post-flying, then pre-flying on every later dig.
+     */
     public static void beforeSendPosition() {
         if (!QUEUE.isEmpty()) {
             sentAtMove += QUEUE.size();
-            flush();
+            holdFlush = true;
+            flushOwed = true;
+            try {
+                flush();
+            } finally {
+                holdFlush = false;
+            }
+        }
+    }
+
+    private static boolean holdFlush;
+    private static boolean flushOwed;
+    private static int heldFlushes;
+
+    /** For {@code Ap3SendTogetherMixin}: hold this send's flush (only BeforeMove's own sends, render thread). */
+    public static boolean holdFlush() {
+        return holdFlush && Minecraft.getInstance().isSameThread();
+    }
+
+    public static void noteHeldFlush() {
+        heldFlushes++;
+    }
+
+    /** Packets whose flush was held to go with the movement packet (testkit: the mixin applied and acted). */
+    public static int heldFlushes() {
+        return heldFlushes;
+    }
+
+    /** From {@code Ap3RotationSendMixin} at the RETURN of {@code sendPosition}: a held flush goes now if no movement
+     *  packet flushed it (no movement packet this tick). */
+    public static void afterSendPosition(net.minecraft.client.player.LocalPlayer self) {
+        if (!flushOwed) {
+            return;
+        }
+        flushOwed = false;
+        if (self.connection != null && self.connection.getConnection().isConnected()) {
+            self.connection.getConnection().flushChannel();
         }
     }
 
@@ -65,6 +108,7 @@ public final class BeforeMove {
                 ModLog.get("killer560smod-autoroutes").error("[BeforeMove] a queued send threw", e);
             }
         }
+        DigWindow.clearPending(); // a queued dig that was refused never went
     }
 
     /** Sends that went at a movement packet's head / late at the next tick's start (only go up) - read by the testkit. */
@@ -79,5 +123,6 @@ public final class BeforeMove {
     /** Drops anything queued (world change). */
     public static void clear() {
         QUEUE.clear();
+        DigWindow.clearPending();
     }
 }

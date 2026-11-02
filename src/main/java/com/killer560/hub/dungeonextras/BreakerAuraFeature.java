@@ -79,6 +79,11 @@ public final class BreakerAuraFeature {
     // 2026-10-19 it is dug over time and never zero-pinged - see OBSIDIAN below.
 
     private static final Map<BlockPos, Long> RECENT = new HashMap<>();
+    /** The block-prediction sequence of each RECENT dig: it is dug again only once the server has acked that sequence
+     *  (its answer is in and the block still stands), or after {@link #RETRY_FALLBACK_MS}. */
+    private static final Map<BlockPos, Integer> RECENT_SEQ = new HashMap<>();
+    /** A retry with no ack (a server that never sends one) still goes, this long after the dig. */
+    private static final long RETRY_FALLBACK_MS = 1500L;
     /**
      * The obsidian block being dug, if any. Obsidian is not broken by one START like every other block (killer560,
      * 2026-10-19: it takes time): it is held as a hand holds it until the server's block update says it is gone, and no
@@ -231,6 +236,8 @@ public final class BreakerAuraFeature {
     // arms a configurable delay and the first break only goes out once that delay has run down.
     private static int swappedFromSlot = -1;
     private static int swapArmedTicks = 0;
+    /** Blocks sent so far in the current Multi Break run (back to back, one a tick); 0 between runs. */
+    private static int multiBreakRun = 0;
     private static int idleSinceSwapTicks = 0;
     private static boolean warnedNoBreakerInHotbar = false;
 
@@ -239,6 +246,7 @@ public final class BreakerAuraFeature {
 
     private static void resetState() {
         RECENT.clear();
+        RECENT_SEQ.clear();
         lastSkipReason = null;
         spentSinceLore = 0;
         lastLoreCharges = -1;
@@ -622,9 +630,9 @@ public final class BreakerAuraFeature {
         if (active != wasActive) {
             wasActive = active;
             LOGGER.info("[DungeonExtras] Breaker Aura {}.", active ? "active" : "inactive");
-            LOGGER.info("[BreakerAura] {}: why={} reach={} cooldown={} zeroPing={} autoSwap={} picks={}"
+            LOGGER.info("[BreakerAura] {}: why={} reach={} cooldown={} multiBreak={} zeroPing={} autoSwap={} picks={}"
                             + " tick={}", active ? "active" : "inactive", inactiveWhy(client, cfg),
-                    fmt2(cfg.getBreakerAuraReach()), cfg.getBreakerAuraCooldownTicks(),
+                    fmt2(cfg.getBreakerAuraReach()), cfg.getBreakerAuraCooldownTicks(), cfg.isBreakerAuraMultiBreak(),
                     cfg.isBreakerAuraZeroPing(), cfg.isBreakerAuraAutoSwap(), selectedBlocks().size(),
                     com.killer560.hub.util.SessionRecorderSink.tick());
             if (!active) {
@@ -633,6 +641,8 @@ public final class BreakerAuraFeature {
             }
             resetState();
         }
+        // His walk is his own whatever the aura aimed last tick (BreakerAim: yaw back to his view before he moves).
+        BreakerAim.startTick(client, active);
         if (!active) {
             // Only on a change of reason: "switched off" is the normal state and must not repeat every tick.
             String why = inactiveWhy(client, cfg);
@@ -676,6 +686,7 @@ public final class BreakerAuraFeature {
             if (res == com.killer560.hub.dungeonbreaker.ObsidianDig.Result.RUNNING) {
                 lastSkipReason = null;
                 idleSinceSwapTicks = 0;
+                BreakerAim.keep(); // its STOP is judged on the look too
                 census("obsidian");
                 return;
             }
@@ -718,7 +729,24 @@ public final class BreakerAuraFeature {
         }
 
         long now = System.currentTimeMillis();
-        RECENT.values().removeIf(t -> now - t > RETRY_MS);
+        // A dig is sent again only once the server has answered it (multibreak-1102). On a fixed 200 ms a busy server's
+        // answer was still on its way: the same block was dug twice more after the server had broken it, and GrimAC
+        // flagged AirLiquidBreak on each (1102-breaker-aura-multibreak-off, 26.2, the server's update 700 ms late). The
+        // server acks a dig's sequence once it has handled it, so a block still standing
+        // once its dig is acked was really refused.
+        RECENT.entrySet().removeIf(e -> {
+            long age = now - e.getValue();
+            if (age <= RETRY_MS) {
+                return false;
+            }
+            Integer seq = RECENT_SEQ.get(e.getKey());
+            boolean due = seq == null || seq < 0 || com.killer560.hub.util.ChestWindows.acked(seq)
+                    || age > RETRY_FALLBACK_MS;
+            if (due) {
+                RECENT_SEQ.remove(e.getKey());
+            }
+            return due;
+        });
 
         // PICKED BLOCKS ONLY, always. killer560 (2026-10-05): "the aura shouldn't randomly grab blocks, only ones
         // I have selected." The automatic path sweep (and its Side Reach and "Only Picked Blocks" settings) is
@@ -839,10 +867,19 @@ public final class BreakerAuraFeature {
         // A departure from "look at how quoi parses multiple blocks and follow it exactly" - deliberately, and
         // only in the order. Which blocks are eligible, and one a tick, are still QUOI's. When he is not moving
         // there is no way to be in, and this falls back to QUOI's rule exactly.
-        // ONE a tick. Multi Break (everything in reach on one tick) was removed 2026-11-02 (gridexp-1102): GrimAC
-        // 2.3.74's experimental MultiBreak flags a second START_DESTROY_BLOCK on another block inside one server tick,
-        // and a setting value that flags never ships (killer560, 2026-10-27).
+        // ONE a tick, whatever Multi Break says. Until 2026-11-02 Multi Break sent everything in reach on one tick; GrimAC
+        // 2.3.74's experimental MultiBreak flags a second dig on another block (or face) before the server's next tick
+        // packet, and a vanilla client sends exactly one of those per client tick (util/DigWindow has the source lines),
+        // so one a tick is the fastest clean pace. Multi Break now means BACK TO BACK: every block in reach goes on
+        // consecutive ticks with no cooldown between them; OFF waits the cooldown after each (multibreak-1102).
         int allowed = 1;
+        boolean multiBreak = cfg.isBreakerAuraMultiBreak();
+        // Burst Multi Break (owner exception, 2026-11-02): everything in reach this tick, charges the only limit - the
+        // pre-d2da5856 Multi Break. GrimAC's experimental MultiBreak flags it; the setting's label says so.
+        boolean burst = cfg.isBreakerAuraBurstMultiBreak();
+        if (burst) {
+            allowed = available;
+        }
         Vec3 feet = player.position();
         Vec3 vel = player.getDeltaMovement();
         double speed = Math.hypot(vel.x, vel.z);
@@ -877,6 +914,15 @@ public final class BreakerAuraFeature {
         // The gate is still asked - Breaker Aura still takes its turn among the other actors, and still stands
         // down for a screen, a teleport, a world swap or a higher-priority actor. Having won the tick it sends one
         // break (Multi Break, several on one tick, was removed 2026-11-02 for GrimAC MultiBreak).
+        if (!burst && !order.isEmpty() && !com.killer560.hub.util.DigWindow.open()) {
+            // Something already dug (or queued a dig for) this server tick - a route's breaker or boom, his own hand. A
+            // second block now is GrimAC MultiBreak; it goes next tick (util/DigWindow).
+            com.killer560.hub.util.DigWindow.mayDigOrHold(order.get(0));
+            logRated("window", "[BreakerAura] held: a dig already went this server tick (GrimAC MultiBreak), {} target(s)"
+                    + " in reach, first {}", order.size(), order.get(0).toShortString());
+            census("gate"); // another dig owns this server tick
+            return;
+        }
         if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
             gateRefused = true;
             logRated("gate", "[BreakerAura] held: ActionGate refused BREAKER_AURA this tick, {} target(s) in reach,"
@@ -886,6 +932,45 @@ public final class BreakerAuraFeature {
         if (!order.isEmpty()) {
             LOGGER.debug("[BreakerAura] plan: {} target(s) allowed={} available={} moving={} speed={} first={}",
                     order.size(), allowed, available, !Double.isNaN(dirX), speed, order.get(0).toShortString());
+        }
+        // AIMED, every dig (ba-rotation-1102, GrimAC RotationBreak): only a pick the look the server already has strikes
+        // is dug - first in the order above that is - and the look for the next one is set in the same tick (BreakerAim).
+        // With none struck, this tick aims (pitch only, or a yaw turn while he is not walking) and digs nothing.
+        List<BlockPos> inReach = order;
+        // Burst Multi Break (owner exception, labeled as flagging) sends every pick in reach on the look the server has
+        // this tick - aimed too (killer560, 2026-11-02: only its MultiBreak is accepted, never RotationBreak).
+        if (!order.isEmpty()) {
+            BlockPos ready = null;
+            List<BlockPos> onLook = new ArrayList<>();
+            for (BlockPos p : order) {
+                if (BreakerAim.digReady(player, p)) {
+                    if (ready == null) {
+                        ready = p;
+                    }
+                    onLook.add(p);
+                    if (!burst) {
+                        break;
+                    }
+                }
+            }
+            if (ready == null) {
+                String how = null;
+                BlockPos aimed = null;
+                for (BlockPos p : order) {
+                    how = BreakerAim.aimFor(client, player, p);
+                    if (how != null) {
+                        aimed = p;
+                        break;
+                    }
+                }
+                logRated("aim", "[BreakerAura] aim: no pick on the look the server has - {} ({} target(s) in reach)",
+                        aimed == null ? "none can be aimed without steering his walk, waiting"
+                                : "aimed " + how + " at " + aimed.toShortString() + ", dug next tick", order.size());
+                skip(aimed == null ? "picks need a yaw turn while you walk" : "aiming at the next pick");
+                census("gate");
+                return;
+            }
+            order = burst ? onLook : List.of(ready);
         }
         for (BlockPos pos : order) {
             if (sent >= allowed) {
@@ -926,7 +1011,13 @@ public final class BreakerAuraFeature {
             // Inside a Blink Charge shot the break is predicted at once: the shot's next ticks move him into that spot before
             // the server's answer can arrive, and a block still there stopped him at the wall it had just mined (testkit
             // 1025-blink-shot-breaker, 2026-10-25).
-            boolean predict = cfg.isBreakerAuraZeroPing() || stands || com.killer560.hub.blink.BlinkCharge.inShot();
+            // A break a vanilla client would make instantly is predicted as vanilla's startDestroyBlock predicts it, and
+            // as GrimAC does (CheckManagerListener.handleDigging: getBlockDamage >= 1 sets the block to air at once). Kept
+            // standing until the server's update, the block stopped him where GrimAC had him walking on: Simulation x18 in
+            // 51-breaker-aura-multi once the aura dug one a tick right in front of him (ba-rotation-1102).
+            boolean vanillaInstant = level.getBlockState(pos).getDestroyProgress(player, level, pos) >= 1.0f;
+            boolean predict = cfg.isBreakerAuraZeroPing() || stands || vanillaInstant
+                    || com.killer560.hub.blink.BlinkCharge.inShot();
             if (predict && com.killer560.hub.blink.BlinkCharge.isActive()
                     && level.getBlockState(pos).getDestroyProgress(player, level, pos) < 1.0f) {
                 // While Blink Charge holds the ping answers, never predict a break GrimAC does not predict: it sets the block
@@ -951,6 +1042,7 @@ public final class BreakerAuraFeature {
                         lastSentPredicted ? 1L : 0L});
             }
             RECENT.put(pos, now);
+            RECENT_SEQ.put(pos.immutable(), lastSentSeq);
             spentSinceLore++;
             sent++;
         }
@@ -964,16 +1056,39 @@ public final class BreakerAuraFeature {
             return;
         }
         census("sent");
+        // The next pick's look rides this tick's movement packet (the dig just sent is still judged on the look the
+        // server had: GrimAC tries (lastYaw, lastPitch) too). A pick the current look already strikes needs no turn.
+        BlockPos dugNow = order.get(0);
+        boolean nextOnLook = false;
+        for (BlockPos p : inReach) {
+            if (!p.equals(dugNow) && BreakerAim.digReady(player, p)) {
+                nextOnLook = true;
+                break;
+            }
+        }
+        if (nextOnLook) {
+            BreakerAim.keep();
+        } else {
+            for (BlockPos p : inReach) {
+                if (!p.equals(dugNow) && BreakerAim.aimFor(client, player, p) != null) {
+                    break;
+                }
+            }
+        }
         // One swing however many went out: a hand swings once a tick whatever it is doing.
         com.killer560.hub.compat.McCompat.swingAttack(player);
         // MINUS ONE, because the wait is checked on a later tick and that check costs a tick of its own: with the
         // old arithmetic a cooldown of 1 meant break, skip, break - half the rate the setting says, and half
         // QUOI's, which has no cooldown in its break loop at all and simply sends one every tick. killer560
         // (2026-09-23): "right now the breaker aura is just way to slow. It isnt how the other clients feel."
-        cooldownTicks = Math.max(0, cfg.getBreakerAuraCooldownTicks() - 1);
+        // Multi Break: no cooldown while blocks of this run are still in reach - the next goes next tick; the cooldown
+        // applies once the run is over (nothing else in reach this tick).
+        boolean moreInRun = multiBreak && inReach.size() > sent;
+        cooldownTicks = moreInRun ? 0 : Math.max(0, cfg.getBreakerAuraCooldownTicks() - 1);
+        multiBreakRun = moreInRun ? multiBreakRun + sent : 0;
         LOGGER.info("[BreakerAura] tick done: sent={} of {} target(s) | spentSinceLore={} lore={} | swing | cooldown"
-                        + " now {} tick(s) | tick={}", sent, targets.size(), spentSinceLore, charges, cooldownTicks,
-                com.killer560.hub.util.SessionRecorderSink.tick());
+                        + " now {} tick(s) | multiBreak={} run={} | tick={}", sent, targets.size(), spentSinceLore, charges,
+                cooldownTicks, multiBreak, moreInRun ? multiBreakRun : "end", com.killer560.hub.util.SessionRecorderSink.tick());
     }
 
     /** True while Auto Routes is in its block-placing edit mode. AP3 has no edit mode to ask about (see notes). */
