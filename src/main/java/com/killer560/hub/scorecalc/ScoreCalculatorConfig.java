@@ -96,6 +96,8 @@ public final class ScoreCalculatorConfig {
     private boolean preBossPermanent = false;
     /** With Permanent: list what is missing under DO NOT ENTER PORTAL (ON) or show that line alone (OFF). */
     private boolean preBossListMissing = true;
+    /** Color Portal (killer560, 2026-11-03): tints the boss portal red under 270, yellow from 270, green from 300. */
+    private boolean preBossPortalColor = true;
     private boolean cryptReminder = false;
     private int cryptReminderSeconds = DEFAULT_CRYPT_REMINDER_SECONDS;
     private boolean cryptReminderParty = false;
@@ -157,6 +159,7 @@ public final class ScoreCalculatorConfig {
                 cfg.preBossMageOnly = ConfigJson.getBool(obj, "preBossMageOnly", cfg.preBossMageOnly);
                 cfg.preBossPermanent = ConfigJson.getBool(obj, "preBossPermanent", cfg.preBossPermanent);
                 cfg.preBossListMissing = ConfigJson.getBool(obj, "preBossListMissing", cfg.preBossListMissing);
+                cfg.preBossPortalColor = ConfigJson.getBool(obj, "preBossPortalColor", cfg.preBossPortalColor);
                 cfg.cryptReminder = ConfigJson.getBool(obj, "cryptReminder", cfg.cryptReminder);
                 int remindAt = ConfigJson.getInt(obj, "cryptReminderSeconds", cfg.cryptReminderSeconds);
                 cfg.setCryptReminderSeconds(remindAt == OLD_DEFAULT_CRYPT_REMINDER_SECONDS ? DEFAULT_CRYPT_REMINDER_SECONDS : remindAt);
@@ -241,6 +244,7 @@ public final class ScoreCalculatorConfig {
             obj.addProperty("preBossMageOnly", preBossMageOnly);
             obj.addProperty("preBossPermanent", preBossPermanent);
             obj.addProperty("preBossListMissing", preBossListMissing);
+            obj.addProperty("preBossPortalColor", preBossPortalColor);
             obj.addProperty("cryptReminder", cryptReminder);
             obj.addProperty("cryptReminderSeconds", cryptReminderSeconds);
             obj.addProperty("cryptReminderParty", cryptReminderParty);
@@ -470,6 +474,14 @@ public final class ScoreCalculatorConfig {
 
     public void setPreBossListMissing(boolean v) {
         preBossListMissing = v;
+    }
+
+    public boolean isPreBossPortalColor() {
+        return preBossPortalColor;
+    }
+
+    public void setPreBossPortalColor(boolean v) {
+        preBossPortalColor = v;
     }
 
     public boolean isPreBossWarning() {

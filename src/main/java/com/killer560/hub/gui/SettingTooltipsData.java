@@ -73,6 +73,7 @@ final class SettingTooltipsData {
         d.put("score warning/mage only", "The Pre-Boss Warning only while you are playing Mage.");
         d.put("score warning/permanent", "From the Watcher's last line until you enter the boss, a title stays on screen: DO NOT ENTER PORTAL while score is missing, a green ENTER THE PORTAL once nothing is.");
         d.put("score warning/list missing score", "Lists what is missing (crypts, cleared, secrets) under DO NOT ENTER PORTAL. Off shows that line alone.");
+        d.put("score warning/color portal", "Tints the portal into the boss: red under 270 score (don't enter), yellow from 270 (S), green from 300 (S+).");
         d.put("score warning/tell party", "Also sends the crypt count to party chat.");
         d.put("warning sound", "Plays a sound with the Score Warning titles.");
         d.put("ice spray alert", "Shows an \"Ice Spray Livid!\" title and a sound the moment Livid's opening invulnerability ends.");

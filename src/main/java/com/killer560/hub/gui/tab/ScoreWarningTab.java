@@ -51,6 +51,9 @@ public class ScoreWarningTab extends BaseTab {
                         null, contentX, y, contentWidth, 18));
                 y += 22;
             }
+            w.add(onOffButton("Color Portal", cfg::isPreBossPortalColor, cfg::setPreBossPortalColor, cfg::save,
+                    null, contentX, y, contentWidth, 18));
+            y += 22;
         }
         y += 2;
 

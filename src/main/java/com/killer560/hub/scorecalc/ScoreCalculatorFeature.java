@@ -170,6 +170,13 @@ public final class ScoreCalculatorFeature {
     public static void register() {
         ChatObserver.subscribe(ScoreCalculatorFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ScoreCalculatorFeature.tick", ScoreCalculatorFeature::tick));
+        net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
+            try {
+                ScoreWarnings.renderPortal(context);
+            } catch (RuntimeException e) {
+                com.killer560.hub.util.ModLog.get("killer560smod-scorecalc").error("[ScoreWarning] portal render failed", e);
+            }
+        });
     }
 
     // ------------------------------------------------------------------ tick

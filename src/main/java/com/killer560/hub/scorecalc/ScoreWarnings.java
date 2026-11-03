@@ -44,6 +44,86 @@ public final class ScoreWarnings {
         watcherDoneTick = -1;
         preBossWarned = false;
         cryptReminded = false;
+        portalColor = 0;
+        portalBlocks = java.util.List.of();
+    }
+
+    // ---- Color Portal (killer560, 2026-11-03: "make it red if you shouldnt enter, yellow if it is 270 and green if it is
+    // 300"). From the Watcher's line until the boss, the nether portal blocks near him are tinted by the calculator's score.
+    static final int PORTAL_RED = 0xFFFF3030;
+    static final int PORTAL_YELLOW = 0xFFFFD700;
+    static final int PORTAL_GREEN = 0xFF30FF30;
+    private static volatile int portalColor = 0;
+    private static volatile java.util.List<net.minecraft.core.BlockPos> portalBlocks = java.util.List.of();
+    private static final com.killer560.hub.util.BoxBatch PORTAL_FILL = new com.killer560.hub.util.BoxBatch();
+    private static int portalFrames = 0;
+
+    public static int portalColorFor(int score) {
+        return score >= 300 ? PORTAL_GREEN : score >= 270 ? PORTAL_YELLOW : PORTAL_RED;
+    }
+
+    private static void updatePortal(ScoreCalculatorConfig cfg, ScoreCalculator.Result result) {
+        if (!cfg.isPreBossWarning() || !cfg.isPreBossPortalColor() || watcherDoneTick < 0) {
+            portalColor = 0;
+            return;
+        }
+        portalScore = result.total();
+        portalColor = portalColorFor(portalScore);
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.level == null || mc.player == null) {
+            return;
+        }
+        net.minecraft.core.BlockPos at = mc.player.blockPosition();
+        java.util.List<net.minecraft.core.BlockPos> found = new ArrayList<>();
+        net.minecraft.core.BlockPos.MutableBlockPos p = new net.minecraft.core.BlockPos.MutableBlockPos();
+        for (int dx = -24; dx <= 24 && found.size() < 200; dx++) {
+            for (int dz = -24; dz <= 24 && found.size() < 200; dz++) {
+                for (int dy = -8; dy <= 12; dy++) {
+                    p.set(at.getX() + dx, at.getY() + dy, at.getZ() + dz);
+                    if (mc.level.getBlockState(p).is(net.minecraft.world.level.block.Blocks.NETHER_PORTAL)) {
+                        found.add(p.immutable());
+                    }
+                }
+            }
+        }
+        portalBlocks = java.util.List.copyOf(found);
+    }
+
+    static void renderPortal(net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext context) {
+        int color = portalColor;
+        java.util.List<net.minecraft.core.BlockPos> blocks = portalBlocks;
+        if (color == 0 || blocks.isEmpty()) {
+            return;
+        }
+        float[] k = com.killer560.hub.util.WorldRenderUtils.argbToFloats(color);
+        PORTAL_FILL.clear();
+        double e = 0.002;
+        for (net.minecraft.core.BlockPos b : blocks) {
+            PORTAL_FILL.add(b.getX() - e, b.getY() - e, b.getZ() - e, b.getX() + 1 + e, b.getY() + 1 + e, b.getZ() + 1 + e,
+                    k[0], k[1], k[2], 0.55f);
+        }
+        PORTAL_FILL.drawFilled(context, net.minecraft.client.renderer.rendertype.RenderTypes.debugFilledBox());
+        portalFrames++;
+    }
+
+    /** Testkit: the portal tint now (0 = none) and how many portal blocks it covers. */
+    public static int portalColor() {
+        return portalColor;
+    }
+
+    private static volatile int portalScore = -1;
+
+    /** Testkit: the score the portal color was picked from. */
+    public static int portalScore() {
+        return portalScore;
+    }
+
+    public static int portalBlockCount() {
+        return portalBlocks.size();
+    }
+
+    public static int portalFrames() {
+        return portalFrames;
     }
 
     static void onWatcherDone(int runTicks) {
@@ -55,8 +135,10 @@ public final class ScoreWarnings {
     /** After every recalculation with real tab data (every half second, and at once on the Watcher's line). */
     static void check(ScoreCalculatorConfig cfg, ScoreCalculator.Inputs in, ScoreCalculator.Result result, int runTicks) {
         if (in == null || result == null || in.inBoss()) {
+            portalColor = 0;
             return;
         }
+        updatePortal(cfg, result);
         // From the Watcher's "You have proven yourself" line - the second the Portal Entry split starts (killer560,
         // 2026-11-01) - no longer after blood's clear has counted: missing() counts blood as cleared until it has.
         if (cfg.isPreBossWarning() && watcherDoneTick >= 0 && (!cfg.isPreBossMageOnly() || playingMage())) {
