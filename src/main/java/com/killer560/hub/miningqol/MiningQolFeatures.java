@@ -22,6 +22,8 @@ public final class MiningQolFeatures {
     public static void register() {
         WorldRenderUtils.initThroughWalls();
         AbilityReadyAlert.register();
+        PickobulusEstimate.register();
+        AttackHoldProbe.register();
         HudElementRegistry.register(new CommissionHud.Element());
         HudElementRegistry.register(new AbilityReadyAlert.Popup());
         HudElementRegistry.register(new AbilityReadyAlert.Timer());
@@ -31,6 +33,7 @@ public final class MiningQolFeatures {
             if (resetRequested) {
                 resetRequested = false;
                 AbilityReadyAlert.reset();
+                PickobulusEstimate.resetChat();
             }
             MiningState.tick(client);
             CommissionHud.tick(client);
