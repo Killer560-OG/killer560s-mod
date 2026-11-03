@@ -141,7 +141,10 @@ public final class CommissionMobs {
         List<String> mobs = mobsFor(MiningState.commissions());
         wanted = mobs;
         if (mobs.isEmpty()) {
+            // Nothing wanted: forget the remembered mobs and stop any glow too.
             targets = new int[0];
+            glowIds = new int[0];
+            KNOWN.clear();
             return;
         }
         String key = String.join("|", mobs);
