@@ -195,15 +195,17 @@ public final class McRender {
      * As {@link #drawText}, for a plain string.
      *
      * <p>26.2's submit path speaks only {@code FormattedCharSequence}, so the wrap happens here rather than at
-     * eighteen call sites. {@code Style.EMPTY} matches what {@code Font.drawInBatch(String, ...)} did on
-     * 26.1.2 - it applied no style of its own.
+     * eighteen call sites. The string's section-sign color codes are APPLIED, from {@code Style.EMPTY}, exactly as
+     * {@code Font.drawInBatch(String, ...)} did on 26.1.2 and as {@code Font.width(String)} measures it.
+     * {@code FormattedCharSequence.forward} does not read them: it drew "Emissary §7(186m)" with the code
+     * printed (commissions-1103; HudTextCache had the same fault in 95-perf-fixes).
      */
     public static void drawText(LevelRenderContext context, net.minecraft.client.gui.Font font, String text,
                                 float x, float y, int colour, boolean shadow, PoseStack poseStack,
                                 net.minecraft.client.gui.Font.DisplayMode mode, int background, int light) {
-        drawText(context, font, net.minecraft.util.FormattedCharSequence.forward(
-                text, net.minecraft.network.chat.Style.EMPTY), x, y, colour, shadow, poseStack, mode,
-                background, light);
+        net.minecraft.util.FormattedCharSequence seq = sink -> net.minecraft.util.StringDecomposer.iterateFormatted(
+                text, net.minecraft.network.chat.Style.EMPTY, sink);
+        drawText(context, font, seq, x, y, colour, shadow, poseStack, mode, background, light);
     }
 
     /** As {@link #drawText}, for an already-ordered sequence - what 26.2 submits natively. */

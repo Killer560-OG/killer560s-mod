@@ -26,9 +26,6 @@ public class MiningTitaniumTab extends BaseTab {
                 dir -> cfg.setTitaniumMode(MiningQolConfig.TitaniumMode.values()[Math.floorMod(
                         cfg.getTitaniumMode().ordinal() + dir, MiningQolConfig.TitaniumMode.values().length)]), cfg::save);
         y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Universal Area Access", cfg::isUniversalAccess,
-                cfg::setUniversalAccess, cfg::save);
-        y += MiningQolRows.STEP;
         MiningQolRows.color(w, contentX, y, contentWidth, "Titanium Color", cfg::getTitaniumColor,
                 cfg::setTitaniumColor, MiningQolConfig.DEFAULT_TITANIUM_COLOR, cfg::save);
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {

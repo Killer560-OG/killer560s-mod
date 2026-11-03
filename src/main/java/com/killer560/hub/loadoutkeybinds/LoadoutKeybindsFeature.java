@@ -36,6 +36,7 @@ public final class LoadoutKeybindsFeature {
     public static void register() {
         ScreenEvents.AFTER_INIT.register(LoadoutKeybindsFeature::onScreenInit);
         LoadoutSwapper.register();
+        LoadoutHighlight.register();
     }
 
     /** True for Hypixel's "(N/M) Loadout" menu - the one screen any of this feature's clicks go to. */
