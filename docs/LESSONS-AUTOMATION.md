@@ -237,6 +237,12 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   `BloodCampMoveTimer.killTimerAllows(offset)` (no greeting: no wait), and the Trigger Bot also clicks any blood mob off its
   landing spot or past its 20-tick window the first tick his look meets it (1018-bloodtrigger-offset / -next-mob). The Kill
   Sound plays on that same hit tick, not at box green.
+  EXCEPT under Never Miss (killer560, 2026-11-03: "if never miss is on then it should just attack the tick after it spawns"):
+  there every attack reads `attackOpen = neverMiss || killTimerOpen` and `effectiveTriggerOffsetTicks` is 0, so neither the
+  Kill Popup nor Trigger Offset holds a click (testkit 1102-bloodcamp-nevermiss-*).
+- **"Clicked once per hit mob" left a live blood mob alone.** Owner camp 3 (2026-11-02 20:25:04): player #481791 was hit once,
+  survived, and the floor pass logged "already hit" for six seconds while he looked at it (`FloorClick.hit` skipped it for
+  good). Under Never Miss a hit mob still alive is clicked again at the weapon's pace (1102-bloodcamp-nevermiss-rehit).
 - **A START handler registered late sees the previous tick's number.** `ClearExecutor` counted `clientTicks` inside its own
   START handler, registered from `LiveMapFeature` after Auto Routes and Auto Secret, so their START code in tick N read N-1.
   The count runs in its own Fabric phase ordered before the default (`ClearExecutor.TICK_COUNT_PHASE`).
