@@ -22,12 +22,12 @@ import java.util.List;
  *  pages and backpacks - same codec, same compression, same "a Base64 string fits in the mod's plain JSON config
  *  style" reasoning. Split out here because two of this feature's caches need it and neither is allowed to reach
  *  into Storage Overlay's private copy. */
-final class StorageSearchNbtCodec {
+public final class StorageSearchNbtCodec {
 
     private StorageSearchNbtCodec() {
     }
 
-    static String encode(List<ItemStack> stacks) {
+    public static String encode(List<ItemStack> stacks) {
         RegistryAccess registryAccess = registryAccess();
         if (registryAccess == null) {
             return null;
@@ -56,7 +56,7 @@ final class StorageSearchNbtCodec {
         }
     }
 
-    static List<ItemStack> decode(String blob) {
+    public static List<ItemStack> decode(String blob) {
         if (blob == null || blob.isEmpty()) {
             return null;
         }

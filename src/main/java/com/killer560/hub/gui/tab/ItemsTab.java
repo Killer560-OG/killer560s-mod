@@ -13,6 +13,8 @@ public class ItemsTab extends FolderTab {
 
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
+                // Armor HUD (killer560, 2026-11-03).
+                new ArmorHudTab(),
                 new InventoryHudTab(),
                 new InventorySearchTab(),
                 new InventoryThemeTab(),

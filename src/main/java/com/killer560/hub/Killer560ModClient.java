@@ -394,6 +394,9 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new com.killer560.hub.quiver.QuiverDisplayFeature.QuiverHudElement());
         com.killer560.hub.inventoryhud.InventoryHudFeature.register();
         HudElementRegistry.register(com.killer560.hub.inventoryhud.InventoryHudFeature.InventoryHudElement.INSTANCE);
+        // Armor HUD (2026-11-03): worn armor and the cached Skyblock equipment.
+        com.killer560.hub.armorhud.ArmorHudFeature.register();
+        HudElementRegistry.register(com.killer560.hub.armorhud.ArmorHudFeature.Element.INSTANCE);
         HudElementRegistry.register(com.killer560.hub.realtime.RealTimeFeature.RealTimeHudElement.INSTANCE);
         HudElementRegistry.register(com.killer560.hub.spotify.SpotifyHud.INSTANCE);
         HudElementRegistry.register(com.killer560.hub.position.PositionFeature.PositionHudElement.INSTANCE);

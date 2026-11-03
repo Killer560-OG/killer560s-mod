@@ -120,6 +120,9 @@ public final class MiningQolConfig {
     private boolean abilityAlert = false;
     private boolean abilityTimer = true;
     private boolean abilitySound = true;
+    // Wrong Armor Alert (killer560, 2026-11-03: "a mining alert for if you are mining in a non mining armor set")
+    private boolean wrongArmor = true;
+    private boolean wrongArmorSound = false;
     // Carpet Highlighter
     private boolean carpet = false;
     private int carpetColor = DEFAULT_CARPET_COLOR;
@@ -174,6 +177,8 @@ public final class MiningQolConfig {
                 cfg.abilityAlert = ConfigJson.getBool(o, "abilityAlert", cfg.abilityAlert);
                 cfg.abilityTimer = ConfigJson.getBool(o, "abilityTimer", cfg.abilityTimer);
                 cfg.abilitySound = ConfigJson.getBool(o, "abilitySound", cfg.abilitySound);
+                cfg.wrongArmor = ConfigJson.getBool(o, "wrongArmor", cfg.wrongArmor);
+                cfg.wrongArmorSound = ConfigJson.getBool(o, "wrongArmorSound", cfg.wrongArmorSound);
                 cfg.carpet = ConfigJson.getBool(o, "carpet", cfg.carpet);
                 cfg.carpetColor = intOr(o, "carpetColor", cfg.carpetColor);
                 cfg.mithrilStone = ConfigJson.getBool(o, "mithrilStone", cfg.mithrilStone);
@@ -229,6 +234,8 @@ public final class MiningQolConfig {
             o.addProperty("abilityAlert", abilityAlert);
             o.addProperty("abilityTimer", abilityTimer);
             o.addProperty("abilitySound", abilitySound);
+            o.addProperty("wrongArmor", wrongArmor);
+            o.addProperty("wrongArmorSound", wrongArmorSound);
             o.addProperty("carpet", carpet);
             o.addProperty("carpetColor", carpetColor);
             o.addProperty("mithrilStone", mithrilStone);
@@ -422,6 +429,27 @@ public final class MiningQolConfig {
 
     public void setAbilitySound(boolean v) {
         abilitySound = v;
+    }
+
+    // ---- Wrong Armor Alert
+    public boolean isWrongArmor() {
+        return wrongArmor && sb();
+    }
+
+    public boolean isWrongArmorRaw() {
+        return wrongArmor;
+    }
+
+    public void setWrongArmor(boolean v) {
+        wrongArmor = v;
+    }
+
+    public boolean isWrongArmorSound() {
+        return wrongArmorSound;
+    }
+
+    public void setWrongArmorSound(boolean v) {
+        wrongArmorSound = v;
     }
 
     // ---- Carpet Highlighter

@@ -42,7 +42,9 @@ public final class HudInGameRenderer {
             // Quiz Timer (2026-11-01) - missing at first, so it never drew (1101-pz-quiz caught it).
             "quiz_timer",
             // The pre-2.0 mining HUDs (2026-11-01): missing at first, so testkit 1101-mining-commissions/-ability failed.
-            "mining_commissions", "mining_ability_ready", "mining_ability_timer");
+            "mining_commissions", "mining_ability_ready", "mining_ability_timer",
+            // Armor HUD and the Wrong Armor Alert (2026-11-03).
+            "armor_hud", "mining_wrong_armor");
 
     private HudInGameRenderer() {
     }

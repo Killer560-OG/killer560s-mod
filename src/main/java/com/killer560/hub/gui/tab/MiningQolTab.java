@@ -11,6 +11,6 @@ public class MiningQolTab extends FolderTab {
     public MiningQolTab() {
         super("Mining", List.of(new MiningCommissionHudTab(), new MiningPickobulusTab(), new MiningAbilityReadyTab(),
                 new MiningCarpetTab(), new MiningMithrilStoneTab(), new MiningTitaniumTab(), new MiningRaffleTab(),
-                new MiningResumeBreakTab()));
+                new MiningResumeBreakTab(), new MiningWrongArmorTab()));
     }
 }
