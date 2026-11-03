@@ -506,3 +506,6 @@ project CLAUDE.md. Compiling lessons
   SkyHanni's MobFilter also names these mobs only through their stands.
 - The vanilla glow outline is shared: the cheatutils WitherGlow mixins (shouldEntityAppearGlowing, getTeamColor) serve
   Dungeon ESP and Commission Mobs' Glow style; a new glow user adds a check there instead of a second pair of mixins.
+- `PriceData` (Price Tooltip prices: hysky lowest BIN and 1/3-day average lowest BIN, Bazaar, item facts) refreshes only
+  while the Price Tooltip is ON, and that is OFF by default; any other feature reading it gets only the disk cache.
+  Call `PriceData.touchFromOtherFeature()` (AH Price Buttons, ahbuttons-1103). Its averages are of LOWEST BINs, not sales.
