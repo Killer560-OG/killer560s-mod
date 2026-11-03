@@ -109,7 +109,7 @@ public final class KickRejoinConfig {
         return partyText;
     }
 
-    /** Kept chat-safe: no section signs, newlines or control characters, trimmed, at most {@link #MAX_PARTY_TEXT}
+    /** Kept chat-safe: no color codes (the sign and its letter), newlines or control characters, trimmed, at most {@link #MAX_PARTY_TEXT}
      *  characters; blank puts the default back. */
     public void setPartyText(String value) {
         String v = chatSafe(value);
@@ -123,7 +123,11 @@ public final class KickRejoinConfig {
         StringBuilder b = new StringBuilder();
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
-            if (c != '§' && c >= ' ' && c != 127) {
+            if (c == '§') {
+                i++; // a color code is the sign AND its letter: "§cText" is "Text", not "cText"
+                continue;
+            }
+            if (c >= ' ' && c != 127) {
                 b.append(c);
             }
         }
