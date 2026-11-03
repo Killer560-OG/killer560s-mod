@@ -4,9 +4,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
+
+import org.slf4j.Logger;
 
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -22,16 +23,32 @@ import java.util.regex.Pattern;
  * faster than it is wasted and not something a player gains by. Off Hypixel the vanilla cooldown applies: a click
  * before {@code getCurrentItemAttackStrengthDelay()} ticks does reduced damage.
  * <p>
- * Attack Speed is read from the tab list's Stats widget ("Attack Speed: ⚔45") when he shows it, otherwise summed from
- * the "Attack Speed: +N%" lines of the held item and the armor worn. That sum can only miss sources (pets, potions),
- * never invent them, so when it is wrong it is wrong on the slow, safe side. Capped at Hypixel's normal 100.
+ * Where Attack Speed comes from (atkspeed-1103; killer560, 2026-11-03: "The weapon shouldn't be on cooldown that long I
+ * don't think. Have it read attack speed. Most of the time they will be at max attack speed. Don't ignore it but fire it
+ * as soon as possible"): the tab list's stats line ("Attack Speed: ⚔45", the Stats widget and the dungeon's Skills and
+ * Stats widget; on newer Hypixel the icon is a private-use glyph), the same source SkyHanni's SkyblockStat reads. The
+ * last value seen there is remembered for the session, so a tab list without the widget (a dungeon's early tab, a
+ * reconnect) keeps it. With no reading at all he is taken to be at the cap ({@link #MAX_ATTACK_SPEED}, 5 ticks): most
+ * players are, and on Hypixel the window is the HIT MOB's immunity (the wiki: Attack Speed works "by reducing the damage
+ * immunity frames of the entity hit"), so a click 5 ticks after a hit can only be wasted on that same mob when he is
+ * slower - the click 5 ticks later still lands no later than a 10-tick wait would have. Guessing slow instead cost every
+ * mob that appeared inside the 10 ticks its first-tick hit (nmflake-1103). The old fallback, summing the held item's and
+ * armor's "Attack Speed: +N%" lore lines, could only read low (it misses pets - Golden Dragon +50, Griffin +25 - and
+ * anything not worn), so it is gone.
  */
 public final class AttackCooldown {
 
     /** Hypixel's normal Attack Speed cap (Thermodynamic armor's 150 is not assumed). */
     public static final int MAX_ATTACK_SPEED = 100;
-    private static final Pattern LORE = Pattern.compile("^Attack Speed: \\+(\\d{1,3})%?");
-    private static final Pattern TAB = Pattern.compile("^\\s*Attack Speed: \\D{0,2}(\\d{1,3})\\s*$");
+    private static final Logger LOGGER = ModLog.get("killer560smod-attackcooldown");
+    /** " Attack Speed: ⚔45", "Attack Speed: 100", a private-use icon glyph, "45.5"; at most two icon characters. */
+    private static final Pattern TAB = Pattern.compile(
+            "^\\s*Attack Speed: [^\\d\\s]{0,2}\\s?(\\d{1,3})(?:\\.\\d{1,2})?%?(?:\\s.{0,24})?$");
+    /** The last tab reading, or -1; cleared with the server (a new login can have another profile). */
+    private static int remembered = -1;
+    private static Object rememberedFor;
+    private static String lastSource = "none";
+    private static int lastLogged = Integer.MIN_VALUE;
 
     private AttackCooldown() {
     }
@@ -58,47 +75,63 @@ public final class AttackCooldown {
         return server != null && server.ip != null && server.ip.toLowerCase(Locale.ROOT).contains("hypixel.net");
     }
 
-    /** His Attack Speed stat, 0-100 (see the class doc for where it is read). */
+    /** His Attack Speed stat, 0-100: the tab list now, else the last tab reading, else the cap (see the class doc). */
     public static int attackSpeed(Minecraft client) {
+        Object conn = client.getConnection();
+        if (conn != rememberedFor) {
+            rememberedFor = conn;
+            remembered = -1;
+        }
+        int live = -1;
         if (client.getConnection() != null) {
             for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
-                String line = TabText.plain(info);
-                if (line == null) {
-                    continue;
-                }
-                Matcher m = TAB.matcher(line);
-                if (m.matches()) {
-                    return clamp(Integer.parseInt(m.group(1)));
+                int v = parseTabLine(TabText.plain(info));
+                if (v >= 0) {
+                    live = v;
+                    break;
                 }
             }
         }
-        int sum = 0;
-        if (client.player != null) {
-            sum += loreAttackSpeed(client.player.getMainHandItem());
-            for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
-                    EquipmentSlot.FEET}) {
-                sum += loreAttackSpeed(client.player.getItemBySlot(slot));
-            }
+        int as;
+        String source;
+        if (live >= 0) {
+            remembered = live;
+            as = live;
+            source = "tab list";
+        } else if (remembered >= 0) {
+            as = remembered;
+            source = "last tab reading";
+        } else {
+            as = MAX_ATTACK_SPEED;
+            source = "not shown, taken as the cap";
         }
-        return clamp(sum);
+        lastSource = source;
+        if (as != lastLogged) {
+            lastLogged = as;
+            LOGGER.info("[AttackCooldown] Attack Speed {} ({}): {} ticks between hits", as, source, hypixelTicks(as, false));
+        }
+        return as;
     }
 
-    /** The "Attack Speed: +N%" line of one item's lore, or 0. */
-    public static int loreAttackSpeed(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return 0;
+    /** One tab line's Attack Speed, 0-100, or -1 when the line is not the stat. */
+    public static int parseTabLine(String line) {
+        if (line == null) {
+            return -1;
         }
-        ItemLore lore = stack.get(DataComponents.LORE);
-        if (lore == null) {
-            return 0;
+        Matcher m = TAB.matcher(ChatObserver.stripCodes(line));
+        if (!m.matches()) {
+            return -1;
         }
-        for (Component line : lore.lines()) {
-            Matcher m = LORE.matcher(ChatObserver.stripCodes(line.getString()).trim());
-            if (m.find()) {
-                return clamp(Integer.parseInt(m.group(1)));
-            }
+        try {
+            return clamp(Integer.parseInt(m.group(1)));
+        } catch (NumberFormatException e) {
+            return -1;
         }
-        return 0;
+    }
+
+    /** Where the last {@link #attackSpeed} came from (testkit, logging). */
+    public static String attackSpeedSource() {
+        return lastSource;
     }
 
     /** A Hypixel shortbow says so in its lore ("Shortbow: Instantly shoots!"). */
