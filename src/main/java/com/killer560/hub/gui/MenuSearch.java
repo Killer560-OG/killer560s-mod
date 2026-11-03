@@ -226,6 +226,8 @@ public final class MenuSearch {
         final String[][] nameWords;
         String[][] descWords;
         final List<Row> rows = new ArrayList<>();
+        /** The chat commands this card owns ({@link SearchCommands}), lower case, no "/". */
+        final List<String> commands = new ArrayList<>();
 
         Doc(BaseTab tab) {
             this.tab = tab;
@@ -255,8 +257,22 @@ public final class MenuSearch {
         }
         long t0 = System.nanoTime();
         INDEX.clear();
+        Map<String, List<String>> commandsByTab = new HashMap<>();
+        try {
+            for (Map.Entry<String, String> e : SearchCommands.owners().entrySet()) {
+                if (e.getValue() != null) {
+                    commandsByTab.computeIfAbsent(e.getValue(), k -> new ArrayList<>()).add(e.getKey().toLowerCase(Locale.ROOT));
+                }
+            }
+        } catch (RuntimeException ignored) {
+        }
         for (BaseTab leaf : leaves) {
-            INDEX.put(leaf, read(leaf));
+            Doc d = read(leaf);
+            List<String> cmds = commandsByTab.get(leaf.getClass().getSimpleName());
+            if (cmds != null) {
+                d.commands.addAll(cmds);
+            }
+            INDEX.put(leaf, d);
         }
         indexedLeaves = new ArrayList<>(leaves);
         indexBuilds++;
@@ -378,7 +394,7 @@ public final class MenuSearch {
                 if (d == null) {
                     continue;
                 }
-                double f = featureScore(d, qf, norm);
+                double f = Math.max(featureScore(d, qf, norm), commandScore(d, qw));
                 if (f > 0) {
                     featureScore.merge(leaf, f, Math::max);
                 }
@@ -479,6 +495,27 @@ public final class MenuSearch {
             total += 100;
         }
         return total;
+    }
+
+    /** A card owning the typed chat command: like an exact card name ("invsort", "/invsort"); the command and more words
+     *  ("/ar add") a little less; the start of a command of four letters or more less again. */
+    private static double commandScore(Doc d, String[][] qw) {
+        if (d.commands.isEmpty() || qw.length == 0) {
+            return 0;
+        }
+        String first = qw[0][0];
+        if (d.commands.contains(first)) {
+            // A one-letter command (/k, /c) is also every first keystroke: it ranks, but not over everything.
+            return first.length() < 2 ? 300 : qw.length == 1 ? 1000 : 500;
+        }
+        if (qw.length == 1 && first.length() >= 4) {
+            for (String c : d.commands) {
+                if (c.startsWith(first)) {
+                    return 150;
+                }
+            }
+        }
+        return 0;
     }
 
     /** A row's score: every word in its label, its tooltip or the feature's name, and at least one in the row itself. */

@@ -187,7 +187,11 @@ once per search through `BaseTab.searchScanWidgets()` with `BaseTab.isSearchScan
 its switch is off writes the gate as `if (!cfg.isEnabled() && !isSearchScan()) { return widgets; }` (96 gates did on
 2026-11-02), or its settings cannot be found while it is off; a tab with collapsed sections builds them open in the scan (Ap3Tab's
 pattern). Never put a network call or a side effect in buildWidgets: the search builds every tab. Common words a player types go in
-`MenuSearch.SYNONYMS`, phrases in `SearchAliases`; testkit 1102-ui-search-queries holds 78 real queries.
+`MenuSearch.SYNONYMS`, phrases in `SearchAliases`; testkit 1102-ui-search-queries holds 80 real queries. A new client command
+gets its owner card in `gui/SearchCommands` (by name, by the handler's class or package) or a reason in `NO_CARD`: testkit
+1102-ui-search-commands walks the live dispatcher and fails on any mod command with neither (killer560, 2026-11-02: "i search
+invsort and the inventory sorter doesnt show up even tho it is the command"). A README name that is not a card name gets a
+`SearchAliases` entry (1102-ui-search-readme searches every one).
 Inside a tab the feature's on/off switch is the first row. A tab that is really several features side by side (Dungeon Queue)
 has no switch over the whole: each feature keeps its own, and the tab lists them in `BaseTab.masterToggles` so the card
 (`gui/MasterSwitch`) is ON while any is on and OFF only when all are; never add a "X as a whole" row that gates independent
