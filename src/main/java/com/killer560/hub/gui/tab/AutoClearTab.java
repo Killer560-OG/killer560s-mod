@@ -77,11 +77,22 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public boolean isListeningForKey() {
-        return capturing;
+        return capturing || com.killer560.hub.autoclear.AutoClearSettings.isCapturing();
+    }
+
+    @Override
+    public void cancelKeyCapture() {
+        capturing = false;
+        capturingPilot = false;
+        com.killer560.hub.autoclear.AutoClearSettings.cancelCapture();
     }
 
     @Override
     public void onKeyCaptured(int keyCode) {
+        if (com.killer560.hub.autoclear.AutoClearSettings.isCapturing()) {
+            com.killer560.hub.autoclear.AutoClearSettings.finishCapture(keyCode);
+            return;
+        }
         if (!capturing) {
             return;
         }
@@ -104,6 +115,10 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onMouseCaptured(int button) {
+        if (com.killer560.hub.autoclear.AutoClearSettings.isCapturing()) {
+            com.killer560.hub.autoclear.AutoClearSettings.finishCapture(KeyUtil.codeForMouseButton(button));
+            return;
+        }
         if (!capturing) {
             return;
         }

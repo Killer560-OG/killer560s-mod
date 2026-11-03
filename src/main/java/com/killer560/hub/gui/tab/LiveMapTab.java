@@ -316,13 +316,18 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
     }
 
     static Component keyText(String label, int code) {
-        String name = code < 0 ? "Not Set" : com.killer560.hub.util.KeyUtil.keyName(code);
+        String name = com.killer560.hub.util.KeyUtil.bindDisplayName(code);
         return Component.literal(label + ": §b" + name);
     }
 
     @Override
     public boolean isListeningForKey() {
         return capturing != null;
+    }
+
+    @Override
+    public void cancelKeyCapture() {
+        capturing = null;
     }
 
     @Override

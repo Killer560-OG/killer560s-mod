@@ -44,6 +44,11 @@ public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturing = null;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         if (capturing == null) {
             return;

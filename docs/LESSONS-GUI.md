@@ -461,3 +461,14 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   starts, because Hypixel hands the map item over then: Funny Map drew every room in its own color in the green room and
   then darkened every unopened room `darker().darker()` when the doors dropped (owner 2026-11-02, mapcolor-1102). Funny Map
   no longer applies the awt darkening; check any new map look both before and after a map item arrives (testkit 1102-map-funny-same-color).
+
+- **Every key row takes a mouse button, and the rule lives in ModScreen** (keybindmouse-1102, his "most of the set keybinds
+  things wont let me set mouse buttons"). Three causes stacked: `KeyCaptureTab.supportsMouseCapture` defaulted to false
+  (20 tabs never overrode it, so a click while listening went to the widgets); a mouse bind is a NEGATIVE code
+  (`KeyUtil.MOUSE_CODE_BASE - button`, -103 for Mouse 4), so every `code < 0` "not set" guard in a feature and
+  `KeyUtil.sanitize` on load treated it as unbound; and `KeyUtil.isKeyDown` polled keys only. Now the interface defaults to
+  mouse capture (stored as the mouse code through `onKeyCaptured`), `cancelKeyCapture()` is abstract so a new row cannot
+  forget it, ModScreen does Escape = cancel / Backspace or Delete = clear for every row, `sanitize` keeps mouse codes, and
+  `isKeyDown` polls a mouse code. Test "not set" with `== KeyUtil.NONE`, never `< 0`. A polled mouse bind also reads
+  `util/MouseButtons` (fed by MacroStopMouseMixin from `MouseHandler.onButton`), so a polled bind sees the same button
+  events the screens and Controls see (the testkit's real input arrives that way too). Testkit 1103 walks every drawer and binds Mouse 4 by real clicks.

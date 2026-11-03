@@ -31,6 +31,11 @@ public class AutoSellTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturingToggleKey = false;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         AutoSellConfig cfg = AutoSellConfig.getInstance();
         cfg.setToggleKeyCode(keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);

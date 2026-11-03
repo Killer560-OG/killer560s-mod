@@ -174,7 +174,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             y += 24;
         }
         // Keybinds: Next Room and Previous Room, the same as /next and /back, only inside the sim. Unbound by
-        // default. Esc clears a bind; a mouse button can be one. Under the KEYBINDS heading drawn in render.
+        // default. Esc cancels, Backspace clears; a mouse button can be one. Under the KEYBINDS heading drawn in render.
         y = cycleKeybindsY() + 16;
         int kw = keyButtonWidth();
         // Previous Room on the left, Next Room on the right (killer560, 2026-10-13).
@@ -231,8 +231,15 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
         if (mode == SimMenuNav.Page.CYCLE && capturing != 0) {
-            applyCapture(event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE
-                    ? com.killer560.hub.util.KeyUtil.NONE : com.killer560.hub.compat.McInput.key(event));
+            // Escape cancels, Backspace/Delete clears, anything else binds (every key row, 2026-11-02).
+            int stored = com.killer560.hub.compat.McInput.key(event);
+            if (stored == com.killer560.hub.util.Keys.ESCAPE) {
+                capturing = 0;
+                rebuildWidgets();
+            } else {
+                applyCapture(stored == com.killer560.hub.util.Keys.BACKSPACE || stored == com.killer560.hub.util.Keys.DELETE
+                        ? com.killer560.hub.util.KeyUtil.NONE : stored);
+            }
             return true;
         }
         return super.keyPressed(event);

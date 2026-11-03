@@ -932,7 +932,7 @@ public final class SimonSaysFeature {
     }
 
     private static void tickAnnounceKeybind(Minecraft client, SimonSaysConfig cfg) {
-        if (cfg.getAnnounceKeyCode() < 0 || client.getWindow() == null) {
+        if (cfg.getAnnounceKeyCode() == com.killer560.hub.util.KeyUtil.NONE || client.getWindow() == null) {
             announceKeyWasDown = false;
             return;
         }
@@ -1681,7 +1681,7 @@ public final class SimonSaysFeature {
     /** Manual restart keybind (only while at the device, and not while a menu/chat is open). */
     private static void tickRestartKeybind(Minecraft client, SimonSaysConfig cfg) {
         int key = cfg.getRestartKeyCode();
-        if (key < 0 || client.getWindow() == null) {
+        if (key == com.killer560.hub.util.KeyUtil.NONE || client.getWindow() == null) {
             restartKeyWasDown = false;
             return;
         }

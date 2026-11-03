@@ -764,7 +764,7 @@ public class Killer560ModClient implements ClientModInitializer {
      */
     private static void checkOpenMenuKey(Minecraft client) {
         int code = HudConfig.getInstance().getOpenMenuKeyCode();
-        if (code < 0 || client.getWindow() == null) {
+        if (code == com.killer560.hub.util.KeyUtil.NONE || client.getWindow() == null) {
             openMenuKeyWasDown = false;
             return;
         }
@@ -783,7 +783,7 @@ public class Killer560ModClient implements ClientModInitializer {
     private static void checkHudEditKeybind(Minecraft client) {
         checkOpenMenuKey(client);
         int code = HudConfig.getInstance().getEditKeyCode();
-        if (code < 0) {
+        if (code == com.killer560.hub.util.KeyUtil.NONE || client.getWindow() == null) {
             editKeyWasDown = false;
             return;
         }

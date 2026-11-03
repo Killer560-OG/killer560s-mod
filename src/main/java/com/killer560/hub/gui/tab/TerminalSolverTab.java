@@ -62,6 +62,11 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturingDropKey = false;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         TerminalQolConfig cfg = TerminalQolConfig.getInstance();
         // Escape clears the binding, same convention DoorHelpersTab already uses. -1 here means

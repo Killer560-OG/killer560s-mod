@@ -167,7 +167,7 @@ public final class ModuleKeybinds {
     }
 
     /** The row for the tab {@code tabId} at the bottom of its drawer (or, for a folded-in feature's id, wherever its
-     *  host tab puts it): a click waits for the key (Escape clears). */
+     *  host tab puts it): a click waits for a key or mouse button (Escape cancels, Backspace clears). */
     public static SettingsButtonWidget row(String tabId, int x, int y, int w) {
         return SettingsButtonWidget.builder(rowText(tabId), btn -> {
             capturingId = tabId;
@@ -191,6 +191,11 @@ public final class ModuleKeybinds {
         @Override
         public boolean isListeningForKey() {
             return capturingId != null;
+        }
+
+        @Override
+        public void cancelKeyCapture() {
+            capturingId = null;
         }
 
         @Override

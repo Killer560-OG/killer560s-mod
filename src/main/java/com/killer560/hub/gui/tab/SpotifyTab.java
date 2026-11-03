@@ -43,6 +43,11 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturing = null;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         bind(keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
     }

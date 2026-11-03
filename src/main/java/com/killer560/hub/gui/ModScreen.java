@@ -1392,7 +1392,15 @@ public class ModScreen extends Screen {
         MenuAnim.input();
         KeyCaptureTab listening = findListeningKeyCaptureTab();
         if (listening != null) {
-            listening.onKeyCaptured(com.killer560.hub.compat.McInput.key(keyEvent));
+            // One rule for every key row (2026-11-02): Escape cancels, Backspace/Delete clears, anything else binds.
+            int stored = com.killer560.hub.compat.McInput.key(keyEvent);
+            if (stored == com.killer560.hub.util.Keys.ESCAPE) {
+                listening.cancelKeyCapture();
+            } else if (stored == com.killer560.hub.util.Keys.BACKSPACE || stored == com.killer560.hub.util.Keys.DELETE) {
+                listening.onKeyCaptured(com.killer560.hub.util.KeyUtil.NONE);
+            } else {
+                listening.onKeyCaptured(stored);
+            }
             rebuild();
             return true;
         }

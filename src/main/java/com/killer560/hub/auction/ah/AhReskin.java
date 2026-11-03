@@ -197,7 +197,7 @@ public final class AhReskin {
     private static boolean vanillaKeyHeld() {
         int code = AuctionHouseConfig.getInstance().getVanillaKeyCode();
         Minecraft mc = Minecraft.getInstance();
-        return code >= 0 && mc.getWindow() != null && KeyUtil.isKeyDown(mc.getWindow(), code);
+        return code != com.killer560.hub.util.KeyUtil.NONE && mc.getWindow() != null && KeyUtil.isKeyDown(mc.getWindow(), code);
     }
 
     private static boolean hiding(State st) {

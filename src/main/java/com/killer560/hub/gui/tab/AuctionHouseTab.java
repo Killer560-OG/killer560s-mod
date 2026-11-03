@@ -101,20 +101,24 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component keyText(AuctionConfig cfg) {
-        String name = cfg.getOpenAhKeyCode() < 0 ? "Not Set"
-                : com.killer560.hub.util.KeyUtil.keyName(cfg.getOpenAhKeyCode());
+        String name = com.killer560.hub.util.KeyUtil.bindDisplayName(cfg.getOpenAhKeyCode());
         return Component.literal("Open Key: §b" + name);
     }
 
     private static Component vanillaKeyText(AuctionHouseConfig ah) {
-        String name = ah.getVanillaKeyCode() < 0 ? "Not Set"
-                : com.killer560.hub.util.KeyUtil.keyName(ah.getVanillaKeyCode());
+        String name = com.killer560.hub.util.KeyUtil.bindDisplayName(ah.getVanillaKeyCode());
         return Component.literal("Hypixel Menu Key: §b" + name);
     }
 
     @Override
     public boolean isListeningForKey() {
         return capturingKey || capturingVanillaKey;
+    }
+
+    @Override
+    public void cancelKeyCapture() {
+        capturingKey = false;
+        capturingVanillaKey = false;
     }
 
     @Override

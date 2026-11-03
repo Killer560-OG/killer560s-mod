@@ -26,15 +26,30 @@ public final class KeyUtil {
         return code >= Keys.FIRST && code <= Keys.LAST;
     }
 
-    /** Returns {@code code} if valid, otherwise {@link #NONE} - use on config load. */
+    /** Returns {@code code} if it is a valid key OR mouse bind, otherwise {@link #NONE} - use on config load. Every
+     *  bind in the mod can be a mouse button since 2026-11-02, so a mouse code survives a load here too; a caller
+     *  that truly needs a keyboard-only code checks {@link #isValidKey}. */
     public static int sanitize(int code) {
-        return isValidKey(code) ? code : NONE;
+        return isValidKey(code) || isMouseCode(code) ? code : NONE;
     }
 
     /** Polls a STORED keyboard code (never with an invalid one). For a code from Minecraft (a {@code KeyMapping}
      *  value, {@code InputConstants.KEY_*}) use {@link McInput#isNativeKeyDown} instead. */
     public static boolean isKeyDown(Window window, int code) {
-        return window != null && isValidKey(code) && McInput.isStoredKeyDown(window, code);
+        if (window == null) {
+            return false;
+        }
+        // A mouse bind polls its button: every raw-polled bind accepts one (2026-11-02).
+        if (isMouseCode(code)) {
+            return isMouseDown(window, mouseButton(code));
+        }
+        return isValidKey(code) && McInput.isStoredKeyDown(window, code);
+    }
+
+    /** A stored mouse button: the platform's own state (SDL/GLFW) or the press the game's MouseHandler saw
+     *  ({@link MouseButtons}), so every polled mouse bind reads the same events a Controls binding would. */
+    public static boolean isMouseDown(Window window, int button) {
+        return window != null && (McInput.isStoredButtonDown(window, button) || MouseButtons.isDown(button));
     }
 
     /** Mouse buttons are stored in the same int field as a key, as {@code MOUSE_CODE_BASE - button}
@@ -65,9 +80,7 @@ public final class KeyUtil {
         if (window == null || code == NONE) {
             return false;
         }
-        return isMouseCode(code)
-                ? McInput.isStoredButtonDown(window, mouseButton(code))
-                : isKeyDown(window, code);
+        return isKeyDown(window, code);
     }
 
     /** Compact {@link #bindDisplayName} for a tight readout like the Interactive Map legend, where "Left Button"
@@ -91,13 +104,25 @@ public final class KeyUtil {
         if (code == NONE) {
             return "Not Set";
         }
-        return isMouseCode(code)
-                ? McInput.storedButtonInput(mouseButton(code)).getDisplayName().getString()
-                : keyName(code);
+        return isMouseCode(code) ? mouseName(mouseButton(code)) : keyName(code);
     }
 
-    /** Display name of a STORED keyboard code ("R", "Left Shift"), whatever Minecraft version is running. */
+    /** "Left Mouse", "Right Mouse", "Middle Mouse", "Mouse 4", "Mouse 5"... - the same words on both Minecraft
+     *  versions (vanilla's own button names differ between GLFW and SDL). */
+    public static String mouseName(int button) {
+        return switch (button) {
+            case 0 -> "Left Mouse";
+            case 1 -> "Right Mouse";
+            case 2 -> "Middle Mouse";
+            default -> "Mouse " + (button + 1);
+        };
+    }
+
+    /** Display name of a STORED code ("R", "Left Shift", "Mouse 4"), whatever Minecraft version is running. */
     public static String keyName(int code) {
+        if (isMouseCode(code)) {
+            return mouseName(mouseButton(code));
+        }
         return McInput.storedKeyInput(code).getDisplayName().getString();
     }
 }

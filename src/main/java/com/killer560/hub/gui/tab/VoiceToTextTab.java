@@ -128,14 +128,18 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component keyText(VoiceToTextConfig cfg) {
-        String name = cfg.getPushToTalkKeyCode() < 0 ? "Not Set"
-                : com.killer560.hub.util.KeyUtil.keyName(cfg.getPushToTalkKeyCode());
+        String name = com.killer560.hub.util.KeyUtil.bindDisplayName(cfg.getPushToTalkKeyCode());
         return Component.literal("Push-to-Talk Key: §b" + name);
     }
 
     @Override
     public boolean isListeningForKey() {
         return capturingKey;
+    }
+
+    @Override
+    public void cancelKeyCapture() {
+        capturingKey = false;
     }
 
     @Override

@@ -13,7 +13,7 @@ final class SettingTooltipsData {
     static void register(Map<String, String> d) {
         d.put("replay intro", "Shows the first-launch tour again: how to open the mod, picking a theme, Auto Update and the menus.");
         // Every module's last row (ModuleKeybinds, killer560 2026-11-01).
-        d.put("toggle keybind", "A key that turns this feature on and off in game, as its switch does. None by default. Click, then press a key or mouse button; Escape clears it.");
+        d.put("toggle keybind", "A key that turns this feature on and off in game, as its switch does. None by default. Click, then press a key or mouse button; Escape cancels, Backspace clears it.");
         d.put("secret clicked", "Draws a short box on each secret you collect; the box turns red when the chest was locked.");
         d.put("locked chest sound", "Plays an anvil sound when the chest you clicked was locked.");
         d.put("mute chest sounds", "In dungeons, silences chest open and close sounds.");
@@ -135,14 +135,14 @@ final class SettingTooltipsData {
     private static void slotTextAndCompactor(Map<String, String> d) {
         d.put("slot text", "Draws small text in the corner of items in menus and your inventory: pet levels, enchanted book levels, minion tiers, skill levels and more. Each kind has its own switch.");
         d.put("slot text/show", "Always shows the text, only while the key is held, or hides it while the key is held. Left click goes forward, right click back.");
-        d.put("slot text/key", "The key (or mouse button) for the Show setting. Click, then press the key. Escape clears it.");
+        d.put("slot text/key", "The key (or mouse button) for the Show setting. Click, then press the key. Backspace clears it.");
         d.put("slot text/skyblock only", "Only draw slot text on Hypixel Skyblock.");
         for (com.killer560.hub.slottext.SlotTextType t : com.killer560.hub.slottext.SlotTextType.values()) {
             d.put("slot text/" + t.label.toLowerCase(java.util.Locale.ROOT), t.description);
         }
         d.put("compactor preview", "Hover a Personal Compactor or Personal Deletor and its tooltip shows a grid of the items you set up in it, without opening it.");
         d.put("compactor preview/show", "On Hover adds the grid to the tooltip whenever you hover the item. While Holding Key adds it only while the key is held. Left click goes forward, right click back.");
-        d.put("compactor preview/key", "The key (or mouse button) that shows the grid in While Holding Key mode. Click, then press the key. Escape clears it.");
+        d.put("compactor preview/key", "The key (or mouse button) that shows the grid in While Holding Key mode. Click, then press the key. Backspace clears it.");
         d.put("compactor preview/skyblock only", "Only show the grid on Hypixel Skyblock.");
     }
 
@@ -237,13 +237,13 @@ final class SettingTooltipsData {
         d.put("auto trap/clear just cleared", "Deletes this trap room's saved Just Cleared route.");
         d.put("auto clear/key base range", "Pickup range for dungeon keys, in blocks. The range used (shown after the arrow) adds 5 to this.");
         d.put("auto clear/autopilot", "Cheat build: Dungeon Autopilot runs Auto Secret, Auto Clear and Auto Puzzles under one planner; any movement key takes over.");
-        d.put("auto clear/autopilot key", "Starts or stops Dungeon Autopilot (Esc clears it). Works only in a dungeon, outside the boss.");
+        d.put("auto clear/autopilot key", "Starts or stops Dungeon Autopilot (Backspace clears it). Works only in a dungeon, outside the boss.");
         d.put("auto clear/run mode", "Solo plays for the best score per second toward 300 with the blood door last; Party does your routes first and never opens the blood door.");
         d.put("auto clear/blood first", "First clear the Blood Rush Split path and open its doors (wither doors with a key, then the blood door), then the rest of the floor by the Run Mode. Without the key it does the rest meanwhile.");
         d.put("auto clear/do puzzles", "Treat puzzles like rooms: go to one and let Auto Puzzles solve it. Only puzzles whose auto is switched on.");
         d.put("auto clear/status hud", "One small HUD showing what Auto Clear, Auto Secret and Dungeon Autopilot are doing, hidden while nothing runs; move it in the HUD editor.");
         d.put("auto clear/auto secret", "Cheat build: secrets the floor with your Auto Routes - the reachable room with the most unfound secrets first, warping to its route's start node. Any movement key takes over. Needs Auto Routes on.");
-        d.put("auto clear/auto secret key", "Starts or stops Auto Secret (Esc clears it). Works only in a dungeon, outside the boss.");
+        d.put("auto clear/auto secret key", "Starts or stops Auto Secret (Backspace clears it). Works only in a dungeon, outside the boss.");
         d.put("auto clear/secret blood first", "Auto Secret only: Off starts on secrets, Door Camp first opens the way to the blood door so the Watcher starts, Full Blood Rush also has Auto Clear clear the Blood Rush rooms first.");
         d.put("auto clear/room plan", "How Auto Secret fits Auto Clear in: Fastest Total clears each room on the same visit as its secrets, Secrets Then Clears does every secret room first and the uncleared rooms after.");
         d.put("auto clear/skip unneeded secrets", "Fastest Total only, off by default: once the Score Calculator says S+ needs no more secrets, the slowest rooms are only cleared and their secrets left.");
@@ -424,13 +424,13 @@ final class SettingTooltipsData {
         d.put("spotify lyrics/spotify volume", "Spotify's own volume slider when Windows can reach it in the Spotify app's window, else Spotify's slider in the Windows volume mixer. Needs Spotify to have played sound once.");
         d.put("spotify lyrics/rewind/skip step", "How far Rewind and Skip Ahead (the HUD's buttons and the keys) jump: 5, 10, 15 or 30 seconds.");
         d.put("spotify lyrics/volume key step", "How much one press of Volume Up or Volume Down changes Spotify's volume.");
-        d.put("spotify lyrics/play/pause key", "A key that pauses or resumes Spotify in game (not while typing or in a menu). Esc unbinds.");
-        d.put("spotify lyrics/previous key", "A key that goes back a song in Spotify. Esc unbinds.");
-        d.put("spotify lyrics/rewind key", "A key that jumps back by the Rewind/Skip Step. Esc unbinds.");
-        d.put("spotify lyrics/skip ahead key", "A key that jumps forward by the Rewind/Skip Step. Esc unbinds.");
-        d.put("spotify lyrics/next key", "A key that skips to the next song in Spotify. Esc unbinds.");
-        d.put("spotify lyrics/volume up key", "A key that turns Spotify up by the Volume Key Step. Esc unbinds.");
-        d.put("spotify lyrics/volume down key", "A key that turns Spotify down by the Volume Key Step. Esc unbinds.");
+        d.put("spotify lyrics/play/pause key", "A key that pauses or resumes Spotify in game (not while typing or in a menu). Backspace unbinds.");
+        d.put("spotify lyrics/previous key", "A key that goes back a song in Spotify. Backspace unbinds.");
+        d.put("spotify lyrics/rewind key", "A key that jumps back by the Rewind/Skip Step. Backspace unbinds.");
+        d.put("spotify lyrics/skip ahead key", "A key that jumps forward by the Rewind/Skip Step. Backspace unbinds.");
+        d.put("spotify lyrics/next key", "A key that skips to the next song in Spotify. Backspace unbinds.");
+        d.put("spotify lyrics/volume up key", "A key that turns Spotify up by the Volume Key Step. Backspace unbinds.");
+        d.put("spotify lyrics/volume down key", "A key that turns Spotify down by the Volume Key Step. Backspace unbinds.");
         d.put("show others' songs", "Shows the song another mod user who is a supporter shares, as a line above their name, within 16 blocks, and the lyric line they share with the word they are on lit. Your Display Censor applies; slurs are always hidden. Turning this on keeps you in your lobby's relay room. Off by default.");
         d.put("copy screenshots to clipboard", "Copies each screenshot you take to the clipboard so you can paste it with Ctrl+V.");
         d.put("gifs", "Shows the GIFs toggled on below as looping HUD overlays.");
@@ -601,7 +601,7 @@ final class SettingTooltipsData {
         d.put("only send once per run", "When on, sends at most once per dungeon run.");
         d.put("color", "Color used for this element.");
         d.put("+ add timer", "Adds a new countdown timer to the list.");
-        d.put("key", "Click, then press the key this entry uses; Escape clears it.");
+        d.put("key", "Click, then press the key this entry uses; Backspace clears it.");
         d.put("duration", "How long this lasts: timer countdown length, or Mage beam lifetime in ticks.");
         d.put("test start", "Starts this timer now so you can see it on the HUD.");
         d.put("secrets hud", "Shows secrets found in your current room out of its total.");
@@ -639,7 +639,7 @@ final class SettingTooltipsData {
         d.put("pick up wither keys", "ON: a Wither Key dropped during a clear (within 40 blocks) is fetched before Auto Clear goes on, so the wither door can be opened.");
         d.put("hyperion hops", "ON reaches near mobs with Wither Impact hops (each hop that lands in reach also kills) and far ones by etherwarp; needs a Hyperion in the hotbar.");
         d.put("mob timeout", "How long one starred mob is attacked without dying before Auto Clear skips it.");
-        d.put("clear toggle key", "Starts and stops Auto Clear. Click, then press a key; Escape clears it.");
+        d.put("clear toggle key", "Starts and stops Auto Clear. Click, then press a key; Backspace clears it.");
         d.put("auto routes/bat weapon", "What a bat node (/ar add bat) uses straight down, again and again, until a secret bat dies near you after one of your uses.");
         d.put("auto routes/bat attack time", "How long a bat node keeps using the Bat Weapon without a bat kill before the route moves on.");
         d.put("auto routes/crypt weapon", "What a crypt node (/ar add crypt) uses straight down until a crypt or prince of yours dies.");
@@ -724,7 +724,7 @@ final class SettingTooltipsData {
         d.put("wait ms", "How long a Wait node stands still, 1-120000 ms.");
         d.put("open ap3 folder", "Opens the folder holding your AP3 chain config files.");
         d.put("reload ap3 chains", "Re-reads the AP3 chains config from disk (same as /ap3 reload).");
-        d.put("ap3 keybinds", "One key per /ap3 command; click a row and press a key, Esc clears.");
+        d.put("ap3 keybinds", "One key per /ap3 command; click a row and press a key, Backspace clears.");
         d.put("add line node key", "Keybind for /ap3 add line.");
         d.put("add axis line node key", "Keybind for /ap3 add axisline.");
         d.put("add walk (no turn) node key", "Keybind for /ap3 add walk.");
@@ -1091,14 +1091,14 @@ final class SettingTooltipsData {
         d.put("p4 platform highlight", "F7/M7 only: boxes the platform you mine through to reach Necron.");
         d.put("filled box", "Fills the platform highlight with translucent cyan; OFF draws only the outline.");
         d.put("command keybinds", "Keys that run common Skyblock menu commands for you.");
-        d.put("pets", "Key that runs /pets. Escape clears the bind.");
-        d.put("storage", "Key that runs /storage. Escape clears the bind.");
+        d.put("pets", "Key that runs /pets. Backspace clears the bind.");
+        d.put("storage", "Key that runs /storage. Backspace clears the bind.");
         d.put("armor wardrobe", "Key that runs /armor to open the armor wardrobe.");
         d.put("equip wardrobe", "Key that runs /equipment to open the equipment menu.");
         d.put("loadouts", "Key that runs /loadout to open the Loadouts menu.");
-        d.put("stats", "Key that runs /stats. Escape clears the bind.");
-        d.put("dungeon hub", "Key that runs /warp dungeon_hub. Escape clears the bind.");
-        d.put("potion bag", "Key that runs /potionbag. Escape clears the bind.");
+        d.put("stats", "Key that runs /stats. Backspace clears the bind.");
+        d.put("dungeon hub", "Key that runs /warp dungeon_hub. Backspace clears the bind.");
+        d.put("potion bag", "Key that runs /potionbag. Backspace clears the bind.");
         d.put("revert master stars", "Turns the Master Star number on item names back into that many red stars.");
         d.put("inventory search", "Press Ctrl+F in any inventory to search; matching slots are filled red. Type a sum (5k*3, 2s+10) to use it as a calculator.");
         d.put("ignore case", "Makes the inventory search ignore upper and lower case.");
@@ -1168,9 +1168,9 @@ final class SettingTooltipsData {
         d.put("auto update/channel", "Which release Auto Update follows: Full Release (the newest numbered release) or Beta (the rolling dev build, newer and less tested). Left click forward, right click back.");
         d.put("check now", "Checks your Auto Update channel right now and downloads the update if there is one. It installs when you close the game.");
         d.put("this build", "The commit this jar was built from, and its Minecraft version and variant. Auto Update compares the commit with the release's.");
-        d.put("open menu key", "Key that opens this menu in game, when no screen is open and you are not typing. Click, then press a key; Esc unbinds.");
+        d.put("open menu key", "Key that opens this menu in game, when no screen is open and you are not typing. Click, then press a key; Backspace unbinds.");
         d.put("superpairs overview", "A panel beside the Superpairs board, like SkyHanni's: every reward found (green once claimed, gray with only one tile seen), the powerups turned over, the pairs still to find (half-found ones plus up to how many wholly unseen) and the powerups still covered (exact when the board allows, otherwise an upper bound). Needs the solver or Auto E-Table on. Move it in Edit HUD Positions.");
-        d.put("emergency cancel key", "Stops everything automatic at once: every macro, Auto Routes, AP3, Mimic Killer, the Interactive Map's warps, and holds every aura, triggerbot, Auto Terminals, the auto puzzles and Auto I4 until you press it again, change worlds or start a macro yourself (your Slot Binds, Pet Wheel and Loadout Keybinds still work). Click macros (Auto E-Table, Bazaar Flip, Auto Croesus, Auto Sell, Auto Anvil, Inventory Sorter, Storage Scan All) otherwise stop only on Escape; movement macros (Auto Fairy Souls, Auto Secret, Auto Clear, Blood Rush) also on a movement key or opening chat. Not counted while you type in chat or a menu. A key or a mouse button; click, then press it; Esc unbinds.");
+        d.put("emergency cancel key", "Stops everything automatic at once: every macro, Auto Routes, AP3, Mimic Killer, the Interactive Map's warps, and holds every aura, triggerbot, Auto Terminals, the auto puzzles and Auto I4 until you press it again, change worlds or start a macro yourself (your Slot Binds, Pet Wheel and Loadout Keybinds still work). Click macros (Auto E-Table, Bazaar Flip, Auto Croesus, Auto Sell, Auto Anvil, Inventory Sorter, Storage Scan All) otherwise stop only on Escape; movement macros (Auto Fairy Souls, Auto Secret, Auto Clear, Blood Rush) also on a movement key or opening chat. Not counted while you type in chat or a menu. A key or a mouse button; click, then press it; Backspace unbinds.");
         d.put("edit hud keybind", "Key that opens the HUD editor, over any screen (a chest, Croesus, this menu) so its overlays can be placed where they sit. It does nothing while you are typing: chat, a rename, a sign or book, any search box.");
         d.put("correction alarm", "Plays a siren when the server corrects your position during an automation. Nothing is stopped; the mod carries on from the corrected position.");
         d.put("alarm volume", "How loud the Correction Alarm plays, 0-100%.");
@@ -1732,7 +1732,7 @@ final class SettingTooltipsData {
         d.put("terminal solver/threshold", "How long after a terminal opens clicks are ignored, 100-700 ms.");
         d.put("terminal solver/subtract ping", "Takes your ping off the threshold so it stays right when your connection changes.");
         d.put("terminal solver/terminal drop key", "Stops your drop key from throwing your weapon while a terminal is open. Bind it below.");
-        d.put("terminal solver/drop key", "The key that drops items while a terminal is open; press Escape to leave it unbound.");
+        d.put("terminal solver/drop key", "The key that drops items while a terminal is open; press Backspace to leave it unbound.");
         d.put("terminal solver/send melody progress", "Posts \"Melody 1/3 - 33%\" style progress to party chat as you finish each Melody row (F7/M7 boss only).");
         d.put("terminal solver/melody keys", "Press 1-3 (1-4 on an old 4-row board) to click Melody's row buttons instead of using the mouse.");
         d.put("terminal solver/terminal scale", "GUI scale used while a terminal is open. Auto keeps your normal scale.");
@@ -1966,7 +1966,7 @@ final class SettingTooltipsData {
         d.put("inventory hud/background", "What is drawn behind the panel: None, Panel, or Slots.");
         d.put("inventory hud/background opacity", "How solid the panel background, its outline and the slot backdrops are, 0-100%. At 0% the whole panel is hidden, items included.");
         d.put("inventory hud/item opacity", "How solid the items are, 0-100%. Lower fades each item toward its slot color; 100% leaves them untouched.");
-        d.put("inventory hud/key", "Key used by Show. Click, then press a key; Esc clears it.");
+        d.put("inventory hud/key", "Key used by Show. Click, then press a key; Backspace clears it.");
         d.put("inventory hud/show", "When the panel shows: Always, while you hold the key, or toggled with the key.");
         d.put("inventory hud/vertical", "Lays the panel out as 3 columns by 9 rows instead of 9 by 3.");
         d.put("item browser/item width (columns)", "How many item columns wide the panel is, 3-20.");
@@ -2199,7 +2199,7 @@ final class SettingTooltipsData {
         d.put("chat keybinds/chat keybinds", "Turns on everything below: your key binds, the Catacombs, Master Mode and Kuudra shortcuts, and your own shortcuts.");
         d.put("chat keybinds/key binds", "Keys or mouse buttons that send a command or chat message you set.");
         d.put("chat keybinds/+ add bind", "Adds a new bind row: pick a key, then type the line it sends.");
-        d.put("chat keybinds/key", "Click, then press a key or mouse button to bind it. Escape clears it.");
+        d.put("chat keybinds/key", "Click, then press a key or mouse button to bind it. Backspace clears it.");
         d.put("chat keybinds/delete", "Removes this row.");
         d.put("chat keybinds/command or message", "The line to send; start it with / to run it as a command.");
         d.put("door keys/pickup range", "How the range you pick a key up from is drawn: Circle, a flat circle at the key's height; Sphere, a see-through ball around it - step inside and the key is yours.");
@@ -2443,7 +2443,7 @@ final class SettingTooltipsData {
         d.put("auto simon says/auto simon says", "Cheat build: Auto Simon Says as a whole - off, Trigger Bot, Auto Start, Auto Solve and Auto Restart all stay idle, whatever their own switches say.");
         d.put("freeze state/freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freeze State as a whole - off, its keys do nothing, and a freeze in progress resumes.");
         d.put("auto mask/mode", "Keybind: swaps only when you press the Swap Key. Full Auto: swaps on its own once the mask you wear (or Phoenix) procs.");
-        d.put("auto mask/swap key", "Keybind mode: press to put on a mask when you wear none, or swap to your other mask when you do (Phoenix where Swap Order puts it first). Skips anything on cooldown. Click, then press a key or mouse button; Escape clears it.");
+        d.put("auto mask/swap key", "Keybind mode: press to put on a mask when you wear none, or swap to your other mask when you do (Phoenix where Swap Order puts it first). Skips anything on cooldown. Click, then press a key or mouse button; Escape cancels, Backspace clears it.");
         d.put("auto mask/swap order", "What a swap goes to next. Mask First: your other mask, then Phoenix. Phoenix First: summon Phoenix through the pet menu or rod, then the masks.");
         d.put("auto mask/swap to spirit", "Auto Mask may swap to Spirit Mask. Off: it is skipped in both modes, wherever it sits in Swap Order. Does not change the HUD timer switch on Mask Invincibility.");
         d.put("auto mask/swap to bonzo", "Auto Mask may swap to Bonzo's Mask. Off: it is skipped in both modes, wherever it sits in Swap Order. Does not change the HUD timer switch on Mask Invincibility.");
@@ -2479,11 +2479,11 @@ final class SettingTooltipsData {
         d.put("storage overlay/columns", "How many storage panels sit side by side.");
         d.put("thorn triggerbot", "Cheat build: in the F4/M4 Thorn fight, holds right click while you hold the Tribal Spear, so its throw keeps Thorn stunned.");
         d.put("thorn (f4)/only when aimed at thorn", "Holds only while your crosshair is on Thorn with no block in the way. Bats and other mobs in between do not stop it.");
-        d.put("triggerbot toggle keybind", "A key that turns Thorn Triggerbot on and off in game, as its switch does. None by default. Click, then press a key or mouse button; Escape clears it.");
+        d.put("triggerbot toggle keybind", "A key that turns Thorn Triggerbot on and off in game, as its switch does. None by default. Click, then press a key or mouse button; Escape cancels, Backspace or Delete clears it.");
         d.put("auto sell/any npc sell menu", "Sells in any Hypixel NPC shop you can sell into (told by the shop's sell slot), not only menus whose title matches the sell pattern like Trades.");
         d.put("auto sell/add defaults", "Adds the dungeon junk list (Oak Sign, Lever, the dungeon armor sets, Earthen Blade, Silent Death, Training Weights, Healing VIII Splash Potion and more) to the sell list. Items already on it stay once; the never-sell list still wins.");
         d.put("mask keybinds", "While you have the /stats menu open, a key equips Spirit Mask or Bonzo's Mask: one click in that menu per press, so each press swaps to the other mask. Only a mask on its proc cooldown is refused, with its time left in chat.");
-        d.put("mask keybinds/equip mask key", "The key that equips a mask while the /stats menu is open. Escape clears it.");
+        d.put("mask keybinds/equip mask key", "The key that equips a mask while the /stats menu is open. Escape cancels, Backspace or Delete clears it.");
         d.put("mask keybinds/order", "Which mask it tries first: Spirit First or Bonzo First. If that one is on cooldown it equips the other. Left or right click switches.");
         d.put("mask keybinds/dungeons only", "The key only works in dungeons.");
         d.put("mask keybinds/boss only", "The key only works in a boss fight.");
@@ -2617,8 +2617,8 @@ final class SettingTooltipsData {
         d.put("pet wheel/hide name", "Hides each pet's name under it on the wheel.");
         d.put("pet wheel/hide pets menu", "Keeps the /pets menu invisible while the wheel summons a pet; it still opens and closes behind the scenes.");
         d.put("pet wheel/page", "The wheel is made of pages, each its own set of pets. This is the page the wheel opens on and Edit Pets edits; click to go forward, right-click back. On the wheel itself, scroll or press Left/Right to change page.");
-        d.put("pet wheel/previous page", "A key or mouse button that changes the wheel to the page before this one, on top of Left, Scroll up or Right to next; Escape clears it.");
-        d.put("pet wheel/next page", "A key or mouse button that changes the wheel to the next page, on top of Right, Scroll down or Left to previous; Escape clears it.");
+        d.put("pet wheel/previous page", "A key or mouse button that changes the wheel to the page before this one, on top of Left, Scroll up or Right to next; Backspace clears it.");
+        d.put("pet wheel/next page", "A key or mouse button that changes the wheel to the next page, on top of Right, Scroll down or Left to previous; Backspace clears it.");
         d.put("pet wheel/page name", "A name for this page, shown on the wheel when you have more than one page.");
         d.put("pet wheel/add page", "Adds an empty page after the last one and switches to it. Open Edit Pets to fill it.");
         d.put("pet wheel/delete page", "Deletes the page shown above (never the last one).");
@@ -2628,7 +2628,7 @@ final class SettingTooltipsData {
         d.put("auction house/open auction house", "Opens the Auction House browser now.");
         d.put("auction house/ah override", "Makes /ah open this browser instead of Hypixel's menu; /hypixelah still opens Hypixel's.");
         d.put("auction house/listing helper", "In Hypixel's Create BIN Auction menu, shows the lowest similar BIN and an estimated value.");
-        d.put("auction house/hypixel menu key", "Hold this key to see Hypixel's own Auction House menu instead of the reskin (Escape clears it).");
+        d.put("auction house/hypixel menu key", "Hold this key to see Hypixel's own Auction House menu instead of the reskin (Backspace clears it).");
         d.put("auction house/recent searches & items", "Keeps your recent searches and viewed auctions on the left of the Auction House.");
         d.put("auction house/clear recents", "Forgets the recent searches and viewed auctions.");
         d.put("bazaar/bazaar browser", "Turns the Bazaar browser on or off (open it with its keybind or Open Bazaar). Needs an active Booster Cookie, as Hypixel's remote Bazaar does.");
@@ -2768,11 +2768,11 @@ final class SettingTooltipsData {
     private static void invSortAndAutoSell(Map<String, String> d) {
         d.put("auto inventory sorter", "Re-arranges your inventory into a saved layout, by key or /invsort apply <name>.");
         d.put("inventory sorter/open layouts", "Opens the layouts menu (/invsort): left click a layout to swap to it, right click to edit it, drag to reorder, and set its key in the cell on its right.");
-        d.put("inventory sorter/open menu key", "Press to capture a key (or mouse button) that opens the layouts menu; Escape clears it.");
+        d.put("inventory sorter/open menu key", "Press to capture a key (or mouse button) that opens the layouts menu; Backspace clears it.");
         d.put("inventory sorter/instant (0-tick)", "Cheat build. Sends every click of a sort in one tick without opening your inventory. UNTESTED on Hypixel: clicks with no inventory open are what got a limbo for \"Bad client inventory move\". Off by default.");
         d.put("inventory sorter/ticks between moves", "Client ticks between each click the sorter sends. It always uses the fewest clicks a sort can take.");
         d.put("inventory sorter/random extra ticks", "Adds 0 up to this many extra ticks, at random, before each click.");
-        d.put("inventory sorter/layout key", "Press to capture a key (or mouse button) that applies this layout; Escape clears it.");
+        d.put("inventory sorter/layout key", "Press to capture a key (or mouse button) that applies this layout; Backspace clears it.");
         d.put("custom items", "Recolors and reskins items on your screen only; nothing is sent to the server.");
         d.put("custom items/open custom items", "Opens the Custom Items menu (/customitems): pick an item, then set its color, skin or look.");
         d.put("custom items/reset all", "Removes every saved look; press twice.");
@@ -2938,8 +2938,8 @@ final class SettingTooltipsData {
         d.put("skip guardian pets", "Superpairs skips Guardian pets of every rarity (cheat build, Autonomous mode).");
         d.put("interactive map/class colors", "Outlines each player's map marker in their dungeon class color.");
         d.put("go + secret key", "Cheat build: while the map is open, paths you to the room under your cursor and runs its secret route.");
-        d.put("next room key", "Sim only: goes to the next room, the same as /next. Click, press a key; Escape clears it.");
-        d.put("previous room key", "Sim only: goes back to the previous room, the same as /back. Click, press a key; Escape clears it.");
+        d.put("next room key", "Sim only: goes to the next room, the same as /next. Click, press a key; Backspace clears it.");
+        d.put("previous room key", "Sim only: goes back to the previous room, the same as /back. Click, press a key; Backspace clears it.");
         d.put("secret waypoints/wither essence color", "Color of the wither essence waypoints.");
         d.put("secret waypoints/bat color", "Color of the bat waypoints.");
         d.put("secret waypoints/redstone key color", "Color of the redstone key waypoints.");
@@ -2967,16 +2967,16 @@ final class SettingTooltipsData {
         d.put("bazaar flipper/npc sales today", "Coins you have sold to NPCs today, counted from every \"You sold\" line on this account (all instances). Hypixel stops paying at 500,000,000 a day and resets at 00:00 UTC.");
         d.put("auto sell/min wait between sells", "The shortest random wait, in ticks, between two sell clicks (1 to 10).");
         d.put("auto sell/max wait between sells", "The longest random wait, in ticks, between two sell clicks (1 to 10). Never below the minimum.");
-        d.put("auto sell/toggle item key", "Press it over an item in any container to add that item to the sell list, or take it off. Escape clears it.");
+        d.put("auto sell/toggle item key", "Press it over an item in any container to add that item to the sell list, or take it off. Backspace clears it.");
         d.put("auto sell/open sell list", "Opens the sell list and the never-sell list. The never-sell list always wins.");
         d.put("legit gfs", "Turns the Legit GFS keybinds and /k gfs on or off.");
-        d.put("legit gfs/ender pearl", "Click, then press the key that refills this item with /k gfs. Escape clears it.");
-        d.put("legit gfs/superboom tnt", "Click, then press the key that refills this item with /k gfs. Escape clears it.");
-        d.put("legit gfs/spirit leap", "Click, then press the key that refills this item with /k gfs. Escape clears it.");
-        d.put("legit gfs/inflatable jerry", "Click, then press the key that refills this item with /k gfs. Escape clears it.");
+        d.put("legit gfs/ender pearl", "Click, then press the key that refills this item with /k gfs. Backspace clears it.");
+        d.put("legit gfs/superboom tnt", "Click, then press the key that refills this item with /k gfs. Backspace clears it.");
+        d.put("legit gfs/spirit leap", "Click, then press the key that refills this item with /k gfs. Backspace clears it.");
+        d.put("legit gfs/inflatable jerry", "Click, then press the key that refills this item with /k gfs. Backspace clears it.");
         d.put("friends list/open friends list (/flcustom)", "Opens this mod's Friends List now. /flcustom does the same from chat.");
         d.put("best friends/open best friends (/bestfriends)", "Opens the Best Friends list now. /bestfriends does the same from chat.");
-        d.put("zoom key", "The key you hold to zoom. Click, then press the key. Escape clears it.");
+        d.put("zoom key", "The key you hold to zoom. Click, then press the key. Backspace clears it.");
         d.put("zoom level", "How far the view zooms in while the zoom key is held. Drag the slider.");
         d.put("scroll while zoomed", "While zoomed, the mouse wheel changes the zoom level.");
         d.put("scroll step", "How much each mouse wheel step changes the zoom.");

@@ -107,7 +107,7 @@ public final class VoiceToTextFeature {
         VoiceToTextConfig cfg = VoiceToTextConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
         boolean pushToTalk = cfg.getMode() == VoiceToTextConfig.Mode.PUSH_TO_TALK;
-        if (!cfg.isEnabled() || client.getWindow() == null || (pushToTalk && cfg.getPushToTalkKeyCode() < 0)) {
+        if (!cfg.isEnabled() || client.getWindow() == null || (pushToTalk && cfg.getPushToTalkKeyCode() == com.killer560.hub.util.KeyUtil.NONE)) {
             // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to just
             // return here with no regard for an in-progress recording - disabling the feature, or
             // rebinding the push-to-talk key away, WHILE the key was physically still held down left the

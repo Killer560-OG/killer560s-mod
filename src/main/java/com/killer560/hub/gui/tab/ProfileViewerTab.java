@@ -99,14 +99,18 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component keyText(ProfileViewerConfig cfg) {
-        String name = cfg.getOpenKeyCode() < 0 ? "Not Set"
-                : com.killer560.hub.util.KeyUtil.keyName(cfg.getOpenKeyCode());
+        String name = com.killer560.hub.util.KeyUtil.bindDisplayName(cfg.getOpenKeyCode());
         return Component.literal("Open Key: §b" + name);
     }
 
     @Override
     public boolean isListeningForKey() {
         return capturingKey;
+    }
+
+    @Override
+    public void cancelKeyCapture() {
+        capturingKey = false;
     }
 
     @Override

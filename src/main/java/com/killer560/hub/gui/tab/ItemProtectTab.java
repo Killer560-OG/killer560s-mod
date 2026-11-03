@@ -38,6 +38,11 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturing = Capturing.NONE;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         applyCapture(keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
     }

@@ -22,7 +22,7 @@ import java.util.function.Supplier;
  * bare labels.
  *
  * <p>The toggle KEY row cannot use the tab's own key capture (the tab is not this class), so it captures by polling:
- * after its button is pressed the next key that goes down (Escape clears) is taken, from {@link #pollCapture}.
+ * after its button is pressed the next key or mouse button is taken, routed by ModScreen through AutoClearTab.
  */
 public final class AutoClearSettings {
 
@@ -122,37 +122,33 @@ public final class AutoClearSettings {
         y[0] += 24;
     }
 
-    /**
-     * END_CLIENT_TICK: while the key row waits, the first key that goes DOWN (not one already held when it started -
-     * the mouse button that pressed the row is not a key) becomes the toggle key; Escape clears it.
-     */
+    /** Whether the Clear Toggle Key row waits for a bind. AutoClearTab (a KeyCaptureTab) answers for it, so ModScreen
+     *  routes the next key or mouse button here like every other key row (2026-11-02; it used to poll keys only, so a
+     *  mouse button could never be bound and Escape also closed the menu). */
+    public static boolean isCapturing() {
+        return capturing;
+    }
+
+    /** Binds {@code code} (a key, a KeyUtil mouse code, or KeyUtil.NONE to clear) and stops waiting. */
+    public static void finishCapture(int code) {
+        if (!capturing) {
+            return;
+        }
+        AutoClearConfig cfg = AutoClearConfig.getInstance();
+        cfg.setKeybind(code);
+        cfg.save();
+        cancelCapture();
+    }
+
+    /** Stops waiting and keeps the old bind (Escape). */
+    public static void cancelCapture() {
+        capturing = false;
+        captureRebuild = null;
+        downAtCapture = null;
+    }
+
+    /** END_CLIENT_TICK: kept registered, nothing to poll any more (the capture is routed by ModScreen). */
     static void pollCapture(Minecraft client) {
-        if (!capturing || client.getWindow() == null) {
-            return;
-        }
-        if (downAtCapture == null) {
-            downAtCapture = new boolean[com.killer560.hub.util.Keys.LAST + 1];
-            for (int k = com.killer560.hub.util.Keys.SPACE; k <= com.killer560.hub.util.Keys.LAST; k++) {
-                downAtCapture[k] = KeyUtil.isKeyDown(client.getWindow(), k);
-            }
-            return;
-        }
-        for (int k = com.killer560.hub.util.Keys.SPACE; k <= com.killer560.hub.util.Keys.LAST; k++) {
-            boolean down = KeyUtil.isKeyDown(client.getWindow(), k);
-            if (down && !downAtCapture[k]) {
-                AutoClearConfig cfg = AutoClearConfig.getInstance();
-                cfg.setKeybind(k == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : k);
-                cfg.save();
-                capturing = false;
-                Runnable r = captureRebuild;
-                captureRebuild = null;
-                if (r != null) {
-                    r.run();
-                }
-                return;
-            }
-            downAtCapture[k] = down;
-        }
     }
 
     private static Component modeText(AutoClearConfig cfg) {
