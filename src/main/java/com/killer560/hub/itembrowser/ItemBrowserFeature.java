@@ -469,7 +469,11 @@ public final class ItemBrowserFeature {
 
                 SkyblockItemEntry entry = filtered.get(itemIndex);
                 ItemStack stack = SkyblockItemStackFactory.build(entry);
-                com.killer560.hub.gui.ItemCell.draw(graphics, null, stack, cellX + 1, cellY + 1, CELL_SIZE - 2); // with its rarity box
+                // Its Item Rarity box from the catalog's tier: the built stack is shared by every item with the same
+                // look and carries no lore, so the box cannot come from the stack.
+                com.killer560.hub.itemrarity.ItemRarityFeature.drawBox(graphics,
+                        com.killer560.hub.itemrarity.ItemRarity.byName(entry.tier()), cellX + 1, cellY + 1, CELL_SIZE - 2);
+                com.killer560.hub.gui.ItemCell.draw(graphics, null, stack, cellX + 1, cellY + 1, CELL_SIZE - 2, false);
                 if (minionTiers(entry).size() > 1) {
                     // A stack of every tier: a small orange corner mark, like a bundle.
                     graphics.fill(cellX + CELL_SIZE - 5, cellY + 1, cellX + CELL_SIZE - 1, cellY + 5, menu == null ? 0xFFCC6600 : menu.accent());

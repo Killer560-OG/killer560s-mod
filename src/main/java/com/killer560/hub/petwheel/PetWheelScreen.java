@@ -317,9 +317,11 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
             return;
         }
 
-        // The pet's Item Rarity box inside its card, when that feature is on (2026-11-02).
+        // The pet's Item Rarity box inside its card, when that feature is on (2026-11-02). The icon is a bare head with
+        // no lore, so the tier comes from the pet's own petInfo.
         try {
-            com.killer560.hub.itemrarity.ItemRarityFeature.drawBox(graphics, iconFor(pet), x0 + 1, y0 + 1, tile - 2);
+            com.killer560.hub.itemrarity.ItemRarityFeature.drawBox(graphics,
+                    com.killer560.hub.itemrarity.ItemRarity.byName(pet.tier()), x0 + 1, y0 + 1, tile - 2);
         } catch (Throwable ignored) {
             // visual only
         }

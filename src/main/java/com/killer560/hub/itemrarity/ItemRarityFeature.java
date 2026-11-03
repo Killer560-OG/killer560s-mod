@@ -143,7 +143,16 @@ public final class ItemRarityFeature {
      * their own cells.
      */
     public static void drawBox(GuiGraphicsExtractor graphics, ItemStack stack, int x, int y, int size) {
-        int color = boxColor(stack);
+        drawColorBox(graphics, boxColor(stack), x, y, size);
+    }
+
+    /** As {@link #drawBox(GuiGraphicsExtractor, ItemStack, int, int, int)} for a rarity known without an item (a Pet
+     *  Wheel card: its icon is a bare head, the tier comes from the pet's own data, which only Skyblock has). */
+    public static void drawBox(GuiGraphicsExtractor graphics, ItemRarity rarity, int x, int y, int size) {
+        drawColorBox(graphics, boxColor(rarity), x, y, size);
+    }
+
+    private static void drawColorBox(GuiGraphicsExtractor graphics, int color, int x, int y, int size) {
         if (color == 0 || size <= 0) {
             return;
         }
@@ -185,6 +194,16 @@ public final class ItemRarityFeature {
         }
         int alpha = Math.round(cfg.getOpacity() * 2.55f);
         return alpha == 0 ? 0 : (alpha << 24) | entry.rarity.rgb;
+    }
+
+    /** The ARGB a rarity box for {@code rarity} is drawn in right now, or 0 (feature off, no rarity, 0% opacity). */
+    public static int boxColor(ItemRarity rarity) {
+        ItemRarityConfig cfg = ItemRarityConfig.getInstance();
+        if (!cfg.isEnabled() || rarity == null) {
+            return 0;
+        }
+        int alpha = Math.round(cfg.getOpacity() * 2.55f);
+        return alpha == 0 ? 0 : (alpha << 24) | rarity.rgb;
     }
 
     private static boolean isOnSkyblockServer() {
