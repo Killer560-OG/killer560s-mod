@@ -478,6 +478,11 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
 - `CommitEditBox.withSet` takes its Set button (SET_W 34 + SET_GAP 4) out of the box's own width, so a row laid out before
   textbox-1101 can leave a box too narrow: the Command Shortcuts custom row's command box fell to 52 px in the test window
   (testkit 621 wants 60). Reserve the Set width when sizing the row (ship-1102h, eb3719df: the name box pays for it).
+- A tab with sub-pages (Fast/Auto Leap since leapmenu-1102) keeps its master switch as the FIRST row of every page: the card
+  and drawer switch come from `masterToggle`'s default (the first control), and a page starting with "< Back" left the drawer
+  with no switch. Its search scans every page off screen, and a hit on a sub-page needs `BaseTab.revealSetting(label)` (called by
+  `ModScreen.activate`) to open that page before the scroll-to-row looks; match the row's own label exactly first, or
+  "Storm Death" opens the front page's "Storm Death Leap" instead (testkit 1102-ui-leapmenu-search).
 - Anything the Dungeon Map draws off `DungeonMapScanner.isCalibrated()` / `MapPainter.unexplored` changes the moment the run
   starts, because Hypixel hands the map item over then: Funny Map drew every room in its own color in the green room and
   then darkened every unopened room `darker().darker()` when the doors dropped (owner 2026-11-02, mapcolor-1102). Funny Map

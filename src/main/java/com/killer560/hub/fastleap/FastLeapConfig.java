@@ -107,11 +107,22 @@ public final class FastLeapConfig {
         }
     }
 
+    /** What one leap does (killer560, 2026-11-02/03: one row per leap, Off / Fast / Auto). OFF: the leap is unused (its
+     *  trigger does nothing and a left click there does nothing). FAST: his left click with a leap item in that spot leaps
+     *  to the target. AUTO: the spot's trigger leaps by itself (his left click there does not). Until 2026-11-02 Fast and
+     *  Auto were two independent switches; "both on" reads as Auto (see {@link #load}). */
+    public enum LeapMode {
+        OFF("Off"), FAST("Fast"), AUTO("Auto");
+
+        public final String label;
+
+        LeapMode(String label) {
+            this.label = label;
+        }
+    }
+
     private static final class GroupSettings {
-        /** Fast: his left click with a leap item leaps to this section's target. */
-        boolean fast = false;
-        /** Auto: the section's trigger leaps by itself. */
-        boolean auto = false;
+        LeapMode mode = LeapMode.OFF;
     }
 
     /** Return To: the hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap first.
@@ -149,6 +160,10 @@ public final class FastLeapConfig {
     private int returnToSlot = RETURN_PREVIOUS;
     private boolean disableAfterBloodOpen = false;
     private boolean onlyWhenGateBlown = false;
+    /** Targets (killer560, 2026-11-02: "you should have a toggle to use universal or to use set class"): false uses the
+     *  Universal Targets page for everyone; true uses the Set Class Targets page's pick for the class you play, falling
+     *  back to the Universal target for a class with none set. */
+    private boolean useClassTargets = false;
     private final Map<LeapGroup, GroupSettings> groups = new EnumMap<>(LeapGroup.class);
     private final Map<LeapTarget, TargetSettings> targets = new EnumMap<>(LeapTarget.class);
 
@@ -194,18 +209,21 @@ public final class FastLeapConfig {
                         if (g.has(group.name()) && g.get(group.name()).isJsonObject()) {
                             JsonObject o = g.getAsJsonObject(group.name());
                             GroupSettings s = cfg.groups.get(group);
+                            boolean fast;
+                            boolean auto;
                             if (o.has("fast")) {
-                                s.fast = bool(o, "fast", false);
-                                s.auto = bool(o, "auto", false);
+                                // 2026-10-13 on: the fast and auto keys (two switches until 11-02; one mode since,
+                                // saved the same way)
+                                fast = bool(o, "fast", false);
+                                auto = bool(o, "auto", false);
                             } else {
-                                // Before 2026-10-13 (v2): one switch plus a Mode, Fast or Auto. Decided from the OLD
-                                // keys: Mode Fast -> Fast on / Auto off, Mode Auto -> Auto on / Fast off, and a leap
-                                // whose switch was off stays off (both).
+                                // Before 2026-10-13: one switch plus a Mode, Fast or Auto.
                                 boolean on = bool(o, "enabled", false);
-                                boolean auto = bool(o, "auto", false);
-                                s.fast = on && !auto;
-                                s.auto = on && auto;
+                                fast = on && !bool(o, "auto", false);
+                                auto = on && bool(o, "auto", false);
                             }
+                            // Auto (with or without Fast) -> Auto, Fast only -> Fast, both off -> Off
+                            s.mode = auto ? LeapMode.AUTO : fast ? LeapMode.FAST : LeapMode.OFF;
                         }
                     }
                 }
@@ -245,6 +263,10 @@ public final class FastLeapConfig {
                         }
                     }
                 }
+                // Before 2026-11-02 a per-class target applied whenever one was set; a file without the key keeps that
+                // (Set Class when any is set - with none set the two read the same).
+                cfg.useClassTargets = obj.has("useClassTargets") ? bool(obj, "useClassTargets", false)
+                        : cfg.classTargetCount() > 0;
             } catch (Exception e) {
                 FastLeapFeature.LOGGER.warn("[FastLeap] Failed to read {} - using defaults", CONFIG_PATH, e);
                 cfg = new FastLeapConfig();
@@ -266,12 +288,14 @@ public final class FastLeapConfig {
             obj.addProperty("returnToSlot", returnToSlot);
             obj.addProperty("disableAfterBloodOpen", disableAfterBloodOpen);
             obj.addProperty("onlyWhenGateBlown", onlyWhenGateBlown);
+            obj.addProperty("useClassTargets", useClassTargets);
             JsonObject g = new JsonObject();
             for (LeapGroup group : LeapGroup.values()) {
                 GroupSettings s = groups.get(group);
                 JsonObject o = new JsonObject();
-                o.addProperty("fast", s.fast);
-                o.addProperty("auto", s.auto);
+                // both keys kept so an older jar reading this file sees the same mode
+                o.addProperty("fast", s.mode == LeapMode.FAST);
+                o.addProperty("auto", s.mode == LeapMode.AUTO);
                 g.add(group.name(), o);
             }
             obj.add("groups", g);
@@ -433,22 +457,43 @@ public final class FastLeapConfig {
 
     // ---- per leap ---------------------------------------------------------------------------------------------
 
-    /** Fast: his left click with a leap item leaps to this section's target. Independent of Auto. */
+    /** The leap's row: Off, Fast or Auto. */
+    public LeapMode getLeapMode(LeapGroup group) {
+        return groups.get(group).mode;
+    }
+
+    public void setLeapMode(LeapGroup group, LeapMode mode) {
+        groups.get(group).mode = mode == null ? LeapMode.OFF : mode;
+    }
+
+    /** Fast: his left click with a leap item leaps to this section's target. */
     public boolean isLeapFast(LeapGroup group) {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).fast;
+        return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).mode == LeapMode.FAST;
     }
 
+    /** true makes the leap Fast; false turns a Fast leap Off (an Auto one stays Auto). */
     public void setLeapFast(LeapGroup group, boolean v) {
-        groups.get(group).fast = v;
+        GroupSettings s = groups.get(group);
+        if (v) {
+            s.mode = LeapMode.FAST;
+        } else if (s.mode == LeapMode.FAST) {
+            s.mode = LeapMode.OFF;
+        }
     }
 
-    /** Auto: the leap fires by itself when its trigger happens. Independent of Fast. */
+    /** Auto: the leap fires by itself when its trigger happens (and his left click does not). */
     public boolean isLeapAuto(LeapGroup group) {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).auto;
+        return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).mode == LeapMode.AUTO;
     }
 
+    /** true makes the leap Auto; false turns an Auto leap Off (a Fast one stays Fast). */
     public void setLeapAuto(LeapGroup group, boolean v) {
-        groups.get(group).auto = v;
+        GroupSettings s = groups.get(group);
+        if (v) {
+            s.mode = LeapMode.AUTO;
+        } else if (s.mode == LeapMode.AUTO) {
+            s.mode = LeapMode.OFF;
+        }
     }
 
     /** The leap's Target button: a class (true) or a name. */
@@ -488,6 +533,16 @@ public final class FastLeapConfig {
     }
 
     // ---- per-class targets ----------------------------------------------------------------------------------------
+
+    /** Targets: true = Set Class (the Set Class page's pick for your class, Universal for a class with none), false =
+     *  Universal for everyone. */
+    public boolean isUseClassTargets() {
+        return useClassTargets;
+    }
+
+    public void setUseClassTargets(boolean v) {
+        useClassTargets = v;
+    }
 
     /** Who this leap goes to while YOU play {@code mine}, or null when that class has no target of its own (the leap's
      *  Target applies). */
