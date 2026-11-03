@@ -45,9 +45,14 @@ final class BloodExclusions {
     /** id -> (game tick << 1) | isEye, as {@link #MEMO}. */
     private static final it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap EYE_MEMO = new it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap();
 
-    /** Whether {@code e} is named "Watchful Eye" - its own name, its custom name or its name-tag stand (BloodCampFeature). */
+    /**
+     * Whether {@code e} is named "Watchful Eye": its custom name, or the name-tag stand one id above it (BloodCampFeature).
+     * Never a player-model mob, and never by a name tag merely standing near it: the Eyes circle the Watcher with their
+     * tags among the blood mobs, and the owner's camp 2026-11-02 run 3 logged "Watchful Eye, never a blood mob: player
+     * #481662 (by name)" - a real blood mob, the first one the Trigger Bot killed - from an Eye's tag inside its box.
+     */
     static boolean isWatchfulEye(Minecraft client, Entity e) {
-        if (client.level == null || e instanceof ArmorStand) {
+        if (client.level == null || e instanceof ArmorStand || e instanceof Player) {
             return false;
         }
         if (client.level != memoLevel || EYE_MEMO.size() > 4096) {
@@ -60,7 +65,9 @@ final class BloodExclusions {
                 return (v & 1L) != 0L;
             }
         }
-        boolean eye = lookUp(client, e, WATCHFUL_EYE_NAMES);
+        boolean eye = (e.hasCustomName() && named(e.getName().getString(), WATCHFUL_EYE_NAMES))
+                || (client.level.getEntity(e.getId() + 1) instanceof ArmorStand tag && tag.hasCustomName()
+                        && named(tag.getName().getString(), WATCHFUL_EYE_NAMES));
         EYE_MEMO.put(e.getId(), (now << 1) | (eye ? 1L : 0L));
         return eye;
     }

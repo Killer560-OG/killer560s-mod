@@ -36,6 +36,9 @@ final class BloodMobState {
     int retryGap;
     /** The real mob that stood on this trip's landing spot when it landed (a blood mob, see BloodCampFeature), or -1. */
     int mobId = -1;
+    /** Game tick this trip's landing tag window opened (BloodCampFeature.tagLanding), Long.MIN_VALUE before. A mob tagged
+     *  before it is some other trip's or the room's, never this trip's. */
+    long tagWindowAt = Long.MIN_VALUE;
     /** The mob took damage or died: the trip is done, the aura moves on and nothing is clicked again. */
     boolean confirmed;
     /** Out of retries (or out of time) without a hit. */
@@ -77,6 +80,7 @@ final class BloodMobState {
         this.retryGap = 0;
         this.confirmed = false;
         this.mobId = -1;
+        this.tagWindowAt = Long.MIN_VALUE;
         this.gaveUp = false;
         java.util.concurrent.ThreadLocalRandom r = java.util.concurrent.ThreadLocalRandom.current();
         this.aimJitterX = (r.nextFloat() * 2f - 1f) * 0.12f;
