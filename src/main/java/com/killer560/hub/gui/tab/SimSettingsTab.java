@@ -34,8 +34,17 @@ public class SimSettingsTab extends BaseTab {
                 SimBreakerState.setSecretCharges((int) Math.round(this.value * SimBreakerState.MAX_SECRET_CHARGES));
             }
         });
+        // Spawn Starred Mobs (killer560, 2026-11-03: "Someone should be able to choose whether the mobs spawn or not for the
+        // sim"): the Map Designer's Mobs choice, the same saved setting - a floor with starred mobs (on their learned
+        // spawn spots where Blood Rush Helper knows them), Fels, wither doors and keys. Off by default, as it was.
+        w.add(onOffButton("Spawn Starred Mobs", () -> com.killer560.hub.roomsim.SimMenuPrefs.load().mobs, on -> {
+            com.killer560.hub.roomsim.SimMenuPrefs prefs = com.killer560.hub.roomsim.SimMenuPrefs.load();
+            prefs.mobs = on;
+            prefs.save();
+            com.killer560.hub.roomsim.SimMobFloor.setEnabled(on);
+        }, () -> { }, null, contentX, contentY + 22, contentWidth, 18));
         com.killer560.hub.gui.ScreenThemes.append(w, com.killer560.hub.roomsim.SimMenuScreen.THEME_ID, contentX,
-                contentWidth, contentY);
+                contentWidth, contentY + 22);
         return w;
     }
 

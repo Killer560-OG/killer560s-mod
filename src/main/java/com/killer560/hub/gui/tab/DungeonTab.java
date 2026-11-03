@@ -32,6 +32,8 @@ public class DungeonTab extends FolderTab {
                 new CreationCooldownTab(),
                 // Insta Clear Warning (to-do Doc 2026-11-01): a blood rush room cleared without its key.
                 new InstaClearWarningTab(),
+                // Blood Rush Helper (killer560, 2026-11-03): where to kill the blood rush room's starred mobs.
+                new BloodRushHelperTab(),
                 new CustomPartyFinderTab(),
                 new AutoKickTab(),
                 // Not cheat-only: setting someone's class fixes the normal leap menu and every class-colored display
