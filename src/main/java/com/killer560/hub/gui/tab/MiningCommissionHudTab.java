@@ -30,6 +30,22 @@ public class MiningCommissionHudTab extends BaseTab {
         y += MiningQolRows.STEP;
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Emissary Waypoints", cfg::isCommissionEmissaries,
                 cfg::setCommissionEmissaries, cfg::save);
+        y += MiningQolRows.STEP;
+        MiningQolRows.toggle(w, contentX, y, contentWidth, "Completed Commissions", cfg::isCommissionMenuHighlight,
+                cfg::setCommissionMenuHighlight, cfg::save);
+        y += MiningQolRows.STEP;
+        MiningQolRows.toggle(w, contentX, y, contentWidth, "Commission Mobs", cfg::isCommissionMobs,
+                cfg::setCommissionMobs, cfg::save);
+        y += MiningQolRows.STEP;
+        MiningQolRows.color(w, contentX, y, contentWidth, "Commission Mob Color", cfg::getCommissionMobColor,
+                cfg::setCommissionMobColor, MiningQolConfig.DEFAULT_COMMISSION_MOB_COLOR, cfg::save);
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            y += MiningQolRows.STEP + 4;
+            MiningQolRows.cheatHeader(w, contentX, y, contentWidth);
+            y += 16;
+            MiningQolRows.toggle(w, contentX, y, contentWidth, "Commission Mobs Through Walls", cfg::isCommissionMobsEsp,
+                    cfg::setCommissionMobsEsp, cfg::save);
+        }
         return w;
     }
 }
