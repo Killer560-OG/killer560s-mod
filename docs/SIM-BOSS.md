@@ -90,3 +90,11 @@ positions over time), 1103-boss-rules (refusals, levers, terminal rules, devices
   (1101-boss-p4p5 read y 106.0 and 62.0).
 - The station table's lever stand is at lever y + 0.688; `y - 0.688` in floating point floors to the block BELOW
   (127.99999...). Round it.
+- A vanilla stone button stays pressed 20 ticks; Hypixel's Simon Says buttons come back up in 2 (start) and 3 (grid)
+  ticks, so a reset press 15 ticks after the start press was invisible to the edge check (1103-boss-rules read INPUT
+  where IDLE was due, 2026-11-03). `BossDevices.popUp` raises them on Hypixel's timing.
+- Read the reference's own line before changing a behavior from a summary of it: a summary of ADM said the timed gate
+  opens without "The gate has been destroyed!", but ADM's auto gate calls the same blow path with no player, which sends
+  it (GoldorPhase.kt blowGate), and the mod's P3 trackers depend on that line (bossparity-1103).
+- Maxor's stun used to come 60 ticks after both crystals wherever he was, so a test could "stun" him with nobody near the
+  beam. Hypixel's needs him in the beam: a P1 test has to lure him (stand on the strip south of it, 73.5 225 76.5).
