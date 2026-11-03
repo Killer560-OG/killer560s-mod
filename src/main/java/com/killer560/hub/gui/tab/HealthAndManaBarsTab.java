@@ -112,7 +112,31 @@ public class HealthAndManaBarsTab extends BaseTab {
     @Override
     public java.util.List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(
             java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
-        return switchRows(built, "Stat Bars", "XP Bar And Level", "Hypixel Stat Text");
+        String[] labels = {"Stat Bars", "XP Bar And Level", "Hypixel Stat Text"};
+        java.util.List<com.killer560.hub.gui.SettingsButtonWidget> rows = switchRows(built, labels);
+        if (rows.size() == labels.length || scanningForSearch) {
+            return rows;
+        }
+        // The hides sit in Advanced, which is closed by default and then not built, so the card read only Stat Bars
+        // (testkit 525 on ship-1102m). Build the page with Advanced open, as the search does, for the missing rows.
+        java.util.List<net.minecraft.client.gui.components.AbstractWidget> full;
+        scanningForSearch = true;
+        try {
+            full = buildWidgets(0, 0, 400, () -> { });
+        } finally {
+            scanningForSearch = false;
+        }
+        java.util.List<com.killer560.hub.gui.SettingsButtonWidget> out = new java.util.ArrayList<>();
+        for (String l : labels) {
+            com.killer560.hub.gui.SettingsButtonWidget b = switchRow(built, l);
+            if (b == null) {
+                b = switchRow(full, l);
+            }
+            if (b != null) {
+                out.add(b);
+            }
+        }
+        return out;
     }
 
     @Override
