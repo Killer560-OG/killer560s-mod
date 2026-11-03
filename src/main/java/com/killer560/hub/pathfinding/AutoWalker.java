@@ -736,12 +736,17 @@ public final class AutoWalker {
         }
 
         // ---- jumps: an obstacle this jump clears, a gap the path crosses, or swimming up
-        if (player.onGround() && wantForward && jumpable && (!bigJumpAhead || (!player.isSprinting() && model.speed() <= 0.26))) {
+        if (player.onGround() && wantForward && jumpable && !bigJumpAhead) {
             wantJump = true;
-            if (bigJumpAhead) {
-                wantSprint = false;
-                controlledJumps++;
-            }
+        } else if (player.onGround() && bigJumpAhead && !player.isSprinting() && model.speed() <= 0.26) {
+            // Slowed to a walk at the step: jump, with W for the step (at Skyblock 600 one W tick is a 0.6 push, more than
+            // the walk speed allowed here, so the keys alone never chose W again and he stood at the step: testkit
+            // 1017-fairy-overshoot "600 + jump II", 501 ticks). The flight is braked by the air-drag speed limit.
+            wantJump = true;
+            wantForward = true;
+            wantBack = false;
+            wantSprint = false;
+            controlledJumps++;
         } else if (player.onGround() && wantForward && wantSprint
                 && WalkTerrain.dropBelow(level, pos.x + hx * 1.1, pos.z + hz * 1.1, pos.y) > WalkTerrain.MAX_DROP
                 && carrot.y - 0.5 >= pos.y - 1.0) {
