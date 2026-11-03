@@ -197,6 +197,11 @@ has no switch over the whole: each feature keeps its own, and the tab lists them
 (`gui/MasterSwitch`) is ON while any is on and OFF only when all are; never add a "X as a whole" row that gates independent
 switches (the 2026-10-13 ones were removed 2026-10-14, files with the old key OFF load with every part OFF). Testkit 515-518.
 Testkit 511-514 check it on cheat, legit and testing jars.
+A feature that can be off has a real ON/OFF switch (`onOffButton`), never an Off/None value in a selector (killer560,
+2026-11-02, Chat History's card had no switch: "this needs an actual toggle"): the switch is the first row, the selector
+after it has no Off value and shows only while ON, and the value is kept while OFF so OFF then ON restores it; a saved file
+from the selector era migrates Off to the switch off. Chat History and the Cape section were fixed (realswitch-1102);
+Menu Theme is a pure settings page (no switch). Testkit 530 steps every selector on every card without a switch.
 A feature folded into another tab (Thorn Triggerbot into Thorn, 2026-11-02) keeps its own toggle key through
 `ModuleKeybinds` EXTRAS under its old card id, so a saved bind carries over; its row sits in the host tab (testkit 527).
 A row whose feature runs on its own flag (not gated by the tab's first switch) is an independent feature and goes in

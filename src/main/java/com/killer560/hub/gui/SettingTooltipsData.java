@@ -1101,7 +1101,8 @@ final class SettingTooltipsData {
         d.put("peek chat", "Opens the chat history with no text box, so you can read and scroll it. Peek Mode says whether it stays open while the key is held.");
         d.put("peek chat key", "Key or mouse button that opens Peek Chat (in Toggle Peek press it again, or Escape, to close; in Hold To Peek let go of it). Only works with no menu open. Esc while binding clears it.");
         d.put("peek mode", "Toggle Peek: press the key to open the chat, press it again to close. Hold To Peek: the chat is open while you hold the key. The mouse wheel scrolls the chat either way.");
-        d.put("chat history", "How many chat messages stay scrollable. Off: vanilla's last 100. Limited: the number set below (200-10000). Unlimited: the whole session, using more memory the longer you play.");
+        d.put("chat history", "Keeps more chat scrollable than vanilla. Off: vanilla's last 100 messages. On: the Length set below.");
+        d.put("chat history/length", "Limited: the number set below (200-10000). Unlimited: the whole session, using more memory the longer you play.");
         d.put("history limit", "How many chat messages Limited keeps, from 200 to 10000 in steps of 200.");
         d.put("open loadouts key", "A key (or mouse button) that runs /loadouts from anywhere with no menu open, like the Open Loadouts button. Needs Loadout Keybinds on. Esc while binding clears it.");
         d.put("loadout keybinds/highlight selected loadout", "A green background on the loadout you have on in the Loadout menu.");
@@ -2874,7 +2875,8 @@ final class SettingTooltipsData {
         d.put("see other mod users", "Shows a tag before the name of every player who shows as a mod user (a bold K: orange for legit, red for cheat). Off by default.");
         d.put("show me as a mod user", "Lets other mod users see that you run the mod. Off by default; nobody sees your variant until you turn this on.");
         d.put("show as", "Which variant you show to others: legit (an orange K) or cheat (a red K). Only the cheat build can show cheat.");
-        d.put("cape", "Wear one of the built-in capes (each carries the mod logo in its colors), or pick Make Your Own to choose a pattern and two colors. Only your own player shows it; other players see their own cape.");
+        d.put("cape", "Wear a cape: the Design set below. Only your own player shows it; other players see their own cape.");
+        d.put("cape/design", "One of the built-in capes (each carries the mod logo in its colors), or Make Your Own to choose a pattern and two colors. Kept while the Cape switch is off.");
         d.put("bazaar advisor", "Legit, read-only: when a Bazaar menu opens, prints what to buy, how much, and the expected profit in chat. It never clicks anything.");
         d.put("bazaar pick", "Ranks by profit per unit times units sold a week: buy at the cheapest sell offer, sell into the best buy order.");
         d.put("npc pick", "Ranks by profit per unit: buy at the cheapest sell offer, sell to the NPC at its listed price.");
