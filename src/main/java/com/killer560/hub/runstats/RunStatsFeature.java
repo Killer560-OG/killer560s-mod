@@ -119,7 +119,7 @@ public final class RunStatsFeature {
             client.player.sendSystemMessage(rowComponent(row, cfg));
         }
         if (cfg.isAnnounceToParty()) {
-            client.player.connection.sendCommand("pc " + partyLine(rows, cfg));
+            com.killer560.hub.util.OutgoingChat.command("pc " + partyLine(rows, cfg));
         }
     }
 

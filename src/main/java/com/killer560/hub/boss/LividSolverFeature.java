@@ -244,7 +244,7 @@ public final class LividSolverFeature {
             return;
         }
         String message = "Livid is " + currentLivid.colorName + " (" + currentLivid.entityName + " Livid)";
-        if (com.killer560.hub.util.ServerCommands.toServer("pc " + message)) {
+        if (com.killer560.hub.util.OutgoingChat.command("pc " + message)) {
             announced = currentLivid;
             announces++;
             lastAnnouncement = message;

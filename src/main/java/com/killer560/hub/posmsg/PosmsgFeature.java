@@ -1,7 +1,11 @@
 package com.killer560.hub.posmsg;
 
+import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.util.OutgoingChat;
+import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.fastleap.Floor7Tracker;
+import com.killer560.hub.leapmessage.LeapMessageFeature;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.SkyblockGate;
@@ -11,7 +15,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -24,7 +31,7 @@ import java.util.Set;
  * this mod parsed back out into a top-left HUD list; both the payload and that HUD are gone. What goes
  * out now is a plain sentence, so teammates on Odin, on NoammAddons or on no mod at all all read it.
  * <p>
- * Sent to Party Chat directly via {@code sendCommand} (NOT through {@code TranslateFeature.sendGenerated})
+ * Sent to Party Chat through {@link OutgoingChat} (NOT through {@code TranslateFeature.sendGenerated})
  * so Translate / Auto Correct / Chat Emotes can't rewrite a callout mid-run.
  * <p>
  * Firing is edge-triggered with hysteresis: entering the radius sends once, and the waypoint won't arm
@@ -37,6 +44,14 @@ import java.util.Set;
  * Only live inside the F7/M7 boss fight ({@link #active()}): every preset is a boss-arena spot, and
  * killer560 wants the feature completely inert everywhere else - no rings, no sends - so a ring can't
  * show up at matching coordinates in some other floor or the hub, and nothing fires while clearing.
+ * <p>
+ * Leaping onto a teammate who stands in a ring (killer560, 2026-11-02: "it tries to send that at the same time as
+ * other chat messages. delay it till the leap messages go off"): the line goes through
+ * {@link OutgoingChat}, so it waits behind Leap Message's "Leaping to" and Cringe lines and is spaced from them by
+ * the gap Hypixel accepts. When the teleport lands BEFORE Hypixel's "You have teleported to X!" line (so Leap
+ * Message has not asked for its lines yet), a ring entered by that jump within {@link #LEAP_MENU_WINDOW_MS} of a
+ * leap menu being open is held until the leap line arrives (then it queues behind the leap lines) or for at most
+ * {@link #LEAP_HOLD_MAX_MS}; it is never dropped. A ring walked into, or jumped into with no leap menu, goes at once.
  */
 public final class PosmsgFeature {
 
@@ -52,11 +67,29 @@ public final class PosmsgFeature {
     private static Object lastLevel = null;
     private static long lastSendMs = 0L;
 
+    /** A move this long in one tick is a teleport (a leap, a warp), not a step. */
+    private static final double JUMP_BLOCKS = 4.0;
+    /** A jump this soon after a leap menu was last open is taken for that leap. */
+    static final long LEAP_MENU_WINDOW_MS = 3_000L;
+    /** A ring held for the leap line goes anyway after this long. */
+    static final long LEAP_HOLD_MAX_MS = 1_000L;
+
+    private static Vec3 lastPos = null;
+    private static long leapMenuSeenMs = Long.MIN_VALUE / 4;
+    private static long leapLineSeenMs = Long.MIN_VALUE / 4;
+    private static final List<PosmsgEntry> held = new ArrayList<>();
+    private static long heldSinceMs = 0L;
+
     private PosmsgFeature() {
     }
 
     public static void register() {
         PosmsgConfig.getInstance();
+        ChatObserver.subscribe(message -> {
+            if (LeapMessageFeature.isLeapLine(ChatObserver.strip(message))) {
+                leapLineSeenMs = nowMs();
+            }
+        });
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PosmsgFeature.tick", PosmsgFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
                 com.killer560.hub.util.FeatureBits.register("Posmsg render", () -> PosmsgConfig.getInstance().isEnabledRaw()), PosmsgRenderer::render));
@@ -73,6 +106,13 @@ public final class PosmsgFeature {
             lastLevel = client.level;
             usedThisRun.clear();
             inside.clear();
+            held.clear();
+            lastPos = null;
+        }
+        long now = nowMs();
+        // A Fast/Auto Leap opens the menu headless (no screen), so a leap of its own in progress counts too.
+        if (isLeapMenu(McCompat.screen(client)) || com.killer560.hub.fastleap.LeapManager.isBusy()) {
+            leapMenuSeenMs = now;
         }
         boolean inDungeonNow = DungeonState.isInDungeon();
         if (inDungeonNow && !wasInDungeon) {
@@ -91,6 +131,14 @@ public final class PosmsgFeature {
         // exact opposite of what its own comment promised.
         boolean live = active();
         Vec3 pos = player.position();
+        boolean jumped = lastPos != null && pos.distanceToSqr(lastPos) > JUMP_BLOCKS * JUMP_BLOCKS;
+        lastPos = pos;
+        // Landed by a leap whose "You have teleported to" line has not come yet: Leap Message's lines are still to be
+        // asked for, so a ring this jump entered waits for them.
+        // (A leap line in the last LEAP_HOLD_MAX_MS is this jump's: it came first and its lines are queued already.)
+        boolean awaitingLeapLine = jumped && now - leapMenuSeenMs <= LEAP_MENU_WINDOW_MS
+                && now - leapLineSeenMs > LEAP_HOLD_MAX_MS;
+        releaseHeld(now);
         for (PosmsgEntry e : PosmsgConfig.getInstance().entries()) {
             if (!e.configured) {
                 continue;
@@ -101,9 +149,45 @@ public final class PosmsgFeature {
             if (distSq > exit * exit) {
                 inside.remove(e.id);
             } else if (distSq <= e.radius * e.radius && inside.add(e.id) && live && e.enabled) {
-                trySend(e);
+                if (awaitingLeapLine) {
+                    if (held.isEmpty()) {
+                        heldSinceMs = now;
+                    }
+                    held.add(e);
+                } else {
+                    trySend(e);
+                }
             }
         }
+    }
+
+    /** Sends the rings held for a leap once its line has come (Leap Message has queued its lines by then: chat is
+     *  handled before the end of the tick), or once they have waited {@link #LEAP_HOLD_MAX_MS}. */
+    private static void releaseHeld(long now) {
+        if (held.isEmpty() || (leapLineSeenMs < heldSinceMs && now - heldSinceMs < LEAP_HOLD_MAX_MS)) {
+            return;
+        }
+        List<PosmsgEntry> go = new ArrayList<>(held);
+        held.clear();
+        if (!active()) {
+            return;
+        }
+        for (PosmsgEntry e : go) {
+            trySend(e);
+        }
+    }
+
+    /** Hypixel's leap menus, by exact title (Spirit Leap; Infinileap's "Teleport to Player"). */
+    private static boolean isLeapMenu(net.minecraft.client.gui.screens.Screen screen) {
+        if (!(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> container)) {
+            return false;
+        }
+        String t = ChatObserver.stripCodes(container.getTitle().getString()).trim().toLowerCase(Locale.ROOT);
+        return t.equals("spirit leap") || t.equals("teleport to player");
+    }
+
+    private static long nowMs() {
+        return System.nanoTime() / 1_000_000L;
     }
 
     /** Walk-in send: honors the global gap and the per-run gate, and stays completely silent when it
@@ -144,7 +228,10 @@ public final class PosmsgFeature {
         if (text.isBlank()) {
             return false;
         }
-        client.player.connection.sendCommand("pc " + text);
+        // In line behind any other line of this mod's (a leap's "Leaping to" first), spaced so Hypixel takes both.
+        if (!OutgoingChat.command("pc " + text)) {
+            return false;
+        }
         usedThisRun.add(entry.id);
         return true;
     }

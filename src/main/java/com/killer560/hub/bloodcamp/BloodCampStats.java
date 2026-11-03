@@ -177,7 +177,7 @@ public final class BloodCampStats {
             BloodCampFeature.LOGGER.info("[BloodCampStats] end of run: he did not camp and Send For Any Class is off ({})", text);
             return;
         }
-        boolean sent = com.killer560.hub.util.ServerCommands.toServer("pc " + text);
+        boolean sent = com.killer560.hub.util.OutgoingChat.command("pc " + text);
         partyMessagesSent += sent ? 1 : 0;
         BloodCampFeature.LOGGER.info("[BloodCampStats] end of run: party message {}: {}", sent ? "sent" : "not sent", text);
     }

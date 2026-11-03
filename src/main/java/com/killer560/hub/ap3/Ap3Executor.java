@@ -5390,7 +5390,7 @@ public final class Ap3Executor {
                 // "have the option to send in chat to my party my stopwatch s3 took :x"
                 LocalPlayer p = Minecraft.getInstance().player;
                 if (p != null) {
-                    p.connection.sendCommand("pc " + (stopwatchName == null ? "Stopwatch" : stopwatchName) + " took " + time);
+                    com.killer560.hub.util.OutgoingChat.command("pc " + (stopwatchName == null ? "Stopwatch" : stopwatchName) + " took " + time);
                 }
             }
             stopwatchName = null;

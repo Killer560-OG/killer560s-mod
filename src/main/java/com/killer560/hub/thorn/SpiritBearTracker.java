@@ -283,7 +283,7 @@ public final class SpiritBearTracker {
         if (client.player == null || !SkyblockGate.allows() || PartyTracker.teammates().isEmpty()) {
             return;
         }
-        client.player.connection.sendCommand("pc Spirit Bear #" + cycle + " overkill: " + overkillCount);
+        com.killer560.hub.util.OutgoingChat.command("pc Spirit Bear #" + cycle + " overkill: " + overkillCount);
     }
 
     private static void expire(ArrayDeque<Long> queue) {

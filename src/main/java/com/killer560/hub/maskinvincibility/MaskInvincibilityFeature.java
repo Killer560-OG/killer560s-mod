@@ -162,7 +162,7 @@ public final class MaskInvincibilityFeature {
     private static void sendPartyChat(String message) {
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
-            client.player.connection.sendCommand("pc " + message);
+            com.killer560.hub.util.OutgoingChat.command("pc " + message);
         }
     }
 
