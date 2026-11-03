@@ -7,6 +7,9 @@ import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudText;
+import com.killer560.hub.dungeonclass.DungeonClass;
+import com.killer560.hub.hud.F7HudSlots;
+import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.leveraura.P3SectionTracker;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
@@ -17,6 +20,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.phys.Vec3;
@@ -30,16 +35,19 @@ import java.util.regex.Pattern;
 /**
  * P3 Status (2026-10-25, legit): F7/M7 Phase 3 at a glance, and Hypixel's progress titles made short.
  * <p>
- * <b>Status HUD</b> (Skyblocker {@code TerminalHud}, Odin {@code TerminalsStatus}): the current section's terminals,
- * device, two levers and gate, each done or not, and (Show Who Is At Each) the name of a player standing within 5 blocks
- * of an unfinished one. The section and its "(n/m)" come from {@link P3SectionTracker}, which every P3 feature shares.
+ * <b>Status HUD</b> (Skyblocker {@code TerminalHud}, Odin {@code TerminalsStatus}): the current section's progress as
+ * four short rows, "Terminals 2/4" (5 in section 2), "Device 0/1", "Levers 1/2" and, in sections 1-3, "Gate" with a mark
+ * (killer560, 2026-11-02: "remove all that. it should just be terminal 0/4, device 0/1, lever 0/2 and such" - the per-row
+ * list with names and Show Who Is At Each went). The section comes from {@link P3SectionTracker}, which every P3 feature
+ * shares.
  * Which objective a line finished: a device is the section's only device; a terminal or lever is the unfinished one of
  * that kind nearest the named player (Skyblocker's rule), the first unfinished one when he is not in sight. A terminal's
  * own hologram overrides that whenever it is loaded: "Inactive Terminal" is not done, "Terminal Active" is done (the
  * same stands P3 Nav reads), so a guess is corrected as soon as the stand is in range.
  * <p>
  * <b>Titles</b> (Odin {@code TerminalTitles}, NoammAddons {@code F7Titles}): Hypixel's "Name activated a terminal!
- * (3/7)" title or subtitle is replaced by one short subtitle, "Name Terminal 3/7"; "Device Done" and "Section Complete"
+ * (3/7)" title or subtitle is replaced by one short subtitle, "Name Terminal 3/7": the name in that player's dungeon class
+ * color ({@code PartyTracker.classOf}, white when unknown) and "Terminal 3/7" in gold (killer560, 2026-11-02); "Device Done" and "Section Complete"
  * are shown as titles (with a pling when Title Sound is on) off the chat lines; and the P1 "The Energy Laser is charging
  * up!" subtitle can be dropped. Hooked in {@code terminals/mixin/TerminalQolTitleMixin} (Gui.setTitle/setSubtitle, both
  * version copies), after Terminal QoL's Hide Completion, which still wins when it is on. Only lines whose name group is a
@@ -70,7 +78,10 @@ public final class P3StatusFeature {
             {new Vec3(86.5, 128.5, 46.5), new Vec3(84.5, 121.5, 34.5)}};
 
     private static final double STAND_MATCH_SQ = 2.0;
-    private static final double AT_RANGE_SQ = 25.0;
+    /** The fixed color of "Terminal 3/7" in the short title (killer560, 2026-11-02: "the terminal x/x line one color"). */
+    static final int TITLE_COUNT_RGB = 0xFFAA00;
+    /** The name's color when the player's class is not known. */
+    static final int TITLE_UNKNOWN_RGB = 0xFFFFFF;
 
     public static final HudElement HUD = new StatusHud();
 
@@ -79,13 +90,10 @@ public final class P3StatusFeature {
     private static final boolean[][] TERMINAL_DONE = new boolean[4][];
     private static final boolean[] DEVICE_DONE = new boolean[4];
     private static final boolean[][] LEVER_DONE = new boolean[4][2];
-    /** Who stands at each unfinished objective of the current section, refreshed each tick ("" = nobody). */
-    private static String[] terminalAt = new String[0];
-    private static String deviceAt = "";
-    private static final String[] LEVER_AT = {"", ""};
     private static long bigTitleAtMs;
 
     // Test hooks.
+    private static volatile Component lastReplacementComponent = Component.empty();
     private static volatile String lastReplacement = "";
     private static volatile String lastBigTitle = "";
     private static long replaced;
@@ -202,27 +210,6 @@ public final class P3StatusFeature {
                 }
             }
         }
-        boolean who = cfg.isShowWhoIsAt();
-        if (terminalAt.length != terms.length) {
-            terminalAt = new String[terms.length];
-        }
-        for (int i = 0; i < terms.length; i++) {
-            terminalAt[i] = who && !TERMINAL_DONE[s][i] ? nameNear(client, terms[i]) : "";
-        }
-        deviceAt = who && !DEVICE_DONE[s] ? nameNear(client, DEVICES[s]) : "";
-        for (int i = 0; i < 2; i++) {
-            LEVER_AT[i] = who && !LEVER_DONE[s][i] ? nameNear(client, LEVERS[s][i]) : "";
-        }
-    }
-
-    private static String nameNear(Minecraft client, Vec3 spot) {
-        for (AbstractClientPlayer p : client.level.players()) {
-            if (p.position().distanceToSqr(spot) < AT_RANGE_SQ) {
-                String n = p.getGameProfile().name();
-                return n.length() > 12 ? n.substring(0, 12) : n;
-            }
-        }
-        return "";
     }
 
     // ------------------------------------------------------------------------------------------------- titles
@@ -251,24 +238,32 @@ public final class P3StatusFeature {
         if (!m.matches()) {
             return false;
         }
-        String kind = m.group(2);
-        String label = switch (kind) {
-            case "terminal" -> "§5Terminal";
-            case "device" -> "§bDevice";
-            default -> "§cLever";
-        };
-        int cur = parse(m.group(3));
-        int tot = parse(m.group(4));
-        String line = "§e" + m.group(1) + " " + label + " " + (cur == tot ? "§a" : "§c") + cur + "§7/§a" + tot;
+        Component line = shortTitle(m.group(1), m.group(2), parse(m.group(3)), parse(m.group(4)));
         Minecraft client = Minecraft.getInstance();
         if (!subtitle && System.currentTimeMillis() - bigTitleAtMs > 1500) {
             // Hypixel put the line in the TITLE slot: keep an (empty) title up so the subtitle draws.
             McCompat.setTitle(client, Component.empty());
         }
-        McCompat.setSubtitle(client, Component.literal(line));
+        McCompat.setSubtitle(client, line);
+        lastReplacementComponent = line;
         lastReplacement = ChatObserver.strip(line);
         replaced++;
         return true;
+    }
+
+    /** "Name Terminal 3/7": the name in the player's class color, the rest in one fixed gold. */
+    static Component shortTitle(String name, String kind, int cur, int tot) {
+        DungeonClass cls = PartyTracker.classOf(name);
+        int nameRgb = cls == null ? TITLE_UNKNOWN_RGB : cls.color() & 0xFFFFFF;
+        String label = switch (kind) {
+            case "terminal" -> "Terminal";
+            case "device" -> "Device";
+            default -> "Lever";
+        };
+        return Component.empty()
+                .append(Component.literal(name).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameRgb))))
+                .append(Component.literal(" " + label + " " + cur + "/" + tot)
+                        .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(TITLE_COUNT_RGB))));
     }
 
     private static void bigTitle(String text) {
@@ -297,8 +292,7 @@ public final class P3StatusFeature {
     static List<String> lines() {
         Minecraft client = Minecraft.getInstance();
         if (McCompat.screen(client) instanceof HudEditorScreen) {
-            return List.of("§6P3 Section 2 §7(§e3§7/§a8§7)", "§fTerminal 1 §a✔", "§fTerminal 2 §eHxMateA",
-                    "§fTerminal 3 §c✘", "§fDevice §a✔", "§fLever 1 §c✘", "§fLever 2 §a✔", "§fGate §c✘");
+            return List.of("§fTerminals §e2§7/§a5", "§fDevice §a1§7/§a1", "§fLevers §e1§7/§a2", "§fGate §c✘");
         }
         P3StatusConfig cfg = P3StatusConfig.getInstance();
         if (!cfg.isShowHud() || !DungeonState.isF7OrM7() || !P3SectionTracker.running()) {
@@ -309,28 +303,25 @@ public final class P3StatusFeature {
         if (s < 0 || s > 3) {
             return List.of();
         }
-        List<String> out = new ArrayList<>(10);
-        int cur = P3SectionTracker.sectionCurrent();
-        int tot = P3SectionTracker.sectionTotal();
-        out.add("§6P3 Section " + section + (tot > 0 ? " §7(§e" + cur + "§7/§a" + tot + "§7)" : ""));
-        for (int i = 0; i < TERMINALS[s].length; i++) {
-            out.add("§fTerminal " + (i + 1) + " " + status(TERMINAL_DONE[s][i], i < terminalAt.length ? terminalAt[i] : ""));
-        }
-        out.add("§fDevice " + status(DEVICE_DONE[s], deviceAt));
-        for (int i = 0; i < 2; i++) {
-            out.add("§fLever " + (i + 1) + " " + status(LEVER_DONE[s][i], LEVER_AT[i]));
-        }
+        List<String> out = new ArrayList<>(4);
+        out.add("§fTerminals " + count(TERMINAL_DONE[s]));
+        out.add("§fDevice " + count(new boolean[]{DEVICE_DONE[s]}));
+        out.add("§fLevers " + count(LEVER_DONE[s]));
         if (section <= 3) {
             out.add("§fGate " + (P3SectionTracker.gateDestroyed() ? "§a✔" : "§c✘"));
         }
         return out;
     }
 
-    private static String status(boolean done, String at) {
-        if (done) {
-            return "§a✔";
+    /** "done/total", green when all are done. */
+    private static String count(boolean[] done) {
+        int n = 0;
+        for (boolean d : done) {
+            if (d) {
+                n++;
+            }
         }
-        return at == null || at.isEmpty() ? "§c✘" : "§e" + at;
+        return (n == done.length ? "§a" : "§e") + n + "§7/§a" + done.length;
     }
 
     private static final class StatusHud implements HudElement {
@@ -347,12 +338,12 @@ public final class P3StatusFeature {
 
         @Override
         public int defaultX() {
-            return 10;
+            return F7HudSlots.x(F7HudSlots.P3_STATUS);
         }
 
         @Override
         public int defaultY() {
-            return 480;
+            return F7HudSlots.y(F7HudSlots.P3_STATUS);
         }
 
         @Override
@@ -401,6 +392,16 @@ public final class P3StatusFeature {
     /** What the HUD last really drew (rows joined by newlines, with formatting codes). */
     public static String testLastDrawn() {
         return lastDrawn;
+    }
+
+    /** The last short title as built, with its styles (the name's class color, the gold count). */
+    public static Component testLastReplacementComponent() {
+        return lastReplacementComponent;
+    }
+
+    /** Builds the short title for a test without a title packet. */
+    public static Component testShortTitle(String name, String kind, int cur, int tot) {
+        return shortTitle(name, kind, cur, tot);
     }
 
     public static String testLastReplacement() {
