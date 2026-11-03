@@ -24,6 +24,8 @@ public final class MiningQolFeatures {
         AbilityReadyAlert.register();
         PickobulusEstimate.register();
         AttackHoldProbe.register();
+        PowderGhast.register();
+        HudElementRegistry.register(new PowderGhast.Timer());
         HudElementRegistry.register(new CommissionHud.Element());
         HudElementRegistry.register(new AbilityReadyAlert.Popup());
         HudElementRegistry.register(new AbilityReadyAlert.Timer());
@@ -47,6 +49,7 @@ public final class MiningQolFeatures {
             RaffleLog.tick(client);
             MithrilStone.tick(client);
             CommissionRoute.tick(client);
+            PowderGhast.tick(client);
         }));
         // COLLECT_SUBMITS, while the frame still gathers what to draw (as the Etherwarp Overlay since 2026-10-13). From
         // AFTER_TRANSLUCENT_TERRAIN the boxes were drawn from a different frame's camera on some frames, so while he jumped or
@@ -59,6 +62,7 @@ public final class MiningQolFeatures {
                 CommissionHud.render(context);
                 CommissionMobs.render(context);
                 CommissionRoute.render(context);
+                PowderGhast.render(context);
             } catch (RuntimeException e) {
                 com.killer560.hub.util.ModLog.get("killer560smod-miningqol").error("[MiningQol] render failed", e);
             }

@@ -32,6 +32,7 @@ public final class MiningQolConfig {
     public static final int DEFAULT_RAFFLE_COLOR = 0xFFFFAA00;
     public static final int DEFAULT_COMMISSION_MOB_COLOR = 0xFFFF5555;
     public static final int DEFAULT_COMMISSION_ROUTE_COLOR = 0xFF55FFFF;
+    public static final int DEFAULT_POWDER_GHAST_COLOR = 0xFFFF55FF;
 
     /** When the Titanium Highlight shows titanium. */
     public enum TitaniumMode {
@@ -137,6 +138,18 @@ public final class MiningQolConfig {
     private boolean raffleEsp = false;
     // Resume Held Break After Menus (killer560 2026-11-03: a server menu opening mid-dig let go of his held left click)
     private boolean resumeHeldBreak = true;
+    // Powder Ghast: the one feature here that ships ON (the brief: alert, box and tracer legit and on; party and through
+    // walls off).
+    private boolean powderGhast = true;
+    private boolean powderGhastTitle = true;
+    private boolean powderGhastSound = true;
+    private boolean powderGhastParty = false;
+    private boolean powderGhastBox = true;
+    private int powderGhastBoxColor = DEFAULT_POWDER_GHAST_COLOR;
+    private boolean powderGhastTracer = true;
+    private int powderGhastTracerColor = DEFAULT_POWDER_GHAST_COLOR;
+    private boolean powderGhastTimer = true;
+    private boolean powderGhastEsp = false;
 
     private MiningQolConfig() {
     }
@@ -191,6 +204,16 @@ public final class MiningQolConfig {
                 cfg.raffleColor = intOr(o, "raffleColor", cfg.raffleColor);
                 cfg.raffleEsp = ConfigJson.getBool(o, "raffleEsp", cfg.raffleEsp);
                 cfg.resumeHeldBreak = ConfigJson.getBool(o, "resumeHeldBreak", cfg.resumeHeldBreak);
+                cfg.powderGhast = ConfigJson.getBool(o, "powderGhast", cfg.powderGhast);
+                cfg.powderGhastTitle = ConfigJson.getBool(o, "powderGhastTitle", cfg.powderGhastTitle);
+                cfg.powderGhastSound = ConfigJson.getBool(o, "powderGhastSound", cfg.powderGhastSound);
+                cfg.powderGhastParty = ConfigJson.getBool(o, "powderGhastParty", cfg.powderGhastParty);
+                cfg.powderGhastBox = ConfigJson.getBool(o, "powderGhastBox", cfg.powderGhastBox);
+                cfg.powderGhastBoxColor = intOr(o, "powderGhastBoxColor", cfg.powderGhastBoxColor);
+                cfg.powderGhastTracer = ConfigJson.getBool(o, "powderGhastTracer", cfg.powderGhastTracer);
+                cfg.powderGhastTracerColor = intOr(o, "powderGhastTracerColor", cfg.powderGhastTracerColor);
+                cfg.powderGhastTimer = ConfigJson.getBool(o, "powderGhastTimer", cfg.powderGhastTimer);
+                cfg.powderGhastEsp = ConfigJson.getBool(o, "powderGhastEsp", cfg.powderGhastEsp);
             } catch (Exception e) {
                 cfg = new MiningQolConfig();
             }
@@ -240,6 +263,16 @@ public final class MiningQolConfig {
             o.addProperty("raffleColor", raffleColor);
             o.addProperty("raffleEsp", raffleEsp);
             o.addProperty("resumeHeldBreak", resumeHeldBreak);
+            o.addProperty("powderGhast", powderGhast);
+            o.addProperty("powderGhastTitle", powderGhastTitle);
+            o.addProperty("powderGhastSound", powderGhastSound);
+            o.addProperty("powderGhastParty", powderGhastParty);
+            o.addProperty("powderGhastBox", powderGhastBox);
+            o.addProperty("powderGhastBoxColor", powderGhastBoxColor);
+            o.addProperty("powderGhastTracer", powderGhastTracer);
+            o.addProperty("powderGhastTracerColor", powderGhastTracerColor);
+            o.addProperty("powderGhastTimer", powderGhastTimer);
+            o.addProperty("powderGhastEsp", powderGhastEsp);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
             // a failed save keeps the in-memory values
@@ -538,5 +571,93 @@ public final class MiningQolConfig {
 
     public void setRaffleEsp(boolean v) {
         raffleEsp = v;
+    }
+
+    // ---- Powder Ghast (killer560, 2026-11-03: "also add powder ghast alerts tracers and esp and such")
+    /** The feature switch as gated: OFF outside Skyblock. {@link PowderGhast} also needs the Dwarven Mines. */
+    public boolean isPowderGhast() {
+        return powderGhast && sb();
+    }
+
+    public boolean isPowderGhastRaw() {
+        return powderGhast;
+    }
+
+    public void setPowderGhast(boolean v) {
+        powderGhast = v;
+    }
+
+    public boolean isPowderGhastTitle() {
+        return powderGhastTitle;
+    }
+
+    public void setPowderGhastTitle(boolean v) {
+        powderGhastTitle = v;
+    }
+
+    public boolean isPowderGhastSound() {
+        return powderGhastSound;
+    }
+
+    public void setPowderGhastSound(boolean v) {
+        powderGhastSound = v;
+    }
+
+    /** Party-chat callout: OFF by default, nothing is sent unless he turns it on. */
+    public boolean isPowderGhastParty() {
+        return powderGhastParty;
+    }
+
+    public void setPowderGhastParty(boolean v) {
+        powderGhastParty = v;
+    }
+
+    public boolean isPowderGhastBox() {
+        return powderGhastBox;
+    }
+
+    public void setPowderGhastBox(boolean v) {
+        powderGhastBox = v;
+    }
+
+    public int getPowderGhastBoxColor() {
+        return powderGhastBoxColor;
+    }
+
+    public void setPowderGhastBoxColor(int v) {
+        powderGhastBoxColor = v;
+    }
+
+    public boolean isPowderGhastTracer() {
+        return powderGhastTracer;
+    }
+
+    public void setPowderGhastTracer(boolean v) {
+        powderGhastTracer = v;
+    }
+
+    public int getPowderGhastTracerColor() {
+        return powderGhastTracerColor;
+    }
+
+    public void setPowderGhastTracerColor(int v) {
+        powderGhastTracerColor = v;
+    }
+
+    public boolean isPowderGhastTimer() {
+        return powderGhastTimer;
+    }
+
+    public void setPowderGhastTimer(boolean v) {
+        powderGhastTimer = v;
+    }
+
+    /** Box through walls: cheat build only. */
+    public boolean isPowderGhastEsp() {
+        return BuildVariant.CHEAT_FEATURES_ENABLED && powderGhastEsp;
+    }
+
+    public void setPowderGhastEsp(boolean v) {
+        powderGhastEsp = v;
     }
 }
