@@ -48,14 +48,22 @@ final class WalkPhysics {
         double vz;
         double jumpVelocity;
         boolean sprinting;
+        /**
+         * What the input vector is scaled by before it pushes: 1, or the SNEAKING_SPEED attribute (0.3) while he
+         * crouches - {@code LocalPlayer.modifyInput} scales the key vector when {@code isMovingSlowly()} (javap 26.3 and
+         * 26.2), on the ground and in the air alike.
+         */
+        double inputScale = 1.0;
+        /** SNEAKING_SPEED, read once (the walker sets {@link #inputScale} to it on a tick it crouches). */
+        double sneakScale = 0.3;
 
         /** The ground (or air) push of one tick with a full key, sprinting or not. */
         double push(boolean sprint) {
             if (onGround) {
                 double attr = sprint ? walkAttr * SPRINT_MULTIPLIER : walkAttr;
-                return attr * (GROUND_CONSTANT / (friction * friction * friction));
+                return attr * (GROUND_CONSTANT / (friction * friction * friction)) * inputScale;
             }
-            return sprint ? AIR_SPEED_SPRINTING : AIR_SPEED;
+            return (sprint ? AIR_SPEED_SPRINTING : AIR_SPEED) * inputScale;
         }
 
         double speed() {
@@ -78,7 +86,72 @@ final class WalkPhysics {
         m.vy = v.y;
         m.vz = v.z;
         m.jumpVelocity = WalkTerrain.jumpVelocity(player);
+        try {
+            m.sneakScale = player.getAttributeValue(Attributes.SNEAKING_SPEED);
+        } catch (Throwable t) {
+            m.sneakScale = 0.3;
+        }
+        m.inputScale = player.isMovingSlowly() ? m.sneakScale : 1.0;
         return m;
+    }
+
+    // ---- the jump, flown tick by tick (vanilla LivingEntity.travel: y += v, then v = (v - 0.08) * 0.98)
+
+    static final double GRAVITY = 0.08;
+    static final double DRAG_Y = 0.98;
+
+    /**
+     * Client ticks until feet that are at {@code y} moving up {@code vy} a tick come down through {@code landY} (the tick
+     * whose move takes them to or below it), or, when the arc never gets that high, the ticks to its top as a negative
+     * number. Bounded at 80 ticks.
+     */
+    static int ticksToLand(double y, double vy, double landY) {
+        double h = y;
+        double v = vy;
+        boolean above = h >= landY - 1.0e-4;
+        for (int t = 1; t <= 80; t++) {
+            double next = h + v;
+            if (above && next <= landY + 1.0e-4 && v <= 0) {
+                return t;
+            }
+            h = next;
+            if (h >= landY - 1.0e-4) {
+                above = true;
+            }
+            v = (v - GRAVITY) * DRAG_Y;
+            if (!above && v <= 0) {
+                return -t; // never gets up there: this is its top
+            }
+        }
+        return 80;
+    }
+
+    /** The highest the feet get above the take-off for a jump of initial speed {@code v0} (no ceiling). */
+    static double apex(double v0) {
+        double v = v0;
+        double h = 0;
+        for (int i = 0; i < 80 && v > 0; i++) {
+            h += v;
+            v = (v - GRAVITY) * DRAG_Y;
+        }
+        return h;
+    }
+
+    /** Ticks after take-off the feet spend at or above {@code rise} (a ledge that high is landed on in those ticks). */
+    static int ticksAbove(double v0, double rise) {
+        double v = v0;
+        double h = 0;
+        int n = 0;
+        for (int i = 0; i < 80; i++) {
+            h += v;
+            v = (v - GRAVITY) * DRAG_Y;
+            if (h >= rise) {
+                n++;
+            } else if (v < 0) {
+                break;
+            }
+        }
+        return n;
     }
 
     static double blockFriction(LocalPlayer player) {

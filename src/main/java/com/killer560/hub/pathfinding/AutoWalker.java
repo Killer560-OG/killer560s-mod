@@ -87,6 +87,12 @@ public final class AutoWalker {
     private static boolean wantRight;
     private static boolean wantJump;
     private static boolean wantSprint;
+    private static boolean wantSneak;
+    private static int crouchTicks;
+    private static int controlledJumps;
+    private static int jumpReplans;
+    /** The jump height the current way back / approach was planned with (NaN: none). */
+    private static double plannedJump = Double.NaN;
     private static boolean noCarrot;
     /** The key combination pressed last tick (index into {@link WalkPhysics#KEYS}), for the switch penalty. */
     private static int lastCombo;
@@ -236,6 +242,26 @@ public final class AutoWalker {
 
     public static boolean wantSprint() {
         return wantSprint;
+    }
+
+    /** Sneak (crouch) this tick: under a 1.5-high ceiling, or to stop on a narrow spot without stepping off it. */
+    public static boolean wantSneak() {
+        return wantSneak;
+    }
+
+    /** Testkit: ticks the walker held sneak. */
+    public static int crouchTicks() {
+        return crouchTicks;
+    }
+
+    /** Testkit: controlled jumps (a jump with height to spare, steered in the air onto its cell). */
+    public static int controlledJumps() {
+        return controlledJumps;
+    }
+
+    /** Testkit: plans made again because his jump changed (Jump Boost on or off). */
+    public static int jumpReplans() {
+        return jumpReplans;
     }
 
     public static void setWalking(boolean value) {
@@ -555,6 +581,7 @@ public final class AutoWalker {
             client.options.keyRight.setDown(wantRight);
             client.options.keyJump.setDown(wantJump);
             client.options.keySprint.setDown(wantSprint);
+            client.options.keyShift.setDown(wantSneak);
             fallbackKeyHeld = true;
         }
         checkStuck(player);
@@ -680,12 +707,19 @@ public final class AutoWalker {
         // ---- the keys: the combination whose next move lands closest to the speed the path allows here
         WalkPhysics.Model model = WalkPhysics.read(player);
         double allowed = allowedSpeed(level, player, pos, model);
+        // A step his jump clears with height to spare (Jump Boost; his is VI, 6.13 blocks, killer560's 2026-11-03 log):
+        // taken from a walk, not a sprint - a sprint jump adds 0.2 along the facing and a 6-block jump stays in the air
+        // ~30 ticks, so it flew past the top of the step and off the route.
+        boolean bigJumpAhead = jumpable && jumpH - riseAhead >= CONTROLLED_JUMP_SPARE;
+        if (bigJumpAhead && player.onGround()) {
+            allowed = Math.min(allowed, 0.2);
+        }
         double ux = horizontal < 1.0e-6 ? 0 : dx / horizontal;
         double uz = horizontal < 1.0e-6 ? 0 : dz / horizontal;
         NavigationManager.Target soulTarget = NavigationManager.target();
         finalApproach = soulTarget != null && soulTarget.stayOnArrive
                 && NavigationManager.remainingDistance() < FINAL_WALK_BLOCKS;
-        boolean sprintOk = cfg.isAutoSprint() && !player.isInWater() && horizontal > 1.5 && !finalApproach;
+        boolean sprintOk = cfg.isAutoSprint() && !player.isInWater() && horizontal > 1.5 && !finalApproach && !bigJumpAhead;
         chooseKeys(model, player.getYRot(), ux * allowed, uz * allowed, sprintOk);
         // At the water surface (feet in the water, eyes out) the keys are not steered either: the same flag came from
         // the walker starting from the surface. He sinks or floats there on his own, and steering resumes once
@@ -702,8 +736,12 @@ public final class AutoWalker {
         }
 
         // ---- jumps: an obstacle this jump clears, a gap the path crosses, or swimming up
-        if (player.onGround() && wantForward && jumpable) {
+        if (player.onGround() && wantForward && jumpable && (!bigJumpAhead || (!player.isSprinting() && model.speed() <= 0.26))) {
             wantJump = true;
+            if (bigJumpAhead) {
+                wantSprint = false;
+                controlledJumps++;
+            }
         } else if (player.onGround() && wantForward && wantSprint
                 && WalkTerrain.dropBelow(level, pos.x + hx * 1.1, pos.z + hz * 1.1, pos.y) > WalkTerrain.MAX_DROP
                 && carrot.y - 0.5 >= pos.y - 1.0) {
@@ -721,12 +759,15 @@ public final class AutoWalker {
      * ahead without running past it.
      */
     private static double allowedSpeed(Level level, LocalPlayer player, Vec3 pos, WalkPhysics.Model model) {
-        double k = model.friction * WalkPhysics.FRICTION_SCALE;
+        // In the air the horizontal drag is 0.91 a tick, not the ground's friction x 0.91: a long Jump Boost jump brakes
+        // far less than a walk, so the speed allowed in the air is the one that still stops in time with air drag.
+        double friction = model.onGround ? model.friction : 1.0;
+        double k = friction * WalkPhysics.FRICTION_SCALE;
         double allowed = 10.0;
         NavigationManager.Target target = NavigationManager.target();
         if (target != null && target.stayOnArrive) {
             double remaining = NavigationManager.remainingDistance() - STOP_SHORT;
-            allowed = Math.min(allowed, WalkPhysics.speedToStopWithin(remaining, model.friction) + 0.04);
+            allowed = Math.min(allowed, WalkPhysics.speedToStopWithin(remaining, friction) + 0.04);
         }
         List<Vec3> path = NavigationManager.path();
         if (path.size() >= 3) {
@@ -847,6 +888,7 @@ public final class AutoWalker {
             return;
         }
         rescuePath = LocalPlanner.toPoints(level, cells);
+        plannedJump = jumpH;
         rescueIndex = 1;
         rescueWhy = why;
         rescueTarget = rescuePath.get(rescuePath.size() - 1);
@@ -936,6 +978,7 @@ public final class AutoWalker {
 
     private static void clearRescueState() {
         rescuePath = null;
+        plannedJump = Double.NaN;
         approaching = false;
         rescueIndex = 0;
         blockedTicks = 0;
@@ -946,11 +989,27 @@ public final class AutoWalker {
     /** Following the planned way back: one cell at a time, slow and exact, swimming and jumping as it needs. */
     private static void driveRescue(Level level, LocalPlayer player, Vec3 pos, double jumpH) {
         List<Vec3> pts = rescuePath;
-        // Skip cells he has reached, and ones a straight walk on dry ground passes anyway.
+        // His jump changed since this way was planned (Jump Boost ran out, or came on): a step it counted on may be out of
+        // reach now, or one it walked round is jumpable. Plan again from here (killer560, 2026-11-03: "it just needs to
+        // jump knowing it has jump boost").
+        if (!Double.isNaN(plannedJump) && Math.abs(jumpH - plannedJump) > 0.1 && (player.onGround() || player.isInWater())) {
+            jumpReplans++;
+            LOGGER.info(String.format(Locale.US, "[AutoWalker] jump height %.2f -> %.2f - planning again", plannedJump, jumpH));
+            rescuePath = null;
+            plannedJump = Double.NaN;
+            if (approaching) {
+                approaching = false; // the runner plans the approach again
+                return;
+            }
+            startRescue(level, player, pos, jumpH, "jump changed");
+            return;
+        }
+        // Skip cells he has reached, and ones a straight walk on dry ground passes anyway. In a tight cell (a 1-wide
+        // gap, under an overhang) "reached" is closer to its center, or the turn out of it catches the corner.
         while (rescueIndex < pts.size()) {
             Vec3 p = pts.get(rescueIndex);
             double h = Math.hypot(p.x - pos.x, p.z - pos.z);
-            if (h < 0.45 && Math.abs(p.y - pos.y) < 0.9) {
+            if (h < (tightCell(level, p) ? 0.3 : 0.45) && Math.abs(p.y - pos.y) < 0.9) {
                 rescueIndex++;
             } else {
                 break;
@@ -981,9 +1040,12 @@ public final class AutoWalker {
         }
         // Off the planned way (fell again, pushed): plan again from here. Measured to the way's segments up to the cell
         // he is heading for, so a skip ahead along a straight walk is not "off".
-        double off = pts.get(0).distanceTo(pos);
+        // In the air (a jump: with Jump Boost VI one goes 6 blocks up) only the horizontal distance counts: the owner's
+        // 2026-11-03 log had ways back thrown away as "off the way back" 3 blocks up a jump the plan made.
+        boolean airborne = !fluid && !player.onGround() && !player.onClimbable();
+        double off = offDistance(pos, pts.get(0), airborne);
         for (int i = 1; i <= Math.min(pts.size() - 1, rescueIndex); i++) {
-            off = Math.min(off, NavigationManager.projectOnSegment(pos, pts.get(i - 1), pts.get(i)).distanceTo(pos));
+            off = Math.min(off, offDistance(pos, NavigationManager.projectOnSegment(pos, pts.get(i - 1), pts.get(i)), airborne));
         }
         if (off > 3.0) {
             rescuePath = null;
@@ -1028,13 +1090,36 @@ public final class AutoWalker {
             wantJump = player.isInLava() || rise > -0.3 || player.horizontalCollision;
         } else {
             WalkPhysics.Model model = WalkPhysics.read(player);
+            boolean last = rescueIndex == pts.size() - 1;
+            wantSneak = shouldSneak(level, player, pos, pts, target, horizontal, last);
+            model.inputScale = wantSneak ? model.sneakScale : 1.0;
             boolean turnNext = rescueIndex + 1 < pts.size()
                     && turnDegrees(pos, target, pts.get(rescueIndex + 1)) > CORNER_MIN_DEG;
-            double allowed = Math.min(0.22, turnNext || rescueIndex == pts.size() - 1
+            double allowed = Math.min(0.22, turnNext || last
                     ? WalkPhysics.speedToStopWithin(horizontal, model.friction) + 0.08 : 0.22);
             double ux = horizontal < 1.0e-6 ? 0 : dx / horizontal;
             double uz = horizontal < 1.0e-6 ? 0 : dz / horizontal;
+            if (airborne) {
+                // Steer the fall onto the cell: the speed that covers what is left by the tick his feet come down
+                // through its height, flown with vanilla's gravity and drag (WalkPhysics.ticksToLand). Still under the
+                // top of a ledge he is jumping onto: keep toward it (the ledge's side stops him; he moves over it once
+                // his feet clear it).
+                // A cell with a roof two blocks up (a hole in a wall, a tunnel mouth up a step) is entered on the way up,
+                // in the ticks his head still fits under that roof - straight in, not eased onto.
+                int land = WalkPhysics.ticksToLand(pos.y, player.getDeltaMovement().y, target.y);
+                BlockPos targetCell = BlockPos.containing(target.x, target.y + 0.01, target.z);
+                boolean roofed = !LocalPlanner.passable(level, targetCell.above(2));
+                if (land > 0 && !roofed && (pos.y >= target.y - 0.05 || rise < -0.5)) {
+                    allowed = Math.min(0.25, horizontal / land);
+                } else {
+                    allowed = 0.22;
+                }
+            }
             chooseKeys(model, player.getYRot(), ux * allowed, uz * allowed, false);
+            if (wantSneak) {
+                wantSprint = false;
+                crouchTicks++;
+            }
             boolean onLadder = player.onClimbable();
             if (onLadder && rise > 0.3) {
                 wantJump = true; // vanilla climbs while jump is held on a ladder, whichever way he faces
@@ -1047,11 +1132,89 @@ public final class AutoWalker {
                 wantSprint = false;
                 centerOnLadder(player, pos);
                 climbTicks++;
-            } else if (player.onGround() && rise > player.maxUpStep() + 0.01 && rise <= jumpH && horizontal < 1.7) {
-                wantJump = true;
-                jumpsPressed++;
+            } else if (player.onGround() && !wantSneak && rise > player.maxUpStep() + 0.01 && rise <= jumpH && horizontal < 1.7) {
+                double spare = jumpH - rise;
+                if (spare < CONTROLLED_JUMP_SPARE) {
+                    // An ordinary jump onto a step his jump only just clears: W and jump together, as a player does.
+                    wantJump = true;
+                    jumpsPressed++;
+                } else if (horizontal < 1.25 || player.horizontalCollision) {
+                    // Height to spare (Jump Boost): no run-up and no sprint - from the foot of the step, straight up,
+                    // then steered in the air onto the cell above (see "airborne"). A running jump with Jump Boost VI
+                    // flew him past the ledge and off the far side.
+                    wantJump = true;
+                    wantSprint = false;
+                    jumpsPressed++;
+                    controlledJumps++;
+                }
             }
         }
+    }
+
+    /** A jump with at least this much height over the step is taken from a standstill and steered in the air. */
+    static final double CONTROLLED_JUMP_SPARE = 0.6;
+
+    /** Distance from {@code pos} to a point of the way: horizontal only while airborne (a jump's height is not "off"). */
+    private static double offDistance(Vec3 pos, Vec3 p, boolean airborne) {
+        return airborne ? Math.hypot(p.x - pos.x, p.z - pos.z) : p.distanceTo(pos);
+    }
+
+    /**
+     * A cell with walls on two or more of its four sides at body height (a 1-wide gap, a hole's mouth, a tunnel's turn),
+     * or one he fits only crouching.
+     */
+    private static boolean tightCell(Level level, Vec3 point) {
+        BlockPos c = BlockPos.containing(point.x, point.y + 0.01, point.z);
+        if (LocalPlanner.crouchCell(level, c)) {
+            return true;
+        }
+        int walls = 0;
+        for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            BlockPos n = c.offset(d[0], 0, d[1]);
+            if (!LocalPlanner.passable(level, n) || !LocalPlanner.passable(level, n.above())) {
+                walls++;
+            }
+        }
+        return walls >= 2;
+    }
+
+    /**
+     * Crouch on the way back / approach (killer560, 2026-11-03: small holes, under overhangs): in a cell, or about to
+     * enter one, that only fits a crouching player (1.5 high; he must already crouch to fit in), and on the last cell of a
+     * walk to a soul when it is a narrow spot beside a drop, so the stop never steps off the edge (vanilla keeps a
+     * sneaking player on the edge). Never in fluids or on a ladder, and never toward a cell below (a drop into a hole is
+     * meant to be taken; sneaking would hold him on its rim).
+     */
+    private static boolean shouldSneak(Level level, LocalPlayer player, Vec3 pos, List<Vec3> pts, Vec3 target,
+                                       double horizontal, boolean last) {
+        if (player.isInWater() || player.isInLava() || player.onClimbable()) {
+            return false;
+        }
+        BlockPos here = BlockPos.containing(pos.x, pos.y + 0.01, pos.z);
+        if (LocalPlanner.crouchCell(level, here)) {
+            return true;
+        }
+        BlockPos targetCell = BlockPos.containing(target.x, target.y + 0.01, target.z);
+        if (LocalPlanner.crouchCell(level, targetCell) && horizontal < 1.6) {
+            return true;
+        }
+        if (rescueIndex + 1 < pts.size()) {
+            Vec3 next = pts.get(rescueIndex + 1);
+            BlockPos nextCell = BlockPos.containing(next.x, next.y + 0.01, next.z);
+            if (LocalPlanner.crouchCell(level, nextCell) && Math.hypot(next.x - pos.x, next.z - pos.z) < 1.6) {
+                return true;
+            }
+        }
+        if (last && approaching && player.onGround() && horizontal < 1.2 && target.y > pos.y - 0.5 && target.y < pos.y + 0.5) {
+            for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                BlockPos n = targetCell.offset(d[0], 0, d[1]);
+                if (LocalPlanner.body(level, n) && !LocalPlanner.cell(level, n)
+                        && WalkTerrain.dropBelow(level, n.getX() + 0.5, n.getZ() + 0.5, target.y) > 1.5) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     // ---- the last few blocks to the soul itself (killer560, 2026-11-01 picture: it stopped 3.7 blocks from a soul that
@@ -1081,6 +1244,7 @@ public final class AutoWalker {
             return false;
         }
         rescuePath = LocalPlanner.toPoints(level, cells);
+        plannedJump = WalkTerrain.jumpHeight(player);
         rescueIndex = 1;
         rescueWhy = "to the soul";
         rescueTarget = rescuePath.get(rescuePath.size() - 1);
@@ -1417,6 +1581,7 @@ public final class AutoWalker {
         wantRight = false;
         wantJump = false;
         wantSprint = false;
+        wantSneak = false;
     }
 
     private static void releaseFallbackKey() {
@@ -1431,6 +1596,7 @@ public final class AutoWalker {
         client.options.keyRight.setDown(false);
         client.options.keyJump.setDown(false);
         client.options.keySprint.setDown(false);
+        client.options.keyShift.setDown(false);
     }
 
     /** One line for the start message: this player's jump, and whether Jump Boost (a God Potion) is raising it. */
