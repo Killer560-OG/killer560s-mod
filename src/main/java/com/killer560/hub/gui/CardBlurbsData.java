@@ -117,7 +117,6 @@ final class CardBlurbsData {
         d.put("FreezeStateTab", "!! NEVER ON HYPIXEL: BAN !!");
         d.put("GoldorTriggerbotTab", "Clicks wither bosses on aim.");
         d.put("MaskKeybindsTab", "Key equips a mask in /stats.");
-        d.put("ThornTriggerbotTab", "Holds the Tribal Spear on Thorn.");
         d.put("DioriteGlassTab", "Storm's diorite pillars as glass.");
         d.put("InteractiveMapTab", "Full-screen map pathing.");
         d.put("FullBlockTab", "Bigger click boxes for secrets.");

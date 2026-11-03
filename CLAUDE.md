@@ -187,6 +187,8 @@ has no switch over the whole: each feature keeps its own, and the tab lists them
 (`gui/MasterSwitch`) is ON while any is on and OFF only when all are; never add a "X as a whole" row that gates independent
 switches (the 2026-10-13 ones were removed 2026-10-14, files with the old key OFF load with every part OFF). Testkit 515-518.
 Testkit 511-514 check it on cheat, legit and testing jars.
+A feature folded into another tab (Thorn Triggerbot into Thorn, 2026-11-02) keeps its own toggle key through
+`ModuleKeybinds` EXTRAS under its old card id, so a saved bind carries over; its row sits in the host tab (testkit 527).
 A row whose feature runs on its own flag (not gated by the tab's first switch) is an independent feature and goes in
 `masterToggles`, and it must be built even while the first switch is off (an early `return` hides it from `switchRows`);
 otherwise the card reads OFF while it runs (Architect's First Draft and 11 more, menufix-1102). A row the tab only shows

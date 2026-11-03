@@ -366,6 +366,7 @@ public class ModScreen extends Screen {
         selectedTab = index;
         favouritesSelected = false;
         gridScroll = 0;
+        jumpedIndex = -1;
         if (openFeature != null && MenuCategories.category(openFeature) != tabs.get(index)) {
             openFeature = null;
             scrollOffset = 0;
@@ -625,21 +626,94 @@ public class ModScreen extends Screen {
         return b.toString();
     }
 
-    /** The section row that holds the grid's current scroll (the last whose start is at or above the top). */
+    /** The section row last pressed (its place among the section rows and its label) and the scroll that press left, so
+     *  a press highlights what was pressed even when that section is too short to reach the top. Cleared by scrolling. */
+    private int jumpedIndex = -1;
+    private String jumpedLabel;
+    private int jumpedScroll = -1;
+
+    /**
+     * The section row that holds the grid's current scroll. killer560, 2026-11-02: "as you can see i am clearly in the
+     * secret area of the left tab yet it doesnt show i am" - the old rule (the last section whose header has passed the
+     * top) could never pick a last section shorter than the view, such as Dungeons' Cheat > Secrets. Now: the section
+     * just pressed while the grid has not moved since; at the end of the scroll, the last section; else the last
+     * section whose header is above the top third of the view (at the top of the scroll, the first).
+     */
     private SideEntry currentSection() {
-        SideEntry cur = null;
-        int top = gridY + GRID_PAD;
+        List<SideEntry> subs = new ArrayList<>();
         for (SideEntry e : side) {
-            if (e.sub() && (cur == null || e.jump().y - top <= gridScroll + 1)) {
+            if (e.sub()) {
+                subs.add(e);
+            }
+        }
+        if (subs.isEmpty()) {
+            return null;
+        }
+        if (jumpedIndex >= 0 && gridScroll == jumpedScroll && jumpedIndex < subs.size()
+                && subs.get(jumpedIndex).label().equals(jumpedLabel)) {
+            return subs.get(jumpedIndex);
+        }
+        if (gridMax > 0 && gridScroll >= gridMax) {
+            return subs.get(subs.size() - 1);
+        }
+        int top = gridY + GRID_PAD;
+        int line = gridScroll + (gridScroll <= 0 ? 1 : Math.max(1, (gridH - 2 * GRID_PAD) / 3));
+        SideEntry cur = subs.get(0);
+        for (SideEntry e : subs) {
+            if (e.jump().y - top <= line) {
                 cur = e;
             }
         }
         return cur;
     }
 
+    /** Whether a section row is a cheat one (the red Cheat block or a group inside it). */
+    private static boolean cheatSection(SideEntry e) {
+        return e.jump() != null && e.jump().kind == ItemKind.HEADER && e.jump().red;
+    }
+
+    /** The section row the sidebar marks as current, or null. For the testkit. */
+    public String currentSectionLabel() {
+        SideEntry cur = currentSection();
+        return cur == null ? null : cur.label();
+    }
+
+    /** The current section's marker bar {x, y, w, h, argb} in GUI pixels, or null. For the testkit. */
+    public int[] currentSectionBar() {
+        SideEntry cur = currentSection();
+        if (cur == null) {
+            return null;
+        }
+        int[] b = sectionBar(cur);
+        return new int[]{b[0], b[1], b[2], b[3], cheatSection(cur) ? MenuStyle.RED_TITLE : MenuStyle.OR};
+    }
+
+    /** The marker bar beside a section row: x, y, w, h. A cheat one is a step wider so it reads apart from orange. */
+    private static int[] sectionBar(SideEntry e) {
+        int w = cheatSection(e) ? 3 : 2;
+        return new int[]{e.x() - 2 - w, e.y() + 2, w, e.h() - 4};
+    }
+
     /** Scrolls the grid so {@code it} is at its top (as far as the grid scrolls). */
     private void jumpTo(Item it) {
         gridScroll = Math.max(0, Math.min(gridMax, it.y - (gridY + GRID_PAD)));
+    }
+
+    /** As {@link #jumpTo}, and remembers the row pressed so it stays highlighted until the grid moves. */
+    private void jumpToSection(SideEntry e) {
+        jumpTo(e.jump());
+        int i = 0;
+        for (SideEntry o : side) {
+            if (o == e) {
+                jumpedIndex = i;
+                jumpedLabel = e.label();
+                jumpedScroll = gridScroll;
+                return;
+            }
+            if (o.sub()) {
+                i++;
+            }
+        }
     }
 
     /** The section rows under the selected category, as drawn. For the testkit. */
@@ -685,13 +759,13 @@ public class ModScreen extends Screen {
             closeDrawer();
             for (SideEntry o : side) {
                 if (o.sub() && o.label().equals(label) && nth-- == 0) {
-                    jumpTo(o.jump());
+                    jumpToSection(o);
                     return;
                 }
             }
             return;
         }
-        jumpTo(e.jump());
+        jumpToSection(e);
     }
 
     private int indexOf(Class<?> cls) {
@@ -2445,9 +2519,18 @@ public class ModScreen extends Screen {
             r.fill(ex + 1, ey + 1, ex + 3, ey + eh - 1, MenuStyle.OR);
         }
         // The section the grid is scrolled to: a short orange bar beside its row, the row's text lit.
+        // A cheat section gets the red theme instead (killer560, 2026-11-02: "dont have it be orange have it fit the red
+        // theme but be different"): a faint red band behind the row, a wider bright red bar and bright red text, while
+        // the other cheat rows are drawn a dimmer red.
         SideEntry cur = currentSection();
         if (cur != null) {
-            r.fill(cur.x() - 4, cur.y() + 2, cur.x() - 2, cur.y() + cur.h() - 2, MenuStyle.OR);
+            int[] bar = sectionBar(cur);
+            if (cheatSection(cur)) {
+                r.fill(cur.x(), cur.y() + 1, cur.x() + cur.w(), cur.y() + cur.h() - 1, MenuStyle.RED_BAND);
+                r.fill(bar[0], bar[1], bar[0] + bar[2], bar[1] + bar[3], MenuStyle.RED_TITLE);
+            } else {
+                r.fill(bar[0], bar[1], bar[0] + bar[2], bar[1] + bar[3], MenuStyle.OR);
+            }
         }
         for (SideEntry e : side) {
             if (e.sub()) {
@@ -2462,8 +2545,8 @@ public class ModScreen extends Screen {
             if (e.sub()) {
                 int ty = e.y() + (e.h() - 8) / 2;
                 boolean red = e.jump().kind == ItemKind.HEADER && e.jump().red;
-                int base = red ? MenuStyle.RED : MenuStyle.DIM;
-                int lit = red ? MenuStyle.RED : MenuStyle.OR2;
+                int base = red ? MenuStyle.mix(MenuStyle.RED, MenuStyle.DIM, 0.35f) : MenuStyle.DIM;
+                int lit = red ? MenuStyle.RED_TITLE : MenuStyle.OR2;
                 int tc = e == cur ? lit : MenuStyle.ease(base, MenuStyle.TXT_SOFT, hv);
                 MenuStyle.text(g, MenuStyle.ellipsize(e.label(), e.w() - 6), e.x() + 3, ty, tc);
                 continue;

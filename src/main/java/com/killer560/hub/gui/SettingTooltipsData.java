@@ -784,7 +784,7 @@ final class SettingTooltipsData {
         d.put("split timers/total with lag", "A Total line under the splits with the run's real time, the same clock as Hypixel's own end-of-run time.");
         d.put("split timers/total without lag", "Adds the run's time without server lag in parentheses after the Total: \"Total: 1m 23.45s (1m 20.10s)\". Also on the chat Total.");
         d.put("split timers/lag lost", "A Lag line under the Total: how much of the run server lag cost (the Total minus the time in parentheses).");
-        d.put("split timers/counting", "Every 0.01s shows times as measured; Ticks rounds every split time to the nearest 0.05s, one server tick (cheat build only).");
+        d.put("split timers/counting", "Every 0.01s shows times as measured; Ticks rounds every split time to the nearest 0.05s, one server tick.");
         d.put("split timers/slowest in hud", "Shows the slowest teammate into core, and their time, at the bottom of the Split Timers HUD.");
         d.put("announce in chat", "Posts a private chat message only you can see when this happens.");
         d.put("terminal timers", "Shows terminal solve times and section splits in your own chat during F7/M7 P3.");
@@ -1472,7 +1472,7 @@ final class SettingTooltipsData {
         // ---- shared cheat-build section headers ----
         d.put("cheat build - automation", "Cheat build: everything below automates clicks or aim for you, against Hypixel's rules.");
         d.put("cheat build - auto walking", "Cheat build: below this line the mod walks your character along the path itself.");
-        d.put("cheat build - thorn esp", "Cheat build: Thorn ESP extras below this line that see through blocks.");
+        d.put("cheat build - thorn", "Cheat build: Thorn extras below this line - highlights through blocks and Thorn Triggerbot.");
 
         // ---- Custom Scoreboard ----
         scoreboardEditor(d);
@@ -2476,7 +2476,8 @@ final class SettingTooltipsData {
         d.put("storage overlay/overlay theme", "Amber (the original dark look), Dark (neutral grays) or Light, for the grid and the relocated inventory.");
         d.put("storage overlay/columns", "How many storage panels sit side by side.");
         d.put("thorn triggerbot", "Cheat build: in the F4/M4 Thorn fight, holds right click while you hold the Tribal Spear, so its throw keeps Thorn stunned.");
-        d.put("thorn triggerbot/only when aimed at thorn", "Holds only while your crosshair is on Thorn with no block in the way. Bats and other mobs in between do not stop it.");
+        d.put("thorn (f4)/only when aimed at thorn", "Holds only while your crosshair is on Thorn with no block in the way. Bats and other mobs in between do not stop it.");
+        d.put("triggerbot toggle keybind", "A key that turns Thorn Triggerbot on and off in game, as its switch does. None by default. Click, then press a key or mouse button; Escape clears it.");
         d.put("auto sell/any npc sell menu", "Sells in any Hypixel NPC shop you can sell into (told by the shop's sell slot), not only menus whose title matches the sell pattern like Trades.");
         d.put("auto sell/add defaults", "Adds the dungeon junk list (Oak Sign, Lever, the dungeon armor sets, Earthen Blade, Silent Death, Training Weights, Healing VIII Splash Potion and more) to the sell list. Items already on it stay once; the never-sell list still wins.");
         d.put("mask keybinds", "While you have the /stats menu open, a key equips Spirit Mask or Bonzo's Mask: one click in that menu per press, skipping a mask that is worn, on cooldown or not in your inventory.");
