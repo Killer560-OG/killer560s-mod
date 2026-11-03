@@ -116,8 +116,32 @@ public final class InvSortPlanner {
         return p < hotbarCount;
     }
 
-    private static boolean same(String a, String b) {
-        return a != null && b != null && a.equalsIgnoreCase(b);
+    /**
+     * Whether two identities name the same item: equal ignoring case, or - when exactly one of them is an exact key
+     * ({@code ID|...}, see {@code InvSortMatch}) and the other an id alone (an older layout's slot) - the same id. Pure
+     * Java so the optimality check still compiles this file alone; with no {@code |} anywhere it is plain equality.
+     */
+    public static boolean same(String a, String b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        if (a.equalsIgnoreCase(b)) {
+            return true;
+        }
+        int ba = a.indexOf('|');
+        int bb = b.indexOf('|');
+        if ((ba < 0) == (bb < 0)) {
+            return false;
+        }
+        String ia = ba < 0 ? a : a.substring(0, ba);
+        String ib = bb < 0 ? b : b.substring(0, bb);
+        return ia.equalsIgnoreCase(ib);
+    }
+
+    /** The id part of an identity ({@code ID|...} -> {@code ID}), upper case. */
+    private static String idPart(String key) {
+        int bar = key.indexOf('|');
+        return (bar < 0 ? key : key.substring(0, bar)).toUpperCase(java.util.Locale.ROOT);
     }
 
     private Plan run() {
@@ -136,8 +160,10 @@ public final class InvSortPlanner {
             }
             wrong.add(t);
             needed.add(e.getValue().toUpperCase(java.util.Locale.ROOT));
+            needed.add(idPart(e.getValue()));
             if (cur[t] != null) {
                 needed.add(cur[t].toUpperCase(java.util.Locale.ROOT)); // displaced: a slot of its own kind may take it
+                needed.add(idPart(cur[t]));
             }
         }
         // A layout slot that is already right still takes part when a wrong slot needs the same item: its copy may go to
@@ -147,7 +173,8 @@ public final class InvSortPlanner {
         for (Map.Entry<Integer, String> e : new java.util.TreeMap<>(want).entrySet()) {
             int t = e.getKey();
             if (t >= 0 && t < n && !locked[t] && same(cur[t], e.getValue())
-                    && needed.contains(e.getValue().toUpperCase(java.util.Locale.ROOT))) {
+                    && (needed.contains(e.getValue().toUpperCase(java.util.Locale.ROOT))
+                    || needed.contains(idPart(e.getValue())))) {
                 demands.add(t);
             }
         }
