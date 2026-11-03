@@ -1031,8 +1031,11 @@ final class ExperimentSolver {
      * What one look at the board says, recomputed on every decision ({@link #readBoard}).
      * <p>
      * The counting rule the deductions rest on: every reward tile has exactly one partner, and a powerup has none.
-     * Nothing is assumed about how many powerups a board has (it varies: Instant Find, "+N Clicks", the big XP
-     * lapis). So each covered tile whose face was never seen ({@link #unknown}) is one of three things: the partner
+     * Which powerups a board has varies (Instant Find, "+N Clicks", the big XP lapis), and there are at most two
+     * ({@link #MAX_SUPERPAIRS_POWERUPS}, killer560 2026-11-03). The deductions below do not use that cap: it bounds
+     * powerups from above, so it can prove a hidden pair exists but never that no money is left, and the one case it
+     * settles for the solver (two powerups seen, so two hidden tiles are a pair) is the pair exploring finds with the
+     * same clicks. The HUD uses it ({@link SuperpairsSummary}). So each covered tile whose face was never seen ({@link #unknown}) is one of three things: the partner
      * of a known single (a kind seen an odd number of times and not yet claimed), a member of a pair neither of
      * whose tiles has been seen, or a powerup. Every known single's partner must be among the unknown tiles, so
      * {@code hidden() = unknown - singles} is the number of unknown tiles that are NOT a known single's partner:
@@ -1099,9 +1102,10 @@ final class ExperimentSolver {
      * undiscovered pairs and undiscovered powers", like SkyHanni's). Read from the same board facts the solver plays by:
      * {@code found} is every reward kind seen, with how many of its two tiles were seen and whether it is claimed;
      * {@code halfFound} counts kinds with one tile seen (the partner is certainly still covered); {@code unseen} counts
-     * covered tiles never seen, which are those partners, whole pairs never seen, or powerups. How many powerups a board
-     * holds is not published (hypixelskyblock wiki, 2026-11-01) and varies, so the split of the unseen tiles is exact only
-     * where the counting rule forces it - see {@link SuperpairsSummary#newPairsMax} and {@link SuperpairsSummary#powerupsExact}.
+     * covered tiles never seen, which are those partners, whole pairs never seen, or powerups. Which powerups a board
+     * holds varies, but never more than {@link #MAX_SUPERPAIRS_POWERUPS} (killer560, 2026-11-03), so with the powerups
+     * already turned over ({@code powerups}, one per tile) and the parity of {@link SuperpairsSummary#hidden} the split
+     * of the unseen tiles is usually exact - see {@link SuperpairsSummary#coveredPowerupsMax}.
      */
     record SuperpairsSummary(List<FoundKind> found, List<String> powerups, int halfFound, int unseen, boolean consistent) {
         /** Unseen tiles that are not a known kind's partner: whole pairs (two tiles each) or powerups. */
@@ -1109,9 +1113,44 @@ final class ExperimentSolver {
             return Math.max(0, unseen - halfFound);
         }
 
-        /** At most this many pairs neither of whose tiles was seen. */
+        /** Powerup tiles already turned over on this board. */
+        int powerupsSeen() {
+            return powerups == null ? 0 : powerups.size();
+        }
+
+        /**
+         * Whether the at-most-two-powerups cap fits this board: no more than two seen, and an odd {@link #hidden} (which
+         * needs an odd number of covered powerups, so one) with a powerup still allowed. When it does not fit, the board
+         * was misread or the cap is wrong, and the numbers fall back to the counting rule alone rather than claim
+         * anything from a cap the board contradicts.
+         */
+        boolean capFits() {
+            int left = MAX_SUPERPAIRS_POWERUPS - powerupsSeen();
+            return left >= 0 && (hidden() % 2 == 0 || left >= 1);
+        }
+
+        /** Covered powerups, at least: an odd {@link #hidden} needs one (pairs take two tiles each). */
+        int coveredPowerupsMin() {
+            return hidden() % 2;
+        }
+
+        /** Covered powerups, at most: the most the cap still allows (two less those seen), no more than {@link #hidden}
+         *  and of the same parity as it. Without the cap ({@link #capFits} false), {@link #hidden} itself. */
+        int coveredPowerupsMax() {
+            int h = hidden();
+            int max = capFits() ? Math.min(h, MAX_SUPERPAIRS_POWERUPS - powerupsSeen()) : h;
+            return max % 2 == h % 2 ? max : max - 1;
+        }
+
+        /** Pairs neither of whose tiles was seen, at least: the unseen tiles left once the most powerups allowed are
+         *  taken out. */
+        int newPairsMin() {
+            return (hidden() - coveredPowerupsMax()) / 2;
+        }
+
+        /** Pairs neither of whose tiles was seen, at most. */
         int newPairsMax() {
-            return hidden() / 2;
+            return (hidden() - coveredPowerupsMin()) / 2;
         }
 
         /** Pairs still to find at least one tile of, at least: every half-found kind's partner. */
@@ -1119,15 +1158,22 @@ final class ExperimentSolver {
             return halfFound;
         }
 
-        /** Powerups still covered, when the board says exactly: none left once every unseen tile is a partner, one
-         *  when a single unseen tile is left over. -1 when it cannot be told yet. */
+        /** Powerups still covered, when the board says exactly: an odd {@link #hidden} with a powerup still allowed is
+         *  one, an even one with fewer than two allowed is none, and none once every unseen tile is a partner. -1 when
+         *  it cannot be told yet (an even {@link #hidden} of two or more with no powerup seen: none or two). */
         int powerupsExact() {
             if (!consistent) {
                 return -1;
             }
-            return hidden() == 0 ? 0 : hidden() == 1 ? 1 : -1;
+            int min = coveredPowerupsMin();
+            return min == coveredPowerupsMax() ? min : -1;
         }
     }
+
+    /** The most powerup tiles one Superpairs board holds (killer560, 2026-11-03: "at max there can only be 2 powerups
+     *  in a table"). Used only by the HUD's counts ({@link SuperpairsSummary}); the solver's deductions do not need it -
+     *  see {@link BoardFacts}. */
+    static final int MAX_SUPERPAIRS_POWERUPS = 2;
 
     /** One reward kind seen on the board: its name, tiles of it seen (1 or 2), and whether the pair is claimed. */
     record FoundKind(String name, int seen, boolean claimed) {

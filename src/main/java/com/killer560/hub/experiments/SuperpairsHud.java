@@ -151,11 +151,15 @@ public final class SuperpairsHud {
             out.add("§7Undiscovered: §cboard not read yet");
             return out;
         }
+        int newMin = s.newPairsMin();
         int newMax = s.newPairsMax();
-        out.add("§7Undiscovered pairs: §e" + s.undiscoveredPairsMin()
-                + (newMax > 0 ? " §7+ up to §e" + newMax + " §7new" : ""));
+        String newPairs = newMax <= 0 ? ""
+                : newMin == newMax ? " §7+ §e" + newMax + " §7new"
+                : newMin == 0 ? " §7+ up to §e" + newMax + " §7new"
+                : " §7+ §e" + newMin + "§7-§e" + newMax + " §7new";
+        out.add("§7Undiscovered pairs: §e" + s.undiscoveredPairsMin() + newPairs);
         int exact = s.powerupsExact();
-        out.add("§7Undiscovered powerups: " + (exact >= 0 ? "§e" + exact : "§7up to §e" + s.hidden()));
+        out.add("§7Undiscovered powerups: " + (exact >= 0 ? "§e" + exact : "§7up to §e" + s.coveredPowerupsMax()));
         return out;
     }
 
