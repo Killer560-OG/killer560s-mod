@@ -78,6 +78,7 @@ final class SettingTooltipsData {
     private static void miningQol(Map<String, String> d) {
         d.put("commission hud", "Shows your commissions from the tab list on a movable HUD, with waypoints to where each is done.");
         d.put("commission hud/color by progress", "Colors each commission's progress: red under 25%, gold under 75%, yellow above, green when DONE.");
+        d.put("commission hud/live progress", "Moves a mithril or titanium commission's progress on with every counted block you break, instead of waiting for the tab list's slow refresh.");
         d.put("commission hud/commission waypoints", "Labels in the world at the area or gemstone spots each open commission needs.");
         d.put("commission hud/emissary waypoints", "When a commission is DONE, labels every Emissary so you can turn it in at the nearest.");
         d.put("commission hud/completed commissions", "In the King's or an Emissary's Commissions menu, a green background on every commission that is finished and ready to claim.");
@@ -87,7 +88,7 @@ final class SettingTooltipsData {
         d.put("pickobulus estimate", "While you hold a Pickobulus tool and it is ready, outlines every block it would break where you aim.");
         d.put("pickobulus estimate/outline color", "The color of the outlines.");
         d.put("ability ready alert", "Shows a big \"READY\" popup when a pickaxe ability is available again. Move it in the HUD editor.");
-        d.put("ability ready alert/cooldown timer", "A HUD line counting down each pickaxe ability until it is ready again.");
+        d.put("ability ready alert/cooldown timer", "A HUD line counting down each pickaxe ability every second until it is ready again (the tab list only refreshes every few seconds).");
         d.put("ability ready alert/ready sound", "Plays a ding with the popup.");
         d.put("carpet highlighter", "In the Dwarven Mines, fills the unbreakable carpets in ore veins so you stop swinging at them.");
         d.put("carpet highlighter/carpet color", "The color the carpets are filled with.");

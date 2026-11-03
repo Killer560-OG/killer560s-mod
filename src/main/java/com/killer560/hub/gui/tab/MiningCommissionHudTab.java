@@ -25,6 +25,9 @@ public class MiningCommissionHudTab extends BaseTab {
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Color By Progress", cfg::isCommissionColorProgress,
                 cfg::setCommissionColorProgress, cfg::save);
         y += MiningQolRows.STEP;
+        MiningQolRows.toggle(w, contentX, y, contentWidth, "Live Progress", cfg::isCommissionInterpolate,
+                cfg::setCommissionInterpolate, cfg::save);
+        y += MiningQolRows.STEP;
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Commission Waypoints", cfg::isCommissionWaypoints,
                 cfg::setCommissionWaypoints, cfg::save);
         y += MiningQolRows.STEP;

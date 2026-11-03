@@ -187,7 +187,10 @@ public final class MiningHighlights {
 
     /** A batch of changes in one section (kept out of the mixin so the mixin holds no lambda). */
     public static void onSectionChanged(net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket packet) {
-        packet.runUpdates((pos, state) -> onBlockChanged(pos));
+        packet.runUpdates((pos, state) -> {
+            onBlockChanged(pos);
+            CommissionProgress.onBlockChanged(pos);
+        });
     }
 
     /** A chunk arrived: its blocks are evaluated now, not on the next safety scan. */

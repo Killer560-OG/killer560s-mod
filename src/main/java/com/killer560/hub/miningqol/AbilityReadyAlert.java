@@ -32,7 +32,8 @@ import java.util.regex.Pattern;
  * <p>The timer: a movable HUD line per ability still cooling down. Its time comes from, in order: the tab list's "Pickaxe
  * Ability:" widget ({@code " Pickobulus: 34s"}), Hypixel's {@code "This ability is on cooldown for 34s."} reply, or the
  * cooldown this session measured between "You used your X Pickaxe Ability!" and X's "is now available!" line. With none of
- * those it shows nothing rather than a guess.
+ * those it shows nothing rather than a guess. The widget refreshes only every ~3 s, so a reading sets a deadline and the
+ * line counts down from it every second ({@link #applyTab}); the use and ready lines are hard resets.
  */
 public final class AbilityReadyAlert {
 
@@ -51,6 +52,11 @@ public final class AbilityReadyAlert {
     /** Ability -> when "You used your X" was seen; ability -> measured cooldown ms. */
     private static final Map<String, Long> USED_AT = new LinkedHashMap<>();
     private static final Map<String, Long> LEARNED = new LinkedHashMap<>();
+    /** Ability -> the tab line last acted on. A reading is acted on only when it CHANGES, so the widget's ~3 s refresh
+     *  never holds the countdown still (killer560, 2026-11-03: "only counts down every 3s"). */
+    private static final Map<String, String> LAST_TAB = new LinkedHashMap<>();
+    /** A new tab reading moves the deadline only when it disagrees by more than this (the widget rounds to a second). */
+    static final long RESYNC_MS = 1500;
     private static String lastUsed = null;
 
     private static volatile String popupText = null;
@@ -74,7 +80,10 @@ public final class AbilityReadyAlert {
         if (raw == null || raw.length() > 80) {
             return;
         }
-        long now = System.currentTimeMillis();
+        handle(raw, System.currentTimeMillis());
+    }
+
+    private static void handle(String raw, long now) {
         Matcher m = READY.matcher(raw);
         if (m.matches()) {
             onReady(m.group(1).trim(), now);
@@ -89,6 +98,8 @@ public final class AbilityReadyAlert {
             if (learned != null) {
                 READY_AT.put(name, now + learned);
             }
+            // The tab still shows the old "Available" for a few seconds: only its next change counts.
+            LAST_TAB.put(name, currentTab(name));
             return;
         }
         m = COOLDOWN.matcher(raw);
@@ -103,6 +114,8 @@ public final class AbilityReadyAlert {
             LEARNED.put(name, now - used);
         }
         READY_AT.remove(name);
+        // A hard reset: the tab may still show "3s" for a few seconds; only its next change counts.
+        LAST_TAB.put(name, currentTab(name));
         popupText = "§a§l" + name + " READY";
         popupUntil = now + POPUP_MS;
         popupsShown++;
@@ -119,30 +132,65 @@ public final class AbilityReadyAlert {
             return;
         }
         long now = System.currentTimeMillis();
-        // The tab widget, when shown, is the server's own number: it replaces the estimate.
-        for (String line : MiningState.pickaxeAbilityLines()) {
+        applyTab(MiningState.pickaxeAbilityLines(), now);
+        timerLines = render(now);
+    }
+
+    /** The lines at {@code now}: ceil(deadline - now), never negative; a finished one leaves (the popup says READY). */
+    private static List<String> render(long now) {
+        List<String> out = new ArrayList<>();
+        READY_AT.entrySet().removeIf(e -> e.getValue() <= now);
+        for (Map.Entry<String, Long> e : READY_AT.entrySet()) {
+            long left = Math.max(0, (e.getValue() - now + 999) / 1000);
+            out.add("§6" + e.getKey() + ": §e" + (left >= 60 ? (left / 60) + "m " + (left % 60) + "s" : left + "s"));
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * The tab widget is the server's own number, but Hypixel refreshes it only every ~3 s. Each reading that CHANGED
+     * sets a local deadline (reading + the moment it changed); the shown time counts down from that every second, and a
+     * later reading moves the deadline only when it disagrees by more than {@link #RESYNC_MS}, so a stale read can never
+     * make it jump back up. "Available" ends it.
+     */
+    static void applyTab(List<String> lines, long now) {
+        for (String line : lines) {
             Matcher m = TAB.matcher(line);
             if (!m.matches()) {
                 continue;
             }
             String name = m.group(1).trim();
+            if (line.equals(LAST_TAB.get(name))) {
+                continue;
+            }
+            LAST_TAB.put(name, line);
             if (m.group(3) == null) {
                 READY_AT.remove(name);
             } else {
                 long s = Long.parseLong(m.group(3)) + (m.group(2) == null ? 0 : Long.parseLong(m.group(2)) * 60);
-                READY_AT.put(name, now + s * 1000L);
+                long deadline = now + s * 1000L;
+                Long cur = READY_AT.get(name);
+                if (cur == null || Math.abs(cur - deadline) > RESYNC_MS) {
+                    READY_AT.put(name, deadline);
+                }
             }
         }
-        List<String> out = new ArrayList<>();
-        READY_AT.entrySet().removeIf(e -> e.getValue() <= now);
-        for (Map.Entry<String, Long> e : READY_AT.entrySet()) {
-            long left = (e.getValue() - now + 999) / 1000;
-            out.add("§6" + e.getKey() + ": §e" + (left >= 60 ? (left / 60) + "m " + (left % 60) + "s" : left + "s"));
+    }
+
+    private static List<String> testTab = null;
+
+    private static String currentTab(String name) {
+        List<String> lines = testTab != null ? testTab : MiningState.pickaxeAbilityLines();
+        for (String line : lines) {
+            if (line.startsWith(name + ": ")) {
+                return line;
+            }
         }
-        timerLines = List.copyOf(out);
+        return null;
     }
 
     static void reset() {
+        LAST_TAB.clear();
         READY_AT.clear();
         USED_AT.clear();
         lastUsed = null;
@@ -166,6 +214,27 @@ public final class AbilityReadyAlert {
 
     public static List<String> timer() {
         return timerLines;
+    }
+
+    /** Testkit: feeds tab lines at a given wall-clock time and returns the timer lines at {@code readAt}. */
+    public static List<String> timerAtForTest(List<String> tab, long now, long readAt) {
+        applyTab(tab, now);
+        return render(readAt);
+    }
+
+    /** Testkit: a chat line at {@code now} (used / ready / cooldown), as Hypixel would send it. */
+    public static void chatForTest(String raw, List<String> tabNow, long now) {
+        testTab = tabNow;
+        try {
+            handle(raw, now);
+        } finally {
+            testTab = null;
+        }
+    }
+
+    public static void resetForTest() {
+        reset();
+        LEARNED.clear();
     }
 
     public static Long learnedMs(String name) {
