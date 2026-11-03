@@ -1596,6 +1596,9 @@ public final class BloodCampFeature {
             if (watcherEntityId != null && c.getId() == watcherEntityId) {
                 continue;
             }
+            if (owedElsewhere(c, data.endVector, now)) {
+                continue;
+            }
             if (BLOOD_IDS.contains(c.getId())) {
                 if (taggedAt(c.getId()) >= since) {
                     data.mobId = c.getId();
@@ -1891,7 +1894,8 @@ public final class BloodCampFeature {
             for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
                 BloodMobState data = entry.getValue();
                 if (liveTrip(entry.getKey(), data, now)
-                        && mob.position().distanceTo(data.endVector) <= TARGET_SEARCH_RADIUS) {
+                        && mob.position().distanceTo(data.endVector) <= TARGET_SEARCH_RADIUS
+                        && !owedElsewhere(mob, data.endVector, now)) {
                     onTrip = true;
                     break;
                 }
@@ -2171,12 +2175,64 @@ public final class BloodCampFeature {
         return new int[]{alive, flying};
     }
 
+    /**
+     * Whether {@code mob} belongs to ANOTHER trip than the one whose landing spot is {@code end} (compared by reference):
+     * a trip within {@link #TARGET_SEARCH_RADIUS} of it that already took it, or one that has no mob yet and is more due
+     * (less time left). Owner's camp 2026-11-03: two skulls landed 0.75 blocks apart; the first one's stand was removed
+     * (-1.2 ticks left, its mob just spawned) and the second (4.8 ticks left) took that mob as its own, so the Trigger
+     * Bot "clicked at 4.8 ticks" - the kill was right, the attribution and the log said early, and the second trip was
+     * left marked clicked. A mob belongs to the trip whose timer ran out first; the other waits for its own.
+     */
+    private static boolean owedElsewhere(Entity mob, Vec3 end, long now) {
+        double mine = Double.MAX_VALUE;
+        for (BloodMobState s : bloodMobs.values()) {
+            if (s.endVector == end) {
+                mine = remainingTicks(s, now);
+                break;
+            }
+        }
+        if (mine == Double.MAX_VALUE) {
+            for (Landed l : LANDED.values()) {
+                if (l.data().endVector == end) {
+                    mine = remainingTicks(l.data(), now);
+                    break;
+                }
+            }
+        }
+        for (BloodMobState s : bloodMobs.values()) {
+            if (claimedByOther(s, mob, end, mine, now)) {
+                return true;
+            }
+        }
+        for (Landed l : LANDED.values()) {
+            if (claimedByOther(l.data(), mob, end, mine, now)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean claimedByOther(BloodMobState s, Entity mob, Vec3 end, double mine, long now) {
+        if (s.endVector == null || s.endVector == end || mob.position().distanceTo(s.endVector) > TARGET_SEARCH_RADIUS) {
+            return false;
+        }
+        if (s.mobId >= 0 && BLOOD_IDS.contains(s.mobId)) {
+            return s.mobId == mob.getId();
+        }
+        double theirs = remainingTicks(s, now);
+        return theirs > -RETRY_STALE_TICKS && theirs < mine;
+    }
+
     /** The real mob standing on a landing spot (nearest to it), or null when only the stand is there. */
     private static Entity nearestMob(Minecraft client, Vec3 end) {
         AABB search = new AABB(end, end).inflate(TARGET_SEARCH_RADIUS);
         Entity best = null;
         double bestD = Double.MAX_VALUE;
+        long now = client.level.getGameTime();
         for (Entity candidate : client.level.getEntities(client.player, search, BloodCampFeature::isBloodMob)) {
+            if (owedElsewhere(candidate, end, now)) {
+                continue;
+            }
             double d = candidate.position().distanceToSqr(end);
             if (d < bestD) {
                 bestD = d;
