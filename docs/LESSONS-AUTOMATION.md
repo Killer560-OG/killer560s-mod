@@ -391,6 +391,21 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   more "in water, no way back") and it was reverted. Single-island runs also vary by a soul or two between identical jars.
 - **A soul whose stand is out of reach must never be clicked anyway**: the pre-doc-fairy jar drew GrimAC Reach 3.02-3.26 on
   the stand-ins (it clicked once the node was within 3); the click now needs eye-to-box <= 2.85 and a clear line.
+- **Hypixel's Jump Boost is VI, and a 6-block jump is not a bigger 1-block jump** (fairysouls-1103, his 2026-11-03 log: "Jump
+  Boost 6 - jumps 6.13 blocks"). The planner already used the real jump (`getJumpBoostPower`, javap 26.3: 0.1f*(amp+1) on
+  0.42); the execution did not: a running jump onto a step flew ~30 ticks and past it, and a way back was thrown away as
+  "off the way back" three blocks up its own jump. A jump with >= 0.6 to spare is taken from a walk, never a sprint (a
+  sprint jump adds 0.2), and steered in the air onto the cell with `WalkPhysics.ticksToLand` (vanilla y += v, v = (v-0.08)*0.98);
+  a cell with a roof 2 up (a raised hole) is entered on the way up instead. While airborne only horizontal distance is "off".
+- **A stand in reach mid-jump is not a place to click from, and its graph node is not where the soul is** (1103-fairy-boost6-pillar).
+  With JB VI the stand came in reach for a tick on the way up; the runner stopped the walk there and he fell before the click.
+  Then, landed on the pillar, COLLECTING measured "too far" from the soul's NODE (5 blocks below) and walked him back off,
+  four times. The hand-off waits for the ground, and "too far" is decided by the stand's own reach.
+- **Crouch cells**: `LocalPlanner.crouchCell` is a cell with no standing room but 1.5 over the feet (a top slab, an upper
+  trapdoor); the walker holds sneak in and next to one (`AutoWalker.wantSneak`, the input mixin ORs it into `shift`) and the
+  key model scales the push by SNEAKING_SPEED (`LocalPlayer.modifyInput` scales the input when `isMovingSlowly`). Reach from a
+  crouch cell uses eye 1.27. Base jar: 1103-fairy-overhang never got under the slabs; GrimAC (experimental on) clean after.
+  OPEN: not checked on Hypixel, whose server may not give a crouching modern client the 1.5-tall box (a setback there).
 - **Simulated key presses (Fabric's `TestInput.pressKey`) never reach a key read with `KeyUtil.isKeyDown`** (GLFW's own
   state): the Start/Stop key poll did not see the testkit's K. The key is taken from `KeyboardHandler.keyPress`, the same
   event the "any key stops it" rule reads, so a press is either the toggle or a stop, never both.
