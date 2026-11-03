@@ -110,15 +110,23 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
 
             widgets.add(onOffButton("Item ID Fallback", cfg::isUseItemIdFallback, cfg::setUseItemIdFallback, cfg::save,
                     null, contentX, y, half, 18));
-            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Star Color", cfg.getProtectedColor()), btn -> {
-                        Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Protected Item Star Color",
-                                cfg.getProtectedColor(), ItemProtectConfig.DEFAULT_STAR_COLOR, argb -> {
-                            cfg.setProtectedColor(argb);
-                            cfg.save();
-                        }));
-                    }).bounds(col2, y, half, 18).build());
+            // Show Star (killer560, 2026-11-03): OFF hides the star everywhere; protection is unchanged. Star Color
+            // only matters while the star shows, so it sits under it then.
+            widgets.add(onOffButton("Show Star", cfg::isShowStar, cfg::setShowStar, cfg::save,
+                    requestRebuild, col2, y, half, 18));
             y += 22;
+
+            if (cfg.isShowStar()) {
+                widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Star Color", cfg.getProtectedColor()), btn -> {
+                            Minecraft client = Minecraft.getInstance();
+                            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Protected Item Star Color",
+                                    cfg.getProtectedColor(), ItemProtectConfig.DEFAULT_STAR_COLOR, argb -> {
+                                cfg.setProtectedColor(argb);
+                                cfg.save();
+                            }));
+                        }).bounds(col2, y, half, 18).build());
+                y += 22;
+            }
 
             for (String name : new ArrayList<>(cfg.getProtectedNames())) {
                 widgets.add(new StringWidget(contentX, y, half, 12, Component.literal("§f" + name), mc.font));

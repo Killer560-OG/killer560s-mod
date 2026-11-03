@@ -65,6 +65,9 @@ public final class ItemProtectConfig {
     private boolean useItemIdFallback = false;
     /** Color of the small star drawn in the top-right corner of every protected item's slot. */
     private int protectedColor = DEFAULT_STAR_COLOR;
+    /** Show Star (killer560, 2026-11-03: "add an option to not show the star as well"): OFF draws no star on any
+     *  protected item; protection itself is unchanged. ON keeps the old look. */
+    private boolean showStar = true;
     /** What Slot Lock used to do, per item instead of per slot: a protected item cannot be clicked at all - not
      *  picked up, shift-moved, number-key swapped or thrown - in any menu, your own inventory included. */
     private boolean lockInPlace = false;
@@ -142,6 +145,7 @@ public final class ItemProtectConfig {
             cfg.protectKey = sanitizeBind(ConfigJson.getInt(obj, "protectKey", KeyUtil.NONE));
             cfg.useItemIdFallback = ConfigJson.getBool(obj, "useItemIdFallback", false);
             cfg.protectedColor = ConfigJson.getInt(obj, "protectedColor", DEFAULT_STAR_COLOR);
+            cfg.showStar = ConfigJson.getBool(obj, "showStar", true);
             cfg.lockInPlace = ConfigJson.getBool(obj, "lockInPlace", false);
             JsonArray keys = ConfigJson.getArray(obj, "protectedKeys");
             if (keys != null) {
@@ -232,6 +236,7 @@ public final class ItemProtectConfig {
             obj.addProperty("protectKey", protectKey);
             obj.addProperty("useItemIdFallback", useItemIdFallback);
             obj.addProperty("protectedColor", protectedColor);
+            obj.addProperty("showStar", showStar);
             obj.addProperty("lockInPlace", lockInPlace);
             JsonArray keys = new JsonArray();
             for (String key : protectedKeys) {
@@ -319,6 +324,14 @@ public final class ItemProtectConfig {
 
     public void setProtectedColor(int argb) {
         this.protectedColor = argb;
+    }
+
+    public boolean isShowStar() {
+        return showStar;
+    }
+
+    public void setShowStar(boolean value) {
+        this.showStar = value;
     }
 
     public boolean isLockInPlace() {

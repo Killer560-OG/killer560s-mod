@@ -1713,6 +1713,7 @@ final class SettingTooltipsData {
         d.put("item protection", "Turns on the guards that stop you losing your own gear.");
         d.put("protect item", "Stops protected items being dropped, sold, traded, salvaged, auctioned or thrown out of menus; each shows a small star.");
         d.put("item protection/lock in place", "Protected items can't be clicked at all - not moved, swapped or thrown in any menu (what Slot Lock did).");
+        d.put("item protection/show star", "Draws the small star in the top-right corner of every protected item. Off hides it; the items stay protected.");
         d.put("item protection/star color", "Color of the small star drawn in the top-right corner of every protected item.");
         d.put("protect key", "Keybind to add or remove the hovered item from the protected list.");
         d.put("item id fallback", "Protects items with no Skyblock UUID by item ID, which covers every copy.");
