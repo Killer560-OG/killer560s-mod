@@ -854,6 +854,14 @@ public final class BloodCampFeature {
         // negative gap for thousands of ticks, which held every click: -4404 of 7 in the 2026-10-19 log. A stamp ahead of
         // the clock is stale, so the cooldown is ready.
         boolean cooldownReady = now < lastClickTick || now - lastClickTick >= cooldown;
+        // ...and on the server's own clock when it is trusted at both clicks: the server counts the cap in ITS ticks, and a
+        // client that stalls and then catches up runs 10 of its ticks in 8 of the server's (testkit 186, bloodcamp2-1102:
+        // client clicks exactly 10 ticks apart, 400 ms of wall time, the server saw an 8-tick gap).
+        long clockNow = com.killer560.hub.util.PerTickServerClock.now();
+        if (cooldownReady && lastClickClockTrusted && com.killer560.hub.util.PerTickServerClock.trusted()
+                && clockNow >= lastClickClock && clockNow - lastClickClock < cooldown) {
+            cooldownReady = false;
+        }
         boolean neverMiss = cfg.isNeverMiss();
         // ---- The kill timer (killer560, 2026-10-18: "Blood just attacked for triggerbot before the kill timer went
         // off"): no Blood Camp attack - Trigger Bot, Aura or a click between hits - before the Kill Popup's "KILL",
@@ -1113,6 +1121,8 @@ public final class BloodCampFeature {
         if (anyTarget) {
             lastRefusalKey = null; // the next refusal after a click is logged at once
             lastClickTick = now;
+            lastClickClock = com.killer560.hub.util.PerTickServerClock.now();
+            lastClickClockTrusted = com.killer560.hub.util.PerTickServerClock.trusted();
             HUMAN.clicked(now);
             ALL_CLICKS.addLast(now);
             while (ALL_CLICKS.size() > 64) {
@@ -1679,6 +1689,9 @@ public final class BloodCampFeature {
 
     /** Game tick of Blood Camp's last click (Trigger Bot or Aura) - the attack-speed cap counts from it. */
     private static long lastClickTick = Long.MIN_VALUE / 2;
+    /** {@code PerTickServerClock} at the last click, and whether it was trusted then (the cap on the server's clock). */
+    private static long lastClickClock = Long.MIN_VALUE / 2;
+    private static boolean lastClickClockTrusted;
     /** Testkit: the cap in force last tick, Aura attacks sent, the floor mob the Aura last aimed at (-1 none), and
      *  whether a living mob stood on the spot when the last first click went. */
     private static int lastCooldownTicks;
