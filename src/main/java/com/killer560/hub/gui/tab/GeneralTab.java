@@ -23,7 +23,9 @@ public class GeneralTab extends FolderTab {
                 new SessionRecorderTab(),
                 // Out of Home (the mod's own settings) on 2026-10-20: it replaces game sounds (arrow and attack hits, block
                 // hits, mob deaths, block breaks), none of which one feature owns, so it is a Misc card of its own.
-                new SoundEffectsTab()
+                new SoundEffectsTab(),
+                // Mutes game sounds (Bonzo's Staff and others), 2026-11-02; a Misc card beside Sound Effects.
+                new SoundDisablerTab()
         ));
         pinFirstSection();
     }
