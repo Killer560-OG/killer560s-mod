@@ -382,8 +382,15 @@ public final class AutoSellFeature {
     }
 
     private static void finish() {
-        ModChat.send("AutoSell", ModChat.good("Done - "), ModChat.value(attempted + " item stack(s)"),
-                ModChat.text(" clicked."));
+        // Every NPC menu open runs a visit, so "Done - 0 item stack(s) clicked." landed in chat each time
+        // (killer560, 2026-11-03: "dont send the autosell line every time i open a npc menu"). A visit that sold
+        // nothing goes to the log only; one that clicked something still says so in chat.
+        if (attempted == 0) {
+            ModChat.log("AutoSell", ModChat.text("Done - nothing to sell."));
+        } else {
+            ModChat.send("AutoSell", ModChat.good("Done - "), ModChat.value(attempted + " item stack(s)"),
+                    ModChat.text(" clicked."));
+        }
         end();
     }
 
