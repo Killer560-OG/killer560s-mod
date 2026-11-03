@@ -172,8 +172,9 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   END_SERVER_TICK sending the health packet a tick later; it now runs at START_SERVER_TICK, as a plugin scheduler would).
   Anything that compares a chat event with a polled one puts both on the end-of-tick reading (`GoldorTick.endOfTick`).
 - **Off Hypixel the server-tick clock wobbles by several ticks.** Without per-tick pings (a GrimAC server: its transactions
-  are not ticks) `PerTickServerClock` follows the client's game time plus the server's once-a-second time packet, so on a
-  loaded server it reads 4-8 ticks off between corrections (1102-hx-goldor-tick on 26.2/26.3 legit: hits at 4, 8, -5). With
+  are not ticks) `PerTickServerClock` follows the client's game time plus whatever set-time packets come, which on the 26.x test
+  server do not stop a drift: hits read 4-8 off, and on 26.2 drifted 4 ticks per 60 (1102-hx-goldor-tick), so GoldorTick's
+  re-lock pair allows 6 ticks off a whole period. With
   per-tick pings (Hypixel; the testmod's `boss.pertickping` under -Pnogrim) hits read 0 +-1. GoldorTick snaps within 8.
 - **Real F7 gaps from his 2026-10-30 log (seconds resolution):** Storm's opening line to his lightning line 28 s twice
   (560 ticks fits, Odin's 520 does not); Storm's death line to Goldor's line 3-4 s (60-80 ticks: Odin's 64 fits, the
