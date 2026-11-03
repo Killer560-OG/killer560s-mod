@@ -120,6 +120,7 @@ public final class LeapRunMemory {
             pendingTicks = 0;
             lastRead = null;
             reads = 0;
+            midRunSeen = null;
         }
     }
 
@@ -129,10 +130,17 @@ public final class LeapRunMemory {
     }
 
     private static void tick() {
-        if (inRun && !DungeonState.isInDungeon()) {
+        // A run ends with its dungeon: leaving it, or a new world (a requeue straight into the next dungeon), so the next
+        // dungeon's party is never read as a mid-run change of this one.
+        if (inRun && (!DungeonState.isInDungeon() || Minecraft.getInstance().level != runLevel)) {
             inRun = false;
+            midRunSeen = null;
         }
         if (pendingTicks < 0) {
+            if (inRun && ++midRunTicks >= REREAD_TICKS) {
+                midRunTicks = 0;
+                watchMidRun();
+            }
             return;
         }
         if (++pendingTicks < SETTLE_TICKS) {
@@ -167,6 +175,119 @@ public final class LeapRunMemory {
         lastRead = null;
         reads = 0;
         onRunStart(party, LeapMenuFeature.playingClass());
+    }
+
+    /** The party the mid-run watch last read, and ticks since it last read (leaporder-1102). */
+    private static List<String> midRunSeen;
+    /** The world the current run started in (identity only). */
+    private static Object runLevel;
+    private static int midRunTicks = 0;
+    private static volatile String lastMidRunOutcome = "";
+
+    /** What the last mid-run party change did (testkit and the log). */
+    public static String lastMidRunOutcome() {
+        return lastMidRunOutcome;
+    }
+
+    /** During a run, a teammate who leaves and one who joins (the tab list changes, no Mort line): once two reads agree, the
+     *  newcomer takes the leaver's spot in the layout the run had, and the run's party becomes this one, so the next run
+     *  start compares with who actually finished it (leaporder-1102: the Default Order alone gave an Archer newcomer the
+     *  top-left a Mage stayer had held, pushing the Mage into the leaver's spot). */
+    private static void watchMidRun() {
+        if (DungeonState.isRoomSim() || DungeonState.isSimOverrideActive()) {
+            return;
+        }
+        List<String> party = PartyTracker.teammatesInLeapOrder();
+        LeapMenuConfig cfg = LeapMenuConfig.getInstance();
+        List<String> runParty = cfg.getLastRunParty();
+        if (party.isEmpty() || runParty.isEmpty() || sameMembers(party, runParty)) {
+            midRunSeen = null;
+            return;
+        }
+        boolean stable = midRunSeen != null && sameMembers(party, midRunSeen);
+        midRunSeen = party;
+        if (!stable) {
+            return;
+        }
+        midRunSeen = null;
+        onMidRunChange(party, LeapMenuFeature.playingClass());
+    }
+
+    /** Applies a mid-run party change (see {@link #watchMidRun}). Public for the testkit. */
+    public static void onMidRunChange(List<String> party, DungeonClass playing) {
+        LeapMenuConfig cfg = LeapMenuConfig.getInstance();
+        List<String> runParty = cfg.getLastRunParty();
+        List<String> departed = minus(runParty, party);
+        List<String> joined = minus(party, runParty);
+        Map<String, DungeonClass> lastClasses = cfg.getLastRunClasses();
+        Map<String, DungeonClass> lastTab = cfg.getLastRunTabClasses();
+        boolean changed = false;
+        for (String n : party) {
+            if (!containsIgnoreCase(runParty, n)) {
+                continue;
+            }
+            DungeonClass was = lastTab.get(n.toLowerCase(Locale.ROOT));
+            DungeonClass now = PartyTracker.detectedClassOf(n);
+            if (was != null && now != null && was != now) {
+                changed = true;
+            }
+        }
+        List<String> placed = new ArrayList<>();
+        String took = "";
+        if (!joined.isEmpty() && !departed.isEmpty() && !changed && playing != null) {
+            java.util.function.Function<String, DungeonClass> lastClassOf = n -> {
+                DungeonClass c = lastClasses.get(n.toLowerCase(Locale.ROOT));
+                return c != null ? c : PartyTracker.classOf(n);
+            };
+            String[] before = LeapMenuFeature.layout(runParty, cfg.getClassOrder(playing), cfg.getDefaultOrder(), lastClassOf);
+            List<String> pinsNow = cfg.getClassOrder(playing);
+            List<Integer> free = new ArrayList<>();
+            for (int spot = 0; spot < 4; spot++) {
+                if (before[spot] != null && containsIgnoreCase(departed, before[spot]) && pinsNow.get(spot).isEmpty()) {
+                    free.add(spot);
+                }
+            }
+            List<String> placeable = new ArrayList<>();
+            for (String n : joined) {
+                if (!cfg.isPinned(playing, n)) {
+                    placeable.add(n);
+                }
+            }
+            for (int i = 0; i < placeable.size() && i < free.size(); i++) {
+                cfg.pinAt(playing, placeable.get(i), free.get(i));
+                placed.add(placeable.get(i) + "->" + free.get(i));
+            }
+            if (departed.size() == 1 && joined.size() == 1 && cfg.pickOf(joined.get(0)) == null) {
+                DungeonClass pick = cfg.pickOf(departed.get(0));
+                DungeonClass leaverClass = pick != null ? pick : lastClasses.get(departed.get(0).toLowerCase(Locale.ROOT));
+                if (leaverClass != null) {
+                    cfg.setPick(joined.get(0), leaverClass);
+                    took = ", " + joined.get(0) + " takes " + departed.get(0) + "'s " + leaverClass;
+                }
+            }
+        }
+        // The run's party is now this one: classes recorded for everyone in it, newcomers included.
+        Map<String, DungeonClass> classesNow = new java.util.LinkedHashMap<>();
+        Map<String, DungeonClass> tabNow = new java.util.LinkedHashMap<>();
+        for (String n : party) {
+            String key = n.toLowerCase(Locale.ROOT);
+            DungeonClass eff = PartyTracker.classOf(n);
+            DungeonClass tab = PartyTracker.detectedClassOf(n);
+            classesNow.put(n, containsIgnoreCase(runParty, n) && lastClasses.containsKey(key) && !changed
+                    ? lastClasses.get(key) : eff);
+            tabNow.put(n, containsIgnoreCase(runParty, n) && lastTab.containsKey(key) ? lastTab.get(key) : tab);
+        }
+        cfg.setLastRunClasses(classesNow);
+        cfg.setLastRunTabClasses(tabNow);
+        cfg.setLastRunParty(party);
+        cfg.save();
+        lastMidRunOutcome = "mid-run: left " + departed + ", joined " + joined + ", placed " + placed + took
+                + (changed ? ", a class changed: Default Order" : "") + ", playing " + playing;
+        LOGGER.info("[LeapRunMemory] {}", lastMidRunOutcome);
+    }
+
+    private static boolean sameMembers(List<String> a, List<String> b) {
+        return a.size() == b.size() && minus(a, b).isEmpty();
     }
 
     /** What the last run start did (testkit and the log). */
@@ -368,6 +489,8 @@ public final class LeapRunMemory {
         cfg.setLastRunParty(party);
         cfg.save();
         inRun = true;
+        runLevel = Minecraft.getInstance().level;
+        midRunSeen = null;
         lastOutcome = outcome;
         runsProcessed++;
         LOGGER.info("[LeapRunMemory] run start: previous {}, party {}: {}", previous, party, outcome);
