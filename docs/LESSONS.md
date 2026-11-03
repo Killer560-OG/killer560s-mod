@@ -131,6 +131,10 @@ project CLAUDE.md. Compiling lessons
 - Auto Croesus never spent a key because Hypixel closes Croesus after a claim and the reopened head no longer reads
   "No chests opened yet!", the only thing the menu scan opened. It now decides before the first claim whether another
   chest is worth a key and walks back into that run (page:slot, same floor) after the reopen (testkit 766/767).
+- **The player's own order is IN the API book**, so an order at the top of its side reads `BazaarOrders.Standing.MATCHED`
+  (equal to the best price), almost never `TOP`. "Outbid" must mean strictly beaten (more than 0.05 the wrong way), as
+  SkyHanni's Order Helper does: a buy order below the best buy order (Hypixel's `sell_summary[0]`), a sell offer above
+  the cheapest sell offer (`buy_summary[0]`). Bazaar Order Helper ignores prices older than 15 minutes (testkit 2810).
 
 ## Experiments and containers
 
