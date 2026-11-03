@@ -81,10 +81,14 @@ public final class BlazeSolverFeature {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BlazeSolverFeature.tick", com.killer560.hub.util.FeatureBits.register("Blaze Solver tick", () -> BlazeSolverConfig.getInstance().isEnabledRaw()), BlazeSolverFeature::tick));
-        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
-        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(com.killer560.hub.util.FeatureGuard.afterTerrain(
-                com.killer560.hub.util.FeatureBits.register("Blaze Solver render", () -> BlazeSolverConfig.getInstance().isEnabledRaw()), BlazeSolverFeature::onWorldRender));
+        // COLLECT_SUBMITS (see docs/LESSONS-GUI.md, Blaze water): the boxes are submitted while the frame still gathers what to draw.
+        final int renderBit = com.killer560.hub.util.FeatureBits.register("Blaze Solver render", () -> BlazeSolverConfig.getInstance().isEnabledRaw());
+        LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
+            if (!com.killer560.hub.util.FeatureBits.on(renderBit)) {
+                return;
+            }
+            onWorldRender(context);
+        });
     }
 
     private static void tick(Minecraft client) {
