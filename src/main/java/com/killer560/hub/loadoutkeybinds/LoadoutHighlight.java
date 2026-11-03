@@ -26,8 +26,10 @@ import java.util.regex.Pattern;
  */
 public final class LoadoutHighlight {
 
-    private static final int FILL = 0x6055FF55;
-    private static final int BORDER = 0xE055FF55;
+    // Owner 2026-11-03: the old 0x60 fill under the item was "very dim". A strong fill, and a 2 px border on the slot's
+    // edge (x-1..x+17), outside the 16 px the item icon covers.
+    private static final int FILL = 0xB055FF55;
+    private static final int BORDER = 0xFF55FF55;
     /** Hypixel's line; anchored with a bounded number, so "[VIP] Bob: You equipped Loadout 3!" never matches. */
     private static final Pattern EQUIPPED = Pattern.compile("^You equipped Loadout (\\d{1,2})!$");
     private static final Set<String> SELECTED_LINES = Set.of("selected", "equipped", "active", "currently selected",
@@ -127,11 +129,24 @@ public final class LoadoutHighlight {
         }
         int s = selectedSlot(screen);
         if (s >= 0 && slot.index == s) {
-            CommissionMenuHighlight.drawGreen(graphics, slot.x, slot.y, FILL, BORDER);
+            int x = slot.x;
+            int y = slot.y;
+            graphics.fill(x, y, x + 16, y + 16, FILL);
+            graphics.fill(x - 1, y - 1, x + 17, y + 1, BORDER);
+            graphics.fill(x - 1, y + 15, x + 17, y + 17, BORDER);
+            graphics.fill(x - 1, y + 1, x + 1, y + 15, BORDER);
+            graphics.fill(x + 15, y + 1, x + 17, y + 15, BORDER);
+            highlightDraws++;
         }
     }
 
     // ---- testkit hooks
+
+    private static long highlightDraws = 0;
+
+    public static long highlightDraws() {
+        return highlightDraws;
+    }
 
     public static int lastEquippedLoadout() {
         return lastEquipped;
