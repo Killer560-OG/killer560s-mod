@@ -32,9 +32,20 @@ import java.util.regex.Pattern;
  * with the id before it, else the nearest living entity under it). A name tag is server data on a non-player entity, so
  * another player's chat cannot forge one; real players (v4 UUIDs) are never boxed.
  *
- * <p>Legit (both builds): only a mob in plain sight (a block raycast from the eyes) is boxed, and the box is depth-tested,
- * like Starred Mob Hitboxes. Through Walls (cheat build only) skips the raycast and draws with no depth test. Draw-only:
- * nothing is clicked or sent.
+ * <p>No range (killer560, 2026-11-03: "it feels like it has a very small range"): every loaded mob is looked at, and a mob
+ * once identified is remembered by entity id for as long as it is loaded and alive, so it stays highlighted after the
+ * server stops sending its name-tag stand at range (Hypixel tracks the stands nearer than the mobs; Starred Mob Hitboxes
+ * keeps a starred mob the same way). A remembered mob is dropped when its commission no longer wants it, it dies or
+ * unloads, or the world changes. No mob is matched by entity type alone: Goblins and Treasure Hoarders are player-model
+ * NPCs like every other NPC, and SkyHanni's own mob detection ({@code MobFilter}) also names these mobs only through their
+ * stands, so no type rule here is unambiguous.
+ *
+ * <p>Style (Commission Mob Style): Outline, Fill, Fill + Outline (the shared {@code WorldRenderUtils} box passes), or Glow
+ * (vanilla's glow outline, through the cheatutils WitherGlow mixins Dungeon ESP's Glow style uses).
+ *
+ * <p>Legit (both builds): only a mob in plain sight (a block raycast from the eyes) is highlighted, in every style, and
+ * boxes are depth-tested, like Starred Mob Hitboxes. Through Walls (cheat build only) skips the raycast and draws boxes with
+ * no depth test. Draw-only: nothing is clicked or sent.
  */
 public final class CommissionMobs {
 
@@ -60,7 +71,8 @@ public final class CommissionMobs {
             Map.entry("Maniac Slayer", List.of("Maniac")));
 
     private static final int REFRESH_TICKS = 4;
-    private static final double RANGE = 64.0;
+    /** How many identified mobs are remembered at most (far more than a mining island ever loads). */
+    private static final int MAX_KNOWN = 512;
 
     private static int ticks = 0;
     private static String patternKey = "";
@@ -68,6 +80,13 @@ public final class CommissionMobs {
     private static volatile List<String> wanted = List.of();
     private static volatile int[] targets = new int[0];
     private static volatile boolean throughWalls = false;
+    private static volatile MiningQolConfig.CommissionMobStyle style = MiningQolConfig.CommissionMobStyle.OUTLINE;
+    /** Glow hooks: the glowing ids, sorted, and their ARGB color. */
+    private static volatile int[] glowIds = new int[0];
+    private static volatile int glowArgb = 0;
+    /** Identified mobs: entity id -> the wanted mob name its tag matched. */
+    private static final java.util.LinkedHashMap<Integer, String> KNOWN = new java.util.LinkedHashMap<>();
+    private static Object knownLevel = null;
     private static int frames = 0;
 
     private CommissionMobs() {
@@ -131,18 +150,39 @@ public final class CommissionMobs {
             pattern = compile(mobs);
         }
         boolean walls = cfg.isCommissionMobsEsp();
-        Vec3 eye = client.player.getEyePosition();
-        Set<Integer> found = new LinkedHashSet<>();
+        if (knownLevel != client.level) {
+            KNOWN.clear();
+            knownLevel = client.level;
+        }
+        // Identify: every loaded name tag (no range), remembered by the mob's id.
         for (Entity e : client.level.entitiesForRendering()) {
-            if (e == client.player || !e.hasCustomName() || e.distanceToSqr(client.player) > RANGE * RANGE) {
+            if (e == client.player || !e.hasCustomName()) {
                 continue;
             }
             String plain = com.killer560.hub.util.ChatObserver.stripCodes(e.getCustomName().getString());
-            if (!pattern.matcher(plain).find()) {
+            java.util.regex.Matcher m = pattern.matcher(plain);
+            if (!m.find()) {
                 continue;
             }
             LivingEntity mob = e instanceof ArmorStand stand ? mobUnder(client, stand) : e instanceof LivingEntity l ? l : null;
             if (mob == null || !mob.isAlive() || mob.isRemoved() || mob == client.player || isRealPlayer(mob)) {
+                continue;
+            }
+            String name = matchedName(plain, mobs);
+            if (KNOWN.size() < MAX_KNOWN || KNOWN.containsKey(mob.getId())) {
+                KNOWN.put(mob.getId(), name);
+            }
+        }
+        // Keep: every remembered mob still loaded, alive and wanted, in sight unless Through Walls.
+        Vec3 eye = client.player.getEyePosition();
+        Set<String> want = new java.util.HashSet<>(mobs);
+        List<Integer> found = new ArrayList<>();
+        java.util.Iterator<Map.Entry<Integer, String>> it = KNOWN.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<Integer, String> en = it.next();
+            Entity e = client.level.getEntity(en.getKey());
+            if (!(e instanceof LivingEntity mob) || !mob.isAlive() || mob.isRemoved() || !want.contains(en.getValue())) {
+                it.remove();
                 continue;
             }
             if (walls || visible(client, eye, mob)) {
@@ -150,12 +190,43 @@ public final class CommissionMobs {
             }
         }
         int[] ids = new int[found.size()];
-        int n = 0;
-        for (int id : found) {
-            ids[n++] = id;
+        for (int i = 0; i < ids.length; i++) {
+            ids[i] = found.get(i);
         }
+        MiningQolConfig.CommissionMobStyle st = cfg.getCommissionMobStyle();
         throughWalls = walls;
+        style = st;
         targets = ids;
+        if (st.glow) {
+            int[] sorted = ids.clone();
+            java.util.Arrays.sort(sorted);
+            glowArgb = cfg.getCommissionMobColor();
+            glowIds = sorted;
+        } else if (glowIds.length != 0) {
+            glowIds = new int[0];
+        }
+    }
+
+    /** Which of {@code mobs} the tag names (the longest that matches, so "Golden Goblin" beats "Goblin"). */
+    private static String matchedName(String plain, List<String> mobs) {
+        String best = null;
+        for (String mob : mobs) {
+            if ((best == null || mob.length() > best.length()) && compile(List.of(mob)).matcher(plain).find()) {
+                best = mob;
+            }
+        }
+        return best == null ? mobs.get(0) : best;
+    }
+
+    /** Glow mixin hook (cheatutils WitherGlowMinecraftMixin): whether this entity gets the vanilla glow outline. */
+    public static boolean shouldGlow(Entity entity) {
+        int[] ids = glowIds;
+        return ids.length != 0 && java.util.Arrays.binarySearch(ids, entity.getId()) >= 0;
+    }
+
+    /** Glow mixin hook (cheatutils WitherGlowEntityMixin): the ARGB outline color, or null when not glowing. */
+    public static Integer glowColor(Entity entity) {
+        return shouldGlow(entity) ? glowArgb : null;
     }
 
     private static boolean isRealPlayer(LivingEntity e) {
@@ -204,6 +275,10 @@ public final class CommissionMobs {
         if (targets.length != 0) {
             targets = new int[0];
         }
+        if (glowIds.length != 0) {
+            glowIds = new int[0];
+        }
+        KNOWN.clear();
         if (!wanted.isEmpty()) {
             wanted = List.of();
         }
@@ -213,8 +288,9 @@ public final class CommissionMobs {
     static void render(LevelRenderContext context) {
         int[] ids = targets;
         Minecraft client = Minecraft.getInstance();
-        if (ids.length == 0 || client.level == null) {
-            return;
+        MiningQolConfig.CommissionMobStyle st = style;
+        if (ids.length == 0 || client.level == null || st.glow) {
+            return; // Glow draws through the glow mixins, not here
         }
         float pt = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float[] k = WorldRenderUtils.argbToFloats(MiningQolConfig.getInstance().getCommissionMobColor());
@@ -240,7 +316,13 @@ public final class CommissionMobs {
         if (n == 0) {
             return;
         }
-        WorldRenderUtils.renderOutlineBoxes(context, boxes, rgba, n, 2f, throughWalls);
+        if (st.fill) {
+            // A see-through fill: the outline-only alpha would hide the mob.
+            WorldRenderUtils.renderFilledBoxes(context, boxes, rgba, n, st.outline ? 0.3f : 0.45f, throughWalls);
+        }
+        if (st.outline) {
+            WorldRenderUtils.renderOutlineBoxes(context, boxes, rgba, n, 2f, throughWalls);
+        }
         frames++;
     }
 
@@ -266,5 +348,24 @@ public final class CommissionMobs {
 
     public static boolean throughWallsNow() {
         return throughWalls;
+    }
+
+    /** The style drawn now (testkit). */
+    public static String styleNow() {
+        return style.name();
+    }
+
+    /** How many identified mobs are remembered now (testkit). */
+    public static int knownCount() {
+        return KNOWN.size();
+    }
+
+    /** Glowing ids now (testkit). */
+    public static List<Integer> glowIdsNow() {
+        List<Integer> out = new ArrayList<>();
+        for (int id : glowIds) {
+            out.add(id);
+        }
+        return out;
     }
 }
