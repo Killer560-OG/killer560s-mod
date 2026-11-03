@@ -20,6 +20,7 @@ final class CardBlurbsData {
         d.put("MiningPickobulusTab", "Outlines its break area.");
         d.put("MiningResumeBreakTab", "Keeps digging after a menu.");
         d.put("MiningRaffleTab", "Boxes raffle tickets.");
+        d.put("MiningPowderGhastTab", "Powder Ghast alert and box.");
         d.put("MiningTitaniumTab", "Outlines Titanium blocks.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");
         d.put("CreationCooldownTab", "Dungeon join timer.");
