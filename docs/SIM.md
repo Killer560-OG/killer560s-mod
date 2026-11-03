@@ -48,6 +48,10 @@ Sim lessons that sit with a feature rather than the sim are in [LESSONS-AUTOCLEA
   menu offered ever built anything (found 2026-09-28: "no room ever loaded"). `SimWorld.open` now takes the
   build as a callback and runs it once the world exists, behind `SimLoadingScreen`. Any new entry point must
   go through that, not call a builder directly.
+- Scenario setup (2026-11-03, dungeonmap-1103): Predictive Rooms paints unopened rooms on a timer, which made map
+  room counts flaky - turn it off in map scenarios. A wither door in an unloaded chunk is not carved: go to the room
+  before `makeWitherDoor`. A random floor's first key room can hold only 2 starred mobs: a Blood Rush case builds a
+  new floor rather than skipping ahead (the helper shows the first key room on the rush path).
 
 ## Where the old sections went
 
