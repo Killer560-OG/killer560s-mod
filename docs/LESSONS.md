@@ -276,6 +276,7 @@ project CLAUDE.md. Compiling lessons
   Odin's sockets are still joined: ask before adding any other mod's server, and stop at once if its owner objects.
 
 ## Other features
+- Hypixel's kick and restart lines (Kicked To Hub, 2026-11-03), with where each is attested: "You were kicked while joining that server!", "A kick occurred in your connection, so you were put in the SkyBlock lobby!" / "An exception occurred ... SkyBlock Lobby!" and "There was a problem joining SkyBlock, try again in a moment!" are SkyHanni REGEX-TESTs (SkyBlockKickDuration.kt); "Evacuating to Hub..." and "Couldn't warp you! Try again later. (PLAYER_TRANSFER_COOLDOWN)" are in quoi's chat filter; "[Important] This server will restart soon: <reason>" and "You have 60 seconds to warp out! CLICK to warp now!" are quoted in a hypixel.net thread (5913691) as the current text - that thread's "After" versions are a player's wish list, not real. SkyHanni spells "Whoa! Slow down there!", quoi "Woah!": match both. The sidebar's "Server closing: mm:ss" is SkyHanni's ServerRestartTitle source. No source found for a "joined too fast" line; the pattern takes "You must wait / tried to rejoin too fast / joined too fast ..." only as a back-off signal.
 
 - **A counter fed only by a server line holds its last value through every gap the server says nothing in.** Maxor's
   Crystals' Active counter was set only by "X/2 Energy Crystals are now active!", so after the laser it read 2/2 until
