@@ -24,8 +24,13 @@ import java.util.Map;
  *   <li>the line is worked out from one remembered server tick of a Goldor hit ({@link #anchor}) and the server-tick clock
  *       ({@link PerTickServerClock}: Hypixel's per-tick pings when it pings every tick, else the client's game time with the
  *       server's own time corrections), so a missed callback cannot move it and lag cannot run it ahead;</li>
- *   <li>it starts at Goldor's line + 60 (Odin's and NoammAddons' phase, which a real 2026-10-30 log confirms: the party's
- *       mask procs came 3 and 6 seconds after his line);</li>
+ *   <li>it starts at Goldor's line + {@link #FIRST_HIT} ticks, and the FIRST hit seen after it snaps the phase at once
+ *       (see below). <b>2026-11-03 (killer560: "i will enter and it procs a mask at like 1s instead of at 0").</b> The
+ *       line + 60 start (Odin's and NoammAddons') left the line 18 ticks late on his real run (26.3 log, jar fa0bb087b):
+ *       the mod re-locked "-18 ticks off the old phase" at the first confirmed pair of hits, 27 s in, and his mask had
+ *       popped at about 1.0 s on the old line each time before that. So the line now starts 18 ticks earlier, and one
+ *       hit of his own health (or a mask proc) at least {@link #MIN_FIRST_HIT} ticks after the line is enough to snap
+ *       it, wherever it lands; the two-hit and two-player protections below apply from the second hit on;</li>
  *   <li>every observed hit resyncs it: a drop in your own health, a mask/Phoenix proc line, or two or more players hurt in
  *       the same tick. A hit within {@link #SNAP} ticks of the predicted one moves the phase onto it; a hit that does not
  *       fit is remembered, and a second one a whole number of periods after it (within six ticks) re-locks the phase there,
@@ -44,11 +49,18 @@ public final class GoldorTick {
     static final int SNAP = 8;
     /** Hits this soon after an accepted one are the same hit (a second health packet, the proc line). */
     static final int DEBOUNCE = 5;
+    /** Ticks from Goldor's line to his first hit on the real run: 42, i.e. {@code PERIOD - 18} (2026-11-03, see above). */
+    static final int FIRST_HIT = PERIOD - 18;
+    /** Before the phase has been locked, a hit sooner than this after the line is not Goldor's first (fall damage, a mob). */
+    static final int MIN_FIRST_HIT = 20;
 
     private static boolean active;
     /** Clock tick of a Goldor hit, real or (until the first one is seen) predicted. */
     private static long anchor;
     private static long lastAccepted = Long.MIN_VALUE;
+    /** Clock tick of Goldor's line, and whether a hit has fixed the phase since. */
+    private static long startTick;
+    private static boolean locked;
     /** The last hit that did not fit the phase, or MIN. */
     private static long unexplained = Long.MIN_VALUE;
     private static float lastHealth = Float.NaN;
@@ -77,7 +89,9 @@ public final class GoldorTick {
         active = true;
         startReadAt = now();
         procPending = false;
-        anchor = startReadAt + PERIOD;
+        startTick = startReadAt;
+        locked = false;
+        anchor = startReadAt + FIRST_HIT;
         lastAccepted = Long.MIN_VALUE;
         unexplained = Long.MIN_VALUE;
         lastHealth = Float.NaN;
@@ -96,6 +110,10 @@ public final class GoldorTick {
 
     public static boolean active() {
         return active;
+    }
+
+    public static synchronized boolean testLocked() {
+        return locked;
     }
 
     /** Ticks until Goldor's next hit: 0 on the hit's own tick, 59 the tick after, and 60 on Goldor's line itself. */
@@ -126,6 +144,8 @@ public final class GoldorTick {
             OFFSETS_AT_HITS.remove(0);
         }
         boolean fits = Math.abs(off) <= SNAP;
+        // The first hit after the line: Goldor's, wherever it lands (the start phase is only a prediction).
+        boolean first = !locked && t - startTick >= MIN_FIRST_HIT;
         boolean pair = false;
         if (unexplained != Long.MIN_VALUE) {
             long gap = t - unexplained;
@@ -133,11 +153,12 @@ public final class GoldorTick {
             long rem = Math.floorMod(gap + 6, (long) PERIOD);
             pair = gap >= PERIOD - 6 && gap <= 3L * PERIOD + 6 && rem <= 12;
         }
-        if (fits || strong || pair) {
+        if (fits || strong || pair || first) {
+            locked = true;
             if (!fits) {
                 relocks++;
                 LOGGER.info("[TickTimers] Goldor tick re-locked by {} ({} ticks off the old phase{})", why, off,
-                        pair ? ", a period after an earlier hit" : "");
+                        first ? ", the first hit" : pair ? ", a period after an earlier hit" : "");
             }
             anchor = t;
             lastAccepted = t;
@@ -188,6 +209,7 @@ public final class GoldorTick {
             // else is not a same-tick read and moves nothing.
             if (shift >= 0 && shift <= 3) {
                 anchor += shift;
+                startTick += shift;
             }
             startReadAt = Long.MIN_VALUE;
         }

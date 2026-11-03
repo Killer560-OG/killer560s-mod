@@ -31,7 +31,7 @@ public final class HudVisibility {
      */
     public static boolean menuOpen() {
         Screen screen = McCompat.screen(Minecraft.getInstance());
-        return screen != null && !isChat(screen);
+        return screen != null && !isChat(screen) && !isTerminalMenu(screen);
     }
 
     /**
@@ -41,7 +41,28 @@ public final class HudVisibility {
      */
     public static boolean hidesHud() {
         Screen screen = McCompat.screen(Minecraft.getInstance());
-        return screen != null && !isChat(screen) && !(screen instanceof HudEditorScreen);
+        return screen != null && !isChat(screen) && !(screen instanceof HudEditorScreen) && !isTerminalMenu(screen);
+    }
+
+    private static net.minecraft.network.chat.Component terminalTitleFor;
+    private static boolean terminalTitleResult;
+
+    /**
+     * True for a Hypixel terminal container (Click in order, Correct all the panes, ... Melody), with or without the
+     * Terminal Solver or its Custom GUI. killer560 (2026-11-03): "dont hide stuff inside of the terminal menu (hud wise)" -
+     * the tick timers, splits and the rest keep drawing there, because a terminal is a menu you play inside, not one you
+     * stop to read. Every other container still hides the HUD. The title is matched once per title object, not per frame.
+     */
+    public static boolean isTerminalMenu(Screen screen) {
+        if (!(screen instanceof net.minecraft.client.gui.screens.inventory.ContainerScreen container)) {
+            return false;
+        }
+        net.minecraft.network.chat.Component title = container.getTitle();
+        if (title != terminalTitleFor) {
+            terminalTitleResult = com.killer560.hub.terminals.TerminalType.match(title.getString()) != null;
+            terminalTitleFor = title;
+        }
+        return terminalTitleResult;
     }
 
     /** True while the HUD position editor is the open screen. */
