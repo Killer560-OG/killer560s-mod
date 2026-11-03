@@ -58,7 +58,7 @@ public final class SpotifyHudConfig {
 
     /** Which player the feature follows, through Windows' media controls. Spotify's desktop app always comes first. */
     public enum MusicSource {
-        /** The Spotify desktop app only (what it always was). */
+        /** The Spotify desktop app only. No longer offered (killer560, 2026-11-02); a saved value loads as MUSIC_PLAYERS. */
         SPOTIFY("Spotify App Only"),
         /**
          * Also any other player that tells Windows what it plays (Apple Music, iTunes, Tidal, Deezer...), and a browser
@@ -73,6 +73,11 @@ public final class SpotifyHudConfig {
 
         MusicSource(String label) {
             this.label = label;
+        }
+
+        /** The sources the menu offers. */
+        public static MusicSource[] offered() {
+            return new MusicSource[]{MUSIC_PLAYERS, ANYTHING};
         }
     }
 
@@ -102,7 +107,7 @@ public final class SpotifyHudConfig {
                 cfg.wordTimedLyrics = ConfigJson.getBool(obj, "wordTimedLyrics", cfg.wordTimedLyrics);
                 cfg.alwaysShowControls = ConfigJson.getBool(obj, "alwaysShowControls", cfg.alwaysShowControls);
                 cfg.displayCensor = ConfigJson.getEnum(obj, "displayCensor", ProfanityLevel.class, cfg.displayCensor);
-                cfg.musicSource = ConfigJson.getEnum(obj, "musicSource", MusicSource.class, cfg.musicSource);
+                cfg.setMusicSource(ConfigJson.getEnum(obj, "musicSource", MusicSource.class, cfg.musicSource));
             } catch (Exception e) {
                 SpotifyLyricsFeature.LOGGER.warn("Could not read Spotify HUD config: {}", e.getMessage());
             }
@@ -198,6 +203,6 @@ public final class SpotifyHudConfig {
     }
 
     public void setMusicSource(MusicSource source) {
-        this.musicSource = source == null ? MusicSource.MUSIC_PLAYERS : source;
+        this.musicSource = source == null || source == MusicSource.SPOTIFY ? MusicSource.MUSIC_PLAYERS : source;
     }
 }
