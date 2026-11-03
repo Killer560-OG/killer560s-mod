@@ -41,6 +41,13 @@ public final class AbilityReadyAlert {
     public static final String TIMER_ID = "mining_ability_timer";
     static final long POPUP_MS = 2500;
 
+    /** Heart of the Mountain pickaxe abilities (hypixelskyblock wiki, Heart of the Mountain, 2026-11-03: six, plus the
+     *  names of earlier ones and both spellings of Pickobulus). */
+    static final java.util.Set<String> MINING_ABILITIES = java.util.Set.of("Mining Speed Boost", "Pickobulus", "Pickobolus",
+            "Tunnel Vision", "Maniac Miner", "Gemstone Infusion", "Sheer Force", "Vein Seeker", "Hazardous Miner",
+            "Anomalous Desire");
+    /** Names Hypixel called a "Pickaxe Ability" this session (a new or renamed one still counts). */
+    private static final java.util.Set<String> PICKAXE_SEEN = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private static final Pattern READY = Pattern.compile("^([A-Z][A-Za-z' ]{1,30}) is now available!$");
     private static final Pattern USED = Pattern.compile("^You used your ([A-Z][A-Za-z' ]{1,30}) Pickaxe Ability!$");
     private static final Pattern COOLDOWN = Pattern.compile("^This ability is on cooldown for (\\d{1,4})s\\.$");
@@ -86,12 +93,18 @@ public final class AbilityReadyAlert {
     private static void handle(String raw, long now) {
         Matcher m = READY.matcher(raw);
         if (m.matches()) {
-            onReady(m.group(1).trim(), now);
+            // Mining abilities only (killer560, 2026-11-03: "only pick up mining abilities not other stuff"): a pickaxe
+            // ability by name, or one this session saw used as a "Pickaxe Ability".
+            String name = m.group(1).trim();
+            if (MINING_ABILITIES.contains(name) || PICKAXE_SEEN.contains(name)) {
+                onReady(name, now);
+            }
             return;
         }
         m = USED.matcher(raw);
         if (m.matches()) {
             String name = m.group(1).trim();
+            PICKAXE_SEEN.add(name);
             USED_AT.put(name, now);
             lastUsed = name;
             Long learned = LEARNED.get(name);
