@@ -90,6 +90,10 @@ final class SettingTooltipsData {
         d.put("commission hud/color by progress", "Colors each commission's progress: red under 25%, gold under 75%, yellow above, green when DONE.");
         d.put("commission hud/commission waypoints", "Labels in the world at the area or gemstone spots each open commission needs.");
         d.put("commission hud/emissary waypoints", "When a commission is DONE, labels every Emissary so you can turn it in at the nearest.");
+        d.put("commission hud/completed commissions", "In the King's or an Emissary's Commissions menu, a green background on every commission that is finished and ready to claim.");
+        d.put("commission hud/commission mobs", "Boxes the mobs that count for your open commissions (Goblin Slayer: goblins, Glacite Walker Slayer: Glacite Walkers, Star Sentry Puncher...), only while you can see them.");
+        d.put("commission hud/commission mob color", "The color of the Commission Mobs boxes.");
+        d.put("commission hud/commission mobs through walls", "Cheat build: boxes commission mobs through blocks too.");
         d.put("pickobulus estimate", "While you hold a Pickobulus tool and it is ready, outlines every block it would break where you aim.");
         d.put("pickobulus estimate/outline color", "The color of the outlines.");
         d.put("ability ready alert", "Shows a big \"READY\" popup when a pickaxe ability is available again. Move it in the HUD editor.");
@@ -98,10 +102,8 @@ final class SettingTooltipsData {
         d.put("carpet highlighter", "In the Dwarven Mines, fills the unbreakable carpets in ore veins so you stop swinging at them.");
         d.put("carpet highlighter/carpet color", "The color the carpets are filled with.");
         d.put("mithril as stone", "In the Dwarven Mines, draws mithril as stone unless a commission wants mithril or titanium in the area you are in.");
-        d.put("mithril as stone/universal area access", "Turn on if your commissions count in every area: all mithril shows again.");
         d.put("titanium highlight", "Outlines Titanium (polished diorite) in the Dwarven Mines.");
         d.put("titanium highlight/show", "Always: every titanium block. Commission Area: only while a commission wants titanium where you are.");
-        d.put("titanium highlight/universal area access", "Turn on if your commissions count in every area: titanium shows everywhere.");
         d.put("titanium highlight/titanium color", "The color of the titanium outline.");
         d.put("titanium highlight/through walls", "Cheat build: draws the titanium boxes through blocks.");
         d.put("raffle ticket highlight", "During the Dwarven Mines Raffle, boxes each raffle ticket on the ground.");
@@ -1112,6 +1114,7 @@ final class SettingTooltipsData {
         d.put("chat history", "How many chat messages stay scrollable. Off: vanilla's last 100. Limited: the number set below (200-10000). Unlimited: the whole session, using more memory the longer you play.");
         d.put("history limit", "How many chat messages Limited keeps, from 200 to 10000 in steps of 200.");
         d.put("open loadouts key", "A key (or mouse button) that runs /loadouts from anywhere with no menu open, like the Open Loadouts button. Needs Loadout Keybinds on. Esc while binding clears it.");
+        d.put("loadout keybinds/highlight selected loadout", "A green background on the loadout you have on in the Loadout menu.");
         d.put("open loadouts", "Runs /loadouts: opens Hypixel's Loadout menu. Works whether or not Loadout Keybinds is on.");
         d.put("ability keybinds", "Custom keys for your dungeon class Ability and Ultimate.");
         d.put("ability key", "Key or mouse button that uses your class Ability.");

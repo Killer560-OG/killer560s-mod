@@ -24,7 +24,9 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
 - **`FormattedCharSequence.forward(String, Style)` does NOT apply formatting codes**: it iterates characters, so "§6X" draws
   a literal "§6". `HudTextCache`'s left-to-right fast path (no ICU Bidi for text below U+0590 under a left-to-right
   language) wraps `iterateFormatted(text, Style.EMPTY, sink)`, as vanilla's `getVisualOrder` does (testkit 95-perf-fixes
-  compares every glyph and style with vanilla's).
+  compares every glyph and style with vanilla's). `McRender.drawText(..., String, ...)` (world labels, both compat dirs) had
+  the same fault until commissions-1103: every coded world label printed its codes ("Emissary §7(186m)", killer560
+  2026-11-03); it now uses `iterateFormatted` too. When fixing one wrap of a String into a sequence, grep for the others.
 - **Text drawn from a Component the game rebuilds every frame never hits an identity cache.** Vanilla copies every tab
   row's and nametag's Component each frame. Name Changer's weak-keyed cache paid a WeakReference and a locked put for each,
   Name Animation buffered every glyph, and supporter names were rebuilt with `NameColor.toComponent` per frame (Bidi
@@ -495,3 +497,6 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   there.** The Pet Wheel icon is a bare head and the Item Browser shares one built stack per look (`SkyblockItemStackFactory`
   BUILD_CACHE); the first invsortfit commit passed those stacks and neither grid ever showed a box. Pass the tier the data
   already has: `drawBox(g, ItemRarity.byName(pet.tier() / entry.tier()), ...)` (invsortfit-1102).
+- A world fill whose face lies exactly on a block face z-fights with it, and which one wins flips as the camera moves:
+  "if i jump or crouch the highlight will phase through the block" (Carpet Highlighter, 2026-11-03). Push every face a
+  hair (0.002) outside the block it marks, as the titanium boxes already did (mining-1103).

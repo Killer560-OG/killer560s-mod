@@ -1,4 +1,5 @@
-# Builds the legit and cheat jars for 26.3 (main) and 26.2 on every push to main and publishes them on one rolling "Latest Dev Build" pre-release,
+# Builds the legit and cheat jars for 26.3 and 26.2 on every push to the 26.3 branch (the development branch since
+# 2026-11-03, when main was retired for version branches 26.1.2 / 26.2 / 26.3) and publishes them on one rolling "Latest Dev Build" pre-release,
 # replaced each time, so the newest commit is always one click away without building from source.
 # Real versioned releases (v1.0.0, v1.1.0, ...) are never touched.
 #
@@ -9,7 +10,7 @@ name: Dev Build
 
 on:
   push:
-    branches: [main]
+    branches: ["26.3"]
   workflow_dispatch:
 
 permissions:

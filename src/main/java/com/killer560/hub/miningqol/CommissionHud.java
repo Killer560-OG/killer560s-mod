@@ -10,7 +10,9 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -75,6 +77,7 @@ public final class CommissionHud {
     private static boolean lastEmissaries;
     private static boolean lastColor;
     private static int labelFrames = 0;
+    private static volatile Component lastLabel;
 
     private CommissionHud() {
     }
@@ -173,7 +176,8 @@ public final class CommissionHud {
             double y = s.pos().getY() + 1.5;
             double z = s.pos().getZ() + 0.5;
             double d = Math.sqrt(cam.distanceToSqr(x, y, z));
-            String text = s.label() + " §7(" + Math.round(d) + "m)";
+            Component text = label(s.label(), Math.round(d));
+            lastLabel = text;
             float scale = 0.025f * (float) Math.min(12.0, Math.max(1.0, d / 10.0));
             poseStack.pushPose();
             try {
@@ -187,6 +191,15 @@ public final class CommissionHud {
             }
         }
         labelFrames++;
+    }
+
+    /**
+     * A waypoint's floating label: the name in the spot's color (the draw color) and the distance in gray, as Component
+     * styling. It was the string {@code label + " §7(" + d + "m)"}, and the world-text path printed the code
+     * (killer560, 2026-11-03: "Emissary §7(186m)").
+     */
+    public static Component label(String name, long meters) {
+        return Component.literal(name).append(Component.literal(" (" + meters + "m)").withStyle(ChatFormatting.GRAY));
     }
 
     // ---- testkit hooks
@@ -206,6 +219,11 @@ public final class CommissionHud {
 
     public static int labelFrames() {
         return labelFrames;
+    }
+
+    /** The last waypoint label drawn, or null (testkit). */
+    public static Component lastLabel() {
+        return lastLabel;
     }
 
     /** The movable HUD element. */
