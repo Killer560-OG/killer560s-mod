@@ -149,7 +149,7 @@ public final class TerminalSolverFeature {
     // FIRST click of a freshly-opened terminal waits out that reopen window instead of racing it.
     // (2026-09-14: now timed from #clickContentStabilized flipping true, which a quick reopen re-arms.)
     private static long stabilizedAtMs;
-    private static final long INITIAL_CLICK_SETTLE_MS = 500;
+    static final long INITIAL_CLICK_SETTLE_MS = 500;
     // Auto-click's own content-stability gate, separate from the render-only #hasStabilizedOnce: a quick
     // same-type reopen (Hypixel's double-open, see #refreshState) swaps in a fresh container whose items
     // may not have arrived yet, so clicking must re-stabilize against THAT container (and restart the
@@ -1210,22 +1210,7 @@ public final class TerminalSolverFeature {
      *  explicit "click through the whole row anytime it gets a proper click" - ignores the lookahead count entirely,
      *  bursting every remaining row down to the last one. */
     private static void queueMelodyLookaheadClicks(int matchedRow, int matchedColumn) {
-        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-        int lastRow = melodyButtons.length - 1;
-        int extraRows;
-        if (cfg.getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.ALL) {
-            extraRows = lastRow - matchedRow;
-        } else {
-            if (!isMelodyEdgeSlot(matchedColumn)) {
-                return;
-            }
-            // Lookahead N = the proper click plus N more rows (2026-10-26), so N is the extra row count itself.
-            int lookahead = cfg.getMelodyLookaheadClicks();
-            if (lookahead <= 0) {
-                return;
-            }
-            extraRows = Math.min(lookahead, lastRow - matchedRow);
-        }
+        int extraRows = melodyLookaheadRows(matchedRow, matchedColumn, melodyButtons.length - 1);
         if (extraRows <= 0) {
             return;
         }
@@ -1233,6 +1218,24 @@ public final class TerminalSolverFeature {
         for (int i = 1; i <= extraRows; i++) {
             scheduledMelodyClicks.add(new ScheduledMelodyClick(now + i * 50L, matchedRow + i));
         }
+    }
+
+    /** How many rows after {@code matchedRow} a proper click on {@code matchedColumn} (0-4) bursts, by Skip Mode and
+     *  Lookahead (see {@link #queueMelodyLookaheadClicks}); Termism's practice Melody asks the same rule. */
+    static int melodyLookaheadRows(int matchedRow, int matchedColumn, int lastRow) {
+        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+        if (cfg.getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.ALL) {
+            return Math.max(0, lastRow - matchedRow);
+        }
+        if (!isMelodyEdgeSlot(matchedColumn)) {
+            return 0;
+        }
+        // Lookahead N = the proper click plus N more rows (2026-10-26), so N is the extra row count itself.
+        int lookahead = cfg.getMelodyLookaheadClicks();
+        if (lookahead <= 0) {
+            return 0;
+        }
+        return Math.max(0, Math.min(lookahead, lastRow - matchedRow));
     }
 
     private static int melodyLateSkippedSlot = -1;
@@ -1781,7 +1784,7 @@ public final class TerminalSolverFeature {
     private static long lastAutoClickAtMs;
 
     /** An Auto Terminals click went out: Fake Cursor records where it was, Hide Mouse Cursor counts from now. */
-    private static void noteAutoClick(int slot, long now) {
+    static void noteAutoClick(int slot, long now) {
         lastAutoClickAtMs = now;
         FakeCursor.clicked(slot);
     }
