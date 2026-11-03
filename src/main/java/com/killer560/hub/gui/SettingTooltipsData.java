@@ -161,7 +161,6 @@ final class SettingTooltipsData {
         d.put("price tooltip/est. item value", "The item plus what was applied to it: recombobulator, potato books, enchants, stars, master stars, gemstones and slots, scrolls and more. Reforges are not counted.");
         d.put("price tooltip/obtained date", "The date the item was created, from its own data.");
         d.put("price tooltip/museum status", "The item's museum category and whether your selected profile has donated it. Read from the API (your key if set, else the keyless backend) and refreshed every 10 minutes.");
-        d.put("price tooltip/stack price", "When a stack shows the price of the whole stack instead of one item: while holding Shift, always, or never. Left click goes forward, right click back.");
         d.put("price tooltip/value breakdown", "When Est. Item Value lists its parts under it: while holding Shift, always, or never. Left click goes forward, right click back.");
         d.put("price tooltip/value mode", "Networth weighs applied upgrades the way networth calculators do (a recombobulator counts 80%); Full Price counts everything at its market price. Left click goes forward, right click back.");
         d.put("price tooltip/number format", "Exact shows 5,900,000.0; Short shows 5.9M. Left click goes forward, right click back.");

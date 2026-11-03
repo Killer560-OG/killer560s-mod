@@ -118,29 +118,27 @@ public final class PriceTooltipFeature {
         }
         String key = ItemKeys.priceKey(tag, stack.getHoverName().getString());
         PriceData.ItemInfo info = PriceData.item(id);
-        int count = Math.max(1, stack.getCount());
-        boolean multiply = count > 1 && (cfg.getStackPrice() == PriceTooltipConfig.When.ALWAYS
-                || (cfg.getStackPrice() == PriceTooltipConfig.When.SHIFT && shift));
-        int mult = multiply ? count : 1;
+        // A stack shows the whole price and the unit price on every line (owner 2026-11-03), Shift or not.
+        int mult = Math.max(1, stack.getCount());
 
         if (cfg.isNpcPrice() && info != null && info.npcPrice() != null && info.npcPrice() > 0) {
-            out.add(price("NPC Sell Price", info.npcPrice() * mult, mult));
+            out.add(price("NPC Sell Price", info.npcPrice(), mult));
         }
         boolean bazaar = PriceData.isBazaarProduct(key);
         if (cfg.isBazaar() && bazaar) {
             Double buy = PriceData.bazaarBuy(key);
             Double sell = PriceData.bazaarSell(key);
-            out.add(Component.literal("§eBazaar Buy: §b" + coins(buy == null ? 0 : buy * mult) + " Coins" + countSuffix(mult)));
-            out.add(Component.literal("§eBazaar Sell: §b" + coins(sell == null ? 0 : sell * mult) + " Coins" + countSuffix(mult)));
+            out.add(price("Bazaar Buy", buy == null ? 0 : buy, mult));
+            out.add(price("Bazaar Sell", sell == null ? 0 : sell, mult));
         }
         if (!bazaar) {
             Double lbin = PriceData.lowestBin(key);
             if (cfg.isLowestBin() && lbin != null) {
-                out.add(price("Lowest BIN Price", lbin * mult, mult));
+                out.add(price("Lowest BIN Price", lbin, mult));
             }
             Double avg = PriceData.average(key, cfg.getAverageDays());
             if (cfg.isAverageBin() && avg != null) {
-                out.add(price(cfg.getAverageDays() + " Day Avg. Price", avg * mult, mult));
+                out.add(price(cfg.getAverageDays() + " Day Avg. Price", avg, mult));
             }
             if (cfg.isEstimatedValue()) {
                 ItemValueCalc.Result r = ItemValueCalc.compute(tag, key, cfg.getValueMode());
@@ -170,12 +168,10 @@ public final class PriceTooltipFeature {
         return out.isEmpty() ? List.of() : List.copyOf(out);
     }
 
-    private static Component price(String label, double value, int mult) {
-        return Component.literal("§e" + label + ": §b" + coins(value) + " Coins" + countSuffix(mult));
-    }
-
-    private static String countSuffix(int mult) {
-        return mult > 1 ? " §8(" + mult + "x)" : "";
+    /** {@code unit} is one item's price; a stack reads "total Coins (64x unit each)". */
+    private static Component price(String label, double unit, int mult) {
+        String s = "§e" + label + ": §b" + coins(unit * mult) + " Coins";
+        return Component.literal(mult > 1 ? s + " §8(" + mult + "x " + coins(unit) + " each)" : s);
     }
 
     // ------------------------------------------------------------------ formatting

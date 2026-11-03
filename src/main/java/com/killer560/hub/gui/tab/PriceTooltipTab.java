@@ -63,28 +63,23 @@ public class PriceTooltipTab extends BaseTab {
 
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Display", false));
         y += 16;
-        widgets.add(SettingsButtonWidget.cycling(stackText(cfg), (btn, dir) -> {
-                    cfg.setStackPrice(SettingsButtonWidget.step(cfg.getStackPrice(), dir));
-                    cfg.save();
-                    btn.setMessage(stackText(cfg));
-                }).bounds(contentX, y, half, 18).build());
+        // Stack Price is gone (owner 2026-11-03: a stack shows the whole price and the unit price on every line).
         widgets.add(SettingsButtonWidget.cycling(breakdownText(cfg), (btn, dir) -> {
                     cfg.setBreakdown(SettingsButtonWidget.step(cfg.getBreakdown(), dir));
                     cfg.save();
                     btn.setMessage(breakdownText(cfg));
-                }).bounds(col2, y, half, 18).build());
-        y += 22;
+                }).bounds(contentX, y, half, 18).build());
         widgets.add(SettingsButtonWidget.cycling(valueModeText(cfg), (btn, dir) -> {
                     cfg.setValueMode(SettingsButtonWidget.step(cfg.getValueMode(), dir));
                     cfg.save();
                     btn.setMessage(valueModeText(cfg));
-                }).bounds(contentX, y, half, 18).build());
+                }).bounds(col2, y, half, 18).build());
+        y += 22;
         widgets.add(SettingsButtonWidget.cycling(formatText(cfg), (btn, dir) -> {
                     cfg.setNumberFormat(SettingsButtonWidget.step(cfg.getNumberFormat(), dir));
                     cfg.save();
                     btn.setMessage(formatText(cfg));
-                }).bounds(col2, y, half, 18).build());
-        y += 22;
+                }).bounds(contentX, y, half, 18).build());
         widgets.add(SettingsButtonWidget.cycling(refreshText(cfg), (btn, dir) -> {
                     int idx = 0;
                     for (int i = 0; i < REFRESH_STEPS.length; i++) {
@@ -95,9 +90,10 @@ public class PriceTooltipTab extends BaseTab {
                     cfg.setRefreshMinutes(REFRESH_STEPS[SettingsButtonWidget.step(idx, dir, REFRESH_STEPS.length)]);
                     cfg.save();
                     btn.setMessage(refreshText(cfg));
-                }).bounds(contentX, y, half, 18).build());
+                }).bounds(col2, y, half, 18).build());
+        y += 22;
         widgets.add(SettingsButtonWidget.builder(Component.literal("Refresh Prices"), btn -> PriceData.refreshAsync())
-                .bounds(col2, y, half, 18).build());
+                .bounds(contentX, y, half, 18).build());
         y += 24;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(status()), mc.font));
@@ -125,10 +121,6 @@ public class PriceTooltipTab extends BaseTab {
 
     private static Component daysText(PriceTooltipConfig cfg) {
         return Component.literal("Average Over: " + cfg.getAverageDays() + (cfg.getAverageDays() == 1 ? " Day" : " Days"));
-    }
-
-    private static Component stackText(PriceTooltipConfig cfg) {
-        return Component.literal("Stack Price: " + cfg.getStackPrice().label);
     }
 
     private static Component breakdownText(PriceTooltipConfig cfg) {
