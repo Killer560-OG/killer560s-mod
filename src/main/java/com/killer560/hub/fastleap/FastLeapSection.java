@@ -25,7 +25,7 @@ import java.util.function.Consumer;
  * <ul>
  *   <li>{@link #buildGeneral} - the front page: the Fast Leap switch, Targets (Universal / Set Class), the two page
  *       buttons (the one in use lit orange and marked "(in use)"), Target Mode, then the settings both modes share: Click
- *       Behavior and every leap's Fast and Auto switches ({@link #buildLeapSwitches}).</li>
+ *       Behavior and every leap's Auto (on) / Fast (off) switch ({@link #buildLeapSwitches}).</li>
  *   <li>{@link #buildUniversalTargets} - who each leap goes to for everyone, per boss phase, with Posmsg's keywords.</li>
  *   <li>{@link #buildClassTargets} - the same list for the class picked at its top ("When You Play").</li>
  * </ul>
@@ -256,9 +256,10 @@ public final class FastLeapSection {
     };
 
     /**
-     * The front page's Leaps section: one line per leap, its name then "Fast: ON/OFF" (his left click with a leap item
-     * leaps) and "Auto: ON/OFF" (it leaps by itself on its trigger), each on or off by itself. Door Opener's After Blood
-     * Off and P3's Gate Blown Only sit indented under their leap. These apply whichever Targets page is in use.
+     * The front page's Leaps section: one switch per leap (killer560, 2026-11-02: "have it as a switch. if on it is auto
+     * if off it is fast"), "Crystal Leap: ON (Auto)" - it leaps by itself on its trigger - or "Crystal Leap: OFF (Fast)" -
+     * your left click with a leap item leaps. The menu draws the "(Auto)"/"(Fast)" note dim beside the name. Door Opener's
+     * After Blood Off and P3's Gate Blown Only sit indented under their leap. These apply whichever Targets page is in use.
      * @return the y below the last row.
      */
     public static int buildLeapSwitches(List<AbstractWidget> widgets, int x, int y, int width) {
@@ -269,20 +270,13 @@ public final class FastLeapSection {
         int w = Math.max(1, width);
         widgets.add(sectionHeader(x, y, w, "Leaps"));
         y += SECTION_HEADER_H;
-        widgets.add(titleLabel(x, y, w, "§7Fast = your left click leaps, Auto = leaps by itself."));
-        // (no "Fast:" here: a "Label:" line reads as a setting row to search hits and to the testkit's row counts)
+        // (no "Label:" shape in a hint: it would read as a setting row to search hits and to the testkit's row counts)
+        widgets.add(titleLabel(x, y, w, "§7On = Auto (leaps by itself), off = Fast (your left click)."));
         y += GROUP_TITLE_H + 2;
-        int nameW = Math.min(110, Math.max(LABEL_W, w * 36 / 100));
-        int restX = x + nameW + GAP;
-        int cellW = Math.max(1, (x + w - restX - GAP) / 2);
-        int autoX = restX + cellW + GAP;
         for (LeapPhase phase : PHASES) {
             y = caption(widgets, x, y, w, phase.caption());
             for (LeapGroup group : phase.groups()) {
-                widgets.add(rowLabel(x, y, nameW, group.label + " Leap"));
-                widgets.add(toggle(restX, y, cellW, "Fast", () -> cfg.isLeapFast(group), v -> cfg.setLeapFast(group, v), cfg));
-                widgets.add(toggle(autoX, y, Math.max(1, x + w - autoX), "Auto",
-                        () -> cfg.isLeapAuto(group), v -> cfg.setLeapAuto(group, v), cfg));
+                widgets.add(leapSwitch(x, y, w, group, cfg));
                 y += ROW + GAP;
                 if (group == LeapGroup.DOOR) {
                     widgets.add(toggle(x + INDENT, y, Math.max(1, w - INDENT), "After Blood Off", cfg::isDisableAfterBloodOpen,
@@ -296,6 +290,20 @@ public final class FastLeapSection {
             }
         }
         return y + GROUP_GAP - GAP;
+    }
+
+    /** A leap's one switch: ON = Auto, OFF = Fast. */
+    static SettingsButtonWidget leapSwitch(int x, int y, int w, LeapGroup group, FastLeapConfig cfg) {
+        return SettingsButtonWidget.builder(leapSwitchLabel(group, cfg), btn -> {
+            cfg.setLeapAutoMode(group, !cfg.isLeapAuto(group));
+            cfg.save();
+            btn.setMessage(leapSwitchLabel(group, cfg));
+        }).bounds(x, y, Math.max(1, w), ROW).build();
+    }
+
+    static Component leapSwitchLabel(LeapGroup group, FastLeapConfig cfg) {
+        boolean auto = cfg.isLeapAuto(group);
+        return Component.literal(group.label + " Leap: " + (auto ? "§aON §7(Auto)" : "§cOFF §7(Fast)"));
     }
 
     // ---- sub-pages ----------------------------------------------------------------------------------------------

@@ -1912,7 +1912,22 @@ final class SettingTooltipsData {
         // "experiments/mode" is gone with the Mode button: the solver and the automation are two independent
         // settings now, not two positions of one switch.
         d.put("fast/auto leap/fast leap", "Left-clicking a leap item in a dungeon leaps straight to your target instead of opening the menu (cheat build only).");
-        d.put("fast/auto leap/leaps", "One line per leap spot with its Fast and Auto switches. Who each one leaps to is on the Universal and Set Class Targets pages.");
+        d.put("fast/auto leap/leaps", "One switch per leap spot: on = Auto (it leaps by itself on its trigger), off = Fast (your left click with a leap item leaps). Who each one leaps to is on the Universal and Set Class Targets pages.");
+        String[][] leapTriggers = {{"door opener", "whoever last opened a Wither or Blood door. Auto leaps as soon as one opens"},
+                {"crystal", "the Crystal target in F7 P1. Auto leaps on the 2nd Energy Laser message"},
+                {"predev", "the Predev target in F7 P1/P2. Auto leaps on Storm's 'happy to show you' line"},
+                {"green pad", "the Green Pad target in F7 P2. Auto leaps on Storm's 1st crush"},
+                {"yellow pad", "the Yellow Pad target in F7 P2. Auto leaps on Storm's 2nd crush"},
+                {"purple pad", "the Purple Pad target in F7 P2. Auto leaps on Storm's 1st crush"},
+                {"py healer", "the PY Healer target in F7 P2. Auto leaps when a teammate reaches the spot"},
+                {"storm death", "the Storm Death target in F7 P2. Auto leaps when Storm dies"},
+                {"p3", "the target for the P3 section you just finished. Auto leaps when it completes"},
+                {"middle", "the Middle target in F7 P4 outside the middle. Auto leaps on Necron's 'impressive trick' line"},
+                {"p4", "the P4 target in the middle. Auto leaps on Necron's 2nd 'ARGH!'"},
+                {"relic", "the Relic target in P5. Auto leaps as soon as you pick up a relic"}};
+        for (String[] t : leapTriggers) {
+            d.put("fast/auto leap/" + t[0] + " leap", "Goes to " + t[1] + ". Switch on = Auto, off = Fast: your left click with a Spirit Leap or Infinileap there leaps (cheat build only).");
+        }
         // The 2026-11-02 layout: front page, then the Universal Targets and Set Class Targets pages.
         d.put("fast/auto leap/targets", "Which targets the leaps use: Universal (the Universal Targets page, whatever class you play) or Set Class (the Set Class Targets page's pick for the class you are playing; a leap with none set there uses its Universal target). Left click forward, right click back (cheat build only).");
         String universal = "Opens the Universal Targets page: who each leap goes to, whatever class you play.";
@@ -1932,8 +1947,6 @@ final class SettingTooltipsData {
         for (String[] s : spots) {
             d.put("fast/auto leap/" + s[0], "Who " + s[1] + " goes to." + pick);
         }
-        d.put("fast/auto leap/fast", "This leap fires when you left click with a Spirit Leap or Infinileap here. Works alongside Auto (cheat build only).");
-        d.put("fast/auto leap/auto", "This leap fires by itself when its trigger happens: swaps to your leap from the hotbar, opens it, clicks the target, then swaps to Return To (cheat build only).");
         d.put("fast/auto leap/click delay", "Minimum time between fast leap clicks, 100-500 ms (cheat build only).");
         d.put("fast/auto leap/leap timeout", "How long a leap waits for the Spirit Leap menu, then for the target's head, before it gives up and gives you your inputs back, 0.5-5 s in 0.25 s steps, 2 s by default (cheat build only).");
         d.put("leap timeout", "How long a leap waits for the menu, then for the target's head, before giving up, 0.5-5 s (cheat build only).");
