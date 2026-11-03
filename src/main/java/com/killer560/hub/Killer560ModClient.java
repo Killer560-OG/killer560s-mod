@@ -220,6 +220,8 @@ public class Killer560ModClient implements ClientModInitializer {
         HypixelJoinWatcher.register();
         // Auto Report Bans (opt-in, OFF by default): loads its switch, which starts the session log tap when on.
         com.killer560.hub.banreport.BanReportFeature.register();
+        // Online Count (always on, no setting): an anonymous session id and the island, once a minute on Hypixel.
+        com.killer560.hub.onlinecount.OnlinePresence.register();
         AutoJoinSkyblockFeature.register();
         ProxyConfig.load();
         SpotifyLyricsFeature.init();

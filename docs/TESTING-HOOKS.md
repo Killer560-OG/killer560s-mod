@@ -69,6 +69,17 @@ gameDir, mc, variant, commit, stagingDir)` runs one check with explicit inputs (
 as text; `AutoUpdateFeature.spawnHelper(parentPid, oldJar, newJar, stagingDir)` starts the real installer process
 against any parent PID; `AutoUpdateFeature.launchGate()` says why this game would not update.
 
+## Online Count (`onlinecount/OnlinePresence`)
+
+Off in any client gametest (`fabric.client.gametest` set) unless `-Dkiller560.test.presence=true`; read on every tick, so
+a case may set it at run time. `-Dkiller560.test.presenceIntervalMs=N` replaces the 60 s heartbeat interval (the first
+beat after joining waits min(8 s, N), an island change min(15 s, N)); read on every tick. Service key `presence-relay`
+(the relay's `/presence` alone) is read on every send. It only beats while the stored server address is hypixel.net or a
+subdomain (`Scenario.labelServerAs` gives that). `OnlinePresence.sentForTest()` lists the bodies handed to the sender
+("epochMillis json", recorded before the network), `resultsForTest()` what each ended in ("HTTP 204" or the exception's
+name), `warnedForTest()` whether its one WARN was logged, `sessionForTest()`, `clearForTest()`;
+`locationFor(onSkyblock, tabArea, floor)` is the location rule on its own (testkit 1102-online-*).
+
 Not routed: the Shorts player's DevTools client (127.0.0.1, a browser the mod launched), Discord RPC (a local
 pipe), the Proxy Client (the game connection itself), and anything Minecraft or authlib does on its own
 (skins, the Devonian bridge's `joinServer` session check).
