@@ -81,10 +81,14 @@ public final class BlazeSolverFeature {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BlazeSolverFeature.tick", com.killer560.hub.util.FeatureBits.register("Blaze Solver tick", () -> BlazeSolverConfig.getInstance().isEnabledRaw()), BlazeSolverFeature::tick));
-        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
-        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(com.killer560.hub.util.FeatureGuard.afterTerrain(
-                com.killer560.hub.util.FeatureBits.register("Blaze Solver render", () -> BlazeSolverConfig.getInstance().isEnabledRaw()), BlazeSolverFeature::onWorldRender));
+        // COLLECT_SUBMITS (see docs/LESSONS-GUI.md, Blaze water): the boxes are submitted while the frame still gathers what to draw.
+        final int renderBit = com.killer560.hub.util.FeatureBits.register("Blaze Solver render", () -> BlazeSolverConfig.getInstance().isEnabledRaw());
+        LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
+            if (!com.killer560.hub.util.FeatureBits.on(renderBit)) {
+                return;
+            }
+            onWorldRender(context);
+        });
     }
 
     private static void tick(Minecraft client) {
@@ -204,8 +208,21 @@ public final class BlazeSolverFeature {
         }
     }
 
+    /** Test hook (docs/TESTING-HOOKS.md): when set, the render draws these blazes in kill order and skips the room,
+     *  dungeon and enabled checks, so a pixel test can put highlights anywhere. Null goes back to the real state. */
+    private static volatile List<Entity> forcedForTest = null;
+
+    public static void setForcedBlazesForTest(List<Entity> blazes) {
+        forcedForTest = blazes;
+    }
+
     private static void onWorldRender(LevelRenderContext context) {
         BlazeSolverConfig cfg = BlazeSolverConfig.getInstance();
+        List<Entity> forced = forcedForTest;
+        if (forced != null) {
+            drawBlazes(context, cfg, forced);
+            return;
+        }
         if (!cfg.isEnabled() || orderedBlazes.isEmpty()) {
             return;
         }
@@ -218,9 +235,13 @@ public final class BlazeSolverFeature {
             return;
         }
 
+        drawBlazes(context, cfg, orderedBlazes);
+    }
+
+    private static void drawBlazes(LevelRenderContext context, BlazeSolverConfig cfg, List<Entity> blazes) {
         Vec3 previousCenter = null;
-        for (int i = 0; i < orderedBlazes.size(); i++) {
-            Entity blaze = orderedBlazes.get(i);
+        for (int i = 0; i < blazes.size(); i++) {
+            Entity blaze = blazes.get(i);
             float[] color = i < COLORS.length ? COLORS[i] : REST_COLOR;
             AABB box = blaze.getBoundingBox().inflate(0.5, 1.0, 0.5).move(0.0, -1.0, 0.0);
             // killer560, 2026-09-20: "add a fill-box option".

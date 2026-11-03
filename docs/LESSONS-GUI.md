@@ -309,6 +309,23 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   9cdc0feb2; only the fill's front edge showed), with Improved Transparency off. Moved to `COLLECT_SUBMITS`: 0 of 24 with it
   off and 0 of 24 on (mithrilarea-1103). A full-block box hides a frame's offset; a fill a few hundredths of a block thick
   shows it, so any thin overlay drawn on a block face belongs in COLLECT_SUBMITS.
+- **A highlight box that writes no depth gets water behind it painted over it on 26.3.** The Blaze Solver fill (default Through
+  Walls, and the depth-tested one too) showed blue water bands where a water column stood behind the blaze: the water pass runs
+  after the box, and `debugFilledBox` / a no-depth type leave the depth buffer alone, so water farther than the box still passed
+  its test (testkit 1103-blaze-water, box interior tinted green in 35-38 % of pixels with water behind or around against 100 %
+  with none; the screenshots show the water over the fill). `SolverEspRender` now draws every solver box and line through its
+  own types that WRITE depth (`DepthStencilState(ALWAYS_PASS, true)` through walls, `DepthStencilState.DEFAULT` otherwise):
+  water behind fails its test, water in front still tints the box. 100 % in both modes, Improved Transparency off and on, behind
+  and around. Registered on `COLLECT_SUBMITS` (not `AFTER_TRANSLUCENT_TERRAIN`). Every solver that draws through
+  `SolverEspRender` gets the fix; other through-walls types (mob ESP, P3 Nav, Secret Waypoints...) have the same no-depth
+  construction.
+- **26.3 Improved Transparency (OIT) crashes a blended custom render type that has no OIT pipelines** ("Render type X does not
+  have OIT pipelines set up", the frame throws): a type whose pipeline blends is drawn through the OIT stages when the option is
+  on and `submitCustomGeometry` sends blended types to the translucent phase. `McRender.withOitNoDepth` (through walls) and
+  `withVanillaOit` give a type its pipelines; the OIT base must be `OIT_LINES_SNIPPET` / `OIT_DEBUG_FILLED_SNIPPET`, since the plain
+  snippets carry their own blend and `OitPipelineSet$Builder.build` rejects it ("Blend functions must currently be the same for
+  all color targets"). Flipping the option at run time needs the submit storage empty (clear a forced draw, wait ticks, then flip).
+  His own instances have it off; the default for other players may be on.
 - **On 26.1.2 a block entity paints over anything drawn into the immediate buffer source before the solid features.**
   `COLLECT_SUBMITS` fires before `renderSolidFeatures`, and McRender's 26.1.2 path writes into `context.bufferSource()`,
   whose shared buffer is drawn the moment the feature renderers ask for their first buffer; neither `LINES_TRANSLUCENT` nor

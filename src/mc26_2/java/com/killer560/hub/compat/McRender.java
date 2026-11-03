@@ -65,6 +65,26 @@ public final class McRender {
         return builder;
     }
 
+    /**
+     * Gives a no-depth-test render type its Improved Transparency (OIT) pipelines. 26.3 draws every blended custom geometry
+     * through them when Improved Transparency is on and throws "does not have OIT pipelines set up" for a type without
+     * (javap 26.3, PreparedRenderType.drawFromBufferOit); {@code lines} picks vanilla's OIT lines or debug-filled snippet as the base (the plain snippets carry their own blend, which the OIT stages
+     * reject: "Blend functions must currently be the same for all color targets").
+     * 26.2 has no such thing, so there it returns the builder unchanged.
+     */
+    public static RenderSetup.RenderSetupBuilder withOitNoDepth(RenderSetup.RenderSetupBuilder builder, String name,
+                                                                boolean lines) {
+        return builder;
+    }
+
+    /**
+     * Gives a depth-tested, depth-writing render type vanilla's own OIT pipelines for lines or debug-filled quads (26.3 only;
+     * 26.2 has none and returns the builder unchanged). Depth testing and writing happen in the OIT depth-bounds stage there.
+     */
+    public static RenderSetup.RenderSetupBuilder withVanillaOit(RenderSetup.RenderSetupBuilder builder, boolean lines) {
+        return builder;
+    }
+
     /** Where the camera is this frame. */
     public static Vec3 cameraPos(LevelRenderContext context) {
         return context.levelState().cameraRenderState.pos;

@@ -1,6 +1,7 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.WorldRenderUtils;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -24,13 +25,12 @@ import com.killer560.hub.compat.McRender;
  * decides whether its answer is visible through blocks - killer560, 2026-09-20: "make all solvers ESP based for the
  * waypoints"; per solver since 2026-10-18 (each call names its solver, first argument).
  * <p>
- * Signatures mirror {@code WorldRenderUtils}' exactly so each solver's render method only changed class
- * name. With the setting off every call falls straight back through to {@code WorldRenderUtils} and draws
- * exactly what it drew before. With it on, the box/line goes to a copy of vanilla's LINES /
- * DEBUG_FILLED pipeline with the depth-stencil state removed - the same construction
- * {@code mobesp/EspRenderer} and {@code p3nav/P3NavRenderer} already use (NoammAddons' 26.1.2
- * {@code NoammRenderPipelines}: {@code withDepthStencilState(Optional.empty())}). The pipeline ids are
- * solver-specific so they cannot collide with either of those two registrations.
+ * Signatures mirror {@code WorldRenderUtils}' so each solver's render method only changed class name. Both modes draw through
+ * this class's own render types (copies of vanilla's LINES / DEBUG_FILLED pipelines that WRITE depth: with the setting off
+ * they keep the depth test, with it on the depth state is ALWAYS_PASS), because on 26.3 water is drawn after the box and a box
+ * that wrote no depth had water behind it painted over it (killer560, 2026-11-03; docs/LESSONS-GUI.md "Solver boxes and water"). The
+ * through-walls construction is the same as {@code mobesp/EspRenderer} and {@code p3nav/P3NavRenderer} (NoammAddons' 26.1.2
+ * {@code NoammRenderPipelines}: {@code withDepthStencilState}). The pipeline ids are solver-specific so they cannot collide.
  */
 public final class SolverEspRender {
 
@@ -42,6 +42,7 @@ public final class SolverEspRender {
      *  {@code EspRenderer.init()} exists. Safe to call any number of times. */
     public static void init() {
         RenderType unused = ThroughWalls.LINES;
+        unused = Depth.LINES;
     }
 
     /** Holder idiom - built once, on {@link #init()}. */
@@ -53,19 +54,47 @@ public final class SolverEspRender {
         // own translucent water pass despite having no depth test, letting water's alpha blend on top of
         // an already-drawn line instead of the other way around. Matches FILLED's own sorted buffer now - on 26.1.2
         // only: 26.2 refuses to sort anything but quads and crashed the frame (McRender.sortLinesOnUpload).
+        /** Passes every fragment and WRITES depth: the water pass runs after the features pass on 26.3 (killer560, 2026-11-03,
+         *  blaze report), and a box that wrote no depth had water behind it blended over it. With the box's depth in the buffer,
+         *  water behind fails its depth test and water in front still tints it. */
+        private static final Optional<DepthStencilState> WRITE_DEPTH_ALWAYS = Optional.of(new DepthStencilState(
+                CompareOp.ALWAYS_PASS, true));
+
+        private static final RenderPipeline.Builder LINES_BASE = com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
+                .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/solver_lines_through_walls"))
+                .withCull(false)
+                .withDepthStencilState(WRITE_DEPTH_ALWAYS);
+        private static final RenderPipeline.Builder FILLED_BASE = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/solver_filled_through_walls"))
+                .withCull(false)
+                .withDepthStencilState(WRITE_DEPTH_ALWAYS);
+
+        // OIT pipelines (26.3, Improved Transparency on): without them the first blended draw throws; see McRender.withOitNoDepth.
         static final RenderType LINES = RenderType.create("killer560smod_solver_lines_through_walls",
-                McRender.sortLinesOnUpload(RenderSetup.builder(RenderPipelines.register(com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/solver_lines_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build()))).createRenderSetup());
+                McRender.withOitNoDepth(McRender.sortLinesOnUpload(RenderSetup.builder(RenderPipelines.register(LINES_BASE.build()))),
+                        "killer560smod_solver_lines", true).createRenderSetup());
 
         static final RenderType FILLED = RenderType.create("killer560smod_solver_filled_through_walls",
-                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/solver_filled_through_walls"))
+                McRender.withOitNoDepth(RenderSetup.builder(RenderPipelines.register(FILLED_BASE.build())).sortOnUpload(),
+                        "killer560smod_solver_filled", false).createRenderSetup());
+    }
+
+    /** Holder idiom - the depth-tested twins: same as vanilla's debug box and lines but WRITING depth (see ThroughWalls.WRITE_DEPTH_ALWAYS). */
+    private static final class Depth {
+        static final RenderType LINES = RenderType.create("killer560smod_solver_lines_depth",
+                McRender.withVanillaOit(McRender.sortLinesOnUpload(RenderSetup.builder(RenderPipelines.register(
+                        com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
+                                .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/solver_lines_depth"))
+                                .withCull(false)
+                                .withDepthStencilState(DepthStencilState.DEFAULT)
+                                .build()))), true).createRenderSetup());
+
+        static final RenderType FILLED = RenderType.create("killer560smod_solver_filled_depth",
+                McRender.withVanillaOit(RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/solver_filled_depth"))
                         .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).sortOnUpload().createRenderSetup());
+                        .withDepthStencilState(DepthStencilState.DEFAULT)
+                        .build())).sortOnUpload(), false).createRenderSetup());
     }
 
     /** The solver's own Highlight switch: off, the methods below draw nothing for it. */
@@ -118,11 +147,7 @@ public final class SolverEspRender {
         if (off(solver)) {
             return;
         }
-        if (!throughWalls(solver)) {
-            WorldRenderUtils.renderOutlineBox(context, box.inflate(Z_FIGHT_NUDGE), r, g, b, a, thickness);
-            return;
-        }
-        McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) ->
+        McRender.inCameraSpace(context, throughWalls(solver) ? ThroughWalls.LINES : Depth.LINES, (pose, buffer) ->
                 lineBox(pose, buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a, thickness));
     }
 
@@ -144,11 +169,7 @@ public final class SolverEspRender {
         if (off(solver)) {
             return;
         }
-        if (!throughWalls(solver)) {
-            WorldRenderUtils.renderFilledBox(context, box.inflate(Z_FIGHT_NUDGE), r, g, b, a);
-            return;
-        }
-        McRender.inCameraSpace(context, ThroughWalls.FILLED, (pose, buffer) ->
+        McRender.inCameraSpace(context, throughWalls(solver) ? ThroughWalls.FILLED : Depth.FILLED, (pose, buffer) ->
                 filledBox(pose.pose(), buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a));
     }
 
@@ -157,16 +178,12 @@ public final class SolverEspRender {
         if (off(solver)) {
             return;
         }
-        if (!throughWalls(solver)) {
-            WorldRenderUtils.renderLineStrip(context, points, r, g, b, a, thickness);
-            return;
-        }
         if (points.size() < 2) {
             return;
         }
         // Copied now: on 26.2 the callback runs later in the frame, and callers pass live path lists.
         final Vec3[] pts = points.toArray(new Vec3[0]);
-        McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
+        McRender.inCameraSpace(context, throughWalls(solver) ? ThroughWalls.LINES : Depth.LINES, (pose, buffer) -> {
             for (int i = 0; i < pts.length - 1; i++) {
                 Vec3 start = pts[i];
                 Vec3 end = pts[i + 1];
