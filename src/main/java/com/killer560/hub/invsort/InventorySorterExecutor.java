@@ -113,6 +113,7 @@ public final class InventorySorterExecutor {
         com.killer560.hub.macrostop.MacroStop.register("Inventory Sorter", com.killer560.hub.macrostop.MacroStop.Kind.CLICK, InventorySorterExecutor::isRunning,
                 why -> stop("you pressed " + why));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InventorySorterExecutor.keys", InventorySorterExecutor::pollKeys));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InvSortPagePick.tick", InvSortPagePick::tick));
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             if (isRunning()) {
                 stop("world changed");
@@ -343,14 +344,17 @@ public final class InventorySorterExecutor {
         boolean[] locked = new boolean[36];
         for (int i = 0; i < 36; i++) {
             ItemStack stack = inv.getItem(i);
-            cur[i] = stack.isEmpty() ? null : ItemIdentity.of(stack);
+            // The exact key (InvSortMatch): a layout slot saved with one takes that copy only (two runebooks are two
+            // items, killer560 2026-11-02); an older slot holding just the id still takes any copy.
+            cur[i] = stack.isEmpty() ? null : InvSortMatch.exact(stack);
             if (!stack.isEmpty() && cur[i] == null) {
                 cur[i] = "?" + i; // unidentifiable: never matches a layout slot, never moved for one
             }
-            locked[i] = lockedInPlace(stack) || InvSortStorage.SKYBLOCK_MENU.equalsIgnoreCase(cur[i]);
+            locked[i] = lockedInPlace(stack) || InvSortStorage.SKYBLOCK_MENU.equalsIgnoreCase(InvSortMatch.id(cur[i]))
+                    || targetLayout.isFree(i); // a Free slot is left out of the layout: never claimed, never moved
         }
         long t0 = System.nanoTime();
-        InvSortPlanner.Plan p = InvSortPlanner.plan(cur, locked, targetLayout.entries(), 9, PLAN_BUDGET);
+        InvSortPlanner.Plan p = InvSortPlanner.plan(cur, locked, targetLayout.wants(), 9, PLAN_BUDGET);
         plan = p.clicks();
         planStep = 0;
         planProven = p.provenMinimal();
@@ -464,7 +468,7 @@ public final class InventorySorterExecutor {
         Inventory inv = client.player.getInventory();
         for (int i = 0; i < 36; i++) {
             ItemStack stack = inv.getItem(i);
-            String id = stack.isEmpty() ? null : ItemIdentity.of(stack);
+            String id = stack.isEmpty() ? null : InvSortMatch.exact(stack);
             if (!stack.isEmpty() && id == null) {
                 id = "?" + i;
             }

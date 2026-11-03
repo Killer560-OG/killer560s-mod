@@ -26,7 +26,9 @@ public class HelpersTab extends FolderTab {
                 new AbilityKeybindsTab(),
                 new LegitGfsTab(),
                 // The legit, SkyHanni-style helper (killer560, 2026-10-11); Auto Chocolate Factory stays in the cheat block.
-                new ChocolateFactoryTab()
+                new ChocolateFactoryTab(),
+                // SkyHanni's Kick Duration: the wait to rejoin SkyBlock after a kick (killer560, 2026-11-03).
+                new KickRejoinTab()
         ));
         // The autonomous Experimentation Table macro got its own section here 2026-09-30, per killer560:
         // "Move the auto etable stuff into its own red header in the same helpers tab but different area."

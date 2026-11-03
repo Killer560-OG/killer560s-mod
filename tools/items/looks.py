@@ -35,6 +35,19 @@ LEGACY = {'INK_SACK': 'dye', 'RAW_FISH': 'fish', 'COOKED_FISH': 'cooked_fish', '
           'IRON_PLATE': 'heavy_weighted_pressure_plate', 'CARROT_STICK': 'carrot_on_a_stick', 'COMMAND': 'command_block',
           'WOOL': 'wool'}
 
+def legacy_name(material):
+    """Hypixel's item resource names materials the Bukkit way (GOLD_SWORD, WOOD_PICKAXE, IRON_SPADE); 1.8's registry, which
+    the client's flattening fix reads, calls them golden_sword, wooden_pickaxe, iron_shovel (2026-11-03: seven Rift admin
+    swords and the Zoom Pickaxe resolved to nothing)."""
+    if material in LEGACY:
+        return LEGACY[material]
+    name = material.lower()
+    name = re.sub(r'^gold_(sword|pickaxe|axe|hoe|spade|helmet|chestplate|leggings|boots)$', r'golden_\1', name)
+    name = re.sub(r'^wood_(sword|pickaxe|axe|hoe|spade)$', r'wooden_\1', name)
+    name = re.sub(r'_spade$', '_shovel', name)
+    return name
+
+
 # Bases that say nothing about the item: a pack-model item on one of these has no pre-pack look of its own.
 BLANK_BASES = {'minecraft:paper', 'minecraft:skull', 'minecraft:player_head', ''}
 
@@ -113,7 +126,7 @@ def icon_from_catalog(c, vanilla):
             out['s'] = h
     else:
         mat = c.get('material', '')
-        out['l'] = 'minecraft:' + LEGACY.get(mat, mat.lower()) + ':' + str(c.get('durability', 0))
+        out['l'] = 'minecraft:' + legacy_name(mat) + ':' + str(c.get('durability', 0))
     if c.get('glowing'):
         out['e'] = 1
     model = c.get('item_model')
@@ -130,7 +143,7 @@ def base_of(neu_item, cat_item):
         return neu_item['itemid']
     if cat_item and cat_item.get('material'):
         mat = cat_item['material']
-        return 'minecraft:' + LEGACY.get(mat, mat.lower())
+        return 'minecraft:' + legacy_name(mat)
     return ''
 
 
@@ -138,7 +151,7 @@ def base_look(neu_item, cat_item):
     if neu_item and neu_item.get('itemid'):
         return {'l': neu_item['itemid'] + ':' + str(neu_item.get('damage', 0))}
     mat = cat_item['material']
-    return {'l': 'minecraft:' + LEGACY.get(mat, mat.lower()) + ':' + str(cat_item.get('durability', 0))}
+    return {'l': 'minecraft:' + legacy_name(mat) + ':' + str(cat_item.get('durability', 0))}
 
 
 def has_look(look):

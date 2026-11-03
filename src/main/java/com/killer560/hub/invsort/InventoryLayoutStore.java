@@ -246,8 +246,10 @@ public final class InventoryLayoutStore {
         }
         JsonObject slotsObj = ConfigJson.getObject(root, "slots");
         JsonObject iconsObj = ConfigJson.getObject(root, "icons");
+        JsonObject exactObj = ConfigJson.getObject(root, "exact");
         Map<Integer, String> slots = new LinkedHashMap<>();
         Map<Integer, String> icons = new LinkedHashMap<>();
+        Map<Integer, String> exact = new LinkedHashMap<>();
         if (slotsObj != null) {
             for (String key : slotsObj.keySet()) {
                 if (slots.size() >= MAX_SLOTS) {
@@ -272,14 +274,33 @@ public final class InventoryLayoutStore {
                 if (icon != null && !icon.isBlank()) {
                     icons.put(slot, icon.trim());
                 }
+                String ex = exactObj == null ? null : ConfigJson.getString(exactObj, key, null);
+                if (ex != null && !ex.isBlank() && ex.length() <= 200) {
+                    exact.put(slot, ex.trim().toUpperCase(Locale.ROOT));
+                }
             }
         }
-        boolean fetch = ConfigJson.getBool(root, "fetchFromStorage", false);
+        java.util.Set<Integer> free = new java.util.TreeSet<>();
+        if (root.has("free") && root.get("free").isJsonArray()) {
+            for (com.google.gson.JsonElement el : root.getAsJsonArray("free")) {
+                try {
+                    int f = el.getAsInt();
+                    if (f >= 0 && f <= 35) {
+                        free.add(f);
+                    }
+                } catch (RuntimeException ignored) {
+                    // not a slot number
+                }
+            }
+        }
+        // On unless the file says otherwise (killer560, 2026-11-03: "by default have fetch from storage on"). Every file
+        // this store writes says it, so only a hand-written or handed-over file without the key picks the new default.
+        boolean fetch = ConfigJson.getBool(root, "fetchFromStorage", true);
         String dump = ConfigJson.getString(root, "dumpPage", null);
         if (dump != null && !DUMP_PAGE.matcher(dump).matches()) {
             dump = null;
         }
-        return new InventoryLayout(name, slots, icons, fetch, dump);
+        return new InventoryLayout(name, slots, icons, exact, free, fetch, dump);
     }
 
     /** {@code enderchest_1}-{@code enderchest_9} or {@code backpack_1}-{@code backpack_18}. */
@@ -301,6 +322,21 @@ public final class InventoryLayoutStore {
             iconsObj.addProperty(String.valueOf(e.getKey()), e.getValue());
         }
         root.add("icons", iconsObj);
+        if (!layout.exactKeys().isEmpty()) {
+            // The very item per slot (InvSortMatch); "slots" keeps the plain id so an older mod still reads the file.
+            JsonObject exactObj = new JsonObject();
+            for (Map.Entry<Integer, String> e : layout.exactKeys().entrySet()) {
+                exactObj.addProperty(String.valueOf(e.getKey()), e.getValue());
+            }
+            root.add("exact", exactObj);
+        }
+        if (!layout.freeSlots().isEmpty()) {
+            com.google.gson.JsonArray free = new com.google.gson.JsonArray();
+            for (int f : layout.freeSlots()) {
+                free.add(f);
+            }
+            root.add("free", free);
+        }
         root.addProperty("fetchFromStorage", layout.fetchFromStorage());
         if (layout.dumpPage() != null) {
             root.addProperty("dumpPage", layout.dumpPage());

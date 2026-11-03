@@ -31,6 +31,7 @@ public final class MiningQolConfig {
     public static final int DEFAULT_TITANIUM_COLOR = 0xFFF0F0F0;
     public static final int DEFAULT_RAFFLE_COLOR = 0xFFFFAA00;
     public static final int DEFAULT_COMMISSION_MOB_COLOR = 0xFFFF5555;
+    public static final int DEFAULT_COMMISSION_ROUTE_COLOR = 0xFF55FFFF;
 
     /** When the Titanium Highlight shows titanium. */
     public enum TitaniumMode {
@@ -53,6 +54,23 @@ public final class MiningQolConfig {
      * with the shared paths: {@code WorldRenderUtils.renderOutlineBoxes}/{@code renderFilledBoxes} for the boxes, and the
      * vanilla glow outline through the cheatutils WitherGlow mixins Dungeon ESP's Glow style uses.
      */
+    /** How the Commission Route gets there (killer560, 2026-11-03: "one for etherwarp one for aote one for walking"). */
+    public enum CommissionRouteMode {
+        WALK("Walk"),
+        AOTE("AOTE"),
+        ETHERWARP("Etherwarp");
+
+        private final String label;
+
+        CommissionRouteMode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
     public enum CommissionMobStyle {
         OUTLINE("Outline", true, false, false),
         FILL("Fill", false, true, false),
@@ -91,6 +109,10 @@ public final class MiningQolConfig {
     private CommissionMobStyle commissionMobStyle = CommissionMobStyle.OUTLINE;
     /** Completed Commissions in the Commissions menu (killer560, 2026-11-03: "have it highlight completed commissions"). */
     private boolean commissionMenuHighlight = true;
+    /** Commission Route (killer560, 2026-11-03: "draw a pathfinding line to wherever i need to go to do a comission"). */
+    private boolean commissionRoute = false;
+    private int commissionRouteColor = DEFAULT_COMMISSION_ROUTE_COLOR;
+    private CommissionRouteMode commissionRouteMode = CommissionRouteMode.WALK;
     // Pickobulus Estimate
     private boolean pickobulus = false;
     private int pickobulusColor = DEFAULT_PICKOBULUS_COLOR;
@@ -143,6 +165,10 @@ public final class MiningQolConfig {
                 cfg.commissionMobStyle = ConfigJson.getEnum(o, "commissionMobStyle", CommissionMobStyle.class,
                         CommissionMobStyle.OUTLINE);
                 cfg.commissionMenuHighlight = ConfigJson.getBool(o, "commissionMenuHighlight", cfg.commissionMenuHighlight);
+                cfg.commissionRoute = ConfigJson.getBool(o, "commissionRoute", cfg.commissionRoute);
+                cfg.commissionRouteColor = intOr(o, "commissionRouteColor", cfg.commissionRouteColor);
+                cfg.commissionRouteMode = ConfigJson.getEnum(o, "commissionRouteMode", CommissionRouteMode.class,
+                        CommissionRouteMode.WALK);
                 cfg.pickobulus = ConfigJson.getBool(o, "pickobulus", cfg.pickobulus);
                 cfg.pickobulusColor = intOr(o, "pickobulusColor", cfg.pickobulusColor);
                 cfg.abilityAlert = ConfigJson.getBool(o, "abilityAlert", cfg.abilityAlert);
@@ -195,6 +221,9 @@ public final class MiningQolConfig {
             o.addProperty("commissionMobColor", commissionMobColor);
             o.addProperty("commissionMobStyle", commissionMobStyle.name());
             o.addProperty("commissionMenuHighlight", commissionMenuHighlight);
+            o.addProperty("commissionRoute", commissionRoute);
+            o.addProperty("commissionRouteColor", commissionRouteColor);
+            o.addProperty("commissionRouteMode", commissionRouteMode.name());
             o.addProperty("pickobulus", pickobulus);
             o.addProperty("pickobulusColor", pickobulusColor);
             o.addProperty("abilityAlert", abilityAlert);
@@ -296,6 +325,37 @@ public final class MiningQolConfig {
 
     public void setCommissionMobsEsp(boolean v) {
         commissionMobsEsp = v;
+    }
+
+    /** Commission Route as set (the feature also needs the Commission HUD switch, see {@link CommissionRoute}). */
+    public boolean isCommissionRoute() {
+        return commissionRoute;
+    }
+
+    public void setCommissionRoute(boolean v) {
+        commissionRoute = v;
+    }
+
+    public int getCommissionRouteColor() {
+        return commissionRouteColor;
+    }
+
+    public void setCommissionRouteColor(int v) {
+        commissionRouteColor = v;
+    }
+
+    public CommissionRouteMode getCommissionRouteMode() {
+        return commissionRouteMode;
+    }
+
+    public void setCommissionRouteMode(CommissionRouteMode v) {
+        commissionRouteMode = v == null ? CommissionRouteMode.WALK : v;
+    }
+
+    /** Left click forward, right click back, wrapping. */
+    public void stepCommissionRouteMode(int dir) {
+        CommissionRouteMode[] all = CommissionRouteMode.values();
+        commissionRouteMode = all[Math.floorMod(commissionRouteMode.ordinal() + dir, all.length)];
     }
 
     public int getCommissionMobColor() {

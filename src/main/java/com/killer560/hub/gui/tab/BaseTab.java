@@ -192,6 +192,11 @@ public abstract class BaseTab {
         return searchHitsIn(buildWidgets(0, 0, 200, () -> {}), query);
     }
 
+    /** A search hit naming {@code label} (one of {@link #searchHits}) is being opened: a tab with sub-pages shows the page
+     *  that holds it, so the menu's scroll-to-row finds it (Fast/Auto Leap's Universal and Set Class pages). */
+    public void revealSetting(String label) {
+    }
+
     /** {@link #searchHits}' label matching over a widget list the caller built, for a tab whose search scan is not a
      *  plain {@link #buildWidgets} call (Fast/Auto Leap builds its hidden rows through {@code FastLeapSection}). */
     protected static List<String> searchHitsIn(List<AbstractWidget> widgets, String query) {

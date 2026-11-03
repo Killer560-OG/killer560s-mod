@@ -145,9 +145,10 @@ final class LocalPlanner {
                 out.add(new Move(down, 1.2));
             }
         }
+        boolean crouchedHere = crouchOnly(level, at);
         for (int[] d : DIRS) {
             boolean diagonal = d[0] != 0 && d[1] != 0;
-            if (diagonal && (!body(level, at.offset(d[0], 0, 0)) || !body(level, at.offset(0, 0, d[1])))) {
+            if (diagonal && (crouchedHere || !body(level, at.offset(d[0], 0, 0)) || !body(level, at.offset(0, 0, d[1])))) {
                 continue;
             }
             BlockPos side = at.offset(d[0], 0, d[1]);
@@ -155,6 +156,14 @@ final class LocalPlanner {
                 continue;
             }
             double base = diagonal ? 1.414 : 1.0;
+            if (!diagonal && crouchCell(level, side)) {
+                // Under a 1.5-high overhang (a top slab, a trapdoor): only a crouching player fits, at 0.3 of the speed.
+                out.add(new Move(side, base * 3.0));
+                continue;
+            }
+            if (crouchedHere && !body(level, side)) {
+                continue; // no jump from under a ceiling
+            }
             if (!diagonal && !body(level, side) && doorway(level, side, d[0], d[1]) && standOn(level, side.below())) {
                 // An open door, a trapdoor up against a wall, a pane edge: a thin panel along the way he walks.
                 out.add(new Move(side, base * 1.2));
@@ -239,6 +248,39 @@ final class LocalPlanner {
         }
         return water(level, feet) || lava(level, feet) || WalkTerrain.climbable(level, feet)
                 || lowTop(level, feet) > 0.0 || standOn(level, feet.below());
+    }
+
+    /** A crouching player's height (vanilla CROUCHING dimensions 0.6 x 1.5, eye 1.27; javap Avatar, 26.3 and 26.2). */
+    static final double CROUCH_HEIGHT = 1.5;
+    static final double CROUCH_EYE = 1.27;
+
+    /**
+     * A place he can be only crouching: no room standing ({@link #body} false), but 1.5 of room over the feet - the block
+     * over the feet cell has a collision that starts at least half way up (a top slab, an upper trapdoor), and something
+     * to stand on. Not in fluids or on a ladder.
+     */
+    static boolean crouchCell(Level level, BlockPos feet) {
+        if (body(level, feet) || water(level, feet) || lava(level, feet) || WalkTerrain.climbable(level, feet)) {
+            return false;
+        }
+        double low = lowTop(level, feet);
+        if (low < 0.0 || low > 0.2) {
+            return false;
+        }
+        if (low <= 0.0 && !standOn(level, feet.below())) {
+            return false;
+        }
+        BlockPos head = feet.above();
+        if (!level.isLoaded(head) || level.getBlockState(head).is(BlockTags.CLIMBABLE)) {
+            return false;
+        }
+        var shape = level.getBlockState(head).getCollisionShape(level, head);
+        return !shape.isEmpty() && shape.min(net.minecraft.core.Direction.Axis.Y) >= low + CROUCH_HEIGHT - 1.0 - 1.0e-4;
+    }
+
+    /** A cell he fits in only crouching (see {@link #crouchCell}). */
+    static boolean crouchOnly(Level level, BlockPos feet) {
+        return crouchCell(level, feet);
     }
 
     /** The tallest collision in a block that still counts as a floor inside the feet cell (a bottom slab is 0.5). */

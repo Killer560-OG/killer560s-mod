@@ -37,6 +37,15 @@ public class MiningCommissionHudTab extends BaseTab {
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Completed Commissions", cfg::isCommissionMenuHighlight,
                 cfg::setCommissionMenuHighlight, cfg::save);
         y += MiningQolRows.STEP;
+        MiningQolRows.toggle(w, contentX, y, contentWidth, "Commission Route", cfg::isCommissionRoute,
+                cfg::setCommissionRoute, cfg::save);
+        y += MiningQolRows.STEP;
+        MiningQolRows.color(w, contentX, y, contentWidth, "Commission Route Color", cfg::getCommissionRouteColor,
+                cfg::setCommissionRouteColor, MiningQolConfig.DEFAULT_COMMISSION_ROUTE_COLOR, cfg::save);
+        y += MiningQolRows.STEP;
+        MiningQolRows.cycle(w, contentX, y, contentWidth, "Route Mode", () -> cfg.getCommissionRouteMode().label(),
+                cfg::stepCommissionRouteMode, cfg::save);
+        y += MiningQolRows.STEP;
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Commission Mobs", cfg::isCommissionMobs,
                 cfg::setCommissionMobs, cfg::save);
         y += MiningQolRows.STEP;

@@ -303,7 +303,11 @@ public final class AutoSoulRunner {
             state = State.COLLECTING; // no stand: COLLECTING skips it after its wait; no Auto Walk: he steps closer
             return;
         }
-        if (inReach(player, stand)) {
+        boolean steady = player.onGround() || player.isInWater() || player.onClimbable();
+        if (inReach(player, stand) && (steady || !AutoWalker.isApproaching())) {
+            // Not in the middle of a jump: with Jump Boost VI the stand comes in reach for a tick or two on the way up a
+            // ledge, the walk stopped there, and he fell back down before the click could go (testkit
+            // 1103-fairy-boost6-pillar: four jumps, no click). The walk lands him on the cell first.
             AutoWalker.cancelApproach();
             AutoWalker.setWalking(false);
             state = State.COLLECTING;
@@ -399,28 +403,32 @@ public final class AutoSoulRunner {
         AABB box = stand.getBoundingBox();
         BlockPos base = BlockPos.containing(box.getCenter().x, box.minY, box.getCenter().z);
         List<BlockPos> out = new ArrayList<>();
-        for (int dy = -3; dy <= 3; dy++) {
+        List<BlockPos> ownColumn = new ArrayList<>();
+        // dy from -4: a soul up on a ledge is still in reach from 4 below its stand's feet when it is nearly overhead
+        for (int dy = -4; dy <= 3; dy++) {
             for (int dx = -4; dx <= 4; dx++) {
                 for (int dz = -4; dz <= 4; dz++) {
                     BlockPos c = base.offset(dx, dy, dz);
-                    if (dx == 0 && dz == 0) {
-                        continue; // not inside the stand itself: its column is often a lone ledge with no way off
-                    }
-                    if (!LocalPlanner.cell(level, c) || LocalPlanner.water(level, c) || LocalPlanner.lava(level, c)) {
+                    // Under a 1.5-high overhang only crouched (killer560, 2026-11-03: "getting into small 1x2 holes and
+                    // such"): the eye is then 1.27 up, not 1.62.
+                    boolean crouch = LocalPlanner.crouchCell(level, c);
+                    if ((!crouch && !LocalPlanner.cell(level, c)) || LocalPlanner.water(level, c) || LocalPlanner.lava(level, c)) {
                         continue;
                     }
                     double feetY = c.getY() + Math.max(0.0, LocalPlanner.lowTop(level, c));
-                    Vec3 eye = new Vec3(c.getX() + 0.5, feetY + 1.62, c.getZ() + 0.5);
+                    Vec3 eye = new Vec3(c.getX() + 0.5, feetY + (crouch ? LocalPlanner.CROUCH_EYE : 1.62), c.getZ() + 0.5);
                     if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, box) > (REACH - 0.3) * (REACH - 0.3)) {
                         continue;
                     }
                     if (aimPoint(level, eye, box) != null) {
-                        out.add(c);
+                        // Not inside the stand itself unless nothing else will do: its column is often a lone ledge with
+                        // no way off, but a soul at the bottom of a 1x1 hole is clicked from in it.
+                        (dx == 0 && dz == 0 ? ownColumn : out).add(c);
                     }
                 }
             }
         }
-        return out;
+        return out.isEmpty() ? ownColumn : out;
     }
 
     /** Waits for the island graph (it may never have been loaded with Fairy Souls off), then starts the route. */
@@ -457,7 +465,12 @@ public final class AutoSoulRunner {
             // etherwarps on the spot once a soul in reach no longer skipped this check).
             endEscape();
         }
-        if (distance <= COLLECT_DISTANCE && !AutoWalker.needsEscape()) {
+        boolean standInReach = false;
+        if (distance > COLLECT_DISTANCE && distance < 9.0 && player.onGround()) {
+            ArmorStand s = findSoulEntity(Minecraft.getInstance(), soulCentre);
+            standInReach = s != null && inReach(player, s); // on the ledge above its node: click from here
+        }
+        if ((distance <= COLLECT_DISTANCE || standInReach) && !AutoWalker.needsEscape()) {
             // At the node. The stand itself decides: in reach and in sight -> click, else walk the last blocks to it.
             ArmorStand stand = findSoulEntity(Minecraft.getInstance(), soulCentre);
             AutoWalker.setWalking(false);
@@ -736,10 +749,16 @@ public final class AutoSoulRunner {
     private static void tickCollect(Minecraft client, LocalPlayer player, Vec3 soulCentre, double distance) {
         PathfindingConfig cfg = PathfindingConfig.getInstance();
         AutoWalker.setWalking(false);
+        // Far from the soul's graph node is not "left the soul" when the stand itself is in reach: a soul up on a ledge
+        // 5 blocks over its node (testkit 1103-fairy-boost6-pillar) was reached, then this sent him walking back to the
+        // node and off the ledge, four times.
         if (distance > COLLECT_DISTANCE + 2.0) {
-            releaseClickView(player);
-            state = State.IDLE;
-            return;
+            ArmorStand near = findSoulEntity(client, soulCentre);
+            if (near == null || !inReach(player, near)) {
+                releaseClickView(player);
+                state = State.IDLE;
+                return;
+            }
         }
         if (!cfg.isAutoCollect()) {
             return; // he clicks the soul himself; the chat line moves the queue on
