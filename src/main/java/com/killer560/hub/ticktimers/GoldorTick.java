@@ -28,7 +28,7 @@ import java.util.Map;
  *       mask procs came 3 and 6 seconds after his line);</li>
  *   <li>every observed hit resyncs it: a drop in your own health, a mask/Phoenix proc line, or two or more players hurt in
  *       the same tick. A hit within {@link #SNAP} ticks of the predicted one moves the phase onto it; a hit that does not
- *       fit is remembered, and a second one a whole number of periods after it (within two ticks) re-locks the phase there,
+ *       fit is remembered, and a second one a whole number of periods after it (within six ticks) re-locks the phase there,
  *       as does a hit that lands on two or more players at once. A stray hit (a mob, a fall) moves nothing.</li>
  * </ul>
  * The line reads 0 at the hit's tick and 59 ticks (2.95 s) the tick after.
@@ -129,8 +129,9 @@ public final class GoldorTick {
         boolean pair = false;
         if (unexplained != Long.MIN_VALUE) {
             long gap = t - unexplained;
-            long rem = Math.floorMod(gap + 2, (long) PERIOD);
-            pair = gap >= PERIOD - 2 && gap <= 3L * PERIOD + 2 && rem <= 4;
+            // Within 6: off Hypixel the clock can also RUN at the wrong rate between time packets (26.2 Hx: hits 64 apart).
+            long rem = Math.floorMod(gap + 6, (long) PERIOD);
+            pair = gap >= PERIOD - 6 && gap <= 3L * PERIOD + 6 && rem <= 12;
         }
         if (fits || strong || pair) {
             if (!fits) {
