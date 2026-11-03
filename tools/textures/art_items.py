@@ -1076,3 +1076,27 @@ def tungsten_key():
 @item('UMBER_KEY')
 def umber_key():
     return key_item('#9A6438', None)
+
+
+@item('GHOSTFLY_SOUL')
+def ghostfly_soul():
+    """Great Spook 2026: a pale wisp with two dark eyes and a trailing tail (2026-11-03, no pre-pack look)."""
+    c = Canvas([
+        "................",
+        "................",
+        "......zzzz......",
+        ".....zzzzzz.....",
+        "....zzzzzzzz....",
+        "....z#zzzz#z....",
+        "....zzzzzzzz....",
+        "....zzzzzzzz....",
+        ".....zzzzzzz....",
+        ".....zzzzzz.....",
+        "......zzzzz.....",
+        ".......zzz......",
+        "........zz.*....",
+        "...*.....z......",
+        "................",
+        "................",
+    ])
+    return c.grid(), palette(z=Material('#DDF4F0', alpha=225, outer=True))
