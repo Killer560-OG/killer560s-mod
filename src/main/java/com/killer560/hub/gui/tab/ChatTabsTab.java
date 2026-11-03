@@ -25,7 +25,7 @@ public class ChatTabsTab extends BaseTab {
         widgets.add(onOffButton("Chat Tabs", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
         widgets.add(onOffButton("Switch Channel", cfg::isSwitchChannel, cfg::setSwitchChannel, cfg::save,

@@ -30,7 +30,7 @@ public class BazaarTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
-        if (!cfg.isBazaarEnabledRaw()) {
+        if (!cfg.isBazaarEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
         widgets.add(com.killer560.hub.gui.ScreenThemes.button("bazaar", contentX, y, contentWidth, 18, "INVENTORY"));

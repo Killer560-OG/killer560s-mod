@@ -78,7 +78,7 @@ public class DungeonQueueTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
-        if (!pf.isEnabledRaw()) {
+        if (!pf.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 
@@ -116,7 +116,7 @@ public class DungeonQueueTab extends BaseTab {
         widgets.add(rebuildToggle("Tooltip Stats", pf::isTooltip, pf::setTooltip, pf::save, requestRebuild,
                 contentX, y, contentWidth));
         y += 20;
-        if (!pf.isTooltip()) {
+        if (!pf.isTooltip() && !isSearchScan()) {
             return widgets;
         }
         widgets.add(toggle("Show Missing", pf::isShowMissing, pf::setShowMissing, pf::save, contentX, y, colW));

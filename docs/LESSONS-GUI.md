@@ -454,6 +454,15 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
 - Video Browser: YouTube Shorts loop, so a `<video>` never fires `ended`; Auto Scroll counts a `timeupdate` that finds
   the video under 1 s after one in its last second (caught in capture phase: `timeupdate` does not bubble). Checked in
   headless Chrome with ffmpeg clips (killer560s-mod-logs/docmenu-1101-vb/endhook_test.py).
+- The menu search found only what a tab built at that moment: a feature switched off had none of its rows in the scan (about 100
+  tabs return early when off), and Dungeon ESP's description was never read, so 'star mob' and 'wither esp' found nothing
+  (2026-11-02). `gui/MenuSearch` now reads name, card text, every row (`BaseTab.isSearchScan()` lays switched-off rows open) and
+  each row's tooltip once per search, matching word starts, plural/-ed/-ing stems and synonyms. Index ~30 ms, a later keystroke
+  under 30 ms on 26.3 (testkit 1102-ui-search-queries). Rows longer than 48 characters or holding ". " are explanation lines:
+  their words find the feature but they are never listed as a setting.
+- Vanilla's inventory effects panel (`EffectsInInventory`) is owned only by `InventoryScreen` and `CreativeModeInventoryScreen`
+  (javap, 26.3 and 26.2): chests, the AH and the Storage Overlay never draw it. The HUD's top-right icons are Fabric's
+  `VanillaHudElements.MOB_EFFECTS` layer on both versions. Hide Potion Effects (its own card since 2026-11-02) covers both.
 - `CommitEditBox.withSet` takes its Set button (SET_W 34 + SET_GAP 4) out of the box's own width, so a row laid out before
   textbox-1101 can leave a box too narrow: the Command Shortcuts custom row's command box fell to 52 px in the test window
   (testkit 621 wants 60). Reserve the Set width when sizing the row (ship-1102h, eb3719df: the name box pays for it).

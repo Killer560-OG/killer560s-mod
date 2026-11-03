@@ -104,6 +104,11 @@ public class FastLeapTab extends BaseTab {
         return searchHitsIn(searchScan(), query);
     }
 
+    @Override
+    public List<AbstractWidget> searchScanWidgets() {
+        return BuildVariant.CHEAT_FEATURES_ENABLED ? searchScan() : new ArrayList<>();
+    }
+
     /** Every row of the tab, including the ones the master switch or Block Inputs hide. */
     private static List<AbstractWidget> searchScan() {
         List<AbstractWidget> scan = new ArrayList<>();

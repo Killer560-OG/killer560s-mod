@@ -36,7 +36,7 @@ public class LuckTab extends BaseTab {
                         McCompat.setScreen(Minecraft.getInstance(), new LuckScreen(McCompat.screen(Minecraft.getInstance()))))
                 .bounds(contentX, y, contentWidth, 20).build());
         y += 24;
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
         widgets.add(onOffButton("Drop Chat Line", cfg::isAnnounce, cfg::setAnnounce, cfg::save, null,

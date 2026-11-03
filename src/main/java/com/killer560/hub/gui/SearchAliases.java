@@ -43,7 +43,14 @@ public final class SearchAliases {
             Map.entry("reels", "video browser"),
             Map.entry("instagram", "video browser"),
             Map.entry("twitch", "video browser"),
-            Map.entry("shorts", "video browser"));
+            Map.entry("shorts", "video browser"),
+            // killer560 (2026-11-02, "i keep searching for things we have and I cant find them"): words typed apart that
+            // the menu writes as one, and the effects panel he asked to hide.
+            Map.entry("trigger bot", "triggerbot"),
+            Map.entry("free look", "freelook"),
+            Map.entry("full bright", "fullbright"),
+            Map.entry("night vision", "fullbright"),
+            Map.entry("potion effect", "hide potion effects"));
 
     /** A typed prefix shorter than this only matches the alias when typed in full ("e" alone stays plain). */
     private static final int MIN_PREFIX = 2;

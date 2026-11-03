@@ -41,7 +41,7 @@ public class DoorHelpersTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
-        if (!cfg.isAutoDoorEnabledRaw()) {
+        if (!cfg.isAutoDoorEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

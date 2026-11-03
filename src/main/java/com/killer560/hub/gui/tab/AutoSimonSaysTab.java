@@ -50,7 +50,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         widgets.add(onOffButton("Auto Simon Says", cfg::isAutoSimonSaysEnabled, cfg::setAutoSimonSaysEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 18));
         y += 24;
-        if (!cfg.isAutoSimonSaysEnabled()) {
+        if (!cfg.isAutoSimonSaysEnabled() && !isSearchScan()) {
             return widgets;
         }
         if (!cfg.isEnabled()) {

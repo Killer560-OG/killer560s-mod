@@ -77,7 +77,7 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
                 .bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
 

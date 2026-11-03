@@ -56,7 +56,7 @@ public class AutoFairySoulsTab extends BaseTab implements KeyCaptureTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
-        if (!cfg.isAutoSoulsRaw()) {
+        if (!cfg.isAutoSoulsRaw() && !isSearchScan()) {
             return widgets;
         }
         widgets.add(onOffButton("Auto Walk", cfg::isAutoWalkRaw, cfg::setAutoWalk, cfg::save,

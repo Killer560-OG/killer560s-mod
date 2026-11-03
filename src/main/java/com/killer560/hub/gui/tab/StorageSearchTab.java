@@ -46,7 +46,7 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 28;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
 
@@ -120,7 +120,7 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
         widgets.add(onOffButton("Search Island Chests", cfg::isSearchChests, cfg::setSearchChests, cfg::save,
                 requestRebuild, contentX, y, colW, 18));
 
-        if (!cfg.isSearchChests()) {
+        if (!cfg.isSearchChests() && !isSearchScan()) {
             return widgets;
         }
 

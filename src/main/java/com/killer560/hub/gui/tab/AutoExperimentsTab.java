@@ -63,7 +63,7 @@ public class AutoExperimentsTab extends BaseTab {
         // Same "the master toggle hides what it governs instead of showing it inert" rule the rest of the
         // mod's tabs follow - everything below only ever means anything for the auto-clicking and
         // menu-navigation loop.
-        if (!cfg.isAutonomousMode()) {
+        if (!cfg.isAutonomousMode() && !isSearchScan()) {
             return widgets;
         }
 

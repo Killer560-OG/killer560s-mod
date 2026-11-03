@@ -43,7 +43,7 @@ public class ScoreCalculatorTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
 

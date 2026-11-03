@@ -57,7 +57,7 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
             return widgets;
         }
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
 

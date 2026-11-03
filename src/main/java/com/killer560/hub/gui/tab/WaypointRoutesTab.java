@@ -50,7 +50,7 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
         widgets.add(onOffButton("Waypoint Routes", cfg::isEnabled, cfg::setEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 28;
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
 

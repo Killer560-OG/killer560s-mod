@@ -52,7 +52,7 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
                 cfg::save, null, contentX, y, contentWidth, 18));
         y += 24;
 
-        if (!cfg.isAhEnabledRaw()) {
+        if (!cfg.isAhEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
         widgets.add(com.killer560.hub.gui.ScreenThemes.button("auction_house", contentX, y, contentWidth, 18, "INVENTORY"));

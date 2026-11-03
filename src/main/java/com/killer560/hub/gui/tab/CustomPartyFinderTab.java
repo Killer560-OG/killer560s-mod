@@ -28,7 +28,7 @@ public class CustomPartyFinderTab extends BaseTab {
         widgets.add(onOffButton("Custom Party Finder", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Party Finder"), btn -> {

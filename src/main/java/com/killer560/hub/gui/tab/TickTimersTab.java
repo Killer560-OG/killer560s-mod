@@ -47,7 +47,7 @@ public class TickTimersTab extends BaseTab {
                 requestRebuild, contentX, y, 220, 20));
         y += 26;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
 
