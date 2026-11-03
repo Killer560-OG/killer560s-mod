@@ -183,7 +183,9 @@ public final class CommissionRoute {
                     continue;
                 }
                 BlockPos b = groundUnder(p);
-                if (b == null || Vec3.atCenterOf(b).distanceTo(eye) > ETHERWARP_RANGE) {
+                if (b == null || Vec3.atCenterOf(b).distanceTo(eye) > ETHERWARP_RANGE
+                        || new Vec3(b.getX() + 0.5, b.getY() + 1.0, b.getZ() + 0.5).distanceTo(stand) < 3.0) {
+                    // Out of range, or a warp onto (next to) the block he already stands on.
                     continue;
                 }
                 if (TeleportUtils.getEtherwarpDirection(eye, b, ETHERWARP_RANGE, false) != null) {
@@ -209,34 +211,99 @@ public final class CommissionRoute {
     }
 
     private static void aotePlan(Vec3 pos, List<Vec3> walk) {
+        // Progress is measured along the path (arc length), and only ever moves forward: each teleport aims at the point
+        // AOTE_RANGE further along it, and its landing counts for as far along the path as it got. Aiming at the next
+        // node instead overshot it and bounced back and forth past it (testkit 1103-mining-route-aote, b1).
+        List<Vec3> path = new ArrayList<>();
+        path.add(pos);
+        for (Vec3 w : walk) {
+            path.add(new Vec3(w.x, w.y - 0.5, w.z)); // node centers to feet height
+        }
+        double[] cum = new double[path.size()];
+        for (int i = 1; i < path.size(); i++) {
+            cum[i] = cum[i - 1] + path.get(i - 1).distanceTo(path.get(i));
+        }
+        double total = cum[cum.length - 1];
         List<Vec3> line = new ArrayList<>();
         List<BlockPos> hops = new ArrayList<>();
         Vec3 stand = pos;
-        int next = 0;
-        for (int guard = 0; guard < MAX_HOPS * 4 && next < walk.size(); guard++) {
-            Vec3 aim = walk.get(next);
-            if (stand.distanceTo(aim) < 1.5) {
-                next++;
-                continue;
-            }
+        double s = 0;
+        for (int guard = 0; guard < MAX_HOPS * 2 && s < total - 1.5; guard++) {
+            double want = Math.min(total, s + AOTE_RANGE);
+            Vec3 aim = along(path, cum, want);
             Vec3 eye = stand.add(0, 1.62, 0);
             TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, aim.add(0, 1.62, 0));
             TeleportUtils.RaycastResult res = TeleportUtils.getTeleportPos(eye, r.yaw(), r.pitch(), AOTE_RANGE);
-            Vec3 land = res.succeeded() && res.pos() != null
-                    ? new Vec3(res.pos().getX() + 0.5, res.pos().getY(), res.pos().getZ() + 0.5) : null;
-            if (land == null || land.distanceTo(stand) < 2.0) {
-                // A teleport gets nowhere here (wall, ceiling): walk to the point.
+            Vec3 land = res.succeeded() && res.pos() != null ? settle(res.pos()) : null;
+            double ls = land == null ? s : project(path, cum, land, s);
+            if (land == null || ls < s + 1.0 || land.distanceTo(aim) > 3.0) {
+                // A teleport gets nowhere useful here (wall, ceiling, off the path): walk this stretch.
                 stand = aim;
+                s = want;
                 line.add(stand);
-                next++;
                 continue;
             }
             hops.add(BlockPos.containing(land.x, land.y, land.z));
             stand = land;
+            s = ls;
             line.add(stand);
         }
         hopBlocks = List.copyOf(hops);
         points = line.toArray(new Vec3[0]);
+    }
+
+    /** Where a teleport landing in block {@code p} comes to rest: down onto the first solid block within 4. */
+    private static Vec3 settle(BlockPos p) {
+        Minecraft mc = Minecraft.getInstance();
+        BlockPos q = p;
+        for (int i = 0; i < 4 && mc.level != null; i++) {
+            BlockPos below = q.below();
+            if (!mc.level.getBlockState(below).getCollisionShape(mc.level, below).isEmpty()) {
+                break;
+            }
+            q = below;
+        }
+        return new Vec3(q.getX() + 0.5, q.getY(), q.getZ() + 0.5);
+    }
+
+    /** The point at arc length {@code s} along the polyline. */
+    private static Vec3 along(List<Vec3> path, double[] cum, double s) {
+        for (int i = 1; i < path.size(); i++) {
+            if (s <= cum[i] || i == path.size() - 1) {
+                double len = cum[i] - cum[i - 1];
+                double t = len <= 1e-9 ? 1.0 : Math.max(0, Math.min(1, (s - cum[i - 1]) / len));
+                Vec3 a = path.get(i - 1);
+                Vec3 b = path.get(i);
+                return a.add(b.subtract(a).scale(t));
+            }
+        }
+        return path.get(path.size() - 1);
+    }
+
+    /** Arc length of the point on the polyline nearest {@code p}, at or after {@code from}. */
+    private static double project(List<Vec3> path, double[] cum, Vec3 p, double from) {
+        double best = from;
+        double bestD = Double.MAX_VALUE;
+        for (int i = 1; i < path.size(); i++) {
+            if (cum[i] < from) {
+                continue;
+            }
+            Vec3 a = path.get(i - 1);
+            Vec3 ab = path.get(i).subtract(a);
+            double len2 = ab.lengthSqr();
+            double t = len2 <= 1e-9 ? 0 : Math.max(0, Math.min(1, p.subtract(a).dot(ab) / len2));
+            double sAt = cum[i - 1] + t * Math.sqrt(len2);
+            if (sAt < from) {
+                t = (from - cum[i - 1]) / Math.max(1e-9, Math.sqrt(len2));
+                sAt = from;
+            }
+            double d = a.add(ab.scale(t)).distanceToSqr(p);
+            if (d < bestD) {
+                bestD = d;
+                best = sAt;
+            }
+        }
+        return best;
     }
 
     static void render(LevelRenderContext context) {
