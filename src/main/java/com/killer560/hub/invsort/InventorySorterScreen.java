@@ -1,6 +1,5 @@
 package com.killer560.hub.invsort;
 
-import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -8,10 +7,8 @@ import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.gui.tab.CommandKeybindsTab;
 import com.killer560.hub.util.KeyUtil;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -25,10 +22,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * The Inventory Sorter's layouts menu (killer560, 2026-10-08): "a button to open a menu that has the inventories you
@@ -37,24 +37,29 @@ import java.util.Optional;
  * that menu as well."
  * <p>
  * The grid on the left is a COPY of the inventory - moving items here never clicks anything. Click an item to pick it
- * up and click another slot to swap (or drag it there). Type a name and press Save. On the right, the saved layouts
- * (killer560, 2026-11-01): LEFT-click one to swap to it (the menu closes and the sorter runs - there is no Apply
- * button), RIGHT-click one to load it into the grid to edit, rename, delete or set its storage mode, drag one up or down
- * to reorder them, and click the key cell at the right of a row to set that layout's key. The menu sizes itself to the
- * window (bigger slots and rows on a normal screen than before).
+ * up and click another slot to swap (or drag it there). RIGHT-click a slot (or press Delete over it) to make it Free:
+ * left out of the layout, so whatever is in it is never claimed or moved (killer560, 2026-11-02). Type a name and press
+ * Save. On the right, the saved layouts (killer560, 2026-11-01): LEFT-click one to swap to it (the menu closes and the
+ * sorter runs - there is no Apply button), RIGHT-click one to load it into the grid to edit, rename, delete or set its
+ * storage mode, drag one up or down to reorder them, and click the key cell at the right of a row to set that layout's
+ * key. Each row shows the layout's hotbar as items (killer560, 2026-11-03: "make the saved loadouts portion bigger so
+ * it is easier for me to see what i have"); the list takes the window's height. The menu sizes itself to the window.
  */
 public class InventorySorterScreen extends Screen implements MenuThemedScreen {
 
-    /** Slot size and list row height, picked in {@link #init} from the window (18 / 13 was the old fixed size). */
+    /** Slot size, list row height and the list's preview cell, picked in {@link #init} from the window. */
     private int SLOT = 18;
     private int PANEL_W = 356;
     private int PANEL_H = 176;
     private int LIST_ROW = 13;
     private int LIST_ROWS = 7;
+    private int PREVIEW = 12;
     private static final int LIST_W = 196;
+    private static final int LIST_W_MAX = 420;
     private static final int KEY_W = 50;
     /** Pixels the mouse must move with a row held before it is a drag, not a click. */
     private static final int DRAG_START = 3;
+    private static final String NOT_IN_INVENTORY = " (not in your inventory)";
 
     private final Screen parent;
 
@@ -62,6 +67,10 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     private final ItemStack[] grid = new ItemStack[36];
     /** Inventory index -&gt; true when the stack is a placeholder (the saved item is not in the inventory now). */
     private final boolean[] missing = new boolean[36];
+    /** Inventory index -&gt; the exact key a placeholder stands for (InvSortMatch), or null. Moves with its stack. */
+    private final String[] exactAt = new String[36];
+    /** Inventory index -&gt; Free: left out of the layout. A property of the SLOT, so it stays put when items move. */
+    private final boolean[] free = new boolean[36];
     /** Where each slot's item was drawn last frame ({x, y, edge}), for tests. */
     private final float[][] drawnItem = new float[36][];
     /** Inventory index picked up (following the mouse), or -1. */
@@ -74,6 +83,8 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     private boolean capturingKey;
     private String status = "";
     private boolean statusBad;
+    private double lastMouseX = -1;
+    private double lastMouseY = -1;
 
     private int panelX;
     private int panelY;
@@ -82,6 +93,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     private int listX;
     private int listY;
     private int listW;
+    private int statusY;
 
     private com.killer560.hub.gui.CommitEditBox nameBox;
     private SettingsButtonWidget bindButton;
@@ -95,6 +107,13 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     private double pressY;
     private boolean draggingRow;
 
+    /** A row's preview: the layout's hotbar as stacks, and which of them are placeholders. */
+    private record Preview(ItemStack[] stacks, boolean[] missing, int slots) {
+    }
+
+    /** Layout name -&gt; its preview, built once per change (matching every row's items each frame is wasted work). */
+    private final Map<String, Preview> previews = new HashMap<>();
+
     public InventorySorterScreen(Screen parent) {
         super(Component.literal("Inventory Sorter"));
         this.parent = parent;
@@ -103,49 +122,76 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
 
     // ------------------------------------------------------------------------------------------- model
 
-    /** Fills the grid from the real inventory right now. Public for tests. */
+    /** Fills the grid from the real inventory right now, every slot back in the layout. Public for tests. */
     public void resetToInventory() {
         Minecraft mc = Minecraft.getInstance();
         Inventory inv = mc.player == null ? null : mc.player.getInventory();
         for (int i = 0; i < 36; i++) {
             grid[i] = inv == null ? ItemStack.EMPTY : inv.getItem(i).copy();
             missing[i] = false;
+            exactAt[i] = null;
+            free[i] = false;
         }
         held = -1;
     }
 
-    /** Loads a saved layout into the grid: each slot gets an item of that identity from the inventory if there is
-     *  one, else a placeholder drawn from the saved icon. Public for tests. */
+    /** Loads a saved layout into the grid: each slot gets THAT item from the inventory (its exact key, or any copy of
+     *  its id for an older slot) if there is one, else a placeholder drawn from the saved icon. A Free slot shows what
+     *  is in it now. Public for tests. */
     public void loadLayout(InventoryLayout layout) {
         Minecraft mc = Minecraft.getInstance();
         Inventory inv = mc.player == null ? null : mc.player.getInventory();
         boolean[] used = new boolean[36];
+        String[] have = new String[36];
         for (int i = 0; i < 36; i++) {
             grid[i] = ItemStack.EMPTY;
             missing[i] = false;
+            exactAt[i] = null;
+            free[i] = layout.isFree(i);
+            have[i] = inv == null ? null : InvSortMatch.exact(inv.getItem(i));
+            if (free[i]) {
+                used[i] = true; // never claimed for another slot
+                grid[i] = inv == null ? ItemStack.EMPTY : inv.getItem(i).copy();
+            }
         }
-        for (Map.Entry<Integer, String> e : layout.entries().entrySet()) {
+        Map<Integer, String> wants = layout.wants();
+        // Exact slots first, so an older id-only slot never takes the one copy an exact slot names.
+        List<Map.Entry<Integer, String>> order = new ArrayList<>(wants.entrySet());
+        order.sort((a, b) -> Boolean.compare(!InvSortMatch.isExact(a.getValue()), !InvSortMatch.isExact(b.getValue())));
+        for (Map.Entry<Integer, String> e : order) {
             int slot = e.getKey();
             if (slot < 0 || slot >= 36) {
                 continue;
             }
-            ItemStack found = ItemStack.EMPTY;
-            if (inv != null) {
-                for (int i = 0; i < 36; i++) {
-                    if (!used[i] && e.getValue().equalsIgnoreCase(ItemIdentity.of(inv.getItem(i)))) {
-                        used[i] = true;
-                        found = inv.getItem(i).copy();
-                        break;
-                    }
-                }
-            }
-            if (found.isEmpty()) {
-                found = placeholder(layout.iconAt(slot), e.getValue());
+            int found = find(have, used, e.getValue(), slot);
+            if (found >= 0) {
+                used[found] = true;
+                grid[slot] = inv.getItem(found).copy();
+            } else {
+                grid[slot] = placeholder(layout.iconAt(slot), layout.identityAt(slot));
                 missing[slot] = true;
+                exactAt[slot] = layout.exactKeys().get(slot);
             }
-            grid[slot] = found;
         }
         held = -1;
+    }
+
+    /** An unused inventory index holding {@code want}: {@code prefer} if it does, then the very item, then any copy. */
+    private static int find(String[] have, boolean[] used, String want, int prefer) {
+        if (prefer >= 0 && prefer < 36 && !used[prefer] && InvSortMatch.same(have[prefer], want)) {
+            return prefer;
+        }
+        for (int i = 0; i < 36; i++) {
+            if (!used[i] && have[i] != null && have[i].equalsIgnoreCase(want)) {
+                return i;
+            }
+        }
+        for (int i = 0; i < 36; i++) {
+            if (!used[i] && InvSortMatch.same(have[i], want)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static ItemStack placeholder(String iconId, String identity) {
@@ -155,13 +201,13 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             item = BuiltInRegistries.ITEM.getOptional(id).orElse(null);
         }
         ItemStack stack = new ItemStack(item == null || item == Items.AIR ? Items.PAPER : item);
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal(identity + " (not in your inventory)"));
+        stack.set(DataComponents.CUSTOM_NAME, Component.literal(identity + NOT_IN_INVENTORY));
         return stack;
     }
 
-    /** Swaps two grid slots. Public for tests. */
+    /** Swaps two grid slots (never a Free one: it is not part of the layout). Public for tests. */
     public void swap(int a, int b) {
-        if (a < 0 || b < 0 || a >= 36 || b >= 36 || a == b) {
+        if (a < 0 || b < 0 || a >= 36 || b >= 36 || a == b || free[a] || free[b]) {
             return;
         }
         ItemStack s = grid[a];
@@ -170,30 +216,72 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         boolean m = missing[a];
         missing[a] = missing[b];
         missing[b] = m;
+        String x = exactAt[a];
+        exactAt[a] = exactAt[b];
+        exactAt[b] = x;
     }
 
-    /** The grid as a layout: every slot holding an identifiable item. Public for tests. */
+    /** Makes {@code slot} Free (left out of the layout) or puts it back in. Public for tests. */
+    public void toggleFree(int slot) {
+        if (slot < 0 || slot >= 36) {
+            return;
+        }
+        if (held == slot) {
+            held = -1;
+        }
+        free[slot] = !free[slot];
+        if (free[slot] && missing[slot]) {
+            // A placeholder is a layout item, not something in the slot: a Free slot holds what is really there.
+            Minecraft mc = Minecraft.getInstance();
+            grid[slot] = mc.player == null ? ItemStack.EMPTY : mc.player.getInventory().getItem(slot).copy();
+            missing[slot] = false;
+            exactAt[slot] = null;
+        }
+        say(free[slot] ? "Slot " + slotName(slot) + " is Free: the sort leaves whatever is in it alone."
+                : "Slot " + slotName(slot) + " is back in the layout.", false);
+    }
+
+    public boolean isFreeSlot(int slot) {
+        return slot >= 0 && slot < 36 && free[slot];
+    }
+
+    private static String slotName(int slot) {
+        return slot < 9 ? "hotbar " + (slot + 1) : String.valueOf(slot);
+    }
+
+    /** The grid as a layout: every slot holding an identifiable item, each with its exact key, and the Free slots.
+     *  Public for tests. */
     public InventoryLayout toLayout(String name) {
         Map<Integer, String> slots = new LinkedHashMap<>();
         Map<Integer, String> icons = new LinkedHashMap<>();
+        Map<Integer, String> exact = new LinkedHashMap<>();
+        Set<Integer> freeSlots = new TreeSet<>();
         for (int i = 0; i < 36; i++) {
+            if (free[i]) {
+                freeSlots.add(i);
+                continue;
+            }
             ItemStack stack = grid[i];
             if (stack == null || stack.isEmpty()) {
                 continue;
             }
-            String identity = missing[i] ? identityOfPlaceholder(stack) : ItemIdentity.of(stack);
+            String identity = missing[i] ? identityOfPlaceholder(stack) : com.killer560.hub.autoroutes.ItemIdentity.of(stack);
             if (identity == null) {
                 continue;
             }
             slots.put(i, identity);
             icons.put(i, BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+            String key = missing[i] ? exactAt[i] : InvSortMatch.exact(stack);
+            if (key != null) {
+                exact.put(i, key);
+            }
         }
-        return new InventoryLayout(name, slots, icons);
+        return new InventoryLayout(name, slots, icons, exact, freeSlots, false, null);
     }
 
     private static String identityOfPlaceholder(ItemStack stack) {
         String name = stack.getHoverName().getString();
-        int cut = name.indexOf(" (not in your inventory)");
+        int cut = name.indexOf(NOT_IN_INVENTORY);
         return cut > 0 ? name.substring(0, cut) : null;
     }
 
@@ -219,9 +307,15 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         return status;
     }
 
+    /** {listX, listY, listW, row height, rows shown, preview cell} (GUI units). For tests. */
+    public int[] listGeometry() {
+        return new int[]{listX, listY, listW, LIST_ROW, LIST_ROWS, PREVIEW};
+    }
+
     // ------------------------------------------------------------------------------------------- actions
 
-    /** Saves the grid under the typed name. Public for tests. */
+    /** Saves the grid under the typed name. A new layout starts with Fetch From Storage ON (killer560, 2026-11-03: "by
+     *  default have fetch from storage on"); saving over one keeps its storage mode. Public for tests. */
     public void saveTyped() {
         String name = nameBox == null ? "" : nameBox.getValue().trim();
         String error = InventoryLayoutStore.validateName(name);
@@ -231,9 +325,8 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         }
         InventoryLayout layout = toLayout(name);
         InventoryLayout existing = InventoryLayoutStore.getInstance().get(name);
-        if (existing != null) {
-            layout = layout.withStorage(existing.fetchFromStorage(), existing.dumpPage());
-        }
+        layout = existing != null ? layout.withStorage(existing.fetchFromStorage(), existing.dumpPage())
+                : layout.withStorage(true, null);
         if (layout.isEmpty()) {
             say("Nothing to save - the grid is empty.", true);
             return;
@@ -244,7 +337,9 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             return;
         }
         selected = layout.name();
-        say("Saved " + layout.name() + " (" + layout.size() + " slots).", false);
+        refreshStorageLabels();
+        say("Saved " + layout.name() + " (" + layout.size() + " slots" + (layout.freeSlots().isEmpty() ? ""
+                : ", " + layout.freeSlots().size() + " free") + ").", false);
     }
 
     /** Selects a saved layout and loads it into the grid. Public for tests. */
@@ -348,32 +443,34 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         }
         InventoryLayoutStore.getInstance().save(layout.withStorage(!layout.fetchFromStorage(), layout.dumpPage()));
         refreshStorageLabels();
+        say("Fetch From Storage " + (!layout.fetchFromStorage() ? "on" : "off") + " for " + layout.name() + ".", false);
     }
 
-    /** The dump pages a layout can name, "None" first. */
-    static final List<String> DUMP_PAGES = new ArrayList<>();
-
-    static {
-        DUMP_PAGES.add(null);
-        for (int i = 1; i <= 9; i++) {
-            DUMP_PAGES.add("enderchest_" + i);
-        }
-        for (int i = 1; i <= 18; i++) {
-            DUMP_PAGES.add("backpack_" + i);
-        }
-    }
-
-    /** Steps the selected layout's dump page by {@code dir} (left click forward, right click back). Public for tests. */
-    public void stepDumpPage(int dir) {
+    /** Put Others In (killer560, 2026-11-02: "should open the storage and let him pick the page"): closes this menu and
+     *  opens /storage; the Ender Chest page or backpack he opens from there becomes the layout's page, and this menu
+     *  comes back. Public for tests. */
+    public void pickDumpPage() {
         InventoryLayout layout = selected == null ? null : InventoryLayoutStore.getInstance().get(selected);
         if (layout == null) {
             say("Right-click a saved layout first.", true);
             return;
         }
-        int at = Math.max(0, DUMP_PAGES.indexOf(layout.dumpPage()));
-        String next = DUMP_PAGES.get(SettingsButtonWidget.step(at, dir, DUMP_PAGES.size()));
-        InventoryLayoutStore.getInstance().save(layout.withStorage(layout.fetchFromStorage(), next));
+        String error = InvSortPagePick.begin(layout.name());
+        if (error != null) {
+            say(error, true);
+        }
+    }
+
+    /** Right click on Put Others In: no page. Public for tests. */
+    public void clearDumpPage() {
+        InventoryLayout layout = selected == null ? null : InventoryLayoutStore.getInstance().get(selected);
+        if (layout == null) {
+            say("Right-click a saved layout first.", true);
+            return;
+        }
+        InventoryLayoutStore.getInstance().save(layout.withStorage(layout.fetchFromStorage(), null));
         refreshStorageLabels();
+        say("Put Others In cleared for " + layout.name() + ".", false);
     }
 
     private void refreshStorageLabels() {
@@ -390,9 +487,11 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    private void say(String text, boolean bad) {
+    /** Shows {@code text} in the status line. Every action ends here, so it also drops the row previews. */
+    void say(String text, boolean bad) {
         status = text;
         statusBad = bad;
+        previews.clear();
     }
 
     private void refreshBindLabel() {
@@ -407,35 +506,104 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         }
     }
 
+    // ------------------------------------------------------------------------------------------- previews
+
+    /** The row preview for {@code name}: its hotbar slots 0-8 (or, for a layout with no hotbar slot, its first nine
+     *  slots), each the very item from the inventory if it is there, else the saved icon. */
+    private Preview preview(String name) {
+        Preview cached = previews.get(name);
+        if (cached != null) {
+            return cached;
+        }
+        InventoryLayout layout = InventoryLayoutStore.getInstance().get(name);
+        ItemStack[] stacks = new ItemStack[9];
+        boolean[] miss = new boolean[9];
+        java.util.Arrays.fill(stacks, ItemStack.EMPTY);
+        if (layout != null) {
+            List<Integer> shown = new ArrayList<>();
+            for (int s = 0; s < 9; s++) {
+                shown.add(layout.wantAt(s) != null ? s : -1);
+            }
+            if (shown.stream().allMatch(s -> s < 0)) {
+                shown.clear();
+                for (int s : new TreeSet<>(layout.entries().keySet())) {
+                    if (shown.size() < 9) {
+                        shown.add(s);
+                    }
+                }
+            }
+            Minecraft mc = Minecraft.getInstance();
+            Inventory inv = mc.player == null ? null : mc.player.getInventory();
+            String[] have = new String[36];
+            for (int i = 0; i < 36 && inv != null; i++) {
+                have[i] = layout.isFree(i) ? null : InvSortMatch.exact(inv.getItem(i));
+            }
+            boolean[] used = new boolean[36];
+            for (int k = 0; k < shown.size(); k++) {
+                int s = shown.get(k);
+                if (s < 0) {
+                    continue;
+                }
+                int found = inv == null ? -1 : find(have, used, layout.wantAt(s), s);
+                if (found >= 0) {
+                    used[found] = true;
+                    stacks[k] = inv.getItem(found).copy();
+                } else {
+                    stacks[k] = placeholder(layout.iconAt(s), layout.identityAt(s));
+                    miss[k] = true;
+                }
+            }
+        }
+        Preview p = new Preview(stacks, miss, layout == null ? 0 : layout.size());
+        previews.put(name, p);
+        return p;
+    }
+
     // ------------------------------------------------------------------------------------------- layout
 
     @Override
     protected void init() {
+        previews.clear();
         // Bigger on a real screen (killer560, 2026-11-01: "Make the menu a bit larger it is really small"): slots up to
-        // 26 px and rows 16 px, shrinking to the old 18 / 13 in a small window.
+        // 26 px, shrinking to the old 18 in a small window.
         SLOT = Math.max(18, Math.min(26, Math.min((this.height - 120) / 4, (this.width - LIST_W - 40) / 9)));
-        LIST_ROW = SLOT >= 22 ? 16 : 13;
-        PANEL_W = 9 * SLOT + 12 + LIST_W + 16;
-        PANEL_H = 22 + (4 * SLOT + 4) + 6 + 16 + 4 + 18 + 22;
+        int leftW = 9 * SLOT;
+        // The saved layouts take every pixel left over (killer560, 2026-11-03: "make the saved loadouts portion bigger
+        // so it is easier for me to see what i have"): the list is as wide as the window allows (up to 420) and as
+        // tall as the window, and each row shows the layout's items.
+        int room = this.width - 8 - (leftW + 12 + 16);
+        // Never narrower than 196 where the window has room; a tiny window gets what is left (at least 120) so it fits.
+        int listWant = Math.max(Math.min(LIST_W, Math.max(120, room)), Math.min(LIST_W_MAX, room));
+        PANEL_W = leftW + 12 + listWant + 16;
+        int leftH = 22 + (4 * SLOT + 4) + 6 + 16 + 4 + 18 + 6 + 10 + 6;
+        PANEL_H = Math.max(leftH, Math.min(this.height - 8, 500));
         panelX = (this.width - PANEL_W) / 2;
         panelY = Math.max(4, (this.height - PANEL_H) / 2);
         gridX = panelX + 8;
         gridY = panelY + 22;
-        listX = gridX + 9 * SLOT + 12;
+        listX = gridX + leftW + 12;
         listY = gridY + 10;
         listW = panelX + PANEL_W - 8 - listX;
 
+        // Two storage buttons at the foot of the list column; the rows fill the rest.
+        int storageY = panelY + PANEL_H - 8 - 18 - 22;
+        int listH = storageY - 4 - listY;
+        int byWidth = (listW - 2 - KEY_W - 2 - 8) / 9;
+        int byHeight = listH / 5 - 16; // at least five rows
+        PREVIEW = Math.max(10, Math.min(22, Math.min(byWidth, byHeight)));
+        LIST_ROW = PREVIEW + 16;
+        LIST_ROWS = Math.max(2, listH / LIST_ROW);
+
         int below = gridY + 4 * SLOT + 4 + 6;
-        LIST_ROWS = Math.max(3, (below - 4 - 42 - listY) / LIST_ROW);
         String typed = nameBox == null ? (selected == null ? "" : selected) : nameBox.getValue();
-        nameBox = new ThemedEditBox(this.font, gridX, below, 9 * SLOT, 16, Component.literal("Layout name"))
+        nameBox = new ThemedEditBox(this.font, gridX, below, leftW, 16, Component.literal("Layout name"))
                 .hint("Layout name");
         nameBox.setMaxLength(InventoryLayoutStore.MAX_NAME);
         nameBox.setValue(typed);
         nameBox.onEnter(this::saveTyped);
         addRenderableWidget(nameBox);
 
-        int bw = (9 * SLOT - 12) / 4;
+        int bw = (leftW - 12) / 4;
         int bx = gridX;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Save"), b -> saveTyped())
                 .bounds(bx, below + 20, bw, 18).build());
@@ -449,14 +617,17 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                 .bounds(bx, below + 20, bw, 18).build());
         bx += bw + 4;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§cDelete"), b -> deleteSelected())
-                .bounds(bx, below + 20, gridX + 9 * SLOT - bx, 18).build());
+                .bounds(bx, below + 20, gridX + leftW - bx, 18).build());
+        // The status line sits under the buttons, in the left column (nothing is drawn under a button any more:
+        // killer560, 2026-11-02, the gray hint line used to show through behind Rename).
+        statusY = below + 20 + 18 + 6;
 
         // The selected (right-clicked) layout's storage mode, under the list.
-        int storageY = listY + LIST_ROWS * LIST_ROW + 4;
         fetchButton = SettingsButtonWidget.builder(Component.literal("Fetch From Storage"), b -> toggleFetch())
                 .bounds(listX, storageY, listW, 18).build();
         addRenderableWidget(fetchButton);
-        dumpButton = SettingsButtonWidget.cycling(Component.literal("Put Others In"), (b, dir) -> stepDumpPage(dir))
+        dumpButton = SettingsButtonWidget.builder(Component.literal("Put Others In"), b -> pickDumpPage())
+                .secondaryPress(b -> clearDumpPage())
                 .bounds(listX, storageY + 22, listW, 18).build();
         addRenderableWidget(dumpButton);
         refreshStorageLabels();
@@ -490,6 +661,8 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        lastMouseX = mouseX;
+        lastMouseY = mouseY;
         // In the menu's theme (sweep-b, 2026-10-13); slots, list rows and buttons keep their places.
         ScreenChrome.backdrop(graphics, this.width, this.height);
         ScreenChrome.frame(graphics, panelX, panelY, PANEL_W, PANEL_H);
@@ -500,26 +673,40 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         MenuStyle.text(graphics, "KEY", listX + listW - 1 - KEY_W / 2 - this.font.width("KEY") / 2, gridY, MenuStyle.DIM);
 
         ItemStack hover = ItemStack.EMPTY;
+        boolean hoverFree = false;
         java.util.Arrays.fill(drawnItem, null);
         for (int i = 0; i < 36; i++) {
             int[] p = slotPos(i);
             ScreenChrome.slot(graphics, p[0], p[1], SLOT, i == held, false);
             ItemStack stack = grid[i];
-            if (i == held || stack == null || stack.isEmpty()) {
-                continue;
+            boolean over = mouseX >= p[0] && mouseX < p[0] + SLOT && mouseY >= p[1] && mouseY < p[1] + SLOT;
+            if (i != held && stack != null && !stack.isEmpty()) {
+                // Fitted to the cell, rarity box behind it (killer560, 2026-11-02: "in /invsort the items dont fit").
+                drawnItem[i] = com.killer560.hub.gui.ItemCell.draw(graphics, this.font, stack, p[0] + 1, p[1] + 1, SLOT - 2);
+                if (missing[i]) {
+                    graphics.fill(p[0] + 1, p[1] + 1, p[0] + SLOT - 1, p[1] + SLOT - 1, 0x55FF3333);
+                }
+                if (over) {
+                    hover = stack;
+                }
             }
-            // Fitted to the cell, rarity box behind it (killer560, 2026-11-02: "in /invsort the items dont fit").
-            drawnItem[i] = com.killer560.hub.gui.ItemCell.draw(graphics, this.font, stack, p[0] + 1, p[1] + 1, SLOT - 2);
-            if (missing[i]) {
-                graphics.fill(p[0] + 1, p[1] + 1, p[0] + SLOT - 1, p[1] + SLOT - 1, 0x55FF3333);
+            if (free[i]) {
+                // Free: dimmed, with a mark, so it reads as "not part of this layout".
+                graphics.fill(p[0] + 1, p[1] + 1, p[0] + SLOT - 1, p[1] + SLOT - 1, 0xB0101010);
+                String mark = this.font.width("Free") <= SLOT - 3 ? "Free" : "F";
+                MenuStyle.text(graphics, mark, p[0] + (SLOT - this.font.width(mark)) / 2, p[1] + (SLOT - 8) / 2,
+                        MenuStyle.DIM);
+                if (over) {
+                    hoverFree = true;
+                }
             }
-            if (mouseX >= p[0] && mouseX < p[0] + SLOT && mouseY >= p[1] && mouseY < p[1] + SLOT) {
+            if (over) {
                 graphics.fill(p[0] + 1, p[1] + 1, p[0] + SLOT - 1, p[1] + SLOT - 1, 0x40FFFFFF);
-                hover = stack;
             }
         }
 
-        // Saved layouts: name (left click swaps to it, right click edits it, drag reorders), key cell on the right.
+        // Saved layouts: name and its items (left click swaps to it, right click edits it, drag reorders), key cell on
+        // the right.
         if (pressedRow >= 0 && !draggingRow && pressedButton == 0
                 && (Math.abs(mouseY - pressY) > DRAG_START || Math.abs(mouseX - pressX) > DRAG_START)) {
             draggingRow = true;
@@ -528,7 +715,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         listScroll = Math.max(0, Math.min(listScroll, Math.max(0, names.size() - LIST_ROWS)));
         ScreenChrome.well(graphics, listX, listY, listW, LIST_ROWS * LIST_ROW + 1);
         if (names.isEmpty()) {
-            MenuStyle.text(graphics, "None yet - arrange, name, Save", listX + 4, listY + 3, MenuStyle.DIM2);
+            MenuStyle.text(graphics, "None yet - arrange, name, Save", listX + 4, listY + 4, MenuStyle.DIM2);
         }
         int dropAt = draggingRow ? dropIndex(mouseY, names.size()) : -1;
         int nameW = listW - 2 - KEY_W - 2;
@@ -541,9 +728,42 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             boolean overName = !draggingRow && mouseX >= listX && mouseX < listX + 1 + nameW && mouseY >= ry
                     && mouseY < ry + LIST_ROW;
             ScreenChrome.row(graphics, listX + 1, ry, nameW, LIST_ROW, overName, sel || dragged, row % 2 == 1);
-            int textY = ry + (LIST_ROW - 8) / 2;
-            MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(name, nameW - 8)),
+            Preview pv = preview(name);
+            InventoryLayout layout = InventoryLayoutStore.getInstance().get(name);
+            String info = pv.slots() + " slot" + (pv.slots() == 1 ? "" : "s");
+            if (layout != null && layout.fetchFromStorage()) {
+                info += ", fetch";
+            }
+            if (layout != null && layout.dumpPage() != null) {
+                info += ", " + InvSortStorage.label(layout.dumpPage());
+            }
+            int infoW = this.font.width(info);
+            int textY = ry + 3;
+            MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(name, Math.max(20, nameW - 14 - infoW))),
                     listX + 4, textY, dragged ? MenuStyle.DIM2 : sel ? MenuStyle.OR_HOVER : MenuStyle.TXT);
+            if (infoW < nameW - 40) {
+                MenuStyle.text(graphics, info, listX + 1 + nameW - 4 - infoW, textY, MenuStyle.DIM);
+            }
+            // The layout's items, in cells (the hotbar row), so it reads at a glance.
+            int cy = ry + 12;
+            for (int k = 0; k < 9; k++) {
+                int cx = listX + 4 + k * PREVIEW;
+                if (cx + PREVIEW > listX + 1 + nameW) {
+                    break;
+                }
+                ScreenChrome.slot(graphics, cx, cy, PREVIEW, false, false);
+                ItemStack st = pv.stacks()[k];
+                if (st.isEmpty()) {
+                    continue;
+                }
+                com.killer560.hub.gui.ItemCell.draw(graphics, this.font, st, cx + 1, cy + 1, PREVIEW - 2);
+                if (pv.missing()[k]) {
+                    graphics.fill(cx + 1, cy + 1, cx + PREVIEW - 1, cy + PREVIEW - 1, 0x55FF3333);
+                }
+                if (!draggingRow && mouseX >= cx && mouseX < cx + PREVIEW && mouseY >= cy && mouseY < cy + PREVIEW) {
+                    hover = st;
+                }
+            }
             // The key cell, to the right of the layout (killer560, 2026-11-01).
             int kx = listX + 1 + nameW + 2;
             boolean overKey = !draggingRow && mouseX >= kx && mouseX < kx + KEY_W && mouseY >= ry && mouseY < ry + LIST_ROW;
@@ -552,7 +772,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             String key = capturingKey && sel ? "Press..." : code == KeyUtil.NONE ? "Set key"
                     : CommandKeybindsTab.bindName(code);
             key = this.font.plainSubstrByWidth(key, KEY_W - 6);
-            MenuStyle.text(graphics, key, kx + (KEY_W - this.font.width(key)) / 2, textY,
+            MenuStyle.text(graphics, key, kx + (KEY_W - this.font.width(key)) / 2, ry + (LIST_ROW - 8) / 2,
                     code == KeyUtil.NONE && !(capturingKey && sel) ? MenuStyle.DIM2 : MenuStyle.TXT);
             if (dropAt == index && dropAt != pressedRow) {
                 graphics.fill(listX + 1, ry - 1, listX + listW - 1, ry + 1, MenuStyle.OR_HOVER);
@@ -562,20 +782,28 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             int ry = listY + 1 + (names.size() - listScroll) * LIST_ROW;
             graphics.fill(listX + 1, ry - 1, listX + listW - 1, ry + 1, MenuStyle.OR_HOVER);
         }
+        if (names.size() > LIST_ROWS) {
+            String more = (listScroll + 1) + "-" + Math.min(names.size(), listScroll + LIST_ROWS) + " of " + names.size();
+            MenuStyle.text(graphics, more, listX + listW - this.font.width(more) - KEY_W - 8, gridY, MenuStyle.DIM2);
+        }
         if (draggingRow && pressedRow < names.size()) {
             MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(names.get(pressedRow), nameW)),
                     mouseX + 6, mouseY - 4, MenuStyle.OR_HOVER);
         }
-        MenuStyle.text(graphics, this.font.plainSubstrByWidth("Left: swap  Right: edit  Drag: reorder", PANEL_W - 16),
-                panelX + 8, panelY + PANEL_H - 30, MenuStyle.DIM2);
 
-        MenuStyle.text(graphics, this.font.plainSubstrByWidth(status, PANEL_W - 80), panelX + 8,
-                panelY + PANEL_H - 18, statusBad ? ScreenChrome.bad() : ScreenChrome.good());
+        MenuStyle.text(graphics, this.font.plainSubstrByWidth(status, 9 * SLOT), gridX, statusY,
+                statusBad ? ScreenChrome.bad() : ScreenChrome.good());
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
         if (held >= 0 && grid[held] != null && !grid[held].isEmpty()) {
             com.killer560.hub.gui.ItemCell.drawHeld(graphics, grid[held], mouseX, mouseY, SLOT - 2);
+        } else if (hoverFree) {
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.literal("Free"));
+            lines.add(Component.literal("§7Left out of this layout: the sort never takes"));
+            lines.add(Component.literal("§7or moves what is in this slot. Right-click to undo."));
+            graphics.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
         } else if (!hover.isEmpty()) {
             graphics.setTooltipForNextFrame(this.font, Screen.getTooltipFromItem(this.minecraft, hover),
                     Optional.empty(), mouseX, mouseY);
@@ -591,8 +819,18 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             bind(KeyUtil.codeForMouseButton(com.killer560.hub.compat.McInput.button(event)));
             return true;
         }
+        int button = com.killer560.hub.compat.McInput.button(event);
         int slot = slotAt(event.x(), event.y());
         if (slot >= 0) {
+            if (button == 1 && held < 0) {
+                toggleFree(slot); // right click: Free / back in the layout
+                pressedSlot = -1;
+                return true;
+            }
+            if (free[slot]) {
+                say("That slot is Free - right-click it to put it back in the layout.", true);
+                return true;
+            }
             if (held >= 0) {
                 swap(held, slot);
                 held = -1;
@@ -607,7 +845,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                 && event.y() < listY + LIST_ROWS * LIST_ROW) {
             int row = (int) ((event.y() - listY - 1) / LIST_ROW);
             List<String> names = InventoryLayoutStore.getInstance().listNames();
-            if (row >= 0 && listScroll + row < names.size()) {
+            if (row >= 0 && row < LIST_ROWS && listScroll + row < names.size()) {
                 String name = names.get(listScroll + row);
                 if (event.x() >= listX + listW - 1 - KEY_W) {
                     // The key cell: capture this layout's key (the same capture as before, now per row).
@@ -617,7 +855,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                     return true;
                 }
                 pressedRow = listScroll + row;
-                pressedButton = com.killer560.hub.compat.McInput.button(event) == 1 ? 1 : 0;
+                pressedButton = button == 1 ? 1 : 0;
                 pressX = event.x();
                 pressY = event.y();
                 draggingRow = false;
@@ -675,7 +913,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         }
         if (pressedSlot >= 0) {
             int slot = slotAt(event.x(), event.y());
-            if (slot >= 0 && slot != pressedSlot && held == pressedSlot) {
+            if (slot >= 0 && slot != pressedSlot && held == pressedSlot && !free[slot]) {
                 // A drag from one slot to another: swap them.
                 swap(pressedSlot, slot);
                 held = -1;
@@ -710,6 +948,15 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             }
             return true;
         }
+        if (com.killer560.hub.compat.McInput.key(event) == com.killer560.hub.util.Keys.DELETE
+                && (nameBox == null || !nameBox.isFocused())) {
+            // Delete over a grid slot: Free / back in the layout, the same as a right click.
+            int slot = slotAt(lastMouseX, lastMouseY);
+            if (slot >= 0) {
+                toggleFree(slot);
+                return true;
+            }
+        }
         return super.keyPressed(event);
     }
 
@@ -727,6 +974,12 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         refreshBindLabel();
     }
 
+    /** Shown again after Put Others In's page pick: the layout selected and the result in the status line. */
+    void afterPick(String name, String message, boolean bad) {
+        select(name);
+        say(message, bad);
+    }
+
     @Override
     public void onClose() {
         this.minecraft.setScreenAndShow(parent);
@@ -736,6 +989,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     public boolean isPauseScreen() {
         return false;
     }
+
     @Override
     public int[] themedPanelBounds() {
         return new int[]{panelX, panelY, PANEL_W, PANEL_H};

@@ -64,6 +64,8 @@ final class InvSortStorage {
     /** Inventory slots already shift-clicked on this page: a late full-state packet from the server can show a moved
      *  stack back for a tick, and clicking it again sends a second click on an empty slot (26.2 run c262, 2026-11-01). */
     private final java.util.Set<Integer> clickedThisPage = new java.util.HashSet<>();
+    /** Page slots already shift-clicked out on this page, for the same reason. */
+    private final java.util.Set<Integer> clickedPageSlots = new java.util.HashSet<>();
     private Phase phase = Phase.SEND;
     private int ticks;
     private String failure;
@@ -104,21 +106,14 @@ final class InvSortStorage {
         visits.clear();
         notFound.clear();
         Inventory inv = client.player.getInventory();
-        Map<String, Integer> have = new HashMap<>();
-        for (int i = 0; i < 36; i++) {
-            String id = key(ItemIdentity.of(inv.getItem(i)));
-            if (id != null) {
-                have.merge(id, 1, Integer::sum);
-            }
-        }
+        // What the layout wants that the inventory does not have, matched by exact item (InvSortMatch): with two
+        // runebooks, the one the layout was saved with (killer560, 2026-11-02: it fetched the wrong one).
+        List<String> unmet = new ArrayList<>();
+        claim(inv, layout, unmet);
         Map<String, Integer> missing = new LinkedHashMap<>();
         if (layout.fetchFromStorage()) {
-            Map<String, Integer> wanted = wantedCounts(layout);
-            for (Map.Entry<String, Integer> e : wanted.entrySet()) {
-                int short_ = e.getValue() - have.getOrDefault(e.getKey(), 0);
-                if (short_ > 0) {
-                    missing.put(e.getKey(), short_);
-                }
+            for (String w : unmet) {
+                missing.merge(w, 1, Integer::sum);
             }
         }
         boolean dump = layout.dumpPage() != null && !dumpSlots(client).isEmpty();
@@ -145,18 +140,17 @@ final class InvSortStorage {
                     continue;
                 }
                 for (ItemStack stack : items) {
-                    String id = key(ItemIdentity.of(stack));
-                    Integer need = id == null ? null : missing.get(id);
-                    if (need == null || need <= 0) {
+                    String want = pick(missing, InvSortMatch.exact(stack));
+                    if (want == null) {
                         continue;
                     }
-                    byPage.computeIfAbsent(page, p -> new LinkedHashMap<>()).merge(id, 1, Integer::sum);
-                    missing.put(id, need - 1);
+                    byPage.computeIfAbsent(page, p -> new LinkedHashMap<>()).merge(want, 1, Integer::sum);
+                    missing.merge(want, -1, Integer::sum);
                 }
             }
             for (Map.Entry<String, Integer> e : missing.entrySet()) {
                 if (e.getValue() > 0) {
-                    notFound.put(e.getKey(), e.getValue());
+                    notFound.merge(InvSortMatch.id(e.getKey()), e.getValue(), Integer::sum);
                 }
             }
         }
@@ -176,12 +170,71 @@ final class InvSortStorage {
         return !visits.isEmpty();
     }
 
-    static Map<String, Integer> wantedCounts(InventoryLayout layout) {
-        Map<String, Integer> wanted = new LinkedHashMap<>();
-        for (String id : layout.entries().values()) {
-            wanted.merge(id.toUpperCase(Locale.ROOT), 1, Integer::sum);
+    /**
+     * The want in {@code needs} (want key -&gt; copies still needed) that the stack with exact key {@code have} fills, or
+     * null: the want naming that very item first, else an older id-only want for it.
+     */
+    static String pick(Map<String, Integer> needs, String have) {
+        if (have == null) {
+            return null;
         }
-        return wanted;
+        String loose = null;
+        for (Map.Entry<String, Integer> e : needs.entrySet()) {
+            if (e.getValue() <= 0) {
+                continue;
+            }
+            if (e.getKey().equalsIgnoreCase(have)) {
+                return e.getKey();
+            }
+            if (loose == null && InvSortMatch.same(have, e.getKey())) {
+                loose = e.getKey();
+            }
+        }
+        return loose;
+    }
+
+    /**
+     * Which inventory slots the layout's wants claim: a slot already holding what it wants keeps it, then every other
+     * want takes a free copy (the very item before any copy of its id). Free slots are never claimed, so what is in one
+     * neither counts as had nor is put away.
+     * @param unmet filled with the wants nothing in the inventory meets (may be null)
+     */
+    static boolean[] claim(Inventory inv, InventoryLayout layout, List<String> unmet) {
+        boolean[] claimed = new boolean[36];
+        String[] have = new String[36];
+        for (int i = 0; i < 36; i++) {
+            have[i] = layout.isFree(i) ? null : InvSortMatch.exact(inv.getItem(i));
+        }
+        List<String> rest = new ArrayList<>();
+        for (Map.Entry<Integer, String> e : layout.wants().entrySet()) {
+            int s = e.getKey();
+            if (s >= 0 && s < 36 && InvSortMatch.same(have[s], e.getValue())) {
+                claimed[s] = true;
+            } else {
+                rest.add(e.getValue());
+            }
+        }
+        // Exact wants first, so an id-only want never takes the one copy an exact want needs.
+        rest.sort((a, b) -> Boolean.compare(!InvSortMatch.isExact(a), !InvSortMatch.isExact(b)));
+        for (String w : rest) {
+            int found = -1;
+            for (int i = 0; i < 36 && found < 0; i++) {
+                if (!claimed[i] && have[i] != null && have[i].equalsIgnoreCase(w)) {
+                    found = i;
+                }
+            }
+            for (int i = 0; i < 36 && found < 0; i++) {
+                if (!claimed[i] && InvSortMatch.same(have[i], w)) {
+                    found = i;
+                }
+            }
+            if (found >= 0) {
+                claimed[found] = true;
+            } else if (unmet != null) {
+                unmet.add(w);
+            }
+        }
+        return claimed;
     }
 
     private static int order(String local) {
@@ -195,34 +248,16 @@ final class InvSortStorage {
         return (local.startsWith("enderchest_") ? 0 : 100) + num;
     }
 
-    private static String key(String identity) {
-        return identity == null ? null : identity.toUpperCase(Locale.ROOT);
-    }
-
     /** Inventory slots holding a stack the layout does not use (beyond the copies it does use), that may be moved. */
     private List<Integer> dumpSlots(Minecraft client) {
         Inventory inv = client.player.getInventory();
-        Map<String, Integer> keep = wantedCounts(layout);
+        boolean[] kept = claim(inv, layout, null);
         List<Integer> out = new ArrayList<>();
-        // Copies already in a slot that wants them are kept first, then the rest in slot order.
-        boolean[] kept = new boolean[36];
-        for (Map.Entry<Integer, String> e : layout.entries().entrySet()) {
-            int s = e.getKey();
-            if (s >= 0 && s < 36 && e.getValue().equalsIgnoreCase(String.valueOf(ItemIdentity.of(inv.getItem(s))))) {
-                kept[s] = true;
-                keep.merge(e.getValue().toUpperCase(Locale.ROOT), -1, Integer::sum);
-            }
-        }
         for (int i = 0; i < 36; i++) {
             ItemStack stack = inv.getItem(i);
-            String id = key(ItemIdentity.of(stack));
-            if (kept[i] || stack.isEmpty() || id == null || SKYBLOCK_MENU.equals(id) || ItemProtect.isProtectedItem(stack)
-                    || InventorySorterExecutor.lockedInPlace(stack)) {
-                continue;
-            }
-            int left = keep.getOrDefault(id, 0);
-            if (left > 0) {
-                keep.put(id, left - 1);
+            String id = ItemIdentity.of(stack);
+            if (kept[i] || layout.isFree(i) || stack.isEmpty() || id == null || SKYBLOCK_MENU.equalsIgnoreCase(id)
+                    || ItemProtect.isProtectedItem(stack) || InventorySorterExecutor.lockedInPlace(stack)) {
                 continue;
             }
             out.add(i);
@@ -240,6 +275,7 @@ final class InvSortStorage {
             }
             visit = visits.remove(0);
             clickedThisPage.clear();
+            clickedPageSlots.clear();
             phase = Phase.SEND;
             ticks = 0;
         }
@@ -339,17 +375,21 @@ final class InvSortStorage {
         }
         if (visit.fetch().values().stream().anyMatch(v -> v > 0) && hasEmptySlot(inv)) {
             for (int i = 9; i < pageSlots; i++) {
-                String id = key(ItemIdentity.of(menu.slots.get(i).getItem()));
-                Integer need = id == null ? null : visit.fetch().get(id);
-                if (need != null && need > 0) {
-                    visit.fetch().put(id, need - 1);
+                if (clickedPageSlots.contains(i)) {
+                    continue; // already taken: a late packet can show it back for a tick
+                }
+                // The live page decides, by exact item: the cache only chose which page to open.
+                String want = pick(visit.fetch(), InvSortMatch.exact(menu.slots.get(i).getItem()));
+                if (want != null) {
+                    visit.fetch().merge(want, -1, Integer::sum);
+                    clickedPageSlots.add(i);
                     return new int[]{i, 0};
                 }
             }
         }
         for (Map.Entry<String, Integer> e : visit.fetch().entrySet()) {
             if (e.getValue() > 0) {
-                notFound.merge(e.getKey(), e.getValue(), Integer::sum);
+                notFound.merge(InvSortMatch.id(e.getKey()), e.getValue(), Integer::sum);
                 e.setValue(0);
             }
         }
