@@ -1882,6 +1882,7 @@ final class SettingTooltipsData {
         d.put("auto croesus/max delay", "Cheat build only. Longest random wait between Auto Croesus's clicks, 100-2000 ms.");
         d.put("display options", "Borderless fullscreen, fullbright, Pack Disabler and the Amber main menu theme.");
         d.put("pack disabler", "Draws SkyBlock items with their pre-resource-pack look. Off by default.");
+        d.put("pack disabler/paper menu buttons", "Minecraft 26.3 redrew maps as folded maps. With Pack Disabler on, Hypixel's map buttons (Create Sell Offer, Create Buy Order) are drawn as paper again, close to the old flat sheet. 26.2 already draws the old sheet, so it changes nothing there. On by default.");
         d.put("24h skyblock time", "Shows the SkyBlock clock as 13:40 instead of 1:40pm.");
         d.put("ap3/movement", "Cheat build only. How AP3 moves you between nodes and whether chains roll into the next area.");
         d.put("auto routes/color", "The color every Auto Routes node marker uses while Uniform Color is ON.");

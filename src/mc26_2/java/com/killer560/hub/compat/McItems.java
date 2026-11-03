@@ -153,4 +153,10 @@ public final class McItems {
     // (exposed_, weathered_, oxidized_, waxed_*) and leaves only that one bare.
     public static final Item LIGHTNING_ROD = Items.LIGHTNING_ROD.weathering().unaffected();
 
+    /**
+     * Whether this version draws maps as folded maps rather than the old flat paper sheet.
+     * 26.2 still draws the empty and the filled map as the old flat sheet.
+     * Pack Disabler draws Hypixel's map menu buttons as paper only when it does.
+     */
+    public static final boolean MAPS_DRAWN_AS_MAPS = false;
 }

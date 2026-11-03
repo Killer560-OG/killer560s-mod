@@ -4,7 +4,7 @@ Hypixel's 2026 resource pack, for Pack Disabler and the Bazaar browser's icons (
 Inputs, all in one folder passed as the only argument:
   items.json          https://api.hypixel.net/v2/resources/skyblock/items     (material, durability, skin, item_model)
   bazaar.json         https://api.hypixel.net/v2/skyblock/bazaar                (every product id)
-  vanilla_items.txt   one vanilla item id per line (assets/minecraft/items/*.json of the 26.1.2 client jar)
+  vanilla_items.txt   one vanilla item id per line (assets/minecraft/items/*.json of the main version's client jar; every id must also exist on 26.2)
   neu.zip             NotEnoughUpdates-REPO master (MIT, Moulberry)            (current items, shard table)
   neu-<sha>.zip       NEU-REPO at the PARENT of each commit that moved items onto Hypixel's pack models (SNAPSHOTS
                       below, newest first), so every converted item's last pre-pack NBT is in one of them
