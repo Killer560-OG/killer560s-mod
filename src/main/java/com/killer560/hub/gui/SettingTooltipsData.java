@@ -965,7 +965,7 @@ final class SettingTooltipsData {
         d.put("show overlay", "Draws a countdown box where each blood mob will settle, green when it is ready to hit.");
         d.put("aura", "Cheat build: acts on targets around you without needing to aim at them.");
         d.put("auto detect lag", "Times the Trigger Bot from the kill timer (which allows for your measured ping) instead of the countdown's own end.");
-        d.put("trigger offset", "Cheat build: ticks from the kill timer to the Trigger Bot's click, -10 to 10: below 0 clicks late, above 0 early (-1 by default).");
+        d.put("trigger offset", "Cheat build: ticks from the kill timer to the Trigger Bot's click, -10 to 10: below 0 clicks early, above 0 late (+1 by default). Not used while Never Miss is on.");
         d.put("boulder solver", "Outlines the stone button to press next in the Boulder puzzle.");
         d.put("show all remaining clicks", "Outlines every remaining Boulder tile at once instead of just the next one.");
         d.put("quiz solver", "Highlights the floor spot of the correct answer in the Quiz puzzle.");
@@ -2281,9 +2281,9 @@ final class SettingTooltipsData {
             // Chest. Inside the constant, so a legit jar carries none of these strings.
             d.put("auto blood camp/trigger bot", "Cheat build: clicks a blood mob on its kill timer when you aim at it, never faster than your attack speed. Needs Blood Camp on.");
             d.put("auto blood camp/aura", "Cheat build, Blood Room only: turns you to the next blood mob you can see and clicks it at your weapon's attack speed until it dies; moving your mouse takes over.");
-            d.put("auto blood camp/never miss", "The first hit waits until the mob is really there - on the spot, in reach and in sight - and goes that tick, instead of on the kill timer.");
+            d.put("auto blood camp/never miss", "No timer at all: attacks a blood mob the tick after it spawns, once it is under your look and in sight, and keeps hitting one that survives. Overrides Trigger Offset (hidden while on) and does not wait for the Kill Popup's KILL.");
             d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
-            d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: left (below 0) clicks early, right (above 0) late. +1 by default.");
+            d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: left (below 0) clicks early, right (above 0) late. +1 by default. Not used (and hidden) while Never Miss is on.");
             d.put("auto blood camp/mage only", "The Trigger Bot and the Aura act only while the dungeon tab list says you are the Mage.");
             d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
@@ -2720,7 +2720,7 @@ final class SettingTooltipsData {
         d.put("blood camp/spawn line", "Draws a cyan line from each blood mob's skull in the wall to the spot it will land, through walls.");
         d.put("blood camp/spawn line width", "Line thickness for Spawn Line, 1-10.");
         d.put("blood camp/countdown start sound", "Plays a sound when a blood mob's countdown starts (its landing box appears). Mobs starting together make one sound.");
-        d.put("blood camp/kill sound", "Plays a sound once per blood mob, on the tick the Trigger Bot is to hit it: its kill timer moved by Trigger Offset, and not before the Kill Popup's KILL. Mobs due together make one sound.");
+        d.put("blood camp/kill sound", "Plays a sound once per blood mob, on the tick the Trigger Bot is to hit it: its kill timer moved by Trigger Offset (none with Never Miss on), and not before the Kill Popup's KILL. Mobs due together make one sound.");
         d.put("blood camp/start sound type", "Which sound Countdown Start Sound plays. Left click cycles forward, right click back.");
         d.put("blood camp/kill sound type", "Which sound Kill Sound plays. Left click cycles forward, right click back.");
         d.put("blood camp/sound volume", "Volume of the Kill Sound, 0-1.");

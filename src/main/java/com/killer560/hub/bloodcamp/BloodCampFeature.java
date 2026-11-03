@@ -755,8 +755,12 @@ public final class BloodCampFeature {
         // second and a half of a crosshair glued to an empty spot. Now nothing is picked until the click moment (the kill
         // timer, moved by Trigger Offset) is a reaction time plus the turn to it away ({@link #auraLeadTicks}): it starts as
         // late as it can and still be on the mob when it may click.
+        // NEVER MISS (killer560, 2026-11-03: "it shouldn't control it. if never miss is on then it should just attack the
+        // tick after it spawns"): no Trigger Offset and no kill timer - killIn is 0, so the Aura picks a mob as soon as it
+        // is a target, and every attack gate below reads attackOpen, which Never Miss holds open.
+        boolean neverMiss = cfg.isNeverMiss();
         double clickBelowAura = triggerTargetTicks(cfg, client);
-        long killIn = BloodCampMoveTimer.ticksUntilKillOpen(cfg.getTriggerOffsetTicks());
+        long killIn = neverMiss ? 0L : BloodCampMoveTimer.ticksUntilKillOpen(effectiveTriggerOffsetTicks(cfg));
         if (cfg.isAuraEnabled() && inRoom && killIn <= AURA_MAX_LEAD_TICKS) {
             double best = Double.MAX_VALUE;
             // Stay on the mob already being turned to while it is still a target (killer560, 2026-11-01: "it was doing kind
@@ -862,19 +866,23 @@ public final class BloodCampFeature {
                 && clockNow >= lastClickClock && clockNow - lastClickClock < cooldown) {
             cooldownReady = false;
         }
-        boolean neverMiss = cfg.isNeverMiss();
         // ---- The kill timer (killer560, 2026-10-18: "Blood just attacked for triggerbot before the kill timer went
         // off"): no Blood Camp attack - Trigger Bot, Aura or a click between hits - before the Kill Popup's "KILL",
         // moved by the Trigger Offset. A mob's own countdown only says when THAT mob can be hit; until then the
         // Trigger Bot clicked on it alone, 100 ticks before "KILL" in his run. See BloodCampMoveTimer#killTimerAllows.
-        boolean killTimerOpen = BloodCampMoveTimer.killTimerAllows(cfg.getTriggerOffsetTicks());
+        // Never Miss does not wait for it at all (killer560, 2026-11-03): killTimerOpen is still worked out (at offset 0)
+        // for Blood Camp Stats and the Kill Sound, but attackOpen - what every attack below checks - is held open.
+        boolean killTimerOpen = BloodCampMoveTimer.killTimerAllows(effectiveTriggerOffsetTicks(cfg));
+        boolean attackOpen = neverMiss || killTimerOpen;
         BloodCampStats.noteKillTimer(killTimerOpen);
         if (killTimerOpen != lastKillTimerOpen) {
             LOGGER.info("[BloodCamp] kill timer gate: {} (KILL shown at tick {}, offset {}) cooldown={} tick={}",
-                    killTimerOpen ? "open, attacks allowed" : "closed, attacks held", BloodCampMoveTimer.killShownTick(),
-                    cfg.getTriggerOffsetTicks(), cooldown, now);
+                    neverMiss ? (killTimerOpen ? "open" : "closed") + ", not waited for (Never Miss)"
+                            : killTimerOpen ? "open, attacks allowed" : "closed, attacks held",
+                    BloodCampMoveTimer.killShownTick(), effectiveTriggerOffsetTicks(cfg), cooldown, now);
         }
         lastKillTimerOpen = killTimerOpen;
+        lastAttackOpen = attackOpen;
         trackFloorClicks(client, now);
 
         // ---- Trigger Bot ------------------------------------------------------------------------------------------
@@ -889,8 +897,11 @@ public final class BloodCampFeature {
         // off the ping term is left out, so the click is timed from the countdown's own end instead.
         //
         // NEVER MISS (killer560, 2026-10-15: "attacks the tick it detects the mob is actually there not just when it
-        // thinks it will spawn"): the timer is not used at all - the first click goes the first tick a living mob stands
-        // on the landing spot, in reach under his look, in sight.
+        // thinks it will spawn"; 2026-11-03: "it shouldn't control it. if never miss is on then it should just attack the
+        // tick after it spawns"): no timer at all - neither the mob's countdown, nor Trigger Offset, nor the Kill Popup's
+        // kill timer. The first click goes the first tick a living blood mob is there under his look and in sight: a
+        // trip's mob near its landing spot, or (the next-mob pass) any other blood mob in the room. A mob hit but still
+        // alive is clicked again at the weapon's pace (his 2026-11-02 camp: one was hit once and left "already hit").
         double clickBelow = triggerTargetTicks(cfg, client);
         hitSound(cfg, now, clickBelow, killTimerOpen);
         boolean triggerBotUsable = cfg.isTriggerBotEnabled() && inRoom
@@ -909,7 +920,7 @@ public final class BloodCampFeature {
         BloodMobState triggerData = null;
         boolean triggerIsRetry = false;
         double bestRemaining = Double.MAX_VALUE;
-        if (triggerBotUsable && cooldownReady && killTimerOpen) {
+        if (triggerBotUsable && cooldownReady && attackOpen) {
             int retryWindow = hitConfirmTicks(pingMs);
             for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
                 ArmorStand entity = entry.getKey();
@@ -988,7 +999,7 @@ public final class BloodCampFeature {
         // before any block. What is sent is what his own click with that weapon sends (see click()).
         Entity auraMob = null;
         BloodMobState auraHitData = null;
-        if (triggerTarget == null && cfg.isAuraEnabled() && inRoom && killTimerOpen
+        if (triggerTarget == null && cfg.isAuraEnabled() && inRoom && attackOpen
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
             Entity mob = null;
             if (auraFloor != null) {
@@ -1020,7 +1031,7 @@ public final class BloodCampFeature {
             }
         } else if (triggerTarget == null && cfg.isAuraEnabled() && (auraFloor != null || auraTrip != null)
                 && auraHeldDue(now, "gate")) {
-            logAuraHeld(now, "gate", "target chosen but not attacking: inRoom=" + inRoom + " killTimerOpen=" + killTimerOpen
+            logAuraHeld(now, "gate", "target chosen but not attacking: inRoom=" + inRoom + " killTimerOpen=" + killTimerOpen + " neverMiss=" + neverMiss
                     + " containerOpen=" + com.killer560.hub.util.ActionGate.containerScreenOpen(client));
         }
 
@@ -1032,8 +1043,8 @@ public final class BloodCampFeature {
         // that no live trip accounts for is clicked the first tick his look meets it (once, plus retries on a miss, the
         // same rule as a trip's), at the weapon's pace - so the next mob is taken as soon as it is under his look.
         Entity triggerFloor = null;
-        if (triggerTarget == null && auraMob == null && triggerBotUsable && cooldownReady && killTimerOpen) {
-            triggerFloor = triggerFloorMob(client, now, pingMs);
+        if (triggerTarget == null && auraMob == null && triggerBotUsable && cooldownReady && attackOpen) {
+            triggerFloor = triggerFloorMob(client, now, pingMs, neverMiss);
         }
 
         // ---- Human clicks between the hits (killer560, 2026-10-15: "make sure it is not only when the server should
@@ -1067,7 +1078,7 @@ public final class BloodCampFeature {
         boolean fillerNow = false;
         if (fillerMob == null) {
             HUMAN.idle(now);
-        } else if (triggerTarget == null && killTimerOpen && humanClicks
+        } else if (triggerTarget == null && attackOpen && humanClicks
                 && com.killer560.hub.util.AttackCooldown.onHypixel(client)
                 && now - lastClickTick <= cooldown - 2 && HUMAN.due(now)
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
@@ -1111,7 +1122,7 @@ public final class BloodCampFeature {
         boolean anyTarget = triggerTarget != null || auraMob != null || triggerFloor != null;
         if (!anyTarget && cfg.isTriggerBotEnabled()) {
             // Nothing chosen: if his look is on a blood mob anyway, say why it was not clicked (2026-10-19).
-            explainTriggerIdle(client, now, inRoom, cooldownReady, cooldown, killTimerOpen, clickBelow, neverMiss, pingMs);
+            explainTriggerIdle(client, now, inRoom, cooldownReady, cooldown, attackOpen, clickBelow, neverMiss, pingMs);
         }
         if (anyTarget && !com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
             logRefusal(now, "action gate", "another automation has this tick's one interaction (ActionGate), target "
@@ -1148,6 +1159,8 @@ public final class BloodCampFeature {
                     triggerFinishClicks++;
                 } else if (fc.clicks > 0) {
                     triggerRetries++;
+                } else {
+                    noteFirstClick(triggerFloor, now);
                 }
                 fc.clicks++;
                 fc.lastTick = now;
@@ -1187,6 +1200,9 @@ public final class BloodCampFeature {
                     : nearestMob(client, triggerData.endVector);
             if (tripMob != null) {
                 FloorClick fc = FLOOR_CLICKS.computeIfAbsent(tripMob.getId(), id -> new FloorClick());
+                if (fc.clicks == 0 && triggerData.clicks == 0) {
+                    noteFirstClick(tripMob, now);
+                }
                 fc.clicks = Math.max(fc.clicks, triggerData.clicks + 1);
                 fc.lastTick = now;
             }
@@ -1296,7 +1312,7 @@ public final class BloodCampFeature {
                 reason = "gave up after " + MAX_RETRIES + " retries";
             } else if (data.clicks == 0 && neverMiss && mob == null) {
                 key = "never miss";
-                reason = "Never Miss waits for a mob on the landing spot";
+                reason = "Never Miss: no blood mob has appeared on or near the landing spot yet";
             } else if (data.clicks == 0 && !neverMiss && remaining >= clickBelow) {
                 key = "not due";
                 reason = String.format(Locale.US, "not due yet (clicks below %.1f ticks left)", clickBelow);
@@ -1320,7 +1336,7 @@ public final class BloodCampFeature {
                 }
                 target = "blood mob " + describe(client, mob);
                 FloorClick fc = FLOOR_CLICKS.get(mob.getId());
-                if (fc != null && fc.hit) {
+                if (fc != null && fc.hit && !neverMiss) {
                     key = "floor hit";
                     reason = "hit, still alive: clicked again once its hurt flash is over";
                 } else if (fc != null && fc.clicks > MAX_RETRIES) {
@@ -1768,6 +1784,31 @@ public final class BloodCampFeature {
         return triggerFinishClicks;
     }
 
+    /** Whether Blood Camp's attacks were let through last tick: the kill timer open, or Never Miss on. */
+    private static boolean lastAttackOpen = true;
+
+    public static boolean lastAttackOpen() {
+        return lastAttackOpen;
+    }
+
+    /** Testkit: the last first click on a blood mob - its id, the tick it went, and the tick that mob was tagged. */
+    private static int lastFirstClickMob = -1;
+    private static long lastFirstClickTick = -1L;
+    private static long lastFirstClickTaggedAt = -1L;
+
+    public static long[] lastFirstClickForTest() {
+        return new long[]{lastFirstClickMob, lastFirstClickTick, lastFirstClickTaggedAt};
+    }
+
+    private static void noteFirstClick(Entity mob, long now) {
+        if (mob == null || mob instanceof ArmorStand) {
+            return;
+        }
+        lastFirstClickMob = mob.getId();
+        lastFirstClickTick = now;
+        lastFirstClickTaggedAt = taggedAt(mob.getId());
+    }
+
     /** Marks a clicked mob done once it is hurt (by anyone - the hurt flash after a click) and forgets dead ones. */
     private static void trackFloorClicks(Minecraft client, long now) {
         if (FLOOR_CLICKS.isEmpty()) {
@@ -1798,14 +1839,16 @@ public final class BloodCampFeature {
      * clicked or clicked without effect - nothing seen hurt within one round trip + {@link #HIT_CONFIRM_TICKS} - at most
      * {@link #MAX_RETRIES} more times. The nearest along his look wins. Null when there is none.
      */
-    private static Entity triggerFloorMob(Minecraft client, long now, int pingMs) {
+    private static Entity triggerFloorMob(Minecraft client, long now, int pingMs, boolean neverMiss) {
         int confirm = hitConfirmTicks(pingMs);
         Entity best = null;
         double bestD = Double.MAX_VALUE;
         Vec3 eye = client.player.getEyePosition();
         for (Entity mob : floorMobs(client, now)) {
             FloorClick fc = FLOOR_CLICKS.get(mob.getId());
-            if (fc != null && fc.hit ? !hitButAlive(mob, fc, now, confirm)
+            // A hit mob that is still alive is clicked again: with Never Miss at once, at the weapon's pace, while his look is
+            // on it (nevermiss-1102); without it once the last hit's hurt flash is over (bloodcamp2-1102 hitButAlive).
+            if (fc != null && fc.hit ? !(neverMiss ? mob.isAlive() : hitButAlive(mob, fc, now, confirm))
                     : fc != null && (fc.clicks > MAX_RETRIES || now - fc.lastTick <= confirm)) {
                 continue;
             }
@@ -2558,7 +2601,15 @@ public final class BloodCampFeature {
      */
     static double triggerTargetTicks(BloodCampConfig cfg, Minecraft client) {
         // Positive Trigger Offset is late (2026-11-01): it LOWERS the time left the click waits for.
-        return autoLagOffsetTicks(cfg, client) - cfg.getTriggerOffsetTicks();
+        return autoLagOffsetTicks(cfg, client) - effectiveTriggerOffsetTicks(cfg);
+    }
+
+    /**
+     * The Trigger Offset in force: the saved one, or 0 while Never Miss is on (killer560, 2026-11-03: "it shouldn't
+     * control it"). The saved value is kept for when Never Miss goes off again.
+     */
+    static int effectiveTriggerOffsetTicks(BloodCampConfig cfg) {
+        return cfg.isNeverMiss() ? 0 : cfg.getTriggerOffsetTicks();
     }
 
     /**
