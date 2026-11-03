@@ -201,6 +201,10 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   `AbstractContainerScreen`. A feature added to the real terminal path does not reach Termism by itself; Termism now plays
   through `terminals/PracticeCursor` (the same hand, click order, settle and Melody skip rule) and implements
   `FakeCursor.Host`. Check Termism whenever Auto Terminals changes (testkit 1102-menu-termism-ss-*).
+- Termism, like every mod screen, is laid out on Auto Scale's canvas and drawn under its factor: anything that aims or
+  draws in window pixels over it multiplies canvas coordinates by `AutoScale.appliedFactor(screen)` (times the GUI scale)
+  and draws from an identity pose. The first Stream Safe fix skipped that and put the cursor off the board on a scaled
+  client while every probe agreed with itself (fixed ead35f86e; testkit's scaled pass at factor 1.125 checks it).
 - Melody Lookahead counted the proper click (1 and 0 both meant none); since 2026-10-26 N is the EXTRA rows, max 2,
   old files move by one on load (`melodyLookaheadVersion`). A lookahead click for a row the live match already clicked
   is dropped, and the live match skips a row with a lookahead queued, so no row is clicked twice (testkit 275-277).
