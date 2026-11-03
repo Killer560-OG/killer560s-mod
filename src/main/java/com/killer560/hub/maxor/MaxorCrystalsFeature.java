@@ -197,6 +197,11 @@ public final class MaxorCrystalsFeature {
     }
 
     /** The counter's numbers, for the testkit: {active, total}; total 0 means no line seen yet (row hidden). */
+    /** Testkit: whether the HUD shows the Active line now (P1 only). */
+    public static boolean counterShown() {
+        return MaxorConfig.getInstance().isActiveCounterEnabled() && totalCrystals > 0 && inP1();
+    }
+
     public static int[] activeCounter() {
         return new int[]{activeCrystals, totalCrystals};
     }
@@ -476,7 +481,8 @@ public final class MaxorCrystalsFeature {
             if (alertShown && cfg.isPlaceAlertEnabled()) {
                 out.add("§e⚠ §bCrystal §e⚠");
             }
-            if (cfg.isActiveCounterEnabled() && totalCrystals > 0) {
+            // P1 only (killer560, 2026-11-03: "after i finished maxor it showed 0/2 the whole rest of the run").
+            if (cfg.isActiveCounterEnabled() && totalCrystals > 0 && inP1()) {
                 out.add("§6Active: §e" + activeCrystals + "§7/§e" + totalCrystals);
             }
             return out;
