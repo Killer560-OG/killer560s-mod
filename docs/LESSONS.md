@@ -423,3 +423,13 @@ project CLAUDE.md. Compiling lessons
   re-grab sets missTime) or the OS sends a button release; a block, slot or held-item change only restarts it. Nothing in
   the mod does either while mining (mining-1103 sweep); `miningqol/AttackHoldProbe` logs "[AttackHold]" the next time it
   happens, with the screen class and its opener's stack.
+- A value read from a slow tab widget must not be re-applied every tick: AbilityReadyAlert put `now + tab seconds` each
+  tick, so the timer held still for the widget's ~3 s refresh and then jumped (killer560, 2026-11-03: "only counts down every
+  3s"). Act on a widget line only when its text CHANGES, keep a local deadline, move it only when a new reading disagrees
+  by more than 1.5 s, and after a chat reset remember the tab's current (stale) line so it is ignored until it changes
+  (mithril-interp-1103, 1103-mining-pick-timer).
+- Commission goals per block (hypixelskyblock wiki, Commissions, 2026-11-03): Mithril Miner 350, area Mithril 250, Titanium
+  Miner 15, area Titanium 10; starter ones less and Compact/Efficient Miner count raw amounts, so CommissionProgress learns
+  the step from the tab once 20 settled blocks are in. Collectors (gemstones, Glacite, Tungsten, Umber) count drops, not
+  blocks, and stay on the tab. A counted break is the crosshair block under a held attack that the SERVER changes to another
+  block; a hook test drives it with the live tick held (holdLiveForTest), since the live tick prunes and resyncs every tick.
