@@ -4,6 +4,7 @@
 # a class src/main imports that exists in one version's jar and not the other.
 com.mojang.renderpearl.api.pipeline.RenderPipeline = com.mojang.blaze3d.pipeline.RenderPipeline
 com.mojang.renderpearl.api.pipeline.DepthStencilState = com.mojang.blaze3d.pipeline.DepthStencilState
+com.mojang.renderpearl.api.pipeline.CompareOp = com.mojang.blaze3d.platform.CompareOp
 com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline = com.mojang.blaze3d.pipeline.CompiledRenderPipeline
 com.mojang.renderpearl.api.buffers.GpuBuffer = com.mojang.blaze3d.buffers.GpuBuffer
 com.mojang.renderpearl.api.buffers.GpuBufferSlice = com.mojang.blaze3d.buffers.GpuBufferSlice

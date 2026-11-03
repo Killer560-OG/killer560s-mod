@@ -1,6 +1,7 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.WorldRenderUtils;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -57,7 +58,7 @@ public final class SolverEspRender {
          *  blaze report), and a box that wrote no depth had water behind it blended over it. With the box's depth in the buffer,
          *  water behind fails its depth test and water in front still tints it. */
         private static final Optional<DepthStencilState> WRITE_DEPTH_ALWAYS = Optional.of(new DepthStencilState(
-                com.mojang.renderpearl.api.pipeline.CompareOp.ALWAYS_PASS, true));
+                CompareOp.ALWAYS_PASS, true));
 
         private static final RenderPipeline.Builder LINES_BASE = com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
                 .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/solver_lines_through_walls"))
