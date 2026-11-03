@@ -170,6 +170,38 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   print the bar against 8 + floor. `bloodcamp/WatcherBar` starts from the wiki's and recalibrates from the bar's own
   settled steps (k of N is whole only for the right N), rounding up; it logs "[BloodCampStats] Watcher bar ..." each step,
   so the first real camp's log settles which size Hypixel uses.
+- **A skull 20 blocks from the Watcher is not the edge of the Blood Room** (owner's F7 camp, 2026-11-02, "missed a wall
+  spawn"). NoammAddons and Odin both track a skull's trip only within 20 blocks of the Watcher, but he flies to the case of
+  the mob he picks (wiki) and the cases sit on walls 24 blocks apart, so a skull leaving the far wall while he was at the
+  other had no trip at all (his log: a mob landing with no "trip tracked" line, 6 ticks after another wall's trip started;
+  his morning run has the same). The gate is now his room tile or the old 20 blocks; a moving player-head stand with an
+  unknown texture is logged once ("skull stand #N moved but its texture is not a blood mob's"), in case a skin is missing.
+- **Hypixel removes a blood mob's skull stand around the tick the mob appears, often first.** Dropping the trip with its
+  stand left the mob to a room scan that ran every 5 ticks, which is what the owner felt as "Trigger Bot clicks were very
+  delayed" (9 of his 16 mobs were tagged only on a multiple of 5). A removed stand's trip now stays (`LANDED`) for the
+  landing tag, and the room tile is scanned every tick. Testkit 1102-bloodcamp-tag-latency.
+- **The Watchful Eyes do not wear the Watcher's skull.** Two zombies with ids right after his (#330208 -> #330210, #330212)
+  circle the room; one passed a landing spot inside the tag window and became that trip's "blood mob" for ESP. Excluded by
+  the "Watchful Eye" name (custom name or the stand one id above; see the name-tag lesson below) and as a non-player mob
+  within 8 ids after the Watcher that joined the client world within 5 ticks of him. Testkit 1102-bloodcamp-watchful-eye.
+- Every tagging path goes through `isAttackableMob` (alive, not a player summon, not excluded): the name-tag path did not,
+  so his own Guided Sheep under a blood name tag became a blood mob, and a dead named NPC was re-tagged on every scan.
+- **The Watcher leaves the client world mid-camp.** Owner's run 3 (2026-11-02): "Watcher removed by the server" for six
+  seconds while he flew to a case and the player was still outside; every skull move in that time was dropped and the
+  first wave's trip was picked up mid-flight (box 7 blocks off). Gate on his last known spot (`watcherAnchor`), not on his
+  entity being there. Same run: 8 case stands had skins NoammAddons' list lacks; a sideways move from the case grid (x/z on
+  a block's center, y N+0.75) is a trip whatever the skin. Testkit 1102-bloodcamp-missed-box.
+- **A trip must not take a mob tagged before its window opened.** Trip #479208 silently took a giant name-tagged 120 ticks
+  earlier as its mob, and its own giant was never tagged or clicked (1102-bloodcamp-trip-steal).
+- **"Hit" is not "dead".** The Trigger Bot clicked a mob once and never again once it saw a hurt flash, so a mob that
+  survived one hit stood there "already hit" for 121 ticks with him aiming at it ("it left one"). A hit mob that is still
+  alive is clicked again once its hurtTime is back to 0, at the weapon's pace (1102-bloodcamp-hit-alive). This is outside
+  Never Miss's landing-spot wait.
+- A name tag near a mob is not its name for an exclusion: an orbiting Watchful Eye's tag inside a blood mob's box excluded
+  that blood mob as an "Eye". Eyes are matched by their own custom name or the stand one id above, never for a player.
+- **Ten client ticks are not ten server ticks.** Testkit 186 on the run-3 jar: the Trigger Bot clicked exactly 10 client
+  ticks apart, but after a client stall those 10 ran in 400 ms and the server saw 8- and 9-tick gaps (3 of 5 runs). The
+  attack cap now also holds on `PerTickServerClock` when it is trusted at both clicks; the stall's cause was not found.
 
 ## Terminals and solvers
 

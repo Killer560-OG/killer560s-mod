@@ -261,23 +261,10 @@ public final class BloodCampFeature {
         }
         // Before any entity lookup: until the Watcher is known no move packet can matter (every stand in the world sends them).
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || watcherEntityId == null) {
+        if (client.player == null || watcherEntityId == null && lastWatcherPos == null) {
             return;
         }
         if (!(packet.getEntity(level) instanceof ArmorStand entity)) {
-            return;
-        }
-        Entity watcher = level.getEntity(watcherEntityId);
-        if (watcher == null || watcher.distanceToSqr(entity) > 400) {
-            return;
-        }
-        ItemStack item = entity.getItemBySlot(EquipmentSlot.HEAD);
-        if (!item.is(Items.PLAYER_HEAD)) {
-            return;
-        }
-        // Same null-into-Set.of hazard as onSetEquipment above - see the comment there.
-        String mobTexture = getSkullTexture(item);
-        if (mobTexture == null || !MOB_SKULL_TEXTURES.contains(mobTexture)) {
             return;
         }
 
@@ -295,13 +282,17 @@ public final class BloodCampFeature {
         if (step[0] == 0L && step[2] == 0L) {
             return;
         }
+        String skin = tripSkull(level, entity);
+        if (skin == null) {
+            return;
+        }
         Vec3 packetVec = new Vec3(
                 entity.getX() + step[0] / 4096,
                 entity.getY() + step[1] / 4096,
                 entity.getZ() + step[2] / 4096
         );
         standMoved(client, entity, packetVec, new Vec3(entity.getX() + step[0] / 4096.0,
-                entity.getY() + step[1] / 4096.0, entity.getZ() + step[2] / 4096.0), "move");
+                entity.getY() + step[1] / 4096.0, entity.getZ() + step[2] / 4096.0), "move" + skin);
     }
 
     /**
@@ -318,7 +309,7 @@ public final class BloodCampFeature {
             return;
         }
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || watcherEntityId == null || level == null) {
+        if (client.player == null || watcherEntityId == null && lastWatcherPos == null || level == null) {
             return;
         }
         if (!(level.getEntity(entityId) instanceof ArmorStand entity)) {
@@ -328,22 +319,110 @@ public final class BloodCampFeature {
         if (Math.abs(d.x) < 1e-9 && Math.abs(d.z) < 1e-9) {
             return; // no horizontal move (the move packets' own gate is a horizontal move too)
         }
-        Entity watcher = level.getEntity(watcherEntityId);
-        if (watcher == null || watcher.distanceToSqr(entity) > 400) {
-            return;
-        }
-        ItemStack item = entity.getItemBySlot(EquipmentSlot.HEAD);
-        if (!item.is(Items.PLAYER_HEAD)) {
-            return;
-        }
-        String mobTexture = getSkullTexture(item);
-        if (mobTexture == null || !MOB_SKULL_TEXTURES.contains(mobTexture)) {
+        String skin = tripSkull(level, entity);
+        if (skin == null) {
             return;
         }
         absoluteMoves++;
         // Kotlin's Short / 4096 truncates toward zero; so does a (long) cast of the block delta.
         Vec3 packetVec = new Vec3(entity.getX() + (long) d.x, entity.getY() + (long) d.y, entity.getZ() + (long) d.z);
-        standMoved(client, entity, packetVec, target, kind);
+        standMoved(client, entity, packetVec, target, kind + skin);
+    }
+
+    /**
+     * Whether a stand that just moved sideways is a blood mob's skull on its way: a player head, in the Watcher's reach
+     * ({@link #tripStandInReach}), and either one of {@link #MOB_SKULL_TEXTURES} or - owner's camp 2026-11-02 run 3
+     * (bloodcamp-owner-run3-1102.log: "it missed a mob being spawned box") - a skin that list does not have, leaving one of
+     * the room's display cases. That log had 8 such case stands (#479421-#479428, 7 skins Noamm's list lacks) on exactly
+     * the blood mobs' case grid (x and z on a block's center, y N+0.75: 71.75 / 75.75 / 79.75) and two mobs that landed
+     * with no trip (#481789 or #481791 at tick ~1986 with one trip due, #482331 at 2579 with none). A trip in progress
+     * keeps going whatever its skin. Returns "" for a known skin, " (unknown skin)" for a case skull, null for no trip.
+     */
+    private static String tripSkull(Level level, ArmorStand entity) {
+        Vec3 anchor = watcherAnchor(level);
+        if (anchor == null || !tripStandInReach(anchor, entity)) {
+            return null;
+        }
+        ItemStack item = entity.getItemBySlot(EquipmentSlot.HEAD);
+        if (!item.is(Items.PLAYER_HEAD)) {
+            return null;
+        }
+        // Same null-into-Set.of hazard as onSetEquipment above - see the comment there.
+        String mobTexture = getSkullTexture(item);
+        if (mobTexture != null && MOB_SKULL_TEXTURES.contains(mobTexture)) {
+            return "";
+        }
+        if (bloodMobs.containsKey(entity) || onCaseGrid(entity.position())) {
+            noteUnknownSkull(entity, mobTexture, true);
+            return " (unknown skin)";
+        }
+        noteUnknownSkull(entity, mobTexture, false);
+        return null;
+    }
+
+    /** A display-case spot: x and z on a block's center, y on N + 0.75 (where every blood mob's skull sits). */
+    static boolean onCaseGrid(Vec3 p) {
+        return near(p.x - Math.floor(p.x), 0.5) && near(p.z - Math.floor(p.z), 0.5) && near(p.y - Math.floor(p.y), 0.75);
+    }
+
+    private static boolean near(double a, double b) {
+        return Math.abs(a - b) < 0.02;
+    }
+
+    /**
+     * Where the Watcher is, or was last seen in this world. Owner's camp 2026-11-02 run 3: "Watcher removed by the server:
+     * entity #481222" at 20:24:43 and found again at 20:24:49 (out of the client's tracking range while he flew to a case,
+     * the player not yet in the room). The first wave's skull #479215 left its case in between, every move packet was
+     * dropped for "no Watcher", and it was only tracked mid-flight from a position sync (start -20.78, 75.78, -19.53, no
+     * case spot), so its box sat about 7 blocks off and its countdown 48 ticks late. The Blood Room does not move, so his
+     * last spot stands in for him until he is back. Cleared with the level.
+     */
+    static Vec3 watcherAnchor(Level level) {
+        Entity w = watcherEntityId == null || level == null ? null : level.getEntity(watcherEntityId);
+        if (w != null) {
+            lastWatcherPos = w.position();
+        }
+        return lastWatcherPos;
+    }
+
+    private static Vec3 lastWatcherPos;
+
+    /**
+     * Whether a skull stand can be one of the Watcher's: in his room tile (the Blood Room), or within 20 blocks of him.
+     * Owner's F7 camp, 2026-11-02 (bloodcamp-owner-run2-1102.log): a mob (player #334645, tick 1714) landed on the room's
+     * landing spot with no trip ever tracked for it, 6 ticks after another trip (stand #327332, from the far x -164.5
+     * wall) had started; his 2026-11-02 morning run shows the same (player #15481 at tick 1765, one tick after stand #6577
+     * left its wall). The gate here used to be 20 blocks from the Watcher only - NoammAddons' and Odin's number - but the
+     * Watcher flies to the display case of the mob he picks (hypixelskyblock.minecraft.wiki "The Watcher"), and the room's
+     * cases sit on walls 24 blocks apart (x -164.5 and -140.5 in that log) and 4 to 12 blocks above the floor, so a skull
+     * leaving one wall while he is at the other is 24+ blocks from him and its whole trip (box, line, countdown, the
+     * Trigger Bot's timing) was dropped. The 20 blocks stay for a stand just outside his tile (the testkit's layout).
+     */
+    private static boolean tripStandInReach(Vec3 watcher, ArmorStand stand) {
+        if (watcher == null) {
+            return false;
+        }
+        if (watcher.distanceToSqr(stand.position()) <= 400) {
+            return true;
+        }
+        return roomTile(stand.getX()) == roomTile(watcher.x) && roomTile(stand.getZ()) == roomTile(watcher.z)
+                && Math.abs(stand.getY() - watcher.y) < 40.0;
+    }
+
+    /** Stand ids already logged as a moving skull with a texture that is not a blood mob's (once per stand). */
+    private static final Set<Integer> UNKNOWN_SKULLS_LOGGED = new java.util.HashSet<>();
+
+    /**
+     * A player-head stand moving in the Watcher's reach whose texture is not one of {@link #MOB_SKULL_TEXTURES}: logged
+     * once per stand, so a camp whose spawn is missed for an unknown skin says so in his log instead of nothing.
+     */
+    private static void noteUnknownSkull(ArmorStand stand, String texture, boolean taken) {
+        if (UNKNOWN_SKULLS_LOGGED.size() < 256 && UNKNOWN_SKULLS_LOGGED.add(stand.getId())) {
+            LOGGER.info("[BloodCamp] skull stand #{} moved sideways with a skin not in the blood mob list (texture {} hash {})"
+                    + " at {}: {}", stand.getId(), texture == null ? "none" : "len " + texture.length(),
+                    texture == null ? "-" : Integer.toHexString(texture.hashCode()), stand.position(),
+                    taken ? "it left a display case, tracked as a trip" : "not on a display case, ignored");
+        }
     }
 
     /** Absolute (position-sync / teleport) moves of a blood mob's skull stand taken as trip steps (testkit). */
@@ -463,6 +542,19 @@ public final class BloodCampFeature {
      */
     private static final Set<Integer> DEAD_IDS = new java.util.HashSet<>();
 
+    /**
+     * Trips whose skull stand the server removed before their mob was seen, by stand id - kept for the landing tag only
+     * (nothing draws, aims or clicks from these), until the mob is tagged or the trip is {@link #RETRY_STALE_TICKS} past
+     * due. Owner's F7 camp, 2026-11-02: Hypixel removes the skull and adds the mob around the same tick, often the mob
+     * after; the trip used to be dropped with its stand, so most mobs were found only by the room scan instead of by
+     * their trip (and the first wave's giant, #331510, was taken by the NEXT trip's spot 4 blocks off, 10 ticks early).
+     */
+    private static final Map<Integer, Landed> LANDED = new HashMap<>();
+
+    /** A {@link #LANDED} trip and the game tick its stand was removed on. */
+    private record Landed(BloodMobState data, long removedAt) {
+    }
+
     /** Testkit: the ids taken as dead from a death event. */
     public static Set<Integer> deadIds() {
         return Set.copyOf(DEAD_IDS);
@@ -509,7 +601,21 @@ public final class BloodCampFeature {
         // so no capturing lambda and iterator are made for an empty map (mixin FPS pass, 2026-10-15).
         if (!bloodMobs.isEmpty()) {
             int before = bloodMobs.size();
-            bloodMobs.keySet().removeIf(entity -> McPackets.removedEntityIds(packet).contains(entity.getId()));
+            long now = level != null ? level.getGameTime() : 0L;
+            bloodMobs.entrySet().removeIf(entry -> {
+                if (!McPackets.removedEntityIds(packet).contains(entry.getKey().getId())) {
+                    return false;
+                }
+                BloodMobState data = entry.getValue();
+                if (data.endVector != null && !(data.mobId >= 0 && BLOOD_IDS.contains(data.mobId))
+                        && remainingTicks(data, now) > -RETRY_STALE_TICKS) {
+                    LANDED.put(entry.getKey().getId(), new Landed(data, now));
+                    LOGGER.info("[BloodCamp] stand #{} removed before its mob was seen: its landing spot is kept for the"
+                            + " mob ({} ticks left) tick={}", entry.getKey().getId(),
+                            String.format(Locale.ROOT, "%.1f", remainingTicks(data, now)), now);
+                }
+                return true;
+            });
             if (bloodMobs.size() != before) {
                 LOGGER.info("[BloodCamp] {} tracked stand(s) removed by the server, {} left", before - bloodMobs.size(),
                         bloodMobs.size());
@@ -556,6 +662,11 @@ public final class BloodCampFeature {
             DEAD_IDS.clear();
             FLOOR_CLICKS.clear();
             bloodMobs.clear();
+            LANDED.clear();
+            lastWatcherPos = null;
+            UNKNOWN_SKULLS_LOGGED.clear();
+            COMPANIONS_LOGGED.clear();
+            TAGGED_AT.clear();
             watcherEntityId = null;
             BloodCampMoveTimer.reset();
             AIM.reset(null);
@@ -576,6 +687,7 @@ public final class BloodCampFeature {
             if (!bloodMobs.isEmpty() || watcherEntityId != null) {
                 LOGGER.info("[BloodCamp] inactive: dropped tracked={} watcher={}", bloodMobs.size(), watcherEntityId);
                 bloodMobs.clear();
+                LANDED.clear();
                 watcherEntityId = null;
             }
             if (AIM.isTurning() || AIM.ownsCamera()) {
@@ -742,6 +854,14 @@ public final class BloodCampFeature {
         // negative gap for thousands of ticks, which held every click: -4404 of 7 in the 2026-10-19 log. A stamp ahead of
         // the clock is stale, so the cooldown is ready.
         boolean cooldownReady = now < lastClickTick || now - lastClickTick >= cooldown;
+        // ...and on the server's own clock when it is trusted at both clicks: the server counts the cap in ITS ticks, and a
+        // client that stalls and then catches up runs 10 of its ticks in 8 of the server's (testkit 186, bloodcamp2-1102:
+        // client clicks exactly 10 ticks apart, 400 ms of wall time, the server saw an 8-tick gap).
+        long clockNow = com.killer560.hub.util.PerTickServerClock.now();
+        if (cooldownReady && lastClickClockTrusted && com.killer560.hub.util.PerTickServerClock.trusted()
+                && clockNow >= lastClickClock && clockNow - lastClickClock < cooldown) {
+            cooldownReady = false;
+        }
         boolean neverMiss = cfg.isNeverMiss();
         // ---- The kill timer (killer560, 2026-10-18: "Blood just attacked for triggerbot before the kill timer went
         // off"): no Blood Camp attack - Trigger Bot, Aura or a click between hits - before the Kill Popup's "KILL",
@@ -1001,6 +1121,8 @@ public final class BloodCampFeature {
         if (anyTarget) {
             lastRefusalKey = null; // the next refusal after a click is logged at once
             lastClickTick = now;
+            lastClickClock = com.killer560.hub.util.PerTickServerClock.now();
+            lastClickClockTrusted = com.killer560.hub.util.PerTickServerClock.trusted();
             HUMAN.clicked(now);
             ALL_CLICKS.addLast(now);
             while (ALL_CLICKS.size() > 64) {
@@ -1019,7 +1141,12 @@ public final class BloodCampFeature {
                 triggerClicks++;
                 triggerFloorClicks++;
                 FloorClick fc = FLOOR_CLICKS.computeIfAbsent(triggerFloor.getId(), id -> new FloorClick());
-                if (fc.clicks > 0) {
+                if (fc.hit) {
+                    // hit and still alive (hitButAlive): a new round of clicks, misses counted afresh
+                    fc.hit = false;
+                    fc.clicks = 0;
+                    triggerFinishClicks++;
+                } else if (fc.clicks > 0) {
                     triggerRetries++;
                 }
                 fc.clicks++;
@@ -1195,7 +1322,7 @@ public final class BloodCampFeature {
                 FloorClick fc = FLOOR_CLICKS.get(mob.getId());
                 if (fc != null && fc.hit) {
                     key = "floor hit";
-                    reason = "already hit";
+                    reason = "hit, still alive: clicked again once its hurt flash is over";
                 } else if (fc != null && fc.clicks > MAX_RETRIES) {
                     key = "floor gave up";
                     reason = "gave up after " + MAX_RETRIES + " retries";
@@ -1351,7 +1478,7 @@ public final class BloodCampFeature {
     private static void tagBloodMobs(Minecraft client, long now) {
         BLOOD_IDS.removeIf(id -> {
             Entity e = client.level.getEntity(id);
-            if (e != null && !e.isRemoved() && e.isAlive() && !DEAD_IDS.contains(id) && !excluded(client, e)) {
+            if (e != null && !e.isRemoved() && e.isAlive() && !DEAD_IDS.contains(id) && isAttackableMob(e)) {
                 return false;
             }
             if (e != null && (!e.isAlive() || DEAD_IDS.contains(id))) {
@@ -1362,10 +1489,19 @@ public final class BloodCampFeature {
         if (!DEAD_IDS.isEmpty() && now % 20 == 0) {
             DEAD_IDS.removeIf(id -> client.level.getEntity(id) == null); // gone from the level: ids are not reused
         }
-        // By name, every 5 ticks (killer560, 2026-10-15): a blood mob that landed while he was too far away for the
-        // client to see its trip still has its name tag - see BloodMobNames.
-        if (now % 5 == 0) {
-            for (Entity e : client.level.entitiesForRendering()) {
+        // By name (killer560, 2026-10-15): a blood mob that landed while he was too far away for the client to see its
+        // trip still has its name tag - see BloodMobNames. Every tick, over the Watcher's room tile only. This was every
+        // 5 ticks over every entity in the world, and the owner's F7 camp (2026-11-02, "Trigger Bot clicks were very
+        // delayed") shows what that cost: 9 of its 16 mobs were found only by this scan, every one on a tick that is a
+        // multiple of 5 (1270, 1330, 1530, 1580, 1730, 1835, 1850, 1945, 1995), so a mob that appeared just after a scan
+        // was no target for up to 4 more ticks ("aimed at player #334682 ... which is not tracked as a blood mob" the tick
+        // before it was tagged). Everything outside the tile was never tagged here anyway (inRoomTile below).
+        Entity watcherNow = watcherEntityId == null ? null : client.level.getEntity(watcherEntityId);
+        if (watcherNow != null) {
+            double cx = com.killer560.hub.livemap.LiveMapFeature.START_X + 32.0 * roomTile(watcherNow.getX());
+            double cz = com.killer560.hub.livemap.LiveMapFeature.START_Z + 32.0 * roomTile(watcherNow.getZ());
+            AABB tile = new AABB(cx - 16.5, watcherNow.getY() - 40, cz - 16.5, cx + 16.5, watcherNow.getY() + 40, cz + 16.5);
+            for (Entity e : client.level.getEntities((Entity) null, tile, x -> true)) {
                 if (e instanceof ArmorStand stand && stand.hasCustomName()) {
                     // Only inside the Blood Room (killer560, 2026-11-01: "something is highlighting all fels ... It is coming
                     // currently from the blood mob highlight"): "Fels", "Skull" and the rest are ordinary dungeon mob names
@@ -1374,26 +1510,29 @@ public final class BloodCampFeature {
                     if (inRoomTile(client, stand.position()) && isBloodTagCached(stand)
                             && !stand.getName().getString().contains("\u272F")) {
                         Entity mob = BloodMobNames.mobFor(client, stand);
-                        if (mob != null && (watcherEntityId == null || mob.getId() != watcherEntityId) && !DEAD_IDS.contains(mob.getId())
-                                && !excluded(client, mob)) {
-                            if (BLOOD_IDS.add(mob.getId())) {
+                        // isAttackableMob: alive, not dead by the death event, not a player summon (his 2026-11-02 camp:
+                        // "blood mob tagged by name tag: sheep #333445" - his own Guided Sheep under a blood name tag, which
+                        // Blood Mobs ESP then drew), not excluded.
+                        if (mob != null && (watcherEntityId == null || mob.getId() != watcherEntityId) && isAttackableMob(mob)) {
+                            if (addBloodId(mob.getId(), now)) {
                                 LOGGER.info("[BloodCamp] blood mob tagged by name tag: {} tick={}", describe(client, mob), now);
                             }
                         }
                     }
-                } else if (BloodMobNames.isNamedNpc(client, e) && !DEAD_IDS.contains(e.getId()) && inRoomTile(client, e.position())
-                        && !excluded(client, e)) {
-                    if (BLOOD_IDS.add(e.getId())) {
+                } else if (BloodMobNames.isNamedNpc(client, e) && inRoomTile(client, e.position()) && isAttackableMob(e)) {
+                    // isAttackableMob (alive) too: a dead named NPC used to be re-tagged on every scan until Hypixel removed
+                    // it (his 2026-11-02 log: "tagged as named NPC: player #334484" at 1640, 1645, 1650 and 1655).
+                    if (addBloodId(e.getId(), now)) {
                         LOGGER.info("[BloodCamp] blood mob tagged as named NPC: {} tick={}", describe(client, e), now);
                     }
-                } else if (isRoomNpc(client, e) && !excluded(client, e)) {
+                } else if (isRoomNpc(client, e) && isAttackableMob(e)) {
                     // killer560, 2026-10-19: "watcher triggerbot still almost never fires." His run's log: the click was
                     // held for "player #1158128 in the line of fire" - a player-model NPC (not a real player: those are
                     // version 4) standing in the Blood Room that neither its name tag nor a trip's landing had tagged.
                     // Untagged, it was not a target (nearestMob, the next-mob pass and Never Miss all read BLOOD_IDS) and
                     // it blocked the click on every mob behind it. Nothing but the Watcher's summons is a player-model
                     // NPC inside the Blood Room, so one there is a blood mob.
-                    if (BLOOD_IDS.add(e.getId())) {
+                    if (addBloodId(e.getId(), now)) {
                         LOGGER.info("[BloodCamp] blood mob tagged as player-model NPC in the room: {} tick={}",
                                 describe(client, e), now);
                     }
@@ -1401,36 +1540,88 @@ public final class BloodCampFeature {
             }
         }
         for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
-            BloodMobState data = entry.getValue();
-            if (data.endVector == null || remainingTicks(data, now) > TAG_WITHIN_TICKS
-                    || remainingTicks(data, now) <= -RETRY_STALE_TICKS) {
+            tagLanding(client, now, entry.getKey().getId(), entry.getValue(), Long.MIN_VALUE);
+        }
+        if (!LANDED.isEmpty()) {
+            LANDED.entrySet().removeIf(entry -> tagLanding(client, now, entry.getKey(), entry.getValue().data(),
+                    entry.getValue().removedAt()));
+        }
+    }
+
+    /**
+     * A trip's mob: the attackable mob nearest its predicted spot, from {@link #TAG_WITHIN_TICKS} before it is due until
+     * {@link #RETRY_STALE_TICKS} after. Returns whether the trip is finished with (its mob tagged, or stale) - for a
+     * {@link #LANDED} trip, which is then dropped.
+     */
+    private static boolean tagLanding(Minecraft client, long now, int standId, BloodMobState data, long removedAt) {
+        boolean landed = removedAt != Long.MIN_VALUE;
+        if (data.endVector == null || remainingTicks(data, now) <= -RETRY_STALE_TICKS) {
+            return true;
+        }
+        if (remainingTicks(data, now) > TAG_WITHIN_TICKS) {
+            return false;
+        }
+        if (data.tagWindowAt == Long.MIN_VALUE) {
+            data.tagWindowAt = now;
+        }
+        if (data.mobId >= 0 && BLOOD_IDS.contains(data.mobId)) {
+            return true;
+        }
+        // A mob tagged before this trip's window opened is never this trip's (owner's camp 2026-11-02 run 3: trip #479208,
+        // due at 1986, silently took the giant #481603 tagged by its name tag at 1862, which stood beside the spot - no
+        // "tagged" line, and no "kept for the mob" line when its stand went - so its own mob, the giant #481789, was never
+        // tagged: "aimed at giant #481789 ... which is not tracked as a blood mob" and no click on it after the kill timer).
+        // One tagged since (the room scan, the same tick) is its mob.
+        long since = landed ? Math.min(removedAt, data.tagWindowAt) : data.tagWindowAt;
+        AABB search = new AABB(data.endVector, data.endVector).inflate(TARGET_SEARCH_RADIUS);
+        Entity best = null;
+        double bestD = Double.MAX_VALUE;
+        for (Entity c : client.level.getEntities(client.player, search, BloodCampFeature::isAttackableMob)) {
+            if (watcherEntityId != null && c.getId() == watcherEntityId) {
                 continue;
             }
-            if (data.mobId >= 0 && BLOOD_IDS.contains(data.mobId)) {
+            if (BLOOD_IDS.contains(c.getId())) {
+                if (taggedAt(c.getId()) >= since) {
+                    data.mobId = c.getId();
+                    return true;
+                }
                 continue;
             }
-            AABB search = new AABB(data.endVector, data.endVector).inflate(TARGET_SEARCH_RADIUS);
-            Entity best = null;
-            double bestD = Double.MAX_VALUE;
-            for (Entity c : client.level.getEntities(client.player, search, BloodCampFeature::isAttackableMob)) {
-                if (watcherEntityId != null && c.getId() == watcherEntityId) {
-                    continue;
-                }
-                double d = c.position().distanceToSqr(data.endVector);
-                if (d < bestD) {
-                    bestD = d;
-                    best = c;
-                }
-            }
-            if (best != null) {
-                data.mobId = best.getId();
-                if (BLOOD_IDS.add(best.getId())) {
-                    LOGGER.info("[BloodCamp] blood mob tagged by trip landing: {} stand #{} offSpot={} tick={}",
-                            describe(client, best), entry.getKey().getId(),
-                            String.format(Locale.ROOT, "%.2f", Math.sqrt(bestD)), now);
-                }
+            double d = c.position().distanceToSqr(data.endVector);
+            if (d < bestD) {
+                bestD = d;
+                best = c;
             }
         }
+        if (best == null) {
+            return false;
+        }
+        data.mobId = best.getId();
+        if (addBloodId(best.getId(), now)) {
+            LOGGER.info("[BloodCamp] blood mob tagged by trip landing{}: {} stand #{} offSpot={} tick={}",
+                    landed ? " (stand already removed)" : "", describe(client, best), standId,
+                    String.format(Locale.ROOT, "%.2f", Math.sqrt(bestD)), now);
+        }
+        return true;
+    }
+
+    /** Game tick each blood mob was tagged on, by id (testkit: tag latency). Cleared with the level. */
+    private static final it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap TAGGED_AT =
+            new it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap();
+
+    public static long taggedAt(int id) {
+        return TAGGED_AT.containsKey(id) ? TAGGED_AT.get(id) : -1L;
+    }
+
+    private static boolean addBloodId(int id, long now) {
+        if (!BLOOD_IDS.add(id)) {
+            return false;
+        }
+        if (TAGGED_AT.size() > 4096) {
+            TAGGED_AT.clear();
+        }
+        TAGGED_AT.put(id, now);
+        return true;
     }
 
     /** A player-model NPC (version-2 UUID) alive inside the Blood Room tile, the Watcher excluded - see tagBloodMobs. */
@@ -1489,6 +1680,8 @@ public final class BloodCampFeature {
 
     /** Whether {@code p} is in the Watcher's room tile (the Blood Room). */
     private static boolean inRoomTile(Minecraft client, Vec3 p) {
+        // The live Watcher only (his remembered spot is for trips, watcherAnchor): Dungeon ESP's Fel skulls and the name-tag
+        // scan read this, and with no Watcher in the world nothing is "in the Blood Room" (1101-esp-fels).
         Entity watcher = watcherEntityId == null ? null : client.level.getEntity(watcherEntityId);
         return watcher != null && roomTile(p.x) == roomTile(watcher.getX()) && roomTile(p.z) == roomTile(watcher.getZ())
                 && Math.abs(p.y - watcher.getY()) < 40.0;
@@ -1496,6 +1689,9 @@ public final class BloodCampFeature {
 
     /** Game tick of Blood Camp's last click (Trigger Bot or Aura) - the attack-speed cap counts from it. */
     private static long lastClickTick = Long.MIN_VALUE / 2;
+    /** {@code PerTickServerClock} at the last click, and whether it was trusted then (the cap on the server's clock). */
+    private static long lastClickClock = Long.MIN_VALUE / 2;
+    private static boolean lastClickClockTrusted;
     /** Testkit: the cap in force last tick, Aura attacks sent, the floor mob the Aura last aimed at (-1 none), and
      *  whether a living mob stood on the spot when the last first click went. */
     private static int lastCooldownTicks;
@@ -1553,6 +1749,25 @@ public final class BloodCampFeature {
         return lastKillTimerOpen;
     }
 
+    /**
+     * A clicked mob that was hit and is still alive gets clicked again (owner's camp 2026-11-02 run 3: "it killed the first
+     * few but not all of them it left one"; his log: player #481791 "hit seen" at 2107, then "Trigger Bot held: already hit"
+     * with him looking at it from 1.4 to 7.5 blocks until it died at 2228, 121 ticks later, killed by something else).
+     * "Hit" used to mean done for good, which is right for a mob one hit kills and leaves a tougher one standing. Now it may
+     * be clicked again once the last hit's hurt flash is over (its hurtTime back to 0, so a new hit can be seen) and the
+     * confirm window since our last click has passed; the click still waits for the weapon's cooldown like any other.
+     */
+    private static boolean hitButAlive(Entity mob, FloorClick fc, long now, int confirm) {
+        return mob.isAlive() && mob instanceof LivingEntity living && living.hurtTime == 0 && now - fc.lastTick > confirm;
+    }
+
+    /** Hit mobs clicked again while still alive (testkit). */
+    private static int triggerFinishClicks;
+
+    public static int triggerFinishClicks() {
+        return triggerFinishClicks;
+    }
+
     /** Marks a clicked mob done once it is hurt (by anyone - the hurt flash after a click) and forgets dead ones. */
     private static void trackFloorClicks(Minecraft client, long now) {
         if (FLOOR_CLICKS.isEmpty()) {
@@ -1590,7 +1805,8 @@ public final class BloodCampFeature {
         Vec3 eye = client.player.getEyePosition();
         for (Entity mob : floorMobs(client, now)) {
             FloorClick fc = FLOOR_CLICKS.get(mob.getId());
-            if (fc != null && (fc.hit || fc.clicks > MAX_RETRIES || now - fc.lastTick <= confirm)) {
+            if (fc != null && fc.hit ? !hitButAlive(mob, fc, now, confirm)
+                    : fc != null && (fc.clicks > MAX_RETRIES || now - fc.lastTick <= confirm)) {
                 continue;
             }
             if (!aimedAtRoughly(client, mob.getBoundingBox())) {
@@ -2263,7 +2479,44 @@ public final class BloodCampFeature {
                 return true;
             }
         }
+        if (isWatcherCompanion(client, e)) {
+            return true;
+        }
         return BloodExclusions.isPrimalFear(client, e);
+    }
+
+    /** The Watchful Eyes' ids sit just after the Watcher's: ids are handed out in order and they spawn with him. */
+    private static final int COMPANION_ID_SPAN = 8;
+    /** ...and they came into his client world with him: their client age is his to within this many ticks. */
+    private static final int COMPANION_AGE_TICKS = 5;
+    private static final Set<Integer> COMPANIONS_LOGGED = new java.util.HashSet<>();
+
+    /**
+     * One of the Watcher's two Watchful Eyes (hypixelskyblock.minecraft.wiki "The Watcher": from Floor IV on "the Watcher
+     * is next to 2 Watchful Eyes", mob id WATCHER_GUARDIAN_1). Owner's F7 camp, 2026-11-02 ("the Watcher's orbiting eye
+     * skull was highlighted as a mob"): the Watcher was zombie #330208 and two more zombies, #330210 and #330212, moved
+     * round the room with him ("aimed at zombie #330210 at 17.2 blocks", then 14.8, then 12.5); at tick 1982 #330210
+     * passed 1.76 blocks from a trip's landing spot 13 ticks before that trip's mob arrived and was "tagged by trip
+     * landing", so Blood Mobs ESP drew it and the trip took it as its mob. The doc-blood-1101 rule (a zombie in one of the
+     * Watcher's skulls) did not catch it, so the Eyes do not wear his skull. Caught two ways: a mob named "Watchful Eye"
+     * (its own name or its name tag, {@link BloodExclusions}), or a non-player mob whose id is within
+     * {@link #COMPANION_ID_SPAN} after the Watcher's and that joined the client world with him.
+     */
+    static boolean isWatcherCompanion(Minecraft client, Entity e) {
+        boolean byName = BloodExclusions.isWatchfulEye(client, e);
+        boolean bySpawn = false;
+        if (!byName && watcherEntityId != null && !(e instanceof Player) && !(e instanceof ArmorStand)) {
+            int d = e.getId() - watcherEntityId;
+            if (d > 0 && d <= COMPANION_ID_SPAN) {
+                Entity w = client.level == null ? null : client.level.getEntity(watcherEntityId);
+                bySpawn = w != null && Math.abs(w.tickCount - e.tickCount) <= COMPANION_AGE_TICKS;
+            }
+        }
+        if ((byName || bySpawn) && COMPANIONS_LOGGED.size() < 64 && COMPANIONS_LOGGED.add(e.getId())) {
+            LOGGER.info("[BloodCamp] Watchful Eye, never a blood mob: {} #{} ({})", e.getType().toShortString(), e.getId(),
+                    byName ? "by name" : "spawned with the Watcher #" + watcherEntityId);
+        }
+        return byName || bySpawn;
     }
 
     /**
@@ -2276,7 +2529,13 @@ public final class BloodCampFeature {
      */
     static boolean isPlayerSummon(Entity entity) {
         return entity instanceof net.minecraft.world.entity.ambient.Bat
-                || entity instanceof net.minecraft.world.entity.animal.sheep.Sheep;
+                || entity instanceof net.minecraft.world.entity.animal.sheep.Sheep
+                // Witherborn's wither (Wither armor: a wither of his own that flies to a nearby enemy and explodes on it).
+                // Owner's F7 camp, 2026-11-02: "wither #334736 in the line of fire" held the click on player #334738 for
+                // 7 ticks (1768-1775), and "Your Witherborn hit 1 enemy" followed at 17:04:55; his morning run tagged
+                // "wither #14739" as a blood mob by the name tag it flew past. No blood mob is a wither, and the boss
+                // withers are past isActive() (never in the boss).
+                || entity instanceof net.minecraft.world.entity.boss.wither.WitherBoss;
     }
 
     /** Real countdown formula, ported directly from Noamm's own real math (see this class's own doc
