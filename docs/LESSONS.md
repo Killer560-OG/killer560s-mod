@@ -134,6 +134,14 @@ project CLAUDE.md. Compiling lessons
 
 ## Experiments and containers
 
+- **In an open Hypixel menu, judge what the player has by that menu's own inventory half, not by
+  `player.getItemBySlot(HEAD)`.** Mask Keybinds skipped a mask that read as "worn" from the helmet slot; killer560
+  (2026-11-02): alternating presses worked with both masks in the inventory but stopped once one was on his head. The
+  inventory half of /stats is refreshed after each swap (that is what lets the both-in-inventory case alternate), the
+  helmet evidently is not while /stats is open, so the mask that had just come off stayed "worn" and every later press
+  found nothing. Fix (maskswap-1102): pick only from the masks in the inventory half, read on every press; only a proc
+  cooldown refuses. Testkit 1889 holds the client helmet stale and must still alternate six presses.
+
 - **Superpairs powerups come in two kinds, told apart by lore.** "Instant powerup!" (the `+479,095 XP` lapis
   block, "Gained +3 Clicks") applies on the spot; only "Powerup for next click!" (Instant Find) matches the next
   click. Arming on both spent a lone click on an Enchanted Book and reserved it, blocking its pair (2026-10-01).
