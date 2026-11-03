@@ -23,10 +23,11 @@ final class SettingTooltipsData {
         d.put("blood rush splits", "Times the blood rush room by room on its own HUD: each room's time from the door into it to the door out, how long its key took, and a slow door click.");
         d.put("rush style", "Compact is one row a room; Detailed lists each room's door down, last mob, pickup, opened and room total.");
         d.put("rush to chat", "When the Blood door opens, sends you the rush's room times as one chat line (only you see it).");
-        d.put("kick rejoin timer", "Kicked out of SkyBlock into a Hypixel lobby, Hypixel makes you wait about a minute to rejoin: a HUD counts it down and a title says when you can. Never sends a command.");
-        d.put("rejoin title", "Shows a 'Rejoin SkyBlock now!' title when the rejoin wait is over.");
-        d.put("rejoin sound", "Plays a ping when the rejoin wait is over.");
-        d.put("rejoin wait", "How long the timer counts after a kick, 5 to 300 seconds. Hypixel's own wait was about 60 s in your logs; a refusal or a stated time from Hypixel updates it.");
+        d.put("kick rejoin timer", "Kicked out of SkyBlock into a Hypixel lobby, Hypixel makes you wait 60 seconds to rejoin: a HUD counts it down and a title says when you can.");
+        d.put("rejoin title", "Shows a 'Rejoin SkyBlock now!' title when the 60 second wait is over.");
+        d.put("rejoin sound", "Plays a ping when the 60 second wait is over.");
+        d.put("kick party message", "Sends your text below to party chat once when a kick starts the timer, only while you are in a party. Off by default.");
+        d.put("kick party message text", "The party line sent on a kick (at most 100 characters; color codes and line breaks are left out). Empty puts the default back.");
         d.put("creation cooldown", "Shows how long until Hypixel lets you create another dungeon (30 s after you enter one).");
         d.put("show on all islands", "Also shows the Creation Cooldown outside dungeons, anywhere on Skyblock.");
         d.put("only in green room", "In a dungeon, shows the Creation Cooldown only while you are in the green Entrance room.");

@@ -7,7 +7,9 @@ import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.util.ServerCommands;
 import com.killer560.hub.util.SkyblockGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -18,7 +20,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import org.slf4j.Logger;
 
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -33,17 +34,20 @@ import java.util.regex.Pattern;
  *       your connection, so you were put in the SkyBlock lobby!" ("An exception occurred ... SkyBlock Lobby!" too).
  *       Measured from those lines to "Welcome to Hypixel SkyBlock!": 61-82 s when he had to wait (refusals came up to
  *       79 s in), so the default wait is 60 s.</li>
- *   <li>Still waiting: "Cannot join SkyBlock for a moment! (Queue join in cooldown)" and "You tried to rejoin too fast,
- *       please try again in a moment!". Neither says how long; one that comes while the timer already reads "now"
- *       (or with no timer) puts {@link #REFUSAL_EXTRA_MS} back on it. A line stating the seconds ("You must wait 20
- *       seconds before joining SkyBlock") sets the timer to that - no such line is in his logs, so it is only matched in
- *       that one shape.</li>
+ *   <li>The wait is always {@link #WAIT_MS} from the kick line (killer560, 2026-11-03: "have it be 60 seconds no
+ *       matter what that's what's hypixels rejoin policy"). Hypixel's refusals while waiting ("Cannot join SkyBlock for
+ *       a moment! (Queue join in cooldown)", "You tried to rejoin too fast, please try again in a moment!") change
+ *       nothing.</li>
  *   <li>Not counted: "You were spawned in Limbo." (an AFK / timeout limbo: his logs show SkyBlock again 10-20 s later
  *       with no refusal) and "There was a problem joining SkyBlock, try again in a moment!" (back 13 s later).</li>
  * </ul>
  * Every line is matched whole on the stripped text, so a player typing one (always behind a "name: " prefix) does
  * nothing. The timer clears once he is back on SkyBlock after having been off it, if he never left SkyBlock within
- * {@link #STAY_MS} (a failed island warp that left him where he was), or after 5 minutes. It never sends a command.
+ * {@link #STAY_MS} (a failed island warp that left him where he was), or after 5 minutes.
+ * <p>Party Message (off by default, his own text): once per kick, a second after the kick line and only once he is
+ * really off SkyBlock, "/pc text" through {@link ServerCommands#toServer} - and only while {@link PartyTracker} knows a
+ * party member (Hypixel answers a kick with "You are not in a party right now." when he is in none, which clears it).
+ * A kick line that restarts a running wait does not send it again. Nothing else is ever sent.
  */
 public final class KickRejoinFeature {
 
@@ -52,12 +56,8 @@ public final class KickRejoinFeature {
     static final Pattern KICKED_JOINING = Pattern.compile("^You were kicked while joining that server!$");
     static final Pattern KICK_TO_LOBBY = Pattern.compile(
             "^An? (?:kick|exception) occurred in your connection, so you were put in the SkyBlock [lL]obby!$");
-    static final Pattern REFUSED = Pattern.compile("^(?:Cannot join SkyBlock for a moment! \\(Queue join in cooldown\\)"
-            + "|You tried to rejoin too fast, please try again in a moment!)$");
-    static final Pattern STATED = Pattern.compile(
-            "^(?:You must wait|Please wait) (\\d{1,3}) seconds? (?:before|to) (?:re)?join(?:ing)? SkyBlock[!.]?$");
-
-    static final long REFUSAL_EXTRA_MS = 15_000L;
+    static final long WAIT_MS = 60_000L;
+    static final long PARTY_DELAY_MS = 1_000L;
     static final long STAY_MS = 20_000L;
     static final long MAX_MS = 5 * 60_000L;
 
@@ -65,11 +65,14 @@ public final class KickRejoinFeature {
     private static long readyAtMs = 0;
     private static boolean seenOff = false;
     private static boolean readyFired = false;
+    private static boolean partyDone = false;
 
     // ---- testkit ----
     private static volatile String lastTitle = null;
     private static volatile String lastHudText = null;
     private static volatile int sounds = 0;
+    private static volatile String lastPartySent = null;
+    private static volatile int partySends = 0;
 
     private KickRejoinFeature() {
     }
@@ -108,28 +111,10 @@ public final class KickRejoinFeature {
     }
 
     private static void onLine(String line, long now) {
-        Matcher m;
         if (KICKED_JOINING.matcher(line).matches() || KICK_TO_LOBBY.matcher(line).matches()) {
             // A second kick line while the timer runs (the kick, then the failed rejoin's own kick) restarts the wait.
-            start(now, now + KickRejoinConfig.getInstance().getCooldownSeconds() * 1000L);
-            LOGGER.info("[KickRejoin] kicked ('{}'): rejoin in {} s", line, KickRejoinConfig.getInstance().getCooldownSeconds());
-        } else if (REFUSED.matcher(line).matches()) {
-            if (kickedAtMs == 0) {
-                start(now, now + REFUSAL_EXTRA_MS);
-            } else if (readyAtMs - now < REFUSAL_EXTRA_MS) {
-                readyAtMs = now + REFUSAL_EXTRA_MS;
-                readyFired = false;
-            }
-            LOGGER.info("[KickRejoin] Hypixel refused the rejoin: {} ms left", readyAtMs - now);
-        } else if ((m = STATED.matcher(line)).matches()) {
-            long ms = Integer.parseInt(m.group(1)) * 1000L;
-            if (kickedAtMs == 0) {
-                start(now, now + ms);
-            } else {
-                readyAtMs = now + ms;
-                readyFired = false;
-            }
-            LOGGER.info("[KickRejoin] Hypixel says wait {} ms", ms);
+            start(now, now + WAIT_MS);
+            LOGGER.info("[KickRejoin] kicked ('{}'): rejoin in {} s", line, WAIT_MS / 1000);
         }
     }
 
@@ -143,6 +128,7 @@ public final class KickRejoinFeature {
     }
 
     private static void clear() {
+        partyDone = false;
         kickedAtMs = 0;
         readyAtMs = 0;
         seenOff = false;
@@ -170,6 +156,10 @@ public final class KickRejoinFeature {
             clear(); // never left SkyBlock: a failed warp that kept him where he was
             return;
         }
+        if (!partyDone && seenOff && now - kickedAtMs >= PARTY_DELAY_MS) {
+            partyDone = true;
+            sendParty(cfg);
+        }
         if (!readyFired && now >= readyAtMs && seenOff) {
             readyFired = true;
             if (cfg.isReadyTitle()) {
@@ -182,6 +172,25 @@ public final class KickRejoinFeature {
                 sounds++;
                 client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 1.5f, 1.0f));
             }
+        }
+    }
+
+    private static void sendParty(KickRejoinConfig cfg) {
+        if (!cfg.isPartyMessage()) {
+            return;
+        }
+        if (PartyTracker.teammates().isEmpty()) {
+            LOGGER.info("[KickRejoin] not in a party: no party message");
+            return;
+        }
+        String text = KickRejoinConfig.chatSafe(cfg.getPartyText());
+        if (text.isEmpty()) {
+            return;
+        }
+        if (ServerCommands.toServer("pc " + text)) {
+            lastPartySent = text;
+            partySends++;
+            LOGGER.info("[KickRejoin] party message sent");
         }
     }
 
@@ -222,6 +231,14 @@ public final class KickRejoinFeature {
         return kickedAtMs == 0 ? 0 : Math.max(0, readyAtMs - System.currentTimeMillis());
     }
 
+    public static String lastPartySent() {
+        return lastPartySent;
+    }
+
+    public static int partySends() {
+        return partySends;
+    }
+
     public static boolean readyFired() {
         return readyFired;
     }
@@ -230,6 +247,7 @@ public final class KickRejoinFeature {
         clear();
         lastTitle = null;
         lastHudText = null;
+        lastPartySent = null;
     }
 
     /** Moves the kick back by {@code ms}, so a case need not wait a minute. */

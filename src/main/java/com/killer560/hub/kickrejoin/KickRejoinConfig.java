@@ -13,13 +13,13 @@ import java.nio.file.Path;
 
 /**
  * Kick Rejoin Timer settings ({@link KickRejoinFeature}): off by default like every new feature; the title and sound
- * when the wait is over are on, and the wait is 60 s (what his own logs show Hypixel enforcing, 2026-11-03).
+ * when the wait is over are on; the party message is off. The wait itself is not a setting: it is always Hypixel's 60 s
+ * (killer560, 2026-11-03: "have it be 60 seconds no matter what that's what's hypixels rejoin policy").
  */
 public final class KickRejoinConfig {
 
-    public static final int COOLDOWN_MIN = 5;
-    public static final int COOLDOWN_MAX = 300;
-    public static final int COOLDOWN_DEFAULT = 60;
+    public static final String DEFAULT_PARTY_TEXT = "Kicked from SkyBlock, back in 1 minute!";
+    public static final int MAX_PARTY_TEXT = 100;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-kickrejoin.json");
@@ -29,7 +29,8 @@ public final class KickRejoinConfig {
     private boolean enabled = false;
     private boolean readyTitle = true;
     private boolean readySound = true;
-    private int cooldownSeconds = COOLDOWN_DEFAULT;
+    private boolean partyMessage = false;
+    private String partyText = DEFAULT_PARTY_TEXT;
 
     private KickRejoinConfig() {
     }
@@ -49,7 +50,8 @@ public final class KickRejoinConfig {
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.readyTitle = ConfigJson.getBool(obj, "readyTitle", true);
                 cfg.readySound = ConfigJson.getBool(obj, "readySound", true);
-                cfg.setCooldownSeconds(obj.has("cooldownSeconds") ? obj.get("cooldownSeconds").getAsInt() : COOLDOWN_DEFAULT);
+                cfg.partyMessage = ConfigJson.getBool(obj, "partyMessage", false);
+                cfg.setPartyText(ConfigJson.getString(obj, "partyText", DEFAULT_PARTY_TEXT));
             } catch (Exception ignored) {
                 // unreadable file - defaults
             }
@@ -64,7 +66,8 @@ public final class KickRejoinConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("readyTitle", readyTitle);
             obj.addProperty("readySound", readySound);
-            obj.addProperty("cooldownSeconds", cooldownSeconds);
+            obj.addProperty("partyMessage", partyMessage);
+            obj.addProperty("partyText", partyText);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -94,11 +97,37 @@ public final class KickRejoinConfig {
         readySound = value;
     }
 
-    public int getCooldownSeconds() {
-        return cooldownSeconds;
+    public boolean isPartyMessage() {
+        return partyMessage;
     }
 
-    public void setCooldownSeconds(int value) {
-        cooldownSeconds = Math.max(COOLDOWN_MIN, Math.min(COOLDOWN_MAX, value));
+    public void setPartyMessage(boolean value) {
+        partyMessage = value;
+    }
+
+    public String getPartyText() {
+        return partyText;
+    }
+
+    /** Kept chat-safe: no section signs, newlines or control characters, trimmed, at most {@link #MAX_PARTY_TEXT}
+     *  characters; blank puts the default back. */
+    public void setPartyText(String value) {
+        String v = chatSafe(value);
+        partyText = v.isEmpty() ? DEFAULT_PARTY_TEXT : v;
+    }
+
+    static String chatSafe(String s) {
+        if (s == null) {
+            return "";
+        }
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c != '§' && c >= ' ' && c != 127) {
+                b.append(c);
+            }
+        }
+        String out = b.toString().trim();
+        return out.length() > MAX_PARTY_TEXT ? out.substring(0, MAX_PARTY_TEXT).trim() : out;
     }
 }

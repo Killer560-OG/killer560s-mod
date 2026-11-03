@@ -1,6 +1,8 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.kickrejoin.KickRejoinConfig;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
@@ -8,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Kick Rejoin Timer ({@link com.killer560.hub.kickrejoin.KickRejoinFeature}): the switch, the title and sound when
- *  the wait is over, and how long the wait is. */
+ *  Hypixel's 60 s rejoin wait is over, and the optional party message with its text. */
 public class KickRejoinTab extends BaseTab {
 
     private static final int ROW = 18;
@@ -37,13 +39,22 @@ public class KickRejoinTab extends BaseTab {
         widgets.add(onOffButton("Rejoin Sound", cfg::isReadySound, cfg::setReadySound, cfg::save,
                 null, colBX, y, colW, ROW));
         y += 20;
-        widgets.add(steppedSlider(contentX, y, contentWidth, ROW, waitText(cfg),
-                KickRejoinConfig.COOLDOWN_MIN, KickRejoinConfig.COOLDOWN_MAX, cfg.getCooldownSeconds(), 1,
-                v -> cfg.setCooldownSeconds((int) Math.round(v)), () -> waitText(cfg), cfg::save));
+        widgets.add(onOffButton("Kick Party Message", cfg::isPartyMessage, cfg::setPartyMessage, cfg::save,
+                requestRebuild, contentX, y, contentWidth, ROW));
+        y += 20;
+        if (cfg.isPartyMessage()) {
+            CommitEditBox text = new CommitEditBox(Minecraft.getInstance().font, contentX, y, contentWidth, ROW,
+                    Component.literal("Kick Party Message Text"));
+            text.setMaxLength(KickRejoinConfig.MAX_PARTY_TEXT);
+            text.setHint(Component.literal("\u00a78" + KickRejoinConfig.DEFAULT_PARTY_TEXT));
+            text.setValue(cfg.getPartyText());
+            text.setResponder(value -> {
+                cfg.setPartyText(value);
+                cfg.save();
+            });
+            widgets.add(text);
+            CommitEditBox.withSet(widgets, text);
+        }
         return widgets;
-    }
-
-    private static Component waitText(KickRejoinConfig cfg) {
-        return Component.literal("Rejoin Wait: " + cfg.getCooldownSeconds() + "s");
     }
 }
