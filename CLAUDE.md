@@ -669,3 +669,5 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - A SkyBlock menu button that "looks different" after a version move is usually vanilla, not Hypixel: 26.3 redrew only
   `map.png`/`filled_map.png` among item textures (Bazaar Create Sell Offer became a folded map); Hypixel's pack has no menu
   models. Pack Disabler's table refresh (NEU snapshots, coverage report, skin check) is in docs/LESSONS.md, Items (2026-11-03).
+
+- Inventory Sorter locks inventory index 8 (bottom-right hotbar: Skyblock Menu, map or arrows; killer560, 2026-11-03) via `InventoryLayout.LOCKED_SLOT`: `isFree(8)` is always true and a layout never stores it. A testkit sort/fetch case must put an item in slot 8 first, because a vanilla shift-click from a storage page lands in an EMPTY slot 8 first and the sorter now leaves it there. A storage sort within 4 s of a world change waits (`InventorySorterExecutor.LOBBY_WAIT_MS`, his measurement; no Hypixel message for it was found in his logs).

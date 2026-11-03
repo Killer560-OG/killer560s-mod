@@ -966,6 +966,14 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             lines.add(Component.literal("§7Left out of this layout: the sort never takes"));
             lines.add(Component.literal("§7or moves what is in this slot. Right-click to undo."));
             graphics.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
+        } else if (dumpButton != null && dumpButton.active && mouseX >= dumpButton.getX() && mouseX < dumpButton.getX() + dumpButton.getWidth()
+                && mouseY >= dumpButton.getY() && mouseY < dumpButton.getY() + dumpButton.getHeight()) {
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.literal("Put Others In"));
+            lines.add(Component.literal("§7Where the items that are not in the layout go when it is applied."));
+            lines.add(Component.literal("§7Left click: pick an Ender Chest page or backpack. Right click: None."));
+            lines.add(Component.literal("§7None: they are left in your inventory, in the slots the layout does not use."));
+            graphics.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
         } else if (!hover.isEmpty()) {
             graphics.setTooltipForNextFrame(this.font, Screen.getTooltipFromItem(this.minecraft, hover),
                     Optional.empty(), mouseX, mouseY);

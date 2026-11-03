@@ -70,7 +70,27 @@ public final class InventorySorterExecutor {
     /** Ticks to wait for the server to have him standing still before giving up. */
     private static final int STILL_TIMEOUT_TICKS = 40;
 
-    private enum State { IDLE, STORAGE, WAIT_SCREEN, SORTING }
+    private enum State { IDLE, WAITING_LOBBY, STORAGE, WAIT_SCREEN, SORTING }
+
+    /** Hypixel will not open a backpack, the Ender Chest or the storage menu for about this long after a warp or server
+     *  switch (killer560, 2026-11-03: "it needs to wait to open backpacks and stuff for 4 seconds after a warp"; his own
+     *  measurement - no Hypixel message for it exists in the mod or his logs). */
+    public static final long LOBBY_WAIT_MS = 4000;
+    private static long lastWorldChange;
+
+    /** Records a world change (warp, server switch, join) now. Public for tests. */
+    public static void noteWorldChange() {
+        lastWorldChange = System.currentTimeMillis();
+    }
+
+    /** True while an apply is held back waiting for {@link #LOBBY_WAIT_MS} after a world change. For tests. */
+    public static boolean isWaitingForLobby() {
+        return state == State.WAITING_LOBBY;
+    }
+
+    private static long lobbyLeftMs() {
+        return lastWorldChange + LOBBY_WAIT_MS - System.currentTimeMillis();
+    }
 
     private static State state = State.IDLE;
     private static InventoryLayout targetLayout;
@@ -114,7 +134,13 @@ public final class InventorySorterExecutor {
                 why -> stop("you pressed " + why));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InventorySorterExecutor.keys", InventorySorterExecutor::pollKeys));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InvSortPagePick.tick", InvSortPagePick::tick));
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register(
+                (handler, sender, client) -> noteWorldChange());
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
+            noteWorldChange();
+            if (state == State.WAITING_LOBBY) {
+                return; // leaving again just restarts the wait (lobbyLeftMs counts from this change)
+            }
             if (isRunning()) {
                 stop("world changed");
             }
@@ -136,6 +162,21 @@ public final class InventorySorterExecutor {
             return false;
         }
         targetLayout = layout;
+        if (layout.usesStorage() && lobbyLeftMs() > 0) {
+            // A storage sort right after a warp: Hypixel will not open the pages yet. Wait it out, then go (once).
+            setState(State.WAITING_LOBBY);
+            ModChat.send(InventorySorterCommands.FEATURE, ModChat.text("You just changed worlds: waiting "
+                    + String.format(java.util.Locale.ROOT, "%.1f", lobbyLeftMs() / 1000.0)
+                    + "s for Hypixel to allow storage, then sorting. Escape cancels."));
+            return true;
+        }
+        beginRun(client);
+        return true;
+    }
+
+    /** Sets up and starts the run for {@link #targetLayout}. */
+    private static void beginRun(Minecraft client) {
+        InventoryLayout layout = targetLayout;
         clicksSent = 0;
         hotbarSwaps = 0;
         pickupClicks = 0;
@@ -156,7 +197,6 @@ public final class InventorySorterExecutor {
         } else {
             setState(State.WAIT_SCREEN);
         }
-        return true;
     }
 
     /** Stops a running session from outside (a command). */
@@ -257,6 +297,19 @@ public final class InventorySorterExecutor {
 
     private static void tickUnsafe(Minecraft client) {
         if (state == State.IDLE) {
+            return;
+        }
+        if (state == State.WAITING_LOBBY) {
+            if (client.player == null) {
+                stop("player gone");
+            } else if (McCompat.screen(client) != null) {
+                stop("you opened a menu while it waited for the lobby");
+            } else if (lobbyLeftMs() <= 0) {
+                beginRun(client);
+            } else {
+                com.killer560.hub.notify.ModOverlayMessage.show("Waiting for the lobby: sorting in "
+                        + String.format(java.util.Locale.ROOT, "%.1f", lobbyLeftMs() / 1000.0) + "s", 300);
+            }
             return;
         }
         blockMovementKeys(client);
@@ -536,6 +589,23 @@ public final class InventorySorterExecutor {
                 ModChat.text(" (" + clicksSent + " click" + (clicksSent == 1 ? "" : "s") + storageNote + ")"),
                 unresolved.isEmpty() ? ModChat.text("") : ModChat.dim(" - " + unresolved.size()
                         + " slot(s) of the layout could not be filled (item not in your inventory, or locked in place)."));
+        if (targetLayout.dumpPage() == null) {
+            // Put Others In: None leaves them where they are, by design - say so (killer560, 2026-11-03: "it kept a bunch of
+            // items in my inventory that arent a part of it").
+            Inventory inv = client.player.getInventory();
+            int left = 0;
+            for (int i = 0; i < 36; i++) {
+                ItemStack st = inv.getItem(i);
+                if (!st.isEmpty() && !targetLayout.isFree(i) && targetLayout.wantAt(i) == null
+                        && !InvSortStorage.SKYBLOCK_MENU.equalsIgnoreCase(ItemIdentity.of(st))) {
+                    left++;
+                }
+            }
+            if (left > 0) {
+                ModChat.send(InventorySorterCommands.FEATURE, ModChat.dim(left + " item" + (left == 1 ? " was" : "s were")
+                        + " not in the layout and left in your inventory (Put Others In: None)."));
+            }
+        }
         if (storage != null && !storage.notFound().isEmpty()) {
             ModChat.send(InventorySorterCommands.FEATURE, ModChat.dim("Not in any storage page the Storage Overlay has seen: "
                     + storage.notFound().keySet()));
