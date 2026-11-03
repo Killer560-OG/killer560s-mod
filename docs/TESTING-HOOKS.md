@@ -157,6 +157,13 @@ self ns, bytes, max ns), `reset()`, `calibrate(n)` (the probe's own per-call cos
 the probe mixins are not applied at all (`PerfProbeMixinPlugin`), so the release jar and normal runs pay nothing.
 The testkit sets it for any `-Pscenario` naming `95-perf` (testkit docs/fps-bench.md).
 
+## Held break resume (`miningqol/HeldBreakResume`, `miningqol/AttackHoldProbe`)
+
+Resume Held Break After Menus needs the left button down both in `util.MouseButtons` (the button events the game saw) and in
+the platform's own state (SDL / GLFW), which a test cannot press. `HeldBreakResume.trustTrackedButtonForTest(true)` makes the
+tracked events alone count; `resumes()` counts resumes. `AttackHoldProbe.dumps()`, `sentForTest()`, `heardForTest()` read the
+container dump and its rings; `resetDumpGapForTest()` lets the next container dump at once (testkit 1103-mining-hold-*).
+
 ## Feature bits (`util/FeatureBits`)
 
 - `FeatureBits.snapshot()` returns `name=true|false` per gated listener after a refresh; `count()` how many are
