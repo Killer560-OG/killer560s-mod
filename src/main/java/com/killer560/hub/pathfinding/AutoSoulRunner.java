@@ -465,7 +465,12 @@ public final class AutoSoulRunner {
             // etherwarps on the spot once a soul in reach no longer skipped this check).
             endEscape();
         }
-        if (distance <= COLLECT_DISTANCE && !AutoWalker.needsEscape()) {
+        boolean standInReach = false;
+        if (distance > COLLECT_DISTANCE && distance < 9.0 && player.onGround()) {
+            ArmorStand s = findSoulEntity(Minecraft.getInstance(), soulCentre);
+            standInReach = s != null && inReach(player, s); // on the ledge above its node: click from here
+        }
+        if ((distance <= COLLECT_DISTANCE || standInReach) && !AutoWalker.needsEscape()) {
             // At the node. The stand itself decides: in reach and in sight -> click, else walk the last blocks to it.
             ArmorStand stand = findSoulEntity(Minecraft.getInstance(), soulCentre);
             AutoWalker.setWalking(false);
@@ -744,10 +749,16 @@ public final class AutoSoulRunner {
     private static void tickCollect(Minecraft client, LocalPlayer player, Vec3 soulCentre, double distance) {
         PathfindingConfig cfg = PathfindingConfig.getInstance();
         AutoWalker.setWalking(false);
+        // Far from the soul's graph node is not "left the soul" when the stand itself is in reach: a soul up on a ledge
+        // 5 blocks over its node (testkit 1103-fairy-boost6-pillar) was reached, then this sent him walking back to the
+        // node and off the ledge, four times.
         if (distance > COLLECT_DISTANCE + 2.0) {
-            releaseClickView(player);
-            state = State.IDLE;
-            return;
+            ArmorStand near = findSoulEntity(client, soulCentre);
+            if (near == null || !inReach(player, near)) {
+                releaseClickView(player);
+                state = State.IDLE;
+                return;
+            }
         }
         if (!cfg.isAutoCollect()) {
             return; // he clicks the soul himself; the chat line moves the queue on
