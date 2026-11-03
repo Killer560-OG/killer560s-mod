@@ -2,7 +2,7 @@ package com.killer560.hub.invsort;
 
 import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.compat.McCompat;
-import com.killer560.hub.itemprotect.ItemProtect;
+
 import com.killer560.hub.storageoverlay.StorageOverlayCache;
 import com.killer560.hub.storageoverlay.StorageOverlayFeature;
 import com.killer560.hub.util.ActionGate;
@@ -33,7 +33,7 @@ import java.util.Map;
  * Runs before the sort, one storage page at a time, the same way {@code storagesearch/StorageScanAll} visits pages: send
  * {@code /enderchest N} or {@code /backpack N}, wait for that page's own title, let its contents arrive, shift-click,
  * close. First the dump page (if the layout has one): every inventory stack the layout does not use is shift-clicked into
- * it (never one Item Protect protects or Lock In Place holds, never the SkyBlock Menu). Then, for every item the layout
+ * it (never the SkyBlock Menu; Item Protect does not keep an item out of storage). Then, for every item the layout
  * wants that is not in the inventory, the pages the Storage Overlay has seen it in. The cache only chooses WHICH page to
  * open: what is clicked is read from the live page, so a stale cache costs a visit, never a wrong click. Slots 0-8 of a
  * page are Hypixel's chrome and are never clicked.
@@ -263,8 +263,9 @@ final class InvSortStorage {
         for (int i = 0; i < 36; i++) {
             ItemStack stack = inv.getItem(i);
             String id = ItemIdentity.of(stack);
-            if (kept[i] || layout.isFree(i) || stack.isEmpty() || id == null || SKYBLOCK_MENU.equalsIgnoreCase(id)
-                    || ItemProtect.isProtectedItem(stack) || InventorySorterExecutor.lockedInPlace(stack)) {
+            // Item Protect / Lock In Place do not keep an item out of storage here (killer560, 2026-11-03: "The item lock
+            // shouldnt apply to this"): storage is not losing it, and the sorter's own clicks never go through slotClicked.
+            if (kept[i] || layout.isFree(i) || stack.isEmpty() || id == null || SKYBLOCK_MENU.equalsIgnoreCase(id)) {
                 continue;
             }
             out.add(i);

@@ -606,7 +606,7 @@ public final class InventorySorterExecutor {
                 ModChat.send(InventorySorterCommands.FEATURE, ModChat.dim(left + " item" + (left == 1 ? " was" : "s were")
                         + " not in the layout and left in your inventory ("
                         + (targetLayout.dumpPage() == null ? "Put Others In: None"
-                        : "Item Protect or Lock In Place keeps them out of storage") + ")."));
+                        : "they could not be put into " + targetLayout.dumpPage()) + ")."));
             }
         }
         if (storage != null && !storage.notFound().isEmpty()) {
