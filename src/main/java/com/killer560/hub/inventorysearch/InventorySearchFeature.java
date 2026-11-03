@@ -37,7 +37,8 @@ import java.util.Locale;
  * <p>
  * The bar always sits at the bottom middle of the screen, also when the Item Browser is on (killer560,
  * 2026-10-11: "Do not move my search bar above the menu the search bar should stay in the bottom middle of my
- * screen like normal") - the Item Browser filters by this same bar and has no box of its own.
+ * screen like normal") - the Item Browser filters by this same bar and has no box of its own. Since 2026-11-02 it moves
+ * off anything it would cover (slots, the Storage Overlay's Inventory panel, the hotbar): see {@link #placeBar}.
  * <p>
  * killer560 (2026-09-21): "make it so I can click into that bar as well and adjust the scale of it.
  * Also make ctrl backspace work as normal ctrl backspace does. Also you need to adjust how it works in
@@ -337,6 +338,72 @@ public final class InventorySearchFeature {
     private static String barFor = null;
     private static String barText = null;
 
+    /** How the bar's spot was picked last frame ("bottom", "storage-column", "free", "free-over-hud", "blocked"). */
+    private static String lastPlacement = null;
+
+    /** For the testkit: the bar's last drawn {x, y, w, h} in GUI units, or null when it is not drawn. */
+    public static int[] barBounds() {
+        return lastBoxBounds == null ? null : lastBoxBounds.clone();
+    }
+
+    /** For the testkit: how the bar's spot was picked last frame. */
+    public static String barPlacement() {
+        return lastPlacement;
+    }
+
+    /**
+     * Where the bar goes on {@code screen} (killer560, 2026-11-02, two screenshots: on the Storage Overlay it sat on the
+     * Inventory panel's third row, slots hidden and unclickable under it; on the plain inventory it sat over the hotbar,
+     * XP and health bars). Still bottom middle when that spot is clear (his 2026-10-11 rule); otherwise, on the Storage
+     * Overlay, the empty column under its Search / Scan All buttons; otherwise the clear spot nearest bottom middle.
+     * Kept clear of: the container's panel and every slot (unless a reskin hides them all), the screen's widgets, every
+     * panel the mod draws over the screen (ContainerCover rects: Item Browser, Croesus profit, HUD elements...), the
+     * Storage Overlay's grid, Inventory panel and buttons, and - given up only in a window too small for it - the hotbar
+     * and status bars at the bottom middle.
+     */
+    private static BarPlacement.Result placeBar(AbstractContainerScreen<?> screen, int w, int h) {
+        int sw = screen.width;
+        int sh = screen.height;
+        int defaultX = (sw - w) / 2;
+        int defaultY = sh - 60 - BarPlacement.GAP - h; // just above the hotbar zone below
+        java.util.List<int[]> hard = new java.util.ArrayList<>(StorageOverlayFeature.drawnRects(screen));
+        hard.addAll(com.killer560.hub.containercover.ContainerCover.rectsOn(screen, "inventorysearch.bar"));
+        if (!com.killer560.hub.containercover.ContainerCover.coversAll(screen)) {
+            var geo = (com.killer560.hub.inventorytheme.mixin.InventoryThemeGeometryAccessor) screen;
+            int left = geo.killer560smod$getLeftPos();
+            int top = geo.killer560smod$getTopPos();
+            int right = left + geo.killer560smod$getImageWidth();
+            int bottom = top + geo.killer560smod$getImageHeight();
+            hard.add(new int[]{left, top, right, bottom});
+            for (Slot slot : screen.getMenu().slots) {
+                int sx = left + slot.x - 1;
+                int sy = top + slot.y - 1;
+                if (sx < left || sy < top || sx + 18 > right || sy + 18 > bottom) {
+                    hard.add(new int[]{sx, sy, sx + 18, sy + 18}); // a slot drawn outside the panel
+                }
+            }
+        }
+        for (var child : screen.children()) {
+            if (child instanceof net.minecraft.client.gui.components.AbstractWidget wd && wd.visible) {
+                hard.add(new int[]{wd.getX(), wd.getY(), wd.getX() + wd.getWidth(), wd.getY() + wd.getHeight()});
+            }
+        }
+        // The in-game hotbar (with the off-hand slot either side), XP bar and two rows of hearts/armor/food behind the screen.
+        java.util.List<int[]> soft = java.util.List.of(new int[]{sw / 2 - 121, sh - 60, sw / 2 + 121, sh});
+        java.util.List<int[]> preferred = new java.util.ArrayList<>();
+        java.util.List<String> kinds = new java.util.ArrayList<>();
+        preferred.add(new int[]{defaultX, defaultY});
+        kinds.add("bottom");
+        int[] column = StorageOverlayFeature.sideColumn(screen);
+        if (column != null) {
+            preferred.add(new int[]{column[0], column[1]});
+            kinds.add("storage-column");
+            preferred.add(new int[]{column[2] - BarPlacement.GAP - w, column[1]});
+            kinds.add("storage-column");
+        }
+        return BarPlacement.place(sw, sh, w, h, preferred, kinds.toArray(new String[0]), defaultX, defaultY, hard, soft);
+    }
+
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
         if (com.killer560.hub.bazaar.BazaarReskin.isHiding(screen)
                 || com.killer560.hub.auction.ah.AhReskin.isHiding(screen)) {
@@ -354,9 +421,38 @@ public final class InventorySearchFeature {
         String display = barText();
         int boxWidth = Math.max(140, Minecraft.getInstance().font.width(display) + 8);
         int boxHeight = 16;
-        int screenX = (screen.width - Math.round(boxWidth * scale)) / 2;
-        int screenY = screen.height - Math.round(boxHeight * scale) - 30;
-        lastBoxBounds = new int[]{screenX, screenY, Math.round(boxWidth * scale), Math.round(boxHeight * scale)};
+        int drawnH = Math.round(boxHeight * scale);
+        int drawnW = Math.round(boxWidth * scale);
+        BarPlacement.Result spot = placeBar(screen, drawnW, drawnH);
+        if (!spot.clearOfAll()) {
+            // No clear spot at full width (a small window: 854x480 GUI 2 leaves 130 units beside the Storage Overlay's
+            // Inventory panel or a double chest). A narrower bar that is clear beats a full one over slots or the hotbar;
+            // its text is cut to fit (the end of what is typed stays visible).
+            for (int narrow : new int[]{100, 70}) {
+                if (narrow >= boxWidth) {
+                    continue;
+                }
+                BarPlacement.Result tryNarrow = placeBar(screen, Math.round(narrow * scale), drawnH);
+                if (tryNarrow.clearOfAll() || (spot.blocked() && !tryNarrow.blocked())) {
+                    spot = tryNarrow;
+                    boxWidth = narrow;
+                    drawnW = Math.round(narrow * scale);
+                    if (tryNarrow.clearOfAll()) {
+                        break;
+                    }
+                }
+            }
+            var font = Minecraft.getInstance().font;
+            if (QUERY.isEmpty()) {
+                display = font.width("Ctrl+F to search...") <= boxWidth - 8 ? "§8Ctrl+F to search..." : "§8Search...";
+            } else if (font.width(display) > boxWidth - 8) {
+                display = font.plainSubstrByWidth(display, boxWidth - 8, true);
+            }
+        }
+        int screenX = spot.x();
+        int screenY = spot.y();
+        lastPlacement = spot.kind();
+        lastBoxBounds = new int[]{screenX, screenY, drawnW, drawnH};
         com.killer560.hub.containercover.ContainerCover.coverRect(screen, "inventorysearch.bar", screenX, screenY,
                 screenX + lastBoxBounds[2], screenY + lastBoxBounds[3]);
 
@@ -371,9 +467,15 @@ public final class InventorySearchFeature {
                 int selectedWidth = Minecraft.getInstance().font.width(QUERY.toString());
                 graphics.fill(3, 3, 5 + selectedWidth, 13, 0xFF3366CC);
             }
-            // the bar's text keeps its visual order between frames (the same sequence vanilla computes, hud/HudTextCache)
-            graphics.text(Minecraft.getInstance().font, com.killer560.hub.hud.HudTextCache.visualOrder(display), 4, 4,
-                    0xFFFFFFFF, false);
+            // the bar's text keeps its visual order between frames (the same sequence vanilla computes, hud/HudTextCache);
+            // clipped to the box, which a cut-down bar's text could otherwise run past
+            graphics.enableScissor(0, 0, boxWidth, boxHeight); // local units: enableScissor applies the pose (javap)
+            try {
+                graphics.text(Minecraft.getInstance().font, com.killer560.hub.hud.HudTextCache.visualOrder(display), 4, 4,
+                        0xFFFFFFFF, false);
+            } finally {
+                graphics.disableScissor();
+            }
         } finally {
             graphics.pose().popMatrix();
         }
