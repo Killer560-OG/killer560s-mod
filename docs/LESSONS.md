@@ -433,3 +433,11 @@ project CLAUDE.md. Compiling lessons
   the step from the tab once 20 settled blocks are in. Collectors (gemstones, Glacite, Tungsten, Umber) count drops, not
   blocks, and stay on the tab. A counted break is the crosshair block under a held attack that the SERVER changes to another
   block; a hook test drives it with the live tick held (holdLiveForTest), since the live tick prunes and resyncs every tick.
+- A feature that finds mobs by their name-tag stand loses them at range: Hypixel stops sending a stand nearer than the
+  mob itself, so "Commission Mobs feels like it has a very small range" (killer560, 2026-11-03) was the 64-block cap plus
+  that. Remember a mob by entity id once identified and keep it while it is loaded, alive and still wanted, as Starred
+  Mob Hitboxes does (mithril-mobs-1103, 1103-mining-mob-range). Do not add entity-type-only rules for Skyblock mobs
+  unless the type is unique on the island: goblins and Treasure Hoarders are player-model NPCs like every NPC, and
+  SkyHanni's MobFilter also names these mobs only through their stands.
+- The vanilla glow outline is shared: the cheatutils WitherGlow mixins (shouldEntityAppearGlowing, getTeamColor) serve
+  Dungeon ESP and Commission Mobs' Glow style; a new glow user adds a check there instead of a second pair of mixins.

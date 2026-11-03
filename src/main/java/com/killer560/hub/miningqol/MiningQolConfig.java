@@ -48,6 +48,34 @@ public final class MiningQolConfig {
         }
     }
 
+    /**
+     * How Commission Mobs draws a mob (killer560, 2026-11-03: "let me choose outline, fill, fill+outline or glow"). Drawn
+     * with the shared paths: {@code WorldRenderUtils.renderOutlineBoxes}/{@code renderFilledBoxes} for the boxes, and the
+     * vanilla glow outline through the cheatutils WitherGlow mixins Dungeon ESP's Glow style uses.
+     */
+    public enum CommissionMobStyle {
+        OUTLINE("Outline", true, false, false),
+        FILL("Fill", false, true, false),
+        FILL_OUTLINE("Fill + Outline", true, true, false),
+        GLOW("Glow", false, false, true);
+
+        private final String label;
+        public final boolean outline;
+        public final boolean fill;
+        public final boolean glow;
+
+        CommissionMobStyle(String label, boolean outline, boolean fill, boolean glow) {
+            this.label = label;
+            this.outline = outline;
+            this.fill = fill;
+            this.glow = glow;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
     private static MiningQolConfig instance;
 
     // Commission HUD
@@ -60,6 +88,7 @@ public final class MiningQolConfig {
     private boolean commissionMobs = false;
     private boolean commissionMobsEsp = false;
     private int commissionMobColor = DEFAULT_COMMISSION_MOB_COLOR;
+    private CommissionMobStyle commissionMobStyle = CommissionMobStyle.OUTLINE;
     /** Completed Commissions in the Commissions menu (killer560, 2026-11-03: "have it highlight completed commissions"). */
     private boolean commissionMenuHighlight = true;
     // Pickobulus Estimate
@@ -109,6 +138,8 @@ public final class MiningQolConfig {
                 cfg.commissionMobs = ConfigJson.getBool(o, "commissionMobs", cfg.commissionMobs);
                 cfg.commissionMobsEsp = ConfigJson.getBool(o, "commissionMobsEsp", cfg.commissionMobsEsp);
                 cfg.commissionMobColor = intOr(o, "commissionMobColor", cfg.commissionMobColor);
+                cfg.commissionMobStyle = ConfigJson.getEnum(o, "commissionMobStyle", CommissionMobStyle.class,
+                        CommissionMobStyle.OUTLINE);
                 cfg.commissionMenuHighlight = ConfigJson.getBool(o, "commissionMenuHighlight", cfg.commissionMenuHighlight);
                 cfg.pickobulus = ConfigJson.getBool(o, "pickobulus", cfg.pickobulus);
                 cfg.pickobulusColor = intOr(o, "pickobulusColor", cfg.pickobulusColor);
@@ -159,6 +190,7 @@ public final class MiningQolConfig {
             o.addProperty("commissionMobs", commissionMobs);
             o.addProperty("commissionMobsEsp", commissionMobsEsp);
             o.addProperty("commissionMobColor", commissionMobColor);
+            o.addProperty("commissionMobStyle", commissionMobStyle.name());
             o.addProperty("commissionMenuHighlight", commissionMenuHighlight);
             o.addProperty("pickobulus", pickobulus);
             o.addProperty("pickobulusColor", pickobulusColor);
@@ -360,6 +392,20 @@ public final class MiningQolConfig {
 
     public void setTitanium(boolean v) {
         titanium = v;
+    }
+
+    public CommissionMobStyle getCommissionMobStyle() {
+        return commissionMobStyle;
+    }
+
+    public void setCommissionMobStyle(CommissionMobStyle v) {
+        commissionMobStyle = v == null ? CommissionMobStyle.OUTLINE : v;
+    }
+
+    /** Left click forward, right click back, wrapping. */
+    public void stepCommissionMobStyle(int dir) {
+        CommissionMobStyle[] all = CommissionMobStyle.values();
+        commissionMobStyle = all[Math.floorMod(commissionMobStyle.ordinal() + dir, all.length)];
     }
 
     public TitaniumMode getTitaniumMode() {

@@ -82,8 +82,9 @@ final class SettingTooltipsData {
         d.put("commission hud/commission waypoints", "Labels in the world at the area or gemstone spots each open commission needs.");
         d.put("commission hud/emissary waypoints", "When a commission is DONE, labels every Emissary so you can turn it in at the nearest.");
         d.put("commission hud/completed commissions", "In the King's or an Emissary's Commissions menu, a green background on every commission that is finished and ready to claim.");
-        d.put("commission hud/commission mobs", "Boxes the mobs that count for your open commissions (Goblin Slayer: goblins, Glacite Walker Slayer: Glacite Walkers, Star Sentry Puncher...), only while you can see them.");
+        d.put("commission hud/commission mobs", "Boxes the mobs that count for your open commissions (Goblin Slayer: goblins, Glacite Walker Slayer: Glacite Walkers, Star Sentry Puncher...), only while you can see them. No range: a mob once recognized stays highlighted while it is loaded, even after its name tag stops arriving.");
         d.put("commission hud/commission mob color", "The color of the Commission Mobs boxes.");
+        d.put("commission hud/commission mob style", "How commission mobs are drawn: Outline, Fill, Fill + Outline or Glow. Left click forward, right click back.");
         d.put("commission hud/commission mobs through walls", "Cheat build: boxes commission mobs through blocks too.");
         d.put("pickobulus estimate", "While you hold a Pickobulus tool and it is ready, outlines every block it would break where you aim.");
         d.put("pickobulus estimate/outline color", "The color of the outlines.");
