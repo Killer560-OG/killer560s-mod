@@ -54,6 +54,10 @@ import org.slf4j.Logger;
  * keep-alives, pongs, tick ends and chunk acks are only counted) and the last {@link #LINES} chat and title lines, and
  * dumps both with the container's title and size whenever a container opens while left click is held (one dump each 5 s
  * at most). Recording is a field write per packet on a mining island; nothing is changed or sent.
+ *
+ * <p>His next log showed every logged drop was a menu he opened himself (Emissary clicks, HOTM), so the menu case is not
+ * his bug. The STUCK DIG line covers the case he means, "when I am actually mining": left click held, no screen, crosshair
+ * on the same unchanged block for {@link #STALL_MS}; it dumps the block, held item and the same two rings.
  */
 public final class AttackHoldProbe {
 
@@ -303,6 +307,100 @@ public final class AttackHoldProbe {
             }
         }
         wasDown = down;
+        stallTick(client, down);
+    }
+
+    // ---- stall while mining (owner 2026-11-03: "it should be when i am actually mining")
+    static final long STALL_MS = 5000L;
+    private static net.minecraft.core.BlockPos stallPos = null;
+    private static net.minecraft.world.level.block.state.BlockState stallState = null;
+    private static long stallSinceMs = 0L;
+    private static boolean stallLogged = false;
+    private static int stallLines = 0;
+    private static int stageCount = 0;
+    private static int stageLast = -2;
+    private static int stageMax = -2;
+    private static long stageLastMs = 0L;
+
+    /** The server's crack stage for a block (ObsidianDigPacketMixin, render thread); kept for the stuck block only. */
+    public static void onServerStage(net.minecraft.core.BlockPos pos, int progress) {
+        if (pos == null || stallPos == null || !pos.equals(stallPos)) {
+            return;
+        }
+        stageCount++;
+        stageLast = progress;
+        stageMax = Math.max(stageMax, progress);
+        stageLastMs = System.currentTimeMillis();
+    }
+
+    /**
+     * Left click held, no screen, window focused, crosshair on the same block whose state has not changed for
+     * {@link #STALL_MS}: the dig is stuck. Logs one dump per stuck block (and at most one per 5 s overall).
+     */
+    private static void stallTick(Minecraft client, boolean down) {
+        net.minecraft.core.BlockPos pos = null;
+        net.minecraft.world.level.block.state.BlockState state = null;
+        if (down && watching(client) && McCompat.screen(client) == null && client.isWindowActive()
+                && client.hitResult instanceof net.minecraft.world.phys.BlockHitResult hit
+                && client.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+            pos = hit.getBlockPos();
+            state = client.level.getBlockState(pos);
+            if (state.isAir()) {
+                pos = null;
+            }
+        }
+        long now = System.currentTimeMillis();
+        if (pos == null || !pos.equals(stallPos) || state != stallState) {
+            stallPos = pos;
+            stallState = state;
+            stallSinceMs = now;
+            stallLogged = false;
+            stageCount = 0;
+            stageLast = -2;
+            stageMax = -2;
+            return;
+        }
+        if (stallLogged || now - stallSinceMs < STALL_MS || now - lastDumpMs < DUMP_GAP_MS) {
+            return;
+        }
+        stallLogged = true;
+        stallLines++;
+        lastDumpMs = now;
+        String p = pos.toShortString();
+        int digs = 0;
+        StringBuilder b = new StringBuilder();
+        b.append("[AttackHold] STUCK DIG: left click held ").append(now - stallSinceMs).append(" ms on ")
+                .append(state.getBlock().getName().getString()).append(" at ").append(p).append(" holding \"")
+                .append(clip(String.valueOf(net.minecraft.ChatFormatting.stripFormatting(
+                        client.player.getMainHandItem().getHoverName().getString())), 40))
+                .append("\" slot ").append(client.player.getInventory().getSelectedSlot())
+                .append(", no screen. Sent before it (oldest first, ").append(quietPackets)
+                .append(" moves/keep-alives not listed):");
+        synchronized (SENT) {
+            for (int i = 0; i < sentCount; i++) {
+                int k = (sentHead - sentCount + i + RING) % RING;
+                if (SENT[k] != null && SENT[k].contains(p)) {
+                    digs++;
+                }
+                b.append("\n    -").append(now - SENT_MS[k]).append(" ms  ").append(SENT[k]);
+            }
+        }
+        b.append("\n  Dig packets naming this block in that list: ").append(digs);
+        b.append("\n  Server crack stages for this block: ").append(stageCount == 0 ? "none heard"
+                : stageCount + " update(s), highest " + stageMax + ", last " + stageLast + " ("
+                        + (now - stageLastMs) + " ms ago)");
+        b.append("\n  Heard before it:");
+        synchronized (HEARD) {
+            for (int i = 0; i < heardCount; i++) {
+                int k = (heardHead - heardCount + i + LINES) % LINES;
+                b.append("\n    -").append(now - HEARD_MS[k]).append(" ms  ").append(HEARD[k]);
+            }
+        }
+        LOGGER.info(b.toString());
+    }
+
+    public static int stallLines() {
+        return stallLines;
     }
 
     /** One line of each kind a second at most. */

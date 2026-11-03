@@ -24,6 +24,7 @@ public abstract class ObsidianDigPacketMixin {
     private void killer560smod$obsidianStage(ClientboundBlockDestructionPacket packet, CallbackInfo ci) {
         try {
             com.killer560.hub.dungeonbreaker.ObsidianDig.onServerStage(packet.getPos(), packet.getProgress());
+            com.killer560.hub.miningqol.AttackHoldProbe.onServerStage(packet.getPos(), packet.getProgress());
         } catch (RuntimeException e) {
             // A throw out of a clientbound packet hook disconnects him (ClientCommonPacketListenerImpl.onPacketError).
             ModLog.get("killer560smod-dungeonbreaker").error("[DungeonBreaker] destruction stage hook threw", e);
