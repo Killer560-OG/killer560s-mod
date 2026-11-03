@@ -57,7 +57,7 @@ public final class AhFlipConfig {
     private static AhFlipConfig instance;
 
     // ---- AH Price Buttons (was the AH Price Copier) ----
-    private boolean priceButtonsEnabled = true;
+    private boolean priceButtonsEnabled = false;
     /** Coins under the lowest BIN that Copy LBIN (and Auto Relist) take off (1 = the lowest BIN minus one coin, like
      *  SkyHanni's Copy Underbid Price). */
     private long copierUndercut = 1L;
