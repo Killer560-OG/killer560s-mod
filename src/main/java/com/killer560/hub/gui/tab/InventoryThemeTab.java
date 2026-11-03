@@ -23,8 +23,8 @@ import java.util.Locale;
  *  <p>
  *  Rearranged 2026-10-18 (killer560): there is no Inventory Theme row in here (the card's switch is that setting); the first
  *  row is the Theme - Default follows the mod menu's theme, then the menu's themes, Vanilla and Custom - and while it is on
- *  Custom a Customize row opens {@link InventoryCustomizeScreen}. Hide Potion Effects is gone (always on with the theme),
- *  and the Hotbar Scale slider sits with Theme Hotbar. */
+ *  Custom a Customize row opens {@link InventoryCustomizeScreen}. Hide Potion Effects left this tab (its own card since
+ *  2026-11-02, {@link HidePotionEffectsTab}), and the Hotbar Scale slider sits with Theme Hotbar. */
 public class InventoryThemeTab extends BaseTab {
 
     public InventoryThemeTab() {

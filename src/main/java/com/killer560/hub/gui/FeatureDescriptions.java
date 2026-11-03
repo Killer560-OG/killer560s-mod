@@ -48,7 +48,8 @@ final class FeatureDescriptions {
         BY_TAB.put("LeapMenuTab", "A custom leap menu with player heads and class colors, and a message sent when you leap.");
         BY_TAB.put("CroesusTab", "Chest profit in Croesus, a profit logger for claimed chests, and hiding opened runs.");
         BY_TAB.put("ExperimentsTab", "Solves the Experimentation Table games, and tracks the profit of your sessions.");
-        BY_TAB.put("InventoryThemeTab", "Re-skins the inventory in the menu theme; Hide Potion Effects is a switch of its own.");
+        BY_TAB.put("InventoryThemeTab", "Re-skins the chest and inventory screens and the hotbar in the menu theme.");
+        BY_TAB.put("HidePotionEffectsTab", "Hides the potion effects panel beside your inventory, and the effect icons in the HUD's top right.");
         BY_TAB.put("AutoBloodCampTab", "Cheat build: Trigger Bot and Aura for the Blood Camp mobs.");
         BY_TAB.put("AutoTerminalTab", "Cheat build: clicks Floor 7 terminals for you, and Hover Terminals clicks the one you point at.");
         BY_TAB.put("InteractiveMapTab", "Cheat build: the full-screen map that paths to a room, and Auto Blood Rush.");

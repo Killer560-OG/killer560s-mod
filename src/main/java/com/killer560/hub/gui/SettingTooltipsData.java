@@ -2590,7 +2590,9 @@ final class SettingTooltipsData {
         d.put("posmsg/set to my position", "Saves where you are standing as this waypoint's center.");
         d.put("wither dragons/normal power", "Power 0 always splits this dragon by class instead. 22 is a common value for Normal.");
         d.put("wither dragons/easy power", "Power 0 always splits this dragon by class instead. 19 is a common value for Easy.");
-        d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens, and the hotbar: vanilla's own shapes (beveled panel, sunken slots) in the colors of the Theme. Also hides the potion effects panel beside them.");
+        d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens, and the hotbar: vanilla's own shapes (beveled panel, sunken slots) in the colors of the Theme. The potion effects panel beside the inventory is Hide Potion Effects, a card of its own.");
+        d.put("hide potion effects", "Hides the potion effects panel vanilla draws beside your inventory (Absorption, Haste, Strength...). On by default, with or without the Inventory Theme.");
+        d.put("hide effect icons (hud)", "Also hides the effect icons vanilla draws in the top right of the screen while you play. Off by default.");
         d.put("inventory theme/theme", "The colors: Default matches whatever theme the mod menu is on. Scroll to one of the menu's themes (or one you saved), to Vanilla (vanilla's own grays), or to Custom, which shows a Customize row.");
         d.put("inventory theme/customize", "Opens a menu for the Custom look: its Base colors, slot color and accent color.");
         d.put("inventory theme/base", "The colors the Custom look starts from: Amber, Dark (neutral grays) or Light. The Storage Overlay has the same three.");

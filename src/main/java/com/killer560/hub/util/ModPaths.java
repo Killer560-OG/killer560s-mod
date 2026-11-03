@@ -263,6 +263,7 @@ public final class ModPaths {
         t.put("colours", "interface/menu");
         t.put("window", "interface/window");
         t.put("inventorytheme", "interface/inventorytheme");
+        t.put("hideeffects", "interface/hideeffects");
         t.put("enchantcolors", "interface/enchantcolors");
         t.put("itemrarity", "interface/itemrarity");
         t.put("slottext", "interface/slottext");
