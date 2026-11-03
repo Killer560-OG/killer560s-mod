@@ -512,6 +512,7 @@ public final class ProfileManager {
                 com.killer560.hub.creationcooldown.CreationCooldownConfig::load,
                 com.killer560.hub.kickrejoin.KickRejoinConfig::load,
                 com.killer560.hub.instaclearwarning.InstaClearWarningConfig::load,
+                com.killer560.hub.bloodrush.BloodRushConfig::load,
                 com.killer560.hub.gyrooverlay.GyroOverlayConfig::load,
                 com.killer560.hub.bazaar.BazaarOrderHelperConfig::load,
                 com.killer560.hub.lfg.LfgConfig::load,

@@ -54,6 +54,8 @@ public final class SimLiveMobs {
     private static final Map<String, Integer> PLACED_IN = new java.util.concurrent.ConcurrentHashMap<>();
     /** Each room's first placed spot at the last GO, by room name (a key with no mob to kill drops here). */
     private static final Map<String, BlockPos> FIRST_SPOT = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Rooms whose mobs went on learned spawn spots at the last GO (Blood Rush Helper's), and the blocks they stood on. */
+    private static final Map<String, List<BlockPos>> LEARNED_IN = new java.util.concurrent.ConcurrentHashMap<>();
     /** Clear-on-entry as it was before live mobs switched it off, to put it back. */
     private static volatile Boolean entryBefore = null;
 
@@ -161,6 +163,8 @@ public final class SimLiveMobs {
         Map<String, List<BlockPos>> tiles = new TreeMap<>();
         Map<String, Boolean> champion = new TreeMap<>();
         Map<String, Integer> roomIndex = new TreeMap<>();
+        Map<String, List<BlockPos>> spots = new TreeMap<>();
+        LEARNED_IN.clear();
         for (int i = 0; i < layout.roomCount(); i++) {
             RoomEntry e = layout.entry(i);
             String name = layout.name(i);
@@ -178,6 +182,17 @@ public final class SimLiveMobs {
             tiles.put(name, cs);
             champion.put(name, type.equals("CHAMPION"));
             roomIndex.put(name, i);
+            // The room's spawn spots, where Blood Rush Helper has learned them from real runs (killer560, 2026-11-03: "for
+            // our clear sim you should be able to add mobs in their blood rush helper spots since that is where they
+            // spawn"), turned with the room by its clay corner and rotation. A room with none keeps the seeded spots.
+            int[] cr = layout.clayRotation(i);
+            if (cr != null) {
+                List<BlockPos> learned = com.killer560.hub.bloodrush.BloodRushSpots.worldSpots(name,
+                        new com.killer560.hub.autoroutes.RouteCoords.Frame(name, cr[0], cr[1], cr[2]));
+                if (!learned.isEmpty()) {
+                    spots.put(name, learned);
+                }
+            }
         }
         int each = perTile;
         double hp = health;
@@ -196,7 +211,19 @@ public final class SimLiveMobs {
                 java.util.Random rng = new java.util.Random((code + "|" + e.getKey()).hashCode());
                 int room = roomIndex.get(e.getKey());
                 List<BlockPos> got = new ArrayList<>();
-                for (BlockPos c : e.getValue()) {
+                List<BlockPos> learned = spots.get(e.getKey());
+                if (learned != null) {
+                    for (BlockPos s : learned) {
+                        BlockPos feet = standable(level, s);
+                        if (feet != null && !got.contains(feet)) {
+                            got.add(feet);
+                        }
+                    }
+                    if (!got.isEmpty()) {
+                        LEARNED_IN.put(e.getKey(), List.copyOf(got));
+                    }
+                }
+                for (BlockPos c : got.isEmpty() ? e.getValue() : List.<BlockPos>of()) {
                     int want = got.size() + each;
                     for (int tries = 0; tries < 400 && got.size() < want; tries++) {
                         int x = c.getX() + rng.nextInt(23) - 11;
@@ -274,6 +301,24 @@ public final class SimLiveMobs {
             client.execute(() -> ModChat.send("Sim", ModChat.text("Live mobs: "), ModChat.value(String.valueOf(n)),
                     ModChat.dim(" starred in " + tiles.size() + " room(s)")));
         });
+    }
+
+    /** A learned spawn block made standable: itself, or the first block 2 below to 2 above it with floor under and room for
+     *  a mob; null when there is none (the sim's capture of the room differs there). */
+    private static BlockPos standable(ServerLevel level, BlockPos s) {
+        for (int dy : new int[]{0, 1, -1, 2, -2}) {
+            BlockPos feet = s.offset(0, dy, 0);
+            if (solid(level, feet.below()) && !solid(level, feet) && !solid(level, feet.above())
+                    && level.getFluidState(feet).isEmpty()) {
+                return feet;
+            }
+        }
+        return null;
+    }
+
+    /** The rooms whose mobs stood on learned spawn spots at the last GO, and those spots, for tests. */
+    public static Map<String, List<BlockPos>> learnedSpotsPlaced() {
+        return Map.copyOf(LEARNED_IN);
     }
 
     /** An open floor spot 2-4 blocks from {@code near}, in the same room and clear of {@code taken}, or null. */

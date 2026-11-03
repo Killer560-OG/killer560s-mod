@@ -25,6 +25,7 @@ final class CardBlurbsData {
         d.put("CreationCooldownTab", "Dungeon join timer.");
         d.put("KickRejoinTab", "Rejoin wait after a kick.");
         d.put("InstaClearWarningTab", "Lost-key alert.");
+        d.put("BloodRushHelperTab", "Rush mob kill spots.");
         d.put("GyroOverlayTab", "Shows the Gyro wand's pull ring.");
         d.put("BazaarOrderHelperTab", "Colors outbid and filled orders.");
         d.put("ChatTabsTab", "Party, guild, DM tabs in chat.");
@@ -87,7 +88,7 @@ final class CardBlurbsData {
         d.put("DungeonInfoTab", "Secrets found in this room.");
         d.put("I4SensorsTab", "Solver and i4 helpers.");
         d.put("SimKeybindsTab", "Room keys for route practice.");
-        d.put("SimSettingsTab", "Dungeon Sim breaker charges.");
+        d.put("SimSettingsTab", "Dungeon Sim breaker charges, mobs.");
         d.put("SimonSaysTab", "Marks the Simon Says buttons.");
         d.put("SplitTimersTab", "A HUD timing each run part.");
         d.put("TeamMelodyTab", "Teammates' Melody progress.");

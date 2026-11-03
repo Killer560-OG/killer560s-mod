@@ -373,6 +373,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.kickrejoin.KickRejoinFeature.register();
         HudElementRegistry.register(com.killer560.hub.kickrejoin.KickRejoinFeature.HUD);
         com.killer560.hub.instaclearwarning.InstaClearWarningFeature.register();
+        com.killer560.hub.bloodrush.BloodRushHelperFeature.register();
         com.killer560.hub.gyrooverlay.GyroOverlayFeature.register();
         com.killer560.hub.chattabs.ChatTabsFeature.register();
         HudElementRegistry.register(com.killer560.hub.instaclearwarning.InstaClearWarningFeature.HUD);

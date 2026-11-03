@@ -21,7 +21,7 @@ final class FeatureDescriptions {
         // that have no master toggle at all.
         BY_TAB.put("HomeMainTab", "Update notice, Skyblock Only, the Edit HUD key, HUD Scale, Auto Scale and the HUD editor's snapping.");
         BY_TAB.put("WitherDoorsTab", "Highlights the wither, blood and fairy doors your dungeon map shows, green once you hold a key.");
-        BY_TAB.put("SimSettingsTab", "Dungeon Sim settings: Dungeon Breaker charges each secret gives back.");
+        BY_TAB.put("SimSettingsTab", "Dungeon Sim settings: Dungeon Breaker charges each secret gives back, and Spawn Starred Mobs.");
         BY_TAB.put("SimKeybindsTab", "Next Room and Previous Room keys for route practice in the Dungeon Sim.");
         BY_TAB.put("AutoSimonSaysTab", "Trigger Bot, Auto Start and Auto Solve for the Simon Says device.");
         BY_TAB.put("HidePlayersTab", "Stops other players rendering: past a distance, in a dungeon or in the boss room.");

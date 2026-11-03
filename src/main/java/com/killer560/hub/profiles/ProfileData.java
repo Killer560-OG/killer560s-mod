@@ -76,6 +76,8 @@ public final class ProfileData {
             "runs", "social",
             // The Map Designer's list of floors he played (sim-designer-1015): history like the runs.
             "sim-map-history.json",
+            // Blood Rush Helper's learned spawn spots: his own sightings, history like the runs.
+            "bloodrush-spots.json",
             // The Price Tooltip's downloaded prices and item facts (re-fetched every few minutes).
             "pricetooltip-cache",
             // Image Preview's downloaded pictures (fetched again on hover, size-capped).
