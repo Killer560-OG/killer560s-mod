@@ -88,10 +88,8 @@ final class SettingTooltipsData {
         d.put("carpet highlighter", "In the Dwarven Mines, fills the unbreakable carpets in ore veins so you stop swinging at them.");
         d.put("carpet highlighter/carpet color", "The color the carpets are filled with.");
         d.put("mithril as stone", "In the Dwarven Mines, draws mithril as stone unless a commission wants mithril or titanium in the area you are in.");
-        d.put("mithril as stone/universal area access", "Turn on if your commissions count in every area: all mithril shows again.");
         d.put("titanium highlight", "Outlines Titanium (polished diorite) in the Dwarven Mines.");
         d.put("titanium highlight/show", "Always: every titanium block. Commission Area: only while a commission wants titanium where you are.");
-        d.put("titanium highlight/universal area access", "Turn on if your commissions count in every area: titanium shows everywhere.");
         d.put("titanium highlight/titanium color", "The color of the titanium outline.");
         d.put("titanium highlight/through walls", "Cheat build: draws the titanium boxes through blocks.");
         d.put("raffle ticket highlight", "During the Dwarven Mines Raffle, boxes each raffle ticket on the ground.");
