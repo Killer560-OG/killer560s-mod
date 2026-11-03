@@ -37,6 +37,11 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        listening = false;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         listening = false;
         SlotBindsConfig.getInstance().setBindKey(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);

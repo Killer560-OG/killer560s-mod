@@ -94,6 +94,9 @@ public final class DungeonAlertsConfig {
     // Secret Clicked and the sound mutes (2026-10-25), all OFF; the locked-chest sound defaults ON.
     private boolean secretClickedEnabled = false;
     private boolean secretClickedLockedSound = true;
+    // Box On Every Secret (killer560, 2026-11-02: a taken secret must show nothing once taken): OFF, so Secret Clicked
+    // draws only a locked chest's red box; ON brings back the 7-second gold box on every secret collected.
+    private boolean secretClickedTakenBox = false;
     private boolean muteChestSounds = false;
     private boolean muteLeverSounds = false;
     // Key Spawn Alert (2026-10-25, Odin DoorHighlight's "Wither Key spawned!"): OFF.
@@ -141,6 +144,7 @@ public final class DungeonAlertsConfig {
                 cfg.lowHealthSound = bool(o, "lowHealthSound", cfg.lowHealthSound);
                 cfg.secretClickedEnabled = bool(o, "secretClickedEnabled", cfg.secretClickedEnabled);
                 cfg.secretClickedLockedSound = bool(o, "secretClickedLockedSound", cfg.secretClickedLockedSound);
+                cfg.secretClickedTakenBox = bool(o, "secretClickedTakenBox", cfg.secretClickedTakenBox);
                 cfg.muteChestSounds = bool(o, "muteChestSounds", cfg.muteChestSounds);
                 cfg.muteLeverSounds = bool(o, "muteLeverSounds", cfg.muteLeverSounds);
                 cfg.keySpawnAlert = bool(o, "keySpawnAlert", cfg.keySpawnAlert);
@@ -190,6 +194,7 @@ public final class DungeonAlertsConfig {
             o.addProperty("lowHealthSound", lowHealthSound);
             o.addProperty("secretClickedEnabled", secretClickedEnabled);
             o.addProperty("secretClickedLockedSound", secretClickedLockedSound);
+            o.addProperty("secretClickedTakenBox", secretClickedTakenBox);
             o.addProperty("muteChestSounds", muteChestSounds);
             o.addProperty("muteLeverSounds", muteLeverSounds);
             o.addProperty("keySpawnAlert", keySpawnAlert);
@@ -243,6 +248,14 @@ public final class DungeonAlertsConfig {
 
     public void setSecretClickedLockedSound(boolean v) {
         secretClickedLockedSound = v;
+    }
+
+    public boolean isSecretClickedTakenBox() {
+        return secretClickedTakenBox;
+    }
+
+    public void setSecretClickedTakenBox(boolean v) {
+        secretClickedTakenBox = v;
     }
 
     public boolean isMuteChestSounds() {

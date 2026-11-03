@@ -33,6 +33,9 @@ import java.util.concurrent.ThreadLocalRandom;
  *   <li>Per-terminal randomness (speed, reaction, curvature lean) so two terminals never look the same, all bounded.</li>
  * </ul>
  * No allocation per frame: the plan is a fixed set of arrays.
+ * <p>
+ * It works on a container terminal and on any {@link Host} screen (Termism's practice board, through
+ * {@link PracticeCursor}, since 2026-11-02), which aims through its own {@link SlotLocator}.
  */
 public final class FakeCursor {
 
@@ -151,10 +154,26 @@ public final class FakeCursor {
     private FakeCursor() {
     }
 
+    /** Where a slot is drawn, in GUI units: {@code out[0]}/{@code out[1]} the center, {@code out[2]} the drawn cell width.
+     *  @return false when the slot cannot be placed. */
+    @FunctionalInterface
+    public interface SlotLocator {
+        boolean locate(int slot, float[] out);
+    }
+
+    /** A screen that is not a container but hosts a terminal the cursor works on (Termism's practice board, 2026-11-02:
+     *  "auto terms stream safe doesnt show in termism"). It gets the same drawing and pointer hiding a container gets. */
+    public interface Host {
+    }
+
+    private static boolean hosts(net.minecraft.client.gui.screens.Screen screen) {
+        return screen instanceof AbstractContainerScreen<?> || screen instanceof Host;
+    }
+
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FakeCursor::tick);
         ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
-            if (!(screen instanceof AbstractContainerScreen<?>)) {
+            if (!hosts(screen)) {
                 return;
             }
             ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) -> {
@@ -248,7 +267,24 @@ public final class FakeCursor {
         if (!showing || slot == aimedSlot) {
             return;
         }
-        if (!TerminalSolverFeature.slotCenterGui(screen, slot, SCRATCH)) {
+        aim((s, out) -> TerminalSolverFeature.slotCenterGui(screen, s, out), slot, quick);
+    }
+
+    /** {@link #aim(AbstractContainerScreen, int)} for a board that is not a container (Termism). */
+    static void aim(SlotLocator locator, int slot) {
+        aim(locator, slot, false);
+    }
+
+    /** {@link #aimQuick(AbstractContainerScreen, int)} for a board that is not a container (Termism). */
+    static void aimQuick(SlotLocator locator, int slot) {
+        aim(locator, slot, true);
+    }
+
+    private static void aim(SlotLocator locator, int slot, boolean quick) {
+        if (!showing || slot == aimedSlot) {
+            return;
+        }
+        if (!locator.locate(slot, SCRATCH)) {
             return;
         }
         ensurePlaced();
@@ -601,7 +637,7 @@ public final class FakeCursor {
     private static void tick(Minecraft client) {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
         long now = System.currentTimeMillis();
-        boolean inTerminal = McCompat.screen(client) instanceof AbstractContainerScreen<?>;
+        boolean inTerminal = hosts(McCompat.screen(client));
         if (showing && (!inTerminal || now - lastShownMs > 250)) {
             showing = false;
         }
@@ -660,6 +696,9 @@ public final class FakeCursor {
         g.nextStratum();
         g.pose().pushMatrix();
         // Window pixels from here on: the arrow's tip at the pointer, one mask pixel = content-scale screen pixels.
+        // From identity, not from the pose the screen left: one of the mod's own screens (Termism) is drawn under Auto
+        // Scale's factor, which would otherwise scale the pointer's window position too and put it off the board.
+        g.pose().identity();
         g.pose().scale(1f / gui, 1f / gui);
         g.pose().translate(curX, curY);
         g.pose().scale(content, content);

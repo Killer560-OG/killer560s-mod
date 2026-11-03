@@ -134,6 +134,14 @@ project CLAUDE.md. Compiling lessons
 
 ## Experiments and containers
 
+- **In an open Hypixel menu, judge what the player has by that menu's own inventory half, not by
+  `player.getItemBySlot(HEAD)`.** Mask Keybinds skipped a mask that read as "worn" from the helmet slot; killer560
+  (2026-11-02): alternating presses worked with both masks in the inventory but stopped once one was on his head. The
+  inventory half of /stats is refreshed after each swap (that is what lets the both-in-inventory case alternate), the
+  helmet evidently is not while /stats is open, so the mask that had just come off stayed "worn" and every later press
+  found nothing. Fix (maskswap-1102): pick only from the masks in the inventory half, read on every press; only a proc
+  cooldown refuses. Testkit 1889 holds the client helmet stale and must still alternate six presses.
+
 - **Superpairs powerups come in two kinds, told apart by lore.** "Instant powerup!" (the `+479,095 XP` lapis
   block, "Gained +3 Clicks") applies on the spot; only "Powerup for next click!" (Instant Find) matches the next
   click. Arming on both spent a lone click on an Enchanted Book and reserved it, blocking its pair (2026-10-01).
@@ -269,6 +277,13 @@ project CLAUDE.md. Compiling lessons
 
 ## Other features
 
+- **A counter fed only by a server line holds its last value through every gap the server says nothing in.** Maxor's
+  Crystals' Active counter was set only by "X/2 Energy Crystals are now active!", so after the laser it read 2/2 until
+  the next set's first placement (killer560, 2026-11-02), though the pads were empty and the next set was up. The reset
+  now comes from the next set's first End Crystal seen off pylon height (y != 224), armed by Maxor's laser line, with a
+  44-tick backstop. The F7 sim had the next set respawn 20 ticks after Maxor was enraged; it now comes 34 ticks after the
+  laser line (NoammAddons' respawn timer). Testkit 1102-boss-maxorcrys.
+
 - **Spotify's local sources name only the FIRST artist.** The window title and Windows' media session both said "Rosa
   Walton" for a track Spotify credits to "Rosa Walton, Hallie Coggins" (2026-10-20), and lrclib's search returned another
   recording (3:59 against Spotify's 4:06) whose line times were all wrong. Lyrics are matched by title, artist containment
@@ -339,6 +354,12 @@ project CLAUDE.md. Compiling lessons
 - The Egglocator's particle trail does not reach the egg (SkyHanni's fitter is built on this; not yet checked in our logs): it
   is the start of a cubic Bezier from the player. Its last particle is not the egg; fit the curve and extrapolate
   (`chocolatefactory/egg/TrailFitter`, SkyHanni's ParticlePathBezierFitter).
+- Every game sound, a server packet's (`handleSoundEvent` / `handleSoundEntityEvent` -> `ClientLevel.playSound`) and a
+  local one, passes `SoundManager.play` or `playDelayed`, where `SoundManagerClickMixin` hands it to `ClickSounds.replace`;
+  that is the ONE sound hook (Click Sounds, Sound Effects, and since 2026-11-02 Sound Disabler, checked first). Returning
+  null drops it before the engine and touches no packet. Ticking sounds (`queueTickingSound`: minecarts, bees, elytra) do
+  not pass there. A Minecraft sound has no owner, so a per-item mute needs context: Sound Disabler's Bonzo's Staff row
+  mutes a ghast sound only where a player holding the staff stands (testkit 1102-sound-bonzo).
 
 ## Testing and debugging
 
@@ -385,3 +406,20 @@ project CLAUDE.md. Compiling lessons
   is queued: PartyDataFeature queued Team Melody with Party Dungeon Data off, and drainQueue then cleared the whole queue
   on `!publishActive()`, so nothing was ever sent (found by testkit 1102-boss-melody-relay-roundtrip with a fake relay,
   tkdebt-1101; fixed 9c71162c).
+- "The waypoint is still there after I took it" may be another feature's box on the same spot. On 2026-11-02 his log showed
+  the Wither Essence waypoint leave on the click tick (`waypoints changed ... wither=0`, before the chat line); the gold
+  box left behind was Secret Clicked's 7-second box (on in his config). Read the log's waypoint counts and his config for
+  every feature that draws there before touching detection. The gold box is now behind Box On Every Secret (off).
+- Hypixel's 26.3 action bar carries the area: `§7\uE067 §bUpper Mines     ...` (private-use glyph U+E067, his log
+  2026-11-02, every Dwarven Mines action bar), and none of his logs ever showed a sidebar `⏣` area line. The mining features
+  read the sidebar only, so "Upper Mines Mithril" in the Upper Mines read as "not here" (mithril drawn as stone, area titanium
+  never highlighted). `IslandDetector` now takes the action bar's area while it is under 5 s old, else the sidebar's (which
+  also accepts U+E067). Any feature that needs the player's area should read `IslandDetector.scoreboardArea()`, not the
+  sidebar itself (mining-1103, testkit 1103-mining-area fails on main 2646b64cf).
+- Hypixel's tab widgets (Pickaxe Ability) refresh slowly: a state read only from them lags its chat line by seconds.
+  Pickobulus Estimate takes "You used your Pickobulus..."/"Your Pickobulus destroyed N blocks!"/"Pickobulus is now
+  available!" first and falls back to the tab only when no line came recently (mining-1103, 1103-mining-pickobulus-chat).
+- A held left-click dig on 26.3 ends until a fresh press only when a screen opens (Gui.setScreen releases every key and the
+  re-grab sets missTime) or the OS sends a button release; a block, slot or held-item change only restarts it. Nothing in
+  the mod does either while mining (mining-1103 sweep); `miningqol/AttackHoldProbe` logs "[AttackHold]" the next time it
+  happens, with the screen class and its opener's stack.

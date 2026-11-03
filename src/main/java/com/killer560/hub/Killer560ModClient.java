@@ -220,6 +220,8 @@ public class Killer560ModClient implements ClientModInitializer {
         HypixelJoinWatcher.register();
         // Auto Report Bans (opt-in, OFF by default): loads its switch, which starts the session log tap when on.
         com.killer560.hub.banreport.BanReportFeature.register();
+        // Online Count (always on, no setting): an anonymous session id and the island, once a minute on Hypixel.
+        com.killer560.hub.onlinecount.OnlinePresence.register();
         AutoJoinSkyblockFeature.register();
         ProxyConfig.load();
         SpotifyLyricsFeature.init();
@@ -372,6 +374,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.chattabs.ChatTabsFeature.register();
         HudElementRegistry.register(com.killer560.hub.instaclearwarning.InstaClearWarningFeature.HUD);
         com.killer560.hub.motionblur.MotionBlurFeature.register();
+        com.killer560.hub.darkmode.DarkModeFeature.register();
         com.killer560.hub.discordrpc.DiscordRpcFeature.register();
         com.killer560.hub.windowlayout.WindowLayoutFeature.register();
         com.killer560.hub.window.ConfineMouseFeature.register();
@@ -764,7 +767,7 @@ public class Killer560ModClient implements ClientModInitializer {
      */
     private static void checkOpenMenuKey(Minecraft client) {
         int code = HudConfig.getInstance().getOpenMenuKeyCode();
-        if (code < 0 || client.getWindow() == null) {
+        if (code == com.killer560.hub.util.KeyUtil.NONE || client.getWindow() == null) {
             openMenuKeyWasDown = false;
             return;
         }
@@ -783,7 +786,7 @@ public class Killer560ModClient implements ClientModInitializer {
     private static void checkHudEditKeybind(Minecraft client) {
         checkOpenMenuKey(client);
         int code = HudConfig.getInstance().getEditKeyCode();
-        if (code < 0) {
+        if (code == com.killer560.hub.util.KeyUtil.NONE || client.getWindow() == null) {
             editKeyWasDown = false;
             return;
         }

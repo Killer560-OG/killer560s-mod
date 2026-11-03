@@ -44,6 +44,11 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturingFor = null;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         if (capturingFor == null) {
             return;

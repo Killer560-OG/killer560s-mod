@@ -292,6 +292,10 @@ public final class ClickSounds {
         if (in == null || layering) {
             return in;
         }
+        // Sound Disabler (2026-11-02) first: a muted sound is dropped before anything replaces or layers it.
+        if (com.killer560.hub.sounddisabler.SoundDisabler.mute(in)) {
+            return null;
+        }
         if (!VANILLA_CLICK_ID.equals(in.getIdentifier())) {
             return SoundEffects.replace(in);
         }

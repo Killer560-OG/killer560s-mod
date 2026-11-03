@@ -31,6 +31,8 @@ public final class LoadoutKeybindsConfig {
     private int previousPageKey = Keys.LEFT;
     /** A key that sends /loadouts from anywhere (killer560, 2026-10-18: "a bind to open the loadouts page"). -1 = unbound. */
     private int openKey = -1;
+    /** Highlight Selected Loadout (killer560, 2026-11-03: "also in loadout if one is selected have it highlighted"). */
+    private boolean highlightSelected = true;
     // Real default keys ported from Odin's own: 1-9, 0, minus, equals - matching a real vanilla keyboard
     // row's natural left-to-right order for slots 1-12.
     private final int[] slotKeys = {
@@ -83,6 +85,7 @@ public final class LoadoutKeybindsConfig {
             cfg.nextPageKey = ConfigJson.getInt(obj, "nextPageKey", Keys.RIGHT);
             cfg.previousPageKey = ConfigJson.getInt(obj, "previousPageKey", Keys.LEFT);
             cfg.openKey = ConfigJson.getInt(obj, "openKey", -1);
+            cfg.highlightSelected = ConfigJson.getBool(obj, "highlightSelected", true);
             JsonArray arr = ConfigJson.getArray(obj, "slotKeys");
             if (arr != null) {
                 for (int i = 0; i < cfg.slotKeys.length && i < arr.size(); i++) {
@@ -117,6 +120,7 @@ public final class LoadoutKeybindsConfig {
             obj.addProperty("nextPageKey", nextPageKey);
             obj.addProperty("previousPageKey", previousPageKey);
             obj.addProperty("openKey", openKey);
+            obj.addProperty("highlightSelected", highlightSelected);
             JsonArray arr = new JsonArray();
             for (int key : slotKeys) {
                 arr.add(key);
@@ -162,6 +166,14 @@ public final class LoadoutKeybindsConfig {
 
     public void setOpenKey(int openKey) {
         this.openKey = openKey;
+    }
+
+    public boolean isHighlightSelected() {
+        return highlightSelected;
+    }
+
+    public void setHighlightSelected(boolean v) {
+        highlightSelected = v;
     }
 
     public int getSlotKey(int index) {

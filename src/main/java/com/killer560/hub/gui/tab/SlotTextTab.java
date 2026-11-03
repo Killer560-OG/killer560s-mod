@@ -26,6 +26,11 @@ public class SlotTextTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturing = false;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         applyCapture(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
     }

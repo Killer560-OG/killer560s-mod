@@ -43,6 +43,11 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturing = null;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         bind(keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
     }
@@ -89,8 +94,10 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
         y += 24;
         // Which player to follow and what the display stars out (2026-11-01), for the HUD, F5 and shared lines alike.
         widgets.add(SettingsButtonWidget.cycling(sourceText(), (btn, dir) -> {
-                    SpotifyHudConfig.MusicSource[] all = SpotifyHudConfig.MusicSource.values();
-                    hud().setMusicSource(all[SettingsButtonWidget.step(hud().getMusicSource().ordinal(), dir, all.length)]);
+                    // Spotify App Only is no longer offered (killer560, 2026-11-02): Music Players <-> Anything Playing.
+                    SpotifyHudConfig.MusicSource[] all = SpotifyHudConfig.MusicSource.offered();
+                    int at = Math.max(0, java.util.Arrays.asList(all).indexOf(hud().getMusicSource()));
+                    hud().setMusicSource(all[SettingsButtonWidget.step(at, dir, all.length)]);
                     hud().save();
                     btn.setMessage(sourceText());
                 }).bounds(contentX, y, half, 20).build());

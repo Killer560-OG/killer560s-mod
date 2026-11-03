@@ -62,6 +62,8 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     private final ItemStack[] grid = new ItemStack[36];
     /** Inventory index -&gt; true when the stack is a placeholder (the saved item is not in the inventory now). */
     private final boolean[] missing = new boolean[36];
+    /** Where each slot's item was drawn last frame ({x, y, edge}), for tests. */
+    private final float[][] drawnItem = new float[36][];
     /** Inventory index picked up (following the mouse), or -1. */
     private int held = -1;
     /** The slot a press started on, for drag-and-drop; -1 when no press is open. */
@@ -197,6 +199,16 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
 
     public ItemStack gridAt(int slot) {
         return grid[slot];
+    }
+
+    /** {x, y, edge} of the item drawn in inventory index {@code slot} last frame (GUI units), or null. For tests. */
+    public float[] drawnItemBox(int slot) {
+        return drawnItem[slot];
+    }
+
+    /** The edge of one grid square, frame included (GUI units). For tests. */
+    public int slotSize() {
+        return SLOT;
     }
 
     public String selectedLayout() {
@@ -488,6 +500,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         MenuStyle.text(graphics, "KEY", listX + listW - 1 - KEY_W / 2 - this.font.width("KEY") / 2, gridY, MenuStyle.DIM);
 
         ItemStack hover = ItemStack.EMPTY;
+        java.util.Arrays.fill(drawnItem, null);
         for (int i = 0; i < 36; i++) {
             int[] p = slotPos(i);
             ScreenChrome.slot(graphics, p[0], p[1], SLOT, i == held, false);
@@ -495,8 +508,8 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             if (i == held || stack == null || stack.isEmpty()) {
                 continue;
             }
-            graphics.item(stack, p[0] + 1, p[1] + 1);
-            graphics.itemDecorations(this.font, stack, p[0] + 1, p[1] + 1);
+            // Fitted to the cell, rarity box behind it (killer560, 2026-11-02: "in /invsort the items dont fit").
+            drawnItem[i] = com.killer560.hub.gui.ItemCell.draw(graphics, this.font, stack, p[0] + 1, p[1] + 1, SLOT - 2);
             if (missing[i]) {
                 graphics.fill(p[0] + 1, p[1] + 1, p[0] + SLOT - 1, p[1] + SLOT - 1, 0x55FF3333);
             }
@@ -562,7 +575,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
         if (held >= 0 && grid[held] != null && !grid[held].isEmpty()) {
-            graphics.item(grid[held], mouseX - 8, mouseY - 8);
+            com.killer560.hub.gui.ItemCell.drawHeld(graphics, grid[held], mouseX, mouseY, SLOT - 2);
         } else if (!hover.isEmpty()) {
             graphics.setTooltipForNextFrame(this.font, Screen.getTooltipFromItem(this.minecraft, hover),
                     Optional.empty(), mouseX, mouseY);
@@ -574,7 +587,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (capturingKey) {
-            // A mouse button can be the bind too (KeyUtil's mouse codes); Escape (a key) clears it.
+            // A mouse button can be the bind too (KeyUtil's mouse codes); Escape cancels, Backspace clears.
             bind(KeyUtil.codeForMouseButton(com.killer560.hub.compat.McInput.button(event)));
             return true;
         }
@@ -686,7 +699,15 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         if (capturingKey) {
             // Configs keep GLFW numbers: McInput.key, never the raw event key (an SDL scancode on 26.3, which
             // setLayoutKey's range check turned into "none" - UI suite 584, 2026-11-01).
-            bind(event.key() == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : com.killer560.hub.compat.McInput.key(event));
+            // Escape cancels, Backspace/Delete clears, anything else binds - the rule of every key row (2026-11-02).
+            int stored = com.killer560.hub.compat.McInput.key(event);
+            if (stored == com.killer560.hub.util.Keys.ESCAPE) {
+                capturingKey = false;
+                refreshBindLabel();
+            } else {
+                bind(stored == com.killer560.hub.util.Keys.BACKSPACE || stored == com.killer560.hub.util.Keys.DELETE
+                        ? KeyUtil.NONE : stored);
+            }
             return true;
         }
         return super.keyPressed(event);

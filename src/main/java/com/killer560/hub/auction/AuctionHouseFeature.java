@@ -111,7 +111,7 @@ public final class AuctionHouseFeature {
         // after its first real call (see AuctionHouseApi), so this is cheap to call every tick.
         AuctionHouseApi.ensureAutoScanStarted();
         int code = cfg.getOpenAhKeyCode();
-        if (code < 0 || client.getWindow() == null) {
+        if (code == com.killer560.hub.util.KeyUtil.NONE || client.getWindow() == null) {
             keyWasDown = false;
             return;
         }

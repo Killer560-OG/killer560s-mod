@@ -58,6 +58,14 @@ public class SplitTimersTab extends BaseTab {
                 null, contentX + 168, y, 160, 18));
         y += 26;
 
+        // Legit (killer560, 2026-11-02: "this cheat portion should be legit"): how the times count.
+        widgets.add(SettingsButtonWidget.cycling(countingLabel(cfg), (btn, dir) -> {
+                    cfg.setTickCounting(!cfg.isTickCountingRaw());
+                    cfg.save();
+                    btn.setMessage(countingLabel(cfg));
+                }).bounds(contentX, y, 220, 18).build());
+        y += 26;
+
         y = coreEntryRows(widgets, cfg, contentX, y, contentWidth, requestRebuild);
 
         y = BloodRushSplitsRows.add(widgets, contentX, y, contentWidth, requestRebuild);
@@ -75,18 +83,6 @@ public class SplitTimersTab extends BaseTab {
                     btn.setMessage(p5PosLabel(cfg));
                 }).bounds(contentX, y, 220, 18).build());
         y += 26;
-
-        // Cheat only (killer560, 2026-11-01), at the bottom under a red header, with no explanation line (its tooltip has it).
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat", true));
-            y += 14;
-            widgets.add(SettingsButtonWidget.cycling(countingLabel(cfg), (btn, dir) -> {
-                        cfg.setTickCounting(!cfg.isTickCountingRaw());
-                        cfg.save();
-                        btn.setMessage(countingLabel(cfg));
-                    }).bounds(contentX, y, 220, 18).build());
-            y += 26;
-        }
 
         return widgets;
     }

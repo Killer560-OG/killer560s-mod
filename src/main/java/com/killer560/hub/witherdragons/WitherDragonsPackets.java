@@ -41,6 +41,12 @@ public final class WitherDragonsPackets {
     }
 
     public static void onAddEntity(ClientboundAddEntityPacket packet, ClientLevel level) {
+        // Maxor's Crystals: the next set's first crystal resets the Active counter on the packet that adds it, not at the
+        // end of the tick (it returns at once unless a laser line is pending). On the packet path, so it must not throw.
+        if (level != null && com.killer560.hub.maxor.MaxorCrystalsFeature.awaitingNextSet()) {
+            guard("maxorCrystal", (ClientboundAddEntityPacket p, ClientLevel l) ->
+                    com.killer560.hub.maxor.MaxorCrystalsFeature.onEntityAdded(l.getEntity(p.getId())), packet, level);
+        }
         // Both handlers return at once unless dragon tracking is on; asking first spares every entity packet in every
         // world an entity lookup (FPS sweep, 2026-10-07).
         if (level == null || !WitherDragonsFeature.trackingActive()) {

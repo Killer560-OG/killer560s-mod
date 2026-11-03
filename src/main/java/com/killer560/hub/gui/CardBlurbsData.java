@@ -117,7 +117,6 @@ final class CardBlurbsData {
         d.put("FreezeStateTab", "!! NEVER ON HYPIXEL: BAN !!");
         d.put("GoldorTriggerbotTab", "Clicks wither bosses on aim.");
         d.put("MaskKeybindsTab", "Key equips a mask in /stats.");
-        d.put("ThornTriggerbotTab", "Holds the Tribal Spear on Thorn.");
         d.put("DioriteGlassTab", "Storm's diorite pillars as glass.");
         d.put("InteractiveMapTab", "Full-screen map pathing.");
         d.put("FullBlockTab", "Bigger click boxes for secrets.");
@@ -199,6 +198,7 @@ final class CardBlurbsData {
         d.put("PathfindingTab", "Waypoints and a route to missing souls.");
         d.put("GeneralMainTab", "Runs /skyblock when you join.");
         d.put("MotionBlurTab", "Blends frames for motion blur.");
+        d.put("DarkModeTab", "Darkens the screen with a black tint.");
         d.put("AutoSprintTab", "Sprints when you walk forward.");
         d.put("FreelookTab", "F5 rear view; hold a key to pan.");
         d.put("BlinkTab", "Charge ticks standing still, then shoot ahead.");

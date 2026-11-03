@@ -25,6 +25,10 @@ public abstract class LocatorTrailMixin {
             target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V",
             shift = At.Shift.AFTER), require = 0)
     private void killer560smod$locatorTrail(ClientboundLevelParticlesPacket packet, CallbackInfo ci) {
-        LocatorTrail.onParticlePacket(packet, System.currentTimeMillis());
+        try {
+            LocatorTrail.onParticlePacket(packet, System.currentTimeMillis());
+        } catch (RuntimeException e) {
+            // A throw here would disconnect him (onPacketError); a particle packet is not worth that.
+        }
     }
 }

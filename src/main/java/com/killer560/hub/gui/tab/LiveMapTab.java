@@ -69,13 +69,19 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
             // Predictive Rooms lives here, under the map's switch like every other map setting, not in a card of its own
             // (killer560, 2026-10-18: "predictive rooms should be inside of the map not its own toggle"). Same config and
             // key as before; the Special Room Guess split rides with it.
-            PredictiveRoomsConfig pcfg = PredictiveRoomsConfig.getInstance();
-            widgets.add(onOffButton("Predictive Rooms", pcfg::isEnabledRaw, pcfg::setEnabled, pcfg::save,
-                    null, contentX, y, contentWidth, 18));
-            y += 20;
-            widgets.add(onOffButton("Special Room Guess", pcfg::isSpecialGuessRaw, pcfg::setSpecialGuess, pcfg::save,
-                    null, contentX, y, contentWidth, 18));
-            y += 24;
+            // Hidden while Funny Map is on (killer560, 2026-11-02: "if i have funny map on then it doesnt need to show stuff
+            // like predictive rooms and other such things that funny map already covers"): the Dungeon Map then draws the
+            // scanned floor and neither has any effect on it (PredictedRoomsPainter.shown; the guess also needs the
+            // map-item-only map). Their saved values are untouched and the rows come back when Funny Map goes off.
+            if (!cfg.isFunnyMap()) {
+                PredictiveRoomsConfig pcfg = PredictiveRoomsConfig.getInstance();
+                widgets.add(onOffButton("Predictive Rooms", pcfg::isEnabledRaw, pcfg::setEnabled, pcfg::save,
+                        null, contentX, y, contentWidth, 18));
+                y += 20;
+                widgets.add(onOffButton("Special Room Guess", pcfg::isSpecialGuessRaw, pcfg::setSpecialGuess, pcfg::save,
+                        null, contentX, y, contentWidth, 18));
+                y += 24;
+            }
             widgets.add(cycle("Room Labels", LiveMapConfig.ROOM_LABEL_NAMES, cfg::getRoomLabels, cfg::setRoomLabels,
                     cfg, contentX, y, full));
             y += 20;
@@ -113,9 +119,19 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         widgets.add(toggle("Text Shadow", cfg::isTextShadow, cfg::setTextShadow, cfg, colB, y, colW));
         y += 20;
         // OFF by default (to-do Doc, 2026-11-01: wither doors black, "no orange highlight. That is the default").
-        widgets.add(toggle("Wither Door Outline", cfg::isWitherDoorOutline, cfg::setWitherDoorOutline, cfg, contentX, y,
-                full));
+        widgets.add(onOffButton("Wither Door Outline", cfg::isWitherDoorOutline, cfg::setWitherDoorOutline, cfg::save,
+                requestRebuild, contentX, y, full, 18));
         y += 20;
+        if (cfg.isWitherDoorOutline()) {
+            // killer560, 2026-11-02: "add an option to change the wither door outline in dungeon map."
+            widgets.add(colour("Wither Door Outline Color", cfg::getWitherDoorOutlineColor, cfg::setWitherDoorOutlineColor,
+                    LiveMapConfig.DEFAULT_WITHER_DOOR_OUTLINE_COLOR, cfg, contentX, y, colW));
+            widgets.add(slider("Wither Door Outline Thickness", cfg::getWitherDoorOutlineThickness,
+                    v -> cfg.setWitherDoorOutlineThickness((int) Math.round(v)),
+                    LiveMapConfig.MIN_WITHER_DOOR_OUTLINE_THICKNESS, LiveMapConfig.MAX_WITHER_DOOR_OUTLINE_THICKNESS, " px",
+                    cfg, colB, y, colW));
+            y += 20;
+        }
         widgets.add(onOffButton("Custom Checkmark Sprite", cfg::isCustomCheckmarks, cfg::setCustomCheckmarks, cfg::save,
                 requestRebuild, contentX, y, full, 18));
         y += 20;
@@ -300,13 +316,18 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
     }
 
     static Component keyText(String label, int code) {
-        String name = code < 0 ? "Not Set" : com.killer560.hub.util.KeyUtil.keyName(code);
+        String name = com.killer560.hub.util.KeyUtil.bindDisplayName(code);
         return Component.literal(label + ": §b" + name);
     }
 
     @Override
     public boolean isListeningForKey() {
         return capturing != null;
+    }
+
+    @Override
+    public void cancelKeyCapture() {
+        capturing = null;
     }
 
     @Override

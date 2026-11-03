@@ -100,7 +100,7 @@ public final class CommandKeybindsFeature {
             return false;
         }
         if (CommandKeybindsConfig.isMouseCode(code)) {
-            return com.killer560.hub.compat.McInput.isStoredButtonDown(client.getWindow(), CommandKeybindsConfig.mouseButton(code));
+            return com.killer560.hub.util.KeyUtil.isMouseDown(client.getWindow(), CommandKeybindsConfig.mouseButton(code));
         }
         return com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
     }

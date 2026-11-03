@@ -36,17 +36,25 @@ public abstract class TerminalQolTitleMixin {
 
     @Inject(method = "setTitle", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideTerminalCompletionTitle(Component title, CallbackInfo ci) {
-        if (TerminalQolFeature.shouldHideCompletionTitle(title)
-                || com.killer560.hub.p3status.P3StatusFeature.onTitle(title, false)) {
+        if (killer560smod$hide(title, false)) {
             ci.cancel();
         }
     }
 
     @Inject(method = "setSubtitle", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideTerminalCompletionSubtitle(Component subtitle, CallbackInfo ci) {
-        if (TerminalQolFeature.shouldHideCompletionTitle(subtitle)
-                || com.killer560.hub.p3status.P3StatusFeature.onTitle(subtitle, true)) {
+        if (killer560smod$hide(subtitle, true)) {
             ci.cancel();
+        }
+    }
+
+    // Both run on the title packet's path (handleSetTitleText): a throw there disconnects him, so fail open.
+    private static boolean killer560smod$hide(Component text, boolean subtitle) {
+        try {
+            return TerminalQolFeature.shouldHideCompletionTitle(text)
+                    || com.killer560.hub.p3status.P3StatusFeature.onTitle(text, subtitle);
+        } catch (RuntimeException e) {
+            return false;
         }
     }
 }

@@ -17,6 +17,7 @@ public class DisplayTab extends FolderTab {
                 // Moved out of New 2026-09-16 once killer560 confirmed each one in a real run.
                 new ItemRarityTab(),
                 new MotionBlurTab(),
+                new DarkModeTab(),
                 new RealTimeTab(),
                 new ShortsTab()
         ));

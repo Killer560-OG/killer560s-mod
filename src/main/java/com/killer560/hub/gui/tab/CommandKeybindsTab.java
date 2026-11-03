@@ -67,6 +67,11 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturing = null;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         applyCapture(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
     }
@@ -340,9 +345,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
         if (code == -1) {
             return "Not Set";
         }
-        return CommandKeybindsConfig.isMouseCode(code)
-                ? com.killer560.hub.compat.McInput.storedButtonInput(CommandKeybindsConfig.mouseButton(code))
-                        .getDisplayName().getString()
-                : com.killer560.hub.util.KeyUtil.keyName(code);
+        // "Mouse 4", "Middle Mouse"... the same words as every other key row (KeyUtil), on both versions.
+        return com.killer560.hub.util.KeyUtil.bindDisplayName(code);
     }
 }

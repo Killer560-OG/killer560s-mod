@@ -29,6 +29,11 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturingIndex = -1;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         applyCapture(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
     }
@@ -101,6 +106,15 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
                     capturingIndex = 13;
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(col2bX, y, col2W, 18).build());
+        y += 24;
+
+        // killer560, 2026-11-03: "also in loadout if one is selected have it highlighted" (loadoutkeybinds/LoadoutHighlight).
+        widgets.add(SettingsButtonWidget.builder(onOff("Highlight Selected Loadout", cfg.isHighlightSelected()), btn -> {
+                    boolean now = !cfg.isHighlightSelected();
+                    cfg.setHighlightSelected(now);
+                    cfg.save();
+                    btn.setMessage(onOff("Highlight Selected Loadout", now));
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
         // killer560, 2026-10-13: "a toggle per keybind to have that keybind open the menu and swap then close it or just

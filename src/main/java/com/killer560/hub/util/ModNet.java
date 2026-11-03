@@ -59,6 +59,8 @@ import java.util.concurrent.CompletableFuture;
  *       read on every call</li>
  *   <li>{@code banreport-relay} - the relay's {@code /ban-report} only (Auto Report Bans), applied on top of {@code relay}
  *       and read on every call</li>
+ *   <li>{@code presence-relay} - the relay's {@code /presence} only (Online Count heartbeat), applied on top of
+ *       {@code relay} and read on every call</li>
  *   <li>{@code lrclib} - lrclib.net: Spotify lyrics</li>
  *   <li>{@code google-translate} - translate.googleapis.com</li>
  *   <li>{@code mymemory} - api.mymemory.translated.net: the translate fallback</li>

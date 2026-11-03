@@ -121,7 +121,7 @@ public final class ProfileViewerFeature {
 
     private static void tick(Minecraft client) {
         int code = ProfileViewerConfig.getInstance().getOpenKeyCode();
-        if (code < 0 || client.player == null || client.getWindow() == null) {
+        if (code == com.killer560.hub.util.KeyUtil.NONE || client.player == null || client.getWindow() == null) {
             keyWasDown = false;
             return;
         }

@@ -17,6 +17,10 @@ public class MacroStopMouseMixin {
 
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
     private void killer560smod$macroStopOnButton(long window, MouseButtonInfo input, int action, CallbackInfo ci) {
+        // Every press and release of the game window, for mouse binds that are polled (util/MouseButtons, 2026-11-02).
+        if (window == Minecraft.getInstance().getWindow().handle()) {
+            com.killer560.hub.util.MouseButtons.onButton(com.killer560.hub.compat.McInput.button(input), action);
+        }
         if (action == 1 && window == Minecraft.getInstance().getWindow().handle()
                 && MacroStop.onMouseButton(com.killer560.hub.compat.McInput.button(input))) {
             ci.cancel();

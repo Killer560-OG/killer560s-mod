@@ -35,6 +35,7 @@ public class SecretClickedTab extends BaseTab {
         y += 24;
         if (cfg.isSecretClickedEnabled()) {
             y = toggle(w, contentX, y, contentWidth, "Locked Chest Sound", cfg::isSecretClickedLockedSound, cfg::setSecretClickedLockedSound);
+            y = toggle(w, contentX, y, contentWidth, "Box On Every Secret", cfg::isSecretClickedTakenBox, cfg::setSecretClickedTakenBox);
         }
         y += 4;
         y = toggle(w, contentX, y, contentWidth, "Mute Chest Sounds", cfg::isMuteChestSounds, cfg::setMuteChestSounds);

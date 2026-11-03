@@ -203,17 +203,7 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
-    public boolean supportsMouseCapture() {
-        return listening == 3;
-    }
-
-    @Override
-    public void onMouseCaptured(int button) {
-        if (listening == 3) {
-            var cfg = com.killer560.hub.macrostop.MacroStopConfig.getInstance();
-            cfg.setEmergencyCancelKeyCode(com.killer560.hub.util.KeyUtil.codeForMouseButton(button));
-            cfg.save();
-        }
+    public void cancelKeyCapture() {
         listening = 0;
     }
 
@@ -243,15 +233,13 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
 
     private static Component openMenuText() {
         int code = HudConfig.getInstance().getOpenMenuKeyCode();
-        String name = code < 0 ? "Not Set"
-                : com.killer560.hub.util.KeyUtil.keyName(code);
+        String name = com.killer560.hub.util.KeyUtil.bindDisplayName(code);
         return Component.literal("Open Menu Key: §b" + name);
     }
 
     private static Component keybindText() {
         int code = HudConfig.getInstance().getEditKeyCode();
-        String name = code < 0 ? "Not Set"
-                : com.killer560.hub.util.KeyUtil.keyName(code);
+        String name = com.killer560.hub.util.KeyUtil.bindDisplayName(code);
         return Component.literal("Edit HUD Keybind: §b" + name);
     }
 }

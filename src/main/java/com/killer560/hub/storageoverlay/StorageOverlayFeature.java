@@ -1107,8 +1107,7 @@ public final class StorageOverlayFeature {
                 }
                 int slotX = (i % 9) * SLOT_SIZE + 2 + 1;
                 int slotY = gridY + (i / 9) * SLOT_SIZE + 1;
-                graphics.item(stack, slotX, slotY);
-                graphics.itemDecorations(font, stack, slotX, slotY);
+                com.killer560.hub.gui.ItemCell.draw(graphics, font, stack, slotX, slotY, 16); // with its rarity box
                 if (localMouseX >= slotX && localMouseX < slotX + 16
                         && localMouseY >= slotY && localMouseY < slotY + 16) {
                     hoveredStack = stack;
@@ -1501,7 +1500,7 @@ public final class StorageOverlayFeature {
                 // icon straddling the border line above/left of where it visually belonged.
                 int slotX = panelX + (i % 9) * SLOT_SIZE + 2 + 1;
                 int slotY = gridY + (i / 9) * SLOT_SIZE + 1;
-                graphics.item(stack, slotX, slotY);
+                com.killer560.hub.gui.ItemCell.draw(graphics, null, stack, slotX, slotY, 16); // with its rarity box
                 // Vanilla's own count/durability-bar/cooldown overlay, positioned and scaled exactly
                 // like a real slot - replaces the old manual push/scale/text hack that hand-placed the
                 // count text and inherited the same top-left offset bug.

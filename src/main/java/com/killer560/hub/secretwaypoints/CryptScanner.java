@@ -582,17 +582,12 @@ public final class CryptScanner {
             }
         }
         int princeCount = 0;
-        for (List<BlockPos> group : groups(princeBlocks, false)) {
+        // Each prince group's drawn extent, widened below by any lid it sits in (see the crypt loop).
+        List<List<BlockPos>> princeGroups = groups(princeBlocks, false);
+        List<int[]> princeExtent = new ArrayList<>();
+        for (List<BlockPos> group : princeGroups) {
             Found f = found(Type.PRINCE, group);
-            if (whole(level, f)) {
-                out.add(f);
-                princeCount++;
-                note(f.anchor(), "PRINCE found", "blocks=" + group.size() + " box=" + f.minX() + "," + f.minY() + ","
-                        + f.minZ() + ".." + f.maxX() + "," + f.maxY() + "," + f.maxZ());
-            } else {
-                note(f.anchor(), "prince held", "blocks=" + group.size()
-                        + " reaches into an unloaded chunk - judged when the whole tomb can be read");
-            }
+            princeExtent.add(new int[]{f.minX(), f.minY(), f.minZ(), f.maxX(), f.maxY(), f.maxZ()});
         }
 
         // Crypts: lid-shaped slab runs that do not belong to a prince.
@@ -637,7 +632,22 @@ public final class CryptScanner {
                 continue;
             }
             if (touchesAny(run, princeBlocks)) {
-                note(f.anchor(), "crypt rejected (part of a prince)", counts);
+                // The lid IS the prince's tomb: Red Blue's prince is a row of three gold blocks laid along a 3x4 slab
+                // lid, and boxing the gold alone drew a one-block-wide sliver beside the tomb (killer560, 2026-11-02,
+                // F7: "this prince isnt highlighted properly. it is missing most of the box"). The lid widens the
+                // prince's drawn box; its blocks still decide when the prince is opened, as before.
+                for (int g = 0; g < princeGroups.size(); g++) {
+                    if (touchesAny(run, new HashSet<>(princeGroups.get(g)))) {
+                        int[] e = princeExtent.get(g);
+                        e[0] = Math.min(e[0], f.minX());
+                        e[1] = Math.min(e[1], f.minY());
+                        e[2] = Math.min(e[2], f.minZ());
+                        e[3] = Math.max(e[3], f.maxX());
+                        e[4] = Math.max(e[4], f.maxY());
+                        e[5] = Math.max(e[5], f.maxZ());
+                    }
+                }
+                note(f.anchor(), "crypt rejected (part of a prince)", counts + " - the prince's box takes in this lid");
                 continue;
             }
             String why = isStaircase(level, run) ? "staircase"
@@ -672,6 +682,21 @@ public final class CryptScanner {
             note(f.anchor(), "CRYPT found", counts);
             cryptCount++;
             out.add(f);
+        }
+        for (int g = 0; g < princeGroups.size(); g++) {
+            List<BlockPos> group = princeGroups.get(g);
+            int[] e = princeExtent.get(g);
+            Found crown = found(Type.PRINCE, group);
+            Found f = new Found(Type.PRINCE, crown.anchor(), crown.blocks(), e[0], e[1], e[2], e[3], e[4], e[5]);
+            if (whole(level, f)) {
+                out.add(f);
+                princeCount++;
+                note(f.anchor(), "PRINCE found", "blocks=" + group.size() + " box=" + f.minX() + "," + f.minY() + ","
+                        + f.minZ() + ".." + f.maxX() + "," + f.maxY() + "," + f.maxZ());
+            } else {
+                note(f.anchor(), "prince held", "blocks=" + group.size()
+                        + " reaches into an unloaded chunk - judged when the whole tomb can be read");
+            }
         }
         logGold(level, goldSeen, runOf, crowns);
         String summary = "bounds=" + bounds[0] + "," + bounds[1] + ".." + bounds[2] + "," + bounds[3]

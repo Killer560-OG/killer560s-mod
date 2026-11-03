@@ -25,6 +25,11 @@ public class PeekChatTab extends BaseTab implements KeyCaptureTab {
     }
 
     @Override
+    public void cancelKeyCapture() {
+        capturing = false;
+    }
+
+    @Override
     public void onKeyCaptured(int keyCode) {
         apply(keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
     }

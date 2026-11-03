@@ -389,6 +389,25 @@ public final class EtherwarpOverlayFeature {
     }
 
     /**
+     * {@link #resolveTarget} along a given look and stance instead of the body's own: the warp as the SERVER resolves it.
+     * Hypixel's 1.8 server traces an etherwarp along the look and sneak it last heard in a movement packet, from where
+     * that packet put him - a modern use's own rotation does not count (docs/LESSONS-AUTOMATION.md, right clicks on 1.8).
+     * A right click made while the camera turns therefore lands along LAST tick's look: his Ice Fill run 2026-11-02 17:06:08
+     * and 17:06:14 landed both times where {@code util/RightClick}'s heard look met the ice, a tile off the one his
+     * crosshair (and this overlay) pointed at - "Don't move diagonally! Bad!" (icefill-1102). Same view vector as
+     * {@code getLookAngle} ({@code Vec3.directionFromRotation}, Mth's tables).
+     */
+    public static BlockPos resolveTargetAlong(Level level, Vec3 feet, net.minecraft.world.entity.player.Player player,
+                                              double distance, float yaw, float pitch, boolean sneaking) {
+        double eyeHeight = player.getPose() == Pose.SWIMMING ? 0.4
+                : sneaking ? com.killer560.hub.livemap.autoclear.TeleportUtils.sneakEye() : 1.62;
+        Vec3 start = new Vec3(feet.x, feet.y + eyeHeight, feet.z);
+        Vec3 look = Vec3.directionFromRotation(pitch, yaw);
+        EtherPos pos = traverseVoxels(level, start, start.add(look.x * distance, look.y * distance, look.z * distance));
+        return pos != null && pos.succeeded() ? pos.pos() : null;
+    }
+
+    /**
      * How far a right click by {@code player} right now would etherwarp (57 plus Tuned Transmission), or -1 when it would
      * not etherwarp at all: no etherwarp item in the main hand, or not sneaking with anything but the bare conduit. The
      * same item test the overlay draws by (Ice Fill's Etherwarp Protection asks it, 2026-11-01).

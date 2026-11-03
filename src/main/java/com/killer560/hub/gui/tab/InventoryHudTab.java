@@ -137,14 +137,18 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component keyText(InventoryHudConfig cfg) {
-        String name = cfg.getKeyCode() < 0 ? "Not Set"
-                : com.killer560.hub.util.KeyUtil.keyName(cfg.getKeyCode());
+        String name = com.killer560.hub.util.KeyUtil.bindDisplayName(cfg.getKeyCode());
         return Component.literal("Key: §b" + name);
     }
 
     @Override
     public boolean isListeningForKey() {
         return capturingKey;
+    }
+
+    @Override
+    public void cancelKeyCapture() {
+        capturingKey = false;
     }
 
     @Override

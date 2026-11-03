@@ -158,6 +158,18 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   still trusted Grim now and then (792: a trip 31 ticks slow). Blood Camp times on `util.PerTickServerClock`: trusted only
   after two 20-tick windows with a ping on at least 19 ticks and at most 24 pings, pings drive it while trusted, client
   ticks otherwise (logic case 1101-logic-bloodcamp-clock drives it by hand).
+- **A player-model mob is still `isAlive()` on the client after the server says it died.** Vanilla's
+  `LivingEntity.handleEntityEvent(3)` (the death event) sets health 0 and calls `die` only `if (!(this instanceof Player))`
+  (javap 26.2 and 26.3), because a player's health comes from its own data. So a killed player-model blood mob counted as
+  alive until Hypixel removed it, and Mob Ticks ran on for seconds after the kills (owner's F7 run, 2026-11-02, 233 ticks).
+  Take event 3 as the death for any tracked mob (`BloodCampFeature.DEAD_IDS`, the hook in `BloodCampPacketMixin`); never
+  read a Hypixel NPC's death off `isAlive()`. Testkit 1102-bloodcamp-npc-deaths checks vanilla still calls it alive.
+- **Mobs Left comes from The Watcher's boss bar, not from the entities** (killer560, 2026-11-02: "that top bar is how many
+  mobs are left"). The client cannot see the mobs still to come, so a count of the ones on the floor read "1+" with a fifth
+  of the camp left. The bar's size is not settled: the wiki says 9 + floor (F7 16, a Hypixel staff quote), Odin and Noamm
+  print the bar against 8 + floor. `bloodcamp/WatcherBar` starts from the wiki's and recalibrates from the bar's own
+  settled steps (k of N is whole only for the right N), rounding up; it logs "[BloodCampStats] Watcher bar ..." each step,
+  so the first real camp's log settles which size Hypixel uses.
 
 ## Terminals and solvers
 
@@ -196,6 +208,15 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 - The Fake Cursor aimed at vanilla slot coordinates, which under Custom GUI are hidden slots nowhere near the drawn
   panel (killer560: "doesn't match the terminal gui"). Anything that points at a terminal slot asks
   `TerminalSolverFeature.slotCenterGui`, which uses the panel layout the render and click hit test use.
+- Stream Safe never showed in Termism (killer560, 2026-11-02): `TermismPracticeScreen` is a plain Screen with its OWN
+  auto-click loop (Min/Max delays, no lookahead), and `FakeCursor` drew and hid the pointer only over
+  `AbstractContainerScreen`. A feature added to the real terminal path does not reach Termism by itself; Termism now plays
+  through `terminals/PracticeCursor` (the same hand, click order, settle and Melody skip rule) and implements
+  `FakeCursor.Host`. Check Termism whenever Auto Terminals changes (testkit 1102-menu-termism-ss-*).
+- Termism, like every mod screen, is laid out on Auto Scale's canvas and drawn under its factor: anything that aims or
+  draws in window pixels over it multiplies canvas coordinates by `AutoScale.appliedFactor(screen)` (times the GUI scale)
+  and draws from an identity pose. The first Stream Safe fix skipped that and put the cursor off the board on a scaled
+  client while every probe agreed with itself (fixed ead35f86e; testkit's scaled pass at factor 1.125 checks it).
 - Melody Lookahead counted the proper click (1 and 0 both meant none); since 2026-10-26 N is the EXTRA rows, max 2,
   old files move by one on load (`melodyLookaheadVersion`). A lookahead click for a row the live match already clicked
   is dropped, and the live match skips a row with a lookahead queued, so no row is clicked twice (testkit 275-277).

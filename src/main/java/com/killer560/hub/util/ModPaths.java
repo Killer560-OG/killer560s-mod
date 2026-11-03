@@ -259,6 +259,8 @@ public final class ModPaths {
         t.put("menu", "interface/menu");
         // The Sound Effects tab's settings (killer560smod-sound-effects.json, 2026-10-18).
         t.put("sound-effects", "interface/menu");
+        // The Sound Disabler tab's settings (killer560smod-sound-disabler.json, 2026-11-02).
+        t.put("sound-disabler", "interface/sounddisabler");
         // Every color picker's Recent row (killer560smod-colours.json, 2026-10-13).
         t.put("colours", "interface/menu");
         t.put("window", "interface/window");
@@ -269,6 +271,7 @@ public final class ModPaths {
         t.put("compactorpreview", "interface/compactorpreview");
         t.put("tooltipscroll", "interface/tooltipscroll");
         t.put("motionblur", "interface/motionblur");
+        t.put("darkmode", "interface/darkmode");
         t.put("fullbright", "interface/fullbright");
         t.put("packdisabler", "interface/packdisabler");
         t.put("nofire", "interface/nofire");

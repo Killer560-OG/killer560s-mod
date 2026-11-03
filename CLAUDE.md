@@ -187,6 +187,8 @@ has no switch over the whole: each feature keeps its own, and the tab lists them
 (`gui/MasterSwitch`) is ON while any is on and OFF only when all are; never add a "X as a whole" row that gates independent
 switches (the 2026-10-13 ones were removed 2026-10-14, files with the old key OFF load with every part OFF). Testkit 515-518.
 Testkit 511-514 check it on cheat, legit and testing jars.
+A feature folded into another tab (Thorn Triggerbot into Thorn, 2026-11-02) keeps its own toggle key through
+`ModuleKeybinds` EXTRAS under its old card id, so a saved bind carries over; its row sits in the host tab (testkit 527).
 A row whose feature runs on its own flag (not gated by the tab's first switch) is an independent feature and goes in
 `masterToggles`, and it must be built even while the first switch is off (an early `return` hides it from `switchRows`);
 otherwise the card reads OFF while it runs (Architect's First Draft and 11 more, menufix-1102). A row the tab only shows
@@ -380,6 +382,14 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   default. Reproduced and fixed, with scenario 86 as the control: on the broken jar it disconnects with
   "Network Protocol Error"; on the fixed one it survives. Bound every quantifier that parses another player's
   text, and wrap the parse anyway.
+  Since 2026-11-02 (noammcrash-1102) `packetguard/PacketGuard` is the backstop: `onPacketError` skips the disconnect when
+  the root cause's first non-JDK/library frame is ours (`com.killer560.` or a `killer560smod$` mixin handler), logs each
+  site once, and lets a flood (>40 in 10 s) through; testkit 996 proves it. Only `Exception` reaches `onPacketError`
+  (`PacketProcessor$ListenerAndPacket.handle` catches nothing else, javap 26.1.2/26.2/26.3): an `Error` out of a packet
+  hook still crashes the game. That disconnect also writes a disconnection report listing every mixin on the classes in
+  the trace (ours and NoammAddons' on `ClientPacketListener`), so "the log names a killer560smod mixin" does not mean we
+  threw. NoammAddons wraps `Packet.handle` inside that same try (`MixinPacketProcessorListener`, WrapOperation) and can
+  cancel a packet before any of our hooks see it, both on the main thread (Pre event) and on netty (`channelRead0`).
 - A block scan over a room's volume is almost always a chunk-section scan in disguise. Secret Waypoints read
   44,649 blocks for a 1x1 room (173,000 for a 1x4) every second looking for levers; asking each section's
   palette first (`section.maybeHas(...)`, plus `hasOnlyAir()`) does the same job in 0.7% of the reads -

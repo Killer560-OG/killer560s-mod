@@ -295,6 +295,8 @@ public final class PlayerStatsFeature {
         lastRead = message;
         // Read before the enabled gate: an etherwarp route needs to know about an empty mana bar even with the HUD off.
         noteManaShort(message.getString());
+        // The area on the action bar (mining-1103): the mining features' area check reads it with the HUD off too.
+        com.killer560.hub.pathfinding.IslandDetector.noteActionBar(message.getString());
         if (!PlayerStatsConfig.getInstance().isEnabled()) {
             return;
         }

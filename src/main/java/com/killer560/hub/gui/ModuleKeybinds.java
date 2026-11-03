@@ -44,6 +44,30 @@ public final class ModuleKeybinds {
     /** The row's label (the testkit and the tooltip key read it). */
     public static final String LABEL = "Toggle Keybind";
 
+    /** A feature folded into another tab's drawer that keeps a toggle key of its own (no card, so no
+     *  {@link FeatureCards#toggle}): its id is the bind's key in the saved file, so a bind made while it had its own card
+     *  carries over. Thorn Triggerbot was its own card until killer560, 2026-11-02 ("move thorn triggerbot under the thorn
+     *  stuff already built with that cheat build section"). */
+    private record Extra(String name, String label, java.util.function.BooleanSupplier on,
+                         java.util.function.Consumer<Boolean> set, Runnable save) {
+    }
+
+    private static final Map<String, Extra> EXTRAS = new LinkedHashMap<>();
+
+    /** The id and row label of Thorn Triggerbot's own toggle key, in the Thorn tab's cheat section. */
+    public static final String THORN_TRIGGERBOT_ID = "ThornTriggerbotTab";
+    public static final String THORN_TRIGGERBOT_LABEL = "Triggerbot Toggle Keybind";
+
+    static {
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // Looked up on each press: a profile apply reloads the config.
+            EXTRAS.put(THORN_TRIGGERBOT_ID, new Extra("Thorn Triggerbot", THORN_TRIGGERBOT_LABEL,
+                    () -> com.killer560.hub.thorn.ThornConfig.getInstance().isTriggerbotRaw(),
+                    v -> com.killer560.hub.thorn.ThornConfig.getInstance().setTriggerbot(v),
+                    () -> com.killer560.hub.thorn.ThornConfig.getInstance().save()));
+        }
+    }
+
     private static Map<String, Integer> binds;
     private static final Map<String, Boolean> wasDown = new HashMap<>();
     /** Presses that toggled something, for the testkit (a press proves itself by this AND the switch's state). */
@@ -133,15 +157,18 @@ public final class ModuleKeybinds {
     private static String capturingId;
 
     static Component rowText(String tabId) {
+        Extra extra = EXTRAS.get(tabId);
+        String label = extra != null ? extra.label() : LABEL;
         if (tabId.equals(capturingId)) {
-            return Component.literal(LABEL + ": Press any key...");
+            return Component.literal(label + ": Press any key...");
         }
         int code = get(tabId);
-        return Component.literal(LABEL + ": " + (code == KeyUtil.NONE ? "None" : KeyUtil.bindDisplayName(code)));
+        return Component.literal(label + ": " + (code == KeyUtil.NONE ? "None" : KeyUtil.bindDisplayName(code)));
     }
 
-    /** The row for the tab {@code tabId} at the bottom of its drawer: a click waits for the key (Escape clears). */
-    static SettingsButtonWidget row(String tabId, int x, int y, int w) {
+    /** The row for the tab {@code tabId} at the bottom of its drawer (or, for a folded-in feature's id, wherever its
+     *  host tab puts it): a click waits for a key or mouse button (Escape cancels, Backspace clears). */
+    public static SettingsButtonWidget row(String tabId, int x, int y, int w) {
         return SettingsButtonWidget.builder(rowText(tabId), btn -> {
             capturingId = tabId;
             btn.setMessage(rowText(tabId));
@@ -150,7 +177,9 @@ public final class ModuleKeybinds {
 
     /** The capture for the open drawer {@code tabId}, while its row waits for a key; else null. */
     static KeyCaptureTab listening(String tabId) {
-        return tabId != null && tabId.equals(capturingId) ? CAPTURE : null;
+        // A folded-in feature's row sits in its host tab's drawer, so it listens there too.
+        return tabId != null && capturingId != null && (tabId.equals(capturingId) || EXTRAS.containsKey(capturingId))
+                ? CAPTURE : null;
     }
 
     /** Stops waiting (the drawer closed or switched). */
@@ -162,6 +191,11 @@ public final class ModuleKeybinds {
         @Override
         public boolean isListeningForKey() {
             return capturingId != null;
+        }
+
+        @Override
+        public void cancelKeyCapture() {
+            capturingId = null;
         }
 
         @Override
@@ -209,6 +243,15 @@ public final class ModuleKeybinds {
 
     /** Presses the switch of the tab {@code tabId} as its key does; returns the new state, or null if it has none. */
     public static Boolean press(String tabId) {
+        Extra extra = EXTRAS.get(tabId);
+        if (extra != null) {
+            boolean on = !extra.on().getAsBoolean();
+            extra.set().accept(on);
+            extra.save().run();
+            toggles++;
+            com.killer560.hub.notify.ModOverlayMessage.show("§6" + extra.name() + ": " + (on ? "§aON" : "§cOFF"), 1500);
+            return on;
+        }
         BaseTab tab = find(tabId);
         if (tab == null) {
             return null;

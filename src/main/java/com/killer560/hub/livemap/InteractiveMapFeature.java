@@ -75,7 +75,7 @@ public final class InteractiveMapFeature {
         boolean inClear = DungeonState.isInDungeon() && !LiveMapFeature.isInBoss();
 
         // HUD peek: held key enlarges the HUD map.
-        peeking = hasWindow && cfg.isEnabled() && cfg.getPeekKeyCode() >= 0 && McCompat.screen(client) == null
+        peeking = hasWindow && cfg.isEnabled() && cfg.getPeekKeyCode() != com.killer560.hub.util.KeyUtil.NONE && McCompat.screen(client) == null
                 && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getPeekKeyCode());
 
         // QUOI open key: press opens (only from no screen); Release closes on release, Repress closes on the next press.

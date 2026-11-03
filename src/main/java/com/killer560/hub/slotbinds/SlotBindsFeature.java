@@ -210,9 +210,10 @@ public final class SlotBindsFeature {
             return false;
         });
 
-        ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
+        // The bind may be a key or a mouse button (2026-11-02): one press/release path, fed by both kinds of event.
+        java.util.function.IntPredicate bindPress = code -> {
             SlotBindsConfig cfg = SlotBindsConfig.getInstance();
-            if (cfg.getBindKey() == -1 || com.killer560.hub.compat.McInput.key(event) != cfg.getBindKey()) {
+            if (cfg.getBindKey() == -1 || code != cfg.getBindKey()) {
                 return true;
             }
             if (gesture[0] != null) {
@@ -228,18 +229,17 @@ public final class SlotBindsFeature {
                 finishBind(cfg, pendingSlot, hoveredIndex);
                 return false;
             }
-            boolean shared = ownsSharedKey(screen, com.killer560.hub.compat.McInput.key(event));
+            boolean shared = ownsSharedKey(screen, code);
             if (!shared && (hovered == null || hovered.index < 5 || hovered.index >= 45)) {
                 return true;
             }
             // Nothing happens yet: the press is decided on key-up (see resolve), from where the cursor is then.
             gesture[0] = new Gesture(hovered, mouse[0], mouse[1], System.currentTimeMillis(), shared);
             return false;
-        });
-
-        ScreenKeyboardEvents.allowKeyRelease(screen).register((s, event) -> {
+        };
+        java.util.function.IntPredicate bindRelease = code -> {
             SlotBindsConfig cfg = SlotBindsConfig.getInstance();
-            if (gesture[0] == null || cfg.getBindKey() == -1 || com.killer560.hub.compat.McInput.key(event) != cfg.getBindKey()) {
+            if (gesture[0] == null || cfg.getBindKey() == -1 || code != cfg.getBindKey()) {
                 return true;
             }
             Gesture held = gesture[0];
@@ -247,7 +247,15 @@ public final class SlotBindsFeature {
             Slot released = accessor.killer560smod$getHoveredSlot();
             resolve((AbstractContainerScreen<?>) screen, cfg, pendingSlot, held, released, mouse[0], mouse[1]);
             return false;
-        });
+        };
+        ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) ->
+                bindPress.test(com.killer560.hub.compat.McInput.key(event)));
+        ScreenKeyboardEvents.allowKeyRelease(screen).register((s, event) ->
+                bindRelease.test(com.killer560.hub.compat.McInput.key(event)));
+        ScreenMouseEvents.allowMouseClick(screen).register((s, event) ->
+                bindPress.test(KeyUtil.codeForMouseButton(com.killer560.hub.compat.McInput.button(event))));
+        ScreenMouseEvents.allowMouseRelease(screen).register((s, event) ->
+                bindRelease.test(KeyUtil.codeForMouseButton(com.killer560.hub.compat.McInput.button(event))));
 
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) -> {
             mouse[0] = mouseX;

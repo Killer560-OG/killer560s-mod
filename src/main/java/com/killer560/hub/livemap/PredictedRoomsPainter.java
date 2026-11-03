@@ -34,7 +34,21 @@ public final class PredictedRoomsPainter {
     private PredictedRoomsPainter() {
     }
 
+    /**
+     * Whether this map draws predictions at all. Not the Dungeon Map on Funny Map (killer560, 2026-11-02: "if i have funny
+     * map on then it doesnt need to show stuff like predictive rooms and other such things that funny map already covers.
+     * so have those hidden if it is toggled."): Funny Map draws the scanned floor itself, and the tab hides Predictive
+     * Rooms and Special Room Guess while it is on, so they must change nothing there. The Interactive Map (a full scan
+     * too, with no Funny Map of its own) keeps drawing them as before.
+     */
+    static boolean shown() {
+        return MapPainter.fullScanActive() || !LiveMapConfig.getInstance().isFunnyMap();
+    }
+
     static void draw(GuiGraphicsExtractor graphics, Font font, LiveMapConfig cfg, float ox, float oy, float ppu) {
+        if (!shown()) {
+            return;
+        }
         PredictiveRoomsConfig pc = PredictiveRoomsConfig.getInstance();
         Set<Integer> drawn = new HashSet<>();
         if (pc.isEnabled()) {
@@ -92,6 +106,9 @@ public final class PredictedRoomsPainter {
 
     /** Whether {@link #draw} paints a Predictive Rooms name over any of these tiles. Worked out once a client tick. */
     static boolean namesAny(int[] tiles) {
+        if (!shown()) {
+            return false; // asked before the per-tick cache: the Interactive Map can ask in the same tick and draw them
+        }
         int tick = LiveMapFeature.tickCount();
         int version = RoomPredictor.predictionsVersion();
         if (tick != namedTick || version != namedVersion) {

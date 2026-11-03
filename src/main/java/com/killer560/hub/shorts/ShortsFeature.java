@@ -1638,7 +1638,7 @@ public final class ShortsFeature {
     private static void pollKeys(Minecraft client, ShortsConfig cfg) {
         int[] keys = {cfg.getToggleKey(), cfg.getNextKey(), cfg.getPreviousKey(), cfg.getPlayPauseKey(), cfg.getMuteKey()};
         for (int i = 0; i < keys.length; i++) {
-            boolean down = keys[i] >= 0 && client.getWindow() != null && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), keys[i]);
+            boolean down = keys[i] != com.killer560.hub.util.KeyUtil.NONE && client.getWindow() != null && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), keys[i]);
             if (down && !keyWasDown[i] && McCompat.screen(client) == null) {
                 switch (i) {
                     case 0 -> toggleShown();

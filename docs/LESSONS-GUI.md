@@ -24,7 +24,9 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
 - **`FormattedCharSequence.forward(String, Style)` does NOT apply formatting codes**: it iterates characters, so "§6X" draws
   a literal "§6". `HudTextCache`'s left-to-right fast path (no ICU Bidi for text below U+0590 under a left-to-right
   language) wraps `iterateFormatted(text, Style.EMPTY, sink)`, as vanilla's `getVisualOrder` does (testkit 95-perf-fixes
-  compares every glyph and style with vanilla's).
+  compares every glyph and style with vanilla's). `McRender.drawText(..., String, ...)` (world labels, both compat dirs) had
+  the same fault until commissions-1103: every coded world label printed its codes ("Emissary §7(186m)", killer560
+  2026-11-03); it now uses `iterateFormatted` too. When fixing one wrap of a String into a sequence, grep for the others.
 - **Text drawn from a Component the game rebuilds every frame never hits an identity cache.** Vanilla copies every tab
   row's and nametag's Component each frame. Name Changer's weak-keyed cache paid a WeakReference and a locked put for each,
   Name Animation buffered every glyph, and supporter names were rebuilt with `NameColor.toComponent` per frame (Bidi
@@ -282,6 +284,11 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   like the hotbar, is attached to a vanilla layer before SUBTITLES that always runs (an attached element runs only where its
   parent does; after `EXPERIENCE_LEVEL` the bars vanished in creative). Health and Mana Bars are
   `attachElementAfter(MISC_OVERLAYS)` (testkit 441: no bar pixel beside the open inventory; 443/444 draw in creative).
+- **A layer that must sit under or over the WHOLE HUD is two Fabric layers, not a `Hud` mixin** (Dark Mode, 2026-11-02):
+  `HudElementRegistry.addFirst` runs before every vanilla and mod layer; for "over everything" call `addLast` from
+  `ClientLifecycleEvents.CLIENT_STARTED`, so it lands after every `addLast` other entrypoints made (this mod's HUD elements
+  included; Fabric's root list is live, javap 0.165.0+26.3). Screens draw after the HUD pass, so neither touches an open
+  menu (testkit 1102-darkmode-*: world 0.752 at 25 %, hotbar and overlay text 1.000 under, 0.749 over; inventory/menu 1.000).
 - **The first-person hands are drawn INSIDE `GameRenderer.renderItemInHand`, under its model-view push, on both versions.**
   26.1.2's `renderItemInHand` only submits, but `ItemInHandRenderer.renderHandsWithItems` ends with its own
   `renderAllFeatures()` + `endBatch()` (26.2 flushes in `renderItemInHand`), with the `Matrix4fc` argument on the model-view
@@ -462,3 +469,39 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   with no switch. Its search scans every page off screen, and a hit on a sub-page needs `BaseTab.revealSetting(label)` (called by
   `ModScreen.activate`) to open that page before the scroll-to-row looks; match the row's own label exactly first, or
   "Storm Death" opens the front page's "Storm Death Leap" instead (testkit 1102-ui-leapmenu-search).
+- Anything the Dungeon Map draws off `DungeonMapScanner.isCalibrated()` / `MapPainter.unexplored` changes the moment the run
+  starts, because Hypixel hands the map item over then: Funny Map drew every room in its own color in the green room and
+  then darkened every unopened room `darker().darker()` when the doors dropped (owner 2026-11-02, mapcolor-1102). Funny Map
+  no longer applies the awt darkening; check any new map look both before and after a map item arrives (testkit 1102-map-funny-same-color).
+
+- **Every key row takes a mouse button, and the rule lives in ModScreen** (keybindmouse-1102, his "most of the set keybinds
+  things wont let me set mouse buttons"). Three causes stacked: `KeyCaptureTab.supportsMouseCapture` defaulted to false
+  (20 tabs never overrode it, so a click while listening went to the widgets); a mouse bind is a NEGATIVE code
+  (`KeyUtil.MOUSE_CODE_BASE - button`, -103 for Mouse 4), so every `code < 0` "not set" guard in a feature and
+  `KeyUtil.sanitize` on load treated it as unbound; and `KeyUtil.isKeyDown` polled keys only. Now the interface defaults to
+  mouse capture (stored as the mouse code through `onKeyCaptured`), `cancelKeyCapture()` is abstract so a new row cannot
+  forget it, ModScreen does Escape = cancel / Backspace or Delete = clear for every row, `sanitize` keeps mouse codes, and
+  `isKeyDown` polls a mouse code. Test "not set" with `== KeyUtil.NONE`, never `< 0`. A polled mouse bind also reads
+  `util/MouseButtons` (fed by MacroStopMouseMixin from `MouseHandler.onButton`), so a polled bind sees the same button
+  events the screens and Controls see (the testkit's real input arrives that way too). Testkit 1103 walks every drawer and binds Mouse 4 by real clicks.
+
+- **"The box is missing most of its faces" can be a box that is the wrong size, not a broken draw.** killer560's F7 picture
+  (2026-11-02, Red Blue) showed a tall one-block yellow sliver beside a slab tomb: Secret Waypoints drew the box whole,
+  but the prince was boxed from its three gold crown blocks only, and the 3x4 smooth stone slab lid beside them was merely
+  "rejected (part of a prince)". The renderer (no-depth types, cull off, drawn over terrain and mobs on 26.3) was fine in
+  every valid view of testkit 98-prince-box. A lid touching a prince now widens the prince's box (`CryptScanner.scan`);
+  the crown blocks still decide when it is opened. Check the logged box against the blocks before touching the pipeline.
+
+- **`graphics.item(stack, x + 1, y + 1)` is a vanilla 18-unit slot's draw; in a bigger cell it is a small icon in the
+  top-left corner.** The Inventory Sorter grew its cells to 26 units on 2026-11-01 and kept the 16-unit item at +1,+1, so
+  his items "dont fit" (2026-11-02). And the mod's own grids never pass the `extractSlot` mixin, so none of them drew the
+  Item Rarity box. Draw grid items through `gui/ItemCell.draw(g, font, stack, x, y, inside)`: rarity box sized to the cell
+  (`ItemRarityFeature.drawBox`, same settings), item centered at about 85% of the inside snapped to framebuffer pixels
+  (unscaled at 16), count and bar scaled with it. Testkit 588 measures it from pixels at four window/GUI sizes; 589 checks the rarity gold in every other grid.
+- **A grid whose stack is built for its look carries no lore, so `ItemRarityFeature.drawBox(g, stack, ...)` draws nothing
+  there.** The Pet Wheel icon is a bare head and the Item Browser shares one built stack per look (`SkyblockItemStackFactory`
+  BUILD_CACHE); the first invsortfit commit passed those stacks and neither grid ever showed a box. Pass the tier the data
+  already has: `drawBox(g, ItemRarity.byName(pet.tier() / entry.tier()), ...)` (invsortfit-1102).
+- A world fill whose face lies exactly on a block face z-fights with it, and which one wins flips as the camera moves:
+  "if i jump or crouch the highlight will phase through the block" (Carpet Highlighter, 2026-11-03). Push every face a
+  hair (0.002) outside the block it marks, as the titanium boxes already did (mining-1103).

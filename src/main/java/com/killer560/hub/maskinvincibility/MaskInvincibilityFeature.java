@@ -151,6 +151,13 @@ public final class MaskInvincibilityFeature {
         return type != null && cooldownRemaining.getOrDefault(type, 0) > 0;
     }
 
+    /** Whole seconds left on the mask's proc cooldown, rounded up (0 when it is ready). */
+    public static int cooldownSecondsLeft(MaskSwapper.Target target) {
+        Type type = Type.of(target);
+        int ticks = type == null ? 0 : cooldownRemaining.getOrDefault(type, 0);
+        return ticks <= 0 ? 0 : (ticks + 19) / 20;
+    }
+
     /** {@code /pc <message>} the same way {@code blessings.BlessingTracker#sendPartyMessage} sends it. */
     private static void sendPartyChat(String message) {
         Minecraft client = Minecraft.getInstance();
