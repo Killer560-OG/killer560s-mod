@@ -699,7 +699,8 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         // 26 px, shrinking to the old 18 in a small window.
         SLOT = Math.max(18, Math.min(26, Math.min((this.height - 200) / 4, (this.width - LIST_W - 40) / 9)));
         int leftW = 9 * SLOT;
-        poolCell = Math.max(14, Math.min(SLOT, 20));
+        int baseLeftH = 22 + (4 * SLOT + 4) + 6 + 16 + 4 + 18 + 6 + 10 + 6 + 14 + 4;
+        poolCell = Math.max(10, Math.min(Math.min(SLOT, 20), (this.height - 8 - baseLeftH) / 4));
         // The saved layouts take every pixel left over (killer560, 2026-11-03: "make the saved loadouts portion bigger
         // so it is easier for me to see what i have"): the list is as wide as the window allows (up to 420) and as
         // tall as the window, and each row shows the layout's items.
@@ -707,7 +708,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         // Never narrower than 196 where the window has room; a tiny window gets what is left (at least 120) so it fits.
         int listWant = Math.max(Math.min(LIST_W, Math.max(120, room)), Math.min(LIST_W_MAX, room));
         PANEL_W = leftW + 12 + listWant + 16;
-        int leftH = 22 + (4 * SLOT + 4) + 6 + 16 + 4 + 18 + 6 + 10 + 6 + 14 + 4 * poolCell + 4;
+        int leftH = baseLeftH + 4 * poolCell;
         PANEL_H = Math.max(leftH, Math.min(this.height - 8, 500));
         panelX = (this.width - PANEL_W) / 2;
         panelY = Math.max(4, (this.height - PANEL_H) / 2);
