@@ -26,7 +26,18 @@ public class PackDisablerTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(packDisablerText());
                 }).bounds(contentX, contentY, 220, 20).build());
+        widgets.add(SettingsButtonWidget.builder(paperMenuButtonsText(), btn -> {
+                    PackDisablerConfig cfg = PackDisablerConfig.getInstance();
+                    cfg.setPaperMenuButtons(!cfg.isPaperMenuButtons());
+                    cfg.save();
+                    btn.setMessage(paperMenuButtonsText());
+                }).bounds(contentX, contentY + 24, 220, 20).build());
         return widgets;
+    }
+
+    private static Component paperMenuButtonsText() {
+        return Component.literal("Paper Menu Buttons: "
+                + (PackDisablerConfig.getInstance().isPaperMenuButtons() ? "§aON" : "§cOFF"));
     }
 
     private static Component packDisablerText() {

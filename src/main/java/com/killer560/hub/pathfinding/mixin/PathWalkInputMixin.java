@@ -53,7 +53,9 @@ public abstract class PathWalkInputMixin extends ClientInput {
         boolean b = AutoWalker.wantBack();
         boolean l = AutoWalker.wantLeft();
         boolean r = AutoWalker.wantRight();
-        this.keyPresses = new Input(f, b, l, r, AutoWalker.wantJump(), keys.shift(), AutoWalker.wantSprint());
+        // Sneak: his own, or the walker's (under a 1.5-high overhang, or stopping on a narrow spot by a drop).
+        this.keyPresses = new Input(f, b, l, r, AutoWalker.wantJump(), keys.shift() || AutoWalker.wantSneak(),
+                AutoWalker.wantSprint());
         // Exactly what vanilla's tick derives from those keys: each axis -1/0/1, then normalized.
         this.moveVector = new Vec2((l ? 1f : 0f) - (r ? 1f : 0f), (f ? 1f : 0f) - (b ? 1f : 0f)).normalized();
     }

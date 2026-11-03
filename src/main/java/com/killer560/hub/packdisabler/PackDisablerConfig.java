@@ -20,6 +20,8 @@ public final class PackDisablerConfig {
     private static volatile PackDisablerConfig instance;
 
     private volatile boolean enabled = false;
+    /** Draw Hypixel's map menu buttons (Create Sell Offer, Create Buy Order...) as paper on 26.3 (2026-11-03). */
+    private volatile boolean paperMenuButtons = true;
 
     private PackDisablerConfig() {
     }
@@ -44,6 +46,7 @@ public final class PackDisablerConfig {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
                         .getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+                cfg.paperMenuButtons = ConfigJson.getBool(obj, "paperMenuButtons", cfg.paperMenuButtons);
             }
         } catch (Exception ignored) {
         }
@@ -55,6 +58,7 @@ public final class PackDisablerConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
+            obj.addProperty("paperMenuButtons", paperMenuButtons);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -67,5 +71,14 @@ public final class PackDisablerConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    /** Map menu buttons drawn as paper while Pack Disabler is active (26.3 only; 26.2's map is still the old sheet). */
+    public boolean isPaperMenuButtons() {
+        return paperMenuButtons;
+    }
+
+    public void setPaperMenuButtons(boolean paperMenuButtons) {
+        this.paperMenuButtons = paperMenuButtons;
     }
 }

@@ -426,7 +426,8 @@ public final class FastLeapFeature {
         // pick for your own name applied (PartyTracker.selfClass), replaces the pick when that class has one set. In
         // Posmsg mode it replaces the backup pick; an announced position still goes first.
         DungeonClass mine = com.killer560.hub.leapmenu.PartyTracker.selfClass();
-        FastLeapConfig.ClassPick pick = cfg.getClassTarget(target, mine);
+        // Only with Targets on Set Class (2026-11-02); on Universal every class uses the Universal target.
+        FastLeapConfig.ClassPick pick = cfg.isUseClassTargets() ? cfg.getClassTarget(target, mine) : null;
         lastSelfClass = mine == null ? "" : mine.name();
         lastUsedClassTarget = pick != null;
         if (pick != null) {

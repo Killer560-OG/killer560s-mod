@@ -23,6 +23,7 @@ final class CardBlurbsData {
         d.put("MiningTitaniumTab", "Outlines Titanium blocks.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");
         d.put("CreationCooldownTab", "Dungeon join timer.");
+        d.put("KickRejoinTab", "Rejoin wait after a kick.");
         d.put("InstaClearWarningTab", "Lost-key alert.");
         d.put("BloodRushHelperTab", "Rush mob kill spots.");
         d.put("GyroOverlayTab", "Shows the Gyro wand's pull ring.");

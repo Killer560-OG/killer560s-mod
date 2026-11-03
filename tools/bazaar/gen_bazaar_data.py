@@ -6,7 +6,7 @@ Inputs (download them into one folder, pass it as the only argument):
   bazaar.json     https://api.hypixel.net/v2/skyblock/bazaar                 (the product ids)
   items.json      https://api.hypixel.net/v2/resources/skyblock/items        (names, tiers, skins, materials)
   neu.zip         NotEnoughUpdates-REPO master archive (MIT, Moulberry)      (enchantments, shards, essences, factions)
-  vanilla_items.txt  one vanilla item id per line (assets/minecraft/items/*.json of the 26.1.2 client jar)
+  vanilla_items.txt  one vanilla item id per line (assets/minecraft/items/*.json of the main version's client jar; every id must also exist on 26.2)
 And tools/bazaar/bazaar_tree.txt (Hypixel's Bazaar menu taxonomy, from the wiki).
 
 Run:  python -X utf8 tools/bazaar/gen_bazaar_data.py <data folder>

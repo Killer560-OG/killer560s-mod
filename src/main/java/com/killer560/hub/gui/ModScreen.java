@@ -2048,6 +2048,9 @@ public class ModScreen extends Screen {
         clearSearch();
         if (!r.feature()) {
             pendingFocusLabel = r.label().startsWith("a setting in ") ? null : r.label();
+            if (pendingFocusLabel != null) {
+                r.tab().revealSetting(pendingFocusLabel); // a row on a sub-page: open that page first
+            }
         }
         navigateTo(r.tab());
         rebuild();

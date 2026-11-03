@@ -1,5 +1,6 @@
 package com.killer560.hub.packdisabler;
 
+import com.killer560.hub.compat.McItems;
 import com.killer560.hub.interop.DetectedMods;
 import com.killer560.hub.util.ItemNbt;
 import com.killer560.hub.util.ModChat;
@@ -10,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ResolvableProfile;
@@ -68,31 +70,76 @@ public final class PackDisabler {
         return model != null && HYPIXEL_NAMESPACE.equals(model.getNamespace());
     }
 
+    private static final Identifier MAP_MODEL = Identifier.withDefaultNamespace("map");
+    private static final Identifier FILLED_MAP_MODEL = Identifier.withDefaultNamespace("filled_map");
+    private static final Identifier PAPER_MODEL = Identifier.withDefaultNamespace("paper");
+
+    /** {@link #resolveModel(ItemStack, Identifier, ItemDisplayContext)} for a caller with no display context. */
+    public static Identifier resolveModel(ItemStack stack, Identifier current) {
+        return resolveModel(stack, current, null);
+    }
+
     /**
      * The model {@code stack} should be drawn with. Called by the item-model mixin with the model the stack asked for;
-     * returns it unchanged unless Pack Disabler is active and it is one of Hypixel's. Never throws.
+     * returns it unchanged unless Pack Disabler is active and it is one of Hypixel's (or, on 26.3, a map menu button).
+     * A stack with no SkyBlock id - a menu's picture of an item - is matched by its Hypixel model instead. Never
+     * throws.
      */
-    public static Identifier resolveModel(ItemStack stack, Identifier current) {
+    public static Identifier resolveModel(ItemStack stack, Identifier current, ItemDisplayContext context) {
+        if (isMenuMap(stack, current, context)) {
+            return PAPER_MODEL;
+        }
         if (!isHypixelModel(current) || !isActive()) {
             return current;
         }
         try {
             CompoundTag tag = ItemNbt.view(stack);
-            if (tag == null) {
-                return current;
-            }
-            String id = tag.getStringOr("id", null);
+            String id = tag == null ? null : tag.getStringOr("id", null);
             if (id == null) {
-                return tag.contains("quiver_arrow") ? Identifier.withDefaultNamespace("arrow") : current;
+                if (tag != null && tag.contains("quiver_arrow")) {
+                    return Identifier.withDefaultNamespace("arrow");
+                }
+                // Menus show items without their SkyBlock id (Bazaar and AH pages, recipes, collections): the
+                // Hypixel model alone names the item when exactly one table row uses it.
+                id = ItemLooks.idForModel(current);
+                if (id == null) {
+                    return current;
+                }
             }
             Identifier model = ItemLooks.modelFor(id);
             if (model == null) {
                 return current;
             }
-            Identifier dynamic = dynamicModel(id, stack, tag, current);
+            Identifier dynamic = tag == null ? null : dynamicModel(id, stack, tag, current);
             return dynamic != null ? dynamic : model;
         } catch (Exception e) {
             return current;
+        }
+    }
+
+    /**
+     * Minecraft 26.3 redrew the empty and the filled map as folded maps; before it both were a flat paper sheet, which
+     * is how Hypixel's map buttons (Create Sell Offer, Create Buy Order, ...) always looked (killer560, 2026-11-03:
+     * "the sell offer buttons look different now like maps instead of the old paper"). Hypixel's pack has no menu
+     * models at all (pack 97: every item model is under item/), so this is the one menu change. Only a map drawn in a
+     * GUI slot on its own vanilla model, with no SkyBlock id and no map data, is a button; a real map keeps its look.
+     */
+    static boolean isMenuMap(ItemStack stack, Identifier current, ItemDisplayContext context) {
+        if (!McItems.MAPS_DRAWN_AS_MAPS || context != ItemDisplayContext.GUI || stack == null || stack.isEmpty()
+                || !(MAP_MODEL.equals(current) || FILLED_MAP_MODEL.equals(current))) {
+            return false;
+        }
+        if (!(stack.is(Items.MAP) || stack.is(Items.FILLED_MAP)) || stack.has(DataComponents.MAP_ID)) {
+            return false;
+        }
+        try {
+            if (!PackDisablerConfig.getInstance().isPaperMenuButtons() || !isActive()) {
+                return false;
+            }
+            CompoundTag tag = ItemNbt.view(stack);
+            return tag == null || tag.getStringOr("id", null) == null;
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -113,6 +160,9 @@ public final class PackDisabler {
             }
             CompoundTag tag = ItemNbt.view(stack);
             String id = tag == null ? null : tag.getStringOr("id", null);
+            if (id == null) {
+                id = ItemLooks.idForModel(stack.get(DataComponents.ITEM_MODEL));
+            }
             ResolvableProfile old = ItemLooks.profileFor(id);
             return old != null ? old : current;
         } catch (Exception e) {

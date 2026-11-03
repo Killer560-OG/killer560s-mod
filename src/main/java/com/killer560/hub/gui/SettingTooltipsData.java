@@ -23,6 +23,11 @@ final class SettingTooltipsData {
         d.put("blood rush splits", "Times the blood rush room by room on its own HUD: each room's time from the door into it to the door out, how long its key took, and a slow door click.");
         d.put("rush style", "Compact is one row a room; Detailed lists each room's door down, last mob, pickup, opened and room total.");
         d.put("rush to chat", "When the Blood door opens, sends you the rush's room times as one chat line (only you see it).");
+        d.put("kick rejoin timer", "Kicked out of SkyBlock into a Hypixel lobby, Hypixel makes you wait 60 seconds to rejoin: a HUD counts it down and a title says when you can.");
+        d.put("rejoin title", "Shows a 'Rejoin SkyBlock now!' title when the 60 second wait is over.");
+        d.put("rejoin sound", "Plays a ping when the 60 second wait is over.");
+        d.put("kick party message", "Once per kick it sends /pl to see whether you are in a party (the reply is hidden from your chat), and only if you are, sends your text below to party chat. Off by default.");
+        d.put("kick party message text", "The party line sent on a kick (at most 100 characters; color codes and line breaks are left out). Empty puts the default back.");
         d.put("creation cooldown", "Shows how long until Hypixel lets you create another dungeon (30 s after you enter one).");
         d.put("show on all islands", "Also shows the Creation Cooldown outside dungeons, anywhere on Skyblock.");
         d.put("only in green room", "In a dungeon, shows the Creation Cooldown only while you are in the green Entrance room.");
@@ -513,7 +518,7 @@ final class SettingTooltipsData {
         d.put("default order", "Where each teammate goes by class until you move them by hand: Odin, A-Z Class, Z-A Class or Hypixel's own order.");
         d.put("open custom leap order editor", "Opens the Leap Order editor to set which teammate goes in each of the 4 spots.");
         d.put("fast leap", "Left-clicking a Spirit Leap or Infinileap leaps straight to your target (cheat build only).");
-        d.put("target mode", "How leaps pick their target: Per Leap (each leap's own Target) or Posmsg (whoever announced the spot, with the leap's Target as backup) (cheat build only).");
+        d.put("target mode", "How leaps pick their target: Per Leap (the target on the Targets page in use) or Posmsg (whoever announced the spot in party chat, with that target as backup). Applies to both Targets pages (cheat build only).");
         d.put("block inputs", "Blocks keyboard and mouse input while a fast or auto leap runs.");
         d.put("fast mode", "Holds movement and blocks inputs only while the leap menu is open, not the whole leap.");
         d.put("swap back", "Switches back to the hotbar slot you held before the automatic action.");
@@ -1908,6 +1913,7 @@ final class SettingTooltipsData {
         d.put("auto croesus/max delay", "Cheat build only. Longest random wait between Auto Croesus's clicks, 100-2000 ms.");
         d.put("display options", "Borderless fullscreen, fullbright, Pack Disabler and the Amber main menu theme.");
         d.put("pack disabler", "Draws SkyBlock items with their pre-resource-pack look. Off by default.");
+        d.put("pack disabler/paper menu buttons", "Minecraft 26.3 redrew maps as folded maps. With Pack Disabler on, Hypixel's map buttons (Create Sell Offer, Create Buy Order) are drawn as paper again, close to the old flat sheet. 26.2 already draws the old sheet, so it changes nothing there. On by default.");
         d.put("24h skyblock time", "Shows the SkyBlock clock as 13:40 instead of 1:40pm.");
         d.put("ap3/movement", "Cheat build only. How AP3 moves you between nodes and whether chains roll into the next area.");
         d.put("auto routes/color", "The color every Auto Routes node marker uses while Uniform Color is ON.");
@@ -1958,28 +1964,51 @@ final class SettingTooltipsData {
         // "experiments/mode" is gone with the Mode button: the solver and the automation are two independent
         // settings now, not two positions of one switch.
         d.put("fast/auto leap/fast leap", "Left-clicking a leap item in a dungeon leaps straight to your target instead of opening the menu (cheat build only).");
-        d.put("fast/auto leap/leaps", "One row per leap spot: its Fast and Auto switches, and who it leaps to.");
-        d.put("fast/auto leap/fast", "This leap fires when you left click with a Spirit Leap or Infinileap here. Works alongside Auto (cheat build only).");
-        d.put("fast/auto leap/auto", "This leap fires by itself when its trigger happens: swaps to your leap from the hotbar, opens it, clicks the target, then swaps to Return To (cheat build only).");
+        d.put("fast/auto leap/leaps", "One row per leap spot: Off (unused), Fast (your left click with a leap item there leaps) or Auto (it leaps by itself on its trigger). Who each one leaps to is on the Universal and Set Class Targets pages.");
+        String[][] leapTriggers = {{"door opener", "whoever last opened a Wither or Blood door. Auto leaps as soon as one opens"},
+                {"crystal", "the Crystal target in F7 P1. Auto leaps on the 2nd Energy Laser message"},
+                {"predev", "the Predev target in F7 P1/P2. Auto leaps on Storm's 'happy to show you' line"},
+                {"green pad", "the Green Pad target in F7 P2. Auto leaps on Storm's 1st crush"},
+                {"yellow pad", "the Yellow Pad target in F7 P2. Auto leaps on Storm's 2nd crush"},
+                {"purple pad", "the Purple Pad target in F7 P2. Auto leaps on Storm's 1st crush"},
+                {"py healer", "the PY Healer target in F7 P2. Auto leaps when a teammate reaches the spot"},
+                {"storm death", "the Storm Death target in F7 P2. Auto leaps when Storm dies"},
+                {"p3", "the target for the P3 section you just finished. Auto leaps when it completes"},
+                {"middle", "the Middle target in F7 P4 outside the middle. Auto leaps on Necron's 'impressive trick' line"},
+                {"p4", "the P4 target in the middle. Auto leaps on Necron's 2nd 'ARGH!'"},
+                {"relic", "the Relic target in P5. Auto leaps as soon as you pick up a relic"}};
+        for (String[] t : leapTriggers) {
+            d.put("fast/auto leap/" + t[0] + " leap", "Goes to " + t[1] + ". Off: unused. Fast: your left click with a Spirit Leap or Infinileap there leaps. Auto: it leaps by itself. Left click forward, right click back (cheat build only).");
+        }
+        // The 2026-11-02 layout: front page, then the Universal Targets and Set Class Targets pages.
+        d.put("fast/auto leap/targets", "Which targets the leaps use: Universal (the Universal Targets page, whatever class you play) or Set Class (the Set Class Targets page's pick for the class you are playing; a leap with none set there uses its Universal target). Left click forward, right click back (cheat build only).");
+        String universal = "Opens the Universal Targets page: who each leap goes to, whatever class you play.";
+        d.put("fast/auto leap/universal targets >", universal + " Lit when Targets is Universal.");
+        d.put("fast/auto leap/universal targets (in use) >", universal + " The leaps use this page now (Targets: Universal).");
+        String setClass = "Opens the Set Class Targets page: who each leap goes to while you play the class you pick there.";
+        d.put("fast/auto leap/set class targets >", setClass + " Lit when Targets is Set Class.");
+        d.put("fast/auto leap/set class targets (in use) >", setClass + " The leaps use this page now (Targets: Set Class).");
+        d.put("fast/auto leap/< back", "Back to the Fast/Auto Leap front page.");
+        d.put("fast/auto leap/when you play", "The class whose targets this page shows and edits. Your class is read off the dungeon tab list, with a Leap Order class pick on your own name applied. Left click forward, right click back.");
+        d.put("fast/auto leap/door opener", "Door Opener has no target to set: it leaps to whoever last opened a Wither or Blood door.");
+        String pick = " On Universal Targets: a class (the teammate who has it, Leap Order's class picks included), a party member by name, or None. On Set Class Targets the same for the class picked above, or Same as Universal. Left click forward, right click back.";
+        String[][] spots = {{"crystal", "the Crystal leap (P1)"}, {"predev", "the Predev leap"}, {"green pad", "the Green Pad leap"},
+                {"yellow pad", "the Yellow Pad leap"}, {"purple pad", "the Purple Pad leap"}, {"py healer", "the PY Healer leap"},
+                {"storm death", "the Storm Death leap"}, {"middle", "the Middle leap (P4)"}, {"p4", "the P4 leap"},
+                {"relic", "the Relic leap (P5)"}};
+        for (String[] s : spots) {
+            d.put("fast/auto leap/" + s[0], "Who " + s[1] + " goes to." + pick);
+        }
         d.put("fast/auto leap/click delay", "Minimum time between fast leap clicks, 100-500 ms (cheat build only).");
         d.put("fast/auto leap/leap timeout", "How long a leap waits for the Spirit Leap menu, then for the target's head, before it gives up and gives you your inputs back, 0.5-5 s in 0.25 s steps, 2 s by default (cheat build only).");
         d.put("leap timeout", "How long a leap waits for the menu, then for the target's head, before giving up, 0.5-5 s (cheat build only).");
         d.put("fast/auto leap/block inputs", "Blocks your keyboard and mouse while a fast or auto leap is clicking (cheat build only).");
         d.put("fast/auto leap/fast mode", "Blocks input only between the leap menu opening and the click (cheat build only).");
         d.put("fast/auto leap/return to", "The hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap: your previous slot, Stay on Leap (no swap back), or a fixed slot 1-9 (cheat build only).");
-        d.put("fast/auto leap/target", "Who this leap goes to: a class (the teammate who has it, Leap Order's class picks included) or a party member by name. Left click forward, right click back.");
         d.put("fast/auto leap/keywords", "Posmsg mode: party-chat words that mark who is at this spot, comma separated.");
-        d.put("fast/auto leap/s1", "Who you leap to when section 1 is done: a class or a party member. Left click forward, right click back.");
-        d.put("fast/auto leap/s2", "Who you leap to when section 2 is done: a class or a party member. Left click forward, right click back.");
-        d.put("fast/auto leap/s3", "Who you leap to when section 3 is done: a class or a party member. Left click forward, right click back.");
-        d.put("fast/auto leap/s4", "Who you leap to when section 4 is done: a class or a party member. Left click forward, right click back.");
-        d.put("fast/auto leap/class targets", "Lets a leap go to someone else depending on the class you are playing this run. Pick one of your classes here and each leap below shows its target for that class. Off only hides those rows; what is set still applies (cheat build only).");
-        for (String mine : new String[] {"Mage", "Tank", "Healer", "Archer", "Berserker"}) {
-            String lower = mine.toLowerCase(java.util.Locale.ROOT);
-            d.put("fast/auto leap/as " + lower, "Who this leap goes to when you are playing " + mine + ": a class or a party member. Same as Target uses the leap's Target. Left click forward, right click back.");
-            for (int sec = 1; sec <= 4; sec++) {
-                d.put("fast/auto leap/s" + sec + " as " + lower, "Who you leap to when section " + sec + " is done and you are playing " + mine + ". Same as Target uses S" + sec + ". Left click forward, right click back.");
-            }
+        for (int sec = 1; sec <= 4; sec++) {
+            d.put("fast/auto leap/s" + sec, "Who you leap to in P3 when section " + sec + " is done." + pick);
+            d.put("fast/auto leap/s" + sec + " keywords", "Posmsg mode: party-chat words that mark who is at section " + sec + ", comma separated.");
         }
         d.put("gif player/speed", "GIF playback speed, 0.25x-4x (1 = normal).");
         d.put("gif player/set", "Applies the number typed in the box to its left.");
@@ -2807,7 +2836,7 @@ final class SettingTooltipsData {
      *  distinctive mod-wide, so there's no collision to scope against by top-level tab name. */
     private static void invSortAndAutoSell(Map<String, String> d) {
         d.put("auto inventory sorter", "Re-arranges your inventory into a saved layout, by key or /invsort apply <name>.");
-        d.put("inventory sorter/open layouts", "Opens the layouts menu (/invsort): left click a layout to swap to it, right click to edit it, drag to reorder, and set its key in the cell on its right.");
+        d.put("inventory sorter/open layouts", "Opens the layouts menu (/invsort): each saved layout shows its hotbar items; left click one to swap to it, right click to edit it, drag to reorder, and set its key in the cell on its right. In the grid, right-click a slot (or press Delete over it) to make it Free: the sort leaves what is in it alone.");
         d.put("inventory sorter/open menu key", "Press to capture a key (or mouse button) that opens the layouts menu; Backspace clears it.");
         d.put("inventory sorter/instant (0-tick)", "Cheat build. Sends every click of a sort in one tick without opening your inventory. UNTESTED on Hypixel: clicks with no inventory open are what got a limbo for \"Bad client inventory move\". Off by default.");
         d.put("inventory sorter/ticks between moves", "Client ticks between each click the sorter sends. It always uses the fewest clicks a sort can take.");

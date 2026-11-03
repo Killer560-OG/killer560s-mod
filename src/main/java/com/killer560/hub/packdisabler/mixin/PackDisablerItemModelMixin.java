@@ -25,6 +25,6 @@ public class PackDisablerItemModelMixin {
     @ModifyVariable(method = "appendItemLayers", at = @At("STORE"), ordinal = 0)
     private Identifier killer560smod$packDisablerModel(Identifier model, ItemStackRenderState state, ItemStack stack,
             ItemDisplayContext context, Level level, ItemOwner owner, int seed) {
-        return PackDisabler.resolveModel(stack, model);
+        return PackDisabler.resolveModel(stack, model, context);
     }
 }
