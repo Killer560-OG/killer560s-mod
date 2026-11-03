@@ -31,6 +31,11 @@ project CLAUDE.md. Compiling lessons
 - `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armor Dye and the mining profit tracker (shelved
   until after 2.0). Widening it to make two items equal makes "sell my Hyperion" sell an Astraea. Loose matching belongs
   in `matches()`, which only a route's USE_ITEM node reaches.
+- The other way round, `ItemIdentity.of()` is too LOOSE to pick one item out of two: two runebooks (or two enchanted books,
+  two Hyperions) share an id, so the Inventory Sorter's fetch took the first runebook a page held, not his (killer560,
+  2026-11-02). Code that must find THAT item uses `invsort/InvSortMatch.exact` (Skyblock uuid, else a hash of the whole
+  ExtraAttributes read in sorted key order); a key with no `|` is an id alone and `InvSortMatch.same` lets it match any
+  copy, which is how layouts saved before 2026-11-03 still sort. Testkit 1103-invsort-exact-sort/-exact-fetch.
 - A shift-click in Hypixel's Trades menu sells the clicked STACK only, not every item of that kind. Auto Sell marked an
   identity done after one click, so three Dreadlord Swords took three visits and two Training Weights stacks two
   (log, 2026-10-20). `AutoSellVisit` tracks clicks per slot, capped per identity at the most stacks seen in one scan.
