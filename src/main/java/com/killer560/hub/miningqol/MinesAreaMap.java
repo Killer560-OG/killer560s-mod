@@ -241,6 +241,44 @@ public final class MinesAreaMap {
         return bestNode < 0 ? 0 : m.nodeArea[bestNode];
     }
 
+    /** The graph the map was built from, or null (Commission Route paths over it). */
+    public static IslandGraph graph() {
+        Map3 m = map;
+        return m == null ? null : m.graph;
+    }
+
+    /** Indices of the graph nodes whose area is {@code area} (case and apostrophe form ignored); empty when none. */
+    public static int[] nodesInArea(String area) {
+        Map3 m = map;
+        if (m == null || area == null) {
+            return new int[0];
+        }
+        int want = -1;
+        for (int i = 0; i < m.areas.length; i++) {
+            if (MiningState.areaIs(m.areas[i], area)) {
+                want = i + 1;
+                break;
+            }
+        }
+        if (want < 0) {
+            return new int[0];
+        }
+        int count = 0;
+        for (byte b : m.nodeArea) {
+            if (b == want) {
+                count++;
+            }
+        }
+        int[] out = new int[count];
+        int k = 0;
+        for (int i = 0; i < m.nodeArea.length; i++) {
+            if (m.nodeArea[i] == want) {
+                out[k++] = i;
+            }
+        }
+        return out;
+    }
+
     // ---- testkit hooks
 
     /** Uses this SkyHanni-format graph JSON instead of the downloaded one (null: back to the real graph). */
