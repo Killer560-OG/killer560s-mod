@@ -371,6 +371,13 @@ project CLAUDE.md. Compiling lessons
 - `util/ChatObserver` drops a line identical to one it saw in the last 250 ms (the dedupe for a mod re-adding Hypixel's
   line). A test that sends the same server line twice back to back loses the second: two "The gate has been destroyed!"
   lines 0.2 s apart left P3SectionTracker one section behind (testkit 1027-ap3-section-s3, 2026-10-27). Space them.
+- **Two party lines in one tick: Hypixel drops the second** with "Woah slow down, you're doing that too fast!" (his 26.3
+  log 2026-11-02 19:26:54: "Leaping to X" went, a Posmsg callout for the ring he leapt into was refused, the Cringe line
+  10 ticks later went). Every line the mod sends by itself goes through `util/OutgoingChat` (FIFO, 500 ms apart, at once
+  when idle, a refused line re-sent once); never `sendCommand("pc ...")` or `ServerCommands.toServer("pc ...")` directly.
+  A Spirit Leap's teleport can land before its "You have teleported to" line, so Posmsg holds a ring entered by a jump
+  right after a leap menu (or a busy Fast Leap, whose menu is headless: no screen) until that line, at most 1 s.
+  Testkit 1102-posmsg-* (posmsgleap-1102).
 
 - **Your own dungeon class is `leapmenu/PartyTracker.selfClass()`** (tab list, plus Party Finder lines, with the
   `ClassOverrides` pick on your own IGN already applied by `classOf`). Fast Leap's Class Targets (2026-10-27) read it;

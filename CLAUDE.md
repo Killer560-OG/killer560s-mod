@@ -368,6 +368,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   `ChatComponent.setVisibleMessageFilter` (Chat Tabs), not a ChatScreen redirect: docs/LESSONS-MINECRAFT.md "Chat and commands".
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
   StackOverflows. Send below the dispatcher via `util/ServerCommands.toServer`.
+- A chat line the mod sends by itself (`pc`, `ac`, `msg` ...) goes through `util/OutgoingChat.command` (or
+  `TranslateFeature.sendGenerated`, which reserves its place there), never straight to `sendCommand`/`toServer`: Hypixel
+  refuses a second line in the same tick ("Woah slow down, you're doing that too fast!"), which lost a Posmsg callout after
+  every leap (2026-11-02). The queue spaces lines 500 ms apart and sends at once when idle (docs/LESSONS.md).
 - When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
   feature is often ticked from a lambda in another class entirely (`CheatUtils` ticks Secret Aura, Auto Ult and
   Chocolate Factory; `PathfindingFeature` ticks the soul runner and pearl hopper). A per-file grep missed seven
