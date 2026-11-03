@@ -137,6 +137,7 @@ public final class KickHubFeature {
     private static volatile int sounds = 0;
     private static volatile int autoSent = 0;
     private static volatile String lastHudText = null;
+    private static volatile Component lastWarpLink = null;
 
     private KickHubFeature() {
     }
@@ -332,6 +333,7 @@ public final class KickHubFeature {
                     .withUnderlined(true)
                     .withClickEvent(new ClickEvent.RunCommand("/" + command))
                     .withHoverEvent(new HoverEvent.ShowText(Component.literal("/" + command))));
+            lastWarpLink = warp;
             ModChat.send(FEATURE, ModChat.text("You were sent to the Hub from "), ModChat.value(from),
                     ModChat.text(". "), warp);
         }
@@ -482,6 +484,11 @@ public final class KickHubFeature {
         return lastHudText;
     }
 
+    /** The last [Warp Back] component, with its click event. */
+    public static Component lastWarpLink() {
+        return lastWarpLink;
+    }
+
     public static boolean rejoinWarned() {
         return rejoinWarned;
     }
@@ -498,6 +505,7 @@ public final class KickHubFeature {
         lastOffer = null;
         lastOrigin = null;
         lastHudText = null;
+        lastWarpLink = null;
     }
 
     /** Moves the kick timer's start back by {@code ms}, so a case need not wait a minute for the rejoin warning. */
