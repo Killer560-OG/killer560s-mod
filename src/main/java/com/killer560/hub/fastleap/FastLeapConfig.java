@@ -107,13 +107,22 @@ public final class FastLeapConfig {
         }
     }
 
-    /** One switch per leap since 2026-11-02 (killer560: "each still needs an option to be auto or not. have it as a switch.
-     *  if on it is auto if off it is fast"): Auto (the section's trigger leaps by itself) or Fast (his left click with a
-     *  leap item leaps to the section's target), never both and never neither. Until then Fast and Auto were two
-     *  independent switches; a file from then reads Auto when its auto was on, otherwise Fast (both-off, the old
-     *  "leap not used", becomes Fast: see {@link #load}). */
+    /** What one leap does (killer560, 2026-11-02/03: one row per leap, Off / Fast / Auto). OFF: the leap is unused (its
+     *  trigger does nothing and a left click there does nothing). FAST: his left click with a leap item in that spot leaps
+     *  to the target. AUTO: the spot's trigger leaps by itself (his left click there does not). Until 2026-11-02 Fast and
+     *  Auto were two independent switches; "both on" reads as Auto (see {@link #load}). */
+    public enum LeapMode {
+        OFF("Off"), FAST("Fast"), AUTO("Auto");
+
+        public final String label;
+
+        LeapMode(String label) {
+            this.label = label;
+        }
+    }
+
     private static final class GroupSettings {
-        boolean auto = false;
+        LeapMode mode = LeapMode.OFF;
     }
 
     /** Return To: the hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap first.
@@ -200,15 +209,21 @@ public final class FastLeapConfig {
                         if (g.has(group.name()) && g.get(group.name()).isJsonObject()) {
                             JsonObject o = g.getAsJsonObject(group.name());
                             GroupSettings s = cfg.groups.get(group);
+                            boolean fast;
+                            boolean auto;
                             if (o.has("fast")) {
-                                // 2026-10-13..11-02 (two switches) and now (fast = !auto): Auto when auto was on (with
-                                // or without Fast), otherwise Fast - both-off included, see GroupSettings.
-                                s.auto = bool(o, "auto", false);
+                                // 2026-10-13 on: the fast and auto keys (two switches until 11-02; one mode since,
+                                // saved the same way)
+                                fast = bool(o, "fast", false);
+                                auto = bool(o, "auto", false);
                             } else {
-                                // Before 2026-10-13: one switch plus a Mode, Fast or Auto. Auto only when the leap was
-                                // on in Mode Auto; Mode Fast and a switched-off leap read Fast.
-                                s.auto = bool(o, "enabled", false) && bool(o, "auto", false);
+                                // Before 2026-10-13: one switch plus a Mode, Fast or Auto.
+                                boolean on = bool(o, "enabled", false);
+                                fast = on && !bool(o, "auto", false);
+                                auto = on && bool(o, "auto", false);
                             }
+                            // Auto (with or without Fast) -> Auto, Fast only -> Fast, both off -> Off
+                            s.mode = auto ? LeapMode.AUTO : fast ? LeapMode.FAST : LeapMode.OFF;
                         }
                     }
                 }
@@ -278,8 +293,9 @@ public final class FastLeapConfig {
             for (LeapGroup group : LeapGroup.values()) {
                 GroupSettings s = groups.get(group);
                 JsonObject o = new JsonObject();
-                o.addProperty("fast", !s.auto); // kept so an older jar reading this file sees the same mode
-                o.addProperty("auto", s.auto);
+                // both keys kept so an older jar reading this file sees the same mode
+                o.addProperty("fast", s.mode == LeapMode.FAST);
+                o.addProperty("auto", s.mode == LeapMode.AUTO);
                 g.add(group.name(), o);
             }
             obj.add("groups", g);
@@ -441,28 +457,43 @@ public final class FastLeapConfig {
 
     // ---- per leap ---------------------------------------------------------------------------------------------
 
-    /** Fast: his left click with a leap item leaps to this section's target. Exactly when the leap is not Auto. */
+    /** The leap's row: Off, Fast or Auto. */
+    public LeapMode getLeapMode(LeapGroup group) {
+        return groups.get(group).mode;
+    }
+
+    public void setLeapMode(LeapGroup group, LeapMode mode) {
+        groups.get(group).mode = mode == null ? LeapMode.OFF : mode;
+    }
+
+    /** Fast: his left click with a leap item leaps to this section's target. */
     public boolean isLeapFast(LeapGroup group) {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && !groups.get(group).auto;
+        return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).mode == LeapMode.FAST;
     }
 
-    /** Fast on is Auto off, and the other way round (one switch per leap since 2026-11-02). */
+    /** true makes the leap Fast; false turns a Fast leap Off (an Auto one stays Auto). */
     public void setLeapFast(LeapGroup group, boolean v) {
-        groups.get(group).auto = !v;
-    }
-
-    /** The leap's one switch (2026-11-02): true = Auto, false = Fast. Same as {@link #setLeapAuto}. */
-    public void setLeapAutoMode(LeapGroup group, boolean auto) {
-        groups.get(group).auto = auto;
+        GroupSettings s = groups.get(group);
+        if (v) {
+            s.mode = LeapMode.FAST;
+        } else if (s.mode == LeapMode.FAST) {
+            s.mode = LeapMode.OFF;
+        }
     }
 
     /** Auto: the leap fires by itself when its trigger happens (and his left click does not). */
     public boolean isLeapAuto(LeapGroup group) {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).auto;
+        return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).mode == LeapMode.AUTO;
     }
 
+    /** true makes the leap Auto; false turns an Auto leap Off (a Fast one stays Fast). */
     public void setLeapAuto(LeapGroup group, boolean v) {
-        groups.get(group).auto = v;
+        GroupSettings s = groups.get(group);
+        if (v) {
+            s.mode = LeapMode.AUTO;
+        } else if (s.mode == LeapMode.AUTO) {
+            s.mode = LeapMode.OFF;
+        }
     }
 
     /** The leap's Target button: a class (true) or a name. */

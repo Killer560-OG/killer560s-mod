@@ -25,7 +25,7 @@ import java.util.function.Consumer;
  * <ul>
  *   <li>{@link #buildGeneral} - the front page: the Fast Leap switch, Targets (Universal / Set Class), the two page
  *       buttons (the one in use lit orange and marked "(in use)"), Target Mode, then the settings both modes share: Click
- *       Behavior and every leap's Auto (on) / Fast (off) switch ({@link #buildLeapSwitches}).</li>
+ *       Behavior and every leap's Off / Fast / Auto row ({@link #buildLeapSwitches}).</li>
  *   <li>{@link #buildUniversalTargets} - who each leap goes to for everyone, per boss phase, with Posmsg's keywords.</li>
  *   <li>{@link #buildClassTargets} - the same list for the class picked at its top ("When You Play").</li>
  * </ul>
@@ -256,10 +256,10 @@ public final class FastLeapSection {
     };
 
     /**
-     * The front page's Leaps section: one switch per leap (killer560, 2026-11-02: "have it as a switch. if on it is auto
-     * if off it is fast"), "Crystal Leap: ON (Auto)" - it leaps by itself on its trigger - or "Crystal Leap: OFF (Fast)" -
-     * your left click with a leap item leaps. The menu draws the "(Auto)"/"(Fast)" note dim beside the name. Door Opener's
-     * After Blood Off and P3's Gate Blown Only sit indented under their leap. These apply whichever Targets page is in use.
+     * The front page's Leaps section: one cycling row per leap (killer560, 2026-11-03: Off / Fast / Auto), "Crystal Leap:
+     * Off" (unused), "Fast" (your left click with a leap item leaps) or "Auto" (it leaps by itself on its trigger). Door
+     * Opener's After Blood Off and P3's Gate Blown Only sit indented under their leap. These apply whichever Targets page
+     * is in use.
      * @return the y below the last row.
      */
     public static int buildLeapSwitches(List<AbstractWidget> widgets, int x, int y, int width) {
@@ -271,7 +271,7 @@ public final class FastLeapSection {
         widgets.add(sectionHeader(x, y, w, "Leaps"));
         y += SECTION_HEADER_H;
         // (no "Label:" shape in a hint: it would read as a setting row to search hits and to the testkit's row counts)
-        widgets.add(titleLabel(x, y, w, "§7On = Auto (leaps by itself), off = Fast (your left click)."));
+        widgets.add(titleLabel(x, y, w, "§7Off = unused, Fast = your left click, Auto = leaps by itself."));
         y += GROUP_TITLE_H + 2;
         for (LeapPhase phase : PHASES) {
             y = caption(widgets, x, y, w, phase.caption());
@@ -292,18 +292,20 @@ public final class FastLeapSection {
         return y + GROUP_GAP - GAP;
     }
 
-    /** A leap's one switch: ON = Auto, OFF = Fast. */
+    /** A leap's row: Off / Fast / Auto, left click forward, right click back, wrapping. "Off" is not "OFF", so the
+     *  menu draws it as a value pill, not a switch. */
     static SettingsButtonWidget leapSwitch(int x, int y, int w, LeapGroup group, FastLeapConfig cfg) {
-        return SettingsButtonWidget.builder(leapSwitchLabel(group, cfg), btn -> {
-            cfg.setLeapAutoMode(group, !cfg.isLeapAuto(group));
+        return SettingsButtonWidget.cycling(leapSwitchLabel(group, cfg), (btn, dir) -> {
+            cfg.setLeapMode(group, SettingsButtonWidget.step(cfg.getLeapMode(group), dir));
             cfg.save();
             btn.setMessage(leapSwitchLabel(group, cfg));
         }).bounds(x, y, Math.max(1, w), ROW).build();
     }
 
     static Component leapSwitchLabel(LeapGroup group, FastLeapConfig cfg) {
-        boolean auto = cfg.isLeapAuto(group);
-        return Component.literal(group.label + " Leap: " + (auto ? "§aON §7(Auto)" : "§cOFF §7(Fast)"));
+        FastLeapConfig.LeapMode m = cfg.getLeapMode(group);
+        String colour = m == FastLeapConfig.LeapMode.AUTO ? "§a" : m == FastLeapConfig.LeapMode.FAST ? "§6" : "§7";
+        return Component.literal(group.label + " Leap: " + colour + m.label);
     }
 
     // ---- sub-pages ----------------------------------------------------------------------------------------------

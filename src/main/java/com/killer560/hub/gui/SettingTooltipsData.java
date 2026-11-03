@@ -1912,7 +1912,7 @@ final class SettingTooltipsData {
         // "experiments/mode" is gone with the Mode button: the solver and the automation are two independent
         // settings now, not two positions of one switch.
         d.put("fast/auto leap/fast leap", "Left-clicking a leap item in a dungeon leaps straight to your target instead of opening the menu (cheat build only).");
-        d.put("fast/auto leap/leaps", "One switch per leap spot: on = Auto (it leaps by itself on its trigger), off = Fast (your left click with a leap item leaps). Who each one leaps to is on the Universal and Set Class Targets pages.");
+        d.put("fast/auto leap/leaps", "One row per leap spot: Off (unused), Fast (your left click with a leap item there leaps) or Auto (it leaps by itself on its trigger). Who each one leaps to is on the Universal and Set Class Targets pages.");
         String[][] leapTriggers = {{"door opener", "whoever last opened a Wither or Blood door. Auto leaps as soon as one opens"},
                 {"crystal", "the Crystal target in F7 P1. Auto leaps on the 2nd Energy Laser message"},
                 {"predev", "the Predev target in F7 P1/P2. Auto leaps on Storm's 'happy to show you' line"},
@@ -1926,7 +1926,7 @@ final class SettingTooltipsData {
                 {"p4", "the P4 target in the middle. Auto leaps on Necron's 2nd 'ARGH!'"},
                 {"relic", "the Relic target in P5. Auto leaps as soon as you pick up a relic"}};
         for (String[] t : leapTriggers) {
-            d.put("fast/auto leap/" + t[0] + " leap", "Goes to " + t[1] + ". Switch on = Auto, off = Fast: your left click with a Spirit Leap or Infinileap there leaps (cheat build only).");
+            d.put("fast/auto leap/" + t[0] + " leap", "Goes to " + t[1] + ". Off: unused. Fast: your left click with a Spirit Leap or Infinileap there leaps. Auto: it leaps by itself. Left click forward, right click back (cheat build only).");
         }
         // The 2026-11-02 layout: front page, then the Universal Targets and Set Class Targets pages.
         d.put("fast/auto leap/targets", "Which targets the leaps use: Universal (the Universal Targets page, whatever class you play) or Set Class (the Set Class Targets page's pick for the class you are playing; a leap with none set there uses its Universal target). Left click forward, right click back (cheat build only).");

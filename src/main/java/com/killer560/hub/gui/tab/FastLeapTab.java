@@ -20,7 +20,7 @@ import java.util.Locale;
  * <p>
  * Three pages since 2026-11-02 (killer560: "have two buttons. one for universal and one to set class ... right now
  * everything feels very hard to read"): the front page (switch, Targets, the two page buttons, Target Mode, Click
- * Behavior, every leap's Auto/Fast switch) and the Universal Targets and Set Class Targets pages, each opened by its
+ * Behavior, every leap's Off/Fast/Auto row) and the Universal Targets and Set Class Targets pages, each opened by its
  * button and left with "&lt; Back". {@link FastLeapSection} builds them and holds which one shows; every page starts with
  * the Fast Leap switch, so the card's switch ({@link BaseTab#masterToggle}'s default, the first control) is right on all
  * three. Search scans all three pages with their hidden rows laid open, and {@link #revealSetting} opens the page a hit
