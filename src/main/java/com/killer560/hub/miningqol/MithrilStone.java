@@ -20,11 +20,12 @@ import java.util.concurrent.atomic.AtomicLong;
  * client still holds the mithril block, so breaking, collision and every other feature see the real block, and nothing
  * reaches the server. (SkyHanni's Commissions Blocks Color swaps block models the same way, through BlockStateModelSet.)
  *
- * <p>When it is on: the setting is on, the player is on the Dwarven Mines island, the tab list shows his Commissions, the
- * no open commission wants mithril or titanium where he is ({@link
- * MiningState#openCommissionHere}: "Mithril Miner"/"Titanium Miner" anywhere, or "Lava Springs Mithril" etc. while the
- * sidebar says Lava Springs). The area is the sidebar's, so the whole view follows the area he stands in. Each time the
- * answer changes, the sections around him are re-meshed.
+ * <p>When it is on: the setting is on, the player is on the Dwarven Mines island and the tab list shows his Commissions.
+ * Then each mithril block is decided by the area THE BLOCK is in (killer560, 2026-11-03: "not based off of my location
+ * but the blocks location"), from {@link MinesAreaMap}: it stays mithril when an open commission wants mithril or
+ * titanium there ("Upper Mines Mithril" for a block in the Upper Mines) or anywhere ("Mithril Miner"), and is drawn as
+ * stone otherwise. A block whose area the map does not know takes the player's area (action bar, else sidebar), as the
+ * whole view did before. Each time the decision changes, the sections around him are re-meshed.
  */
 public final class MithrilStone {
 
@@ -33,7 +34,12 @@ public final class MithrilStone {
     private static final Set<Block> MITHRIL = Set.of(McBlocks.GRAY_WOOL, McBlocks.LIGHT_BLUE_WOOL, Blocks.PRISMARINE,
             Blocks.PRISMARINE_BRICKS, Blocks.DARK_PRISMARINE, McBlocks.CYAN_TERRACOTTA);
 
+    /** The swap is on at all (setting, island, commissions known, no anywhere commission). */
+    private static volatile boolean enabled = false;
+    /** What a block of unknown area does: the player's area decides (the old whole-view answer). */
     private static volatile boolean active = false;
+    private static volatile MiningState.Wanted wanted = new MiningState.Wanted(false, Set.of());
+    private static String lastKey = "";
     private static volatile BlockState stone;
     private static volatile boolean dirtyRequested = false;
     private static final AtomicLong swapped = new AtomicLong();
@@ -42,9 +48,12 @@ public final class MithrilStone {
     private MithrilStone() {
     }
 
-    /** Called from the chunk mesher (any thread): the state to draw instead of {@code state}, or null to draw it as is. */
-    public static BlockState replace(BlockState state) {
-        if (!active || state == null || !MITHRIL.contains(state.getBlock())) {
+    /**
+     * Called from the chunk mesher (any thread): the state to draw instead of {@code state} at {@code x, y, z}, or null
+     * to draw it as is.
+     */
+    public static BlockState replace(BlockState state, int x, int y, int z) {
+        if (!enabled || state == null || !MITHRIL.contains(state.getBlock()) || !stoneAt(x, y, z)) {
             return null;
         }
         swapped.incrementAndGet();
@@ -65,23 +74,33 @@ public final class MithrilStone {
         dirtyRequested = true;
     }
 
+    /** Whether a mithril block at x, y, z is drawn as stone now (its own area, else the player's). Any thread. */
+    public static boolean stoneAt(int x, int y, int z) {
+        if (!enabled) {
+            return false;
+        }
+        String a = MinesAreaMap.areaAt(x, y, z);
+        return a == null ? active : !wanted.at(a, null);
+    }
+
     static void tick(Minecraft client) {
-        boolean want = compute();
-        if (want != active || dirtyRequested) {
-            boolean changed = want != active;
-            active = want;
+        MiningQolConfig cfg = MiningQolConfig.getInstance();
+        boolean on = cfg.isMithrilStone() && MiningState.dwarvenMines() && MiningState.commissionsKnown();
+        MiningState.Wanted w = MiningState.wanted("Mithril", true);
+        boolean en = on && !w.anywhere();
+        boolean fallback = en && !MiningState.openCommissionHere("Mithril", true);
+        String key = en + "|" + fallback + "|" + w.areas() + "|" + MinesAreaMap.version();
+        wanted = w;
+        enabled = en;
+        active = fallback;
+        if (!key.equals(lastKey) || dirtyRequested) {
+            boolean changed = !key.equals(lastKey);
+            lastKey = key;
             dirtyRequested = false;
             if (changed) {
                 remesh(client);
             }
         }
-    }
-
-    /** Whether mithril should be drawn as stone right now. */
-    static boolean compute() {
-        MiningQolConfig cfg = MiningQolConfig.getInstance();
-        return cfg.isMithrilStone() && MiningState.dwarvenMines() && MiningState.commissionsKnown()
-                && !MiningState.openCommissionHere("Mithril", true);
     }
 
     /** Marks every section within render distance for a rebuild (on the client thread). */
@@ -97,8 +116,19 @@ public final class MithrilStone {
         remeshes++;
     }
 
+    /** Whether a block of unknown area would be stone now (the player's area decides; the old whole-view answer). */
     public static boolean isActive() {
-        return active;
+        return enabled && active;
+    }
+
+    /** Whether any mithril may be drawn as stone (setting, island, commissions, no anywhere commission). */
+    public static boolean isEnabled() {
+        return enabled;
+    }
+
+    /** The area the map gives the block at x, y, z, or null (testkit). */
+    public static String areaOf(int x, int y, int z) {
+        return MinesAreaMap.areaAt(x, y, z);
     }
 
     /** How many block draws were swapped to stone since start (testkit: the mixin acted). */

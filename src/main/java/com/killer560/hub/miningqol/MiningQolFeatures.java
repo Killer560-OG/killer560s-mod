@@ -36,6 +36,7 @@ public final class MiningQolFeatures {
                 PickobulusEstimate.resetChat();
             }
             MiningState.tick(client);
+            MinesAreaMap.tick();
             CommissionHud.tick(client);
             CommissionMobs.tick(client);
             AbilityReadyAlert.tick(client);

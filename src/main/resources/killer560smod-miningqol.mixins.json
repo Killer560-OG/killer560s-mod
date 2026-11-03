@@ -5,6 +5,7 @@
 	"package": "com.killer560.hub.miningqol.mixin",
 	"client": [
 		"CommissionMenuSlotMixin",
+		"MiningBlockUpdateMixin",
 		"MithrilStoneSectionMixin"
 	],
 	"injectors": {
