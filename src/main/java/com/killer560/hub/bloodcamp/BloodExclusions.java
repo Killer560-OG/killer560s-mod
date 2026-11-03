@@ -39,6 +39,32 @@ final class BloodExclusions {
         return fearsSeen;
     }
 
+    /** The Watcher's two Watchful Eyes (hypixelskyblock.minecraft.wiki "The Watcher"; owner's 2026-10-18 screenshots read
+     *  "Watchful Eye" in their name tags). Named here so a name tag over one never makes it a blood mob. */
+    static final List<String> WATCHFUL_EYE_NAMES = List.of("Watchful Eye");
+    /** id -> (game tick << 1) | isEye, as {@link #MEMO}. */
+    private static final it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap EYE_MEMO = new it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap();
+
+    /** Whether {@code e} is named "Watchful Eye" - its own name, its custom name or its name-tag stand (BloodCampFeature). */
+    static boolean isWatchfulEye(Minecraft client, Entity e) {
+        if (client.level == null || e instanceof ArmorStand) {
+            return false;
+        }
+        if (client.level != memoLevel || EYE_MEMO.size() > 4096) {
+            EYE_MEMO.clear();
+        }
+        long now = client.level.getGameTime();
+        if (EYE_MEMO.containsKey(e.getId())) {
+            long v = EYE_MEMO.get(e.getId());
+            if (now - (v >> 1) < REFRESH_TICKS && now >= (v >> 1)) {
+                return (v & 1L) != 0L;
+            }
+        }
+        boolean eye = lookUp(client, e, WATCHFUL_EYE_NAMES);
+        EYE_MEMO.put(e.getId(), (now << 1) | (eye ? 1L : 0L));
+        return eye;
+    }
+
     static boolean isPrimalFear(Minecraft client, Entity e) {
         if (client.level == null || e instanceof ArmorStand) {
             return false;
@@ -54,7 +80,7 @@ final class BloodExclusions {
                 return (v & 1L) != 0L;
             }
         }
-        boolean fear = lookUp(client, e);
+        boolean fear = lookUp(client, e, PRIMAL_FEAR_NAMES);
         Long before = MEMO.containsKey(e.getId()) ? MEMO.get(e.getId()) : null;
         if (fear && (before == null || (before & 1L) == 0L)) {
             fearsSeen++;
@@ -65,17 +91,22 @@ final class BloodExclusions {
         return fear;
     }
 
-    private static boolean lookUp(Minecraft client, Entity e) {
-        if (e instanceof Player p && p != client.player && named(p.getName().getString())) {
+    private static boolean lookUp(Minecraft client, Entity e, List<String> names) {
+        if (e instanceof Player p && p != client.player && named(p.getName().getString(), names)) {
             return true;
         }
-        if (e.hasCustomName() && named(e.getName().getString())) {
+        if (e.hasCustomName() && named(e.getName().getString(), names)) {
             return true;
         }
-        // Its name tag: a named stand standing in or just above its box.
+        // Its name tag: the stand one id above it (Hypixel spawns a mob's tag right after the mob, the pairing
+        // BloodMobNames.mobFor reads), or a named stand standing in or just above its box.
+        if (client.level.getEntity(e.getId() + 1) instanceof ArmorStand tag && tag.hasCustomName()
+                && named(tag.getName().getString(), names)) {
+            return true;
+        }
         for (Entity t : client.level.getEntities(e, e.getBoundingBox().inflate(0.4, 0.0, 0.4).expandTowards(0.0, 1.6, 0.0),
                 x -> x instanceof ArmorStand && x.hasCustomName())) {
-            if (named(t.getName().getString())) {
+            if (named(t.getName().getString(), names)) {
                 return true;
             }
         }
@@ -83,11 +114,15 @@ final class BloodExclusions {
     }
 
     static boolean named(String raw) {
+        return named(raw, PRIMAL_FEAR_NAMES);
+    }
+
+    static boolean named(String raw, List<String> names) {
         if (raw == null || raw.isEmpty() || raw.length() > 96) {
             return false;
         }
         String plain = com.killer560.hub.util.ChatObserver.stripCodes(raw);
-        for (String n : PRIMAL_FEAR_NAMES) {
+        for (String n : names) {
             if (plain.contains(n)) {
                 return true;
             }
