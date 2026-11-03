@@ -57,6 +57,8 @@ public final class ItemLooks {
 
     private static volatile boolean loaded;
     private static Map<String, Look> rows = Map.of();
+    /** Hypixel pack model -> the one SkyBlock id whose row names it (models two ids share are left out). */
+    private static Map<String, String> idByModel = Map.of();
     private static final Map<String, Optional<Identifier>> MODEL_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Optional<ResolvableProfile>> PROFILE_CACHE = new ConcurrentHashMap<>();
 
@@ -87,6 +89,18 @@ public final class ItemLooks {
                             str(o, "o")));
                 }
                 rows = Collections.unmodifiableMap(map);
+                Map<String, String> byModel = new HashMap<>();
+                for (Map.Entry<String, Look> e : map.entrySet()) {
+                    String m = e.getValue().packModel();
+                    if (m != null) {
+                        // Two ids on one model (an item and its Enchanted form) still name a look when both looks
+                        // are the same; otherwise the model names nothing.
+                        byModel.merge(m, e.getKey(), (a, b) -> !a.isEmpty() && sameLook(map.get(a), map.get(b)) ? a
+                                : "");
+                    }
+                }
+                byModel.values().removeIf(String::isEmpty);
+                idByModel = Collections.unmodifiableMap(byModel);
             }
         } catch (Exception e) {
             LOGGER.warn("[Pack Disabler] item table unreadable", e);
@@ -113,6 +127,26 @@ public final class ItemLooks {
             look = rows.get(skyblockId.replace('-', ':'));
         }
         return look;
+    }
+
+    private static boolean sameLook(Look a, Look b) {
+        return a != null && b != null && java.util.Objects.equals(a.skinHash(), b.skinHash())
+                && java.util.Objects.equals(a.vanillaId(), b.vanillaId())
+                && java.util.Objects.equals(a.legacy(), b.legacy())
+                && a.glint() == b.glint() && java.util.Objects.equals(a.ownTexture(), b.ownTexture());
+    }
+
+    /**
+     * The SkyBlock id whose Hypixel pack model is {@code model}, or null when no row names it (or two rows with
+     * different looks do). For
+     * menu stacks, which carry Hypixel's model but not the item's SkyBlock id.
+     */
+    public static String idForModel(Identifier model) {
+        if (model == null) {
+            return null;
+        }
+        ensureLoaded();
+        return idByModel.get(model.toString());
     }
 
     public static int size() {

@@ -68,6 +68,23 @@ project CLAUDE.md. Compiling lessons
   pre-pack look comes from the newest snapshot where an item was not yet a pack model: 26169fe, then 0046933 (the
   parent of the first conversion), then 60e030e (April). With those, 95 of the 1,366 pack-model items have no old
   look anywhere (`tools/items/gen_item_looks.py`); they are the ones with our own textures.
+- **Refreshing Pack Disabler's item table** (2026-11-03): `python -X utf8 tools/items/fetch_item_sources.py <dir>
+  --client-jar <26.3 client jar>` (Hypixel items + bazaar, NEU master and every snapshot the generator lists), copy the
+  client's cached Hypixel pack (`<instance>/minecraft/downloads/<uuid>/<sha1>`, read only) to `<dir>/hypixel-pack.zip`,
+  then `gen_item_looks.py <dir>` and `tools/bazaar/gen_bazaar_data.py <dir>`. NEU keeps converting items after each
+  SkyBlock update (0.27.2's Reforge/Power Stones and equipment on 2026-10-07, rods 2026-09-03): before running, list
+  NEU commits since the newest snapshot (GitHub API `commits?since=`) and add the PARENT of every "texture"/"model"/
+  "resourcepack" commit to `SNAPSHOTS`, or those items fall back to their base material. Read the coverage report: a
+  pack model no row names is either a state variant (codex tiers, belts, capsules - fine, matching is by id) or an id
+  neither source knows yet. Check head skins live (`tools/items/check_item_skins.py <item_looks.json>`: 1,285/1,285 on 2026-11-03).
+  Two traps: rerunning `tools/textures/draw_textures.py` rewrites every model/definition json with LF (git shows them
+  all modified; restore the ones that did not really change), and Hypixel menus show items WITHOUT their SkyBlock id, so
+  `ItemLooks.idForModel` maps a Hypixel model back to the one id (or ids with one shared look) that uses it.
+- Hypixel's pack (97, 2026-11-02) has NO menu or button models (every item model is under `item/`), so a menu button
+  that "looks different" is a vanilla change: Minecraft 26.3 redrew `map.png`/`filled_map.png` (the only vanilla item
+  textures that differ from 26.2), which is why the Bazaar's Create Sell Offer (an empty map) became a folded map.
+  Pack Disabler's Paper Menu Buttons answers it on 26.3 only (`McItems.MAPS_DRAWN_AS_MAPS`). Diff the two client jars'
+  `textures/item` before blaming Hypixel for a menu look.
 - Hypixel's public items resource has only ~170 item skins and none for Wither Goggles (checked 2026-11-01), and the old
   Hypixel Skin list matched by the selected item's full display name ("Heroic Wither Goggles ✪✪✪✪✪" matched nothing). The
   NEU repo has 180 skins whose lore names the items each applies to; `tools/item-skins-extract.py` bakes them into
