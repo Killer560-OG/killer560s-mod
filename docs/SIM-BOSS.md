@@ -38,26 +38,47 @@ middle; gates as iron blocks; the core with a gold door. No capture exists yet (
 
 ## The fight
 
-`BossFight`, one server tick at a time. Lines and gaps: Maxor 0/42/84, crystals at 40; Storm 0/62/124/186/424/486,
-lightning 548, taunts from 847; Goldor's line 62 after Storm's death ("At least my son..." at 42), Goldor's queue 62
-apart; gate 100 ticks after its section ends ("The gate will open in 5 seconds!"); Necron 62 after Goldor's death,
-intro 42 apart. Simplified for one player: Maxor stuns by the laser after both crystals, 5 hits a stun, 2 stuns; Storm
-hovers pillar to pillar and a pad press under him crushes, 2 crushes; Goldor 10 hits in the core; Necron 15 (ARGH at
-half); dragons 8 each. Every hit goes through `SimWither.hurtServer` / `SimDragon.hurt*` -> `BossFight.onHurt`, one per
-target per tick. The relics are not modeled: "[BOSS] Wither King: You... again?" comes as he lands in P5.
+`BossFight`, one server tick at a time, every boss moving and timed as ADM measured Hypixel after its 2026-10-05/06 boss
+update (bossparity-1103 brought it in line; the item-by-item comparison is killer560s-mod-logs\bossparity-1103.md).
+Every boss is a no-AI wither moved by the fight (`BossMob.moveTo(pos, look)`, yaw = atan2(-dx, dz)).
+
+- **P1 Maxor**: holds at (73, 226, 53) until t 84, then flies at the closest player +1 at min(0.9, 0.24 + 0.02 d) and
+  stops within 3. Crystals at t 5 (stands at 28) are clicked to pick up (a Nether Star "Energy Crystal" in slot 8); the
+  pylons open at t 80, the beacon is in at 120. A placement counts 28 ticks after it ("1/2" twice when two go in close
+  together); the laser charges 28 after the second. A hit needs Maxor at y >= 225 within 3.5 of the beam on a 10-tick
+  check, so he has to be lured in (the strip south of the beam, y 224 z 70-76). The stun ends on damage (5 hits, then
+  6-12 ticks) or after 100-199; the second laser hit kills him 8-15 later; his floor goes at kill + 59.
+- **P2 Storm**: flies his opening route at 0.4, parks at (102.375, 183, 52.375), chases from t 647. Pads read on
+  t % 20 == 19 queue 5 pillar steps 4 ticks apart; a crush is Storm in the square with y + 2.975 at or over the bottom of a
+  pillar that stepped in the last 60 ticks. Crush 1 pins him (median 10), crush 2 kills him (death line median 6 later).
+  The drop to S1 is under the Red pillar, 24-30 ticks after Goldor's line.
+- **P3 Goldor**: walks his loop round the sections (0.048, then 0.06; a 0.6 sprint to the next corner when a door opens
+  with him still in its section), flies into the core (0.8) once everyone is in it; 10 hits there kill him (ADM's kill is a
+  timer standing in for a party's damage); his "...." queues behind his lines; the core's floor goes 2 ticks before
+  Necron's line. Death-tick and Frenzy LINES only (the sim deals no damage).
+- **P4 Necron**: a fixed script, no hits: lines 0/42/84/126/188/270/332, a sidestep and two trips out at the player,
+  back to mid at 98 and 240, one side platform to lava at 275, gone at 389.
+- **P5** (M7): dragons 8 hits each; "[BOSS] The Wither King: ..." lines. The relics are not modeled.
+
+Every hit goes through `SimWither.hurtServer` / `SimDragon.hurt*` -> `BossFight.onHurt`, one per target per tick.
 
 ## P3
 
 `BossStations` (29: 17 terminals, 8 levers, 4 devices; 7/8/7/7) - stands, lines ("activated a terminal! (n/m)" plus the
-same subtitle), the section flow. `BossTerminals` - real chest menus (`Menu.clicked` never moves an item), six types,
-Numbers 10 and Melody 3 lanes (Hypixel's 2026-10-06 update); the system property `killer560.bosssim.terminal=<TYPE>`
-forces a type (testkit). `BossDevices` - Simon Says (4 rounds, testkit HxSimonSays' model), Lights (all six levers on),
-Arrows (frames on one of `ArrowAlignFeature.solutions()`), Target (lit emerald, an arrow in its box turns it blue
-terracotta, 9 hits).
+same subtitle), the section flow. A stand click answers 1 tick later (the window, or "This Terminal has already been
+completed!" / "...doesn't seem to be responsive at the moment." for another section's); another section's lever only
+toggles; a done lever says "Someone has already activated this lever!". `BossTerminals` - real chest menus (`Menu.clicked`
+never moves an item), six types, kept per terminal across reopens, at most 5 counted clicks in 10 ticks, Numbers 10 and
+Melody 3 lanes in a 6-row window (Hypixel's 2026-10-06 update); the system property `killer560.bosssim.terminal=<TYPE>`
+forces a type (testkit). `BossDevices` - Simon Says (4 rounds; first show 4 after the start press, lamps 8 apart, the
+start button resets a running device, a wrong press stops it), Lights (20 levers, a lamp lit by its lever or a
+neighbour's), Arrows (frames on one of `ArrowAlignFeature.solutions()`), Target (9 targets, lit only while someone is on
+the plate (63, 126, 35), an arrow in the lit one turns it blue terracotta, 9 hits; off the plate the attempt resets).
 
 ## Tests
 
-testkit `SimBossTests`: 1101-boss-p1p2, -p3, -p4p5, -lava, -ap3 (only when named).
+testkit `SimBossTests`: 1101-boss-p1p2, -p3, -p4p5, -lava, -ap3, -portal, 1102-boss-maxorcrys, 1103-boss-moves (boss
+positions over time), 1103-boss-rules (refusals, levers, terminal rules, devices, death ticks) - only when named.
 
 ## Lessons
 

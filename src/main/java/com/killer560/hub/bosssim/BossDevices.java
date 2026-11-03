@@ -22,16 +22,22 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * P3's four devices, at the coordinates the mod's own device features read them from:
+ * P3's four devices, at the coordinates the mod's own device features read them from, with Hypixel's rules as ADM
+ * measured them (Devices.kt, after the 2026-10-05/06 boss update):
  * <ul>
  * <li><b>Simon Says</b> (S1): sea lanterns on the obsidian wall x 111, stone buttons x 110, y 120-123, z 92-95, start button
- * (110, 121, 91). Four rounds since Hypixel's 2026-10-06 update; each round lights its steps one at a time, then shows the
- * 16 buttons; a wrong press clears them. Ported from the testkit's server device ({@code hx/boss/HxSimonSays}).</li>
- * <li><b>Lights</b> (S2): the six levers at z 142 (x 58-62, y 133-136); some start off; all six on is the device.</li>
+ * (110, 121, 91). Four rounds of four distinct cells; the first round shows 4 ticks after the start press, lamp j lights at
+ * 8j for 8 ticks, the buttons come back 10 ticks after the last lamp, the next round shows 6 ticks after the round's last
+ * correct press. The start button toggles: a press while it runs resets it. A wrong press stops it (back to round 0; the
+ * buttons go 3 ticks later) and a stray show of a new pattern follows on its own, whose buttons count for nothing.</li>
+ * <li><b>Lights</b> (S2): twenty levers at z 142 (x 58-62, y 133-136), a lamp behind each at z 143. A lamp is lit while its
+ * own lever or one of its four neighbours is on; every lamp lit is the device. The six of Hypixel's known solution
+ * start partly off.</li>
  * <li><b>Arrows</b> (S3): a 5x5 wall of item frames at x -2, y 120-124, z 75-79, each arrow turned at random off one of
  * Hypixel's layouts (the mod's own Arrow Align table); every frame on its layout's rotation is the device.</li>
- * <li><b>Target</b> (S4): the 5x5 target wall at z 50, x 64-68, y 126-130; one block at a time is lit emerald, an arrow in
- * it turns it to blue terracotta (what the mod's I4 solver watches for); nine hits is the device.</li>
+ * <li><b>Target</b> (S4): nine targets at x 64/66/68, y 126/128/130, z 50, blue terracotta; while someone stands on the
+ * plate one at a time is lit emerald (on a 10-tick grid, in a random order per attempt), an arrow in it turns it back
+ * blue; nine hits is the device. Off the plate, the lit one goes blue at the next grid tick and the attempt starts over.</li>
  * </ul>
  */
 public final class BossDevices {
@@ -42,21 +48,25 @@ public final class BossDevices {
     // ---- Simon Says ------------------------------------------------------------------------------------------------
     static final BlockPos SS_START = new BlockPos(110, 121, 91);
     private static final int SS_ROUNDS = 4;
-    private static final int SS_REVEAL = 4, SS_GAP = 2;
 
-    private enum Ss { OFF, IDLE, REVEAL, INPUT, ROUND_DONE, DONE, BROKEN }
+    private enum Ss { OFF, IDLE, SHOW, INPUT, ROUND_DONE, DONE, BROKEN }
 
     private static Ss ss = Ss.OFF;
     private static final List<BlockPos> sequence = new ArrayList<>();
-    private static int ssRound, ssExpected, ssTimer, ssRevealIndex;
-    private static boolean ssRevealLit, ssStartWasPowered;
+    private static int ssRound, ssExpected, ssTimer, ssShowTick;
+    /** A show after a wrong press: lamps of a new pattern and stale buttons, nothing counts. */
+    private static final List<BlockPos> stray = new ArrayList<>();
+    private static int strayTick = -1;
+    private static boolean ssStartWasPowered;
     private static final boolean[] ssWasPowered = new boolean[16];
 
     // ---- Lights ----------------------------------------------------------------------------------------------------
+    /** Hypixel's known solution: these six on light all twenty lamps. */
     static final List<BlockPos> LIGHTS = List.of(
             new BlockPos(62, 136, 142), new BlockPos(58, 136, 142), new BlockPos(60, 135, 142),
             new BlockPos(60, 134, 142), new BlockPos(62, 133, 142), new BlockPos(58, 133, 142));
     private static boolean lightsDone;
+    private static int lightsCreditAt = -1;
 
     // ---- Arrows ----------------------------------------------------------------------------------------------------
     private static final int ARROW_X = -2, ARROW_Y = 120, ARROW_Z = 75;
@@ -67,9 +77,13 @@ public final class BossDevices {
     // ---- Target ----------------------------------------------------------------------------------------------------
     private static final int TARGET_Z = 50;
     private static final int TARGET_HITS = 9;
+    /** The plate (ADM: 63, 127, 35 on Hypixel's floor; here on the built-in plan's device floor at 125). */
+    static final BlockPos TARGET_PLATE = new BlockPos(63, 126, 35);
+    private static final List<Integer> order = new ArrayList<>();
     private static BlockPos lit;
-    private static int targetHits;
-    private static boolean targetDone;
+    private static int targetHits, targetGrid = -1, plateUntil = -1, targetShowAt = -1;
+    private static boolean targetFirstShown, targetDone;
+    private static int tick;
 
     private BossDevices() {
     }
@@ -92,34 +106,65 @@ public final class BossDevices {
         return out;
     }
 
+    /** The twenty Lights levers (x 58-62, y 133-136, z 142). */
+    static List<BlockPos> lightLevers() {
+        List<BlockPos> out = new ArrayList<>();
+        for (int y = 133; y <= 136; y++) {
+            for (int x = 58; x <= 62; x++) {
+                out.add(new BlockPos(x, y, 142));
+            }
+        }
+        return out;
+    }
+
+    static BlockPos targetCell(int i) {
+        return new BlockPos(64 + 2 * (i % 3), 126 + 2 * (i / 3), TARGET_Z);
+    }
+
     /** The blocks a fight changes, put back by every arena build (a capture's own copy is overwritten too). */
     static void resetBlocks(List<BossArena.Fill> out) {
         out.add(new BossArena.Fill(111, 119, 89, 111, 124, 97, BossBlocks.of("minecraft:obsidian")));
         out.add(new BossArena.Fill(110, 120, 92, 110, 123, 95, BossBlocks.AIR));
         out.add(new BossArena.Fill(110, 121, 91, 110, 121, 91, ssButton()));
-        for (BlockPos p : LIGHTS) {
+        out.add(new BossArena.Fill(58, 133, 143, 62, 136, 143, BossBlocks.of("minecraft:gray_concrete")));
+        for (BlockPos p : lightLevers()) {
             out.add(new BossArena.Fill(p.getX(), p.getY(), p.getZ(), p.getX(), p.getY(), p.getZ(), lever(false)));
         }
-        out.add(new BossArena.Fill(64, 126, TARGET_Z, 68, 130, TARGET_Z, BossBlocks.of("minecraft:blue_terracotta")));
+        out.add(new BossArena.Fill(64, 126, TARGET_Z, 68, 130, TARGET_Z, BossBlocks.of("minecraft:stone_bricks")));
+        for (int i = 0; i < 9; i++) {
+            BlockPos c = targetCell(i);
+            out.add(new BossArena.Fill(c.getX(), c.getY(), c.getZ(), c.getX(), c.getY(), c.getZ(),
+                    BossBlocks.of("minecraft:blue_terracotta")));
+        }
+        out.add(new BossArena.Fill(TARGET_PLATE.getX(), TARGET_PLATE.getY(), TARGET_PLATE.getZ(), TARGET_PLATE.getX(),
+                TARGET_PLATE.getY(), TARGET_PLATE.getZ(), BossBlocks.of("minecraft:stone_pressure_plate")));
     }
 
     /** P3 begins (devices of sections before {@code fromSection} start done). */
     static void start(ServerLevel level, int fromSection) {
         stop();
+        tick = 0;
         // Simon Says
         sequence.clear();
+        stray.clear();
+        strayTick = -1;
         ssRound = ssExpected = ssTimer = 0;
         ssStartWasPowered = false;
         java.util.Arrays.fill(ssWasPowered, false);
         ss = fromSection > 1 ? Ss.DONE : Ss.IDLE;
-        // Lights: two to four start off, the rest on (all six on is done).
+        // Lights: two to four of the solution's six start off, the rest on; every other lever off.
         lightsDone = fromSection > 2;
-        List<BlockPos> order = new ArrayList<>(LIGHTS);
-        Collections.shuffle(order, RNG);
-        int off = lightsDone ? 0 : 2 + RNG.nextInt(3);
-        for (int i = 0; i < order.size(); i++) {
-            BossBlocks.set(level, order.get(i), lever(i >= off));
+        lightsCreditAt = -1;
+        for (BlockPos p : lightLevers()) {
+            BossBlocks.set(level, p, lever(false));
         }
+        List<BlockPos> sol = new ArrayList<>(LIGHTS);
+        Collections.shuffle(sol, RNG);
+        int off = lightsDone ? 0 : 2 + RNG.nextInt(3);
+        for (int i = 0; i < sol.size(); i++) {
+            BossBlocks.set(level, sol.get(i), lever(i >= off));
+        }
+        lamps(level);
         // Arrows
         arrowsDone = fromSection > 3;
         int[][] all = com.killer560.hub.arrowalign.ArrowAlignFeature.solutions();
@@ -144,6 +189,8 @@ public final class BossDevices {
         targetDone = fromSection > 4;
         targetHits = 0;
         lit = null;
+        targetGrid = -1;
+        plateUntil = -1;
         LOGGER.info("[BossSim] devices up (SS {}, Lights {}, Arrows {}, Target {})", ss, lightsDone ? "done" : off + " off",
                 arrowsDone ? "done" : "layout", targetDone ? "done" : "armed");
     }
@@ -168,14 +215,16 @@ public final class BossDevices {
     }
 
     static void tick(ServerLevel level) {
+        tick++;
         tickSimonSays(level);
         if (!lightsDone) {
-            boolean all = true;
-            for (BlockPos p : LIGHTS) {
-                BlockState s = level.getBlockState(p);
-                all &= s.hasProperty(BlockStateProperties.POWERED) && s.getValue(BlockStateProperties.POWERED);
+            boolean all = lamps(level);
+            if (all && lightsCreditAt < 0) {
+                lightsCreditAt = tick + 2;
+            } else if (!all) {
+                lightsCreditAt = -1;
             }
-            if (all) {
+            if (lightsCreditAt >= 0 && tick >= lightsCreditAt && BossFight.section() <= 2) {
                 lightsDone = true;
                 done(level, 2);
             }
@@ -187,12 +236,38 @@ public final class BossDevices {
                     all &= frames[i] != null && (frames[i].getRotation() & 7) == solution[i];
                 }
             }
-            if (all) {
+            if (all && BossFight.section() <= 3) {
                 arrowsDone = true;
                 done(level, 3);
             }
         }
         tickTarget(level);
+    }
+
+    /** Lights each lamp whose lever or a neighbour's is on; true when all twenty are lit. */
+    private static boolean lamps(ServerLevel level) {
+        boolean all = true;
+        for (BlockPos p : lightLevers()) {
+            boolean on = isOn(level, p) || isOn(level, p.east()) || isOn(level, p.west()) || isOn(level, p.above())
+                    || isOn(level, p.below());
+            // Not a redstone lamp: a lever on one would light it by vanilla's own redstone, which is not Hypixel's rule.
+            BlockPos lamp = p.south();
+            boolean shown = level.getBlockState(lamp).is(net.minecraft.world.level.block.Blocks.SEA_LANTERN);
+            if (shown != on) {
+                level.setBlock(lamp, BossBlocks.of(on ? "minecraft:sea_lantern" : "minecraft:gray_concrete"), 2);
+            }
+            all &= on;
+        }
+        return all;
+    }
+
+    private static boolean isOn(ServerLevel level, BlockPos p) {
+        if (p.getX() < 58 || p.getX() > 62 || p.getY() < 133 || p.getY() > 136) {
+            return false;
+        }
+        BlockState s = level.getBlockState(p);
+        return s.hasProperty(BlockStateProperties.POWERED) && s.getValue(BlockStateProperties.POWERED)
+                && s.is(net.minecraft.world.level.block.Blocks.LEVER);
     }
 
     private static void done(ServerLevel level, int section) {
@@ -213,22 +288,35 @@ public final class BossDevices {
         java.util.Arrays.fill(ssWasPowered, false);
     }
 
-    private static void beginRound(int n) {
+    /**
+     * Hypixel's buttons come back up fast (ADM: the start button 2 ticks after a press, a grid button 3), not after a
+     * vanilla stone button's 20, so a quick second press (a reset, the next step) is a new press.
+     */
+    private static void popUp(ServerLevel level, BlockPos pos, int ticks) {
+        BossFight.later(ticks, "ss button up", () -> {
+            BlockState s = level.getBlockState(pos);
+            if (s.is(net.minecraft.world.level.block.Blocks.STONE_BUTTON) && s.getValue(BlockStateProperties.POWERED)) {
+                level.setBlock(pos, s.setValue(BlockStateProperties.POWERED, false), 3);
+            }
+        });
+    }
+
+    private static List<BlockPos> newPattern() {
+        List<BlockPos> cells = grid(111);
+        Collections.shuffle(cells, RNG);
+        return new ArrayList<>(cells.subList(0, SS_ROUNDS));
+    }
+
+    /** Round {@code n} shows from {@code delay} ticks on: lamp j lights at 8j for 8 ticks, buttons back 10 after the last. */
+    private static void beginRound(int n, int delay) {
         ssRound = n;
         ssExpected = 0;
-        while (sequence.size() < n) {
-            List<BlockPos> free = new ArrayList<>();
-            for (BlockPos p : grid(111)) {
-                if (!sequence.contains(p)) {
-                    free.add(p);
-                }
-            }
-            sequence.add(free.get(RNG.nextInt(free.size())));
-        }
-        ssRevealIndex = 0;
-        ssRevealLit = false;
-        ssTimer = SS_GAP;
-        ss = Ss.REVEAL;
+        ssShowTick = tick + delay;
+        ss = Ss.SHOW;
+    }
+
+    private static void lamp(ServerLevel level, BlockPos p, boolean on) {
+        level.setBlockAndUpdate(p, BossBlocks.of(on ? "minecraft:sea_lantern" : "minecraft:obsidian"));
     }
 
     private static void tickSimonSays(ServerLevel level) {
@@ -236,33 +324,46 @@ public final class BossDevices {
             return;
         }
         boolean startNow = powered(level.getBlockState(SS_START));
-        if (startNow && !ssStartWasPowered && (ss == Ss.IDLE || ss == Ss.BROKEN)) {
-            sequence.clear();
-            setButtons(level, false);
-            beginRound(1);
-            LOGGER.info("[BossSim] Simon Says started");
+        if (startNow && !ssStartWasPowered && ss != Ss.DONE && BossFight.section() == 1) {
+            if (ss == Ss.IDLE || ss == Ss.BROKEN) {
+                sequence.clear();
+                sequence.addAll(newPattern());
+                stray.clear();
+                strayTick = -1;
+                setButtons(level, false);
+                beginRound(1, 4);
+                LOGGER.info("[BossSim] Simon Says started");
+            } else {
+                // A press while it runs resets it.
+                for (BlockPos p : grid(111)) {
+                    lamp(level, p, false);
+                }
+                setButtons(level, false);
+                ss = Ss.IDLE;
+                LOGGER.info("[BossSim] Simon Says reset by the start button");
+            }
+        }
+        if (startNow && !ssStartWasPowered) {
+            popUp(level, SS_START, 2);
         }
         ssStartWasPowered = startNow;
+        tickStray(level);
         switch (ss) {
-            case REVEAL -> {
-                if (--ssTimer > 0) {
+            case SHOW -> {
+                int k = tick - ssShowTick;
+                if (k < 0) {
                     return;
                 }
-                if (ssRevealIndex >= ssRound) {
+                for (int j = 0; j < ssRound; j++) {
+                    if (k == 8 * j) {
+                        lamp(level, sequence.get(j), true);
+                    } else if (k == 8 * j + 8) {
+                        lamp(level, sequence.get(j), false);
+                    }
+                }
+                if (k == 8 * (ssRound - 1) + 10) {
                     setButtons(level, true);
                     ss = Ss.INPUT;
-                    return;
-                }
-                BlockPos lantern = sequence.get(ssRevealIndex);
-                if (!ssRevealLit) {
-                    level.setBlockAndUpdate(lantern, BossBlocks.of("minecraft:sea_lantern"));
-                    ssRevealLit = true;
-                    ssTimer = SS_REVEAL;
-                } else {
-                    level.setBlockAndUpdate(lantern, BossBlocks.of("minecraft:obsidian"));
-                    ssRevealLit = false;
-                    ssRevealIndex++;
-                    ssTimer = SS_GAP;
                 }
             }
             case INPUT -> {
@@ -270,11 +371,10 @@ public final class BossDevices {
                 for (int i = 0; i < buttons.size(); i++) {
                     boolean now = powered(level.getBlockState(buttons.get(i)));
                     if (now && !ssWasPowered[i]) {
+                        popUp(level, buttons.get(i), 3);
                         boolean correct = buttons.get(i).east().equals(sequence.get(ssExpected));
                         if (!correct) {
-                            setButtons(level, false);
-                            ss = Ss.BROKEN;
-                            LOGGER.info("[BossSim] Simon Says broken in round {}", ssRound);
+                            wrongPress(level);
                             return;
                         }
                         ssExpected++;
@@ -298,8 +398,7 @@ public final class BossDevices {
                 if (ssRound >= SS_ROUNDS) {
                     ss = Ss.DONE;
                 } else {
-                    beginRound(ssRound + 1);
-                    ssTimer = 10;
+                    beginRound(ssRound + 1, 0);
                 }
             }
             default -> {
@@ -307,32 +406,114 @@ public final class BossDevices {
         }
     }
 
+    /** Back to round 0, stopped; the buttons go 3 ticks later, then a stray show of a new pattern (26 or 34 ticks on). */
+    private static void wrongPress(ServerLevel level) {
+        ss = Ss.BROKEN;
+        LOGGER.info("[BossSim] Simon Says broken in round {}", ssRound);
+        ssRound = 0;
+        BossFight.later(3, "ss buttons gone", () -> {
+            if (ss == Ss.BROKEN) {
+                setButtons(level, false);
+            }
+        });
+        stray.clear();
+        stray.addAll(newPattern().subList(0, 2));
+        strayTick = tick + 3 + (RNG.nextBoolean() ? 26 : 34);
+    }
+
+    /** The stray show: two lamps 8 apart, stale buttons back 1-4 ticks in (their presses count for nothing). */
+    private static void tickStray(ServerLevel level) {
+        if (strayTick < 0 || ss != Ss.BROKEN) {
+            return;
+        }
+        int k = tick - strayTick;
+        if (k == 0 || k == 8) {
+            lamp(level, stray.get(k / 8), true);
+        }
+        if (k == 8 || k == 16) {
+            lamp(level, stray.get(k / 8 - 1), false);
+        }
+        if (k == 2) {
+            setButtons(level, true);
+        }
+        if (k > 16) {
+            strayTick = -1;
+        }
+    }
+
     // ---- Target ----------------------------------------------------------------------------------------------------
+
+    private static boolean onPlate(ServerLevel level) {
+        AABB plate = new AABB(TARGET_PLATE.getX(), TARGET_PLATE.getY(), TARGET_PLATE.getZ(), TARGET_PLATE.getX() + 1,
+                TARGET_PLATE.getY() + 0.6, TARGET_PLATE.getZ() + 1);
+        for (ServerPlayer p : level.getServer().getPlayerList().getPlayers()) {
+            if (p.getBoundingBox().intersects(plate)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private static void tickTarget(ServerLevel level) {
         if (targetDone) {
             return;
         }
-        if (lit == null) {
-            BlockPos next;
-            do {
-                next = new BlockPos(64 + RNG.nextInt(5), 126 + RNG.nextInt(5), TARGET_Z);
-            } while (next.equals(lit));
-            lit = next;
-            BossBlocks.set(level, lit, BossBlocks.of("minecraft:emerald_block"));
+        boolean on = onPlate(level);
+        if (on) {
+            plateUntil = -2;
+        } else if (plateUntil == -2) {
+            // The plate stays down 1-10 ticks after he steps off.
+            plateUntil = tick + 1 + RNG.nextInt(10);
+        }
+        boolean pressed = on || (plateUntil >= 0 && tick < plateUntil);
+        if (pressed && targetGrid < 0) {
+            // A new attempt: its own 10-tick grid and a fresh order of the nine.
+            targetGrid = tick;
+            order.clear();
+            for (int i = 0; i < 9; i++) {
+                order.add(i);
+            }
+            Collections.shuffle(order, RNG);
+            targetHits = 0;
+            targetFirstShown = false;
+            targetShowAt = tick;
+        }
+        if (targetGrid >= 0 && (tick - targetGrid) % 10 == 0) {
+            if (!pressed) {
+                if (lit != null) {
+                    BossBlocks.set(level, lit, BossBlocks.of("minecraft:blue_terracotta"));
+                    lit = null;
+                }
+                targetGrid = -1;
+                LOGGER.info("[BossSim] Target: off the plate, attempt reset after {} hit(s)", targetHits);
+                targetHits = 0;
+                return;
+            }
+            if (lit == null && targetHits < TARGET_HITS && tick >= targetShowAt) {
+                lit = targetCell(order.get(targetHits));
+                targetFirstShown = true;
+                BossBlocks.set(level, lit, BossBlocks.of("minecraft:emerald_block"));
+            }
+        }
+        if (targetGrid < 0 || !targetFirstShown || targetHits >= TARGET_HITS) {
             return;
         }
-        AABB box = new AABB(lit.getX() - 0.3, lit.getY() - 0.3, lit.getZ() - 0.6, lit.getX() + 1.3, lit.getY() + 1.3, lit.getZ() + 0.3);
+        // A hit on the current target counts even before it shows (but not before the attempt's first emerald).
+        BlockPos cur = targetCell(order.get(targetHits));
+        AABB box = new AABB(cur.getX() - 0.3, cur.getY() - 0.3, cur.getZ() - 0.6, cur.getX() + 1.3, cur.getY() + 1.3, cur.getZ() + 0.3);
         List<AbstractArrow> hits = level.getEntitiesOfClass(AbstractArrow.class, box, a -> !a.isRemoved());
         if (hits.isEmpty()) {
             return;
         }
         hits.forEach(AbstractArrow::discard);
-        BossBlocks.set(level, lit, BossBlocks.of("minecraft:blue_terracotta"));
+        if (cur.equals(lit)) {
+            BossBlocks.set(level, lit, BossBlocks.of("minecraft:blue_terracotta"));
+            lit = null;
+        }
         targetHits++;
-        LOGGER.info("[BossSim] Target hit {} at {}", targetHits, lit.toShortString());
-        lit = null;
-        if (targetHits >= TARGET_HITS) {
+        targetShowAt = tick + 1;
+        LOGGER.info("[BossSim] Target hit {} at {}", targetHits, cur.toShortString());
+        if (targetHits >= TARGET_HITS && BossFight.section() <= 4) {
             targetDone = true;
             done(level, 4);
         }
@@ -347,7 +528,8 @@ public final class BossDevices {
     /** Debug and testkit: the Simon Says steps of the round in play, as x,y,z of each lantern. */
     public static List<int[]> ssSequence() {
         List<int[]> out = new ArrayList<>();
-        for (BlockPos p : sequence) {
+        for (int i = 0; i < Math.min(ssRound, sequence.size()); i++) {
+            BlockPos p = sequence.get(i);
             out.add(new int[]{p.getX(), p.getY(), p.getZ()});
         }
         return out;
@@ -355,6 +537,11 @@ public final class BossDevices {
 
     public static boolean ssInput() {
         return ss == Ss.INPUT;
+    }
+
+    /** Debug and testkit: the Simon Says state's name (IDLE, SHOW, INPUT, ROUND_DONE, DONE, BROKEN). */
+    public static String ssState() {
+        return ss.name();
     }
 
     /** Debug and testkit: the lit target block, or null. */
