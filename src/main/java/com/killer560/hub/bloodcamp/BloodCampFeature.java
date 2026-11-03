@@ -1670,9 +1670,11 @@ public final class BloodCampFeature {
 
     /** Whether {@code p} is in the Watcher's room tile (the Blood Room). */
     private static boolean inRoomTile(Minecraft client, Vec3 p) {
-        Vec3 watcher = watcherAnchor(client.level);
-        return watcher != null && roomTile(p.x) == roomTile(watcher.x) && roomTile(p.z) == roomTile(watcher.z)
-                && Math.abs(p.y - watcher.y) < 40.0;
+        // The live Watcher only (his remembered spot is for trips, watcherAnchor): Dungeon ESP's Fel skulls and the name-tag
+        // scan read this, and with no Watcher in the world nothing is "in the Blood Room" (1101-esp-fels).
+        Entity watcher = watcherEntityId == null ? null : client.level.getEntity(watcherEntityId);
+        return watcher != null && roomTile(p.x) == roomTile(watcher.getX()) && roomTile(p.z) == roomTile(watcher.getZ())
+                && Math.abs(p.y - watcher.getY()) < 40.0;
     }
 
     /** Game tick of Blood Camp's last click (Trigger Bot or Aura) - the attack-speed cap counts from it. */
