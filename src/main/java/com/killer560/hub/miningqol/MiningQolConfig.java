@@ -53,6 +53,7 @@ public final class MiningQolConfig {
     // Commission HUD
     private boolean commissionHud = false;
     private boolean commissionColorProgress = true;
+    private boolean commissionInterpolate = true;
     private boolean commissionWaypoints = true;
     private boolean commissionEmissaries = true;
     /** Commission Mobs (killer560, 2026-11-03: "it should highlight commission mobs as an option as well"). */
@@ -102,6 +103,7 @@ public final class MiningQolConfig {
                         .getAsJsonObject();
                 cfg.commissionHud = ConfigJson.getBool(o, "commissionHud", cfg.commissionHud);
                 cfg.commissionColorProgress = ConfigJson.getBool(o, "commissionColorProgress", cfg.commissionColorProgress);
+                cfg.commissionInterpolate = ConfigJson.getBool(o, "commissionInterpolate", cfg.commissionInterpolate);
                 cfg.commissionWaypoints = ConfigJson.getBool(o, "commissionWaypoints", cfg.commissionWaypoints);
                 cfg.commissionEmissaries = ConfigJson.getBool(o, "commissionEmissaries", cfg.commissionEmissaries);
                 cfg.commissionMobs = ConfigJson.getBool(o, "commissionMobs", cfg.commissionMobs);
@@ -151,6 +153,7 @@ public final class MiningQolConfig {
             JsonObject o = new JsonObject();
             o.addProperty("commissionHud", commissionHud);
             o.addProperty("commissionColorProgress", commissionColorProgress);
+            o.addProperty("commissionInterpolate", commissionInterpolate);
             o.addProperty("commissionWaypoints", commissionWaypoints);
             o.addProperty("commissionEmissaries", commissionEmissaries);
             o.addProperty("commissionMobs", commissionMobs);
@@ -202,6 +205,14 @@ public final class MiningQolConfig {
 
     public void setCommissionColorProgress(boolean v) {
         commissionColorProgress = v;
+    }
+
+    public boolean isCommissionInterpolate() {
+        return commissionInterpolate;
+    }
+
+    public void setCommissionInterpolate(boolean v) {
+        commissionInterpolate = v;
     }
 
     public boolean isCommissionWaypoints() {

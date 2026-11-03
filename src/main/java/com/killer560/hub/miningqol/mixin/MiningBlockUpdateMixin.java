@@ -27,6 +27,7 @@ public abstract class MiningBlockUpdateMixin {
     private void killer560smod$miningBlock(ClientboundBlockUpdatePacket packet, CallbackInfo ci) {
         try {
             MiningHighlights.onBlockChanged(packet.getPos());
+            com.killer560.hub.miningqol.CommissionProgress.onBlockChanged(packet.getPos());
         } catch (RuntimeException e) {
             killer560smod$mining$threw("blockUpdate", e);
         }
