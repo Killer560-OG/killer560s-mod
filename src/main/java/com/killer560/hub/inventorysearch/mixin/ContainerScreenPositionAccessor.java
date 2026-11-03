@@ -18,4 +18,8 @@ public interface ContainerScreenPositionAccessor {
 
     @Accessor("topPos")
     int killer560smod$getTopPos();
+
+    /** Moves a too-tall menu up so no slot sits under the Inventory Search bar (InventorySearchScreenShiftMixin). */
+    @Accessor("topPos")
+    void killer560smod$setTopPos(int topPos);
 }

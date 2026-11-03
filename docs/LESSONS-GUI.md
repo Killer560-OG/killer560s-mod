@@ -490,14 +490,19 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   there.** The Pet Wheel icon is a bare head and the Item Browser shares one built stack per look (`SkyblockItemStackFactory`
   BUILD_CACHE); the first invsortfit commit passed those stacks and neither grid ever showed a box. Pass the tier the data
   already has: `drawBox(g, ItemRarity.byName(pet.tier() / entry.tier()), ...)` (invsortfit-1102).
-- **A box placed at a fixed screen offset ("bottom middle, 30 up") lands on whatever else is anchored there.** The
-  Inventory Search bar sat on the Storage Overlay's Inventory panel (pinned to the bottom too: its third row of slots
-  hidden and unclickable), over the hotbar / XP / health bars on every container screen, and over a chest's hotbar row
-  at 854x480 GUI 2 and 1600x900 GUI 4 (testkit 1102-ui-storagesearch-* on the old jar, 2026-11-02). It is now placed by
-  `inventorysearch/BarPlacement` against everything drawn on that screen: the container panel and its slots (unless a
-  reskin covers them all), the screen's widgets, every `ContainerCover.rectsOn` panel, the overlay's
-  `StorageOverlayFeature.drawnRects`, and (softly) the hotbar zone. Any new panel drawn over a container should report
-  its rect through `ContainerCover.coverRect`; that is also what keeps the bar off it.
+- **The Inventory Search bar has a fixed spot and everything else lays out around it** (killer560, 2026-11-02: "no i
+  want it always at the bottom. adjust other menus around it instead", after a first fix that moved the bar to free
+  space). `InventorySearchFeature.barRect(w, h)` is the spot (bottom middle 63 above the bottom, or the very bottom under
+  ~280 GUI units), `reservedRect(screen)` the strip around it (null where the bar is not drawn), `keepAbove(...)` moves a
+  panel's y up out of it. The Storage Overlay's Inventory panel, the Item Browser's bottom, ContainerOverlayElement, the
+  Listing Helper, the Croesus / ETable Start buttons and the Superpairs HUD use them; a NEW panel drawn over a container
+  must call `keepAbove` too, or it can sit under the bar.
+- **Moving a vanilla menu means moving its background too.** `topPos` moves the slots, labels and items, but
+  `ContainerScreen#extractBackground` (and hopper, dispenser, brewing stand, beacon, crafting, shulker, merchant,
+  enchanting, grindstone, crafter, mount) re-centers its texture from `height` (javap 26.2 and 26.3), so a chest moved up
+  by `topPos` alone drew its gray panel at the old place, the bar over its hotbar row (testkit 1102-ui-storagesearch-screens
+  picture). `InventorySearchChestBackgroundMixin` answers that `height` read for chests; menus with neither fix are not
+  moved (`backgroundFollowsTop`).
 - The testkit harness's `holdKey(Ctrl)` + `pressKey(F)` did not reach the mod as Ctrl+F on 26.3 (old and new jar alike),
   so it cannot prove a Ctrl shortcut handled in Fabric's `ScreenKeyboardEvents`. Call `KeyboardHandler.keyPress(window,
   PRESS, McKeys.keyEvent(KEY_F, MOD_CONTROL))` by reflection (public on 26.3, private on 26.2) - StorageSearchCases.ctrlF.

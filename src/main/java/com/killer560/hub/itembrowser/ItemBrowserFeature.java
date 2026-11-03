@@ -358,18 +358,25 @@ public final class ItemBrowserFeature {
     private static PanelLayout layout(AbstractContainerScreen<?> screen, ItemBrowserConfig cfg) {
         float scale = cfg.getScale();
         int columns = cfg.getColumns();
-        int availableScreenHeight = Math.max(CELL_SIZE, screen.height - TOP_MARGIN - BOTTOM_MARGIN);
-        int localAvailableHeight = (int) (availableScreenHeight / scale);
-        int rows = Math.max(1, (localAvailableHeight - HEADER_HEIGHT - FOOTER_HEIGHT - PADDING * 2) / CELL_SIZE);
         int localWidth = columns * CELL_SIZE + PADDING * 2;
-        int localHeight = HEADER_HEIGHT + rows * CELL_SIZE + PADDING * 2 + FOOTER_HEIGHT;
         int screenW = Math.round(localWidth * scale);
-        int screenH = Math.round(localHeight * scale);
         int screenX = switch (cfg.getAlign()) {
             case LEFT -> SIDE_MARGIN;
             case CENTER -> (screen.width - screenW) / 2;
             case RIGHT -> screen.width - screenW - SIDE_MARGIN;
         };
+        // The panel ends above the Inventory Search bar's fixed bottom-middle spot when it reaches over it (centered, or
+        // wide enough) - killer560, 2026-11-02: "adjust other menus around it".
+        int bottom = screen.height - BOTTOM_MARGIN;
+        int[] bar = InventorySearchFeature.reservedRect(screen);
+        if (bar != null && screenX < bar[2] && bar[0] < screenX + screenW) {
+            bottom = Math.min(bottom, bar[1]);
+        }
+        int availableScreenHeight = Math.max(CELL_SIZE, bottom - TOP_MARGIN);
+        int localAvailableHeight = (int) (availableScreenHeight / scale);
+        int rows = Math.max(1, (localAvailableHeight - HEADER_HEIGHT - FOOTER_HEIGHT - PADDING * 2) / CELL_SIZE);
+        int localHeight = HEADER_HEIGHT + rows * CELL_SIZE + PADDING * 2 + FOOTER_HEIGHT;
+        int screenH = Math.round(localHeight * scale);
         return new PanelLayout(screenX, TOP_MARGIN, screenW, screenH, rows, columns, scale);
     }
 
@@ -382,6 +389,21 @@ public final class ItemBrowserFeature {
 
     /** Local Y where the sort button's footer strip starts - right after the item grid, mirroring how
      *  {@link #HEADER_HEIGHT} reserves the search header above it. */
+    /** The sort footer's text, short enough to stay inside the panel: "Sort: Value: High-Low" ran past a 5-column panel's
+     *  edge (killer560's 2026-11-02 screenshot), so a narrow panel drops "Sort: " and then cuts the label. */
+    static String footerText(ItemBrowserConfig cfg, int room) {
+        var font = Minecraft.getInstance().font;
+        String full = "Sort: " + cfg.getSortMode().label();
+        String text = font.width(full) <= room ? full
+                : font.width(cfg.getSortMode().label()) <= room ? cfg.getSortMode().label()
+                : font.plainSubstrByWidth(cfg.getSortMode().label(), Math.max(0, room));
+        lastFooterText = text;
+        return text;
+    }
+
+    /** The footer text drawn last frame (read by the testkit). */
+    private static String lastFooterText = null;
+
     private static int footerLocalY(PanelLayout layout) {
         return HEADER_HEIGHT + layout.rows() * CELL_SIZE + PADDING * 2;
     }
@@ -494,7 +516,7 @@ public final class ItemBrowserFeature {
             boolean footerHovered = localMouseY >= footerY && localMouseY < footerY + FOOTER_HEIGHT
                     && localMouseX >= 0 && localMouseX < localWidth;
             graphics.fill(1, footerY, localWidth - 1, footerY + FOOTER_HEIGHT - 1, footerHovered ? (menu == null ? 0x33CC6600 : com.killer560.hub.gui.OverlayPalette.alpha(menu.accent(), 0x33)) : 0x33000000);
-            graphics.centeredText(Minecraft.getInstance().font, "Sort: " + cfg.getSortMode().label(),
+            graphics.centeredText(Minecraft.getInstance().font, footerText(cfg, localWidth - 6),
                     localWidth / 2, footerY + (FOOTER_HEIGHT - 8) / 2, menu == null ? 0xFFFFFFFF : menu.text());
         } finally {
             graphics.pose().popMatrix();

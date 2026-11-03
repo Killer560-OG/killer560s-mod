@@ -114,8 +114,11 @@ public final class SuperpairsHud {
         if (element == null) {
             return;
         }
-        int[] pos = HudElementRegistry.resolvePosition(element);
+        int[] pos = HudElementRegistry.resolvePosition(element).clone();
         float scale = HudElementRegistry.resolveScale(element);
+        pos[1] = (int) com.killer560.hub.inventorysearch.InventorySearchFeature.keepAbove(
+                com.killer560.hub.compat.McCompat.screen(net.minecraft.client.Minecraft.getInstance()), pos[0], pos[1],
+                element.width() * scale, element.height() * scale); // clear of the search bar
         List<String> lines = lines(summary);
         lastLines = lines;
         framesDrawn++;

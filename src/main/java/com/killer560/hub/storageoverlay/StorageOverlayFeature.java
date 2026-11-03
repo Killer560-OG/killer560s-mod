@@ -1033,8 +1033,8 @@ public final class StorageOverlayFeature {
 
     /** Everything the overlay drew on {@code screen} last frame, as {x0, y0, x1, y1} in GUI units: the grid's
      *  viewport (with its background margin and scroll bar), the Inventory panel and the side buttons. Empty when the
-     *  overlay is not drawing there. The Inventory Search bar keeps clear of all of it (killer560, 2026-11-02); public
-     *  for the testkit too. */
+     *  overlay is not drawing there. For the testkit: none of it may reach the Inventory Search bar (killer560,
+     *  2026-11-02). */
     public static List<int[]> drawnRects(net.minecraft.client.gui.screens.Screen screen) {
         List<int[]> out = new ArrayList<>();
         if (screen == null || screen != lastDrawnScreen) {
@@ -1057,17 +1057,6 @@ public final class StorageOverlayFeature {
         return out;
     }
 
-    /** The empty column left of the grid under the side buttons, as {x, y, right}: x and y where a box starts (the
-     *  buttons' x, 4 under the last button) and the rightmost x it may reach. Null when the buttons sit above the grid
-     *  (no room on the left) or the overlay is not drawing on {@code screen}. */
-    public static int[] sideColumn(net.minecraft.client.gui.screens.Screen screen) {
-        if (screen == null || screen != lastDrawnScreen || lastPos == null || lastScanButton == null
-                || lastScanButton[0] + lastScanButton[2] > lastPos[0]) {
-            return null;
-        }
-        return new int[]{lastScanButton[0], lastScanButton[1] + lastScanButton[3] + 4, lastPos[0] - 4};
-    }
-
     /** The relocated "Inventory" panel's LOCAL (pre-scale) height - always 4 rows (36 slots), styled
      *  identically to every other panel in the grid. */
     private static int inventoryPanelHeight() {
@@ -1083,7 +1072,17 @@ public final class StorageOverlayFeature {
     private static int inventoryPanelTopY() {
         float scale = StorageOverlayConfig.getInstance().getScale();
         int scaledHeight = (int) (inventoryPanelHeight() * scale);
-        return Minecraft.getInstance().getWindow().getGuiScaledHeight() - scaledHeight - 8;
+        return inventoryOriginY(scaledHeight);
+    }
+
+    /** The Inventory panel's top for a drawn height: at the bottom of the screen, or just above the Inventory Search bar,
+     *  which has the fixed bottom-middle spot (killer560, 2026-11-02: "no i want it always at the bottom. adjust other
+     *  menus around it instead"); the grid's viewport then ends above the panel as before. */
+    private static int inventoryOriginY(int scaledHeight) {
+        int y = Minecraft.getInstance().getWindow().getGuiScaledHeight() - scaledHeight - 8;
+        int[] bar = com.killer560.hub.inventorysearch.InventorySearchFeature.reservedRect(
+                com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()));
+        return bar == null ? y : Math.max(0, Math.min(y, bar[1] - scaledHeight));
     }
 
     /** Draws the real player inventory as its own panel, styled identically to every other panel in the
@@ -1119,7 +1118,7 @@ public final class StorageOverlayFeature {
         int scaledWidth = (int) (PANEL_WIDTH * scale);
         int scaledHeight = (int) (panelHeight * scale);
         int originX = (Minecraft.getInstance().getWindow().getGuiScaledWidth() - scaledWidth) / 2;
-        int originY = Minecraft.getInstance().getWindow().getGuiScaledHeight() - scaledHeight - 8;
+        int originY = inventoryOriginY(scaledHeight);
         lastInventoryOrigin = new int[]{originX, originY};
         lastInventoryScale = scale;
         lastInventorySize = new int[]{scaledWidth, scaledHeight};

@@ -273,8 +273,10 @@ public final class AutoCroesusFeature {
         if (running && !(McCompat.screen(Minecraft.getInstance()) instanceof AbstractContainerScreen<?>)) {
             return;
         }
-        int[] pos = resolveStartButtonPosition();
+        int[] pos = resolveStartButtonPosition().clone();
         float scale = resolveStartButtonScale();
+        pos[1] = (int) com.killer560.hub.inventorysearch.InventorySearchFeature.keepAbove(McCompat.screen(Minecraft.getInstance()), pos[0], pos[1],
+                START_BUTTON_WIDTH * scale, START_BUTTON_HEIGHT * scale); // clear of the search bar
         // This, not the element's render(), is where the button really appears - render() is only the HUD
         // editor's preview. So this is where the "it was on screen" stamp has to be taken.
         HudSeen.markDrawn(START_BUTTON_ELEMENT_ID);

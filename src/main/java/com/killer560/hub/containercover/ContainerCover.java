@@ -140,24 +140,6 @@ public final class ContainerCover {
         return out;
     }
 
-    /** Every live panel rect on {@code screen} except {@code excludeOwner}'s, as {x0,y0,x1,y1} rounded outward - what
-     *  the Inventory Search bar keeps clear of (inventorysearch/BarPlacement). */
-    public static List<int[]> rectsOn(Screen screen, String excludeOwner) {
-        List<int[]> out = new java.util.ArrayList<>();
-        if (screen == null || RECTS.isEmpty()) {
-            return out;
-        }
-        long now = System.nanoTime();
-        for (Map.Entry<String, Rect> e : RECTS.entrySet()) {
-            Rect r = e.getValue();
-            if (now - r.atNanos() <= RECT_TTL_NANOS && r.screen() == screen && !e.getKey().equals(excludeOwner)) {
-                out.add(new int[]{(int) Math.floor(r.x0()), (int) Math.floor(r.y0()),
-                        (int) Math.ceil(r.x1()), (int) Math.ceil(r.y1())});
-            }
-        }
-        return out;
-    }
-
     /** For the testkit: the last reported rect of {@code owner} on the open screen as {x0,y0,x1,y1}, or null. */
     public static double[] rectOf(String owner) {
         Rect r = RECTS.get(owner);

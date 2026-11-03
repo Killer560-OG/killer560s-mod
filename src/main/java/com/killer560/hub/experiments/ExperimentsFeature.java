@@ -342,8 +342,11 @@ public final class ExperimentsFeature {
             SuperpairsHud.renderOverContainer(graphics, SOLVER.superpairsSummary(lastCells));
         }
         if (shouldShowStartButton()) {
-            int[] pos = resolveStartButtonPosition();
+            int[] pos = resolveStartButtonPosition().clone();
             float scale = resolveStartButtonScale();
+            pos[1] = (int) com.killer560.hub.inventorysearch.InventorySearchFeature.keepAbove(
+                    com.killer560.hub.compat.McCompat.screen(net.minecraft.client.Minecraft.getInstance()), pos[0], pos[1],
+                    START_BUTTON_WIDTH * scale, START_BUTTON_HEIGHT * scale); // clear of the search bar
             // Where the button really appears; the element's render() is only the HUD editor's preview.
             HudSeen.markDrawn(START_BUTTON_ELEMENT_ID);
             com.killer560.hub.containercover.ContainerCover.coverRectOnCurrentScreen("experiments.start",
