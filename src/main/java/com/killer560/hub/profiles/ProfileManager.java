@@ -445,6 +445,7 @@ public final class ProfileManager {
                 com.killer560.hub.gui.ModuleKeybinds::load,
                 com.killer560.hub.clicksound.ClickSoundConfig::load,
                 com.killer560.hub.clicksound.SoundEffectConfig::load,
+                com.killer560.hub.sounddisabler.SoundDisablerConfig::load,
                 com.killer560.hub.gui.DescriptionConfig::load,
                 com.killer560.hub.gui.RecentColours::load,
                 com.killer560.hub.gui.ScreenThemes::load,
