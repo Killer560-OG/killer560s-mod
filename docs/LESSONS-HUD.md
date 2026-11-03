@@ -64,6 +64,12 @@ rendering); the mod menu is [LESSONS-MENU.md](LESSONS-MENU.md).
   position, and the HUD editor skips `setPosition` for those elements; switching back to Custom draws every bar on its old
   pixels (testkit 407). The editor has no buttons (they took clicks beside the hotbar; its options are in Home's HUD Editor
   section) and the bars have their own editor, `HudEditorScreen.forBars`.
+- **Defaults at x 10 pile up in the left column.** At 1920x1080 GUI 2 (960x540 GUI px) the chat is x 0-330, y 410-500
+  (320-500 open), the Split Timers start at y 240, and twenty other defaults sit at x 10, so the F7 HUDs drew over chat,
+  each other and the Split Timers (killer560's screenshots, 2026-11-02). The F7 boss HUDs now default to a right column
+  (`hud/F7HudSlots`: screen width - 170; Tick Timers y 56, Maxor/P3 Status y 98, Team Melody y 350 under the vanilla
+  sidebar). A default computed from the live screen width is fine: `memoisedClamp` keys on the raw default. Testkit
+  1102-logic-f7hud-slots checks the boxes.
 - `Map.getOrDefault` EVALUATES its default eagerly: `HudConfig.getPosition` allocated a throwaway `int[2]` on every call
   even with a saved value, about 110 allocations a frame across the HUD.
 
