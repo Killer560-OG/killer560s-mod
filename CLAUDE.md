@@ -182,11 +182,26 @@ are put together in `gui/tab/MenuCategories`; a new tab still goes in its old fo
 Order (killer560, 2026-10-14: "sort them alphabetically or something of your choosing"): inside a category the legit cards
 are alphabetical by display name ignoring case, then the cheat block alphabetical too (`MenuCategories.cheatLast` does it,
 so a new tab needs no position); Secrets and Puzzle Solvers sort their own sections the same way (Solver Highlights, once first, was removed 2026-10-18; each solver has its own highlight rows).
+Menu search (killer560, 2026-11-02: "i keep searching for things we have and I cant find them"): `gui/MenuSearch` reads each tab
+once per search through `BaseTab.searchScanWidgets()` with `BaseTab.isSearchScan()` true. A tab that leaves its rows out while
+its switch is off writes the gate as `if (!cfg.isEnabled() && !isSearchScan()) { return widgets; }` (96 gates did on
+2026-11-02), or its settings cannot be found while it is off; a tab with collapsed sections builds them open in the scan (Ap3Tab's
+pattern). Never put a network call or a side effect in buildWidgets: the search builds every tab. Common words a player types go in
+`MenuSearch.SYNONYMS`, phrases in `SearchAliases`; testkit 1102-ui-search-queries holds 80 real queries. A new client command
+gets its owner card in `gui/SearchCommands` (by name, by the handler's class or package) or a reason in `NO_CARD`: testkit
+1102-ui-search-commands walks the live dispatcher and fails on any mod command with neither (killer560, 2026-11-02: "i search
+invsort and the inventory sorter doesnt show up even tho it is the command"). A README name that is not a card name gets a
+`SearchAliases` entry (1102-ui-search-readme searches every one).
 Inside a tab the feature's on/off switch is the first row. A tab that is really several features side by side (Dungeon Queue)
 has no switch over the whole: each feature keeps its own, and the tab lists them in `BaseTab.masterToggles` so the card
 (`gui/MasterSwitch`) is ON while any is on and OFF only when all are; never add a "X as a whole" row that gates independent
 switches (the 2026-10-13 ones were removed 2026-10-14, files with the old key OFF load with every part OFF). Testkit 515-518.
 Testkit 511-514 check it on cheat, legit and testing jars.
+A feature that can be off has a real ON/OFF switch (`onOffButton`), never an Off/None value in a selector (killer560,
+2026-11-02, Chat History's card had no switch: "this needs an actual toggle"): the switch is the first row, the selector
+after it has no Off value and shows only while ON, and the value is kept while OFF so OFF then ON restores it; a saved file
+from the selector era migrates Off to the switch off. Chat History and the Cape section were fixed (realswitch-1102);
+Menu Theme is a pure settings page (no switch). Testkit 530 steps every selector on every card without a switch.
 A feature folded into another tab (Thorn Triggerbot into Thorn, 2026-11-02) keeps its own toggle key through
 `ModuleKeybinds` EXTRAS under its old card id, so a saved bind carries over; its row sits in the host tab (testkit 527).
 A row whose feature runs on its own flag (not gated by the tab's first switch) is an independent feature and goes in
@@ -368,6 +383,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   `ChatComponent.setVisibleMessageFilter` (Chat Tabs), not a ChatScreen redirect: docs/LESSONS-MINECRAFT.md "Chat and commands".
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
   StackOverflows. Send below the dispatcher via `util/ServerCommands.toServer`.
+- A chat line the mod sends by itself (`pc`, `ac`, `msg` ...) goes through `util/OutgoingChat.command` (or
+  `TranslateFeature.sendGenerated`, which reserves its place there), never straight to `sendCommand`/`toServer`: Hypixel
+  refuses a second line in the same tick ("Woah slow down, you're doing that too fast!"), which lost a Posmsg callout after
+  every leap (2026-11-02). The queue spaces lines 500 ms apart and sends at once when idle (docs/LESSONS.md).
 - When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
   feature is often ticked from a lambda in another class entirely (`CheatUtils` ticks Secret Aura, Auto Ult and
   Chocolate Factory; `PathfindingFeature` ticks the soul runner and pearl hopper). A per-file grep missed seven
@@ -528,7 +547,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   the game against a real or file-backed input before trusting it.
 - `ServerLag`/`ServerTickClock` take ~15 pings a second as "the server pings every tick", which GrimAC's transactions alone
   reach: on a Grim server they read jitter as stalls. Anything that must count exact server ticks uses `util.PerTickServerClock`
-  (19 of 20 ticks with a ping, two windows in a row) (doc-blood-1101, docs/LESSONS-DUNGEONS.md).
+  (19 of 20 ticks with a ping, two windows in a row) (doc-blood-1101, docs/LESSONS-DUNGEONS.md). A repeating timer keeps the
+  server tick of one real event and works the rest out from it, never a counter decremented per `ServerTickClock` event:
+  Goldor's Tick drifted 1.5 s that way (f7hud-1102, `ticktimers/GoldorTick`, resynced on observed hits).
 - `.gitignore`'s `secrets/` line also matches `src/main/java/com/killer560/hub/secrets/`, so `git add` of a tracked file
   there (DungeonState, ...) fails with "paths are ignored" and the rest of that add is not staged; use `git add -f` on the
   tracked file (2026-11-01).

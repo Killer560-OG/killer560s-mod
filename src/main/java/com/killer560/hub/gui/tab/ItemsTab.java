@@ -16,6 +16,8 @@ public class ItemsTab extends FolderTab {
                 new InventoryHudTab(),
                 new InventorySearchTab(),
                 new InventoryThemeTab(),
+                // Hide Potion Effects (killer560, 2026-11-02): its own card again, beside the Inventory Theme it left.
+                new HidePotionEffectsTab(),
                 new StorageSearchTab(),
                 new SlotBindsTab(),
                 new SlotTextTab(),
@@ -33,6 +35,8 @@ public class ItemsTab extends FolderTab {
                 new ItemBrowserTab(),
                 new AuctionHouseTab(),
                 new BazaarTab(),
+                // Bazaar Order Helper (killer560, 2026-11-02): SkyHanni's order colors in Manage Orders.
+                new BazaarOrderHelperTab(),
                 new BazaarAdvisorTab(),
                 new AhFlipperTab(),
                 new AhPriceCopierTab()

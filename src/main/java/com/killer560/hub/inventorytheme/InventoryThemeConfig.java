@@ -77,8 +77,9 @@ public final class InventoryThemeConfig {
     private float backgroundOpacity = 0.85f;
     private boolean useCustomAccent = false;
     private int customAccentColor = THEME_ACCENT;
-    // Hide Potion Effects stopped being a setting on 2026-10-18 (killer560: "no longer needs to exist just make it always
-    // on"): the effects panel is hidden whenever the Inventory Theme is on. A "hidePotionEffects" key in an old file is ignored.
+    // Hide Potion Effects left this file on 2026-10-18 (killer560: "no longer needs to exist just make it always on") and
+    // is its own card since 2026-11-02 (hideeffects.HideEffectsConfig, ON by default, independent of the theme). A
+    // "hidePotionEffects" key in an old file here is ignored.
     /** Amber (the look before themes existed), Dark or Light - the same three the Storage Overlay offers. */
     private PanelTheme theme = PanelTheme.AMBER;
     /** killer560, 2026-10-07: "Make the custom inventory also apply to my normal toolbar." ON by default, but only
@@ -235,11 +236,6 @@ public final class InventoryThemeConfig {
     public void setCustomAccentColor(int customAccentColor) {
         this.customAccentColor = customAccentColor;
         this.paletteMemo = null;
-    }
-
-    /** Always on while the Inventory Theme is (killer560, 2026-10-18); the same Skyblock Only gate as {@link #isEnabled()}. */
-    public boolean isHidePotionEffects() {
-        return isEnabled();
     }
 
     /** The color everything this feature draws (panel outline, slot outlines, hover highlight, selected hotbar slot,

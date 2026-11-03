@@ -41,7 +41,11 @@ public final class CapeConfig {
 
     private static CapeConfig instance;
 
-    private String selected = NONE;
+    /** The Cape switch (killer560, 2026-11-02: a feature that can be off has a real switch). Off by default. */
+    private boolean enabled = false;
+    /** The design worn while the switch is ON: a built-in design or {@link #CUSTOM}, never {@link #NONE}. Kept while
+     *  the switch is off, so OFF then ON puts the same cape back. */
+    private String selected = DESIGNS.get(0);
     private int customColourA = 0x2D6CDF;
     private int customColourB = 0xF2B134;
     private Pattern customPattern = Pattern.STRIPES;
@@ -122,7 +126,14 @@ public final class CapeConfig {
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             CapeConfig cfg = new CapeConfig();
-            cfg.setSelected(ConfigJson.getString(obj, "selected", NONE));
+            if (obj.has("enabled")) {
+                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+                cfg.setDesign(ConfigJson.getString(obj, "design", DESIGNS.get(0)));
+            } else {
+                // Files from before the switch (2026-11-02): "selected" none is the switch off with the first design,
+                // anything else the switch on wearing it.
+                cfg.setSelected(ConfigJson.getString(obj, "selected", NONE));
+            }
             cfg.setCustomColourA(ConfigJson.getInt(obj, "customColourA", cfg.customColourA));
             cfg.setCustomColourB(ConfigJson.getInt(obj, "customColourB", cfg.customColourB));
             try {
@@ -157,7 +168,10 @@ public final class CapeConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("selected", selected);
+            // No "selected" key any more: load() reads it only from a file with no "enabled", so a saved copy would be a
+            // key load() ignores.
+            obj.addProperty("enabled", enabled);
+            obj.addProperty("design", selected);
             obj.addProperty("customColourA", customColourA);
             obj.addProperty("customColourB", customColourB);
             obj.addProperty("customPattern", customPattern.name());
@@ -183,10 +197,32 @@ public final class CapeConfig {
         }
     }
 
+    /** The cape worn: {@link #NONE} while the switch is off, else the design. */
     public String getSelected() {
+        return enabled ? selected : NONE;
+    }
+
+    /** The design the switch puts on (kept while it is off). */
+    public String getDesign() {
         return selected;
     }
 
+    /** A built-in design or {@link #CUSTOM}; anything else keeps the current one. Does not touch the switch. */
+    public void setDesign(String id) {
+        if (id != null && (id.equals(CUSTOM) || DESIGNS.contains(id))) {
+            this.selected = id;
+        }
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    /** Whether the design is Make Your Own (whatever the switch says). */
     public boolean isCustom() {
         return CUSTOM.equals(selected);
     }
@@ -215,21 +251,26 @@ public final class CapeConfig {
         this.customPattern = p == null ? Pattern.STRIPES : p;
     }
 
-    /** Anything that is not a built-in design becomes {@link #NONE}. */
+    /** {@link #NONE} (or anything that is not a design) turns the switch off and keeps the design; a design or
+     *  {@link #CUSTOM} turns it on wearing that. */
     public void setSelected(String id) {
-        this.selected = id != null && (id.equals(NONE) || id.equals(CUSTOM) || DESIGNS.contains(id)) ? id : NONE;
+        if (id != null && (id.equals(CUSTOM) || DESIGNS.contains(id))) {
+            this.selected = id;
+            this.enabled = true;
+        } else {
+            this.enabled = false;
+        }
     }
 
     public boolean hasCape() {
-        return !NONE.equals(selected);
+        return enabled;
     }
 
-    /** Cycles None, each design, Make Your Own, then back to None. */
+    /** Cycles the design: each built-in one, then Make Your Own, then back to the first. No None: that is the switch. */
     public void cycle(int dir) {
-        // Order: None, the built-in designs, then Make Your Own.
-        int idx = selected.equals(NONE) ? -1 : selected.equals(CUSTOM) ? DESIGNS.size() : DESIGNS.indexOf(selected);
-        int size = DESIGNS.size() + 2;
-        int next = ((idx + 1 + dir) % size + size) % size;
-        selected = next == 0 ? NONE : next == size - 1 ? CUSTOM : DESIGNS.get(next - 1);
+        int idx = selected.equals(CUSTOM) ? DESIGNS.size() : Math.max(0, DESIGNS.indexOf(selected));
+        int size = DESIGNS.size() + 1;
+        int next = Math.floorMod(idx + dir, size);
+        selected = next == DESIGNS.size() ? CUSTOM : DESIGNS.get(next);
     }
 }

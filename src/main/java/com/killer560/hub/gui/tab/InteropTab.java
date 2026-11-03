@@ -26,7 +26,7 @@ public class InteropTab extends BaseTab {
                 requestRebuild, contentX, y, 220, 20));
         y += 26;
 
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

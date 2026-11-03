@@ -99,7 +99,7 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
                 "§7Needs a Booster Cookie (remote /bz, selling from /trades)."));
         y += 22;
 
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

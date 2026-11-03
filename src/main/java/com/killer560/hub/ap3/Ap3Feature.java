@@ -225,9 +225,10 @@ public final class Ap3Feature {
         return at.number;
     }
 
-    /** The class you are playing for chain selection: the mod-wide override for your own IGN, else the tab list. */
+    /** The class you are playing for chain selection: the tab list, else a pick on your own IGN
+     *  ({@link PartyTracker#selfClass}; leaporder-1102: a stale pick on yourself no longer wins over the tab list). */
     public static DungeonClass selfClass() {
-        return ClassOverrides.classOf(Teammates.selfName(), PartyTracker.selfClass());
+        return PartyTracker.selfClass();
     }
 
     // ------------------------------------------------------------------------------------------- public API

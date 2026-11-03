@@ -6,6 +6,7 @@ import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.util.PerTickServerClock;
 import com.killer560.hub.util.SkyblockGate;
 import com.killer560.hub.witherdragons.ServerTickClock;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -83,6 +84,12 @@ import java.util.regex.Pattern;
  * journey ends now."); PY 95 -&gt; 62. The clear "Death Tick" line is gone: it was {@code 20 - now % 20} on a clock
  * counted from client launch, so its phase never matched any server cycle, and NoammAddons dropped both its death and
  * secret tick timers in the same update (secret pickup became 5 ticks).
+ * <p>
+ * <b>2026-11-02 (f7hud-1102, killer560's F7 screenshots).</b> Storm has ONE line ({@link StormLine}: lightning, then the
+ * purple pad, then the yellow pad); the Pad, Lightning, PY, Storm and Crush lines and their settings are gone. Goldor's
+ * "Tick:" is {@link GoldorTick}: a remembered server tick of a hit on {@code util.PerTickServerClock}, resynced on every
+ * hit it sees, instead of a counter on {@link ServerTickClock} (which counts client ticks in a second with under 15 pings,
+ * and was skipped whenever the sidebar did not read F7) - that counter drifted, and his mask popped at "1.5s".
  */
 public final class TickTimersFeature {
 
@@ -96,23 +103,16 @@ public final class TickTimersFeature {
     /** NoammAddons 1.2.9 dev/Timer.kt: Storm's death line to Goldor's line on 0.27.2 (Odin's/our old 104). The one
      *  copy of this gap: Auto i4's prefire window ({@code I4SensorsFeature.inPrefireWindow}) reads it too. */
     public static final int GOLDOR_START_TICKS = 17;
-    /** NoammAddons 1.2.9 floor7/TickTimers.kt "Storm PY Timer" 75 -&gt; 62. Ours was Odin's 95. */
-    static final int STORM_PY_TICKS = 62;
     private static final Pattern GOLDOR_REGEX = Pattern.compile("^\\[BOSS] Goldor: Who dares trespass into my domain\\?$");
     private static final Pattern CORE_OPENING_REGEX = Pattern.compile("^The Core entrance is opening!$");
     private static final Pattern STORM_END_REGEX = Pattern.compile("^\\[BOSS] Storm: I should have known that I stood no chance\\.$");
     private static final Pattern STORM_START_REGEX = Pattern.compile("^\\[BOSS] Storm: Pathetic Maxor, just like expected\\.$");
+    /** Storm's Giga Lightning line (NoammAddons/Odin's "PY" trigger): the lightning has gone off. */
     private static final Pattern STORM_PY_REGEX = Pattern.compile("^\\[BOSS] Storm: (ENERGY HEED MY CALL|THUNDER LET ME BE YOUR CATALYST)!$");
 
     private static int necronTicks = -1;
     private static int maxorStartTime = -1;
-    private static int goldorTickTime = -1;
     private static int goldorStartTime = -1;
-    private static int padTickTime = -1;
-    private static int lightningTickTime = -1;
-    private static boolean pyTriggered = false;
-    private static int pyTickTime = -1;
-    private static int stormTick = -1;
     // ServerTickClock.now() baseline set when Goldor's line lands - Devonian's own baseline for "Show Total"
     // (its Stages.Terminals.startTime.tick), ported in the 2026-09-20 Goldor Frenzy merge.
     private static long goldorPhaseStartTick = 0L;
@@ -128,9 +128,12 @@ public final class TickTimersFeature {
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(TickTimersFeature::onChatMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TickTimersFeature", client -> tick()));
         ServerTickClock.register();
         ServerTickClock.subscribe(TickTimersFeature::serverTick);
+        // Goldor's tick and Storm's line count on this clock (2026-11-02, see GoldorTick). Registered first, so its own
+        // END_CLIENT_TICK listener runs before ours and a hit seen this tick reads this tick's clock.
+        PerTickServerClock.register();
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TickTimersFeature", client -> tick()));
         // CrushTimer's pad outline render (moved in from f7spots 2026-09-21) - same AFTER_TRANSLUCENT_FEATURES
         // hook + SkyblockGate check F7SpotsRenderer used to gate it with.
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> {
@@ -156,29 +159,30 @@ public final class TickTimersFeature {
         } else if (MAXOR_START_REGEX.matcher(raw).matches()) {
             maxorStartTime = MAXOR_START_TICKS;
         } else if (GOLDOR_REGEX.matcher(raw).matches()) {
-            goldorTickTime = 60;
-            goldorPhaseStartTick = ServerTickClock.now();
+            GoldorTick.start();
+            goldorPhaseStartTick = PerTickServerClock.now();
             // "Start:" counts from Storm's death to this line, so the line itself ends it whatever the pacing.
             goldorStartTime = -1;
         } else if (CORE_OPENING_REGEX.matcher(raw).matches()) {
             goldorStartTime = -1;
-            goldorTickTime = -1;
+            GoldorTick.stop();
         } else if (STORM_END_REGEX.matcher(raw).matches()) {
             goldorStartTime = GOLDOR_START_TICKS;
-            padTickTime = -1;
-            stormTick = -1;
+            StormLine.stop();
         } else if (STORM_START_REGEX.matcher(raw).matches()) {
-            padTickTime = 20;
-            lightningTickTime = 560;
-            stormTick = 0;
-        } else if (!pyTriggered && STORM_PY_REGEX.matcher(raw).matches()) {
-            pyTriggered = true;
-            pyTickTime = STORM_PY_TICKS;
+            StormLine.start();
+        } else if (STORM_PY_REGEX.matcher(raw).matches()) {
+            StormLine.onLightning();
+        } else if (CrushTimer.CRUSH_LINES.contains(raw)) {
+            StormLine.onCrush();
+        } else if (GoldorTick.active() && MASK_PROC_REGEX.matcher(raw).matches()) {
+            GoldorTick.onProc();
         }
-        // CrushTimer (moved in from f7spots 2026-09-21): its own trigger lines ("Oof" / "Ouch, that hurt!" /
-        // the optional extra trigger text) don't overlap any pattern above, so it always gets a look.
-        CrushTimer.onChat(raw);
     }
+
+    /** A mask or Phoenix saving you (the lines {@code MaskInvincibilityFeature} reads): in P3, that is Goldor's tick. */
+    private static final Pattern MASK_PROC_REGEX = Pattern.compile("^(?:Second Wind Activated! Your Spirit Mask saved your life!"
+            + "|Your (?:. )?Bonzo's Mask saved your life!|Your Phoenix Pet saved you from certain death!)$");
 
     private static void tick() {
         // Odin resets every timer on LevelEvent.Load - same here, on any real level change.
@@ -195,11 +199,11 @@ public final class TickTimersFeature {
         }
         wasInDungeon = inDungeon;
 
-        // CrushTimer's interval countdown/title (moved in from f7spots 2026-09-21) - client tick, same as
-        // F7SpotsFeature used to drive it, gated by the master switch since it now shares this tab.
+        GoldorTick.endOfTick();
+        StormLine.endOfTick();
         TickTimersConfig cfg = TickTimersConfig.getInstance();
-        if (cfg.isEnabled() && (cfg.isCrushTimerEnabled() || cfg.isCrushTitleEnabled())) {
-            CrushTimer.tick(Minecraft.getInstance());
+        if (cfg.isEnabled() && cfg.isGoldorTimer()) {
+            GoldorTick.clientTick(Minecraft.getInstance());
         }
     }
 
@@ -222,51 +226,25 @@ public final class TickTimersFeature {
         // still buys nothing: while Start runs the
         // HUD shows "Start:" instead of "Tick:" anyway, and the Core-entrance line still sets both to -1. Dropping
         // it only removes that failure mode; the countdown's alignment is unchanged.
-        if (goldorTickTime == 0 && cfg.isGoldorTimer()) {
-            goldorTickTime = 60;
-        }
+        // Goldor's "Tick:" and Storm's line are no longer counted down here: they are worked out from a remembered
+        // server tick on PerTickServerClock (GoldorTick, StormLine), so a skipped call cannot move them (2026-11-02).
         if (maxorStartTime >= 0) {
             maxorStartTime--;
         }
         if (goldorStartTime >= 0) {
             goldorStartTime--;
         }
-        if (goldorTickTime >= 0) {
-            goldorTickTime--;
-        }
-        // 2026-09-21: gate split from isStormTimer() to its own isPadCycleTimer() toggle when the pad timer's
-        // f7spots duplicate was merged in here - see the class doc and TickTimersConfig's migration doc.
-        if (padTickTime == 0 && cfg.isPadCycleTimer()) {
-            padTickTime = 20;
-        }
-        if (padTickTime >= 0) {
-            padTickTime--;
-        }
-        if (lightningTickTime >= 0) {
-            lightningTickTime--;
-        }
-        if (pyTickTime >= 0) {
-            pyTickTime--;
-        }
         if (necronTicks >= 0) {
             necronTicks--;
-        }
-        if (stormTick >= 0) {
-            stormTick++;
         }
     }
 
     private static void resetAll() {
         necronTicks = -1;
         maxorStartTime = -1;
-        goldorTickTime = -1;
         goldorStartTime = -1;
-        padTickTime = -1;
-        lightningTickTime = -1;
-        pyTickTime = -1;
-        pyTriggered = false;
-        stormTick = -1;
-        CrushTimer.reset();
+        GoldorTick.stop();
+        StormLine.stop();
         goldorPhaseStartTick = 0L;
     }
 
@@ -320,12 +298,12 @@ public final class TickTimersFeature {
 
         @Override
         public int defaultX() {
-            return 10;
+            return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.TICK_TIMERS);
         }
 
         @Override
         public int defaultY() {
-            return 380;
+            return com.killer560.hub.hud.F7HudSlots.y(com.killer560.hub.hud.F7HudSlots.TICK_TIMERS); // was 10,380: over the chat (hud/F7HudSlots)
         }
 
         @Override
@@ -354,36 +332,16 @@ public final class TickTimersFeature {
                 // Odin: "Start:" only when its own "Start timer" setting is on, otherwise "Tick:"/"Show Total".
                 if (goldorStartTime >= 0 && cfg.isGoldorStartTimer()) {
                     lines.add(format(goldorStartTime, GOLDOR_START_TICKS, "§aStart:"));
-                } else if (goldorTickTime >= 0 && cfg.isGoldorShowTotal()) {
-                    long elapsed = Math.max(0, ServerTickClock.now() - goldorPhaseStartTick);
+                } else if (GoldorTick.active() && cfg.isGoldorShowTotal()) {
+                    long elapsed = Math.max(0, PerTickServerClock.now() - goldorPhaseStartTick);
                     lines.add(formatElapsed(elapsed, "§7Frenzy total"));
-                } else if (goldorTickTime >= 0) {
-                    lines.add(format(goldorTickTime, 60, "§7Tick:"));
+                } else if (GoldorTick.active()) {
+                    lines.add(format(GoldorTick.remaining(), GoldorTick.PERIOD, "§7Tick:"));
                 }
             }
-            // Split from isStormTimer() 2026-09-21 when the f7spots pad-cycle duplicate was merged in - see
-            // the class doc. Its own toggle now, so it isn't dragged along with Lightning/PY/the Storm counter.
-            if (cfg.isPadCycleTimer() && padTickTime >= 0) {
-                lines.add(format(padTickTime, 20, "§bPad:"));
-            }
-            if (cfg.isStormTimer()) {
-                if (lightningTickTime >= 0) {
-                    lines.add(format(lightningTickTime, 560, "§bLightning:"));
-                }
-                if (pyTickTime >= 0) {
-                    lines.add(format(pyTickTime, STORM_PY_TICKS, "§bPY:"));
-                }
-                if (stormTick >= 0) {
-                    lines.add(format(stormTick, 620, "§bStorm:"));
-                }
-            }
-            // CrushTimer's interval/count-up line (moved in from f7spots 2026-09-21) - its own toggle, same as
-            // it had on the F7 Spots tab.
-            if (cfg.isCrushTimerEnabled()) {
-                String crushLine = CrushTimer.hudText();
-                if (crushLine != null) {
-                    lines.add(crushLine);
-                }
+            // Storm: ONE line (2026-11-02): lightning, then the purple pad, then the yellow pad (StormLine).
+            if (cfg.isStormLine() && StormLine.phase() != StormLine.Phase.NONE) {
+                lines.add(format(StormLine.remaining(), StormLine.max(), StormLine.prefix()));
             }
             return lines;
         }

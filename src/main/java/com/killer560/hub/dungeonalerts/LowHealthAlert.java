@@ -86,11 +86,9 @@ public final class LowHealthAlert {
         DungeonAlertsFeature.LOGGER.info("[LowHealth] {} is low ({})", name, health);
     }
 
-    /** Your class: the mod-wide override for your own IGN, else the tab list. */
+    /** Your class: the tab list, else a pick on your own IGN ({@link PartyTracker#selfClass}, leaporder-1102). */
     static DungeonClass selfClass() {
-        Minecraft client = Minecraft.getInstance();
-        String name = client.player == null ? null : client.player.getGameProfile().name();
-        return ClassOverrides.classOf(name, PartyTracker.selfClass());
+        return PartyTracker.selfClass();
     }
 
     static void onWorldChange() {

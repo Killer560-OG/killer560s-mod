@@ -25,6 +25,7 @@ final class CardBlurbsData {
         d.put("KickRejoinTab", "Rejoin wait after a kick.");
         d.put("InstaClearWarningTab", "Lost-key alert.");
         d.put("GyroOverlayTab", "Shows the Gyro wand's pull ring.");
+        d.put("BazaarOrderHelperTab", "Colors outbid and filled orders.");
         d.put("ChatTabsTab", "Party, guild, DM tabs in chat.");
         d.put("ScoreWarningTab", "Boss and crypt warnings.");
         d.put("LowHealthAlertTab", "Warns when a teammate is low.");
@@ -164,6 +165,7 @@ final class CardBlurbsData {
         d.put("InventoryHudTab", "Inventory as a HUD.");
         d.put("InventorySearchTab", "Ctrl+F finds slots.");
         d.put("InventoryThemeTab", "Menu-themed inventory.");
+        d.put("HidePotionEffectsTab", "Hides your potion effects.");
         d.put("ItemBrowserTab", "Every Skyblock item in a panel.");
         d.put("ItemProtectTab", "Stops you losing gear.");
         d.put("ItemRarityTab", "Rarity item backgrounds.");

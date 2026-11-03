@@ -349,6 +349,7 @@ public class ModScreen extends Screen {
         // Light theme (the Profiles name box had the same bug, 786297ce).
         // The search is not kept across a reopen: its results list would cover the page you came back to.
         searchQuery = "";
+        MenuSearch.invalidate();
         searchField.setValue(searchQuery);
         searchField.setResponder(text -> {
             searchQuery = text;
@@ -2018,59 +2019,19 @@ public class ModScreen extends Screen {
         return new ArrayList<>(out);
     }
 
+    /** The search (killer560, 2026-11-02): every typed word, in any order, against each feature's name, description,
+     *  rows and tooltips, with partial words, plurals and synonyms, best first - see {@link MenuSearch}. The text is read
+     *  once per search and kept, so a keystroke does not rebuild every tab. */
     private void computeResults() {
         results.clear();
         if (searchQuery.isBlank()) {
+            MenuSearch.invalidate();
             return;
         }
-        List<String> variants = SearchAliases.variants(searchQuery);
-        List<BaseTab> leaves = allLeaves();
-        Set<BaseTab> named = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
-        for (BaseTab leaf : leaves) {
-            if (hiddenByStreamer(leaf)) {
-                continue;
-            }
-            for (String q : variants) {
-                if (SearchAliases.nameMatches(leaf.name, q)) {
-                    results.add(new Result(leaf, leaf.name, true, where(leaf)));
-                    named.add(leaf);
-                    break;
-                }
-            }
+        for (MenuSearch.Hit h : MenuSearch.search(searchQuery, allLeaves(), ModScreen::hiddenByStreamer)) {
+            results.add(new Result(h.tab(), h.label(), h.feature(),
+                    h.feature() ? where(h.tab()) : where(h.tab()) + " › " + h.tab().name));
         }
-        List<Result> settings = new ArrayList<>();
-        for (BaseTab leaf : leaves) {
-            if (hiddenByStreamer(leaf)) {
-                continue;
-            }
-            String hit = null;
-            for (String q : variants) {
-                if (leaf.matchesSearch(q)) {
-                    hit = q;
-                    break;
-                }
-            }
-            if (hit == null) {
-                continue;
-            }
-            int found = 0;
-            try {
-                for (String l : leaf.searchHits(hit)) {
-                    if (named.contains(leaf) && l.equalsIgnoreCase(leaf.name)) {
-                        continue;
-                    }
-                    settings.add(new Result(leaf, l, false, where(leaf) + " › " + leaf.name));
-                    if (++found == 3) {
-                        break;
-                    }
-                }
-            } catch (RuntimeException ignored) {
-            }
-            if (found == 0 && !named.contains(leaf)) {
-                settings.add(new Result(leaf, "a setting in " + leaf.name, false, where(leaf) + " › " + leaf.name));
-            }
-        }
-        results.addAll(settings);
     }
 
     private static String where(BaseTab leaf) {

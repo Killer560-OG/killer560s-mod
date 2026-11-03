@@ -144,7 +144,7 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 cfg::setBreakerAuraRespectEditMode, cfg::save, null, col2bX, y, col2W, 18));
         y += 22;
 
-        if (!cfg.isBreakerAuraEnabledRaw()) {
+        if (!cfg.isBreakerAuraEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

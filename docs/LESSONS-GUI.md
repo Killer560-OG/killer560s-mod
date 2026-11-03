@@ -461,6 +461,15 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
 - Video Browser: YouTube Shorts loop, so a `<video>` never fires `ended`; Auto Scroll counts a `timeupdate` that finds
   the video under 1 s after one in its last second (caught in capture phase: `timeupdate` does not bubble). Checked in
   headless Chrome with ffmpeg clips (killer560s-mod-logs/docmenu-1101-vb/endhook_test.py).
+- The menu search found only what a tab built at that moment: a feature switched off had none of its rows in the scan (about 100
+  tabs return early when off), and Dungeon ESP's description was never read, so 'star mob' and 'wither esp' found nothing
+  (2026-11-02). `gui/MenuSearch` now reads name, card text, every row (`BaseTab.isSearchScan()` lays switched-off rows open) and
+  each row's tooltip once per search, matching word starts, plural/-ed/-ing stems and synonyms. Index ~30 ms, a later keystroke
+  under 30 ms on 26.3 (testkit 1102-ui-search-queries). Rows longer than 48 characters or holding ". " are explanation lines:
+  their words find the feature but they are never listed as a setting.
+- Vanilla's inventory effects panel (`EffectsInInventory`) is owned only by `InventoryScreen` and `CreativeModeInventoryScreen`
+  (javap, 26.3 and 26.2): chests, the AH and the Storage Overlay never draw it. The HUD's top-right icons are Fabric's
+  `VanillaHudElements.MOB_EFFECTS` layer on both versions. Hide Potion Effects (its own card since 2026-11-02) covers both.
 - `CommitEditBox.withSet` takes its Set button (SET_W 34 + SET_GAP 4) out of the box's own width, so a row laid out before
   textbox-1101 can leave a box too narrow: the Command Shortcuts custom row's command box fell to 52 px in the test window
   (testkit 621 wants 60). Reserve the Set width when sizing the row (ship-1102h, eb3719df: the name box pays for it).
@@ -500,3 +509,20 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
 - A world fill whose face lies exactly on a block face z-fights with it, and which one wins flips as the camera moves:
   "if i jump or crouch the highlight will phase through the block" (Carpet Highlighter, 2026-11-03). Push every face a
   hair (0.002) outside the block it marks, as the titanium boxes already did (mining-1103).
+
+- **The Inventory Search bar has a fixed spot and everything else lays out around it** (killer560, 2026-11-02: "no i
+  want it always at the bottom. adjust other menus around it instead", after a first fix that moved the bar to free
+  space). `InventorySearchFeature.barRect(w, h)` is the spot (bottom middle 63 above the bottom, or the very bottom under
+  ~280 GUI units), `reservedRect(screen)` the strip around it (null where the bar is not drawn), `keepAbove(...)` moves a
+  panel's y up out of it. The Storage Overlay's Inventory panel, the Item Browser's bottom, ContainerOverlayElement, the
+  Listing Helper, the Croesus / ETable Start buttons and the Superpairs HUD use them; a NEW panel drawn over a container
+  must call `keepAbove` too, or it can sit under the bar.
+- **Moving a vanilla menu means moving its background too.** `topPos` moves the slots, labels and items, but
+  `ContainerScreen#extractBackground` (and hopper, dispenser, brewing stand, beacon, crafting, shulker, merchant,
+  enchanting, grindstone, crafter, mount) re-centers its texture from `height` (javap 26.2 and 26.3), so a chest moved up
+  by `topPos` alone drew its gray panel at the old place, the bar over its hotbar row (testkit 1102-ui-storagesearch-screens
+  picture). `InventorySearchChestBackgroundMixin` answers that `height` read for chests; menus with neither fix are not
+  moved (`backgroundFollowsTop`).
+- The testkit harness's `holdKey(Ctrl)` + `pressKey(F)` did not reach the mod as Ctrl+F on 26.3 (old and new jar alike),
+  so it cannot prove a Ctrl shortcut handled in Fabric's `ScreenKeyboardEvents`. Call `KeyboardHandler.keyPress(window,
+  PRESS, McKeys.keyEvent(KEY_F, MOD_CONTROL))` by reflection (public on 26.3, private on 26.2) - StorageSearchCases.ctrlF.

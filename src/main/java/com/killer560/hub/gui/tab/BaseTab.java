@@ -218,6 +218,34 @@ public abstract class BaseTab {
         return new java.util.ArrayList<>(out);
     }
 
+    /** True while {@link com.killer560.hub.gui.MenuSearch} reads every tab's rows: a tab that leaves its settings out while
+     *  its switch is off builds them anyway, so the search finds a setting of a feature that is off (killer560, 2026-11-02:
+     *  "i keep searching for things we have and I cant find them"). Never true while a tab is drawn. */
+    private static boolean searchScan;
+
+    public static boolean isSearchScan() {
+        return searchScan;
+    }
+
+    /**
+     * Every widget the menu search reads for this tab, built off-screen with {@link #isSearchScan()} true. A tab with a
+     * scan mode of its own (sections built open) overrides this the way it overrides {@link #searchHits}.
+     */
+    public List<AbstractWidget> searchScanWidgets() {
+        boolean was = searchScan;
+        searchScan = true;
+        try {
+            return buildWidgets(0, 0, 200, () -> {});
+        } finally {
+            searchScan = was;
+        }
+    }
+
+    /** Words the search should find this tab by that no row shows (CosmeticsTab's sections). */
+    public List<String> searchExtraTexts() {
+        return List.of();
+    }
+
     /** The menu card's one-line description, or null to take it from the master toggle's tooltip (the default). */
     public String cardDescription() {
         return null;

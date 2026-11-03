@@ -131,6 +131,10 @@ project CLAUDE.md. Compiling lessons
 - Auto Croesus never spent a key because Hypixel closes Croesus after a claim and the reopened head no longer reads
   "No chests opened yet!", the only thing the menu scan opened. It now decides before the first claim whether another
   chest is worth a key and walks back into that run (page:slot, same floor) after the reopen (testkit 766/767).
+- **The player's own order is IN the API book**, so an order at the top of its side reads `BazaarOrders.Standing.MATCHED`
+  (equal to the best price), almost never `TOP`. "Outbid" must mean strictly beaten (more than 0.05 the wrong way), as
+  SkyHanni's Order Helper does: a buy order below the best buy order (Hypixel's `sell_summary[0]`), a sell offer above
+  the cheapest sell offer (`buy_summary[0]`). Bazaar Order Helper ignores prices older than 15 minutes (testkit 2810).
 
 ## Experiments and containers
 
@@ -149,6 +153,12 @@ project CLAUDE.md. Compiling lessons
   stays up), Instant Finds stack ("insta find into an insta find then your next two clicks are insta finds"), and
   there is no activation click - the solver's old second click on the face-up tile did nothing but wait out 1s.
   XP reward tiles are recognized by NAME (`... Enchanting Exp`): the item varies, and cocoa beans were missed.
+- **A Superpairs board holds at most 2 powerups** (killer560, 2026-11-03: "at max there can only be 2 powerups in a
+  table"; the Overview had shown "Undiscovered powerups: up to 9"). `ExperimentSolver.MAX_SUPERPAIRS_POWERUPS`. The unseen
+  tiles that are no known partner are 2 x (whole pairs) + (covered powerups), so with the powerups already turned over
+  off the cap, an odd count is exactly 1 covered powerup and an even one is 0 or 2 (0 once fewer than 2 are left). The
+  Overview uses it (`SuperpairsSummary`); the solver does not need it, since the cap can prove a hidden pair exists but
+  never that no money is left. A board that contradicts it (3 seen, or odd with 2 seen) falls back to the uncapped count.
 - Clicking a tile that is already uncovered does not use a click (killer560, 2026-10-01). A pair's first click
   can fail to land (tile still covered, others still read "Click any button!"); clicking the partner anyway lost
   Experiment the Fish, so the first tile is now re-clicked before its partner.
@@ -380,6 +390,13 @@ project CLAUDE.md. Compiling lessons
 - `util/ChatObserver` drops a line identical to one it saw in the last 250 ms (the dedupe for a mod re-adding Hypixel's
   line). A test that sends the same server line twice back to back loses the second: two "The gate has been destroyed!"
   lines 0.2 s apart left P3SectionTracker one section behind (testkit 1027-ap3-section-s3, 2026-10-27). Space them.
+- **Two party lines in one tick: Hypixel drops the second** with "Woah slow down, you're doing that too fast!" (his 26.3
+  log 2026-11-02 19:26:54: "Leaping to X" went, a Posmsg callout for the ring he leapt into was refused, the Cringe line
+  10 ticks later went). Every line the mod sends by itself goes through `util/OutgoingChat` (FIFO, 500 ms apart, at once
+  when idle, a refused line re-sent once); never `sendCommand("pc ...")` or `ServerCommands.toServer("pc ...")` directly.
+  A Spirit Leap's teleport can land before its "You have teleported to" line, so Posmsg holds a ring entered by a jump
+  right after a leap menu (or a busy Fast Leap, whose menu is headless: no screen) until that line, at most 1 s.
+  Testkit 1102-posmsg-* (posmsgleap-1102).
 
 - **Your own dungeon class is `leapmenu/PartyTracker.selfClass()`** (tab list, plus Party Finder lines, with the
   `ClassOverrides` pick on your own IGN already applied by `classOf`). Fast Leap's Class Targets (2026-10-27) read it;

@@ -40,6 +40,11 @@ final class SettingTooltipsData {
         d.put("gyrokinetic wand overlay", "While you hold the Gyrokinetic Wand, draws the 10-block ring its ability pulls mobs from, where you are looking (up to 24 blocks away).");
         d.put("gyrokinetic wand overlay/style", "Circle Outline, a filled Circle, or a Sphere.");
         d.put("gyro color", "The overlay's color and how see-through it is.");
+        d.put("bazaar order helper", "In Hypixel's Manage Orders menu, colors each order: green when it is filled or has something to claim, red when another player's order is better (outbid or undercut). The order's tooltip says which, against what price, and how old the Bazaar prices are. Draw only: nothing is clicked.");
+        d.put("bazaar order helper/highlight outbid", "Red slot for a buy order below the best buy order, or a sell offer above the cheapest sell offer, by the mod's Bazaar prices. Prices older than 15 minutes are not used.");
+        d.put("bazaar order helper/highlight filled", "Green slot for an order that is 100% filled or has items or coins to claim.");
+        d.put("outbid color", "The outbid / undercut highlight's color and how strong its fill is.");
+        d.put("filled color", "The filled / ready to claim highlight's color and how strong its fill is.");
         d.put("gyrokinetic wand overlay/line width", "How thick the Circle Outline is drawn.");
         d.put("chat tabs", "Shows tabs above the chat input (All, Party, Guild, Officer, Co-op, Messages): click one to see only that channel's messages.");
         d.put("switch channel", "Clicking a tab also puts you in that chat (/chat party and so on); with Messages, a line you type goes as /r.");
@@ -797,7 +802,7 @@ final class SettingTooltipsData {
         d.put("tick timers", "Shows a countdown HUD for the F7/M7 boss phases.");
         d.put("necron", "Shows a 3s countdown for Necron dropping in during F7/M7 P4.");
         d.put("tick timers/necron start", "Shows a 3s countdown for Necron dropping in during F7/M7 P4.");
-        d.put("goldor", "Shows Goldor's repeating damage tick countdown during P3.");
+        d.put("goldor", "Shows Goldor's repeating damage tick countdown during P3; it reads 0 on the hit and resyncs on every hit it sees.");
         d.put("ticks (vs seconds)", "Shows timers in game ticks when ON, in seconds when OFF.");
         d.put("symbol", "Adds a unit symbol after each timer value.");
         d.put("show prefix", "Shows the timer's name before each value.");
@@ -970,7 +975,7 @@ final class SettingTooltipsData {
         d.put("show overlay", "Draws a countdown box where each blood mob will settle, green when it is ready to hit.");
         d.put("aura", "Cheat build: acts on targets around you without needing to aim at them.");
         d.put("auto detect lag", "Times the Trigger Bot from the kill timer (which allows for your measured ping) instead of the countdown's own end.");
-        d.put("trigger offset", "Cheat build: ticks from the kill timer to the Trigger Bot's click, -10 to 10: below 0 clicks late, above 0 early (-1 by default).");
+        d.put("trigger offset", "Cheat build: ticks from the kill timer to the Trigger Bot's click, -10 to 10: below 0 clicks early, above 0 late (+1 by default). Not used while Never Miss is on.");
         d.put("boulder solver", "Outlines the stone button to press next in the Boulder puzzle.");
         d.put("show all remaining clicks", "Outlines every remaining Boulder tile at once instead of just the next one.");
         d.put("quiz solver", "Highlights the floor spot of the correct answer in the Quiz puzzle.");
@@ -1106,7 +1111,8 @@ final class SettingTooltipsData {
         d.put("peek chat", "Opens the chat history with no text box, so you can read and scroll it. Peek Mode says whether it stays open while the key is held.");
         d.put("peek chat key", "Key or mouse button that opens Peek Chat (in Toggle Peek press it again, or Escape, to close; in Hold To Peek let go of it). Only works with no menu open. Esc while binding clears it.");
         d.put("peek mode", "Toggle Peek: press the key to open the chat, press it again to close. Hold To Peek: the chat is open while you hold the key. The mouse wheel scrolls the chat either way.");
-        d.put("chat history", "How many chat messages stay scrollable. Off: vanilla's last 100. Limited: the number set below (200-10000). Unlimited: the whole session, using more memory the longer you play.");
+        d.put("chat history", "Keeps more chat scrollable than vanilla. Off: vanilla's last 100 messages. On: the Length set below.");
+        d.put("chat history/length", "Limited: the number set below (200-10000). Unlimited: the whole session, using more memory the longer you play.");
         d.put("history limit", "How many chat messages Limited keeps, from 200 to 10000 in steps of 200.");
         d.put("open loadouts key", "A key (or mouse button) that runs /loadouts from anywhere with no menu open, like the Open Loadouts button. Needs Loadout Keybinds on. Esc while binding clears it.");
         d.put("loadout keybinds/highlight selected loadout", "A green background on the loadout you have on in the Loadout menu.");
@@ -1652,7 +1658,6 @@ final class SettingTooltipsData {
         // ---- F7 Spots ----
         d.put("walk-to waypoints", "Draws your saved standing spots for F7/M7 in the world.");
         d.put("last breath aim spots", "Shows saved aim points for Last Breath, based on your class.");
-        d.put("crush trigger text (optional)", "Extra chat text that restarts the crush timer; leave blank to use only Storm's crush lines.");
 
         d.put("menu theme", "Default keeps this overlay's own look. Or draw it in one of the menu's themes: Amber, Dark, Light, Ocean, Green, Custom, or any theme you saved. Left click goes forward, right click back.");
         d.put("start button menu theme", "Default keeps the Start buttons' own look. Or draw them in one of the menu's themes, including any you saved.");
@@ -1721,6 +1726,7 @@ final class SettingTooltipsData {
         d.put("item protection", "Turns on the guards that stop you losing your own gear.");
         d.put("protect item", "Stops protected items being dropped, sold, traded, salvaged, auctioned or thrown out of menus; each shows a small star.");
         d.put("item protection/lock in place", "Protected items can't be clicked at all - not moved, swapped or thrown in any menu (what Slot Lock did).");
+        d.put("item protection/show star", "Draws the small star in the top-right corner of every protected item. Off hides it; the items stay protected.");
         d.put("item protection/star color", "Color of the small star drawn in the top-right corner of every protected item.");
         d.put("protect key", "Keybind to add or remove the hovered item from the protected list.");
         d.put("item id fallback", "Protects items with no Skyblock UUID by item ID, which covers every copy.");
@@ -1806,9 +1812,8 @@ final class SettingTooltipsData {
         // P3 Status (2026-10-25)
         d.put("p3 status", "F7/M7 Phase 3: a HUD of the current section's terminals, device, levers and gate, and short progress titles.");
         d.put("p3 status/p3 status", "Switches everything below on or off.");
-        d.put("p3 status/status hud", "Lists the current section's terminals, device, levers and gate, each done or not. Move it in the HUD editor.");
-        d.put("p3 status/show who is at each", "Names the player standing at an unfinished terminal, device or lever.");
-        d.put("p3 status/short progress titles", "Replaces Hypixel's 'Name activated a terminal! (3/7)' title with one short line.");
+        d.put("p3 status/status hud", "Shows the current section's progress: Terminals 2/4, Device 0/1, Levers 1/2 and the gate. Move it in the HUD editor.");
+        d.put("p3 status/short progress titles", "Replaces Hypixel's 'Name activated a terminal! (3/7)' title with one short line: the name in their class color, 'Terminal 3/7' in gold.");
         d.put("p3 status/device done title", "Shows a Device Done title when a device in your section is completed.");
         d.put("p3 status/section complete title", "Shows a Section Complete title when the last objective of a section is done.");
         d.put("p3 status/hide energy laser subtitle", "Hides the 'The Energy Laser is charging up!' subtitle in Phase 1.");
@@ -2286,9 +2291,9 @@ final class SettingTooltipsData {
             // Chest. Inside the constant, so a legit jar carries none of these strings.
             d.put("auto blood camp/trigger bot", "Cheat build: clicks a blood mob on its kill timer when you aim at it, never faster than your attack speed. Needs Blood Camp on.");
             d.put("auto blood camp/aura", "Cheat build, Blood Room only: turns you to the next blood mob you can see and clicks it at your weapon's attack speed until it dies; moving your mouse takes over.");
-            d.put("auto blood camp/never miss", "The first hit waits until the mob is really there - on the spot, in reach and in sight - and goes that tick, instead of on the kill timer.");
+            d.put("auto blood camp/never miss", "No timer at all: attacks a blood mob the tick after it spawns, once it is under your look and in sight, and keeps hitting one that survives. Overrides Trigger Offset (hidden while on) and does not wait for the Kill Popup's KILL.");
             d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
-            d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: left (below 0) clicks early, right (above 0) late. +1 by default.");
+            d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: left (below 0) clicks early, right (above 0) late. +1 by default. Not used (and hidden) while Never Miss is on.");
             d.put("auto blood camp/mage only", "The Trigger Bot and the Aura act only while the dungeon tab list says you are the Mage.");
             d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
@@ -2296,17 +2301,11 @@ final class SettingTooltipsData {
             d.put("auto close chest/auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
         }
         d.put("auto fairy souls/auto mode", "How it travels: Walk Only, Walk With Pearls, Etherwarp where it saves walking, or Fast Etherwarp the whole way (needs an etherwarp item in the hotbar).");
-        d.put("tick timers/pad cycle timer", "Repeating 1-second countdown during Storm's P2 for timing pad drops.");
-        d.put("tick timers/crush timer hud", "Times Storm's crushes in F7/M7 P2 and shows the count.");
-        d.put("tick timers/crush title", "Shows 'Crush N' on screen each time Storm is crushed.");
         d.put("tick timers/purple pad highlight", "Outlines Storm's purple crush pad while you're in P2.");
         d.put("tick timers/pad color", "Color of the crush pad outlines.");
         d.put("tick timers/show all pads", "Also outlines the green and yellow pads, not just purple.");
-        d.put("tick timers/crush interval", "Seconds to count down after each crush, 0-120; 0 counts up instead.");
-        d.put("tick timers/crush warning", "The crush countdown turns red at this many seconds left (0-15).");
-        d.put("tick timers/crush trigger text", "Optional chat text that also restarts the crush countdown.");
-        d.put("tick timers/storm crush timer (p2)", "Timers and pad highlights for Storm's crush in P2.");
-        d.put("tick timers/storm", "Shows Storm's P2 timers: lightning, purple pillar window and a counter.");
+        d.put("tick timers/storm pads (p2)", "Outlines for Storm's pads in P2.");
+        d.put("tick timers/storm line", "One line in P2: a countdown to Storm's lightning, then the pad timer for purple, then for yellow.");
         d.put("ability cooldowns/mage reduction", "Cuts ability cooldown timers while you play Mage.");
         d.put("ability cooldowns/mage cut", "How much shorter ability cooldowns are while you play Mage, as a percentage.");
         d.put("arrow align/highlight color", "Color of the box drawn on frames that still need clicking.");
@@ -2619,7 +2618,9 @@ final class SettingTooltipsData {
         d.put("posmsg/set to my position", "Saves where you are standing as this waypoint's center.");
         d.put("wither dragons/normal power", "Power 0 always splits this dragon by class instead. 22 is a common value for Normal.");
         d.put("wither dragons/easy power", "Power 0 always splits this dragon by class instead. 19 is a common value for Easy.");
-        d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens, and the hotbar: vanilla's own shapes (beveled panel, sunken slots) in the colors of the Theme. Also hides the potion effects panel beside them.");
+        d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens, and the hotbar: vanilla's own shapes (beveled panel, sunken slots) in the colors of the Theme. The potion effects panel beside the inventory is Hide Potion Effects, a card of its own.");
+        d.put("hide potion effects", "Hides the potion effects panel vanilla draws beside your inventory (Absorption, Haste, Strength...). On by default, with or without the Inventory Theme.");
+        d.put("hide effect icons (hud)", "Also hides the effect icons vanilla draws in the top right of the screen while you play. Off by default.");
         d.put("inventory theme/theme", "The colors: Default matches whatever theme the mod menu is on. Scroll to one of the menu's themes (or one you saved), to Vanilla (vanilla's own grays), or to Custom, which shows a Customize row.");
         d.put("inventory theme/customize", "Opens a menu for the Custom look: its Base colors, slot color and accent color.");
         d.put("inventory theme/base", "The colors the Custom look starts from: Amber, Dark (neutral grays) or Light. The Storage Overlay has the same three.");
@@ -2725,7 +2726,7 @@ final class SettingTooltipsData {
         d.put("blood camp/spawn line", "Draws a cyan line from each blood mob's skull in the wall to the spot it will land, through walls.");
         d.put("blood camp/spawn line width", "Line thickness for Spawn Line, 1-10.");
         d.put("blood camp/countdown start sound", "Plays a sound when a blood mob's countdown starts (its landing box appears). Mobs starting together make one sound.");
-        d.put("blood camp/kill sound", "Plays a sound once per blood mob, on the tick the Trigger Bot is to hit it: its kill timer moved by Trigger Offset, and not before the Kill Popup's KILL. Mobs due together make one sound.");
+        d.put("blood camp/kill sound", "Plays a sound once per blood mob, on the tick the Trigger Bot is to hit it: its kill timer moved by Trigger Offset (none with Never Miss on), and not before the Kill Popup's KILL. Mobs due together make one sound.");
         d.put("blood camp/start sound type", "Which sound Countdown Start Sound plays. Left click cycles forward, right click back.");
         d.put("blood camp/kill sound type", "Which sound Kill Sound plays. Left click cycles forward, right click back.");
         d.put("blood camp/sound volume", "Volume of the Kill Sound, 0-1.");
@@ -2877,7 +2878,8 @@ final class SettingTooltipsData {
         d.put("see other mod users", "Shows a tag before the name of every player who shows as a mod user (a bold K: orange for legit, red for cheat). Off by default.");
         d.put("show me as a mod user", "Lets other mod users see that you run the mod. Off by default; nobody sees your variant until you turn this on.");
         d.put("show as", "Which variant you show to others: legit (an orange K) or cheat (a red K). Only the cheat build can show cheat.");
-        d.put("cape", "Wear one of the built-in capes (each carries the mod logo in its colors), or pick Make Your Own to choose a pattern and two colors. Only your own player shows it; other players see their own cape.");
+        d.put("cape", "Wear a cape: the Design set below. Only your own player shows it; other players see their own cape.");
+        d.put("cape/design", "One of the built-in capes (each carries the mod logo in its colors), or Make Your Own to choose a pattern and two colors. Kept while the Cape switch is off.");
         d.put("bazaar advisor", "Legit, read-only: when a Bazaar menu opens, prints what to buy, how much, and the expected profit in chat. It never clicks anything.");
         d.put("bazaar pick", "Ranks by profit per unit times units sold a week: buy at the cheapest sell offer, sell into the best buy order.");
         d.put("npc pick", "Ranks by profit per unit: buy at the cheapest sell offer, sell to the NPC at its listed price.");

@@ -62,6 +62,14 @@ public final class PartyTracker {
     private static final String ANY_NAME = "(?:\\[[^]]+] )?[A-Za-z0-9_]{1,16}";
     private static final Pattern CLEARED = Pattern.compile("^(?:You left the party\\.|You are not currently in a party\\.|You have been kicked from the party by " + ANY_NAME + "|"
             + ANY_NAME + " has disbanded the party!|The party was disbanded because .+|You are not in a party.*)$");
+    // Hypixel's own lines naming YOUR class (leaporder-1102, all seen in his logs): the class menu, the dungeon's
+    // pre-start broadcast (checked against your own name), a Party Finder group, and the run's first line when your class
+    // is unique. Anchored on the whole line with a bare name group, so no player's chat can forge one.
+    private static final String CLASS_WORD = "(Mage|Tank|Healer|Archer|Berserk|Berserker)";
+    private static final Pattern YOU_SELECTED = Pattern.compile("^You have selected the " + CLASS_WORD + " Dungeon Class!$");
+    private static final Pattern NAME_SELECTED = Pattern.compile("^([A-Za-z0-9_]{1,16}) selected the " + CLASS_WORD + " Class!$");
+    private static final Pattern PF_SET_CLASS = Pattern.compile("^Party Finder > ([A-Za-z0-9_]{1,16}) set their class to " + CLASS_WORD + " Level \\d{1,3}!$");
+    private static final Pattern STATS_DOUBLED = Pattern.compile("^Your " + CLASS_WORD + " stats are doubled because you are the only player using this class!$");
 
     /** Names as Hypixel spells them, in listing order. Includes yourself when Hypixel lists you. */
     private static final Set<String> MEMBERS = new LinkedHashSet<>();
@@ -125,6 +133,12 @@ public final class PartyTracker {
         if (readingList && !plain.startsWith("Party ") && !plain.startsWith("-")) {
             readingList = false;
         }
+        if (plain.endsWith("Class!") || plain.endsWith("using this class!") || plain.startsWith("Party Finder > ")
+                && plain.contains(" set their class to ")) {
+            if (onClassLine(plain)) {
+                return;
+            }
+        }
         // Every pattern below needs "party"/"Party" in the line, except KICKED_OFFLINE's "Kicked ...": a cheap test
         // before eleven Matchers (fps-idle-1015; LIST_HEADER / LIST_LINE above start with "Party " too).
         if (!plain.contains("arty") && !plain.startsWith("Kicked ")) {
@@ -158,6 +172,41 @@ public final class PartyTracker {
         } else {
             return;
         }
+    }
+
+    /** One of Hypixel's class lines: yours is remembered as the class you are playing next, a teammate's Party Finder
+     *  line is their class until the tab list says otherwise. @return true when the line was one. */
+    private static boolean onClassLine(String plain) {
+        Matcher m;
+        String who;
+        DungeonClass cls;
+        if ((m = YOU_SELECTED.matcher(plain)).matches() || (m = STATS_DOUBLED.matcher(plain)).matches()) {
+            who = null;
+            cls = parseClass(m.group(1));
+        } else if ((m = NAME_SELECTED.matcher(plain)).matches() || (m = PF_SET_CLASS.matcher(plain)).matches()) {
+            who = m.group(1);
+            cls = parseClass(m.group(2));
+        } else {
+            return false;
+        }
+        if (cls == null) {
+            return true;
+        }
+        Minecraft client = Minecraft.getInstance();
+        String self = client.player == null ? null : client.player.getGameProfile().name();
+        if (who == null || who.equalsIgnoreCase(self)) {
+            LeapMenuConfig cfg = LeapMenuConfig.getInstance();
+            if (cfg.setLastSelectedClass(cls)) {
+                cfg.save();
+            }
+            if (who != null && self != null && !plain.startsWith("Party Finder > ") && DungeonState.isInDungeon()) {
+                // The dungeon's broadcast: the tab list's class for you is out of date until its next refresh.
+                CLASSES.put(self.toLowerCase(Locale.US), cls);
+            }
+        } else if (plain.startsWith("Party Finder > ") || DungeonState.isInDungeon()) {
+            CLASSES.put(who.toLowerCase(Locale.US), cls);
+        }
+        return true;
     }
 
     private static void readTabList(Minecraft client) {
@@ -323,9 +372,23 @@ public final class PartyTracker {
         return name == null ? null : CLASSES.get(name.toLowerCase(Locale.US));
     }
 
-    /** Your own class from the dungeon tab list, or null outside a dungeon / before the tab list shows it. */
+    /** Your own class from the dungeon tab list, or null outside a dungeon / before the tab list shows it. The tab list
+     *  wins over a class pick on your own name (leaporder-1102): the removed Class Selection Overlay could put one there
+     *  and no run start ever cleared it, so after you switched class every feature kept reading the old one. A pick on
+     *  yourself still applies while the tab list does not know your class. */
     public static DungeonClass selfClass() {
         Minecraft client = Minecraft.getInstance();
-        return client.player == null ? null : classOf(client.player.getGameProfile().name());
+        if (client.player == null) {
+            return null;
+        }
+        String self = client.player.getGameProfile().name();
+        DungeonClass shown = detectedClassOf(self);
+        return shown != null ? shown : classOf(self);
+    }
+
+    /** The class you play next as Hypixel last announced it (its class menu, a Party Finder group, the dungeon's
+     *  pre-start line), or null when none has been seen; kept across restarts. */
+    public static DungeonClass selectedClass() {
+        return LeapMenuConfig.getInstance().getLastSelectedClass();
     }
 }

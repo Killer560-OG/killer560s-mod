@@ -61,10 +61,25 @@ public final class LeapMenuFeature {
         return out;
     }
 
-    /** The class whose Leap Order applies right now: your class from the dungeon tab list, else the one last
-     *  picked in the editor. */
+    /** The class whose Leap Order applies right now, from the most current source (leaporder-1102): your class on the
+     *  dungeon tab list; else the class Hypixel last said you selected (its class menu, a Party Finder group, a
+     *  dungeon's pre-start line, kept across restarts); else a pick on your own name; else the class last opened in the
+     *  editor. It used to go straight from the tab list to the editor's last class, so in the Hub, and in a dungeon
+     *  before the tab list named you, it read whatever class you last edited, not the one you had selected. */
     public static DungeonClass playingClass() {
-        DungeonClass fromTab = PartyTracker.selfClass();
-        return fromTab != null ? fromTab : LeapMenuConfig.getInstance().getLastEditedClass();
+        Minecraft client = Minecraft.getInstance();
+        DungeonClass fromTab = client.player == null ? null
+                : PartyTracker.detectedClassOf(client.player.getGameProfile().name());
+        if (fromTab != null) {
+            return fromTab;
+        }
+        // The sims have no class on their tab list and are not a Hypixel run: they keep the editor's class, as before.
+        boolean sim = com.killer560.hub.secrets.DungeonState.isRoomSim() || com.killer560.hub.secrets.DungeonState.isSimOverrideActive();
+        DungeonClass selected = sim ? null : PartyTracker.selectedClass();
+        if (selected != null) {
+            return selected;
+        }
+        DungeonClass picked = PartyTracker.selfClass();
+        return picked != null ? picked : LeapMenuConfig.getInstance().getLastEditedClass();
     }
 }

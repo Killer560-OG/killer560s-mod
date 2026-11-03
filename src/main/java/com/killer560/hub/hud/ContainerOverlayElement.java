@@ -67,8 +67,12 @@ public final class ContainerOverlayElement implements HudElement {
         this.width = Math.max(1, w);
         this.height = Math.max(1, h);
         HudSeen.markDrawn(id);
-        int[] pos = HudElementRegistry.resolvePosition(this);
+        int[] pos = HudElementRegistry.resolvePosition(this).clone();
         float scale = HudElementRegistry.resolveScale(this);
+        // Laid out above the Inventory Search bar's fixed bottom-middle spot when it would reach it (killer560, 2026-11-02).
+        pos[1] = (int) com.killer560.hub.inventorysearch.InventorySearchFeature.keepAbove(
+                com.killer560.hub.compat.McCompat.screen(net.minecraft.client.Minecraft.getInstance()), pos[0], pos[1],
+                (this.width + 3) * scale, (this.height + 3) * scale);
         // Over a real menu: no slot under the panel hovers or takes a click (ContainerCover). 3 px of margin: some
         // panels (Chocolate Factory's line) fill a little past their box.
         com.killer560.hub.containercover.ContainerCover.coverRectOnCurrentScreen("hud." + id,

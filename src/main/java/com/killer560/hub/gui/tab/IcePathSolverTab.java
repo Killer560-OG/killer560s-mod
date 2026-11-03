@@ -23,7 +23,7 @@ public class IcePathSolverTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

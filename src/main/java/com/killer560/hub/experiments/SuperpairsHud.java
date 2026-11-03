@@ -114,8 +114,11 @@ public final class SuperpairsHud {
         if (element == null) {
             return;
         }
-        int[] pos = HudElementRegistry.resolvePosition(element);
+        int[] pos = HudElementRegistry.resolvePosition(element).clone();
         float scale = HudElementRegistry.resolveScale(element);
+        pos[1] = (int) com.killer560.hub.inventorysearch.InventorySearchFeature.keepAbove(
+                com.killer560.hub.compat.McCompat.screen(net.minecraft.client.Minecraft.getInstance()), pos[0], pos[1],
+                element.width() * scale, element.height() * scale); // clear of the search bar
         List<String> lines = lines(summary);
         lastLines = lines;
         framesDrawn++;
@@ -148,11 +151,15 @@ public final class SuperpairsHud {
             out.add("§7Undiscovered: §cboard not read yet");
             return out;
         }
+        int newMin = s.newPairsMin();
         int newMax = s.newPairsMax();
-        out.add("§7Undiscovered pairs: §e" + s.undiscoveredPairsMin()
-                + (newMax > 0 ? " §7+ up to §e" + newMax + " §7new" : ""));
+        String newPairs = newMax <= 0 ? ""
+                : newMin == newMax ? " §7+ §e" + newMax + " §7new"
+                : newMin == 0 ? " §7+ up to §e" + newMax + " §7new"
+                : " §7+ §e" + newMin + "§7-§e" + newMax + " §7new";
+        out.add("§7Undiscovered pairs: §e" + s.undiscoveredPairsMin() + newPairs);
         int exact = s.powerupsExact();
-        out.add("§7Undiscovered powerups: " + (exact >= 0 ? "§e" + exact : "§7up to §e" + s.hidden()));
+        out.add("§7Undiscovered powerups: " + (exact >= 0 ? "§e" + exact : "§7up to §e" + s.coveredPowerupsMax()));
         return out;
     }
 

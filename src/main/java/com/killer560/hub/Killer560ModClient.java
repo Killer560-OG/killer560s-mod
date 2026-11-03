@@ -232,6 +232,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.luck.LuckFeature.register();
         RngMeterOverlay.register();
         RngMeterEngine.PRICES.startAutoRefresh();
+        com.killer560.hub.util.OutgoingChat.register();
         LeapMessageFeature.register();
         GifPlayerFeature.register();
         DvdFeature.register();
@@ -435,6 +436,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.inventorysearch.InventorySearchFeature.register();
         com.killer560.hub.inventorytheme.InventoryThemeFeature.register();
         com.killer560.hub.inventorytheme.HotbarTheme.register();
+        com.killer560.hub.hideeffects.HideEffectsFeature.register();
         com.killer560.hub.itemprotect.ItemProtectFeature.register();
         com.killer560.hub.objecthider.ObjectHiderFeature.register();
         com.killer560.hub.chattidy.ChatTidy.register();

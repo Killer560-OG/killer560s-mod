@@ -34,6 +34,31 @@ public class AutoBloodCampTab extends BaseTab {
         return switchRows(built, "Trigger Bot", "Aura");
     }
 
+    /** True while the menu search builds the page to read its labels: every row is built, so the search finds Trigger
+     *  Offset (and the rest of the Attack Speed group) whatever Never Miss and the switches say (HealthAndManaBarsTab's
+     *  pattern). */
+    private boolean scanningForSearch;
+
+    @Override
+    public List<String> searchHits(String query) {
+        scanningForSearch = true;
+        try {
+            return super.searchHits(query);
+        } finally {
+            scanningForSearch = false;
+        }
+    }
+
+    @Override
+    protected boolean widgetsMatchSearch(String query) {
+        scanningForSearch = true;
+        try {
+            return super.widgetsMatchSearch(query);
+        } finally {
+            scanningForSearch = false;
+        }
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
@@ -79,7 +104,8 @@ public class AutoBloodCampTab extends BaseTab {
         // killer560, 2026-10-18: "For this menu make a small separator for the attack speed related stuff." Everything
         // about WHEN a click goes - Auto Detect Lag, Trigger Offset, Never Miss - under one small header. Cheat-only
         // tab, so the red SectionHeaders style.
-        if (cfg.getTriggerBotRaw() || cfg.getAuraRaw()) {
+        boolean timing = cfg.getTriggerBotRaw() || cfg.getAuraRaw() || scanningForSearch;
+        if (timing) {
             y += 2;
             widgets.add(SectionHeaders.row(contentX, y, contentWidth, ATTACK_SPEED_HEADER, true));
             y += 14;
@@ -88,10 +114,16 @@ public class AutoBloodCampTab extends BaseTab {
         // killer560, 2026-10-19: Auto Detect Lag and Trigger Offset show (and act) for the Aura as well - the Aura's first
         // click on a mob on its way already goes at triggerTargetTicks, and every Blood Camp click waits for the kill
         // timer moved by the offset (BloodCampFeature#tick).
-        if (cfg.getTriggerBotRaw() || cfg.getAuraRaw()) {
+        if (timing) {
             widgets.add(onOffButton("Auto Detect Lag", cfg::isAutoDetectLag, cfg::setAutoDetectLag, cfg::save,
                     null, contentX, y, contentWidth, 18));
             y += 20;
+        }
+
+        // killer560, 2026-11-03: with Never Miss on, Trigger Offset "shouldn't control it" - it does not apply
+        // (BloodCampFeature#effectiveTriggerOffsetTicks), so the row is hidden; the saved value is kept for when Never Miss
+        // goes off again. The search scan still builds it.
+        if (timing && (!cfg.isNeverMiss() || scanningForSearch)) {
 
             // killer560, 2026-10-15: "Have the slider go from -10 to 10"; 2026-11-01: "if i slide it left it is early and
             // right it is late". Ticks from the kill timer, negative (left) early, positive (right) late, default +1.
@@ -114,11 +146,11 @@ public class AutoBloodCampTab extends BaseTab {
             y += 20;
         }
 
-        if (cfg.getTriggerBotRaw() || cfg.getAuraRaw()) {
+        if (timing) {
             // killer560, 2026-10-15: "add a never miss setting where it attacks the tick it detects the mob is actually
-            // there not just when it thinks it will spawn".
+            // there not just when it thinks it will spawn". Rebuilds: it hides or shows Trigger Offset.
             widgets.add(onOffButton("Never Miss", cfg::isNeverMiss, cfg::setNeverMiss, cfg::save,
-                    null, contentX, y, contentWidth, 18));
+                    requestRebuild, contentX, y, contentWidth, 18));
             y += 20;
         }
 

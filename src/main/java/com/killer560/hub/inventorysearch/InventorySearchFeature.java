@@ -37,7 +37,8 @@ import java.util.Locale;
  * <p>
  * The bar always sits at the bottom middle of the screen, also when the Item Browser is on (killer560,
  * 2026-10-11: "Do not move my search bar above the menu the search bar should stay in the bottom middle of my
- * screen like normal") - the Item Browser filters by this same bar and has no box of its own.
+ * screen like normal") - the Item Browser filters by this same bar and has no box of its own. Since 2026-11-02 it has one
+ * fixed spot and width on every screen, and every menu lays out around it (see {@link #barRect}, {@link #reservedRect}).
  * <p>
  * killer560 (2026-09-21): "make it so I can click into that bar as well and adjust the scale of it.
  * Also make ctrl backspace work as normal ctrl backspace does. Also you need to adjust how it works in
@@ -337,26 +338,158 @@ public final class InventorySearchFeature {
     private static String barFor = null;
     private static String barText = null;
 
-    private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
-        if (com.killer560.hub.bazaar.BazaarReskin.isHiding(screen)
-                || com.killer560.hub.auction.ah.AhReskin.isHiding(screen)) {
-            return; // a reskinned Bazaar or Auction House menu covers the chest; nothing of this belongs on top of it
+    /** The bar's width and height in its own units, before the Box Scale setting. One fixed width (killer560, 2026-11-02:
+     *  the bar no longer grows or moves as text is typed; a long query shows its end). */
+    public static final int BAR_W = 160;
+    public static final int BAR_H = 16;
+    /** Room kept between the bar and anything laid out around it. */
+    public static final int GAP = 3;
+    /** The hotbar, XP bar and two rows of hearts / armor / food at the bottom middle, which the bar sits just above. */
+    private static final int HOTBAR_ZONE = 60;
+    /** The lowest bar top that still leaves a double chest's slots (rows 18..213 of its 222) room above it. */
+    private static final int MIN_NORMAL_Y = 213 - 18 + 2 + GAP;
+
+    /**
+     * The bar's {x, y, w, h} on a screen of this GUI size: the SAME spot on every screen (killer560, 2026-11-02: "no i want
+     * it always at the bottom. adjust other menus around it instead"). Bottom middle, just above the hotbar / XP / hearts.
+     * Only a window too short for a double chest above it (under about 280 GUI units: 854x480 GUI 2, 1280x720 GUI 3,
+     * 1600x900 GUI 4) puts it at the very bottom instead, over the hotbar; only a window narrower than the bar narrows it.
+     */
+    public static int[] barRect(int screenW, int screenH) {
+        float scale = InventorySearchConfig.getInstance().getBoxScale();
+        int w = Math.min(Math.round(BAR_W * scale), Math.max(20, screenW - 4));
+        int h = Math.round(BAR_H * scale);
+        int y = screenH - HOTBAR_ZONE - GAP - h;
+        if (y < MIN_NORMAL_Y) {
+            y = screenH - 2 - h;
         }
-        boolean highlightEnabled = InventorySearchConfig.getInstance().isEnabled();
-        if (!highlightEnabled && !ItemBrowserConfig.getInstance().isEnabled()) {
+        return new int[]{(screenW - w) / 2, y, w, h};
+    }
+
+    /** Whether the bar is drawn on {@code screen}: a container screen, Inventory Search or the Item Browser on, and no
+     *  reskin that replaces the whole menu with its own (Bazaar, Auction House, Spirit Leap, Terminal Custom GUI). */
+    public static boolean shownOn(Screen screen) {
+        if (!(screen instanceof AbstractContainerScreen<?>)) {
+            return false;
+        }
+        if (!InventorySearchConfig.getInstance().isEnabled() && !ItemBrowserConfig.getInstance().isEnabled()) {
+            return false;
+        }
+        return !com.killer560.hub.bazaar.BazaarReskin.isHiding(screen)
+                && !com.killer560.hub.auction.ah.AhReskin.isHiding(screen)
+                && !com.killer560.hub.spiritleap.SpiritLeapOverlayFeature.isHiding(screen)
+                && !com.killer560.hub.terminals.TerminalSolverFeature.isCustomGuiActive();
+    }
+
+    /** The strip every menu the mod lays out keeps clear of on {@code screen}: the bar plus {@link #GAP} all round, as
+     *  {x0, y0, x1, y1}; null when the bar is not drawn there. */
+    public static int[] reservedRect(Screen screen) {
+        if (screen == null || !shownOn(screen)) {
+            return null;
+        }
+        int[] r = barRect(screen.width, screen.height);
+        return new int[]{r[0] - GAP, r[1] - GAP, r[0] + r[2] + GAP, r[1] + r[3] + GAP};
+    }
+
+    /** {@code y} for a w x h panel at x,y on {@code screen}, moved up just enough to clear the bar's strip when it would
+     *  reach it (never above 0). Panels beside the bar keep their y. */
+    public static double keepAbove(Screen screen, double x, double y, double w, double h) {
+        int[] r = reservedRect(screen);
+        if (r == null || !(x < r[2] && r[0] < x + w && y < r[3] && r[1] < y + h)) {
+            return y;
+        }
+        return Math.max(0, r[1] - h);
+    }
+
+    /**
+     * Moves a vanilla menu up at init when it would reach the bar's strip (a double chest at a big GUI scale): the whole
+     * panel above the strip when there is room, else as far as keeps every slot above it with the first row still on
+     * screen (the title and top border may go off the top). Menus a reskin covers entirely are left alone.
+     */
+    public static void shiftClearOfBar(AbstractContainerScreen<?> screen) {
+        try {
+            int[] r = reservedRect(screen);
+            if (r == null || !backgroundFollowsTop(screen)
+                    || com.killer560.hub.containercover.ContainerCover.coversAll(screen)) {
+                return;
+            }
+            var geo = (com.killer560.hub.inventorytheme.mixin.InventoryThemeGeometryAccessor) screen;
+            int left = geo.killer560smod$getLeftPos();
+            int top = geo.killer560smod$getTopPos();
+            int imageW = geo.killer560smod$getImageWidth();
+            int imageH = geo.killer560smod$getImageHeight();
+            if (left >= r[2] || left + imageW <= r[0] || top + imageH <= r[1]) {
+                return;
+            }
+            int slotTop = Integer.MAX_VALUE;
+            int slotBottom = Integer.MIN_VALUE;
+            for (Slot slot : screen.getMenu().slots) {
+                slotTop = Math.min(slotTop, slot.y);
+                slotBottom = Math.max(slotBottom, slot.y + 16);
+            }
+            int newTop = r[1] - imageH;
+            if (slotTop != Integer.MAX_VALUE && newTop + slotTop < 2) {
+                newTop = Math.max(2 - slotTop, r[1] - slotBottom);
+            }
+            if (newTop < top) {
+                ((com.killer560.hub.inventorysearch.mixin.ContainerScreenPositionAccessor) screen).killer560smod$setTopPos(newTop);
+            }
+        } catch (RuntimeException e) {
+            // never let a layout nicety break opening a menu
+        }
+    }
+
+    /** Whether {@code screen}'s background is drawn at {@code topPos} - so moving {@code topPos} moves the whole menu.
+     *  These read {@code topPos} in {@code extractBackground} (javap 26.2 and 26.3); a chest re-centers from
+     *  {@code height} and is answered by {@code InventorySearchChestBackgroundMixin}. Other menus (hopper, dispenser,
+     *  brewing stand, beacon...) re-center too and are short enough not to need it, so they are never moved. */
+    private static boolean backgroundFollowsTop(AbstractContainerScreen<?> screen) {
+        return screen instanceof net.minecraft.client.gui.screens.inventory.ContainerScreen
+                || screen instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen
+                || screen instanceof net.minecraft.client.gui.screens.inventory.AbstractFurnaceScreen<?>
+                || screen instanceof net.minecraft.client.gui.screens.inventory.ItemCombinerScreen<?>
+                || screen instanceof net.minecraft.client.gui.screens.inventory.CartographyTableScreen
+                || screen instanceof net.minecraft.client.gui.screens.inventory.LoomScreen
+                || screen instanceof net.minecraft.client.gui.screens.inventory.StonecutterScreen;
+    }
+
+    /** The {@code height} a chest's {@code extractBackground} centers its texture with: the real one, or - for a chest
+     *  {@link #shiftClearOfBar} moved up - the one whose centering gives the moved {@code topPos}. */
+    public static int backgroundHeight(AbstractContainerScreen<?> screen, int height) {
+        try {
+            var geo = (com.killer560.hub.inventorytheme.mixin.InventoryThemeGeometryAccessor) screen;
+            int top = geo.killer560smod$getTopPos();
+            int imageH = geo.killer560smod$getImageHeight();
+            return (height - imageH) / 2 == top ? height : 2 * top + imageH;
+        } catch (RuntimeException e) {
+            return height;
+        }
+    }
+
+    private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
+        if (!shownOn(screen)) {
             lastBoxBounds = null;
             return;
         }
 
-        // One bar, bottom middle, whichever of the two features is on (the Item Browser filters by it too).
+        // One bar, one fixed spot, whichever of the two features is on (the Item Browser filters by it too).
         InventorySearchConfig cfg = InventorySearchConfig.getInstance();
         float scale = cfg.getBoxScale();
+        int[] rect = barRect(screen.width, screen.height);
+        int screenX = rect[0];
+        int screenY = rect[1];
+        int boxWidth = Math.max(1, Math.round(rect[2] / scale));
+        int boxHeight = BAR_H;
         String display = barText();
-        int boxWidth = Math.max(140, Minecraft.getInstance().font.width(display) + 8);
-        int boxHeight = 16;
-        int screenX = (screen.width - Math.round(boxWidth * scale)) / 2;
-        int screenY = screen.height - Math.round(boxHeight * scale) - 30;
-        lastBoxBounds = new int[]{screenX, screenY, Math.round(boxWidth * scale), Math.round(boxHeight * scale)};
+        var barFont = Minecraft.getInstance().font;
+        if (barFont.width(display) > boxWidth - 8) {
+            if (QUERY.isEmpty()) {
+                display = barFont.width("Ctrl+F to search...") <= boxWidth - 8 ? "§8Ctrl+F to search..." : "§8Search...";
+            } else {
+                display = barFont.plainSubstrByWidth(display, boxWidth - 8, true); // the end of what is typed
+            }
+        }
+        lastBoxBounds = new int[]{screenX, screenY, rect[2], rect[3]};
         com.killer560.hub.containercover.ContainerCover.coverRect(screen, "inventorysearch.bar", screenX, screenY,
                 screenX + lastBoxBounds[2], screenY + lastBoxBounds[3]);
 
@@ -368,12 +501,18 @@ public final class InventorySearchFeature {
             graphics.outline(0, 0, boxWidth, boxHeight, listening ? 0xFFCC6600 : 0xFF553311);
             if (selectedAll && !QUERY.isEmpty()) {
                 // Ctrl+A: the query shows as selected (a blue block behind it, as in any text box).
-                int selectedWidth = Minecraft.getInstance().font.width(QUERY.toString());
+                int selectedWidth = Math.min(boxWidth - 8, Minecraft.getInstance().font.width(QUERY.toString()));
                 graphics.fill(3, 3, 5 + selectedWidth, 13, 0xFF3366CC);
             }
-            // the bar's text keeps its visual order between frames (the same sequence vanilla computes, hud/HudTextCache)
-            graphics.text(Minecraft.getInstance().font, com.killer560.hub.hud.HudTextCache.visualOrder(display), 4, 4,
-                    0xFFFFFFFF, false);
+            // the bar's text keeps its visual order between frames (the same sequence vanilla computes, hud/HudTextCache);
+            // clipped to the box, which a long query's text could otherwise run past
+            graphics.enableScissor(0, 0, boxWidth, boxHeight); // local units: enableScissor applies the pose (javap)
+            try {
+                graphics.text(Minecraft.getInstance().font, com.killer560.hub.hud.HudTextCache.visualOrder(display), 4, 4,
+                        0xFFFFFFFF, false);
+            } finally {
+                graphics.disableScissor();
+            }
         } finally {
             graphics.pose().popMatrix();
         }

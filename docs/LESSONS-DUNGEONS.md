@@ -5,6 +5,22 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 [LESSONS.md](LESSONS.md). Automation runtime is in [LESSONS-AUTOMATION.md](LESSONS-AUTOMATION.md); the sim in
 [SIM.md](SIM.md).
 
+## Leap Order and classes
+
+- Leap Order newcomers landed in the wrong spot and pushed a stayer out (killer560, 2026-11-02; Reset All fixed it).
+  `LeapRunMemory` found the departed's spot by laying the old party out with TODAY's classes, where the departed has none
+  (PartyTracker drops tab-list classes on leaving a dungeon) and a stayer may have switched, so with a Tank and a Mage both
+  wanting bottom-right a departed Tank "stood" top-left. It also pinned newcomers into vacated spots after a stayer changed
+  class (his log 2026-10-31 23:55: a Tank joining for a Healer was pinned in the Healer's corner). Fix: lay out with the
+  last run's classes and played class, place newcomers only while that layout holds (leaporder-1102).
+- A class pick masks the tab list: comparing classes WITH picks never sees a picked teammate switch class, so their pick
+  and pin outlived the role. Compare the tab list's own class per run (`lastRunTabClasses`) and drop stale picks/pins.
+- Your own class: `PartyTracker.selfClass` let a pick on your own name beat the tab list, and nothing cleared one (rule 1
+  skips you; the removed Class Selection Overlay could set it). The tab list wins now; outside a dungeon `playingClass`
+  uses Hypixel's "You have selected the X Dungeon Class!" (and the pre-start, Party Finder and "stats are doubled" lines),
+  persisted, before the editor's last class. RunSummary's stored class matched Hypixel's line in all 42 runs checked, so
+  the end-of-run tab class was never the problem; the fallbacks were.
+
 ## Dungeon Map and room data
 
 - **The live map's world scan must stay inside the floor's room grid.** Floor 1's boss arena stands in slots
@@ -125,6 +141,11 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   first to drop was timed ("4 mages and 1 arch and it only ever gave the arch's time"). The core is the closed room in the
   middle of the Goldor arena: NoammAddons LeapCounter's in-core box x 42..68, y 106..155, z 54..119 (its INCORE_BOX and our
   Posmsg "Recore" preset 54.5,115,58.5 sit inside). Testkit 1101-dhud-coreentry.
+- A timer started by a chat line and checked in END_CLIENT_TICK reads a frame to a tick late for something already true
+  at the line: the line is handled with the frame's packets (`Minecraft.runTick` processes packets every frame, then runs
+  0..n client ticks), so the first END_CLIENT_TICK can be up to 50 ms later. Core Entry showed players standing in the
+  core as 0.05s (killer560's F7 run, 2026-11-02, Ticks counting); it now records everyone inside at the line itself as 0.
+  Do the first check in the line's handler. Testkit 1102-splitchat-core0(ticks).
 - On Hypixel the Fairy door is usually coal until the run starts and opens 1-2 s after "Starting in 1 second." (Mod Only
   Test logs 2026-10-14..10-20: "fairy door N is a shut wither door" then "door N into Fairy" a second later), and is
   sometimes a real wither door that takes a key (2026-10-18 22:57:02, opened with the key). At the run start the map
@@ -158,6 +179,28 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   still trusted Grim now and then (792: a trip 31 ticks slow). Blood Camp times on `util.PerTickServerClock`: trusted only
   after two 20-tick windows with a ping on at least 19 ticks and at most 24 pings, pings drive it while trusted, client
   ticks otherwise (logic case 1101-logic-bloodcamp-clock drives it by hand).
+- **A repeating boss timer kept as a counter drifts; keep the server tick of one real event instead.** Goldor's "Tick:"
+  was set to 60 on his line and decremented once per `ServerTickClock` event, which counts CLIENT ticks in any second
+  with under 15 pings and was skipped whenever the sidebar did not read F7, so nothing ever pulled it back onto the
+  server's 60-tick cycle (killer560, 2026-11-02: the mask "procced ... at like 1.5s instead of at 0"). `ticktimers/
+  GoldorTick` keeps the `PerTickServerClock` tick of a hit and works the line out from it, and re-locks on observed hits
+  (your health dropping, a mask/Phoenix proc line, two players hurt in one tick; a stray hit needs a second one a period
+  later). Storm's pad cycle (`StormLine`) is done the same way. Testkit 1102-logic-goldor-tick, 1102-hx-goldor-tick
+  (the testmod's `boss.timeline` damages the player at exact server ticks).
+- **A chat line and a health drop in the same server tick read the clock one apart.** Chat is handled while the client
+  tick runs its packets, BEFORE `PerTickServerClock`'s end-of-tick step; a polled health drop is seen after it. The first
+  1102-hx-goldor-tick run read Goldor's first hit 2 ticks late (one of them this, the other the testmod's `damage` at
+  END_SERVER_TICK sending the health packet a tick later; it now runs at START_SERVER_TICK, as a plugin scheduler would).
+  Anything that compares a chat event with a polled one puts both on the end-of-tick reading (`GoldorTick.endOfTick`).
+- **Off Hypixel the server-tick clock wobbles by several ticks.** Without per-tick pings (a GrimAC server: its transactions
+  are not ticks) `PerTickServerClock` follows the client's game time plus whatever set-time packets come, which on the 26.x test
+  server do not stop a drift: hits read 4-8 off, and on 26.2 drifted 4 ticks per 60 (1102-hx-goldor-tick), so GoldorTick's
+  re-lock pair allows 6 ticks off a whole period. With
+  per-tick pings (Hypixel; the testmod's `boss.pertickping` under -Pnogrim) hits read 0 +-1. GoldorTick snaps within 8.
+- **Real F7 gaps from his 2026-10-30 log (seconds resolution):** Storm's opening line to his lightning line 28 s twice
+  (560 ticks fits, Odin's 520 does not); Storm's death line to Goldor's line 3-4 s (60-80 ticks: Odin's 64 fits, the
+  `GOLDOR_START_TICKS` 17 from NoammAddons 1.2.9 does not - not changed, Goldor's line ends that countdown anyway); the
+  party's mask procs 3 and 6 s after Goldor's line, so his damage tick is phased on the line.
 - **A player-model mob is still `isAlive()` on the client after the server says it died.** Vanilla's
   `LivingEntity.handleEntityEvent(3)` (the death event) sets health 0 and calls `die` only `if (!(this instanceof Player))`
   (javap 26.2 and 26.3), because a player's health comes from its own data. So a killed player-model blood mob counted as
@@ -170,6 +213,38 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   print the bar against 8 + floor. `bloodcamp/WatcherBar` starts from the wiki's and recalibrates from the bar's own
   settled steps (k of N is whole only for the right N), rounding up; it logs "[BloodCampStats] Watcher bar ..." each step,
   so the first real camp's log settles which size Hypixel uses.
+- **A skull 20 blocks from the Watcher is not the edge of the Blood Room** (owner's F7 camp, 2026-11-02, "missed a wall
+  spawn"). NoammAddons and Odin both track a skull's trip only within 20 blocks of the Watcher, but he flies to the case of
+  the mob he picks (wiki) and the cases sit on walls 24 blocks apart, so a skull leaving the far wall while he was at the
+  other had no trip at all (his log: a mob landing with no "trip tracked" line, 6 ticks after another wall's trip started;
+  his morning run has the same). The gate is now his room tile or the old 20 blocks; a moving player-head stand with an
+  unknown texture is logged once ("skull stand #N moved but its texture is not a blood mob's"), in case a skin is missing.
+- **Hypixel removes a blood mob's skull stand around the tick the mob appears, often first.** Dropping the trip with its
+  stand left the mob to a room scan that ran every 5 ticks, which is what the owner felt as "Trigger Bot clicks were very
+  delayed" (9 of his 16 mobs were tagged only on a multiple of 5). A removed stand's trip now stays (`LANDED`) for the
+  landing tag, and the room tile is scanned every tick. Testkit 1102-bloodcamp-tag-latency.
+- **The Watchful Eyes do not wear the Watcher's skull.** Two zombies with ids right after his (#330208 -> #330210, #330212)
+  circle the room; one passed a landing spot inside the tag window and became that trip's "blood mob" for ESP. Excluded by
+  the "Watchful Eye" name (custom name or the stand one id above; see the name-tag lesson below) and as a non-player mob
+  within 8 ids after the Watcher that joined the client world within 5 ticks of him. Testkit 1102-bloodcamp-watchful-eye.
+- Every tagging path goes through `isAttackableMob` (alive, not a player summon, not excluded): the name-tag path did not,
+  so his own Guided Sheep under a blood name tag became a blood mob, and a dead named NPC was re-tagged on every scan.
+- **The Watcher leaves the client world mid-camp.** Owner's run 3 (2026-11-02): "Watcher removed by the server" for six
+  seconds while he flew to a case and the player was still outside; every skull move in that time was dropped and the
+  first wave's trip was picked up mid-flight (box 7 blocks off). Gate on his last known spot (`watcherAnchor`), not on his
+  entity being there. Same run: 8 case stands had skins NoammAddons' list lacks; a sideways move from the case grid (x/z on
+  a block's center, y N+0.75) is a trip whatever the skin. Testkit 1102-bloodcamp-missed-box.
+- **A trip must not take a mob tagged before its window opened.** Trip #479208 silently took a giant name-tagged 120 ticks
+  earlier as its mob, and its own giant was never tagged or clicked (1102-bloodcamp-trip-steal).
+- **"Hit" is not "dead".** The Trigger Bot clicked a mob once and never again once it saw a hurt flash, so a mob that
+  survived one hit stood there "already hit" for 121 ticks with him aiming at it ("it left one"). A hit mob that is still
+  alive is clicked again once its hurtTime is back to 0, at the weapon's pace (1102-bloodcamp-hit-alive). This is outside
+  Never Miss's landing-spot wait.
+- A name tag near a mob is not its name for an exclusion: an orbiting Watchful Eye's tag inside a blood mob's box excluded
+  that blood mob as an "Eye". Eyes are matched by their own custom name or the stand one id above, never for a player.
+- **Ten client ticks are not ten server ticks.** Testkit 186 on the run-3 jar: the Trigger Bot clicked exactly 10 client
+  ticks apart, but after a client stall those 10 ran in 400 ms and the server saw 8- and 9-tick gaps (3 of 5 runs). The
+  attack cap now also holds on `PerTickServerClock` when it is trusted at both clicks; the stall's cause was not found.
 
 ## Terminals and solvers
 

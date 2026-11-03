@@ -82,6 +82,13 @@ final class CoreEntryTimes {
             EXPECTED.add(client.player.getGameProfile().name());
         }
         EXPECTED.addAll(PartyTracker.teammates());
+        // Anyone already inside when the line arrives entered at 0 (killer560, 2026-11-02: "we were in before it even
+        // went off so it should say 0 for us"). Until then the first look was the END_CLIENT_TICK after the line: the
+        // line is handled with the frame's packets, before the frame's client ticks (Minecraft.runTick), often a frame
+        // or a whole tick before the next END_CLIENT_TICK, so a player standing inside read 0.01-0.05 s instead of 0.
+        if (SplitTimersConfig.getInstance().isCoreEntryActive() && client.player != null && client.level != null) {
+            recordAll(client, openedMs);
+        }
     }
 
     /** Necron's entry line - the fight has started, nobody else is "entering the core". */
@@ -116,16 +123,20 @@ final class CoreEntryTimes {
         // EXPECTED against it every tick (union only, never removing anyone already recorded) means the real
         // full roster is in place well before anyone can actually fall/walk into the core - closing the race.
         refreshExpected(client);
-        long now = System.currentTimeMillis();
+        recordAll(client, System.currentTimeMillis());
+        if (!announced && ENTRIES.size() >= EXPECTED.size() && !EXPECTED.isEmpty()) {
+            announce();
+        }
+    }
+
+    /** Times everyone loaded who is inside the core and not yet timed, at {@code now}. */
+    private static void recordAll(Minecraft client, long now) {
         record(client.player, now);
         for (Player player : LeapMenuFeature.currentPartyMembers()) {
             if (player.getUUID().version() != 4) {
                 continue; // Hypixel NPCs / display entities are v2 UUIDs - same filter Class Colors uses.
             }
             record(player, now);
-        }
-        if (!announced && ENTRIES.size() >= EXPECTED.size() && !EXPECTED.isEmpty()) {
-            announce();
         }
     }
 

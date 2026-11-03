@@ -225,7 +225,7 @@ public final class MelodyTrackerFeature {
         lastSentDone = done;
         int pct = Math.round(done * 100f / rows);
         // No trailing ")": NoammAddons' MelodyDisplay ignores progress lines ending in ")" (1.2.9, PR #419).
-        client.player.connection.sendCommand("pc Melody " + done + "/" + rows + " - " + pct + "%");
+        com.killer560.hub.util.OutgoingChat.command("pc Melody " + done + "/" + rows + " - " + pct + "%");
     }
 
     private static void closeIfOpen() {
@@ -384,12 +384,12 @@ public final class MelodyTrackerFeature {
 
         @Override
         public int defaultX() {
-            return 10;
+            return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.TEAM_MELODY);
         }
 
         @Override
         public int defaultY() {
-            return 300;
+            return com.killer560.hub.hud.F7HudSlots.y(com.killer560.hub.hud.F7HudSlots.TEAM_MELODY); // was 10,300: over the Split Timers (hud/F7HudSlots)
         }
 
         @Override

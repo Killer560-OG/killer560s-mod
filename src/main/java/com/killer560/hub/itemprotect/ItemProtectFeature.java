@@ -197,7 +197,7 @@ public final class ItemProtectFeature {
      *  the tooltip and stays on a hovered slot (killer560, 2026-10-11). Slot-local coordinates. */
     public static void drawSlotStar(GuiGraphicsExtractor graphics, Slot slot) {
         ItemProtectConfig cfg = ItemProtectConfig.getInstance();
-        if (!cfg.isProtectItemEnabled() || !ItemProtect.isExplicitlyProtected(slot.getItem())) {
+        if (!cfg.isProtectItemEnabled() || !cfg.isShowStar() || !ItemProtect.isExplicitlyProtected(slot.getItem())) {
             return;
         }
         drawStar(graphics, slot.x + 16 - STAR_SIZE, slot.y, cfg.getProtectedColor());

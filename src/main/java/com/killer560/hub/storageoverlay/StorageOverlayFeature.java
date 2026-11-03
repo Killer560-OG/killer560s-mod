@@ -609,6 +609,7 @@ public final class StorageOverlayFeature {
             // slots by index (see handleInventoryClick / SlotClickInvoker) rather than by faking a
             // mouse position back over the real, invisible, unmovable slot.
             renderInventoryPanel(screen, graphics, mouseX, mouseY);
+            lastDrawnScreen = screen;
             // Real bug found and fixed (2026-09-08), per killer560's report that dummy pages still
             // weren't appearing: scanOverview had the exact same too-early-capture problem
             // captureIfChanged was already fixed for, but only ever ran once (from onScreenOpen) with
@@ -1025,6 +1026,36 @@ public final class StorageOverlayFeature {
     private static float lastInventoryScale = 1.0f;
     private static int[] lastInventoryBounds = null;
     private static int lastInventorySlotBase = 0;
+    /** The Inventory panel's drawn {width, height} after scale, from the most recent render. */
+    private static int[] lastInventorySize = null;
+    /** The screen the overlay last drew on, so {@link #drawnRects} never answers with another screen's layout. */
+    private static net.minecraft.client.gui.screens.Screen lastDrawnScreen = null;
+
+    /** Everything the overlay drew on {@code screen} last frame, as {x0, y0, x1, y1} in GUI units: the grid's
+     *  viewport (with its background margin and scroll bar), the Inventory panel and the side buttons. Empty when the
+     *  overlay is not drawing there. For the testkit: none of it may reach the Inventory Search bar (killer560,
+     *  2026-11-02). */
+    public static List<int[]> drawnRects(net.minecraft.client.gui.screens.Screen screen) {
+        List<int[]> out = new ArrayList<>();
+        if (screen == null || screen != lastDrawnScreen) {
+            return out;
+        }
+        if (lastPos != null && lastViewportWidthPx > 0 && lastViewportHeightPx > 0) {
+            // background margin 4 on every side, the scroll bar 3..7 right of the grid
+            out.add(new int[]{lastPos[0] - 4, lastPos[1] - 4, lastPos[0] + lastViewportWidthPx + 8,
+                    lastPos[1] + lastViewportHeightPx + 4});
+        }
+        if (lastInventoryOrigin != null && lastInventorySize != null) {
+            out.add(new int[]{lastInventoryOrigin[0], lastInventoryOrigin[1],
+                    lastInventoryOrigin[0] + lastInventorySize[0], lastInventoryOrigin[1] + lastInventorySize[1]});
+        }
+        for (int[] b : new int[][]{lastBackButton, lastSearchButton, lastScanButton}) {
+            if (b != null) {
+                out.add(new int[]{b[0], b[1], b[0] + b[2], b[1] + b[3]});
+            }
+        }
+        return out;
+    }
 
     /** The relocated "Inventory" panel's LOCAL (pre-scale) height - always 4 rows (36 slots), styled
      *  identically to every other panel in the grid. */
@@ -1041,7 +1072,17 @@ public final class StorageOverlayFeature {
     private static int inventoryPanelTopY() {
         float scale = StorageOverlayConfig.getInstance().getScale();
         int scaledHeight = (int) (inventoryPanelHeight() * scale);
-        return Minecraft.getInstance().getWindow().getGuiScaledHeight() - scaledHeight - 8;
+        return inventoryOriginY(scaledHeight);
+    }
+
+    /** The Inventory panel's top for a drawn height: at the bottom of the screen, or just above the Inventory Search bar,
+     *  which has the fixed bottom-middle spot (killer560, 2026-11-02: "no i want it always at the bottom. adjust other
+     *  menus around it instead"); the grid's viewport then ends above the panel as before. */
+    private static int inventoryOriginY(int scaledHeight) {
+        int y = Minecraft.getInstance().getWindow().getGuiScaledHeight() - scaledHeight - 8;
+        int[] bar = com.killer560.hub.inventorysearch.InventorySearchFeature.reservedRect(
+                com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()));
+        return bar == null ? y : Math.max(0, Math.min(y, bar[1] - scaledHeight));
     }
 
     /** Draws the real player inventory as its own panel, styled identically to every other panel in the
@@ -1077,9 +1118,10 @@ public final class StorageOverlayFeature {
         int scaledWidth = (int) (PANEL_WIDTH * scale);
         int scaledHeight = (int) (panelHeight * scale);
         int originX = (Minecraft.getInstance().getWindow().getGuiScaledWidth() - scaledWidth) / 2;
-        int originY = Minecraft.getInstance().getWindow().getGuiScaledHeight() - scaledHeight - 8;
+        int originY = inventoryOriginY(scaledHeight);
         lastInventoryOrigin = new int[]{originX, originY};
         lastInventoryScale = scale;
+        lastInventorySize = new int[]{scaledWidth, scaledHeight};
 
         double localMouseX = (mouseX - originX) / scale;
         double localMouseY = (mouseY - originY) / scale;

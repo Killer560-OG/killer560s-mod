@@ -141,7 +141,7 @@ public class WitherDragonsTab extends BaseTab {
             y[0] += 26;
         }
 
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && cfg.isEnabled()) {
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && (cfg.isEnabled() || isSearchScan())) {
             // Auto Debuff lives here rather than in its own tab because everything it needs - the split, the
             // spawn timers, the priority dragon - is this feature's data. Cheat build only, so it is the LAST section,
             // under a red header (killer560, 2026-10-07: cheat settings at the bottom, not right under their setting);

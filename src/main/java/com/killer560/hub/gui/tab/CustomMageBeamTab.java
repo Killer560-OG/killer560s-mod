@@ -38,7 +38,7 @@ public class CustomMageBeamTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
-        if (!cfg.isMageBeamEnabled()) {
+        if (!cfg.isMageBeamEnabled() && !isSearchScan()) {
             return widgets;
         }
 

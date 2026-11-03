@@ -41,7 +41,7 @@ public class EtherwarpTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, 220, 20).build());
         y += 26;
-        if (!cfg.isHighlightBlocks()) {
+        if (!cfg.isHighlightBlocks() && !isSearchScan()) {
             return widgets;
         }
 

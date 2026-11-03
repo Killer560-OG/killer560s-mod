@@ -24,12 +24,11 @@ import java.nio.file.Path;
  *  <p>
  *  killer560, 2026-09-21: "Move [the pad timer and the purple-pad crush timer] to Tick Timers. One home per
  *  timer." Both used to live on the F7 Spots tab ({@code f7spots.CrushTimer}, now {@link CrushTimer} in this
- *  package). {@link #padCycleTimer}/{@link #crushTimer}/{@link #crushTitle}/{@link #crushPadHighlight}/
- *  {@link #crushAllPads}/{@link #crushPadColor}/{@link #crushIntervalSeconds}/{@link #crushWarnSeconds}/
- *  {@link #crushExtraTrigger} are the migrated settings; {@link #migrateFromF7SpotsCrush} runs once (guarded by
- *  {@link #f7spotsCrushMigrated}) so nothing he had set on the old tab is lost - see that method for exactly
- *  what is and isn't copied, including why {@link #padCycleTimer} is a brand new, independently-toggleable
- *  field instead of staying folded into {@link #stormTimer}. */
+ *  package). {@link #migrateFromF7SpotsCrush} runs once (guarded by {@link #f7spotsCrushMigrated}).
+ *  <p>
+ *  killer560, 2026-11-02: Storm gets ONE line ({@link #stormLine}, {@link StormLine}); the Pad / Lightning / PY / Storm
+ *  lines' "padCycleTimer" and "stormTimer" and every crush countdown setting are gone (read once for the migration,
+ *  dropped by the next save). */
 public final class TickTimersConfig {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-ticktimers");
@@ -44,8 +43,6 @@ public final class TickTimersConfig {
     /** Storm's purple pad, matching the mod's existing P2 pad box (QUOI {@code AutoLeap.kt} via FastLeapFeature) -
      *  same default F7 Spots' {@code CrushTimer} shipped before the 2026-09-21 move. */
     public static final int DEFAULT_PAD_COLOR = 0xFFAA00AA;
-    public static final float MAX_CRUSH_INTERVAL = 120f;
-    public static final float MAX_CRUSH_WARN = 15f;
 
     private static TickTimersConfig instance;
 
@@ -58,7 +55,9 @@ public final class TickTimersConfig {
     // Odin TickTimers.kt's own "Start timer" setting (default false): shows Goldor's "Start:" countdown after Storm
     // dies (104 ticks before SkyBlock 0.27.2, 17 since - NoammAddons 1.2.9). Off = the Goldor line only shows the repeating "Tick:" timer, like Odin.
     private boolean goldorStartTimer = false;
-    private boolean stormTimer = true;
+    // Storm's one line (2026-11-02, StormLine): lightning, then the purple pad, then the yellow pad. Replaces "stormTimer"
+    // (Lightning / PY / Storm counter) and "padCycleTimer" (Pad); an old file without this key is ON if either was.
+    private boolean stormLine = true;
     // Devonian GoldorFrenzyTimer's "showTotal" (2026-09-20 merge): replaces the repeating "Tick:" countdown
     // with how long P3 has been running since Goldor's arrival line, once the Goldor Frenzy tab folded in here.
     private boolean goldorShowTotal = false;
@@ -69,21 +68,13 @@ public final class TickTimersConfig {
     // One-off migration guard - see migrateFromGoldorFrenzy().
     private boolean goldorFrenzyMigrated = false;
 
-    // ---- crush timer (F7/M7 P2 Storm), moved from f7spots.F7SpotsConfig 2026-09-21 ----
-    // NoammAddons' "Storm Pad Timer" - the repeating 20-server-tick pad cycle. Defaults true: before this move
-    // TickTimersFeature's OWN padTickTime counted whenever isStormTimer() was true (default true), so a fresh
-    // install must keep showing it rather than silently losing it just because it's now its own toggle.
-    private boolean padCycleTimer = true;
-    private boolean crushTimer = false;
-    private boolean crushTitle = false;
+    // ---- Storm pads (F7/M7 P2), moved from f7spots.F7SpotsConfig 2026-09-21 ----
+    // The crush countdown, its title and their settings (crushTimer, crushTitle, crushIntervalSeconds, crushWarnSeconds,
+    // crushExtraTrigger) were removed 2026-11-02; old files keep those keys until the next save drops them. Only the pad
+    // outlines are left (their keys keep their old "crush" names so saved values carry over).
     private boolean crushPadHighlight = false;
     private boolean crushAllPads = false;
     private int crushPadColor = DEFAULT_PAD_COLOR;
-    /** 0 = unknown/off: the HUD then only counts UP since the last crush. See {@link CrushTimer}. */
-    private float crushIntervalSeconds = 0f;
-    private float crushWarnSeconds = 3f;
-    /** Extra chat line (substring, case-insensitive) that also restarts the countdown. Blank = built-ins only. */
-    private String crushExtraTrigger = "";
     // One-off migration guard - see migrateFromF7SpotsCrush().
     private boolean f7spotsCrushMigrated = false;
 
@@ -114,19 +105,14 @@ public final class TickTimersConfig {
                 parsed.necronTimer = getBool(obj, "necronTimer", true);
                 parsed.goldorTimer = getBool(obj, "goldorTimer", true);
                 parsed.goldorStartTimer = getBool(obj, "goldorStartTimer", false);
-                parsed.stormTimer = getBool(obj, "stormTimer", true);
+                parsed.stormLine = obj.has("stormLine") ? getBool(obj, "stormLine", true)
+                        : getBool(obj, "stormTimer", true) || getBool(obj, "padCycleTimer", true);
                 parsed.goldorShowTotal = getBool(obj, "goldorShowTotal", false);
                 parsed.maxorStartTimer = getBool(obj, "maxorStartTimer", false);
                 parsed.goldorFrenzyMigrated = getBool(obj, "goldorFrenzyMigrated", false);
-                parsed.padCycleTimer = getBool(obj, "padCycleTimer", true);
-                parsed.crushTimer = getBool(obj, "crushTimer", false);
-                parsed.crushTitle = getBool(obj, "crushTitle", false);
                 parsed.crushPadHighlight = getBool(obj, "crushPadHighlight", false);
                 parsed.crushAllPads = getBool(obj, "crushAllPads", false);
                 parsed.crushPadColor = ConfigJson.getInt(obj, "crushPadColor", DEFAULT_PAD_COLOR);
-                parsed.setCrushIntervalSeconds(ConfigJson.getFloat(obj, "crushIntervalSeconds", 0f));
-                parsed.setCrushWarnSeconds(ConfigJson.getFloat(obj, "crushWarnSeconds", 3f));
-                parsed.crushExtraTrigger = ConfigJson.getString(obj, "crushExtraTrigger", "");
                 parsed.f7spotsCrushMigrated = getBool(obj, "f7spotsCrushMigrated", false);
             } catch (Exception e) {
                 parsed = new TickTimersConfig();
@@ -216,18 +202,13 @@ public final class TickTimersConfig {
         if (o == null) {
             return false;
         }
-        crushTimer = ConfigJson.getBool(o, "crushTimer", crushTimer);
-        crushTitle = ConfigJson.getBool(o, "crushTitle", crushTitle);
+        // Since 2026-11-02 only the pad outlines and the pad line (now part of the Storm line) are carried over.
         crushPadHighlight = ConfigJson.getBool(o, "crushPadHighlight", crushPadHighlight);
         crushAllPads = ConfigJson.getBool(o, "crushAllPads", crushAllPads);
         crushPadColor = ConfigJson.getInt(o, "crushPadColor", crushPadColor);
-        setCrushIntervalSeconds(ConfigJson.getFloat(o, "crushIntervalSeconds", crushIntervalSeconds));
-        setCrushWarnSeconds(ConfigJson.getFloat(o, "crushWarnSeconds", crushWarnSeconds));
-        crushExtraTrigger = ConfigJson.getString(o, "crushExtraTrigger", crushExtraTrigger);
-        boolean oldPadCycle = ConfigJson.getBool(o, "padCycleTimer", false);
-        padCycleTimer = padCycleTimer || oldPadCycle;
-        LOGGER.info("[TickTimers] Migrated F7 Spots crush-timer settings (crushTimer={}, crushTitle={}, "
-                        + "padCycleTimer={})", crushTimer, crushTitle, padCycleTimer);
+        stormLine = stormLine || ConfigJson.getBool(o, "padCycleTimer", false);
+        LOGGER.info("[TickTimers] Migrated F7 Spots pad settings (padHighlight={}, stormLine={})", crushPadHighlight,
+                stormLine);
         return true;
     }
 
@@ -258,19 +239,13 @@ public final class TickTimersConfig {
             obj.addProperty("necronTimer", necronTimer);
             obj.addProperty("goldorTimer", goldorTimer);
             obj.addProperty("goldorStartTimer", goldorStartTimer);
-            obj.addProperty("stormTimer", stormTimer);
+            obj.addProperty("stormLine", stormLine);
             obj.addProperty("goldorShowTotal", goldorShowTotal);
             obj.addProperty("maxorStartTimer", maxorStartTimer);
             obj.addProperty("goldorFrenzyMigrated", goldorFrenzyMigrated);
-            obj.addProperty("padCycleTimer", padCycleTimer);
-            obj.addProperty("crushTimer", crushTimer);
-            obj.addProperty("crushTitle", crushTitle);
             obj.addProperty("crushPadHighlight", crushPadHighlight);
             obj.addProperty("crushAllPads", crushAllPads);
             obj.addProperty("crushPadColor", crushPadColor);
-            obj.addProperty("crushIntervalSeconds", crushIntervalSeconds);
-            obj.addProperty("crushWarnSeconds", crushWarnSeconds);
-            obj.addProperty("crushExtraTrigger", crushExtraTrigger == null ? "" : crushExtraTrigger);
             obj.addProperty("f7spotsCrushMigrated", f7spotsCrushMigrated);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -333,12 +308,13 @@ public final class TickTimersConfig {
         this.goldorStartTimer = goldorStartTimer;
     }
 
-    public boolean isStormTimer() {
-        return stormTimer;
+    /** Storm's one line: lightning, then the purple pad, then the yellow pad ({@link StormLine}). */
+    public boolean isStormLine() {
+        return stormLine;
     }
 
-    public void setStormTimer(boolean stormTimer) {
-        this.stormTimer = stormTimer;
+    public void setStormLine(boolean stormLine) {
+        this.stormLine = stormLine;
     }
 
     public boolean isGoldorShowTotal() {
@@ -357,33 +333,7 @@ public final class TickTimersConfig {
         this.maxorStartTimer = maxorStartTimer;
     }
 
-    // ---- crush timer (F7/M7 P2 Storm) ----
-    /** NoammAddons' repeating 20-server-tick Storm pad cycle - split out of {@link #stormTimer} 2026-09-21 so
-     *  it means the same specific thing his old F7 Spots toggle did. */
-    public boolean isPadCycleTimer() {
-        return padCycleTimer;
-    }
-
-    public void setPadCycleTimer(boolean padCycleTimer) {
-        this.padCycleTimer = padCycleTimer;
-    }
-
-    public boolean isCrushTimerEnabled() {
-        return crushTimer;
-    }
-
-    public void setCrushTimer(boolean crushTimer) {
-        this.crushTimer = crushTimer;
-    }
-
-    public boolean isCrushTitleEnabled() {
-        return crushTitle;
-    }
-
-    public void setCrushTitle(boolean crushTitle) {
-        this.crushTitle = crushTitle;
-    }
-
+    // ---- Storm pads (F7/M7 P2) ----
     public boolean isCrushPadHighlightEnabled() {
         return crushPadHighlight;
     }
@@ -408,27 +358,4 @@ public final class TickTimersConfig {
         this.crushPadColor = crushPadColor;
     }
 
-    public float getCrushIntervalSeconds() {
-        return crushIntervalSeconds;
-    }
-
-    public void setCrushIntervalSeconds(float v) {
-        crushIntervalSeconds = Math.max(0f, Math.min(MAX_CRUSH_INTERVAL, Math.round(v * 2f) / 2f));
-    }
-
-    public float getCrushWarnSeconds() {
-        return crushWarnSeconds;
-    }
-
-    public void setCrushWarnSeconds(float v) {
-        crushWarnSeconds = Math.max(0f, Math.min(MAX_CRUSH_WARN, Math.round(v * 2f) / 2f));
-    }
-
-    public String getCrushExtraTrigger() {
-        return crushExtraTrigger == null ? "" : crushExtraTrigger;
-    }
-
-    public void setCrushExtraTrigger(String v) {
-        crushExtraTrigger = v == null ? "" : v.trim();
-    }
 }

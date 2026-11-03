@@ -248,7 +248,7 @@ public final class InstaClearWarningFeature {
         if (cfg.isPartyMessage()) {
             String line = chatSafe(cfg.getMessage());
             if (!line.isEmpty()) {
-                ServerCommands.toServer("pc " + line);
+                com.killer560.hub.util.OutgoingChat.command("pc " + line);
             }
         }
         if (cfg.isRequeue() && !requeuedThisRun) {

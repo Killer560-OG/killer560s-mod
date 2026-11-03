@@ -84,7 +84,7 @@ public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
                 requestRebuild, col1, y, 100, 18));
         y += 22;
 
-        if (!cfg.isAutoSwapEnabled()) {
+        if (!cfg.isAutoSwapEnabled() && !isSearchScan()) {
             return widgets;
         }
 

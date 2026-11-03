@@ -36,7 +36,7 @@ public class DungeonBreakerTab extends BaseTab {
                 null, contentX, y, contentWidth, 18));
         y += 24;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
 

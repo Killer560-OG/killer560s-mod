@@ -498,7 +498,7 @@ public final class PartyCommandsFeature {
         }
         // Odin announces only your OWN downtime in party chat; everyone else's is a local reminder.
         if (self != null && DOWNTIME.containsKey(self)) {
-            toServer("pc Downtime needed: " + DOWNTIME.get(self));
+            chatLine("pc Downtime needed: " + DOWNTIME.get(self));
         }
         ModChat.send("Party Commands", ModChat.text("DT Reasons: "), ModChat.value(all.toString()));
         DOWNTIME.clear();
@@ -580,13 +580,20 @@ public final class PartyCommandsFeature {
     /** Sends {@code message} back into the chat the command came from. */
     private static void reply(String message, String sender, Channel channel) {
         switch (channel) {
-            case PRIVATE -> toServer("msg " + sender + " " + message);
+            case PRIVATE -> chatLine("msg " + sender + " " + message);
             case MOD_CHAT -> {
                 if (!RelayClient.sendChat(message)) {
                     LOGGER.info("[PartyCommands] Mod Chat reply not sent - relay {}", RelayClient.statusText());
                 }
             }
-            default -> toServer(channel.prefix() + " " + message);
+            default -> chatLine(channel.prefix() + " " + message);
+        }
+    }
+
+    /** A chat line (reply, downtime): in line with every other line the mod sends, spaced (util/OutgoingChat). */
+    private static void chatLine(String command) {
+        if (!com.killer560.hub.util.OutgoingChat.command(command)) {
+            LOGGER.info("[PartyCommands] Not sent (no connection): /{}", command);
         }
     }
 

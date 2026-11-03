@@ -43,7 +43,24 @@ public final class SearchAliases {
             Map.entry("reels", "video browser"),
             Map.entry("instagram", "video browser"),
             Map.entry("twitch", "video browser"),
-            Map.entry("shorts", "video browser"));
+            Map.entry("shorts", "video browser"),
+            // killer560 (2026-11-02, "i keep searching for things we have and I cant find them"): words typed apart that
+            // the menu writes as one, and the effects panel he asked to hide.
+            Map.entry("trigger bot", "triggerbot"),
+            Map.entry("free look", "freelook"),
+            Map.entry("full bright", "fullbright"),
+            Map.entry("night vision", "fullbright"),
+            Map.entry("potion effect", "hide potion effects"),
+            // README names (2026-11-02) that are not a card's name: the card they live in.
+            Map.entry("goldor frenzy", "tick timers"),
+            Map.entry("frenzy timer", "tick timers"),
+            Map.entry("sweat mode", "mod & hud"),
+            Map.entry("dungeon sim room filters", "sim settings"),
+            Map.entry("dungeon sim f7 boss", "sim settings"),
+            Map.entry("dungeon sim teleports", "sim settings"),
+            Map.entry("dungeon sim room capture", "sim settings"),
+            Map.entry("dungeon sim", "sim settings"),
+            Map.entry("cheat utilities", "secret aura"));
 
     /** A typed prefix shorter than this only matches the alias when typed in full ("e" alone stays plain). */
     private static final int MIN_PREFIX = 2;
