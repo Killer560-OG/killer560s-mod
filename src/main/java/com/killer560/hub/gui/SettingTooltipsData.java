@@ -35,6 +35,11 @@ final class SettingTooltipsData {
         d.put("gyrokinetic wand overlay", "While you hold the Gyrokinetic Wand, draws the 10-block ring its ability pulls mobs from, where you are looking (up to 24 blocks away).");
         d.put("gyrokinetic wand overlay/style", "Circle Outline, a filled Circle, or a Sphere.");
         d.put("gyro color", "The overlay's color and how see-through it is.");
+        d.put("bazaar order helper", "In Hypixel's Manage Orders menu, colors each order: green when it is filled or has something to claim, red when another player's order is better (outbid or undercut). The order's tooltip says which, against what price, and how old the Bazaar prices are. Draw only: nothing is clicked.");
+        d.put("bazaar order helper/highlight outbid", "Red slot for a buy order below the best buy order, or a sell offer above the cheapest sell offer, by the mod's Bazaar prices. Prices older than 15 minutes are not used.");
+        d.put("bazaar order helper/highlight filled", "Green slot for an order that is 100% filled or has items or coins to claim.");
+        d.put("outbid color", "The outbid / undercut highlight's color and how strong its fill is.");
+        d.put("filled color", "The filled / ready to claim highlight's color and how strong its fill is.");
         d.put("gyrokinetic wand overlay/line width", "How thick the Circle Outline is drawn.");
         d.put("chat tabs", "Shows tabs above the chat input (All, Party, Guild, Officer, Co-op, Messages): click one to see only that channel's messages.");
         d.put("switch channel", "Clicking a tab also puts you in that chat (/chat party and so on); with Messages, a line you type goes as /r.");
