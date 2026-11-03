@@ -5,6 +5,8 @@
 	"package": "com.killer560.hub.inventorysearch.mixin",
 	"client": [
 		"ContainerScreenPositionAccessor",
+		"InventorySearchChestBackgroundMixin",
+		"InventorySearchScreenShiftMixin",
 		"InventorySearchSlotMixin"
 	],
 	"injectors": {

@@ -273,7 +273,7 @@ public final class ListingHelperFeature {
         if (x + panelW > screen.width - 2) {
             x = Math.max(2, leftPos - panelW - 6);
         }
-        int y = Math.max(2, topPos);
+        int y = (int) com.killer560.hub.inventorysearch.InventorySearchFeature.keepAbove(screen, x, Math.max(2, topPos), panelW, panelH); // clear of the search bar
 
         com.killer560.hub.containercover.ContainerCover.coverRect(screen, "auction.listinghelper", x, y, x + panelW, y + panelH);
         graphics.fill(x, y, x + panelW, y + panelH, PANEL_BG);
