@@ -472,3 +472,10 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   `isKeyDown` polls a mouse code. Test "not set" with `== KeyUtil.NONE`, never `< 0`. A polled mouse bind also reads
   `util/MouseButtons` (fed by MacroStopMouseMixin from `MouseHandler.onButton`), so a polled bind sees the same button
   events the screens and Controls see (the testkit's real input arrives that way too). Testkit 1103 walks every drawer and binds Mouse 4 by real clicks.
+
+- **"The box is missing most of its faces" can be a box that is the wrong size, not a broken draw.** killer560's F7 picture
+  (2026-11-02, Red Blue) showed a tall one-block yellow sliver beside a slab tomb: Secret Waypoints drew the box whole,
+  but the prince was boxed from its three gold crown blocks only, and the 3x4 smooth stone slab lid beside them was merely
+  "rejected (part of a prince)". The renderer (no-depth types, cull off, drawn over terrain and mobs on 26.3) was fine in
+  every valid view of testkit 98-prince-box. A lid touching a prince now widens the prince's box (`CryptScanner.scan`);
+  the crown blocks still decide when it is opened. Check the logged box against the blocks before touching the pipeline.
