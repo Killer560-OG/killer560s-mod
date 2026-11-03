@@ -745,7 +745,9 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         @Override
         protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
             int c = ScreenChrome.readable(cls.color());
-            boolean last = LeapMenuConfig.getInstance().getLastEditedClass() == cls;
+            // Lit: the class you are playing as the mod reads it (tab list, else Hypixel's last "You have selected"), not
+            // the class last opened here, which read as the mod getting your class wrong (leaporder-1102).
+            boolean last = LeapMenuFeature.playingClass() == cls;
             int x = getX();
             int y = getY();
             int w = getWidth();
