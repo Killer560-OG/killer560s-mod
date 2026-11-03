@@ -339,6 +339,12 @@ project CLAUDE.md. Compiling lessons
 - The Egglocator's particle trail does not reach the egg (SkyHanni's fitter is built on this; not yet checked in our logs): it
   is the start of a cubic Bezier from the player. Its last particle is not the egg; fit the curve and extrapolate
   (`chocolatefactory/egg/TrailFitter`, SkyHanni's ParticlePathBezierFitter).
+- Every game sound, a server packet's (`handleSoundEvent` / `handleSoundEntityEvent` -> `ClientLevel.playSound`) and a
+  local one, passes `SoundManager.play` or `playDelayed`, where `SoundManagerClickMixin` hands it to `ClickSounds.replace`;
+  that is the ONE sound hook (Click Sounds, Sound Effects, and since 2026-11-02 Sound Disabler, checked first). Returning
+  null drops it before the engine and touches no packet. Ticking sounds (`queueTickingSound`: minecarts, bees, elytra) do
+  not pass there. A Minecraft sound has no owner, so a per-item mute needs context: Sound Disabler's Bonzo's Staff row
+  mutes a ghast sound only where a player holding the staff stands (testkit 1102-sound-bonzo).
 
 ## Testing and debugging
 
