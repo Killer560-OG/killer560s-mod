@@ -1110,7 +1110,8 @@ public final class AutoWalker {
                 BlockPos targetCell = BlockPos.containing(target.x, target.y + 0.01, target.z);
                 boolean roofed = !LocalPlanner.passable(level, targetCell.above(2));
                 if (land > 0 && !roofed && (pos.y >= target.y - 0.05 || rise < -0.5)) {
-                    allowed = Math.min(0.25, horizontal / land);
+                    // a tick early: air drag (x0.91) eats into each push, and over the edge is enough to land on it
+                    allowed = Math.min(0.25, horizontal / Math.max(1, land - 1));
                 } else {
                     allowed = 0.22;
                 }

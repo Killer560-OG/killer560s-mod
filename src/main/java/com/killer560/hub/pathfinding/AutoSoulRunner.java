@@ -303,7 +303,11 @@ public final class AutoSoulRunner {
             state = State.COLLECTING; // no stand: COLLECTING skips it after its wait; no Auto Walk: he steps closer
             return;
         }
-        if (inReach(player, stand)) {
+        boolean steady = player.onGround() || player.isInWater() || player.onClimbable();
+        if (inReach(player, stand) && (steady || !AutoWalker.isApproaching())) {
+            // Not in the middle of a jump: with Jump Boost VI the stand comes in reach for a tick or two on the way up a
+            // ledge, the walk stopped there, and he fell back down before the click could go (testkit
+            // 1103-fairy-boost6-pillar: four jumps, no click). The walk lands him on the cell first.
             AutoWalker.cancelApproach();
             AutoWalker.setWalking(false);
             state = State.COLLECTING;
