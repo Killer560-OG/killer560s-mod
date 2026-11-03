@@ -55,6 +55,16 @@ public final class CommissionProgress {
     private static final Map<String, Track> TRACKS = new HashMap<>();
     /** Blocks under his crosshair while attack was held: pos -> {state, time}. */
     private static final Map<BlockPos, Object[]> TARGETS = new HashMap<>();
+    /** Ore blocks within {@link #SPREAD_RADIUS} of the block he is digging: pos -> {state, time seen}. */
+    private static final Map<BlockPos, Object[]> NEIGHBOURS = new HashMap<>();
+    private static final int SPREAD_RADIUS = 6;
+    private static final long SPREAD_MS = 1500;
+    private static final long NEIGHBOUR_MS = 4000;
+    private static final double RESYNC_STEPS = 3;
+    private static BlockPos snapCenter = null;
+    private static long lastAimMs = 0;
+    private static int spreadCounted = 0;
+    private static int resyncs = 0;
     private static int version = 0;
     private static int counted = 0;
     /** Testkit: the hooks below drive the tab instead of the live tick. */
@@ -70,10 +80,14 @@ public final class CommissionProgress {
                 && client.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
             BlockState st = client.level.getBlockState(hit.getBlockPos());
             if (oreOf(st) != null) {
-                TARGETS.put(hit.getBlockPos().immutable(), new Object[]{st, now});
+                BlockPos hp = hit.getBlockPos().immutable();
+                TARGETS.put(hp, new Object[]{st, now});
+                lastAimMs = now;
+                snapshotNeighbours(client, hp, now);
             }
         }
         TARGETS.values().removeIf(v -> now - (Long) v[1] > TARGET_MS);
+        NEIGHBOURS.values().removeIf(v -> now - (Long) v[1] > NEIGHBOUR_MS);
         if (!holdForTest) {
             update(MiningState.commissions(), now);
         }
@@ -124,7 +138,14 @@ public final class CommissionProgress {
                 changed = true;
             }
             double ceiling = Math.min(MAX_SHOWN, tr.tab + step * (tr.recent.size() + 1));
-            if (tr.shown > ceiling + 1e-9) {
+            if (tr.shown > ceiling + RESYNC_STEPS * step + 0.5) {
+                // Too far off the tab (Mining Spread blocks counted that the tab never credited, a wrong step): back to the
+                // tab's number plus what it has not caught up with yet, at once (killer560, 2026-11-03: "it needs to
+                // resync sometimes with the main one if it gets too far off").
+                tr.shown = Math.min(MAX_SHOWN, tr.tab + step * tr.recent.size());
+                resyncs++;
+                changed = true;
+            } else if (tr.shown > ceiling + 1e-9) {
                 tr.shown = Math.max(ceiling, tr.shown - step);
                 changed = true;
             }
@@ -137,6 +158,35 @@ public final class CommissionProgress {
         }
     }
 
+    /** Remembers the ore around a newly dug block, so a Mining Spread break next to it can be told from any other change. */
+    private static void snapshotNeighbours(Minecraft client, BlockPos center, long now) {
+        if (center.equals(snapCenter) && !NEIGHBOURS.isEmpty()) {
+            return;
+        }
+        snapCenter = center;
+        for (BlockPos p : BlockScan.scan(client.level, center, SPREAD_RADIUS, SPREAD_RADIUS,
+                s -> oreOf(s) != null, (pos, s) -> true, 3000)) {
+            NEIGHBOURS.putIfAbsent(p, new Object[]{client.level.getBlockState(p), now});
+        }
+    }
+
+    /** Ore breaks counted that were not under his crosshair (Mining Spread; testkit). */
+    public static int spreadCounted() {
+        return spreadCounted;
+    }
+
+    /** Times the shown value was snapped back to the tab for being too far off (testkit). */
+    public static int resyncs() {
+        return resyncs;
+    }
+
+    /** Testkit: a dig at {@code target} with ore {@code neighbours} next to it, as the live tick would remember them. */
+    public static void aimForTest(BlockPos target, BlockState targetState, Map<BlockPos, BlockState> neighbours, long now) {
+        TARGETS.put(target, new Object[]{targetState, now});
+        lastAimMs = now;
+        neighbours.forEach((p, s) -> NEIGHBOURS.put(p, new Object[]{s, now}));
+    }
+
     /** A block the server changed (client thread, after the change; from MiningBlockUpdateMixin). */
     public static void onBlockChanged(BlockPos pos) {
         Minecraft client = Minecraft.getInstance();
@@ -144,8 +194,17 @@ public final class CommissionProgress {
             return;
         }
         Object[] t = TARGETS.get(pos);
+        boolean spread = false;
         if (t == null) {
-            return;
+            // Mining Spread breaks the blocks around the one he dug in the same moment (killer560, 2026-11-03: it "doesn't
+            // do a good job for when stuff is broken by mining spread"): an ore block seen near his target a moment ago
+            // that the server now changes counts too, while he is still digging.
+            long nowMs = System.currentTimeMillis();
+            t = nowMs - lastAimMs <= SPREAD_MS ? NEIGHBOURS.get(pos) : null;
+            if (t == null) {
+                return;
+            }
+            spread = true;
         }
         BlockState was = (BlockState) t[0];
         BlockState now = client.level.getBlockState(pos);
@@ -153,6 +212,10 @@ public final class CommissionProgress {
             return; // a refused break, or the same ore again
         }
         TARGETS.remove(pos);
+        NEIGHBOURS.remove(pos);
+        if (spread) {
+            spreadCounted++;
+        }
         String ore = oreOf(was);
         if (ore != null) {
             countBreak(ore, MinesAreaMap.areaAt(pos.getX(), pos.getY(), pos.getZ()), MiningState.area(),
@@ -290,6 +353,8 @@ public final class CommissionProgress {
     static void reset() {
         TRACKS.clear();
         TARGETS.clear();
+        NEIGHBOURS.clear();
+        snapCenter = null;
         version++;
     }
 

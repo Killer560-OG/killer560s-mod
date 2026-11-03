@@ -25,6 +25,7 @@ public final class MiningQolFeatures {
         PickobulusEstimate.register();
         AttackHoldProbe.register();
         PowderGhast.register();
+        CommissionClaim.register();
         HudElementRegistry.register(new PowderGhast.Timer());
         HudElementRegistry.register(new CommissionHud.Element());
         HudElementRegistry.register(new AbilityReadyAlert.Popup());

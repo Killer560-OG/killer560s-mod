@@ -31,6 +31,8 @@ public final class MinesAreaMap {
 
     /** How far a block may be from the nearest graph node and still take its area. */
     public static final int RADIUS = 24;
+    /** The wider search for a block with no named-area node within {@link #RADIUS}. */
+    public static final int WIDE_RADIUS = 64;
     private static final int CELL = 16;
     private static final int MAX_SECTIONS = 4096;
 
@@ -205,18 +207,24 @@ public final class MinesAreaMap {
         int idx = ((y & 15) << 8) | ((z & 15) << 4) | (x & 15);
         int v = cache[idx];
         if (v == 0) {
-            v = lookup(m, x, y, z) + 1; // 1 = none, 2.. = area index + 2
+            int a = lookup(m, x, y, z, RADIUS, false);
+            if (a == 0) {
+                // No node near, or only a "no_area" one: the nearest node that names an area within WIDE_RADIUS decides, so a
+                // block deep in a cavern still belongs to the area around it and never to the area the player stands in.
+                a = lookup(m, x, y, z, WIDE_RADIUS, true);
+            }
+            v = a + 1; // 1 = none, 2.. = area index + 2
             cache[idx] = (byte) v;
         }
         return v <= 1 ? null : m.areas[v - 2];
     }
 
     /** Area index + 1 of the nearest node within RADIUS, or 0. */
-    private static int lookup(Map3 m, int bx, int by, int bz) {
+    private static int lookup(Map3 m, int bx, int by, int bz, int radius, boolean skipNoArea) {
         double px = bx + 0.5, py = by + 0.5, pz = bz + 0.5;
         int cx = Math.floorDiv(bx, CELL), cy = Math.floorDiv(by, CELL), cz = Math.floorDiv(bz, CELL);
-        int r = (RADIUS + CELL - 1) / CELL;
-        double best = (double) RADIUS * RADIUS;
+        int r = (radius + CELL - 1) / CELL;
+        double best = (double) radius * radius;
         int bestNode = -1;
         for (int dx = -r; dx <= r; dx++) {
             for (int dy = -r; dy <= r; dy++) {
@@ -226,6 +234,9 @@ public final class MinesAreaMap {
                         continue;
                     }
                     for (int i : list) {
+                        if (skipNoArea && m.nodeArea[i] == 0) {
+                            continue;
+                        }
                         double[] q = m.xyz[i];
                         // Node positions are feet blocks; compare against the block's center.
                         double ex = q[0] + 0.5 - px, ey = q[1] + 0.5 - py, ez = q[2] + 0.5 - pz;

@@ -72,6 +72,7 @@ public final class MiningHighlights {
             carpetSet.clear();
             titaniumSet.clear();
             carpets = List.of();
+            publishCarpetKeys(List.of());
             titanium = List.of();
             tickets = List.of();
             lastRuleKey = "";
@@ -151,6 +152,74 @@ public final class MiningHighlights {
     private static void publish() {
         carpets = List.copyOf(carpetSet);
         titanium = List.copyOf(titaniumSet);
+        publishCarpetKeys(carpetSet);
+    }
+
+    // ---- carpet retexture (killer560, 2026-11-03: "make them the red carpet texture not just a highlight. otherwise
+    // different colored carpets look weird"). The mesher draws each highlighted carpet with the red carpet's model.
+    private static volatile java.util.Set<Long> carpetKeys = java.util.Set.of();
+    private static volatile BlockState redCarpet;
+    private static final java.util.concurrent.atomic.AtomicLong carpetSwaps = new java.util.concurrent.atomic.AtomicLong();
+
+    private static void publishCarpetKeys(java.util.Collection<BlockPos> now) {
+        java.util.Set<Long> next = new java.util.HashSet<>();
+        for (BlockPos p : now) {
+            next.add(p.asLong());
+        }
+        java.util.Set<Long> old = carpetKeys;
+        if (old.equals(next)) {
+            return;
+        }
+        carpetKeys = java.util.Set.copyOf(next);
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
+            return;
+        }
+        java.util.Set<Long> sections = new java.util.HashSet<>();
+        for (Long k : old) {
+            if (!next.contains(k)) {
+                sections.add(BlockPos.of(k).asLong());
+            }
+        }
+        for (Long k : next) {
+            if (!old.contains(k)) {
+                sections.add(k);
+            }
+        }
+        java.util.Set<Long> done = new java.util.HashSet<>();
+        for (Long k : sections) {
+            BlockPos p = BlockPos.of(k);
+            int sx = p.getX() >> 4, sy = p.getY() >> 4, sz = p.getZ() >> 4;
+            if (done.add(net.minecraft.core.SectionPos.asLong(sx, sy, sz))) {
+                mc.level.setSectionRangeDirty(sx, sy, sz, sx, sy, sz);
+            }
+        }
+    }
+
+    /** From the chunk mesher (any thread): red carpet's state for a highlighted vein carpet, else null. */
+    static BlockState carpetReplace(BlockState state, int x, int y, int z) {
+        java.util.Set<Long> keys = carpetKeys;
+        if (keys.isEmpty() || state == null || !VEIN_CARPETS.contains(state.getBlock())
+                || !keys.contains(BlockPos.asLong(x, y, z))) {
+            return null;
+        }
+        BlockState r = redCarpet;
+        if (r == null) {
+            r = McBlocks.RED_CARPET.defaultBlockState();
+            redCarpet = r;
+        }
+        carpetSwaps.incrementAndGet();
+        return r;
+    }
+
+    /** Mesher draws swapped to red carpet since start (testkit). */
+    public static long carpetSwapCount() {
+        return carpetSwaps.get();
+    }
+
+    /** Whether the block at x, y, z is drawn as red carpet now (testkit). */
+    public static boolean carpetRetextured(int x, int y, int z) {
+        return carpetKeys.contains(BlockPos.asLong(x, y, z));
     }
 
     /**
@@ -302,15 +371,8 @@ public final class MiningHighlights {
         WALL_FILLS.clear();
         WALL_LINES.clear();
         if (!c.isEmpty() && cfg.isCarpet()) {
-            float[] k = WorldRenderUtils.argbToFloats(cfg.getCarpetColor());
-            // A hair outside the carpet (killer560, 2026-11-03: "if i jump or crouch ... the highlight will like phase
-            // through the block"): the fill's faces lay exactly on the carpet's top face and the Sea Lantern's top
-            // face, z-fought with them, and which one won flipped as the camera moved. Same margin as the titanium boxes.
+            // Drawn by the chunk mesher as red carpet now ({@link #carpetReplace}); no box. The last-box record stays for tests.
             double e = CARPET_MARGIN;
-            for (BlockPos p : c) {
-                FILLS.add(p.getX() - e, p.getY() + e, p.getZ() - e, p.getX() + 1 + e, p.getY() + 0.0625 + e,
-                        p.getZ() + 1 + e, k[0], k[1], k[2], Math.min(k[3], 0.6f));
-            }
             BlockPos p0 = c.get(0);
             lastCarpetBox = new double[]{p0.getX() - e, p0.getY() + e, p0.getZ() - e, p0.getX() + 1 + e,
                     p0.getY() + 0.0625 + e, p0.getZ() + 1 + e};

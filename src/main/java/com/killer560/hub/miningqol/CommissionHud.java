@@ -56,6 +56,15 @@ public final class CommissionHud {
             new Spot("Emissary", 0xFFFFFFFF, new BlockPos(-37, 200, -131)),
             new Spot("Emissary", 0xFFFFFFFF, new BlockPos(89, 198, -92)));
 
+    /** The Emissaries' spots (Commission Route's claim line goes to the nearest). */
+    static List<BlockPos> emissaryPositions() {
+        List<BlockPos> out = new ArrayList<>();
+        for (Spot s : EMISSARIES) {
+            out.add(s.pos());
+        }
+        return out;
+    }
+
     private record Gem(String name, int color, BlockPos[] spots) {
     }
 

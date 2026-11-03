@@ -114,6 +114,8 @@ public final class MiningQolConfig {
     private boolean commissionRoute = false;
     private int commissionRouteColor = DEFAULT_COMMISSION_ROUTE_COLOR;
     private CommissionRouteMode commissionRouteMode = CommissionRouteMode.WALK;
+    /** Route to the nearest Emissary when a commission completes (killer560, 2026-11-03); off pulses the Royal Pigeon slot. */
+    private boolean commissionRouteEmissary = true;
     // Pickobulus Estimate
     private boolean pickobulus = false;
     private int pickobulusColor = DEFAULT_PICKOBULUS_COLOR;
@@ -123,7 +125,7 @@ public final class MiningQolConfig {
     private boolean abilitySound = true;
     // Wrong Armor Alert (killer560, 2026-11-03: "a mining alert for if you are mining in a non mining armor set")
     private boolean wrongArmor = true;
-    private boolean wrongArmorSound = false;
+    private boolean wrongArmorSound = true;
     // Carpet Highlighter
     private boolean carpet = false;
     private int carpetColor = DEFAULT_CARPET_COLOR;
@@ -185,6 +187,7 @@ public final class MiningQolConfig {
                 cfg.commissionMenuHighlight = ConfigJson.getBool(o, "commissionMenuHighlight", cfg.commissionMenuHighlight);
                 cfg.commissionRoute = ConfigJson.getBool(o, "commissionRoute", cfg.commissionRoute);
                 cfg.commissionRouteColor = intOr(o, "commissionRouteColor", cfg.commissionRouteColor);
+                cfg.commissionRouteEmissary = ConfigJson.getBool(o, "commissionRouteEmissary", cfg.commissionRouteEmissary);
                 cfg.commissionRouteMode = ConfigJson.getEnum(o, "commissionRouteMode", CommissionRouteMode.class,
                         CommissionRouteMode.WALK);
                 cfg.pickobulus = ConfigJson.getBool(o, "pickobulus", cfg.pickobulus);
@@ -254,6 +257,7 @@ public final class MiningQolConfig {
             o.addProperty("commissionMenuHighlight", commissionMenuHighlight);
             o.addProperty("commissionRoute", commissionRoute);
             o.addProperty("commissionRouteColor", commissionRouteColor);
+            o.addProperty("commissionRouteEmissary", commissionRouteEmissary);
             o.addProperty("commissionRouteMode", commissionRouteMode.name());
             o.addProperty("pickobulus", pickobulus);
             o.addProperty("pickobulusColor", pickobulusColor);
@@ -371,8 +375,20 @@ public final class MiningQolConfig {
         commissionMobsEsp = v;
     }
 
-    /** Commission Route as set (the feature also needs the Commission HUD switch, see {@link CommissionRoute}). */
+    public boolean isCommissionRouteEmissary() {
+        return commissionRouteEmissary;
+    }
+
+    public void setCommissionRouteEmissary(boolean v) {
+        commissionRouteEmissary = v;
+    }
+
+    /** Commission Route as set: its own switch, not gated by the Commission HUD (killer560, 2026-11-03). */
     public boolean isCommissionRoute() {
+        return commissionRoute && sb();
+    }
+
+    public boolean isCommissionRouteRaw() {
         return commissionRoute;
     }
 
