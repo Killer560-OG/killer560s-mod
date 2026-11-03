@@ -87,6 +87,7 @@ public final class SpiritBearTracker {
     private static int kills = 0;
     /** Odin's state: -1 = not spawned, 0 = alive, 1+ = spawning in N ticks. */
     private static int timer = -1;
+    private static final com.killer560.hub.util.PerTickServerClock.Step STEP = new com.killer560.hub.util.PerTickServerClock.Step();
     private static boolean ringFull = false;
 
     private static int overkill = 0;
@@ -142,8 +143,9 @@ public final class SpiritBearTracker {
             ringState = new Boolean[ring.length];
         }
         tickCount++;
+        int step = STEP.take();
         if (timer > 0) {
-            timer--;
+            timer = Math.max(0, timer - step); // server ticks (2026-11-03), as Odin's ping-based timer
         }
 
         // ---- Ring poll ----

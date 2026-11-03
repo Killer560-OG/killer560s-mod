@@ -1,5 +1,6 @@
 package com.killer560.hub.maxor;
 
+import com.killer560.hub.util.PerTickServerClock;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.hud.HudEditorScreen;
@@ -126,7 +127,8 @@ public final class MaxorCrystalsFeature {
         }
         tickSubscribed = true;
         ServerTickClock.register();
-        ServerTickClock.subscribe(MaxorCrystalsFeature::onServerTick);
+        PerTickServerClock.register();
+        PerTickServerClock.subscribe(MaxorCrystalsFeature::onServerTick);
     }
 
     public static void reset() {

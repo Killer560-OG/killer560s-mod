@@ -1,5 +1,6 @@
 package com.killer560.hub.puzzlesolvers;
 
+import com.killer560.hub.util.PerTickServerClock;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
@@ -91,7 +92,7 @@ public final class QuizLog {
     }
 
     private static String now() {
-        return "server tick " + ServerTickClock.now() + ", " + LocalTime.now().format(TIME);
+        return "server tick " + PerTickServerClock.now() + ", " + LocalTime.now().format(TIME);
     }
 
     private static void tick(Minecraft client) {
@@ -114,7 +115,7 @@ public final class QuizLog {
         RoomEntry room = LiveMapFeature.isInBoss() ? null : LiveMapFeature.currentRoomEntry();
         boolean quiz = room != null && "Quiz".equals(room.name);
         if (quiz && !inQuiz) {
-            enteredAt = ServerTickClock.now();
+            enteredAt = PerTickServerClock.now();
             entries++;
             LOGGER.info("[QuizLog] entered the Quiz room (entry {} this run) at {} (client tick {}), at {} {} {}; {}", entries,
                     now(), clientTick, fmt(client.player.getX()), fmt(client.player.getY()), fmt(client.player.getZ()),
@@ -127,7 +128,7 @@ public final class QuizLog {
             LOGGER.info("[QuizLog] left the Quiz room at {} (client tick {}); {}", now(), clientTick, QuizState.describe());
         }
         inQuiz = quiz;
-        if (pressAt >= 0 && ServerTickClock.now() - pressAt > RESULT_WAIT_TICKS) {
+        if (pressAt >= 0 && PerTickServerClock.now() - pressAt > RESULT_WAIT_TICKS) {
             LOGGER.info("[QuizLog] press on {} at server tick {}: no line from Oruo within {} server ticks",
                     pressPos.toShortString(), pressAt, RESULT_WAIT_TICKS);
             pressAt = -1;
@@ -146,14 +147,14 @@ public final class QuizLog {
         // Every other line, unfiltered, while he is in the Quiz room or within a few seconds of a press. The Oruo lines
         // are logged below; this catches whatever Hypixel says under another name (killer560, 2026-10-18: a wrong answer
         // gave no "chose the wrong answer" line, so the log could not say what it did send).
-        boolean recentPress = lastPressTick >= 0 && ServerTickClock.now() - lastPressTick <= CHAT_WINDOW_TICKS;
+        boolean recentPress = lastPressTick >= 0 && PerTickServerClock.now() - lastPressTick <= CHAT_WINDOW_TICKS;
         if (!msg.startsWith(QuizState.PREFIX) && (inQuiz || recentPress) && !msg.isEmpty()) {
             LOGGER.info("[QuizLog] chat at {}: {}", now(), msg);
         }
         if (msg.startsWith(QuizState.PREFIX)) {
             LOGGER.info("[QuizLog] Oruo at {}: {}", now(), msg.substring(QuizState.PREFIX.length()));
             if (msg.equals(QuizState.INTRO)) {
-                introAt = ServerTickClock.now();
+                introAt = PerTickServerClock.now();
                 if (inQuiz && enteredAt >= 0) {
                     LOGGER.info("[QuizLog] intro {} server tick(s) after he walked in", introAt - enteredAt);
                 } else {
@@ -168,7 +169,7 @@ public final class QuizLog {
             }
             if (pressAt >= 0) {
                 LOGGER.info("[QuizLog] press on {} at server tick {} -> {} server tick(s) later: {}", pressPos.toShortString(),
-                        pressAt, ServerTickClock.now() - pressAt, msg.substring(QuizState.PREFIX.length()));
+                        pressAt, PerTickServerClock.now() - pressAt, msg.substring(QuizState.PREFIX.length()));
                 pressAt = -1;
             }
             return;
@@ -203,7 +204,7 @@ public final class QuizLog {
         if (!com.killer560.hub.BuildVariant.DEV_TOOLS || pos == null || pos.equals(pressPos) && pressClientTick == clientTick) {
             return;
         }
-        long t = ServerTickClock.now();
+        long t = PerTickServerClock.now();
         if (pressAt >= 0) {
             LOGGER.info("[QuizLog] press on {} at server tick {}: no line from Oruo before the next press, {} tick(s) later",
                     pressPos.toShortString(), pressAt, t - pressAt);

@@ -75,6 +75,7 @@ public final class MaskInvincibilityFeature {
 
     private static final Map<Type, Integer> activeRemaining = new EnumMap<>(Type.class);
     private static final Map<Type, Integer> cooldownRemaining = new EnumMap<>(Type.class);
+    private static final com.killer560.hub.util.PerTickServerClock.Step STEP = new com.killer560.hub.util.PerTickServerClock.Step();
     /** Last real stack seen for each type, so the icon keeps rendering after the mask leaves your inventory. */
     private static final Map<Type, ItemStack> iconCache = new EnumMap<>(Type.class);
     /** Stand-in icons (catalog skin or plain head), kept so render does not rebuild a stack every frame. */
@@ -183,14 +184,16 @@ public final class MaskInvincibilityFeature {
 
         // The timers count down whether or not the switch is on: a mask cooldown is Hypixel's, so switching the
         // feature off and on (or leaving Skyblock) must not freeze it and show a stale time afterward.
+        // Server ticks, not client ticks: a laggy server runs the mask's invincibility and cooldown slower (2026-11-03).
+        int step = STEP.take();
         for (Type t : TYPES) {
             int active = activeRemaining.get(t);
             if (active > 0) {
-                activeRemaining.put(t, active - 1);
+                activeRemaining.put(t, Math.max(0, active - step));
             }
             int cooldown = cooldownRemaining.get(t);
             if (cooldown > 0) {
-                cooldownRemaining.put(t, cooldown - 1);
+                cooldownRemaining.put(t, Math.max(0, cooldown - step));
             }
         }
         MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();

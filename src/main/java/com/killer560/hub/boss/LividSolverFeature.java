@@ -85,6 +85,7 @@ public final class LividSolverFeature {
     private static Livid currentLivid = null;
     private static Entity lividEntity = null;
     private static int invulnTicks = 0;
+    private static final com.killer560.hub.util.PerTickServerClock.Step STEP = new com.killer560.hub.util.PerTickServerClock.Step();
     private static boolean wasOnFloor5 = false;
     private static int resolveCounter = 0;
     /** Hide Wrong Livids is live this tick (floor 5, the right Livid found): read by the entity render hook every frame,
@@ -134,6 +135,7 @@ public final class LividSolverFeature {
     }
 
     private static void tick(Minecraft client) {
+        int step = STEP.take();
         boolean onFloor5 = LividSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon() && onFloor5();
         if (!onFloor5 && wasOnFloor5) {
             reset();
@@ -144,7 +146,7 @@ public final class LividSolverFeature {
         }
 
         if (invulnTicks > 0) {
-            invulnTicks--;
+            invulnTicks = Math.max(0, invulnTicks - step); // server ticks (2026-11-03)
             if (invulnTicks == 0) {
                 onInvulnEnded(client);
             }

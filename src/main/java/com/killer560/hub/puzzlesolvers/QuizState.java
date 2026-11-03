@@ -1,5 +1,6 @@
 package com.killer560.hub.puzzlesolvers;
 
+import com.killer560.hub.util.PerTickServerClock;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModLog;
@@ -80,7 +81,7 @@ public final class QuizState {
             return;
         }
         msg = msg.trim();
-        long now = ServerTickClock.now();
+        long now = PerTickServerClock.now();
         if (msg.equals(INTRO)) {
             set(1, now + FIRST_LOCK_TICKS, now, "Oruo began");
         } else if (msg.equals(SECOND)) {
@@ -172,7 +173,7 @@ public final class QuizState {
 
     /** The current question can be answered now. */
     public static boolean answerable() {
-        return awaitingAnswer() && ServerTickClock.now() >= answerAt;
+        return awaitingAnswer() && PerTickServerClock.now() >= answerAt;
     }
 
     /**
@@ -187,9 +188,9 @@ public final class QuizState {
         if (answered) {
             // Oruo's next lock line is not here yet: the soonest the next question can open is his usual line gap plus the
             // lock, counted from the answer - so a planner deciding again a few seconds later sees the time go down.
-            return Math.max(0L, answeredAt + NEXT_LINE_TICKS + LATER_LOCK_TICKS - ServerTickClock.now());
+            return Math.max(0L, answeredAt + NEXT_LINE_TICKS + LATER_LOCK_TICKS - PerTickServerClock.now());
         }
-        return Math.max(0L, answerAt - ServerTickClock.now());
+        return Math.max(0L, answerAt - PerTickServerClock.now());
     }
 
     /** Oruo's next lock line comes about this long after an answer (his logs: 2 s in 252 of 269 runs). */
