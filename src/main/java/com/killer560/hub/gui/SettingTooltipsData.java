@@ -2308,7 +2308,7 @@ final class SettingTooltipsData {
         d.put("quiz solver/sneak to override", "While on, sneaking lets a click Block Wrong Answers would block go through.");
         d.put("quiz solver/quiz timer", "A movable HUD showing which Quiz question is next and how long until it can be answered.");
         d.put("creeper beams solver/show", "All shows every pair; One At A Time shows one pair until you finish it; Next shows that pair and the one after.");
-        d.put("ice fill solver/etherwarp protection", "Refuses your etherwarp in Ice Fill while the tile under you has not turned to packed ice, or when it would not land on the next spot of the path. Off the ice you warp freely.");
+        d.put("ice fill solver/etherwarp protection", "Refuses your etherwarp in Ice Fill while the tile under you has not turned to packed ice, or when it would not land on the next spot of the path. The landing is judged on the look the server has heard, so a click made mid-turn waits one tick. Off the ice you warp freely.");
         d.put("wither dragons/block wrong relic", "In P5, blocks your click on a relic cauldron that is not the color of the relic you carry; sneak to click anyway.");
         d.put("croesus/hide opened runs", "Runs with nothing left to do are not drawn in the Croesus menu (hovering and clicking still work); runs worth a key are never hidden.");
         d.put("croesus/highlight free chest", "In a run's chest view, fills the most profitable chest green: the one to claim for free, when it makes a profit. Not shown once a chest of that run has been claimed.");
