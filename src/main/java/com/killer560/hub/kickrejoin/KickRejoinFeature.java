@@ -9,7 +9,7 @@ import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.util.ModLog;
-import com.killer560.hub.util.ServerCommands;
+import com.killer560.hub.util.OutgoingChat;
 import com.killer560.hub.util.SkyblockGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -51,7 +51,7 @@ import java.util.regex.Pattern;
  * in a party right now." (or "You are not currently in a party."), a separator. A member list means "/pc text"
  * {@link #PC_GAP_MS} after the reply; "not in a party", or no reply within {@link #PL_REPLY_MS}, means nothing. The reply
  * to our own /pl is hidden from his chat (only inside that window, and only those exact lines) and handed to
- * {@link PartyTracker}, which learns the party from it. Both go through {@link ServerCommands#toServer}. A kick line that
+ * {@link PartyTracker}, which learns the party from it. Both go through {@link OutgoingChat}, the queue every automated line uses (0.5 s apart, one resend on a slow-down). A kick line that
  * restarts a running wait asks and sends nothing again. Nothing else is ever sent.
  */
 public final class KickRejoinFeature {
@@ -222,7 +222,7 @@ public final class KickRejoinFeature {
         plSentAtMs = System.currentTimeMillis();
         pcAtMs = 0;
         plVerdict = null;
-        if (ServerCommands.toServer("pl")) {
+        if (OutgoingChat.command("pl")) {
             plSends++;
             LOGGER.info("[KickRejoin] /pl sent to see whether he is in a party");
         } else {
@@ -292,7 +292,7 @@ public final class KickRejoinFeature {
         if (pcAtMs > 0 && now >= pcAtMs) {
             pcAtMs = 0;
             String text = KickRejoinConfig.chatSafe(cfg.getPartyText());
-            if (cfg.isEnabled() && cfg.isPartyMessage() && !text.isEmpty() && ServerCommands.toServer("pc " + text)) {
+            if (cfg.isEnabled() && cfg.isPartyMessage() && !text.isEmpty() && OutgoingChat.command("pc " + text)) {
                 lastPartySent = text;
                 partySends++;
                 LOGGER.info("[KickRejoin] party message sent");
