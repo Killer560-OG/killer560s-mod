@@ -1574,6 +1574,11 @@ public final class BazaarView {
                 BazaarOrderParser.Order order = orders ? BazaarOrderParser.parse(stack.getHoverName().getString(),
                         it.lore()) : null;
                 if (order != null) {
+                    int helper = BazaarOrderHelper.rowColor(order);
+                    if (helper != 0) { // Bazaar Order Helper: the slot color as a row tint and a left bar
+                        g.fill(x + 1, ry, x + w - 1, ry + rowH, (helper & 0x00FFFFFF) | 0x30000000);
+                        g.fill(x + 1, ry, x + 3, ry + rowH, helper | 0xFF000000);
+                    }
                     orderRow(order, stack, x + 6, ry, x + w - 8, whole);
                 } else {
                     menuRow(it, stack, x, ry, w, c, cols, page.kind() == BazaarPages.Kind.GROUP && !cols, whole);

@@ -175,6 +175,8 @@ public final class ModPaths {
         t.put("bazaar-orders", "skyblock/auction");
         // The Bazaar screen's settings and recent products (killer560smod-bazaar.json, -bazaar-recent.json).
         t.put("bazaar", "skyblock/auction");
+        // Bazaar Order Helper (killer560smod-bazaarorderhelper.json), beside the other Bazaar settings.
+        t.put("bazaarorderhelper", "skyblock/auction");
         t.put("bazaarflip", "skyblock/bazaarflip");
         // AH Flipper and AH Price Copier (killer560smod-ahflip.json, 2026-11-01).
         t.put("ahflip", "skyblock/ahflip");

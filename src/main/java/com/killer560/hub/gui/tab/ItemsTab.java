@@ -33,6 +33,8 @@ public class ItemsTab extends FolderTab {
                 new ItemBrowserTab(),
                 new AuctionHouseTab(),
                 new BazaarTab(),
+                // Bazaar Order Helper (killer560, 2026-11-02): SkyHanni's order colors in Manage Orders.
+                new BazaarOrderHelperTab(),
                 new BazaarAdvisorTab(),
                 new AhFlipperTab(),
                 new AhPriceCopierTab()

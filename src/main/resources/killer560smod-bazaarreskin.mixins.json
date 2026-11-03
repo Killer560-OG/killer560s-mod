@@ -4,6 +4,7 @@
 	"package": "com.killer560.hub.bazaar.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"BazaarOrderHelperMixin",
 		"BazaarReskinBackgroundMixin",
 		"BazaarReskinHideMixin",
 		"HudLayerGateMixin"
