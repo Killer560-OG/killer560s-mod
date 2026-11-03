@@ -218,6 +218,8 @@ public final class ModPaths {
         t.put("legitgfs", "skyblock/legitgfs");
         t.put("autokick", "skyblock/autokick");
         t.put("autojoinskyblock", "skyblock/autojoinskyblock");
+        // Kicked To Hub (killer560smod-kickhub.json, 2026-11-03).
+        t.put("kickhub", "skyblock/kickhub");
 
         // ---- social ----------------------------------------------------------------------------------------------
         t.put("friendslist", "social/friends");
