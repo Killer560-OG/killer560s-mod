@@ -45,9 +45,14 @@ import java.util.regex.Pattern;
  * nothing. The timer clears once he is back on SkyBlock after having been off it, if he never left SkyBlock within
  * {@link #STAY_MS} (a failed island warp that left him where he was), or after 5 minutes.
  * <p>Party Message (off by default, his own text): once per kick, a second after the kick line and only once he is
- * really off SkyBlock, "/pc text" through {@link ServerCommands#toServer} - and only while {@link PartyTracker} knows a
- * party member (Hypixel answers a kick with "You are not in a party right now." when he is in none, which clears it).
- * A kick line that restarts a running wait does not send it again. Nothing else is ever sent.
+ * really off SkyBlock, it asks Hypixel with "/pl" (killer560, 2026-11-03: "It can just do /pl to see if I am in a party
+ * or not") and reads the reply, as it appears in his logs: a separator line, "Party Members (N)", a blank line, "Party
+ * Leader: ...", optionally "Party Moderators: ..." and "Party Members: ...", a separator; or a separator, "You are not
+ * in a party right now." (or "You are not currently in a party."), a separator. A member list means "/pc text"
+ * {@link #PC_GAP_MS} after the reply; "not in a party", or no reply within {@link #PL_REPLY_MS}, means nothing. The reply
+ * to our own /pl is hidden from his chat (only inside that window, and only those exact lines) and handed to
+ * {@link PartyTracker}, which learns the party from it. Both go through {@link ServerCommands#toServer}. A kick line that
+ * restarts a running wait asks and sends nothing again. Nothing else is ever sent.
  */
 public final class KickRejoinFeature {
 
@@ -58,6 +63,23 @@ public final class KickRejoinFeature {
             "^An? (?:kick|exception) occurred in your connection, so you were put in the SkyBlock [lL]obby!$");
     static final long WAIT_MS = 60_000L;
     static final long PARTY_DELAY_MS = 1_000L;
+    static final long PL_REPLY_MS = 3_000L;
+    static final long PC_GAP_MS = 750L;
+    /** A list that has not seen its closing separator is taken as finished this long after its last line. */
+    static final long LIST_SETTLE_MS = 500L;
+
+    static final Pattern SEPARATOR = Pattern.compile("^-{20,80}$");
+    static final Pattern LIST_HEADER = Pattern.compile("^Party Members \\(\\d{1,2}\\)$");
+    static final Pattern LIST_LINE = Pattern.compile("^Party (?:Leader|Moderators|Members): .{1,600}$");
+    static final Pattern NOT_IN_PARTY = Pattern.compile(
+            "^You are not (?:currently in a party\\.|in a party right now[.!])$");
+
+    private enum Pl { NONE, WAIT, LIST, NOT }
+
+    private static Pl pl = Pl.NONE;
+    private static long plSentAtMs = 0;
+    private static long plLastLineMs = 0;
+    private static long pcAtMs = 0;
     static final long STAY_MS = 20_000L;
     static final long MAX_MS = 5 * 60_000L;
 
@@ -73,6 +95,9 @@ public final class KickRejoinFeature {
     private static volatile int sounds = 0;
     private static volatile String lastPartySent = null;
     private static volatile int partySends = 0;
+    private static volatile int plSends = 0;
+    private static volatile int hiddenLines = 0;
+    private static volatile String plVerdict = null;
 
     private KickRejoinFeature() {
     }
@@ -80,6 +105,18 @@ public final class KickRejoinFeature {
     public static void register() {
         KickRejoinConfig.getInstance();
         ChatObserver.subscribe(m -> onChat(ChatObserver.strip(m)));
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
+            if (overlay || message == null || pl == Pl.NONE) {
+                return true;
+            }
+            try {
+                return !hidePlReply(message, System.currentTimeMillis());
+            } catch (RuntimeException e) {
+                // Raw packet-path listener: a throw here disconnects from Hypixel. Never let one out.
+                LOGGER.error("[KickRejoin] /pl reply read failed", e);
+                return true;
+            }
+        });
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("KickRejoinFeature", KickRejoinFeature::tick));
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "kick_rejoin_timer"),
@@ -136,11 +173,12 @@ public final class KickRejoinFeature {
     }
 
     private static void tick(Minecraft client) {
+        KickRejoinConfig cfg = KickRejoinConfig.getInstance();
+        long now = System.currentTimeMillis();
+        tickParty(cfg, now);
         if (kickedAtMs == 0) {
             return;
         }
-        KickRejoinConfig cfg = KickRejoinConfig.getInstance();
-        long now = System.currentTimeMillis();
         boolean onSkyblock = SkyblockGate.isOnSkyblock();
         if (!cfg.isEnabled() || now - kickedAtMs > MAX_MS) {
             clear();
@@ -175,22 +213,90 @@ public final class KickRejoinFeature {
         }
     }
 
+    /** The 1 s point of a kick: ask Hypixel whether he is in a party. */
     private static void sendParty(KickRejoinConfig cfg) {
-        if (!cfg.isPartyMessage()) {
+        if (!cfg.isPartyMessage() || KickRejoinConfig.chatSafe(cfg.getPartyText()).isEmpty()) {
             return;
         }
-        if (PartyTracker.teammates().isEmpty()) {
-            LOGGER.info("[KickRejoin] not in a party: no party message");
-            return;
+        pl = Pl.WAIT;
+        plSentAtMs = System.currentTimeMillis();
+        pcAtMs = 0;
+        plVerdict = null;
+        if (ServerCommands.toServer("pl")) {
+            plSends++;
+            LOGGER.info("[KickRejoin] /pl sent to see whether he is in a party");
+        } else {
+            pl = Pl.NONE;
         }
-        String text = KickRejoinConfig.chatSafe(cfg.getPartyText());
-        if (text.isEmpty()) {
-            return;
+    }
+
+    /**
+     * Whether this line is part of the reply to our /pl (then it is hidden and {@link PartyTracker} gets it). Only while
+     * a /pl of ours is out, only within {@link #PL_REPLY_MS}, only Hypixel's exact reply lines.
+     */
+    private static boolean hidePlReply(Component message, long now) {
+        if (now - plSentAtMs > PL_REPLY_MS) {
+            return false;
         }
-        if (ServerCommands.toServer("pc " + text)) {
-            lastPartySent = text;
-            partySends++;
-            LOGGER.info("[KickRejoin] party message sent");
+        String plain = ChatObserver.strip(message);
+        if (plain == null) {
+            return false;
+        }
+        String line = plain.trim();
+        boolean hide = false;
+        if (SEPARATOR.matcher(line).matches()) {
+            hide = true;
+            if (pl == Pl.LIST || pl == Pl.NOT) {
+                decide(now); // the closing separator
+            }
+        } else if (pl == Pl.WAIT && LIST_HEADER.matcher(line).matches()) {
+            pl = Pl.LIST;
+            hide = true;
+        } else if (pl == Pl.WAIT && NOT_IN_PARTY.matcher(line).matches()) {
+            pl = Pl.NOT;
+            hide = true;
+        } else if (pl == Pl.LIST && (line.isEmpty() || LIST_LINE.matcher(line).matches())) {
+            hide = true;
+        }
+        if (!hide) {
+            return false;
+        }
+        plLastLineMs = now;
+        hiddenLines++;
+        if (!line.isEmpty() && !SEPARATOR.matcher(line).matches()) {
+            PartyTracker.feed(message);
+        }
+        return true;
+    }
+
+    private static void decide(long now) {
+        if (pl == Pl.LIST) {
+            pcAtMs = now + PC_GAP_MS;
+            plVerdict = "party";
+            LOGGER.info("[KickRejoin] /pl: in a party - party message in {} ms", PC_GAP_MS);
+        } else {
+            plVerdict = pl == Pl.NOT ? "no party" : "no reply";
+            LOGGER.info("[KickRejoin] /pl: {} - no party message", plVerdict);
+        }
+        pl = Pl.NONE;
+    }
+
+    private static void tickParty(KickRejoinConfig cfg, long now) {
+        if (pl == Pl.LIST && now - plLastLineMs > LIST_SETTLE_MS) {
+            decide(now); // the list ended without the closing separator reaching us
+        } else if (pl == Pl.NOT && now - plLastLineMs > LIST_SETTLE_MS) {
+            decide(now);
+        } else if (pl == Pl.WAIT && now - plSentAtMs > PL_REPLY_MS) {
+            decide(now); // no reply: nothing is sent
+        }
+        if (pcAtMs > 0 && now >= pcAtMs) {
+            pcAtMs = 0;
+            String text = KickRejoinConfig.chatSafe(cfg.getPartyText());
+            if (cfg.isEnabled() && cfg.isPartyMessage() && !text.isEmpty() && ServerCommands.toServer("pc " + text)) {
+                lastPartySent = text;
+                partySends++;
+                LOGGER.info("[KickRejoin] party message sent");
+            }
         }
     }
 
@@ -239,6 +345,19 @@ public final class KickRejoinFeature {
         return partySends;
     }
 
+    public static int plSends() {
+        return plSends;
+    }
+
+    public static int hiddenLines() {
+        return hiddenLines;
+    }
+
+    /** "party", "no party" or "no reply" for the last /pl, null before one is decided. */
+    public static String plVerdict() {
+        return plVerdict;
+    }
+
     public static boolean readyFired() {
         return readyFired;
     }
@@ -248,6 +367,9 @@ public final class KickRejoinFeature {
         lastTitle = null;
         lastHudText = null;
         lastPartySent = null;
+        plVerdict = null;
+        pl = Pl.NONE;
+        pcAtMs = 0;
     }
 
     /** Moves the kick back by {@code ms}, so a case need not wait a minute. */

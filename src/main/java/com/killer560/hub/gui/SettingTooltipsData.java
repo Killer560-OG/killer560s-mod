@@ -26,7 +26,7 @@ final class SettingTooltipsData {
         d.put("kick rejoin timer", "Kicked out of SkyBlock into a Hypixel lobby, Hypixel makes you wait 60 seconds to rejoin: a HUD counts it down and a title says when you can.");
         d.put("rejoin title", "Shows a 'Rejoin SkyBlock now!' title when the 60 second wait is over.");
         d.put("rejoin sound", "Plays a ping when the 60 second wait is over.");
-        d.put("kick party message", "Sends your text below to party chat once when a kick starts the timer, only while you are in a party. Off by default.");
+        d.put("kick party message", "Once per kick it sends /pl to see whether you are in a party (the reply is hidden from your chat), and only if you are, sends your text below to party chat. Off by default.");
         d.put("kick party message text", "The party line sent on a kick (at most 100 characters; color codes and line breaks are left out). Empty puts the default back.");
         d.put("creation cooldown", "Shows how long until Hypixel lets you create another dungeon (30 s after you enter one).");
         d.put("show on all islands", "Also shows the Creation Cooldown outside dungeons, anywhere on Skyblock.");

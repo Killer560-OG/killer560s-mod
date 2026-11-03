@@ -95,6 +95,11 @@ public final class PartyTracker {
         }));
     }
 
+    /** A party line that never reaches chat because a feature hid it (Kick Rejoin Timer's own /pl reply): read it as if it had. */
+    public static void feed(Component message) {
+        onChat(message);
+    }
+
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
         if (plain == null) {
