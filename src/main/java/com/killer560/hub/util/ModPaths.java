@@ -196,6 +196,8 @@ public final class ModPaths {
         t.put("storage", "skyblock/storage");
         t.put("invsort", "skyblock/invsort");
         t.put("inventory", "skyblock/inventory");
+        // Armor HUD (killer560smod-armorhud.json) and its equipment cache (-armorhud-equipment.json), 2026-11-03.
+        t.put("armorhud", "skyblock/armorhud");
         t.put("itembrowser", "skyblock/itembrowser");
         // Price Tooltip: its settings and its price cache folder (killer560smod-pricetooltip-cache/), 2026-10-15.
         t.put("pricetooltip", "skyblock/pricetooltip");

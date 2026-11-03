@@ -14,6 +14,7 @@ final class CardBlurbsData {
         // doc-rng-1101 and doc-mining-1101 cards: their tooltips were cut to fit (testkit 1060, uifix-1102).
         d.put("LuckTab", "Your drops against the odds.");
         d.put("MiningAbilityReadyTab", "Pickaxe ability ready popup.");
+        d.put("MiningWrongArmorTab", "Warns when mining without mining armor.");
         d.put("MiningCarpetTab", "Marks carpets you can't mine.");
         d.put("MiningCommissionHudTab", "Commissions with waypoints.");
         d.put("MiningMithrilStoneTab", "Hides mithril you don't need.");
@@ -166,6 +167,7 @@ final class CardBlurbsData {
         d.put("BazaarTab", "Custom Bazaar and themed menus.");
         d.put("EnchantColorsTab", "Colors enchant names.");
         d.put("InventoryHudTab", "Inventory as a HUD.");
+        d.put("ArmorHudTab", "Worn armor and equipment HUD.");
         d.put("InventorySearchTab", "Ctrl+F finds slots.");
         d.put("InventoryThemeTab", "Menu-themed inventory.");
         d.put("HidePotionEffectsTab", "Hides your potion effects.");

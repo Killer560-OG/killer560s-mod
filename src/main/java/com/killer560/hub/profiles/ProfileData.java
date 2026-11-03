@@ -88,7 +88,9 @@ public final class ProfileData {
             // The Performance HUD's stutter log and its rolled copy (stutter-1026): diagnostics of one PC.
             "lagdisplay-stutters.log", "lagdisplay-stutters.1.log",
             // /ahmenudump's recording of Hypixel's Auction House menus (ahflip.AhMenuRecorder, 2026-11-02): a log.
-            "ahflip-menudump.txt"
+            "ahflip-menudump.txt",
+            // The Armor HUD's cache of the equipment it last saw in the equipment menu (2026-11-03): game state.
+            "armorhud-equipment.json"
     );
 
     /** Name prefixes (after {@link ModPaths#PREFIX}) that never go in: bug report zips, route-file broken backups. */

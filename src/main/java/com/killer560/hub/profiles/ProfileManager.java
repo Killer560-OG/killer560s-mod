@@ -540,6 +540,7 @@ public final class ProfileManager {
                 com.killer560.hub.hud.HudConfig::load,
                 com.killer560.hub.i4sensors.I4SensorsConfig::load,
                 com.killer560.hub.inventoryhud.InventoryHudConfig::load,
+                com.killer560.hub.armorhud.ArmorHudConfig::load,
                 com.killer560.hub.inventorysearch.InventorySearchConfig::load,
                 com.killer560.hub.inventorytheme.InventoryThemeConfig::load,
                 com.killer560.hub.hideeffects.HideEffectsConfig::load,
