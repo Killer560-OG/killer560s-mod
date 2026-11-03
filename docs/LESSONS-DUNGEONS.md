@@ -182,10 +182,23 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   landing tag, and the room tile is scanned every tick. Testkit 1102-bloodcamp-tag-latency.
 - **The Watchful Eyes do not wear the Watcher's skull.** Two zombies with ids right after his (#330208 -> #330210, #330212)
   circle the room; one passed a landing spot inside the tag window and became that trip's "blood mob" for ESP. Excluded by
-  the "Watchful Eye" name (custom name, the name-tag stand around it or the stand one id above) and as a non-player mob
+  the "Watchful Eye" name (custom name or the stand one id above; see the name-tag lesson below) and as a non-player mob
   within 8 ids after the Watcher that joined the client world within 5 ticks of him. Testkit 1102-bloodcamp-watchful-eye.
 - Every tagging path goes through `isAttackableMob` (alive, not a player summon, not excluded): the name-tag path did not,
   so his own Guided Sheep under a blood name tag became a blood mob, and a dead named NPC was re-tagged on every scan.
+- **The Watcher leaves the client world mid-camp.** Owner's run 3 (2026-11-02): "Watcher removed by the server" for six
+  seconds while he flew to a case and the player was still outside; every skull move in that time was dropped and the
+  first wave's trip was picked up mid-flight (box 7 blocks off). Gate on his last known spot (`watcherAnchor`), not on his
+  entity being there. Same run: 8 case stands had skins NoammAddons' list lacks; a sideways move from the case grid (x/z on
+  a block's center, y N+0.75) is a trip whatever the skin. Testkit 1102-bloodcamp-missed-box.
+- **A trip must not take a mob tagged before its window opened.** Trip #479208 silently took a giant name-tagged 120 ticks
+  earlier as its mob, and its own giant was never tagged or clicked (1102-bloodcamp-trip-steal).
+- **"Hit" is not "dead".** The Trigger Bot clicked a mob once and never again once it saw a hurt flash, so a mob that
+  survived one hit stood there "already hit" for 121 ticks with him aiming at it ("it left one"). A hit mob that is still
+  alive is clicked again once its hurtTime is back to 0, at the weapon's pace (1102-bloodcamp-hit-alive). This is outside
+  Never Miss's landing-spot wait.
+- A name tag near a mob is not its name for an exclusion: an orbiting Watchful Eye's tag inside a blood mob's box excluded
+  that blood mob as an "Eye". Eyes are matched by their own custom name or the stand one id above, never for a player.
 
 ## Terminals and solvers
 
