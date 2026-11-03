@@ -91,16 +91,78 @@ public final class ArmorHudFeature {
         capture(screen);
     }
 
+    /** Any menu whose title mentions Equipment or Stats (/equipment, /stats, the SkyBlock Menu's page): killer560,
+     *  2026-11-03, "it should also pull it from /stats" - the exact wiki title never matched his game. */
     static boolean isEquipmentMenu(AbstractContainerScreen<?> screen) {
         String t = ChatFormatting.stripFormatting(screen.getTitle().getString());
-        return t != null && t.trim().equals(EQUIPMENT_TITLE);
+        if (t == null) {
+            return false;
+        }
+        String l = t.toLowerCase(java.util.Locale.ROOT);
+        return l.contains("equipment") || l.contains("stats");
     }
 
-    /** Reads the four equipment slots of the open menu into the cache; saves when anything changed. */
+    /** Equipment kind by the rarity line Hypixel ends the lore with ("LEGENDARY NECKLACE"), or -1. */
+    static int kindOf(ItemStack stack) {
+        if (!isSkyblockItem(stack)) {
+            return -1;
+        }
+        List<String> lore = com.killer560.hub.croesus.DungeonChestValuer.cleanLore(stack);
+        for (int i = lore.size() - 1; i >= 0; i--) {
+            String line = lore.get(i).trim().toUpperCase(java.util.Locale.ROOT);
+            if (line.isEmpty()) {
+                continue;
+            }
+            if (line.matches("^(?:[A-Z]+ ){1,3}NECKLACE(?: [A-Z]+)?$")) {
+                return 0;
+            }
+            if (line.matches("^(?:[A-Z]+ ){1,3}CLOAK(?: [A-Z]+)?$")) {
+                return 1;
+            }
+            if (line.matches("^(?:[A-Z]+ ){1,3}BELT(?: [A-Z]+)?$")) {
+                return 2;
+            }
+            if (line.matches("^(?:[A-Z]+ ){1,3}(?:GLOVES|BRACELET)(?: [A-Z]+)?$")) {
+                return 3;
+            }
+            return -1; // only the last line is the rarity line
+        }
+        return -1;
+    }
+
+    /** Reads the open menu's equipment into the cache; saves when anything changed. By the item's kind wherever it is
+     *  (the four wiki slots first), so a menu laid out differently from the wiki still fills the HUD. */
     private static void capture(AbstractContainerScreen<?> screen) {
         List<Slot> slots = screen.getMenu().slots;
         int containerSlots = slots.size() - 36;
-        if (containerSlots < 54) {
+        if (containerSlots < 9) {
+            return;
+        }
+        boolean anyFound = false;
+        ItemStack[] found = new ItemStack[4];
+        for (int i = 0; i < containerSlots; i++) {
+            ItemStack in = slots.get(i).getItem();
+            int k = kindOf(in);
+            if (k >= 0 && found[k] == null) {
+                found[k] = in.copy();
+                anyFound = true;
+            }
+        }
+        if (anyFound) {
+            decodePending();
+            boolean changed = false;
+            for (int k = 0; k < 4; k++) {
+                if (found[k] != null && (equipment[k] == null || !ItemStack.isSameItemSameComponents(equipment[k], found[k]))) {
+                    equipment[k] = found[k];
+                    changed = true;
+                }
+            }
+            if (changed) {
+                captures++;
+                saveCache();
+            }
+        }
+        if (containerSlots < 54 || !screen.getTitle().getString().contains("Equipment")) {
             return;
         }
         // Until the contents packet arrives every slot is empty; the menu's own filler panes say it has arrived.
