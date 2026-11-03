@@ -517,6 +517,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   /profit was empty in 26.3 Mod Only Test (2026-11-01). The store moved to `%USERPROFILE%\.killer560smod\shared` (not
   virtualized); the mod folds a real %APPDATA% store into it once. Never put data a game must read under a new %APPDATA% folder
   from an agent tool; existing folders (PrismLauncher) are written in place.
+- A Hypixel menu's slot layout is on the wiki's `<Menu>/UI` page, but only in the raw wikitext (the rendered page loses
+  row/column positions): `Equipment_Menu/UI` gave "Your Equipment and Stats", necklace/cloak/belt/gloves in slots
+  10/19/28/37 and armor in 11/20/29/38 (armorhud-1103). Set item ids are in each set page's raw infobox; some are written
+  lowercase (glacite_*, mineral_*, armor_of_yog_*), so match ids case-insensitively.
 - hypixelskyblock.minecraft.wiki answers `/w/<Page>?action=raw` with a "Please wait" bot-check page, but
   `index.php?title=<Page>&action=raw` (curl) returns the wikitext, and its slayer/loot tables are structured templates
   (2026-11-01). How Lucky Are You's drop table (`assets/killer560smod/rngtracker/drop-table.json`) is built from that by
