@@ -108,6 +108,15 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 24;
 
+        // killer560, 2026-11-03: "also in loadout if one is selected have it highlighted" (loadoutkeybinds/LoadoutHighlight).
+        widgets.add(SettingsButtonWidget.builder(onOff("Highlight Selected Loadout", cfg.isHighlightSelected()), btn -> {
+                    boolean now = !cfg.isHighlightSelected();
+                    cfg.setHighlightSelected(now);
+                    cfg.save();
+                    btn.setMessage(onOff("Highlight Selected Loadout", now));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
+
         // killer560, 2026-10-13: "a toggle per keybind to have that keybind open the menu and swap then close it or just
         // only swap if you are in the menu. This should be for each keybind." One row per slot: its key, then its mode.
         for (int i = 0; i < 12; i++) {

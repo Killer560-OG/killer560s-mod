@@ -34,6 +34,7 @@ public final class MiningQolFeatures {
             }
             MiningState.tick(client);
             CommissionHud.tick(client);
+            CommissionMobs.tick(client);
             AbilityReadyAlert.tick(client);
             PickobulusEstimate.tick(client);
             MiningHighlights.tick(client);
@@ -45,6 +46,7 @@ public final class MiningQolFeatures {
                 MiningHighlights.render(context);
                 PickobulusEstimate.render(context);
                 CommissionHud.render(context);
+                CommissionMobs.render(context);
             } catch (RuntimeException e) {
                 com.killer560.hub.util.ModLog.get("killer560smod-miningqol").error("[MiningQol] render failed", e);
             }
