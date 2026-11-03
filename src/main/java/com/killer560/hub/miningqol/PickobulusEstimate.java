@@ -60,7 +60,84 @@ public final class PickobulusEstimate {
     private static int frames = 0;
     private static final BoxBatch LINES = new BoxBatch();
 
+    /**
+     * Hypixel's own Pickobulus chat lines (killer560's 26.3 log, 2026-11-02), anchored whole lines, so a player's chat
+     * ("Bob: You used your ...") can never match. Used: the ability went off; ready: it is back.
+     */
+    private static final Pattern USED = Pattern.compile(
+            "^(?:You used your Pickobulus Pickaxe Ability!|Your Pickobulus destroyed \\d{1,4} blocks?!)$");
+    private static final Pattern READY = Pattern.compile("^Pickobulus is now available!$");
+    private static final Pattern REFUSED = Pattern.compile("^This ability is on cooldown for \\d{1,4}s\\.$");
+    /**
+     * How long a chat line outranks the tab list. Hypixel refreshes the "Pickaxe Ability:" widget slowly, so right after
+     * a use it still says "Available" and right after "is now available!" it still shows seconds: reading the tab alone
+     * kept the outlines up for a while after each use and kept them away for a while after it came back (killer560,
+     * 2026-11-03, mining-1103).
+     */
+    static final long CHAT_WINS_MS = 15_000L;
+    /** A use line outranks a stale "Available" in the tab until its ready line comes, at most this long. */
+    static final long USED_WINS_MS = 120_000L;
+    /** The last chat line's answer (true: on cooldown) and when it came; 0 = none yet. Client thread. */
+    private static volatile boolean chatCooldown = false;
+    private static volatile long chatAt = 0L;
+
     private PickobulusEstimate() {
+    }
+
+    static void register() {
+        com.killer560.hub.util.ChatObserver.subscribe(PickobulusEstimate::onChat);
+    }
+
+    static void onChat(net.minecraft.network.chat.Component message) {
+        String raw = com.killer560.hub.util.ChatObserver.strip(message);
+        if (raw == null || raw.length() > 80) {
+            return;
+        }
+        onChatLine(raw.trim(), System.currentTimeMillis());
+    }
+
+    /** One stripped chat line (public for the testkit). */
+    public static void onChatLine(String raw, long now) {
+        if (USED.matcher(raw).matches()) {
+            setChatState(true, now);
+        } else if (READY.matcher(raw).matches()) {
+            setChatState(false, now);
+        } else if (REFUSED.matcher(raw).matches()) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null && holdsPickobulus(mc.player)) {
+                setChatState(true, now);
+            }
+        }
+    }
+
+    private static void setChatState(boolean cooldown, long now) {
+        chatCooldown = cooldown;
+        chatAt = now;
+        if (cooldown) {
+            // Gone this frame, not on the next tick.
+            breaks = List.of();
+            status = "cooldown";
+        }
+    }
+
+    /** On cooldown: a chat line from the last {@link #CHAT_WINS_MS} decides; with none, the tab widget does. */
+    static boolean onCooldown(long now) {
+        // A use stands until its ready line (Pickobulus cools down for under two minutes); a ready line for 15 s.
+        if (chatAt != 0L && now - chatAt <= (chatCooldown ? USED_WINS_MS : CHAT_WINS_MS)) {
+            return chatCooldown;
+        }
+        for (String line : MiningState.pickaxeAbilityLines()) {
+            if (line.startsWith("Pickobulus: ") && !line.equals("Pickobulus: Available")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Forgets the chat answer (world change; testkit). */
+    public static void resetChat() {
+        chatAt = 0L;
+        chatCooldown = false;
     }
 
     static void tick(Minecraft client) {
@@ -70,12 +147,10 @@ public final class PickobulusEstimate {
             status = "";
             return;
         }
-        for (String line : MiningState.pickaxeAbilityLines()) {
-            if (line.startsWith("Pickobulus: ") && !line.equals("Pickobulus: Available")) {
-                breaks = List.of();
-                status = "cooldown";
-                return;
-            }
+        if (onCooldown(System.currentTimeMillis())) {
+            breaks = List.of();
+            status = "cooldown";
+            return;
         }
         if (!holdsPickobulus(client.player)) {
             breaks = List.of();

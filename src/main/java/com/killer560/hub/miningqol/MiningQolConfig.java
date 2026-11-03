@@ -30,6 +30,7 @@ public final class MiningQolConfig {
     public static final int DEFAULT_CARPET_COLOR = 0x80FF3030;
     public static final int DEFAULT_TITANIUM_COLOR = 0xFFF0F0F0;
     public static final int DEFAULT_RAFFLE_COLOR = 0xFFFFAA00;
+    public static final int DEFAULT_COMMISSION_MOB_COLOR = 0xFFFF5555;
 
     /** When the Titanium Highlight shows titanium. */
     public enum TitaniumMode {
@@ -54,6 +55,12 @@ public final class MiningQolConfig {
     private boolean commissionColorProgress = true;
     private boolean commissionWaypoints = true;
     private boolean commissionEmissaries = true;
+    /** Commission Mobs (killer560, 2026-11-03: "it should highlight commission mobs as an option as well"). */
+    private boolean commissionMobs = false;
+    private boolean commissionMobsEsp = false;
+    private int commissionMobColor = DEFAULT_COMMISSION_MOB_COLOR;
+    /** Completed Commissions in the Commissions menu (killer560, 2026-11-03: "have it highlight completed commissions"). */
+    private boolean commissionMenuHighlight = true;
     // Pickobulus Estimate
     private boolean pickobulus = false;
     private int pickobulusColor = DEFAULT_PICKOBULUS_COLOR;
@@ -64,9 +71,9 @@ public final class MiningQolConfig {
     // Carpet Highlighter
     private boolean carpet = false;
     private int carpetColor = DEFAULT_CARPET_COLOR;
-    // Mithril As Stone, and the universal area access both it and the Titanium Highlight read
+    // Mithril As Stone. (A "universalAccess" switch lived here until mining-1103: a commission that counts everywhere has
+    // no area in its name - "Mithril Miner" - and MiningState.wants already applies it everywhere, so the key is ignored.)
     private boolean mithrilStone = false;
-    private boolean universalAccess = false;
     // Titanium Highlight
     private boolean titanium = false;
     private TitaniumMode titaniumMode = TitaniumMode.COMMISSION;
@@ -97,6 +104,10 @@ public final class MiningQolConfig {
                 cfg.commissionColorProgress = ConfigJson.getBool(o, "commissionColorProgress", cfg.commissionColorProgress);
                 cfg.commissionWaypoints = ConfigJson.getBool(o, "commissionWaypoints", cfg.commissionWaypoints);
                 cfg.commissionEmissaries = ConfigJson.getBool(o, "commissionEmissaries", cfg.commissionEmissaries);
+                cfg.commissionMobs = ConfigJson.getBool(o, "commissionMobs", cfg.commissionMobs);
+                cfg.commissionMobsEsp = ConfigJson.getBool(o, "commissionMobsEsp", cfg.commissionMobsEsp);
+                cfg.commissionMobColor = intOr(o, "commissionMobColor", cfg.commissionMobColor);
+                cfg.commissionMenuHighlight = ConfigJson.getBool(o, "commissionMenuHighlight", cfg.commissionMenuHighlight);
                 cfg.pickobulus = ConfigJson.getBool(o, "pickobulus", cfg.pickobulus);
                 cfg.pickobulusColor = intOr(o, "pickobulusColor", cfg.pickobulusColor);
                 cfg.abilityAlert = ConfigJson.getBool(o, "abilityAlert", cfg.abilityAlert);
@@ -105,7 +116,6 @@ public final class MiningQolConfig {
                 cfg.carpet = ConfigJson.getBool(o, "carpet", cfg.carpet);
                 cfg.carpetColor = intOr(o, "carpetColor", cfg.carpetColor);
                 cfg.mithrilStone = ConfigJson.getBool(o, "mithrilStone", cfg.mithrilStone);
-                cfg.universalAccess = ConfigJson.getBool(o, "universalAccess", cfg.universalAccess);
                 cfg.titanium = ConfigJson.getBool(o, "titanium", cfg.titanium);
                 try {
                     if (o.has("titaniumMode")) {
@@ -143,6 +153,10 @@ public final class MiningQolConfig {
             o.addProperty("commissionColorProgress", commissionColorProgress);
             o.addProperty("commissionWaypoints", commissionWaypoints);
             o.addProperty("commissionEmissaries", commissionEmissaries);
+            o.addProperty("commissionMobs", commissionMobs);
+            o.addProperty("commissionMobsEsp", commissionMobsEsp);
+            o.addProperty("commissionMobColor", commissionMobColor);
+            o.addProperty("commissionMenuHighlight", commissionMenuHighlight);
             o.addProperty("pickobulus", pickobulus);
             o.addProperty("pickobulusColor", pickobulusColor);
             o.addProperty("abilityAlert", abilityAlert);
@@ -151,7 +165,6 @@ public final class MiningQolConfig {
             o.addProperty("carpet", carpet);
             o.addProperty("carpetColor", carpetColor);
             o.addProperty("mithrilStone", mithrilStone);
-            o.addProperty("universalAccess", universalAccess);
             o.addProperty("titanium", titanium);
             o.addProperty("titaniumMode", titaniumMode.name());
             o.addProperty("titaniumColor", titaniumColor);
@@ -205,6 +218,40 @@ public final class MiningQolConfig {
 
     public void setCommissionEmissaries(boolean v) {
         commissionEmissaries = v;
+    }
+
+    /** Commission Mobs as set (the feature also needs the Commission HUD switch, see {@link CommissionMobs}). */
+    public boolean isCommissionMobs() {
+        return commissionMobs;
+    }
+
+    public void setCommissionMobs(boolean v) {
+        commissionMobs = v;
+    }
+
+    /** Commission Mobs through walls: cheat build only. */
+    public boolean isCommissionMobsEsp() {
+        return BuildVariant.CHEAT_FEATURES_ENABLED && commissionMobsEsp;
+    }
+
+    public void setCommissionMobsEsp(boolean v) {
+        commissionMobsEsp = v;
+    }
+
+    public int getCommissionMobColor() {
+        return commissionMobColor;
+    }
+
+    public void setCommissionMobColor(int v) {
+        commissionMobColor = v;
+    }
+
+    public boolean isCommissionMenuHighlight() {
+        return commissionMenuHighlight;
+    }
+
+    public void setCommissionMenuHighlight(boolean v) {
+        commissionMenuHighlight = v;
     }
 
     // ---- Pickobulus Estimate
@@ -289,14 +336,6 @@ public final class MiningQolConfig {
 
     public void setMithrilStone(boolean v) {
         mithrilStone = v;
-    }
-
-    public boolean isUniversalAccess() {
-        return universalAccess;
-    }
-
-    public void setUniversalAccess(boolean v) {
-        universalAccess = v;
     }
 
     // ---- Titanium Highlight

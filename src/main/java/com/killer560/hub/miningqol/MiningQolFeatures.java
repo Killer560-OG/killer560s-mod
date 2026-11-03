@@ -22,6 +22,8 @@ public final class MiningQolFeatures {
     public static void register() {
         WorldRenderUtils.initThroughWalls();
         AbilityReadyAlert.register();
+        PickobulusEstimate.register();
+        AttackHoldProbe.register();
         HudElementRegistry.register(new CommissionHud.Element());
         HudElementRegistry.register(new AbilityReadyAlert.Popup());
         HudElementRegistry.register(new AbilityReadyAlert.Timer());
@@ -31,9 +33,11 @@ public final class MiningQolFeatures {
             if (resetRequested) {
                 resetRequested = false;
                 AbilityReadyAlert.reset();
+                PickobulusEstimate.resetChat();
             }
             MiningState.tick(client);
             CommissionHud.tick(client);
+            CommissionMobs.tick(client);
             AbilityReadyAlert.tick(client);
             PickobulusEstimate.tick(client);
             MiningHighlights.tick(client);
@@ -45,6 +49,7 @@ public final class MiningQolFeatures {
                 MiningHighlights.render(context);
                 PickobulusEstimate.render(context);
                 CommissionHud.render(context);
+                CommissionMobs.render(context);
             } catch (RuntimeException e) {
                 com.killer560.hub.util.ModLog.get("killer560smod-miningqol").error("[MiningQol] render failed", e);
             }

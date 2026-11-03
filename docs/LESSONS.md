@@ -427,3 +427,16 @@ project CLAUDE.md. Compiling lessons
   the Wither Essence waypoint leave on the click tick (`waypoints changed ... wither=0`, before the chat line); the gold
   box left behind was Secret Clicked's 7-second box (on in his config). Read the log's waypoint counts and his config for
   every feature that draws there before touching detection. The gold box is now behind Box On Every Secret (off).
+- Hypixel's 26.3 action bar carries the area: `§7\uE067 §bUpper Mines     ...` (private-use glyph U+E067, his log
+  2026-11-02, every Dwarven Mines action bar), and none of his logs ever showed a sidebar `⏣` area line. The mining features
+  read the sidebar only, so "Upper Mines Mithril" in the Upper Mines read as "not here" (mithril drawn as stone, area titanium
+  never highlighted). `IslandDetector` now takes the action bar's area while it is under 5 s old, else the sidebar's (which
+  also accepts U+E067). Any feature that needs the player's area should read `IslandDetector.scoreboardArea()`, not the
+  sidebar itself (mining-1103, testkit 1103-mining-area fails on main 2646b64cf).
+- Hypixel's tab widgets (Pickaxe Ability) refresh slowly: a state read only from them lags its chat line by seconds.
+  Pickobulus Estimate takes "You used your Pickobulus..."/"Your Pickobulus destroyed N blocks!"/"Pickobulus is now
+  available!" first and falls back to the tab only when no line came recently (mining-1103, 1103-mining-pickobulus-chat).
+- A held left-click dig on 26.3 ends until a fresh press only when a screen opens (Gui.setScreen releases every key and the
+  re-grab sets missTime) or the OS sends a button release; a block, slot or held-item change only restarts it. Nothing in
+  the mod does either while mining (mining-1103 sweep); `miningqol/AttackHoldProbe` logs "[AttackHold]" the next time it
+  happens, with the screen class and its opener's stack.

@@ -31,8 +31,19 @@ public final class IslandDetector {
     private static final Pattern GLACITE = Pattern.compile(
             "Glacite Tunnels|Dwarven Base Camp|Great Glacite Lake|Fossil Research Center");
     private static final Pattern TAB_AREA = Pattern.compile("^(?:Area|Dungeon):\\s*(.+)$");
-    /** Same sidebar area line shape as {@code scoreboard/ScoreboardPattern.SKYBLOCK_AREA}, on stripped text. */
-    private static final Pattern SIDEBAR_AREA = Pattern.compile("^\\s*[⏣ф]\\s*(.+)$");
+    /** Same sidebar area line shape as {@code scoreboard/ScoreboardPattern.SKYBLOCK_AREA}, on stripped text, plus Hypixel's
+     *  private-use area glyph U+E067 (the one its action bar uses). */
+    private static final Pattern SIDEBAR_AREA = Pattern.compile("^\\s*[⏣ф]\\s*(.+)$");
+    /**
+     * The area on Hypixel's action bar (killer560's 26.3 log, 2026-11-02: "§7 §bUpper Mines     §b2,785/2,884"):
+     * the glyph, color codes, then words separated by single spaces. Bounded: the action bar is server text only.
+     */
+    private static final Pattern ACTION_BAR_AREA = Pattern.compile(
+            "[⏣]\\s*(?:§.)*\\s*([A-Za-z'][A-Za-z']{0,20}(?: [A-Za-z'][A-Za-z']{0,20}){0,4})");
+    /** How long an action-bar area counts as current (Hypixel repeats the action bar about once a second). */
+    private static final long ACTION_BAR_AREA_MS = 5_000L;
+    private static volatile String actionBarArea = "";
+    private static volatile long actionBarAreaAt = 0L;
 
     /** Tab-list island name -> graph file name. Names from SkyHanni-REPO {@code constants/misc/IslandType.json}. */
     private static final Map<String, String> ISLANDS = Map.ofEntries(
@@ -83,12 +94,59 @@ public final class IslandDetector {
             return;
         }
         islandName = readTabArea(client);
-        scoreboardArea = readScoreboardArea(client);
+        scoreboardArea = currentArea(readScoreboardArea(client), actionBarArea, actionBarAreaAt,
+                System.currentTimeMillis());
         String island = ISLANDS.get(islandName.toLowerCase(Locale.ROOT));
         if ("DWARVEN_MINES".equals(island) && GLACITE.matcher(scoreboardArea).find()) {
             island = "GLACITE_TUNNELS";
         }
         graphIsland = island;
+    }
+
+    /**
+     * The area the player is in: the action bar's while it is current, else the sidebar's. The action bar wins because it
+     * is the line Hypixel's client UI verifiably carries on 26.3 (every Dwarven Mines action bar in his log has it, while
+     * none of his logs shows a sidebar area line), and reading the sidebar alone made "Upper Mines Mithril" count as "not
+     * here" in the Upper Mines (mining-1103). Public for the testkit.
+     */
+    public static String currentArea(String sidebar, String actionBar, long actionBarAt, long now) {
+        if (actionBar != null && !actionBar.isEmpty() && now - actionBarAt <= ACTION_BAR_AREA_MS) {
+            return actionBar;
+        }
+        return sidebar == null ? "" : sidebar;
+    }
+
+    /** One action-bar line as it arrives ({@code PlayerStatsFeature.onActionBar}; packet path, never throws). */
+    public static void noteActionBar(String raw) {
+        try {
+            if (raw == null || raw.length() > 400) {
+                return;
+            }
+            String area = parseActionBarArea(raw);
+            if (area != null) {
+                actionBarArea = area;
+                actionBarAreaAt = System.currentTimeMillis();
+            }
+        } catch (RuntimeException ignored) {
+            // packet path: a throw would disconnect him
+        }
+    }
+
+    /** The area named on an action-bar line, or null (public for the testkit). */
+    public static String parseActionBarArea(String raw) {
+        Matcher m = ACTION_BAR_AREA.matcher(raw);
+        return m.find() ? m.group(1).trim() : null;
+    }
+
+    /** The last action-bar area read (testkit). */
+    public static String actionBarArea() {
+        return actionBarArea;
+    }
+
+    /** Forgets the action-bar area (testkit, and a world change). */
+    public static void clearActionBarArea() {
+        actionBarArea = "";
+        actionBarAreaAt = 0L;
     }
 
     /** Graph file name for the island the player is on, or null when unknown / no graph exists. */

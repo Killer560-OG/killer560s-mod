@@ -1,0 +1,143 @@
+package com.killer560.hub.loadoutkeybinds;
+
+import com.killer560.hub.croesus.DungeonChestValuer;
+import com.killer560.hub.miningqol.CommissionMenuHighlight;
+import com.killer560.hub.util.ChatObserver;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Highlight Selected Loadout (killer560, 2026-11-03: "also in loadout if one is selected have it highlighted"): in Hypixel's
+ * "(N/M) Loadouts" menu the loadout he has on gets a green slot background and border, behind the item (drawn from
+ * {@code miningqol/mixin/CommissionMenuSlotMixin}). Draw-only: no click, no packet.
+ *
+ * <p>Which loadout is on: a loadout slot whose lore says so ("Selected", "Equipped", "Currently selected", "Click to
+ * unequip"... a whole line, never "Click to equip"); when no slot's lore says it, the last "You equipped Loadout N!" line
+ * Hypixel sent this session (his chat, 2026-11-02), placed on its page: twelve loadouts a page in
+ * {@link LoadoutKeybindsFeature#LOADOUT_SLOTS} order. The chat line is anchored, so a player's message cannot set it.
+ */
+public final class LoadoutHighlight {
+
+    private static final int FILL = 0x6055FF55;
+    private static final int BORDER = 0xE055FF55;
+    /** Hypixel's line; anchored with a bounded number, so "[VIP] Bob: You equipped Loadout 3!" never matches. */
+    private static final Pattern EQUIPPED = Pattern.compile("^You equipped Loadout (\\d{1,2})!$");
+    private static final Set<String> SELECTED_LINES = Set.of("selected", "equipped", "active", "currently selected",
+            "currently equipped", "currently active", "this loadout is selected", "this loadout is equipped",
+            "this loadout is active", "you are using this loadout");
+
+    /** The loadout number Hypixel last said he equipped, or 0. */
+    private static volatile int lastEquipped = 0;
+
+    private static Object cachedScreen;
+    private static ItemStack[] cachedStacks = new ItemStack[0];
+    private static int cachedSlot = -1;
+    private static int cachedFor = -1;
+
+    private LoadoutHighlight() {
+    }
+
+    static void register() {
+        ChatObserver.subscribe(message -> {
+            Matcher m = EQUIPPED.matcher(ChatObserver.strip(message).trim());
+            if (m.matches()) {
+                try {
+                    lastEquipped = Integer.parseInt(m.group(1));
+                } catch (NumberFormatException ignored) {
+                    // bounded to two digits; cannot happen
+                }
+            }
+        });
+    }
+
+    /** Whether lore lines (codes stripped) mark this loadout as the one on (also the testkit's hook). */
+    public static boolean selected(List<String> lore) {
+        for (String raw : lore) {
+            String l = raw.trim().toLowerCase(Locale.ROOT).replaceAll("[!.]+$", "").trim();
+            if (l.contains("click to equip")) {
+                continue;
+            }
+            if (SELECTED_LINES.contains(l) || l.contains("click to unequip")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The menu slot index of the loadout that is on in {@code screen}, or -1. */
+    public static int selectedSlot(AbstractContainerScreen<?> screen) {
+        LoadoutKeybindsConfig cfg = LoadoutKeybindsConfig.getInstance();
+        if (!cfg.isEnabled() || !cfg.isHighlightSelected()) {
+            return -1;
+        }
+        Matcher title = LoadoutKeybindsFeature.LOADOUT_TITLE.matcher(screen.getTitle().getString());
+        if (!title.find()) {
+            return -1;
+        }
+        var slots = screen.getMenu().slots;
+        boolean changed = cachedScreen != screen || cachedFor != lastEquipped;
+        if (cachedStacks.length != LoadoutKeybindsFeature.LOADOUT_SLOTS.length) {
+            cachedStacks = new ItemStack[LoadoutKeybindsFeature.LOADOUT_SLOTS.length];
+        }
+        for (int i = 0; i < LoadoutKeybindsFeature.LOADOUT_SLOTS.length && !changed; i++) {
+            int s = LoadoutKeybindsFeature.LOADOUT_SLOTS[i];
+            if (s < slots.size() && slots.get(s).getItem() != cachedStacks[i]) {
+                changed = true;
+            }
+        }
+        if (!changed) {
+            return cachedSlot;
+        }
+        cachedScreen = screen;
+        cachedFor = lastEquipped;
+        int found = -1;
+        for (int i = 0; i < LoadoutKeybindsFeature.LOADOUT_SLOTS.length; i++) {
+            int s = LoadoutKeybindsFeature.LOADOUT_SLOTS[i];
+            ItemStack stack = s < slots.size() ? slots.get(s).getItem() : ItemStack.EMPTY;
+            cachedStacks[i] = stack;
+            if (found < 0 && !stack.isEmpty() && selected(DungeonChestValuer.cleanLore(stack))) {
+                found = s;
+            }
+        }
+        if (found < 0 && lastEquipped > 0) {
+            int page = Integer.parseInt(title.group(1));
+            int i = lastEquipped - 1 - (page - 1) * LoadoutKeybindsFeature.LOADOUT_SLOTS.length;
+            if (i >= 0 && i < LoadoutKeybindsFeature.LOADOUT_SLOTS.length) {
+                int s = LoadoutKeybindsFeature.LOADOUT_SLOTS[i];
+                if (s < slots.size() && !slots.get(s).getItem().isEmpty()) {
+                    found = s;
+                }
+            }
+        }
+        cachedSlot = found;
+        return found;
+    }
+
+    public static void drawSlot(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
+        if (slot.container instanceof net.minecraft.world.entity.player.Inventory) {
+            return;
+        }
+        int s = selectedSlot(screen);
+        if (s >= 0 && slot.index == s) {
+            CommissionMenuHighlight.drawGreen(graphics, slot.x, slot.y, FILL, BORDER);
+        }
+    }
+
+    // ---- testkit hooks
+
+    public static int lastEquippedLoadout() {
+        return lastEquipped;
+    }
+
+    public static void setLastEquippedForTest(int n) {
+        lastEquipped = n;
+    }
+}
