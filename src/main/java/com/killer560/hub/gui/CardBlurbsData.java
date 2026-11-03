@@ -22,7 +22,7 @@ final class CardBlurbsData {
         d.put("MiningTitaniumTab", "Outlines Titanium blocks.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");
         d.put("CreationCooldownTab", "Dungeon join timer.");
-        d.put("KickHubTab", "Warp back after a kick.");
+        d.put("KickRejoinTab", "Rejoin wait after a kick.");
         d.put("InstaClearWarningTab", "Lost-key alert.");
         d.put("GyroOverlayTab", "Shows the Gyro wand's pull ring.");
         d.put("ChatTabsTab", "Party, guild, DM tabs in chat.");
