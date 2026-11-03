@@ -269,7 +269,8 @@ public final class FastLeapSection {
         int w = Math.max(1, width);
         widgets.add(sectionHeader(x, y, w, "Leaps"));
         y += SECTION_HEADER_H;
-        widgets.add(titleLabel(x, y, w, "§7Fast: your left click leaps. Auto: leaps by itself."));
+        widgets.add(titleLabel(x, y, w, "§7Fast = your left click leaps, Auto = leaps by itself."));
+        // (no "Fast:" here: a "Label:" line reads as a setting row to search hits and to the testkit's row counts)
         y += GROUP_TITLE_H + 2;
         int nameW = Math.min(110, Math.max(LABEL_W, w * 36 / 100));
         int restX = x + nameW + GAP;
