@@ -11,8 +11,9 @@ import com.killer560.hub.util.PerTickServerClock;
  *       {@link #LIGHTNING_TICKS} server ticks to his Giga Lightning, and holds at 0 until the lightning really goes off.
  *       560 is the gap in killer560's real runs (2026-10-30 log: 15:37:27 -&gt; 15:37:55 and 15:41:29 -&gt; 15:41:57).</li>
  *   <li><b>Purple</b>: Storm's lightning line ("ENERGY HEED MY CALL!" / "THUNDER LET ME BE YOUR CATALYST!") switches the
- *       same line to the pad timer: the 20-tick pad cycle (Odin's and NoammAddons' Storm pad timer, phased on Storm's
- *       opening line), 0 on each pad tick.</li>
+ *       same line to ONE countdown of {@link #PURPLE_TICKS} server ticks to 0 (NoammAddons 1.2.9 TickTimers.kt "PY": 62 ticks
+ *       from that line, read 2026-11-03), then the line goes away ({@link #PURPLE_HOLD} ticks after 0). killer560, 2026-11-03:
+ *       "for purple pad timer it should be 1 countdown after lightning not a constant 1s during storm".</li>
  *   <li><b>Yellow</b>: Storm's first crush line ("Oof" / "Ouch, that hurt!") keeps the same cycle going for the yellow pad.</li>
  * </ol>
  * Storm's death line ends it. Everything is counted on {@link PerTickServerClock} from the remembered server tick of the
@@ -22,12 +23,18 @@ public final class StormLine {
 
     public static final int LIGHTNING_TICKS = 560;
     public static final int PAD_PERIOD = 20;
+    public static final int PURPLE_TICKS = 62;
+    /** Ticks the purple line stays on 0 before it goes away. */
+    public static final int PURPLE_HOLD = 10;
 
-    public enum Phase { NONE, LIGHTNING, PURPLE, YELLOW }
+    /** WAITING: the purple countdown is over; nothing is shown until the crush starts the yellow cycle. */
+    public enum Phase { NONE, LIGHTNING, PURPLE, WAITING, YELLOW }
 
     private static Phase phase = Phase.NONE;
     private static long startTick;
     private static long lightningAt;
+    private static long purpleAt;
+    private static long purpleReadAt = Long.MIN_VALUE;
 
     private StormLine() {
     }
@@ -54,18 +61,25 @@ public final class StormLine {
             lightningAt += shift;
             startReadAt = Long.MIN_VALUE;
         }
+        if (purpleReadAt != Long.MIN_VALUE) {
+            long shift = PerTickServerClock.now() - purpleReadAt;
+            purpleAt += (shift < 0 || shift > 3) ? 0 : shift;
+            purpleReadAt = Long.MIN_VALUE;
+        }
     }
 
     /** Storm's Giga Lightning went off (his lightning line). */
     static void onLightning() {
         if (phase == Phase.LIGHTNING) {
             phase = Phase.PURPLE;
+            purpleReadAt = PerTickServerClock.now();
+            purpleAt = purpleReadAt + PURPLE_TICKS;
         }
     }
 
     /** Storm was crushed. A crush can only follow the lightning, so a missed lightning line is caught up here too. */
     static void onCrush() {
-        if (phase == Phase.LIGHTNING || phase == Phase.PURPLE) {
+        if (phase == Phase.LIGHTNING || phase == Phase.PURPLE || phase == Phase.WAITING) {
             phase = Phase.YELLOW;
         }
     }
@@ -73,10 +87,20 @@ public final class StormLine {
     static void stop() {
         phase = Phase.NONE;
         startReadAt = Long.MIN_VALUE;
+        purpleReadAt = Long.MIN_VALUE;
     }
 
     public static Phase phase() {
+        if (phase == Phase.PURPLE && PerTickServerClock.now() - purpleAt > PURPLE_HOLD) {
+            phase = Phase.WAITING;
+        }
         return phase;
+    }
+
+    /** Whether the line is drawn now. */
+    public static boolean visible() {
+        Phase p = phase();
+        return p != Phase.NONE && p != Phase.WAITING;
     }
 
     /** Ticks left on the line now (lightning: to the lightning, never below 0; a pad: to the next pad tick). */
@@ -84,14 +108,15 @@ public final class StormLine {
         long now = PerTickServerClock.now();
         return switch (phase) {
             case LIGHTNING -> (int) Math.max(0L, Math.min(LIGHTNING_TICKS, lightningAt - now));
-            case PURPLE, YELLOW -> (int) Math.floorMod(startTick - now, (long) PAD_PERIOD);
-            case NONE -> -1;
+            case PURPLE -> (int) Math.max(0L, Math.min(PURPLE_TICKS, purpleAt - now));
+            case YELLOW -> (int) Math.floorMod(startTick - now, (long) PAD_PERIOD);
+            case NONE, WAITING -> -1;
         };
     }
 
     /** The line's full length, for the countdown color. */
     static int max() {
-        return phase == Phase.LIGHTNING ? LIGHTNING_TICKS : PAD_PERIOD;
+        return phase == Phase.LIGHTNING ? LIGHTNING_TICKS : phase == Phase.PURPLE ? PURPLE_TICKS : PAD_PERIOD;
     }
 
     static String prefix() {
@@ -99,7 +124,7 @@ public final class StormLine {
             case LIGHTNING -> "§bLightning:";
             case PURPLE -> "§5Purple:";
             case YELLOW -> "§eYellow:";
-            case NONE -> "";
+            case NONE, WAITING -> "";
         };
     }
 }

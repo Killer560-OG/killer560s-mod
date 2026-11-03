@@ -279,7 +279,50 @@ public final class LeapManager {
         incoming = request;
     }
 
+    /** Hypixel's reply to a leap item used while its cooldown runs (seen in his log: "This ability is on cooldown for 1s."). */
+    private static final java.util.regex.Pattern COOLDOWN_LINE =
+            java.util.regex.Pattern.compile("^This ability is on cooldown for (\\d{1,3})s\\.$");
+    /** Hypixel's line for ANY own leap, by hand or by the mod - the cooldown starts there. */
+    private static final java.util.regex.Pattern OWN_LEAP_LINE =
+            java.util.regex.Pattern.compile("^You have teleported to [A-Za-z0-9_]{1,16}!$");
+
+    /** Test hook: the leap cooldown the manager believes is left, in ticks. */
+    public static double cooldownTicks() {
+        return leapCdTicks;
+    }
+
+    /** Test hook: set the believed cooldown (ticks). */
+    public static void setCooldownTicksForTest(double ticks) {
+        leapCdTicks = Math.max(0.0, ticks);
+    }
+
+    /**
+     * Ticks the manager waits for the leap menu after the item use: the server's normal reply (a round trip plus a few
+     * ticks), never more than the Leap Timeout. A menu that has not come by then will not (cooldown, teleport block,
+     * dropped use), and the leap gives movement back; a menu that arrives later is simply shown (see the class doc).
+     */
+    static int menuWaitCapTicks() {
+        int timeout = FastLeapConfig.getInstance().getTimeoutTicks();
+        int ping = Math.max(0, com.killer560.hub.util.PingTracker.automationMs());
+        int cap = (int) Math.ceil(2.0 * ping / 50.0) + 6;
+        return Math.max(1, Math.min(timeout, Math.max(8, cap)));
+    }
+
     static void onChat(String unformatted) {
+        if (OWN_LEAP_LINE.matcher(unformatted).matches()) {
+            leapCdTicks = Math.max(leapCdTicks, LEAP_COOLDOWN_TICKS * Teammates.mageCooldownMultiplier());
+            return;
+        }
+        java.util.regex.Matcher cd = COOLDOWN_LINE.matcher(unformatted);
+        if (cd.matches()) {
+            Active a = active;
+            // only our own use of the item, still waiting for its menu: the line is the answer to that use
+            if (a != null && a.usedItem && !a.preOpened && a.menu == null) {
+                leapCdTicks = Integer.parseInt(cd.group(1)) * 20.0;
+                finish(a, Result.FAILURE, "on cooldown for " + cd.group(1) + "s");
+            }
+            return;
+        }
         if (!"You cannot use this in a solo dungeon!".equals(unformatted)
                 && !"There are no other players to teleport to!".equals(unformatted)) {
             return;
@@ -590,7 +633,7 @@ public final class LeapManager {
                 finish(a, Result.FAILURE, "Wrong container name. Got " + other.getTitle().getString() + ", needed Spirit Leap");
                 return;
             } else {
-                if (++a.waitTicks > FastLeapConfig.getInstance().getTimeoutTicks()) {
+                if (++a.waitTicks > menuWaitCapTicks()) {
                     finish(a, Result.FAILURE, "the leap menu did not open");
                 }
                 return;

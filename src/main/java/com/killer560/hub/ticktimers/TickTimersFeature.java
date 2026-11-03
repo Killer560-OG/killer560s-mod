@@ -340,7 +340,7 @@ public final class TickTimersFeature {
                 }
             }
             // Storm: ONE line (2026-11-02): lightning, then the purple pad, then the yellow pad (StormLine).
-            if (cfg.isStormLine() && StormLine.phase() != StormLine.Phase.NONE) {
+            if (cfg.isStormLine() && StormLine.visible()) {
                 lines.add(format(StormLine.remaining(), StormLine.max(), StormLine.prefix()));
             }
             return lines;
