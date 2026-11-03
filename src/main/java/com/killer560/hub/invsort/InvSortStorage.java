@@ -91,6 +91,13 @@ final class InvSortStorage {
         return dumped;
     }
 
+    /** True when the dump page ran out of room with items still to put away (told once, with the count). */
+    boolean dumpFull() {
+        return dumpFull;
+    }
+
+    private boolean dumpFull;
+
     int clicks() {
         return clicks;
     }
@@ -368,9 +375,14 @@ final class InvSortStorage {
                         return new int[]{slot.index, 1};
                     }
                 }
-            } else if (!dumpSlots(client).isEmpty()) {
-                ModChat.send(InventorySorterCommands.FEATURE, ModChat.bad("The dump page is full - "),
-                        ModChat.text("some items stayed in your inventory."));
+            } else if (!dumpFull) {
+                int left = dumpSlots(client).size();
+                if (left > 0) {
+                    dumpFull = true;
+                    ModChat.send(InventorySorterCommands.FEATURE, ModChat.bad("The page " + label(layout.dumpPage())
+                            + " is full: "), ModChat.text(left + " item" + (left == 1 ? "" : "s")
+                            + " could not be put away and stay in your inventory."));
+                }
             }
         }
         if (visit.fetch().values().stream().anyMatch(v -> v > 0) && hasEmptySlot(inv)) {

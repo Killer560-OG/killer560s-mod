@@ -589,7 +589,8 @@ public final class InventorySorterExecutor {
                 ModChat.text(" (" + clicksSent + " click" + (clicksSent == 1 ? "" : "s") + storageNote + ")"),
                 unresolved.isEmpty() ? ModChat.text("") : ModChat.dim(" - " + unresolved.size()
                         + " slot(s) of the layout could not be filled (item not in your inventory, or locked in place)."));
-        if (targetLayout.dumpPage() == null) {
+        boolean fullTold = storage != null && storage.dumpFull(); // the page-full line already gave the count
+        if (!fullTold) {
             // Put Others In: None leaves them where they are, by design - say so (killer560, 2026-11-03: "it kept a bunch of
             // items in my inventory that arent a part of it").
             Inventory inv = client.player.getInventory();
@@ -603,7 +604,9 @@ public final class InventorySorterExecutor {
             }
             if (left > 0) {
                 ModChat.send(InventorySorterCommands.FEATURE, ModChat.dim(left + " item" + (left == 1 ? " was" : "s were")
-                        + " not in the layout and left in your inventory (Put Others In: None)."));
+                        + " not in the layout and left in your inventory ("
+                        + (targetLayout.dumpPage() == null ? "Put Others In: None"
+                        : "Item Protect or Lock In Place keeps them out of storage") + ")."));
             }
         }
         if (storage != null && !storage.notFound().isEmpty()) {
