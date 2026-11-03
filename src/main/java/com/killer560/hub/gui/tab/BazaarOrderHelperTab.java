@@ -48,6 +48,13 @@ public class BazaarOrderHelperTab extends BaseTab {
             cfg.setFilledColor(argb);
             cfg.save();
         }, colBX, y, colW));
+        y += 20;
+        widgets.add(onOffButton("Highlight Expired", cfg::isHighlightExpired, cfg::setHighlightExpired, cfg::save,
+                null, contentX, y, colW, 18));
+        widgets.add(colorButton("Expired Color", cfg.getExpiredColor(), BazaarOrderHelperConfig.DEFAULT_EXPIRED_COLOR, argb -> {
+            cfg.setExpiredColor(argb);
+            cfg.save();
+        }, colBX, y, colW));
         return widgets;
     }
 

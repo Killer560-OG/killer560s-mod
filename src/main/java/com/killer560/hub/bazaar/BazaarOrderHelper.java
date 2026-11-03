@@ -43,7 +43,7 @@ public final class BazaarOrderHelper {
     /** Prices older than this are not used to call an order outbid (the API is rescanned every few minutes). */
     public static final long MAX_PRICE_AGE_MS = 15L * 60_000L;
 
-    public enum State { NONE, FILLED, OUTBID }
+    public enum State { NONE, FILLED, OUTBID, EXPIRED }
 
     private static AbstractContainerScreen<?> cachedScreen;
     private static boolean cachedIsOrders;
@@ -78,7 +78,10 @@ public final class BazaarOrderHelper {
         if (o.full()) {
             return State.FILLED;
         }
-        if (!o.expired() && BazaarOrders.standing(o, live(o)) == BazaarOrders.Standing.OUTBID) {
+        if (o.expired()) {
+            return State.EXPIRED; // red (killer560, 2026-11-03), even with something to claim
+        }
+        if (BazaarOrders.standing(o, live(o)) == BazaarOrders.Standing.OUTBID) {
             return State.OUTBID;
         }
         return o.claimable() ? State.FILLED : State.NONE;
@@ -93,6 +96,7 @@ public final class BazaarOrderHelper {
         return switch (classify(o)) {
             case FILLED -> cfg.isHighlightFilled() ? cfg.getFilledColor() : 0;
             case OUTBID -> cfg.isHighlightOutbid() ? cfg.getOutbidColor() : 0;
+            case EXPIRED -> cfg.isHighlightExpired() ? cfg.getExpiredColor() : 0;
             case NONE -> 0;
         };
     }
@@ -193,7 +197,7 @@ public final class BazaarOrderHelper {
         } else {
             switch (BazaarOrders.standing(o, live)) {
                 case OUTBID -> out.add(new String[]{head + (buy ? "Outbid by a buy order at " : "Undercut by a sell offer at ")
-                        + BazaarFormat.price(buy ? live.topBuyOrderPrice() : live.topSellOfferPrice()), "RED"});
+                        + BazaarFormat.price(buy ? live.topBuyOrderPrice() : live.topSellOfferPrice()), "YELLOW"});
                 case TOP, MATCHED -> out.add(new String[]{head + (buy ? "Best buy order" : "Best sell offer"), "GOLD"});
                 case UNKNOWN -> out.add(new String[]{head + "No Bazaar price to compare", "GRAY"});
             }

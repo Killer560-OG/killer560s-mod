@@ -21,8 +21,12 @@ public final class BazaarOrderHelperConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-bazaarorderhelper.json");
 
-    /** Outbid / undercut: red, as the Bazaar screen writes "Outbid" (SkyHanni uses gold). */
-    public static final int DEFAULT_OUTBID_COLOR = 0x80FF5555;
+    /** Outbid / undercut: yellow (killer560, 2026-11-03: "yellow if they are undercut and red if they expired"). */
+    public static final int DEFAULT_OUTBID_COLOR = 0x80FFFF55;
+    /** The red outbid default before 2026-11-03; a saved file still holding it moves to the new yellow. */
+    static final int OLD_OUTBID_COLOR = 0x80FF5555;
+    /** Expired: red. */
+    public static final int DEFAULT_EXPIRED_COLOR = 0x80FF5555;
     /** Filled or ready to claim: green, as SkyHanni and the Bazaar screen. */
     public static final int DEFAULT_FILLED_COLOR = 0x8055FF55;
 
@@ -33,6 +37,8 @@ public final class BazaarOrderHelperConfig {
     private boolean highlightFilled = true;
     private int outbidColor = DEFAULT_OUTBID_COLOR;
     private int filledColor = DEFAULT_FILLED_COLOR;
+    private boolean highlightExpired = true;
+    private int expiredColor = DEFAULT_EXPIRED_COLOR;
 
     private BazaarOrderHelperConfig() {
     }
@@ -54,7 +60,12 @@ public final class BazaarOrderHelperConfig {
                 cfg.highlightOutbid = ConfigJson.getBool(obj, "highlightOutbid", true);
                 cfg.highlightFilled = ConfigJson.getBool(obj, "highlightFilled", true);
                 cfg.outbidColor = ConfigJson.getInt(obj, "outbidColor", DEFAULT_OUTBID_COLOR);
+                if (cfg.outbidColor == OLD_OUTBID_COLOR && !obj.has("expiredColor")) {
+                    cfg.outbidColor = DEFAULT_OUTBID_COLOR; // the old red default moves to yellow (2026-11-03)
+                }
                 cfg.filledColor = ConfigJson.getInt(obj, "filledColor", DEFAULT_FILLED_COLOR);
+                cfg.highlightExpired = ConfigJson.getBool(obj, "highlightExpired", true);
+                cfg.expiredColor = ConfigJson.getInt(obj, "expiredColor", DEFAULT_EXPIRED_COLOR);
             } catch (Exception ignored) {
                 cfg = new BazaarOrderHelperConfig();
             }
@@ -71,6 +82,8 @@ public final class BazaarOrderHelperConfig {
             obj.addProperty("highlightFilled", highlightFilled);
             obj.addProperty("outbidColor", outbidColor);
             obj.addProperty("filledColor", filledColor);
+            obj.addProperty("highlightExpired", highlightExpired);
+            obj.addProperty("expiredColor", expiredColor);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -119,5 +132,21 @@ public final class BazaarOrderHelperConfig {
 
     public synchronized void setFilledColor(int argb) {
         filledColor = argb;
+    }
+
+    public synchronized boolean isHighlightExpired() {
+        return highlightExpired;
+    }
+
+    public synchronized void setHighlightExpired(boolean v) {
+        highlightExpired = v;
+    }
+
+    public synchronized int getExpiredColor() {
+        return expiredColor;
+    }
+
+    public synchronized void setExpiredColor(int argb) {
+        expiredColor = argb;
     }
 }
