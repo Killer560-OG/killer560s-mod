@@ -301,7 +301,7 @@ public final class LeapManager {
      * ticks), never more than the Leap Timeout. A menu that has not come by then will not (cooldown, teleport block,
      * dropped use), and the leap gives movement back; a menu that arrives later is simply shown (see the class doc).
      */
-    static int menuWaitCapTicks() {
+    public static int menuWaitCapTicks() {
         int timeout = FastLeapConfig.getInstance().getTimeoutTicks();
         int ping = Math.max(0, com.killer560.hub.util.PingTracker.automationMs());
         int cap = (int) Math.ceil(2.0 * ping / 50.0) + 6;
