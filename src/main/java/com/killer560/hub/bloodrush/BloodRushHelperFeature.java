@@ -942,6 +942,27 @@ public final class BloodRushHelperFeature {
         return out;
     }
 
+    /** The split on bare box middles {x, z} (index order kept): per role, the box indices in kill order. */
+    public static List<List<Integer>> splitForTest(double[][] centres, double doorX, double doorZ, int n, boolean master) {
+        List<Box> boxes = new ArrayList<>();
+        for (double[] c : centres) {
+            Box b = new Box();
+            b.cx = c[0];
+            b.cz = c[1];
+            b.box = new AABB(c[0] - 0.8, 69, c[1] - 0.8, c[0] + 0.8, 71, c[1] + 0.8);
+            boxes.add(b);
+        }
+        List<List<Integer>> out = new ArrayList<>();
+        for (List<Box> r : BloodRushSplit.split(boxes, doorX, doorZ, n, master)) {
+            List<Integer> l = new ArrayList<>();
+            for (Box b : r) {
+                l.add(boxes.indexOf(b));
+            }
+            out.add(l);
+        }
+        return out;
+    }
+
     /** Forgets this world's mobs, doors and the blood door, as a new world would. */
     public static void resetForTest() {
         resetWorld();
