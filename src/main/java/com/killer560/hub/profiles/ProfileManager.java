@@ -472,6 +472,7 @@ public final class ProfileManager {
                 com.killer560.hub.architect.ArchitectDraftConfig::load,
                 com.killer560.hub.autopuzzles.AutoPuzzlesConfig::load,
                 com.killer560.hub.motionblur.MotionBlurConfig::load,
+                com.killer560.hub.darkmode.DarkModeConfig::load,
                 com.killer560.hub.discordrpc.DiscordRpcConfig::load,
                 com.killer560.hub.arrowalign.ArrowAlignConfig::load,
                 com.killer560.hub.secrettrigger.SecretTriggerbotConfig::load,

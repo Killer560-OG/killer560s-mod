@@ -282,6 +282,11 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   like the hotbar, is attached to a vanilla layer before SUBTITLES that always runs (an attached element runs only where its
   parent does; after `EXPERIENCE_LEVEL` the bars vanished in creative). Health and Mana Bars are
   `attachElementAfter(MISC_OVERLAYS)` (testkit 441: no bar pixel beside the open inventory; 443/444 draw in creative).
+- **A layer that must sit under or over the WHOLE HUD is two Fabric layers, not a `Hud` mixin** (Dark Mode, 2026-11-02):
+  `HudElementRegistry.addFirst` runs before every vanilla and mod layer; for "over everything" call `addLast` from
+  `ClientLifecycleEvents.CLIENT_STARTED`, so it lands after every `addLast` other entrypoints made (this mod's HUD elements
+  included; Fabric's root list is live, javap 0.165.0+26.3). Screens draw after the HUD pass, so neither touches an open
+  menu (testkit 1102-darkmode-*: world 0.752 at 25 %, hotbar and overlay text 1.000 under, 0.749 over; inventory/menu 1.000).
 - **The first-person hands are drawn INSIDE `GameRenderer.renderItemInHand`, under its model-view push, on both versions.**
   26.1.2's `renderItemInHand` only submits, but `ItemInHandRenderer.renderHandsWithItems` ends with its own
   `renderAllFeatures()` + `endBatch()` (26.2 flushes in `renderItemInHand`), with the `Matrix4fc` argument on the model-view

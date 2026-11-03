@@ -34,7 +34,7 @@ Open the menu in game with `/killer560` or the Open Menu Key (backslash by defau
 
 **Mining** - Ability Ready Alert, Carpet Highlighter, Commission HUD, Mithril As Stone, Pickobulus Estimate, Raffle Ticket Highlight, Titanium Highlight (the rest of mining is shelved until after the 2.0 release, see `shelved/mining/`)
 
-**Display & Menus** - Borderless Fullscreen, Confine Mouse In Menus, Custom Crosshair, Freelook, Fullbright, Hide Pause Menu Icons, Motion Blur, Pack Disabler, Skyblock Only, Sound Effects (arrow hits, attacks, block hits, mob deaths, block breaks), Sweat Mode, Themed Main Menu, Window Layout
+**Display & Menus** - Borderless Fullscreen, Confine Mouse In Menus, Custom Crosshair, Dark Mode, Freelook, Fullbright, Hide Pause Menu Icons, Motion Blur, Pack Disabler, Skyblock Only, Sound Effects (arrow hits, attacks, block hits, mob deaths, block breaks), Sweat Mode, Themed Main Menu, Window Layout
 
 **Accounts, Home & Profiles** - Account Switcher, Auto Scale (monitor), Ban Reports (Auto Report Bans, opt-in), Blank Profile, Bug Report, Click Sounds (presets, import your own, Minecraft's screens too), Color Copy / Paste (every color picker), Descriptions (show / hide card and HUD editor descriptions), Edit Bars, Favorites, First-Launch Tour (Replay Intro), HUD Editor, HUD Scale, Auto Update, Menu Memory, Menu Search (Ctrl F), Menu Theme (Amber, Dark, Light, Ocean, Green, Custom colors, Saved Themes), Fonts (bundled and imported, Mod Menu Only or Everything), Theme Extras (each theme's own music - bundled or imported - font, and imported video or GIF main menu background), Reboot (/reboot), Profiles, Proxy Client, Update Notice
 

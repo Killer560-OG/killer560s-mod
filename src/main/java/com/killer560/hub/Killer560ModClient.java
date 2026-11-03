@@ -372,6 +372,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.chattabs.ChatTabsFeature.register();
         HudElementRegistry.register(com.killer560.hub.instaclearwarning.InstaClearWarningFeature.HUD);
         com.killer560.hub.motionblur.MotionBlurFeature.register();
+        com.killer560.hub.darkmode.DarkModeFeature.register();
         com.killer560.hub.discordrpc.DiscordRpcFeature.register();
         com.killer560.hub.windowlayout.WindowLayoutFeature.register();
         com.killer560.hub.window.ConfineMouseFeature.register();
