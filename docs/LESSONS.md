@@ -419,10 +419,19 @@ project CLAUDE.md. Compiling lessons
 - Hypixel's tab widgets (Pickaxe Ability) refresh slowly: a state read only from them lags its chat line by seconds.
   Pickobulus Estimate takes "You used your Pickobulus..."/"Your Pickobulus destroyed N blocks!"/"Pickobulus is now
   available!" first and falls back to the tab only when no line came recently (mining-1103, 1103-mining-pickobulus-chat).
-- A held left-click dig on 26.3 ends until a fresh press only when a screen opens (Gui.setScreen releases every key and the
-  re-grab sets missTime) or the OS sends a button release; a block, slot or held-item change only restarts it. Nothing in
-  the mod does either while mining (mining-1103 sweep); `miningqol/AttackHoldProbe` logs "[AttackHold]" the next time it
-  happens, with the screen class and its opener's stack.
+- A held left-click dig on 26.3 ends until a fresh press only when a screen opens (Gui.setScreen releases every key, and
+  Minecraft.tick holds missTime at 10000 while a screen is up) or the OS sends a button release; a block, slot or held-item
+  change only restarts it. Nothing in the mod does either while mining (mining-1103 sweep). His 2026-11-03 log
+  (killer560s-mod-logs/attackhold-owner-1103.log): 5 of 7 drops were SERVER-opened "Commissions" containers
+  (ClientboundOpenScreenPacket, no mod code in the stack) 2-3 s after "X Commission Complete!", each followed within ~1 s by
+  "+12,000 Mining" (the claim); the trigger is still unknown, so the probe now dumps the last 40 sent packets and 10 chat/title
+  lines when a container opens under a held click. Fix that works whatever opens it: `miningqol/HeldBreakResume` (Resume Held
+  Break After Menus, default on, mining islands) sets the attack key down again on close while the button is still held,
+  clears missTime from 10000 to 0, and on a block adds the press (KeyMapping.click), so vanilla's startAttack sends
+  START_DESTROY_BLOCK the next tick (testkit 1103-mining-hold-*). KeyMapping.set alone is WRONG: the close tick's
+  continueAttack(false) sends ABORT_DESTROY_BLOCK, and continueDestroyBlock's sameDestroyTarget ignores isDestroying, so the
+  held key digs on the client only (dig ticks counting, punch packets, no START) - a dig the server never hears of. The first
+  test run caught it (wire: ABORT then only punches).
 - A value read from a slow tab widget must not be re-applied every tick: AbilityReadyAlert put `now + tab seconds` each
   tick, so the timer held still for the widget's ~3 s refresh and then jumped (killer560, 2026-11-03: "only counts down every
   3s"). Act on a widget line only when its text CHANGES, keep a local deadline, move it only when a new reading disagrees

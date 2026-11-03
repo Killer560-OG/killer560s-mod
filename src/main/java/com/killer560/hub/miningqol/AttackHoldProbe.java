@@ -1,6 +1,7 @@
 package com.killer560.hub.miningqol;
 
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.MouseButtons;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -8,6 +9,26 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.common.ServerboundKeepAlivePacket;
+import net.minecraft.network.protocol.common.ServerboundPongPacket;
+import net.minecraft.network.protocol.game.ServerboundAttackPacket;
+import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
+import net.minecraft.network.protocol.game.ServerboundChatCommandSignedPacket;
+import net.minecraft.network.protocol.game.ServerboundChatPacket;
+import net.minecraft.network.protocol.game.ServerboundChunkBatchReceivedPacket;
+import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
+import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
+import net.minecraft.network.protocol.game.ServerboundInteractPacket;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
+import net.minecraft.world.entity.Entity;
 import org.slf4j.Logger;
 
 /**
@@ -25,6 +46,14 @@ import org.slf4j.Logger;
  *   <li>The attack key went up while the game had seen no left-button release (a screen's release, or none at all),
  *       or while the window had lost focus.</li>
  * </ul>
+ *
+ * <p>His 2026-11-03 log showed the drops were server-opened containers ("Commissions", 2-3 s after "X Commission
+ * Complete!", with nothing he clicked in the stack). To name what made the server open them, the probe keeps the last
+ * {@link #RING} packets this client SENT (type and a short summary: use item, use item on a block, interact with an
+ * entity and its name, player action, container click, command name only - never chat text or command arguments; moves,
+ * keep-alives, pongs, tick ends and chunk acks are only counted) and the last {@link #LINES} chat and title lines, and
+ * dumps both with the container's title and size whenever a container opens while left click is held (one dump each 5 s
+ * at most). Recording is a field write per packet on a mining island; nothing is changed or sent.
  */
 public final class AttackHoldProbe {
 
@@ -36,6 +65,21 @@ public final class AttackHoldProbe {
     private static long lastReleaseLogMs = 0L;
     private static int screenLines = 0;
     private static int releaseLines = 0;
+
+    static final int RING = 40;
+    static final int LINES = 10;
+    private static final long DUMP_GAP_MS = 5000L;
+    private static final String[] SENT = new String[RING];
+    private static final long[] SENT_MS = new long[RING];
+    private static int sentHead = 0;
+    private static int sentCount = 0;
+    private static long quietPackets = 0;
+    private static final String[] HEARD = new String[LINES];
+    private static final long[] HEARD_MS = new long[LINES];
+    private static int heardHead = 0;
+    private static int heardCount = 0;
+    private static long lastDumpMs = 0L;
+    private static int dumps = 0;
 
     private AttackHoldProbe() {
     }
@@ -54,7 +98,166 @@ public final class AttackHoldProbe {
             } catch (RuntimeException ignored) {
                 // diagnostics only
             }
+            try {
+                HeldBreakResume.tick(client);
+            } catch (RuntimeException e) {
+                LOGGER.error("[AttackHold] resume tick failed", e);
+            }
         });
+        // Raw chat events run on the packet path, where a throw disconnects him: everything is caught.
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            try {
+                if (!overlay) {
+                    heard("chat", message);
+                }
+            } catch (RuntimeException ignored) {
+                // diagnostics only
+            }
+        });
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.CHAT.register(
+                (message, signed, sender, params, ts) -> {
+                    try {
+                        heard("chat", message);
+                    } catch (RuntimeException ignored) {
+                        // diagnostics only
+                    }
+                });
+    }
+
+    /** A packet this client is sending (MiningSendTapMixin, any thread that sends). */
+    public static void onSend(Packet<?> packet) {
+        Minecraft client = Minecraft.getInstance();
+        if (packet == null || client.player == null || !MiningState.onMiningIsland()) {
+            return;
+        }
+        if (packet instanceof ServerboundMovePlayerPacket || packet instanceof ServerboundKeepAlivePacket
+                || packet instanceof ServerboundPongPacket || packet instanceof ServerboundClientTickEndPacket
+                || packet instanceof ServerboundChunkBatchReceivedPacket) {
+            quietPackets++;
+            return;
+        }
+        String s = summary(client, packet);
+        synchronized (SENT) {
+            SENT[sentHead] = s;
+            SENT_MS[sentHead] = System.currentTimeMillis();
+            sentHead = (sentHead + 1) % RING;
+            sentCount = Math.min(sentCount + 1, RING);
+        }
+    }
+
+    static String summary(Minecraft client, Packet<?> packet) {
+        String type = packet.type().id().getPath();
+        if (packet instanceof ServerboundUseItemPacket p) {
+            return type + " hand=" + McPackets.useItemHand(p);
+        }
+        if (packet instanceof ServerboundUseItemOnPacket p) {
+            var hit = McPackets.useItemOnHitResult(p);
+            return type + " hand=" + McPackets.useItemOnHand(p) + " at " + hit.getBlockPos().toShortString() + " "
+                    + hit.getDirection();
+        }
+        if (packet instanceof ServerboundInteractPacket p) {
+            return type + " entity " + p.entityId() + " " + entityName(client, p.entityId()) + " hand=" + p.hand();
+        }
+        if (packet instanceof ServerboundAttackPacket p) {
+            return type + " entity " + p.entityId() + " " + entityName(client, p.entityId());
+        }
+        if (packet instanceof ServerboundPlayerActionPacket p) {
+            return type + " " + p.getAction() + " " + p.getPos().toShortString() + " " + p.getDirection();
+        }
+        if (packet instanceof ServerboundContainerClickPacket p) {
+            return type + " container " + p.containerId() + " slot " + p.slotNum() + " button " + p.buttonNum() + " "
+                    + p.containerInput();
+        }
+        if (packet instanceof ServerboundContainerClosePacket p) {
+            return type + " container " + p.getContainerId();
+        }
+        if (packet instanceof ServerboundSetCarriedItemPacket p) {
+            return type + " slot " + p.getSlot();
+        }
+        if (packet instanceof ServerboundChatCommandPacket p) {
+            return type + " /" + commandName(p.command());
+        }
+        if (packet instanceof ServerboundChatCommandSignedPacket p) {
+            return type + " /" + commandName(p.command());
+        }
+        if (packet instanceof ServerboundChatPacket) {
+            return type + " (text not recorded)";
+        }
+        return type;
+    }
+
+    /** The command's name only: arguments can hold anything he typed. */
+    static String commandName(String command) {
+        if (command == null) {
+            return "";
+        }
+        String c = command.strip();
+        int sp = c.indexOf(' ');
+        String name = sp < 0 ? c : c.substring(0, sp);
+        return name.length() > 32 ? name.substring(0, 32) : name;
+    }
+
+    private static String entityName(Minecraft client, int id) {
+        if (client.level == null) {
+            return "?";
+        }
+        Entity e = client.level.getEntity(id);
+        if (e == null) {
+            return "(not loaded)";
+        }
+        String n = net.minecraft.ChatFormatting.stripFormatting(e.getName().getString());
+        return e.getType().toShortString() + " \"" + (n == null ? "" : clip(n, 40)) + "\"";
+    }
+
+    /** A chat or title line the server sent (title hooks: MiningTitleTapMixin). */
+    public static void heard(String kind, Component text) {
+        if (text == null || !MiningState.onMiningIsland()) {
+            return;
+        }
+        String plain = net.minecraft.ChatFormatting.stripFormatting(text.getString());
+        if (plain == null || plain.isBlank()) {
+            return;
+        }
+        synchronized (HEARD) {
+            HEARD[heardHead] = kind + ": " + clip(plain.strip(), 120);
+            HEARD_MS[heardHead] = System.currentTimeMillis();
+            heardHead = (heardHead + 1) % LINES;
+            heardCount = Math.min(heardCount + 1, LINES);
+        }
+    }
+
+    private static String clip(String s, int n) {
+        return s.length() > n ? s.substring(0, n) + "..." : s;
+    }
+
+    /** The dump: the opened container, then the sent and heard rings oldest first. */
+    private static void dump(Screen screen) {
+        long now = System.currentTimeMillis();
+        if (now - lastDumpMs < DUMP_GAP_MS) {
+            return;
+        }
+        lastDumpMs = now;
+        dumps++;
+        String title = net.minecraft.ChatFormatting.stripFormatting(screen.getTitle().getString());
+        int size = screen instanceof AbstractContainerScreen<?> acs ? acs.getMenu().slots.size() : -1;
+        StringBuilder b = new StringBuilder();
+        b.append("[AttackHold] container \"").append(title).append("\" (").append(size)
+                .append(" slots) opened while you held left click. Sent before it (oldest first, ").append(quietPackets)
+                .append(" moves/keep-alives not listed):");
+        synchronized (SENT) {
+            for (int i = 0; i < sentCount; i++) {
+                int k = (sentHead - sentCount + i + RING) % RING;
+                b.append("\n    -").append(now - SENT_MS[k]).append(" ms  ").append(SENT[k]);
+            }
+        }
+        b.append("\n  Heard before it:");
+        synchronized (HEARD) {
+            for (int i = 0; i < heardCount; i++) {
+                int k = (heardHead - heardCount + i + LINES) % LINES;
+                b.append("\n    -").append(now - HEARD_MS[k]).append(" ms  ").append(HEARD[k]);
+            }
+        }
+        LOGGER.info(b.toString());
     }
 
     private static boolean watching(Minecraft client) {
@@ -80,6 +283,9 @@ public final class AttackHoldProbe {
         }
         LOGGER.info("[AttackHold] screen {} opened while you held left click (this releases it){}",
                 screen == null ? "null" : screen.getClass().getName(), trace);
+        if (screen instanceof AbstractContainerScreen<?>) {
+            dump(screen);
+        }
     }
 
     private static void tick(Minecraft client) {
@@ -121,5 +327,37 @@ public final class AttackHoldProbe {
 
     public static int releaseLines() {
         return releaseLines;
+    }
+
+    public static int dumps() {
+        return dumps;
+    }
+
+    /** The sent ring, oldest first (testkit: what the dump lists). */
+    public static java.util.List<String> sentForTest() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        synchronized (SENT) {
+            for (int i = 0; i < sentCount; i++) {
+                out.add(SENT[(sentHead - sentCount + i + RING) % RING]);
+            }
+        }
+        return out;
+    }
+
+    public static java.util.List<String> heardForTest() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        synchronized (HEARD) {
+            for (int i = 0; i < heardCount; i++) {
+                out.add(HEARD[(heardHead - heardCount + i + LINES) % LINES]);
+            }
+        }
+        return out;
+    }
+
+    /** Lets the next container open dump at once (testkit). */
+    public static void resetDumpGapForTest() {
+        lastDumpMs = 0L;
+        lastScreenLogMs = 0L;
+        lastReleaseLogMs = 0L;
     }
 }
