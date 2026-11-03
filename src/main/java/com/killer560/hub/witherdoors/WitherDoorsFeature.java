@@ -57,6 +57,17 @@ public final class WitherDoorsFeature {
     private static final Logger LOGGER = ModLog.get("killer560smod-witherdoors");
 
     private static boolean witherKeyHeld = false;
+    private static volatile String lastPick = "none";
+    private static volatile int keyDoorIdx = -1;
+
+    /** Testkit: the door cell the key color goes to, and whether the map path ("path") or distance picked it. */
+    public static int keyDoorIdx() {
+        return keyDoorIdx;
+    }
+
+    public static String lastPick() {
+        return lastPick;
+    }
     private static boolean bloodKeyHeld = false;
     private static Object lastLevel = null;
     /** A sim floor rebuilt in the same world is a new floor: its door cells must be scanned again. */
@@ -286,6 +297,19 @@ public final class WitherDoorsFeature {
             }
         }
 
+        // The door to open, not the nearest (see rebuildFromMap).
+        try {
+            com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
+            int next = layout == null ? -1 : com.killer560.hub.livemap.autoclear.BloodRush.nextDoor(layout);
+            for (WitherDoorScanner.Door door : locked) {
+                if (door.type() == WitherDoorScanner.DoorType.WITHER && door.idx() == next) {
+                    nearestWither = door;
+                    nearestDistSq = eye.distanceToSqr(center(door));
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // the nearest by distance stays
+        }
         double maxSq = (double) cfg.getRenderDistance() * cfg.getRenderDistance();
         boolean showAll = cfg.isShowAllDoors();
 
@@ -323,8 +347,24 @@ public final class WitherDoorsFeature {
         Vec3 eye = client.player.getEyePosition();
         double maxSq = (double) cfg.getRenderDistance() * cfg.getRenderDistance();
         MapDoors.Door nearest = null;
-        double nearestSq = Double.MAX_VALUE;
+        // The door to open (killer560, 2026-11-03: "goes off of closest door to me by distance not the actual door i need
+        // to open"): the first locked door on the map's room path toward Blood, else the nearest by walking path
+        // (BloodRush.nextDoor); straight-line distance only when the map has no answer.
+        int next = -1;
+        try {
+            com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
+            next = layout == null ? -1 : com.killer560.hub.livemap.autoclear.BloodRush.nextDoor(layout);
+        } catch (RuntimeException e) {
+            next = -1;
+        }
         for (MapDoors.Door d : doors) {
+            if (d.kind() == MapDoors.Kind.WITHER && d.idx() == next) {
+                nearest = d;
+            }
+        }
+        lastPick = nearest != null ? "path" : "distance";
+        double nearestSq = Double.MAX_VALUE;
+        for (MapDoors.Door d : nearest != null ? List.<MapDoors.Door>of() : doors) {
             if (d.kind() == MapDoors.Kind.WITHER) {
                 double sq = eye.distanceToSqr(Vec3.atCenterOf(d.pos()));
                 if (sq < nearestSq) {
@@ -333,6 +373,7 @@ public final class WitherDoorsFeature {
                 }
             }
         }
+        keyDoorIdx = nearest == null ? -1 : nearest.idx();
         for (MapDoors.Door d : doors) {
             Vec3 c = new Vec3(d.pos().getX() + 0.5, d.pos().getY() + (DOOR_Y_MAX - DOOR_Y_MIN) / 2.0, d.pos().getZ() + 0.5);
             if (eye.distanceToSqr(c) > maxSq) {

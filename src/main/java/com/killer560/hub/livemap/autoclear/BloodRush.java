@@ -239,7 +239,7 @@ public final class BloodRush {
     }
 
     /** First locked door on the room path toward the Blood door, else nearest wither, else nearest locked door. */
-    static int nextDoor(DungeonLayout layout) {
+    public static int nextDoor(DungeonLayout layout) {
         int room = layout.currentRoom();
         if (room < 0) {
             return -1;
