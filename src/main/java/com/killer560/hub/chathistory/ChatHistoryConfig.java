@@ -27,7 +27,11 @@ public final class ChatHistoryConfig {
 
     private static volatile ChatHistoryConfig instance;
 
-    /** Chat history length (killer560, 2026-11-01): vanilla's 100, a chosen limit, or no limit. */
+    /**
+     * The effective chat history (killer560, 2026-11-01): vanilla's 100, a chosen limit, or no limit. Since 2026-11-02
+     * it is derived from the {@link #isEnabled() switch} and the {@link Length}: Off is the switch off, whatever length
+     * is kept for the next time it goes on.
+     */
     public enum Mode {
         OFF("Off"), LIMITED("Limited"), UNLIMITED("Unlimited");
 
@@ -38,11 +42,25 @@ public final class ChatHistoryConfig {
         }
     }
 
+    /** How long the history is while the switch is ON (killer560, 2026-11-02: "this needs an actual toggle"). */
+    public enum Length {
+        LIMITED("Limited"), UNLIMITED("Unlimited");
+
+        public final String label;
+
+        Length(String label) {
+            this.label = label;
+        }
+    }
+
     public static final int LIMIT_MIN = 200;
     public static final int LIMIT_MAX = 10000;
     public static final int LIMIT_STEP = 200;
 
-    private Mode mode = Mode.OFF;
+    /** Off by default: vanilla's 100 lines. */
+    private boolean enabled = false;
+    /** Kept while the switch is off, so OFF then ON comes back to the same length. */
+    private Length length = Length.LIMITED;
     private int customLimit = 1000;
 
     private ChatHistoryConfig() {
@@ -60,14 +78,27 @@ public final class ChatHistoryConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                if (obj.has("mode")) {
-                    try {
-                        cfg.mode = Mode.valueOf(obj.get("mode").getAsString());
-                    } catch (Exception ignored) {
-                        cfg.mode = Mode.OFF;
+                if (obj.has("enabled")) {
+                    cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+                    if (obj.has("length")) {
+                        try {
+                            cfg.length = Length.valueOf(obj.get("length").getAsString());
+                        } catch (Exception ignored) {
+                            cfg.length = Length.LIMITED;
+                        }
                     }
+                } else if (obj.has("mode")) {
+                    // Files from 2026-11-01 to 11-02 (one Off/Limited/Unlimited selector): Off is the switch off with
+                    // the default length, any other mode the switch on at that length.
+                    Mode m;
+                    try {
+                        m = Mode.valueOf(obj.get("mode").getAsString());
+                    } catch (Exception ignored) {
+                        m = Mode.OFF;
+                    }
+                    cfg.setMode(m);
                 } else if (ConfigJson.getBool(obj, "unlimited", false)) {
-                    cfg.mode = Mode.UNLIMITED; // files from before the Limited mode (2026-11-01)
+                    cfg.setMode(Mode.UNLIMITED); // files from before the Limited mode (2026-11-01)
                 }
                 if (obj.has("limit")) {
                     try {
@@ -86,29 +117,59 @@ public final class ChatHistoryConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("mode", mode.name());
+            obj.addProperty("enabled", enabled);
+            obj.addProperty("length", length.name());
             obj.addProperty("limit", customLimit);
-            // No "unlimited" key any more: load() reads it only from a file with no "mode" (before 2026-11-01), so a saved
-            // copy was a key load() ignores, which hand edits and profile imports silently lost (testkit 310).
+            // No "mode" or "unlimited" key any more: load() reads them only from a file with no "enabled" (before
+            // 2026-11-02), so a saved copy would be a key load() ignores, which hand edits and profile imports silently
+            // lost (testkit 310).
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
     }
 
     public boolean isUnlimited() {
-        return mode == Mode.UNLIMITED;
+        return getMode() == Mode.UNLIMITED;
     }
 
     public void setUnlimited(boolean unlimited) {
-        this.mode = unlimited ? Mode.UNLIMITED : Mode.OFF;
+        setMode(unlimited ? Mode.UNLIMITED : Mode.OFF);
     }
 
+    /** The Chat History switch: OFF is vanilla's 100 lines. */
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    /** The length used while the switch is ON (kept while it is off). */
+    public Length getLength() {
+        return length;
+    }
+
+    public void setLength(Length length) {
+        this.length = length == null ? Length.LIMITED : length;
+    }
+
+    /** The effective history: Off while the switch is off, else the chosen length. */
     public Mode getMode() {
-        return mode;
+        if (!enabled) {
+            return Mode.OFF;
+        }
+        return length == Length.UNLIMITED ? Mode.UNLIMITED : Mode.LIMITED;
     }
 
+    /** Off turns the switch off and keeps the length; Limited or Unlimited turns it on at that length. */
     public void setMode(Mode mode) {
-        this.mode = mode == null ? Mode.OFF : mode;
+        if (mode == null || mode == Mode.OFF) {
+            enabled = false;
+            return;
+        }
+        enabled = true;
+        length = mode == Mode.UNLIMITED ? Length.UNLIMITED : Length.LIMITED;
     }
 
     public int getCustomLimit() {
@@ -128,7 +189,7 @@ public final class ChatHistoryConfig {
      */
     public static int apply(int current) {
         ChatHistoryConfig cfg = getInstance();
-        return switch (cfg.mode) {
+        return switch (cfg.getMode()) {
             case OFF -> current;
             case LIMITED -> Math.max(current, cfg.customLimit);
             case UNLIMITED -> Integer.MAX_VALUE;
