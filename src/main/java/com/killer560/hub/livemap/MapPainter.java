@@ -432,6 +432,23 @@ public final class MapPainter {
         return visibleState(group) != DungeonMapScanner.STATE_UNDISCOVERED;
     }
 
+    /**
+     * The state a room's MARK and name color are drawn from. Same as {@link #visibleState} except on a map that draws the
+     * scanned floor (Funny Map, the Interactive Map): there {@code visibleState} promotes every scanned room to
+     * "discovered", so a room he has never entered looked exactly like one he entered and has not cleared (killer560,
+     * 2026-11-03: "the funny map style currently has no way for me to tell if a room has been entered but not cleared or
+     * never entered"). A scanned room the map item still shows unopened (or does not show) keeps Hypixel's "?", as on the
+     * real map; entered stays unmarked and cleared keeps its check. The room's fill is unchanged (the 2026-11-02 rule:
+     * Funny Map rooms keep their own color, darkened only by Darken Unexplored).
+     */
+    static int markState(LiveMapFeature.RoomGroup group) {
+        int state = visibleState(group);
+        if (state == DungeonMapScanner.STATE_DISCOVERED && !hideUnrevealed() && unexplored(group)) {
+            return DungeonMapScanner.STATE_UNOPENED;
+        }
+        return state;
+    }
+
     /** On the legit map a room the game only shows as a gray "unopened" block must not carry its name, its secret
      *  count or its real type - Hypixel has not told you what is in there yet. */
     static boolean identityRevealed(LiveMapFeature.RoomGroup group) {
@@ -1484,6 +1501,9 @@ public final class MapPainter {
         };
     }
 
+    /** Name color of a scanned room he has never entered (Funny Map / Interactive Map); entered-not-cleared is 0xFFAAAAAA. */
+    static final int NEVER_ENTERED_TEXT = 0xFF707070;
+
     /** @return the mark for a room state, or null when the room has none. */
     private static String[] markSprite(int state) {
         return switch (state) {
@@ -1607,8 +1627,11 @@ public final class MapPainter {
                 maxWidth = Math.max(maxWidth, font.width(s));
             }
             float[] box = drawnLabelBox(group);
+            // A scanned room never entered (Funny Map) is named in a dimmer gray than one entered but not cleared.
+            int textColor = markState(group) == DungeonMapScanner.STATE_UNOPENED && visibleState(group) != DungeonMapScanner.STATE_UNOPENED
+                    ? NEVER_ENTERED_TEXT : stateColor(visibleState(group));
             LABEL_CACHE.add(new Label(lines.toArray(new String[0]), maxWidth,
-                    stateColor(visibleState(group)), box[2], box[3], box[0], box[1],
+                    textColor, box[2], box[3], box[0], box[1],
                     roomColor(group, LiveMapConfig.getInstance())));
         }
         return LABEL_CACHE;
@@ -1729,7 +1752,7 @@ public final class MapPainter {
                 continue;
             }
             float[] box = drawnLabelBox(group);
-            drawMark(graphics, group, visibleState(group), cfg, ox, oy, ox + box[0] * ppu, oy + box[1] * ppu, ppu);
+            drawMark(graphics, group, markState(group), cfg, ox, oy, ox + box[0] * ppu, oy + box[1] * ppu, ppu);
         }
         if (style == 1) {
             return;
