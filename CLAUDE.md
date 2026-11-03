@@ -675,3 +675,10 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   models. Pack Disabler's table refresh (NEU snapshots, coverage report, skin check) is in docs/LESSONS.md, Items (2026-11-03).
 
 - Inventory Sorter locks inventory index 8 (bottom-right hotbar: Skyblock Menu, map or arrows; killer560, 2026-11-03) via `InventoryLayout.LOCKED_SLOT`: `isFree(8)` is always true and a layout never stores it. A testkit sort/fetch case must put an item in slot 8 first, because a vanilla shift-click from a storage page lands in an EMPTY slot 8 first and the sorter now leaves it there. A storage sort within 4 s of a world change waits (`InventorySorterExecutor.LOBBY_WAIT_MS`, his measurement; no Hypixel message for it was found in his logs).
+- Mining (2026-11-03, mining2-1103): Commission Route's Etherwarp/AOTE modes search the walking graph plus warp edges (one Dijkstra,
+  `CommissionRoute.plan`); an AOTE always travels its full 8 blocks along the look unless a block stops it, so its edge goes to the
+  graph node nearest where the aim LANDS, never to the aimed node (aiming at a node 6 blocks away overshoots it). Mithril As Stone judges
+  a block by its own area only: a node-less block takes the nearest area node within 64, and the player's area is used only while the map
+  is not loaded. Carpet Highlighter retextures through the same `SectionCompiler` hook as Mithril As Stone (`MiningHighlights.carpetReplace`),
+  marking just the changed sections dirty; it draws no box any more. Mining Spread blocks are told from other changes by the ore snapshot
+  taken around each newly dug block (`CommissionProgress.NEIGHBOURS`).

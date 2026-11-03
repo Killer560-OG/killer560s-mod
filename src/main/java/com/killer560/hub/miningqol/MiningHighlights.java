@@ -79,6 +79,10 @@ public final class MiningHighlights {
             return;
         }
         ticks++;
+        if (!redirty.isEmpty() && ticks >= redirtyAt) {
+            dirtySections(client, new java.util.ArrayList<>(redirty));
+            redirty.clear();
+        }
         // Tickets move and vanish: every 5 ticks.
         if (ticks % 5 == 0) {
             tickets = cfg.isRaffle() ? findTickets(client) : List.of();
@@ -189,16 +193,32 @@ public final class MiningHighlights {
         java.util.Set<Long> done = new java.util.HashSet<>();
         for (Long k : sections) {
             BlockPos p = BlockPos.of(k);
-            int sx = p.getX() >> 4, sy = p.getY() >> 4, sz = p.getZ() >> 4;
-            if (done.add(net.minecraft.core.SectionPos.asLong(sx, sy, sz))) {
-                mc.level.setSectionRangeDirty(sx, sy, sz, sx, sy, sz);
-            }
+            done.add(net.minecraft.core.SectionPos.asLong(p.getX() >> 4, p.getY() >> 4, p.getZ() >> 4));
+        }
+        dirtySections(mc, done);
+        // A section being compiled right now finishes with the old answer and a mark made meanwhile can be lost: mark again
+        // a few ticks on (the carpet-texture case saw the single mark leave the carpets unchanged).
+        redirty.addAll(done);
+        redirtyAt = ticks + 10;
+    }
+
+    private static final java.util.Set<Long> redirty = new java.util.HashSet<>();
+    private static int redirtyAt = 0;
+
+    private static void dirtySections(Minecraft mc, java.util.Collection<Long> secs) {
+        for (Long sp : secs) {
+            mc.level.setSectionDirtyWithNeighbors(net.minecraft.core.SectionPos.x(sp), net.minecraft.core.SectionPos.y(sp),
+                    net.minecraft.core.SectionPos.z(sp));
+            carpetDirtied++;
         }
     }
 
     /** From the chunk mesher (any thread): red carpet's state for a highlighted vein carpet, else null. */
     static BlockState carpetReplace(BlockState state, int x, int y, int z) {
         java.util.Set<Long> keys = carpetKeys;
+        if (state != null && VEIN_CARPETS.contains(state.getBlock())) {
+            carpetAsked.incrementAndGet();
+        }
         if (keys.isEmpty() || state == null || !VEIN_CARPETS.contains(state.getBlock())
                 || !keys.contains(BlockPos.asLong(x, y, z))) {
             return null;
@@ -210,6 +230,18 @@ public final class MiningHighlights {
         }
         carpetSwaps.incrementAndGet();
         return r;
+    }
+
+    private static final java.util.concurrent.atomic.AtomicLong carpetAsked = new java.util.concurrent.atomic.AtomicLong();
+    private static int carpetDirtied = 0;
+
+    /** Vein-carpet blocks the mesher asked about (testkit). */
+    public static long carpetAskedCount() {
+        return carpetAsked.get();
+    }
+
+    public static int carpetDirtied() {
+        return carpetDirtied;
     }
 
     /** Mesher draws swapped to red carpet since start (testkit). */

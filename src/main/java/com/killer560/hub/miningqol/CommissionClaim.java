@@ -28,6 +28,7 @@ public final class CommissionClaim {
     private static final long CHAT_HOLD_MS = 20_000;
 
     private static volatile long chatUntil = 0;
+    private static volatile List<BlockPos> emissaryOverride = null;
     private static int pulseFrames = 0;
     private static int lastPulseSlot = -1;
 
@@ -74,7 +75,8 @@ public final class CommissionClaim {
 
     /** Emissary spots (the ones the Commission HUD labels). */
     static List<BlockPos> emissaries() {
-        return CommissionHud.emissaryPositions();
+        List<BlockPos> o = emissaryOverride;
+        return o != null ? o : CommissionHud.emissaryPositions();
     }
 
     /** The hotbar slot (0-8) holding a Royal Pigeon, or -1. */
@@ -123,12 +125,18 @@ public final class CommissionClaim {
 
     // ---- testkit hooks
 
+    /** Testkit: Emissary spots to use instead of the Mines' real ones (null: the real ones). */
+    public static void emissariesForTest(List<BlockPos> spots) {
+        emissaryOverride = spots;
+    }
+
     public static void chatForTest(String raw) {
         handle(raw, System.currentTimeMillis());
     }
 
     public static void resetForTest() {
         chatUntil = 0;
+        emissaryOverride = null;
         pulseFrames = 0;
         lastPulseSlot = -1;
     }

@@ -181,10 +181,13 @@ public final class CommissionProgress {
     }
 
     /** Testkit: a dig at {@code target} with ore {@code neighbours} next to it, as the live tick would remember them. */
-    public static void aimForTest(BlockPos target, BlockState targetState, Map<BlockPos, BlockState> neighbours, long now) {
-        TARGETS.put(target, new Object[]{targetState, now});
+    public static void aimForTest(BlockPos target, List<BlockPos> neighbours, long now) {
+        var level = Minecraft.getInstance().level;
+        TARGETS.put(target, new Object[]{level.getBlockState(target), now});
         lastAimMs = now;
-        neighbours.forEach((p, s) -> NEIGHBOURS.put(p, new Object[]{s, now}));
+        for (BlockPos p : neighbours) {
+            NEIGHBOURS.put(p, new Object[]{level.getBlockState(p), now});
+        }
     }
 
     /** A block the server changed (client thread, after the change; from MiningBlockUpdateMixin). */

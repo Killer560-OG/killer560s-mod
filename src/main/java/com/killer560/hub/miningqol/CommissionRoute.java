@@ -53,6 +53,9 @@ public final class CommissionRoute {
     private static int sinceCompute = 0;
     private static int frames = 0;
     private static int computes = 0;
+    private static volatile Vec3 lastOrigin = null;
+    private static volatile double[] lastPatch = null;
+    private static int patches = 0;
 
     private static final BoxBatch FILLS = new BoxBatch();
     private static final BoxBatch LINES = new BoxBatch();
@@ -273,7 +276,7 @@ public final class CommissionRoute {
                 continue;
             }
             // Warp edges: candidates that get closer to the goal, best first.
-            double range = ether ? ETHERWARP_RANGE : AOTE_RANGE;
+            double range = ether ? ETHERWARP_RANGE : AOTE_RANGE + 2.0;
             double minGain = ether ? 8.0 : 1.5;
             List<Integer> cand = new ArrayList<>();
             for (int j = 0; j < n; j++) {
@@ -287,7 +290,7 @@ public final class CommissionRoute {
                 cand.add(j);
             }
             cand.sort((x, y) -> Double.compare(h[x], h[y]));
-            int limit = u == me ? 40 : (ether ? 10 : 24);
+            int limit = u == me ? 40 : (ether ? 10 : 40);
             int tried = 0;
             for (int j : cand) {
                 if (tried >= limit || tests >= MAX_RAYCAST_TESTS) {
@@ -309,14 +312,27 @@ public final class CommissionRoute {
                     s.relax(u, j, ETHER_COST, true, ground,
                             new Vec3(ground.getX() + 0.5, ground.getY() + 1.0, ground.getZ() + 0.5));
                 } else {
+                    // AOTE always travels its full range along the look unless a block stops it, so the edge goes to
+                    // the graph node nearest where aiming at node j LANDS, not to j itself.
                     Vec3 eye = stand.add(0, 1.62, 0);
                     TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, f.add(0, 1.62, 0));
                     TeleportUtils.RaycastResult res = TeleportUtils.getTeleportPos(eye, r.yaw(), r.pitch(), AOTE_RANGE);
                     Vec3 land = res.succeeded() && res.pos() != null ? settle(res.pos()) : null;
-                    if (land == null || land.distanceTo(f) > 1.6) {
+                    if (land == null) {
                         continue;
                     }
-                    s.relax(u, j, AOTE_COST, true, BlockPos.containing(land.x, land.y - 0.5, land.z), land);
+                    int k = -1;
+                    double kd = 2.0;
+                    for (int m = 0; m < n; m++) {
+                        double d = feetOf(g.nodes[m]).distanceTo(land);
+                        if (d <= kd && m != u && !s.done[m] && h[m] <= h[u] - minGain) {
+                            kd = d;
+                            k = m;
+                        }
+                    }
+                    if (k >= 0) {
+                        s.relax(u, k, AOTE_COST, true, BlockPos.containing(land.x, land.y - 0.5, land.z), land);
+                    }
                 }
             }
         }
@@ -380,6 +396,7 @@ public final class CommissionRoute {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         float[] k = WorldRenderUtils.argbToFloats(cfg.getCommissionRouteColor());
         Vec3 me = WorldRenderUtils.tracerOrigin(context);
+        lastOrigin = me;
         Vec3[] line = new Vec3[pts.length + 1];
         line[0] = me;
         System.arraycopy(pts, 0, line, 1, pts.length);
@@ -396,6 +413,8 @@ public final class CommissionRoute {
                 FILLS.add(p.getX() - 1, top, p.getZ() - 1, p.getX() + 2, top + 0.03, p.getZ() + 2, k[0], k[1], k[2], 0.3f);
                 LINES.add(p.getX() - 1, top, p.getZ() - 1, p.getX() + 2, top + 0.03, p.getZ() + 2, k[0], k[1], k[2], 0.8f);
                 LINES.add(p.getX(), top, p.getZ(), p.getX() + 1, top + 0.03, p.getZ() + 1, k[0], k[1], k[2], 1f);
+                lastPatch = new double[]{p.getX() - 1, top, p.getZ() - 1, p.getX() + 2, p.getZ() + 2};
+                patches++;
             }
             FILLS.drawFilled(context, RenderTypes.debugFilledBox());
             LINES.drawOutlines(context, RenderTypes.LINES_TRANSLUCENT, 2f);
@@ -445,6 +464,21 @@ public final class CommissionRoute {
 
     public static String currentTargetArea() {
         return targetArea;
+    }
+
+    /** Where the last drawn line started: the crosshair end of the camera's look (testkit). */
+    public static double[] lastOrigin() {
+        Vec3 o = lastOrigin;
+        return o == null ? null : new double[]{o.x, o.y, o.z};
+    }
+
+    /** The last 3x3 landing patch drawn: minX, topY, minZ, maxX, maxZ (testkit). */
+    public static double[] lastPatch() {
+        return lastPatch;
+    }
+
+    public static int patches() {
+        return patches;
     }
 
     public static int frames() {
