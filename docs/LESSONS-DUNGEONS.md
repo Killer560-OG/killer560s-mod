@@ -199,6 +199,9 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   Never Miss's landing-spot wait.
 - A name tag near a mob is not its name for an exclusion: an orbiting Watchful Eye's tag inside a blood mob's box excluded
   that blood mob as an "Eye". Eyes are matched by their own custom name or the stand one id above, never for a player.
+- **Ten client ticks are not ten server ticks.** Testkit 186 on the run-3 jar: the Trigger Bot clicked exactly 10 client
+  ticks apart, but after a client stall those 10 ran in 400 ms and the server saw 8- and 9-tick gaps (3 of 5 runs). The
+  attack cap now also holds on `PerTickServerClock` when it is trusted at both clicks; the stall's cause was not found.
 
 ## Terminals and solvers
 
