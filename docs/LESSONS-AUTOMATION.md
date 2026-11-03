@@ -736,3 +736,16 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   send through `MultiPlayerGameMode.startPrediction` directly), so a gate added to `ActionGate.tryActInternal` misses them:
   the Emergency Cancel hold and Streamer Mode's Disable cheats did until zpew2-1101. Any new ActionGate-wide refusal also
   goes in `ZeroPingEtherwarp.held` (testkit 1102-zpew-ecancel).
+- **Blood Camp: a mob near two landing spots belongs to the trip whose timer ran out first** (owner 2026-11-03, "killed before
+  the kill timer went off"). Two skulls landed 0.75 blocks apart; the first's stand went (-1.2 left) and its mob appeared, and the
+  second trip (4.8 left) accepted it through `nearestMob` and `tagLanding` (radius 2, no ownership), so the click was logged
+  at 4.8 ticks and attributed to the wrong stand. `owedElsewhere` now refuses a mob to a trip when another trip took it
+  (`CLAIMS`, kept after the trip leaves `LANDED`: a tagged trip is dropped the same tick) or is unclaimed and more due.
+  The mob then goes through the next-mob pass. Testkit 1103-bloodcamp-overlap-trips. A claim that lives only in `LANDED` is gone
+  the tick it is made: the first version of the fix passed review and failed that case for exactly this.
+- **The Watcher holds a shot only inside a projectile's margin** (owner's last mob 2026-11-03: held 10 ticks, first swing at
+  6.8 blocks hit=false). `lineOfFireClear` used the 0.6 margin for the Watcher as for anything else; his zombie box grown by
+  `WATCHER_LINE_MARGIN` 0.3 (a vanilla arrow's) is what a shot can meet. A melee attack goes by entity id, so only
+  beam/arrow clicks (a swing without a melee target, a shortbow) are affected. The hit=false first click was a swing with no
+  melee target at 6.8 blocks (a beam), not a melee miss; the log cannot show where the beam went. Testkit
+  1103-bloodcamp-watcher-line (a decoy husk stands in for the Watcher; the test Watcher is a stand, which never blocks).

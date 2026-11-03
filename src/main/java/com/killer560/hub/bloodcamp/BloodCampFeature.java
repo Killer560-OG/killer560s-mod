@@ -123,6 +123,8 @@ public final class BloodCampFeature {
     private static final double TRIGGER_AIM_CONE_DEGREES = 5.0;
     /** How far from a predicted spawn a real entity may be and still count as "the mob that spawned there". */
     private static final double TARGET_SEARCH_RADIUS = 2.0;
+    /** How far past the Watcher's box a shot's line still counts as meeting him ({@link #lineOfFireClear}). */
+    static final double WATCHER_LINE_MARGIN = 0.3;
     /** The Trigger Bot only fires inside this many ticks past its due moment; after that the prediction is
      *  stale and a click would just be a random swing at whatever is still standing there. */
     private static final double TRIGGER_WINDOW_TICKS = 20.0;
@@ -663,6 +665,7 @@ public final class BloodCampFeature {
             FLOOR_CLICKS.clear();
             bloodMobs.clear();
             LANDED.clear();
+            CLAIMS.clear();
             lastWatcherPos = null;
             UNKNOWN_SKULLS_LOGGED.clear();
             COMPANIONS_LOGGED.clear();
@@ -688,6 +691,7 @@ public final class BloodCampFeature {
                 LOGGER.info("[BloodCamp] inactive: dropped tracked={} watcher={}", bloodMobs.size(), watcherEntityId);
                 bloodMobs.clear();
                 LANDED.clear();
+                CLAIMS.clear();
                 watcherEntityId = null;
             }
             if (AIM.isTurning() || AIM.ownsCamera()) {
@@ -1596,9 +1600,13 @@ public final class BloodCampFeature {
             if (watcherEntityId != null && c.getId() == watcherEntityId) {
                 continue;
             }
+            if (owedElsewhere(c, data.endVector, now)) {
+                continue;
+            }
             if (BLOOD_IDS.contains(c.getId())) {
                 if (taggedAt(c.getId()) >= since) {
                     data.mobId = c.getId();
+                    noteClaim(data);
                     return true;
                 }
                 continue;
@@ -1613,6 +1621,7 @@ public final class BloodCampFeature {
             return false;
         }
         data.mobId = best.getId();
+        noteClaim(data);
         if (addBloodId(best.getId(), now)) {
             LOGGER.info("[BloodCamp] blood mob tagged by trip landing{}: {} stand #{} offSpot={} tick={}",
                     landed ? " (stand already removed)" : "", describe(client, best), standId,
@@ -1670,12 +1679,16 @@ public final class BloodCampFeature {
             if (e == target) {
                 continue;
             }
-            if (!e.getBoundingBox().inflate(0.6).clip(eye, end).isPresent() && !e.getBoundingBox().inflate(0.6).contains(eye)) {
+            // The Watcher's margin is a projectile's own (a vanilla arrow collides with a box grown by 0.3), not the 0.6 kept
+            // for every other thing in the room: owner's last mob 2026-11-03 (player #1135264 at 7.8 blocks) was held for 10
+            // ticks by the Watcher standing near the line, then swung at 6.8 blocks and missed (hit=false).
+            double margin = watcherEntityId != null && e.getId() == watcherEntityId ? WATCHER_LINE_MARGIN : 0.6;
+            if (!e.getBoundingBox().inflate(margin).clip(eye, end).isPresent() && !e.getBoundingBox().inflate(margin).contains(eye)) {
                 continue;
             }
             if (watcherEntityId != null && e.getId() == watcherEntityId && targetFar >= 0.0) {
-                double watcherNear = e.getBoundingBox().inflate(0.6).contains(eye) ? 0.0
-                        : e.getBoundingBox().inflate(0.6).clip(eye, end).map(h -> h.distanceTo(eye)).orElse(0.0);
+                double watcherNear = e.getBoundingBox().inflate(margin).contains(eye) ? 0.0
+                        : e.getBoundingBox().inflate(margin).clip(eye, end).map(h -> h.distanceTo(eye)).orElse(0.0);
                 if (watcherNear > targetFar) {
                     continue; // behind the target
                 }
@@ -1891,7 +1904,8 @@ public final class BloodCampFeature {
             for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
                 BloodMobState data = entry.getValue();
                 if (liveTrip(entry.getKey(), data, now)
-                        && mob.position().distanceTo(data.endVector) <= TARGET_SEARCH_RADIUS) {
+                        && mob.position().distanceTo(data.endVector) <= TARGET_SEARCH_RADIUS
+                        && !owedElsewhere(mob, data.endVector, now)) {
                     onTrip = true;
                     break;
                 }
@@ -2171,12 +2185,78 @@ public final class BloodCampFeature {
         return new int[]{alive, flying};
     }
 
+    /**
+     * Whether {@code mob} belongs to ANOTHER trip than the one whose landing spot is {@code end} (compared by reference):
+     * a trip within {@link #TARGET_SEARCH_RADIUS} of it that already took it, or one that has no mob yet and is more due
+     * (less time left). Owner's camp 2026-11-03: two skulls landed 0.75 blocks apart; the first one's stand was removed
+     * (-1.2 ticks left, its mob just spawned) and the second (4.8 ticks left) took that mob as its own, so the Trigger
+     * Bot "clicked at 4.8 ticks" - the kill was right, the attribution and the log said early, and the second trip was
+     * left marked clicked. A mob belongs to the trip whose timer ran out first; the other waits for its own.
+     */
+    private static boolean owedElsewhere(Entity mob, Vec3 end, long now) {
+        Vec3 claimed = CLAIMS.get(mob.getId());
+        if (claimed != null && claimed != end) {
+            return true; // a trip took it, and that trip may already be finished and dropped from LANDED
+        }
+        double mine = Double.MAX_VALUE;
+        for (BloodMobState s : bloodMobs.values()) {
+            if (s.endVector == end) {
+                mine = remainingTicks(s, now);
+                break;
+            }
+        }
+        if (mine == Double.MAX_VALUE) {
+            for (Landed l : LANDED.values()) {
+                if (l.data().endVector == end) {
+                    mine = remainingTicks(l.data(), now);
+                    break;
+                }
+            }
+        }
+        for (BloodMobState s : bloodMobs.values()) {
+            if (claimedByOther(s, mob, end, mine, now)) {
+                return true;
+            }
+        }
+        for (Landed l : LANDED.values()) {
+            if (claimedByOther(l.data(), mob, end, mine, now)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Mob id to the landing spot (by reference) of the trip that took it; a finished trip leaves {@link #LANDED} at once. */
+    private static final Map<Integer, Vec3> CLAIMS = new HashMap<>();
+
+    private static void noteClaim(BloodMobState data) {
+        if (CLAIMS.size() > 256) {
+            CLAIMS.clear();
+        }
+        CLAIMS.put(data.mobId, data.endVector);
+    }
+
+    private static boolean claimedByOther(BloodMobState s, Entity mob, Vec3 end, double mine, long now) {
+        if (s.endVector == null || s.endVector == end || mob.position().distanceTo(s.endVector) > TARGET_SEARCH_RADIUS) {
+            return false;
+        }
+        if (s.mobId >= 0 && BLOOD_IDS.contains(s.mobId)) {
+            return s.mobId == mob.getId();
+        }
+        double theirs = remainingTicks(s, now);
+        return theirs > -RETRY_STALE_TICKS && theirs < mine;
+    }
+
     /** The real mob standing on a landing spot (nearest to it), or null when only the stand is there. */
     private static Entity nearestMob(Minecraft client, Vec3 end) {
         AABB search = new AABB(end, end).inflate(TARGET_SEARCH_RADIUS);
         Entity best = null;
         double bestD = Double.MAX_VALUE;
+        long now = client.level.getGameTime();
         for (Entity candidate : client.level.getEntities(client.player, search, BloodCampFeature::isBloodMob)) {
+            if (owedElsewhere(candidate, end, now)) {
+                continue;
+            }
             double d = candidate.position().distanceToSqr(end);
             if (d < bestD) {
                 bestD = d;
