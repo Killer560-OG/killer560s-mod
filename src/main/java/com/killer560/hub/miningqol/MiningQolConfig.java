@@ -83,6 +83,8 @@ public final class MiningQolConfig {
     private boolean raffle = false;
     private int raffleColor = DEFAULT_RAFFLE_COLOR;
     private boolean raffleEsp = false;
+    // Resume Held Break After Menus (killer560 2026-11-03: a server menu opening mid-dig let go of his held left click)
+    private boolean resumeHeldBreak = true;
 
     private MiningQolConfig() {
     }
@@ -129,6 +131,7 @@ public final class MiningQolConfig {
                 cfg.raffle = ConfigJson.getBool(o, "raffle", cfg.raffle);
                 cfg.raffleColor = intOr(o, "raffleColor", cfg.raffleColor);
                 cfg.raffleEsp = ConfigJson.getBool(o, "raffleEsp", cfg.raffleEsp);
+                cfg.resumeHeldBreak = ConfigJson.getBool(o, "resumeHeldBreak", cfg.resumeHeldBreak);
             } catch (Exception e) {
                 cfg = new MiningQolConfig();
             }
@@ -172,11 +175,25 @@ public final class MiningQolConfig {
             o.addProperty("raffle", raffle);
             o.addProperty("raffleColor", raffleColor);
             o.addProperty("raffleEsp", raffleEsp);
+            o.addProperty("resumeHeldBreak", resumeHeldBreak);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
             // a failed save keeps the in-memory values
         }
         MithrilStone.settingsChanged();
+    }
+
+    // ---- Resume Held Break After Menus
+    public boolean isResumeHeldBreak() {
+        return resumeHeldBreak && sb();
+    }
+
+    public boolean isResumeHeldBreakRaw() {
+        return resumeHeldBreak;
+    }
+
+    public void setResumeHeldBreak(boolean v) {
+        resumeHeldBreak = v;
     }
 
     private static boolean sb() {

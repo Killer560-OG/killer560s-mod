@@ -91,6 +91,7 @@ final class SettingTooltipsData {
         d.put("ability ready alert/ready sound", "Plays a ding with the popup.");
         d.put("carpet highlighter", "In the Dwarven Mines, fills the unbreakable carpets in ore veins so you stop swinging at them.");
         d.put("carpet highlighter/carpet color", "The color the carpets are filled with.");
+        d.put("resume held break after menus", "On a mining island, when a menu closes while you are still holding left click, you go on breaking without pressing it again.");
         d.put("mithril as stone", "In the Dwarven Mines, draws mithril as stone unless a commission wants mithril or titanium in the area you are in.");
         d.put("titanium highlight", "Outlines Titanium (polished diorite) in the Dwarven Mines.");
         d.put("titanium highlight/show", "Always: every titanium block. Commission Area: only while a commission wants titanium where you are.");

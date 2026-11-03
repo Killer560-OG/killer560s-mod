@@ -6,6 +6,8 @@
 	"client": [
 		"CommissionMenuSlotMixin",
 		"MiningBlockUpdateMixin",
+		"MiningSendTapMixin",
+		"MiningTitleTapMixin",
 		"MithrilStoneSectionMixin"
 	],
 	"injectors": {
