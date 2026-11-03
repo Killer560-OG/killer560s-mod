@@ -487,8 +487,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             if (stack.isEmpty()) {
                 continue;
             }
-            graphics.item(stack, p[0] + 3, p[1] + 3);
-            graphics.itemDecorations(this.font, stack, p[0] + 3, p[1] + 3);
+            com.killer560.hub.gui.ItemCell.draw(graphics, this.font, stack, p[0] + 1, p[1] + 1, SLOT - 2); // fitted, rarity box behind
             if (ArmourDye.entryFor(stack) != null) {
                 graphics.fill(p[0] + SLOT - 4, p[1] + 1, p[0] + SLOT - 1, p[1] + 4, MenuStyle.OR); // has a look
             }

@@ -135,6 +135,77 @@ public final class ItemRarityFeature {
                 : com.killer560.hub.inventorytheme.InventoryThemeFeature.fillSlotInner(graphics, x, y, color, ring);
     }
 
+    /**
+     * The same rarity box {@link #drawBackground} draws in a container slot, sized to a {@code size} x {@code size} cell
+     * of one of the mod's own item grids (Inventory Sorter, Custom Items, the AH / Bazaar / Storage reskins, the Item
+     * Browser; see {@code gui/ItemCell}). Same switch, Skyblock Only gate, color, opacity, style and outline width; nothing
+     * when the feature is off or the item has no rarity. The Inventory Theme's frame is not involved: these grids draw
+     * their own cells.
+     */
+    public static void drawBox(GuiGraphicsExtractor graphics, ItemStack stack, int x, int y, int size) {
+        drawColorBox(graphics, boxColor(stack), x, y, size);
+    }
+
+    /** As {@link #drawBox(GuiGraphicsExtractor, ItemStack, int, int, int)} for a rarity known without an item (a Pet
+     *  Wheel card: its icon is a bare head, the tier comes from the pet's own data, which only Skyblock has). */
+    public static void drawBox(GuiGraphicsExtractor graphics, ItemRarity rarity, int x, int y, int size) {
+        drawColorBox(graphics, boxColor(rarity), x, y, size);
+    }
+
+    private static void drawColorBox(GuiGraphicsExtractor graphics, int color, int x, int y, int size) {
+        if (color == 0 || size <= 0) {
+            return;
+        }
+        ItemRarityConfig cfg = ItemRarityConfig.getInstance();
+        switch (cfg.getStyle()) {
+            case OUTLINE -> {
+                int w = Math.min(cfg.getOutlineWidth(), size / 2);
+                com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
+                for (int i = 0; i < w; i++) {
+                    rects.outline(x + i, y + i, size - 2 * i, size - 2 * i, color);
+                }
+                rects.submit();
+            }
+            case CIRCLE -> {
+                com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
+                for (int[] run : size == 16 ? CIRCLE_RUNS : SIZED_CIRCLE_RUNS.computeIfAbsent(size,
+                        ItemRarityFeature::buildCircleRuns)) {
+                    rects.fill(x + run[2], y + run[0], x + size - run[2], y + run[0] + run[1], color);
+                }
+                rects.submit();
+            }
+            default -> graphics.fill(x, y, x + size, y + size, color);
+        }
+    }
+
+    /** Circle runs for cells other than 16 (render thread only). */
+    private static final Map<Integer, int[][]> SIZED_CIRCLE_RUNS = new java.util.HashMap<>();
+
+    /** The ARGB a rarity box for {@code stack} is drawn in right now, or 0 when none is drawn (feature off, no rarity,
+     *  0% opacity or the Skyblock Only gate). Public for tests. */
+    public static int boxColor(ItemStack stack) {
+        ItemRarityConfig cfg = ItemRarityConfig.getInstance();
+        if (!cfg.isEnabled() || stack == null || stack.isEmpty()) {
+            return 0;
+        }
+        CacheEntry entry = lookup(stack);
+        if (entry.rarity == null || (cfg.isSkyblockOnly() && !entry.hasSkyblockId && !isOnSkyblockServer())) {
+            return 0;
+        }
+        int alpha = Math.round(cfg.getOpacity() * 2.55f);
+        return alpha == 0 ? 0 : (alpha << 24) | entry.rarity.rgb;
+    }
+
+    /** The ARGB a rarity box for {@code rarity} is drawn in right now, or 0 (feature off, no rarity, 0% opacity). */
+    public static int boxColor(ItemRarity rarity) {
+        ItemRarityConfig cfg = ItemRarityConfig.getInstance();
+        if (!cfg.isEnabled() || rarity == null) {
+            return 0;
+        }
+        int alpha = Math.round(cfg.getOpacity() * 2.55f);
+        return alpha == 0 ? 0 : (alpha << 24) | rarity.rgb;
+    }
+
     private static boolean isOnSkyblockServer() {
         ServerData server = Minecraft.getInstance().getCurrentServer();
         if (server == null) {
@@ -151,12 +222,17 @@ public final class ItemRarityFeature {
     }
 
     private static int[][] buildCircleRuns() {
+        return buildCircleRuns(16);
+    }
+
+    private static int[][] buildCircleRuns(int size) {
         List<int[]> runs = new ArrayList<>();
         int prevInset = -1;
-        for (int row = 0; row < 16; row++) {
-            double dy = row + 0.5 - 8.0;
-            double half = Math.sqrt(Math.max(0.0, 64.0 - dy * dy));
-            int inset = (int) Math.round(8.0 - half);
+        double r = size / 2.0;
+        for (int row = 0; row < size; row++) {
+            double dy = row + 0.5 - r;
+            double half = Math.sqrt(Math.max(0.0, r * r - dy * dy));
+            int inset = (int) Math.round(r - half);
             if (inset == prevInset) {
                 runs.get(runs.size() - 1)[1]++;
             } else {

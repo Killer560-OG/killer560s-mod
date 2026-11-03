@@ -693,8 +693,7 @@ public final class AhReskin {
             boolean hover = ui.in(sx, sy, cell, cell);
             ui.g.fill(sx, sy, sx + cell - 1, sy + cell - 1, hover ? ui.t.cardHover() : ui.t.card());
             if (!stack.isEmpty()) {
-                ui.g.item(stack, sx + 1, sy + 1);
-                ui.g.itemDecorations(ui.font, stack, sx + 1, sy + 1);
+                com.killer560.hub.gui.ItemCell.draw(ui.g, ui.font, stack, sx + 1, sy + 1, 16); // with its rarity box
                 ui.addHotspot(new AhUi.Hotspot(sx, sy, cell - 1, cell - 1, slot, stack.copy(), null,
                         stack.getHoverName().getString()));
                 ui.hotspot(String.valueOf(slot), sx, sy, cell - 1, cell - 1, stack.getHoverName().getString());

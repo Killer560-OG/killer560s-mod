@@ -479,3 +479,14 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   "rejected (part of a prince)". The renderer (no-depth types, cull off, drawn over terrain and mobs on 26.3) was fine in
   every valid view of testkit 98-prince-box. A lid touching a prince now widens the prince's box (`CryptScanner.scan`);
   the crown blocks still decide when it is opened. Check the logged box against the blocks before touching the pipeline.
+
+- **`graphics.item(stack, x + 1, y + 1)` is a vanilla 18-unit slot's draw; in a bigger cell it is a small icon in the
+  top-left corner.** The Inventory Sorter grew its cells to 26 units on 2026-11-01 and kept the 16-unit item at +1,+1, so
+  his items "dont fit" (2026-11-02). And the mod's own grids never pass the `extractSlot` mixin, so none of them drew the
+  Item Rarity box. Draw grid items through `gui/ItemCell.draw(g, font, stack, x, y, inside)`: rarity box sized to the cell
+  (`ItemRarityFeature.drawBox`, same settings), item centered at about 85% of the inside snapped to framebuffer pixels
+  (unscaled at 16), count and bar scaled with it. Testkit 588 measures it from pixels at four window/GUI sizes; 589 checks the rarity gold in every other grid.
+- **A grid whose stack is built for its look carries no lore, so `ItemRarityFeature.drawBox(g, stack, ...)` draws nothing
+  there.** The Pet Wheel icon is a bare head and the Item Browser shares one built stack per look (`SkyblockItemStackFactory`
+  BUILD_CACHE); the first invsortfit commit passed those stacks and neither grid ever showed a box. Pass the tier the data
+  already has: `drawBox(g, ItemRarity.byName(pet.tier() / entry.tier()), ...)` (invsortfit-1102).
