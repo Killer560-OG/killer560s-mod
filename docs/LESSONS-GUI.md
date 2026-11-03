@@ -495,3 +495,6 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   there.** The Pet Wheel icon is a bare head and the Item Browser shares one built stack per look (`SkyblockItemStackFactory`
   BUILD_CACHE); the first invsortfit commit passed those stacks and neither grid ever showed a box. Pass the tier the data
   already has: `drawBox(g, ItemRarity.byName(pet.tier() / entry.tier()), ...)` (invsortfit-1102).
+- A world fill whose face lies exactly on a block face z-fights with it, and which one wins flips as the camera moves:
+  "if i jump or crouch the highlight will phase through the block" (Carpet Highlighter, 2026-11-03). Push every face a
+  hair (0.002) outside the block it marks, as the titanium boxes already did (mining-1103).

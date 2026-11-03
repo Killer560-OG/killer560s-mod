@@ -32,7 +32,8 @@ public final class AttackHoldProbe {
     private static final long MIN_GAP_MS = 1000L;
 
     private static boolean wasDown = false;
-    private static long lastLogMs = 0L;
+    private static long lastScreenLogMs = 0L;
+    private static long lastReleaseLogMs = 0L;
     private static int screenLines = 0;
     private static int releaseLines = 0;
 
@@ -62,7 +63,7 @@ public final class AttackHoldProbe {
 
     private static void onScreen(Minecraft client, Screen screen) {
         // The physical button: Gui.setScreen has already released the key mapping by the time a screen initializes.
-        if (!watching(client) || !MouseButtons.isDown(0) || screen instanceof ChatScreen || !gap()) {
+        if (!watching(client) || !MouseButtons.isDown(0) || screen instanceof ChatScreen || !gap(true)) {
             return;
         }
         screenLines++;
@@ -88,7 +89,7 @@ public final class AttackHoldProbe {
             boolean active = client.isWindowActive();
             Screen screen = McCompat.screen(client);
             // A plain let-go of the button is the normal case and is not logged.
-            if ((buttonStillDown || !active || screen != null) && gap()) {
+            if ((buttonStillDown || !active || screen != null) && gap(false)) {
                 releaseLines++;
                 LOGGER.info("[AttackHold] left click let go without your release: button still down {}, window focused {},"
                                 + " screen {}, mouse grabbed {}", buttonStillDown, active,
@@ -98,12 +99,18 @@ public final class AttackHoldProbe {
         wasDown = down;
     }
 
-    private static boolean gap() {
+    /** One line of each kind a second at most. */
+    private static boolean gap(boolean screenLine) {
         long now = System.currentTimeMillis();
-        if (now - lastLogMs < MIN_GAP_MS) {
+        long last = screenLine ? lastScreenLogMs : lastReleaseLogMs;
+        if (now - last < MIN_GAP_MS) {
             return false;
         }
-        lastLogMs = now;
+        if (screenLine) {
+            lastScreenLogMs = now;
+        } else {
+            lastReleaseLogMs = now;
+        }
         return true;
     }
 
