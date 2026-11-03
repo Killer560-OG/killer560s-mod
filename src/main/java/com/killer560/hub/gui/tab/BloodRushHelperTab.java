@@ -44,7 +44,7 @@ public class BloodRushHelperTab extends BaseTab {
             requestRebuild.run();
         }).bounds(contentX, y, colW, 18).build());
         w.add(SettingsButtonWidget.cycling(roleText(cfg), (btn, dir) -> {
-            cfg.setRole(SettingsButtonWidget.step(cfg.getRole() - 1, dir, cfg.getKillers()) + 1);
+            cfg.setRole(SettingsButtonWidget.step(cfg.getRole(), dir, cfg.getKillers() + 1));
             cfg.save();
             btn.setMessage(roleText(cfg));
         }).bounds(colB, y, colW, 18).build());
@@ -53,6 +53,15 @@ public class BloodRushHelperTab extends BaseTab {
         w.add(onOffButton("Show Others' Spots", cfg::isShowOthers, cfg::setShowOthers, cfg::save, null,
                 contentX, y, colW, 18));
         w.add(onOffButton("All Rooms", cfg::isAllRooms, cfg::setAllRooms, cfg::save, null, colB, y, colW, 18));
+        y += 22;
+
+        w.add(SettingsButtonWidget.cycling(doorKillsText(cfg), (btn, dir) -> {
+            cfg.setDoorKills(SettingsButtonWidget.step(cfg.getDoorKills(), dir));
+            cfg.save();
+            btn.setMessage(doorKillsText(cfg));
+        }).bounds(contentX, y, colW, 18).build());
+        w.add(onOffButton("Drop Bottom After Fairy", cfg::isDropBottom, cfg::setDropBottom, cfg::save, null,
+                colB, y, colW, 18));
         y += 22;
 
         w.add(onOffButton("Learn Spawn Spots", cfg::isLearnSpots, cfg::setLearnSpots, cfg::save, null,
@@ -109,12 +118,16 @@ public class BloodRushHelperTab extends BaseTab {
         }).bounds(x, y, width, 18).build();
     }
 
+    private static Component doorKillsText(BloodRushConfig cfg) {
+        return Component.literal("Door Kills: §6" + cfg.getDoorKills().label);
+    }
+
     private static Component killersText(BloodRushConfig cfg) {
         int k = cfg.getKillers();
         return Component.literal("Killers: §6" + (k == 1 ? "Just Me" : k));
     }
 
     private static Component roleText(BloodRushConfig cfg) {
-        return Component.literal("My Role: §6" + cfg.getRole() + " of " + cfg.getKillers());
+        return Component.literal("My Role: §6" + (cfg.getRole() == 0 ? "Door" : cfg.getRole() + " of " + cfg.getKillers()));
     }
 }

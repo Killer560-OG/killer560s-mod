@@ -43,6 +43,19 @@ public final class BloodRushConfig {
     private int fillOpacity = 12;
     private boolean throughWalls = false;
     private boolean wholePath = false;
+    private DoorKills doorKills = DoorKills.NEVER;
+    private boolean dropBottom = false;
+
+    /** adm's Door Kills: when the door runner kills too (one more role, the last). */
+    public enum DoorKills {
+        NEVER("Never"), ALWAYS("Always"), AFTER_FAIRY("After Fairy");
+
+        public final String label;
+
+        DoorKills(String label) {
+            this.label = label;
+        }
+    }
 
     private BloodRushConfig() {
     }
@@ -72,6 +85,8 @@ public final class BloodRushConfig {
                 c.setFillOpacity(ConfigJson.getInt(o, "fillOpacity", 12));
                 c.throughWalls = ConfigJson.getBool(o, "throughWalls", false);
                 c.wholePath = ConfigJson.getBool(o, "wholePath", false);
+                c.doorKills = ConfigJson.getEnum(o, "doorKills", DoorKills.class, DoorKills.NEVER);
+                c.dropBottom = ConfigJson.getBool(o, "dropBottom", false);
             } catch (Exception ignored) {
                 // unreadable file - defaults
             }
@@ -97,6 +112,8 @@ public final class BloodRushConfig {
             o.addProperty("fillOpacity", fillOpacity);
             o.addProperty("throughWalls", throughWalls);
             o.addProperty("wholePath", wholePath);
+            o.addProperty("doorKills", doorKills.name());
+            o.addProperty("dropBottom", dropBottom);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -121,7 +138,7 @@ public final class BloodRushConfig {
 
     public void setKillers(int v) {
         killers = Math.max(1, Math.min(MAX_KILLERS, v));
-        role = Math.max(1, Math.min(killers, role));
+        role = Math.max(0, Math.min(killers, role));
     }
 
     public int getRole() {
@@ -129,7 +146,7 @@ public final class BloodRushConfig {
     }
 
     public void setRole(int v) {
-        role = Math.max(1, Math.min(killers, v));
+        role = Math.max(0, Math.min(killers, v));
     }
 
     public boolean isShowOthers() {
@@ -194,6 +211,23 @@ public final class BloodRushConfig {
 
     public void setFillOpacity(int v) {
         fillOpacity = Math.max(MIN_FILL, Math.min(MAX_FILL, v));
+    }
+
+    public DoorKills getDoorKills() {
+        return doorKills;
+    }
+
+    public void setDoorKills(DoorKills v) {
+        doorKills = v == null ? DoorKills.NEVER : v;
+    }
+
+    /** With Door Kills After Fairy: the highest numbered killer leaves the rush at fairy to clear. */
+    public boolean isDropBottom() {
+        return dropBottom;
+    }
+
+    public void setDropBottom(boolean v) {
+        dropBottom = v;
     }
 
     /** Cheat build only: boxes and numbers through walls. */
