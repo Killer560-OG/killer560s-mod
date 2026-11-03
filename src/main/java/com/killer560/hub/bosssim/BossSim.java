@@ -61,15 +61,29 @@ public final class BossSim {
             if (level.isClientSide() || !(player instanceof ServerPlayer sp) || !serverOk(sp)) {
                 return InteractionResult.PASS;
             }
+            if (hand == InteractionHand.MAIN_HAND && BossFight.useEntity(sp, entity)) {
+                return InteractionResult.SUCCESS;
+            }
             BossStations.Station term = BossStations.terminalOf(entity);
             if (term == null && entity instanceof net.minecraft.world.entity.decoration.ArmorStand) {
                 LOGGER.info("[BossSim] a stand that is no terminal's was clicked at {}", entity.position());
             }
             if (term != null) {
+                boolean done = BossStations.isDone(term);
+                boolean live = term.section() == BossFight.section();
                 LOGGER.info("[BossSim] S{} {} clicked ({}, {})", term.section(), term.label(), hand,
-                        BossStations.isDone(term) ? "already done" : "opening");
-                if (hand == InteractionHand.MAIN_HAND && !BossStations.isDone(term)) {
-                    BossTerminals.open(sp, term);
+                        done ? "already done" : live ? "opening" : "not this section");
+                if (hand == InteractionHand.MAIN_HAND) {
+                    // Hypixel answers a stand click one tick later: the window, or one of its two refusals.
+                    BossFight.later(1, "terminal open", () -> {
+                        if (done) {
+                            sp.sendSystemMessage(BossChat.legacy("§cThis Terminal has already been completed!"));
+                        } else if (!live) {
+                            sp.sendSystemMessage(BossChat.legacy("§cThis Terminal doesn't seem to be responsive at the moment."));
+                        } else if (!BossStations.isDone(term)) {
+                            BossTerminals.open(sp, term);
+                        }
+                    });
                 }
                 return InteractionResult.SUCCESS;
             }
@@ -98,8 +112,19 @@ public final class BossSim {
             }
             BossStations.Station lever = BossStations.leverAt(hit.getBlockPos());
             if (lever != null) {
-                if (BossFight.phase() == BossFight.Phase.P3 && !BossStations.isDone(lever)) {
-                    BossStations.complete((ServerLevel) level, lever, sp);
+                if (BossFight.phase() == BossFight.Phase.P3) {
+                    if (BossStations.isDone(lever)) {
+                        sp.sendSystemMessage(BossChat.legacy("§cSomeone has already activated this lever!"));
+                    } else if (lever.section() == BossFight.section()) {
+                        BossStations.complete((ServerLevel) level, lever, sp);
+                    } else {
+                        // Another section's lever just toggles, with no credit.
+                        net.minecraft.world.level.block.state.BlockState st = level.getBlockState(hit.getBlockPos());
+                        if (st.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.POWERED)) {
+                            level.setBlock(hit.getBlockPos(), st.cycle(
+                                    net.minecraft.world.level.block.state.properties.BlockStateProperties.POWERED), 3);
+                        }
+                    }
                 }
                 return InteractionResult.SUCCESS;
             }

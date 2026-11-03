@@ -187,14 +187,14 @@ public final class BossArena {
             for (int px : new int[]{52, 94}) {
                 box(out, px - 1, P1_FLOOR + 1, 40, px + 1, 223, 42, "minecraft:polished_andesite");
             }
-            // The laser's column under Maxor.
-            box(out, 73, P1_FLOOR + 1, 73, 73, P1_FLOOR + 1, 73, "minecraft:sea_lantern");
+            // The strip the beam crosses (ADM: rows at y 224, z 70..76): where a lure stands to bring Maxor into the beam.
+            box(out, 36, 224, 70, 110, 224, 76, "minecraft:light_gray_wool");
             // ---- P2, Storm (floor 168) -------------------------------------------------------------------------
             box(out, 20, P2_FLOOR, 5, 126, P2_FLOOR, 110, "minecraft:polished_andesite");
             walls(out, 19, P2_FLOOR, 4, 127, P2_FLOOR + 22, 111, "minecraft:stone_bricks");
             for (BossFight.Pillar p : BossFight.PILLARS) {
                 // A diorite pillar hangs over its 7x7 square; the crush drops it to the floor.
-                box(out, p.minX(), p.restBottom(), p.minZ(), p.minX() + 6, BossFight.PILLAR_TOP, p.minZ() + 6, "minecraft:diorite");
+                pillar(out, p, p.restBottom(), BossFight.PILLAR_TOP, "minecraft:polished_diorite");
                 if (p.pad() != null) {
                     int[] pad = p.pad();
                     box(out, pad[0], P2_FLOOR + 1, pad[1], pad[0] + 6, P2_FLOOR + 1, pad[1] + 6, p.padBlock());
@@ -229,10 +229,9 @@ public final class BossArena {
             box(out, 10, P4_FLOOR, 28, 100, P4_FLOOR, 132, "minecraft:lava");
             walls(out, 9, P4_FLOOR, 27, 101, 100, 133, "minecraft:obsidian");
             box(out, 44, P4_FLOOR, 66, 64, P4_FLOOR, 86, "minecraft:obsidian");          // the middle (54, 76)
-            for (int[] pl : BossFight.NECRON_PLATFORMS) {
-                box(out, pl[0] - 3, P4_FLOOR, pl[1] - 3, pl[0] + 3, P4_FLOOR, pl[1] + 3, "minecraft:obsidian");
-            }
-            box(out, 53, P4_FLOOR, 113, 55, P4_FLOOR, 115, "minecraft:obsidian");        // P4 platform (53..56, 113..116)
+            // The south platform, where the core's floor drops everyone (never broken).
+            int[] south = BossFight.NECRON_SOUTH;
+            box(out, south[0], P4_FLOOR, south[2], south[1], P4_FLOOR, south[3], "minecraft:obsidian");
             // ---- P5, the Wither King (floor 4) -----------------------------------------------------------------
             box(out, 4, P5_FLOOR, 28, 104, P5_FLOOR, 140, "minecraft:stone_bricks");
             walls(out, 3, P5_FLOOR, 27, 105, 44, 141, "minecraft:stone_bricks");
@@ -249,7 +248,14 @@ public final class BossArena {
                 "minecraft:polished_andesite");
         for (BossFight.Pillar p : BossFight.PILLARS) {
             box(out, p.minX(), P2_FLOOR + 1, p.minZ(), p.minX() + 6, p.restBottom() - 1, p.minZ() + 6, "minecraft:air");
-            box(out, p.minX(), p.restBottom(), p.minZ(), p.minX() + 6, BossFight.PILLAR_TOP, p.minZ() + 6, "minecraft:diorite");
+            pillar(out, p, p.restBottom(), BossFight.PILLAR_TOP, "minecraft:polished_diorite");
+        }
+        // Maxor's beam: the two blocks the pylons' opening clears, black glass above (ADM: 73, 221-224, 73).
+        box(out, 73, P1_FLOOR + 1, 73, 73, P1_FLOOR + 2, 73, "minecraft:polished_andesite");
+        box(out, 73, P1_FLOOR + 3, 73, 73, P1_FLOOR + 4, 73, "minecraft:black_stained_glass");
+        // Necron's side platforms (one goes to lava each fight), at ADM's extents.
+        for (int[] pl : BossFight.NECRON_PLATFORMS) {
+            box(out, pl[2], P4_FLOOR, pl[4], pl[3], P4_FLOOR, pl[5], "minecraft:obsidian");
         }
         for (int[] g : BossStations.GATES) {
             box(out, g[0], g[1], g[2], g[3], g[4], g[5], "minecraft:iron_block");
@@ -271,6 +277,17 @@ public final class BossArena {
         }
         BossDevices.resetBlocks(out);
         return out;
+    }
+
+    /** A Storm pillar's layers y1..y2 over its footprint (7x7 less its corners, as Hypixel's). */
+    private static void pillar(List<Fill> out, BossFight.Pillar p, int y1, int y2, String state) {
+        for (int dx = 0; dx <= 6; dx++) {
+            for (int dz = 0; dz <= 6; dz++) {
+                if (BossFight.inFootprint(dx, dz)) {
+                    box(out, p.minX() + dx, y1, p.minZ() + dz, p.minX() + dx, y2, p.minZ() + dz, state);
+                }
+            }
+        }
     }
 
     /**

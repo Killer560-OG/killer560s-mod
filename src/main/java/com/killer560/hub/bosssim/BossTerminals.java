@@ -66,6 +66,29 @@ public final class BossTerminals {
     private static final Random RNG = new Random();
     private static int opened;
     private static int solved;
+    /** A terminal keeps its type across reopens (every open still deals a fresh puzzle), as on Hypixel. */
+    private static final java.util.Map<BossStations.Station, Type> TYPES = new java.util.HashMap<>();
+
+    /** Forgets every terminal's type (a new fight). */
+    static void resetTypes() {
+        TYPES.clear();
+    }
+
+    /** Picks from {@code weights} (index = value - {@code first}). */
+    private static int weighted(int first, int... weights) {
+        int sum = 0;
+        for (int w : weights) {
+            sum += w;
+        }
+        int r = RNG.nextInt(sum);
+        for (int i = 0; i < weights.length; i++) {
+            r -= weights[i];
+            if (r < 0) {
+                return first + i;
+            }
+        }
+        return first + weights.length - 1;
+    }
 
     private BossTerminals() {
     }
@@ -96,6 +119,8 @@ public final class BossTerminals {
         int melodyLastStep;
         int melodyFrozen;
         int clicks;
+        int limited;
+        final java.util.ArrayDeque<Integer> clickTicks = new java.util.ArrayDeque<>();
 
         Term(Type type, BossStations.Station station, int rows, int[] grid, String title) {
             this.type = type;
@@ -197,7 +222,7 @@ public final class BossTerminals {
 
     /** A right-click on a terminal's stand: a fresh puzzle of a random type, as every open on Hypixel is. */
     static void open(ServerPlayer player, BossStations.Station station) {
-        Type type = Type.values()[RNG.nextInt(Type.values().length)];
+        Type type = TYPES.computeIfAbsent(station, k -> Type.values()[RNG.nextInt(Type.values().length)]);
         String forced = System.getProperty("killer560.bosssim.terminal");
         if (forced != null && !forced.isBlank()) {
             try {
@@ -224,7 +249,7 @@ public final class BossTerminals {
             case PANES -> {
                 t = new Term(type, station, 5, slots(11, 15, 20, 24, 29, 33), "Correct all the panes!");
                 fill(items, t.rows);
-                int on = RNG.nextInt(10);
+                int on = weighted(0, 8, 24, 36, 44, 40, 16, 5, 4, 3, 1);
                 List<Integer> idx = shuffled(t.grid.length);
                 for (int i = 0; i < t.grid.length; i++) {
                     items.set(t.grid[i], pane(idx.get(i) < on ? "lime" : "red", 1));
@@ -251,7 +276,7 @@ public final class BossTerminals {
                 }
                 Collections.shuffle(match, RNG);
                 Collections.shuffle(other, RNG);
-                int want = Math.max(1, Math.min(match.size(), 2 + RNG.nextInt(4)));
+                int want = Math.max(1, Math.min(match.size(), weighted(2, 1, 5, 14, 21, 32, 43, 27, 20, 16, 3, 4)));
                 List<String[]> chosen = new ArrayList<>(match.subList(0, want));
                 for (int i = 0; chosen.size() < t.grid.length; i++) {
                     chosen.add(other.get(i % other.size()));
@@ -266,15 +291,27 @@ public final class BossTerminals {
                 t = new Term(type, station, 6, slots(10, 16, 19, 25, 28, 34, 37, 43), "Select all the " + color[0] + " items!");
                 t.color = color;
                 fill(items, t.rows);
-                int want = 2 + RNG.nextInt(8);
-                List<Integer> idx = shuffled(t.grid.length);
+                List<String[]> families = new ArrayList<>(List.of(SELECT));
+                families.remove(color);
+                Collections.shuffle(families, RNG);
+                families = new ArrayList<>(families.subList(0, 4));
+                families.add(0, color);
+                List<Integer> counts = new ArrayList<>(List.of(6, 6, 6, 5, 5));
+                Collections.shuffle(counts, RNG);
+                List<String[]> deal = new ArrayList<>();
+                for (int f = 0; f < 5; f++) {
+                    for (int k = 0; k < counts.get(f); k++) {
+                        deal.add(families.get(f));
+                    }
+                }
+                Collections.shuffle(deal, RNG);
                 for (int i = 0; i < t.grid.length; i++) {
-                    String[] c = idx.get(i) < want ? color : otherColor(color);
+                    String[] c = deal.get(i);
                     items.set(t.grid[i], named(c[2], c[1]));
                 }
             }
             default -> {
-                t = new Term(type, station, 5, new int[]{16, 25, 34}, "Click the button on time!");
+                t = new Term(type, station, 6, new int[]{16, 25, 34}, "Click the button on time!");
                 for (int i = 0; i < t.rows * 9; i++) {
                     items.add(ItemStack.EMPTY);
                 }
@@ -397,6 +434,15 @@ public final class BossTerminals {
         if (slot < 0 || slot >= t.rows * 9) {
             return;
         }
+        int now = player.level().getServer().getTickCount();
+        while (!t.clickTicks.isEmpty() && now - t.clickTicks.peekFirst() >= 10) {
+            t.clickTicks.pollFirst();
+        }
+        if (t.clickTicks.size() >= 5) {
+            t.limited++;
+            return;
+        }
+        t.clickTicks.addLast(now);
         t.clicks++;
         ItemStack s = m.items.getItem(slot);
         String id = id(s);
@@ -467,8 +513,8 @@ public final class BossTerminals {
         }
         if (solved(m)) {
             solved++;
-            LOGGER.info("[BossSim] terminal S{} {} solved ({} after {} click(s))", t.station.section(), t.station.label(),
-                    t.type, t.clicks);
+            LOGGER.info("[BossSim] terminal S{} {} solved ({} after {} click(s), {} over the click limit)", t.station.section(),
+                    t.station.label(), t.type, t.clicks, t.limited);
             int id2 = m.containerId;
             ServerLevel level = (ServerLevel) player.level();
             level.getServer().execute(() -> {
