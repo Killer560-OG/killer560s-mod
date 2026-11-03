@@ -34,7 +34,7 @@ public class PriceTooltipTab extends BaseTab {
         widgets.add(onOffButton("Price Tooltip", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

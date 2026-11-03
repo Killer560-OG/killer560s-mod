@@ -34,7 +34,7 @@ public class SmoothTeleportTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

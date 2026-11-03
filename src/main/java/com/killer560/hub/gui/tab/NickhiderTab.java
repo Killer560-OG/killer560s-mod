@@ -31,7 +31,7 @@ public class NickhiderTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
-        if (!cfg.isRandomizeOthers()) {
+        if (!cfg.isRandomizeOthers() && !isSearchScan()) {
             return widgets;
         }
         // A style of Randomize Others, so it only shows while that is on (and pressing Randomize Others twice

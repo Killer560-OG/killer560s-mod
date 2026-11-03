@@ -29,7 +29,7 @@ public class RunStatsTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

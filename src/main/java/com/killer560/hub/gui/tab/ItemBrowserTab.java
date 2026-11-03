@@ -37,7 +37,7 @@ public class ItemBrowserTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
 

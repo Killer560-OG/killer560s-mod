@@ -32,7 +32,7 @@ public class ChunkCacheTab extends BaseTab {
         y += 24;
 
         // In-panel description moved into the "Chunk Cache" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

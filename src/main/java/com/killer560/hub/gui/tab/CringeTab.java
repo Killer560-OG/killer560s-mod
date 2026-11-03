@@ -32,7 +32,7 @@ public class CringeTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
 

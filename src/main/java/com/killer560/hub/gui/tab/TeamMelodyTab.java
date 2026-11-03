@@ -50,7 +50,7 @@ public class TeamMelodyTab extends BaseTab {
                 null, contentX, y, contentWidth, 18));
         y += 24;
 
-        if (!cfg.isHudEnabledRaw()) {
+        if (!cfg.isHudEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

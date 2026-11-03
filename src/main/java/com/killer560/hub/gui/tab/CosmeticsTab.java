@@ -444,6 +444,31 @@ public class CosmeticsTab extends BaseTab {
         return bottom;
     }
 
+    /** The menu search's scan: the embedded Name Changer and Held Item rows, never this tab's own build (it would fire a
+     *  live {@code GET /supporters/me}); its own rows are {@link #searchExtraTexts}. */
+    @Override
+    public List<AbstractWidget> searchScanWidgets() {
+        List<AbstractWidget> out = new ArrayList<>(nameChangerTab.searchScanWidgets());
+        out.addAll(heldItemTab.searchScanWidgets());
+        return out;
+    }
+
+    @Override
+    public List<String> searchExtraTexts() {
+        List<String> out = new ArrayList<>();
+        for (String l : SEARCHABLE_LABELS) {
+            StringBuilder sb = new StringBuilder();
+            for (String w : l.split(" ")) {
+                if (sb.length() > 0) {
+                    sb.append(' ');
+                }
+                sb.append(w.isEmpty() ? w : Character.toUpperCase(w.charAt(0)) + w.substring(1));
+            }
+            out.add(sb.toString());
+        }
+        return out;
+    }
+
     /** Overridden so the search box's per-keystroke label scan never fires a live {@code GET /supporters/me}. */
     @Override
     protected boolean widgetsMatchSearch(String query) {

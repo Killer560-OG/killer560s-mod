@@ -48,7 +48,7 @@ public class ObjectHiderTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += 24;
-        if (!cfg.isObjectHiderEnabled()) {
+        if (!cfg.isObjectHiderEnabled() && !isSearchScan()) {
             return widgets;
         }
 

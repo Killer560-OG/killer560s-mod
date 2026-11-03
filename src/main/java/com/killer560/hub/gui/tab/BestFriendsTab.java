@@ -32,7 +32,7 @@ public class BestFriendsTab extends BaseTab {
                 requestRebuild, contentX, y, 220, 20));
         y += 26;
 
-        if (!cfg.getEnabledRaw()) {
+        if (!cfg.getEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

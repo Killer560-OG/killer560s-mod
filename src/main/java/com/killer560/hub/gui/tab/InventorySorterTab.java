@@ -74,7 +74,7 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
         widgets.add(com.killer560.hub.gui.ScreenThemes.button("invsort", contentX, y, contentWidth, 18));

@@ -116,7 +116,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

@@ -40,7 +40,7 @@ public class AutoPuzzlesTab extends BaseTab {
         // its own toggle too - this one just cuts the whole section off at once.
         y = toggle(widgets, contentX, y, contentWidth, "Enable Auto Puzzles", cfg.getAutoPuzzlesMasterEnabledRaw(),
                 () -> cfg.setAutoPuzzlesMasterEnabled(!cfg.getAutoPuzzlesMasterEnabledRaw()), cfg, requestRebuild);
-        if (!cfg.getAutoPuzzlesMasterEnabledRaw()) {
+        if (!cfg.getAutoPuzzlesMasterEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

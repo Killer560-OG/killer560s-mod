@@ -41,7 +41,7 @@ public class AutoDialogueTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
-        if (!cfg.isAutoDialogueEnabledRaw()) {
+        if (!cfg.isAutoDialogueEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
 

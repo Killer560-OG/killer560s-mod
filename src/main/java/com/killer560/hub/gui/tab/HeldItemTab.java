@@ -40,7 +40,7 @@ public class HeldItemTab extends BaseTab {
                 }).bounds(contentX + contentWidth - editW, y, editW, 20).build());
         y += 26;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
         buildSettings(widgets, contentX, y, contentWidth, requestRebuild);
