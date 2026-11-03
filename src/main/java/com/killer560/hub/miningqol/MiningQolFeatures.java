@@ -47,7 +47,11 @@ public final class MiningQolFeatures {
             RaffleLog.tick(client);
             MithrilStone.tick(client);
         }));
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(context -> {
+        // COLLECT_SUBMITS, while the frame still gathers what to draw (as the Etherwarp Overlay since 2026-10-13). From
+        // AFTER_TRANSLUCENT_TERRAIN the boxes were drawn from a different frame's camera on some frames, so while he jumped or
+        // sneaked the carpet fill sank under the carpet's top (killer560, 2026-11-03: "moving around still messes up the
+        // carpet highlight"; testkit 1103-mining-carpet-stable: 11 of 24 frames on 26.3 before, see the report).
+        LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
             try {
                 MiningHighlights.render(context);
                 PickobulusEstimate.render(context);
