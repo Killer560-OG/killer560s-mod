@@ -110,6 +110,9 @@ final class SettingTooltipsData {
         d.put("commission hud/commission mobs", "Boxes the mobs that count for your open commissions (Goblin Slayer: goblins, Glacite Walker Slayer: Glacite Walkers, Star Sentry Puncher...), only while you can see them. No range: a mob once recognized stays highlighted while it is loaded, even after its name tag stops arriving.");
         d.put("commission hud/commission mob color", "The color of the Commission Mobs boxes.");
         d.put("commission hud/commission mob style", "How commission mobs are drawn: Outline, Fill, Fill + Outline or Glow. Left click forward, right click back.");
+        d.put("commission hud/commission route", "In the Dwarven Mines, draws a line along the island's paths from you to the area of your first open area commission. It disappears once you are in that area. Only draws; never moves you.");
+        d.put("commission hud/commission route color", "The color of the Commission Route line.");
+        d.put("commission hud/route mode", "Walk: the walking path. AOTE: the path as Aspect of the End teleports, each landing marked. Etherwarp: the path as etherwarps, each block to warp onto highlighted. Left click forward, right click back.");
         d.put("commission hud/commission mobs through walls", "Cheat build: boxes commission mobs through blocks too.");
         d.put("pickobulus estimate", "While you hold a Pickobulus tool and it is ready, outlines every block it would break where you aim.");
         d.put("pickobulus estimate/outline color", "The color of the outlines.");
