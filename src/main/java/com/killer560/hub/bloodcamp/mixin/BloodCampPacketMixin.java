@@ -7,6 +7,7 @@ import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
+import net.minecraft.world.entity.Entity;
 import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -95,6 +96,22 @@ public abstract class BloodCampPacketMixin {
             BloodCampFeature.onRemoveEntities(packet, ((ClientPacketListener) (Object) this).getLevel());
         } catch (RuntimeException e) {
             killer560smod$bloodCampHandlerThrew("removeEntities", e);
+        }
+    }
+
+    /** A death event (id 3) for a blood mob: a player-model NPC stays alive on the client after it (vanilla sets health 0
+     *  only for a non-Player), see {@code BloodCampFeature.DEAD_IDS}. Same hook point as the others; javap-checked on 26.3
+     *  and 26.2: handleEntityEvent starts with ensureRunningOnSameThread. */
+    @Inject(method = "handleEntityEvent", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER))
+    private void killer560smod$onEntityEvent(net.minecraft.network.protocol.game.ClientboundEntityEventPacket packet, CallbackInfo ci) {
+        try {
+            ClientPacketListener self = (ClientPacketListener) (Object) this;
+            Entity entity = packet.getEntity(self.getLevel());
+            if (entity != null) {
+                BloodCampFeature.onEntityEvent(entity.getId(), packet.getEventId(), self.getLevel());
+            }
+        } catch (RuntimeException e) {
+            killer560smod$bloodCampHandlerThrew("entityEvent", e);
         }
     }
 

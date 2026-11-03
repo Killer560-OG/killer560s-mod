@@ -2704,7 +2704,7 @@ final class SettingTooltipsData {
         d.put("blood camp/start sound type", "Which sound Countdown Start Sound plays. Left click cycles forward, right click back.");
         d.put("blood camp/kill sound type", "Which sound Kill Sound plays. Left click cycles forward, right click back.");
         d.put("blood camp/sound volume", "Volume of the Kill Sound, 0-1.");
-        d.put("blood camp/mobs left hud", "Blood Camp Stats HUD: blood mobs still alive plus those on their way; a + while the Watcher is still sending more.");
+        d.put("blood camp/mobs left hud", "Blood Camp Stats HUD: every blood mob the camp still needs, alive or not spawned yet, read off The Watcher's boss bar. Reads 1 only when one mob is left in the whole camp; ? when his bar is not in sight and more mobs are due.");
         d.put("blood camp/mob ticks hud", "Blood Camp Stats HUD: server ticks lost to slow kills - every tick from the kill timer to the first kill, then every tick a blood mob is alive on the floor.");
         d.put("blood camp/camp lag hud", "Blood Camp Stats HUD: how long the server lagged since the Watcher's greeting.");
         d.put("blood camp/party message", "After the run, sends the mob ticks lost to party chat if you camped the Blood Room.");
