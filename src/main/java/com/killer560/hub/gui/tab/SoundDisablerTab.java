@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * Misc's Sound Disabler (killer560, 2026-11-02: "add a sound disabler to hide stuff like bonzo staff sound effect"): the
- * master switch first, then one switch per {@link MutedSound} (Bonzo's Staff on, the rest off), a Custom Sound IDs box and
+ * master switch first, then one switch per {@link MutedSound} (all off by default), a Custom Sound IDs box and
  * Show Sound IDs, which names every sound in chat so an id can be found. Off by default. See
  * {@link com.killer560.hub.sounddisabler.SoundDisabler}.
  */

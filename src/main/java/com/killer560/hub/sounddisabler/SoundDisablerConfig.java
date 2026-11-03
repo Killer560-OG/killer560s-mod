@@ -17,8 +17,8 @@ import java.util.Locale;
 
 /**
  * The Sound Disabler tab's settings (2026-11-02): the master switch (off by default), one switch per {@link MutedSound}
- * (Bonzo's Staff on, the rest off), the free-form Custom Sound IDs list and Show Sound IDs. Stored as
- * {@code killer560smod-sound-disabler.json}: {@code {"enabled": false, "sounds": {"bonzo_staff": true, ...},
+ * (every row off; killer560 2026-11-02: "dont have it on by default"), the free-form Custom Sound IDs list and Show Sound IDs. Stored as
+ * {@code killer560smod-sound-disabler.json}: {@code {"enabled": false, "sounds": {"bonzo_staff": false, ...},
  * "custom": "entity.villager.*, minecraft:block.note_block.harp", "showIds": false}}.
  */
 public final class SoundDisablerConfig {

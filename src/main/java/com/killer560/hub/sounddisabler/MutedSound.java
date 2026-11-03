@@ -17,7 +17,7 @@ import net.minecraft.resources.Identifier;
  * Mute Phantom, plus the common dungeon complaints (explosions, bow spam, the F7 Withers, rain).
  */
 public enum MutedSound {
-    BONZO_STAFF("bonzo_staff", "Bonzo's Staff", true),
+    BONZO_STAFF("bonzo_staff", "Bonzo's Staff", false),
     EXPLOSIONS("explosions", "Explosions", false),
     BOW_SHOTS("bow_shots", "Bow Shots", false),
     ENDERMEN("endermen", "Endermen", false),
