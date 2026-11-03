@@ -416,6 +416,20 @@ project CLAUDE.md. Compiling lessons
   never highlighted). `IslandDetector` now takes the action bar's area while it is under 5 s old, else the sidebar's (which
   also accepts U+E067). Any feature that needs the player's area should read `IslandDetector.scoreboardArea()`, not the
   sidebar itself (mining-1103, testkit 1103-mining-area fails on main 2646b64cf).
+- A per-BLOCK mining decision needs the block's own area, not the player's (killer560, 2026-11-03: "i can stand in one zone
+  but the blocks are in another"). `miningqol/MinesAreaMap` gives it with no hand-made boxes: SkyHanni-REPO's
+  `constants/island_graphs/DWARVEN_MINES.json` (downloaded by `pathfinding/GraphRepository`, refreshed every 12 h, `/k560path
+  reload` forces it) has 264 `area`-tagged nodes (named "Upper Mines", "Rampart's Quarry", ..., or "no_area") sitting in
+  pairs on either side of each way between areas. A multi-source Dijkstra from them labels every node with the area it
+  reaches fastest (SkyHanni's own IslandAreaBackend rule); a block takes its nearest node's area within 24 blocks, cached
+  per chunk section. "no_area" and no node near mean unknown, and the player's area decides. Offline check of the real
+  file (killer560s-mod-logs/mithrilarea-data/label.py, 2026-11-03): all 3031 nodes labelled, Upper Mines' nodes span
+  x -155..-63, z -84..-4, Royal Mines x 89..182, Cliffside Veins y 103..153. A new SkyHanni file is picked up on its next
+  download with nothing to edit; to check one, rerun label.py on it. Testkit 1103-mining-block-area uses a test graph.
+- Mining block highlights follow the server's block updates (`miningqol/mixin/MiningBlockUpdateMixin`: handleBlockUpdate,
+  handleChunkBlocksUpdate, handleLevelChunkWithLight at RETURN) instead of the once-a-second scan, which stays as the
+  safety net: 0 ticks from the client seeing a titanium/bedrock/lantern change to the highlight (1103-mining-highlight-
+  latency; it was up to 20). A change of the rule (commissions, area, settings) rescans the same tick.
 - Hypixel's tab widgets (Pickaxe Ability) refresh slowly: a state read only from them lags its chat line by seconds.
   Pickobulus Estimate takes "You used your Pickobulus..."/"Your Pickobulus destroyed N blocks!"/"Pickobulus is now
   available!" first and falls back to the tab only when no line came recently (mining-1103, 1103-mining-pickobulus-chat).
