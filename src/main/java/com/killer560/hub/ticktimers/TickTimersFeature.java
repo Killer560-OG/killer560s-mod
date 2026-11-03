@@ -199,6 +199,8 @@ public final class TickTimersFeature {
         }
         wasInDungeon = inDungeon;
 
+        GoldorTick.endOfTick();
+        StormLine.endOfTick();
         TickTimersConfig cfg = TickTimersConfig.getInstance();
         if (cfg.isEnabled() && cfg.isGoldorTimer()) {
             GoldorTick.clientTick(Minecraft.getInstance());

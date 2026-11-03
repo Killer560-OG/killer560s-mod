@@ -37,6 +37,23 @@ public final class StormLine {
         phase = Phase.LIGHTNING;
         startTick = now;
         lightningAt = now + LIGHTNING_TICKS;
+        startReadAt = now;
+    }
+
+    /** As in {@link GoldorTick#endOfTick}: the opening line was read before the clock's end-of-tick step. */
+    private static long startReadAt = Long.MIN_VALUE;
+
+    /** End of every client tick: puts the opening line on the end-of-tick clock. */
+    public static void endOfTick() {
+        if (startReadAt != Long.MIN_VALUE) {
+            long shift = PerTickServerClock.now() - startReadAt;
+            if (shift < 0 || shift > 3) {
+                shift = 0; // not a same-tick read (see GoldorTick.endOfTick)
+            }
+            startTick += shift;
+            lightningAt += shift;
+            startReadAt = Long.MIN_VALUE;
+        }
     }
 
     /** Storm's Giga Lightning went off (his lightning line). */
@@ -55,6 +72,7 @@ public final class StormLine {
 
     static void stop() {
         phase = Phase.NONE;
+        startReadAt = Long.MIN_VALUE;
     }
 
     public static Phase phase() {

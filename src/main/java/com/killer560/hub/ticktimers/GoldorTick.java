@@ -63,10 +63,19 @@ public final class GoldorTick {
         return PerTickServerClock.now();
     }
 
+    /** Clock read when a chat line was handled this client tick (MIN = none): chat arrives while the client tick runs its
+     *  packets, before the clock's own end-of-tick step, while a health drop is seen at the end of the tick. Everything is
+     *  put on the end-of-tick reading ({@link #endOfTick}), or a line and a hit in the same server tick read one apart
+     *  (1102-hx-goldor-tick's first run: the first hit read 2). */
+    private static long startReadAt = Long.MIN_VALUE;
+    private static boolean procPending;
+
     /** Goldor's opening line: his first hit is one period later. */
     static synchronized void start() {
         active = true;
-        anchor = now() + PERIOD;
+        startReadAt = now();
+        procPending = false;
+        anchor = startReadAt + PERIOD;
         lastAccepted = Long.MIN_VALUE;
         unexplained = Long.MIN_VALUE;
         lastHealth = Float.NaN;
@@ -77,6 +86,8 @@ public final class GoldorTick {
 
     static synchronized void stop() {
         active = false;
+        startReadAt = Long.MIN_VALUE;
+        procPending = false;
         lastHealth = Float.NaN;
         HURT.clear();
     }
@@ -160,9 +171,27 @@ public final class GoldorTick {
         }
     }
 
-    /** A mask or Phoenix proc line: you were just hit for lethal damage, in P3 that is Goldor's tick. */
-    static void onProc() {
-        onHit(now(), false, "a mask proc");
+    /** A mask or Phoenix proc line: you were just hit for lethal damage, in P3 that is Goldor's tick. Counted at the end
+     *  of this client tick, with the health drops. */
+    static synchronized void onProc() {
+        procPending = active;
+    }
+
+    /** End of every client tick, before {@link #clientTick}: puts this tick's chat-time events on the end-of-tick clock. */
+    public static synchronized void endOfTick() {
+        if (startReadAt != Long.MIN_VALUE) {
+            long shift = now() - startReadAt;
+            // Read and moved within one client tick, so a few ticks at most (pings handled after the line); anything
+            // else is not a same-tick read and moves nothing.
+            if (shift >= 0 && shift <= 3) {
+                anchor += shift;
+            }
+            startReadAt = Long.MIN_VALUE;
+        }
+        if (procPending) {
+            procPending = false;
+            onHit(now(), false, "a mask proc");
+        }
     }
 
     // ---- test hooks --------------------------------------------------------------------------------------------------
