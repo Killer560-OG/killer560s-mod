@@ -18,6 +18,7 @@ final class CardBlurbsData {
         d.put("MiningCommissionHudTab", "Commissions with waypoints.");
         d.put("MiningMithrilStoneTab", "Hides mithril you don't need.");
         d.put("MiningPickobulusTab", "Outlines its break area.");
+        d.put("MiningResumeBreakTab", "Keeps digging after a menu.");
         d.put("MiningRaffleTab", "Boxes raffle tickets.");
         d.put("MiningTitaniumTab", "Outlines Titanium blocks.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");

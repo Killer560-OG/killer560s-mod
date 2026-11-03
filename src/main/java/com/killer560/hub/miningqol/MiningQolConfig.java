@@ -48,17 +48,47 @@ public final class MiningQolConfig {
         }
     }
 
+    /**
+     * How Commission Mobs draws a mob (killer560, 2026-11-03: "let me choose outline, fill, fill+outline or glow"). Drawn
+     * with the shared paths: {@code WorldRenderUtils.renderOutlineBoxes}/{@code renderFilledBoxes} for the boxes, and the
+     * vanilla glow outline through the cheatutils WitherGlow mixins Dungeon ESP's Glow style uses.
+     */
+    public enum CommissionMobStyle {
+        OUTLINE("Outline", true, false, false),
+        FILL("Fill", false, true, false),
+        FILL_OUTLINE("Fill + Outline", true, true, false),
+        GLOW("Glow", false, false, true);
+
+        private final String label;
+        public final boolean outline;
+        public final boolean fill;
+        public final boolean glow;
+
+        CommissionMobStyle(String label, boolean outline, boolean fill, boolean glow) {
+            this.label = label;
+            this.outline = outline;
+            this.fill = fill;
+            this.glow = glow;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
     private static MiningQolConfig instance;
 
     // Commission HUD
     private boolean commissionHud = false;
     private boolean commissionColorProgress = true;
+    private boolean commissionInterpolate = true;
     private boolean commissionWaypoints = true;
     private boolean commissionEmissaries = true;
     /** Commission Mobs (killer560, 2026-11-03: "it should highlight commission mobs as an option as well"). */
     private boolean commissionMobs = false;
     private boolean commissionMobsEsp = false;
     private int commissionMobColor = DEFAULT_COMMISSION_MOB_COLOR;
+    private CommissionMobStyle commissionMobStyle = CommissionMobStyle.OUTLINE;
     /** Completed Commissions in the Commissions menu (killer560, 2026-11-03: "have it highlight completed commissions"). */
     private boolean commissionMenuHighlight = true;
     // Pickobulus Estimate
@@ -83,6 +113,8 @@ public final class MiningQolConfig {
     private boolean raffle = false;
     private int raffleColor = DEFAULT_RAFFLE_COLOR;
     private boolean raffleEsp = false;
+    // Resume Held Break After Menus (killer560 2026-11-03: a server menu opening mid-dig let go of his held left click)
+    private boolean resumeHeldBreak = true;
 
     private MiningQolConfig() {
     }
@@ -102,11 +134,14 @@ public final class MiningQolConfig {
                         .getAsJsonObject();
                 cfg.commissionHud = ConfigJson.getBool(o, "commissionHud", cfg.commissionHud);
                 cfg.commissionColorProgress = ConfigJson.getBool(o, "commissionColorProgress", cfg.commissionColorProgress);
+                cfg.commissionInterpolate = ConfigJson.getBool(o, "commissionInterpolate", cfg.commissionInterpolate);
                 cfg.commissionWaypoints = ConfigJson.getBool(o, "commissionWaypoints", cfg.commissionWaypoints);
                 cfg.commissionEmissaries = ConfigJson.getBool(o, "commissionEmissaries", cfg.commissionEmissaries);
                 cfg.commissionMobs = ConfigJson.getBool(o, "commissionMobs", cfg.commissionMobs);
                 cfg.commissionMobsEsp = ConfigJson.getBool(o, "commissionMobsEsp", cfg.commissionMobsEsp);
                 cfg.commissionMobColor = intOr(o, "commissionMobColor", cfg.commissionMobColor);
+                cfg.commissionMobStyle = ConfigJson.getEnum(o, "commissionMobStyle", CommissionMobStyle.class,
+                        CommissionMobStyle.OUTLINE);
                 cfg.commissionMenuHighlight = ConfigJson.getBool(o, "commissionMenuHighlight", cfg.commissionMenuHighlight);
                 cfg.pickobulus = ConfigJson.getBool(o, "pickobulus", cfg.pickobulus);
                 cfg.pickobulusColor = intOr(o, "pickobulusColor", cfg.pickobulusColor);
@@ -129,6 +164,7 @@ public final class MiningQolConfig {
                 cfg.raffle = ConfigJson.getBool(o, "raffle", cfg.raffle);
                 cfg.raffleColor = intOr(o, "raffleColor", cfg.raffleColor);
                 cfg.raffleEsp = ConfigJson.getBool(o, "raffleEsp", cfg.raffleEsp);
+                cfg.resumeHeldBreak = ConfigJson.getBool(o, "resumeHeldBreak", cfg.resumeHeldBreak);
             } catch (Exception e) {
                 cfg = new MiningQolConfig();
             }
@@ -151,11 +187,13 @@ public final class MiningQolConfig {
             JsonObject o = new JsonObject();
             o.addProperty("commissionHud", commissionHud);
             o.addProperty("commissionColorProgress", commissionColorProgress);
+            o.addProperty("commissionInterpolate", commissionInterpolate);
             o.addProperty("commissionWaypoints", commissionWaypoints);
             o.addProperty("commissionEmissaries", commissionEmissaries);
             o.addProperty("commissionMobs", commissionMobs);
             o.addProperty("commissionMobsEsp", commissionMobsEsp);
             o.addProperty("commissionMobColor", commissionMobColor);
+            o.addProperty("commissionMobStyle", commissionMobStyle.name());
             o.addProperty("commissionMenuHighlight", commissionMenuHighlight);
             o.addProperty("pickobulus", pickobulus);
             o.addProperty("pickobulusColor", pickobulusColor);
@@ -172,11 +210,25 @@ public final class MiningQolConfig {
             o.addProperty("raffle", raffle);
             o.addProperty("raffleColor", raffleColor);
             o.addProperty("raffleEsp", raffleEsp);
+            o.addProperty("resumeHeldBreak", resumeHeldBreak);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
             // a failed save keeps the in-memory values
         }
         MithrilStone.settingsChanged();
+    }
+
+    // ---- Resume Held Break After Menus
+    public boolean isResumeHeldBreak() {
+        return resumeHeldBreak && sb();
+    }
+
+    public boolean isResumeHeldBreakRaw() {
+        return resumeHeldBreak;
+    }
+
+    public void setResumeHeldBreak(boolean v) {
+        resumeHeldBreak = v;
     }
 
     private static boolean sb() {
@@ -202,6 +254,14 @@ public final class MiningQolConfig {
 
     public void setCommissionColorProgress(boolean v) {
         commissionColorProgress = v;
+    }
+
+    public boolean isCommissionInterpolate() {
+        return commissionInterpolate;
+    }
+
+    public void setCommissionInterpolate(boolean v) {
+        commissionInterpolate = v;
     }
 
     public boolean isCommissionWaypoints() {
@@ -349,6 +409,20 @@ public final class MiningQolConfig {
 
     public void setTitanium(boolean v) {
         titanium = v;
+    }
+
+    public CommissionMobStyle getCommissionMobStyle() {
+        return commissionMobStyle;
+    }
+
+    public void setCommissionMobStyle(CommissionMobStyle v) {
+        commissionMobStyle = v == null ? CommissionMobStyle.OUTLINE : v;
+    }
+
+    /** Left click forward, right click back, wrapping. */
+    public void stepCommissionMobStyle(int dir) {
+        CommissionMobStyle[] all = CommissionMobStyle.values();
+        commissionMobStyle = all[Math.floorMod(commissionMobStyle.ordinal() + dir, all.length)];
     }
 
     public TitaniumMode getTitaniumMode() {

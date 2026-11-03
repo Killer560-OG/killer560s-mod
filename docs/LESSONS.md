@@ -433,10 +433,51 @@ project CLAUDE.md. Compiling lessons
   never highlighted). `IslandDetector` now takes the action bar's area while it is under 5 s old, else the sidebar's (which
   also accepts U+E067). Any feature that needs the player's area should read `IslandDetector.scoreboardArea()`, not the
   sidebar itself (mining-1103, testkit 1103-mining-area fails on main 2646b64cf).
+- A per-BLOCK mining decision needs the block's own area, not the player's (killer560, 2026-11-03: "i can stand in one zone
+  but the blocks are in another"). `miningqol/MinesAreaMap` gives it with no hand-made boxes: SkyHanni-REPO's
+  `constants/island_graphs/DWARVEN_MINES.json` (downloaded by `pathfinding/GraphRepository`, refreshed every 12 h, `/k560path
+  reload` forces it) has 264 `area`-tagged nodes (named "Upper Mines", "Rampart's Quarry", ..., or "no_area") sitting in
+  pairs on either side of each way between areas. A multi-source Dijkstra from them labels every node with the area it
+  reaches fastest (SkyHanni's own IslandAreaBackend rule); a block takes its nearest node's area within 24 blocks, cached
+  per chunk section. "no_area" and no node near mean unknown, and the player's area decides. Offline check of the real
+  file (killer560s-mod-logs/mithrilarea-data/label.py, 2026-11-03): all 3031 nodes labelled, Upper Mines' nodes span
+  x -155..-63, z -84..-4, Royal Mines x 89..182, Cliffside Veins y 103..153. A new SkyHanni file is picked up on its next
+  download with nothing to edit; to check one, rerun label.py on it. Testkit 1103-mining-block-area uses a test graph.
+- Mining block highlights follow the server's block updates (`miningqol/mixin/MiningBlockUpdateMixin`: handleBlockUpdate,
+  handleChunkBlocksUpdate, handleLevelChunkWithLight at RETURN) instead of the once-a-second scan, which stays as the
+  safety net: 0 ticks from the client seeing a titanium/bedrock/lantern change to the highlight (1103-mining-highlight-
+  latency; it was up to 20). A change of the rule (commissions, area, settings) rescans the same tick.
 - Hypixel's tab widgets (Pickaxe Ability) refresh slowly: a state read only from them lags its chat line by seconds.
   Pickobulus Estimate takes "You used your Pickobulus..."/"Your Pickobulus destroyed N blocks!"/"Pickobulus is now
   available!" first and falls back to the tab only when no line came recently (mining-1103, 1103-mining-pickobulus-chat).
-- A held left-click dig on 26.3 ends until a fresh press only when a screen opens (Gui.setScreen releases every key and the
-  re-grab sets missTime) or the OS sends a button release; a block, slot or held-item change only restarts it. Nothing in
-  the mod does either while mining (mining-1103 sweep); `miningqol/AttackHoldProbe` logs "[AttackHold]" the next time it
-  happens, with the screen class and its opener's stack.
+- A held left-click dig on 26.3 ends until a fresh press only when a screen opens (Gui.setScreen releases every key, and
+  Minecraft.tick holds missTime at 10000 while a screen is up) or the OS sends a button release; a block, slot or held-item
+  change only restarts it. Nothing in the mod does either while mining (mining-1103 sweep). His 2026-11-03 log
+  (killer560s-mod-logs/attackhold-owner-1103.log): 5 of 7 drops were SERVER-opened "Commissions" containers
+  (ClientboundOpenScreenPacket, no mod code in the stack) 2-3 s after "X Commission Complete!", each followed within ~1 s by
+  "+12,000 Mining" (the claim); the trigger is still unknown, so the probe now dumps the last 40 sent packets and 10 chat/title
+  lines when a container opens under a held click. Fix that works whatever opens it: `miningqol/HeldBreakResume` (Resume Held
+  Break After Menus, default on, mining islands) sets the attack key down again on close while the button is still held,
+  clears missTime from 10000 to 0, and on a block adds the press (KeyMapping.click), so vanilla's startAttack sends
+  START_DESTROY_BLOCK the next tick (testkit 1103-mining-hold-*). KeyMapping.set alone is WRONG: the close tick's
+  continueAttack(false) sends ABORT_DESTROY_BLOCK, and continueDestroyBlock's sameDestroyTarget ignores isDestroying, so the
+  held key digs on the client only (dig ticks counting, punch packets, no START) - a dig the server never hears of. The first
+  test run caught it (wire: ABORT then only punches).
+- A value read from a slow tab widget must not be re-applied every tick: AbilityReadyAlert put `now + tab seconds` each
+  tick, so the timer held still for the widget's ~3 s refresh and then jumped (killer560, 2026-11-03: "only counts down every
+  3s"). Act on a widget line only when its text CHANGES, keep a local deadline, move it only when a new reading disagrees
+  by more than 1.5 s, and after a chat reset remember the tab's current (stale) line so it is ignored until it changes
+  (mithril-interp-1103, 1103-mining-pick-timer).
+- Commission goals per block (hypixelskyblock wiki, Commissions, 2026-11-03): Mithril Miner 350, area Mithril 250, Titanium
+  Miner 15, area Titanium 10; starter ones less and Compact/Efficient Miner count raw amounts, so CommissionProgress learns
+  the step from the tab once 20 settled blocks are in. Collectors (gemstones, Glacite, Tungsten, Umber) count drops, not
+  blocks, and stay on the tab. A counted break is the crosshair block under a held attack that the SERVER changes to another
+  block; a hook test drives it with the live tick held (holdLiveForTest), since the live tick prunes and resyncs every tick.
+- A feature that finds mobs by their name-tag stand loses them at range: Hypixel stops sending a stand nearer than the
+  mob itself, so "Commission Mobs feels like it has a very small range" (killer560, 2026-11-03) was the 64-block cap plus
+  that. Remember a mob by entity id once identified and keep it while it is loaded, alive and still wanted, as Starred
+  Mob Hitboxes does (mithril-mobs-1103, 1103-mining-mob-range). Do not add entity-type-only rules for Skyblock mobs
+  unless the type is unique on the island: goblins and Treasure Hoarders are player-model NPCs like every NPC, and
+  SkyHanni's MobFilter also names these mobs only through their stands.
+- The vanilla glow outline is shared: the cheatutils WitherGlow mixins (shouldEntityAppearGlowing, getTeamColor) serve
+  Dungeon ESP and Commission Mobs' Glow style; a new glow user adds a check there instead of a second pair of mixins.

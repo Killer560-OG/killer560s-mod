@@ -24,7 +24,8 @@ import java.util.Locale;
  * that commission is. Then if the commission is done have it show emmisaries").
  *
  * <p>The HUD is the tab list's Commissions widget ({@link MiningState}) on a movable element, each commission's progress
- * colored. The waypoints are labels in the world at the place each open commission is done: the five Dwarven Mines areas
+ * colored; a mithril or titanium commission's progress moves on with every counted block between the tab's slow refreshes
+ * ({@link CommissionProgress}, Live Progress). The waypoints are labels in the world at the place each open commission is done: the five Dwarven Mines areas
  * for an area commission, and the Glacite Tunnels gemstone spots for a "[Gemstone] Collector" commission. When any
  * commission reads DONE, every Emissary gets a label too, so a finished commission can be turned in at the nearest one. The coordinates are Skyblocker's MiningLocationLabel (LGPL-3.0; read for
  * the in-game positions only, no code taken). Labels show through walls, like a waypoint; nothing is clicked or sent.
@@ -76,6 +77,7 @@ public final class CommissionHud {
     private static boolean lastWaypoints;
     private static boolean lastEmissaries;
     private static boolean lastColor;
+    private static int lastProgress = -1;
     private static int labelFrames = 0;
     private static volatile Component lastLabel;
 
@@ -91,11 +93,13 @@ public final class CommissionHud {
             return;
         }
         int v = MiningState.version();
-        if (v == lastVersion && lastWaypoints == cfg.isCommissionWaypoints()
+        int pv = CommissionProgress.version() * 2 + (cfg.isCommissionInterpolate() ? 1 : 0);
+        if (v == lastVersion && pv == lastProgress && lastWaypoints == cfg.isCommissionWaypoints()
                 && lastEmissaries == cfg.isCommissionEmissaries() && lastColor == cfg.isCommissionColorProgress()) {
             return;
         }
         lastVersion = v;
+        lastProgress = pv;
         lastWaypoints = cfg.isCommissionWaypoints();
         lastEmissaries = cfg.isCommissionEmissaries();
         lastColor = cfg.isCommissionColorProgress();
@@ -112,7 +116,8 @@ public final class CommissionHud {
         List<String> out = new ArrayList<>();
         out.add("§6§lCommissions");
         for (MiningState.Commission c : coms) {
-            out.add("§f" + c.name() + ": " + (color ? progressColor(c.progress()) : "§f") + c.progress());
+            String shown = CommissionProgress.shown(c);
+            out.add("§f" + c.name() + ": " + (color ? progressColor(shown) : "§f") + shown);
         }
         return List.copyOf(out);
     }

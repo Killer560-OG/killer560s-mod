@@ -13,6 +13,7 @@ import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -27,13 +28,15 @@ import java.util.Set;
  *       light gray carpet on a Sea Lantern, the shape Skyblocker's CarpetHighlighter keys on (LGPL-3.0, read for behavior
  *       only) - filled in a color of his choice, so he stops swinging at them.</li>
  *   <li><b>Titanium Highlight</b> (legit; through walls in the cheat build only): Titanium is Polished Diorite in the Dwarven
- *       Mines (hypixelskyblock wiki, Titanium Ore). Always, or only while an open commission wants titanium where he is
- *       ("Titanium Miner" anywhere, "Royal Mines Titanium" in the Royal Mines).</li>
+ *       Mines (hypixelskyblock wiki, Titanium Ore). Always, or only the blocks an open commission wants: "Titanium Miner"
+ *       anywhere, "Royal Mines Titanium" for a block that is in the Royal Mines ({@link MinesAreaMap}; a block of unknown
+ *       area by the area he stands in).</li>
  *   <li><b>Raffle Ticket Highlight</b> (legit; through walls in the cheat build only): during the Dwarven Mines Raffle, a box
  *       round each raffle ticket on the ground - a dropped item named "Raffle Ticket", a dropped Name Tag (the wiki's ticket
  *       icon), or a stand named "Raffle Ticket".</li>
  * </ul>
- * Blocks are found by {@link BlockScan} once a second within 48 blocks; the world is never changed and nothing is sent.
+ * Blocks follow the server's block updates the tick they arrive (and a new chunk's blocks the tick it loads), with a
+ * {@link BlockScan} of 48 blocks round him every second as the safety net; the world is never changed and nothing is sent.
  */
 public final class MiningHighlights {
 
@@ -66,38 +69,159 @@ public final class MiningHighlights {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         boolean dm = MiningState.dwarvenMines() && client.level != null && client.player != null;
         if (!dm) {
+            carpetSet.clear();
+            titaniumSet.clear();
             carpets = List.of();
             titanium = List.of();
             tickets = List.of();
+            lastRuleKey = "";
             return;
         }
-        // Tickets move and vanish: every 5 ticks. Blocks: once a second.
+        ticks++;
+        // Tickets move and vanish: every 5 ticks.
         if (ticks % 5 == 0) {
             tickets = cfg.isRaffle() ? findTickets(client) : List.of();
         }
-        if (ticks++ % 20 != 0) {
+        // Blocks are event-driven (onBlockChanged / onChunkLoaded; killer560 2026-11-03: "make it update stuff like
+        // highlighted blocks faster"). The rule is re-read every tick and a change of it rescans at once; the full scan
+        // every 20 ticks is only the safety net (it also drops what is now out of range).
+        updateRule(cfg);
+        String key = ruleKey(cfg);
+        if (!key.equals(lastRuleKey) || ticks % 20 == 0) {
+            lastRuleKey = key;
+            rescan(client);
+        }
+    }
+
+    /** What decides which blocks count: a change of it rescans immediately. */
+    private static String ruleKey(MiningQolConfig cfg) {
+        return cfg.isCarpet() + "|" + cfg.isTitanium() + "|" + cfg.getTitaniumMode() + "|" + titaniumRule + "|"
+                + MinesAreaMap.version() + "|" + MiningState.island();
+    }
+
+    private static void updateRule(MiningQolConfig cfg) {
+        if (!cfg.isTitanium()) {
+            titaniumRule = null;
+        } else if (cfg.getTitaniumMode() == MiningQolConfig.TitaniumMode.ALWAYS) {
+            titaniumRule = ALWAYS;
+        } else {
+            // Commission Area: each block by the area IT is in (killer560, 2026-11-03), unknown ones by his own area.
+            MiningState.Wanted w = MiningState.wanted("Titanium", false);
+            titaniumRule = w.any() ? new TitaniumRule(w, MiningState.area()) : null;
+        }
+    }
+
+    /** Which titanium counts (wanted null: every block). */
+    private record TitaniumRule(MiningState.Wanted wanted, String here) {
+        boolean test(BlockPos p) {
+            return wanted == null || wanted.at(MinesAreaMap.areaAt(p.getX(), p.getY(), p.getZ()), here);
+        }
+    }
+
+    private static final TitaniumRule ALWAYS = new TitaniumRule(null, null);
+    private static volatile TitaniumRule titaniumRule = null;
+    private static String lastRuleKey = "";
+    private static final java.util.LinkedHashSet<BlockPos> carpetSet = new java.util.LinkedHashSet<>();
+    private static final java.util.LinkedHashSet<BlockPos> titaniumSet = new java.util.LinkedHashSet<>();
+    private static int scans = 0;
+    private static int events = 0;
+
+    private static void rescan(Minecraft client) {
+        MiningQolConfig cfg = MiningQolConfig.getInstance();
+        BlockPos at = client.player.blockPosition();
+        carpetSet.clear();
+        titaniumSet.clear();
+        if (cfg.isCarpet()) {
+            carpetSet.addAll(BlockScan.scan(client.level, at, RADIUS, DY, s -> VEIN_CARPETS.contains(s.getBlock()),
+                    (pos, s) -> isVeinCarpet(client.level, pos, s), MAX));
+        }
+        TitaniumRule rule = titaniumRule;
+        if (rule != null) {
+            titaniumSet.addAll(BlockScan.scan(client.level, at, RADIUS, DY, MiningHighlights::isTitanium,
+                    (pos, s) -> rule.test(pos), MAX));
+        }
+        scans++;
+        publish();
+    }
+
+    private static boolean isVeinCarpet(Level level, BlockPos pos, BlockState s) {
+        return VEIN_CARPETS.contains(s.getBlock()) && level.getBlockState(pos.below()).is(Blocks.SEA_LANTERN);
+    }
+
+    private static void publish() {
+        carpets = List.copyOf(carpetSet);
+        titanium = List.copyOf(titaniumSet);
+    }
+
+    /**
+     * A block the server changed (client thread, after the change is in the level; from {@code MiningBlockUpdateMixin}):
+     * that block's highlight follows in the same tick. The carpet above it is re-checked too (its lantern may have gone).
+     */
+    public static void onBlockChanged(BlockPos pos) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null || !MiningState.dwarvenMines()) {
+            return;
+        }
+        MiningQolConfig cfg = MiningQolConfig.getInstance();
+        BlockPos p = pos.immutable();
+        boolean changed = false;
+        if (cfg.isCarpet()) {
+            changed |= recheckCarpet(client.level, p);
+            changed |= recheckCarpet(client.level, p.above());
+        }
+        TitaniumRule rule = titaniumRule;
+        if (rule != null) {
+            boolean want = isTitanium(client.level.getBlockState(p)) && rule.test(p);
+            changed |= want ? titaniumSet.add(p) : titaniumSet.remove(p);
+        }
+        events++;
+        if (changed) {
+            publish();
+        }
+    }
+
+    private static boolean recheckCarpet(Level level, BlockPos p) {
+        boolean want = isVeinCarpet(level, p, level.getBlockState(p));
+        return want ? carpetSet.add(p) : carpetSet.remove(p);
+    }
+
+    /** A batch of changes in one section (kept out of the mixin so the mixin holds no lambda). */
+    public static void onSectionChanged(net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket packet) {
+        packet.runUpdates((pos, state) -> {
+            onBlockChanged(pos);
+            CommissionProgress.onBlockChanged(pos);
+        });
+    }
+
+    /** A chunk arrived: its blocks are evaluated now, not on the next safety scan. */
+    public static void onChunkLoaded(int chunkX, int chunkZ) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null || !MiningState.dwarvenMines()) {
             return;
         }
         BlockPos at = client.player.blockPosition();
-        carpets = cfg.isCarpet() ? BlockScan.scan(client.level, at, RADIUS, DY,
-                s -> VEIN_CARPETS.contains(s.getBlock()),
-                (pos, s) -> client.level.getBlockState(pos.below()).is(Blocks.SEA_LANTERN), MAX) : List.of();
-        titanium = titaniumWanted(cfg) ? BlockScan.scan(client.level, at, RADIUS, DY,
-                MiningHighlights::isTitanium, (pos, s) -> true, MAX) : List.of();
+        if (Math.abs((chunkX << 4) + 8 - at.getX()) > RADIUS + 8 || Math.abs((chunkZ << 4) + 8 - at.getZ()) > RADIUS + 8) {
+            return;
+        }
+        MiningQolConfig cfg = MiningQolConfig.getInstance();
+        BlockPos center = new BlockPos((chunkX << 4) + 8, at.getY(), (chunkZ << 4) + 8);
+        boolean changed = false;
+        if (cfg.isCarpet()) {
+            changed |= carpetSet.addAll(BlockScan.scan(client.level, center, 8, DY,
+                    s -> VEIN_CARPETS.contains(s.getBlock()), (pos, s) -> isVeinCarpet(client.level, pos, s), MAX));
+        }
+        TitaniumRule rule = titaniumRule;
+        if (rule != null) {
+            changed |= titaniumSet.addAll(BlockScan.scan(client.level, center, 8, DY, MiningHighlights::isTitanium,
+                    (pos, s) -> rule.test(pos), MAX));
+        }
+        if (changed) {
+            publish();
+        }
     }
 
     static boolean isTitanium(BlockState s) {
         return s.is(Blocks.POLISHED_DIORITE);
-    }
-
-    static boolean titaniumWanted(MiningQolConfig cfg) {
-        if (!cfg.isTitanium()) {
-            return false;
-        }
-        if (cfg.getTitaniumMode() == MiningQolConfig.TitaniumMode.ALWAYS) {
-            return true;
-        }
-        return MiningState.openCommissionHere("Titanium", false);
     }
 
     private static List<double[]> findTickets(Minecraft client) {
@@ -211,6 +335,23 @@ public final class MiningHighlights {
     /** The last carpet fill box drawn (testkit: no face lies on the carpet's or the lantern's own face). */
     public static double[] lastCarpetBox() {
         return lastCarpetBox;
+    }
+
+    /** Full scans so far, block events handled (testkit: the event path ran). */
+    public static int scanCount() {
+        return scans;
+    }
+
+    public static int blockEvents() {
+        return events;
+    }
+
+    public static boolean hasTitaniumAt(int x, int y, int z) {
+        return titanium.contains(new BlockPos(x, y, z));
+    }
+
+    public static boolean hasCarpetAt(int x, int y, int z) {
+        return carpets.contains(new BlockPos(x, y, z));
     }
 
     public static int carpetFrames() {

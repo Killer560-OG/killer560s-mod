@@ -25,6 +25,9 @@ public class MiningCommissionHudTab extends BaseTab {
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Color By Progress", cfg::isCommissionColorProgress,
                 cfg::setCommissionColorProgress, cfg::save);
         y += MiningQolRows.STEP;
+        MiningQolRows.toggle(w, contentX, y, contentWidth, "Live Progress", cfg::isCommissionInterpolate,
+                cfg::setCommissionInterpolate, cfg::save);
+        y += MiningQolRows.STEP;
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Commission Waypoints", cfg::isCommissionWaypoints,
                 cfg::setCommissionWaypoints, cfg::save);
         y += MiningQolRows.STEP;
@@ -39,6 +42,9 @@ public class MiningCommissionHudTab extends BaseTab {
         y += MiningQolRows.STEP;
         MiningQolRows.color(w, contentX, y, contentWidth, "Commission Mob Color", cfg::getCommissionMobColor,
                 cfg::setCommissionMobColor, MiningQolConfig.DEFAULT_COMMISSION_MOB_COLOR, cfg::save);
+        y += MiningQolRows.STEP;
+        MiningQolRows.cycle(w, contentX, y, contentWidth, "Commission Mob Style", () -> cfg.getCommissionMobStyle().label(),
+                cfg::stepCommissionMobStyle, cfg::save);
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             y += MiningQolRows.STEP + 4;
             MiningQolRows.cheatHeader(w, contentX, y, contentWidth);

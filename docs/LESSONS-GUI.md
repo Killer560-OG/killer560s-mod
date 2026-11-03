@@ -304,6 +304,11 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   frame late on others**: that event runs after the frame's submitted nodes are drawn. The Etherwarp Overlay box lost its
   outline on 4 of 27 frames walking into a gold block (testkit 1322) until it moved to `COLLECT_SUBMITS` (0 of 27, both
   versions). The camera was never stale. 36 other registrations still use AFTER_TRANSLUCENT_FEATURES.
+  **26.3 does the same from `AFTER_TRANSLUCENT_TERRAIN`:** the mining highlights drew there, and while he jumped or sneaked
+  the Carpet Highlighter's thin fill sank under the carpet's top on 11 of 24 frames (testkit 1103-mining-carpet-stable, mod
+  9cdc0feb2; only the fill's front edge showed), with Improved Transparency off. Moved to `COLLECT_SUBMITS`: 0 of 24 with it
+  off and 0 of 24 on (mithrilarea-1103). A full-block box hides a frame's offset; a fill a few hundredths of a block thick
+  shows it, so any thin overlay drawn on a block face belongs in COLLECT_SUBMITS.
 - **On 26.1.2 a block entity paints over anything drawn into the immediate buffer source before the solid features.**
   `COLLECT_SUBMITS` fires before `renderSolidFeatures`, and McRender's 26.1.2 path writes into `context.bufferSource()`,
   whose shared buffer is drawn the moment the feature renderers ask for their first buffer; neither `LINES_TRANSLUCENT` nor
@@ -526,3 +531,6 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
 - The testkit harness's `holdKey(Ctrl)` + `pressKey(F)` did not reach the mod as Ctrl+F on 26.3 (old and new jar alike),
   so it cannot prove a Ctrl shortcut handled in Fabric's `ScreenKeyboardEvents`. Call `KeyboardHandler.keyPress(window,
   PRESS, McKeys.keyEvent(KEY_F, MOD_CONTROL))` by reflection (public on 26.3, private on 26.2) - StorageSearchCases.ctrlF.
+
+  hair (0.002) outside the block it marks, as the titanium boxes already did (mining-1103). The margin alone did NOT fix his
+  report: the rest was the render event (see the 26.3 AFTER_TRANSLUCENT_TERRAIN note above, mithrilarea-1103).

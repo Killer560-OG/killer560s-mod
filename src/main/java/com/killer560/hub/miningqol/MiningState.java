@@ -210,6 +210,42 @@ public final class MiningState {
         return wants(commissions, area(), ore, alsoTitaniumForMithril);
     }
 
+    /**
+     * What the open commissions want of {@code ore}, block by block: {@code anywhere} (a "Mithril Miner"-style commission,
+     * every block counts) and the commission areas that want it. A block in a listed area counts; a block whose area is
+     * unknown takes the player's own area.
+     */
+    public record Wanted(boolean anywhere, java.util.Set<String> areas) {
+        /** Whether a block in {@code blockArea} (null: unknown, so {@code playerArea} decides) is wanted. */
+        public boolean at(String blockArea, String playerArea) {
+            if (anywhere) {
+                return true;
+            }
+            String a = blockArea != null ? blockArea : playerArea;
+            return a != null && areas.contains(norm(a));
+        }
+
+        public boolean any() {
+            return anywhere || !areas.isEmpty();
+        }
+    }
+
+    /** {@link Wanted} for the current commissions. */
+    public static Wanted wanted(String ore, boolean alsoTitaniumForMithril) {
+        return wanted(commissions, ore, alsoTitaniumForMithril);
+    }
+
+    public static Wanted wanted(List<Commission> coms, String ore, boolean alsoTitaniumForMithril) {
+        boolean anywhere = wants(coms, "", ore, alsoTitaniumForMithril);
+        java.util.Set<String> areas = new java.util.TreeSet<>();
+        for (String a : COMMISSION_AREAS) {
+            if (wants(coms, a, ore, alsoTitaniumForMithril)) {
+                areas.add(norm(a));
+            }
+        }
+        return new Wanted(anywhere, java.util.Set.copyOf(areas));
+    }
+
     /** The rule behind {@link #openCommissionHere}, on given commissions and area (also the testkit's hook). */
     public static boolean wants(List<Commission> coms, String area, String ore, boolean alsoTitaniumForMithril) {
         for (Commission c : coms) {
