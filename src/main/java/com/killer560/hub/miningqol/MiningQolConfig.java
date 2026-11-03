@@ -131,6 +131,8 @@ public final class MiningQolConfig {
     private TitaniumMode titaniumMode = TitaniumMode.COMMISSION;
     private int titaniumColor = DEFAULT_TITANIUM_COLOR;
     private boolean titaniumEsp = false;
+    /** With Through Walls: only titanium with a face open to air (owner 2026-11-03: "so you could actually mine it"). */
+    private boolean titaniumExposedOnly = true;
     // Raffle Ticket Highlight
     private boolean raffle = false;
     private int raffleColor = DEFAULT_RAFFLE_COLOR;
@@ -187,6 +189,7 @@ public final class MiningQolConfig {
                 }
                 cfg.titaniumColor = intOr(o, "titaniumColor", cfg.titaniumColor);
                 cfg.titaniumEsp = ConfigJson.getBool(o, "titaniumEsp", cfg.titaniumEsp);
+                cfg.titaniumExposedOnly = ConfigJson.getBool(o, "titaniumExposedOnly", cfg.titaniumExposedOnly);
                 cfg.raffle = ConfigJson.getBool(o, "raffle", cfg.raffle);
                 cfg.raffleColor = intOr(o, "raffleColor", cfg.raffleColor);
                 cfg.raffleEsp = ConfigJson.getBool(o, "raffleEsp", cfg.raffleEsp);
@@ -236,6 +239,7 @@ public final class MiningQolConfig {
             o.addProperty("titaniumMode", titaniumMode.name());
             o.addProperty("titaniumColor", titaniumColor);
             o.addProperty("titaniumEsp", titaniumEsp);
+            o.addProperty("titaniumExposedOnly", titaniumExposedOnly);
             o.addProperty("raffle", raffle);
             o.addProperty("raffleColor", raffleColor);
             o.addProperty("raffleEsp", raffleEsp);
@@ -508,6 +512,14 @@ public final class MiningQolConfig {
 
     public void setTitaniumEsp(boolean v) {
         titaniumEsp = v;
+    }
+
+    public boolean isTitaniumExposedOnly() {
+        return titaniumExposedOnly;
+    }
+
+    public void setTitaniumExposedOnly(boolean v) {
+        titaniumExposedOnly = v;
     }
 
     // ---- Raffle Ticket Highlight

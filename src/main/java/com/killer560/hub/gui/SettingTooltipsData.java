@@ -125,10 +125,11 @@ final class SettingTooltipsData {
         d.put("carpet highlighter/carpet color", "The color the carpets are filled with.");
         d.put("resume held break after menus", "On a mining island, when a menu closes while you are still holding left click, you go on breaking without pressing it again.");
         d.put("mithril as stone", "In the Dwarven Mines, draws mithril as stone unless a commission wants mithril or titanium in the area the block is in (wherever you stand).");
-        d.put("titanium highlight", "Outlines Titanium (polished diorite) in the Dwarven Mines.");
-        d.put("titanium highlight/show", "Always: every titanium block. Commission Area: only titanium in an area a commission wants, by the area the block is in.");
+        d.put("titanium highlight", "Outlines Titanium (polished diorite) in the Dwarven Mines: the whole box of every block you can see.");
+        d.put("titanium highlight/commission area only", "On: only titanium in an area a commission wants, by the area the block is in. Off: every titanium block.");
         d.put("titanium highlight/titanium color", "The color of the titanium outline.");
         d.put("titanium highlight/through walls", "Cheat build: draws the titanium boxes through blocks.");
+        d.put("titanium highlight/exposed only", "Cheat build, with Through Walls: only titanium with a face open to air, so you can actually reach and mine it.");
         d.put("raffle ticket highlight", "During the Dwarven Mines Raffle, boxes each raffle ticket on the ground.");
         d.put("raffle ticket highlight/ticket color", "The color of the ticket boxes.");
         d.put("raffle ticket highlight/through walls", "Cheat build: draws the ticket boxes through blocks.");

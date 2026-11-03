@@ -22,9 +22,11 @@ public class MiningTitaniumTab extends BaseTab {
                 contentWidth, 20));
         y += MiningQolRows.STEP;
 
-        MiningQolRows.cycle(w, contentX, y, contentWidth, "Show", () -> cfg.getTitaniumMode().label(),
-                dir -> cfg.setTitaniumMode(MiningQolConfig.TitaniumMode.values()[Math.floorMod(
-                        cfg.getTitaniumMode().ordinal() + dir, MiningQolConfig.TitaniumMode.values().length)]), cfg::save);
+        // Owner 2026-11-03: a toggle, not a "Show" cycle: ON = only the commission's area, OFF = everywhere.
+        MiningQolRows.toggle(w, contentX, y, contentWidth, "Commission Area Only",
+                () -> cfg.getTitaniumMode() == MiningQolConfig.TitaniumMode.COMMISSION,
+                on -> cfg.setTitaniumMode(on ? MiningQolConfig.TitaniumMode.COMMISSION : MiningQolConfig.TitaniumMode.ALWAYS),
+                cfg::save);
         y += MiningQolRows.STEP;
         MiningQolRows.color(w, contentX, y, contentWidth, "Titanium Color", cfg::getTitaniumColor,
                 cfg::setTitaniumColor, MiningQolConfig.DEFAULT_TITANIUM_COLOR, cfg::save);
@@ -34,6 +36,9 @@ public class MiningTitaniumTab extends BaseTab {
             y += 16;
             MiningQolRows.toggle(w, contentX, y, contentWidth, "Through Walls", cfg::isTitaniumEsp, cfg::setTitaniumEsp,
                     cfg::save);
+            y += MiningQolRows.STEP;
+            MiningQolRows.toggle(w, contentX, y, contentWidth, "Exposed Only", cfg::isTitaniumExposedOnly,
+                    cfg::setTitaniumExposedOnly, cfg::save);
         }
         return w;
     }

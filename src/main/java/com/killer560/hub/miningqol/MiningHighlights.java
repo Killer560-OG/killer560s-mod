@@ -256,6 +256,39 @@ public final class MiningHighlights {
         return false;
     }
 
+    /** A face of {@code p} touches air: the block can be reached and mined (Exposed Only, Through Walls). */
+    static boolean exposed(net.minecraft.world.level.Level level, BlockPos p) {
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+            if (level.getBlockState(p.relative(d)).isAir()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A ray from his eye reaches a face of {@code p} that touches air without another block in between. */
+    static boolean inSight(net.minecraft.world.level.Level level, net.minecraft.world.entity.player.Player player, BlockPos p) {
+        net.minecraft.world.phys.Vec3 eye = player.getEyePosition();
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+            if (!level.getBlockState(p.relative(d)).isAir()) {
+                continue;
+            }
+            net.minecraft.world.phys.Vec3 face = net.minecraft.world.phys.Vec3.atCenterOf(p)
+                    .add(d.getStepX() * 0.501, d.getStepY() * 0.501, d.getStepZ() * 0.501);
+            if (face.subtract(eye).dot(net.minecraft.world.phys.Vec3.atCenterOf(p).subtract(face)) > 0) {
+                continue; // the face points away from him
+            }
+            net.minecraft.world.phys.HitResult hit = level.clip(new net.minecraft.world.level.ClipContext(eye, face,
+                    net.minecraft.world.level.ClipContext.Block.OUTLINE, net.minecraft.world.level.ClipContext.Fluid.NONE,
+                    player));
+            if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS
+                    || (hit instanceof net.minecraft.world.phys.BlockHitResult b && b.getBlockPos().equals(p))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static void render(LevelRenderContext context) {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         List<BlockPos> c = carpets;
@@ -288,7 +321,23 @@ public final class MiningHighlights {
             boolean walls = cfg.isTitaniumEsp();
             BoxBatch fill = walls ? WALL_FILLS : FILLS;
             BoxBatch line = walls ? WALL_LINES : LINES;
+            boolean exposedOnly = walls && cfg.isTitaniumExposedOnly();
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            var level = mc.level;
+            // Not Through Walls (owner 2026-11-03: "should show the full block ... but only if it is in my line of sight"):
+            // a block he can see gets its whole box drawn without depth (all edges), one he cannot see gets nothing.
+            if (!walls) {
+                fill = WALL_FILLS;
+                line = WALL_LINES;
+            }
             for (BlockPos p : t) {
+                if (exposedOnly && level != null && !exposed(level, p)) {
+                    continue;
+                }
+                if (!walls && (level == null || mc.player == null || !inSight(level, mc.player, p))) {
+                    continue;
+                }
+                drawnNow.add(p);
                 double e = 0.002;
                 fill.add(p.getX() - e, p.getY() - e, p.getZ() - e, p.getX() + 1 + e, p.getY() + 1 + e, p.getZ() + 1 + e,
                         k[0], k[1], k[2], 0.25f);
@@ -297,6 +346,8 @@ public final class MiningHighlights {
             }
             titaniumFrames++;
         }
+        drawnTitanium = List.copyOf(drawnNow);
+        drawnNow.clear();
         if (!r.isEmpty() && cfg.isRaffle()) {
             float[] k = WorldRenderUtils.argbToFloats(cfg.getRaffleColor());
             boolean walls = cfg.isRaffleEsp();
@@ -320,6 +371,14 @@ public final class MiningHighlights {
 
     public static int carpetCount() {
         return carpets.size();
+    }
+
+    private static final java.util.ArrayList<BlockPos> drawnNow = new java.util.ArrayList<>();
+    private static volatile List<BlockPos> drawnTitanium = List.of();
+
+    /** Testkit: whether the last frame drew a titanium box at x,y,z (after line of sight and Exposed Only). */
+    public static boolean drewTitaniumAt(int x, int y, int z) {
+        return drawnTitanium.contains(new BlockPos(x, y, z));
     }
 
     public static int titaniumCount() {
