@@ -2,10 +2,10 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.fastleap.FastLeapSection;
+import com.killer560.hub.fastleap.FastLeapSection.Page;
 import com.killer560.hub.gui.SectionHeaders;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,23 +18,17 @@ import java.util.Locale;
  * Custom Leap Menu, Leap Order and Leap Message. The i4 leap stays in the Sharp Shooter (i4) tab, where it
  * sits next to the rest of the i4 device settings it depends on.
  * <p>
- * Every leap's settings sit in the list itself since 2026-10-13 (killer560: "remove the edit buttons and instead have
- * a toggle then a button to select what class/name it should leap to") - see {@link FastLeapSection#buildLeapList}.
+ * Three pages since 2026-11-02 (killer560: "have two buttons. one for universal and one to set class ... right now
+ * everything feels very hard to read"): the front page (switch, Targets, the two page buttons, Target Mode, Click
+ * Behavior, every leap's Fast/Auto switches) and the Universal Targets and Set Class Targets pages, each opened by its
+ * button and left with "&lt; Back". {@link FastLeapSection} builds them and holds which one shows; every page starts with
+ * the Fast Leap switch, so the card's switch ({@link BaseTab#masterToggle}'s default, the first control) is right on all
+ * three. Search scans all three pages with their hidden rows laid open, and {@link #revealSetting} opens the page a hit
+ * is on.
  * <p>
  * Cheat-only, so the tab title and every section header are red ({@link SectionHeaders}).
- * <p>
- * Regrouped 2026-09-21 at killer560's request ("I hate the way fast leaps menu is currently set up. Please
- * redesign the setting menu for it" - no further detail given, a judgment call): the actual row-building lives
- * in {@link FastLeapSection}, whose own class doc has the full before/after reasoning, but the short version is
- * headed groups instead of one flat row of toggles, settings that only matter once their switch is on now
- * staying hidden until then, and the leap list now split under a red header per boss phase instead of one flat
- * 13-row list. This class only had to change {@link #matchesSearch}, which now asks {@link FastLeapSection} for
- * its {@code includeHidden} variants so a search still finds a setting that the normal view is hiding.
  */
 public class FastLeapTab extends BaseTab {
-
-    private static final int HEADER_H = 14;
-    private static final int SECTION_GAP = 10;
 
     public FastLeapTab() {
         super("Fast/Auto Leap");
@@ -47,34 +41,42 @@ public class FastLeapTab extends BaseTab {
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return new ArrayList<>();
-        }
-        return buildList(contentX, contentY, contentWidth, requestRebuild);
-    }
-
-    // ---------------------------------------------------------------- list view
-
-    private List<AbstractWidget> buildList(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
-        int y = contentY;
-
-        // The Fast Leap switch is the tab's first row: no header above it.
-        y = FastLeapSection.buildGeneral(widgets, contentX, y, contentWidth, requestRebuild);
-        if (!FastLeapSection.isEnabledSetting()) {
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
             return widgets;
         }
-        y += SECTION_GAP;
-
-        widgets.add(header(contentX, y, contentWidth, "Leaps"));
-        y += HEADER_H;
-        FastLeapSection.buildLeapList(widgets, contentX, y, contentWidth, requestRebuild);
+        Page page = FastLeapSection.isEnabledSetting() ? FastLeapSection.page() : Page.FRONT;
+        if (page != FastLeapSection.page()) {
+            FastLeapSection.openPage(page);
+        }
+        build(widgets, page, contentX, contentY, contentWidth, requestRebuild, false);
         return widgets;
+    }
+
+    private static void build(List<AbstractWidget> widgets, Page page, int x, int y, int w, Runnable requestRebuild,
+                              boolean includeHidden) {
+        switch (page) {
+            case UNIVERSAL -> {
+                y = FastLeapSection.buildPageHeader(widgets, x, y, w, requestRebuild, Page.UNIVERSAL);
+                FastLeapSection.buildUniversalTargets(widgets, x, y, w, includeHidden);
+            }
+            case CLASS -> {
+                y = FastLeapSection.buildPageHeader(widgets, x, y, w, requestRebuild, Page.CLASS);
+                FastLeapSection.buildClassTargets(widgets, x, y, w, requestRebuild);
+            }
+            default -> {
+                // The Fast Leap switch is the tab's first row: no header above it.
+                y = FastLeapSection.buildGeneral(widgets, x, y, w, requestRebuild, includeHidden);
+                if (FastLeapSection.isEnabledSetting() || includeHidden) {
+                    FastLeapSection.buildLeapSwitches(widgets, x, y, w);
+                }
+            }
+        }
     }
 
     // ---------------------------------------------------------------- search
 
-    /** Search sees the settings the master switch or Block Inputs hide, by building them off screen. Only ever run
+    /** Search sees every page and the rows the switch or Block Inputs hide, by building them off screen. Only ever run
      *  from the search field's responder, never per frame. */
     @Override
     public boolean matchesSearch(String query) {
@@ -85,35 +87,62 @@ public class FastLeapTab extends BaseTab {
             return false;
         }
         String q = query.toLowerCase(Locale.US);
-        for (AbstractWidget widget : searchScan()) {
-            String text = ChatFormatting.stripFormatting(widget.getMessage().getString());
-            if (text != null && text.toLowerCase(Locale.US).contains(q)) {
-                return true;
+        for (Page p : Page.values()) {
+            for (AbstractWidget widget : searchScan(p)) {
+                if (textOf(widget).toLowerCase(Locale.US).contains(q)) {
+                    return true;
+                }
             }
         }
         return false;
     }
 
-    /** The setting hits come from the same off-screen scan as {@link #matchesSearch}, so a row the switch hides is
-     *  listed too, not just the tab. */
+    /** The setting hits come from the same off-screen scan as {@link #matchesSearch}, every page in turn. */
     @Override
     public List<String> searchHits(String query) {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED || query.trim().isEmpty()) {
             return new ArrayList<>();
         }
-        return searchHitsIn(searchScan(), query);
+        List<AbstractWidget> all = new ArrayList<>();
+        for (Page p : Page.values()) {
+            all.addAll(searchScan(p));
+        }
+        return searchHitsIn(all, query);
     }
 
-    /** Every row of the tab, including the ones the master switch or Block Inputs hide. */
-    private static List<AbstractWidget> searchScan() {
+    /** A search hit is opened: show the page holding it (front first), so the menu can scroll to the row. */
+    @Override
+    public void revealSetting(String label) {
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED || label == null || label.isBlank()) {
+            return;
+        }
+        String want = label.toLowerCase(Locale.US).trim();
+        // The row whose own label is the hit first ("Storm Death" is a Universal row, not the front's "Storm Death
+        // Leap"), then any row containing it.
+        for (boolean exact : new boolean[] {true, false}) {
+            for (Page p : Page.values()) {
+                for (AbstractWidget widget : searchScan(p)) {
+                    String text = textOf(widget).toLowerCase(Locale.US).trim();
+                    int colon = text.indexOf(':');
+                    String own = colon > 0 ? text.substring(0, colon).trim() : text;
+                    if (exact ? own.equals(want) : text.contains(want)) {
+                        FastLeapSection.openPage(p);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    /** Every row of one page, including the ones the master switch, Block Inputs or Target Mode hide. */
+    private static List<AbstractWidget> searchScan(Page page) {
         List<AbstractWidget> scan = new ArrayList<>();
-        FastLeapSection.buildGeneral(scan, 0, 0, 200, () -> {}, true);
-        scan.add(header(0, 0, 200, "Leaps"));
-        FastLeapSection.buildLeapList(scan, 0, 0, 400, () -> {});
+        build(scan, page, 0, 0, 400, () -> {}, true);
         return scan;
     }
 
-    private static StringWidget header(int x, int y, int width, String title) {
-        return SectionHeaders.row(x, y, width, title, true);
+    private static String textOf(AbstractWidget widget) {
+        String text = ChatFormatting.stripFormatting(widget.getMessage().getString());
+        return text == null ? "" : text;
     }
 }

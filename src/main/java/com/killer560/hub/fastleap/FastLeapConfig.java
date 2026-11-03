@@ -149,6 +149,10 @@ public final class FastLeapConfig {
     private int returnToSlot = RETURN_PREVIOUS;
     private boolean disableAfterBloodOpen = false;
     private boolean onlyWhenGateBlown = false;
+    /** Targets (killer560, 2026-11-02: "you should have a toggle to use universal or to use set class"): false uses the
+     *  Universal Targets page for everyone; true uses the Set Class Targets page's pick for the class you play, falling
+     *  back to the Universal target for a class with none set. */
+    private boolean useClassTargets = false;
     private final Map<LeapGroup, GroupSettings> groups = new EnumMap<>(LeapGroup.class);
     private final Map<LeapTarget, TargetSettings> targets = new EnumMap<>(LeapTarget.class);
 
@@ -245,6 +249,10 @@ public final class FastLeapConfig {
                         }
                     }
                 }
+                // Before 2026-11-02 a per-class target applied whenever one was set; a file without the key keeps that
+                // (Set Class when any is set - with none set the two read the same).
+                cfg.useClassTargets = obj.has("useClassTargets") ? bool(obj, "useClassTargets", false)
+                        : cfg.classTargetCount() > 0;
             } catch (Exception e) {
                 FastLeapFeature.LOGGER.warn("[FastLeap] Failed to read {} - using defaults", CONFIG_PATH, e);
                 cfg = new FastLeapConfig();
@@ -266,6 +274,7 @@ public final class FastLeapConfig {
             obj.addProperty("returnToSlot", returnToSlot);
             obj.addProperty("disableAfterBloodOpen", disableAfterBloodOpen);
             obj.addProperty("onlyWhenGateBlown", onlyWhenGateBlown);
+            obj.addProperty("useClassTargets", useClassTargets);
             JsonObject g = new JsonObject();
             for (LeapGroup group : LeapGroup.values()) {
                 GroupSettings s = groups.get(group);
@@ -488,6 +497,16 @@ public final class FastLeapConfig {
     }
 
     // ---- per-class targets ----------------------------------------------------------------------------------------
+
+    /** Targets: true = Set Class (the Set Class page's pick for your class, Universal for a class with none), false =
+     *  Universal for everyone. */
+    public boolean isUseClassTargets() {
+        return useClassTargets;
+    }
+
+    public void setUseClassTargets(boolean v) {
+        useClassTargets = v;
+    }
 
     /** Who this leap goes to while YOU play {@code mine}, or null when that class has no target of its own (the leap's
      *  Target applies). */
