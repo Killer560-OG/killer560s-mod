@@ -189,6 +189,30 @@ public final class FeatureGuard {
         };
     }
 
+    /**
+     * {@link #afterFeatures} for a highlight that registers on COLLECT_SUBMITS (docs/LESSONS-GUI.md: geometry submitted from
+     * AFTER_TRANSLUCENT_FEATURES is dropped or drawn from another frame's camera on some frames; killer560, 2026-11-03).
+     */
+    public static net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.CollectSubmits collectFeatures(
+            int bit, net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentFeatures listener) {
+        var guarded = afterFeatures(bit, listener);
+        return guarded::afterTranslucentFeatures;
+    }
+
+    /** {@link #afterFeaturesFlush} for COLLECT_SUBMITS. */
+    public static net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.CollectSubmits collectFeaturesFlush(
+            int bit, net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentFeatures listener) {
+        var guarded = afterFeaturesFlush(bit, listener);
+        return guarded::afterTranslucentFeatures;
+    }
+
+    /** {@link #afterTerrain} for COLLECT_SUBMITS. */
+    public static net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.CollectSubmits collectTerrain(
+            int bit, net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentTerrain listener) {
+        var guarded = afterTerrain(bit, listener);
+        return guarded::afterTranslucentTerrain;
+    }
+
     /** As {@link #afterFeatures}, for AFTER_TRANSLUCENT_TERRAIN. */
     public static net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentTerrain afterTerrain(
             int bit, net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentTerrain listener) {

@@ -245,7 +245,7 @@ public final class PickobulusEstimate {
         for (BlockPos p : snap) {
             LINES.add(p.getX(), p.getY(), p.getZ(), p.getX() + 1, p.getY() + 1, p.getZ() + 1, k[0], k[1], k[2], 1f);
         }
-        LINES.drawOutlines(context, RenderTypes.LINES_TRANSLUCENT, 2f);
+        LINES.drawOutlines(context, com.killer560.hub.util.EspTypes.LINES, 2f);
         frames++;
     }
 

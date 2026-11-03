@@ -92,7 +92,7 @@ public final class KingRelicsFeature {
         ServerTickClock.subscribe(KingRelicsFeature::onServerTick);
         ChatObserver.subscribe(KingRelicsFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("KingRelicsFeature", client -> onClientTick()));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectFeatures(
                 com.killer560.hub.util.FeatureBits.register("King Relics render", () -> WitherDragonsConfig.getInstance().isRelicsEnabledRaw() && WitherDragonsConfig.getInstance().isRelicHighlightRaw()), KingRelicsFeature::onWorldRender));
         // FAIL from a client UseBlockCallback/AttackBlockCallback sends nothing (see AutoRoutesEditInput): Block Wrong Relic
         // drops the click before onBlockClick could record it as a placement.

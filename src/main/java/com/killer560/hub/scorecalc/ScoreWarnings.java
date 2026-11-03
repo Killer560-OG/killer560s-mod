@@ -102,7 +102,7 @@ public final class ScoreWarnings {
             PORTAL_FILL.add(b.getX() - e, b.getY() - e, b.getZ() - e, b.getX() + 1 + e, b.getY() + 1 + e, b.getZ() + 1 + e,
                     k[0], k[1], k[2], 0.55f);
         }
-        PORTAL_FILL.drawFilled(context, net.minecraft.client.renderer.rendertype.RenderTypes.debugFilledBox());
+        PORTAL_FILL.drawFilled(context, com.killer560.hub.util.EspTypes.FILLED);
         portalFrames++;
     }
 

@@ -17,7 +17,7 @@ final class BlinkRender {
     }
 
     static void register() {
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BlinkRender::onWorldRender);
+        LevelRenderEvents.COLLECT_SUBMITS.register(BlinkRender::onWorldRender);
     }
 
     private static void onWorldRender(LevelRenderContext context) {

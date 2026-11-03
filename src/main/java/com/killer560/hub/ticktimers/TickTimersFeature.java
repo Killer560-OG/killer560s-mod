@@ -136,7 +136,7 @@ public final class TickTimersFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TickTimersFeature", client -> tick()));
         // CrushTimer's pad outline render (moved in from f7spots 2026-09-21) - same AFTER_TRANSLUCENT_FEATURES
         // hook + SkyblockGate check F7SpotsRenderer used to gate it with.
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> {
+        LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
             if (!SkyblockGate.allows() || !TickTimersConfig.getInstance().isEnabled()
                     || !TickTimersConfig.getInstance().isCrushPadHighlightEnabled()) {
                 return;

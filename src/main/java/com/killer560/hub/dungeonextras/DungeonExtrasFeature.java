@@ -41,7 +41,7 @@ public final class DungeonExtrasFeature {
             ManualBreakMonitor.onClientTick(client);
             ForeignBreakerProbe.onClientTick(client);
         }));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectFeatures(
                 com.killer560.hub.util.FeatureBits.register("Mage Beam render", () -> DungeonExtrasConfig.getInstance().isMageBeamEnabledRaw()), MageBeamFeature::onWorldRender));
         // Breaker Aura's Waypoint display draws through walls; the pipelines must exist before the first frame.
         com.killer560.hub.util.WorldRenderUtils.initThroughWalls();

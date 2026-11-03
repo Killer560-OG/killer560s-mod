@@ -65,7 +65,7 @@ public final class DungeonAlertsFeature {
             KeySpawnAlert.tick(client);
             SecretSound.tick(client);
         }));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(DungeonAlertsFeature::onWorldRender);
+        LevelRenderEvents.COLLECT_SUBMITS.register(DungeonAlertsFeature::onWorldRender);
 
         for (HudElement element : hudElements()) {
             net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(

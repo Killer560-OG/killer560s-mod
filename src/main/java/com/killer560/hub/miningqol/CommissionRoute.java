@@ -336,8 +336,8 @@ public final class CommissionRoute {
                             k[0], k[1], k[2], 1f);
                 }
             }
-            FILLS.drawFilled(context, RenderTypes.debugFilledBox());
-            LINES.drawOutlines(context, RenderTypes.LINES_TRANSLUCENT, 2f);
+            FILLS.drawFilled(context, com.killer560.hub.util.EspTypes.FILLED);
+            LINES.drawOutlines(context, com.killer560.hub.util.EspTypes.LINES, 2f);
         }
         frames++;
     }

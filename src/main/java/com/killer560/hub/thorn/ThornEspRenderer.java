@@ -41,24 +41,14 @@ final class ThornEspRenderer {
 
     /** Holder idiom - built once, on {@link #init()}. */
     private static final class ThroughWalls {
-        static final RenderType LINES = RenderType.create("killer560smod_thorn_esp_lines_through_walls",
-                RenderSetup.builder(RenderPipelines.register(com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/thorn_esp_lines_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).createRenderSetup());
+        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
 
-        static final RenderType FILLED = RenderType.create("killer560smod_thorn_esp_filled_through_walls",
-                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/thorn_esp_filled_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).sortOnUpload().createRenderSetup());
+        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
     }
 
     static void outline(LevelRenderContext context, AABB box, int argb, float lineWidth, boolean throughWalls) {
         float[] c = rgba(argb, 1.0f);
-        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT, (pose, buffer) -> {
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES, (pose, buffer) -> {
             lineBox(pose, buffer, box, c[0], c[1], c[2], c[3], lineWidth);
         });
     }
@@ -66,7 +56,7 @@ final class ThornEspRenderer {
     /** Fill is drawn at 35% of the color's own alpha so the mob stays visible inside it. */
     static void filled(LevelRenderContext context, AABB box, int argb, boolean throughWalls) {
         float[] c = rgba(argb, 0.35f);
-        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox(), (pose, buffer) -> {
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED, (pose, buffer) -> {
             filledBox(pose.pose(), buffer, box, c[0], c[1], c[2], c[3]);
         });
     }

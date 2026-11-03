@@ -39,7 +39,7 @@ import com.killer560.hub.compat.McRender;
  * {@code VertexConsumer} for every single box, this one fetches one per render type and then fills it in a
  * single uninterrupted pass - see the crash note in {@link #draw} for why that distinction matters.
  */
-final class SecretWaypointsRenderer {
+public final class SecretWaypointsRenderer {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-secretwaypoints");
 
@@ -54,21 +54,9 @@ final class SecretWaypointsRenderer {
 
     /** Holder idiom - built once, on {@link #init()}. */
     private static final class ThroughWalls {
-        static final RenderType LINES = RenderType.create("killer560smod_secretwaypoints_lines_through_walls",
-                RenderSetup.builder(RenderPipelines.register(com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod",
-                                "pipeline/secretwaypoints_lines_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).createRenderSetup());
+        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
 
-        static final RenderType FILLED = RenderType.create("killer560smod_secretwaypoints_filled_through_walls",
-                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod",
-                                "pipeline/secretwaypoints_filled_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).sortOnUpload().createRenderSetup());
+        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
     }
 
     /**
@@ -147,7 +135,7 @@ final class SecretWaypointsRenderer {
             // while making a type switch mid-pass impossible.
             if (fill) {
                 McRender.inCameraSpace(context,
-                        throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox(),
+                        throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED,
                         (pose, fillBuffer) -> {
                             for (SecretWaypointsFeature.Waypoint wp : snap) {
                                 filledBox(pose.pose(), fillBuffer, wp.box(), wp.r(), wp.g(), wp.b(),
@@ -157,7 +145,7 @@ final class SecretWaypointsRenderer {
             }
             if (outline) {
                 McRender.inCameraSpace(context,
-                        throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT,
+                        throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES,
                         (pose, lineBuffer) -> {
                             for (SecretWaypointsFeature.Waypoint wp : snap) {
                                 lineBox(pose, lineBuffer, wp.box(), wp.r(), wp.g(), wp.b(), 1f, 2f);
@@ -176,6 +164,11 @@ final class SecretWaypointsRenderer {
             drawn = 0;
         }
         return drawn;
+    }
+
+    /** Test hook (util/EspDepthTestHook): one through-walls fill drawn exactly as a waypoint fill is. */
+    public static void drawForTest(LevelRenderContext context, net.minecraft.world.phys.AABB box) {
+        McRender.inCameraSpace(context, ThroughWalls.FILLED, (pose, buffer) -> filledBox(pose.pose(), buffer, box, 0f, 1f, 0f, 0.5f));
     }
 
     /** Indices of the waypoints that passed this frame's distance cull. Render thread only; reused

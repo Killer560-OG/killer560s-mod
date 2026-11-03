@@ -86,6 +86,9 @@ public class Killer560ModClient implements ClientModInitializer {
         // Before anything reads a setting: sweep every killer560smod-* file and folder out of the config root into
         // config/killer560/<category>/<feature>/, so the root is clean even for features not touched this session.
         com.killer560.hub.util.ModPaths.migrateAll();
+        // Highlight render types (depth-writing, with OIT pipelines) must be registered before the renderer precompiles its list.
+        com.killer560.hub.util.EspTypes.init();
+        com.killer560.hub.util.EspDepthTestHook.register();
         // Copies setting changes into the active profile and imports zips dropped into the profile import folder.
         com.killer560.hub.profiles.ProfileManager.startBackgroundTasks();
 
