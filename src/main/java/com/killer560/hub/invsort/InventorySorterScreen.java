@@ -138,7 +138,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             grid[i] = inv == null ? ItemStack.EMPTY : inv.getItem(i).copy();
             missing[i] = false;
             exactAt[i] = null;
-            free[i] = false;
+            free[i] = i == InventoryLayout.LOCKED_SLOT;
         }
         held = -1;
         heldPool = null;
@@ -353,6 +353,10 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
 
     /** Makes {@code slot} Free (left out of the layout) or puts it back in. Public for tests. */
     public void toggleFree(int slot) {
+        if (slot == InventoryLayout.LOCKED_SLOT) {
+            say("That slot is locked: it holds the Skyblock Menu, map or arrows, and the sorter never touches it.", true);
+            return;
+        }
         if (slot < 0 || slot >= 36) {
             return;
         }
@@ -834,11 +838,12 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             if (free[i]) {
                 // Free: dimmed, with a mark, so it reads as "not part of this layout".
                 graphics.fill(p[0] + 1, p[1] + 1, p[0] + SLOT - 1, p[1] + SLOT - 1, 0xB0101010);
-                String mark = this.font.width("Free") <= SLOT - 3 ? "Free" : "F";
+                String word = i == InventoryLayout.LOCKED_SLOT ? "Lock" : "Free";
+                String mark = this.font.width(word) <= SLOT - 3 ? word : word.substring(0, 1);
                 MenuStyle.text(graphics, mark, p[0] + (SLOT - this.font.width(mark)) / 2, p[1] + (SLOT - 8) / 2,
                         MenuStyle.DIM);
                 if (over) {
-                    hoverFree = true;
+                    hoverFree = i != InventoryLayout.LOCKED_SLOT;
                 }
             }
             if (over) {
@@ -1019,7 +1024,8 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                 return true;
             }
             if (free[slot]) {
-                say("That slot is Free - right-click it to put it back in the layout.", true);
+                say(slot == InventoryLayout.LOCKED_SLOT ? "That slot is locked: the sorter never touches it."
+                        : "That slot is Free - right-click it to put it back in the layout.", true);
                 return true;
             }
             if (held >= 0) {

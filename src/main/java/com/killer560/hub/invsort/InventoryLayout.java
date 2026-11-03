@@ -24,6 +24,10 @@ import java.util.TreeSet;
  */
 public final class InventoryLayout {
 
+    /** Inventory index 8, the bottom-right hotbar slot (killer560, 2026-11-03): the Skyblock Menu, dungeon map or arrows, which
+     *  can never be removed, so the sorter treats it as always Free: never a source, a target, fetched into or put away. */
+    public static final int LOCKED_SLOT = 8;
+
     private final String name;
     private final Map<Integer, String> slotIdentities;
     /** Slot -&gt; vanilla item id ({@code minecraft:diamond_sword}) of the item saved there, so the editor can draw
@@ -59,7 +63,9 @@ public final class InventoryLayout {
                            String dumpPage) {
         this.name = name;
         this.slotIdentities = new LinkedHashMap<>(slotIdentities);
+        this.slotIdentities.remove(LOCKED_SLOT); // the last hotbar slot is Hypixel's locked item: no layout holds it
         this.slotIcons = new LinkedHashMap<>(slotIcons);
+        this.slotIcons.remove(LOCKED_SLOT);
         this.slotExact = new LinkedHashMap<>();
         for (Map.Entry<Integer, String> e : slotExact.entrySet()) {
             // Only for a slot the layout has, and only when it is that slot's item.
@@ -71,7 +77,7 @@ public final class InventoryLayout {
         }
         this.freeSlots = new TreeSet<>();
         for (int s : freeSlots) {
-            if (s >= 0 && s < 36 && !this.slotIdentities.containsKey(s)) {
+            if (s >= 0 && s < 36 && s != LOCKED_SLOT && !this.slotIdentities.containsKey(s)) {
                 this.freeSlots.add(s);
             }
         }
@@ -143,7 +149,7 @@ public final class InventoryLayout {
     }
 
     public boolean isFree(int slot) {
-        return freeSlots.contains(slot);
+        return slot == LOCKED_SLOT || freeSlots.contains(slot);
     }
 
     public String name() {
