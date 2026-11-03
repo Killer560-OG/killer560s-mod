@@ -46,6 +46,7 @@ public final class MiningQolFeatures {
             MiningHighlights.tick(client);
             RaffleLog.tick(client);
             MithrilStone.tick(client);
+            CommissionRoute.tick(client);
         }));
         // COLLECT_SUBMITS, while the frame still gathers what to draw (as the Etherwarp Overlay since 2026-10-13). From
         // AFTER_TRANSLUCENT_TERRAIN the boxes were drawn from a different frame's camera on some frames, so while he jumped or
@@ -57,6 +58,7 @@ public final class MiningQolFeatures {
                 PickobulusEstimate.render(context);
                 CommissionHud.render(context);
                 CommissionMobs.render(context);
+                CommissionRoute.render(context);
             } catch (RuntimeException e) {
                 com.killer560.hub.util.ModLog.get("killer560smod-miningqol").error("[MiningQol] render failed", e);
             }
