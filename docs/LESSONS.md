@@ -149,6 +149,12 @@ project CLAUDE.md. Compiling lessons
   stays up), Instant Finds stack ("insta find into an insta find then your next two clicks are insta finds"), and
   there is no activation click - the solver's old second click on the face-up tile did nothing but wait out 1s.
   XP reward tiles are recognized by NAME (`... Enchanting Exp`): the item varies, and cocoa beans were missed.
+- **A Superpairs board holds at most 2 powerups** (killer560, 2026-11-03: "at max there can only be 2 powerups in a
+  table"; the Overview had shown "Undiscovered powerups: up to 9"). `ExperimentSolver.MAX_SUPERPAIRS_POWERUPS`. The unseen
+  tiles that are no known partner are 2 x (whole pairs) + (covered powerups), so with the powerups already turned over
+  off the cap, an odd count is exactly 1 covered powerup and an even one is 0 or 2 (0 once fewer than 2 are left). The
+  Overview uses it (`SuperpairsSummary`); the solver does not need it, since the cap can prove a hidden pair exists but
+  never that no money is left. A board that contradicts it (3 seen, or odd with 2 seen) falls back to the uncapped count.
 - Clicking a tile that is already uncovered does not use a click (killer560, 2026-10-01). A pair's first click
   can fail to land (tile still covered, others still read "Click any button!"); clicking the partner anyway lost
   Experiment the Fish, so the first tile is now re-clicked before its partner.
