@@ -384,12 +384,12 @@ public final class MelodyTrackerFeature {
 
         @Override
         public int defaultX() {
-            return 10;
+            return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.TEAM_MELODY);
         }
 
         @Override
         public int defaultY() {
-            return 300;
+            return com.killer560.hub.hud.F7HudSlots.y(com.killer560.hub.hud.F7HudSlots.TEAM_MELODY); // was 10,300: over the Split Timers (hud/F7HudSlots)
         }
 
         @Override
