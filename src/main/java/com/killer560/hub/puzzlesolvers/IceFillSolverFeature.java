@@ -344,9 +344,26 @@ public final class IceFillSolverFeature {
             return false;
         }
         Vec3 feet = client.player.position();
-        BlockPos target = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.resolveTarget(client.level, feet,
+        // Judged on the warp the SERVER will do, not the one the crosshair shows (icefill-1102): Hypixel traces the
+        // etherwarp along the look and sneak it last heard in a movement packet, from where that packet put him, and a
+        // right click made while the camera turns goes before this tick's movement packet. His run 2026-11-02 17:06:08
+        // was allowed on the crosshair's -121 70 -57 (the next tile) and landed on the heard look's -121 70 -56, diagonal:
+        // "Don't move diagonally! Bad!" - twice. A refused click is tried again next tick by vanilla (the use key's
+        // delay is only set by a click that goes), by when the server has heard the look, so holding it costs one tick.
+        BlockPos aimed = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.resolveTarget(client.level, feet,
                 client.player, distance);
+        float[] heard = com.killer560.hub.util.RightClick.heardLook();
+        boolean heardSneak = client.player.getLastSentInput().shift();
+        BlockPos target = heard == null ? aimed
+                : com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.resolveTargetAlong(client.level,
+                com.killer560.hub.util.RightClick.heardFeet(client.player), client.player, distance, heard[0], heard[1],
+                heardSneak);
         String verdict = etherwarpVerdict(client.level, feet, target, currentPath);
+        if (verdict.startsWith("block") && !java.util.Objects.equals(target, aimed)) {
+            verdict = verdict + " (the server still has last tick's look: it lands on "
+                    + (target == null ? "nothing" : target.above().toShortString()) + ", not "
+                    + (aimed == null ? "nothing" : aimed.above().toShortString()) + ")";
+        }
         lastVerdict = verdict;
         if (!verdict.startsWith("block")) {
             return false;

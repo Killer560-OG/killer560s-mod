@@ -210,6 +210,17 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   fired the SAVED look - planned from the settled eye - 0.05 high; in 1015-sim-pathland it landed 5.4 blocks off
   (Overgrown) or was refused on a slab lip (Quartz Knight). The re-aim tries `exactEtherwarpDirection` (aimExact), and "on
   its spot" includes the height, so the saved look goes the tick he has dropped onto it.
+- **Hypixel's etherwarp itself lands along the HEARD look, not the use packet's rotation** (icefill-1102, his Ice Fill log
+  2026-11-02 17:06:08 and 17:06:14). Two manual sneak warps clicked mid-turn: use packets at yaw 61.66 and 18.18 (crosshair on
+  the next tile), heard looks 49.30 and 25.10; both landings (the next use's "from") were the blocks the HEARD look's ray met,
+  a tile off - "Don't move diagonally! Bad!". So anything judging where a warp will land (Ice Fill's Etherwarp Protection
+  now does, via `EtherwarpOverlayFeature.resolveTargetAlong` + `RightClick.heardLook/heardFeet`) must use the heard look.
+  NOT yet reconciled: `AutoPuzzleUtil.useItemRotated` turns and fires a warp in the same tick, which by this evidence would
+  land along the previous look on Hypixel; and the sim's `SimAbilities.etherwarp` uses the use packet's rotation
+  (`getLookAngle` after vanilla's snap), so the sim cannot show this. Testkit 1102-pz-icefill-flick checks the protection.
+- **"warp to X not sent - X+1 is not the next spot" with X one above the ice is a pillar, not a height bug.** Ice Fill's
+  obstacles stand at feet height on each floor (the identifier's must-be-solid blocks sit there too), so aiming at one
+  resolves to standing on top of it; his 33 refusals at -121 71 -59 (2026-11-02) were that pillar, correctly refused.
 
 ## Ticks, timing and clocks
 
