@@ -75,6 +75,18 @@ public final class LeapMenuConfig {
      *  the next run to tell a one-for-one swap from a party whose classes changed (killer560, 2026-10-23). Persisted;
      *  empty in a file from before then (every class then reads as unknown). */
     private final Map<String, DungeonClass> lastRunClasses = new LinkedHashMap<>();
+    /** Lower-case name -&gt; the class the dungeon TAB LIST showed for each of {@link #lastRunParty} at that run's start,
+     *  picks ignored (leaporder-1102). A pick masks the tab list in {@link #lastRunClasses}, so a teammate with a pick who
+     *  switched class never read as changed and kept a pick and a spot for a class they no longer play. Persisted. */
+    private final Map<String, DungeonClass> lastRunTabClasses = new LinkedHashMap<>();
+    /** The class you played at the last run's start ({@link LeapRunMemory}): the layout the last run's spots belong to.
+     *  Null before the first run with this field (then the current class is assumed). Persisted. */
+    private String lastRunPlaying = null;
+    /** Your own class as Hypixel last announced it ("You have selected the Tank Dungeon Class!", "Killer560 selected the
+     *  Tank Class!", "Party Finder &gt; Killer560 set their class to Tank Level 40!", "Your Tank stats are doubled ..."), the
+     *  class you play next when no dungeon tab list is showing it ({@link LeapMenuFeature#playingClass}). Persisted:
+     *  Hypixel keeps your selected class across sessions too. */
+    private String lastSelectedClass = null;
     /** Lower-case names given a class pick or a pin by hand outside a run (in the Hub, or in the dungeon before Mort's
      *  line) since the last run start: that is a choice made FOR the coming run, so its start keeps them for anyone in it
      *  ({@link LeapRunMemory}; killer560, 2026-10-22: picks set in the Hub were reset when the run started). Persisted,
@@ -160,6 +172,18 @@ public final class LeapMenuConfig {
                         }
                     }
                 }
+                if (root.has("lastRunTabClasses") && root.get("lastRunTabClasses").isJsonObject()) {
+                    JsonObject classes = root.getAsJsonObject("lastRunTabClasses");
+                    for (String key : classes.keySet()) {
+                        String n = cleanIgn(key);
+                        DungeonClass cls = DungeonClass.byName(ConfigJson.getString(classes, key, null));
+                        if (n != null && cls != null && cfg.lastRunTabClasses.size() < MAX_PICKS) {
+                            cfg.lastRunTabClasses.put(n.toLowerCase(Locale.ROOT), cls);
+                        }
+                    }
+                }
+                cfg.lastRunPlaying = classNameOrNull(ConfigJson.getString(root, "lastRunPlaying", null));
+                cfg.lastSelectedClass = classNameOrNull(ConfigJson.getString(root, "lastSelectedClass", null));
                 if (root.has("setBeforeRun") && root.get("setBeforeRun").isJsonArray()) {
                     for (var el : root.getAsJsonArray("setBeforeRun")) {
                         String n = el.isJsonPrimitive() ? cleanIgn(el.getAsString()) : null;
@@ -340,6 +364,15 @@ public final class LeapMenuConfig {
             JsonObject runClasses = new JsonObject();
             lastRunClasses.forEach((n, cls) -> runClasses.addProperty(n, cls.name()));
             root.add("lastRunClasses", runClasses);
+            JsonObject runTabClasses = new JsonObject();
+            lastRunTabClasses.forEach((n, cls) -> runTabClasses.addProperty(n, cls.name()));
+            root.add("lastRunTabClasses", runTabClasses);
+            if (lastRunPlaying != null) {
+                root.addProperty("lastRunPlaying", lastRunPlaying);
+            }
+            if (lastSelectedClass != null) {
+                root.addProperty("lastSelectedClass", lastSelectedClass);
+            }
             JsonArray beforeRun = new JsonArray();
             setBeforeRun.forEach(beforeRun::add);
             root.add("setBeforeRun", beforeRun);
@@ -532,6 +565,53 @@ public final class LeapMenuConfig {
                 }
             });
         }
+    }
+
+    /** @return lower-case name -&gt; the tab list's class of the last started run's teammates (a copy; {@link #lastRunTabClasses}). */
+    public Map<String, DungeonClass> getLastRunTabClasses() {
+        return new LinkedHashMap<>(lastRunTabClasses);
+    }
+
+    /** Replaces the last run's tab-list classes: {@code classes} name -&gt; class, a null class (not known) left out. */
+    public void setLastRunTabClasses(Map<String, DungeonClass> classes) {
+        lastRunTabClasses.clear();
+        if (classes != null) {
+            classes.forEach((n, cls) -> {
+                String clean = cleanIgn(n);
+                if (clean != null && cls != null && lastRunTabClasses.size() < MAX_PICKS) {
+                    lastRunTabClasses.put(clean.toLowerCase(Locale.ROOT), cls);
+                }
+            });
+        }
+    }
+
+    /** The class you played at the last run's start, or null when not recorded. */
+    public DungeonClass getLastRunPlaying() {
+        return lastRunPlaying == null ? null : DungeonClass.byName(lastRunPlaying);
+    }
+
+    public void setLastRunPlaying(DungeonClass playing) {
+        this.lastRunPlaying = playing == null ? null : playing.name();
+    }
+
+    /** Your class as Hypixel last announced it, or null when no such line has been seen. */
+    public DungeonClass getLastSelectedClass() {
+        return lastSelectedClass == null ? null : DungeonClass.byName(lastSelectedClass);
+    }
+
+    /** @return true when this changed the stored class (the caller then saves). */
+    public boolean setLastSelectedClass(DungeonClass cls) {
+        String name = cls == null ? null : cls.name();
+        if (java.util.Objects.equals(name, lastSelectedClass)) {
+            return false;
+        }
+        lastSelectedClass = name;
+        return true;
+    }
+
+    private static String classNameOrNull(String raw) {
+        DungeonClass c = raw == null ? null : DungeonClass.byName(raw);
+        return c == null ? null : c.name();
     }
 
     /** A pick set or cleared during a run is that run's class for the player, so the next run compares with it: without

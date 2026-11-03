@@ -114,7 +114,9 @@ public final class ClassColors {
             return null;
         }
         String name = client.player.getGameProfile().name();
-        return ClassOverrides.classOf(name, CLASSES.get(name));
+        // Your own class: the tab list first, a pick on your own name only while it does not know (leaporder-1102).
+        DungeonClass shown = CLASSES.get(name);
+        return shown != null ? shown : ClassOverrides.classOf(name, null);
     }
 
     /** "Not a teammate row" in {@link #TAB_NAMES}. */

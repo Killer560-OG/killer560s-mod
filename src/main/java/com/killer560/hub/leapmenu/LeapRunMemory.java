@@ -64,6 +64,21 @@ import java.util.regex.Pattern;
  * (a player's line starts with their rank or name, a party line with "Party &gt;"); the party is read from the dungeon tab
  * list a second later, once the tab list has been read at least twice. Never in the room sim or the {@code /killer560 sim}
  * override: those are not runs with a party.
+ * <p>
+ * <b>leaporder-1102</b> (killer560, 2026-11-02: "someone leaves then a new person joins ... they will get moved to the wrong
+ * position on the menu and swapped with someone else"; Reset All fixed it). Three causes, all fixed here:
+ * <ul>
+ *   <li>The departed's spot was found by laying the OLD party out with TODAY's classes, where the departed has none (gone
+ *       from the tab list, which is cleared between runs) - not the layout the last run showed. It is now laid out with the
+ *       class each had last run ({@link LeapMenuConfig#getLastRunClasses}) and for the class you played then
+ *       ({@link LeapMenuConfig#getLastRunPlaying}).</li>
+ *   <li>Rule 2 pinned newcomers into the vacated spots even when a stayer had changed class or you play another class,
+ *       when those spots belong to another layout; the pin then held the newcomer in the wrong corner and pushed a stayer
+ *       out of theirs. Now a newcomer is placed only while the old layout holds; otherwise the Default Order places them.</li>
+ *   <li>Class changes were compared on the class WITH picks, so a teammate with a pick who switched class never read as
+ *       changed. The tab list's own class is now kept per run ({@link LeapMenuConfig#getLastRunTabClasses}), and a stayer
+ *       the tab list shows on another class loses their pick and pins (not those set before the run), with the notice.</li>
+ * </ul>
  */
 public final class LeapRunMemory {
 
@@ -182,17 +197,32 @@ public final class LeapRunMemory {
         }
         // The one-for-one swap (see the class javadoc), decided before rule 1 clears the leaver's pick.
         Map<String, DungeonClass> lastClasses = cfg.getLastRunClasses();
+        Map<String, DungeonClass> lastTab = cfg.getLastRunTabClasses();
+        DungeonClass lastPlaying = cfg.getLastRunPlaying();
         List<String> classChanges = new ArrayList<>();
+        // Stayers the TAB LIST shows on another class than last run (leaporder-1102). Compared on the tab list itself,
+        // because a pick masks it: a teammate given a pick (by hand, or a swap's) who then switched class never read as
+        // changed, and kept a pick and a spot for the class they had stopped playing.
+        List<String> tabChanged = new ArrayList<>();
         for (String n : party) {
             if (!containsIgnoreCase(previous, n) || containsIgnoreCase(setBefore, n)) {
                 continue;
             }
-            DungeonClass was = lastClasses.get(n.toLowerCase(Locale.ROOT));
+            String key = n.toLowerCase(Locale.ROOT);
+            DungeonClass wasTab = lastTab.get(key);
+            DungeonClass nowTab = PartyTracker.detectedClassOf(n);
+            if (wasTab != null && nowTab != null && wasTab != nowTab) {
+                tabChanged.add(n);
+                classChanges.add(n + " " + wasTab + "->" + nowTab);
+                continue;
+            }
+            DungeonClass was = lastClasses.get(key);
             DungeonClass now = PartyTracker.classOf(n);
             if (was != null && now != null && was != now) {
                 classChanges.add(n + " " + was + "->" + now);
             }
         }
+        boolean playingChanged = lastPlaying != null && playing != null && lastPlaying != playing;
         DungeonClass leaverClass = null;
         if (departed.size() == 1) {
             DungeonClass pick = cfg.pickOf(departed.get(0));
@@ -202,6 +232,7 @@ public final class LeapRunMemory {
         boolean swap = partyChanged && departed.size() == 1 && joined.size() == 1 && leaverClass != null
                 && classChanges.isEmpty();
         String outcome;
+        List<String> stale = new ArrayList<>();
         if (departed.size() > 2) {
             // Rule 3: a new party - nothing of the old layout means anything any more, except what was set for this one.
             List<String> cleared = new ArrayList<>();
@@ -222,8 +253,18 @@ public final class LeapRunMemory {
             outcome = departed.size() + " left " + departed + ": every class pick and pin reset " + cleared
                     + ", kept (set before the run) " + setBefore;
         } else {
-            // Where the departed stood last run, before anything of theirs is cleared.
-            String[] before = LeapMenuFeature.layout(previous, playing);
+            // Where the departed stood last run, before anything of theirs is cleared: the layout of the class you played
+            // then, with everyone on the class they had then (leaporder-1102). It used to be laid out with TODAY's
+            // classes, where the departed (gone from the tab list) has none and a stayer may have switched, so it was not
+            // the layout the last run showed: with a Tank and a Mage both wanting bottom-right, a departed Tank read as
+            // standing top-left, the newcomer was pinned there and the Mage was pushed into the Tank's corner.
+            DungeonClass beforeClass = lastPlaying != null ? lastPlaying : playing;
+            java.util.function.Function<String, DungeonClass> lastClassOf = n -> {
+                DungeonClass c = lastClasses.get(n.toLowerCase(Locale.ROOT));
+                return c != null ? c : PartyTracker.classOf(n);
+            };
+            String[] before = LeapMenuFeature.layout(previous, cfg.getClassOrder(beforeClass), cfg.getDefaultOrder(),
+                    lastClassOf);
             List<Integer> vacated = new ArrayList<>();
             for (int spot = 0; spot < 4; spot++) {
                 if (before[spot] != null && containsIgnoreCase(departed, before[spot])) {
@@ -247,9 +288,24 @@ public final class LeapRunMemory {
                     }
                 }
             }
+            // A stayer now on another class keeps nothing they had for the old one (leaporder-1102): their pick and
+            // their pins were for a role they no longer play, and a pin holds them in that role's spot over the Default
+            // Order. Not what was set before this run.
+            for (String n : tabChanged) {
+                boolean had = ClassOverrides.clear(n);
+                if (cfg.unpinEverywhere(n) || had) {
+                    stale.add(n);
+                }
+            }
             // Rule 2: newcomers take the vacated spots, spot order against leap-menu order - except a newcomer already
             // pinned by hand, and a vacated spot someone was pinned into by hand since (both set before this run).
+            // Only when the old layout still means something (leaporder-1102): nobody who stayed changed class and you
+            // play the class you played. Otherwise the vacated spots are another class's spots, and pinning a newcomer
+            // into one held them there over the Default Order and pushed a stayer out of their own corner (his log,
+            // 2026-10-31 23:55: a Healer left, a Tank joined, a stayer went Tank to Healer, and the new Tank was pinned
+            // into the Healer's spot); then they follow the Default Order, as the reset notice says.
             List<String> placed = new ArrayList<>();
+            boolean layoutHolds = classChanges.isEmpty() && !playingChanged;
             List<String> pinsNow = cfg.getClassOrder(playing);
             List<String> placeable = new ArrayList<>();
             for (String n : joined) {
@@ -263,9 +319,15 @@ public final class LeapRunMemory {
                     free.add(spot);
                 }
             }
-            for (int i = 0; i < placeable.size() && i < free.size(); i++) {
+            for (int i = 0; layoutHolds && i < placeable.size() && i < free.size(); i++) {
                 cfg.pinAt(playing, placeable.get(i), free.get(i));
                 placed.add(placeable.get(i) + "->" + free.get(i));
+            }
+            if (!layoutHolds && !placeable.isEmpty() && !free.isEmpty()) {
+                placed.add("none, Default Order (" + (playingChanged ? "you played " + lastPlaying : "a class changed") + ")");
+            }
+            if (!stale.isEmpty()) {
+                cleared.add("class changed " + stale);
             }
             // The swap: the newcomer takes the leaver's class too, unless you already picked one for them.
             String took = "";
@@ -283,18 +345,25 @@ public final class LeapRunMemory {
                     : departed.isEmpty() && joined.isEmpty() ? "same party " + party + ", picks kept, cleared " + cleared
                     : "left " + departed + ", joined " + joined + ", cleared " + cleared + ", placed " + placed) + took + kept;
         }
-        if (partyChanged && !swap) {
+        // The notice also when the party is the same but a stayer's switch cleared a pick or pin of theirs: their spot
+        // changed without anyone leaving, and he set it by hand.
+        if (partyChanged && !swap || !stale.isEmpty()) {
             String why = !classChanges.isEmpty() ? "class changed: " + classChanges
                     : departed.size() == 1 && joined.size() == 1 ? departed.get(0) + "'s class is not known"
                     : departed.size() + " left, " + joined.size() + " joined";
             outcome += ", reset notice (" + why + ")";
             showResetNotice();
         }
+        outcome += ", playing " + playing;
         Map<String, DungeonClass> classesNow = new java.util.LinkedHashMap<>();
+        Map<String, DungeonClass> tabNow = new java.util.LinkedHashMap<>();
         for (String n : party) {
             classesNow.put(n, PartyTracker.classOf(n));
+            tabNow.put(n, PartyTracker.detectedClassOf(n));
         }
         cfg.setLastRunClasses(classesNow);
+        cfg.setLastRunTabClasses(tabNow);
+        cfg.setLastRunPlaying(playing);
         cfg.clearSetBeforeRun();
         cfg.setLastRunParty(party);
         cfg.save();

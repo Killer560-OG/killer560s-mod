@@ -5,6 +5,22 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 [LESSONS.md](LESSONS.md). Automation runtime is in [LESSONS-AUTOMATION.md](LESSONS-AUTOMATION.md); the sim in
 [SIM.md](SIM.md).
 
+## Leap Order and classes
+
+- Leap Order newcomers landed in the wrong spot and pushed a stayer out (killer560, 2026-11-02; Reset All fixed it).
+  `LeapRunMemory` found the departed's spot by laying the old party out with TODAY's classes, where the departed has none
+  (PartyTracker drops tab-list classes on leaving a dungeon) and a stayer may have switched, so with a Tank and a Mage both
+  wanting bottom-right a departed Tank "stood" top-left. It also pinned newcomers into vacated spots after a stayer changed
+  class (his log 2026-10-31 23:55: a Tank joining for a Healer was pinned in the Healer's corner). Fix: lay out with the
+  last run's classes and played class, place newcomers only while that layout holds (leaporder-1102).
+- A class pick masks the tab list: comparing classes WITH picks never sees a picked teammate switch class, so their pick
+  and pin outlived the role. Compare the tab list's own class per run (`lastRunTabClasses`) and drop stale picks/pins.
+- Your own class: `PartyTracker.selfClass` let a pick on your own name beat the tab list, and nothing cleared one (rule 1
+  skips you; the removed Class Selection Overlay could set it). The tab list wins now; outside a dungeon `playingClass`
+  uses Hypixel's "You have selected the X Dungeon Class!" (and the pre-start, Party Finder and "stats are doubled" lines),
+  persisted, before the editor's last class. RunSummary's stored class matched Hypixel's line in all 42 runs checked, so
+  the end-of-run tab class was never the problem; the fallbacks were.
+
 ## Dungeon Map and room data
 
 - **The live map's world scan must stay inside the floor's room grid.** Floor 1's boss arena stands in slots
