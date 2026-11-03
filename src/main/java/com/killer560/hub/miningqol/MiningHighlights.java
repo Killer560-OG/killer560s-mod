@@ -28,7 +28,7 @@ import java.util.Set;
  *       only) - filled in a color of his choice, so he stops swinging at them.</li>
  *   <li><b>Titanium Highlight</b> (legit; through walls in the cheat build only): Titanium is Polished Diorite in the Dwarven
  *       Mines (hypixelskyblock wiki, Titanium Ore). Always, or only while an open commission wants titanium where he is
- *       ("Titanium Miner" anywhere, "Royal Mines Titanium" in the Royal Mines), and always with Universal Area Access on.</li>
+ *       ("Titanium Miner" anywhere, "Royal Mines Titanium" in the Royal Mines).</li>
  *   <li><b>Raffle Ticket Highlight</b> (legit; through walls in the cheat build only): during the Dwarven Mines Raffle, a box
  *       round each raffle ticket on the ground - a dropped item named "Raffle Ticket", a dropped Name Tag (the wiki's ticket
  *       icon), or a stand named "Raffle Ticket".</li>
@@ -40,6 +40,8 @@ public final class MiningHighlights {
     private static final int RADIUS = 48;
     private static final int DY = 40;
     private static final int MAX = 2000;
+    /** How far the carpet fill sits outside the carpet, so no face of it is coplanar with a block face. */
+    public static final double CARPET_MARGIN = 0.002;
 
     private static final Set<Block> VEIN_CARPETS = Set.of(McBlocks.GRAY_CARPET, McBlocks.LIGHT_BLUE_CARPET,
             McBlocks.LIGHT_GRAY_CARPET);
@@ -92,7 +94,7 @@ public final class MiningHighlights {
         if (!cfg.isTitanium()) {
             return false;
         }
-        if (cfg.getTitaniumMode() == MiningQolConfig.TitaniumMode.ALWAYS || cfg.isUniversalAccess()) {
+        if (cfg.getTitaniumMode() == MiningQolConfig.TitaniumMode.ALWAYS) {
             return true;
         }
         return MiningState.openCommissionHere("Titanium", false);
@@ -144,10 +146,17 @@ public final class MiningHighlights {
         WALL_LINES.clear();
         if (!c.isEmpty() && cfg.isCarpet()) {
             float[] k = WorldRenderUtils.argbToFloats(cfg.getCarpetColor());
+            // A hair outside the carpet (killer560, 2026-11-03: "if i jump or crouch ... the highlight will like phase
+            // through the block"): the fill's faces lay exactly on the carpet's top face and the Sea Lantern's top
+            // face, z-fought with them, and which one won flipped as the camera moved. Same margin as the titanium boxes.
+            double e = CARPET_MARGIN;
             for (BlockPos p : c) {
-                FILLS.add(p.getX(), p.getY(), p.getZ(), p.getX() + 1, p.getY() + 0.0625, p.getZ() + 1, k[0], k[1], k[2],
-                        Math.min(k[3], 0.6f));
+                FILLS.add(p.getX() - e, p.getY() + e, p.getZ() - e, p.getX() + 1 + e, p.getY() + 0.0625 + e,
+                        p.getZ() + 1 + e, k[0], k[1], k[2], Math.min(k[3], 0.6f));
             }
+            BlockPos p0 = c.get(0);
+            lastCarpetBox = new double[]{p0.getX() - e, p0.getY() + e, p0.getZ() - e, p0.getX() + 1 + e,
+                    p0.getY() + 0.0625 + e, p0.getZ() + 1 + e};
             carpetFrames++;
         }
         if (!t.isEmpty() && cfg.isTitanium()) {
@@ -195,6 +204,13 @@ public final class MiningHighlights {
 
     public static int ticketCount() {
         return tickets.size();
+    }
+
+    private static volatile double[] lastCarpetBox = null;
+
+    /** The last carpet fill box drawn (testkit: no face lies on the carpet's or the lantern's own face). */
+    public static double[] lastCarpetBox() {
+        return lastCarpetBox;
     }
 
     public static int carpetFrames() {

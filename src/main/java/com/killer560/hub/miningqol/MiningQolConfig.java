@@ -64,9 +64,9 @@ public final class MiningQolConfig {
     // Carpet Highlighter
     private boolean carpet = false;
     private int carpetColor = DEFAULT_CARPET_COLOR;
-    // Mithril As Stone, and the universal area access both it and the Titanium Highlight read
+    // Mithril As Stone. (A "universalAccess" switch lived here until mining-1103: a commission that counts everywhere has
+    // no area in its name - "Mithril Miner" - and MiningState.wants already applies it everywhere, so the key is ignored.)
     private boolean mithrilStone = false;
-    private boolean universalAccess = false;
     // Titanium Highlight
     private boolean titanium = false;
     private TitaniumMode titaniumMode = TitaniumMode.COMMISSION;
@@ -105,7 +105,6 @@ public final class MiningQolConfig {
                 cfg.carpet = ConfigJson.getBool(o, "carpet", cfg.carpet);
                 cfg.carpetColor = intOr(o, "carpetColor", cfg.carpetColor);
                 cfg.mithrilStone = ConfigJson.getBool(o, "mithrilStone", cfg.mithrilStone);
-                cfg.universalAccess = ConfigJson.getBool(o, "universalAccess", cfg.universalAccess);
                 cfg.titanium = ConfigJson.getBool(o, "titanium", cfg.titanium);
                 try {
                     if (o.has("titaniumMode")) {
@@ -151,7 +150,6 @@ public final class MiningQolConfig {
             o.addProperty("carpet", carpet);
             o.addProperty("carpetColor", carpetColor);
             o.addProperty("mithrilStone", mithrilStone);
-            o.addProperty("universalAccess", universalAccess);
             o.addProperty("titanium", titanium);
             o.addProperty("titaniumMode", titaniumMode.name());
             o.addProperty("titaniumColor", titaniumColor);
@@ -289,14 +287,6 @@ public final class MiningQolConfig {
 
     public void setMithrilStone(boolean v) {
         mithrilStone = v;
-    }
-
-    public boolean isUniversalAccess() {
-        return universalAccess;
-    }
-
-    public void setUniversalAccess(boolean v) {
-        universalAccess = v;
     }
 
     // ---- Titanium Highlight

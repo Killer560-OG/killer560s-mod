@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * reaches the server. (SkyHanni's Commissions Blocks Color swaps block models the same way, through BlockStateModelSet.)
  *
  * <p>When it is on: the setting is on, the player is on the Dwarven Mines island, the tab list shows his Commissions, the
- * Universal Area Access switch is off, and no open commission wants mithril or titanium where he is ({@link
+ * no open commission wants mithril or titanium where he is ({@link
  * MiningState#openCommissionHere}: "Mithril Miner"/"Titanium Miner" anywhere, or "Lava Springs Mithril" etc. while the
  * sidebar says Lava Springs). The area is the sidebar's, so the whole view follows the area he stands in. Each time the
  * answer changes, the sections around him are re-meshed.
@@ -81,7 +81,7 @@ public final class MithrilStone {
     static boolean compute() {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         return cfg.isMithrilStone() && MiningState.dwarvenMines() && MiningState.commissionsKnown()
-                && !cfg.isUniversalAccess() && !MiningState.openCommissionHere("Mithril", true);
+                && !MiningState.openCommissionHere("Mithril", true);
     }
 
     /** Marks every section within render distance for a rebuild (on the client thread). */

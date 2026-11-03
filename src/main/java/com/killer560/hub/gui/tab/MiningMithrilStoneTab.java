@@ -20,10 +20,6 @@ public class MiningMithrilStoneTab extends BaseTab {
         int y = contentY;
         w.add(onOffButton("Mithril As Stone", () -> cfg.isMithrilStoneRaw(), cfg::setMithrilStone, cfg::save, requestRebuild, contentX, y,
                 contentWidth, 20));
-        y += MiningQolRows.STEP;
-
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Universal Area Access", cfg::isUniversalAccess,
-                cfg::setUniversalAccess, cfg::save);
         return w;
     }
 }
