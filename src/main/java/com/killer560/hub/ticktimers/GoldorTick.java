@@ -28,7 +28,7 @@ import java.util.Map;
  *       mask procs came 3 and 6 seconds after his line);</li>
  *   <li>every observed hit resyncs it: a drop in your own health, a mask/Phoenix proc line, or two or more players hurt in
  *       the same tick. A hit within {@link #SNAP} ticks of the predicted one moves the phase onto it; a hit that does not
- *       fit is remembered, and a second one a whole number of periods after it (within one tick) re-locks the phase there,
+ *       fit is remembered, and a second one a whole number of periods after it (within two ticks) re-locks the phase there,
  *       as does a hit that lands on two or more players at once. A stray hit (a mob, a fall) moves nothing.</li>
  * </ul>
  * The line reads 0 at the hit's tick and 59 ticks (2.95 s) the tick after.
@@ -38,8 +38,10 @@ public final class GoldorTick {
     private static final Logger LOGGER = ModLog.get("killer560smod-ticktimers");
 
     public static final int PERIOD = 60;
-    /** A hit this close to the predicted tick is the tick: the phase moves onto it. */
-    static final int SNAP = 3;
+    /** A hit this close to the predicted tick is the tick: the phase moves onto it. 8, not less: off Hypixel (no per-tick
+     *  pings) the clock follows the client's game time and the server's once-a-second time packets, and wobbles by up to
+     *  that much on a loaded server (1102-hx-goldor-tick with GrimAC: hits read 4, 8, -5); a tighter snap lost the lock. */
+    static final int SNAP = 8;
     /** Hits this soon after an accepted one are the same hit (a second health packet, the proc line). */
     static final int DEBOUNCE = 5;
 
@@ -127,8 +129,8 @@ public final class GoldorTick {
         boolean pair = false;
         if (unexplained != Long.MIN_VALUE) {
             long gap = t - unexplained;
-            long rem = Math.floorMod(gap + 1, (long) PERIOD);
-            pair = gap >= PERIOD - 1 && gap <= 3L * PERIOD + 1 && rem <= 2;
+            long rem = Math.floorMod(gap + 2, (long) PERIOD);
+            pair = gap >= PERIOD - 2 && gap <= 3L * PERIOD + 2 && rem <= 4;
         }
         if (fits || strong || pair) {
             if (!fits) {
