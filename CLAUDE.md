@@ -645,3 +645,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   State keys, Blink's keys, the Profiles tab, `/runlog`, `/search`, `/ew`. The Bat Test (/test) was dropped entirely and
   the Insta Clear readout/mark/threshold/window have no UI (his call: "why do i need a bat test? autosecret had its own
   keybind already"); do not add menu rows for them. Testkit 1101-cmdclean-gone fails if any command comes back.
+- A SkyBlock menu button that "looks different" after a version move is usually vanilla, not Hypixel: 26.3 redrew only
+  `map.png`/`filled_map.png` among item textures (Bazaar Create Sell Offer became a folded map); Hypixel's pack has no menu
+  models. Pack Disabler's table refresh (NEU snapshots, coverage report, skin check) is in docs/LESSONS.md, Items (2026-11-03).
