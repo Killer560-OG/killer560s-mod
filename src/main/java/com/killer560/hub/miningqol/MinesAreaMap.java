@@ -249,6 +249,12 @@ public final class MinesAreaMap {
         set(testGraph == null ? null : build(testGraph));
     }
 
+    /** Back to the downloaded graph (the next tick rebuilds from it). */
+    public static void clearTestGraphForTest() {
+        testGraph = null;
+        set(null);
+    }
+
     /** Every area name the map knows. */
     public static List<String> areaNames() {
         Map3 m = map;

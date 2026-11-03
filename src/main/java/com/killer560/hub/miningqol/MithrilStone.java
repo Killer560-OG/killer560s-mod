@@ -43,6 +43,8 @@ public final class MithrilStone {
     private static volatile BlockState stone;
     private static volatile boolean dirtyRequested = false;
     private static final AtomicLong swapped = new AtomicLong();
+    private static volatile boolean recordForTest = false;
+    private static final java.util.Set<Long> SWAPPED_AT = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private static int remeshes = 0;
 
     private MithrilStone() {
@@ -57,6 +59,9 @@ public final class MithrilStone {
             return null;
         }
         swapped.incrementAndGet();
+        if (recordForTest) {
+            SWAPPED_AT.add(BlockPosKey.of(x, y, z));
+        }
         BlockState s = stone;
         if (s == null) {
             s = Blocks.STONE.defaultBlockState();
@@ -138,5 +143,32 @@ public final class MithrilStone {
 
     public static int remeshCount() {
         return remeshes;
+    }
+
+    /** Testkit: record each position the mesher swaps (off by default; on clears the record). */
+    public static void recordSwapsForTest(boolean on) {
+        SWAPPED_AT.clear();
+        recordForTest = on;
+    }
+
+    /** Testkit: whether the mesher drew the block at x, y, z as stone since recording started. */
+    public static boolean swappedAt(int x, int y, int z) {
+        return SWAPPED_AT.contains(BlockPosKey.of(x, y, z));
+    }
+
+    /** Testkit: re-mesh the view now. */
+    public static void remeshForTest() {
+        remesh(Minecraft.getInstance());
+    }
+
+    /** Testkit: forget the record (call before a remesh to read only its draws). */
+    public static void clearSwapRecordForTest() {
+        SWAPPED_AT.clear();
+    }
+
+    private static final class BlockPosKey {
+        static long of(int x, int y, int z) {
+            return net.minecraft.core.BlockPos.asLong(x, y, z);
+        }
     }
 }
