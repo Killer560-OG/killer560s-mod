@@ -240,6 +240,11 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
 - **A click cap holds at the client, not at the server.** Blood Camp's clicks go exactly the attack-speed cap apart (5 ticks
   at 100 Attack Speed), but the testkit server saw them 4 and 6 ticks apart, alternating (186), mean exactly 5. Assert the
   cap on the client's own click ticks, and at the server only the mean and "never more than a tick under".
+- **An Attack Speed the client cannot see is the cap, not 0** (atkspeed-1103, killer560: "fire it as soon as possible").
+  `AttackCooldown` read the tab's Attack Speed line, else summed item lore, which misses pets and read 0 (10 ticks): a blood
+  mob appearing 5-9 ticks after a click waited for the 10th (nmflake-1103 offspot). Hypixel's window is the HIT mob's
+  immunity, so a click too early only wastes itself on that mob; now tab line, else the last tab reading, else 100 (5
+  ticks). His real camps (2026-11-02 runs 2, 3) already read 5 ticks from the tab. Testkit 1103-bloodcamp-atkspeed-*.
 - **A click RATE is scheduled from the previous click's due time**, fractional, not from when it went out (else 16 CPS
   rounds to 10), **and a turned click counts from its TURN tick.** With "schedule from the previous due tick" alone, a click
   that first needs `TurnFirst` goes out a tick after it was due and the next gap starts from there: Lever Aura measured 4.48
