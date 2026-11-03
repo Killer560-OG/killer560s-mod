@@ -19,11 +19,11 @@ import org.slf4j.Logger;
  * <p>When a screen that opened while the attack key was held closes, and the left button is STILL physically down (the
  * button events the game saw, {@link MouseButtons}, and the platform's own button state, SDL on 26.3 / GLFW on 26.2), the
  * window is focused, the mouse is grabbed again and the attack key is bound to the left button, the attack key is set
- * down again with {@code KeyMapping.set(left button, true)} - what the button's own press does to the mapping, without the
- * click count a new press adds - and missTime is cleared from the screen's 10000 to the 0 vanilla's own next
- * {@code continueAttack(false)} would give it. From the next tick vanilla's {@code continueAttack(true)} digs as if the
- * button had been held through: the same START_DESTROY_BLOCK a held button sends when it sweeps onto a block, no click,
- * no entity attack, nothing else sent. Released during the menu: nothing happens. Mining islands only (the setting's
+ * down again with {@code KeyMapping.set(left button, true)}, missTime is cleared from the screen's 10000 to the 0 vanilla's
+ * own next {@code continueAttack(false)} would give it, and, when he aims at a block, the button's press is counted with
+ * {@code KeyMapping.click} - exactly what the button's own press does (MouseHandler.onButton). The next tick vanilla's
+ * startAttack sends START_DESTROY_BLOCK and a swing and continueAttack digs on: the packets of a fresh press on that
+ * block, nothing else. Aimed at a mob, only the key goes down (a held button never attacks a mob). Released during the menu: nothing happens. Mining islands only (the setting's
  * scope): in dungeons and combat, other features key off the attack button and a held sword digs nothing anyway.
  */
 public final class HeldBreakResume {
@@ -74,6 +74,13 @@ public final class HeldBreakResume {
             client.missTime = 0;
         }
         KeyMapping.set(left, true);
+        // And the press itself when he aims at a block. The close tick's continueAttack(false) sent ABORT_DESTROY_BLOCK,
+        // and continueDestroyBlock's sameDestroyTarget ignores isDestroying (javap 26.3/26.2): the held key alone would
+        // dig on the client only, a dig the server never hears of. The click goes through vanilla's startAttack next
+        // tick (START_DESTROY_BLOCK and a swing, exactly a fresh press); not on an entity, which a held button never hits.
+        if (client.hitResult != null && client.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+            KeyMapping.click(left);
+        }
         resumes++;
         LOGGER.info("[AttackHold] menu closed with left click still held: break resumed");
     }

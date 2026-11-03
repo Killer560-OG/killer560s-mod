@@ -426,7 +426,9 @@ project CLAUDE.md. Compiling lessons
   (ClientboundOpenScreenPacket, no mod code in the stack) 2-3 s after "X Commission Complete!", each followed within ~1 s by
   "+12,000 Mining" (the claim); the trigger is still unknown, so the probe now dumps the last 40 sent packets and 10 chat/title
   lines when a container opens under a held click. Fix that works whatever opens it: `miningqol/HeldBreakResume` (Resume Held
-  Break After Menus, default on, mining islands) sets the attack key down again on close while the button is still held, and
-  clears missTime from 10000 to the 0 vanilla's next continueAttack(false) would give it; no click count, so vanilla
-  digs on via continueAttack (testkit 1103-mining-hold-*). KeyMapping.set alone is not enough after a close in the same tick
-  as the dig check: missTime 10000 would block the dig for 10000 ticks.
+  Break After Menus, default on, mining islands) sets the attack key down again on close while the button is still held,
+  clears missTime from 10000 to 0, and on a block adds the press (KeyMapping.click), so vanilla's startAttack sends
+  START_DESTROY_BLOCK the next tick (testkit 1103-mining-hold-*). KeyMapping.set alone is WRONG: the close tick's
+  continueAttack(false) sends ABORT_DESTROY_BLOCK, and continueDestroyBlock's sameDestroyTarget ignores isDestroying, so the
+  held key digs on the client only (dig ticks counting, punch packets, no START) - a dig the server never hears of. The first
+  test run caught it (wire: ABORT then only punches).
