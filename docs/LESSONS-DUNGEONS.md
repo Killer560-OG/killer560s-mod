@@ -125,6 +125,11 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   first to drop was timed ("4 mages and 1 arch and it only ever gave the arch's time"). The core is the closed room in the
   middle of the Goldor arena: NoammAddons LeapCounter's in-core box x 42..68, y 106..155, z 54..119 (its INCORE_BOX and our
   Posmsg "Recore" preset 54.5,115,58.5 sit inside). Testkit 1101-dhud-coreentry.
+- A timer started by a chat line and checked in END_CLIENT_TICK reads a frame to a tick late for something already true
+  at the line: the line is handled with the frame's packets (`Minecraft.runTick` processes packets every frame, then runs
+  0..n client ticks), so the first END_CLIENT_TICK can be up to 50 ms later. Core Entry showed players standing in the
+  core as 0.05s (killer560's F7 run, 2026-11-02, Ticks counting); it now records everyone inside at the line itself as 0.
+  Do the first check in the line's handler. Testkit 1102-splitchat-core0(ticks).
 - On Hypixel the Fairy door is usually coal until the run starts and opens 1-2 s after "Starting in 1 second." (Mod Only
   Test logs 2026-10-14..10-20: "fairy door N is a shut wither door" then "door N into Fairy" a second later), and is
   sometimes a real wither door that takes a key (2026-10-18 22:57:02, opened with the key). At the run start the map

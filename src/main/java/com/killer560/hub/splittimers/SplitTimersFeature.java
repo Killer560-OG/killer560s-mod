@@ -12,6 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -329,7 +330,7 @@ public final class SplitTimersFeature {
             return;
         }
         boolean lagless = SplitTimersConfig.getInstance().isLaglessTimes();
-        Component tookLine = tookLine(plainLabel(run.splits.get(prev)),
+        Component tookLine = tookLine(run.splits.get(prev).label(),
                 String.format(Locale.US, "%.2fs", segment / 1000.0) + laglessSuffix(lagless, segmentLagless, true), "!");
         if (!last) {
             client.player.sendSystemMessage(tookLine);
@@ -341,9 +342,9 @@ public final class SplitTimersFeature {
         lines.add(tookLine);
         for (SplitRow row : layoutRows(now)) {
             switch (row.kind()) {
-                case SEGMENT -> lines.add(tookLine(plain(row.name()), formatTime(row.timeMs())
+                case SEGMENT -> lines.add(tookLine(row.name(), formatTime(row.timeMs())
                         + laglessSuffix(lagless, row.lagLessMs(), false), "."));
-                case LAG -> lines.add(Component.empty().append(ModChat.value("Lag")).append(ModChat.text(": "))
+                case LAG -> lines.add(Component.empty().append(segmentName(row.name())).append(ModChat.text(": "))
                         .append(ModChat.value(lagSeconds(row.timeMs()))).append(ModChat.text(".")));
                 default -> {
                 }
@@ -373,9 +374,26 @@ public final class SplitTimersFeature {
         return " (" + (seconds ? String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(laglessMs) / 1000.0) : formatTime(laglessMs)) + ")";
     }
 
-    private static Component tookLine(String name, String time, String end) {
-        return Component.empty().append(ModChat.value(name)).append(ModChat.text(" took "))
+    /** "Watcher took 47.50s." - {@code label} is the HUD row's own label ("§cWatcher"), so the name is drawn in the
+     *  segment's HUD color (killer560, 2026-11-02: "make the watcher took ___ text its color that it shows in the hud"). */
+    private static Component tookLine(String label, String time, String end) {
+        return Component.empty().append(segmentName(label)).append(ModChat.text(" took "))
                 .append(ModChat.value(time)).append(ModChat.text(end));
+    }
+
+    /** A segment label ("§5Maxor") as chat: the plain name in the color its leading section code gives it on the HUD.
+     *  The labels in the split definitions and {@link #layoutRows} are the one source for both. A label with no color
+     *  code keeps the old light orange. */
+    static MutableComponent segmentName(String label) {
+        ChatFormatting color = null;
+        for (int i = 0; i + 1 < label.length() && label.charAt(i) == '§'; i += 2) {
+            ChatFormatting f = ChatFormatting.getByCode(label.charAt(i + 1));
+            if (f != null && f.ordinal() < 16) {   // the 16 colors come first (BossChat.legacy)
+                color = f;
+            }
+        }
+        String name = plain(label);
+        return color == null ? ModChat.value(name) : Component.literal(name).withStyle(color);
     }
 
     private static int previousRecorded(int index) {
