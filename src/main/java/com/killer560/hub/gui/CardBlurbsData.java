@@ -182,7 +182,7 @@ final class CardBlurbsData {
         d.put("AutoSellTab", "Sells your sell list on its own.");
         d.put("BazaarFlipTab", "Buy and sell flips.");
         d.put("AhFlipperTab", "Finds underpriced BINs on the AH.");
-        d.put("AhPriceCopierTab", "Copies a price when you list.");
+        d.put("AhPriceButtonsTab", "Copy LBIN, average or value when you list.");
         d.put("InventorySorterTab", "Sorts to a saved layout.");
         d.put("BestFriendsTab", "Time partied and runs per player.");
         d.put("FriendsListTab", "This mod's Friends List for /fl.");

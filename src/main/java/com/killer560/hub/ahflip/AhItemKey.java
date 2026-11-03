@@ -12,7 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Which listings count as "the same item" for the AH Flipper's sale price and the AH Price Copier's lowest BIN.
+ * Which listings count as "the same item" for the AH Flipper's sale price and the AH Price Buttons' Copy LBIN.
  *
  * <p>The SkyBlock id alone lumps a 0-star item with a 5-star one, and every pet is id {@code PET}. The key adds what moves
  * the price most and is cheap to read off the item's custom data (Hypixel's ExtraAttributes, the same keys

@@ -45,8 +45,8 @@ import java.util.regex.Pattern;
  *   <li><b>Manage Auctions</b>: Claim All, or each Sold / Expired auction's Collect Auction (coins for a sale, the item back
  *       for an expired one - which is then relisted at the current lowest BIN);</li>
  *   <li><b>Create Auction</b>: for each item it has to relist (the flips the macro bought, the expired ones it claimed back),
- *       the item is clicked into Create BIN Auction, Set Price's sign gets the AH Price Copier's price for it (the price
- *       the flip was bought to sell at, or the lowest BIN, less the copier's Undercut), the price the menu then shows is
+ *       the item is clicked into Create BIN Auction, Set Price's sign gets Auto Relist's price for it (AhPriceCopier.relistPrice) (the price
+ *       the flip was bought to sell at, or the lowest BIN, less the AH Price Buttons' Undercut), the price the menu then shows is
  *       checked against it, and Create BIN Auction, then Confirm, list it. Hypixel's "BIN Auction started for NAME!" counts
  *       it.</li>
  * </ol>

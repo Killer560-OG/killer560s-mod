@@ -54,9 +54,14 @@ public final class AhUi {
     public record Tab(String label, ItemStack icon, boolean selected, int slot, ItemStack slotStack, IntConsumer action) {
     }
 
-    /** A toolbar or bottom-bar button. */
+    /** A toolbar or bottom-bar button. A {@code disabled} one is drawn grayed out and does nothing when pressed; {@code tip}
+     *  (may be null) is its tooltip. */
     public record Button(String label, String compact, ItemStack icon, boolean on, int slot, ItemStack slotStack,
-                         IntConsumer action, String id) {
+                         IntConsumer action, String id, boolean disabled, List<Component> tip) {
+        public Button(String label, String compact, ItemStack icon, boolean on, int slot, ItemStack slotStack,
+                      IntConsumer action, String id) {
+            this(label, compact, icon, on, slot, slotStack, action, id, false, null);
+        }
     }
 
     /** The API browser's six tabs plus All: label, Hypixel's {@code category} value ("" = all, "*misc" = the rest). */
@@ -316,6 +321,18 @@ public final class AhUi {
     /** One pill button: a slot button (hotspot on its slot) or an action button. */
     public void button(Button b, String label, int x, int y, int bw, int bh, String region) {
         boolean hover = in(x, y, bw, bh);
+        if (b.tip() != null && hover) {
+            hoverLines = b.tip();
+        }
+        if (b.disabled()) {
+            // Grayed out: no hover highlight, faint text, and a hotspot that does nothing (the press is still swallowed).
+            g.fill(x, y, x + bw, y + bh, t.surface());
+            g.outline(x, y, bw, bh, t.border());
+            text(region, label, x + 5, y + (bh - 8) / 2, t.faint());
+            addHotspot(new Hotspot(x, y, bw, bh, -1, ItemStack.EMPTY, null, b.label()));
+            layout.add("disabled " + b.id() + " " + x + " " + y + " " + bw + " " + bh + " " + b.label());
+            return;
+        }
         if (t.bevel()) {
             GuiRects r = GuiRects.begin(g);
             MenuStyle.raisedButton(r, x + 1, y + 1, bw - 2, bh - 2, hover, b.on());

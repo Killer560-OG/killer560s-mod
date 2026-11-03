@@ -39,7 +39,7 @@ public class ItemsTab extends FolderTab {
                 new BazaarOrderHelperTab(),
                 new BazaarAdvisorTab(),
                 new AhFlipperTab(),
-                new AhPriceCopierTab()
+                new AhPriceButtonsTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Container-click and coin-spending automation: cheat build only, exactly as in New's cheat block.

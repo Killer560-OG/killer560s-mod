@@ -94,6 +94,8 @@ public final class PriceData {
     private static volatile long pricesFetchedAt = 0;
     private static volatile long lastAttemptAt = 0;
     private static volatile long lastUseAt = 0;
+    /** Last use by a feature that needs prices with the Price Tooltip off (the AH Price Buttons). */
+    private static volatile long lastOtherUseAt = 0;
     private static volatile String lastError = null;
     private static final AtomicBoolean refreshing = new AtomicBoolean();
     private static final AtomicBoolean started = new AtomicBoolean();
@@ -201,11 +203,21 @@ public final class PriceData {
         }
     }
 
+    /**
+     * {@link #touch()} for a feature other than the tooltip (the AH Price Buttons, 2026-11-03): keeps the refresh loop
+     * fetching for {@link #IDLE_AFTER_MS} even while the Price Tooltip itself is off.
+     */
+    public static void touchFromOtherFeature() {
+        lastOtherUseAt = System.currentTimeMillis();
+        touch();
+    }
+
     private static void maybeRefresh() {
         try {
             PriceTooltipConfig cfg = PriceTooltipConfig.getInstance();
             long now = System.currentTimeMillis();
-            if (!cfg.isEnabledRaw() || now - lastUseAt > IDLE_AFTER_MS) {
+            boolean tooltipWants = cfg.isEnabledRaw() && now - lastUseAt <= IDLE_AFTER_MS;
+            if (!tooltipWants && now - lastOtherUseAt > IDLE_AFTER_MS) {
                 return;
             }
             boolean pricesDue = now - pricesFetchedAt >= cfg.getRefreshMinutes() * 60_000L;

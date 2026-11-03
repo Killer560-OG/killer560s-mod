@@ -71,6 +71,9 @@ public class AhFlipperTab extends BaseTab {
                     contentX, y, contentWidth, 18));
             y += 22;
             if (cfg.isAutoRelist()) {
+                w.add(onOffButton("Relist at My Last Price", cfg::isCopierOwnPrice, cfg::setCopierOwnPrice, cfg::save, null,
+                        contentX, y, contentWidth, 18));
+                y += 22;
                 w.add(SettingsButtonWidget.builder(Component.literal("Relist Now"),
                         btn -> com.killer560.hub.ahflip.AhRelistMacro.requestNow()).bounds(contentX, y, contentWidth, 18).build());
             }

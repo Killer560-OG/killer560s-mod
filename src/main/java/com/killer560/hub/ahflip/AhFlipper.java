@@ -81,12 +81,13 @@ public final class AhFlipper {
         ClientTickEvents.END_CLIENT_TICK.register(com.killer560.hub.util.FeatureGuard.end("AhFlipper.tick", AhFlipper::tick));
         AhFlipMacro.register();
         AhPriceCopier.register();
+        AhPriceButtons.register();
         AhMenuRecorder.register();
     }
 
     private static void tick(Minecraft client) {
         AhFlipConfig cfg = AhFlipConfig.getInstance();
-        boolean copier = cfg.isCopierEnabled();
+        boolean copier = cfg.isPriceButtonsEnabled();
         boolean flipper = cfg.isFlipperEnabled();
         if (!copier && !flipper) {
             FOUND.clear();

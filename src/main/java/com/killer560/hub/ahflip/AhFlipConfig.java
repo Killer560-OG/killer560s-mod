@@ -12,11 +12,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Settings of the AH Flipper and the AH Price Copier (killer560, 2026-11-01, to-do Doc "AH FLIPPER": "It should have two
+ * Settings of the AH Flipper and the AH Price Buttons (killer560, 2026-11-01, to-do Doc "AH FLIPPER": "It should have two
  * options. Background running or main running ... I should set a profit percent a percent undercut a min sell price and
- * stuff like that ... The buy manually one shouldnt be a cheat. Also make an ah price copier").
+ * stuff like that ... The buy manually one shouldnt be a cheat. Also make an ah price copier"; 2026-11-03: the copier
+ * became buttons, "Instead have it as buttons in the menu").
  *
- * <p>Both ship OFF. The flipper's Main mode (the buying macro) is cheat-only: {@link #getRunMode()} reads Background in a
+ * <p>The flipper ships OFF; the AH Price Buttons ship ON (they only copy when clicked). The old copier's
+ * {@code copierEnabled} key is no longer read or written: it was OFF by default and copied unasked, so it says nothing about
+ * whether buttons are wanted. {@code copierUndercut} and {@code copierOwnPrice} keep their keys. The flipper's Main mode (the buying macro) is cheat-only: {@link #getRunMode()} reads Background in a
  * legit build whatever the file says, and {@link #isMacroActive()} is folded away there. Every field is loaded, saved and
  * has a getter and a setter.
  */
@@ -53,11 +56,12 @@ public final class AhFlipConfig {
 
     private static AhFlipConfig instance;
 
-    // ---- AH Price Copier ----
-    private boolean copierEnabled = false;
-    /** Coins under the price that is copied (1 = the lowest BIN minus one coin, like SkyHanni's Copy Underbid Price). */
+    // ---- AH Price Buttons (was the AH Price Copier) ----
+    private boolean priceButtonsEnabled = true;
+    /** Coins under the lowest BIN that Copy LBIN (and Auto Relist) take off (1 = the lowest BIN minus one coin, like
+     *  SkyHanni's Copy Underbid Price). */
     private long copierUndercut = 1L;
-    /** Prefer the price you listed the same item at a moment ago over the lowest BIN (the Doc's second half). */
+    /** Auto Relist (cheat build) lists at the price you listed the same item at a moment ago over the lowest BIN. */
     private boolean copierOwnPrice = true;
 
     // ---- AH Flipper ----
@@ -90,7 +94,7 @@ public final class AhFlipConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.copierEnabled = ConfigJson.getBool(o, "copierEnabled", cfg.copierEnabled);
+                cfg.priceButtonsEnabled = ConfigJson.getBool(o, "priceButtonsEnabled", cfg.priceButtonsEnabled);
                 cfg.copierUndercut = Math.max(0, Math.min(1_000_000L, ConfigJson.getLong(o, "copierUndercut", cfg.copierUndercut)));
                 cfg.copierOwnPrice = ConfigJson.getBool(o, "copierOwnPrice", cfg.copierOwnPrice);
                 cfg.flipperEnabled = ConfigJson.getBool(o, "flipperEnabled", cfg.flipperEnabled);
@@ -114,7 +118,7 @@ public final class AhFlipConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject o = new JsonObject();
-            o.addProperty("copierEnabled", copierEnabled);
+            o.addProperty("priceButtonsEnabled", priceButtonsEnabled);
             o.addProperty("copierUndercut", copierUndercut);
             o.addProperty("copierOwnPrice", copierOwnPrice);
             o.addProperty("flipperEnabled", flipperEnabled);
@@ -161,19 +165,19 @@ public final class AhFlipConfig {
         return stops[Math.floorMod(at + dir, stops.length)];
     }
 
-    // ---- AH Price Copier ----
+    // ---- AH Price Buttons ----
 
     /** Gated on "Skyblock Only" like every feature's master getter. */
-    public boolean isCopierEnabled() {
-        return copierEnabled && com.killer560.hub.util.SkyblockGate.allows();
+    public boolean isPriceButtonsEnabled() {
+        return priceButtonsEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public boolean isCopierEnabledRaw() {
-        return copierEnabled;
+    public boolean isPriceButtonsEnabledRaw() {
+        return priceButtonsEnabled;
     }
 
-    public void setCopierEnabled(boolean on) {
-        this.copierEnabled = on;
+    public void setPriceButtonsEnabled(boolean on) {
+        this.priceButtonsEnabled = on;
     }
 
     public long getCopierUndercut() {
@@ -184,7 +188,7 @@ public final class AhFlipConfig {
         this.copierUndercut = Math.max(0, Math.min(1_000_000L, coins));
     }
 
-    /** Copier Undercut stops: 0, 1, 1k, 10k, 100k coins. */
+    /** Undercut stops: 0, 1, 1k, 10k, 100k coins. */
     public static final long[] COPIER_UNDERCUT_STEPS = {0L, 1L, 1_000L, 10_000L, 100_000L};
 
     public void stepCopierUndercut(int dir) {

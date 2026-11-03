@@ -9,11 +9,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** AH Price Copier settings (2026-11-01): the switch, the Undercut, and Use My Last Price. */
-public class AhPriceCopierTab extends BaseTab {
+/** AH Price Buttons settings (2026-11-03, was the AH Price Copier): the switch and the Undercut Copy LBIN takes off. */
+public class AhPriceButtonsTab extends BaseTab {
 
-    public AhPriceCopierTab() {
-        super("AH Price Copier");
+    public AhPriceButtonsTab() {
+        super("AH Price Buttons");
     }
 
     @Override
@@ -21,10 +21,10 @@ public class AhPriceCopierTab extends BaseTab {
         List<AbstractWidget> w = new ArrayList<>();
         AhFlipConfig cfg = AhFlipConfig.getInstance();
         int y = contentY;
-        w.add(onOffButton("AH Price Copier", cfg::isCopierEnabledRaw, cfg::setCopierEnabled, cfg::save, requestRebuild,
-                contentX, y, contentWidth, 20));
+        w.add(onOffButton("AH Price Buttons", cfg::isPriceButtonsEnabledRaw, cfg::setPriceButtonsEnabled, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
-        if (!cfg.isCopierEnabledRaw()) {
+        if (!cfg.isPriceButtonsEnabledRaw()) {
             return w;
         }
         w.add(SettingsButtonWidget.cycling(undercutText(cfg), (btn, dir) -> {
@@ -32,9 +32,6 @@ public class AhPriceCopierTab extends BaseTab {
             cfg.save();
             btn.setMessage(undercutText(cfg));
         }).bounds(contentX, y, contentWidth, 18).build());
-        y += 22;
-        w.add(onOffButton("Use My Last Price", cfg::isCopierOwnPrice, cfg::setCopierOwnPrice, cfg::save, null,
-                contentX, y, contentWidth, 18));
         return w;
     }
 

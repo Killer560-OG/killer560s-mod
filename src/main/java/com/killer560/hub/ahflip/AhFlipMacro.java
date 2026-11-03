@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
  * random 250-500 ms between steps. It stops buying after Max Buys Per Session, after three failed buys in a row, and when
  * Main mode or the flipper is turned off.
  *
- * <p>After a buy, the relist price is left with the AH Price Copier, so putting the item up by hand copies it, and the
+ * <p>After a buy, the relist price is remembered for the AH Price Buttons, so putting the item up by hand offers it as Copy My Last Price, and the
  * item is handed to {@link AhRelistMacro} (Auto Relist, off by default), which claims it from View Bids and lists it.
  * Registered with {@link com.killer560.hub.macrostop.MacroStop} as a click macro: Escape or the Emergency Cancel Key ends
  * the buy in progress and stops buying until Run Mode is switched off Main and back.
@@ -219,7 +219,7 @@ public final class AhFlipMacro {
             AhRelistMacro.noteBought(f.key(), f.name());
             ModChat.send(CHAT, ModChat.good("Bought "), ModChat.value(f.name()), ModChat.text(" for "),
                     ModChat.value(DungeonChestValuer.formatCoins(paid)),
-                    ModChat.dim(String.format(Locale.US, " - relist at %s (the AH Price Copier will copy it). Buy %d of %d.",
+                    ModChat.dim(String.format(Locale.US, " - relist at %s (Copy My Last Price has it). Buy %d of %d.",
                             DungeonChestValuer.formatCoins(f.sellAt()), buys, cfg.getMacroMaxBuys())));
             LOGGER.info("[AhFlip] Macro bought {} for {} (relist at {})", f.name(), paid, f.sellAt());
             closeIfOpen(client);

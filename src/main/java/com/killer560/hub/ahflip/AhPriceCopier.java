@@ -5,7 +5,6 @@ import com.killer560.hub.bazaarflip.BazaarFlipMenus;
 import com.killer560.hub.bazaarflip.mixin.SignEditScreenAccessor;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.croesus.DungeonChestValuer;
-import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -16,28 +15,26 @@ import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * AH Price Copier (killer560, 2026-11-01, to-do Doc: "For all items if you put it into the ah sell thing it insta copies
- * the price of the item for someone to copy and paste it in. if i just sold an item then click on another item it should
- * copy the price of the item i just put up over the lbin price").
+ * The price you last listed each item at, for the AH Price Buttons' "Copy My Last Price" and the cheat build's Auto Relist
+ * (killer560, 2026-11-01, to-do Doc: "if i just sold an item then click on another item it should copy the price of the
+ * item i just put up over the lbin price").
  *
- * <p>Legit: it only reads Hypixel's menu and writes the clipboard, never clicks or types. When an item lands in the item
- * slot (13) of Hypixel's "Create BIN Auction" menu, the price is copied once per item: the price you put the same item
- * (same {@link AhItemKey}) up at in the last {@link #OWN_PRICE_MS}, when Use My Last Price is on, else the lowest BIN of that
- * item from the AH scan, times the stack's count, less the Undercut. Your own price comes from the amount sign you filled
- * after opening Create BIN Auction (or a "Buy it now"/"Item price" line on the menu), kept when Hypixel says "BIN Auction
- * started for NAME!" (his Dungeons logs, 2026-10). The AH Flipper's macro also leaves its relist price here.
+ * <p>This used to be the AH Price Copier, which copied a price the moment an item landed in Create BIN Auction; on
+ * 2026-11-03 he asked for buttons instead ({@link AhPriceButtons}), so nothing here writes the clipboard any more. It only
+ * reads: your own price comes from the amount sign you filled after opening Create BIN Auction (or a "Buy it now"/"Item
+ * price" line on the menu), kept for the item (same {@link AhItemKey}) when Hypixel says "BIN Auction started for NAME!"
+ * (his Dungeons logs, 2026-10), and is fresh for {@link #OWN_PRICE_MS}. The AH Flipper's macro also leaves its relist price
+ * here. {@link #relistPrice} is Auto Relist's price.
  */
 public final class AhPriceCopier {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-ahflip");
-    static final String CHAT = "AH Price Copier";
     public static final String CREATE_BIN_TITLE = "Create BIN Auction";
     /** Slot of the item being listed (SkyHanni and Skyblocker read the same one). */
     public static final int ITEM_SLOT = 13;
@@ -52,13 +49,11 @@ public final class AhPriceCopier {
     /** key -> {price per unit, when}. */
     private static final Map<String, long[]> OWN = new ConcurrentHashMap<>();
 
-    private static String lastCopiedIdentity = "";
     private static String listingKey = "";
     private static String listingName = "";
     private static int listingCount = 1;
     private static long pendingPrice = -1;
     private static boolean wasCreateMenu;
-    private static long lastCopied = -1;
 
     private AhPriceCopier() {
     }
@@ -72,8 +67,7 @@ public final class AhPriceCopier {
 
     private static void tick(Minecraft client) {
         AhFlipConfig cfg = AhFlipConfig.getInstance();
-        if (!cfg.isCopierEnabled()) {
-            lastCopiedIdentity = "";
+        if (!cfg.isPriceButtonsEnabled()) {
             return;
         }
         Screen screen = McCompat.screen(client);
@@ -109,7 +103,6 @@ public final class AhPriceCopier {
         }
         ItemStack stack = slots.get(ITEM_SLOT).getItem();
         if (stack.isEmpty()) {
-            lastCopiedIdentity = "";
             return;
         }
         String name = BazaarFlipMenus.nameOf(stack);
@@ -117,37 +110,12 @@ public final class AhPriceCopier {
         if (key.isEmpty()) {
             return; // a pane or a button: no item in the slot yet
         }
-        String identity = key + "x" + stack.getCount();
         if (!key.equals(listingKey)) {
             pendingPrice = -1; // a different item: an earlier sign value is not its price
         }
         listingKey = key;
         listingName = name;
         listingCount = Math.max(1, stack.getCount());
-        if (identity.equals(lastCopiedIdentity)) {
-            return;
-        }
-        lastCopiedIdentity = identity;
-        copyFor(client, key, name, listingCount, cfg);
-    }
-
-    /** Copies the price for {@code count} of {@code key} and says so. Returns the coins copied, or -1. */
-    static long copyFor(Minecraft client, String key, String name, int count, AhFlipConfig cfg) {
-        long each = eachFor(key, cfg);
-        String source = ownFresh(key, cfg) ? "your last listing" : "lowest BIN";
-        if (each <= 0) {
-            ModChat.send(CHAT, ModChat.dim("No lowest BIN known for " + name + " yet - the AH scan has not seen one."));
-            lastCopied = -1;
-            return -1;
-        }
-        long total = each * count;
-        long copy = Math.max(1, total - cfg.getCopierUndercut());
-        client.keyboardHandler.setClipboard(Long.toString(copy));
-        lastCopied = copy;
-        LOGGER.info("[AhPriceCopier] Copied {} for {} x{} ({} {} each)", copy, key, count, source, each);
-        ModChat.send(CHAT, ModChat.text("Copied "), ModChat.value(String.format(Locale.US, "%,d", copy)),
-                ModChat.dim(" (" + source + " " + DungeonChestValuer.formatCoins(total) + ")"));
-        return copy;
     }
 
     private static void readLorePrice(AbstractContainerScreen<?> c) {
@@ -179,8 +147,6 @@ public final class AhPriceCopier {
         remember(listingKey, each);
         LOGGER.info("[AhPriceCopier] Listed {} ({}) at {} each", m.group(1), listingKey, each);
         pendingPrice = -1;
-        // The next copy of the same item is that price, not what the clipboard was given before.
-        lastCopiedIdentity = "";
     }
 
     private static boolean ownFresh(String key, AhFlipConfig cfg) {
@@ -188,14 +154,14 @@ public final class AhPriceCopier {
         return cfg.isCopierOwnPrice() && own != null && System.currentTimeMillis() - own[1] <= OWN_PRICE_MS;
     }
 
-    /** The copier's price for one of {@code key}: the remembered one when fresh and Use My Last Price is on, else the
-     *  lowest BIN; -1 when neither is known. */
+    /** Auto Relist's price for one of {@code key}: the remembered one when fresh and Relist at My Last Price is on, else
+     *  the lowest BIN; -1 when neither is known. */
     private static long eachFor(String key, AhFlipConfig cfg) {
         return ownFresh(key, cfg) ? OWN.get(key)[0] : AhMarketIndex.lowestBin(key);
     }
 
-    /** What the copier would copy for {@code count} of {@code key} (its price less the Undercut), or -1. Auto Relist
-     *  types this into Hypixel's price sign. */
+    /** Auto Relist's price for {@code count} of {@code key} (its price less the Undercut), or -1. Auto Relist types this
+     *  into Hypixel's price sign. */
     public static long relistPrice(String key, int count, AhFlipConfig cfg) {
         long each = eachFor(key, cfg);
         if (each <= 0) {
@@ -224,17 +190,16 @@ public final class AhPriceCopier {
         return own == null ? -1 : own[0];
     }
 
-    /** Testkit: the last value copied (-1: none). */
-    public static long lastCopiedForTest() {
-        return lastCopied;
+    /** The price per unit you listed {@code key} at in the last {@link #OWN_PRICE_MS}, or -1 (Copy My Last Price). */
+    public static long rememberedFresh(String key) {
+        long[] own = key == null ? null : OWN.get(key);
+        return own == null || System.currentTimeMillis() - own[1] > OWN_PRICE_MS ? -1 : own[0];
     }
 
     /** Testkit: forget the remembered prices and the last copy. */
     public static void resetForTest() {
         OWN.clear();
-        lastCopiedIdentity = "";
         listingKey = "";
         pendingPrice = -1;
-        lastCopied = -1;
     }
 }

@@ -438,6 +438,11 @@ public final class AhReskin {
                     buttons, page.heading());
         } else {
             String heading = page != null ? page.heading() : st.opening != null ? "Opening auction..." : "Loading...";
+            if (page != null && page.kind() == AhPages.Kind.CREATE
+                    && com.killer560.hub.ahflip.AhPriceButtons.isCreateBinTitle(page.title())
+                    && com.killer560.hub.ahflip.AhFlipConfig.getInstance().isPriceButtonsEnabled()) {
+                priceButtons(buttons, stack(stacks, com.killer560.hub.ahflip.AhPriceCopier.ITEM_SLOT));
+            }
             ui.toolbar("", "Search the Auction House", false, b -> AhNav.toBrowser(null, "", true), "search", -1,
                     ItemStack.EMPTY, buttons, heading);
         }
@@ -491,6 +496,20 @@ public final class AhReskin {
         }
         String status = page.kind().grid() ? page.listings().size() + (page.listings().size() == 1 ? " listing" : " listings") : "";
         ui.bottomBar(bar, status, right);
+    }
+
+    /** The AH Price Buttons in the toolbar of Create BIN Auction: clipboard only, never a slot click. */
+    private static void priceButtons(List<AhUi.Button> out, ItemStack listed) {
+        ItemStack item = listed;
+        if (item.isEmpty() || com.killer560.hub.util.ItemNbt.view(item) == null) {
+            item = ItemStack.EMPTY;
+        }
+        for (com.killer560.hub.ahflip.AhPriceButtons.Quote q : com.killer560.hub.ahflip.AhPriceButtons.quotes(item)) {
+            var k = q.kind();
+            out.add(new AhUi.Button(com.killer560.hub.ahflip.AhPriceButtons.label(k, false),
+                    com.killer560.hub.ahflip.AhPriceButtons.label(k, true), null, false, -1, ItemStack.EMPTY,
+                    q.available() ? b -> com.killer560.hub.ahflip.AhPriceButtons.copy(q) : null, k.id, !q.available(), q.tip()));
+        }
     }
 
     private static void addFilter(List<AhUi.Button> out, AhPages.Item it, List<ItemStack> stacks, String name, String id) {
