@@ -422,13 +422,13 @@ public final class MaxorCrystalsFeature {
 
         @Override
         public int defaultX() {
-            return 10;
+            return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.MAXOR_CRYSTALS);
         }
 
         @Override
         public int defaultY() {
-            // Free row in the x=10 column (100/140/160/180/200/220/280/300/320/340 and 360 are taken).
-            return 460;
+            // The F7 boss column on the right (hud/F7HudSlots, 2026-11-02); was x 10, y 460 over the chat.
+            return com.killer560.hub.hud.F7HudSlots.y(com.killer560.hub.hud.F7HudSlots.MAXOR_CRYSTALS);
         }
 
         /** The last alert check written to the log, so a line is written only when one of the checks changes. */

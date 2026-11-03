@@ -26,8 +26,6 @@ public class P3StatusTab extends BaseTab {
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild, "P3 Status", cfg::getEnabledRaw, cfg::setEnabled);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild, "Status HUD", cfg::getShowHudRaw, cfg::setShowHud);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Show Who Is At Each", cfg::getShowWhoIsAtRaw, cfg::setShowWhoIsAt);
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Short Progress Titles", cfg::getRewriteTitlesRaw, cfg::setRewriteTitles);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Device Done Title", cfg::getDeviceDoneTitleRaw, cfg::setDeviceDoneTitle);

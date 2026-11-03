@@ -163,6 +163,28 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   still trusted Grim now and then (792: a trip 31 ticks slow). Blood Camp times on `util.PerTickServerClock`: trusted only
   after two 20-tick windows with a ping on at least 19 ticks and at most 24 pings, pings drive it while trusted, client
   ticks otherwise (logic case 1101-logic-bloodcamp-clock drives it by hand).
+- **A repeating boss timer kept as a counter drifts; keep the server tick of one real event instead.** Goldor's "Tick:"
+  was set to 60 on his line and decremented once per `ServerTickClock` event, which counts CLIENT ticks in any second
+  with under 15 pings and was skipped whenever the sidebar did not read F7, so nothing ever pulled it back onto the
+  server's 60-tick cycle (killer560, 2026-11-02: the mask "procced ... at like 1.5s instead of at 0"). `ticktimers/
+  GoldorTick` keeps the `PerTickServerClock` tick of a hit and works the line out from it, and re-locks on observed hits
+  (your health dropping, a mask/Phoenix proc line, two players hurt in one tick; a stray hit needs a second one a period
+  later). Storm's pad cycle (`StormLine`) is done the same way. Testkit 1102-logic-goldor-tick, 1102-hx-goldor-tick
+  (the testmod's `boss.timeline` damages the player at exact server ticks).
+- **A chat line and a health drop in the same server tick read the clock one apart.** Chat is handled while the client
+  tick runs its packets, BEFORE `PerTickServerClock`'s end-of-tick step; a polled health drop is seen after it. The first
+  1102-hx-goldor-tick run read Goldor's first hit 2 ticks late (one of them this, the other the testmod's `damage` at
+  END_SERVER_TICK sending the health packet a tick later; it now runs at START_SERVER_TICK, as a plugin scheduler would).
+  Anything that compares a chat event with a polled one puts both on the end-of-tick reading (`GoldorTick.endOfTick`).
+- **Off Hypixel the server-tick clock wobbles by several ticks.** Without per-tick pings (a GrimAC server: its transactions
+  are not ticks) `PerTickServerClock` follows the client's game time plus whatever set-time packets come, which on the 26.x test
+  server do not stop a drift: hits read 4-8 off, and on 26.2 drifted 4 ticks per 60 (1102-hx-goldor-tick), so GoldorTick's
+  re-lock pair allows 6 ticks off a whole period. With
+  per-tick pings (Hypixel; the testmod's `boss.pertickping` under -Pnogrim) hits read 0 +-1. GoldorTick snaps within 8.
+- **Real F7 gaps from his 2026-10-30 log (seconds resolution):** Storm's opening line to his lightning line 28 s twice
+  (560 ticks fits, Odin's 520 does not); Storm's death line to Goldor's line 3-4 s (60-80 ticks: Odin's 64 fits, the
+  `GOLDOR_START_TICKS` 17 from NoammAddons 1.2.9 does not - not changed, Goldor's line ends that countdown anyway); the
+  party's mask procs 3 and 6 s after Goldor's line, so his damage tick is phased on the line.
 - **A player-model mob is still `isAlive()` on the client after the server says it died.** Vanilla's
   `LivingEntity.handleEntityEvent(3)` (the death event) sets health 0 and calls `die` only `if (!(this instanceof Player))`
   (javap 26.2 and 26.3), because a player's health comes from its own data. So a killed player-model blood mob counted as

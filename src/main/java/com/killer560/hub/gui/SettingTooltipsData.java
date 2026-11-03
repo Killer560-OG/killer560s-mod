@@ -792,7 +792,7 @@ final class SettingTooltipsData {
         d.put("tick timers", "Shows a countdown HUD for the F7/M7 boss phases.");
         d.put("necron", "Shows a 3s countdown for Necron dropping in during F7/M7 P4.");
         d.put("tick timers/necron start", "Shows a 3s countdown for Necron dropping in during F7/M7 P4.");
-        d.put("goldor", "Shows Goldor's repeating damage tick countdown during P3.");
+        d.put("goldor", "Shows Goldor's repeating damage tick countdown during P3; it reads 0 on the hit and resyncs on every hit it sees.");
         d.put("ticks (vs seconds)", "Shows timers in game ticks when ON, in seconds when OFF.");
         d.put("symbol", "Adds a unit symbol after each timer value.");
         d.put("show prefix", "Shows the timer's name before each value.");
@@ -1648,7 +1648,6 @@ final class SettingTooltipsData {
         // ---- F7 Spots ----
         d.put("walk-to waypoints", "Draws your saved standing spots for F7/M7 in the world.");
         d.put("last breath aim spots", "Shows saved aim points for Last Breath, based on your class.");
-        d.put("crush trigger text (optional)", "Extra chat text that restarts the crush timer; leave blank to use only Storm's crush lines.");
 
         d.put("menu theme", "Default keeps this overlay's own look. Or draw it in one of the menu's themes: Amber, Dark, Light, Ocean, Green, Custom, or any theme you saved. Left click goes forward, right click back.");
         d.put("start button menu theme", "Default keeps the Start buttons' own look. Or draw them in one of the menu's themes, including any you saved.");
@@ -1802,9 +1801,8 @@ final class SettingTooltipsData {
         // P3 Status (2026-10-25)
         d.put("p3 status", "F7/M7 Phase 3: a HUD of the current section's terminals, device, levers and gate, and short progress titles.");
         d.put("p3 status/p3 status", "Switches everything below on or off.");
-        d.put("p3 status/status hud", "Lists the current section's terminals, device, levers and gate, each done or not. Move it in the HUD editor.");
-        d.put("p3 status/show who is at each", "Names the player standing at an unfinished terminal, device or lever.");
-        d.put("p3 status/short progress titles", "Replaces Hypixel's 'Name activated a terminal! (3/7)' title with one short line.");
+        d.put("p3 status/status hud", "Shows the current section's progress: Terminals 2/4, Device 0/1, Levers 1/2 and the gate. Move it in the HUD editor.");
+        d.put("p3 status/short progress titles", "Replaces Hypixel's 'Name activated a terminal! (3/7)' title with one short line: the name in their class color, 'Terminal 3/7' in gold.");
         d.put("p3 status/device done title", "Shows a Device Done title when a device in your section is completed.");
         d.put("p3 status/section complete title", "Shows a Section Complete title when the last objective of a section is done.");
         d.put("p3 status/hide energy laser subtitle", "Hides the 'The Energy Laser is charging up!' subtitle in Phase 1.");
@@ -2292,17 +2290,11 @@ final class SettingTooltipsData {
             d.put("auto close chest/auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
         }
         d.put("auto fairy souls/auto mode", "How it travels: Walk Only, Walk With Pearls, Etherwarp where it saves walking, or Fast Etherwarp the whole way (needs an etherwarp item in the hotbar).");
-        d.put("tick timers/pad cycle timer", "Repeating 1-second countdown during Storm's P2 for timing pad drops.");
-        d.put("tick timers/crush timer hud", "Times Storm's crushes in F7/M7 P2 and shows the count.");
-        d.put("tick timers/crush title", "Shows 'Crush N' on screen each time Storm is crushed.");
         d.put("tick timers/purple pad highlight", "Outlines Storm's purple crush pad while you're in P2.");
         d.put("tick timers/pad color", "Color of the crush pad outlines.");
         d.put("tick timers/show all pads", "Also outlines the green and yellow pads, not just purple.");
-        d.put("tick timers/crush interval", "Seconds to count down after each crush, 0-120; 0 counts up instead.");
-        d.put("tick timers/crush warning", "The crush countdown turns red at this many seconds left (0-15).");
-        d.put("tick timers/crush trigger text", "Optional chat text that also restarts the crush countdown.");
-        d.put("tick timers/storm crush timer (p2)", "Timers and pad highlights for Storm's crush in P2.");
-        d.put("tick timers/storm", "Shows Storm's P2 timers: lightning, purple pillar window and a counter.");
+        d.put("tick timers/storm pads (p2)", "Outlines for Storm's pads in P2.");
+        d.put("tick timers/storm line", "One line in P2: a countdown to Storm's lightning, then the pad timer for purple, then for yellow.");
         d.put("ability cooldowns/mage reduction", "Cuts ability cooldown timers while you play Mage.");
         d.put("ability cooldowns/mage cut", "How much shorter ability cooldowns are while you play Mage, as a percentage.");
         d.put("arrow align/highlight color", "Color of the box drawn on frames that still need clicking.");

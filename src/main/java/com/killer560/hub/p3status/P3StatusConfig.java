@@ -25,7 +25,8 @@ public final class P3StatusConfig {
 
     private boolean enabled = false;
     private boolean showHud = true;
-    private boolean showWhoIsAt = true;
+    // "showWhoIsAt" (Show Who Is At Each) was removed 2026-11-02 with the per-objective rows it named players in; an old
+    // file's key is ignored and dropped by the next save.
     private boolean rewriteTitles = true;
     private boolean deviceDoneTitle = true;
     private boolean sectionCompleteTitle = true;
@@ -49,7 +50,6 @@ public final class P3StatusConfig {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.showHud = ConfigJson.getBool(obj, "showHud", true);
-                cfg.showWhoIsAt = ConfigJson.getBool(obj, "showWhoIsAt", true);
                 cfg.rewriteTitles = ConfigJson.getBool(obj, "rewriteTitles", true);
                 cfg.deviceDoneTitle = ConfigJson.getBool(obj, "deviceDoneTitle", true);
                 cfg.sectionCompleteTitle = ConfigJson.getBool(obj, "sectionCompleteTitle", true);
@@ -68,7 +68,6 @@ public final class P3StatusConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("showHud", showHud);
-            obj.addProperty("showWhoIsAt", showWhoIsAt);
             obj.addProperty("rewriteTitles", rewriteTitles);
             obj.addProperty("deviceDoneTitle", deviceDoneTitle);
             obj.addProperty("sectionCompleteTitle", sectionCompleteTitle);
@@ -91,10 +90,6 @@ public final class P3StatusConfig {
 
     public boolean isShowHud() {
         return on(showHud);
-    }
-
-    public boolean isShowWhoIsAt() {
-        return on(showWhoIsAt);
     }
 
     public boolean isRewriteTitles() {
@@ -133,14 +128,6 @@ public final class P3StatusConfig {
 
     public void setShowHud(boolean v) {
         showHud = v;
-    }
-
-    public boolean getShowWhoIsAtRaw() {
-        return showWhoIsAt;
-    }
-
-    public void setShowWhoIsAt(boolean v) {
-        showWhoIsAt = v;
     }
 
     public boolean getRewriteTitlesRaw() {
