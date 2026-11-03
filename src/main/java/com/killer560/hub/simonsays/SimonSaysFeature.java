@@ -946,7 +946,7 @@ public final class SimonSaysFeature {
         if (down && !announceKeyWasDown && McCompat.screen(client) == null && cfg.isEnabled()
                 && DungeonState.isF7OrM7()) {
             if (client.player != null) {
-                client.player.connection.sendCommand("pc " + cfg.getResetMessageText());
+                com.killer560.hub.util.OutgoingChat.command("pc " + cfg.getResetMessageText());
             }
         }
         announceKeyWasDown = down;
@@ -959,7 +959,7 @@ public final class SimonSaysFeature {
      *  removing all buttons and no new highlights." */
     private static void maybeAutoAnnounceReset(Minecraft client, SimonSaysConfig cfg) {
         if (cfg.isAutoSendResetMessage() && client.player != null) {
-            client.player.connection.sendCommand("pc " + cfg.getResetMessageText());
+            com.killer560.hub.util.OutgoingChat.command("pc " + cfg.getResetMessageText());
         }
     }
 
@@ -1422,7 +1422,7 @@ public final class SimonSaysFeature {
             // tickRoundVerdict / settleRoundVerdictAsFour), so the first 4-round device of a session still says 4/4.
             roundVerdictAnnounce = cfg.isAnnounceProgress() && awaitRoundVerdict && !expectFive;
             if (cfg.isAnnounceProgress() && client.player != null && (!awaitRoundVerdict || expectFive)) {
-                client.player.connection.sendCommand("pc SS " + roundsDone + "/" + TerminalLayouts.simonRounds());
+                com.killer560.hub.util.OutgoingChat.command("pc SS " + roundsDone + "/" + TerminalLayouts.simonRounds());
             }
             if (wholeDeviceCompleted && client.player != null) {
                 announceWholeDeviceCompleted(System.currentTimeMillis());
@@ -1607,7 +1607,7 @@ public final class SimonSaysFeature {
     private static void sendHeldRoundFourAnnounce() {
         Minecraft client = Minecraft.getInstance();
         if (roundVerdictAnnounce && client.player != null) {
-            client.player.connection.sendCommand("pc SS " + TerminalLayouts.NEW_SIMON_ROUNDS + "/" + TerminalLayouts.simonRounds());
+            com.killer560.hub.util.OutgoingChat.command("pc SS " + TerminalLayouts.NEW_SIMON_ROUNDS + "/" + TerminalLayouts.simonRounds());
         }
         roundVerdictAnnounce = false;
     }

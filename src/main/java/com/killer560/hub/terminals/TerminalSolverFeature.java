@@ -444,7 +444,7 @@ public final class TerminalSolverFeature {
                 + client.player.getBlockZ();
         // Straight to party chat via sendCommand, exactly like PosmsgFeature#dispatch - NOT through
         // TranslateFeature, so Translate / Auto Correct / Chat Emotes can't rewrite a callout mid-run.
-        client.player.connection.sendCommand("pc " + text);
+        com.killer560.hub.util.OutgoingChat.command("pc " + text);
         lastMelodySendPos = pos;
         lastMelodySendLevel = client.level;
     }

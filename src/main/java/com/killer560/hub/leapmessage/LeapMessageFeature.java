@@ -1,10 +1,8 @@
 package com.killer560.hub.leapmessage;
 
-import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.cringe.CringeFeature;
 import com.killer560.hub.translate.TranslateFeature;
 import com.killer560.hub.util.ChatObserver;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -23,10 +21,10 @@ import java.util.regex.Pattern;
  *   <li>Cringe - runs this mod's own random cringe-line generator (the actual reason this feature
  *   exists: Noamm's own leap-message setting can only send fixed text, it has no way to invoke a
  *   different mod's command, which is what killer560 originally tried and couldn't get working). Sent
- *   0.5s after Leaping To if both are on.</li>
+ *   after Leaping To if both are on.</li>
  * </ul>
- * If Leaping To is off, Cringe (when on) goes out immediately instead - the delay only exists to
- * space the two messages apart when both are actually being sent.
+ * Both go through {@link com.killer560.hub.util.OutgoingChat}, which sends the first at once and spaces the next by
+ * its gap, so Hypixel never refuses either as too fast.
  */
 public final class LeapMessageFeature {
 
@@ -36,13 +34,6 @@ public final class LeapMessageFeature {
     /** The IGN at the end of whatever the line captured, so a rank prefix or a stray formatting code never ends up
      *  in the party message (same trailing-IGN pattern the custom leap menu reads heads with). */
     private static final Pattern IGN = Pattern.compile("([A-Za-z0-9_]{1,16})\\s*$");
-    private static final int DELAY_TICKS = 10; // 0.5s at the normal 20 ticks/sec
-
-    // Single pending slot, not a queue - leaps happening less than 0.5s apart would clobber a still-
-    // pending one, but that's not a realistic scenario (Spirit Leap has its own cooldown far longer
-    // than half a second), so a queue would just be unused complexity.
-    private static int delayTicksRemaining = -1;
-    private static Runnable pendingAction;
 
     // Real bug found and fixed (2026-09-14): matched message.getString() without stripping § codes (unlike the
     // other chat features here), so a formatted "§dYou have teleported to §bName§d!" line could never match -
@@ -51,22 +42,11 @@ public final class LeapMessageFeature {
     // ChatObserver sees both paths once; the text is stripped before matching.
     public static void register() {
         ChatObserver.subscribe(message -> onGameMessage(ChatObserver.strip(message)));
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LeapMessageFeature", client -> tick()));
     }
 
-    private static void tick() {
-        if (delayTicksRemaining < 0) {
-            return;
-        }
-        delayTicksRemaining--;
-        if (delayTicksRemaining <= 0) {
-            delayTicksRemaining = -1;
-            Runnable action = pendingAction;
-            pendingAction = null;
-            if (action != null) {
-                action.run();
-            }
-        }
+    /** True for Hypixel's own leap line, stripped of formatting ("You have teleported to X!"). Posmsg waits on it. */
+    public static boolean isLeapLine(String stripped) {
+        return stripped != null && LEAP_MESSAGE.matcher(stripped).matches();
     }
 
     private static void onGameMessage(String text) {
@@ -84,18 +64,14 @@ public final class LeapMessageFeature {
         }
         String targetName = ign(m.group(1));
 
-        boolean sentLeapingTo = false;
+        // Both take their place in util/OutgoingChat now, in this order; the queue spaces them (it replaced the
+        // fixed 10-tick wait before Cringe, 2026-11-02) and anything asked for after the leap - a Posmsg callout for
+        // the spot he landed in - goes after them.
         if (cfg.isLeapingToEnabled()) {
             sendLeapingTo(targetName);
-            sentLeapingTo = true;
         }
         if (cfg.isCringeEnabled()) {
-            if (sentLeapingTo) {
-                pendingAction = () -> CringeFeature.sendRandom("pc");
-                delayTicksRemaining = DELAY_TICKS;
-            } else {
-                CringeFeature.sendRandom("pc");
-            }
+            CringeFeature.sendRandom("pc");
         }
     }
 

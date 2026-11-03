@@ -230,6 +230,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.luck.LuckFeature.register();
         RngMeterOverlay.register();
         RngMeterEngine.PRICES.startAutoRefresh();
+        com.killer560.hub.util.OutgoingChat.register();
         LeapMessageFeature.register();
         GifPlayerFeature.register();
         DvdFeature.register();
