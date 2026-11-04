@@ -367,15 +367,7 @@ public final class MapPainter {
     /** Whether {@code group} is the room he is standing in. */
     static boolean isStandingRoom(LiveMapFeature.RoomGroup group) {
         int standing = standingTile();
-        if (standing < 0) {
-            return false;
-        }
-        for (int t : group.tiles) {
-            if (t == standing) {
-                return true;
-            }
-        }
-        return false;
+        return standing >= 0 && java.util.Arrays.stream(group.tiles).anyMatch(t -> t == standing);
     }
 
     /** Map state of a whole room: the most progressed of its tiles, the way NoammAddons merges a {@code UniqueRoom}.
@@ -433,20 +425,16 @@ public final class MapPainter {
      */
     static int markState(LiveMapFeature.RoomGroup group) {
         int state = visibleState(group);
-        if (state == DungeonMapScanner.STATE_DISCOVERED && !hideUnrevealed() && unexplored(group)) {
-            return DungeonMapScanner.STATE_UNOPENED;
-        }
-        return state;
+        return state == DungeonMapScanner.STATE_DISCOVERED && !hideUnrevealed() && unexplored(group)
+                ? DungeonMapScanner.STATE_UNOPENED : state;
     }
 
     /** On the legit map a room the game only shows as a gray "unopened" block must not carry its name, its secret
      *  count or its real type - Hypixel has not told you what is in there yet. */
     static boolean identityRevealed(LiveMapFeature.RoomGroup group) {
         int state = visibleState(group);
-        if (state == DungeonMapScanner.STATE_UNDISCOVERED) {
-            return false;
-        }
-        return !hideUnrevealed() || state != DungeonMapScanner.STATE_UNOPENED;
+        return state != DungeonMapScanner.STATE_UNDISCOVERED
+                && (!hideUnrevealed() || state != DungeonMapScanner.STATE_UNOPENED);
     }
 
     /** Unit offset of grid index {@code g} (even = room, odd = gap). */
@@ -493,39 +481,24 @@ public final class MapPainter {
             // Not a rectangle: the longest run along a row, else along a column; the first in grid order on a tie.
             int[] sorted = set.stream().mapToInt(Integer::intValue).sorted().toArray();
             int bestLen = 0;
-            for (int t : sorted) {
-                int tx = t % g;
-                int tz = t / g;
-                if (tx < 2 || !set.contains(t - 2)) {
-                    int end = tx;
-                    while (end + 2 < g && set.contains(tz * g + end + 2)) {
-                        end += 2;
-                    }
-                    int len = (end - tx) / 2 + 1;
-                    if (len > bestLen) {
-                        bestLen = len;
-                        x0 = tx;
-                        x1 = end;
-                        z0 = tz;
-                        z1 = tz;
-                    }
-                }
-            }
-            for (int t : sorted) {
-                int tx = t % g;
-                int tz = t / g;
-                if (tz < 2 || !set.contains(t - 2 * g)) {
-                    int end = tz;
-                    while (end + 2 < g && set.contains((end + 2) * g + tx)) {
-                        end += 2;
-                    }
-                    int len = (end - tz) / 2 + 1;
-                    if (len > bestLen) {
-                        bestLen = len;
-                        x0 = tx;
-                        x1 = tx;
-                        z0 = tz;
-                        z1 = end;
+            for (boolean column : new boolean[]{false, true}) {
+                for (int t : sorted) {
+                    int tx = t % g;
+                    int tz = t / g;
+                    int start = column ? tz : tx;
+                    if (start < 2 || !set.contains(t - (column ? 2 * g : 2))) {
+                        int end = start;
+                        while (end + 2 < g && set.contains(column ? (end + 2) * g + tx : tz * g + end + 2)) {
+                            end += 2;
+                        }
+                        int len = (end - start) / 2 + 1;
+                        if (len > bestLen) {
+                            bestLen = len;
+                            x0 = tx;
+                            z0 = tz;
+                            x1 = column ? tx : end;
+                            z1 = column ? end : tz;
+                        }
                     }
                 }
             }
@@ -869,13 +842,17 @@ public final class MapPainter {
                 int tile = tileAt(z.getX(), z.getZ());
                 int gid = tile < 0 ? -1 : LiveMapFeature.groupIdAt(tile);
                 if (gid >= 0) {
-                    for (int t : LiveMapFeature.groupsView().get(gid).tiles) {
-                        MIMIC_TILES.add(t);
-                    }
+                    latchTiles(LiveMapFeature.groupsView().get(gid).tiles);
                 } else if (tile >= 0) {
                     MIMIC_TILES.add(tile);
                 }
             }
+        }
+    }
+
+    private static void latchTiles(int[] tiles) {
+        for (int t : tiles) {
+            MIMIC_TILES.add(t);
         }
     }
 
@@ -913,12 +890,7 @@ public final class MapPainter {
         if (LiveMapConfig.getInstance().isMimicScan()) {
             refreshMimicScanIfStale();
         }
-        for (int tile : group.tiles) {
-            if (MIMIC_TILES.contains(tile)) {
-                return true;
-            }
-        }
-        return false;
+        return java.util.Arrays.stream(group.tiles).anyMatch(MIMIC_TILES::contains);
     }
 
     private static void refreshMimicScanIfStale() {
@@ -947,9 +919,7 @@ public final class MapPainter {
                 BlockPos real = RoomDatabase.toRealCoord(relative, clayRot[0], clayRot[1], clayRot[2])
                         .above(DungeonLayout.simYOffset());
                 if (level.isLoaded(real) && level.getBlockState(real).getBlock() == Blocks.TRAPPED_CHEST) {
-                    for (int tile : group.tiles) {
-                        MIMIC_TILES.add(tile);
-                    }
+                    latchTiles(group.tiles);
                     break;
                 }
             }
@@ -1067,10 +1037,7 @@ public final class MapPainter {
         for (int side = 0; side < 2; side++) {
             int nx = gx % 2 == 1 ? gx + (side == 0 ? -1 : 1) : gx;
             int nz = gz % 2 == 1 ? gz + (side == 0 ? -1 : 1) : gz;
-            if (nx == gx && nz == gz) {
-                continue;
-            }
-            if (nx < 0 || nz < 0 || nx >= g || nz >= g) {
+            if (nx == gx && nz == gz || nx < 0 || nz < 0 || nx >= g || nz >= g) {
                 continue;
             }
             int gid = LiveMapFeature.groupIdAt(nx + nz * g);
@@ -1081,8 +1048,7 @@ public final class MapPainter {
             if (!isRevealed(group)) {
                 continue;
             }
-            String type = roomType(group);
-            int prio = typePriority(type);
+            int prio = typePriority(roomType(group));
             if (prio < best) {
                 best = prio;
                 color = roomColor(group, cfg);
@@ -1227,10 +1193,8 @@ public final class MapPainter {
 
     static boolean sameRoom(int gid, int gx, int gz) {
         int g = LiveMapFeature.GRID;
-        if (gx < 0 || gz < 0 || gx >= g || gz >= g || LiveMapFeature.groupIdAt(gx + gz * g) != gid) {
-            return false;
-        }
-        return gx % 2 == 1 && gz % 2 == 1 ? centreOfSquare(gid, gx, gz) : true;
+        return gx >= 0 && gz >= 0 && gx < g && gz < g && LiveMapFeature.groupIdAt(gx + gz * g) == gid
+                && (gx % 2 != 1 || gz % 2 != 1 || centreOfSquare(gid, gx, gz));
     }
 
     /** Fill color a reported-but-unseen cell is dimmed by, when {@link LiveMapConfig#isMarkReportedRooms()}
@@ -1308,15 +1272,13 @@ public final class MapPainter {
                 color = roomColor(fairy, cfg); // the Fairy room's own pink, as that room is drawn
             }
             int mapByte = hideUnrevealed() ? DungeonMapScanner.doorColorAt(idx) : 0;
-            if (fairyDoor) {
-                // its own color, as drawn for the room it opens into
-            } else if (mapByte == 85) {
+            if (!fairyDoor && mapByte == 85) {
                 // The map item's own gray: a door into a room nobody has opened yet. Hypixel draws it gray (NoammAddons
                 // DoorTile: "Unopened Door"), not in the color of the opened room it leads from; it used to be drawn as
                 // that room's color darkened, so it read as an opened corridor.
                 color = unopenedFill(cfg);
-            } else if (DungeonMapScanner.isCalibrated() && DungeonMapScanner.stateAt(idx) >= DungeonMapScanner.STATE_UNOPENED
-                    && !cfg.isFunnyMap()) {
+            } else if (!fairyDoor && DungeonMapScanner.isCalibrated()
+                    && DungeonMapScanner.stateAt(idx) >= DungeonMapScanner.STATE_UNOPENED && !cfg.isFunnyMap()) {
                 // Not on Funny Map (to-do Doc, 2026-11-01: "For funny map style the doors are too dark on the map, they
                 // should be the same color of the rooms"): there a door's color is already the room color as drawn
                 // (connectorColor reads roomColor, which darkens an unexplored room itself), and darkening it again here
