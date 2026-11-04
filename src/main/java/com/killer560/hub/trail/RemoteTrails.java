@@ -160,19 +160,13 @@ public final class RemoteTrails {
     }
 
     /** Frames in which at least one other player's trail was drawn. */
-    public static long framesDrawn() {
-        return framesDrawn;
-    }
+    public static long framesDrawn() { return framesDrawn; }
 
     /** Other players' trails drawn in the last frame. */
-    public static int lastDrawnTrails() {
-        return lastDrawnTrails;
-    }
+    public static int lastDrawnTrails() { return lastDrawnTrails; }
 
     /** Players with a trail slot right now. */
-    public static int tracked() {
-        return SLOTS.size();
-    }
+    public static int tracked() { return SLOTS.size(); }
 
     /** {@code id}'s ribbon: {points, length in blocks, frames drawn} for their last frame, or null when untracked. */
     public static double[] ribbonState(UUID id) {

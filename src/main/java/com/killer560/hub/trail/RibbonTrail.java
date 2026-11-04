@@ -101,48 +101,30 @@ public final class RibbonTrail {
     }
 
     /** Frames your own ribbon was drawn. */
-    public static long framesDrawn() {
-        return LOCAL.framesDrawn;
-    }
+    public static long framesDrawn() { return LOCAL.framesDrawn; }
 
     /** Points (laid + the anchor) in your ribbon's last drawn frame; 0 when the last frame drew nothing. */
-    public static int lastPointCount() {
-        return LOCAL.lastPointCount;
-    }
+    public static int lastPointCount() { return LOCAL.lastPointCount; }
 
     /** Length in blocks of your band drawn last frame; 0 when it drew nothing. */
-    public static double lastLength() {
-        return LOCAL.lastLength;
-    }
+    public static double lastLength() { return LOCAL.lastLength; }
 
     /** Laid points your ribbon currently holds. */
-    public static int pointCount() {
-        return LOCAL.count;
-    }
+    public static int pointCount() { return LOCAL.count; }
 
-    public static void clear() {
-        LOCAL.reset();
-    }
+    public static void clear() { LOCAL.reset(); }
 
     /** Teleports (a jump past {@link TeleportMode#MIN_JUMP} in one frame) your ribbon has seen since it was last cleared. */
-    public static int teleportsSeen() {
-        return LOCAL.teleports;
-    }
+    public static int teleportsSeen() { return LOCAL.teleports; }
 
     /** Gaps (Break mode teleports) in your ribbon's last drawn frame. */
-    public static int lastBreaks() {
-        return LOCAL.lastBreaks;
-    }
+    public static int lastBreaks() { return LOCAL.lastBreaks; }
 
     /** Quads in your ribbon's last drawn frame: one per joined pair of points, none across a gap. */
-    public static int lastSegments() {
-        return LOCAL.lastSegments;
-    }
+    public static int lastSegments() { return LOCAL.lastSegments; }
 
     /** Your ribbon's last drawn vertices (see {@link #vertices()}). */
-    public static float[] lastVertices() {
-        return LOCAL.vertices();
-    }
+    public static float[] lastVertices() { return LOCAL.vertices(); }
 
     /** World-space x y z of every vertex of the last drawn frame, bottom then top for each point, oldest first;
      *  empty when the last frame drew nothing. The test hook for "vertical, and the same from every camera angle". */
@@ -156,24 +138,16 @@ public final class RibbonTrail {
     }
 
     /** Height of the band's bottom above the feet for a player with {@code eyeHeight} and a band {@code height} tall. */
-    static double bandBottom(double eyeHeight, double height) {
-        return Math.max(MIN_BOTTOM, eyeHeight * MIDDLE - height / 2.0);
-    }
+    static double bandBottom(double eyeHeight, double height) { return Math.max(MIN_BOTTOM, eyeHeight * MIDDLE - height / 2.0); }
 
     /** This ribbon's frames drawn (the shared trails' test hook). */
-    public long frames() {
-        return framesDrawn;
-    }
+    public long frames() { return framesDrawn; }
 
     /** Points in this ribbon's last drawn frame. */
-    public int drawnPoints() {
-        return lastPointCount;
-    }
+    public int drawnPoints() { return lastPointCount; }
 
     /** Length in blocks of this ribbon's last drawn band. */
-    public double drawnLength() {
-        return lastLength;
-    }
+    public double drawnLength() { return lastLength; }
 
     void reset() {
         hasBack = false;
@@ -199,9 +173,7 @@ public final class RibbonTrail {
         }
     }
 
-    private int idx(int fromOldest) {
-        return Math.floorMod(head - count + fromOldest, MAX_POINTS);
-    }
+    private int idx(int fromOldest) { return Math.floorMod(head - count + fromOldest, MAX_POINTS); }
 
     /**
      * Lays new points behind {@code player} and draws; called every frame while this ribbon is shown. {@code spec} is

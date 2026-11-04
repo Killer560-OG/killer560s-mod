@@ -36,9 +36,7 @@ public record TrailSpec(RibbonTrailConfig.ColorMode mode, int[] colors, float wi
                 hundredths(cfg.getRibbonSeconds()), cfg.getOpacityPercent());
     }
 
-    private static float hundredths(float v) {
-        return Math.round(v * 100f) / 100f;
-    }
+    private static float hundredths(float v) { return Math.round(v * 100f) / 100f; }
 
     static String wire(RibbonTrailConfig.ColorMode m) {
         return switch (m) {
@@ -152,9 +150,7 @@ public record TrailSpec(RibbonTrailConfig.ColorMode mode, int[] colors, float wi
     }
 
     @Override
-    public String toString() {
-        return toJson().toString();
-    }
+    public String toString() { return toJson().toString(); }
 
     /** For log lines and the test hooks: "ribbon gradient 3 colors 0.60x1.00 60%". */
     public String describe() {

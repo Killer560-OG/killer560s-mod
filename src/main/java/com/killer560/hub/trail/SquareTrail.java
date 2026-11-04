@@ -40,14 +40,10 @@ final class SquareTrail {
     private double lastZ;
     private boolean hasLast = false;
 
-    int size() {
-        return size;
-    }
+    int size() { return size; }
 
     /** Teleports this trail has sampled. */
-    int teleports() {
-        return teleports;
-    }
+    int teleports() { return teleports; }
 
     void clear() {
         head = 0;
@@ -57,9 +53,7 @@ final class SquareTrail {
     }
 
     /** Forgets the last position (so the next sample lays nothing), keeping the squares already laid. */
-    void forgetLast() {
-        hasLast = false;
-    }
+    void forgetLast() { hasLast = false; }
 
     /** The newest square's position ({@code fromNewest} 0) or an older one's, as x y z; null past what is held. */
     double[] position(int fromNewest) {
