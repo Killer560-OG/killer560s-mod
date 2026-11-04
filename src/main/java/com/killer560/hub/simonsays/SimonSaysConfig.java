@@ -260,9 +260,7 @@ public final class SimonSaysConfig {
     private static int getInt(JsonObject obj, String key, int def) { return obj.has(key) ? obj.get(key).getAsInt() : def; }
 
     private static <E extends Enum<E>> E getEnum(JsonObject obj, String key, Class<E> type, E def) {
-        if (!obj.has(key)) {
-            return def;
-        }
+        if (!obj.has(key)) return def;
         try {
             return Enum.valueOf(type, obj.get(key).getAsString());
         } catch (Exception e) {
