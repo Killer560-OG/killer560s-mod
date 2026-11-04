@@ -87,9 +87,7 @@ public final class IcePathSolverFeature {
     private static String lastSaid = null;
 
     private static void sayOnce(String why) {
-        if (why.equals(lastSaid)) {
-            return;
-        }
+        if (why.equals(lastSaid)) return;
         lastSaid = why;
         com.killer560.hub.util.ModLog.get("killer560smod-puzzles").info("[IcePathSolver] {}", why);
     }
@@ -226,9 +224,7 @@ public final class IcePathSolverFeature {
 
     private static void solve(int[] cr) {
         int[] start = silverfishCell;
-        if (start == null) {
-            return;
-        }
+        if (start == null) return;
         Set<Integer> seen = new HashSet<>();
         ArrayDeque<List<int[]>> queue = new ArrayDeque<>();
         List<int[]> first = new ArrayList<>();
@@ -270,13 +266,9 @@ public final class IcePathSolverFeature {
     }
 
     private static void onWorldRender(LevelRenderContext context) {
-        if (!IcePathSolverConfig.getInstance().isEnabled()) {
-            return;
-        }
+        if (!IcePathSolverConfig.getInstance().isEnabled()) return;
         List<Vec3> points = path;
-        if (points.isEmpty()) {
-            return;
-        }
+        if (points.isEmpty()) return;
         if (points != linePath) {
             List<Vec3> built = new ArrayList<>(points.size());
             for (Vec3 p : points) {

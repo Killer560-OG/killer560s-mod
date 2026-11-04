@@ -53,9 +53,7 @@ public final class IceFillSolverFeature {
     private static String noPathLogKey = null;
 
     private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) {
-            return;
-        }
+        if (key.equals(roomLogKey)) return;
         roomLogKey = key;
         scanLogKey = null;
         LOGGER.info("[IceFillSolver] {}", detail);
@@ -121,9 +119,7 @@ public final class IceFillSolverFeature {
         if (!currentPath.isEmpty() && pathOptimized != IceFillSolverConfig.getInstance().isOptimizedPath()) {
             currentPath.clear();
         }
-        if (current == null || !"Ice Fill".equals(current.name) || !currentPath.isEmpty()) {
-            return;
-        }
+        if (current == null || !"Ice Fill".equals(current.name) || !currentPath.isEmpty()) return;
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         Level level = client.level;
         if (clayAndRotation == null || level == null) {
@@ -190,9 +186,7 @@ public final class IceFillSolverFeature {
 
     /** Logging only: a scan line, once per distinct reason until the room state changes. */
     private static void logScan(String key, String detail) {
-        if (key.equals(scanLogKey)) {
-            return;
-        }
+        if (key.equals(scanLogKey)) return;
         scanLogKey = key;
         LOGGER.info("[IceFillSolver] {}", detail);
     }
@@ -203,13 +197,9 @@ public final class IceFillSolverFeature {
     }
 
     private static void onWorldRender(LevelRenderContext context) {
-        if (!IceFillSolverConfig.getInstance().isEnabled() || currentPath.isEmpty()) {
-            return;
-        }
+        if (!IceFillSolverConfig.getInstance().isEnabled() || currentPath.isEmpty()) return;
         RoomEntry current = LiveMapFeature.currentRoomEntry();
-        if (current == null || !"Ice Fill".equals(current.name)) {
-            return;
-        }
+        if (current == null || !"Ice Fill".equals(current.name)) return;
         // killer560, 2026-09-20: "ice fill's line shouldn't be blue, hard to see - make it configurable".
         int argb = IceFillSolverConfig.getInstance().getLineColorArgb();
         float a = ((argb >>> 24) & 0xFF) / 255f;
@@ -256,12 +246,8 @@ public final class IceFillSolverFeature {
                 && !under.is(net.minecraft.world.level.block.Blocks.BLUE_ICE)) {
             return "allow: not standing on the ice";
         }
-        if (path == null || path.isEmpty()) {
-            return "allow: no path known";
-        }
-        if (target == null) {
-            return "allow: the etherwarp has nowhere to land";
-        }
+        if (path == null || path.isEmpty()) return "allow: no path known";
+        if (target == null) return "allow: the etherwarp has nowhere to land";
         List<BlockPos> tiles = pathTiles(path);
         int at = -1;
         for (int i = 0; i < tiles.size(); i++) {
@@ -270,18 +256,12 @@ public final class IceFillSolverFeature {
                 at = i;
             }
         }
-        if (at < 0) {
-            return "block: you are on packed ice off the path";
-        }
+        if (at < 0) return "block: you are on packed ice off the path";
         BlockPos landing = target.above();
-        if (at + 1 < tiles.size() && sameTile(tiles.get(at + 1), landing)) {
-            return "allow: the next spot on the path";
-        }
+        if (at + 1 < tiles.size() && sameTile(tiles.get(at + 1), landing)) return "allow: the next spot on the path";
         for (int j = at + 1; j < tiles.size(); j++) {
             if (level.getBlockState(tiles.get(j).below()).is(net.minecraft.world.level.block.Blocks.ICE)) {
-                if (sameTile(tiles.get(j), landing)) {
-                    return "allow: the next tile still to fill";
-                }
+                if (sameTile(tiles.get(j), landing)) return "allow: the next tile still to fill";
                 break;
             }
         }
@@ -335,9 +315,7 @@ public final class IceFillSolverFeature {
             return false;
         }
         double distance = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.etherwarpDistance(client.player);
-        if (distance <= 0) {
-            return false;
-        }
+        if (distance <= 0) return false;
         Vec3 feet = client.player.position();
         // Judged on the warp the SERVER will do, not the one the crosshair shows (icefill-1102): Hypixel traces the
         // etherwarp along the look and sneak it last heard in a movement packet, from where that packet put him, and a
@@ -360,9 +338,7 @@ public final class IceFillSolverFeature {
                     + (aimed == null ? "nothing" : aimed.above().toShortString()) + ")";
         }
         lastVerdict = verdict;
-        if (!verdict.startsWith("block")) {
-            return false;
-        }
+        if (!verdict.startsWith("block")) return false;
         blockedWarps++;
         LOGGER.info("[IceFillSolver] Etherwarp Protection: warp to {} not sent - {} ({} blocked so far)",
                 target == null ? "nowhere" : target.toShortString(), verdict.substring(7), blockedWarps);

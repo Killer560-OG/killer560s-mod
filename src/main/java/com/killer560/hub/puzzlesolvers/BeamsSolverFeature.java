@@ -81,9 +81,7 @@ public final class BeamsSolverFeature {
     private static String scanLogKey = null;
 
     private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) {
-            return;
-        }
+        if (key.equals(roomLogKey)) return;
         roomLogKey = key;
         scanLogKey = null;
         LOGGER.info("[BeamsSolver] {}", detail);
@@ -126,9 +124,7 @@ public final class BeamsSolverFeature {
                 Type type = new TypeToken<List<int[]>>() {
                 }.getType();
                 List<int[]> raw = new Gson().fromJson(reader, type);
-                if (raw == null) {
-                    return List.of();
-                }
+                if (raw == null) return List.of();
                 List<CandidatePair> pairs = new ArrayList<>();
                 for (int[] entry : raw) {
                     if (entry.length == 6) {
@@ -225,9 +221,7 @@ public final class BeamsSolverFeature {
     /** The palette color for a candidate pair: the one it already holds, else the first no other live pair holds. */
     private static int colorFor(int candidate) {
         Integer have = assigned.get(candidate);
-        if (have != null) {
-            return have;
-        }
+        if (have != null) return have;
         java.util.Set<Integer> taken = new java.util.HashSet<>(assigned.values());
         int pick = 0;
         for (int c = 0; c < COLORS.length; c++) {
@@ -248,9 +242,7 @@ public final class BeamsSolverFeature {
      * drawn: they are a mistake to see, not a step to take.
      */
     static List<ActivePair> pairsToDraw(List<ActivePair> pairs, BeamsSolverConfig.ShowMode mode, Vec3 eye) {
-        if (mode == BeamsSolverConfig.ShowMode.ALL) {
-            return pairs;
-        }
+        if (mode == BeamsSolverConfig.ShowMode.ALL) return pairs;
         int limit = mode == BeamsSolverConfig.ShowMode.ONE ? 1 : 2;
         List<ActivePair> lit = new ArrayList<>();
         for (ActivePair p : pairs) {
@@ -262,9 +254,7 @@ public final class BeamsSolverFeature {
             ActivePair nearest = null;
             double best = Double.MAX_VALUE;
             for (ActivePair p : lit) {
-                if (shownOrder.contains(p.candidate())) {
-                    continue;
-                }
+                if (shownOrder.contains(p.candidate())) continue;
                 double d = eye == null ? 0 : Math.min(eye.distanceToSqr(Vec3.atCenterOf(p.a())),
                         eye.distanceToSqr(Vec3.atCenterOf(p.b())));
                 if (d < best) {
@@ -272,9 +262,7 @@ public final class BeamsSolverFeature {
                     nearest = p;
                 }
             }
-            if (nearest == null) {
-                break;
-            }
+            if (nearest == null) break;
             shownOrder.add(nearest.candidate());
         }
         List<ActivePair> out = new ArrayList<>();
@@ -320,9 +308,7 @@ public final class BeamsSolverFeature {
                     .append(pair.b().toShortString()).append(';');
         }
         String k = key.toString();
-        if (k.equals(scanLogKey)) {
-            return;
-        }
+        if (k.equals(scanLogKey)) return;
         boolean first = scanLogKey == null;
         scanLogKey = k;
         LOGGER.info("[BeamsSolver] {}: litPairs={} misalignedPairs={} of {} candidates:{}",
@@ -343,13 +329,9 @@ public final class BeamsSolverFeature {
 
     private static void onWorldRender(LevelRenderContext context) {
         BeamsSolverConfig cfg = BeamsSolverConfig.getInstance();
-        if (!cfg.isEnabled() || activePairs.isEmpty()) {
-            return;
-        }
+        if (!cfg.isEnabled() || activePairs.isEmpty()) return;
         RoomEntry current = LiveMapFeature.currentRoomEntry();
-        if (current == null || !"Creeper Beams".equals(current.name)) {
-            return;
-        }
+        if (current == null || !"Creeper Beams".equals(current.name)) return;
         Minecraft client = Minecraft.getInstance();
         Vec3 eye = client.player == null ? null : client.player.getEyePosition();
         for (ActivePair pair : pairsToDraw(activePairs, cfg.getShowMode(), eye)) {

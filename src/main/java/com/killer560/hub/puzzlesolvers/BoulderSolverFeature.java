@@ -57,9 +57,7 @@ public final class BoulderSolverFeature {
     private static String missLogKey = null;
 
     private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) {
-            return;
-        }
+        if (key.equals(roomLogKey)) return;
         roomLogKey = key;
         missLogKey = null;
         LOGGER.info("[BoulderSolver] {}", detail);
@@ -132,9 +130,7 @@ public final class BoulderSolverFeature {
                 logRoomState("none", "left Boulder: now in " + (current == null ? "no known room" : current.name));
             }
         }
-        if (current == null || !"Boulder".equals(current.name) || scannedThisRoom) {
-            return;
-        }
+        if (current == null || !"Boulder".equals(current.name) || scannedThisRoom) return;
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         if (clayAndRotation == null) {
             logRoomState("wait", "in Boulder but not scanning: clay/rotation not known yet - waiting for the map");
@@ -150,9 +146,7 @@ public final class BoulderSolverFeature {
         // finished loading), so the room was never rescanned and the solver stayed blank. Now only a
         // real match marks the room scanned; misses retry once per second.
         long now = System.currentTimeMillis();
-        if (now - lastScanAttemptMs < 1000) {
-            return;
-        }
+        if (now - lastScanAttemptMs < 1000) return;
         lastScanAttemptMs = now;
         scannedThisRoom = scanFloor(client, clayAndRotation[0], clayAndRotation[1], clayAndRotation[2]);
     }
@@ -160,9 +154,7 @@ public final class BoulderSolverFeature {
     /** @return true only if the floor matched a known solution. */
     private static boolean scanFloor(Minecraft client, int clayX, int clayZ, int rotationDegrees) {
         Level level = client.level;
-        if (level == null) {
-            return false;
-        }
+        if (level == null) return false;
         // THROUGH PuzzleCoords, not RoomDatabase directly. killer560 (2026-10-01): "boulder is very broken
         // looking" / "the buttons still dont push them."
         //
@@ -214,9 +206,7 @@ public final class BoulderSolverFeature {
     }
 
     public static void onPlayerInteract(BlockPos clicked) {
-        if (!BoulderSolverConfig.getInstance().isEnabled() || currentPositions.isEmpty()) {
-            return;
-        }
+        if (!BoulderSolverConfig.getInstance().isEnabled() || currentPositions.isEmpty()) return;
         int before = currentPositions.size();
         currentPositions.removeIf(pos -> pos.click().equals(clicked));
         int after = currentPositions.size();
@@ -231,13 +221,9 @@ public final class BoulderSolverFeature {
     }
 
     private static void onWorldRender(LevelRenderContext context) {
-        if (!BoulderSolverConfig.getInstance().isEnabled() || currentPositions.isEmpty()) {
-            return;
-        }
+        if (!BoulderSolverConfig.getInstance().isEnabled() || currentPositions.isEmpty()) return;
         Level level = Minecraft.getInstance().level;
-        if (level == null) {
-            return;
-        }
+        if (level == null) return;
         boolean showAll = BoulderSolverConfig.getInstance().isShowAllClicks();
         if (showAll) {
             for (BoxPosition pos : currentPositions) {

@@ -144,9 +144,7 @@ public final class WeirdosSolverFeature {
     private static com.killer560.hub.roomdatabase.RoomEntry lastRoomEntry;
 
     private static void onMessage(Component message) {
-        if (!WeirdosSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
-            return;
-        }
+        if (!WeirdosSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) return;
         // Same room gate the render uses: an "[NPC] ..." line heard anywhere else must not mark chests here.
         com.killer560.hub.roomdatabase.RoomEntry room = LiveMapFeature.currentRoomEntry();
         if (room == null || !"Three Weirdos".equals(room.name)) {
@@ -167,9 +165,7 @@ public final class WeirdosSolverFeature {
         String raw = (plain != null ? plain : message.getString()).trim();
 
         var matcher = NPC_LINE.matcher(raw);
-        if (!matcher.matches()) {
-            return;
-        }
+        if (!matcher.matches()) return;
         String npc = matcher.group(1);
         String dialogue = matcher.group(2);
 
@@ -195,9 +191,7 @@ public final class WeirdosSolverFeature {
         }
 
         BlockPos chestPos = findChestPos(npc);
-        if (chestPos == null) {
-            return;
-        }
+        if (chestPos == null) return;
         if (isSolution) {
             correctPos = chestPos;
             wrongPositions.remove(chestPos);
@@ -239,24 +233,16 @@ public final class WeirdosSolverFeature {
         }
         Set<BlockPos> candidates = new java.util.HashSet<>();
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (!(entity instanceof ArmorStand)) {
-                continue;
-            }
+            if (!(entity instanceof ArmorStand)) continue;
             String name = stripName(entity.getName().getString());
-            if (name.isBlank() || name.contains("CLICK")) {
-                continue;
-            }
+            if (name.isBlank() || name.contains("CLICK")) continue;
             boolean near = false;
             for (BlockPos w : wrongPositions) {
                 near |= entity.distanceToSqr(w.getX() + 0.5, w.getY() + 0.5, w.getZ() + 0.5) < 12 * 12;
             }
-            if (!near) {
-                continue;
-            }
+            if (!near) continue;
             BlockPos chest = chestPosFor(entity, cr);
-            if (wrongPositions.contains(chest)) {
-                continue;
-            }
+            if (wrongPositions.contains(chest)) continue;
             if (client.level.getBlockState(chest).getBlock() instanceof net.minecraft.world.level.block.ChestBlock) {
                 candidates.add(chest);
             }
@@ -275,9 +261,7 @@ public final class WeirdosSolverFeature {
 
     private static BlockPos findChestPos(String npcName) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null) {
-            return null;
-        }
+        if (client.level == null) return null;
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         if (clayAndRotation == null) {
             // The one path in here that used to fail SILENTLY, and the only one that fits his report:
@@ -340,13 +324,9 @@ public final class WeirdosSolverFeature {
 
     private static void onWorldRender(LevelRenderContext context) {
         WeirdosSolverConfig cfg = WeirdosSolverConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            return;
-        }
+        if (!cfg.isEnabled()) return;
         RoomEntry current = LiveMapFeature.currentRoomEntry();
-        if (current == null || !"Three Weirdos".equals(current.name)) {
-            return;
-        }
+        if (current == null || !"Three Weirdos".equals(current.name)) return;
         // killer560, 2026-09-20: "make it a filled box rather than an outline".
         if (correctPos != null) {
             SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.WEIRDOS, context, new AABB(correctPos), 0.2f, 1.0f, 0.3f, 2f);

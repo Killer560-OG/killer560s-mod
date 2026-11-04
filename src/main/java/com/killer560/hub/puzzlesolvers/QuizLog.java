@@ -69,9 +69,7 @@ public final class QuizLog {
 
     public static void register() {
         // Log only, and a release drops INFO: no tick, chat or click hook is worth running there.
-        if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
-            return;
-        }
+        if (!com.killer560.hub.BuildVariant.DEV_TOOLS) return;
         ChatObserver.subscribe(QuizLog::onMessage);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuizLog", QuizLog::tick));
         // Ahead of every other listener and always PASS: it only watches. A click another listener answers first would
@@ -134,13 +132,9 @@ public final class QuizLog {
     }
 
     private static void onMessage(Component message) {
-        if (!DungeonState.isInDungeon()) {
-            return;
-        }
+        if (!DungeonState.isInDungeon()) return;
         String raw = ChatObserver.strip(message);
-        if (raw == null) {
-            return;
-        }
+        if (raw == null) return;
         String msg = raw.trim();
         // Every other line, unfiltered, while he is in the Quiz room or within a few seconds of a press. The Oruo lines
         // are logged below; this catches whatever Hypixel says under another name (killer560, 2026-10-18: a wrong answer
@@ -228,13 +222,9 @@ public final class QuizLog {
 
     private static String pillarOf(BlockPos button) {
         List<BlockPos> pillars = QuizSolverFeature.answerPillars();
-        if (pillars == null) {
-            return "?";
-        }
+        if (pillars == null) return "?";
         for (int i = 0; i < pillars.size(); i++) {
-            if (pillars.get(i).distManhattan(button) == 1) {
-                return String.valueOf((char) ('a' + i));
-            }
+            if (pillars.get(i).distManhattan(button) == 1) return String.valueOf((char) ('a' + i));
         }
         return "none";
     }

@@ -59,9 +59,7 @@ public final class BlazeSolverFeature {
     private static String scanLogKey = null;
 
     private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) {
-            return;
-        }
+        if (key.equals(roomLogKey)) return;
         roomLogKey = key;
         scanLogKey = null;
         LOGGER.info("[BlazeSolver] {}", detail);
@@ -84,9 +82,7 @@ public final class BlazeSolverFeature {
         // COLLECT_SUBMITS (see docs/LESSONS-GUI.md, Blaze water): the boxes are submitted while the frame still gathers what to draw.
         final int renderBit = com.killer560.hub.util.FeatureBits.register("Blaze Solver render", () -> BlazeSolverConfig.getInstance().isEnabledRaw());
         LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
-            if (!com.killer560.hub.util.FeatureBits.on(renderBit)) {
-                return;
-            }
+            if (!com.killer560.hub.util.FeatureBits.on(renderBit)) return;
             onWorldRender(context);
         });
     }
@@ -124,26 +120,18 @@ public final class BlazeSolverFeature {
                     + " max HP first");
         }
         tickCounter++;
-        if (tickCounter % 5 != 0) {
-            return;
-        }
+        if (tickCounter % 5 != 0) return;
         rescan(client, isLower);
     }
 
     private static void rescan(Minecraft client, boolean lowerRoom) {
-        if (client.level == null) {
-            return;
-        }
+        if (client.level == null) return;
         // Each stand's name is matched once and its max HP kept with it, so the sort never re-runs the regex.
         List<Object[]> hits = new ArrayList<>();
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (!(entity instanceof ArmorStand)) {
-                continue;
-            }
+            if (!(entity instanceof ArmorStand)) continue;
             String name = plainName(entity);
-            if (name.indexOf("Blaze") < 0) {
-                continue;
-            }
+            if (name.indexOf("Blaze") < 0) continue;
             Matcher matcher = BLAZE_NAME.matcher(name);
             if (matcher.matches()) {
                 hits.add(new Object[] {entity, parseMaxHp(matcher)});
@@ -166,9 +154,7 @@ public final class BlazeSolverFeature {
             key.append(e.getId()).append(',');
         }
         String k = key.toString();
-        if (k.equals(scanLogKey)) {
-            return;
-        }
+        if (k.equals(scanLogKey)) return;
         String previous = scanLogKey;
         scanLogKey = k;
         StringBuilder order = new StringBuilder();
@@ -219,17 +205,11 @@ public final class BlazeSolverFeature {
             drawBlazes(context, cfg, forced);
             return;
         }
-        if (!cfg.isEnabled() || orderedBlazes.isEmpty()) {
-            return;
-        }
+        if (!cfg.isEnabled() || orderedBlazes.isEmpty()) return;
         RoomEntry current = LiveMapFeature.currentRoomEntry();
-        if (current == null || (!"Lower Blaze".equals(current.name) && !"Higher Blaze".equals(current.name))) {
-            return;
-        }
+        if (current == null || (!"Lower Blaze".equals(current.name) && !"Higher Blaze".equals(current.name))) return;
         orderedBlazes.removeIf(Entity::isRemoved);
-        if (orderedBlazes.isEmpty()) {
-            return;
-        }
+        if (orderedBlazes.isEmpty()) return;
 
         drawBlazes(context, cfg, orderedBlazes);
     }

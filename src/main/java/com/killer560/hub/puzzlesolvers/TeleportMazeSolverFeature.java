@@ -63,9 +63,7 @@ public final class TeleportMazeSolverFeature {
     private static String roomLogKey = "none";
 
     private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) {
-            return;
-        }
+        if (key.equals(roomLogKey)) return;
         roomLogKey = key;
         LOGGER.info("[TeleportMaze] {}", detail);
     }
@@ -116,9 +114,7 @@ public final class TeleportMazeSolverFeature {
             return;
         }
         RoomEntry current = LiveMapFeature.currentRoomEntry();
-        if (current == lastRoomEntry && (current == null || !ROOM.equals(current.name) || !tpPads.isEmpty())) {
-            return;
-        }
+        if (current == lastRoomEntry && (current == null || !ROOM.equals(current.name) || !tpPads.isEmpty())) return;
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (current != null && ROOM.equals(current.name) && cr == null) {
             logRoomState("wait", "in Teleport Maze but clay/rotation not known yet - pads not placed, retrying every tick");
@@ -159,9 +155,7 @@ public final class TeleportMazeSolverFeature {
     /** From {@code PuzzlePacketMixin}, main thread, before vanilla applies the teleport. */
     public static void onPlayerPosition(ClientboundPlayerPositionPacket packet) {
         Minecraft client = Minecraft.getInstance();
-        if (!TeleportMazeSolverConfig.getInstance().isEnabled() || tpPads.isEmpty() || client.player == null) {
-            return;
-        }
+        if (!TeleportMazeSolverConfig.getInstance().isEnabled() || tpPads.isEmpty() || client.player == null) return;
         Vec3 pos = packet.change().position();
         // 69.5 IS A ROOM-RELATIVE HEIGHT. Every maze teleport on Hypixel lands half a block over the chamber
         // floor, and that floor is at the same y in every dungeon - so the bare literal is right there and
@@ -229,9 +223,7 @@ public final class TeleportMazeSolverFeature {
         AABB playerBox = client.player.getBoundingBox();
         Set<BlockPos> next = new LinkedHashSet<>();
         for (BlockPos it : correctPortals) {
-            if (visited.contains(it)) {
-                continue;
-            }
+            if (visited.contains(it)) continue;
             AABB column = new AABB(it.getX(), it.getY(), it.getZ(), it.getX() + 1.0, it.getY() + 4.0, it.getZ() + 1.0)
                     .inflate(0.75, 0.0, 0.75);
             // PITCH 0: the test is a horizontal one, and the room is up to 31 blocks across. With the landing's pitch
@@ -249,9 +241,7 @@ public final class TeleportMazeSolverFeature {
     private static BlockPos getBestPad(Vec3 pos, float yaw) {
         BlockPos currentPad = nearestPad(pos);
         Set<BlockPos> currentCell = cellOf(currentPad);
-        if (currentCell == null || currentCell.size() == 1) {
-            return null;
-        }
+        if (currentCell == null || currentCell.size() == 1) return null;
         List<BlockPos> candidates = new ArrayList<>();
         for (BlockPos it : currentCell) {
             if (!it.equals(currentPad) && !visited.contains(it)) {
@@ -259,9 +249,7 @@ public final class TeleportMazeSolverFeature {
             }
         }
         for (BlockPos it : candidates) {
-            if (correctPortals.contains(it)) {
-                return it;
-            }
+            if (correctPortals.contains(it)) return it;
         }
         BlockPos bestPad = null;
         double bestDiff = Double.MAX_VALUE;
@@ -290,13 +278,9 @@ public final class TeleportMazeSolverFeature {
     }
 
     public static Set<BlockPos> cellOf(BlockPos pad) {
-        if (pad == null) {
-            return null;
-        }
+        if (pad == null) return null;
         for (Set<BlockPos> cell : realCells) {
-            if (cell.contains(pad)) {
-                return cell;
-            }
+            if (cell.contains(pad)) return cell;
         }
         return null;
     }
@@ -325,18 +309,14 @@ public final class TeleportMazeSolverFeature {
 
     private static Vec3 intermediateX(Vec3 from, Vec3 goal, double x) {
         double dx = goal.x - from.x;
-        if (dx * dx < 1e-8) {
-            return null;
-        }
+        if (dx * dx < 1e-8) return null;
         double t = (x - from.x) / dx;
         return t >= 0.0 && t <= 1.0 ? new Vec3(from.x + dx * t, from.y + (goal.y - from.y) * t, from.z + (goal.z - from.z) * t) : null;
     }
 
     private static Vec3 intermediateZ(Vec3 from, Vec3 goal, double z) {
         double dz = goal.z - from.z;
-        if (dz * dz < 1e-8) {
-            return null;
-        }
+        if (dz * dz < 1e-8) return null;
         double t = (z - from.z) / dz;
         return t >= 0.0 && t <= 1.0 ? new Vec3(from.x + (goal.x - from.x) * t, from.y + (goal.y - from.y) * t, from.z + dz * t) : null;
     }
@@ -344,9 +324,7 @@ public final class TeleportMazeSolverFeature {
     private static void onWorldRender(LevelRenderContext context) {
         TeleportMazeSolverConfig cfg = TeleportMazeSolverConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isEnabled() || tpPads.isEmpty() || client.level == null || client.player == null) {
-            return;
-        }
+        if (!cfg.isEnabled() || tpPads.isEmpty() || client.level == null || client.player == null) return;
         for (BlockPos pad : padsToDraw(client.player.position())) {
             VoxelShape shape = client.level.getBlockState(pad).getShape(client.level, pad);
             AABB box = shape.isEmpty() ? new AABB(pad) : shape.bounds().move(pad);
@@ -391,9 +369,7 @@ public final class TeleportMazeSolverFeature {
         }
         if (cfg.isCurrentCellOnly() && feet != null) {
             Set<BlockPos> cell = cellOf(nearestPad(feet));
-            if (cell != null) {
-                return new ArrayList<>(cell);
-            }
+            if (cell != null) return new ArrayList<>(cell);
         }
         return new ArrayList<>(tpPads);
     }

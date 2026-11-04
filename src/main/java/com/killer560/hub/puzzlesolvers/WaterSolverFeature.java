@@ -147,18 +147,14 @@ public final class WaterSolverFeature {
     private static String scanLogKey = null;
 
     private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) {
-            return;
-        }
+        if (key.equals(roomLogKey)) return;
         roomLogKey = key;
         scanLogKey = null;
         LOGGER.info("[WaterSolver] {}", detail);
     }
 
     private static void logScan(String key, String detail) {
-        if (key.equals(scanLogKey)) {
-            return;
-        }
+        if (key.equals(scanLogKey)) return;
         scanLogKey = key;
         LOGGER.info("[WaterSolver] {}", detail);
     }
@@ -223,9 +219,7 @@ public final class WaterSolverFeature {
         if ((current == null || !"Water Board".equals(current.name)) && !"none".equals(roomLogKey)) {
             logRoomState("none", "left Water Board: now in " + (current == null ? "no known room" : current.name));
         }
-        if (current == null || !"Water Board".equals(current.name) || patternIdentifier != -1) {
-            return;
-        }
+        if (current == null || !"Water Board".equals(current.name) || patternIdentifier != -1) return;
         scan(client);
     }
 
@@ -304,9 +298,7 @@ public final class WaterSolverFeature {
 
     private static LeverBlock fromKey(String key) {
         for (LeverBlock lever : LeverBlock.values()) {
-            if (lever.solutionKey.equals(key)) {
-                return lever;
-            }
+            if (lever.solutionKey.equals(key)) return lever;
         }
         return null;
     }
@@ -334,9 +326,7 @@ public final class WaterSolverFeature {
     public static Map<LeverBlock, List<Double>> bundledSolutionByLever(boolean optimizedPath, int identifier,
                                                                       String extendedSlots) {
         Map<String, List<Double>> raw = bundledSolution(optimizedPath, identifier, extendedSlots);
-        if (raw == null) {
-            return null;
-        }
+        if (raw == null) return null;
         Map<LeverBlock, List<Double>> out = new EnumMap<>(LeverBlock.class);
         for (Map.Entry<String, List<Double>> entry : raw.entrySet()) {
             LeverBlock lever = fromKey(entry.getKey());
@@ -358,9 +348,7 @@ public final class WaterSolverFeature {
     public static List<Map.Entry<LeverBlock, Double>> bundledClickOrder(boolean optimizedPath, int identifier,
                                                                        String extendedSlots) {
         Map<LeverBlock, List<Double>> byLever = bundledSolutionByLever(optimizedPath, identifier, extendedSlots);
-        if (byLever == null) {
-            return null;
-        }
+        if (byLever == null) return null;
         List<Map.Entry<LeverBlock, Double>> flat = new ArrayList<>();
         for (Map.Entry<LeverBlock, List<Double>> entry : byLever.entrySet()) {
             for (double time : entry.getValue()) {
@@ -379,9 +367,7 @@ public final class WaterSolverFeature {
 
     private static BlockPos leverRealPos(LeverBlock lever) {
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
-        if (clayAndRotation == null) {
-            return BlockPos.ZERO;
-        }
+        if (clayAndRotation == null) return BlockPos.ZERO;
         return realPos(lever.x, lever.y, lever.z, clayAndRotation);
     }
 
@@ -390,9 +376,7 @@ public final class WaterSolverFeature {
     }
 
     public static NextClick nextClick() {
-        if (patternIdentifier == -1 || solutions.isEmpty()) {
-            return null;
-        }
+        if (patternIdentifier == -1 || solutions.isEmpty()) return null;
         LeverBlock bestLever = null;
         double bestTime = 0.0;
         for (Map.Entry<LeverBlock, List<Double>> entry : solutions.entrySet()) {
@@ -406,9 +390,7 @@ public final class WaterSolverFeature {
                 }
             }
         }
-        if (bestLever == null || LiveMapFeature.currentRoomClayAndRotation() == null) {
-            return null;
-        }
+        if (bestLever == null || LiveMapFeature.currentRoomClayAndRotation() == null) return null;
         return new NextClick(bestLever == LeverBlock.WATER, leverRealPos(bestLever), bestLever.z, bestTime);
     }
 
@@ -419,9 +401,7 @@ public final class WaterSolverFeature {
      */
     public static List<NextClick> upcomingClicks() {
         List<NextClick> out = new ArrayList<>();
-        if (patternIdentifier == -1 || solutions.isEmpty() || LiveMapFeature.currentRoomClayAndRotation() == null) {
-            return out;
-        }
+        if (patternIdentifier == -1 || solutions.isEmpty() || LiveMapFeature.currentRoomClayAndRotation() == null) return out;
         List<Map.Entry<LeverBlock, Double>> flat = new ArrayList<>();
         for (Map.Entry<LeverBlock, List<Double>> entry : solutions.entrySet()) {
             List<Double> times = entry.getValue();
@@ -440,9 +420,7 @@ public final class WaterSolverFeature {
     private static int compareClick(LeverBlock a, double ta, LeverBlock b, double tb) {
         boolean aZero = ta == 0.0;
         boolean bZero = tb == 0.0;
-        if (aZero != bZero) {
-            return aZero ? -1 : 1;
-        }
+        if (aZero != bZero) return aZero ? -1 : 1;
         return aZero ? Integer.compare(a.ordinal(), b.ordinal()) : Double.compare(ta, tb);
     }
 
@@ -461,9 +439,7 @@ public final class WaterSolverFeature {
 
     /** Called from {@code WaterSolverMixin} on every real successful block interact. */
     public static void onLeverClick(BlockPos clicked) {
-        if (solutions.isEmpty()) {
-            return;
-        }
+        if (solutions.isEmpty()) return;
         for (LeverBlock lever : solutions.keySet()) {
             if (leverRealPos(lever).equals(clicked)) {
                 if (lever == LeverBlock.WATER && openedWaterTick == -1) {
@@ -488,9 +464,7 @@ public final class WaterSolverFeature {
 
     /** Logging only, from {@code WaterSolverMixin}: a click on one of the board's levers whose result was not SUCCESS. */
     public static void onLeverClickNotCounted(BlockPos clicked, String result) {
-        if (solutions.isEmpty() || clicked == null) {
-            return;
-        }
+        if (solutions.isEmpty() || clicked == null) return;
         for (LeverBlock lever : solutions.keySet()) {
             if (leverRealPos(lever).equals(clicked)) {
                 LOGGER.info("[WaterSolver] click on {} lever at {} not counted: result {} (not SUCCESS)", lever,
@@ -504,9 +478,7 @@ public final class WaterSolverFeature {
      *  rebuilt and sorted every frame). The returned list is shared and must not be modified. */
     private static List<Map.Entry<LeverBlock, Double>> remainingClicks() {
         List<Map.Entry<LeverBlock, Double>> cached = remainingCache;
-        if (cached != null) {
-            return cached;
-        }
+        if (cached != null) return cached;
         List<Map.Entry<LeverBlock, Double>> flat = new ArrayList<>();
         for (Map.Entry<LeverBlock, List<Double>> entry : solutions.entrySet()) {
             LeverBlock lever = entry.getKey();
@@ -522,13 +494,9 @@ public final class WaterSolverFeature {
 
     private static void onWorldRender(LevelRenderContext context) {
         WaterSolverConfig cfg = WaterSolverConfig.getInstance();
-        if (!cfg.isEnabled() || solutions.isEmpty()) {
-            return;
-        }
+        if (!cfg.isEnabled() || solutions.isEmpty()) return;
         RoomEntry current = LiveMapFeature.currentRoomEntry();
-        if (current == null || !"Water Board".equals(current.name)) {
-            return;
-        }
+        if (current == null || !"Water Board".equals(current.name)) return;
 
         List<Map.Entry<LeverBlock, Double>> flat = remainingClicks();
 
@@ -577,12 +545,8 @@ public final class WaterSolverFeature {
     }
 
     private static String labelFor(int timeInTicks) {
-        if (isReadyNow(timeInTicks)) {
-            return "§a§lCLICK ME!";
-        }
-        if (openedWaterTick == -1) {
-            return secondsLabel(timeInTicks);
-        }
+        if (isReadyNow(timeInTicks)) return "§a§lCLICK ME!";
+        if (openedWaterTick == -1) return secondsLabel(timeInTicks);
         long remaining = openedWaterTick + timeInTicks - tickCounter;
         return secondsLabel(remaining);
     }
@@ -596,9 +560,7 @@ public final class WaterSolverFeature {
     private static String secondsLabel(long ticks) {
         int slot = (int) (ticks & (LABEL_SLOTS - 1));
         String known = LABEL_TEXT[slot];
-        if (known != null && LABEL_TICKS[slot] == ticks) {
-            return known;
-        }
+        if (known != null && LABEL_TICKS[slot] == ticks) return known;
         String text = String.format(Locale.US, "§e%.1fs", ticks / 20f);
         LABEL_TEXT[slot] = text;
         LABEL_TICKS[slot] = ticks;
@@ -608,9 +570,7 @@ public final class WaterSolverFeature {
     /** Same "is it actually time to click this" check the countdown label uses, shared with the tracer box's
      *  color so both flip from waiting to ready at the exact same instant. */
     private static boolean isReadyNow(int timeInTicks) {
-        if (openedWaterTick == -1) {
-            return timeInTicks == 0;
-        }
+        if (openedWaterTick == -1) return timeInTicks == 0;
         long remaining = openedWaterTick + timeInTicks - tickCounter;
         return remaining <= 0;
     }

@@ -60,9 +60,7 @@ public final class TicTacToeSolverFeature {
     private static String roomLogKey = "none";
 
     private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) {
-            return;
-        }
+        if (key.equals(roomLogKey)) return;
         roomLogKey = key;
         LOGGER.info("[TicTacToeSolver] {}", detail);
     }
@@ -155,18 +153,12 @@ public final class TicTacToeSolverFeature {
             BlockPos rel = PuzzleCoords.relative(frame.blockPosition(), cr);
             int row = 72 - rel.getY();
             int col = 17 - rel.getZ();
-            if (row < 0 || row > 2 || col < 0 || col > 2) {
-                continue;
-            }
+            if (row < 0 || row > 2 || col < 0 || col > 2) continue;
             ItemStack stack = frame.getItem();
             MapId mapId = stack.get(DataComponents.MAP_ID);
-            if (mapId == null) {
-                continue;
-            }
+            if (mapId == null) continue;
             MapItemSavedData data = level.getMapData(mapId);
-            if (data == null || data.colors == null || data.colors.length <= 8256) {
-                continue;
-            }
+            if (data == null || data.colors == null || data.colors.length <= 8256) continue;
             int colour = data.colors[8256] & 0xFF;
             if (colour == 114 || colour == 33) {
                 board[row * 3 + col] = colour == 114 ? 'X' : 'O';
@@ -202,9 +194,7 @@ public final class TicTacToeSolverFeature {
         // Show Prediction is part of the key: switching it on during the computer's turn must compute the square now,
         // not at the next board change.
         int hash = Arrays.hashCode(board) * 2 + (TicTacToeSolverConfig.getInstance().isShowPrediction() ? 1 : 0);
-        if (hash == lastBoardHash) {
-            return;
-        }
+        if (hash == lastBoardHash) return;
         lastBoardHash = hash;
 
         if (validFrames % 2 != 0) {
@@ -251,9 +241,7 @@ public final class TicTacToeSolverFeature {
         int[] values = new int[9];
         int bestForComputer = Integer.MAX_VALUE;
         for (int c : MOVE_ORDER) {
-            if (board[c] != EMPTY) {
-                continue;
-            }
+            if (board[c] != EMPTY) continue;
             board[c] = 'X';
             int v = alphaBeta(board, 0, -1000, 1000, true);
             board[c] = EMPTY;
@@ -267,14 +255,10 @@ public final class TicTacToeSolverFeature {
                 replies.add(c);
             }
         }
-        if (replies.isEmpty()) {
-            return null;
-        }
+        if (replies.isEmpty()) return null;
         // First choice: a square the computer takes in none of its best replies, so it is still empty when his click lands.
         for (int s : MOVE_ORDER) {
-            if (board[s] == EMPTY && !replies.contains(s) && bestAfterEvery(board, s, replies)) {
-                return s;
-            }
+            if (board[s] == EMPTY && !replies.contains(s) && bestAfterEvery(board, s, replies)) return s;
         }
         // killer560, 2026-11-01 ("the bottom right or bottom middle are both 100% safe for me to prefire. So highlight one
         // of those as the prediction. If it ends up going there then just highlight the other one"): a square the computer
@@ -282,9 +266,7 @@ public final class TicTacToeSolverFeature {
         // take it, the board changes, it is his turn and the solver shows his best move there instead. Needs at least one
         // other reply, or the square is simply the computer's.
         for (int s : MOVE_ORDER) {
-            if (board[s] == EMPTY && replies.contains(s) && replies.size() > 1 && bestAfterEvery(board, s, replies)) {
-                return s;
-            }
+            if (board[s] == EMPTY && replies.contains(s) && replies.size() > 1 && bestAfterEvery(board, s, replies)) return s;
         }
         return null;
     }
@@ -292,9 +274,7 @@ public final class TicTacToeSolverFeature {
     /** True when, after each reply in {@code replies} other than {@code s}, square {@code s} is one of his best moves. */
     private static boolean bestAfterEvery(char[] board, int s, List<Integer> replies) {
         for (int c : replies) {
-            if (c == s) {
-                continue;
-            }
+            if (c == s) continue;
             board[c] = 'X';
             boolean safe;
             if (getScore(board) != 0) {
@@ -303,9 +283,7 @@ public final class TicTacToeSolverFeature {
                 int best = Integer.MIN_VALUE;
                 int mine = Integer.MIN_VALUE;
                 for (int r = 0; r < 9; r++) {
-                    if (board[r] != EMPTY) {
-                        continue;
-                    }
+                    if (board[r] != EMPTY) continue;
                     board[r] = 'O';
                     int outcome = Integer.signum(alphaBeta(board, 0, -1000, 1000, false));
                     board[r] = EMPTY;
@@ -317,9 +295,7 @@ public final class TicTacToeSolverFeature {
                 safe = mine == best;
             }
             board[c] = EMPTY;
-            if (!safe) {
-                return false;
-            }
+            if (!safe) return false;
         }
         return true;
     }
@@ -343,9 +319,7 @@ public final class TicTacToeSolverFeature {
 
     /** The square a click should land on right now: his move on his turn, else the shown prediction; null for none. */
     public static BlockPos currentTarget() {
-        if (bestMove != null) {
-            return bestMove;
-        }
+        if (bestMove != null) return bestMove;
         return TicTacToeSolverConfig.getInstance().isShowPrediction() ? predictedMove : null;
     }
 
@@ -432,9 +406,7 @@ public final class TicTacToeSolverFeature {
         int bestScore = isPlayer ? -1000 : 1000;
         Integer bestIndex = null;
         for (int i : MOVE_ORDER) {
-            if (board[i] != EMPTY) {
-                continue;
-            }
+            if (board[i] != EMPTY) continue;
             board[i] = isPlayer ? 'O' : 'X';
             int score = alphaBeta(board, 0, -1000, 1000, !isPlayer);
             board[i] = EMPTY;
@@ -451,9 +423,7 @@ public final class TicTacToeSolverFeature {
 
     private static int alphaBeta(char[] board, int depth, int alpha, int beta, boolean maximising) {
         int score = getScore(board);
-        if (score != 0) {
-            return score + (score > 0 ? -depth : depth);
-        }
+        if (score != 0) return score + (score > 0 ? -depth : depth);
         boolean full = true;
         for (char c : board) {
             if (c == EMPTY) {
@@ -461,16 +431,12 @@ public final class TicTacToeSolverFeature {
                 break;
             }
         }
-        if (full) {
-            return 0;
-        }
+        if (full) return 0;
         int a = alpha;
         int b = beta;
         int best = maximising ? -1000 : 1000;
         for (int i : MOVE_ORDER) {
-            if (board[i] != EMPTY) {
-                continue;
-            }
+            if (board[i] != EMPTY) continue;
             board[i] = maximising ? 'O' : 'X';
             int s = alphaBeta(board, depth + 1, a, b, !maximising);
             board[i] = EMPTY;
@@ -481,9 +447,7 @@ public final class TicTacToeSolverFeature {
                 best = Math.min(best, s);
                 b = Math.min(b, best);
             }
-            if (b <= a) {
-                break;
-            }
+            if (b <= a) break;
         }
         return best;
     }
@@ -520,17 +484,13 @@ public final class TicTacToeSolverFeature {
     private static int getScore(char[] board) {
         for (int i = 0; i < WIN_SETS.length; i += 3) {
             char c = board[WIN_SETS[i]];
-            if (c != EMPTY && c == board[WIN_SETS[i + 1]] && c == board[WIN_SETS[i + 2]]) {
-                return c == 'X' ? -10 : 10;
-            }
+            if (c != EMPTY && c == board[WIN_SETS[i + 1]] && c == board[WIN_SETS[i + 2]]) return c == 'X' ? -10 : 10;
         }
         return 0;
     }
 
     private static void onWorldRender(LevelRenderContext context) {
-        if (!TicTacToeSolverConfig.getInstance().isEnabled()) {
-            return;
-        }
+        if (!TicTacToeSolverConfig.getInstance().isEnabled()) return;
         BlockPos best = bestMove;
         if (best != null) {
             drawCell(context, best, 0.33f, 1.0f, 0.33f, 3f);
