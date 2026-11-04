@@ -169,7 +169,6 @@ public final class SoundDisabler {
         ModChat.send("Sound Disabler", ModChat.value(key), wasMuted ? ModChat.dim(" (muted)") : ModChat.text(""));
     }
 
-    // ------------------------------------------------------------------ testkit evidence
 
     /** Sounds judged while the feature was on. */
     public static int checked() {
