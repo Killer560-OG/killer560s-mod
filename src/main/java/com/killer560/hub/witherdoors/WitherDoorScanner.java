@@ -27,20 +27,14 @@ final class WitherDoorScanner {
 
     /** {@code y} is the anchor block's height: Hypixel's 69, plus the sim's floor shift when the cell was scanned. */
     record Door(int x, int y, int z, DoorType type) {
-        BlockPos basePos() {
-            return new BlockPos(x, y, z);
-        }
+        BlockPos basePos() { return new BlockPos(x, y, z); }
 
         /** The 11x11 cell (x + z * 11, {@code DungeonLayout}'s numbering). */
-        int idx() {
-            return (x - START) / HALF_ROOM + (z - START) / HALF_ROOM * GRID;
-        }
+        int idx() { return (x - START) / HALF_ROOM + (z - START) / HALF_ROOM * GRID; }
 
         /** True if this door's wall runs along Z (i.e. it connects rooms that are side-by-side in X) -
          *  used only to orient the highlight box; the lock/type detection above never needs it. */
-        boolean wallAlongZ() {
-            return Math.floorMod((x - START) / HALF_ROOM, 2) == 1;
-        }
+        boolean wallAlongZ() { return Math.floorMod((x - START) / HALF_ROOM, 2) == 1; }
     }
 
     private static final int GRID = 11;
@@ -155,9 +149,7 @@ final class WitherDoorScanner {
 
     /** Whether the door cell {@code idx} (11x11 index, x + z * 11 - {@code DungeonLayout}'s numbering) was scanned as a
      *  WITHER/BLOOD door that is still shut - i.e. the normal highlight already draws it. */
-    static boolean lockedAt(Minecraft client, int idx) {
-        return idx >= 0 && idx < cells.length && lockedAtCell(client, idx);
-    }
+    static boolean lockedAt(Minecraft client, int idx) { return idx >= 0 && idx < cells.length && lockedAtCell(client, idx); }
 
     static List<Door> lockedDoors(Minecraft client) {
         List<Door> out = new ArrayList<>();

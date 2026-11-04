@@ -30,9 +30,7 @@ final class WitherDoorsRenderer {
     /** Called from {@link WitherDoorsFeature#register()}, cheat build only, so the pipeline exists before
      *  the renderer precompiles its pipeline list - same reason every other ESP-style feature in this
      *  repo touches its holder at init instead of on first draw. */
-    static void init() {
-        RenderType unused = ThroughWalls.LINES;
-    }
+    static void init() { RenderType unused = ThroughWalls.LINES; }
 
     private static final class ThroughWalls {
         static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;

@@ -55,18 +55,12 @@ final class MapDoors {
     private MapDoors() {
     }
 
-    static void reset() {
-        SEEN_EMPTY.clear();
-    }
+    static void reset() { SEEN_EMPTY.clear(); }
 
-    static String status() {
-        return status;
-    }
+    static String status() { return status; }
 
     /** Test hook: door cells whose doorway he has seen, and whether it was empty. */
-    static Map<Integer, Boolean> seen() {
-        return new HashMap<>(SEEN_EMPTY);
-    }
+    static Map<Integer, Boolean> seen() { return new HashMap<>(SEEN_EMPTY); }
 
     /** The doors to draw now. Client thread, from the Wither Doors rebuild (every 500 ms). */
     static List<Door> doors(Minecraft client) {

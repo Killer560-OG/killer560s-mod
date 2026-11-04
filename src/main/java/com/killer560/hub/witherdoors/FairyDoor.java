@@ -60,24 +60,16 @@ public final class FairyDoor {
     }
 
     /** The door cell (11x11 index) to highlight, or -1. */
-    public static int door() {
-        return entered ? -1 : door;
-    }
+    public static int door() { return entered ? -1 : door; }
 
     /** The Fairy door cell while it is still a shut wither door, or -1: the normal highlight draws that door, and draws it
      *  in the Fairy Door color (killer560, 2026-11-01: "Wither door esp just missed a fairy door"). */
-    public static int shutDoor() {
-        return entered ? -1 : shutDoor;
-    }
+    public static int shutDoor() { return entered ? -1 : shutDoor; }
 
     /** What the Fairy Door is doing, for logs and tests: "door N (...)", "cleared: ...", or why there is none. */
-    public static String status() {
-        return status;
-    }
+    public static String status() { return status; }
 
-    public static boolean isCleared() {
-        return entered;
-    }
+    public static boolean isCleared() { return entered; }
 
     static void off() {
         door = -1;

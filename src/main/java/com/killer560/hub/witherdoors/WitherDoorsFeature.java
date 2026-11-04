@@ -60,13 +60,9 @@ public final class WitherDoorsFeature {
     private static volatile int keyDoorIdx = -1;
 
     /** Testkit: the door cell the key color goes to, and whether the map path ("path") or distance picked it. */
-    public static int keyDoorIdx() {
-        return keyDoorIdx;
-    }
+    public static int keyDoorIdx() { return keyDoorIdx; }
 
-    public static String lastPick() {
-        return lastPick;
-    }
+    public static String lastPick() { return lastPick; }
     private static boolean bloodKeyHeld = false;
     private static Object lastLevel = null;
     /** A sim floor rebuilt in the same world is a new floor: its door cells must be scanned again. */
@@ -120,14 +116,10 @@ public final class WitherDoorsFeature {
     }
 
     /** Whether the party has a Wither Key (Hypixel's pickup lines, until a wither door is opened). Read by Auto Clear. */
-    public static boolean isWitherKeyHeld() {
-        return witherKeyHeld;
-    }
+    public static boolean isWitherKeyHeld() { return witherKeyHeld; }
 
     /** Forces the next client tick to rebuild the highlight snapshot (config change, world change). */
-    public static void invalidateCache() {
-        cacheStampMs = 0L;
-    }
+    public static void invalidateCache() { cacheStampMs = 0L; }
 
     /** "<Name> has obtained Wither Key!" - the server line, not anything a player can type. */
     private static final java.util.regex.Pattern KEY_OBTAINED_WITHER =
@@ -426,9 +418,7 @@ public final class WitherDoorsFeature {
     private static String status = "idle";
 
     /** What Wither Doors did on its last rebuild, for tests and the log. */
-    public static String status() {
-        return status;
-    }
+    public static String status() { return status; }
 
     private static void setStatus(String s) {
         if (!s.equals(status)) {
@@ -451,9 +441,7 @@ public final class WitherDoorsFeature {
     }
 
     /** Test hook: door cells whose doorway he has looked into this run, and whether each was empty. */
-    public static java.util.Map<Integer, Boolean> seenDoorways() {
-        return MapDoors.seen();
-    }
+    public static java.util.Map<Integer, Boolean> seenDoorways() { return MapDoors.seen(); }
 
     /** Test hook: the waypoint labels the last rebuild produced. */
     public static List<String> cachedLabels() {
