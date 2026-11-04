@@ -201,3 +201,5 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
   injector is a boot crash. MixinExtras injectors run after every plain-Mixin injector and chain with each other, so a
   `@ModifyExpressionValue` on a CONSTANT still applies after another mod's `@ModifyConstant`, and a `@WrapOperation`
   wraps the call whatever else hooks it. The testkit shows which mod lost: grep the client log for "conflict. Skipping".
+
+- Terrain color tint (Dark Stone, darkstone-1104): Fabric API renders terrain through its own renderer and writes with `MutableQuadView.buffer`, so vanilla `ModelBlockRenderer.tesselateBlock`'s `BlockQuadOutput` sees zero quads (measured: wrapper called 683 times, 0 quads). Set a ThreadLocal color multiplier around the block's draw in `MithrilStoneSectionMixin` and apply it in `DarkBufferMixin` (`@ModifyVariable` on `BufferBuilder.putRgba(JI)V`, same on 26.2). Assert it acted (`DarkStone.tintedCount()`).
