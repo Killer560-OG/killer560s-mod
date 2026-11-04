@@ -83,3 +83,5 @@ How to measure the mod's frame and tick cost, and the per-call waste that measur
 - In a gametest client quiet frames reached 51.5 ms in 200 ticks (1026-stutter-hooks, 2026-10-26, other clients running),
   so the "nothing fires on quiet frames" check uses a 500 ms threshold.
 
+
+- Startup cost (scanboot-1104, 2026-11-04): the client entrypoint takes about 3.2 s in a dev run and its profile is flat; JFR shows it is Mixin/ASM class transformation of ~300 feature classes, not config or asset reads. `util/BootTimer` (dev builds, `-Dkiller560.boottime=true`, add `.exit=true` to quit at the title screen) logs entrypoint start/total and the title-screen time. Run-to-run spread on a loaded PC is seconds, so judge a startup fix by the per-step timer (a temporary mark after each statement of onInitializeClient), not by total time. JFR via JAVA_TOOL_OPTIONS also starts in the Gradle JVMs: give the file `%p` in its name.
