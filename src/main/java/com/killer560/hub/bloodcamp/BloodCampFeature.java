@@ -2204,7 +2204,10 @@ public final class BloodCampFeature {
      */
     private static boolean owedElsewhere(Entity mob, Vec3 end, long now) {
         Vec3 claimed = CLAIMS.get(mob.getId());
-        if (claimed != null && claimed != end) {
+        // By value, not by reference: a trip whose stand is still moving builds a fresh endVector object with every
+        // packet, so the claim it made on tagging the mob read as another trip's and the mob went to the floor path
+        // (testkit 686 B: floor clicks before the trip's own). Two trips' spots are at least a block apart.
+        if (claimed != null && claimed != end && claimed.distanceToSqr(end) > 0.04) {
             return true; // a trip took it, and that trip may already be finished and dropped from LANDED
         }
         double mine = Double.MAX_VALUE;
