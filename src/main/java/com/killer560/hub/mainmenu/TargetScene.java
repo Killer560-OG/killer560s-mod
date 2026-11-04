@@ -7,7 +7,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * The Green theme's main menu as the theme's designer drew it (2026-10-16, relayed by killer560: "match THIS image almost
  * exactly ... make her hair flow a little bit and the cape flow and whatnot ... a rough draw-up of the real animation").
  * <p>
- * The base is the designer's own picture (shipped as {@code textures/gui/green_boss_target.png}, with the title, buttons
+ * The base is the designer's own picture (shipped as {@code textures/gui/green_boss_target.webp}, with the title, buttons
  * and "Playing as" chip it had baked in filled from the surrounding fog, so the real menu draws on it cleanly). Since
  * 2026-10-16 ("super high res") the PNG is 2560x1440, rebuilt from his 1671x941 picture by
  * {@code killer560s-mod-logs/theme-green-final/hq/make_hq.py} (Lanczos in linear light, a halo-free clamped sharpen, the
@@ -41,7 +41,7 @@ final class TargetScene {
     /** How many droplet sources the ceiling has (testkit 1651 checks the scene has them). */
     static final int DROPS = 18; // 24 until killer560, 2026-10-16: "a hair too much water"
 
-    static final PictureScene SCENE = PictureScene.of("textures/gui/green_boss_target.png", TW, TH)
+    static final PictureScene SCENE = PictureScene.of("textures/gui/green_boss_target.webp", TW, TH)
             // The cape: attached along its right (the shoulders and the body), free to the left and at its hem.
             .ripple(PictureScene.ripple(60, 455, 252, 760).tile(5)
                     .attached(PictureScene.Ripple.Anchor.RIGHT, 5, 130).ramp(0.45, 470, 250).fade(14, 26, 16, 10)

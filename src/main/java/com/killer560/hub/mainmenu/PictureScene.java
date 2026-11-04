@@ -92,6 +92,7 @@ final class PictureScene {
     /** The picture, its patches and its ripples, before the frame's batch. */
     void drawImage(GuiGraphicsExtractor g, int w, int h, double t) {
         Matrix3x2fStack pose = g.pose();
+        WebpPictures.ensure(texture);
         enter(pose, w, h, t);
         g.blit(RenderPipelines.GUI_TEXTURED, texture, 0, 0, 0f, 0f, tw, th, tw, th, tw, th);
         for (Patch p : patches) {

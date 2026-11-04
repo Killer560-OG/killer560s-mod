@@ -24,7 +24,7 @@ import org.slf4j.Logger;
  * small glowing falls, mist where it all lands on a dark lake, glowing specks, a character standing on the rocks at the
  * lower left.
  * <p>
- * The base is {@code textures/gui/ocean_falls.png}, 2560x2880 (two 2560x1440 halves, high res; killer560 2026-10-16): on top the picture with its baked-in menu removed
+ * The base is {@code textures/gui/ocean_falls.webp}, 2560x2880 (two 2560x1440 halves, high res; killer560 2026-10-16): on top the picture with its baked-in menu removed
  * ({@code killer560s-mod-logs/waterfall-picture/make_waterfall.py}) and most of its streak lines lifted out where water
  * falls; below, maps of where water falls, its streaks, where it lands and the lake ({@code make_waterfall_maps.py}). One
  * full-screen quad draws it through the {@code killer560smod:pipeline/ocean_falls} shader
@@ -69,7 +69,7 @@ final class OceanFallsScene {
             594, 394, 607, 411, 940, 418, 964, 431, 949, 446, 931, 449, 914, 482, 999, 484, 954, 487, 970, 493, 941, 501, 990,
             514, 992, 537, 987, 538, 947, 1754, 674, 1794, 476, 1801, 596, 1822, 603, 1841, 954};
 
-    static final PictureScene SCENE = PictureScene.of("textures/gui/ocean_falls.png", TW, TH)
+    static final PictureScene SCENE = PictureScene.of("textures/gui/ocean_falls.webp", TW, TH)
             // the haze over the whole fall breathing, and the bright feet of the falls pulsing
             .overlay(new Pulse(new double[]{
                     // cx, cy, rx, ry, alpha low, alpha high, period s
@@ -92,7 +92,7 @@ final class OceanFallsScene {
     private static final Logger LOGGER = ModLog.get("killer560smod-mainmenu");
     /** The shader's loop, seconds (its sines turn a whole number of times a loop). */
     static final double LOOP = 600.0;
-    static final Identifier TEXTURE = Identifier.fromNamespaceAndPath("killer560smod", "textures/gui/ocean_falls.png");
+    static final Identifier TEXTURE = WebpPictures.id("ocean_falls");
 
     private static RenderPipeline pipeline;
     private static boolean failed;
@@ -139,6 +139,7 @@ final class OceanFallsScene {
 
     /** The picture through the shader (or still), before the frame's batch. */
     static void drawImage(GuiGraphicsExtractor g, int w, int h, double t) {
+        WebpPictures.ensure(TEXTURE);
         if (pipeline != null && !failed) {
             try {
                 AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(TEXTURE);
