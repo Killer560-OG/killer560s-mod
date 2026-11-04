@@ -95,6 +95,40 @@ public final class DarkStone {
         forceIsland = v;
     }
 
+    /** The multiplier color for the block the mesher thread is drawing now (0 = none). Set around the block's draw by
+     *  the section-compile wrap, read by {@code DarkBufferMixin} on each vertex: Fabric's renderer draws terrain through its
+     *  own quad emitter and never calls the {@code BlockQuadOutput} vanilla's tesselateBlock gets, so the vertex is the one
+     *  place both paths meet (tested 2026-11-04: a wrapped output saw zero quads). */
+    private static final ThreadLocal<int[]> CURRENT = ThreadLocal.withInitial(() -> new int[1]);
+    private static final AtomicLong tinted = new AtomicLong();
+
+    public static void begin(int argb) {
+        CURRENT.get()[0] = argb;
+    }
+
+    public static void end() {
+        CURRENT.get()[0] = 0;
+    }
+
+    /** The color to multiply into a vertex now, or 0 for none. */
+    public static int currentArgb() {
+        return on ? CURRENT.get()[0] : 0;
+    }
+
+    public static int tint(int color) {
+        int m = currentArgb();
+        if (m == 0) {
+            return color;
+        }
+        tinted.incrementAndGet();
+        return net.minecraft.util.ARGB.multiply(color, m);
+    }
+
+    public static long tintedCount() {
+        return tinted.get();
+    }
+
+
     public static boolean isOn() {
         return on;
     }

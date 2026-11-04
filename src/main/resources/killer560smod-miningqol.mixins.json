@@ -8,6 +8,7 @@
 		"MiningBlockUpdateMixin",
 		"MiningSendTapMixin",
 		"MiningTitleTapMixin",
+		"DarkBufferMixin",
 		"MithrilStoneSectionMixin"
 	],
 	"injectors": {
