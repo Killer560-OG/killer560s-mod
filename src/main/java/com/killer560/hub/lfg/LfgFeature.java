@@ -163,24 +163,14 @@ public final class LfgFeature {
     }
 
     public static List<LfgListing.Request> inbox() {
-        List<LfgListing.Request> out = new ArrayList<>();
-        for (LfgListing.Request r : INBOX) {
-            if (!ANSWERED.contains(r.id())) {
-                out.add(r);
-            }
-        }
-        return out;
+        return INBOX.stream().filter(r -> !ANSWERED.contains(r.id())).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     }
 
     /** The leader's inbox as the menu shows it: every waiting request with what may be done with it, then the ones turned
      *  away in the last minute. Only an {@link Verdict#OK} row gets an Accept button. */
     public static List<InboxRow> inboxRows() {
-        List<InboxRow> out = new ArrayList<>();
-        for (LfgListing.Request r : INBOX) {
-            if (!ANSWERED.contains(r.id())) {
-                out.add(verdict(r));
-            }
-        }
+        List<InboxRow> out = INBOX.stream().filter(r -> !ANSWERED.contains(r.id())).map(LfgFeature::verdict)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         long now = System.currentTimeMillis();
         for (Rejected x : REJECTED.values()) {
             if (now - x.at() < REJECTED_SHOWN_MS) {
@@ -198,12 +188,7 @@ public final class LfgFeature {
             return new InboxRow(r, Verdict.CHECKING, "");
         }
         List<LfgRequirements.Check> checks = LfgRequirements.check(mine.category(), mine.activity(), mine.reqs(), r.joiner());
-        List<String> unmet = new ArrayList<>();
-        for (LfgRequirements.Check c : checks) {
-            if (c.result() == LfgRequirements.Result.UNMET) {
-                unmet.add(c.plain());
-            }
-        }
+        List<String> unmet = checks.stream().filter(c -> c.result() == LfgRequirements.Result.UNMET).map(LfgRequirements.Check::plain).toList();
         if (!unmet.isEmpty()) {
             return new InboxRow(r, Verdict.REJECTED, "under " + String.join(", ", unmet));
         }
@@ -497,27 +482,17 @@ public final class LfgFeature {
                 live.add(r.id());
             }
         }
-        List<String> fresh = new ArrayList<>();
         Set<String> before = new HashSet<>();
-        for (LfgListing.Request r : INBOX) {
-            before.add(r.id());
-        }
-        for (LfgListing.Request r : inbox) {
-            if (!before.contains(r.id()) && !ANSWERED.contains(r.id())) {
-                fresh.add(r.joiner());
-            }
-        }
+        INBOX.forEach(r -> before.add(r.id()));
+        List<String> fresh = inbox.stream().filter(r -> !before.contains(r.id()) && !ANSWERED.contains(r.id()))
+                .map(LfgListing.Request::joiner).toList();
         INBOX.clear();
         if (wanted != null) {
             INBOX.addAll(inbox);
         }
         ANSWERED.retainAll(live);
         if (wanted != null && !fresh.isEmpty()) {
-            List<String> names = new ArrayList<>();
-            for (LfgListing.Request r : inbox) {
-                names.add(r.joiner());
-            }
-            PartyFinderStatsApi.requestHot(names);
+            PartyFinderStatsApi.requestHot(inbox.stream().map(LfgListing.Request::joiner).toList());
             boolean auto = LfgConfig.getInstance().isAutoAcceptRequests();
             for (String name : fresh) {
                 event("request from " + name);
@@ -560,17 +535,10 @@ public final class LfgFeature {
     }
 
     static void onListings(LfgCategory tab, JsonObject body) {
-        List<LfgListing> parsed = new ArrayList<>();
         JsonArray arr = body.has("listings") && body.get("listings").isJsonArray() ? body.getAsJsonArray("listings") : new JsonArray();
-        for (JsonElement e : arr) {
-            if (e.isJsonObject() && parsed.size() < 200) {
-                LfgListing l = LfgListing.parse(e.getAsJsonObject());
-                if (l != null && (tab == null || l.category() == tab)) {
-                    parsed.add(l);
-                }
-            }
-        }
-        LISTINGS.put(tab, parsed);
+        LISTINGS.put(tab, arr.asList().stream().filter(JsonElement::isJsonObject).map(e -> LfgListing.parse(e.getAsJsonObject()))
+                .filter(l -> l != null && (tab == null || l.category() == tab)).limit(200)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new)));
         changed(null);
     }
 
@@ -643,17 +611,10 @@ public final class LfgFeature {
         if (wanted == null) {
             return;
         }
-        for (Pattern p : PARTY_ENDED) {
-            if (p.matcher(line).matches()) {
-                unlist("the party ended");
-                return;
-            }
-        }
-        for (Pattern p : HYPIXEL_DELISTED) {
-            if (p.matcher(line).matches()) {
-                unlist("the Hypixel queue ended");
-                return;
-            }
+        if (PARTY_ENDED.stream().anyMatch(p -> p.matcher(line).matches())) {
+            unlist("the party ended");
+        } else if (HYPIXEL_DELISTED.stream().anyMatch(p -> p.matcher(line).matches())) {
+            unlist("the Hypixel queue ended");
         }
     }
 

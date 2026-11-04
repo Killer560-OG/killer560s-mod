@@ -263,19 +263,11 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         switch (s) {
             case THEME -> {
                 MenuTheme current = MenuConfig.getInstance().getTheme();
-                List<IntroButton> themes = new ArrayList<>();
-                for (MenuTheme t : MenuTheme.presets()) {
-                    themes.add(chip(t.label, t == current ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN,
-                            () -> pickTheme(t)));
-                }
-                rowsOf.add(themes);
+                rowsOf.add(java.util.Arrays.stream(MenuTheme.presets()).map(t -> chip(t.label,
+                        t == current ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN, () -> pickTheme(t))).toList());
                 MainMenuThemeConfig.SceneMode mode = MainMenuThemeConfig.getInstance().getSceneMode();
-                List<IntroButton> menu = new ArrayList<>();
-                for (MainMenuThemeConfig.SceneMode m : MainMenuThemeConfig.SceneMode.values()) {
-                    menu.add(chip(m.label + " Main Menu", m == mode ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN,
-                            () -> pickMainMenu(m)));
-                }
-                rowsOf.add(menu);
+                rowsOf.add(java.util.Arrays.stream(MainMenuThemeConfig.SceneMode.values()).map(m -> chip(m.label + " Main Menu",
+                        m == mode ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN, () -> pickMainMenu(m))).toList());
             }
             case BAN_LOGS -> rowsOf.add(yesNo("Yes, share them", banChoice, this::chooseBanLogs));
             case AUTO_UPDATE -> rowsOf.add(yesNo("Yes, keep me updated", updateChoice, this::chooseAutoUpdate));

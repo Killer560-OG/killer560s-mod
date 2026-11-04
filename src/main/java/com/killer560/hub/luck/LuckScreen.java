@@ -380,10 +380,7 @@ public class LuckScreen extends Screen implements MenuThemedScreen {
         if (s < 7200) {
             return s / 60 + "m ago";
         }
-        if (s < 172_800) {
-            return s / 3600 + "h ago";
-        }
-        return s / 86_400 + "d ago";
+        return s < 172_800 ? s / 3600 + "h ago" : s / 86_400 + "d ago";
     }
 
     private void drawDetail(GuiGraphicsExtractor g, LuckStore.Row r) {

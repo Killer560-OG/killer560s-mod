@@ -171,10 +171,7 @@ final class LuckKills {
     /** The Looting level in a Skyblock item's data ({@code enchantments.looting}), 0 for none. */
     static int looting(ItemStack held) {
         CompoundTag tag = ItemNbt.view(held);
-        if (tag == null) {
-            return 0;
-        }
-        return Math.max(0, Math.min(10, tag.getCompoundOrEmpty("enchantments").getIntOr("looting", 0)));
+        return tag == null ? 0 : Math.max(0, Math.min(10, tag.getCompoundOrEmpty("enchantments").getIntOr("looting", 0)));
     }
 
     private static void refreshName(Minecraft mc, Entity e, Tracked t) {
@@ -224,10 +221,7 @@ final class LuckKills {
             return null;
         }
         Matcher m = NAMETAG.matcher(s.trim());
-        if (!m.matches()) {
-            return null;
-        }
-        return new String[]{m.group(1), m.group(2).trim(), m.group(3)};
+        return !m.matches() ? null : new String[]{m.group(1), m.group(2).trim(), m.group(3)};
     }
 
     static void resetForTest() {

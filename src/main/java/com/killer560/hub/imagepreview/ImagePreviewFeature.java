@@ -215,13 +215,7 @@ public final class ImagePreviewFeature {
             if (local.y < p.y() - 1 || local.y >= p.y() + font.lineHeight || local.x < p.x()) {
                 continue;
             }
-            GuiMessage.Line line = null;
-            for (GuiMessage.Line l : trimmed) {
-                if (l.content() == p.text()) {
-                    line = l;
-                    break;
-                }
-            }
+            GuiMessage.Line line = trimmed.stream().filter(l -> l.content() == p.text()).findFirst().orElse(null);
             if (line == null) {
                 return null;
             }
@@ -340,12 +334,9 @@ public final class ImagePreviewFeature {
                 e.state = State.IGNORED;
                 return;
             }
-            List<Pic> pics = new ArrayList<>(urls.size());
-            for (String u : urls) {
-                pics.add(new Pic(u));
-            }
+            List<Pic> pics = urls.stream().map(Pic::new).toList();
             pics.get(0).started = true; // loaded just below: the render thread must not start it a second time
-            e.pics = List.copyOf(pics);
+            e.pics = pics;
             e.state = State.READY;
             load(pics.get(0), anyHost);
         } catch (ImageFetcher.NotAnImage n) {
@@ -581,13 +572,8 @@ public final class ImagePreviewFeature {
 
     private static void tick() {
         long now = System.currentTimeMillis();
-        for (Entry e : ENTRIES.values()) {
-            for (Pic p : e.pics) {
-                if (p.texture != null && now - p.lastShownMs > TEXTURE_IDLE_MS) {
-                    releaseTexture(p);
-                }
-            }
-        }
+        ENTRIES.values().stream().flatMap(e -> e.pics.stream())
+                .filter(p -> p.texture != null && now - p.lastShownMs > TEXTURE_IDLE_MS).forEach(ImagePreviewFeature::releaseTexture);
     }
 
     /** Drops the least recently hovered links past {@link #MAX_ENTRIES} or {@link #MAX_KEPT_BYTES}. */
@@ -678,11 +664,7 @@ public final class ImagePreviewFeature {
 
     /** Forgets every link and texture (the disk cache stays), and the last-drawn record. Render thread. */
     public static void resetForTest() {
-        for (Entry e : ENTRIES.values()) {
-            for (Pic p : e.pics) {
-                releaseTexture(p);
-            }
-        }
+        ENTRIES.values().stream().flatMap(e -> e.pics.stream()).forEach(ImagePreviewFeature::releaseTexture);
         ENTRIES.clear();
         hoveredLink = null;
         lastDrawn = null;
@@ -694,15 +676,7 @@ public final class ImagePreviewFeature {
 
     /** Live textures held right now. */
     public static int texturesForTest() {
-        int n = 0;
-        for (Entry e : ENTRIES.values()) {
-            for (Pic p : e.pics) {
-                if (p.texture != null) {
-                    n++;
-                }
-            }
-        }
-        return n;
+        return (int) ENTRIES.values().stream().flatMap(e -> e.pics.stream()).filter(p -> p.texture != null).count();
     }
 
     static Pic currentPic(Entry e) {

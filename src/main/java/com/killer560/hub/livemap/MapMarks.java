@@ -198,20 +198,16 @@ public final class MapMarks {
         return new Sprite(out);
     }
 
-    /** The mod's own sprite for a state, in the state's color, or null for a state with no mark. */
     /** {@link #modSprite} by state: they never change, and were rebuilt (rows of int arrays) for every mark drawn. */
     private static final Sprite[] MOD_SPRITES = new Sprite[5];
 
+    /** The mod's own sprite for a state, in the state's color, or null for a state with no mark. */
     static Sprite modSprite(int state) {
         if (state < 0 || state >= MOD_SPRITES.length) {
             return buildModSprite(state);
         }
         Sprite s = MOD_SPRITES[state];
-        if (s == null) {
-            s = buildModSprite(state);
-            MOD_SPRITES[state] = s;
-        }
-        return s;
+        return s != null ? s : (MOD_SPRITES[state] = buildModSprite(state));
     }
 
     private static Sprite buildModSprite(int state) {

@@ -219,10 +219,7 @@ final class SpeechBubble {
             return chars;
         }
         double sec = (now - typeStart) / 1_000_000_000.0;
-        if (sec <= 0) {
-            return 0;
-        }
-        return (int) Math.min(chars, sec * TYPE_CPS);
+        return sec <= 0 ? 0 : (int) Math.min(chars, sec * TYPE_CPS);
     }
 
     /** The rectangle as drawn now (animated toward {@link #setTarget}). */

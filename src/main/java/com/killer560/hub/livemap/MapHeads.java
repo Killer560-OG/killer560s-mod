@@ -50,12 +50,9 @@ final class MapHeads {
         if (connection == null) {
             return null;
         }
-        PlayerInfo info;
-        if (mp.self()) {
-            info = client.player == null ? null : connection.getPlayerInfo(client.player.getUUID());
-        } else {
-            info = teammateInfo(connection, mp.name());
-        }
+        PlayerInfo info = mp.self()
+                ? (client.player == null ? null : connection.getPlayerInfo(client.player.getUUID()))
+                : teammateInfo(connection, mp.name());
         return info == null ? null : info.getSkin();
     }
 

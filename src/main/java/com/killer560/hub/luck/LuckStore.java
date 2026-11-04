@@ -202,7 +202,7 @@ public final class LuckStore {
         TreeSet<String> out = new TreeSet<>(PROFILES.keySet());
         String id = ProfitScope.currentAccountId();
         for (CroesusProfitLog.Claim c : CroesusProfitLog.allClaims()) {
-            if (mine(c.key(), id)) {
+            if (c.key().matchesAccount(id)) {
                 out.add(c.key().profile());
             }
         }
@@ -216,10 +216,6 @@ public final class LuckStore {
             out.add(LOG.get(i));
         }
         return out;
-    }
-
-    private static boolean mine(ProfitScope.Key k, String accountId) {
-        return k.matchesAccount(accountId);
     }
 
     /** One drop's numbers across the selected profiles. */
@@ -303,7 +299,7 @@ public final class LuckStore {
         DropTable table = DropTable.get();
         String id = ProfitScope.currentAccountId();
         for (CroesusProfitLog.Claim c : CroesusProfitLog.allClaims()) {
-            if (!mine(c.key(), id) || (profile != null && !profile.equals(c.key().profile()))) {
+            if (!c.key().matchesAccount(id) || (profile != null && !profile.equals(c.key().profile()))) {
                 continue;
             }
             String floor = "Unknown".equals(c.floor()) ? inferFloor(table, c) : c.floor();
@@ -411,11 +407,11 @@ public final class LuckStore {
         for (Map.Entry<String, Bucket> e : PROFILES.entrySet()) {
             JsonObject o = new JsonObject();
             Bucket b = e.getValue();
-            o.add("attempts", longs(b.attempts));
-            o.add("exp", doubles(b.exp));
-            o.add("expMf", doubles(b.expMf));
-            o.add("got", longs(b.got));
-            o.add("levels", longs(b.levels));
+            o.add("attempts", numbers(b.attempts));
+            o.add("exp", numbers(b.exp));
+            o.add("expMf", numbers(b.expMf));
+            o.add("got", numbers(b.got));
+            o.add("levels", numbers(b.levels));
             JsonObject ms = new JsonObject();
             b.meters.forEach((k, m) -> {
                 JsonObject mo = new JsonObject();
@@ -443,15 +439,9 @@ public final class LuckStore {
         return root;
     }
 
-    private static JsonObject longs(Map<String, Long> m) {
+    private static JsonObject numbers(Map<String, ? extends Number> m) {
         JsonObject o = new JsonObject();
-        m.forEach(o::addProperty);
-        return o;
-    }
-
-    private static JsonObject doubles(Map<String, Double> m) {
-        JsonObject o = new JsonObject();
-        m.forEach(o::addProperty);
+        m.forEach((k, v) -> o.addProperty(k, v));
         return o;
     }
 

@@ -238,12 +238,8 @@ final class ImageFetcher {
         String name = key("imgur-", target.kind() + "/" + target.id());
         byte[] cached = cacheRead(name);
         if (cached != null) {
-            List<String> urls = new ArrayList<>();
-            for (String line : new String(cached, StandardCharsets.UTF_8).split("\n")) {
-                if (!line.isBlank()) {
-                    urls.add(line.trim());
-                }
-            }
+            List<String> urls = java.util.Arrays.stream(new String(cached, StandardCharsets.UTF_8).split("\n"))
+                    .filter(line -> !line.isBlank()).map(String::trim).toList();
             if (!urls.isEmpty()) {
                 return urls;
             }
@@ -388,12 +384,7 @@ final class ImageFetcher {
     }
 
     private static boolean allZero(byte[] b, int from, int to) {
-        for (int i = from; i < to; i++) {
-            if (b[i] != 0) {
-                return false;
-            }
-        }
-        return true;
+        return java.util.stream.IntStream.range(from, to).allMatch(i -> b[i] == 0);
     }
 
     private static Body get(String url, boolean anyHost, long cap, String accept) throws IOException {

@@ -188,10 +188,7 @@ public final class LagDisplayFeature {
                 return -1.0;
             }
             long spanMs = TICK_TIMES.peekLast() - TICK_TIMES.peekFirst();
-            if (spanMs <= 0) {
-                return -1.0;
-            }
-            return Math.min(20.0, (TICK_TIMES.size() - 1) * 1000.0 / spanMs);
+            return spanMs <= 0 ? -1.0 : Math.min(20.0, (TICK_TIMES.size() - 1) * 1000.0 / spanMs);
         }
     }
 
@@ -236,11 +233,7 @@ public final class LagDisplayFeature {
         public int width() {
             // The widest drawn line (it was a fixed 110 around about 45 units of text).
             Font font = Minecraft.getInstance().font;
-            int w = 1;
-            for (Line line : lines()) {
-                w = Math.max(w, font.width(line.text()));
-            }
-            return w;
+            return lines().stream().mapToInt(line -> font.width(line.text())).max().orElse(1);
         }
 
         @Override
@@ -365,10 +358,7 @@ public final class LagDisplayFeature {
             if (t >= 19.5) {
                 return COLOR_GOOD;
             }
-            if (t >= 15.0) {
-                return COLOR_OK;
-            }
-            return t >= 10.0 ? COLOR_BAD : COLOR_AWFUL;
+            return t >= 15.0 ? COLOR_OK : t >= 10.0 ? COLOR_BAD : COLOR_AWFUL;
         }
 
         /** killer560, 2026-11-01: "make the ping under 100 good under 150 meh and over 200 as bad". Under 100 good
@@ -378,10 +368,7 @@ public final class LagDisplayFeature {
             if (ping < 100) {
                 return COLOR_GOOD;
             }
-            if (ping < 150) {
-                return COLOR_OK;
-            }
-            return ping < 200 ? COLOR_BAD : COLOR_AWFUL;
+            return ping < 150 ? COLOR_OK : ping < 200 ? COLOR_BAD : COLOR_AWFUL;
         }
 
         /** The worst recent frame against the Stutter Threshold: under half of it good, under it okay, under twice it bad. */
@@ -389,26 +376,16 @@ public final class LagDisplayFeature {
             if (worstTenths < thresholdTenths / 2) {
                 return COLOR_GOOD;
             }
-            if (worstTenths < thresholdTenths) {
-                return COLOR_OK;
-            }
-            return worstTenths < thresholdTenths * 2 ? COLOR_BAD : COLOR_AWFUL;
+            return worstTenths < thresholdTenths ? COLOR_OK : worstTenths < thresholdTenths * 2 ? COLOR_BAD : COLOR_AWFUL;
         }
 
         /** The lines as drawn, for the testkit (render thread). */
         public static List<String> currentLines() {
-            List<String> out = new ArrayList<>();
-            for (Line l : lines()) {
-                out.add(l.text());
-            }
-            return out;
+            return lines().stream().map(Line::text).toList();
         }
 
         private static int fpsColor(int fps) {
-            if (fps >= 120) {
-                return COLOR_GOOD;
-            }
-            return fps >= 60 ? COLOR_OK : COLOR_BAD;
+            return fps >= 120 ? COLOR_GOOD : fps >= 60 ? COLOR_OK : COLOR_BAD;
         }
     }
 }

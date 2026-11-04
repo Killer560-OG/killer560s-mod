@@ -108,9 +108,6 @@ public final class SkyblockItemValue {
         if (abs >= 1_000_000L) {
             return sign + String.format(Locale.US, "%.2fM", abs / 1e6);
         }
-        if (abs >= 1_000L) {
-            return sign + String.format(Locale.US, "%.1fk", abs / 1e3);
-        }
-        return sign + abs;
+        return abs >= 1_000L ? sign + String.format(Locale.US, "%.1fk", abs / 1e3) : sign + abs;
     }
 }

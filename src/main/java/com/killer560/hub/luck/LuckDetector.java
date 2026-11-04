@@ -303,21 +303,13 @@ public final class LuckDetector {
         if (title == null || item == null || item.isBlank() || required <= 0) {
             return;
         }
-        String boss = null;
         String t = title.toLowerCase(Locale.ROOT);
         String[][] words = {{"revenant", "revenant"}, {"zombie", "revenant"}, {"tarantula", "tarantula"},
                 {"spider", "tarantula"}, {"sven", "sven"}, {"wolf", "sven"}, {"voidgloom", "voidgloom"},
                 {"enderman", "voidgloom"}, {"inferno", "inferno"}, {"blaze", "inferno"}, {"riftstalker", "vampire"},
                 {"vampire", "vampire"}};
-        for (String[] w : words) {
-            if (t.contains(w[0])) {
-                boss = w[1];
-                break;
-            }
-        }
-        if (boss != null) {
-            LuckStore.setMeter("slayer:" + boss, new LuckStore.Meter(item, Math.max(0, current), required));
-        }
+        java.util.Arrays.stream(words).filter(w -> t.contains(w[0])).findFirst().ifPresent(w ->
+                LuckStore.setMeter("slayer:" + w[1], new LuckStore.Meter(item, Math.max(0, current), required)));
     }
 
     /** A mob he hit died ({@link LuckKills}): one attempt at its table, with his Looting and Magic Find. */
@@ -390,12 +382,8 @@ public final class LuckDetector {
         if (!active() || !"Superpairs".equals(game) || stakes == null) {
             return;
         }
-        for (String stake : new String[]{"Metaphysical", "Transcendent", "Supreme"}) {
-            if (stakes.contains(stake)) {
-                onClaim("experiment:" + stake, rewards, "experiment");
-                return;
-            }
-        }
+        java.util.stream.Stream.of("Metaphysical", "Transcendent", "Supreme").filter(stakes::contains).findFirst()
+                .ifPresent(stake -> onClaim("experiment:" + stake, rewards, "experiment"));
     }
 
     /** A drop line or inventory gain for {@code name}: decides its key and records it. */
@@ -648,13 +636,8 @@ public final class LuckDetector {
         }
         if (UUID_NAMES.contains(norm)) {
             // Stacks of this item carry a Skyblock UUID: a real drop is a UUID never seen in his inventory before.
-            String fresh = null;
-            for (Map.Entry<String, String> e : newUuidName.entrySet()) {
-                if (DropTable.normalize(e.getValue()).equals(norm)) {
-                    fresh = e.getKey();
-                    break;
-                }
-            }
+            String fresh = newUuidName.entrySet().stream().filter(e -> DropTable.normalize(e.getValue()).equals(norm))
+                    .map(Map.Entry::getKey).findFirst().orElse(null);
             if (fresh == null) {
                 excludedPickups++;
                 lastDecision = "gain of " + norm + " ignored: no new item UUID (an item he already had)";

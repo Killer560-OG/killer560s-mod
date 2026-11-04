@@ -73,10 +73,8 @@ public abstract class ClearNode {
         if (client.player.getLastSentInput().shift() != sneak) {
             return false; // wait until the server has seen the sneak state
         }
-        if (!ClearExecutor.holdingAny(items)) {
-            if (!ClearExecutor.swapById(items)) {
-                return cancel();
-            }
+        if (!ClearExecutor.holdingAny(items) && !ClearExecutor.swapById(items)) {
+            return cancel();
         }
         Vec3 from = new Vec3(playerPos[0], playerPos[1] + TeleportUtils.eyeHeight(sneak), playerPos[2]);
         TeleportUtils.RaycastResult res = raycast.cast(from);

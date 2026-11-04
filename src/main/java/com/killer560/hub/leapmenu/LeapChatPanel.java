@@ -68,8 +68,7 @@ final class LeapChatPanel {
     ThemedEditBox layout(Font font, int screenW, int screenH, int top) {
         int w = width(screenW);
         int x = X;
-        int bottom = screenH - 36;
-        int h = Math.max(INPUT_H + 24, bottom - top);
+        int h = Math.max(INPUT_H + 24, screenH - 36 - top);
         bounds = new int[]{x, top, w, h};
         String old = input == null ? "" : input.getValue();
         ThemedEditBox box = new ThemedEditBox(font, x + 4, top + h - 4 - INPUT_H, w - 8, INPUT_H,
@@ -91,11 +90,7 @@ final class LeapChatPanel {
     }
 
     private int[] linesArea() {
-        int x = bounds[0] + 4;
-        int y = bounds[1] + 4;
-        int w = bounds[2] - 8;
-        int h = bounds[3] - 8 - INPUT_H - 4;
-        return new int[]{x, y, w, h};
+        return new int[]{bounds[0] + 4, bounds[1] + 4, bounds[2] - 8, bounds[3] - 8 - INPUT_H - 4};
     }
 
     private int visibleCount() {

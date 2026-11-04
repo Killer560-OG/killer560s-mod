@@ -408,18 +408,12 @@ public final class FrameStats {
         if (outside >= work / 2) {
             boolean descheduled = cpu >= 0 && cpu < outside / 2;
             boolean allStalled = stall >= 0 && stall - gcNs >= outside / 2;
-            if (descheduled || allStalled) {
-                return "likely your PC: the game was not running";
-            }
-            return "outside the game's own work";
+            return descheduled || allStalled ? "likely your PC: the game was not running" : "outside the game's own work";
         }
         if (swap >= work / 2) {
             return "mostly the GPU/driver swap";
         }
-        if (game >= work / 2) {
-            return "mostly the game";
-        }
-        return "mixed";
+        return game >= work / 2 ? "mostly the game" : "mixed";
     }
 
     private static java.lang.management.ThreadMXBean threadBean() {

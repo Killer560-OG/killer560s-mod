@@ -92,10 +92,7 @@ public final class LuckShare {
         if (!LuckConfig.getInstance().isShareMyLuck()) {
             return "Share My Luck is off";
         }
-        if (!ModUserConfig.getInstance().isShare()) {
-            return "Show Me As A Mod User is off";
-        }
-        return null;
+        return !ModUserConfig.getInstance().isShare() ? "Show Me As A Mod User is off" : null;
     }
 
     private static void tick() {

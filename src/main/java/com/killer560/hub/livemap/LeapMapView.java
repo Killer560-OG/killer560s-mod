@@ -96,22 +96,12 @@ public final class LeapMapView {
     }
 
     private static InteractiveMapFeature.MapPlayer find(Minecraft client, String name) {
-        for (InteractiveMapFeature.MapPlayer mp : InteractiveMapFeature.playersCached(client)) {
-            if (mp.name().equalsIgnoreCase(name)) {
-                return mp;
-            }
-        }
-        return null;
+        return InteractiveMapFeature.playersCached(client).stream().filter(mp -> mp.name().equalsIgnoreCase(name))
+                .findFirst().orElse(null);
     }
 
     private static boolean containsIgnoreCase(Collection<String> names, String name) {
-        String n = name.toLowerCase(Locale.US);
-        for (String s : names) {
-            if (s.toLowerCase(Locale.US).equals(n)) {
-                return true;
-            }
-        }
-        return false;
+        return names.stream().anyMatch(name::equalsIgnoreCase);
     }
 
     /**

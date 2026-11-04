@@ -169,10 +169,7 @@ public final class EtherwarpPathfinder {
         leg.isGoal = (x, y, z) -> x == to.getX() && y == to.getY() && z == to.getZ();
         leg.landingOk = coverTest(grid, level);
         List<EtherSearch.Hop> path = search.searchLeg(startHop(from), leg);
-        if (path == null) {
-            return null;
-        }
-        return toNodes(search.smooth(path, dist, withLast));
+        return path == null ? null : toNodes(search.smooth(path, dist, withLast));
     }
 
     /**
@@ -311,10 +308,7 @@ public final class EtherwarpPathfinder {
         // exact search over the whole floor took its 1.5 s and found nothing on a 5-warp trip (testkit 1101-prerun-trip,
         // first run), where the room-by-room legs found it in 10 ms.
         List<Node> legacy = legacyDungeonPath(from, to, cfg, dist, layout, air);
-        if (legacy != null) {
-            return legacy;
-        }
-        return planFloor(from, to, tileIdx, cfg, dist, layout, exact, exactNanos, false, air);
+        return legacy != null ? legacy : planFloor(from, to, tileIdx, cfg, dist, layout, exact, exactNanos, false, air);
     }
 
     /**
@@ -467,10 +461,7 @@ public final class EtherwarpPathfinder {
             // none of the fallbacks below - a goal the graph cannot plan is left for the press to plan for itself.
             lastPlanOnFull = graph == graphs.full && graph.warmDone();
             lastPlanNear = path != null && (graph.endedNear || graphs.usedExact);
-            if (airy || path == null) {
-                return null;
-            }
-            return toNodes(path);
+            return airy || path == null ? null : toNodes(path);
         }
         if (airy && path != null && !path.isEmpty() && !landsOn(view, path, to, dist)) {
             // Planned in the world WITH the picked blocks: with them gone a hop can fly past its landing. Not a plan

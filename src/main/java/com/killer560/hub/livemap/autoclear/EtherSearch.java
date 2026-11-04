@@ -225,10 +225,7 @@ public final class EtherSearch {
                     return BLOCKED;
                 }
                 int head = grid.flags(ix, base + 1, iz);
-                if ((head & PASSABLE) == 0 || (head & BLOCKS_FEET) != 0) {
-                    return BLOCKED;
-                }
-                return LANDS;
+                return (head & PASSABLE) == 0 || (head & BLOCKS_FEET) != 0 ? BLOCKED : LANDS;
             }
             if (x == endX && y == endY && z == endZ) {
                 return MISS;

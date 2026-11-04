@@ -495,18 +495,16 @@ public final class LiveMapFeature {
                     continue;
                 }
 
+                groupsDirty = true;
                 if (rowEven && colEven) {
                     grid[idx] = Tile.ROOM;
-                    groupsDirty = true;
                     identifyTile(client, idx, wx, wz);
                 } else if (roofHeight == 73 || roofHeight == 74 || roofHeight == 81 || roofHeight == 82) {
                     grid[idx] = classifyDoor(client, wx, wz);
-                    groupsDirty = true;
                 } else {
                     // Connector between two tiles of one larger room (or a 2x2 room's center) - the filled
                     // wall gap. Joins the neighboring tiles into one room in rebuildGroups().
                     grid[idx] = Tile.ROOM;
-                    groupsDirty = true;
                 }
                 if (classified == null) {
                     classified = new StringBuilder();
@@ -877,10 +875,7 @@ public final class LiveMapFeature {
         if (mapKind == DungeonMapScanner.KIND_SEPARATOR) {
             return true;
         }
-        if (mapKind == DungeonMapScanner.KIND_DOOR) {
-            return false;
-        }
-        return !mapShowsRoomsAround(idx);
+        return mapKind != DungeonMapScanner.KIND_DOOR && !mapShowsRoomsAround(idx);
     }
 
     /** Whether the dungeon map shows a room on every tile the gap {@code idx} lies between: left and right of a gap
@@ -909,10 +904,7 @@ public final class LiveMapFeature {
         if (!isTile[b] || roomEntryGrid[b] == null || !name.equals(roomEntryGrid[b].name)) {
             return 0;
         }
-        if (!roomish[connector] || !connectorMayJoin(connector)) {
-            return 0;
-        }
-        return union(parent, tileCount, rootEntry, a, b) ? 0 : 1;
+        return !roomish[connector] || !connectorMayJoin(connector) ? 0 : union(parent, tileCount, rootEntry, a, b) ? 0 : 1;
     }
 
     private static boolean union(int[] parent, int[] tileCount, RoomEntry[] rootEntry, int a, int b) {
@@ -1026,10 +1018,7 @@ public final class LiveMapFeature {
         if (state.is(Blocks.COAL_BLOCK)) {
             return Tile.DOOR_WITHER;
         }
-        if (state.is(Blocks.INFESTED_CHISELED_STONE_BRICKS)) {
-            return Tile.DOOR_ENTRANCE;
-        }
-        return Tile.DOOR_NORMAL;
+        return state.is(Blocks.INFESTED_CHISELED_STONE_BRICKS) ? Tile.DOOR_ENTRANCE : Tile.DOOR_NORMAL;
     }
 
     /** @return the player's current grid cell, clamped to the real 11x11 bounds - same transform as
@@ -1037,11 +1026,8 @@ public final class LiveMapFeature {
     static int[] gridCellFor(Vec3 pos) {
         // From the tile's center BLOCK's middle (START + 0.5): a position in the one-block gap between two tiles goes
         // to the tile it is nearer, not always the +x / +z one (DungeonLayout.roomAtWorld, 2026-10-12).
-        int roomIndexX = (int) Math.round((pos.x - 0.5 - START_X) / 32.0);
-        int roomIndexZ = (int) Math.round((pos.z - 0.5 - START_Z) / 32.0);
-        int gx = Math.max(0, Math.min(10, roomIndexX * 2));
-        int gz = Math.max(0, Math.min(10, roomIndexZ * 2));
-        return new int[]{gx, gz};
+        return new int[]{Math.max(0, Math.min(10, (int) Math.round((pos.x - 0.5 - START_X) / 32.0) * 2)),
+                Math.max(0, Math.min(10, (int) Math.round((pos.z - 0.5 - START_Z) / 32.0) * 2))};
     }
 
     /** For {@link com.killer560.hub.secretwaypoints.SecretWaypointsFeature} - one entry per identified
@@ -1111,10 +1097,7 @@ public final class LiveMapFeature {
     public static final int MAP_UNDISCOVERED = DungeonMapScanner.STATE_UNDISCOVERED;
 
     public static int mapStateAt(int idx) {
-        if (!DungeonMapScanner.isCalibrated() || idx < 0 || idx >= GRID * GRID) {
-            return -1;
-        }
-        return DungeonMapScanner.stateAt(idx);
+        return !DungeonMapScanner.isCalibrated() || idx < 0 || idx >= GRID * GRID ? -1 : DungeonMapScanner.stateAt(idx);
     }
 
     /** @return the room identity for any cell of a room (every tile/connector of a multi-tile room gives
@@ -1257,17 +1240,7 @@ public final class LiveMapFeature {
         if (group.entry != null && group.entry.type != null && !group.entry.type.isEmpty()) {
             return group.entry.type.toUpperCase(java.util.Locale.ROOT);
         }
-        return switch (DungeonMapScanner.roomColorAt(group.mainIdx)) {
-            case 18 -> "BLOOD";
-            case 82 -> "FAIRY";
-            case 34 -> "RARE";
-            case 74 -> "CHAMPION";
-            case 66 -> "PUZZLE";
-            case 62 -> "TRAP";
-            case 30 -> "ENTRANCE";
-            case 63, 85 -> "NORMAL";
-            default -> null;
-        };
+        return MapPainter.mapColorType(group.mainIdx);
     }
 
     public static RoomEntry currentRoomEntry() {
@@ -1292,10 +1265,7 @@ public final class LiveMapFeature {
                     : new int[]{clayXGrid[idx], clayZGrid[idx], rotationGrid[idx]};
         }
         int r = rotationSourceIdx(group);
-        if (group.entry == null || r < 0) {
-            return null;
-        }
-        return new int[]{clayXGrid[r], clayZGrid[r], rotationGrid[r]};
+        return group.entry == null || r < 0 ? null : new int[]{clayXGrid[r], clayZGrid[r], rotationGrid[r]};
     }
 
     // Interactive map / pathing accessors (package-private, main thread)
@@ -1337,10 +1307,7 @@ public final class LiveMapFeature {
     public static boolean onRoomStrip(double ux, double uz) {
         int gx = MapPainter.unitToGrid(ux);
         int gz = MapPainter.unitToGrid(uz);
-        if (gx < 0 || gz < 0 || (gx % 2 == 0 && gz % 2 == 0)) {
-            return false;
-        }
-        return groupIdAt(gx + gz * GRID) >= 0;
+        return gx >= 0 && gz >= 0 && (gx % 2 != 0 || gz % 2 != 0) && groupIdAt(gx + gz * GRID) >= 0;
     }
 
     public static int mapCellAt(double ux, double uz) {
@@ -1386,10 +1353,7 @@ public final class LiveMapFeature {
         if (tile != Tile.UNKNOWN) {
             return tile;
         }
-        if (groupIdAt(idx) >= 0) {
-            return Tile.ROOM;
-        }
-        return DungeonMapScanner.doorTileAt(idx);
+        return groupIdAt(idx) >= 0 ? Tile.ROOM : DungeonMapScanner.doorTileAt(idx);
     }
 
     static boolean isWorldScanned(int idx) {
@@ -1915,14 +1879,13 @@ public final class LiveMapFeature {
 
         private static void paintMap(GuiGraphicsExtractor graphics, int x, int y, LiveMapConfig cfg, Minecraft client,
                                      DungeonLayout layout, float ox, float oy, float ppu) {
-            int sizeW = mapPx();
-            int sizeH = mapPx();
-            graphics.fill(x, y, x + sizeW, y + sizeH, cfg.getMapBackground());
+            int size = mapPx();
+            graphics.fill(x, y, x + size, y + size, cfg.getMapBackground());
             int border = cfg.getMapBorderColor();
             if ((border >>> 24) != 0) {
                 // One frame round the map AND the Extra Info under it, as NoammAddons draws them (renderBackground: one
                 // 128x140 box), not a box with a second strip hanging off it.
-                graphics.outline(x, y, sizeW, sizeH + extraInfoHeight(extraInfoLines()), border);
+                graphics.outline(x, y, size, size + extraInfoHeight(extraInfoLines()), border);
             }
             MapPainter.drawDoors(graphics, layout, cfg, ox, oy, ppu, -1);
             MapPainter.drawReportedDoors(graphics, cfg, ox, oy, ppu);

@@ -1,6 +1,5 @@
 package com.killer560.hub.itembrowser;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
@@ -83,14 +82,9 @@ public final class NeuItemData {
             return null;
         }
         String displayName = str(json, "displayname");
-        List<String> lore = new ArrayList<>();
-        if (json.has("lore") && json.get("lore").isJsonArray()) {
-            for (JsonElement e : json.getAsJsonArray("lore")) {
-                if (e.isJsonPrimitive()) {
-                    lore.add(e.getAsString());
-                }
-            }
-        }
+        List<String> lore = json.has("lore") && json.get("lore").isJsonArray()
+                ? json.getAsJsonArray("lore").asList().stream().filter(JsonElement::isJsonPrimitive).map(JsonElement::getAsString).toList()
+                : List.of();
         List<String> grid = null;
         List<Integer> counts = null;
         int outputCount = 1;
@@ -132,7 +126,7 @@ public final class NeuItemData {
                 }
             }
         }
-        return new Info(displayName, Collections.unmodifiableList(lore), grid, counts, Math.max(1, outputCount),
+        return new Info(displayName, lore, grid, counts, Math.max(1, outputCount),
                 Collections.unmodifiableList(other));
     }
 
@@ -186,20 +180,11 @@ public final class NeuItemData {
         if (e == null || !e.isJsonArray()) {
             return "";
         }
-        JsonArray arr = e.getAsJsonArray();
-        StringBuilder sb = new StringBuilder();
-        for (JsonElement x : arr) {
-            if (!x.isJsonPrimitive()) {
-                continue;
-            }
+        return e.getAsJsonArray().asList().stream().filter(JsonElement::isJsonPrimitive).map(x -> {
             String[] parts = splitIdCount(x.getAsString());
-            if (sb.length() > 0) {
-                sb.append(", ");
-            }
             int count = parseCount(parts[1]);
-            sb.append(count > 1 ? count + "x " : "").append(nameFor(parts[0]));
-        }
-        return sb.toString();
+            return (count > 1 ? count + "x " : "") + nameFor(parts[0]);
+        }).collect(java.util.stream.Collectors.joining(", "));
     }
 
     /** Display name for an ingredient id from the catalog, or the id prettified when it is not in it. */
@@ -229,10 +214,7 @@ public final class NeuItemData {
         if (seconds >= 3600 && seconds % 3600 == 0) {
             return seconds / 3600 + "h";
         }
-        if (seconds >= 60) {
-            return (seconds / 60) + "m";
-        }
-        return seconds + "s";
+        return seconds >= 60 ? (seconds / 60) + "m" : seconds + "s";
     }
 
     private static String stripCodes(String s) {

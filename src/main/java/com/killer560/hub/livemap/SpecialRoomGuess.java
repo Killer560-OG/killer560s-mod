@@ -153,9 +153,8 @@ public final class SpecialRoomGuess {
     static boolean behindBloodDoor(int tile) {
         int gx = tile % DungeonLayout.GRID;
         int gz = tile / DungeonLayout.GRID;
-        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         boolean found = false;
-        for (int[] d : dirs) {
+        for (int[] d : HeldMap.DIRS) {
             int nx = gx + d[0];
             int nz = gz + d[1];
             if (nx < 0 || nz < 0 || nx >= DungeonLayout.GRID || nz >= DungeonLayout.GRID) {
@@ -185,18 +184,14 @@ public final class SpecialRoomGuess {
         int gx = tile % DungeonLayout.GRID;
         int gz = tile / DungeonLayout.GRID;
         int[] floor = HeldMap.floorTiles();
-        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        for (int[] d : dirs) {
+        for (int[] d : HeldMap.DIRS) {
             int nx = gx + 2 * d[0];
             int nz = gz + 2 * d[1];
             if (nx < 0 || nz < 0 || nx / 2 >= floor[0] || nz / 2 >= floor[1]) {
                 continue;
             }
             int connector = (gz + d[1]) * DungeonLayout.GRID + gx + d[0];
-            if (HeldMap.joined(connector)) {
-                return false;
-            }
-            if (!HeldMap.roomOpened(nz * DungeonLayout.GRID + nx)) {
+            if (HeldMap.joined(connector) || !HeldMap.roomOpened(nz * DungeonLayout.GRID + nx)) {
                 return false;
             }
         }

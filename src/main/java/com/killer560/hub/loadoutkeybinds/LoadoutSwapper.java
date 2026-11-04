@@ -224,12 +224,7 @@ public final class LoadoutSwapper {
 
     private static boolean hasItems(AbstractContainerMenu menu) {
         int containerSlots = Math.max(0, menu.slots.size() - PLAYER_INVENTORY_SLOTS);
-        for (int i = 0; i < containerSlots; i++) {
-            if (!menu.slots.get(i).getItem().isEmpty()) {
-                return true;
-            }
-        }
-        return false;
+        return menu.slots.stream().limit(containerSlots).anyMatch(slot -> !slot.getItem().isEmpty());
     }
 
     private static void awaitMenu(Minecraft client, long now) {

@@ -114,10 +114,7 @@ public final class InventoryThemeFeature {
         if (com.killer560.hub.terminals.TerminalSolverFeature.shouldHideBackgroundAndLabels()) {
             return false;
         }
-        if (cfg.isHypixelOnly() && !CheatUtils.isOnDungeonServer(Minecraft.getInstance())) {
-            return false;
-        }
-        return true;
+        return !cfg.isHypixelOnly() || CheatUtils.isOnDungeonServer(Minecraft.getInstance());
     }
 
     /** Storage Overlay already fully re-skins its own tracked Ender Chest/Backpack screens (its own

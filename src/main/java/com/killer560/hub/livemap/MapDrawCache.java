@@ -441,15 +441,7 @@ public final class MapDrawCache {
         GuiElementRenderState[] pa = com.killer560.hub.hud.GuiRects.partsOf(a);
         if (pa != null) {
             GuiElementRenderState[] pb = com.killer560.hub.hud.GuiRects.partsOf(b);
-            if (pb == null || pa.length != pb.length) {
-                return false;
-            }
-            for (int i = 0; i < pa.length; i++) {
-                if (!Objects.equals(pa[i], pb[i])) {
-                    return false;
-                }
-            }
-            return true;
+            return pb != null && Arrays.equals(pa, pb);
         }
         // Vanilla's rectangle, blit and item states are records: equals is value for value.
         return a.equals(b);
@@ -475,12 +467,7 @@ public final class MapDrawCache {
     }
 
     private static boolean sameText(FormattedCharSequence a, FormattedCharSequence b) {
-        if (a == b) {
-            return true;
-        }
-        List<Object> ca = chars(a);
-        List<Object> cb = chars(b);
-        return ca.equals(cb);
+        return a == b || chars(a).equals(chars(b));
     }
 
     private static List<Object> chars(FormattedCharSequence seq) {

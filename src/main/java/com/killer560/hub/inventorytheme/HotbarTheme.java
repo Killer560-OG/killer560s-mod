@@ -58,10 +58,7 @@ public final class HotbarTheme {
     /** Inventory Theme on, Hotbar on, and (when scoped to Hypixel) on Hypixel/p3sim. */
     public static boolean active(Minecraft mc) {
         InventoryThemeConfig cfg = InventoryThemeConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isThemeHotbar()) {
-            return false;
-        }
-        return !cfg.isHypixelOnly() || CheatUtils.isOnDungeonServer(mc);
+        return !cfg.isEnabled() || !cfg.isThemeHotbar() ? false : !cfg.isHypixelOnly() || CheatUtils.isOnDungeonServer(mc);
     }
 
     private static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, HudElement vanilla) {

@@ -191,10 +191,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
     /** The grid cell the cursor is over right now, or -1 when it is off the panel or nothing has rendered
      *  yet. See {@link #cursorX}. */
     int cellUnderCursor() {
-        if (cursorX < 0 || !inside(panel(), cursorX, cursorY)) {
-            return -1;
-        }
-        return cellAt(cursorX, cursorY);
+        return cursorX < 0 || !inside(panel(), cursorX, cursorY) ? -1 : cellAt(cursorX, cursorY);
     }
 
     /** The Interactive Map (cheat) always paints the whole scanned floor: Funny Map is the Dungeon Map HUD's setting.
@@ -773,12 +770,13 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (com.killer560.hub.compat.McInput.button(event) == pressButton) {
+        int button = com.killer560.hub.compat.McInput.button(event);
+        if (button == pressButton) {
             pressButton = -1;
-            if (com.killer560.hub.compat.McInput.button(event) == 0 && legendClick(event.x(), event.y())) {
+            if (button == 0 && legendClick(event.x(), event.y())) {
                 return true;
             }
-            onClick(com.killer560.hub.compat.McInput.button(event), event.x(), event.y());
+            onClick(button, event.x(), event.y());
             return true;
         }
         return super.mouseReleased(event);

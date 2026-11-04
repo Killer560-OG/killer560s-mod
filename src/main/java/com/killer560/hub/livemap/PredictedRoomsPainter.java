@@ -140,12 +140,7 @@ public final class PredictedRoomsPainter {
                 }
             }
         }
-        for (int t : tiles) {
-            if (NAMED_TILES.contains(t)) {
-                return true;
-            }
-        }
-        return false;
+        return java.util.Arrays.stream(tiles).anyMatch(NAMED_TILES::contains);
     }
 
     /** Whether the map already names the room on any of these tiles. */
@@ -167,14 +162,10 @@ public final class PredictedRoomsPainter {
     private static void drawPrediction(GuiGraphicsExtractor graphics, Font font, LiveMapConfig cfg,
                                        RoomPredictor.Prediction p, float ox, float oy, float ppu) {
         int color = MapPainter.multiply(MapPainter.typeColor(p.type(), cfg), 0.85f);
-        Set<Integer> certain = new HashSet<>();
-        for (int t : p.certainTiles()) {
-            certain.add(t);
+        if (p.certainTiles().length == 0) {
+            return;
         }
-        int minX = Integer.MAX_VALUE;
-        int minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE;
-        int maxZ = Integer.MIN_VALUE;
+        Set<Integer> certain = java.util.Arrays.stream(p.certainTiles()).boxed().collect(java.util.stream.Collectors.toSet());
         for (int t : p.certainTiles()) {
             int gx = t % DungeonLayout.GRID;
             int gz = t / DungeonLayout.GRID;
@@ -186,13 +177,6 @@ public final class PredictedRoomsPainter {
             if (certain.contains(t + 2 * DungeonLayout.GRID)) {
                 fill(graphics, ox, oy, ppu, gx, gz + 1, color);
             }
-            minX = Math.min(minX, gx);
-            minZ = Math.min(minZ, gz);
-            maxX = Math.max(maxX, gx);
-            maxZ = Math.max(maxZ, gz);
-        }
-        if (minX == Integer.MAX_VALUE) {
-            return;
         }
         // On the room's own tiles, not the center of its bounding box: an L's box center is its empty corner (killer560,
         // 2026-10-19 23:15:17, "Chambers 0/5" half outside the room). MapPainter.labelBox is the one rule for both.
@@ -293,7 +277,7 @@ public final class PredictedRoomsPainter {
                 }
                 List<String> types = SpecialRoomGuess.candidates(tile);
                 if (!types.isEmpty()) {
-                    out.put(tile, "guess:" + String.join("+", new ArrayList<>(types)));
+                    out.put(tile, "guess:" + String.join("+", types));
                 }
             }
         }

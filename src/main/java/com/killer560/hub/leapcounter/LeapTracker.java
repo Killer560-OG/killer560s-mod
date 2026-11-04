@@ -137,13 +137,7 @@ public final class LeapTracker {
     /** Teammates counted at or after {@code sinceMs} (wall-clock, {@link System#currentTimeMillis()}) - so a caller
      *  that starts waiting mid-spot can ignore leaps that landed before it asked. */
     public static int countSince(long sinceMs) {
-        int n = 0;
-        for (long at : COUNTED.values()) {
-            if (at >= sinceMs) {
-                n++;
-            }
-        }
-        return n;
+        return (int) COUNTED.values().stream().filter(at -> at >= sinceMs).count();
     }
 
     /** The section you are being leapt to in, or null. */
@@ -299,12 +293,7 @@ public final class LeapTracker {
         if (configured <= 0) {
             return 0;
         }
-        int alive = 0;
-        for (String name : party) {
-            if (!PartyTracker.isDead(name)) {
-                alive++;
-            }
-        }
+        int alive = (int) party.stream().filter(name -> !PartyTracker.isDead(name)).count();
         return alive <= 0 ? configured : Math.min(alive, configured);
     }
 
@@ -316,15 +305,7 @@ public final class LeapTracker {
             return false;
         }
         String name = player.getGameProfile().name();
-        for (String member : party) {
-            if (member.equalsIgnoreCase(name)) {
-                return true;
-            }
-        }
-        if (PartyTracker.classOf(name) != null) {
-            return true;
-        }
-        return party.isEmpty();
+        return party.stream().anyMatch(member -> member.equalsIgnoreCase(name)) || PartyTracker.classOf(name) != null || party.isEmpty();
     }
 
     /** Position-based first (it is where YOU stand that matters), chat-driven stage as the fallback for the gaps

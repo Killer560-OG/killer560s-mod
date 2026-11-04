@@ -418,15 +418,12 @@ public final class TeleportUtils {
                 }
                 double collisionTop = state.getCollisionShape(level, hitPos).max(Direction.Axis.Y);
                 double clearanceBaseY = hitPos.getY() + Math.max(1.0, Math.ceil(collisionTop));
-                mut.set(x, clearanceBaseY, z);
-                int feet = flagsOf(chunk.getBlockState(mut));
-                if ((feet & PASSABLE) == 0 || (feet & BLOCKS_FEET) != 0) {
-                    return new RaycastResult(false, hitPos, state);
-                }
-                mut.set(x, clearanceBaseY + 1, z);
-                int head = flagsOf(chunk.getBlockState(mut));
-                if ((head & PASSABLE) == 0 || (head & BLOCKS_FEET) != 0) {
-                    return new RaycastResult(false, hitPos, state);
+                for (int up = 0; up < 2; up++) {
+                    mut.set(x, clearanceBaseY + up, z);
+                    int flags = flagsOf(chunk.getBlockState(mut));
+                    if ((flags & PASSABLE) == 0 || (flags & BLOCKS_FEET) != 0) {
+                        return new RaycastResult(false, hitPos, state);
+                    }
                 }
                 return new RaycastResult(true, hitPos, state);
             }

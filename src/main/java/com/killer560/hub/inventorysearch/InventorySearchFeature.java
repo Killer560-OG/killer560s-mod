@@ -274,10 +274,7 @@ public final class InventorySearchFeature {
             return null;
         }
         String query = queryNow();
-        if (query.isBlank() || calcResultNow(query) != null) {
-            return null;
-        }
-        return query;
+        return query.isBlank() || calcResultNow(query) != null ? null : query;
     }
 
     /**
@@ -395,10 +392,7 @@ public final class InventorySearchFeature {
      *  reach it (never above 0). Panels beside the bar keep their y. */
     public static double keepAbove(Screen screen, double x, double y, double w, double h) {
         int[] r = reservedRect(screen);
-        if (r == null || !(x < r[2] && r[0] < x + w && y < r[3] && r[1] < y + h)) {
-            return y;
-        }
-        return Math.max(0, r[1] - h);
+        return r == null || !(x < r[2] && r[0] < x + w && y < r[3] && r[1] < y + h) ? y : Math.max(0, r[1] - h);
     }
 
     /**
@@ -562,17 +556,9 @@ public final class InventorySearchFeature {
 
         var slots = screen.getMenu().slots;
         int containerSlotCount = Math.max(0, slots.size() - 36);
-        for (Slot slot : slots) {
-            if (slot.index < 9 || slot.index >= containerSlotCount) {
-                continue;
-            }
-            ItemStack stack = slot.getItem();
-            if (stack.isEmpty() || !matches(stack, query, cfg)) {
-                continue;
-            }
-            StorageOverlayFeature.highlightItem(overlayKey, slot.index - 9, OVERLAY_HIGHLIGHT_DURATION_MS);
-            return;
-        }
+        slots.stream().filter(slot -> slot.index >= 9 && slot.index < containerSlotCount && !slot.getItem().isEmpty()
+                && matches(slot.getItem(), query, cfg)).findFirst()
+                .ifPresent(slot -> StorageOverlayFeature.highlightItem(overlayKey, slot.index - 9, OVERLAY_HIGHLIGHT_DURATION_MS));
     }
 
     private static boolean matches(ItemStack stack, String query, InventorySearchConfig cfg) {
@@ -590,13 +576,8 @@ public final class InventorySearchFeature {
         if (lore == null) {
             return false;
         }
-        for (Component line : lore.lines()) {
-            String text = line.getString();
-            if ((cfg.isIgnoreCase() ? text.toLowerCase(Locale.ROOT) : text).contains(needle)) {
-                return true;
-            }
-        }
-        return false;
+        return lore.lines().stream().map(Component::getString)
+                .anyMatch(text -> (cfg.isIgnoreCase() ? text.toLowerCase(Locale.ROOT) : text).contains(needle));
     }
 
     private static boolean inside(int[] rect, double x, double y) {

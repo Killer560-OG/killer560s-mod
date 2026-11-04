@@ -49,6 +49,12 @@ public class MapSchemeEditorScreen extends Screen implements MenuThemedScreen {
         return scheme >= 0 && scheme < cfg.getSchemes().size() ? cfg.getSchemes().get(scheme) : null;
     }
 
+    private static void change(java.util.function.Consumer<LiveMapConfig> edit) {
+        LiveMapConfig cfg = LiveMapConfig.getInstance();
+        edit.accept(cfg);
+        cfg.save();
+    }
+
     /** Test hook: the scheme index this editor edits. */
     public int schemeIndex() {
         return scheme;
@@ -74,11 +80,7 @@ public class MapSchemeEditorScreen extends Screen implements MenuThemedScreen {
         ThemedEditBox name = new ThemedEditBox(this.font, rx, top, rw, 18, Component.literal("Scheme name"));
         name.setMaxLength(MapThemes.MAX_SCHEME_NAME);
         name.setValue(s.name);
-        name.setResponder(text -> {
-            LiveMapConfig cfg = LiveMapConfig.getInstance();
-            cfg.renameScheme(scheme, text);
-            cfg.save();
-        });
+        name.setResponder(text -> change(cfg -> cfg.renameScheme(scheme, text)));
         addRenderableWidget(name);
         CommitEditBox.withSet(this::addRenderableWidget, name);
         int y = top + 24;
@@ -89,20 +91,14 @@ public class MapSchemeEditorScreen extends Screen implements MenuThemedScreen {
             int argb = s.colors[i];
             addRenderableWidget(SettingsButtonWidget.builder(ColorSwatch.label(MapThemes.SLOT_NAMES[i], argb), btn ->
                     McCompat.setScreen(this.minecraft, new ColorPickerScreen(this, MapThemes.SLOT_NAMES[slot], argb,
-                            MapThemes.REAL[slot], picked -> {
-                                LiveMapConfig cfg = LiveMapConfig.getInstance();
-                                cfg.setSchemeColor(scheme, slot, picked);
-                                cfg.save();
-                            }))).bounds(x, y, colW, 18).build());
+                            MapThemes.REAL[slot], picked -> change(cfg -> cfg.setSchemeColor(scheme, slot, picked))))).bounds(x, y, colW, 18).build());
             if (i % 2 == 1) {
                 y += 20;
             }
         }
         y += 4;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset to Real Map"), btn -> {
-                    LiveMapConfig cfg = LiveMapConfig.getInstance();
-                    cfg.resetScheme(scheme);
-                    cfg.save();
+                    change(cfg -> cfg.resetScheme(scheme));
                     rebuildWidgets();
                 }).bounds(rx, y, colW, 18).build());
         boolean armed = System.currentTimeMillis() - deleteArmedAt <= ARM_MS;
@@ -112,9 +108,7 @@ public class MapSchemeEditorScreen extends Screen implements MenuThemedScreen {
                         rebuildWidgets();
                         return;
                     }
-                    LiveMapConfig cfg = LiveMapConfig.getInstance();
-                    cfg.deleteScheme(scheme);
-                    cfg.save();
+                    change(cfg -> cfg.deleteScheme(scheme));
                     onClose();
                 }).bounds(rx + colW + 6, y, colW, 18).danger(armed).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
@@ -187,8 +181,8 @@ public class MapSchemeEditorScreen extends Screen implements MenuThemedScreen {
             int x1 = Math.round(ox + (box[0] + box[2]) * ppu);
             int y1 = Math.round(oy + (box[1] + box[3]) * ppu);
             r.fill(x0, y0, x1, y1, color);
-            if (d[3] == 1 && LiveMapConfig.getInstance().isWitherDoorOutline()) {
-                MapPainter.witherDoorOutline(r::outline, x0, y0, x1, y1, LiveMapConfig.getInstance());
+            if (d[3] == 1 && cfg.isWitherDoorOutline()) {
+                MapPainter.witherDoorOutline(r::outline, x0, y0, x1, y1, cfg);
             }
         }
         for (int[] t : TILES) {

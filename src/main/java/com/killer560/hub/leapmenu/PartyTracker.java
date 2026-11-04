@@ -169,8 +169,6 @@ public final class PartyTracker {
             remove(m.group(2));
         } else if (CLEARED.matcher(plain).matches()) {
             MEMBERS.clear();
-        } else {
-            return;
         }
     }
 
@@ -265,19 +263,13 @@ public final class PartyTracker {
     }
 
     private static DungeonClass parseClass(String raw) {
-        if (raw == null) {
-            return null;
-        }
-        return "Berserk".equalsIgnoreCase(raw) ? DungeonClass.BERSERKER : DungeonClass.byName(raw);
+        return raw == null ? null : "Berserk".equalsIgnoreCase(raw) ? DungeonClass.BERSERKER : DungeonClass.byName(raw);
     }
 
     private static void add(String name) {
-        for (String existing : MEMBERS) {
-            if (existing.equalsIgnoreCase(name)) {
-                return;
-            }
+        if (MEMBERS.stream().noneMatch(existing -> existing.equalsIgnoreCase(name))) {
+            MEMBERS.add(name);
         }
-        MEMBERS.add(name);
     }
 
     private static void remove(String name) {
@@ -292,19 +284,11 @@ public final class PartyTracker {
         // path hands over raw head names ("[MVP+] Name"). Un-normalized those would enter MEMBERS as a second,
         // never-matching "teammate", would match nobody in #teammatesInLeapOrder, and - when both paths poll the same
         // open menu - would make the two disagree about the stored order and save the config on every tick.
-        List<String> names = new ArrayList<>(namesInSlotOrder.size());
-        for (String raw : namesInSlotOrder) {
-            String name = leapIgn(raw);
-            if (!name.isEmpty()) {
-                names.add(name);
-            }
-        }
+        List<String> names = namesInSlotOrder.stream().map(PartyTracker::leapIgn).filter(n -> !n.isEmpty()).toList();
         if (names.isEmpty()) {
             return;
         }
-        for (String n : names) {
-            add(n);
-        }
+        names.forEach(PartyTracker::add);
         LeapMenuConfig cfg = LeapMenuConfig.getInstance();
         if (cfg.setLastLeapOrder(names)) {
             cfg.save();
@@ -344,13 +328,7 @@ public final class PartyTracker {
     public static List<String> teammates() {
         Minecraft client = Minecraft.getInstance();
         String self = client.player == null ? null : client.player.getGameProfile().name();
-        List<String> out = new ArrayList<>();
-        for (String n : MEMBERS) {
-            if (self == null || !n.equalsIgnoreCase(self)) {
-                out.add(n);
-            }
-        }
-        return out;
+        return MEMBERS.stream().filter(n -> self == null || !n.equalsIgnoreCase(self)).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     }
 
     /** True while the dungeon tab list shows this teammate as dead. */

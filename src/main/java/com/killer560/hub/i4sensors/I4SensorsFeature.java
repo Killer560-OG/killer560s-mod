@@ -135,10 +135,7 @@ public final class I4SensorsFeature {
         if (stormDeathClientTick < 0) {
             return false;
         }
-        if (goldorLineClientTick >= 0) {
-            return true;
-        }
-        return (clientTick - stormDeathClientTick) * 50L >= STORM_TO_GOLDOR_MS - leadMs;
+        return goldorLineClientTick >= 0 ? true : (clientTick - stormDeathClientTick) * 50L >= STORM_TO_GOLDOR_MS - leadMs;
     }
 
     /** Wall-clock ms of the last Storm death line (0 = none) - changes when a new timeline starts. */

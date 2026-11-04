@@ -192,10 +192,7 @@ final class PartyMapIntel {
 
     /** Network text in a log line: bounded, and never null. */
     private static String clip(String s) {
-        if (s == null) {
-            return "null";
-        }
-        return s.length() > 40 ? s.substring(0, 40) + "..." : s;
+        return s == null ? "null" : s.length() > 40 ? s.substring(0, 40) + "..." : s;
     }
 
     /** Snaps a wire (col,row) tile index to the nearest of the 6 even (room) slots per axis - the dungeon's
@@ -204,9 +201,7 @@ final class PartyMapIntel {
         if (col < 0 || col >= DungeonLayout.GRID || row < 0 || row >= DungeonLayout.GRID) {
             return null;
         }
-        int rc = Math.max(0, Math.min(DungeonLayout.GRID - 1, Math.round(col / 2f) * 2));
-        int rr = Math.max(0, Math.min(DungeonLayout.GRID - 1, Math.round(row / 2f) * 2));
-        return rr * DungeonLayout.GRID + rc;
+        return Math.round(row / 2f) * 2 * DungeonLayout.GRID + Math.round(col / 2f) * 2;
     }
 
     private static RoomEntry resolveEntry(String name) {

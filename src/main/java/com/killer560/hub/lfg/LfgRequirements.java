@@ -29,10 +29,8 @@ public final class LfgRequirements {
     /** One requirement: what the listing asks, what the player has (null when not known), and the verdict. */
     public record Check(String key, String label, int need, Double have, Result result) {
         public String describe() {
-            boolean pb = key.equals(LfgCategory.PB);
-            String needText = pb ? mmSs(need) : String.valueOf(need);
-            String haveText = have == null ? "?" : pb ? (have <= 0 ? "none" : mmSs((int) Math.round(have)))
-                    : (key.equals("cata") ? String.valueOf((int) Math.floor(have)) : String.valueOf(Math.round(have)));
+            String needText = needText();
+            String haveText = haveText("?");
             return switch (result) {
                 case MET -> "§a" + label + " " + needText + " (" + haveText + ")";
                 case UNMET -> "§c" + label + " " + needText + " (" + haveText + ")";
@@ -43,11 +41,16 @@ public final class LfgRequirements {
 
         /** Plain words for a chat line or a refusal: "Cata Level 30 (has 25)". */
         public String plain() {
-            boolean pb = key.equals(LfgCategory.PB);
-            String needText = pb ? mmSs(need) : String.valueOf(need);
-            String haveText = have == null ? "unknown" : pb ? (have <= 0 ? "none" : mmSs((int) Math.round(have)))
+            return label + " " + needText() + " (has " + haveText("unknown") + ")";
+        }
+
+        private String needText() {
+            return key.equals(LfgCategory.PB) ? mmSs(need) : String.valueOf(need);
+        }
+
+        private String haveText(String unknown) {
+            return have == null ? unknown : key.equals(LfgCategory.PB) ? (have <= 0 ? "none" : mmSs((int) Math.round(have)))
                     : (key.equals("cata") ? String.valueOf((int) Math.floor(have)) : String.valueOf(Math.round(have)));
-            return label + " " + needText + " (has " + haveText + ")";
         }
     }
 
@@ -111,10 +114,7 @@ public final class LfgRequirements {
             return new String[]{"normal", "floor_0"};
         }
         Matcher m = FLOOR.matcher(activity);
-        if (!m.matches()) {
-            return null;
-        }
-        return new String[]{m.group(1).equals("M") ? "master" : "normal", "floor_" + m.group(2)};
+        return !m.matches() ? null : new String[]{m.group(1).equals("M") ? "master" : "normal", "floor_" + m.group(2)};
     }
 
     /** The player's S+ PB on that floor in seconds, 0 when he has none. */
@@ -136,21 +136,11 @@ public final class LfgRequirements {
     }
 
     public static boolean anyUnmet(List<Check> checks) {
-        for (Check c : checks) {
-            if (c.result() == Result.UNMET) {
-                return true;
-            }
-        }
-        return false;
+        return checks.stream().anyMatch(c -> c.result() == Result.UNMET);
     }
 
     public static boolean anyUnknown(List<Check> checks) {
-        for (Check c : checks) {
-            if (c.result() == Result.UNKNOWN) {
-                return true;
-            }
-        }
-        return false;
+        return checks.stream().anyMatch(c -> c.result() == Result.UNKNOWN);
     }
 
     /** A create-form box's starting value from the player's own stats (killer560, 2026-10-18): Cata Level and Secrets from
