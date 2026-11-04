@@ -1683,6 +1683,11 @@ public final class BloodCampFeature {
             if (watcherEntityId != null && e.getId() == watcherEntityId) {
                 continue;
             }
+            // Nor do his parts (2026-11-03 run: zombie #250442 beside Watcher #250440 held a swing 25 ticks - "the watchful eye
+            // things"): anything invisible, or anything within 3 blocks of the Watcher.
+            if (e.isInvisible() || lastWatcherPos != null && e.position().distanceToSqr(lastWatcherPos) <= 9.0) {
+                continue;
+            }
             // The Watcher's margin is a projectile's own (a vanilla arrow collides with a box grown by 0.3), not the 0.6 kept
             // for every other thing in the room: owner's last mob 2026-11-03 (player #1135264 at 7.8 blocks) was held for 10
             // ticks by the Watcher standing near the line, then swung at 6.8 blocks and missed (hit=false).
