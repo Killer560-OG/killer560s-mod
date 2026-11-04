@@ -185,9 +185,7 @@ public final class RibbonTrailConfig {
      * this file does not exist yet, and leaves the Ribbon Trail off - nothing visible changes.
      */
     static void migrateFrom(JsonObject old, boolean wasRibbon, boolean trailWasOn) {
-        if (!wasRibbon && Files.exists(CONFIG_PATH)) {
-            return;
-        }
+        if (!wasRibbon && Files.exists(CONFIG_PATH)) return;
         RibbonTrailConfig cfg = new RibbonTrailConfig();
         cfg.read(old, "ribbonWidth");
         cfg.enabled = wasRibbon && trailWasOn;

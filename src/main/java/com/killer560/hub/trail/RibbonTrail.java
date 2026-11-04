@@ -373,9 +373,7 @@ public final class RibbonTrail {
     private void emit(PoseStack.Pose pose, VertexConsumer buffer) {
         Matrix4f m = pose.pose();
         for (int i = 0; i + 1 < vertPoints; i++) {
-            if (brk[i + 1]) {
-                continue;
-            }
+            if (brk[i + 1]) continue;
             int l0 = i * 14, r0 = l0 + 7, l1 = l0 + 14, r1 = l0 + 21;
             v(buffer, m, l0);
             v(buffer, m, r0);
@@ -402,18 +400,14 @@ public final class RibbonTrail {
                 return ChromaWave.hsv((1f - u) * 0.6f - chromaT, 1f, 1f);
             }
             case NAME_FADE: {
-                if (fadeEnds != null && fadeEnds.length >= 2) {
-                    return lerp(fadeEnds[fadeEnds.length - 1], fadeEnds[0], u);
-                }
+                if (fadeEnds != null && fadeEnds.length >= 2) return lerp(fadeEnds[fadeEnds.length - 1], fadeEnds[0], u);
                 break;
             }
             default:
                 break;
         }
         int[] c = spec.colors();
-        if (c.length >= 3) {
-            return u >= 0.5f ? lerp(c[1], c[0], (u - 0.5f) * 2f) : lerp(c[2], c[1], u * 2f);
-        }
+        if (c.length >= 3) return u >= 0.5f ? lerp(c[1], c[0], (u - 0.5f) * 2f) : lerp(c[2], c[1], u * 2f);
         return lerp(c[c.length - 1], c[0], u);
     }
 
@@ -428,9 +422,7 @@ public final class RibbonTrail {
 
     /** One [1 2 1] / 4 pass over the interior points; the two ends, and the ends of each piece split by a gap, stay put. */
     private static void smooth(double[] x, double[] y, double[] z, int n, boolean[] gap) {
-        if (n < 3) {
-            return;
-        }
+        if (n < 3) return;
         double prevX = x[0], prevY = y[0], prevZ = z[0];
         for (int i = 1; i < n - 1; i++) {
             double cx = x[i], cy = y[i], cz = z[i];

@@ -133,20 +133,14 @@ public final class RemoteTrails {
 
     private static void onWorldRender(LevelRenderContext context) {
         lastDrawnTrails = 0;
-        if (SLOTS.isEmpty() || !SupportersConfig.getInstance().isShowOthersTrails()) {
-            return;
-        }
+        if (SLOTS.isEmpty() || !SupportersConfig.getInstance().isShowOthersTrails()) return;
         ClientLevel level = Minecraft.getInstance().level;
-        if (level == null) {
-            return;
-        }
+        if (level == null) return;
         int drawn = 0;
         for (Iterator<Slot> it = SLOTS.values().iterator(); it.hasNext(); ) {
             Slot slot = it.next();
             Entity e = level.getEntity(slot.entityId);
-            if (!(e instanceof Player p) || slot.spec == null) {
-                continue;
-            }
+            if (!(e instanceof Player p) || slot.spec == null) continue;
             long before = slot.ribbon.frames();
             slot.ribbon.draw(context, p, slot.spec, slot.fadeEnds, false);
             if (slot.ribbon.frames() > before) {

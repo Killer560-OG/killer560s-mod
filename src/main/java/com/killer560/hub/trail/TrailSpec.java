@@ -63,45 +63,31 @@ public record TrailSpec(RibbonTrailConfig.ColorMode mode, int[] colors, float wi
     }
 
     private static JsonPrimitive number(float v) {
-        if (v == Math.rint(v)) {
-            return new JsonPrimitive((long) v);
-        }
+        if (v == Math.rint(v)) return new JsonPrimitive((long) v);
         return new JsonPrimitive(new java.math.BigDecimal(Float.toString(v)));
     }
 
     /** {@code trail} from a relay entry, or null when absent or not exactly the relay's shape and ranges. */
     public static TrailSpec fromJson(JsonElement el) {
         try {
-            if (el == null || !el.isJsonObject()) {
-                return null;
-            }
+            if (el == null || !el.isJsonObject()) return null;
             JsonObject o = el.getAsJsonObject();
-            if (!o.keySet().equals(KEYS)) {
-                return null;
-            }
+            if (!o.keySet().equals(KEYS)) return null;
             // Only a ribbon is drawn; a squares trail (older clients) is ignored.
-            if (!"ribbon".equals(string(o.get("style")))) {
-                return null;
-            }
+            if (!"ribbon".equals(string(o.get("style")))) return null;
             RibbonTrailConfig.ColorMode mode = switch (string(o.get("mode"))) {
                 case "gradient" -> RibbonTrailConfig.ColorMode.GRADIENT;
                 case "namefade" -> RibbonTrailConfig.ColorMode.NAME_FADE;
                 case "chroma" -> RibbonTrailConfig.ColorMode.CHROMA;
                 default -> null;
             };
-            if (mode == null || !o.get("colors").isJsonArray()) {
-                return null;
-            }
+            if (mode == null || !o.get("colors").isJsonArray()) return null;
             JsonArray arr = o.getAsJsonArray("colors");
-            if (arr.size() < 2 || arr.size() > 3) {
-                return null;
-            }
+            if (arr.size() < 2 || arr.size() > 3) return null;
             int[] colors = new int[arr.size()];
             for (int i = 0; i < colors.length; i++) {
                 double c = number(arr.get(i));
-                if (c != Math.rint(c) || c < 0 || c > 0xFFFFFF) {
-                    return null;
-                }
+                if (c != Math.rint(c) || c < 0 || c > 0xFFFFFF) return null;
                 colors[i] = (int) c;
             }
             double width = number(o.get("width"));
@@ -130,9 +116,7 @@ public record TrailSpec(RibbonTrailConfig.ColorMode mode, int[] colors, float wi
 
     /** A JSON number as a double, or NaN for anything else (which every range check above refuses). */
     private static double number(JsonElement e) {
-        if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isNumber()) {
-            return Double.NaN;
-        }
+        if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isNumber()) return Double.NaN;
         double d = e.getAsDouble();
         return Double.isFinite(d) ? d : Double.NaN;
     }

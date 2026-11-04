@@ -71,9 +71,7 @@ public final class TrailFeature {
     static int[] ownFadeEnds() {
         NameChangerConfig nc = NameChangerConfig.getInstance();
         int from = nc.getOwnColor();
-        if (from == NameColor.NONE) {
-            return null;
-        }
+        if (from == NameColor.NONE) return null;
         int to = nc.isOwnColorFadeEnabled() && nc.getOwnColorFadeTo() != NameColor.NONE ? nc.getOwnColorFadeTo() : from;
         return new int[]{from & 0xFFFFFF, to & 0xFFFFFF};
     }
@@ -132,12 +130,8 @@ public final class TrailFeature {
             RibbonTrail.LOCAL.draw(context, client.player, localSpec(), localFadeEnds, hidden);
         }
         TrailConfig cfg = TrailConfig.getInstance();
-        if (!cfg.isEnabled() || SQUARES.size() == 0) {
-            return;
-        }
-        if (!cfg.isShowInFirstPerson() && client.options.getCameraType().isFirstPerson()) {
-            return;
-        }
+        if (!cfg.isEnabled() || SQUARES.size() == 0) return;
+        if (!cfg.isShowInFirstPerson() && client.options.getCameraType().isFirstPerson()) return;
         SQUARES.render(context, cfg.getLength(), cfg.getSquareSize(), cfg.getOpacityPercent(), cfg.isFadeOut());
     }
 

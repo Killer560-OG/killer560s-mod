@@ -57,9 +57,7 @@ final class SquareTrail {
 
     /** The newest square's position ({@code fromNewest} 0) or an older one's, as x y z; null past what is held. */
     double[] position(int fromNewest) {
-        if (fromNewest < 0 || fromNewest >= size) {
-            return null;
-        }
+        if (fromNewest < 0 || fromNewest >= size) return null;
         int idx = Math.floorMod(head - 1 - fromNewest, TrailConfig.MAX_LENGTH);
         return new double[]{xs[idx], ys[idx], zs[idx]};
     }
@@ -109,9 +107,7 @@ final class SquareTrail {
      *  Returns how many were drawn. */
     int render(LevelRenderContext context, int length, float squareSize, int opacityPercent, boolean fade) {
         int visible = Math.min(size, length);
-        if (visible <= 0) {
-            return 0;
-        }
+        if (visible <= 0) return 0;
         float half = squareSize / 2f;
         float baseAlpha = opacityPercent / 100f;
         int drawn = 0;
@@ -122,9 +118,7 @@ final class SquareTrail {
             if (fade && visible > 1) {
                 alpha *= 1f - ((float) i / (visible - 1));
             }
-            if (alpha <= 0.01f) {
-                continue;
-            }
+            if (alpha <= 0.01f) continue;
             float[] rgb = grounded[idx] ? GROUNDED_RGB : AIRBORNE_RGB;
             double x = xs[idx];
             double y = ys[idx];
