@@ -24,14 +24,10 @@ public final class ModUsers {
     private ModUsers() {
     }
 
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
     /** The variant a player shows as ("legit" or "cheat"), or null when they show nothing. */
-    public static String variantOf(String name) {
-        return name == null ? null : SHOWN.get(name);
-    }
+    public static String variantOf(String name) { return name == null ? null : SHOWN.get(name); }
 
     /** Called on the relay welcome: the full list of who shows. */
     public static void onWelcome(JsonObject mods) {
@@ -66,9 +62,7 @@ public final class ModUsers {
         version++;
     }
 
-    private static boolean validVariant(String v) {
-        return "legit".equals(v) || "cheat".equals(v);
-    }
+    private static boolean validVariant(String v) { return "legit".equals(v) || "cheat".equals(v); }
 
     /** A Minecraft name: 1-16 of letters, digits, underscore. */
     private static boolean validName(String name) {
