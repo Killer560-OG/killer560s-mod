@@ -1,6 +1,7 @@
 package com.killer560.hub.social;
 
 import com.killer560.hub.gui.CommitEditBox;
+import com.killer560.hub.gui.DropdownWidget;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
@@ -42,12 +43,19 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     private static final int THUMB_MIN_H = 16;
     private static final int INVITE_W = 40;
     private static final int INVITE_H = 14;
+    private static final int PV_W = 24;
+    private static final int PV_GAP = 3;
+    static final String ALL_AREAS = "All";
+    /** The area the list is narrowed to ("All" = everyone), kept for the whole game session. */
+    private static String areaFilter = ALL_AREAS;
     /** The status line's own strip between the list and the panel's bottom edge (or the detail page's button bar):
      *  it used to be drawn 20 px above the panel's bottom, which is inside the list, over its last row
      *  (killer560, 2026-10-08: "it is overlapping the bottom player"). */
     private static final int STATUS_H = 12;
 
     private final Screen parent;
+    /** The areas the drop-down was built with; a change rebuilds it. */
+    private List<String> shownAreas = List.of();
     private com.killer560.hub.gui.CommitEditBox addBox;
     private com.killer560.hub.gui.CommitEditBox noteBox;
     /** The search text (kept across a rebuild). Since 1c0f3686 the search box is {@link #addBox}. */
@@ -123,6 +131,26 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
         refresh();
 
+        if (selected == null) {
+            shownAreas = areasOf(FriendsListConfig.getInstance().friends());
+            if (!ALL_AREAS.equals(areaFilter) && !shownAreas.contains(areaFilter)) {
+                areaFilter = ALL_AREAS; // nobody is there any more
+                refresh();
+            }
+            List<DropdownWidget.Option<String>> opts = new java.util.ArrayList<>();
+            opts.add(DropdownWidget.Option.of(ALL_AREAS, ALL_AREAS));
+            for (String a : shownAreas) {
+                opts.add(DropdownWidget.Option.of(a, a));
+            }
+            int labelW = this.font.width("Filter by") + 6;
+            addRenderableWidget(DropdownWidget.of(panelX + 6 + labelW, panelY + 58, Math.min(panelW - 12 - labelW, 200), 18,
+                    opts, areaFilter, a -> {
+                        areaFilter = a;
+                        scroll = 0;
+                        refresh();
+                    }).within(this.width, this.height));
+        }
+
         if (selected != null) {
             int barY = panelY + panelH - 40;
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Remove"), btn -> {
@@ -166,12 +194,68 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     private void refresh() {
         List<FriendsListConfig.Friend> all = FriendsListConfig.getInstance().friends();
         // Called every frame: the filtered copy is rebuilt only when the list or the search text changed.
-        if (all == filteredFrom && searchQuery.equals(filteredQuery)) {
+        if (all == filteredFrom && searchQuery.equals(filteredQuery) && areaFilter.equals(filteredArea)) {
             return;
         }
         filteredFrom = all;
         filteredQuery = searchQuery;
-        visible = filter(all, searchQuery);
+        filteredArea = areaFilter;
+        visible = inArea(filter(all, searchQuery), areaFilter);
+    }
+
+    private String filteredArea;
+
+    /** What a friend is doing when they are online, else null: an offline friend (or a stale line) has no area. */
+    static String areaOf(FriendsListConfig.Friend f) {
+        if (f == null || f.activity == null || f.activity.isBlank() || "Offline".equalsIgnoreCase(f.activity.trim())) {
+            return null;
+        }
+        if (Boolean.FALSE.equals(f.onlineHint)) {
+            return null;
+        }
+        return f.activity.trim();
+    }
+
+    /** The distinct areas friends are in right now, sorted; nothing for an area nobody is in. */
+    static List<String> areasOf(List<FriendsListConfig.Friend> all) {
+        java.util.TreeSet<String> set = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (FriendsListConfig.Friend f : all) {
+            String a = areaOf(f);
+            if (a != null) {
+                set.add(a);
+            }
+        }
+        return new java.util.ArrayList<>(set);
+    }
+
+    /** Only the friends in {@code area}; everyone for "All". */
+    static List<FriendsListConfig.Friend> inArea(List<FriendsListConfig.Friend> list, String area) {
+        if (area == null || ALL_AREAS.equals(area)) {
+            return list;
+        }
+        List<FriendsListConfig.Friend> out = new java.util.ArrayList<>();
+        for (FriendsListConfig.Friend f : list) {
+            if (area.equals(areaOf(f))) {
+                out.add(f);
+            }
+        }
+        return out;
+    }
+
+    /** The command a row's /pv button sends (without the slash), or null for a name that is not a valid username. */
+    static String pvCommand(String name) {
+        return name != null && name.matches("[A-Za-z0-9_]{1,16}") ? "pv " + name : null;
+    }
+
+    private void profileView(FriendsListConfig.Friend f) {
+        String cmd = f == null ? null : pvCommand(f.name);
+        if (cmd != null && com.killer560.hub.util.ServerCommands.toServer(cmd)) {
+            statusMessage = "Sent /" + cmd;
+            statusColor = ModChat.DIM;
+        } else {
+            statusMessage = "Could not send /pv.";
+            statusColor = ModChat.BAD;
+        }
     }
 
     private List<FriendsListConfig.Friend> filteredFrom;
@@ -194,6 +278,16 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
     /** Typing on the list with no box focused goes into the search box, so just typing a name narrows the list. The
      *  search box is the Add box since 1c0f3686, which had left this pointing at a box that no longer existed. */
+    @Override
+    public void tick() {
+        super.tick();
+        // The area list follows the friends data, but never rebuilds under an open list.
+        if (selected == null && DropdownWidget.openOne() == null
+                && !areasOf(FriendsListConfig.getInstance().friends()).equals(shownAreas)) {
+            rebuildWidgets();
+        }
+    }
+
     @Override
     public boolean charTyped(net.minecraft.client.input.CharacterEvent event) {
         if (addBox != null && selected == null && !(getFocused() instanceof EditBox)) {
@@ -270,6 +364,13 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         scroll = (int) Math.round(Math.max(0, Math.min(1, frac)) * maxScroll());
     }
 
+    private boolean overPv(int rowIndex, double mx, double my) {
+        int rowY = listY + rowIndex * ROW_H - scroll;
+        int bx = rowRight() - 3 - INVITE_W - PV_GAP - PV_W;
+        int by = rowY + (ROW_H - INVITE_H) / 2;
+        return mx >= bx && mx < bx + PV_W && my >= by && my < by + INVITE_H;
+    }
+
     private boolean overInvite(int rowIndex, double mx, double my) {
         int rowY = listY + rowIndex * ROW_H - scroll;
         int bx = rowRight() - 3 - INVITE_W;
@@ -279,6 +380,9 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (DropdownWidget.clickOpen(event)) {
+            return true;
+        }
         if (selected == null && com.killer560.hub.compat.McInput.button(event) == 0 && overTrack(event.x(), event.y())) {
             int ty = thumbY();
             int th = thumbHeight();
@@ -292,6 +396,10 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
             FriendsListConfig.Friend hit = rowAt(event.x(), event.y());
             if (hit != null && overInvite(visible.indexOf(hit), event.x(), event.y())) {
                 invite(hit);
+                return true;
+            }
+            if (hit != null && overPv(visible.indexOf(hit), event.x(), event.y())) {
+                profileView(hit);
                 return true;
             }
             if (hit != null) {
@@ -336,6 +444,9 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (DropdownWidget.scrollOpen(mouseX, mouseY, scrollY)) {
+            return true;
+        }
         if (selected == null && mouseX >= listX && mouseX <= listX + listW && mouseY >= listY && mouseY <= listY + listH) {
             scroll = Math.max(0, Math.min(maxScroll(), scroll - (int) Math.round(scrollY * ROW_H)));
             return true;
@@ -385,7 +496,20 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
                     FriendsListSync.isSyncing() || statusMessage.isEmpty() ? MenuStyle.DIM
                             : statusColor == ModChat.BAD ? MenuStyle.RED : MenuStyle.DIM);
         }
-        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        if (selected == null) {
+            ScreenChrome.text(graphics, "Filter by", panelX + 6, panelY + 58 + (18 - this.font.lineHeight) / 2, MenuStyle.TXT);
+        }
+        boolean covered = DropdownWidget.coversMouse(mouseX, mouseY);
+        super.extractRenderState(graphics, covered ? -1 : mouseX, covered ? -1 : mouseY, partialTick);
+        DropdownWidget.extractOpen(graphics, mouseX, mouseY);
+    }
+
+    @Override
+    public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        if (DropdownWidget.keyOpen(event)) {
+            return true;
+        }
+        return super.keyPressed(event);
     }
 
     /** Left edge of the status line. */
@@ -432,7 +556,9 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
     private void drawList(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         if (visible.isEmpty()) {
-            String msg = !searchQuery.isBlank() && !FriendsListConfig.getInstance().friends().isEmpty()
+            String msg = !ALL_AREAS.equals(areaFilter) && searchQuery.isBlank() && !FriendsListConfig.getInstance().friends().isEmpty()
+                    ? "No friends in " + areaFilter + "."
+                    : !searchQuery.isBlank() && !FriendsListConfig.getInstance().friends().isEmpty()
                     ? "No friends match \"" + searchQuery.trim() + "\"."
                     : FriendsListConfig.getInstance().isEverSynced()
                     ? "No friends on your real Hypixel list."
@@ -462,6 +588,10 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
             int by = rowY + (ROW_H - INVITE_H) / 2;
             boolean inviteHot = overInvite(i, mouseX, mouseY) && mouseY >= listY && mouseY < listY + listH;
             ScreenChrome.button(graphics, bx, by, INVITE_W, INVITE_H, "Invite", inviteHot, false);
+            int pvX = bx - PV_GAP - PV_W;
+            boolean pvHot = overPv(i, mouseX, mouseY) && mouseY >= listY && mouseY < listY + listH;
+            ScreenChrome.button(graphics, pvX, by, PV_W, INVITE_H, "/pv", pvHot, false);
+            bx = pvX;
 
             int lineY1 = rowY + 2;
             int lineY2 = rowY + 12;
