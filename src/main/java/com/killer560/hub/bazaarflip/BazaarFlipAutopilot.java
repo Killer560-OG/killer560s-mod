@@ -1466,41 +1466,10 @@ final class BazaarFlipAutopilot {
         if (!BazaarFlipFeature.paced()) {
             return;
         }
-        String[] lines = ((SignEditScreenAccessor) sign).killer560smod$getMessages();
-        if (!BazaarFlipFeature.isAmountSign(lines)) {
-            fail("the sign that opened is not Hypixel's amount prompt: " + Arrays.toString(lines));
-            return;
-        }
-        if (!lines[0].isEmpty()) {
-            fail("the amount sign's first line already holds \"" + lines[0] + "\"");
-            return;
-        }
-        Button doneButton = null;
-        for (GuiEventListener child : sign.children()) {
-            if (child instanceof Button b && b.getMessage().getString().equals(CommonComponents.GUI_DONE.getString())) {
-                doneButton = b;
-            }
-        }
-        if (doneButton == null) {
-            fail("the amount sign has no Done button");
-            return;
-        }
-        if (!ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_CMD)) {
-            return; // retried next tick
-        }
         String text = Long.toString(signAmount);
-        for (int i = 0; i < text.length(); i++) {
-            sign.charTyped(new CharacterEvent(text.charAt(i)));
-        }
-        String typed = ((SignEditScreenAccessor) sign).killer560smod$getMessages()[0];
-        if (!text.equals(typed)) {
-            for (int i = 0; i < typed.length(); i++) {
-                sign.keyPressed(new KeyEvent(InputConstants.KEY_BACKSPACE, 0, 0));
-            }
-            fail("typing " + text + " into the amount sign left \"" + typed + "\" - nothing was sent");
+        if (!BazaarFlipFeature.typeAmount(sign, text, BazaarFlipAutopilot::fail)) {
             return;
         }
-        doneButton.onPress(new KeyEvent(InputConstants.KEY_RETURN, 0, 0));
         lastStepAtMs = now;
         LOGGER.info("[BazaarFlip] Autopilot typed {} into the amount sign", text);
         BazaarFlipFeature.delayNext(BazaarFlipFeature.randomDelay(cfg));

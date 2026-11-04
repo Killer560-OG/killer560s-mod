@@ -1020,6 +1020,49 @@ public final class BazaarFlipFeature {
         }
     }
 
+    /**
+     * Types {@code text} into Hypixel's amount sign and presses Done. Returns false, after calling {@code fail} with the
+     * reason, when the sign is not the amount prompt, holds text, has no Done button or did not take the text; a lost
+     * action gate also returns false, without calling {@code fail} (retried next tick).
+     */
+    static boolean typeAmount(AbstractSignEditScreen sign, String text, java.util.function.Consumer<String> fail) {
+        String[] lines = ((SignEditScreenAccessor) sign).killer560smod$getMessages();
+        if (!isAmountSign(lines)) {
+            fail.accept("the sign that opened is not Hypixel's amount prompt: " + Arrays.toString(lines));
+            return false;
+        }
+        if (!lines[0].isEmpty()) {
+            fail.accept("the amount sign's first line already holds \"" + lines[0] + "\"");
+            return false;
+        }
+        Button done = null;
+        for (GuiEventListener child : sign.children()) {
+            if (child instanceof Button b && b.getMessage().getString().equals(CommonComponents.GUI_DONE.getString())) {
+                done = b;
+            }
+        }
+        if (done == null) {
+            fail.accept("the amount sign has no Done button");
+            return false;
+        }
+        if (!ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_CMD)) {
+            return false; // retried next tick
+        }
+        for (int i = 0; i < text.length(); i++) {
+            sign.charTyped(new CharacterEvent(text.charAt(i)));
+        }
+        String typed = ((SignEditScreenAccessor) sign).killer560smod$getMessages()[0];
+        if (!text.equals(typed)) {
+            for (int i = 0; i < typed.length(); i++) {
+                sign.keyPressed(new KeyEvent(InputConstants.KEY_BACKSPACE, 0, 0));
+            }
+            fail.accept("typing " + text + " into the amount sign left \"" + typed + "\" - nothing was sent");
+            return false;
+        }
+        done.onPress(new KeyEvent(InputConstants.KEY_RETURN, 0, 0));
+        return true;
+    }
+
     /** Whether the sign is Hypixel's amount prompt: carets under the input line, then "Enter amount". */
     static boolean isAmountSign(String[] lines) {
         return lines != null && lines.length == 4 && SIGN_CARETS.matcher(lines[1].trim()).matches()
@@ -1043,41 +1086,10 @@ public final class BazaarFlipFeature {
         if (now < nextActionAtMs) {
             return;
         }
-        String[] lines = ((SignEditScreenAccessor) sign).killer560smod$getMessages();
-        if (!isAmountSign(lines)) {
-            stop("the sign that opened is not Hypixel's amount prompt: " + Arrays.toString(lines));
-            return;
-        }
-        if (!lines[0].isEmpty()) {
-            stop("the amount sign's first line already holds \"" + lines[0] + "\"");
-            return;
-        }
-        Button done = null;
-        for (GuiEventListener child : sign.children()) {
-            if (child instanceof Button b && b.getMessage().getString().equals(CommonComponents.GUI_DONE.getString())) {
-                done = b;
-            }
-        }
-        if (done == null) {
-            stop("the amount sign has no Done button");
-            return;
-        }
-        if (!ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_CMD)) {
-            return; // retried next tick
-        }
         String text = Integer.toString(customAmount);
-        for (int i = 0; i < text.length(); i++) {
-            sign.charTyped(new CharacterEvent(text.charAt(i)));
-        }
-        String typed = ((SignEditScreenAccessor) sign).killer560smod$getMessages()[0];
-        if (!text.equals(typed)) {
-            for (int i = 0; i < typed.length(); i++) {
-                sign.keyPressed(new KeyEvent(InputConstants.KEY_BACKSPACE, 0, 0));
-            }
-            stop("typing " + text + " into the amount sign left \"" + typed + "\" - nothing was sent");
+        if (!typeAmount(sign, text, BazaarFlipFeature::stop)) {
             return;
         }
-        done.onPress(new KeyEvent(InputConstants.KEY_RETURN, 0, 0));
         LOGGER.info("[BazaarFlip] Typed {} into the amount sign and pressed Done", text);
         custom = Custom.AFTER_SIGN;
         pendingBuy = true;
