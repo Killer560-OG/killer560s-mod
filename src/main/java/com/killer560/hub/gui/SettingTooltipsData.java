@@ -199,7 +199,7 @@ final class SettingTooltipsData {
         d.put("powder break sounds/volume", "Volume of the custom break sound, 0.1 to 2.0.");
         d.put("powder break sounds/pitch", "Pitch of the custom break sound, 0.5 to 2.0.");
         d.put("powder break sounds/test", "Plays the custom sound once with the current volume and pitch.");
-        d.put("dark stone", "On the mining islands, darkens stone, cobblestone, andesite, diorite, granite, deepslate, tuff and ice, and the stone part of ores (their colored specks stay), from your current textures. Gemstones and Titanium are not touched.");
+        d.put("dark stone", "On the mining islands, darkens stone, cobblestone, andesite, diorite, granite, deepslate, tuff, ice and clay, and the stone part of ores (their colored specks stay), from your current textures. Gemstones and Titanium are not touched.");
         d.put("dark stone/darkness", "How dark the stone gets, from 10% to 90%.");
         d.put("dark stone/darken mithril too", "Also darkens mithril blocks (gray and light blue wool, prismarine, cyan terracotta). Off keeps mithril bright.");
         d.put("carpet highlighter", "In the Dwarven Mines, fills the unbreakable carpets in ore veins so you stop swinging at them.");

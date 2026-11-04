@@ -45,7 +45,7 @@ public final class DarkStone {
     /** Stone-type textures (block atlas names without the "block/" prefix). Polished diorite is Titanium: not here. */
     private static final String[] STONE = {"stone", "cobblestone", "smooth_stone", "andesite", "polished_andesite", "diorite",
         "granite", "polished_granite", "deepslate", "deepslate_top", "cobbled_deepslate", "polished_deepslate",
-        "deepslate_bricks", "tuff", "packed_ice", "blue_ice"};
+        "deepslate_bricks", "tuff", "packed_ice", "blue_ice", "clay"};
 
     /** Mithril textures: only with Darken Mithril Too. */
     private static final String[] MITHRIL = {"gray_wool", "light_blue_wool", "prismarine_bricks", "dark_prismarine",
