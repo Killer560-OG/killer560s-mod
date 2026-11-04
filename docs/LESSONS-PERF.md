@@ -83,3 +83,4 @@ How to measure the mod's frame and tick cost, and the per-call waste that measur
 - In a gametest client quiet frames reached 51.5 ms in 200 ticks (1026-stutter-hooks, 2026-10-26, other clients running),
   so the "nothing fires on quiet frames" check uses a 500 ms threshold.
 
+- A chat-hider rule written as `(?i).*a.*b.*` with matches() is quadratic: ObjectHider ran two of them on every chat line on the packet path (~0.4 s for 10k chars). Write it as a one-pass indexOf function (single line, ASCII case-insensitive) and compare it with the old regex in a testkit case (scanaudit-1104, 1104-logic-scanaudit). Bound every digit group of a chat pattern that feeds parseInt/parseLong to {1,9}. A static scan for unused assets or tooltip keys reports false positives for names built at run time; do not delete from it alone.
