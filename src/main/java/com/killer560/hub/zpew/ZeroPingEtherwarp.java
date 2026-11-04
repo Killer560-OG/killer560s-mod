@@ -772,10 +772,6 @@ public final class ZeroPingEtherwarp {
         return extraSent;
     }
 
-    public static long extraWarpsStopped() {
-        return extraStopped;
-    }
-
     public static int maxUsesInOneTick() {
         return maxUsesInOneTick;
     }
