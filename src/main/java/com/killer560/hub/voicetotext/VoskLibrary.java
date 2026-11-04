@@ -249,9 +249,7 @@ public final class VoskLibrary {
     }
 
     /** The loader Vosk was defined by - for checks, not for use. */
-    public ClassLoader classLoader() {
-        return loader;
-    }
+    public ClassLoader classLoader() { return loader; }
 
     private interface Call {
         Object run() throws ReflectiveOperationException;

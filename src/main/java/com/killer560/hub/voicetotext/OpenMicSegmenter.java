@@ -56,9 +56,7 @@ public final class OpenMicSegmenter {
     private long lastVoiceAt;
     private long voicedMs;
 
-    public OpenMicSegmenter(long silenceMs) {
-        this.silenceMs = Math.max(200, silenceMs);
-    }
+    public OpenMicSegmenter(long silenceMs) { this.silenceMs = Math.max(200, silenceMs); }
 
     /** Feed one chunk of 16 kHz 16-bit little-endian mono PCM that ended at {@code nowMs}. */
     public Result feed(byte[] buf, int len, long nowMs) {

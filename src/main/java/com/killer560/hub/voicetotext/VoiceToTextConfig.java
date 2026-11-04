@@ -117,61 +117,33 @@ public final class VoiceToTextConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public Mode getMode() {
-        return mode;
-    }
+    public Mode getMode() { return mode; }
 
-    public void setMode(Mode mode) {
-        this.mode = mode == null ? Mode.PUSH_TO_TALK : mode;
-    }
+    public void setMode(Mode mode) { this.mode = mode == null ? Mode.PUSH_TO_TALK : mode; }
 
-    public int getPushToTalkKeyCode() {
-        return pushToTalkKeyCode;
-    }
+    public int getPushToTalkKeyCode() { return pushToTalkKeyCode; }
 
-    public void setPushToTalkKeyCode(int pushToTalkKeyCode) {
-        this.pushToTalkKeyCode = pushToTalkKeyCode;
-    }
+    public void setPushToTalkKeyCode(int pushToTalkKeyCode) { this.pushToTalkKeyCode = pushToTalkKeyCode; }
 
-    public String getMicrophone() {
-        return microphone;
-    }
+    public String getMicrophone() { return microphone; }
 
-    public void setMicrophone(String microphone) {
-        this.microphone = microphone == null ? "" : microphone;
-    }
+    public void setMicrophone(String microphone) { this.microphone = microphone == null ? "" : microphone; }
 
-    public boolean isShowStatusHud() {
-        return showStatusHud;
-    }
+    public boolean isShowStatusHud() { return showStatusHud; }
 
-    public void setShowStatusHud(boolean showStatusHud) {
-        this.showStatusHud = showStatusHud;
-    }
+    public void setShowStatusHud(boolean showStatusHud) { this.showStatusHud = showStatusHud; }
 
-    public int getOpenMicSilenceMs() {
-        return openMicSilenceMs;
-    }
+    public int getOpenMicSilenceMs() { return openMicSilenceMs; }
 
-    public void setOpenMicSilenceMs(int ms) {
-        this.openMicSilenceMs = clampSilence(ms);
-    }
+    public void setOpenMicSilenceMs(int ms) { this.openMicSilenceMs = clampSilence(ms); }
 
-    private static int clampSilence(int ms) {
-        return Math.max(MIN_OPEN_MIC_SILENCE_MS, Math.min(MAX_OPEN_MIC_SILENCE_MS, ms));
-    }
+    private static int clampSilence(int ms) { return Math.max(MIN_OPEN_MIC_SILENCE_MS, Math.min(MAX_OPEN_MIC_SILENCE_MS, ms)); }
 
-    public ChatDestination getChatDestination() {
-        return chatDestination;
-    }
+    public ChatDestination getChatDestination() { return chatDestination; }
 
     public void setChatDestination(ChatDestination chatDestination) {
         this.chatDestination = chatDestination == null ? ChatDestination.PARTY : chatDestination;

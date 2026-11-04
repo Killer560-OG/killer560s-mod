@@ -285,13 +285,9 @@ public final class VoiceToTextFeature {
     }
 
     /** {@code config/killer560/social/voicetotext/killer560smod-voice-model/}: the model folder and the engine jar. */
-    private static Path voiceDirectory() {
-        return ModPaths.config("killer560smod-voice-model");
-    }
+    private static Path voiceDirectory() { return ModPaths.config("killer560smod-voice-model"); }
 
-    private static Path modelDirectory() {
-        return voiceDirectory().resolve(MODEL_DIR_NAME);
-    }
+    private static Path modelDirectory() { return voiceDirectory().resolve(MODEL_DIR_NAME); }
 
     /** Caps for the Vosk model archive (2026-09-16 security pass). The real small-English model is about
      *  50 MB zipped; these only ever fire on a hostile or broken response. */
@@ -550,13 +546,9 @@ public final class VoiceToTextFeature {
         return finished;
     }
 
-    public static long testSent() {
-        return sent.get();
-    }
+    public static long testSent() { return sent.get(); }
 
-    public static long testIgnored() {
-        return ignored.get();
-    }
+    public static long testIgnored() { return ignored.get(); }
 
     /** @param restartIfOpenMic whether to start listening again once this utterance is transcribed and sent -
      *  true for Open Mic's own silence-triggered cut, false for a Push-to-Talk release or a shutdown (the
