@@ -974,13 +974,8 @@ public final class BazaarFlipFeature {
 
     /** "Buy up to 71,680x." off Custom Amount, or -1. */
     static long loreBuyUpTo(List<String> lore) {
-        for (String line : lore) {
-            Matcher m = BUY_UP_TO.matcher(line);
-            if (m.matches()) {
-                return Long.parseLong(m.group(1).replace(",", ""));
-            }
-        }
-        return -1;
+        return lore.stream().map(BUY_UP_TO::matcher).filter(Matcher::matches)
+                .mapToLong(m -> Long.parseLong(m.group(1).replace(",", ""))).findFirst().orElse(-1);
     }
 
     /** Custom Amount was clicked: the next thing up must be Hypixel's amount sign. */
@@ -1152,11 +1147,10 @@ public final class BazaarFlipFeature {
         for (Slot slot : BazaarFlipMenus.menuSlots(screen.getMenu())) {
             ItemStack stack = slot.getItem();
             String name = BazaarFlipMenus.nameOf(stack);
-            if (stack.isEmpty() || name.isBlank()) {
-                continue;
+            if (!stack.isEmpty() && !name.isBlank()) {
+                out.add(new BazaarPages.Item(slot.index, name,
+                        com.killer560.hub.croesus.DungeonChestValuer.cleanLore(stack), false));
             }
-            out.add(new BazaarPages.Item(slot.index, name,
-                    com.killer560.hub.croesus.DungeonChestValuer.cleanLore(stack), false));
         }
         return out;
     }
@@ -1164,10 +1158,7 @@ public final class BazaarFlipFeature {
     /** Buying is over for this cycle: sell what was bought, or stop if that was nothing. */
     private static void doneBuying(String why) {
         Minecraft client = Minecraft.getInstance();
-        int bought = 0;
-        if (target != null && carriedAtStart >= 0) {
-            bought = carried(client) - carriedAtStart;
-        }
+        int bought = target != null && carriedAtStart >= 0 ? carried(client) - carriedAtStart : 0;
         // Diagnostic (2026-10-18: flips ended with purse and inventory room left): the three limits at the moment buying stops.
         if (target != null && client.player != null) {
             LOGGER.info("[BazaarFlip] Buying ends ({}): bought {} of {}, purse {}, free room {}, NPC sell room {} coins",
@@ -1302,7 +1293,7 @@ public final class BazaarFlipFeature {
 
     /** Hypixel said the daily NPC sell limit is reached: no more buying; whatever was bought stays unsold. */
     private static void onNpcLimit(Minecraft client) {
-        if (state == State.SELL && sellPendingSlot >= 0) {
+        if (state == State.SELL) {
             sellPendingSlot = -1;
         }
         if (state == State.BAZAAR || state == State.OPEN_TRADES || state == State.WAIT_TRADES_MENU || state == State.SELL) {
@@ -1330,10 +1321,7 @@ public final class BazaarFlipFeature {
      */
     static boolean click(Minecraft client, AbstractContainerScreen<?> screen, int slotIndex,
                                  ContainerInput input, BazaarFlipConfig cfg, boolean changesPage) {
-        if (client.gameMode == null || client.player == null) {
-            return false;
-        }
-        if (!ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_MENU, screen)) {
+        if (client.gameMode == null || client.player == null || !ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_MENU, screen)) {
             return false;
         }
         if (changesPage) {
@@ -1421,12 +1409,12 @@ public final class BazaarFlipFeature {
         if (topUpExtra(room, sellable, readPurse()) < 1) {
             return false;
         }
-        if (!sendCommand("bz " + target.displayName())) {
-            return false;
+        if (sendCommand("bz " + target.displayName())) {
+            setState(State.WAIT_BAZAAR_MENU);
+            LOGGER.info("[BazaarFlip] Bazaar did not reopen with {} units to top up - sent /bz again", target.productId());
+            return true;
         }
-        setState(State.WAIT_BAZAAR_MENU);
-        LOGGER.info("[BazaarFlip] Bazaar did not reopen with {} units to top up - sent /bz again", target.productId());
-        return true;
+        return false;
     }
 
     /** How many more units of this cycle's product the purse and the free room still cover, after the planned units
