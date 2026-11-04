@@ -52,9 +52,7 @@ public final class PriceTooltipFeature {
     }
 
     /** Settings or the museum changed: every cached tooltip is rebuilt on its next frame. */
-    public static void invalidate() {
-        SETTINGS_STAMP.incrementAndGet();
-    }
+    public static void invalidate() { SETTINGS_STAMP.incrementAndGet(); }
 
     /**
      * {@code lines} with this feature's lines appended, or null to leave the tooltip as it is (off, not a Skyblock
@@ -280,7 +278,5 @@ public final class PriceTooltipFeature {
     }
 
     /** Testkit: pretend Shift is (true) or is not (false) held; null goes back to the keyboard. */
-    public static void setShiftForTest(Boolean down) {
-        shiftOverride = down;
-    }
+    public static void setShiftForTest(Boolean down) { shiftOverride = down; }
 }

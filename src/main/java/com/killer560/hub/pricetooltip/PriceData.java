@@ -117,33 +117,21 @@ public final class PriceData {
     // ------------------------------------------------------------------ reads (any thread, cheap)
 
     /** Bumped whenever any map is swapped, so cached tooltip lines know to rebuild. */
-    public static long generation() {
-        return GENERATION.get();
-    }
+    public static long generation() { return GENERATION.get(); }
 
-    public static ItemInfo item(String id) {
-        return id == null ? null : items.get(id);
-    }
+    public static ItemInfo item(String id) { return id == null ? null : items.get(id); }
 
-    public static Double bazaarBuy(String id) {
-        return id == null ? null : bazaarBuy.get(id);
-    }
+    public static Double bazaarBuy(String id) { return id == null ? null : bazaarBuy.get(id); }
 
-    public static Double bazaarSell(String id) {
-        return id == null ? null : bazaarSell.get(id);
-    }
+    public static Double bazaarSell(String id) { return id == null ? null : bazaarSell.get(id); }
 
     public static boolean isBazaarProduct(String id) {
         return id != null && (bazaarBuy.containsKey(id) || bazaarSell.containsKey(id));
     }
 
-    public static Double lowestBin(String key) {
-        return key == null ? null : lowestBin.get(key);
-    }
+    public static Double lowestBin(String key) { return key == null ? null : lowestBin.get(key); }
 
-    public static Double average(String key, int days) {
-        return key == null ? null : (days <= 1 ? average1 : average3).get(key);
-    }
+    public static Double average(String key, int days) { return key == null ? null : (days <= 1 ? average1 : average3).get(key); }
 
     /**
      * What one unit of {@code id} costs to buy for Est. Item Value: the Bazaar's instant-buy price, else its
@@ -166,25 +154,15 @@ public final class PriceData {
         return v == null || v <= 0 ? 0 : v;
     }
 
-    public static int bazaarCount() {
-        return bazaarBuy.size();
-    }
+    public static int bazaarCount() { return bazaarBuy.size(); }
 
-    public static int lowestBinCount() {
-        return lowestBin.size();
-    }
+    public static int lowestBinCount() { return lowestBin.size(); }
 
-    public static long pricesFetchedAt() {
-        return pricesFetchedAt;
-    }
+    public static long pricesFetchedAt() { return pricesFetchedAt; }
 
-    public static boolean isRefreshing() {
-        return refreshing.get();
-    }
+    public static boolean isRefreshing() { return refreshing.get(); }
 
-    public static String lastError() {
-        return lastError;
-    }
+    public static String lastError() { return lastError; }
 
 
     /**
@@ -617,7 +595,5 @@ public final class PriceData {
     }
 
     /** Testkit: start the loop with no disk cache read, so a case's fakes are the only source. */
-    public static void markStartedForTest() {
-        started.set(true);
-    }
+    public static void markStartedForTest() { started.set(true); }
 }
