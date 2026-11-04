@@ -21,9 +21,7 @@ public final class RngMeterEngine {
     private static List<RankedItem> rank(List<RngItem> items, Predicate<RngItem> filter) {
         List<RankedItem> ranked = new ArrayList<>();
         for (RngItem item : items) {
-            if (!filter.test(item)) {
-                continue;
-            }
+            if (!filter.test(item)) continue;
             Long price = item.soulbound() ? null : PRICES.getPrice(item);
             Double cpp = price != null ? price / (double) item.pityXp() : null;
             ranked.add(new RankedItem(item, price, cpp, 0));

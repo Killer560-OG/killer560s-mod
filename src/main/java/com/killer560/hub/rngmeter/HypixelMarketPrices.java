@@ -122,9 +122,7 @@ public final class HypixelMarketPrices {
      * falling back to the AH lowest BIN for anything the Bazaar does not sell. Null when neither knows it.
      */
     public Long getPrice(String id, boolean sellOffer) {
-        if (id == null || id.isEmpty()) {
-            return null;
-        }
+        if (id == null || id.isEmpty()) return null;
         Long bazaar = (sellOffer ? bazaarSellOffer : bazaarInstaSell).get(id);
         if (bazaar == null) {
             bazaar = bazaarSellPrice.get(id); // a feed from before both sides were kept
@@ -147,9 +145,7 @@ public final class HypixelMarketPrices {
     }
 
     public Long getPrice(RngItem item) {
-        if (item.source() == RngSource.AH) {
-            return ahLowestBin.get(item.id());
-        }
+        if (item.source() == RngSource.AH) return ahLowestBin.get(item.id());
         syncBazaarMode();
         Long bazaarPrice = bazaarSellPrice.get(item.id());
         return bazaarPrice != null ? bazaarPrice : ahLowestBin.get(item.id());
@@ -166,9 +162,7 @@ public final class HypixelMarketPrices {
     private void syncBazaarMode() {
         boolean wanted = RngMeterConfig.getInstance().isUseInstantBuyPrice();
         int applied = appliedBuyMode;
-        if (applied == (wanted ? 1 : 0)) {
-            return;
-        }
+        if (applied == (wanted ? 1 : 0)) return;
         appliedBuyMode = wanted ? 1 : 0;
         if (applied < 0) {
             return; // first read: a fetch fills the map for the current setting
@@ -194,9 +188,7 @@ public final class HypixelMarketPrices {
      * than overlapping it. Safe to call more than once; only the first call has any effect.
      */
     public void startAutoRefresh() {
-        if (autoRefreshStarted) {
-            return;
-        }
+        if (autoRefreshStarted) return;
         autoRefreshStarted = true;
         runAutoRefreshCycle();
     }
@@ -218,9 +210,7 @@ public final class HypixelMarketPrices {
     public void refreshAsync() {
         // Check-and-set together: the render thread (screen open), Croesus and the scheduler all call this.
         synchronized (this) {
-            if (refreshing) {
-                return;
-            }
+            if (refreshing) return;
             refreshing = true;
         }
         lastError = null;
@@ -332,31 +322,21 @@ public final class HypixelMarketPrices {
 
     private void processAuctionPage(JsonObject page, Set<String> wantedIds) {
         JsonArray auctions = page.getAsJsonArray("auctions");
-        if (auctions == null) {
-            return;
-        }
+        if (auctions == null) return;
         for (JsonElement el : auctions) {
             JsonObject auction = el.getAsJsonObject();
-            if (!auction.has("bin") || !auction.get("bin").getAsBoolean()) {
-                continue;
-            }
+            if (!auction.has("bin") || !auction.get("bin").getAsBoolean()) continue;
             String itemBytes = auction.has("item_bytes") ? auction.get("item_bytes").getAsString() : null;
-            if (itemBytes == null) {
-                continue;
-            }
+            if (itemBytes == null) continue;
             String id = extractItemId(itemBytes);
-            if (id == null) {
-                continue;
-            }
+            if (id == null) continue;
             // Rune/pet ids are synthesized live from whatever name a menu scan happens to show
             // (see extractItemId and RngMeterOverlay.resolveId), so the exact string can never be
             // known ahead of time to seed wantedIds with - captured unconditionally instead. Small
             // and bounded either way (a few dozen rune types x a handful of levels, similarly for
             // pets), so this doesn't meaningfully widen the scan.
             boolean alwaysWanted = id.startsWith("RUNE_") || id.startsWith("PET_");
-            if (!alwaysWanted && !wantedIds.contains(id)) {
-                continue;
-            }
+            if (!alwaysWanted && !wantedIds.contains(id)) continue;
             long price = auction.get("starting_bid").getAsLong();
             ahScanInFlight.merge(id, price, Math::min);
         }
@@ -385,26 +365,20 @@ public final class HypixelMarketPrices {
             byte[] compressed = Base64.getDecoder().decode(base64ItemBytes);
             CompoundTag root = NbtIo.readCompressed(new ByteArrayInputStream(compressed), NbtAccounter.unlimitedHeap());
             ListTag items = root.getListOrEmpty("i");
-            if (items.size() == 0) {
-                return null;
-            }
+            if (items.size() == 0) return null;
             CompoundTag item = items.getCompoundOrEmpty(0);
             CompoundTag tag = item.getCompoundOrEmpty("tag");
             CompoundTag extraAttributes = tag.getCompoundOrEmpty("ExtraAttributes");
             String id = extraAttributes.getStringOr("id", null);
             if ("PET".equals(id)) {
                 String petInfo = extraAttributes.getStringOr("petInfo", null);
-                if (petInfo == null) {
-                    return null;
-                }
+                if (petInfo == null) return null;
                 String type = JsonParser.parseString(petInfo).getAsJsonObject().get("type").getAsString();
                 return "PET_" + type;
             }
             if ("RUNE".equals(id)) {
                 CompoundTag runes = extraAttributes.getCompoundOrEmpty("runes");
-                if (runes.isEmpty()) {
-                    return null;
-                }
+                if (runes.isEmpty()) return null;
                 String runeType = runes.keySet().iterator().next();
                 int level = runes.getIntOr(runeType, 1);
                 return "RUNE_" + runeType + "_" + level;
@@ -432,9 +406,7 @@ public final class HypixelMarketPrices {
                     .GET()
                     .build();
             HttpResponse<String> response = ModNet.send(http, request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                return null;
-            }
+            if (response.statusCode() / 100 != 2) return null;
             return JsonParser.parseString(response.body()).getAsJsonObject();
         } catch (Exception e) {
             return null;

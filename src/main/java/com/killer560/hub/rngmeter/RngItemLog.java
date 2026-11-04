@@ -49,9 +49,7 @@ public final class RngItemLog {
 
     /** Merges newly-scanned items into a group's accumulated set (overwriting stale values for names already known) and persists to disk. */
     public static synchronized void merge(String group, Map<String, Long> items) {
-        if (items.isEmpty()) {
-            return;
-        }
+        if (items.isEmpty()) return;
         Map<String, Long> groupMap = LOG.computeIfAbsent(group, k -> new ConcurrentHashMap<>());
         groupMap.putAll(items);
         save();

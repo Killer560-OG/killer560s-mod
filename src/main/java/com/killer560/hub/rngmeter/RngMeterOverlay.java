@@ -189,12 +189,8 @@ public final class RngMeterOverlay {
     public static void onContainerScreenRender(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
         try {
             // The title test is a memoized flag read; the gate is not, and every container screen asks every frame.
-            if (!isRngTitle(screen.getTitle())) {
-                return;
-            }
-            if (!RngMeterConfig.getInstance().isEnabled()) {
-                return;
-            }
+            if (!isRngTitle(screen.getTitle())) return;
+            if (!RngMeterConfig.getInstance().isEnabled()) return;
             String title = memoTitleText;
             if (!title.equals(committedTitle)) {
                 advanceScanStability(screen, title);
@@ -306,9 +302,7 @@ public final class RngMeterOverlay {
      */
     private static void rescanCommitted(AbstractContainerScreen<?> screen, String title) {
         long now = System.currentTimeMillis();
-        if (now - lastRescanAtMs < RESCAN_MS) {
-            return;
-        }
+        if (now - lastRescanAtMs < RESCAN_MS) return;
         lastRescanAtMs = now;
         ScanResult scan = scanMenu(screen);
         if (scan.selected() != null) {
@@ -366,23 +360,15 @@ public final class RngMeterOverlay {
      * returns false (untouched) otherwise so the normal scroll behavior isn't swallowed elsewhere.
      */
     public static boolean handleScroll(double mouseX, double mouseY, double scrollY) {
-        if (!RngMeterConfig.getInstance().isEnabled()) {
-            return false;
-        }
-        if (shownRowCount <= VISIBLE_ROWS || scrollY == 0) {
-            return false;
-        }
+        if (!RngMeterConfig.getInstance().isEnabled()) return false;
+        if (shownRowCount <= VISIBLE_ROWS || scrollY == 0) return false;
         HudElement element = HudElementRegistry.byId(ELEMENT_ID);
-        if (element == null) {
-            return false;
-        }
+        if (element == null) return false;
         int[] pos = HudElementRegistry.resolvePosition(element);
         float scale = HudElementRegistry.resolveScale(element);
         int w = Math.round(element.width() * scale);
         int h = Math.round(element.height() * scale);
-        if (mouseX < pos[0] || mouseX > pos[0] + w || mouseY < pos[1] || mouseY > pos[1] + h) {
-            return false;
-        }
+        if (mouseX < pos[0] || mouseX > pos[0] + w || mouseY < pos[1] || mouseY > pos[1] + h) return false;
         int delta = scrollY > 0 ? -1 : 1;
         scrollOffset = Math.max(0, Math.min(maxScrollOffset(shownRowCount), scrollOffset + delta));
         return true;
@@ -412,13 +398,9 @@ public final class RngMeterOverlay {
         int topSlotCount = Math.max(0, slots.size() - 36);
         int nonEmptySeen = 0;
         for (Slot slot : slots) {
-            if (slot.index >= topSlotCount) {
-                break;
-            }
+            if (slot.index >= topSlotCount) break;
             ItemStack stack = slot.getItem();
-            if (stack.isEmpty()) {
-                continue;
-            }
+            if (stack.isEmpty()) continue;
             nonEmptySeen++;
             List<String> lore = Screen.getTooltipFromItem(client, stack).stream()
                     .map(Component::getString)
@@ -442,9 +424,7 @@ public final class RngMeterOverlay {
                 }
                 continue;
             }
-            if (!isRealReward(name) || isExcludedReward(name)) {
-                continue;
-            }
+            if (!isRealReward(name) || isExcludedReward(name)) continue;
             String id = resolveId(name);
             if (id == null && WARNED.add("noid:" + name)) {
                 LOGGER.warn("No price mapping for RNG Meter reward \"{}\" (required score {})", name, requiredScore);
@@ -478,9 +458,7 @@ public final class RngMeterOverlay {
      */
     private static SelectedDropInfo parseSelectedInfo(List<String> loreLines) {
         for (int i = 0; i + 1 < loreLines.size(); i++) {
-            if (!loreLines.get(i).trim().equals("Selected Drop")) {
-                continue;
-            }
+            if (!loreLines.get(i).trim().equals("Selected Drop")) continue;
             String dropName = cleanItemName(loreLines.get(i + 1));
             for (int j = i + 1; j < loreLines.size(); j++) {
                 Matcher percentMatch = PROGRESS_PERCENT_LINE.matcher(loreLines.get(j).trim());
@@ -578,9 +556,7 @@ public final class RngMeterOverlay {
      */
     private static String resolveId(String name) {
         String id = RngItemNames.BY_NAME.get(name);
-        if (id != null) {
-            return id;
-        }
+        if (id != null) return id;
         // Runes must be checked before the enchant patterns below - "Snake Rune I" ends in a
         // roman numeral just like an enchant name does, and was being wrongly resolved to a
         // bogus "ENCHANTMENT_SNAKE_RUNE_1" id before this. Real rune AH auctions all share the
@@ -591,33 +567,25 @@ public final class RngMeterOverlay {
         Matcher rune = RUNE_NAME.matcher(name);
         if (rune.find()) {
             Integer tier = ROMAN_NUMERALS.get(rune.group(2));
-            if (tier == null) {
-                return null;
-            }
+            if (tier == null) return null;
             String runeType = rune.group(1).toUpperCase(Locale.US).replace(" ", "_").replace("'", "");
             return "RUNE_" + runeType + "_" + tier;
         }
         Matcher wrapped = ENCHANTED_BOOK_NAME.matcher(name);
-        if (wrapped.find()) {
-            return resolveEnchantId(wrapped.group(1), wrapped.group(2));
-        }
+        if (wrapped.find()) return resolveEnchantId(wrapped.group(1), wrapped.group(2));
         // Experimentation Table shows most enchant rewards bare, with no "Enchanted Book (...)"
         // wrapper at all (e.g. "Cleave VI", "Critical VII") - confirmed from a real lore dump, not
         // guessed. Safe as a last-resort fallback since it only ever runs on names already
         // confirmed to be real menu rewards (isRealReward already passed) that matched nothing
         // else; a wrong guess here just leaves the item unpriced, same as before this fallback.
         Matcher bare = BARE_ENCHANT_NAME.matcher(name);
-        if (bare.find()) {
-            return resolveEnchantId(bare.group(1), bare.group(2));
-        }
+        if (bare.find()) return resolveEnchantId(bare.group(1), bare.group(2));
         return null;
     }
 
     private static String resolveEnchantId(String enchantNameRaw, String romanTier) {
         Integer tier = ROMAN_NUMERALS.get(romanTier);
-        if (tier == null) {
-            return null;
-        }
+        if (tier == null) return null;
         // Hyphens (e.g. "Triple-Strike") must become underscores too, not just spaces - a real
         // Bazaar product is ENCHANTMENT_TRIPLE_STRIKE_5, and the un-replaced hyphen was building
         // ENCHANTMENT_TRIPLE-STRIKE_5, which doesn't exist.
@@ -642,14 +610,10 @@ public final class RngMeterOverlay {
         for (int i = 0; i < loreLines.size(); i++) {
             String line = loreLines.get(i);
             Matcher scoreMatch = DUNGEON_SCORE_LINE.matcher(line);
-            if (scoreMatch.find()) {
-                return parseAbbreviatedNumber(scoreMatch.group(1));
-            }
+            if (scoreMatch.find()) return parseAbbreviatedNumber(scoreMatch.group(1));
             if (PROGRESS_LABEL_LINE.matcher(line.trim()).find() && i + 1 < loreLines.size()) {
                 Matcher fracMatch = BARE_FRACTION_LINE.matcher(loreLines.get(i + 1).trim());
-                if (fracMatch.find()) {
-                    return parseAbbreviatedNumber(fracMatch.group(2));
-                }
+                if (fracMatch.find()) return parseAbbreviatedNumber(fracMatch.group(2));
             }
         }
         return null;
@@ -674,17 +638,11 @@ public final class RngMeterOverlay {
      * visibly flagged rather than silently missing.
      */
     public static String buildProfitLine(String name, long requiredScore) {
-        if (!isRealReward(name) || isExcludedReward(name)) {
-            return null;
-        }
+        if (!isRealReward(name) || isExcludedReward(name)) return null;
         String id = resolveId(name);
-        if (id == null) {
-            return "§c§lKiller560's Mod: §cUnknown item (no price mapping yet)";
-        }
+        if (id == null) return "§c§lKiller560's Mod: §cUnknown item (no price mapping yet)";
         Long price = RngMeterEngine.PRICES.getPrice(new RngItem("", name, id, RngSource.BAZAAR, requiredScore, false));
-        if (price == null) {
-            return "§c§lKiller560's Mod: §cNo price found";
-        }
+        if (price == null) return "§c§lKiller560's Mod: §cNo price found";
         double cpp = price / (double) requiredScore;
         return String.format(Locale.US, "§b§lKiller560's Mod: §b%,.1f coins/pt", cpp);
     }
@@ -797,9 +755,7 @@ public final class RngMeterOverlay {
                 rest.add(r);
             }
         }
-        if (unpricedDyes.isEmpty()) {
-            return rows;
-        }
+        if (unpricedDyes.isEmpty()) return rows;
         List<RngMeterEngine.RankedItem> reordered = new ArrayList<>(unpricedDyes);
         reordered.addAll(rest);
         return reordered;

@@ -45,9 +45,7 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
     private void killer560smod$scrollRngMeterOverlay(double mouseX, double mouseY, double scrollX, double scrollY,
                                                         CallbackInfoReturnable<Boolean> cir) {
-        if (!RngMeterOverlay.isRngTitle(this.getTitle())) {
-            return;
-        }
+        if (!RngMeterOverlay.isRngTitle(this.getTitle())) return;
         if (RngMeterOverlay.handleScroll(mouseX, mouseY, scrollY)) {
             cir.setReturnValue(true);
         }
@@ -56,12 +54,8 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     @Inject(method = "getTooltipFromContainerItem", at = @At("RETURN"), cancellable = true)
     private void killer560smod$appendProfitLine(ItemStack stack, CallbackInfoReturnable<List<Component>> cir) {
         try {
-            if (!RngMeterOverlay.isRngTitle(this.getTitle())) {
-                return;
-            }
-            if (!com.killer560.hub.rngmeter.RngMeterConfig.getInstance().isEnabled()) {
-                return;
-            }
+            if (!RngMeterOverlay.isRngTitle(this.getTitle())) return;
+            if (!com.killer560.hub.rngmeter.RngMeterConfig.getInstance().isEnabled()) return;
             List<Component> lines = cir.getReturnValue();
             Long requiredScore = RngMeterOverlay.parseRequiredScore(lines.stream().map(Component::getString).toList());
             if (requiredScore == null) {
