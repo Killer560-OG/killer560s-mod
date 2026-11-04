@@ -15,7 +15,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * ServerLag read the gaps between them as stalls, and a Blood Camp countdown built on it fell 11-15 ticks a second instead
  * of 20 (testkit 177 on doc-blood-1101's first jar: "74.8 -> 62.8 -> 47.8 -> 33.8 ticks left" a second apart). Here a
  * server is trusted only after two 20-client-tick windows in a row in which at least {@link #TRUST_TICKS_WITH_PING}
- * ticks saw a ping and no more than {@link #MAX_WINDOW_PINGS} came in all (at once on hypixel.net), and once trusted STAYS
+ * ticks saw a ping and no more than {@link #MAX_WINDOW_PINGS} came in all (at once on hypixel.net), and on hypixel.net once trusted STAYS
  * trusted (2026-11-03, timers2): a stall or a burst is just a window that fails that test, and dropping trust there ran the
  * clock on client ticks through the stall. Odin (ConnectionMixin) and NoammAddons (MixinConnection) count every non-zero ping
  * and nothing else, so a stall pauses their countdowns and a burst catches them up. Only 15 windows in a row with no ping at
@@ -86,7 +86,7 @@ public final class PerTickServerClock {
 
     /** Hypixel pings once per server tick, always: trust it from its first client tick, no windows needed. */
     private static synchronized void setHypixel(net.minecraft.client.Minecraft client) {
-        boolean h = client.level != null && AttackCooldown.onHypixel(client);
+        boolean h = forcedHypixel != null ? forcedHypixel : client.level != null && AttackCooldown.onHypixel(client);
         hypixel = h;
         if (h && !trusted) {
             trusted = true;
@@ -94,7 +94,13 @@ public final class PerTickServerClock {
         }
     }
 
-    private static final int SILENT_WINDOWS_TO_UNTRUST = 15;
+    private static Boolean forcedHypixel;
+
+    /** Testkit (logic suite): act as if connected to hypixel.net (true), not (false), or by the address (null). */
+    public static synchronized void hypixelForTest(Boolean on) {
+        forcedHypixel = on;
+        hypixel = on != null && on;
+    }
     private static boolean hypixel;
 
     private static synchronized void untrust() {
@@ -198,15 +204,14 @@ public final class PerTickServerClock {
                 }
             } else {
                 goodWindows = 0;
-                // Trust is STICKY (2026-11-03, timers2): a lag spike, a stall or the burst after one is exactly a window
-                // that fails the test above, and dropping trust there handed the clock to the client's game time, which
-                // kept counting through the stall while Hypixel's Watcher, Goldor and the rest stood still (Odin and
-                // NoammAddons just count pings, always). Only a long run of windows with no ping at all ends it: that
-                // is a server that does not ping, not one that is slow.
-                if (windowPings == 0 && trusted && !hypixel && ++shortWindows >= SILENT_WINDOWS_TO_UNTRUST) {
-                    trusted = false;
+                // On hypixel.net trust is STICKY (2026-11-03, timers2): a lag spike, a stall or the burst after one is exactly
+                // a window that fails the test above, and dropping trust there ran the clock on client ticks through the
+                // stall while Hypixel stood still (Odin and NoammAddons count every non-zero ping and nothing else).
+                // Elsewhere (an anticheat server pinging ~15 a second) two failing windows in a row still end trust.
+                if (hypixel) {
                     shortWindows = 0;
-                } else if (windowPings > 0) {
+                } else if (trusted && ++shortWindows >= 2) {
+                    trusted = false;
                     shortWindows = 0;
                 }
             }
