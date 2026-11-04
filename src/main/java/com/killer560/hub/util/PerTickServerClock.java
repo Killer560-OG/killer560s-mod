@@ -27,6 +27,16 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * continuous across a change of source, a stall stops it, and a burst of pings after a network spike (the server kept
  * ticking) catches it up. {@link #deficitTicksSince} is how far it is behind the client's own ticks now (a burst pays it
  * back); {@link #stallTicksSince} counts every stall, paid back or not.
+ * <p>
+ * <b>Pings ahead of the wall clock (goldfix-1104).</b> A quiet GrimAC server sends about one transaction ping a tick, so its
+ * windows (20 pings, 19 of 20 ticks with one) passed the rule above and it was trusted; then every hit added transactions
+ * and the clock ran ahead of the server: on 26.3 legit (gate-1104b/c) Tick Timers logged "48 pings, 2129 ms (42.6 ticks of
+ * wall time)" at Goldor's first hit and 1102-hx-goldor-tick read the hits 5, 3, 7, 11 ticks late. A server never ticks faster
+ * than 20 a second, so a real per-tick pinger never sends more than one ping per 50 ms of wall time, give or take network
+ * jitter: {@link #excess} is pings minus elapsed 50 ms steps (floored, so a slow server or a stall banks only so much
+ * credit for the catch-up after it), and once it passes {@link #MAX_EXCESS} the server is not a per-tick pinger, loses the
+ * trust (sticky or not) and does not earn it again until the next world. Wall time, not client ticks: a client frame freeze
+ * drops client ticks (at most 10 run per frame) but not pings.
  */
 public final class PerTickServerClock {
 
@@ -53,6 +63,16 @@ public final class PerTickServerClock {
     private static long trustedTicks;
     private static long trustedPings;
     private static long lastGameTime;
+    /** Pings minus elapsed 50 ms steps in this world (see the class comment), floored at -{@link #EXCESS_FLOOR}. */
+    private static double excess;
+    private static long lastPingNanos = Long.MIN_VALUE;
+    /** Set once this world's server sent pings faster than it can tick; cleared by a new world or connection. */
+    private static volatile boolean notPerTick;
+    /** More pings than this ahead of the wall clock is not network jitter (300 ms of pings). */
+    static final double MAX_EXCESS = 6.0;
+    /** A slow server or a stall banks at most this many ticks of credit (a 10 s hold, then the burst that pays it back). */
+    static final double EXCESS_FLOOR = 200.0;
+    private static long testNanos;
 
     private PerTickServerClock() {
     }
@@ -110,6 +130,9 @@ public final class PerTickServerClock {
         goodWindows = 0;
         inStall = false;
         deficitLow = trustedTicks - trustedPings;
+        excess = 0.0;
+        lastPingNanos = Long.MIN_VALUE;
+        notPerTick = false;
     }
 
     /** A rise of the trusted deficit (client ticks minus pings) of more than this many ticks over its low point is a stall;
@@ -139,8 +162,13 @@ public final class PerTickServerClock {
     }
 
     private static void onPing() {
+        onPing(System.nanoTime());
+    }
+
+    private static void onPing(long nanos) {
         boolean advanced;
         synchronized (PerTickServerClock.class) {
+            checkPace(nanos);
             rawPings++;
             windowPings++;
             pingsThisTick++;
@@ -152,6 +180,31 @@ public final class PerTickServerClock {
         }
         if (advanced) {
             fire(1);
+        }
+    }
+
+    /** Under the lock, for every ping: {@link #excess}, and the end of trust for a server that pings faster than it ticks. */
+    private static void checkPace(long nanos) {
+        if (nanos == Long.MIN_VALUE) {
+            return; // pingForTest: not paced
+        }
+        if (lastPingNanos == Long.MIN_VALUE || nanos < lastPingNanos) {
+            lastPingNanos = nanos;
+            return;
+        }
+        double steps = (nanos - lastPingNanos) / 50_000_000.0;
+        lastPingNanos = nanos;
+        excess = Math.max(-EXCESS_FLOOR, excess - steps) + 1.0;
+        if (excess > MAX_EXCESS && !notPerTick) {
+            notPerTick = true;
+            goodWindows = 0;
+            boolean was = trusted;
+            trusted = false;
+            if (was) {
+                trustChanges++;
+            }
+            LOGGER.info("[PerTickServerClock] server is not a per-tick pinger: its pings ran {} ahead of the wall clock{}",
+                    String.format(java.util.Locale.ROOT, "%.1f", excess), was ? " (no longer trusted)" : "");
         }
     }
 
@@ -226,7 +279,7 @@ public final class PerTickServerClock {
             boolean was = trusted;
             if (good) {
                 shortWindows = 0;
-                if (++goodWindows >= 2) {
+                if (++goodWindows >= 2 && !notPerTick) {
                     trusted = true;
                 }
             } else {
@@ -297,11 +350,24 @@ public final class PerTickServerClock {
 
     /** Testkit (logic suite, no server): drive the clock by hand - a server ping, a client tick, a fresh world. */
     public static void pingForTest() {
-        onPing();
+        onPing(Long.MIN_VALUE);
     }
 
+    /** Testkit: a server ping timed on the test's own wall clock ({@link #tickForTest} moves it 50 ms), so the pace check
+     *  sees it. {@link #pingForTest} is not paced: cases push the clock ahead with hundreds of pings at once. */
+    public static void pingForTestTimed() {
+        onPing(testNanos);
+    }
+
+    /** A client tick, and 50 ms of the test's own wall clock (the pace check times pingForTest's pings on it). */
     public static void tickForTest() {
+        testNanos += 50_000_000L;
         onClientTick(1L);
+    }
+
+    /** Testkit: whether this world's server was caught pinging faster than it can tick. */
+    public static boolean notPerTick() {
+        return notPerTick;
     }
 
     public static void untrustForTest() {
