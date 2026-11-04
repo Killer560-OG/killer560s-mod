@@ -201,10 +201,13 @@ public final class MobSkinRender {
         ms.outlineColor = ps.outlineColor;
         ms.nameTag = ps.nameTag;
         ms.scoreText = ps.scoreText;
-        // Song Tag's line rides on the state too, or it would vanish under a mob skin.
+        // Song Tag's lines ride on the state too, or they vanish under a mob skin: the song AND the lyric (My Lyrics In
+        // F5). Only the song was copied until 2026-11-03, so with Play As Mob on his F5 showed the song but never the lyric
+        // (testkit 1103-f5-lyric-pixels: snow golem state lyric=null, 0 submits, 0 pixels). Copy every SongTagState field.
         if ((Object) ms instanceof com.killer560.hub.spotify.SongTagState mt
                 && (Object) ps instanceof com.killer560.hub.spotify.SongTagState pt) {
             mt.killer560smod$setSongTag(pt.killer560smod$songTag());
+            mt.killer560smod$setLyricTag(pt.killer560smod$lyricTag());
         }
         ms.shadowRadius = ps.shadowRadius;
         ms.shadowPieces.clear();
