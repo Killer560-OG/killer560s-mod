@@ -346,7 +346,6 @@ public final class TicTacToeSolverFeature {
         return board;
     }
 
-    // ---------------------------------------------------------------- Prevent Misclicks
 
     /** The board's clay corner and rotation while he is in the room, for {@link #shouldBlockClick}. */
     private static int[] boardCr = null;

@@ -363,7 +363,6 @@ public final class QuizSolverFeature {
         warnedThisQuestion = false;
     }
 
-    // ---------------------------------------------------------------- Block Wrong Answers
 
     private static boolean warnedThisQuestion = false;
     private static int blockedClicks = 0;
@@ -427,7 +426,6 @@ public final class QuizSolverFeature {
         return blockedClicks;
     }
 
-    // ---------------------------------------------------------------- Quiz Timer HUD
 
     /** The text the Quiz Timer shows now, or null when there is nothing to time (no Quiz in progress). */
     public static String timerText() {

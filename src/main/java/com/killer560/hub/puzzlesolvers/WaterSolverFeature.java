@@ -455,10 +455,7 @@ public final class WaterSolverFeature {
         if (aZero != bZero) {
             return aZero ? -1 : 1;
         }
-        if (aZero) {
-            return Integer.compare(a.ordinal(), b.ordinal());
-        }
-        return Double.compare(ta, tb);
+        return aZero ? Integer.compare(a.ordinal(), b.ordinal()) : Double.compare(ta, tb);
     }
 
     public static long getOpenedWaterTick() {

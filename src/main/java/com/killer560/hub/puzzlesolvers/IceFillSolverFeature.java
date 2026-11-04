@@ -227,7 +227,6 @@ public final class IceFillSolverFeature {
         inIceFill = false;
     }
 
-    // ---------------------------------------------------------------- Etherwarp Protection
 
     /** He is in the Ice Fill room (the map says so), set every tick by the solver's tick. */
     private static boolean inIceFill = false;

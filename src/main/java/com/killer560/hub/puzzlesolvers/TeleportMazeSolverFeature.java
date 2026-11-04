@@ -83,7 +83,6 @@ public final class TeleportMazeSolverFeature {
                 com.killer560.hub.util.FeatureBits.register("TeleportMaze Solver render", () -> TeleportMazeSolverConfig.getInstance().isEnabledRaw()), TeleportMazeSolverFeature::onWorldRender));
     }
 
-    // ---- read-only accessors for AutoPuzzles ----
     public static Set<BlockPos> getTpPads() {
         return Collections.unmodifiableSet(tpPads);
     }
