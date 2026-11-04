@@ -234,10 +234,7 @@ public final class FeatureCards {
             return fitted(tab, own);
         }
         String blurb = CardBlurbs.get(tab);
-        if (blurb != null) {
-            return fitted(tab, blurb);
-        }
-        return fitted(tab, rawDescription(tab));
+        return blurb != null ? fitted(tab, blurb) : fitted(tab, rawDescription(tab));
     }
 
     /** The description before any fitting (the testkit dumps it so blurbs can be written). */
@@ -263,10 +260,7 @@ public final class FeatureCards {
             return fixed;
         }
         String header = SettingTooltips.describeScoped(null, category, tab.name);
-        if (header != null && !header.isBlank()) {
-            return firstSentence(header);
-        }
-        return "";
+        return header != null && !header.isBlank() ? firstSentence(header) : "";
     }
 
     private static final Pattern SENTENCE_END = Pattern.compile("[.!?](?=\\s+[A-Z(\"'0-9])");

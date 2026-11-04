@@ -41,13 +41,11 @@ public class EnchantColorsTab extends BaseTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        widgets.add(onOffButton("Enchant Colors", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Enchant Colors", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         // The mixin config is required:false so a signature change can never stop the game booting - but
         // that also means it could quietly do nothing, which is exactly how killer560 found this feature

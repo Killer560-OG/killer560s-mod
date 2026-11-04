@@ -55,11 +55,7 @@ public class ZeroPingEtherwarpTab extends BaseTab {
         ZeroPingEtherwarpConfig cfg = ZeroPingEtherwarpConfig.getInstance();
         boolean cheat = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
         int y = contentY;
-        w.add(SettingsButtonWidget.builder(onOff(ZPEW, cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, ROW).build());
+        w.add(onOffButton(ZPEW, cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild, contentX, y, contentWidth, ROW));
         y += ROW + 6;
         if (cfg.isEnabled()) {
             w.add(onOffButton("Dungeons Only", cfg::isDungeonsOnly, cfg::setDungeonsOnly, cfg::save, null,
@@ -105,11 +101,7 @@ public class ZeroPingEtherwarpTab extends BaseTab {
                 // multi warps"): the switch over Warps Per Tick and Aimed Warps, which show only while it is on.
                 w.add(SectionHeaders.row(contentX, y, contentWidth, "Multi Warps", true));
                 y += 16;
-                w.add(SettingsButtonWidget.builder(onOff("Multi Warps", cfg.isMultiWarps()), btn -> {
-                            cfg.setMultiWarps(!cfg.isMultiWarps());
-                            cfg.save();
-                            requestRebuild.run();
-                        }).bounds(contentX, y, contentWidth, ROW).build());
+                w.add(onOffButton("Multi Warps", cfg::isMultiWarps, cfg::setMultiWarps, cfg::save, requestRebuild, contentX, y, contentWidth, ROW));
                 y += ROW + 4;
                 if (cfg.isMultiWarps()) {
                     w.add(SettingsButtonWidget.cycling(warpsPerTickText(cfg), (btn, dir) -> {
@@ -131,11 +123,7 @@ public class ZeroPingEtherwarpTab extends BaseTab {
             LeftClickEtherwarpConfig lce = LeftClickEtherwarpConfig.getInstance();
             w.add(SectionHeaders.row(contentX, y, contentWidth, LEFT_CLICK, true));
             y += 16;
-            w.add(SettingsButtonWidget.builder(onOff(LEFT_CLICK, lce.isEnabled()), btn -> {
-                        lce.setEnabled(!lce.isEnabled());
-                        lce.save();
-                        btn.setMessage(onOff(LEFT_CLICK, lce.isEnabled()));
-                    }).bounds(contentX, y, contentWidth, ROW).build());
+            w.add(onOffButton(LEFT_CLICK, lce::isEnabled, lce::setEnabled, lce::save, null, contentX, y, contentWidth, ROW));
         }
         return w;
     }

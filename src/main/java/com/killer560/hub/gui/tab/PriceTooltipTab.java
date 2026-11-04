@@ -31,12 +31,11 @@ public class PriceTooltipTab extends BaseTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        widgets.add(onOffButton("Price Tooltip", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Price Tooltip", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         int half = (contentWidth - 8) / 2;
         int col2 = contentX + half + 8;
@@ -64,22 +63,10 @@ public class PriceTooltipTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Display", false));
         y += 16;
         // Stack Price is gone (owner 2026-11-03: a stack shows the whole price and the unit price on every line).
-        widgets.add(SettingsButtonWidget.cycling(breakdownText(cfg), (btn, dir) -> {
-                    cfg.setBreakdown(SettingsButtonWidget.step(cfg.getBreakdown(), dir));
-                    cfg.save();
-                    btn.setMessage(breakdownText(cfg));
-                }).bounds(contentX, y, half, 18).build());
-        widgets.add(SettingsButtonWidget.cycling(valueModeText(cfg), (btn, dir) -> {
-                    cfg.setValueMode(SettingsButtonWidget.step(cfg.getValueMode(), dir));
-                    cfg.save();
-                    btn.setMessage(valueModeText(cfg));
-                }).bounds(col2, y, half, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> breakdownText(cfg), cfg::getBreakdown, cfg::setBreakdown, cfg::save).bounds(contentX, y, half, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> valueModeText(cfg), cfg::getValueMode, cfg::setValueMode, cfg::save).bounds(col2, y, half, 18).build());
         y += 22;
-        widgets.add(SettingsButtonWidget.cycling(formatText(cfg), (btn, dir) -> {
-                    cfg.setNumberFormat(SettingsButtonWidget.step(cfg.getNumberFormat(), dir));
-                    cfg.save();
-                    btn.setMessage(formatText(cfg));
-                }).bounds(contentX, y, half, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> formatText(cfg), cfg::getNumberFormat, cfg::setNumberFormat, cfg::save).bounds(contentX, y, half, 18).build());
         widgets.add(SettingsButtonWidget.cycling(refreshText(cfg), (btn, dir) -> {
                     int idx = 0;
                     for (int i = 0; i < REFRESH_STEPS.length; i++) {

@@ -115,11 +115,7 @@ public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
             y += 16;
         }
 
-        widgets.add(SettingsButtonWidget.cycling(swapOrderLabel(cfg), (btn, dir) -> {
-                    cfg.setSwapOrder(SettingsButtonWidget.step(cfg.getSwapOrder(), dir));
-                    cfg.save();
-                    btn.setMessage(swapOrderLabel(cfg));
-                }).bounds(contentX, y, half, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> swapOrderLabel(cfg), cfg::getSwapOrder, cfg::setSwapOrder, cfg::save).bounds(contentX, y, half, 18).build());
         y += 22;
 
         // killer560, 2026-10-18: which masks Auto Mask may swap to. Off skips that one in both modes, wherever it sits
@@ -180,10 +176,7 @@ public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
     }
 
     private Component swapKeyLabel(MaskInvincibilityConfig cfg) {
-        if (capturing) {
-            return Component.literal("Press any key...");
-        }
-        return Component.literal("Swap Key: " + CommandKeybindsTab.bindName(cfg.getSwapKey()));
+        return capturing ? Component.literal("Press any key...") : Component.literal("Swap Key: " + CommandKeybindsTab.bindName(cfg.getSwapKey()));
     }
 
     private static Component swapOrderLabel(MaskInvincibilityConfig cfg) {

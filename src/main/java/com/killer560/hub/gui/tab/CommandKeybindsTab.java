@@ -107,12 +107,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         CommandKeybindsConfig cfg = CommandKeybindsConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Chat Keybinds", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    CommandShortcutsFeature.customsChanged();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Chat Keybinds", cfg::isEnabledRaw, cfg::setEnabled, () -> { cfg.save(); CommandShortcutsFeature.customsChanged(); }, requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw() && !isSearchScan()) {
@@ -333,10 +328,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
     }
 
     private Component keyText(Object row, int code) {
-        if (capturing == row) {
-            return Component.literal("Press any key...");
-        }
-        return Component.literal("Key: " + bindName(code));
+        return capturing == row ? Component.literal("Press any key...") : Component.literal("Key: " + bindName(code));
     }
 
     /** Display name for a keyboard code or a stored mouse code (see {@code CommandKeybindsConfig}). */

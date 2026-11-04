@@ -31,11 +31,7 @@ public class SecretSoundTab extends BaseTab {
         int colB = contentX + half + gap;
         int y = contentY;
 
-        w.add(SettingsButtonWidget.builder(onOff("Secret Sound", cfg.secretSoundEnabled), btn -> {
-                    cfg.secretSoundEnabled = !cfg.secretSoundEnabled;
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        w.add(onOffButton("Secret Sound", () -> cfg.secretSoundEnabled, v -> cfg.secretSoundEnabled = v, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!cfg.secretSoundEnabled) {

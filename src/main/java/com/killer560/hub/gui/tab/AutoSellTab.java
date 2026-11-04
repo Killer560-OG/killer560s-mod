@@ -54,13 +54,11 @@ public class AutoSellTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         AutoSellConfig cfg = AutoSellConfig.getInstance();
 
-        widgets.add(onOffButton("Auto Sell", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Auto Sell", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Any NPC Sell Menu", cfg::isAnyNpcMenu, cfg::setAnyNpcMenu, cfg::save,
                 null, contentX, y, contentWidth, 20));

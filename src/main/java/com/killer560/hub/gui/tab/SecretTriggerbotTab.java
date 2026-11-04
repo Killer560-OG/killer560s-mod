@@ -32,13 +32,11 @@ public class SecretTriggerbotTab extends BaseTab {
         int col2W = (contentWidth - gap) / 2;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(onOffButton("Secret Triggerbot", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Secret Triggerbot", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, delayText(cfg),
                 cfg.getDelayMs() / (double) SecretTriggerbotConfig.MAX_DELAY_MS) {

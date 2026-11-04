@@ -26,13 +26,11 @@ public class NickhiderTab extends BaseTab {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
         int y = contentY;
 
-        widgets.add(onOffButton("Randomize Others", cfg::isRandomizeOthers, cfg::setRandomizeOthers, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isRandomizeOthers() && !isSearchScan()) {
+        if (masterClosed(widgets, "Randomize Others", cfg::isRandomizeOthers, cfg::setRandomizeOthers, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
         // A style of Randomize Others, so it only shows while that is on (and pressing Randomize Others twice
         // leaves every other setting as it was).
         widgets.add(onOffButton("Randomized Name", cfg::isRandomizedName, cfg::setRandomizedName, cfg::save,

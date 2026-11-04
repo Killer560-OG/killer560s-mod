@@ -63,11 +63,7 @@ public class AutoFairySoulsTab extends BaseTab implements KeyCaptureTab {
         widgets.add(onOffButton("Auto Click", cfg::isAutoCollect, cfg::setAutoCollect, cfg::save,
                 null, col2bX, y, col2W, 18));
         y += 20;
-        widgets.add(SettingsButtonWidget.cycling(autoModeText(cfg), (btn, dir) -> {
-                    cfg.setAutoMode(SettingsButtonWidget.step(cfg.getAutoMode(), dir));
-                    cfg.save();
-                    btn.setMessage(autoModeText(cfg));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> autoModeText(cfg), cfg::getAutoMode, cfg::setAutoMode, cfg::save).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
         widgets.add(onOffButton("Sprint", cfg::isAutoSprint, cfg::setAutoSprint, cfg::save,
                 null, contentX, y, contentWidth, 18));

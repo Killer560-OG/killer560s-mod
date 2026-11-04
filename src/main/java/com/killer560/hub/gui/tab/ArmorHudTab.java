@@ -21,13 +21,11 @@ public class ArmorHudTab extends BaseTab {
         int y = contentY;
         ArmorHudConfig cfg = ArmorHudConfig.getInstance();
 
-        widgets.add(onOffButton("Armor HUD", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 28;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Armor HUD", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 28;
 
         int gap = 8;
         int colW = (contentWidth - gap) / 2;

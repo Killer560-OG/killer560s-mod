@@ -30,13 +30,11 @@ public class TooltipScrollTab extends BaseTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        widgets.add(onOffButton("Scrollable Tooltips", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Scrollable Tooltips", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         // The mixin configs are required:false so a signature change can never stop the game booting - but
         // that also means they could quietly do nothing, which is exactly how killer560 found this feature

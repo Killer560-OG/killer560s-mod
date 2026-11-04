@@ -38,13 +38,11 @@ public class AutoKickTab extends BaseTab {
         int colBX = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(onOffButton("Auto Kick", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Auto Kick", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         // killer560, 2026-10-09: Party Finder only, and the "this can remove real ...", "0 = disabled" and "ships ..."
         // notes are gone. 2026-10-14: no Action Mode (Warn Only was removed); a joiner who misses the time is kicked.

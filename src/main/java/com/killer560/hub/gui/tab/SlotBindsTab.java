@@ -53,13 +53,11 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         SlotBindsConfig cfg = SlotBindsConfig.getInstance();
 
-        widgets.add(onOffButton("Slot Binds", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Slot Binds", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(SettingsButtonWidget.builder(bindKeyText(), btn -> {
                     listening = true;

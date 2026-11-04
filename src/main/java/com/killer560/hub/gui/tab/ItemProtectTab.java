@@ -79,13 +79,11 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        widgets.add(onOffButton("Item Protection", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Item Protection", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         int half = (contentWidth - 8) / 2;
         int col2 = contentX + half + 8;
@@ -195,9 +193,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component keyLabel(String label, int key, boolean listening) {
-        if (listening) {
-            return Component.literal("Press any key...");
-        }
-        return Component.literal(label + ": " + CommandKeybindsTab.bindName(key));
+        return listening ? Component.literal("Press any key...") : Component.literal(label + ": " + CommandKeybindsTab.bindName(key));
     }
 }

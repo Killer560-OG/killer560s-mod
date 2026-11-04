@@ -37,13 +37,11 @@ public class DoorHelpersTab extends BaseTab {
         int col2bX = contentX + col2W + gap;
         int y = contentY;
 
-        widgets.add(onOffButton("Auto Door Opener", cfg::isAutoDoorEnabledRaw, cfg::setAutoDoorEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-
-        if (!cfg.isAutoDoorEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Auto Door Opener", cfg::isAutoDoorEnabledRaw, cfg::setAutoDoorEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
 
         widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
                     cfg.setAutoDoorMode(cfg.getAutoDoorMode() == DoorHelpersConfig.OpenerMode.AURA

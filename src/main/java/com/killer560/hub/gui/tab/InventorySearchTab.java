@@ -24,13 +24,11 @@ public class InventorySearchTab extends BaseTab {
         int y = contentY;
         InventorySearchConfig cfg = InventorySearchConfig.getInstance();
 
-        widgets.add(onOffButton("Inventory Search", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Inventory Search", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Search Lore", cfg::isSearchLore, cfg::setSearchLore, cfg::save,
                 null, contentX, y, contentWidth, 18));

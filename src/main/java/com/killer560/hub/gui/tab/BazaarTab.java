@@ -26,13 +26,11 @@ public class BazaarTab extends BaseTab {
         int colW = (contentWidth - gap) / 2;
         int colBX = contentX + colW + gap;
 
-        widgets.add(onOffButton("Bazaar Browser", cfg::isBazaarEnabledRaw, cfg::setBazaarEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isBazaarEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Bazaar Browser", cfg::isBazaarEnabledRaw, cfg::setBazaarEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
         widgets.add(com.killer560.hub.gui.ScreenThemes.button("bazaar", contentX, y, contentWidth, 18, "INVENTORY"));
         y += 22;
 

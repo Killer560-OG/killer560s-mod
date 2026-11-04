@@ -64,11 +64,7 @@ public class FreelookTab extends BaseTab implements KeyCaptureTab {
         if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
-        widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
-                    cfg.setMode(SettingsButtonWidget.step(cfg.getMode(), dir));
-                    cfg.save();
-                    btn.setMessage(modeText(cfg));
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> modeText(cfg), cfg::getMode, cfg::setMode, cfg::save).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
         widgets.add(SettingsButtonWidget.builder(keyText(cfg), btn -> {
                     capturing = true;

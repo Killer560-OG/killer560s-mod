@@ -1,7 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.dungeonalerts.DungeonAlertsConfig;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
 
 import java.util.ArrayList;
@@ -27,24 +26,12 @@ public class ClassColorsTab extends BaseTab {
         int colB = contentX + half + gap;
         int y = contentY;
 
-        w.add(SettingsButtonWidget.builder(onOff("Class Colors", cfg.classColorsEnabled), btn -> {
-                    cfg.classColorsEnabled = !cfg.classColorsEnabled;
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        w.add(onOffButton("Class Colors", () -> cfg.classColorsEnabled, v -> cfg.classColorsEnabled = v, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (cfg.classColorsEnabled) {
-            w.add(SettingsButtonWidget.builder(onOff("Tab List", cfg.classColorsTab), btn -> {
-                        cfg.classColorsTab = !cfg.classColorsTab;
-                        cfg.save();
-                        btn.setMessage(onOff("Tab List", cfg.classColorsTab));
-                    }).bounds(contentX, y, half, 18).build());
-            w.add(SettingsButtonWidget.builder(onOff("Nametags", cfg.classColorsNametags), btn -> {
-                        cfg.classColorsNametags = !cfg.classColorsNametags;
-                        cfg.save();
-                        btn.setMessage(onOff("Nametags", cfg.classColorsNametags));
-                    }).bounds(colB, y, half, 18).build());
+            w.add(onOffButton("Tab List", () -> cfg.classColorsTab, v -> cfg.classColorsTab = v, cfg::save, null, contentX, y, half, 18));
+            w.add(onOffButton("Nametags", () -> cfg.classColorsNametags, v -> cfg.classColorsNametags = v, cfg::save, null, colB, y, half, 18));
         }
 
         return w;

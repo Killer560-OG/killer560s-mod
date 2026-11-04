@@ -1,7 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.dungeonalerts.DungeonAlertsConfig;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
 
 import java.util.ArrayList;
@@ -20,26 +19,14 @@ public class LowHealthAlertTab extends BaseTab {
         List<AbstractWidget> w = new ArrayList<>();
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
         int y = contentY;
-        w.add(SettingsButtonWidget.builder(onOff("Low Health Alert", cfg.isLowHealthEnabled()), btn -> {
-                    cfg.setLowHealthEnabled(!cfg.isLowHealthEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        w.add(onOffButton("Low Health Alert", cfg::isLowHealthEnabled, cfg::setLowHealthEnabled, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
         if (!cfg.isLowHealthEnabled()) {
             return w;
         }
-        w.add(SettingsButtonWidget.builder(onOff("Only While Healer", cfg.isLowHealthOnlyHealer()), btn -> {
-                    cfg.setLowHealthOnlyHealer(!cfg.isLowHealthOnlyHealer());
-                    cfg.save();
-                    btn.setMessage(onOff("Only While Healer", cfg.isLowHealthOnlyHealer()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        w.add(onOffButton("Only While Healer", cfg::isLowHealthOnlyHealer, cfg::setLowHealthOnlyHealer, cfg::save, null, contentX, y, contentWidth, 18));
         y += 22;
-        w.add(SettingsButtonWidget.builder(onOff("Alert Sound", cfg.isLowHealthSound()), btn -> {
-                    cfg.setLowHealthSound(!cfg.isLowHealthSound());
-                    cfg.save();
-                    btn.setMessage(onOff("Alert Sound", cfg.isLowHealthSound()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        w.add(onOffButton("Alert Sound", cfg::isLowHealthSound, cfg::setLowHealthSound, cfg::save, null, contentX, y, contentWidth, 18));
         return w;
     }
 }

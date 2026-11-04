@@ -28,13 +28,11 @@ public class BestFriendsTab extends BaseTab {
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(onOffButton("Track Party Time", cfg::getEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, 220, 20));
-        y += 26;
-
-        if (!cfg.getEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Track Party Time", cfg::getEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, 220)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(SettingsButtonWidget.cycling(sortText(cfg), (btn, dir) -> {
                     cfg.setSortMode(dir > 0 ? cfg.getSortMode().next() : cfg.getSortMode().previous());

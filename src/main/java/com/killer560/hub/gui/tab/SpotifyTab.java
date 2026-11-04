@@ -85,11 +85,7 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(sendText());
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
-        widgets.add(SettingsButtonWidget.builder(onOff("Spotify HUD", hud().isHudEnabled()), btn -> {
-                    hud().setHudEnabled(!hud().isHudEnabled());
-                    hud().save();
-                    btn.setMessage(onOff("Spotify HUD", hud().isHudEnabled()));
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Spotify HUD", () -> hud().isHudEnabled(), v -> hud().setHudEnabled(v), () -> hud().save(), null, contentX, y, contentWidth, 20));
         y += 24;
         // Which player to follow and what the display stars out (2026-11-01), for the HUD, F5 and shared lines alike.
         widgets.add(SettingsButtonWidget.cycling(sourceText(), (btn, dir) -> {
@@ -138,38 +134,14 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
         // The Spotify HUD's own options; its switch is the second row at the top, independent of chat sending.
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Spotify HUD", false));
         y += 14;
-        widgets.add(SettingsButtonWidget.builder(onOff("HUD Lyrics", hud().isShowLyrics()), btn -> {
-                    hud().setShowLyrics(!hud().isShowLyrics());
-                    hud().save();
-                    btn.setMessage(onOff("HUD Lyrics", hud().isShowLyrics()));
-                }).bounds(contentX, y, half, 20).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Word Highlight", hud().isWordHighlight()), btn -> {
-                    hud().setWordHighlight(!hud().isWordHighlight());
-                    hud().save();
-                    btn.setMessage(onOff("Word Highlight", hud().isWordHighlight()));
-                }).bounds(contentX + half + 8, y, half, 20).build());
+        widgets.add(onOffButton("HUD Lyrics", () -> hud().isShowLyrics(), v -> hud().setShowLyrics(v), () -> hud().save(), null, contentX, y, half, 20));
+        widgets.add(onOffButton("Word Highlight", () -> hud().isWordHighlight(), v -> hud().setWordHighlight(v), () -> hud().save(), null, contentX + half + 8, y, half, 20));
         y += 24;
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide When Paused", hud().isHideWhenPaused()), btn -> {
-                    hud().setHideWhenPaused(!hud().isHideWhenPaused());
-                    hud().save();
-                    btn.setMessage(onOff("Hide When Paused", hud().isHideWhenPaused()));
-                }).bounds(contentX, y, half, 20).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Smooth Lyric Scroll", hud().isSmoothScroll()), btn -> {
-                    hud().setSmoothScroll(!hud().isSmoothScroll());
-                    hud().save();
-                    btn.setMessage(onOff("Smooth Lyric Scroll", hud().isSmoothScroll()));
-                }).bounds(contentX + half + 8, y, half, 20).build());
+        widgets.add(onOffButton("Hide When Paused", () -> hud().isHideWhenPaused(), v -> hud().setHideWhenPaused(v), () -> hud().save(), null, contentX, y, half, 20));
+        widgets.add(onOffButton("Smooth Lyric Scroll", () -> hud().isSmoothScroll(), v -> hud().setSmoothScroll(v), () -> hud().save(), null, contentX + half + 8, y, half, 20));
         y += 24;
-        widgets.add(SettingsButtonWidget.builder(onOff("Word-Timed Lyrics", hud().isWordTimedLyrics()), btn -> {
-                    hud().setWordTimedLyrics(!hud().isWordTimedLyrics());
-                    hud().save();
-                    btn.setMessage(onOff("Word-Timed Lyrics", hud().isWordTimedLyrics()));
-                }).bounds(contentX, y, half, 20).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Always Show Controls", hud().isAlwaysShowControls()), btn -> {
-                    hud().setAlwaysShowControls(!hud().isAlwaysShowControls());
-                    hud().save();
-                    btn.setMessage(onOff("Always Show Controls", hud().isAlwaysShowControls()));
-                }).bounds(contentX + half + 8, y, half, 20).build());
+        widgets.add(onOffButton("Word-Timed Lyrics", () -> hud().isWordTimedLyrics(), v -> hud().setWordTimedLyrics(v), () -> hud().save(), null, contentX, y, half, 20));
+        widgets.add(onOffButton("Always Show Controls", () -> hud().isAlwaysShowControls(), v -> hud().setAlwaysShowControls(v), () -> hud().save(), null, contentX + half + 8, y, half, 20));
         y += 26;
 
         // Lyrics In F5 (2026-11-01): every F5 row, the same rows (same values) as Player Cosmetics' Spotify In F5.
@@ -183,11 +155,7 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
         // Supporters only (killer560, 2026-10-26): grayed out for everyone else, and its hover says so. Turning it OFF
         // stays possible, so an old config with it on can still be switched off. SongShare checks it again where the
         // song is sent, so a file edited by hand sends nothing either.
-        SettingsButtonWidget share = SettingsButtonWidget.builder(onOff("Share My Song", tag().isShareSong()), btn -> {
-                    tag().setShareSong(!tag().isShareSong());
-                    tag().save();
-                    btn.setMessage(onOff("Share My Song", tag().isShareSong()));
-                }).bounds(contentX, y, contentWidth, 20).build()
+        SettingsButtonWidget share = onOffButton("Share My Song", () -> tag().isShareSong(), v -> tag().setShareSong(v), () -> tag().save(), null, contentX, y, contentWidth, 20)
                 .activeWhen(() -> SongShare.selfIsSupporter() || tag().isShareSong());
         widgets.add(share);
         SettingTooltips.live(share, () -> {
@@ -207,17 +175,9 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
                     tag().save();
                     btn.setMessage(shareWhatText());
                 }).bounds(contentX, y, half, 20).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Share Current Word", tag().isShareWord()), btn -> {
-                    tag().setShareWord(!tag().isShareWord());
-                    tag().save();
-                    btn.setMessage(onOff("Share Current Word", tag().isShareWord()));
-                }).bounds(contentX + half + 8, y, contentWidth - half - 8, 20).build());
+        widgets.add(onOffButton("Share Current Word", () -> tag().isShareWord(), v -> tag().setShareWord(v), () -> tag().save(), null, contentX + half + 8, y, contentWidth - half - 8, 20));
         y += 24;
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Others' Songs", tag().isShowOthers()), btn -> {
-                    tag().setShowOthers(!tag().isShowOthers());
-                    tag().save();
-                    btn.setMessage(onOff("Show Others' Songs", tag().isShowOthers()));
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Show Others' Songs", () -> tag().isShowOthers(), v -> tag().setShowOthers(v), () -> tag().save(), null, contentX, y, contentWidth, 20));
         y += 24;
 
         return widgets;

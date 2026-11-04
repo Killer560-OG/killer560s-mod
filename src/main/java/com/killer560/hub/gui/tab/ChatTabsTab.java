@@ -22,12 +22,11 @@ public class ChatTabsTab extends BaseTab {
         int colBX = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(onOffButton("Chat Tabs", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Chat Tabs", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
         widgets.add(onOffButton("Switch Channel", cfg::isSwitchChannel, cfg::setSwitchChannel, cfg::save,
                 null, contentX, y, colW, 18));
         widgets.add(onOffButton("Filter Closed Chat", cfg::isFilterClosedChat, cfg::setFilterClosedChat, cfg::save,

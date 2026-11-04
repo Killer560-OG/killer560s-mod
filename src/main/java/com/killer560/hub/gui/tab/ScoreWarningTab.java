@@ -32,11 +32,7 @@ public class ScoreWarningTab extends BaseTab {
         ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
         int y = contentY;
 
-        w.add(SettingsButtonWidget.builder(onOff("Pre-Boss Warning", cfg.isPreBossWarning()), btn -> {
-                    cfg.setPreBossWarning(!cfg.isPreBossWarning());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        w.add(onOffButton("Pre-Boss Warning", cfg::isPreBossWarning, cfg::setPreBossWarning, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
         if (cfg.isPreBossWarning()) {
             // killer560, 2026-11-01: Mage only, and a Permanent title (DO NOT ENTER PORTAL / ENTER THE PORTAL).
@@ -60,11 +56,7 @@ public class ScoreWarningTab extends BaseTab {
         w.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Crypt Reminder", false),
                 Minecraft.getInstance().font));
         y += 16;
-        w.add(SettingsButtonWidget.builder(onOff("Crypt Reminder", cfg.isCryptReminder()), btn -> {
-                    cfg.setCryptReminder(!cfg.isCryptReminder());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        w.add(onOffButton("Crypt Reminder", cfg::isCryptReminder, cfg::setCryptReminder, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
         if (cfg.isCryptReminder()) {
             int span = ScoreCalculatorConfig.MAX_CRYPT_REMINDER_SECONDS - ScoreCalculatorConfig.MIN_CRYPT_REMINDER_SECONDS;
@@ -87,19 +79,11 @@ public class ScoreWarningTab extends BaseTab {
                 }
             });
             y += 22;
-            w.add(SettingsButtonWidget.builder(onOff("Tell Party", cfg.isCryptReminderParty()), btn -> {
-                        cfg.setCryptReminderParty(!cfg.isCryptReminderParty());
-                        cfg.save();
-                        btn.setMessage(onOff("Tell Party", cfg.isCryptReminderParty()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            w.add(onOffButton("Tell Party", cfg::isCryptReminderParty, cfg::setCryptReminderParty, cfg::save, null, contentX, y, contentWidth, 18));
             y += 22;
         }
         if (cfg.isPreBossWarning() || cfg.isCryptReminder()) {
-            w.add(SettingsButtonWidget.builder(onOff("Warning Sound", cfg.isScoreWarningSound()), btn -> {
-                        cfg.setScoreWarningSound(!cfg.isScoreWarningSound());
-                        cfg.save();
-                        btn.setMessage(onOff("Warning Sound", cfg.isScoreWarningSound()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            w.add(onOffButton("Warning Sound", cfg::isScoreWarningSound, cfg::setScoreWarningSound, cfg::save, null, contentX, y, contentWidth, 18));
         }
         return w;
     }

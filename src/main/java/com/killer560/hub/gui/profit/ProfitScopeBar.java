@@ -86,11 +86,7 @@ public final class ProfitScopeBar {
                     btn.setMessage(showText());
                 }).bounds(x, y, w, 18).build());
         y += 20;
-        widgets.add(SettingsButtonWidget.cycling(dataText(), (btn, dir) -> {
-                    cfg.setDataMode(SettingsButtonWidget.step(cfg.getDataMode(), dir));
-                    cfg.save();
-                    btn.setMessage(dataText());
-                }).bounds(x, y, w, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> dataText(), cfg::getDataMode, cfg::setDataMode, cfg::save).bounds(x, y, w, 18).build());
         return y + 22;
     }
 

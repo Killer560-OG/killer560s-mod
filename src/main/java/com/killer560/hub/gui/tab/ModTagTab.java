@@ -35,12 +35,7 @@ public class ModTagTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Me As A Mod User", cfg.isShare()), btn -> {
-                    cfg.setShare(!cfg.isShare());
-                    cfg.save();
-                    ModUsers.announce();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Show Me As A Mod User", cfg::isShare, cfg::setShare, () -> { cfg.save(); ModUsers.announce(); }, requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {

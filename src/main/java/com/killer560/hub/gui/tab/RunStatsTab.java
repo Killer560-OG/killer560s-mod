@@ -25,13 +25,11 @@ public class RunStatsTab extends BaseTab {
         int colBX = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(onOffButton("Run Stats", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Run Stats", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
 
         widgets.add(header("What To Show", contentX, y, contentWidth));
         y += 14;

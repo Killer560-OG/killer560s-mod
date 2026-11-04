@@ -151,14 +151,7 @@ public final class MenuSearch {
 
     /** The words joined by single spaces ("Hide Effect Icons (HUD)" -> "hide effect icons hud"). */
     static String norm(String[][] words) {
-        StringBuilder sb = new StringBuilder();
-        for (String[] w : words) {
-            if (sb.length() > 0) {
-                sb.append(' ');
-            }
-            sb.append(w[0]);
-        }
-        return sb.toString();
+        return java.util.Arrays.stream(words).map(w -> w[0]).collect(java.util.stream.Collectors.joining(" "));
     }
 
     /** One typed word's forms: itself, its stem and each synonym, with how much a match through each counts. */
@@ -275,15 +268,7 @@ public final class MenuSearch {
     }
 
     private static boolean sameLeaves(List<BaseTab> leaves) {
-        if (leaves.size() != indexedLeaves.size()) {
-            return false;
-        }
-        for (int i = 0; i < leaves.size(); i++) {
-            if (leaves.get(i) != indexedLeaves.get(i)) {
-                return false;
-            }
-        }
-        return true;
+        return leaves.equals(indexedLeaves);
     }
 
     private static Doc read(BaseTab leaf) {
@@ -374,10 +359,7 @@ public final class MenuSearch {
             if (qw.length == 0) {
                 continue;
             }
-            List<List<Form>> qf = new ArrayList<>();
-            for (String[] w : qw) {
-                qf.add(forms(w[0]));
-            }
+            List<List<Form>> qf = java.util.Arrays.stream(qw).map(w -> forms(w[0])).toList();
             String norm = norm(qw);
             for (BaseTab leaf : leaves) {
                 if (hidden.test(leaf)) {
@@ -405,10 +387,7 @@ public final class MenuSearch {
             if (qw.length < 2) {
                 continue;
             }
-            List<List<Form>> qf = new ArrayList<>();
-            for (String[] w : qw) {
-                qf.add(forms(w[0]));
-            }
+            List<List<Form>> qf = java.util.Arrays.stream(qw).map(w -> forms(w[0])).toList();
             for (BaseTab leaf : leaves) {
                 if (hidden.test(leaf) || featureScore.containsKey(leaf) || rowScore.containsKey(leaf)) {
                     continue;
@@ -501,14 +480,7 @@ public final class MenuSearch {
             // A one-letter command (/k, /c) is also every first keystroke: it ranks, but not over everything.
             return first.length() < 2 ? 300 : qw.length == 1 ? 1000 : 500;
         }
-        if (qw.length == 1 && first.length() >= 4) {
-            for (String c : d.commands) {
-                if (c.startsWith(first)) {
-                    return 150;
-                }
-            }
-        }
-        return 0;
+        return qw.length == 1 && first.length() >= 4 && d.commands.stream().anyMatch(c -> c.startsWith(first)) ? 150 : 0;
     }
 
     /** A row's score: every word in its label, its tooltip or the feature's name, and at least one in the row itself. */

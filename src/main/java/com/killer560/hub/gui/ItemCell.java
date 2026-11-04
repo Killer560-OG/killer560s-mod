@@ -34,10 +34,7 @@ public final class ItemCell {
      *  {@link #FILL} of the cell rounded to whole framebuffer pixels. */
     public static float itemSize(int size, float pixelsPerUnit) {
         float target = Math.max(16f, size * FILL);
-        if (target <= 16f) {
-            return 16f;
-        }
-        return Math.max(1f, Math.round(target * pixelsPerUnit)) / pixelsPerUnit;
+        return target <= 16f ? 16f : Math.max(1f, Math.round(target * pixelsPerUnit)) / pixelsPerUnit;
     }
 
     /**

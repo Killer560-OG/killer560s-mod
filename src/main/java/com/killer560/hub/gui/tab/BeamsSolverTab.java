@@ -20,24 +20,17 @@ public class BeamsSolverTab extends BaseTab {
         int y = contentY;
         BeamsSolverConfig cfg = BeamsSolverConfig.getInstance();
 
-        widgets.add(onOffButton("Creeper Beams Solver", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Creeper Beams Solver", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Show Tracer", cfg::isShowTracer, cfg::setShowTracer, cfg::save,
                 null, contentX, y, contentWidth, 18));
         y += 22;
-        widgets.add(com.killer560.hub.gui.SettingsButtonWidget.cycling(showText(cfg), (btn, dir) -> {
-                    BeamsSolverConfig.ShowMode[] modes = BeamsSolverConfig.ShowMode.values();
-                    cfg.setShowMode(modes[com.killer560.hub.gui.SettingsButtonWidget.step(cfg.getShowMode().ordinal(), dir,
-                            modes.length)]);
-                    cfg.save();
-                    btn.setMessage(showText(cfg));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(com.killer560.hub.gui.SettingsButtonWidget.cycleEnum(() -> showText(cfg), cfg::getShowMode,
+                cfg::setShowMode, cfg::save).bounds(contentX, y, contentWidth, 18).build());
 
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BEAMS, contentX, contentWidth, y, true);
 

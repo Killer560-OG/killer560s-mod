@@ -32,13 +32,11 @@ public class WitherDoorsTab extends BaseTab {
         int col2aX = contentX;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(onOffButton("Wither Doors", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Wither Doors", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Wither Door Color", cfg.getWitherLockedColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
@@ -60,11 +58,7 @@ public class WitherDoorsTab extends BaseTab {
 
         // Style and fill (killer560, 2026-10-07: "make it so wither doors also have a fill colour option"). Always shown,
         // whatever the style, so the rows never move under the cursor when the style is cycled.
-        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
-                    cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
-                    cfg.save();
-                    btn.setMessage(styleText(cfg));
-                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> styleText(cfg), cfg::getStyle, cfg::setStyle, cfg::save).bounds(col2aX, y, col2W, 18).build());
         int fMin = WitherDoorsConfig.MIN_FILL_OPACITY;
         int fMax = WitherDoorsConfig.MAX_FILL_OPACITY;
         widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, opacityText(cfg),

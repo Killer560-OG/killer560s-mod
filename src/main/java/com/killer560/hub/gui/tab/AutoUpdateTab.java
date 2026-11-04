@@ -119,9 +119,6 @@ public class AutoUpdateTab extends BaseTab {
         if (detail.startsWith("the mod is not a jar")) {
             return "not in mods/";
         }
-        if (detail.startsWith("Auto Update is Off")) {
-            return "off";
-        }
-        return "skipped";
+        return detail.startsWith("Auto Update is Off") ? "off" : "skipped";
     }
 }

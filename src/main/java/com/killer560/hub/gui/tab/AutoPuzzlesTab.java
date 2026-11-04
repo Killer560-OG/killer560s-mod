@@ -84,11 +84,7 @@ public class AutoPuzzlesTab extends BaseTab {
                 () -> cfg.setAutoBeamsEnabled(!cfg.isAutoBeamsEnabled()), cfg, requestRebuild);
         if (cfg.isAutoBeamsEnabled()) {
             // Shoot (the original) or Melee (to-do item 29, 2026-10-18): left click forward, right click back.
-            widgets.add(SettingsButtonWidget.cycling(beamsModeText(cfg), (btn, dir) -> {
-                        cfg.setAutoBeamsMode(SettingsButtonWidget.step(cfg.getAutoBeamsMode(), dir));
-                        cfg.save();
-                        btn.setMessage(beamsModeText(cfg));
-                    }).bounds(contentX, y, contentWidth, 20).build());
+            widgets.add(SettingsButtonWidget.cycleEnum(() -> beamsModeText(cfg), cfg::getAutoBeamsMode, cfg::setAutoBeamsMode, cfg::save).bounds(contentX, y, contentWidth, 20).build());
             y += ROW_STEP;
         }
         y = toggle(widgets, contentX, y, contentWidth, "Auto Ice Path", cfg.isAutoIcePathEnabled(),

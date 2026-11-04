@@ -196,11 +196,7 @@ public class MobEspTab extends BaseTab {
     private static void targetRow(List<AbstractWidget> widgets, int x, int col2X, int y, int width, String name,
                                   BooleanSupplier getter, Consumer<Boolean> setter, String colorName,
                                   IntSupplier colorGetter, IntConsumer colorSetter, int defaultColor) {
-        widgets.add(SettingsButtonWidget.builder(onOff(name, getter.getAsBoolean()), btn -> {
-                    setter.accept(!getter.getAsBoolean());
-                    MobEspConfig.getInstance().save();
-                    btn.setMessage(onOff(name, getter.getAsBoolean()));
-                }).bounds(x, y, width, 18).build());
+        widgets.add(onOffButton(name, () -> getter.getAsBoolean(), v -> setter.accept(v), () -> MobEspConfig.getInstance().save(), null, x, y, width, 18));
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", colorGetter.getAsInt()), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), colorName + " Color",

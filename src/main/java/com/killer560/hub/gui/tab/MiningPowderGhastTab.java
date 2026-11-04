@@ -22,21 +22,12 @@ public class MiningPowderGhastTab extends BaseTab {
                 contentX, y, contentWidth, 20));
         y += MiningQolRows.STEP;
 
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Spawn Title", cfg::isPowderGhastTitle,
-                cfg::setPowderGhastTitle, cfg::save);
-        y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Spawn Sound", cfg::isPowderGhastSound,
-                cfg::setPowderGhastSound, cfg::save);
-        y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Party Callout", cfg::isPowderGhastParty,
-                cfg::setPowderGhastParty, cfg::save);
-        y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Despawn Timer", cfg::isPowderGhastTimer,
-                cfg::setPowderGhastTimer, cfg::save);
-        y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Highlight Box", cfg::isPowderGhastBox,
-                cfg::setPowderGhastBox, cfg::save);
-        y += MiningQolRows.STEP;
+        y = MiningQolRows.toggles(w, contentX, y, contentWidth, cfg::save,
+                MiningQolRows.t("Spawn Title", cfg::isPowderGhastTitle, cfg::setPowderGhastTitle),
+                MiningQolRows.t("Spawn Sound", cfg::isPowderGhastSound, cfg::setPowderGhastSound),
+                MiningQolRows.t("Party Callout", cfg::isPowderGhastParty, cfg::setPowderGhastParty),
+                MiningQolRows.t("Despawn Timer", cfg::isPowderGhastTimer, cfg::setPowderGhastTimer),
+                MiningQolRows.t("Highlight Box", cfg::isPowderGhastBox, cfg::setPowderGhastBox));
         MiningQolRows.color(w, contentX, y, contentWidth, "Box Color", cfg::getPowderGhastBoxColor,
                 cfg::setPowderGhastBoxColor, MiningQolConfig.DEFAULT_POWDER_GHAST_COLOR, cfg::save);
         y += MiningQolRows.STEP;

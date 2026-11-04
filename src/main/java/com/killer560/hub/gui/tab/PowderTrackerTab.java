@@ -24,12 +24,9 @@ public class PowderTrackerTab extends BaseTab {
         w.add(onOffButton("Powder Tracker", cfg::isPowderTrackerRaw, cfg::setPowderTracker, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Show Mithril Powder", cfg::isPowderTrackerMithril,
-                cfg::setPowderTrackerMithril, cfg::save);
-        y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Show Top Drops", cfg::isPowderTrackerItems,
-                cfg::setPowderTrackerItems, cfg::save);
-        y += MiningQolRows.STEP;
+        y = MiningQolRows.toggles(w, contentX, y, contentWidth, cfg::save,
+                MiningQolRows.t("Show Mithril Powder", cfg::isPowderTrackerMithril, cfg::setPowderTrackerMithril),
+                MiningQolRows.t("Show Top Drops", cfg::isPowderTrackerItems, cfg::setPowderTrackerItems));
         w.add(SettingsButtonWidget.builder(Component.literal("Reset Session"), btn -> PowderTracker.reset())
                 .bounds(contentX, y, contentWidth, MiningQolRows.ROW).build());
         return w;

@@ -72,13 +72,11 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         InventorySorterConfig cfg = InventorySorterConfig.getInstance();
 
-        widgets.add(onOffButton("Auto Inventory Sorter", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Auto Inventory Sorter", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
         widgets.add(com.killer560.hub.gui.ScreenThemes.button("invsort", contentX, y, contentWidth, 18));
         y += 22;
 

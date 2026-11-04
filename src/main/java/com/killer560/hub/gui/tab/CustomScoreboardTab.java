@@ -31,13 +31,11 @@ public class CustomScoreboardTab extends BaseTab {
         int y = contentY;
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
 
-        widgets.add(onOffButton("Custom Scoreboard", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Custom Scoreboard", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Visual Editor"), btn -> {
                     Minecraft client = Minecraft.getInstance();

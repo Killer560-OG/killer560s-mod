@@ -24,13 +24,11 @@ public class ItemRarityTab extends BaseTab {
         int y = contentY;
         ItemRarityConfig cfg = ItemRarityConfig.getInstance();
 
-        widgets.add(onOffButton("Item Rarity Backgrounds", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Item Rarity Backgrounds", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(SettingsButtonWidget.cycling(styleLabel(cfg), (btn, dir) -> {
                     cfg.setStyle(dir > 0 ? cfg.getStyle().next() : cfg.getStyle().previous());

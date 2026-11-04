@@ -21,13 +21,11 @@ public class MotionBlurTab extends BaseTab {
         MotionBlurConfig cfg = MotionBlurConfig.getInstance();
         int y = contentY;
 
-        widgets.add(onOffButton("Motion Blur", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Motion Blur", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         double range = MotionBlurConfig.MAX_STRENGTH - MotionBlurConfig.MIN_STRENGTH;
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, strengthText(cfg.getStrength()),

@@ -105,6 +105,16 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         return b;
     }
 
+    /** A cycling button over an enum setting: each click steps it, saves, and redraws the label from {@code text}. */
+    public static <E extends Enum<E>> Builder cycleEnum(java.util.function.Supplier<Component> text,
+            java.util.function.Supplier<E> get, java.util.function.Consumer<E> set, Runnable save) {
+        return cycling(text.get(), (btn, dir) -> {
+            set.accept(step(get.get(), dir));
+            save.run();
+            btn.setMessage(text.get());
+        });
+    }
+
     /** The constant {@code dir} steps away from {@code current} in declaration order, wrapping at both ends. */
     public static <E extends Enum<E>> E step(E current, int dir) {
         E[] all = current.getDeclaringClass().getEnumConstants();
@@ -267,14 +277,12 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
             return new Parts(Look.SWITCH, m.group(1).trim(), m.group(2), note, "ON".equals(m.group(2)), dim);
         }
         int colon = plain.indexOf(':');
+        boolean split = colon > 0 && colon < plain.length() - 1;
         if (cycling) {
-            if (colon > 0 && colon < plain.length() - 1) {
-                return new Parts(Look.PILL, plain.substring(0, colon).trim(), plain.substring(colon + 1).trim(), "",
-                        false, dim);
-            }
-            return new Parts(Look.PILL, "", plain, "", false, dim);
+            return split ? new Parts(Look.PILL, plain.substring(0, colon).trim(), plain.substring(colon + 1).trim(), "", false, dim)
+                    : new Parts(Look.PILL, "", plain, "", false, dim);
         }
-        if (colon > 0 && colon < plain.length() - 1) {
+        if (split) {
             // The value keeps its own color codes (a key bind's §b, a status's §a/§c).
             int rawColon = raw.indexOf(':');
             String value = rawColon >= 0 ? raw.substring(rawColon + 1).trim() : plain.substring(colon + 1).trim();
@@ -379,10 +387,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         int labelMin = p.label().isEmpty() ? 0 : Math.min(font.width(p.label()), 40) + 12;
         int max = Math.max(24, getWidth() - 8 - labelMin);
         int want = font.width(p.value()) + (p.look() == Look.PILL ? 22 : 10);
-        if (p.label().isEmpty()) {
-            return getWidth() - 8;
-        }
-        return Math.min(max, Math.max(30, want));
+        return p.label().isEmpty() ? getWidth() - 8 : Math.min(max, Math.max(30, want));
     }
 
     private String boldFor;
@@ -413,11 +418,10 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         int textY = y0 + (h - 8) / 2;
         com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(graphics);
         if (danger || primary || p.look() == Look.ACTION) {
-            int bw = w;
             if (danger) {
-                MenuStyle.dangerButton(r, x0 + 1, y0 + 1, bw - 2, h - 2, hover);
+                MenuStyle.dangerButton(r, x0 + 1, y0 + 1, w - 2, h - 2, hover);
             } else {
-                MenuStyle.raisedButton(r, x0 + 1, y0 + 1, bw - 2, h - 2, hv, primary ? 1f : pr);
+                MenuStyle.raisedButton(r, x0 + 1, y0 + 1, w - 2, h - 2, hv, primary ? 1f : pr);
             }
             r.submit();
             String label = MenuStyle.ellipsize(partsFor, w - 10); // partsFor: the message text parts() just read
@@ -616,11 +620,9 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
      * arrows) left click forward and right click back on the whole button, as before.
      */
     private boolean pillClick(MouseButtonEvent event) {
-        if (onSecondaryPress == null || !active || !visible || !inMenu() || parts().look() != Look.PILL
-                || (com.killer560.hub.compat.McInput.button(event) != 0 && com.killer560.hub.compat.McInput.button(event) != 1) || !isMouseOver(event.x(), event.y())) {
-            return false;
-        }
-        return true;
+        int button = com.killer560.hub.compat.McInput.button(event);
+        return onSecondaryPress != null && active && visible && inMenu() && parts().look() == Look.PILL
+                && (button == 0 || button == 1) && isMouseOver(event.x(), event.y());
     }
 
     @Override

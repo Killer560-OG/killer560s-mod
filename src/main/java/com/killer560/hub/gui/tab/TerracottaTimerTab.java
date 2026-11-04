@@ -2,7 +2,6 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.dungeonalerts.DungeonAlertsConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
-import com.killer560.hub.gui.SettingsButtonWidget;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,11 +22,7 @@ public class TerracottaTimerTab extends BaseTab {
         List<AbstractWidget> w = new ArrayList<>();
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
 
-        w.add(SettingsButtonWidget.builder(onOff("Terracotta Timer", cfg.terracottaEnabled), btn -> {
-                    cfg.terracottaEnabled = !cfg.terracottaEnabled;
-                    cfg.save();
-                    btn.setMessage(onOff("Terracotta Timer", cfg.terracottaEnabled));
-                }).bounds(contentX, contentY, contentWidth, 20).build());
+        w.add(onOffButton("Terracotta Timer", () -> cfg.terracottaEnabled, v -> cfg.terracottaEnabled = v, cfg::save, null, contentX, contentY, contentWidth, 20));
 
         return w;
     }

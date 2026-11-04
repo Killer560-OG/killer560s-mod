@@ -44,11 +44,8 @@ public class DvdTab extends BaseTab {
         // (DvdFeature#renderOverlay) and the list and wizard are hidden.
         DvdConfig dc = DvdConfig.getInstance();
         List<AbstractWidget> all = new ArrayList<>();
-        all.add(SettingsButtonWidget.builder(Component.literal("DVD: " + (dc.isDvdEnabled() ? "§aON" : "§cOFF")), btn -> {
-                    dc.setDvdEnabled(!dc.isDvdEnabled());
-                    dc.save();
-                    requestRebuild.run();
-                }).bounds(contentX, contentY, contentWidth, ROW_H).build());
+        all.add(onOffButton("DVD", dc::isDvdEnabled, dc::setDvdEnabled, dc::save, requestRebuild,
+                contentX, contentY, contentWidth, ROW_H));
         if (!dc.isDvdEnabled()) {
             return all;
         }
@@ -197,27 +194,18 @@ public class DvdTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, ROW_H).build());
         y += ROW_H + 4;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Background: " + (e.backgroundEnabled ? "§aON" : "§cOFF")), btn -> {
-                    e.backgroundEnabled = !e.backgroundEnabled;
-                    DvdConfig.getInstance().save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, ROW_H).build());
+        widgets.add(onOffButton("Background", () -> e.backgroundEnabled, v -> e.backgroundEnabled = v,
+                () -> DvdConfig.getInstance().save(), requestRebuild, contentX, y, contentWidth, ROW_H));
         y += ROW_H + 4;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Change color on corner hit: "
-                        + (e.changeColorOnCornerHit ? "§aON" : "§cOFF")), btn -> {
-                    e.changeColorOnCornerHit = !e.changeColorOnCornerHit;
-                    DvdConfig.getInstance().save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, ROW_H).build());
+        widgets.add(onOffButton("Change color on corner hit", () -> e.changeColorOnCornerHit,
+                v -> e.changeColorOnCornerHit = v, () -> DvdConfig.getInstance().save(), requestRebuild,
+                contentX, y, contentWidth, ROW_H));
         y += ROW_H + 4;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Change color on any wall hit: "
-                        + (e.changeColorOnWallHit ? "§aON" : "§cOFF")), btn -> {
-                    e.changeColorOnWallHit = !e.changeColorOnWallHit;
-                    DvdConfig.getInstance().save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, ROW_H).build());
+        widgets.add(onOffButton("Change color on any wall hit", () -> e.changeColorOnWallHit,
+                v -> e.changeColorOnWallHit = v, () -> DvdConfig.getInstance().save(), requestRebuild,
+                contentX, y, contentWidth, ROW_H));
         y += ROW_H + 10;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("<- Back"), btn -> {

@@ -1,7 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.bosshealth.BossHealthConfig;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
 
 import java.util.ArrayList;
@@ -32,10 +31,6 @@ public class BossHealthTab extends BaseTab {
     }
 
     private static AbstractWidget toggle(int x, int y, int width, String label, BooleanSupplier getter, Consumer<Boolean> setter) {
-        return SettingsButtonWidget.builder(onOff(label, getter.getAsBoolean()), btn -> {
-            setter.accept(!getter.getAsBoolean());
-            BossHealthConfig.getInstance().save();
-            btn.setMessage(onOff(label, getter.getAsBoolean()));
-        }).bounds(x, y, width, 20).build();
+        return onOffButton(label, () -> getter.getAsBoolean(), v -> setter.accept(v), () -> BossHealthConfig.getInstance().save(), null, x, y, width, 20);
     }
 }

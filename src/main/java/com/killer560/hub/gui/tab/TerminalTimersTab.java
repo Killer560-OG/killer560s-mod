@@ -20,13 +20,11 @@ public class TerminalTimersTab extends BaseTab {
         int y = contentY;
         TerminalTimersConfig cfg = TerminalTimersConfig.getInstance();
 
-        widgets.add(onOffButton("Terminal Timers", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Terminal Timers", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Terminal Solve Times", cfg::getSolveTimesRaw, cfg::setSolveTimes, cfg::save,
                 null, contentX, y, contentWidth, 18));

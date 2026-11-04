@@ -33,13 +33,11 @@ public class LividSolverTab extends BaseTab {
         int y = contentY;
         LividSolverConfig cfg = LividSolverConfig.getInstance();
 
-        widgets.add(onOffButton("Livid Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Livid Solver", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Show Invuln Timer", cfg::isShowTimer, cfg::setShowTimer, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 18));

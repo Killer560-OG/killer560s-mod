@@ -81,13 +81,11 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Pet Wheel", false));
         y += 16;
 
-        widgets.add(onOffButton("Pet Wheel", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Pet Wheel", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
 
         int gap = 8;
         int col2W = (contentWidth - gap) / 2;
@@ -230,17 +228,11 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
     }
 
     private Component keyText(PetWheelConfig cfg) {
-        if (capturing == Capturing.WHEEL) {
-            return Component.literal("Press any key/button...");
-        }
-        return Component.literal("Wheel Key: " + KeyUtil.bindDisplayName(cfg.getKeyCode()));
+        return capturing == Capturing.WHEEL ? Component.literal("Press any key/button...") : Component.literal("Wheel Key: " + KeyUtil.bindDisplayName(cfg.getKeyCode()));
     }
 
     private static Component pageKeyText(String label, int code, boolean capturingNow) {
-        if (capturingNow) {
-            return Component.literal("Press any key/button...");
-        }
-        return Component.literal(label + ": " + KeyUtil.bindDisplayName(code));
+        return capturingNow ? Component.literal("Press any key/button...") : Component.literal(label + ": " + KeyUtil.bindDisplayName(code));
     }
 
     private static Component modeText(PetWheelConfig cfg) {

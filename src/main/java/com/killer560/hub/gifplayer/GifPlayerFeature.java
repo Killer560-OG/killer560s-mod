@@ -139,11 +139,8 @@ public final class GifPlayerFeature {
     private static void loadGifs() {
         gifsRequested = true;
         List<Path> found;
-        try (Stream<Path> stream = list(GIF_FOLDER)) {
-            found = stream.filter(Files::isRegularFile)
-                    .filter(GifDecoder::isGif)
-                    .sorted((a, b) -> a.getFileName().toString().compareToIgnoreCase(b.getFileName().toString()))
-                    .collect(Collectors.toList());
+        try {
+            found = gifFiles();
         } catch (IOException e) {
             LOGGER.error("Failed to list GIF folder", e);
             return;
@@ -231,13 +228,14 @@ public final class GifPlayerFeature {
 
     private static void dropLoaded(String name) {
         LoadedGif existing = loaded.remove(name);
-        if (existing != null) {
-            if (existing.texture != null) {
-                // release closes it and frees the id; closing it alone left a dead texture registered under the id.
-                Minecraft.getInstance().getTextureManager().release(existing.textureId);
-            }
-            HudElementRegistry.unregister(existing.elementId);
+        if (existing == null) {
+            return;
         }
+        if (existing.texture != null) {
+            // release closes it and frees the id; closing it alone left a dead texture registered under the id.
+            Minecraft.getInstance().getTextureManager().release(existing.textureId);
+        }
+        HudElementRegistry.unregister(existing.elementId);
     }
 
     private static void applyGif(String name, GifDecoder.GifImage decoded, long stamp) {
@@ -246,7 +244,6 @@ public final class GifPlayerFeature {
         LoadedGif entry = new LoadedGif(elementId(name),
                 Identifier.fromNamespaceAndPath("killer560smod", "gif_player_" + Integer.toHexString(name.hashCode())), stamp);
         entry.gif = decoded;
-        entry.frameIndex = 0;
         entry.lastFrameChangeAtMs = System.currentTimeMillis();
 
         double scale = Math.min(1.0, MAX_DISPLAY_SIZE / (double) Math.max(decoded.width(), decoded.height()));
@@ -446,15 +443,25 @@ public final class GifPlayerFeature {
         }
     }
 
+    private static List<Path> gifFiles() throws IOException {
+        return folderFiles(GifDecoder::isGif);
+    }
+
+    /** Every file in the folder that {@code kind} accepts, by name ignoring case (the audio side lists with it too). */
+    static List<Path> folderFiles(java.util.function.Predicate<Path> kind) throws IOException {
+        try (Stream<Path> stream = list(GIF_FOLDER)) {
+            return stream.filter(Files::isRegularFile)
+                    .filter(kind)
+                    .sorted((a, b) -> a.getFileName().toString().compareToIgnoreCase(b.getFileName().toString()))
+                    .collect(Collectors.toList());
+        }
+    }
+
     /** Every .gif filename currently in the folder, regardless of its enabled state - for the tab's
      *  per-file toggle list. */
     public static List<String> discoverFileNames() {
-        try (Stream<Path> stream = list(GIF_FOLDER)) {
-            return stream.filter(Files::isRegularFile)
-                    .filter(GifDecoder::isGif)
-                    .map(p -> p.getFileName().toString())
-                    .sorted(String.CASE_INSENSITIVE_ORDER)
-                    .collect(Collectors.toList());
+        try {
+            return gifFiles().stream().map(p -> p.getFileName().toString()).collect(Collectors.toList());
         } catch (IOException e) {
             return List.of();
         }

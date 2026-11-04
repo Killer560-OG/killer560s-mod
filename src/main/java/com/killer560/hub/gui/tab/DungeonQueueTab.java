@@ -76,13 +76,11 @@ public class DungeonQueueTab extends BaseTab {
         y += 30;
 
         PartyFinderOverlayConfig pf = PartyFinderOverlayConfig.getInstance();
-        widgets.add(onOffButton("Party Finder Overlay", pf::isEnabledRaw, pf::setEnabled, pf::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-
-        if (!pf.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Party Finder Overlay", pf::isEnabledRaw, pf::setEnabled, pf::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
 
         // Highlight
         widgets.add(rebuildToggle("Highlight", pf::isHighlight, pf::setHighlight, pf::save, requestRebuild,
@@ -122,11 +120,7 @@ public class DungeonQueueTab extends BaseTab {
             return widgets;
         }
         widgets.add(toggle("Show Missing", pf::isShowMissing, pf::setShowMissing, pf::save, contentX, y, colW));
-        widgets.add(SettingsButtonWidget.cycling(valueText("PB Mode", pf.getPbMode().label), (btn, dir) -> {
-                    pf.setPbMode(SettingsButtonWidget.step(pf.getPbMode(), dir));
-                    pf.save();
-                    btn.setMessage(valueText("PB Mode", pf.getPbMode().label));
-                }).bounds(colBX, y, colW, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> valueText("PB Mode", pf.getPbMode().label), pf::getPbMode, pf::setPbMode, pf::save).bounds(colBX, y, colW, 18).build());
         y += 20;
         // Label renamed from "Compact" to "Party Finder style" (killer560 7.2) - the persisted CompactMode
         // enum values (NONE/STYLE1/STYLE2/CUSTOM) are untouched, so an existing selection still loads.

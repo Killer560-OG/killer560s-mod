@@ -137,10 +137,7 @@ public class InventoryThemeTab extends BaseTab {
         if (InventoryThemeConfig.CUSTOM_CHOICE.equals(choice)) {
             return "Custom";
         }
-        if (ScreenThemes.isSaved(choice) && ScreenThemes.savedTheme(choice) != null) {
-            return MenuConfig.shownName(ScreenThemes.savedTheme(choice));
-        }
-        return ScreenThemes.label(choice.toUpperCase(Locale.ROOT));
+        return ScreenThemes.isSaved(choice) && ScreenThemes.savedTheme(choice) != null ? MenuConfig.shownName(ScreenThemes.savedTheme(choice)) : ScreenThemes.label(choice.toUpperCase(Locale.ROOT));
     }
 
     private static Component enabledText(InventoryThemeConfig cfg) {

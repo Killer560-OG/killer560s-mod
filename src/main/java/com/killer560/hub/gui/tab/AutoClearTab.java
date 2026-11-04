@@ -158,11 +158,7 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
             btn.setMessage(Component.literal("Autopilot Key: §ePress any key..."));
         }).bounds(contentX + half + GAP, y[0], right, 20).build());
         y[0] += ROW;
-        w.add(SettingsButtonWidget.cycling(runModeText(cfg), (btn, dir) -> {
-            cfg.setRunMode(SettingsButtonWidget.step(cfg.getRunMode(), dir));
-            cfg.save();
-            btn.setMessage(runModeText(cfg));
-        }).bounds(contentX, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> runModeText(cfg), cfg::getRunMode, cfg::setRunMode, cfg::save).bounds(contentX, y[0], half, 20).build());
         toggle(w, contentX + half + GAP, y[0], right, "Blood First", cfg::isBloodFirst, cfg::setBloodFirst);
         y[0] += ROW;
         toggle(w, contentX, y[0], half, "Do Puzzles", cfg::isDoPuzzles, cfg::setDoPuzzles);
@@ -187,23 +183,11 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         }).bounds(contentX + half + GAP, y[0], right, 20).build());
         y[0] += ROW;
         // Its own label: the Autopilot's "Blood First" switch is in this tab too, and a tooltip is keyed by label.
-        w.add(SettingsButtonWidget.cycling(secretBloodFirstText(cfg), (btn, dir) -> {
-            cfg.setSecretBloodFirst(SettingsButtonWidget.step(cfg.getSecretBloodFirst(), dir));
-            cfg.save();
-            btn.setMessage(secretBloodFirstText(cfg));
-        }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> secretBloodFirstText(cfg), cfg::getSecretBloodFirst, cfg::setSecretBloodFirst, cfg::save).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += ROW;
-        w.add(SettingsButtonWidget.cycling(secretOrderText(cfg), (btn, dir) -> {
-            cfg.setSecretOrder(SettingsButtonWidget.step(cfg.getSecretOrder(), dir));
-            cfg.save();
-            btn.setMessage(secretOrderText(cfg));
-        }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> secretOrderText(cfg), cfg::getSecretOrder, cfg::setSecretOrder, cfg::save).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += ROW;
-        w.add(SettingsButtonWidget.cycling(roomPlanText(cfg), (btn, dir) -> {
-            cfg.setRoomPlan(SettingsButtonWidget.step(cfg.getRoomPlan(), dir));
-            cfg.save();
-            btn.setMessage(roomPlanText(cfg));
-        }).bounds(contentX, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> roomPlanText(cfg), cfg::getRoomPlan, cfg::setRoomPlan, cfg::save).bounds(contentX, y[0], half, 20).build());
         toggle(w, contentX + half + GAP, y[0], right, "Skip Unneeded Secrets", cfg::isSkipUnneededSecrets,
                 cfg::setSkipUnneededSecrets);
         y[0] += ROW;

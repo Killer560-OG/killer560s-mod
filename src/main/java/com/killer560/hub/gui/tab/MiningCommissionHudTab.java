@@ -22,27 +22,14 @@ public class MiningCommissionHudTab extends BaseTab {
                 contentWidth, 20));
         y += MiningQolRows.STEP;
 
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Hide While Powder Mining", cfg::isHideCommissionsPowder,
-                cfg::setHideCommissionsPowder, cfg::save);
-        y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Color By Progress", cfg::isCommissionColorProgress,
-                cfg::setCommissionColorProgress, cfg::save);
-        y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Live Progress", cfg::isCommissionInterpolate,
-                cfg::setCommissionInterpolate, cfg::save);
-        y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Commission Waypoints", cfg::isCommissionWaypoints,
-                cfg::setCommissionWaypoints, cfg::save);
-        y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Emissary Waypoints", cfg::isCommissionEmissaries,
-                cfg::setCommissionEmissaries, cfg::save);
-        y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Completed Commissions", cfg::isCommissionMenuHighlight,
-                cfg::setCommissionMenuHighlight, cfg::save);
-        y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Commission Mobs", cfg::isCommissionMobs,
-                cfg::setCommissionMobs, cfg::save);
-        y += MiningQolRows.STEP;
+        y = MiningQolRows.toggles(w, contentX, y, contentWidth, cfg::save,
+                MiningQolRows.t("Hide While Powder Mining", cfg::isHideCommissionsPowder, cfg::setHideCommissionsPowder),
+                MiningQolRows.t("Color By Progress", cfg::isCommissionColorProgress, cfg::setCommissionColorProgress),
+                MiningQolRows.t("Live Progress", cfg::isCommissionInterpolate, cfg::setCommissionInterpolate),
+                MiningQolRows.t("Commission Waypoints", cfg::isCommissionWaypoints, cfg::setCommissionWaypoints),
+                MiningQolRows.t("Emissary Waypoints", cfg::isCommissionEmissaries, cfg::setCommissionEmissaries),
+                MiningQolRows.t("Completed Commissions", cfg::isCommissionMenuHighlight, cfg::setCommissionMenuHighlight),
+                MiningQolRows.t("Commission Mobs", cfg::isCommissionMobs, cfg::setCommissionMobs));
         MiningQolRows.color(w, contentX, y, contentWidth, "Commission Mob Color", cfg::getCommissionMobColor,
                 cfg::setCommissionMobColor, MiningQolConfig.DEFAULT_COMMISSION_MOB_COLOR, cfg::save);
         y += MiningQolRows.STEP;

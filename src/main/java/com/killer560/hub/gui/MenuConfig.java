@@ -111,31 +111,13 @@ public final class MenuConfig {
     }
 
     private void readFrom(JsonObject obj) {
-        try {
-            if (obj.has("theme")) {
-                theme = MenuTheme.parse(obj.get("theme").getAsString());
-            }
-        } catch (Exception ignored) {
-        }
-        try {
-            if (obj.has("animations")) {
-                animations = MenuAnim.Mode.parse(obj.get("animations").getAsString());
-            }
-        } catch (Exception ignored) {
-        }
-        try {
-            if (obj.has("animationSpeed")) {
-                animationSpeed = MenuAnim.Speed.parse(obj.get("animationSpeed").getAsString());
-            }
-        } catch (Exception ignored) {
-        }
-        try {
-            if (obj.has("customBase")) {
-                MenuTheme b = MenuTheme.parse(obj.get("customBase").getAsString());
-                customBase = b == MenuTheme.CUSTOM ? MenuTheme.AMBER : b;
-            }
-        } catch (Exception ignored) {
-        }
+        readString(obj, "theme", v -> theme = MenuTheme.parse(v));
+        readString(obj, "animations", v -> animations = MenuAnim.Mode.parse(v));
+        readString(obj, "animationSpeed", v -> animationSpeed = MenuAnim.Speed.parse(v));
+        readString(obj, "customBase", v -> {
+            MenuTheme b = MenuTheme.parse(v);
+            customBase = b == MenuTheme.CUSTOM ? MenuTheme.AMBER : b;
+        });
         System.arraycopy(customBase.base(), 0, custom, 0, custom.length);
         if (obj.has("custom") && obj.get("custom").isJsonObject()) {
             readColours(obj.getAsJsonObject("custom"), custom);
@@ -146,25 +128,17 @@ public final class MenuConfig {
                     continue;
                 }
                 JsonObject t = e.getAsJsonObject();
-                MenuTheme base = MenuTheme.AMBER;
-                try {
-                    if (t.has("base")) {
-                        base = MenuTheme.parse(t.get("base").getAsString());
-                    }
-                } catch (Exception ignored) {
-                }
+                MenuTheme[] baseBox = {MenuTheme.AMBER};
+                readString(t, "base", v -> baseBox[0] = MenuTheme.parse(v));
+                MenuTheme base = baseBox[0];
                 base = base == null || base == MenuTheme.CUSTOM ? MenuTheme.AMBER : base;
                 int[] cols = base.base();
                 if (t.has("colours") && t.get("colours").isJsonObject()) {
                     readColours(t.getAsJsonObject("colours"), cols);
                 }
-                String name = "";
-                try {
-                    if (t.has("name")) {
-                        name = t.get("name").getAsString();
-                    }
-                } catch (Exception ignored) {
-                }
+                String[] nameBox = {""};
+                readString(t, "name", v -> nameBox[0] = v);
+                String name = nameBox[0];
                 String id = "";
                 try {
                     if (t.has("id") && t.get("id").isJsonPrimitive()) {
@@ -192,6 +166,16 @@ public final class MenuConfig {
                 } catch (Exception ignored) {
                 }
             }
+        }
+    }
+
+    /** Hands {@code key}'s string to {@code apply}; a missing key or a value that will not apply is skipped. */
+    private static void readString(JsonObject o, String key, java.util.function.Consumer<String> apply) {
+        try {
+            if (o.has(key)) {
+                apply.accept(o.get(key).getAsString());
+            }
+        } catch (Exception ignored) {
         }
     }
 
@@ -341,9 +325,7 @@ public final class MenuConfig {
         int[] cols = activeColours();
         MenuTheme base = theme == MenuTheme.CUSTOM ? customBase : theme;
         java.util.Set<String> taken = new java.util.HashSet<>();
-        for (SavedTheme t : savedThemes) {
-            taken.add(t.name.toLowerCase(java.util.Locale.ROOT));
-        }
+        savedThemes.forEach(t -> taken.add(t.name.toLowerCase(java.util.Locale.ROOT)));
         int n = savedThemes.size() + 1;
         while (taken.contains("custom " + n)) {
             n++;
@@ -355,33 +337,16 @@ public final class MenuConfig {
 
     /** The saved theme with this {@link SavedTheme#id}, or null (deleted, or never there). */
     public SavedTheme savedThemeById(String id) {
-        if (id != null) {
-            for (SavedTheme t : savedThemes) {
-                if (t.id.equalsIgnoreCase(id.trim())) {
-                    return t;
-                }
-            }
-        }
-        return null;
+        return id == null ? null : savedThemes.stream().filter(t -> t.id.equalsIgnoreCase(id.trim())).findFirst().orElse(null);
     }
 
     /** "T" plus the lowest number nobody uses (a file from before ids gets T1, T2... in list order, once). */
     private String freshId() {
         int n = 1;
-        while (true) {
-            String id = "T" + n;
-            boolean taken = false;
-            for (SavedTheme t : savedThemes) {
-                if (id.equalsIgnoreCase(t.id)) {
-                    taken = true;
-                    break;
-                }
-            }
-            if (!taken) {
-                return id;
-            }
+        while (savedThemeById("T" + n) != null) {
             n++;
         }
+        return "T" + n;
     }
 
     private void assignMissingIds() {

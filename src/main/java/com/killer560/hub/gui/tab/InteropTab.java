@@ -22,13 +22,11 @@ public class InteropTab extends BaseTab {
         int y = contentY;
         InteropConfig cfg = InteropConfig.getInstance();
 
-        widgets.add(onOffButton("Party Interop", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, 220, 20));
-        y += 26;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Party Interop", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, 220)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Work It Out Myself", cfg::isSelfDerivation, cfg::setSelfDerivation, cfg::save,
                 null, contentX, y, 220, 18));

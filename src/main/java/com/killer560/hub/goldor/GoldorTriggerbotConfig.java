@@ -94,10 +94,7 @@ public final class GoldorTriggerbotConfig {
                 if (obj.has("classes")) {
                     cfg.classes.clear();
                     for (String n : obj.get("classes").getAsString().split(",")) {
-                        com.killer560.hub.dungeonclass.DungeonClass c = com.killer560.hub.dungeonclass.DungeonClass.byName(n.trim());
-                        if (c != null) {
-                            cfg.classes.add(c);
-                        }
+                        cfg.setClassEnabled(com.killer560.hub.dungeonclass.DungeonClass.byName(n.trim()), true);
                     }
                 }
             } catch (Exception ignored) {
@@ -179,10 +176,8 @@ public final class GoldorTriggerbotConfig {
         if (c == null) {
             return;
         }
-        if (on) {
-            classes.add(c);
-        } else {
-            classes.remove(c);
+        if (on ? classes.add(c) : classes.remove(c)) {
+            return;
         }
     }
 

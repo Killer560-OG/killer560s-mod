@@ -30,26 +30,16 @@ public class SecretWaypointsTab extends BaseTab {
         int y = contentY;
         SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
 
-        widgets.add(onOffButton("Secret Waypoints", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, 220, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Secret Waypoints", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, 220)) {
             return widgets;
         }
+        y += 26;
 
-        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
-                    cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
-                    cfg.save();
-                    btn.setMessage(styleText(cfg));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> styleText(cfg), cfg::getStyle, cfg::setStyle, cfg::save).bounds(contentX, y, 220, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.cycling(boxSizeText(cfg), (btn, dir) -> {
-                    cfg.setBoxSize(SettingsButtonWidget.step(cfg.getBoxSize(), dir));
-                    cfg.save();
-                    btn.setMessage(boxSizeText(cfg));
-                }).bounds(contentX, y, 220, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> boxSizeText(cfg), cfg::getBoxSize, cfg::setBoxSize, cfg::save).bounds(contentX, y, 220, 18).build());
         y += 22;
 
         widgets.add(onOffButton("Through Walls", cfg::isThroughWalls, cfg::setThroughWalls, cfg::save,

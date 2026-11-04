@@ -48,10 +48,7 @@ public class RunSummaryTab extends BaseTab {
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
-        if (viewing != null) {
-            return buildDetail(viewing, contentX, contentY, contentWidth, requestRebuild);
-        }
-        return buildList(contentX, contentY, contentWidth, requestRebuild);
+        return viewing != null ? buildDetail(viewing, contentX, contentY, contentWidth, requestRebuild) : buildList(contentX, contentY, contentWidth, requestRebuild);
     }
 
     private List<AbstractWidget> buildList(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
@@ -59,13 +56,11 @@ public class RunSummaryTab extends BaseTab {
         RunSummaryConfig cfg = RunSummaryConfig.getInstance();
         int y = contentY;
 
-        widgets.add(onOffButton("Run Summary", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Run Summary", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
 
         widgets.add(header(contentX, y, contentWidth, "Options"));
         y += HEADER_H;
@@ -191,10 +186,7 @@ public class RunSummaryTab extends BaseTab {
     }
 
     private static String statusText(int stored) {
-        if (RunSummaryFeature.isTrackingRun()) {
-            return "§6Recording the current run...  §7(" + stored + " stored)";
-        }
-        return "§7Stored runs: §f" + stored + " §7of " + RunSummaryConfig.getInstance().getMaxRuns();
+        return RunSummaryFeature.isTrackingRun() ? "§6Recording the current run...  §7(" + stored + " stored)" : "§7Stored runs: §f" + stored + " §7of " + RunSummaryConfig.getInstance().getMaxRuns();
     }
 
     /** "Best: F7 6m 12.30s / 305" per floor, at most a few floors so the line stays readable. */
