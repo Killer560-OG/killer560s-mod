@@ -92,11 +92,6 @@ public final class PerTickServerClock {
 
     private static Boolean forcedHypixel;
 
-    /** Testkit (logic suite): act as if connected to hypixel.net (true), not (false), or by the address (null). */
-    public static synchronized void hypixelForTest(Boolean on) {
-        forcedHypixel = on;
-        hypixel = on != null && on;
-    }
     private static boolean hypixel;
 
     private static synchronized void untrust() {

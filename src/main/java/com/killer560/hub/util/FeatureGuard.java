@@ -300,11 +300,6 @@ public final class FeatureGuard {
         };
     }
 
-    /** Whether a feature has been switched off by the guard - for a status line, and for tests. */
-    public static boolean isDisabled(String name) {
-        return DISABLED.contains(name);
-    }
-
     /** Every feature the guard has switched off this session. */
     public static Set<String> disabled() {
         return Set.copyOf(DISABLED);

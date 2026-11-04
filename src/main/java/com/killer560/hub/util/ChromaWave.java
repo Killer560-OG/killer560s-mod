@@ -170,12 +170,6 @@ public final class ChromaWave {
         return register(new Spec(null, fallbackRgb));
     }
 
-    /** A looping-gradient spec for text through {@code stops} (0xRRGGBB). Create once per gradient and keep it. */
-    public static Spec gradientSpec(int[] stops) {
-        int[] copy = stops == null || stops.length == 0 ? new int[]{0xFFFFFF} : stops.clone();
-        return register(new Spec(copy, copy[0]));
-    }
-
     private static synchronized Spec register(Spec spec) {
         Map<TextColor, Spec> next = new IdentityHashMap<>(specs);
         next.put(spec.textColor, spec);

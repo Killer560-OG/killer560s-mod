@@ -115,12 +115,6 @@ public final class SessionRecorderSink {
         }
     }
 
-    public static long bytesWritten() {
-        synchronized (LOCK) {
-            return bytes;
-        }
-    }
-
     public static long linesWritten() {
         synchronized (LOCK) {
             return lines;

@@ -380,10 +380,6 @@ public final class ActionGate {
         return true;
     }
 
-    public static int getMinSpacingTicks() {
-        return minSpacingTicks;
-    }
-
     /** The client tick count, advanced at the start of every client tick ({@link #onClientTick}). */
     public static long currentTick() {
         return tick;
@@ -469,11 +465,6 @@ public final class ActionGate {
         if (until > settleUntilTick) {
             settleUntilTick = until;
         }
-    }
-
-    /** Forces a stand-down window on every actor, e.g. around a swap the caller knows the server hasn't seen yet. */
-    public static void settleFor(int ticks) {
-        settle(Math.max(0, ticks));
     }
 
     /**
