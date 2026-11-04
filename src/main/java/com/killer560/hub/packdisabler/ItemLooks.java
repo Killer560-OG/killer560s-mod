@@ -50,9 +50,6 @@ public final class ItemLooks {
                     || legacy != null && !legacy.startsWith("minecraft:paper") && !legacy.startsWith("minecraft:skull");
         }
 
-        public boolean hasAnyLook() {
-            return hasVanillaLook() || ownTexture != null;
-        }
     }
 
     private static volatile boolean loaded;
