@@ -170,7 +170,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   frame ([Bat], [AutoClear] key room, [InstaClear] lines carry none). The NoammAddons room data (rooms-modern.json), Hades'
   rooms.json (LGPL, room ids and scores only), Nebulune, Athen and QUOI hold no spawn positions; only adm does (ARR, not
   used). So the table grows only from learning: since bloodrush2-1104 Learn Spawn Spots also runs while the helper is off
-  (its row shows in the tab either way; it draws nothing, so it is not a master toggle), and the table's `sources` map
+  (its row is built in the tab either way and is in masterToggles, so the card reads ON while it learns), and the table's `sources` map
   names each room's origin.
 
 ## Blood Camp

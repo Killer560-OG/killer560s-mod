@@ -22,6 +22,13 @@ public class BloodRushHelperTab extends BaseTab {
         super("Blood Rush Helper");
     }
 
+    /** The helper and its passive learner each run on their own flag (BloodRushHelperFeature.tick), so the card is ON
+     *  while either is on (CLAUDE.md masterToggles rule). */
+    @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Blood Rush Helper", "Learn Spawn Spots");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();
@@ -34,8 +41,8 @@ public class BloodRushHelperTab extends BaseTab {
         w.add(onOffButton("Blood Rush Helper", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 20));
         y += 26;
-        // Learning runs while the helper is off too (bloodrush2-1104), so its row shows either way. It draws nothing, so it
-        // is not a master toggle: the card stays OFF while only learning runs.
+        // Learning runs while the helper is off too (bloodrush2-1104), so its row is built either way and it is one of the
+        // card's master toggles (CLAUDE.md masterToggles rule): the card reads ON while it learns.
         w.add(onOffButton("Learn Spawn Spots", cfg::isLearnSpots, cfg::setLearnSpots, cfg::save, null,
                 contentX, y, colW, 18));
         if (!cfg.isEnabledRaw() && !isSearchScan()) {
