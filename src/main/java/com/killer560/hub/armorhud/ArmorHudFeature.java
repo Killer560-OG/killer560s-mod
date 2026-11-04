@@ -474,4 +474,7 @@ public final class ArmorHudFeature {
             }
         }
     }
+
+    /** Testkit: loadout swaps seen since the last reset. */
+    public static int loadoutSwapsForTest() { return loadoutSwaps; }
 }

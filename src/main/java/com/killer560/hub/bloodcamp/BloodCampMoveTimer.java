@@ -410,4 +410,7 @@ public final class BloodCampMoveTimer {
             graphics.pose().popMatrix();
         }
     };
+
+    /** Testkit: {@link #fastWatcherMoveTicks}. */
+    public static int fastWatcherMoveTicksForTest(String floor) { return fastWatcherMoveTicks(floor); }
 }

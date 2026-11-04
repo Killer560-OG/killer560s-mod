@@ -572,4 +572,11 @@ public final class CommissionRoute {
     public static int frames() { return frames; }
 
     public static int computes() { return computes; }
+
+    /** Testkit: the blocks of the landing patches now drawn, as "x,y,z". */
+    public static java.util.List<String> patchBlockList() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (net.minecraft.core.BlockPos p : patchBlocks) out.add(p.getX() + "," + p.getY() + "," + p.getZ());
+        return out;
+    }
 }

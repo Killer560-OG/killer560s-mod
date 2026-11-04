@@ -1979,4 +1979,7 @@ public final class BazaarView {
         railScroll = 0;
         lastFrameMs = 0;
     }
+
+    /** Testkit: the panel's {x, w} of the last frame. */
+    public static int[] panelSpan() { return new int[]{lastPanelX, lastPanelW}; }
 }

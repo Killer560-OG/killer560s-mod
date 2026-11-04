@@ -131,4 +131,6 @@ public final class LockpickHelper {
 
     public static int frames() { return frames; }
 
+    /** Testkit: the face to click ("EAST", ...), or null with no spot. */
+    public static String faceNow() { Direction f = face; return f == null ? null : f.name(); }
 }
