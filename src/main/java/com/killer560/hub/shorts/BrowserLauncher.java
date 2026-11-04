@@ -42,14 +42,10 @@ final class BrowserLauncher {
             candidates.add(Path.of(local, "Microsoft", "Edge", "Application", "msedge.exe"));
         }
         for (Path p : candidates) {
-            if (Files.isRegularFile(p)) {
-                return p;
-            }
+            if (Files.isRegularFile(p)) return p;
         }
         Path reg = registryAppPath("msedge.exe", log);
-        if (reg != null) {
-            return reg;
-        }
+        if (reg != null) return reg;
 
         candidates.clear();
         candidates.add(Path.of(pf, "Google", "Chrome", "Application", "chrome.exe"));
@@ -58,9 +54,7 @@ final class BrowserLauncher {
             candidates.add(Path.of(local, "Google", "Chrome", "Application", "chrome.exe"));
         }
         for (Path p : candidates) {
-            if (Files.isRegularFile(p)) {
-                return p;
-            }
+            if (Files.isRegularFile(p)) return p;
         }
         return registryAppPath("chrome.exe", log);
     }
@@ -107,13 +101,9 @@ final class BrowserLauncher {
      *  (killer560's "any site" custom URL field), or null if it's blank. Never touches anything that
      *  already has a scheme, so an explicit {@code http://} still works. */
     static String normalizeUrl(String raw) {
-        if (raw == null) {
-            return null;
-        }
+        if (raw == null) return null;
         String v = raw.trim();
-        if (v.isEmpty()) {
-            return null;
-        }
+        if (v.isEmpty()) return null;
         return v.matches("(?i)^[a-z][a-z0-9+.-]*://.*") ? v : "https://" + v;
     }
 
@@ -181,18 +171,14 @@ final class BrowserLauncher {
     /** Marks the profile as cleanly exited so no "Restore pages?" bubble appears after a forced kill. */
     static void markProfileExitedCleanly(Path profile, Logger log) {
         Path prefs = profile.resolve("Default").resolve("Preferences");
-        if (!Files.isRegularFile(prefs)) {
-            return;
-        }
+        if (!Files.isRegularFile(prefs)) return;
         try {
             JsonObject root = JsonParser.parseString(Files.readString(prefs, StandardCharsets.UTF_8)).getAsJsonObject();
             JsonObject profileObj = root.has("profile") && root.get("profile").isJsonObject()
                     ? root.getAsJsonObject("profile") : new JsonObject();
             boolean changed = !profileObj.has("exit_type") || !"Normal".equals(profileObj.get("exit_type").getAsString())
                     || !profileObj.has("exited_cleanly") || !profileObj.get("exited_cleanly").getAsBoolean();
-            if (!changed) {
-                return;
-            }
+            if (!changed) return;
             profileObj.addProperty("exit_type", "Normal");
             profileObj.addProperty("exited_cleanly", true);
             root.add("profile", profileObj);
@@ -207,13 +193,9 @@ final class BrowserLauncher {
     static int readDevToolsPort(Path profile) {
         Path f = profile.resolve("DevToolsActivePort");
         try {
-            if (!Files.isRegularFile(f)) {
-                return -1;
-            }
+            if (!Files.isRegularFile(f)) return -1;
             List<String> lines = Files.readAllLines(f, StandardCharsets.UTF_8);
-            if (lines.isEmpty()) {
-                return -1;
-            }
+            if (lines.isEmpty()) return -1;
             int port = Integer.parseInt(lines.get(0).trim());
             return port > 0 && port < 65536 ? port : -1;
         } catch (Exception e) {

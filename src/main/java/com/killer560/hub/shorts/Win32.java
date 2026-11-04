@@ -183,18 +183,14 @@ final class Win32 {
     static int[] clientRectOnScreen(long hwnd) {
         int[] rect = new int[4];
         int[] pt = new int[2];
-        if (!user32.GetClientRect(hwnd, rect) || !user32.ClientToScreen(hwnd, pt)) {
-            return null;
-        }
+        if (!user32.GetClientRect(hwnd, rect) || !user32.ClientToScreen(hwnd, pt)) return null;
         return new int[]{pt[0], pt[1], rect[2] - rect[0], rect[3] - rect[1]};
     }
 
     /** @return {left, top, width, height} of the window rect, or null. */
     static int[] windowRect(long hwnd) {
         int[] rect = new int[4];
-        if (!user32.GetWindowRect(hwnd, rect)) {
-            return null;
-        }
+        if (!user32.GetWindowRect(hwnd, rect)) return null;
         return new int[]{rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1]};
     }
 }
