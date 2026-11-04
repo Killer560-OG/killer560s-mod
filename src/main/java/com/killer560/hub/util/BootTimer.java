@@ -17,6 +17,7 @@ public final class BootTimer {
     private static final List<Long> TIMES = new ArrayList<>();
     private static long start;
     private static long last;
+    private static boolean titleSeen;
 
     private BootTimer() {
     }
@@ -27,6 +28,19 @@ public final class BootTimer {
             last = start;
             LABELS.clear();
             TIMES.clear();
+            long jvm = java.lang.management.ManagementFactory.getRuntimeMXBean().getStartTime();
+            ModLog.get("killer560smod-boottime").info("[BootTimer] entrypoint begins {} ms after JVM start",
+                    System.currentTimeMillis() - jvm);
+            net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(c -> {
+                if (!titleSeen && (com.killer560.hub.compat.McCompat.screen(c) != null || c.level != null)) {
+                    titleSeen = true;
+                    ModLog.get("killer560smod-boottime").info("[BootTimer] title screen reached {} ms after JVM start",
+                            System.currentTimeMillis() - jvm);
+                    if (Boolean.getBoolean("killer560.boottime.exit")) {
+                        c.stop();
+                    }
+                }
+            });
         }
     }
 

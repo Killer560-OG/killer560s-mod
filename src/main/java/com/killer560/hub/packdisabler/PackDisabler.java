@@ -46,7 +46,11 @@ public final class PackDisabler {
     }
 
     public static void register() {
-        ItemLooks.ensureLoaded();
+        // Read the 290 KB table off the client thread (scanboot-1104): every user of it checks isLoaded() or goes
+        // through get()/idForModel(), which load it themselves, and load() is synchronized.
+        Thread loader = new Thread(ItemLooks::ensureLoaded, "killer560smod-itemlooks");
+        loader.setDaemon(true);
+        loader.start();
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             if (!idleNoticeShown && PackDisablerConfig.getInstance().isEnabled() && noammInstalled()) {
                 idleNoticeShown = true;
