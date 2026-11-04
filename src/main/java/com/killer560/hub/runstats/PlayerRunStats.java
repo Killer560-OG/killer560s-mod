@@ -29,13 +29,9 @@ public record PlayerRunStats(String name, DungeonClass dungeonClass, int soloRoo
         deaths = deaths == null ? List.of() : List.copyOf(deaths);
     }
 
-    public boolean hasRooms() {
-        return soloRooms >= 0;
-    }
+    public boolean hasRooms() { return soloRooms >= 0; }
 
-    public boolean hasSecrets() {
-        return secrets >= 0;
-    }
+    public boolean hasSecrets() { return secrets >= 0; }
 
     /** "{@code 4}" when nobody stacked with them, otherwise "{@code 4-7}" (certain - possible). */
     public String roomsLabel() {

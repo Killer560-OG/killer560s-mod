@@ -82,9 +82,7 @@ public final class RunStatsTracker {
         RunStatsBridge.reset();
     }
 
-    public static boolean snapshotTaken() {
-        return snapshotTaken;
-    }
+    public static boolean snapshotTaken() { return snapshotTaken; }
 
     /** Records everyone's lifetime secret count at the start of the run. No-op if secrets are off. */
     public static void snapshotSecrets(Minecraft client) {
@@ -147,9 +145,7 @@ public final class RunStatsTracker {
 
 
     /** The rows of the most recent finished run, in party order. Consume this from {@code runsummary}. */
-    public static List<PlayerRunStats> lastRun() {
-        return lastRun;
-    }
+    public static List<PlayerRunStats> lastRun() { return lastRun; }
 
     /** Builds (and remembers) the rows for the run that just ended. */
     public static synchronized List<PlayerRunStats> buildRows(Minecraft client) {
@@ -189,17 +185,11 @@ public final class RunStatsTracker {
         return map.computeIfAbsent(key(name), k -> new LinkedHashSet<>());
     }
 
-    private static void remember(String name) {
-        DISPLAY_NAMES.putIfAbsent(key(name), name);
-    }
+    private static void remember(String name) { DISPLAY_NAMES.putIfAbsent(key(name), name); }
 
-    private static String displayName(String name) {
-        return DISPLAY_NAMES.getOrDefault(key(name), name);
-    }
+    private static String displayName(String name) { return DISPLAY_NAMES.getOrDefault(key(name), name); }
 
-    private static String key(String name) {
-        return name.toLowerCase(Locale.US);
-    }
+    private static String key(String name) { return name.toLowerCase(Locale.US); }
 
     /** You first, then the party in Hypixel's listing order. */
     private static List<String> partyNames(Minecraft client) {

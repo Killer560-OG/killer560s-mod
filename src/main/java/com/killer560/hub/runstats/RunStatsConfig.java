@@ -84,64 +84,34 @@ public final class RunStatsConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && SkyblockGate.allows(); }
 
     /** Raw toggle state for the settings tab (ignores the Skyblock gate). */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isTrackRooms() {
-        return trackRooms;
-    }
+    public boolean isTrackRooms() { return trackRooms; }
 
-    public void setTrackRooms(boolean trackRooms) {
-        this.trackRooms = trackRooms;
-    }
+    public void setTrackRooms(boolean trackRooms) { this.trackRooms = trackRooms; }
 
-    public boolean isFetchSecrets() {
-        return fetchSecrets;
-    }
+    public boolean isFetchSecrets() { return fetchSecrets; }
 
-    public void setFetchSecrets(boolean fetchSecrets) {
-        this.fetchSecrets = fetchSecrets;
-    }
+    public void setFetchSecrets(boolean fetchSecrets) { this.fetchSecrets = fetchSecrets; }
 
-    public boolean isShowDeaths() {
-        return showDeaths;
-    }
+    public boolean isShowDeaths() { return showDeaths; }
 
-    public void setShowDeaths(boolean showDeaths) {
-        this.showDeaths = showDeaths;
-    }
+    public void setShowDeaths(boolean showDeaths) { this.showDeaths = showDeaths; }
 
-    public boolean isAutoShowExtraStats() {
-        return autoShowExtraStats;
-    }
+    public boolean isAutoShowExtraStats() { return autoShowExtraStats; }
 
-    public void setAutoShowExtraStats(boolean autoShowExtraStats) {
-        this.autoShowExtraStats = autoShowExtraStats;
-    }
+    public void setAutoShowExtraStats(boolean autoShowExtraStats) { this.autoShowExtraStats = autoShowExtraStats; }
 
-    public boolean isAnnounceToParty() {
-        return announceToParty;
-    }
+    public boolean isAnnounceToParty() { return announceToParty; }
 
-    public void setAnnounceToParty(boolean announceToParty) {
-        this.announceToParty = announceToParty;
-    }
+    public void setAnnounceToParty(boolean announceToParty) { this.announceToParty = announceToParty; }
 
-    public int getDelaySeconds() {
-        return delaySeconds;
-    }
+    public int getDelaySeconds() { return delaySeconds; }
 
-    public void setDelaySeconds(int seconds) {
-        this.delaySeconds = Math.max(0, Math.min(MAX_DELAY_SECONDS, seconds));
-    }
+    public void setDelaySeconds(int seconds) { this.delaySeconds = Math.max(0, Math.min(MAX_DELAY_SECONDS, seconds)); }
 }
