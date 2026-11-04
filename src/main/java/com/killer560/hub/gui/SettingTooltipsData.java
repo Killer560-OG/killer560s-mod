@@ -128,6 +128,12 @@ final class SettingTooltipsData {
         d.put("ability ready alert", "Shows a big \"READY\" popup when a pickaxe ability is available again. Move it in the HUD editor.");
         d.put("ability ready alert/cooldown timer", "A HUD line counting down each pickaxe ability every second until it is ready again (the tab list only refreshes every few seconds).");
         d.put("ability ready alert/ready sound", "Plays a ding with the popup.");
+        d.put("powder break sounds", "While powder mining (Crystal Hollows, or a treasure chest in the last 2 minutes), changes the sound of the blocks you break yourself. OFF is the normal Minecraft sound. Client-side only.");
+        d.put("powder break sounds/mode", "Mute silences your breaks (the break particles stay). Custom plays the sound below instead. Left click forward, right click back.");
+        d.put("powder break sounds/sound", "The sound played for each block you break in Custom mode.");
+        d.put("powder break sounds/volume", "Volume of the custom break sound, 0.1 to 2.0.");
+        d.put("powder break sounds/pitch", "Pitch of the custom break sound, 0.5 to 2.0.");
+        d.put("powder break sounds/test", "Plays the custom sound once with the current volume and pitch.");
         d.put("carpet highlighter", "In the Dwarven Mines, fills the unbreakable carpets in ore veins so you stop swinging at them.");
         d.put("carpet highlighter/carpet color", "The color the carpets are filled with.");
         d.put("resume held break after menus", "On a mining island, when a menu closes while you are still holding left click, you go on breaking without pressing it again.");

@@ -13,6 +13,7 @@ final class PowderMiningTabs {
         List<BaseTab> out = new ArrayList<>(mining);
         out.add(new TreasureChestHighlightTab());
         out.add(new TreasureChestAlertTab());
+        out.add(new PowderBreakSoundsTab());
         out.add(new PowderTrackerTab());
         out.add(new DoublePowderAlertTab());
         out.add(new ChestLootCompactTab());

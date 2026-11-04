@@ -26,6 +26,7 @@ final class CardBlurbsData {
         d.put("MiningPowderGhastTab", "Powder Ghast alert and box.");
         d.put("TreasureChestHighlightTab", "Boxes your treasure chests, with a timer.");
         d.put("TreasureChestAlertTab", "Sound when a treasure chest spawns.");
+        d.put("PowderBreakSoundsTab", "Mute or replace the sound of blocks you break while powder mining.");
         d.put("LockpickHelperTab", "Shows the chest side to click.");
         d.put("PowderTrackerTab", "Powder and chests per hour.");
         d.put("DoublePowderAlertTab", "Title when 2x Powder starts.");
