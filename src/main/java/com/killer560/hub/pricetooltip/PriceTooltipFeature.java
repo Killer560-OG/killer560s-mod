@@ -195,7 +195,6 @@ public final class PriceTooltipFeature {
         return Component.literal(mult > 1 ? s + " §8(" + mult + "x " + coins(unit) + " each)" : s);
     }
 
-    // ------------------------------------------------------------------ formatting
 
     private static final ThreadLocal<DecimalFormat> EXACT = ThreadLocal.withInitial(
             () -> new DecimalFormat("#,##0.0", DecimalFormatSymbols.getInstance(Locale.US)));
@@ -217,10 +216,7 @@ public final class PriceTooltipFeature {
         if (a >= 1e6) {
             return sign + trim(a / 1e6) + "M";
         }
-        if (a >= 1e3) {
-            return sign + trim(a / 1e3) + "k";
-        }
-        return sign + trim(a);
+        return a >= 1e3 ? sign + trim(a / 1e3) + "k" : sign + trim(a);
     }
 
     private static String trim(double v) {

@@ -91,10 +91,7 @@ public final class ItemKeys {
                 return id + "_" + extra.toUpperCase(Locale.ROOT);
             }
         }
-        if (tag.getBooleanOr("is_shiny", false) && PriceData.lowestBin("SHINY_" + id) != null) {
-            return "SHINY_" + id;
-        }
-        return id;
+        return tag.getBooleanOr("is_shiny", false) && PriceData.lowestBin("SHINY_" + id) != null ? "SHINY_" + id : id;
     }
 
     /** The pet's {@code petInfo} JSON, or null. */

@@ -186,7 +186,6 @@ public final class PriceData {
         return lastError;
     }
 
-    // ------------------------------------------------------------------ scheduling
 
     /**
      * Called by every tooltip that wants a price: notes the use and, the first time, loads the disk cache and starts
@@ -316,7 +315,6 @@ public final class PriceData {
         }
     }
 
-    // ------------------------------------------------------------------ parsing
 
     private static Map<String, ItemInfo> fetchItems(List<String> errors) {
         JsonObject root = getJson(ModNet.url("hypixel", ITEMS_URL), errors, "items");
@@ -484,7 +482,6 @@ public final class PriceData {
         }
     }
 
-    // ------------------------------------------------------------------ disk cache
 
     private static void saveDiskCache(boolean includeItems) {
         try {
@@ -604,7 +601,6 @@ public final class PriceData {
         }
     }
 
-    // ------------------------------------------------------------------ testkit
 
     /** Testkit: forget every price and fact (memory only), so a case starts from nothing. */
     public static void clearForTest() {
