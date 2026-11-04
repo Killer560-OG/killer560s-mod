@@ -144,7 +144,6 @@ public final class ThemeMusicFiles {
         }, Util.nonCriticalIoPool());
     }
 
-    // ---------------------------------------------------------------- import
 
     public static boolean importing() {
         return importing;

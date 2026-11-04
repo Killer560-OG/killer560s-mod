@@ -52,7 +52,6 @@ public final class ThemeExtrasSettings {
                 }).bounds(x, y, w, 20).build());
         y += 24;
 
-        // ---- Theme Music ----
         widgets.add(new StringWidget(x, y, w, 12, SectionHeaders.header("Theme Music", false), font));
         y += 16;
         widgets.add(SettingsButtonWidget.builder(musicOnText(), btn -> {
@@ -122,7 +121,6 @@ public final class ThemeExtrasSettings {
                 : "§7Plays on the main menu, which shows " + MainMenuLook.current().theme().label + " now."), font));
         y += 16;
 
-        // ---- Theme Font ----
         widgets.add(new StringWidget(x, y, w, 12, SectionHeaders.header("Theme Font", false), font));
         y += 16;
         widgets.add(SettingsButtonWidget.cycling(fontText(), (btn, dir) -> {
@@ -134,7 +132,6 @@ public final class ThemeExtrasSettings {
                 + editing().label + "; Font Applies To and Font Size stay as set above."), font));
         y += 16;
 
-        // ---- Theme Background ----
         widgets.add(new StringWidget(x, y, w, 12, SectionHeaders.header("Theme Background", false), font));
         y += 16;
         widgets.add(SettingsButtonWidget.cycling(backgroundText(), (btn, dir) -> {

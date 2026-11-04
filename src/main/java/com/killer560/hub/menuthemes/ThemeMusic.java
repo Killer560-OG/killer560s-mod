@@ -157,10 +157,7 @@ public final class ThemeMusic {
             Bundled b = find(id.substring(BUNDLED_PREFIX.length()));
             return b == null ? "Off" : b.label();
         }
-        if (id.startsWith(ThemeMusicFiles.IMPORT_PREFIX)) {
-            return ThemeMusicFiles.label(id);
-        }
-        return id;
+        return id.startsWith(ThemeMusicFiles.IMPORT_PREFIX) ? ThemeMusicFiles.label(id) : id;
     }
 
     /** What a choice plays: a bundled event, or an imported file under its stream key. */
@@ -307,7 +304,6 @@ public final class ThemeMusic {
         return current != null || preview != null;
     }
 
-    // ---------------------------------------------------------------- Play Preview
 
     /** The preview playing now (Menu Theme's Play Preview, killer560 2026-10-22), or null. */
     private static ThemeMusicInstance preview;
@@ -393,7 +389,6 @@ public final class ThemeMusic {
         return p != null && p.isLooping();
     }
 
-    // ---------------------------------------------------------------- testkit evidence
 
     /** The event (or imported key) playing now, or null. */
     public static String currentKey() {

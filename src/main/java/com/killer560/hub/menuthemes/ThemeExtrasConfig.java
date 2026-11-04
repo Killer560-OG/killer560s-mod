@@ -154,7 +154,6 @@ public final class ThemeExtrasConfig {
         return themes.get(theme == null ? MenuTheme.AMBER : theme);
     }
 
-    // ---------------------------------------------------------------- music
 
     public boolean isMusicOn() {
         return musicOn;
@@ -192,7 +191,6 @@ public final class ThemeExtrasConfig {
         }
     }
 
-    // ---------------------------------------------------------------- font
 
     public String getFont(MenuTheme theme) {
         return entry(theme).font;
@@ -207,7 +205,6 @@ public final class ThemeExtrasConfig {
         }
     }
 
-    // ---------------------------------------------------------------- main menu background
 
     public String getBackground(MenuTheme theme) {
         return entry(theme).background;

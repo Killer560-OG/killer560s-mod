@@ -23,10 +23,7 @@ public final class ThemeFonts {
      *  or its font is gone (an imported file deleted since). */
     public static String effective(String base) {
         String own = ThemeExtrasConfig.getInstance().getFont(MenuConfig.getInstance().getTheme());
-        if (own == null || ThemeExtrasConfig.FONT_KEEP.equals(own) || FontChoices.find(own) == null) {
-            return base;
-        }
-        return own;
+        return own == null || ThemeExtrasConfig.FONT_KEEP.equals(own) || FontChoices.find(own) == null ? base : own;
     }
 
     /** Keep Current, then every font the Font setting can pick. */

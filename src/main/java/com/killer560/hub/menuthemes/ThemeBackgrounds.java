@@ -147,7 +147,6 @@ public final class ThemeBackgrounds {
         return null;
     }
 
-    // ---------------------------------------------------------------- import
 
     public static boolean importing() {
         return importing;

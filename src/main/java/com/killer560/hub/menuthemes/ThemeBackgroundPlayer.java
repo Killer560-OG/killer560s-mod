@@ -349,7 +349,6 @@ public final class ThemeBackgroundPlayer {
         }
     }
 
-    // ---------------------------------------------------------------- testkit evidence
 
     /** The background loaded now, or null. */
     public static String loadedId() {
