@@ -1361,15 +1361,10 @@ public final class TerminalSolverFeature {
      *  doc) - Custom GUI deliberately shows nothing at all until it has. */
     private static boolean withinOpenGracePeriod() { return !hasStabilizedOnce; }
 
-    /** Melody has no solving logic - nothing here is marked correct/incorrect - so this just redraws
-     *  every real terminal-grid item, bare (no fill/outline decoration), in the same bigger decluttered
-     *  panel style every other type's Custom GUI mode already uses. Per killer560's "follow a similar
-     *  track to the other one... hide the normal screen and just redraw it entirely" request
-     *  (2026-09-09, round 6) - folds Melody into the same unified hide-and-redraw treatment instead of
-     *  the narrower "just hide inventory" special case round 5 had. */
-    private static void renderMelodyCustomGui(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
+    /** Opens a Custom GUI frame: the layout (null when none), a new stratum, the pose translated and scaled, and the panel drawn. */
+    private static CustomGuiLayout beginCustomGuiPanel(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         CustomGuiLayout layout = computeCustomGuiLayout(screen);
-        if (layout == null) return;
+        if (layout == null) return null;
 
         graphics.nextStratum();
         graphics.pose().pushMatrix();
@@ -1380,6 +1375,18 @@ public final class TerminalSolverFeature {
                 panelBackground());
         graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2,
                 panelBorder());
+        return layout;
+    }
+
+    /** Melody has no solving logic - nothing here is marked correct/incorrect - so this just redraws
+     *  every real terminal-grid item, bare (no fill/outline decoration), in the same bigger decluttered
+     *  panel style every other type's Custom GUI mode already uses. Per killer560's "follow a similar
+     *  track to the other one... hide the normal screen and just redraw it entirely" request
+     *  (2026-09-09, round 6) - folds Melody into the same unified hide-and-redraw treatment instead of
+     *  the narrower "just hide inventory" special case round 5 had. */
+    private static void renderMelodyCustomGui(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
+        CustomGuiLayout layout = beginCustomGuiPanel(graphics, screen);
+        if (layout == null) return;
 
         List<Slot> slots = screen.getMenu().slots;
         int movingSlot = findMelodyMovingSlot(slots, currentTerminalSlotCount);
@@ -1507,18 +1514,8 @@ public final class TerminalSolverFeature {
      *  {@code TerminalSolverSlotMixin}) - clicking a cell here redirects to the real underlying slot by
      *  index via {@link SlotClickInvoker}, the same trick Storage Overlay's own custom grid uses. */
     private static void renderCustomGui(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
-        CustomGuiLayout layout = computeCustomGuiLayout(screen);
+        CustomGuiLayout layout = beginCustomGuiPanel(graphics, screen);
         if (layout == null) return;
-
-        graphics.nextStratum();
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(layout.originX, layout.originY);
-        graphics.pose().scale(layout.scale, layout.scale);
-
-        graphics.fill(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING, layout.panelHeight + PANEL_PADDING,
-                panelBackground());
-        graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2,
-                panelBorder());
 
         List<Slot> slots = screen.getMenu().slots;
         for (Map.Entry<Integer, SlotHighlight> entry : currentHighlights.entrySet()) {
