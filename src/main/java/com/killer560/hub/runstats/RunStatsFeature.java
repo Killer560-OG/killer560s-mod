@@ -50,16 +50,12 @@ public final class RunStatsFeature {
 
     private static void onChat(Component message) {
         RunStatsConfig cfg = RunStatsConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            return;
-        }
+        if (!cfg.isEnabled()) return;
         Minecraft client = Minecraft.getInstance();
         String plain = ChatObserver.strip(message);
         RunStatsTracker.onChatLine(client, plain.trim());
 
-        if (!EXTRA_STATS.matcher(plain).find() || summarisedThisRun) {
-            return;
-        }
+        if (!EXTRA_STATS.matcher(plain).find() || summarisedThisRun) return;
         summarisedThisRun = true;
         // One last poll so a room cleared in the same tick as the boss dying still counts.
         RunStatsTracker.pollRooms(client);
@@ -97,9 +93,7 @@ public final class RunStatsFeature {
                 RunStatsTracker.pollRooms(client);
             }
         }
-        if (pendingTicks < 0 || pendingTicks-- > 0) {
-            return;
-        }
+        if (pendingTicks < 0 || pendingTicks-- > 0) return;
         pendingTicks = -1;
         printSummary(client, cfg);
     }
@@ -107,9 +101,7 @@ public final class RunStatsFeature {
 
     private static void printSummary(Minecraft client, RunStatsConfig cfg) {
         List<PlayerRunStats> rows = RunStatsTracker.buildRows(client);
-        if (rows.isEmpty()) {
-            return;
-        }
+        if (rows.isEmpty()) return;
         ModChat.send(FEATURE, ModChat.text("Run summary"),
                 ModChat.dim(" (rooms are estimated from the map)"));
         for (PlayerRunStats row : rows) {
@@ -166,9 +158,7 @@ public final class RunStatsFeature {
         for (String room : breakdown.get(1)) {
             sb.append(room).append(" (stacked)\n");
         }
-        if (sb.isEmpty()) {
-            return text;
-        }
+        if (sb.isEmpty()) return text;
         sb.append("\nRooms are credited to whoever stood in them when the map marked them cleared.");
         return tooltip(text, sb.toString());
     }

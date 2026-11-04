@@ -87,9 +87,7 @@ public final class RunStatsTracker {
     /** Records everyone's lifetime secret count at the start of the run. No-op if secrets are off. */
     public static void snapshotSecrets(Minecraft client) {
         snapshotTaken = true;
-        if (!RunStatsConfig.getInstance().isFetchSecrets()) {
-            return;
-        }
+        if (!RunStatsConfig.getInstance().isFetchSecrets()) return;
         for (String name : partyNames(client)) {
             fetchSecrets(name, SECRETS_BEFORE);
         }
@@ -97,9 +95,7 @@ public final class RunStatsTracker {
 
     /** Records everyone's lifetime secret count at the end of the run (cache bypassed). */
     public static void captureSecrets(Minecraft client) {
-        if (!RunStatsConfig.getInstance().isFetchSecrets()) {
-            return;
-        }
+        if (!RunStatsConfig.getInstance().isFetchSecrets()) return;
         for (String name : partyNames(client)) {
             fetchSecrets(name, SECRETS_AFTER);
         }
@@ -108,14 +104,10 @@ public final class RunStatsTracker {
 
     /** Feeds the map-derived room clears in. Call every few ticks while in a dungeon. */
     public static synchronized void pollRooms(Minecraft client) {
-        if (!RunStatsConfig.getInstance().isTrackRooms()) {
-            return;
-        }
+        if (!RunStatsConfig.getInstance().isTrackRooms()) return;
         for (RunStatsBridge.Clear clear : RunStatsBridge.pollClears(client)) {
             List<String> inside = clear.players();
-            if (inside.isEmpty()) {
-                continue;
-            }
+            if (inside.isEmpty()) continue;
             if (inside.size() == 1) {
                 rooms(SOLO_ROOMS, inside.get(0)).add(clear.roomName());
             } else {
@@ -129,16 +121,12 @@ public final class RunStatsTracker {
     /** Feeds one stripped chat line in; picks up the run's death messages. */
     public static synchronized void onChatLine(Minecraft client, String plain) {
         Matcher m = DEATH.matcher(plain);
-        if (!m.matches()) {
-            return;
-        }
+        if (!m.matches()) return;
         String name = m.group(1);
         if (name == null) {
             name = client.player == null ? null : client.player.getGameProfile().name();
         }
-        if (name == null) {
-            return;
-        }
+        if (name == null) return;
         remember(name);
         DEATHS.computeIfAbsent(key(name), k -> new ArrayList<>()).add(m.group(2));
     }
@@ -234,17 +222,11 @@ public final class RunStatsTracker {
 
     /** Hypixel's lifetime secret counter: {@code player.achievements.skyblock_treasure_hunter}. */
     private static Long treasureHunter(JsonObject player) {
-        if (player == null) {
-            return null;
-        }
+        if (player == null) return null;
         JsonElement achievements = player.get("achievements");
-        if (achievements == null || !achievements.isJsonObject()) {
-            return null;
-        }
+        if (achievements == null || !achievements.isJsonObject()) return null;
         JsonElement value = achievements.getAsJsonObject().get("skyblock_treasure_hunter");
-        if (value == null || !value.isJsonPrimitive()) {
-            return null;
-        }
+        if (value == null || !value.isJsonPrimitive()) return null;
         try {
             return value.getAsLong();
         } catch (Exception e) {

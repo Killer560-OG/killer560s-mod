@@ -35,9 +35,7 @@ public record PlayerRunStats(String name, DungeonClass dungeonClass, int soloRoo
 
     /** "{@code 4}" when nobody stacked with them, otherwise "{@code 4-7}" (certain - possible). */
     public String roomsLabel() {
-        if (!hasRooms()) {
-            return "?";
-        }
+        if (!hasRooms()) return "?";
         return stackedRooms <= 0 ? String.valueOf(soloRooms) : soloRooms + "-" + (soloRooms + stackedRooms);
     }
 }
