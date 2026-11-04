@@ -64,17 +64,9 @@ final class DevonianAdapter extends SocketAdapter {
     @Override
     protected Desire decide(BridgeContext ctx) {
         BridgeConfig cfg = BridgeConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isDevonian()) {
-            return Desire.off(BridgeStatus.OFF, "");
-        }
-        if (DetectedMods.isLoaded(DetectedMods.DEVONIAN)) {
-            return Desire.off(BridgeStatus.SKIPPED_INSTALLED, "");
-        }
-        if (!ctx.active()) {
-            return Desire.off(BridgeStatus.WAITING, "needs Party Interop on");
-        }
-        if (!ctx.onHypixel()) {
-            return Desire.off(BridgeStatus.NOT_ON_HYPIXEL, "");
+        Desire gate = commonGate(ctx, cfg.isEnabled() && cfg.isDevonian());
+        if (gate != null) {
+            return gate;
         }
         if (!ctx.identityKnown()) {
             return Desire.off(BridgeStatus.WAITING, "account and player name differ");
