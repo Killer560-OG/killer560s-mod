@@ -113,9 +113,7 @@ public final class OnlinePresence {
         return System.getProperty("fabric.client.gametest") == null || Boolean.getBoolean("killer560.test.presence");
     }
 
-    static long interval() {
-        return Long.getLong("killer560.test.presenceIntervalMs", INTERVAL_MS);
-    }
+    static long interval() { return Long.getLong("killer560.test.presenceIntervalMs", INTERVAL_MS); }
 
     private static void onTick(Minecraft mc) {
         if (++tick % 20 != 0) {
@@ -321,11 +319,7 @@ public final class OnlinePresence {
         lastLocation = "";
     }
 
-    public static boolean warnedForTest() {
-        return warned;
-    }
+    public static boolean warnedForTest() { return warned; }
 
-    public static String sessionForTest() {
-        return SESSION;
-    }
+    public static String sessionForTest() { return SESSION; }
 }
