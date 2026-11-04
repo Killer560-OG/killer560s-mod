@@ -6,7 +6,8 @@ import net.minecraft.network.chat.Component;
  * Duck interface {@code spotify.mixin.SongTagStateMixin} adds to every {@code EntityRenderState}: the song line to draw
  * above this entity's nametag this frame, or null. Set at {@code AvatarRenderer.extractRenderState}'s TAIL (where the
  * entity is known) and read at the name tag submit (where only the state is). On {@code EntityRenderState}, not the
- * avatar's state, so Play as Mob's stand-in state can carry it too ({@code MobSkinRender.dress} copies it).
+ * avatar's state, so Play as Mob's stand-in state can carry it too: {@code MobSkinRender.dress} copies EVERY field here,
+ * so a new field must be copied there as well (the lyric was not, 2026-11-03, and vanished under a mob skin).
  * Outside the mixin package on purpose: a class in a mixin package cannot be referenced (CLAUDE.md).
  */
 public interface SongTagState {
