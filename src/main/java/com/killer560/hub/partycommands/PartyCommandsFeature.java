@@ -193,6 +193,14 @@ public final class PartyCommandsFeature {
         // Security audit 2026-10-24: a DM'd !invite only for someone on his Hypixel friends list, and no command at all
         // (info replies included: !coords, !location, !time and !holding say where he is and his time zone) for
         // anyone who is neither a teammate nor a friend, whatever chat it came from.
+        // Your own "!pt dirt" in party chat is never a request to this client (killer560, 2026-11-03: it transferred
+        // his party away; "this shouldn't happen ever").
+        Minecraft selfClient = Minecraft.getInstance();
+        String selfName = selfClient.player == null ? null : selfClient.player.getGameProfile().name();
+        if (selfName != null && selfName.equalsIgnoreCase(sender)) {
+            LOGGER.info("[PartyCommands] Ignored your own \"!{}\"", word);
+            return false;
+        }
         boolean dmInvite = command == Command.INVITE && channel == Channel.PRIVATE;
         boolean teammate = isTeammate(sender);
         if (command.kind() == Kind.PARTY && !(teammate || (dmInvite && isFriend(sender)))) {
@@ -567,7 +575,8 @@ public final class PartyCommandsFeature {
 
     /** Local-only record of what someone just made this client do - never silent, by design. */
     private static void log(String sender, String description) {
-        ModChat.send("Party Commands", ModChat.value(sender), ModChat.text(" " + description), ModChat.dim("."));
+        // Log only, never chat (killer560, 2026-11-03: "dont have these messages").
+        ModChat.log("Party Commands", ModChat.value(sender), ModChat.text(" " + description), ModChat.dim("."));
     }
 
     /** Hypixel's commands go below the client dispatcher (util/ServerCommands), never back into this mod's own. */

@@ -716,6 +716,11 @@ public final class SimonSaysFeature {
      *  manual "click it anyway" is never fully locked out). Never blocks the start button, and never
      *  blocks anything once the device isn't actively being tracked - this is a safety net during a
      *  real attempt, not a general block-interaction filter. */
+    /** One of the Simon Says device's buttons (the 4x4 grid or its start button). */
+    public static boolean isDeviceButton(BlockPos pos) {
+        return pos != null && (START_BUTTON.equals(pos) || GRID_BUTTONS.contains(pos));
+    }
+
     public static boolean shouldBlockClick(BlockPos pos, boolean shiftDown) {
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
         if (!cfg.isEnabled() || !cfg.isPreventMisclicksEnabled() || !wasActive || shiftDown) {
