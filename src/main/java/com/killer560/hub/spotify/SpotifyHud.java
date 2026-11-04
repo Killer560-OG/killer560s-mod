@@ -200,7 +200,6 @@ public final class SpotifyHud implements HudElement {
         }
         r.submit();
 
-        // ---- the cover picture, or the note ----
         Identifier art = ad ? null : coverTexture(snap);
         if (art != null) {
             graphics.blit(RenderPipelines.GUI_TEXTURED, art, cx, cy, 0f, 0f, COVER, COVER, coverW, coverH, coverW, coverH,
@@ -217,7 +216,6 @@ public final class SpotifyHud implements HudElement {
             }
         }
 
-        // ---- title, artist, time ----
         int tx = cx + COVER + 6;
         int textW = x + W - PAD - tx;
         graphics.text(font, fit(font, ad ? "Advertisement" : shown(snap.title()), textW), tx, y + 6, p.textHover(), true);
@@ -555,10 +553,7 @@ public final class SpotifyHud implements HudElement {
 
     private static String fit(Font font, String s, int width) {
         String c = clean(s);
-        if (font.width(c) <= width) {
-            return c;
-        }
-        return font.plainSubstrByWidth(c, Math.max(0, width - font.width("..."))) + "...";
+        return font.width(c) <= width ? c : font.plainSubstrByWidth(c, Math.max(0, width - font.width("..."))) + "...";
     }
 
     /** {@code m:ss}. */

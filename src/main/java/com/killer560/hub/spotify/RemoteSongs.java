@@ -315,7 +315,6 @@ public final class RemoteSongs {
         return SONGS.size();
     }
 
-    // ---- text ----------------------------------------------------------------------------------------------------
 
     /** "♪ Title - Artist" in gray italic, plain literal text, never a sender-chosen style or event. */
     static Component buildTag(String artist, String title) {
@@ -391,10 +390,7 @@ public final class RemoteSongs {
 
     private static String string(JsonObject obj, String key) {
         JsonElement e = obj.get(key);
-        if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isString()) {
-            return "";
-        }
-        return e.getAsString();
+        return e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isString() ? "" : e.getAsString();
     }
 
     static UUID parseUuid(String text) {

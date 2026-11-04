@@ -100,7 +100,6 @@ public final class SpotifyLyricsFeature {
         }
     }
 
-    // ---- Config persistence ----
 
     public static void loadConfig() {
         try {
@@ -142,7 +141,6 @@ public final class SpotifyLyricsFeature {
         enabled = send;
     }
 
-    // ---- Party detection ----
 
     // Hypixel's own party lines, whole-line and with a name group no chat prefix can fill: the old contains() checks
     // let any player's message ("... joined the party", "... disbanded the party") flip where lyrics went. The same
@@ -182,7 +180,6 @@ public final class SpotifyLyricsFeature {
         }
     }
 
-    // ---- Poll + send ----
 
     private static void tick() {
         // Feature off: do nothing at all. Previously poll() ran before this guard, so once Last.fm
@@ -436,7 +433,6 @@ public final class SpotifyLyricsFeature {
         });
     }
 
-    // ---- Profanity filter ----
 
     private static final Set<String> MINIMAL_BANNED_WORDS;
     static {
