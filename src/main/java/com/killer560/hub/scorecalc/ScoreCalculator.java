@@ -162,10 +162,7 @@ public final class ScoreCalculator {
         if (score < 270) {
             return "A";
         }
-        if (score < 300) {
-            return "S";
-        }
-        return "S+";
+        return score < 300 ? "S" : "S+";
     }
 
     public static Result calculate(Inputs in) {

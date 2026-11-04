@@ -97,7 +97,6 @@ public final class ScoreCalculatorFeature {
     private static final Pattern SIDEBAR_CLEARED = Pattern.compile("Cleared: (\\d+)%");
     private static final Pattern SIDEBAR_ELAPSED = Pattern.compile("Time Elapsed: (?:(\\d+)h ?)?(?:(\\d+)m ?)?(?:(\\d+)s)?");
 
-    // ---- chat ----
     /** Public for Auto Routes' crypt node, which counts a prince kill of its own by the same line. */
     public static final Pattern PRINCE_KILLED = Pattern.compile("^A Prince falls\\. \\+1 Bonus Score$");
     public static final Pattern BAT_KILLED = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
@@ -124,7 +123,6 @@ public final class ScoreCalculatorFeature {
     private static final long ELECTION_RETRY_MS = 60 * 1000L;
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
-    // ---- per-run state ----
     private static WeakReference<ClientLevel> runLevel = new WeakReference<>(null);
     private static long runStartMs = 0L;
     private static int runTicks = 0;
@@ -177,7 +175,6 @@ public final class ScoreCalculatorFeature {
         });
     }
 
-    // ------------------------------------------------------------------ tick
 
     /**
      * Whether anything wants this run's estimate: the Score Calculator itself, or a map's Extra Info section.
@@ -472,7 +469,6 @@ public final class ScoreCalculatorFeature {
         return sb.toString();
     }
 
-    // ------------------------------------------------------------------ chat
 
     private static void onChat(Component message) {
         ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
@@ -550,7 +546,6 @@ public final class ScoreCalculatorFeature {
         return player == null ? SELF_KEY : player.getGameProfile().name().toLowerCase(Locale.ROOT);
     }
 
-    // ------------------------------------------------------------------ score + alerts
 
     private static void recalculate(ScoreCalculatorConfig cfg) {
         // A mimic killed in a room nobody from this client ever entered is the one bonus point a lone client
@@ -733,7 +728,6 @@ public final class ScoreCalculatorFeature {
         return perk != null && "EZPZ".equalsIgnoreCase(ConfigJson.getString(perk, "name", ""));
     }
 
-    // ------------------------------------------------------------------ helpers / API
 
     /** Latest estimate for the current run, or null before the first poll / outside a tracked run. */
     public static ScoreCalculator.Result currentResult() {
@@ -886,7 +880,6 @@ public final class ScoreCalculatorFeature {
                 : String.format(Locale.US, "%d:%02d", s / 60, s % 60);
     }
 
-    // ------------------------------------------------------------------ HUD
 
     private record Segment(String text, int color) {
     }

@@ -284,7 +284,6 @@ public final class ScoreCalculatorConfig {
         }
     }
 
-    // ---- master ----
 
     public boolean isEnabled() {
         return enabled && SkyblockGate.allows();
@@ -294,7 +293,6 @@ public final class ScoreCalculatorConfig {
         enabled = v;
     }
 
-    // ---- HUD ----
 
     public boolean isShowBreakdown() {
         return showBreakdown;
@@ -360,7 +358,6 @@ public final class ScoreCalculatorConfig {
         textShadow = v;
     }
 
-    // ---- formula ----
 
     public PaulMode getPaulMode() {
         return paulMode;
