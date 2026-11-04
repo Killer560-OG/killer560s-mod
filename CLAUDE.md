@@ -259,8 +259,9 @@ MultiBreak* only while it is on.
 
 - Push only when no game is running (`(Get-Process javaw -ErrorAction SilentlyContinue | Measure-Object).Count` is 0).
   With a game running, commit but do not push; a jar that must reach a running instance is staged as `.jar.pending`.
-  The testkit client runs as `java.exe`, not `javaw` (run-scenario.ps1), so count that too; Gradle daemons are `java.exe`
-  with no window title and do not count.
+  Testkit clients (`java.exe` with `-Dfabric.addMods=` pointing at a test jar folder) and Gradle daemons do NOT block a
+  push (killer560, 2026-11-04: "There shouldn't be any games running besides testing stuff. It should be able to push");
+  only a Prism-launched game (javaw) does.
 - Parallel agents work in their own worktrees, commit by file name, and do not push. Cherry-picks onto `release-1019`
   conflict when the branch was based on an older commit: rebase the agent's branch first.
 - Trap rooms (New Trap, Old Trap) are not functional yet; leave them out of tests until the owner says otherwise.
