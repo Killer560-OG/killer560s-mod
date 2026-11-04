@@ -321,34 +321,22 @@ public final class P3StatusFeature {
     private static final class StatusHud implements HudElement {
 
         @Override
-        public String id() {
-            return "p3_status";
-        }
+        public String id() { return "p3_status"; }
 
         @Override
-        public String displayName() {
-            return "P3 Status";
-        }
+        public String displayName() { return "P3 Status"; }
 
         @Override
-        public int defaultX() {
-            return F7HudSlots.x(F7HudSlots.P3_STATUS);
-        }
+        public int defaultX() { return F7HudSlots.x(F7HudSlots.P3_STATUS); }
 
         @Override
-        public int defaultY() {
-            return F7HudSlots.y(F7HudSlots.P3_STATUS);
-        }
+        public int defaultY() { return F7HudSlots.y(F7HudSlots.P3_STATUS); }
 
         @Override
-        public int width() {
-            return HudText.width(lines());
-        }
+        public int width() { return HudText.width(lines()); }
 
         @Override
-        public int height() {
-            return HudText.height(lines().size(), 10);
-        }
+        public int height() { return HudText.height(lines().size(), 10); }
 
         @Override
         public boolean isEnabledInSettings() {
@@ -383,28 +371,16 @@ public final class P3StatusFeature {
     }
 
     /** What the HUD last really drew (rows joined by newlines, with formatting codes). */
-    public static String testLastDrawn() {
-        return lastDrawn;
-    }
+    public static String testLastDrawn() { return lastDrawn; }
 
     /** The last short title as built, with its styles (the name's class color, the gold count). */
-    public static Component testLastReplacementComponent() {
-        return lastReplacementComponent;
-    }
+    public static Component testLastReplacementComponent() { return lastReplacementComponent; }
 
-    public static String testLastReplacement() {
-        return lastReplacement;
-    }
+    public static String testLastReplacement() { return lastReplacement; }
 
-    public static String testLastBigTitle() {
-        return lastBigTitle;
-    }
+    public static String testLastBigTitle() { return lastBigTitle; }
 
-    public static long testReplaced() {
-        return replaced;
-    }
+    public static long testReplaced() { return replaced; }
 
-    public static long testDropped() {
-        return dropped;
-    }
+    public static long testDropped() { return dropped; }
 }
