@@ -222,6 +222,8 @@ final class SettingTooltipsData {
         d.put("crystal hollows walls/goblin holdout color", "The color of the Goblin Holdout walls.");
         d.put("crystal hollows walls/goblin holdout opacity", "How solid the Goblin Holdout walls are, 5 to 100 percent.");
         d.put("crystal hollows walls/goblin holdout near only", "The Goblin Holdout walls show only within this distance of you, clipped to a cube around you; Always draws the whole wall.");
+        d.put("treasure chest highlight/tracer", "Draws lines to your claimed treasure chests, each line in the color of the chest it goes to (its box color, turning red with Fade to Red).");
+        d.put("treasure chest highlight/tracer mode", "Chain: one line from your crosshair to the oldest chest, then from that chest to the next oldest, and so on. From Crosshair: a line from your crosshair to each chest. Left click forward, right click back.");
         d.put("crystal hollows walls/precursor remnants color", "The color of the Precursor Remnants walls.");
         d.put("crystal hollows walls/precursor remnants opacity", "How solid the Precursor Remnants walls are, 5 to 100 percent.");
         d.put("crystal hollows walls/precursor remnants near only", "The Precursor Remnants walls show only within this distance of you, clipped to a cube around you; Always draws the whole wall.");

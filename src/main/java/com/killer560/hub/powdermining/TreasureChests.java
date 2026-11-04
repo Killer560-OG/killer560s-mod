@@ -67,26 +67,54 @@ public final class TreasureChests {
     private static BlockPos lastUsed = null;
     private static long lastUsedAt = 0L;
     static final long USED_MS = 10_000L;
+    // Highlighted chests that left on their lid opening, not yet matched by a loot block (capped), and when.
+    private static int openedCredits = 0;
+    private static long openedAt = 0L;
+    private static int opened = 0;
 
-    /** He right-clicked a block: remember it when it is one of the highlighted chests. */
+    /**
+     * He right-clicked a block: remember it when it is a chest, highlighted or not. The loot block belongs to the chest he
+     * clicked last, so a click on an untracked (already looted, or never claimed) chest must not leave an earlier
+     * highlighted one as "last used": that chest then lost its highlight while still there (killer560 2026-11-04, "a chest
+     * that isnt highlighting", chestfx-1104).
+     */
     static void onUseBlock(BlockPos pos) {
-        if (pos != null && CHESTS.containsKey(pos)) {
-            lastUsed = pos.immutable();
-            lastUsedAt = System.currentTimeMillis();
+        Minecraft client = Minecraft.getInstance();
+        if (pos == null || client.level == null || !client.level.getBlockState(pos).is(Blocks.CHEST)) {
+            return;
+        }
+        lastUsed = pos.immutable();
+        lastUsedAt = System.currentTimeMillis();
+        if (CHESTS.containsKey(pos)) {
             if (PowderMiningConfig.getInstance().isTreasureChestHideOpened()) {
                 // Client-only: only the chest's model is skipped (TreasureChestHideMixin); the block stays a chest, so no
                 // ghost block and the server's state is untouched.
-                HIDDEN.put(lastUsed, System.currentTimeMillis());
+                HIDDEN.put(lastUsed, System.currentTimeMillis() + HIDDEN_MS);
             }
         }
     }
 
-    /** Chests he clicked, whose model is not drawn: position -> wall-clock ms. Read on the render thread by the mixin. */
+    /**
+     * Chests he clicked, whose model is not drawn: position -> wall-clock ms the hide ends. Read on the render thread by the
+     * mixin. A position stays hidden for {@link #GONE_MS} after its block stops being a chest, because the chest can come
+     * back: a client tick falling between the server's chest -> air and air -> chest updates used to drop the hide, and the
+     * re-sent chest then showed (and flickered) until it was really gone (chestfx-1104). Only a fresh claim there, the
+     * timeout or a world change ends it.
+     */
     private static final Map<BlockPos, Long> HIDDEN = new ConcurrentHashMap<>();
-    /** How long a hidden chest stays hidden at most (its minute plus slack; the block going away ends it sooner). */
+    /** How long a hidden chest stays hidden at most (its minute plus slack). */
     private static final long HIDDEN_MS = 180_000L;
+    /** How long a hidden position stays hidden once its block is no chest. */
+    static final long GONE_MS = 5_000L;
     private static int hiddenSkips = 0;
     private static int tracerFrames = 0;
+    // The tracer's scratch (grown, never shrunk) and its last frame's lines for the testkit: SEG doubles per line,
+    // {from crosshair 1/0, from x y z, to x y z, r g b}.
+    private static final int SEG = 10;
+    private static int[] order = new int[4];
+    private static long[] spawn = new long[4];
+    private static double[] segments = new double[4 * SEG];
+    private static int segmentCount = 0;
     private static int countdownFrames = 0;
     private static int lastCountdownColor = 0;
     private static String lastCountdownText = null;
@@ -175,17 +203,41 @@ public final class TreasureChests {
     }
 
     private static void claim(BlockPos pos, long at) {
+        HIDDEN.remove(pos); // a new chest at a spot he opened before
         CHESTS.put(pos, at);
         claims++;
     }
 
-    /** The loot block came: the nearest claimed chest within 8 blocks is done (its block goes on its own). */
+    /**
+     * A chest's lid opened (block event, client thread): a highlighted chest there is done. Exact, where the loot block only
+     * says that SOME chest was looted; the loot block that follows is then paid for by {@link #openedCredits}.
+     */
+    public static void onChestOpened(BlockPos pos) {
+        if (CHESTS.remove(pos) != null) {
+            openedCredits = Math.min(openedCredits + 1, 4);
+            openedAt = System.currentTimeMillis();
+            opened++;
+        }
+    }
+
+    /**
+     * The loot block came: a chest whose lid opened pays for it; else the chest he clicked last (if highlighted); else, with
+     * no chest click in {@link #USED_MS}, the nearest claimed chest within 8 blocks (its block goes on its own).
+     */
     static void onLooted() {
         PowderMining.markChest();
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) return;
-        if (lastUsed != null && CHESTS.containsKey(lastUsed) && System.currentTimeMillis() - lastUsedAt <= USED_MS) {
-            CHESTS.remove(lastUsed);
+        if (client.player == null) {
+            return;
+        }
+        long ms = System.currentTimeMillis();
+        if (openedCredits > 0 && ms - openedAt <= USED_MS) {
+            openedCredits--; // its chest already left when its lid opened
+            return;
+        }
+        openedCredits = 0;
+        if (lastUsed != null && ms - lastUsedAt <= USED_MS) {
+            CHESTS.remove(lastUsed); // nothing when the chest he clicked was not a highlighted one
             lastUsed = null;
             return;
         }
@@ -204,13 +256,32 @@ public final class TreasureChests {
     }
 
     static void tick(Minecraft client) {
-        if (client.level == null || client.player == null || !tracking()) {
+        if (client.level == null || client.player == null) {
             clear();
             return;
         }
         if (level != client.level) {
             level = client.level;
             clear();
+        }
+        if (!HIDDEN.isEmpty()) {
+            // Kept through a lapse in tracking() (an island read) too: only the world going ends a hide early.
+            long wall = System.currentTimeMillis();
+            for (Iterator<Map.Entry<BlockPos, Long>> it = HIDDEN.entrySet().iterator(); it.hasNext(); ) {
+                Map.Entry<BlockPos, Long> e = it.next();
+                boolean chest = client.level.getBlockState(e.getKey()).is(Blocks.CHEST);
+                if (wall > e.getValue()) {
+                    it.remove();
+                } else if (chest ? e.getValue() < wall + GONE_MS : e.getValue() > wall + GONE_MS) {
+                    e.setValue(wall + GONE_MS); // gone: GONE_MS more; back again: hidden while it stays
+                }
+            }
+        }
+        if (!tracking()) {
+            CHESTS.clear();
+            UNCLAIMED.clear();
+            pendingLines = 0;
+            return;
         }
         long now = PerTickServerClock.now();
         for (Iterator<Map.Entry<BlockPos, Long>> it = CHESTS.entrySet().iterator(); it.hasNext(); ) {
@@ -220,13 +291,6 @@ public final class TreasureChests {
             }
         }
         UNCLAIMED.values().removeIf(t -> now - t > MATCH_TICKS);
-        long wall = System.currentTimeMillis();
-        for (Iterator<Map.Entry<BlockPos, Long>> it = HIDDEN.entrySet().iterator(); it.hasNext(); ) {
-            Map.Entry<BlockPos, Long> e = it.next();
-            if (wall - e.getValue() > HIDDEN_MS || !client.level.getBlockState(e.getKey()).is(Blocks.CHEST)) {
-                it.remove();
-            }
-        }
         if (pendingLines > 0 && now - pendingAt > MATCH_TICKS) {
             pendingLines = 0;
         }
@@ -238,6 +302,8 @@ public final class TreasureChests {
         CHESTS.clear();
         UNCLAIMED.clear();
         pendingLines = 0;
+        openedCredits = 0;
+        lastUsed = null;
     }
 
     /** The chest's box (a chest is 14/16 wide and tall, centered). */
@@ -278,12 +344,8 @@ public final class TreasureChests {
         WorldRenderUtils.renderFilledBoxes(context, boxes.clone(), rgba.clone(), n, 0.25f, walls);
         boxFrames++;
         if (cfg.isTreasureChestTracer()) {
-            float[] k = WorldRenderUtils.argbToFloats(cfg.getTreasureChestTracerColor());
-            Vec3 from = WorldRenderUtils.tracerOrigin(context);
-            for (AABB b : boxes) {
-                WorldRenderUtils.renderLineStrip(context, new Vec3[]{from, b.getCenter()}, k[0], k[1], k[2], 1f, 2f, walls);
-            }
-            tracerFrames++;
+            renderTracers(context, boxes, rgba, n, cfg.getTreasureChestTracerMode() == PowderMiningConfig.TracerMode.CHAIN,
+                    walls);
         }
         if (cfg.isTreasureChestCountdown()) {
             for (Map.Entry<BlockPos, Long> e : CHESTS.entrySet()) {
@@ -297,6 +359,61 @@ public final class TreasureChests {
             }
             countdownFrames++;
         }
+    }
+
+    /**
+     * Each line takes the color of the chest it goes TO, as its box is drawn (killer560, 2026-11-04). Chain: crosshair ->
+     * oldest chest -> next oldest ...; From Crosshair: one line from the crosshair to each chest. {@code boxes} and
+     * {@code rgba} are in {@link #CHESTS} order.
+     */
+    private static void renderTracers(LevelRenderContext context, AABB[] boxes, float[] rgba, int n, boolean chain,
+                                      boolean walls) {
+        if (order.length < n) {
+            order = new int[n * 2];
+            spawn = new long[n * 2];
+            segments = new double[n * 2 * SEG];
+        }
+        int i = 0;
+        for (long at : CHESTS.values()) {
+            spawn[i] = at;
+            order[i] = i;
+            i++;
+        }
+        if (chain) {
+            for (int a = 1; a < n; a++) { // insertion sort by spawn tick, oldest first: a handful of chests
+                int k = order[a];
+                int b = a - 1;
+                while (b >= 0 && spawn[order[b]] > spawn[k]) {
+                    order[b + 1] = order[b];
+                    b--;
+                }
+                order[b + 1] = k;
+            }
+        }
+        Vec3 origin = WorldRenderUtils.tracerOrigin(context);
+        Vec3 from = origin;
+        for (int s = 0; s < n; s++) {
+            int c = order[s];
+            Vec3 to = boxes[c].getCenter();
+            float r = rgba[c * 4], g = rgba[c * 4 + 1], b = rgba[c * 4 + 2];
+            WorldRenderUtils.renderLine(context, from, to, r, g, b, 1f, 2f, walls);
+            int o = s * SEG;
+            segments[o] = from == origin ? 1 : 0;
+            segments[o + 1] = from.x;
+            segments[o + 2] = from.y;
+            segments[o + 3] = from.z;
+            segments[o + 4] = to.x;
+            segments[o + 5] = to.y;
+            segments[o + 6] = to.z;
+            segments[o + 7] = r;
+            segments[o + 8] = g;
+            segments[o + 9] = b;
+            if (chain) {
+                from = to;
+            }
+        }
+        segmentCount = n;
+        tracerFrames++;
     }
 
     /** "42s" for the ticks left (rounded up, never negative). */
@@ -366,7 +483,13 @@ public final class TreasureChests {
 
     public static int claims() { return claims; }
 
-    public static int alerts() { return alerts; }
+    public static int opened() {
+        return opened;
+    }
+
+    public static int alerts() {
+        return alerts;
+    }
 
     public static int boxFrames() { return boxFrames; }
 
@@ -380,6 +503,19 @@ public final class TreasureChests {
 
     public static int tracerFrames() {
         return tracerFrames;
+    }
+
+    /** The last frame's tracer lines in drawing order, each {from crosshair 1/0, from x y z, to x y z, r g b}. */
+    public static List<double[]> tracerSegments() {
+        List<double[]> out = new ArrayList<>();
+        for (int s = 0; s < segmentCount; s++) {
+            out.add(java.util.Arrays.copyOfRange(segments, s * SEG, s * SEG + SEG));
+        }
+        return out;
+    }
+
+    public static boolean hidden(int x, int y, int z) {
+        return HIDDEN.containsKey(new BlockPos(x, y, z));
     }
 
     public static int countdownFrames() {
