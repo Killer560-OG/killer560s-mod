@@ -42,28 +42,10 @@ public abstract class MithrilStoneSectionMixin {
         } catch (RuntimeException ignored) {
             // never break the mesher
         }
-        // Dark Stone: while this block is drawn, DarkBufferMixin multiplies each vertex color (a swapped block is judged by
-        // what it is drawn as). Fabric's renderer draws below this call and ignores the output, so the vertex is the hook.
-        int dark = 0;
-        try {
-            float f = com.killer560.hub.miningqol.DarkStone.factor(swap != null ? swap : state);
-            dark = f < 1.0f ? com.killer560.hub.miningqol.DarkStone.argb(f) : 0;
-        } catch (RuntimeException ignored) {
-            dark = 0;
-        }
-        if (dark != 0) {
-            com.killer560.hub.miningqol.DarkStone.begin(dark);
-        }
-        try {
-            if (swap != null) {
-                original.call(renderer, output, x, y, z, level, pos, swap, blockModelSet.get(swap), seed);
-            } else {
-                original.call(renderer, output, x, y, z, level, pos, state, model, seed);
-            }
-        } finally {
-            if (dark != 0) {
-                com.killer560.hub.miningqol.DarkStone.end();
-            }
+        if (swap != null) {
+            original.call(renderer, output, x, y, z, level, pos, swap, blockModelSet.get(swap), seed);
+        } else {
+            original.call(renderer, output, x, y, z, level, pos, state, model, seed);
         }
     }
 }

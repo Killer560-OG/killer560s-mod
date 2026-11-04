@@ -1,64 +1,70 @@
 package com.killer560.hub.miningqol;
 
-import com.killer560.hub.compat.McBlocks;
+import com.killer560.hub.miningqol.mixin.SpriteContentsMipsAccessor;
+import com.killer560.hub.miningqol.mixin.TextureAtlasRedrawInvoker;
+import com.killer560.hub.util.ModLog;
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.client.renderer.texture.AbstractTexture;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.resources.Identifier;
+import org.slf4j.Logger;
 
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Dark Stone (legit, both builds; killer560 2026-11-04: "add a stone dark mode option as well. a texture pack that makes
- * all stuff dark mode"). Render only, no textures shipped or generated: the chunk mesher ({@code SectionCompiler.compile},
- * the same call Mithril As Stone wraps) hands each quad of a stone-type block to {@link #factor}, and the mixin multiplies
- * the quad's vertex color by it, which is a darkened copy of the vanilla texture without copying one. Ores, gemstones and
- * Titanium (polished diorite) are not in the set and draw as they always did. The world is never changed.
+ * all stuff dark mode", then "ores must match the stone around them"). It re-skins the textures the player already has
+ * loaded, so it follows whatever pack is active, and there is no per-vertex or per-frame work at all:
+ * <ul>
+ *   <li>Stone-type textures (stone, cobblestone, andesite, granite, diorite, deepslate, tuff, ice ...) get every pixel
+ *   multiplied by the darkness factor.</li>
+ *   <li>Ore textures (coal, iron, gold, lapis, redstone, emerald, diamond, copper, plain and deepslate) get only the pixels
+ *   that belong to the stone behind the ore darkened, the same way as the stone itself, so the ore matches the stone around
+ *   it: a pixel counts as stone when it is close to the host stone texture's pixel at the same place, or has low saturation
+ *   and is close to one of the host's colors. Colored specks (and coal's near-black ones) stay as they are.</li>
+ *   <li>Titanium (polished diorite), gemstones and every other texture are not touched.</li>
+ * </ul>
+ * How: the block atlas' sprites keep their images ({@code SpriteContents.byMipLevel}); the darkened copies are swapped in and
+ * {@code TextureAtlas.uploadInitialContents} redraws the atlas from them (the same step the load does, no resource reload).
+ * Switching off, or leaving the mining island, swaps the originals back. A resource reload builds a fresh atlas, which is
+ * noticed (the sprite object changes) and re-skinned. Animated sprites are skipped: the game redraws their frames itself
+ * every few ticks. While active the block-atlas stone also shows in inventory icons and held blocks, which use the same atlas.
  *
- * <p>Applies while the setting is on, Skyblock allows the mod and the player is on a mining island. Changing the setting or
- * the level re-meshes the view, so it applies live.
+ * <p>Tried first and dropped: tinting vertex colors in the mesher (it cannot leave an ore's specks alone, and Fabric's
+ * terrain renderer bypasses vanilla's quad output so it needed a hook on every vertex the game draws).
  */
 public final class DarkStone {
 
-    /** Stone-type blocks of the mining islands (stone, hardstone, cobble, the three rocks + polished, deepslate, tuff, ice). */
-    private static final Set<Block> STONE = Set.of(Blocks.STONE, Blocks.COBBLESTONE, Blocks.SMOOTH_STONE,
-            Blocks.ANDESITE, Blocks.POLISHED_ANDESITE, Blocks.DIORITE, Blocks.GRANITE, Blocks.POLISHED_GRANITE,
-            Blocks.DEEPSLATE, Blocks.COBBLED_DEEPSLATE, Blocks.POLISHED_DEEPSLATE, Blocks.DEEPSLATE_BRICKS,
-            Blocks.TUFF, Blocks.PACKED_ICE, Blocks.BLUE_ICE, Blocks.INFESTED_STONE, Blocks.INFESTED_COBBLESTONE);
+    private static final Logger LOGGER = ModLog.get("killer560smod-darkstone");
 
-    /** Mithril: only with Darken Mithril on (default off, so it still stands out). */
-    private static final Set<Block> MITHRIL = Set.of(McBlocks.GRAY_WOOL, McBlocks.LIGHT_BLUE_WOOL, Blocks.PRISMARINE,
-            Blocks.PRISMARINE_BRICKS, Blocks.DARK_PRISMARINE, McBlocks.CYAN_TERRACOTTA);
+    /** Stone-type textures (block atlas names without the "block/" prefix). Polished diorite is Titanium: not here. */
+    private static final String[] STONE = {"stone", "cobblestone", "smooth_stone", "andesite", "polished_andesite", "diorite",
+        "granite", "polished_granite", "deepslate", "deepslate_top", "cobbled_deepslate", "polished_deepslate",
+        "deepslate_bricks", "tuff", "packed_ice", "blue_ice"};
+
+    /** Mithril textures: only with Darken Mithril Too. */
+    private static final String[] MITHRIL = {"gray_wool", "light_blue_wool", "prismarine_bricks", "dark_prismarine",
+        "cyan_terracotta"};
+
+    private static final String[] ORE_NAMES = {"coal", "iron", "gold", "lapis", "redstone", "emerald", "diamond", "copper"};
 
     private static volatile boolean on = false;
-    private static volatile boolean mithril = false;
-    private static volatile int level = 50;
     private static String lastKey = "";
-    private static final AtomicLong darkened = new AtomicLong();
-    private static int remeshes = 0;
+    private static volatile boolean forceIsland = false;
+    private static int redraws = 0;
+    private static long lastApplyNanos = 0;
+
+    /** Sprites currently showing a darkened copy: {original images, darkened images}. */
+    private static final Map<TextureAtlasSprite, NativeImage[][]> APPLIED = new LinkedHashMap<>();
+    private static TextureAtlas appliedAtlas;
+    private static TextureAtlasSprite guardSprite;
 
     private DarkStone() {
-    }
-
-    /** The multiplier (0..1) for the quads of {@code state}, or 1 for "draw as is". Mesher thread. */
-    public static float factor(BlockState state) {
-        if (!on || state == null) {
-            return 1.0f;
-        }
-        Block b = state.getBlock();
-        if (STONE.contains(b) || (mithril && MITHRIL.contains(b))) {
-            darkened.incrementAndGet();
-            return 1.0f - level / 100.0f;
-        }
-        return 1.0f;
-    }
-
-    /** ARGB for QuadInstance.multiplyColor from a factor. */
-    public static int argb(float f) {
-        int c = Math.max(0, Math.min(255, Math.round(f * 255.0f)));
-        return 0xFF000000 | (c << 16) | (c << 8) | c;
     }
 
     static void tick(Minecraft client) {
@@ -66,78 +72,230 @@ public final class DarkStone {
         boolean en = cfg.isDarkStone() && (MiningState.onMiningIsland() || forceIsland);
         int lv = cfg.getDarkStoneLevel();
         boolean mi = cfg.isDarkStoneMithril();
-        String key = en + "|" + lv + "|" + mi;
-        on = en;
-        level = lv;
-        mithril = mi;
-        if (!key.equals(lastKey)) {
-            lastKey = key;
-            remesh(client);
+        if (!APPLIED.isEmpty() && staleAtlas(client)) {
+            forget();
+            lastKey = "";
         }
-    }
-
-    private static void remesh(Minecraft client) {
-        ClientLevel lvl = client.level;
-        if (lvl == null || client.player == null) {
+        String key = en + "|" + lv + "|" + mi;
+        if (key.equals(lastKey)) {
             return;
         }
-        int r = client.options.getEffectiveRenderDistance() + 1;
-        int cx = client.player.blockPosition().getX() >> 4;
-        int cz = client.player.blockPosition().getZ() >> 4;
-        lvl.setSectionRangeDirty(cx - r, lvl.getMinSectionY(), cz - r, cx + r, lvl.getMaxSectionY(), cz + r);
-        remeshes++;
+        if (en && client.level == null) {
+            return;
+        }
+        lastKey = key;
+        try {
+            long t0 = System.nanoTime();
+            restore(client);
+            if (en) {
+                apply(client, 1.0f - lv / 100.0f, mi);
+            }
+            lastApplyNanos = System.nanoTime() - t0;
+        } catch (RuntimeException | LinkageError e) {
+            LOGGER.warn("[DarkStone] re-skin failed: {}", e.toString());
+            forget();
+        }
+        on = en && !APPLIED.isEmpty();
     }
 
-    private static volatile boolean forceIsland = false;
+    private static TextureAtlas blockAtlas(Minecraft client) {
+        AbstractTexture t = client.getTextureManager().getTexture(TextureAtlas.LOCATION_BLOCKS);
+        return t instanceof TextureAtlas a ? a : null;
+    }
+
+    private static boolean staleAtlas(Minecraft client) {
+        TextureAtlas atlas = blockAtlas(client);
+        return atlas == null || atlas != appliedAtlas
+                || atlas.getSprite(Identifier.withDefaultNamespace("block/stone")) != guardSprite;
+    }
+
+    private static TextureAtlasSprite sprite(TextureAtlas atlas, String name) {
+        TextureAtlasSprite s = atlas.getSprite(Identifier.withDefaultNamespace("block/" + name));
+        return s == atlas.missingSprite() ? null : s;
+    }
+
+    private static void apply(Minecraft client, float factor, boolean mithril) {
+        TextureAtlas atlas = blockAtlas(client);
+        if (atlas == null) {
+            return;
+        }
+        // every darkened set is built from the ORIGINAL images first, then all are swapped in together
+        Map<TextureAtlasSprite, NativeImage[]> plan = new LinkedHashMap<>();
+        List<String> stoneNames = new ArrayList<>(List.of(STONE));
+        if (mithril) {
+            stoneNames.addAll(List.of(MITHRIL));
+        }
+        for (String n : stoneNames) {
+            TextureAtlasSprite s = sprite(atlas, n);
+            if (s != null && !s.contents().isAnimated()) {
+                plan.put(s, darkenedStone(mips(s), factor));
+            }
+        }
+        String[] prefixes = {"", "deepslate_"};
+        String[] hosts = {"stone", "deepslate"};
+        for (int i = 0; i < prefixes.length; i++) {
+            TextureAtlasSprite host = sprite(atlas, hosts[i]);
+            if (host == null) {
+                continue;
+            }
+            for (String ore : ORE_NAMES) {
+                TextureAtlasSprite s = sprite(atlas, prefixes[i] + ore + "_ore");
+                if (s != null && !s.contents().isAnimated()) {
+                    plan.put(s, darkenedOre(mips(s), mips(host), factor));
+                }
+            }
+        }
+        if (plan.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<TextureAtlasSprite, NativeImage[]> e : plan.entrySet()) {
+            SpriteContentsMipsAccessor acc = (SpriteContentsMipsAccessor) (Object) e.getKey().contents();
+            APPLIED.put(e.getKey(), new NativeImage[][] {acc.killer560smod$getMips(), e.getValue()});
+            acc.killer560smod$setMips(e.getValue());
+        }
+        appliedAtlas = atlas;
+        guardSprite = atlas.getSprite(Identifier.withDefaultNamespace("block/stone"));
+        redraw(atlas);
+    }
+
+    private static void restore(Minecraft client) {
+        if (APPLIED.isEmpty()) {
+            return;
+        }
+        boolean same = !staleAtlas(client);
+        TextureAtlas atlas = appliedAtlas;
+        for (Map.Entry<TextureAtlasSprite, NativeImage[][]> e : APPLIED.entrySet()) {
+            if (same) {
+                ((SpriteContentsMipsAccessor) (Object) e.getKey().contents()).killer560smod$setMips(e.getValue()[0]);
+            }
+            for (NativeImage img : e.getValue()[1]) {
+                if (img != null && !img.isClosed()) {
+                    img.close();
+                }
+            }
+        }
+        APPLIED.clear();
+        if (same) {
+            redraw(atlas);
+        }
+        appliedAtlas = null;
+        guardSprite = null;
+    }
+
+    /** The atlas was rebuilt by a reload (its old sprites and our copies went with it): just drop the records. */
+    private static void forget() {
+        APPLIED.clear();
+        appliedAtlas = null;
+        guardSprite = null;
+        on = false;
+    }
+
+    private static void redraw(TextureAtlas atlas) {
+        ((TextureAtlasRedrawInvoker) (Object) atlas).killer560smod$redraw();
+        redraws++;
+    }
+
+    private static NativeImage[] mips(TextureAtlasSprite s) {
+        return ((SpriteContentsMipsAccessor) (Object) s.contents()).killer560smod$getMips();
+    }
+
+    private static int dark(int argb, float f) {
+        int a = argb >>> 24;
+        int r = Math.round(((argb >> 16) & 255) * f);
+        int g = Math.round(((argb >> 8) & 255) * f);
+        int b = Math.round((argb & 255) * f);
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    private static NativeImage[] darkenedStone(NativeImage[] src, float f) {
+        NativeImage[] out = new NativeImage[src.length];
+        for (int m = 0; m < src.length; m++) {
+            NativeImage in = src[m];
+            NativeImage o = new NativeImage(in.getWidth(), in.getHeight(), false);
+            for (int y = 0; y < in.getHeight(); y++) {
+                for (int x = 0; x < in.getWidth(); x++) {
+                    o.setPixel(x, y, dark(in.getPixel(x, y), f));
+                }
+            }
+            out[m] = o;
+        }
+        return out;
+    }
+
+    private static NativeImage[] darkenedOre(NativeImage[] ore, NativeImage[] host, float f) {
+        NativeImage[] out = new NativeImage[ore.length];
+        for (int m = 0; m < ore.length; m++) {
+            NativeImage in = ore[m];
+            NativeImage h = m < host.length ? host[m] : null;
+            NativeImage o = new NativeImage(in.getWidth(), in.getHeight(), false);
+            for (int y = 0; y < in.getHeight(); y++) {
+                for (int x = 0; x < in.getWidth(); x++) {
+                    int p = in.getPixel(x, y);
+                    o.setPixel(x, y, isStone(p, h, x, y, in.getWidth(), in.getHeight()) ? dark(p, f) : p);
+                }
+            }
+            out[m] = o;
+        }
+        return out;
+    }
+
+    /** Does this ore pixel belong to the stone behind the ore? */
+    static boolean isStone(int p, NativeImage host, int x, int y, int w, int hgt) {
+        if ((p >>> 24) < 8 || host == null) {
+            return false;
+        }
+        if (host.getWidth() == w && host.getHeight() == hgt && dist(p, host.getPixel(x, y)) <= 14) {
+            return true;
+        }
+        if (saturation(p) >= 0.15f) {
+            return false;
+        }
+        int best = Integer.MAX_VALUE;
+        for (int yy = 0; yy < host.getHeight(); yy++) {
+            for (int xx = 0; xx < host.getWidth(); xx++) {
+                best = Math.min(best, dist(p, host.getPixel(xx, yy)));
+            }
+        }
+        return best <= 16;
+    }
+
+    private static int dist(int a, int b) {
+        int dr = Math.abs(((a >> 16) & 255) - ((b >> 16) & 255));
+        int dg = Math.abs(((a >> 8) & 255) - ((b >> 8) & 255));
+        int db = Math.abs((a & 255) - (b & 255));
+        return Math.max(dr, Math.max(dg, db));
+    }
+
+    private static float saturation(int p) {
+        int r = (p >> 16) & 255;
+        int g = (p >> 8) & 255;
+        int b = p & 255;
+        int mx = Math.max(r, Math.max(g, b));
+        int mn = Math.min(r, Math.min(g, b));
+        return mx == 0 ? 0f : (mx - mn) / (float) mx;
+    }
 
     /** Testkit: treat the world as a mining island (no Skyblock in the harness). */
     public static void forceIslandForTest(boolean v) {
         forceIsland = v;
     }
 
-    /** The multiplier color for the block the mesher thread is drawing now (0 = none). Set around the block's draw by
-     *  the section-compile wrap, read by {@code DarkBufferMixin} on each vertex: Fabric's renderer draws terrain through its
-     *  own quad emitter and never calls the {@code BlockQuadOutput} vanilla's tesselateBlock gets, so the vertex is the one
-     *  place both paths meet (tested 2026-11-04: a wrapped output saw zero quads). */
-    private static final ThreadLocal<int[]> CURRENT = ThreadLocal.withInitial(() -> new int[1]);
-    private static final AtomicLong tinted = new AtomicLong();
-
-    public static void begin(int argb) {
-        CURRENT.get()[0] = argb;
-    }
-
-    public static void end() {
-        CURRENT.get()[0] = 0;
-    }
-
-    /** The color to multiply into a vertex now, or 0 for none. */
-    public static int currentArgb() {
-        return on ? CURRENT.get()[0] : 0;
-    }
-
-    public static int tint(int color) {
-        int m = currentArgb();
-        if (m == 0) {
-            return color;
-        }
-        tinted.incrementAndGet();
-        return net.minecraft.util.ARGB.multiply(color, m);
-    }
-
-    public static long tintedCount() {
-        return tinted.get();
-    }
-
-
     public static boolean isOn() {
         return on;
     }
 
+    /** Sprites showing a darkened copy right now. */
     public static long darkenedCount() {
-        return darkened.get();
+        return APPLIED.size();
     }
 
+    /** Atlas redraws done (one per switch, level change or island change). */
     public static int remeshCount() {
-        return remeshes;
+        return redraws;
+    }
+
+    /** Time of the last apply or restore (the atlas redraw), in microseconds. */
+    public static long lastApplyMicros() {
+        return lastApplyNanos / 1000L;
     }
 }
