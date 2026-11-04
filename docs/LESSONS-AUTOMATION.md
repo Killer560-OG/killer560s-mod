@@ -749,3 +749,9 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   beam/arrow clicks (a swing without a melee target, a shortbow) are affected. The hit=false first click was a swing with no
   melee target at 6.8 blocks (a beam), not a melee miss; the log cannot show where the beam went. Testkit
   1103-bloodcamp-watcher-line (a decoy husk stands in for the Watcher; the test Watcher is a stand, which never blocks).
+- Terminal Solver reads the SERVER's slots, but a real PICKUP click (Rubix; the other types send CLONE) predicts locally and leaves the slot EMPTY
+  until the server answers. A server that rejects or drops the click (Hypixel does not always re-send) never refills it, so the solver saw no
+  pane, the Custom GUI drew nothing and the terminal looked finished while open (killer560, 2026-11-03). `TerminalSolverFeature.predictedSlots`
+  keeps the pre-click stack and puts it back after max(250 ms, 2 x ping + 150 ms) if still empty; the server's update wins if it arrives
+  first. Hx's chest menu always re-sends after a click, which hid this: testkit `menu.terminal` `dropClicks` / `menu.terminal.drop` answer
+  nothing, cases 298/299-menu-term-resync-*. His 19:22 log had no failing terminal in it (Rubix 1.68 s, Starts With 25 s, no resend lines).
