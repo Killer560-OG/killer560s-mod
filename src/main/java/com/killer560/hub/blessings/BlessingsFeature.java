@@ -2,6 +2,7 @@ package com.killer560.hub.blessings;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -58,31 +59,15 @@ public final class BlessingsFeature {
 
     /** Movable/scalable in the HUD editor; drawn by {@code hud/HudInGameRenderer} (its id is in
      *  {@code UNDRAWN_ELEMENT_IDS}). */
-    private static final class BlessingsHud implements HudElement {
+    private static final class BlessingsHud extends BasicHud {
+        BlessingsHud() {
+            // Free row in the x=10 column: 100/140/160/180/200/220/280/300/320/340 are taken by other elements.
+            super("blessings", "Blessings", 10, 360);
+        }
+
 
         /** Editor preview values, Devonian's {@code getEditText()} sample set. */
         private static final int[] EXAMPLE = {29, 5, 11, 10, 36};
-
-        @Override
-        public String id() {
-            return "blessings";
-        }
-
-        @Override
-        public String displayName() {
-            return "Blessings";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            // Free row in the x=10 column: 100/140/160/180/200/220/280/300/320/340 are taken by other elements.
-            return 360;
-        }
 
         @Override
         public int width() {
