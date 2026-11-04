@@ -78,9 +78,7 @@ public final class TerminalTimersFeature {
         }));
     }
 
-    // ------------------------------------------------------------------
     // Splits
-    // ------------------------------------------------------------------
 
     private static Component rewrite(Component message, String plain) {
         if (plain == null || !TerminalTimersConfig.getInstance().isSplits()) {
@@ -196,9 +194,7 @@ public final class TerminalTimersFeature {
         gateBlown = false;
     }
 
-    // ------------------------------------------------------------------
     // Solve times
-    // ------------------------------------------------------------------
 
     /** Called by {@code TerminalSolverFeature} when it stops tracking a terminal (closed/replaced). */
     public static void onTerminalClosed(String terminalName, double seconds) {
@@ -229,7 +225,6 @@ public final class TerminalTimersFeature {
         ownTerminalLineAtMs = 0L;
     }
 
-    // ------------------------------------------------------------------
 
     private static float seconds(long sinceMs) {
         return sinceMs <= 0L ? 0f : (System.currentTimeMillis() - sinceMs) / 1000f;

@@ -238,10 +238,7 @@ public final class SplitTimersConfig {
 
     /** A split time as the timers show it: unchanged, or rounded to the nearest 0.05 s (one tick) with Tick Counting. */
     public static long shown(long ms) {
-        if (ms <= 0L || !getInstance().isTickCounting()) {
-            return ms;
-        }
-        return Math.round(ms / 50.0) * 50L;
+        return ms <= 0L || !getInstance().isTickCounting() ? ms : Math.round(ms / 50.0) * 50L;
     }
 
     public boolean isLaglessTimes() {

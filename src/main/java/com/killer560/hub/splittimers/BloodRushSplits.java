@@ -128,7 +128,6 @@ public final class BloodRushSplits {
         return started && !done;
     }
 
-    // ---- events ------------------------------------------------------------------------------------------------------
 
     static void onLine(String raw, Stamp at) {
         if (raw == null) {
@@ -225,7 +224,6 @@ public final class BloodRushSplits {
         }
     }
 
-    // ---- the world, each tick ------------------------------------------------------------------------------------------
 
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
@@ -337,7 +335,6 @@ public final class BloodRushSplits {
         return new Side(layout.name(room), room, e != null && "FAIRY".equalsIgnoreCase(e.type));
     }
 
-    // ---- times -------------------------------------------------------------------------------------------------------
 
     /** {real ms, lagless ms} from {@code a} to {@code b}, or null when either is missing. */
     private static long[] span(Stamp a, Stamp b) {
@@ -480,7 +477,6 @@ public final class BloodRushSplits {
         client.player.sendSystemMessage(line.append(ModChat.text(".")));
     }
 
-    // ---- test hooks --------------------------------------------------------------------------------------------------
 
     /** Test hook: one chat line at {@code ms} with the lag clock at {@code lagMs}. */
     public static void lineForTest(String raw, long ms, long lagMs) {
@@ -509,7 +505,6 @@ public final class BloodRushSplits {
         reset();
     }
 
-    // ---- HUD ---------------------------------------------------------------------------------------------------------
 
     public static final class Hud implements HudElement {
         private static final int ROW_HEIGHT = 9;

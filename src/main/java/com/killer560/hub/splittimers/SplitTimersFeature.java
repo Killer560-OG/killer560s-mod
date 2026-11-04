@@ -59,7 +59,6 @@ public final class SplitTimersFeature {
     private record SplitDef(Pattern pattern, String label) {
     }
 
-    // ---- clear boundaries ------------------------------------------------------------------------------------------
     // Odin SplitsManager.MORT_REGEX: the run's first line. Starts "Blood Open".
     private static final SplitDef RUN_START = def(
             "^\\[NPC\\] Mort: (?:Here, I found this map when I first entered the dungeon\\.|Right-click the Orb for spells, and Left-click \\(or Drop\\) to use your Ultimate!)$",
