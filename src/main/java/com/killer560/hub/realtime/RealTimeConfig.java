@@ -97,83 +97,45 @@ public final class RealTimeConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isUse24Hour() {
-        return use24Hour;
-    }
+    public boolean isUse24Hour() { return use24Hour; }
 
-    public void setUse24Hour(boolean use24Hour) {
-        this.use24Hour = use24Hour;
-    }
+    public void setUse24Hour(boolean use24Hour) { this.use24Hour = use24Hour; }
 
-    public boolean isShowSeconds() {
-        return showSeconds;
-    }
+    public boolean isShowSeconds() { return showSeconds; }
 
-    public void setShowSeconds(boolean showSeconds) {
-        this.showSeconds = showSeconds;
-    }
+    public void setShowSeconds(boolean showSeconds) { this.showSeconds = showSeconds; }
 
-    public ZoneMode getZoneMode() {
-        return zoneMode;
-    }
+    public ZoneMode getZoneMode() { return zoneMode; }
 
-    public void setZoneMode(ZoneMode zoneMode) {
-        this.zoneMode = zoneMode == null ? ZoneMode.SYSTEM : zoneMode;
-    }
+    public void setZoneMode(ZoneMode zoneMode) { this.zoneMode = zoneMode == null ? ZoneMode.SYSTEM : zoneMode; }
 
-    public String getCustomZone() {
-        return customZone;
-    }
+    public String getCustomZone() { return customZone; }
 
-    public void setCustomZone(String customZone) {
-        this.customZone = customZone == null ? "" : customZone;
-    }
+    public void setCustomZone(String customZone) { this.customZone = customZone == null ? "" : customZone; }
 
-    public String getRegionFilter() {
-        return regionFilter;
-    }
+    public String getRegionFilter() { return regionFilter; }
 
     public void setRegionFilter(String regionFilter) {
         this.regionFilter = regionFilter == null ? RealTimeZones.ALL : regionFilter;
     }
 
-    public boolean isShowZoneAbbreviation() {
-        return showZoneAbbreviation;
-    }
+    public boolean isShowZoneAbbreviation() { return showZoneAbbreviation; }
 
-    public void setShowZoneAbbreviation(boolean showZoneAbbreviation) {
-        this.showZoneAbbreviation = showZoneAbbreviation;
-    }
+    public void setShowZoneAbbreviation(boolean showZoneAbbreviation) { this.showZoneAbbreviation = showZoneAbbreviation; }
 
-    public boolean isShowLabel() {
-        return showLabel;
-    }
+    public boolean isShowLabel() { return showLabel; }
 
-    public void setShowLabel(boolean showLabel) {
-        this.showLabel = showLabel;
-    }
+    public void setShowLabel(boolean showLabel) { this.showLabel = showLabel; }
 
-    public boolean isTextShadow() {
-        return textShadow;
-    }
+    public boolean isTextShadow() { return textShadow; }
 
-    public void setTextShadow(boolean textShadow) {
-        this.textShadow = textShadow;
-    }
+    public void setTextShadow(boolean textShadow) { this.textShadow = textShadow; }
 
-    public int getTextColor() {
-        return textColor;
-    }
+    public int getTextColor() { return textColor; }
 
-    public void setTextColor(int textColor) {
-        this.textColor = textColor;
-    }
+    public void setTextColor(int textColor) { this.textColor = textColor; }
 }

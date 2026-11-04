@@ -91,24 +91,16 @@ public final class RealTimeFeature {
         }
 
         @Override
-        public String id() {
-            return ELEMENT_ID;
-        }
+        public String id() { return ELEMENT_ID; }
 
         @Override
-        public String displayName() {
-            return "Real Time";
-        }
+        public String displayName() { return "Real Time"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 40;
-        }
+        public int defaultY() { return 40; }
 
         @Override
         public int width() {
@@ -117,14 +109,10 @@ public final class RealTimeFeature {
         }
 
         @Override
-        public int height() {
-            return 10;
-        }
+        public int height() { return 10; }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return RealTimeConfig.getInstance().isEnabled();
-        }
+        public boolean isEnabledInSettings() { return RealTimeConfig.getInstance().isEnabled(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
