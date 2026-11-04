@@ -3,7 +3,6 @@ package com.killer560.hub.roomsim;
 import com.killer560.hub.livemap.DungeonLayout;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Rotation;

@@ -86,7 +86,6 @@ public final class SimPrince {
      * blocks, so a Superboom aimed at any of them finds it.
      */
     private static final net.minecraft.world.level.block.Block LID = Blocks.SMOOTH_STONE;
-    private static final int LID_MAX = 16;
 
     /**
      * The FOURTH signature: an obsidian top on a bottom smooth stone slab rim.
@@ -112,20 +111,6 @@ public final class SimPrince {
      * gold-alone trap again; the slab beside it is what makes it a tomb.
      */
     private static final net.minecraft.world.level.block.Block OBSIDIAN = Blocks.OBSIDIAN;
-
-    /**
-     * The FIFTH signature: a sarcophagus - a line of bottom smooth stone slabs every one of which lies on polished
-     * andesite, with a player head beside it ({@code CryptScanner.sarcophagusPrince}).
-     *
-     * <p>killer560, 2026-10-18: "this is a prince in sarcophogous". Sarcophagus has one crypt (room database) and one
-     * tomb: a 5x3 of polished andesite at capture y 70 (x 14..18, z 15..17) on stone brick stair legs and a polished
-     * andesite core at y 69, five bottom smooth stone slabs along its top at y 71 (z 16) and two player heads beside them.
-     * Until now the plain crypt rule opened the slab line and the row of andesite under it and left the rest of the tomb
-     * standing. As a prince its blocks are the slabs and the andesite top layer, so {@link #tombOf} takes the heads with
-     * the top, and {@link #extrasOf}'s layer under the footprint is the stair legs and the core: the whole sarcophagus goes,
-     * the room's floor at y 68 stays. Census: the only slab run on polished andesite with a head beside it in 135 captures.
-     */
-    private static final String SARCOPHAGUS = "sarcophagus";
 
     /** Which prince each block belongs to - a floor can hold more than one. */
     private static final Map<BlockPos, Integer> BLOCKS = new HashMap<>();
