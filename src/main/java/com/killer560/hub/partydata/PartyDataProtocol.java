@@ -56,9 +56,7 @@ final class PartyDataProtocol {
     /** @return the matching {@link PartyInteropState.Flag}, or null if unknown/malformed. */
     static PartyInteropState.Flag readFlag(JsonElement value) {
         String flag = enumString(value, "flag");
-        if (flag == null) {
-            return null;
-        }
+        if (flag == null) return null;
         return switch (flag) {
             case "mimic" -> PartyInteropState.Flag.MIMIC_KILLED;
             case "prince" -> PartyInteropState.Flag.PRINCE_KILLED;
@@ -89,9 +87,7 @@ final class PartyDataProtocol {
 
     static PartyInteropState.Counter readCounterName(JsonElement value) {
         String counter = enumString(value, "counter");
-        if (counter == null) {
-            return null;
-        }
+        if (counter == null) return null;
         return switch (counter) {
             case "secrets" -> PartyInteropState.Counter.SECRETS_FOUND;
             case "crypts" -> PartyInteropState.Counter.CRYPTS;
@@ -143,9 +139,7 @@ final class PartyDataProtocol {
      *  {@link PartyInteropState#offerRoomSecrets}), or -2 if the field itself is malformed. */
     static int readTotal(JsonElement value) {
         Integer v = intField(value, "total");
-        if (v == null) {
-            return -2;
-        }
+        if (v == null) return -2;
         return v == -1 || (v >= 0 && v <= MAX_COUNT) ? v : -2;
     }
 
@@ -230,13 +224,9 @@ final class PartyDataProtocol {
 
     static String readDragonColour(JsonElement value) {
         String colour = enumString(value, "colour");
-        if (colour == null) {
-            return null;
-        }
+        if (colour == null) return null;
         for (String known : DRAGON_COLOURS) {
-            if (known.equals(colour)) {
-                return known;
-            }
+            if (known.equals(colour)) return known;
         }
         return null;
     }
@@ -265,9 +255,7 @@ final class PartyDataProtocol {
      *  {@code OdinCodec#decode}'s own doc). */
     static Integer readMelodyType(JsonElement value) {
         Integer type = intField(value, "type");
-        if (type == null) {
-            return null;
-        }
+        if (type == null) return null;
         return switch (type) {
             case com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_CLAY,
                  com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_PURPLE,
@@ -280,9 +268,7 @@ final class PartyDataProtocol {
     /** @return {@code slot}, validated against {@code type}'s own real range ({@code BridgeTables}), or -1. */
     static int readMelodySlot(JsonElement value, int type) {
         Integer slot = intField(value, "slot");
-        if (slot == null) {
-            return -1;
-        }
+        if (slot == null) return -1;
         boolean valid = switch (type) {
             case com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_CLAY ->
                     slot >= com.killer560.hub.bridge.BridgeTables.MELODY_MIN_CLAY_ROW
@@ -312,13 +298,9 @@ final class PartyDataProtocol {
      *  room from our own "Water Board" and produced duplicate entries. */
     private static String string(JsonElement value, String field) {
         JsonObject obj = object(value);
-        if (obj == null || !obj.has(field)) {
-            return null;
-        }
+        if (obj == null || !obj.has(field)) return null;
         JsonElement el = obj.get(field);
-        if (el == null || !el.isJsonPrimitive() || !el.getAsJsonPrimitive().isString()) {
-            return null;
-        }
+        if (el == null || !el.isJsonPrimitive() || !el.getAsJsonPrimitive().isString()) return null;
         try {
             return el.getAsString();
         } catch (Exception e) {
@@ -328,13 +310,9 @@ final class PartyDataProtocol {
 
     private static Integer intField(JsonElement value, String field) {
         JsonObject obj = object(value);
-        if (obj == null || !obj.has(field)) {
-            return null;
-        }
+        if (obj == null || !obj.has(field)) return null;
         JsonElement el = obj.get(field);
-        if (el == null || !el.isJsonPrimitive() || !el.getAsJsonPrimitive().isNumber()) {
-            return null;
-        }
+        if (el == null || !el.isJsonPrimitive() || !el.getAsJsonPrimitive().isNumber()) return null;
         try {
             double d = el.getAsDouble();
             int i = (int) d;

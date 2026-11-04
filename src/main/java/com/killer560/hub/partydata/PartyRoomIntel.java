@@ -60,9 +60,7 @@ public final class PartyRoomIntel {
     }
 
     public static void offerPlayerSecrets(String player, int secrets) {
-        if (player == null || player.isBlank()) {
-            return;
-        }
+        if (player == null || player.isBlank()) return;
         synchronized (LOCK) {
             Integer held = PLAYER_SECRETS.get(player);
             // Monotonic within a run, same rule PartyInteropState uses for its own counters.
