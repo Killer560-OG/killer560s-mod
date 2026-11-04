@@ -148,7 +148,6 @@ public final class SpiritBearTracker {
             timer = Math.max(0, timer - step); // server ticks (2026-11-03), as Odin's ping-based timer
         }
 
-        // ---- Ring poll ----
         int lights = 0;
         int lit = 0;
         for (int i = 0; i < ring.length; i++) {
@@ -194,7 +193,6 @@ public final class SpiritBearTracker {
         kills = Math.min(lit, ring.length);
         boolean fullNow = kills >= ring.length || Boolean.TRUE.equals(ringState[ring.length - 1]);
 
-        // ---- Deaths + bear presence ----
         int deaths = 0;
         boolean bearNow = false;
         Set<Integer> present = new HashSet<>();
@@ -223,7 +221,6 @@ public final class SpiritBearTracker {
         }
         bearAliveNow = bearNow;
 
-        // ---- Pair ring lights with deaths; unpaired deaths on a full ring are overkill ----
         expire(pendingLights);
         expire(pendingDeaths);
         for (int i = 0; i < lights; i++) {
@@ -307,7 +304,6 @@ public final class SpiritBearTracker {
                 && !(entity instanceof Ghast);
     }
 
-    // ---- HUD text ----
 
     /** HUD states: "§d17/25", "§e3.40s", "§eSpawning...", "§aAlive!" (+ "§7Killed" once a seen bear is gone).
      * <p>
@@ -331,10 +327,7 @@ public final class SpiritBearTracker {
         if (bearAliveNow) {
             return "§aAlive!";
         }
-        if (bearSeenAlive) {
-            return "§7Killed";
-        }
-        return "§eSpawning...";
+        return bearSeenAlive ? "§7Killed" : "§eSpawning...";
     }
 
     /** Current cycle's overkill while the ring is full, otherwise the last finished cycle's (or 0). */

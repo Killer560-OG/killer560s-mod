@@ -60,7 +60,6 @@ public final class ThornConfig {
 
     private static ThornConfig instance;
 
-    // ---- Spirit Bear counter ----
     private boolean bearHud = false;
     private boolean showOverkill = false;
     private boolean overkillChat = false;
@@ -68,7 +67,6 @@ public final class ThornConfig {
      *  unlike Overkill Chat (client-side only), this is a real message in Party Chat everyone can see. */
     private boolean overkillToParty = false;
 
-    // ---- ESP ----
     private boolean bearEsp = false;
     /** Highlight on Thorn himself (the ghast boss) - added 2026-09-21 after killer560 looked for one there. */
     private boolean thornEsp = false;
@@ -87,7 +85,6 @@ public final class ThornConfig {
     /** Cheat build only: the bats of the Thorn fight, through walls (killer560, 2026-10-15). */
     private boolean batsThroughWalls = false;
 
-    // ---- Stun spots ----
     private boolean stunSpots = false;
     private boolean stunSpotLabels = true;
 
@@ -235,7 +232,6 @@ public final class ThornConfig {
     /** The Skyblock gate, which every effective getter below ANDs in. */
     private boolean live() { return SkyblockGate.allows(); }
 
-    // ---- Spirit Bear counter ----
     public boolean isBearHudEnabled() { return bearHud && live(); }
     public boolean getBearHudRaw() { return bearHud; }
     public void setBearHud(boolean v) { bearHud = v; }
@@ -252,7 +248,6 @@ public final class ThornConfig {
     public boolean getOverkillToPartyRaw() { return overkillToParty; }
     public void setOverkillToParty(boolean v) { overkillToParty = v; }
 
-    // ---- ESP targets ----
     public boolean isBearEspEnabled() { return bearEsp && live(); }
     public boolean isThornEspEnabled() { return thornEsp && live(); }
     public boolean getThornEspRaw() { return thornEsp; }
@@ -312,7 +307,6 @@ public final class ThornConfig {
     public boolean getBatsThroughWallsRaw() { return batsThroughWalls; }
     public void setBatsThroughWalls(boolean v) { batsThroughWalls = v; }
 
-    // ---- Stun spots ----
     public boolean isStunSpotsEnabled() { return stunSpots && live(); }
     public boolean getStunSpotsRaw() { return stunSpots; }
     public void setStunSpots(boolean v) { stunSpots = v; }
