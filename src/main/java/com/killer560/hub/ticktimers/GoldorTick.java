@@ -177,10 +177,7 @@ public final class GoldorTick {
     /** Ticks until Goldor's next hit: 0 on the hit's own tick, 59 the tick after, and 60 on Goldor's line itself. */
     public static synchronized int remaining() {
         long d = anchor - now();
-        if (d > 0) {
-            return (int) ((d - 1) % PERIOD) + 1;
-        }
-        return (int) Math.floorMod(d, (long) PERIOD);
+        return d > 0 ? (int) ((d - 1) % PERIOD) + 1 : (int) Math.floorMod(d, (long) PERIOD);
     }
 
     /** How far {@code t} is past the predicted hit, -30..29. */
@@ -344,7 +341,6 @@ public final class GoldorTick {
         }
     }
 
-    // ---- test hooks --------------------------------------------------------------------------------------------------
 
     public static synchronized List<Integer> testOffsetsAtHits() {
         return new ArrayList<>(OFFSETS_AT_HITS);

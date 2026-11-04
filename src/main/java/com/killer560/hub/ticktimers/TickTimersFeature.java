@@ -271,10 +271,7 @@ public final class TickTimersFeature {
 
     /** Ticks from {@code now} to {@code end}, or -1 once past it or when nothing runs (Odin's -1 = off the HUD). */
     private static int remainingTo(long end, long now) {
-        if (end == Long.MIN_VALUE || now > end) {
-            return -1;
-        }
-        return (int) Math.min(Integer.MAX_VALUE, end - now);
+        return end == Long.MIN_VALUE || now > end ? -1 : (int) Math.min(Integer.MAX_VALUE, end - now);
     }
 
     private static void resetAll() {
