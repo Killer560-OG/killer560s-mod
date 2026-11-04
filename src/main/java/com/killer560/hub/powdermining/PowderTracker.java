@@ -56,9 +56,7 @@ public final class PowderTracker {
 
     /** One loot block, its rewards by name. */
     static void onChest(Map<String, Long> rewards) {
-        if (!PowderMiningConfig.getInstance().isPowderTracker()) {
-            return;
-        }
+        if (!PowderMiningConfig.getInstance().isPowderTracker()) return;
         activity();
         chests++;
         for (Map.Entry<String, Long> e : rewards.entrySet()) {
@@ -84,9 +82,7 @@ public final class PowderTracker {
     }
 
     static String compact(long n) {
-        if (n >= 1_000_000L) {
-            return String.format(Locale.US, "%.2fM", n / 1_000_000.0);
-        }
+        if (n >= 1_000_000L) return String.format(Locale.US, "%.2fM", n / 1_000_000.0);
         return n >= 10_000L ? String.format(Locale.US, "%.1fk", n / 1000.0) : String.format(Locale.US, "%,d", n);
     }
 
@@ -167,13 +163,9 @@ public final class PowderTracker {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!PowderMiningConfig.getInstance().isPowderTracker() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!PowderMiningConfig.getInstance().isPowderTracker() || HudVisibility.hidesHud()) return;
             // Shown on the mining islands (and in the HUD editor); hidden elsewhere.
-            if (!com.killer560.hub.miningqol.MiningState.onMiningIsland() && !HudVisibility.editorOpen()) {
-                return;
-            }
+            if (!com.killer560.hub.miningqol.MiningState.onMiningIsland() && !HudVisibility.editorOpen()) return;
             int yy = y;
             for (String s : lines()) {
                 graphics.text(Minecraft.getInstance().font, s, x, yy, 0xFFFFFFFF, true);

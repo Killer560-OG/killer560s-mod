@@ -73,9 +73,7 @@ public final class PowderChat {
     static void register() { ClientReceiveMessageEvents.ALLOW_GAME.register(PowderChat::allow); }
 
     private static boolean allow(Component message, boolean overlay) {
-        if (overlay || message == null || flushing) {
-            return true;
-        }
+        if (overlay || message == null || flushing) return true;
         try {
             return handle(message);
         } catch (RuntimeException e) {
@@ -85,13 +83,9 @@ public final class PowderChat {
     }
 
     private static boolean isSeparator(String t) {
-        if (t.length() < 20 || t.length() > 80) {
-            return false;
-        }
+        if (t.length() < 20 || t.length() > 80) return false;
         for (int i = 0; i < t.length(); i++) {
-            if (t.charAt(i) != '▬') {
-                return false;
-            }
+            if (t.charAt(i) != '▬') return false;
         }
         return true;
     }
@@ -99,12 +93,8 @@ public final class PowderChat {
     /** @return false to drop the line. */
     private static boolean handle(Component message) {
         String plain = ChatObserver.strip(message);
-        if (plain == null || plain.length() > 2000) {
-            return true;
-        }
-        if (plain.indexOf('\n') >= 0) {
-            return handleMulti(plain);
-        }
+        if (plain == null || plain.length() > 2000) return true;
+        if (plain.indexOf('\n') >= 0) return handleMulti(plain);
         String t = plain.trim();
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
         boolean hollows = MiningState.crystalHollows();
@@ -118,15 +108,9 @@ public final class PowderChat {
             }
             // Hypixel sends a blank line between the header and REWARDS (killer560's log, 2026-11-03 22:56); it used to end
             // the block before any reward, so nothing was counted and Compact printed "[Chest] nothing".
-            if (t.isEmpty()) {
-                return !blockHidden;
-            }
-            if (REWARDS.matcher(t).matches()) {
-                return !blockHidden;
-            }
-            if (plain.startsWith("    ") && reward(t)) {
-                return !blockHidden;
-            }
+            if (t.isEmpty()) return !blockHidden;
+            if (REWARDS.matcher(t).matches()) return !blockHidden;
+            if (plain.startsWith("    ") && reward(t)) return !blockHidden;
             finish(); // any other line ends the block
         }
         if (t.length() <= 40 && HEADER.matcher(t).matches() && hollows) {
@@ -168,9 +152,7 @@ public final class PowderChat {
                 break;
             }
         }
-        if (!header || !MiningState.crystalHollows()) {
-            return true;
-        }
+        if (!header || !MiningState.crystalHollows()) return true;
         flushHeld();
         boolean hide = PowderMiningConfig.getInstance().isLootCompact();
         begin(hide);
@@ -200,9 +182,7 @@ public final class PowderChat {
 
     private static boolean reward(String t) {
         Matcher m = REWARD.matcher(t);
-        if (!m.matches()) {
-            return false;
-        }
+        if (!m.matches()) return false;
         String name = m.group(1).trim();
         long n = 1L;
         if (m.group(2) != null) {
@@ -224,9 +204,7 @@ public final class PowderChat {
     }
 
     private static void finish() {
-        if (!inBlock) {
-            return;
-        }
+        if (!inBlock) return;
         inBlock = false;
         Map<String, Long> got = new LinkedHashMap<>(rewards);
         PowderTracker.onChest(got);
@@ -262,9 +240,7 @@ public final class PowderChat {
 
     private static void compactLine(Map<String, Long> all, String fullHover) {
         PowderMiningConfig.LootShow mode = PowderMiningConfig.getInstance().getLootShow();
-        if (mode == PowderMiningConfig.LootShow.HIDE_ALL) {
-            return;
-        }
+        if (mode == PowderMiningConfig.LootShow.HIDE_ALL) return;
         Map<String, Long> got = new LinkedHashMap<>();
         for (Map.Entry<String, Long> e : all.entrySet()) {
             if (shown(e.getKey(), mode)) {
@@ -273,9 +249,7 @@ public final class PowderChat {
         }
         String hover = fullHover;
         if (mode != PowderMiningConfig.LootShow.ALL) {
-            if (got.isEmpty()) {
-                return;
-            }
+            if (got.isEmpty()) return;
             StringBuilder h = new StringBuilder();
             for (String line : fullHover.split("\\n")) {
                 Matcher m = REWARD.matcher(line.trim());
@@ -326,9 +300,7 @@ public final class PowderChat {
 
     private static void flushHeld() {
         Component held = heldSeparator;
-        if (held == null) {
-            return;
-        }
+        if (held == null) return;
         heldSeparator = null;
         hidden = Math.max(0, hidden - 1);
         Minecraft client = Minecraft.getInstance();
@@ -347,9 +319,7 @@ public final class PowderChat {
         boolean was = doublePowder;
         doublePowder = started;
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
-        if (!started || was || !cfg.isDoublePowder() || !MiningState.onMiningIsland()) {
-            return;
-        }
+        if (!started || was || !cfg.isDoublePowder() || !MiningState.onMiningIsland()) return;
         doubleAlerts++;
         Minecraft client = Minecraft.getInstance();
         McCompat.setTimes(client, 5, 50, 10);

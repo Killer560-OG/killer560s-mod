@@ -22,12 +22,8 @@ public final class PowderMining {
 
     public static boolean activeRecently() {
         Boolean f = forced;
-        if (f != null) {
-            return f;
-        }
-        if (MiningState.crystalHollows()) {
-            return true;
-        }
+        if (f != null) return f;
+        if (MiningState.crystalHollows()) return true;
         long at = lastChestAt;
         return at >= 0 && System.currentTimeMillis() - at <= RECENT_MS;
     }

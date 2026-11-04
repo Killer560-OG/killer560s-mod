@@ -70,9 +70,7 @@ public final class PowderMiningConfig {
 
         static LootShow byName(String n) {
             for (LootShow v : values()) {
-                if (v.name().equals(n)) {
-                    return v;
-                }
+                if (v.name().equals(n)) return v;
             }
             return ALL;
         }

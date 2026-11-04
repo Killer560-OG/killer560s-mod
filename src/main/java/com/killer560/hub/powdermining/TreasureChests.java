@@ -84,9 +84,7 @@ public final class TreasureChests {
     /** A block changed (client thread, after the change is in the level). */
     public static void onBlockChanged(BlockPos pos) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null || !tracking()) {
-            return;
-        }
+        if (client.level == null || client.player == null || !tracking()) return;
         boolean chest = client.level.getBlockState(pos).is(Blocks.CHEST);
         if (!chest) {
             BlockPos key = pos.immutable();
@@ -95,9 +93,7 @@ public final class TreasureChests {
             return;
         }
         BlockPos key = pos.immutable();
-        if (CHESTS.containsKey(key) || key.distSqr(client.player.blockPosition()) > CLAIM_RANGE_SQ) {
-            return;
-        }
+        if (CHESTS.containsKey(key) || key.distSqr(client.player.blockPosition()) > CLAIM_RANGE_SQ) return;
         long now = PerTickServerClock.now();
         if (pendingLines > 0 && now - pendingAt <= MATCH_TICKS) {
             pendingLines--;
@@ -110,9 +106,7 @@ public final class TreasureChests {
     /** "You uncovered a treasure chest!" (whole line, from {@link PowderChat}). */
     static void onUncovered() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !MiningState.crystalHollows()) {
-            return;
-        }
+        if (client.player == null || !MiningState.crystalHollows()) return;
         PowderMining.markChest();
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
         if (cfg.isChestAlert()) {
@@ -127,16 +121,12 @@ public final class TreasureChests {
             }
         }
         PowderTracker.onUncovered();
-        if (!tracking()) {
-            return;
-        }
+        if (!tracking()) return;
         long now = PerTickServerClock.now();
         BlockPos best = null;
         double bestD = Double.MAX_VALUE;
         for (Map.Entry<BlockPos, Long> e : UNCLAIMED.entrySet()) {
-            if (now - e.getValue() > MATCH_TICKS) {
-                continue;
-            }
+            if (now - e.getValue() > MATCH_TICKS) continue;
             double d = e.getKey().distSqr(client.player.blockPosition());
             if (d < bestD) {
                 bestD = d;
@@ -161,9 +151,7 @@ public final class TreasureChests {
     static void onLooted() {
         PowderMining.markChest();
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
         if (lastUsed != null && CHESTS.containsKey(lastUsed) && System.currentTimeMillis() - lastUsedAt <= USED_MS) {
             CHESTS.remove(lastUsed);
             lastUsed = null;
@@ -222,9 +210,7 @@ public final class TreasureChests {
 
     static void render(LevelRenderContext context) {
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
-        if (CHESTS.isEmpty() || !cfg.isTreasureChest()) {
-            return;
-        }
+        if (CHESTS.isEmpty() || !cfg.isTreasureChest()) return;
         long now = PerTickServerClock.now();
         int n = CHESTS.size();
         AABB[] boxes = new AABB[n];
@@ -265,9 +251,7 @@ public final class TreasureChests {
 
     static String hudLine() {
         long s = secondsLeft();
-        if (s < 0) {
-            return null;
-        }
+        if (s < 0) return null;
         int n = CHESTS.size();
         String color = s > 30 ? "§a" : s > 10 ? "§e" : "§c";
         return "§6Treasure Chest" + (n > 1 ? " §7(" + n + ")" : "") + "§7: " + color + s + "s";
@@ -336,13 +320,9 @@ public final class TreasureChests {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             PowderMiningConfig cfg = PowderMiningConfig.getInstance();
-            if (!cfg.isTreasureChest() || !cfg.isTreasureChestTimer() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!cfg.isTreasureChest() || !cfg.isTreasureChestTimer() || HudVisibility.hidesHud()) return;
             String s = shown();
-            if (s == null) {
-                return;
-            }
+            if (s == null) return;
             graphics.text(Minecraft.getInstance().font, s, x, y, 0xFFFFFFFF, true);
             if (hudLine() != null) {
                 HudSeen.markDrawn(TIMER_ID);
