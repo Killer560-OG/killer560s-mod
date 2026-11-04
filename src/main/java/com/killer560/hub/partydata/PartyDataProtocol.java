@@ -22,7 +22,6 @@ import java.util.Locale;
  */
 final class PartyDataProtocol {
 
-    // ------------------------------------------------------------------ keys
 
     static final String KEY_FLAG = "dg.v1.flag";
     static final String KEY_COUNTER = "dg.v1.counter";
@@ -47,7 +46,6 @@ final class PartyDataProtocol {
     private PartyDataProtocol() {
     }
 
-    // ------------------------------------------------------------------ flag
 
     static JsonObject flagPayload(String flagWireName) {
         JsonObject o = new JsonObject();
@@ -81,7 +79,6 @@ final class PartyDataProtocol {
         };
     }
 
-    // ------------------------------------------------------------------ counter
 
     static JsonObject counterPayload(String counterWireName, int value) {
         JsonObject o = new JsonObject();
@@ -123,7 +120,6 @@ final class PartyDataProtocol {
         };
     }
 
-    // ------------------------------------------------------------------ room secrets
 
     static JsonObject roomSecretsPayload(String room, int found, int total) {
         JsonObject o = new JsonObject();
@@ -222,7 +218,6 @@ final class PartyDataProtocol {
         return new DoorFields(x, z, col, row, type);
     }
 
-    // ------------------------------------------------------------------ dragon
 
     private static final String[] DRAGON_COLOURS = {"red", "orange", "green", "blue", "purple"};
 
@@ -251,14 +246,12 @@ final class PartyDataProtocol {
         return "spawning".equals(event) || "alive".equals(event) ? event : null;
     }
 
-    // ------------------------------------------------------------------ player secrets
 
     static int readPlayerSecrets(JsonElement value) {
         Integer v = intField(value, "secrets");
         return v != null && v >= 0 && v <= MAX_COUNT ? v : -1;
     }
 
-    // ------------------------------------------------------------------ melody
 
     static JsonObject melodyPayload(int type, int slot) {
         JsonObject o = new JsonObject();
@@ -304,7 +297,6 @@ final class PartyDataProtocol {
         return valid ? slot : -1;
     }
 
-    // ------------------------------------------------------------------ helpers
 
     private static JsonObject object(JsonElement value) {
         return value != null && value.isJsonObject() ? value.getAsJsonObject() : null;

@@ -370,7 +370,6 @@ public final class PartyDataFeature {
         tokens = Math.min(8.0, tokens + elapsedSec * 2.0); // 2/sec refill, well under the relay's 4/sec
     }
 
-    // ------------------------------------------------------------------ consume
 
     private static final class Listener implements RelayListener {
         @Override
