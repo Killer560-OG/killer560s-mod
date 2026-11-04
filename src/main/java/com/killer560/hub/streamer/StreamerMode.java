@@ -36,9 +36,7 @@ public final class StreamerMode {
             this.label = label;
         }
 
-        public Option next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public Option next() { return values()[(ordinal() + 1) % values().length]; }
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -118,14 +116,10 @@ public final class StreamerMode {
     }
 
     /** Automated actions are refused: on, with the Disable cheats option. */
-    public static boolean disablesCheats() {
-        return active() && option == Option.DISABLE_CHEATS;
-    }
+    public static boolean disablesCheats() { return active() && option == Option.DISABLE_CHEATS; }
 
     /** The cheat parts of the GUI are hidden: on, with either option. */
-    public static boolean hidesCheatUi() {
-        return active();
-    }
+    public static boolean hidesCheatUi() { return active(); }
 
     public static Option option() {
         ensureLoaded();
