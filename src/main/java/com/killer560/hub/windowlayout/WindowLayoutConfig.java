@@ -181,14 +181,6 @@ public final class WindowLayoutConfig {
         this.respectTaskbar = respectTaskbar;
     }
 
-    public int getPickerKeyCode() {
-        return pickerKeyCode;
-    }
-
-    public void setPickerKeyCode(int pickerKeyCode) {
-        this.pickerKeyCode = pickerKeyCode;
-    }
-
     public boolean isRestoreOnLaunch() {
         return restoreOnLaunch;
     }
