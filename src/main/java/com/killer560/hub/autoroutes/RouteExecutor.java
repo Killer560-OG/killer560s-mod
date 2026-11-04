@@ -6273,7 +6273,13 @@ public final class RouteExecutor {
                     pos.toShortString());
             return; // the one place a breaker node's dig goes out: never a Fairy room or a guarded secret
         }
-        lastDugAt.put(pos, client.level.getGameTime());
+        long digNow = client.level.getGameTime();
+        if (lastDugAt.size() > 256) {
+            // Only a dig within DIG_SETTLE_TICKS means anything; older entries (and ones from a world whose clock ran
+            // later) were never removed, so a long session of breaker nodes grew this map for good.
+            lastDugAt.values().removeIf(t -> digNow - t >= DIG_SETTLE_TICKS || t > digNow);
+        }
+        lastDugAt.put(pos, digNow);
         aimTurnPos = null; // a dig went: the next target's turns count from 1
         // The face the eye actually sees (Breaker Aura's clip, BlockHits). It was always UP, which no dig from below
         // a block's top can carry: GrimAC PositionBreakA flagged and canceled every breaker block above the feet
