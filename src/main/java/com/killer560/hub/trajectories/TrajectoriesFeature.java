@@ -95,9 +95,7 @@ public final class TrajectoriesFeature {
         lastArcs.clear();
         TrajectoriesConfig cfg = TrajectoriesConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isEnabled() || McCompat.screen(client) != null || client.player == null || client.level == null) {
-            return;
-        }
+        if (!cfg.isEnabled() || McCompat.screen(client) != null || client.player == null || client.level == null) return;
         Player player = client.player;
         ItemStack heldItem = player.getMainHandItem();
         Item item = heldItem.getItem();
@@ -109,9 +107,7 @@ public final class TrajectoriesFeature {
             // the whole time it is held - no draw. A Terminator's three arrows each get their own arc, the side ones at
             // the same pitch and +-5 degrees of yaw. Its arrows leave from the eye (QUOI's arrowOrigin), the rest from
             // the vanilla bow's hand offset.
-            if (!cfg.isShowShortbows()) {
-                return;
-            }
+            if (!cfg.isShowShortbows()) return;
             boolean terminator = heldTerminator;
             Vec3 eye = player.getEyePosition();
             float[] offsets = Shortbows.yawOffsets(heldArrows);
@@ -127,9 +123,7 @@ public final class TrajectoriesFeature {
         if (cfg.isShowBows() && item instanceof BowItem) {
             // A normal bow shows only while it is being drawn (it used to read an idle bow as fully drawn: no use
             // ticks left gave 72000 - 0), with vanilla's draw curve (BowItem.getPowerForTime) for the speed.
-            if (!player.isUsingItem() || player.getUsedItemHand() != InteractionHand.MAIN_HAND) {
-                return;
-            }
+            if (!player.isUsingItem() || player.getUsedItemHand() != InteractionHand.MAIN_HAND) return;
             float t = (72000 - player.getUseItemRemainingTicks()) / 20f;
             float power = Math.min((t * t + t * 2f) / 3f, 1f);
             if (power < 0.1f) {
@@ -191,9 +185,7 @@ public final class TrajectoriesFeature {
         Object lore = stack.get(net.minecraft.core.component.DataComponents.LORE);
         Object data = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
         net.minecraft.locale.Language language = net.minecraft.locale.Language.getInstance();
-        if (stack == heldStack && empty == heldEmpty && lore == heldLore && data == heldData && language == heldLanguage) {
-            return;
-        }
+        if (stack == heldStack && empty == heldEmpty && lore == heldLore && data == heldData && language == heldLanguage) return;
         heldShortbow = Shortbows.isShortbow(stack);
         heldTerminator = heldShortbow && Shortbows.isTerminator(stack);
         heldArrows = heldShortbow ? Shortbows.arrowCount(stack) : 1;

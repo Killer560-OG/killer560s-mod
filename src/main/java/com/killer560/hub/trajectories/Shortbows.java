@@ -34,12 +34,8 @@ public final class Shortbows {
     }
 
     public static boolean isShortbow(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
-        if (AutoPuzzleUtil.isShortbow(stack)) {
-            return true;
-        }
+        if (stack == null || stack.isEmpty()) return false;
+        if (AutoPuzzleUtil.isShortbow(stack)) return true;
         String id = AutoPuzzleUtil.skyblockId(stack);
         return id != null && (id.equals("TERMINATOR") || id.endsWith("SHORTBOW"));
     }
@@ -48,25 +44,15 @@ public final class Shortbows {
 
     /** Arrows one shot of {@code stack} fires (1 for anything that is not a multi-arrow bow). */
     public static int arrowCount(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return 1;
-        }
-        if (isTerminator(stack)) {
-            return 3;
-        }
+        if (stack == null || stack.isEmpty()) return 1;
+        if (isTerminator(stack)) return 3;
         ItemLore lore = stack.get(DataComponents.LORE);
-        if (lore == null) {
-            return 1;
-        }
+        if (lore == null) return 1;
         for (Component line : lore.lines()) {
             String s = ChatFormatting.stripFormatting(line.getString());
-            if (s == null) {
-                continue;
-            }
+            if (s == null) continue;
             Matcher m = ARROW_COUNT.matcher(s.trim());
-            if (m.matches()) {
-                return Integer.parseInt(m.group(1));
-            }
+            if (m.matches()) return Integer.parseInt(m.group(1));
         }
         return 1;
     }
