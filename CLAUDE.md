@@ -348,4 +348,4 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   add with "paths are ignored" although the file is tracked (2026-11-01). Stage it with `git add -u -- <paths>`.
 - Crypt census (CryptScanner rules against all 134 captures): use `killer560s-mod-logs/doc-secrets-1101/crypt_scan_port.py
   --new --rule crypt_1101_rule.py` (paths fixed for 26.3 Mod Only Test); the older copy in `crypt-census/` points at a
-  deleted worktree and the wiped 26.1.2 instance. Run `python -I` on a file, never `python -` with stdin redirected.
+  deleted worktree and the wiped 26.1.2 instance. Run `python -I` on a file, never `python -` with stdin redirected.- Chat Hider display-time hides (chattidy-1104): a line a mod feature must READ and the owner wants gone from chat (Breaking Power reminder, [Sacks] lines, "You uncovered a treasure chest!") is hidden in `ChatTidy.shouldHide` (ChatTidyMixin, after ChatObserver dispatched it), never in ObjectHiderFeature's ALLOW_GAME, which would starve the readers. Testkit 1104-chattidy-* (hx session: `-Scenario "100-hx-session:,1104-chattidy"`; a bare case name runs nothing of the session).

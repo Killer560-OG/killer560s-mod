@@ -53,6 +53,7 @@ public final class PowderMiningConfig {
     private boolean doublePowderSound = true;
 
     private boolean lootCompact = true;
+    private boolean hideTreasureUncovered = true;
     private LootShow lootShow = LootShow.ALL;
 
     /** What Chest Loot Compact shows (killer560, 2026-11-03): left click forward, right click back, wrapping. */
@@ -124,6 +125,7 @@ public final class PowderMiningConfig {
                 cfg.doublePowder = ConfigJson.getBool(o, "doublePowder", cfg.doublePowder);
                 cfg.doublePowderSound = ConfigJson.getBool(o, "doublePowderSound", cfg.doublePowderSound);
                 cfg.lootCompact = ConfigJson.getBool(o, "lootCompact", cfg.lootCompact);
+                cfg.hideTreasureUncovered = ConfigJson.getBool(o, "hideTreasureUncovered", cfg.hideTreasureUncovered);
                 cfg.lootShow = LootShow.byName(o.has("lootShow") && o.get("lootShow").isJsonPrimitive()
                         ? o.get("lootShow").getAsString() : null);
             } catch (Exception ignored) {
@@ -160,6 +162,7 @@ public final class PowderMiningConfig {
             o.addProperty("doublePowder", doublePowder);
             o.addProperty("doublePowderSound", doublePowderSound);
             o.addProperty("lootCompact", lootCompact);
+            o.addProperty("hideTreasureUncovered", hideTreasureUncovered);
             o.addProperty("lootShow", lootShow.name());
             Files.createDirectories(CONFIG_PATH.getParent());
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
@@ -319,6 +322,19 @@ public final class PowderMiningConfig {
     }
 
     // ---- Chest Loot Compact
+    /** Hide "You uncovered a treasure chest!" from the chat window (display time, after every reader saw it). */
+    public boolean isHideTreasureUncovered() {
+        return hideTreasureUncovered && sb();
+    }
+
+    public boolean isHideTreasureUncoveredRaw() {
+        return hideTreasureUncovered;
+    }
+
+    public void setHideTreasureUncovered(boolean v) {
+        hideTreasureUncovered = v;
+    }
+
     public boolean isLootCompact() {
         return lootCompact && sb();
     }

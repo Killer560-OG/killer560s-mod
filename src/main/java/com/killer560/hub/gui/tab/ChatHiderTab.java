@@ -48,6 +48,10 @@ public class ChatHiderTab extends BaseTab {
                 "Hide Non-Rank Invites", cfg::getHideNonRankInvitesRaw, cfg::setHideNonRankInvites);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Hide Ban Announcements", cfg::getHideBanAnnouncementsRaw, cfg::setHideBanAnnouncements);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Mining Reminders", cfg::getHideMiningRemindersRaw, cfg::setHideMiningReminders);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Sack Messages", cfg::getHideSackMessagesRaw, cfg::setHideSackMessages);
 
         // Dungeon pack (2026-10-25): each only acts inside a dungeon.
         header(widgets, contentX, contentWidth, y, "Dungeons");

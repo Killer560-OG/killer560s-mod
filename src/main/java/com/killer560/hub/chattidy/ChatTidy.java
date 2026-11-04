@@ -145,10 +145,17 @@ public final class ChatTidy {
         ChatTidyConfig cfg = ChatTidyConfig.getInstance();
         boolean damage = cfg.isHideDamageMessages();
         boolean dungeon = DungeonChatHider.anyOn(cfg) && com.killer560.hub.secrets.DungeonState.isInDungeon();
-        if (!damage && !dungeon) {
+        boolean mining = cfg.isHideMiningReminders();
+        boolean sacks = cfg.isHideSackMessages();
+        boolean uncovered = com.killer560.hub.powdermining.PowderMiningConfig.getInstance().isHideTreasureUncovered();
+        if (!damage && !dungeon && !mining && !sacks && !uncovered) {
             return false;
         }
         String plain = ChatObserver.strip(message);
+        if ((mining || sacks || uncovered) && isMiningNoise(plain, mining, sacks, uncovered)) {
+            hidden++;
+            return true;
+        }
         if (damage && (isAbilityDamage(plain) || isIncomingHit(plain))) {
             hidden++;
             return true;
@@ -163,6 +170,33 @@ public final class ChatTidy {
             }
         }
         return false;
+    }
+
+    static final Pattern BREAKING_POWER = Pattern.compile(
+            "^You need a tool with a Breaking Power of \\d{1,3} to mine [A-Za-z' ]{1,48}!(?: Speak to Fragilis by the "
+                    + "entrance to the Crystal Hollows to learn more!)?$");
+    static final Pattern FRAGILIS = Pattern.compile(
+            "^Speak to Fragilis by the entrance to the Crystal Hollows to learn more!$");
+    static final Pattern UNSPENT_TOKENS = Pattern.compile(
+            "^You have unspent Tokens of the Mountain! Use /hotm to assign them!$");
+    /** "[Sacks] +136 items. (Last 7s.)", "-N items" and the combined "+N items, -N items" form (his logs, 2026-11). */
+    static final Pattern SACKS = Pattern.compile(
+            "^\\[Sacks\\] (?:\\+[\\d,]{1,12} items?(?:, -[\\d,]{1,12} items?)?|-[\\d,]{1,12} items?)\\. \\(Last \\d{1,5}s\\.\\)$");
+    static final Pattern UNCOVERED = Pattern.compile("^You uncovered a treasure chest!$");
+
+    /** Mining-pack lines (chattidy-1104); every pattern is the whole server line, so player chat never matches. */
+    static boolean isMiningNoise(String plain, boolean mining, boolean sacks, boolean uncovered) {
+        if (plain == null || plain.isEmpty() || plain.length() > 200) {
+            return false;
+        }
+        if (mining && (BREAKING_POWER.matcher(plain).matches() || FRAGILIS.matcher(plain).matches()
+                || UNSPENT_TOKENS.matcher(plain).matches())) {
+            return true;
+        }
+        if (sacks && plain.startsWith("[Sacks]") && SACKS.matcher(plain).matches()) {
+            return true;
+        }
+        return uncovered && UNCOVERED.matcher(plain).matches();
     }
 
     /** Every damage pattern ends in a full stop or an exclamation mark; most chat lines do not. */
