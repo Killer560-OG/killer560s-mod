@@ -19,6 +19,7 @@ final class CardBlurbsData {
         d.put("MiningCommissionRouteTab", "Line to your commission area.");
         d.put("MiningCommissionHudTab", "Commissions with waypoints.");
         d.put("MiningMithrilStoneTab", "Hides mithril you don't need.");
+        d.put("MiningDarkStoneTab", "Makes stone darker so ores stand out.");
         d.put("MiningPickobulusTab", "Outlines its break area.");
         d.put("MiningResumeBreakTab", "Keeps digging after a menu.");
         d.put("MiningPigeonDrillTab", "Holds a drill when you claim.");

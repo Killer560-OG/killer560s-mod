@@ -44,7 +44,7 @@ public class MiningQolTab extends FolderTab {
     /** Everything that is not tied to one kind of mining. */
     static final class MiningGeneralGroup extends FolderTab {
         MiningGeneralGroup() {
-            super("General", List.of(new MiningAbilityReadyTab(), new MiningPickobulusTab(), new MiningCarpetTab(),
+            super("General", List.of(new MiningAbilityReadyTab(), new MiningDarkStoneTab(), new MiningPickobulusTab(), new MiningCarpetTab(),
                     new MiningResumeBreakTab(), new MiningWrongArmorTab()));
         }
     }

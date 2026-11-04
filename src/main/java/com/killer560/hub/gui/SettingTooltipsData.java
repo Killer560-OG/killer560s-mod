@@ -128,6 +128,9 @@ final class SettingTooltipsData {
         d.put("ability ready alert", "Shows a big \"READY\" popup when a pickaxe ability is available again. Move it in the HUD editor.");
         d.put("ability ready alert/cooldown timer", "A HUD line counting down each pickaxe ability every second until it is ready again (the tab list only refreshes every few seconds).");
         d.put("ability ready alert/ready sound", "Plays a ding with the popup.");
+        d.put("dark stone", "On the mining islands, draws stone, cobblestone, andesite, diorite, granite, deepslate, tuff and ice darker so ores and gemstones stand out. Only how the blocks look changes.");
+        d.put("dark stone/darkness", "How dark the stone gets, from 10% to 90%.");
+        d.put("dark stone/darken mithril too", "Also darkens mithril blocks (gray and light blue wool, prismarine, cyan terracotta). Off keeps mithril bright.");
         d.put("carpet highlighter", "In the Dwarven Mines, fills the unbreakable carpets in ore veins so you stop swinging at them.");
         d.put("carpet highlighter/carpet color", "The color the carpets are filled with.");
         d.put("resume held break after menus", "On a mining island, when a menu closes while you are still holding left click, you go on breaking without pressing it again.");

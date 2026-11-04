@@ -42,10 +42,24 @@ public abstract class MithrilStoneSectionMixin {
         } catch (RuntimeException ignored) {
             // never break the mesher
         }
+        BlockQuadOutput out = output;
+        try {
+            // Dark Stone: the same quads with the vertex color multiplied (a swapped block is judged by what it is drawn as)
+            float f = com.killer560.hub.miningqol.DarkStone.factor(swap != null ? swap : state);
+            if (f < 1.0f) {
+                int argb = com.killer560.hub.miningqol.DarkStone.argb(f);
+                out = (qx, qy, qz, quad, inst) -> {
+                    inst.multiplyColor(argb);
+                    output.put(qx, qy, qz, quad, inst);
+                };
+            }
+        } catch (RuntimeException ignored) {
+            out = output;
+        }
         if (swap != null) {
-            original.call(renderer, output, x, y, z, level, pos, swap, blockModelSet.get(swap), seed);
+            original.call(renderer, out, x, y, z, level, pos, swap, blockModelSet.get(swap), seed);
         } else {
-            original.call(renderer, output, x, y, z, level, pos, state, model, seed);
+            original.call(renderer, out, x, y, z, level, pos, state, model, seed);
         }
     }
 }
