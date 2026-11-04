@@ -118,9 +118,7 @@ public final class RealTimeFeature {
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             RealTimeConfig cfg = RealTimeConfig.getInstance();
             Minecraft client = Minecraft.getInstance();
-            if (!cfg.isEnabled() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!cfg.isEnabled() || HudVisibility.hidesHud()) return;
             int color = cfg.getTextColor();
             if ((color >>> 24) == 0) {
                 color |= 0xFF000000;

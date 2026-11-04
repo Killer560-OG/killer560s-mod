@@ -64,9 +64,7 @@ public final class RealTimeZones {
         List<String> prefix = new ArrayList<>();
         List<String> contains = new ArrayList<>();
         for (String id : zones()) {
-            if (region != null && !ALL.equals(region) && !region.equals(regionOf(id))) {
-                continue;
-            }
+            if (region != null && !ALL.equals(region) && !region.equals(regionOf(id))) continue;
             if (q.isEmpty()) {
                 prefix.add(id);
                 continue;
