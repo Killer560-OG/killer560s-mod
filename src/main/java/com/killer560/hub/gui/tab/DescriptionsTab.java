@@ -29,19 +29,11 @@ public class DescriptionsTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
-        widgets.add(SettingsButtonWidget.builder(enabledText(), btn -> {
-                    DescriptionConfig cfg = DescriptionConfig.getInstance();
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    btn.setMessage(enabledText());
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Descriptions", () -> cfg().isEnabled(), v -> cfg().setEnabled(v), () -> cfg().save(),
+                null, contentX, y, contentWidth, 20));
         y += 24;
-        widgets.add(SettingsButtonWidget.builder(menuText(), btn -> {
-                    DescriptionConfig cfg = DescriptionConfig.getInstance();
-                    cfg.setShowMenu(!cfg.isShowMenu());
-                    cfg.save();
-                    btn.setMessage(menuText());
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Show Descriptions", () -> cfg().isShowMenu(), v -> cfg().setShowMenu(v), () -> cfg().save(),
+                null, contentX, y, contentWidth, 20));
         y += 24;
         widgets.add(SettingsButtonWidget.builder(editorText(), btn -> {
                     DescriptionConfig cfg = DescriptionConfig.getInstance();
@@ -52,12 +44,8 @@ public class DescriptionsTab extends BaseTab {
         return widgets;
     }
 
-    private static Component enabledText() {
-        return Component.literal("Descriptions: " + (DescriptionConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component menuText() {
-        return Component.literal("Show Descriptions: " + (DescriptionConfig.getInstance().isShowMenu() ? "§aON" : "§cOFF"));
+    private static DescriptionConfig cfg() {
+        return DescriptionConfig.getInstance();
     }
 
     private static Component editorText() {

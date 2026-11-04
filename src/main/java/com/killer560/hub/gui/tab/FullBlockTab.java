@@ -48,12 +48,8 @@ public class FullBlockTab extends BaseTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(masterText(), btn -> {
-                    SecretsConfig cfg = SecretsConfig.getInstance();
-                    cfg.setMasterEnabled(!cfg.isMasterEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Full Block", () -> cfg().isMasterEnabled(), v -> cfg().setMasterEnabled(v), () -> cfg().save(),
+                requestRebuild, contentX, y, 220, 20));
         y += 26;
 
         if (!SecretsConfig.getInstance().isMasterEnabled()) {
@@ -86,26 +82,22 @@ public class FullBlockTab extends BaseTab {
                 Component.literal("Restrict when these apply:"), Minecraft.getInstance().font));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(dungeonsOnlyText(), btn -> {
-                    SecretsConfig cfg = SecretsConfig.getInstance();
-                    cfg.setDungeonsOnly(!cfg.isDungeonsOnly());
-                    cfg.save();
-                    btn.setMessage(dungeonsOnlyText());
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Dungeons Only", () -> cfg().isDungeonsOnly(), v -> cfg().setDungeonsOnly(v), () -> cfg().save(),
+                null, contentX, y, 220, 20));
         y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(bossOnlyText(), btn -> {
-                    SecretsConfig cfg = SecretsConfig.getInstance();
-                    cfg.setBossOnly(!cfg.isBossOnly());
-                    cfg.save();
-                    btn.setMessage(bossOnlyText());
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Boss Only (Levers/Buttons)", () -> cfg().isBossOnly(), v -> cfg().setBossOnly(v), () -> cfg().save(),
+                null, contentX, y, 220, 20));
 
         return widgets;
     }
 
     /** One block type: its on/off toggle, then (while on) its Shape, then (only on Custom) its three size sliders.
      *  Buttons cycle Flat / Full / Custom; the other types never had a Flat shape, so they cycle Full / Custom. */
+    private static SecretsConfig cfg() {
+        return SecretsConfig.getInstance();
+    }
+
     private static int blockType(List<AbstractWidget> widgets, int x, int y, Runnable requestRebuild, String name,
                                  java.util.function.BooleanSupplier enabled, java.util.function.Consumer<Boolean> setEnabled,
                                  boolean hasFlat,
@@ -196,15 +188,4 @@ public class FullBlockTab extends BaseTab {
     }
 
 
-    private static Component masterText() {
-        return Component.literal("Full Block: " + (SecretsConfig.getInstance().isMasterEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component dungeonsOnlyText() {
-        return Component.literal("Dungeons Only: " + (SecretsConfig.getInstance().isDungeonsOnly() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component bossOnlyText() {
-        return Component.literal("Boss Only (Levers/Buttons): " + (SecretsConfig.getInstance().isBossOnly() ? "§aON" : "§cOFF"));
-    }
 }

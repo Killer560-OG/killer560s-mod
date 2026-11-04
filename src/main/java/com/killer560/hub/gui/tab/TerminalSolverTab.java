@@ -116,52 +116,28 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         });
         y += 30;
 
-        widgets.add(SettingsButtonWidget.builder(customGuiText(), btn -> {
-                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                    cfg.setCustomGuiEnabled(!cfg.isCustomGuiEnabled());
-                    cfg.save();
-                    btn.setMessage(customGuiText());
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Custom GUI", () -> cfg().isCustomGuiEnabled(), v -> cfg().setCustomGuiEnabled(v), () -> cfg().save(),
+                null, contentX, y, 220, 20));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(panesText(), btn -> {
-                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                    cfg.setPanesEnabled(!cfg.isPanesEnabled());
-                    cfg.save();
-                    btn.setMessage(panesText());
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Panes", () -> cfg().isPanesEnabled(), v -> cfg().setPanesEnabled(v), () -> cfg().save(),
+                null, contentX, y, 220, 20));
         y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(rubixText(), btn -> {
-                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                    cfg.setRubixEnabled(!cfg.isRubixEnabled());
-                    cfg.save();
-                    btn.setMessage(rubixText());
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Rubix", () -> cfg().isRubixEnabled(), v -> cfg().setRubixEnabled(v), () -> cfg().save(),
+                null, contentX, y, 220, 20));
         y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(numbersText(), btn -> {
-                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                    cfg.setNumbersEnabled(!cfg.isNumbersEnabled());
-                    cfg.save();
-                    btn.setMessage(numbersText());
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Numbers", () -> cfg().isNumbersEnabled(), v -> cfg().setNumbersEnabled(v), () -> cfg().save(),
+                null, contentX, y, 220, 20));
         y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(startsWithText(), btn -> {
-                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                    cfg.setStartsWithEnabled(!cfg.isStartsWithEnabled());
-                    cfg.save();
-                    btn.setMessage(startsWithText());
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Starts With", () -> cfg().isStartsWithEnabled(), v -> cfg().setStartsWithEnabled(v), () -> cfg().save(),
+                null, contentX, y, 220, 20));
         y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(selectText(), btn -> {
-                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                    cfg.setSelectEnabled(!cfg.isSelectEnabled());
-                    cfg.save();
-                    btn.setMessage(selectText());
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Select", () -> cfg().isSelectEnabled(), v -> cfg().setSelectEnabled(v), () -> cfg().save(),
+                null, contentX, y, 220, 20));
         y += 24;
 
         // Per killer560's "there is no melody toggle in the terminals to solve box" report (2026-09-09,
@@ -196,12 +172,8 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
             y += 24;
         }
 
-        widgets.add(SettingsButtonWidget.builder(numbersThreeTierText(), btn -> {
-                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                    cfg.setNumbersThreeTierReveal(!cfg.isNumbersThreeTierReveal());
-                    cfg.save();
-                    btn.setMessage(numbersThreeTierText());
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Numbers 3-Tier Reveal", () -> cfg().isNumbersThreeTierReveal(), v -> cfg().setNumbersThreeTierReveal(v), () -> cfg().save(),
+                null, contentX, y, 220, 20));
         y += 24;
 
         widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.TERMINAL_SOLVER,
@@ -213,6 +185,10 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         y = buildQolSection(widgets, contentX, y, contentWidth, requestRebuild);
 
         return widgets;
+    }
+
+    private static TerminalSolverConfig cfg() {
+        return TerminalSolverConfig.getInstance();
     }
 
     private static Component holdToClickText() {
@@ -466,30 +442,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         return Component.literal(String.format("Highlight Scale: %.0f%%", TerminalSolverConfig.getInstance().getScale() * 100));
     }
 
-    private static Component customGuiText() {
-        return Component.literal("Custom GUI: " + (TerminalSolverConfig.getInstance().isCustomGuiEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component panesText() {
-        return Component.literal("Panes: " + (TerminalSolverConfig.getInstance().isPanesEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component rubixText() {
-        return Component.literal("Rubix: " + (TerminalSolverConfig.getInstance().isRubixEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component numbersText() {
-        return Component.literal("Numbers: " + (TerminalSolverConfig.getInstance().isNumbersEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component startsWithText() {
-        return Component.literal("Starts With: " + (TerminalSolverConfig.getInstance().isStartsWithEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component selectText() {
-        return Component.literal("Select: " + (TerminalSolverConfig.getInstance().isSelectEnabled() ? "§aON" : "§cOFF"));
-    }
-
     private static Component melodySendCoordsText() {
         return Component.literal("Send Mel Coords On Open: "
                 + (TerminalSolverConfig.getInstance().isMelodySendCoordsOnOpen() ? "§aON" : "§cOFF"));
@@ -504,7 +456,4 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("Melody: " + (TerminalSolverConfig.getInstance().isMelodyEnabled() ? "§aON" : "§cOFF"));
     }
 
-    private static Component numbersThreeTierText() {
-        return Component.literal("Numbers 3-Tier Reveal: " + (TerminalSolverConfig.getInstance().isNumbersThreeTierReveal() ? "§aON" : "§cOFF"));
-    }
 }
