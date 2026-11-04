@@ -162,9 +162,7 @@ public final class ZeroPingEtherwarpConfig {
 
     /** Whether ZPEW predicts this sender's etherwarps: its Works For switch, and a cheat source only in a cheat build. */
     public boolean worksFor(ZpewSource source) {
-        if (source.cheatOnly() && !com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return false;
-        }
+        if (source.cheatOnly() && !com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return false;
         return worksFor.get(source);
     }
 
