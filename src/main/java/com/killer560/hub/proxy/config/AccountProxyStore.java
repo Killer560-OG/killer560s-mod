@@ -34,9 +34,7 @@ public final class AccountProxyStore {
     private AccountProxyStore() {
     }
 
-    public static synchronized AccountProxyProfile get(String uuid) {
-        return ensureLoaded().get(uuid);
-    }
+    public static synchronized AccountProxyProfile get(String uuid) { return ensureLoaded().get(uuid); }
 
     public static synchronized void set(String uuid, AccountProxyProfile profile) {
         ensureLoaded().put(uuid, profile);

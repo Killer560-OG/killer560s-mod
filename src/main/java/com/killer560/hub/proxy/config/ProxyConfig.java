@@ -75,9 +75,7 @@ public final class ProxyConfig {
      * Loads config from disk, replacing the current singleton. Missing or
      * malformed files fall back to defaults (and are left untouched).
      */
-    public static void load() {
-        instance = readFrom(CONFIG_PATH);
-    }
+    public static void load() { instance = readFrom(CONFIG_PATH); }
 
     /** The shared universal proxy, re-read from disk if another instance changed it. Never null. */
     public static synchronized ProxyConfig universal() {
@@ -164,9 +162,7 @@ public final class ProxyConfig {
         normalize();
     }
 
-    public boolean isUniversal() {
-        return UNIVERSAL_PATH.equals(path);
-    }
+    public boolean isUniversal() { return UNIVERSAL_PATH.equals(path); }
 
     private static ProxyConfig readFrom(Path file) {
         ProxyConfig fallback = new ProxyConfig();
@@ -273,54 +269,30 @@ public final class ProxyConfig {
         }
     }
 
-    public String getAddressString() {
-        return host == null || host.isBlank() ? "" : host + ":" + port;
-    }
+    public String getAddressString() { return host == null || host.isBlank() ? "" : host + ":" + port; }
 
-    public boolean hasValidAddress() {
-        return host != null && !host.isBlank() && port >= 1 && port <= 65535;
-    }
+    public boolean hasValidAddress() { return host != null && !host.isBlank() && port >= 1 && port <= 65535; }
 
 
-    public ProxyType getType() {
-        return type;
-    }
+    public ProxyType getType() { return type; }
 
-    public void setType(ProxyType type) {
-        this.type = type;
-    }
+    public void setType(ProxyType type) { this.type = type; }
 
-    public String getHost() {
-        return host;
-    }
+    public String getHost() { return host; }
 
-    public int getPort() {
-        return port;
-    }
+    public int getPort() { return port; }
 
-    public String getUsername() {
-        return username;
-    }
+    public String getUsername() { return username; }
 
-    public void setUsername(String username) {
-        this.username = (username == null) ? "" : username;
-    }
+    public void setUsername(String username) { this.username = (username == null) ? "" : username; }
 
-    public String getPassword() {
-        return password;
-    }
+    public String getPassword() { return password; }
 
-    public void setPassword(String password) {
-        this.password = (password == null) ? "" : password;
-    }
+    public void setPassword(String password) { this.password = (password == null) ? "" : password; }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
     /** Per killer560's "add a button to set a proxy by account... whenever i swap to that account it
      *  should auto swap to that proxy" request (2026-09-10), with his explicit choice that swapping to

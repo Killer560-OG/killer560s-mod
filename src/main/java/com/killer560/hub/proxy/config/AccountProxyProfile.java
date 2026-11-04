@@ -13,45 +13,25 @@ public final class AccountProxyProfile {
     private String username = "";
     private String password = "";
 
-    public ProxyType getType() {
-        return type;
-    }
+    public ProxyType getType() { return type; }
 
-    public void setType(ProxyType type) {
-        this.type = (type == null) ? ProxyType.SOCKS5 : type;
-    }
+    public void setType(ProxyType type) { this.type = (type == null) ? ProxyType.SOCKS5 : type; }
 
-    public String getHost() {
-        return host;
-    }
+    public String getHost() { return host; }
 
-    public int getPort() {
-        return port;
-    }
+    public int getPort() { return port; }
 
-    public void setUsername(String username) {
-        this.username = (username == null) ? "" : username;
-    }
+    public void setUsername(String username) { this.username = (username == null) ? "" : username; }
 
-    public String getUsername() {
-        return username;
-    }
+    public String getUsername() { return username; }
 
-    public void setPassword(String password) {
-        this.password = (password == null) ? "" : password;
-    }
+    public void setPassword(String password) { this.password = (password == null) ? "" : password; }
 
-    public String getPassword() {
-        return password;
-    }
+    public String getPassword() { return password; }
 
-    public boolean hasValidAddress() {
-        return host != null && !host.isBlank() && port >= 1 && port <= 65535;
-    }
+    public boolean hasValidAddress() { return host != null && !host.isBlank() && port >= 1 && port <= 65535; }
 
-    public String getAddressString() {
-        return host == null || host.isBlank() ? "" : host + ":" + port;
-    }
+    public String getAddressString() { return host == null || host.isBlank() ? "" : host + ":" + port; }
 
     /** Same "host:port", split-on-last-colon parsing {@link ProxyConfig#parseAndSetAddress} uses. */
     public void parseAndSetAddress(String input) {
