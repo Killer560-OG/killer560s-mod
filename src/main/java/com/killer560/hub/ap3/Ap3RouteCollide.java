@@ -301,36 +301,29 @@ final class Ap3RouteCollide {
         if (e.maxY - EPSILON <= b.minY || e.minY + EPSILON >= b.maxY || e.maxZ - EPSILON <= b.minZ || e.minZ + EPSILON >= b.maxZ) {
             return d;
         }
+        return clipAxis(d, b.minX - e.maxX, b.maxX - e.minX);
+    }
+
+    /** Shared tail of the three clips: {@code near} is the gap to the box's near face, {@code far} to its far face. */
+    private static double clipAxis(double d, double near, double far) {
         if (d > 0.0) {
-            double gap = b.minX - e.maxX;
-            return gap >= -EPSILON ? Math.min(d, gap) : d;
+            return near >= -EPSILON ? Math.min(d, near) : d;
         }
-        double gap = b.maxX - e.minX;
-        return gap <= EPSILON ? Math.max(d, gap) : d;
+        return far <= EPSILON ? Math.max(d, far) : d;
     }
 
     private static double clipY(Box b, Box e, double d) {
         if (e.maxX - EPSILON <= b.minX || e.minX + EPSILON >= b.maxX || e.maxZ - EPSILON <= b.minZ || e.minZ + EPSILON >= b.maxZ) {
             return d;
         }
-        if (d > 0.0) {
-            double gap = b.minY - e.maxY;
-            return gap >= -EPSILON ? Math.min(d, gap) : d;
-        }
-        double gap = b.maxY - e.minY;
-        return gap <= EPSILON ? Math.max(d, gap) : d;
+        return clipAxis(d, b.minY - e.maxY, b.maxY - e.minY);
     }
 
     private static double clipZ(Box b, Box e, double d) {
         if (e.maxX - EPSILON <= b.minX || e.minX + EPSILON >= b.maxX || e.maxY - EPSILON <= b.minY || e.minY + EPSILON >= b.maxY) {
             return d;
         }
-        if (d > 0.0) {
-            double gap = b.minZ - e.maxZ;
-            return gap >= -EPSILON ? Math.min(d, gap) : d;
-        }
-        double gap = b.maxZ - e.minZ;
-        return gap <= EPSILON ? Math.max(d, gap) : d;
+        return clipAxis(d, b.minZ - e.maxZ, b.maxZ - e.minZ);
     }
 
     /** {@code Shapes.collide}: narrow the move against every shape in turn, giving up as soon as it is zero. */
