@@ -366,14 +366,15 @@ java {
 	targetCompatibility = JavaVersion.VERSION_25
 }
 
-// Release jar size (2026-10-19): the bundled JNA jar carries 189 files, almost all of them jnidispatch natives for
-// platforms Minecraft cannot run on (AIX, Solaris, the BSDs, ppc, mips, s390x, riscv, loongarch, armel). A release
-// build drops those natives from the nested JNA jar after the jar task has packed it, and rewrites the whole jar at
-// deflate level 9. Windows, macOS and the four Linux families Minecraft supports (x86, x86-64, arm, aarch64) stay.
-// Non-release builds are left exactly as they were.
-if (releaseBuild) {
-	def keepNativeDirs = ['win32-x86', 'win32-x86-64', 'win32-aarch64', 'darwin-x86-64', 'darwin-aarch64',
-			'linux-x86', 'linux-x86-64', 'linux-arm', 'linux-aarch64'] as Set
+// Jar size (2026-10-19 for releases, every build since jarsize-1104): the bundled JNA jar carries 189 files, almost
+// all of them jnidispatch natives for platforms Minecraft cannot run on (AIX, Solaris, the BSDs, ppc, mips, s390x,
+// riscv, loongarch, armel). Every build drops those natives from the nested JNA jar after the jar task has packed it,
+// and rewrites the whole jar at deflate level 9. 32-bit x86 (win32-x86, linux-x86) goes too: JDK 25 removed the x86
+// port (JEP 503) and the mod requires Java 25. Windows, macOS and Linux x86-64/aarch64 stay, plus linux-arm (JDK 25
+// still has a 32-bit ARM port). This was release-only until 2026-11-04 and cut ~1.25 MB from every jar.
+if (!(findProperty('noJarTrim') ?: 'false').toBoolean()) {
+	def keepNativeDirs = ['win32-x86-64', 'win32-aarch64', 'darwin-x86-64', 'darwin-aarch64',
+			'linux-x86-64', 'linux-arm', 'linux-aarch64'] as Set
 	tasks.named('jar') {
 		doLast {
 			def outFile = archiveFile.get().asFile
@@ -416,7 +417,7 @@ if (releaseBuild) {
 				}
 			}
 			java.nio.file.Files.move(tmp.toPath(), outFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-			logger.lifecycle("Release size trim: dropped ${dropped} JNA entries, jar rewritten at deflate level 9")
+			logger.lifecycle("Jar size trim: dropped ${dropped} JNA entries, jar rewritten at deflate level 9")
 		}
 	}
 }
