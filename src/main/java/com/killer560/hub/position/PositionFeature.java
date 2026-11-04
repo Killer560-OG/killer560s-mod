@@ -96,9 +96,7 @@ public final class PositionFeature {
         return fmt;
     }
 
-    private static String format(double value, int decimalPlaces) {
-        return formatter(decimalPlaces).format(value);
-    }
+    private static String format(double value, int decimalPlaces) { return formatter(decimalPlaces).format(value); }
 
     /** Builds (or reuses) the current set of HUD lines. Package-visible for the settings tab preview. */
     static String[] lines(PositionConfig cfg, LocalPlayer player) {
@@ -266,24 +264,16 @@ public final class PositionFeature {
         }
 
         @Override
-        public String id() {
-            return HUD_ID;
-        }
+        public String id() { return HUD_ID; }
 
         @Override
-        public String displayName() {
-            return "Advanced Position";
-        }
+        public String displayName() { return "Advanced Position"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 60;
-        }
+        public int defaultY() { return 60; }
 
         @Override
         public int width() {
@@ -324,9 +314,7 @@ public final class PositionFeature {
         }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return PositionConfig.getInstance().isEnabled();
-        }
+        public boolean isEnabledInSettings() { return PositionConfig.getInstance().isEnabled(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
