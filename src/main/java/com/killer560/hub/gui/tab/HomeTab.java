@@ -30,7 +30,9 @@ public class HomeTab extends FolderTab {
                 new MenuThemeTab(),
                 // Auto Report Bans (to-do Doc "BAN LOGGER", 2026-11-01): after his ordered cards, in both builds; he asked for
                 // a very noticeable switch, so it sits on Home rather than deep in Misc.
-                new BanReportTab()
+                new BanReportTab(),
+                // Auto Crash Reports (killer560, 2026-11-04): next to Ban Reports, both builds, OFF by default.
+                new CrashReportTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new CorrectionAlarmTab());

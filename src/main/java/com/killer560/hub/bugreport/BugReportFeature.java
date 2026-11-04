@@ -104,6 +104,17 @@ public final class BugReportFeature {
             Pattern.compile("()\\b[MNO][A-Za-z0-9_-]{23,27}\\.[A-Za-z0-9_-]{6}\\.[A-Za-z0-9_-]{27,40}\\b"),
             // A Minecraft legacy session id.
             Pattern.compile("()token:[A-Za-z0-9._-]{30,}:[0-9a-f]{32}"),
+            // The rest of tools/verify-artifact.py's shapes (added with Auto Crash Reports, 2026-11-04: a crash report or
+            // hs_err log carries the launcher's command line and environment).
+            Pattern.compile("()-----BEGIN [A-Z ]*PRIVATE KEY(?: BLOCK)?-----[\\s\\S]*?(?:-----END [A-Z ]*PRIVATE KEY(?: BLOCK)?-----|$)"),
+            Pattern.compile("()https://(?:ptb\\.|canary\\.)?discord(?:app)?\\.com/api/webhooks/[0-9]{15,22}/[A-Za-z0-9_-]{20,}"),
+            Pattern.compile("()\\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{60,}|sk-ant-[A-Za-z0-9_-]{20,}"
+                    + "|sk-(?:proj-)?[A-Za-z0-9_-]{40,}|xox[abprs]-[A-Za-z0-9-]{10,}|(?:AKIA|ASIA)[A-Z0-9]{16}\\b|AIza[0-9A-Za-z_-]{35})"),
+            Pattern.compile("(?i)()\\b(?:mongodb(?:\\+srv)?|postgres(?:ql)?|mysql|mariadb|rediss?|amqps?|mssql|sqlserver)://"
+                    + "[^:/\\s'\"]+:[^@\\s'\"]{3,}@[^\\s'\"]+"),
+            Pattern.compile("(?i)(client_?secret[\"':= ]{1,4})[0-9a-f]{32}\\b"),
+            // Launcher arguments that are credentials: --accessToken <token>, --xuid, --clientId, --session.
+            Pattern.compile("(?i)(--(?:accessToken|xuid|clientId|session)[ =])\\S+"),
     };
 
     /** The player's home folder (C:\Users\<name>, /home/<name>, /Users/<name>): the account name in it is personal and

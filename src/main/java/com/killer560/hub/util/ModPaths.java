@@ -329,6 +329,8 @@ public final class ModPaths {
         t.put("bugreport", "system/bugreport");
         // Auto Report Bans (2026-11-01): its switch and the hashed keys of bans already reported.
         t.put("banreport", "system/banreport");
+        // Auto Crash Reports (2026-11-04): its switch, name consent and the hashed keys of crashes already sent.
+        t.put("crashreport", "system/crashreport");
         // The first-launch tour (2026-11-01): whether it has run.
         t.put("intro", "system/intro");
         t.put("bug-reports", "system/bugreport");
