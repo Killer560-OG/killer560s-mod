@@ -49,9 +49,7 @@ public final class QuiverDisplayFeature {
     }
 
     private static void tick(Minecraft client) {
-        if (!QuiverDisplayConfig.getInstance().isEnabled() || client.player == null) {
-            return;
-        }
+        if (!QuiverDisplayConfig.getInstance().isEnabled() || client.player == null) return;
         Player player = client.player;
         ItemStack found = null;
         String count = null;
@@ -104,9 +102,7 @@ public final class QuiverDisplayFeature {
             alertLatched = false;
             return;
         }
-        if (!cfg.isAlertEnabled() || alertLatched) {
-            return;
-        }
+        if (!cfg.isAlertEnabled() || alertLatched) return;
         alertLatched = true;
         alertsFired++;
         String text = cfg.getAlertText().replace("{count}", countText).replace('&', '§');
@@ -131,14 +127,10 @@ public final class QuiverDisplayFeature {
 
     private static String readArrowsRemaining(ItemStack stack) {
         ItemLore lore = stack.get(DataComponents.LORE);
-        if (lore == null) {
-            return null;
-        }
+        if (lore == null) return null;
         for (Component line : lore.lines()) {
             Matcher matcher = ARROWS_REMAINING.matcher(line.getString());
-            if (matcher.matches()) {
-                return matcher.group(1);
-            }
+            if (matcher.matches()) return matcher.group(1);
         }
         return null;
     }
@@ -160,9 +152,7 @@ public final class QuiverDisplayFeature {
         public int width() {
             // The drawn text (2026-10-07 box audit: it was a fixed 150); 150 before the quiver has been read.
             String text = text();
-            if (text == null) {
-                return 150;
-            }
+            if (text == null) return 150;
             if (text != widthText) {
                 widthText = text;
                 widthPx = Minecraft.getInstance().font.width(text);
@@ -182,9 +172,7 @@ public final class QuiverDisplayFeature {
 
         /** What render() draws, or null before the quiver count is known. */
         private static String text() {
-            if (cachedCount == null) {
-                return null;
-            }
+            if (cachedCount == null) return null;
             // Plain text, drawn in the Text Color setting (formatting codes would override it). Rebuilt only
             // when the name, count or Show Item Name changed, so the per-frame path allocates nothing.
             boolean showName = QuiverDisplayConfig.getInstance().isShowName();
