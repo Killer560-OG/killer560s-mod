@@ -8,7 +8,7 @@ import java.util.List;
  * rest of mining stays on the post-2.0 staging branches). {@link MenuCategories} puts them under "Mining".
  *
  * <p>Grouped under three titled runs of cards, like Secrets and Puzzle Solvers (killer560, 2026-11-03: "make a separation
- * in mining for mithril, glacite powder, and gemstone and stuff like that so it is easier to see them"): Commissions &
+ * in mining for mithril, glacite powder, and gemstone and stuff like that so it is easier to see them"): Commissions and
  * Mithril, Powder Mining and General. A group holds legit cards only; the cheat-only card (Swap To Drill On Pigeon) stays
  * outside the groups, in the category's one cheat block.
  */
@@ -29,7 +29,7 @@ public class MiningQolTab extends FolderTab {
     /** Commission HUD / Route, Mithril As Stone, Titanium Highlight, Raffle Ticket Highlight (the Dwarven Mines). */
     static final class CommissionsMithrilGroup extends FolderTab {
         CommissionsMithrilGroup() {
-            super("Commissions & Mithril", List.of(new MiningCommissionHudTab(), new MiningCommissionRouteTab(),
+            super("Commissions and Mithril", List.of(new MiningCommissionHudTab(), new MiningCommissionRouteTab(),
                     new MiningMithrilStoneTab(), new MiningTitaniumTab(), new MiningRaffleTab()));
         }
     }
