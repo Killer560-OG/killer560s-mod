@@ -69,13 +69,9 @@ public final class PosmsgEntry {
         return text.isEmpty() ? name : text;
     }
 
-    public static double clampTextScale(double v) {
-        return Math.max(MIN_TEXT_SCALE, Math.min(MAX_TEXT_SCALE, v));
-    }
+    public static double clampTextScale(double v) { return Math.max(MIN_TEXT_SCALE, Math.min(MAX_TEXT_SCALE, v)); }
 
-    public static double clampTextHeight(double v) {
-        return Math.max(MIN_TEXT_HEIGHT, Math.min(MAX_TEXT_HEIGHT, v));
-    }
+    public static double clampTextHeight(double v) { return Math.max(MIN_TEXT_HEIGHT, Math.min(MAX_TEXT_HEIGHT, v)); }
 
     public int color() {
         try {

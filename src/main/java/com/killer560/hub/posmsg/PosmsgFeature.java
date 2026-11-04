@@ -97,9 +97,7 @@ public final class PosmsgFeature {
 
     /** Master switch, Skyblock gate AND the F7/M7 boss gate - the single check both the tick loop and
      *  {@link PosmsgRenderer} use, so "nothing draws" and "nothing sends" can never disagree. */
-    static boolean active() {
-        return PosmsgConfig.getInstance().isEnabled() && Floor7Tracker.inF7Boss();
-    }
+    static boolean active() { return PosmsgConfig.getInstance().isEnabled() && Floor7Tracker.inF7Boss(); }
 
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
@@ -186,9 +184,7 @@ public final class PosmsgFeature {
         return t.equals("spirit leap") || t.equals("teleport to player");
     }
 
-    private static long nowMs() {
-        return System.nanoTime() / 1_000_000L;
-    }
+    private static long nowMs() { return System.nanoTime() / 1_000_000L; }
 
     /** Walk-in send: honors the global gap and the per-run gate, and stays completely silent when it
      *  declines (this fires on movement, not on a button press - a warning overlay every few steps

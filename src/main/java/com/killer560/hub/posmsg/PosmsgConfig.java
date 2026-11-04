@@ -149,9 +149,7 @@ public final class PosmsgConfig {
         put(new Preset("P5", "at p5", 54.5, 5.0, 76.5, 3.0));
     }
 
-    private static void put(Preset p) {
-        PRESETS.put(p.name(), p);
-    }
+    private static void put(Preset p) { PRESETS.put(p.name(), p); }
 
     /** Old preset name -&gt; new preset name. A config saved before the rename keeps its coordinates,
      *  color, radius and enabled state under the new label instead of getting a second, blank row. */
@@ -316,22 +314,16 @@ public final class PosmsgConfig {
     /** Master switch AND the Skyblock gate - what the feature/renderer check. The GUI's button text
      *  must use {@link #isEnabledRaw()} instead, or toggling off-Skyblock would read OFF and flip the
      *  stored value to ON no matter what it was. */
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored master switch, ignoring the Skyblock gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public List<PosmsgEntry> entries() {
-        return entries;
-    }
+    public List<PosmsgEntry> entries() { return entries; }
 
     public PosmsgEntry addNew() {
         PosmsgEntry e = new PosmsgEntry();
