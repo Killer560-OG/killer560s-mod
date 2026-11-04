@@ -226,10 +226,8 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
                     filtersChanged();
                 }).within(this.width, this.height));
         x += w + 4;
-        List<DropdownWidget.Option<LfgFilter.Sort>> sorts = new ArrayList<>();
-        for (LfgFilter.Sort s : LfgFilter.Sort.values()) {
-            sorts.add(new DropdownWidget.Option<>(s, "Sort: " + s.label, "Sort: " + s.label));
-        }
+        List<DropdownWidget.Option<LfgFilter.Sort>> sorts = java.util.Arrays.stream(LfgFilter.Sort.values())
+                .map(s -> new DropdownWidget.Option<>(s, "Sort: " + s.label, "Sort: " + s.label)).toList();
         addRenderableWidget(DropdownWidget.of(x, y, listX + listW - x, 18, sorts, cfg.getSort(), next -> {
             cfg.setSort(next);
             cfg.save();
@@ -255,9 +253,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
 
     /** Rebuilds only the rows (so the search box keeps its focus while he types). */
     private void refreshList() {
-        for (AbstractWidget w : rowWidgets) {
-            removeWidget(w);
-        }
+        rowWidgets.forEach(this::removeWidget);
         rowWidgets.clear();
         buildList();
     }
@@ -360,20 +356,15 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
             activityBox.onEnter(this::saveDraft);
             addRenderableWidget(activityBox);
         } else {
-            List<DropdownWidget.Option<String>> acts = new ArrayList<>();
-            for (String a : tab.activities) {
-                acts.add(new DropdownWidget.Option<>(a, a, "Activity: " + a));
-            }
+            List<DropdownWidget.Option<String>> acts = tab.activities.stream().map(a -> new DropdownWidget.Option<>(a, a, "Activity: " + a)).toList();
             addRenderableWidget(DropdownWidget.of(listX, y, colW, 18, acts, d.activity, next -> {
                 d.activity = next;
                 cfg.save();
                 refillPb();
             }).within(this.width, this.height));
         }
-        List<DropdownWidget.Option<Integer>> sizes = new ArrayList<>();
-        for (int n = 2; n <= tab.maxParty; n++) {
-            sizes.add(new DropdownWidget.Option<>(n, n + " players", "Party Size: " + n));
-        }
+        List<DropdownWidget.Option<Integer>> sizes = java.util.stream.IntStream.rangeClosed(2, tab.maxParty)
+                .mapToObj(n -> new DropdownWidget.Option<>(n, n + " players", "Party Size: " + n)).toList();
         addRenderableWidget(DropdownWidget.of(listX + colW + 8, y, colW, 18, sizes, d.max, next -> {
             d.max = next;
             cfg.save();
@@ -538,10 +529,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (DropdownWidget.scrollOpen(mouseX, mouseY, scrollY)) {
-            return true;
-        }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        return DropdownWidget.scrollOpen(mouseX, mouseY, scrollY) || super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     private void drawList(GuiGraphicsExtractor g) {
@@ -559,9 +547,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
                     + l.size() + "/" + l.max() + (l.source().equals("hypixel") ? " §8(Hypixel PF)" : "");
             ScreenChrome.text(g, this.font.plainSubstrByWidth(head, textW + 40), listX + 4, y + 3, MenuStyle.TXT);
             StringBuilder sub = new StringBuilder();
-            for (LfgRequirements.Check c : LfgRequirements.check(l.category(), l.activity(), l.reqs(), selfName())) {
-                sub.append(c.describe()).append("  ");
-            }
+            LfgRequirements.check(l.category(), l.activity(), l.reqs(), selfName()).forEach(c -> sub.append(c.describe()).append("  "));
             if (!l.note().isEmpty()) {
                 sub.append("§7").append(l.note());
             }
@@ -583,9 +569,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
             if (row.verdict() == LfgFeature.Verdict.REJECTED) {
                 line.append("§cRejected - ").append(row.why());
             } else if (mine != null) {
-                for (LfgRequirements.Check c : LfgRequirements.check(mine.category(), mine.activity(), mine.reqs(), r.joiner())) {
-                    line.append(c.describe()).append(' ');
-                }
+                LfgRequirements.check(mine.category(), mine.activity(), mine.reqs(), r.joiner()).forEach(c -> line.append(c.describe()).append(' '));
             }
             ScreenChrome.text(g, this.font.plainSubstrByWidth(line.toString(), listW - 132), listX + 2, y + 6, MenuStyle.TXT);
         }
@@ -632,5 +616,4 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
     public String headerRightForTest() {
         return lastHeaderRight;
     }
-
 }
