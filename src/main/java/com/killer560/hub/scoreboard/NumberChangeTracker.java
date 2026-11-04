@@ -66,10 +66,7 @@ final class NumberChangeTracker {
     /** Text alpha (0-255) for a popup expiring at {@code untilMs}. */
     static int alpha(long untilMs, long nowMs) {
         long left = untilMs - nowMs;
-        if (left >= FADE_MS) {
-            return 255;
-        }
-        return Math.max(16, (int) (255 * Math.max(0, left) / FADE_MS));
+        return left >= FADE_MS ? 255 : Math.max(16, (int) (255 * Math.max(0, left) / FADE_MS));
     }
 
     static void clear() {

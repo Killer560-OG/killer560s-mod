@@ -67,7 +67,6 @@ public final class ScoreboardData {
     private ScoreboardData() {
     }
 
-    // ---- refresh ----
 
     static void refresh(Minecraft client) {
         if (client.level == null || client.player == null) {
@@ -276,7 +275,6 @@ public final class ScoreboardData {
         actionBarAtMs = System.currentTimeMillis();
     }
 
-    // ---- text conversion ----
 
     /**
      * Component to legacy {@code §} text, SkyHanni's {@code computeFormattedTextCompat(noExtraResets = true)}: each
@@ -350,7 +348,6 @@ public final class ScoreboardData {
         return s.contains("§r") ? RESETS.matcher(s).replaceAll("") : s;
     }
 
-    // ---- accessors ----
 
     public static List<String> sidebar() {
         return sidebarLines;

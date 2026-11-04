@@ -78,10 +78,7 @@ public record ScoreboardLine(String text, Align align, List<String> hover, Strin
             return "0";
         }
         Double value = parse(raw);
-        if (value == null) {
-            return raw;
-        }
-        return formatNumber(value);
+        return value == null ? raw : formatNumber(value);
     }
 
     public static String formatNumber(double value) {

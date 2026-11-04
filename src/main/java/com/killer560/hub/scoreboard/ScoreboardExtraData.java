@@ -171,7 +171,6 @@ public final class ScoreboardExtraData {
         ScoreboardPartyLeader.register();
     }
 
-    // ---- tick ----
 
     /** Called from the Custom Scoreboard tick (every 5 ticks, only while enabled). */
     static void update(Minecraft client, boolean onSkyblock) {
@@ -377,7 +376,6 @@ public final class ScoreboardExtraData {
         }
     }
 
-    // ---- cookie buff ----
 
     private static void readTabCookie() {
         String footer = ScoreboardData.tabFooter();
@@ -514,7 +512,6 @@ public final class ScoreboardExtraData {
     /** A hundred years: far past any real buff, far below where adding it to the clock could overflow. */
     private static final long MAX_DURATION_MS = 100L * 365L * 86_400_000L;
 
-    // ---- chat ----
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
@@ -552,7 +549,6 @@ public final class ScoreboardExtraData {
         }
     }
 
-    // ---- menus ----
 
     private static void readScreen(Minecraft client) {
         if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
@@ -766,7 +762,6 @@ public final class ScoreboardExtraData {
         }
     }
 
-    // ---- election ----
 
     private static void maybeFetchElection() {
         long now = System.currentTimeMillis();
@@ -850,7 +845,6 @@ public final class ScoreboardExtraData {
         return delta <= 0 ? delta + SKYBLOCK_YEAR_MS : delta;
     }
 
-    // ---- persistence ----
 
     private static synchronized void load() {
         if (loaded) {
@@ -958,7 +952,6 @@ public final class ScoreboardExtraData {
         }
     }
 
-    // ---- item helpers ----
 
     private static List<Component> lore(ItemStack stack) {
         ItemLore lore = stack == null ? null : stack.get(DataComponents.LORE);
@@ -991,7 +984,6 @@ public final class ScoreboardExtraData {
         }
     }
 
-    // ---- accessors ----
 
     public static Candidate mayor() {
         return mayor;

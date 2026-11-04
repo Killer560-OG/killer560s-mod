@@ -261,7 +261,6 @@ public final class CustomScoreboardConfig {
     private boolean showMaxIslandPlayers = true;
     private boolean showPartyLeader = true;
     private int statsPerLine = 3;
-    // background
     private boolean backgroundEnabled = true;
     private int backgroundColor = DEFAULT_BACKGROUND_COLOR;
     private int padding = 2;

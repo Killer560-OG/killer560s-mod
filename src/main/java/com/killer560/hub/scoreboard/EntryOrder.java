@@ -132,7 +132,6 @@ public final class EntryOrder<E extends Enum<E>> {
         }
     }
 
-    // ---- persistence ------------------------------------------------------------------------------------------------
 
     public JsonObject toJson() {
         JsonObject o = new JsonObject();

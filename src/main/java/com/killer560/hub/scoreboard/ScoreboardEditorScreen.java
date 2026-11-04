@@ -103,7 +103,6 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
     private int inactiveCols = 2;
     private int maxPanelScroll;
 
-    // ---- drag state ----
     private ScoreboardEntry pressed;
     private boolean pressedFromInactive;
     private boolean dragging;
@@ -111,7 +110,6 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
     private double grabDX, grabDY;
     private double mouseX, mouseY;
 
-    // ---- tooltip ----
     private AbstractWidget tooltipWidget;
     private long tooltipSinceMs;
 
@@ -149,7 +147,6 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         this.parent = parent;
     }
 
-    // ---- layout ----
 
     @Override
     protected void init() {
@@ -441,7 +438,6 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
             return y;
         }
 
-        // ---- lines ----
         out.add(label(x, y + 2, width, 12, heading("Lines")));
         y += 16;
         out.add(toggle("Hide Vanilla Scoreboard", cfg::isHideVanillaScoreboard, cfg::setHideVanillaScoreboard, x, y, colW));
@@ -512,7 +508,6 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         return y;
     }
 
-    // ---- the board ----
 
     /** The rows an entry draws in the editor: its sample text (never live data), a placeholder when it has none. */
     static List<ScoreboardLine> editorLines(ScoreboardEntry e, CustomScoreboardConfig cfg) {
@@ -668,7 +663,6 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         return selected;
     }
 
-    // ---- input ----
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
@@ -776,7 +770,6 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         return super.mouseScrolled(mx, my, scrollX, scrollY);
     }
 
-    // ---- rendering ----
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float partialTick) {
@@ -949,7 +942,6 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         ScreenChrome.tooltip(g, lines, x, y, w, h);
     }
 
-    // ---- widget helpers ----
 
     private interface BoolGetter {
         boolean get();

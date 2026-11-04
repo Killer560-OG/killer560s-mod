@@ -151,7 +151,6 @@ public final class CustomScoreboardFeature {
         return unknown;
     }
 
-    // ---- update ----
 
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
@@ -488,7 +487,6 @@ public final class CustomScoreboardFeature {
         }
     }
 
-    // ---- rendering ----
 
     /**
      * The board (or, with Custom Scoreboard off, vanilla's sidebar) drawn by the Bazaar screen right after its backdrop
@@ -1045,10 +1043,7 @@ public final class CustomScoreboardFeature {
             return menuPalette().accent() | (cfg.getBorderColor() & 0xFF000000);
         }
         float t = h <= 1 ? 0f : row / (float) (h - 1);
-        if (!cfg.isBorderGradient()) {
-            return cfg.getBorderColor();
-        }
-        return lerpArgb(cfg.getBorderColor(), cfg.getBorderColorBottom(), t);
+        return !cfg.isBorderGradient() ? cfg.getBorderColor() : lerpArgb(cfg.getBorderColor(), cfg.getBorderColorBottom(), t);
     }
 
     private static int lerpArgb(int a, int b, float t) {
@@ -1182,10 +1177,7 @@ public final class CustomScoreboardFeature {
      *  one-span top/bottom band row - the same split {@link #drawRoundedBorder} makes. */
     private static int chromaInnerEdge(int row, int t, int innerW, int innerH, int innerR, int outer) {
         int innerRow = row - t;
-        if (innerRow < 0 || innerRow >= innerH || innerW <= 0) {
-            return -1;
-        }
-        return Math.max(outer, t + inset(innerRow, innerH, innerR));
+        return innerRow < 0 || innerRow >= innerH || innerW <= 0 ? -1 : Math.max(outer, t + inset(innerRow, innerH, innerR));
     }
 
     /** Rows {@code fromRow..toRow-1} of a border run from {@link #drawRoundedBorder}. */
