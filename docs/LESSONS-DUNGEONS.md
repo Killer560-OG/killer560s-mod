@@ -213,12 +213,29 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   or a multi-player hit in it, else three in a row). Testkit 1104-logic-goldor-trusted. Every hit and every predicted 0 logs a
   `[TickTimers] Goldor ...` line (ticks since Storm's death and Goldor's line, wall ms, pings, trust); every other tick timer
   logs a `[TickTimers] <name> proc:` line.
+- **Measured F7 gaps, every 26.x/26.1.2 log of his since SkyBlock 0.27.2 (2026-10-06), 1 s resolution** (tickfix2-1104,
+  `killer560s-mod-logs/tickfix2-1104/gaps.py`): Storm's death line to Goldor's line 3 s in 357 runs, 4 s in 125, 2 s in 9 -
+  a steady ~3.26 s, 65 ticks of wall time with any lag in it, so Odin's 64; before 2026-10-06 it read 5 s / 6 s (Odin's old
+  104). Maxor's opening line to "DON'T DISAPPOINT ME" 4 s in 403, 5 s in 118: ~4.23 s, MAXOR_START_TICKS 83 fits within lag.
+  Necron's "congratulations." to "I'm afraid, your journey ends now." 2 s (403) / 3 s (67) and to "Goodbye." 4 s / 5 s: the
+  60-tick drop sits between them and no chat line marks it, so it is not checked. Livid (4 runs), Spirit Bear, Terracotta,
+  the purple pad and the mask cooldowns have no chat line at their end to measure against; their values stay the references'.
+- **A stall reading and a tick conversion want different measures.** `PerTickServerClock.deficitTicksSince` is client
+  ticks minus pings since a mark, which a catch-up burst pays back: right for turning a server-tick target into a client tick
+  (Blood Camp's `killShownTick`). `stallTicksSince` counts every rise of that deficit past 2 ticks in full and keeps it after
+  the burst (tickfix2-1104; until then it was the net, so Blood Camp Stats' camp lag and a pong's stall read ~0 after
+  Hypixel caught up). Logic case 1104-logic-stall-burst.
+- **GrimAC's transaction pings can pass the per-tick test for a few seconds** (shipH-rr-argrim-a-26.3.log: "is a per-tick
+  pinger: 22 pings, 20 of 20" then "no longer" 3 s later). Grim's ids are `-(counter & 0x7FFF)`, non-positive and stepping
+  down by one (javap `GrimPlayer.sendTransaction`, 2.3.74). Hypixel's ids are not known yet, so nothing filters by id;
+  `ServerTickClock` logs "[ServerTickClock] first ping ids in this world: [...]" once a world, and his next Hypixel log
+  says whether Grim's can be told apart. `ServerLag` follows the per-tick clock's trust (logic case 1104-logic-serverlag-grim).
 - **Countdowns decremented inside a gated listener lose ticks.** Maxor Start, Goldor Start and Necron's drop were
   `x--` in the per-server-tick listener behind `DungeonState.isBossPhaseActive()`, so each tick the gate read false left
   them a tick behind for good. They keep their end tick now and are worked out from the clock every tick (tickfix-1104).
 - **Real F7 gaps from his 2026-10-30 log (seconds resolution):** Storm's opening line to his lightning line 28 s twice
-  (560 ticks fits, Odin's 520 does not); Storm's death line to Goldor's line 3-4 s (60-80 ticks: Odin's 64 fits, the
-  `GOLDOR_START_TICKS` 17 from NoammAddons 1.2.9 does not - not changed, Goldor's line ends that countdown anyway); the
+  (560 ticks fits, Odin's 520 does not); Storm's death line to Goldor's line 3-4 s (Odin's 64 fits, NoammAddons 1.2.9's 17
+  does not; `GOLDOR_START_TICKS` is 64 since tickfix2-1104, see "Measured F7 gaps" below); the
   party's mask procs 3 and 6 s after Goldor's line, so his damage tick was taken as phased on the line. It is NOT at one
   fixed place after the line: his first mask proc re-locked the phase 42, 9, 2, 21 and 25 ticks (mod 60) after Goldor's
   line in five 2026-11-03/04 runs (26.3 log, "[TickTimers] Goldor tick re-locked by a mask proc (N ticks off ..., the first

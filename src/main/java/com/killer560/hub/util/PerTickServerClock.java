@@ -25,7 +25,8 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * game time (a tick a tick, plus the server's set-time corrections), exactly the clock Blood Camp used before - testkit 392
  * (singleplayer, whose game time outran the client's ticks by 12 in a trip) failed on plain client ticks. So it is
  * continuous across a change of source, a stall stops it, and a burst of pings after a network spike (the server kept
- * ticking) catches it up. {@link #stallTicksSince} is how far it fell behind the client's own ticks.
+ * ticking) catches it up. {@link #deficitTicksSince} is how far it is behind the client's own ticks now (a burst pays it
+ * back); {@link #stallTicksSince} counts every stall, paid back or not.
  */
 public final class PerTickServerClock {
 
@@ -107,6 +108,34 @@ public final class PerTickServerClock {
         windowTicksWithPing = 0;
         pingsThisTick = 0;
         goodWindows = 0;
+        inStall = false;
+        deficitLow = trustedTicks - trustedPings;
+    }
+
+    /** A rise of the trusted deficit (client ticks minus pings) of more than this many ticks over its low point is a stall;
+     *  one or two is arrival jitter (a late ping lands in the next tick). Split Timers' 150 ms rule, in ticks. */
+    static final int STALL_TICKS = 2;
+    /** The trusted deficit's low point since the last counted stall (a burst of pings only ever lowers it). */
+    private static long deficitLow;
+    /** Every stall tick counted while trusted, never paid back by the burst that follows (tickfix2-1104). */
+    private static long stallTicksTotal;
+    /** True while a counted stall is still rising, so its every further tick counts without the jitter threshold. */
+    private static boolean inStall;
+
+    /** At a trusted client tick's end (that tick's pings are in): count the deficit's rise as a stall once it passes
+     *  {@link #STALL_TICKS}, and keep counting while it goes on rising. A catch-up burst lowers the low point and pays
+     *  nothing back: on Hypixel the server runs the lost ticks afterwards, so the net deficit nets every stall to 0. */
+    private static void countStall() {
+        long deficit = trustedTicks - trustedPings;
+        long rise = deficit - deficitLow;
+        if (rise > STALL_TICKS || (inStall && rise > 0)) {
+            stallTicksTotal += rise;
+            deficitLow = deficit;
+            inStall = true;
+        } else if (rise <= 0) {
+            deficitLow = Math.min(deficitLow, deficit);
+            inStall = false;
+        }
     }
 
     private static void onPing() {
@@ -185,6 +214,7 @@ public final class PerTickServerClock {
             clock += untrustedStep;
         } else {
             trustedTicks++;
+            countStall();
         }
         if (pingsThisTick > 0) {
             windowTicksWithPing++;
@@ -229,13 +259,25 @@ public final class PerTickServerClock {
         return clock;
     }
 
-    /** Both counters at once, for {@link #stallTicksSince}: {pings while trusted, client ticks while trusted}. */
+    /** The counters at once, for {@link #stallTicksSince} and {@link #deficitTicksSince}: {pings while trusted, client
+     *  ticks while trusted, stall ticks counted}. */
     public static synchronized long[] mark() {
-        return new long[]{trustedPings, trustedTicks};
+        return new long[]{trustedPings, trustedTicks, stallTicksTotal};
     }
 
-    /** Client ticks since {@code mark} that the server did not tick (0 while it is not trusted), never negative. */
+    /** The server's stalls since {@code mark}, in client ticks (0 while it is not trusted): every rise of more than
+     *  {@link #STALL_TICKS} counts in full and stays counted when a burst of catch-up pings follows. For a lag READING
+     *  (Blood Camp Stats' camp lag, a pong's stall). */
     public static synchronized long stallTicksSince(long[] mark) {
+        if (mark == null || mark.length < 3) {
+            return 0L;
+        }
+        return Math.max(0L, stallTicksTotal - mark[2]);
+    }
+
+    /** Client ticks since {@code mark} the server has not (yet) made up: client ticks minus pings while trusted, never
+     *  negative, so a catch-up burst cancels the stall before it. For turning a server-tick target into a client tick. */
+    public static synchronized long deficitTicksSince(long[] mark) {
         if (mark == null) {
             return 0L;
         }
