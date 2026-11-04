@@ -1,5 +1,7 @@
 package com.killer560.hub.storageoverlay;
 
+import com.killer560.hub.storagesearch.StorageSearchNbtCodec;
+
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -190,27 +192,10 @@ public final class StorageOverlayCache {
 
     /** Encodes and stores this storage's real contents, then saves to disk immediately. */
     public void put(String key, List<ItemStack> stacks) {
-        RegistryAccess registryAccess = registryAccess();
-        if (registryAccess == null) return;
-        HolderLookup.Provider provider = registryAccess;
-        var ops = provider.createSerializationContext(NbtOps.INSTANCE);
-        ListTag list = new ListTag();
-        for (ItemStack stack : stacks) {
-            CompoundTag tag = new CompoundTag();
-            if (stack != null && !stack.isEmpty()) {
-                Tag encodedStack = ItemStack.CODEC.encodeStart(ops, stack).result().orElse(null);
-                if (encodedStack instanceof CompoundTag stackTag) {
-                    tag = stackTag;
-                }
-            }
-            list.add(tag);
-        }
         try {
-            CompoundTag root = new CompoundTag();
-            root.put("i", list);
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            NbtIo.writeCompressed(root, baos);
-            encoded.put(key, Base64.getEncoder().encodeToString(baos.toByteArray()));
+            String blob = StorageSearchNbtCodec.encodeOrThrow(stacks);
+            if (blob == null) return;
+            encoded.put(key, blob);
             knownOnly.remove(key);
             version++;
             save();
@@ -239,23 +224,9 @@ public final class StorageOverlayCache {
     }
 
     private List<ItemStack> decode(String key, String blob, boolean copy) {
-        RegistryAccess registryAccess = registryAccess();
-        if (registryAccess == null) return null;
         try {
-            HolderLookup.Provider provider = registryAccess;
-            var ops = provider.createSerializationContext(NbtOps.INSTANCE);
-            byte[] bytes = Base64.getDecoder().decode(blob);
-            CompoundTag root = NbtIo.readCompressed(new ByteArrayInputStream(bytes), NbtAccounter.unlimitedHeap());
-            ListTag list = root.getListOrEmpty("i");
-            List<ItemStack> result = new ArrayList<>(list.size());
-            for (int i = 0; i < list.size(); i++) {
-                CompoundTag tag = list.getCompoundOrEmpty(i);
-                if (tag.isEmpty()) {
-                    result.add(ItemStack.EMPTY);
-                    continue;
-                }
-                result.add(ItemStack.CODEC.parse(ops, tag).result().orElse(ItemStack.EMPTY));
-            }
+            List<ItemStack> result = StorageSearchNbtCodec.decodeOrThrow(blob);
+            if (result == null) return null;
             List<ItemStack> shared = java.util.Collections.unmodifiableList(result);
             decodedCache.put(key, new DecodedEntry(blob, shared));
             return copy ? new ArrayList<>(result) : shared;

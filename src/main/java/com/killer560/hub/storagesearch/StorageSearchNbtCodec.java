@@ -28,6 +28,15 @@ public final class StorageSearchNbtCodec {
     }
 
     public static String encode(List<ItemStack> stacks) {
+        try {
+            return encodeOrThrow(stacks);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** {@link #encode} that lets a failure out; null when no registry is available yet. */
+    public static String encodeOrThrow(List<ItemStack> stacks) throws Exception {
         RegistryAccess registryAccess = registryAccess();
         if (registryAccess == null) return null;
         HolderLookup.Provider provider = registryAccess;
@@ -43,36 +52,37 @@ public final class StorageSearchNbtCodec {
             }
             list.add(tag);
         }
+        CompoundTag root = new CompoundTag();
+        root.put("i", list);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        NbtIo.writeCompressed(root, baos);
+        return Base64.getEncoder().encodeToString(baos.toByteArray());
+    }
+
+    public static List<ItemStack> decode(String blob) {
+        if (blob == null || blob.isEmpty()) return null;
         try {
-            CompoundTag root = new CompoundTag();
-            root.put("i", list);
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            NbtIo.writeCompressed(root, baos);
-            return Base64.getEncoder().encodeToString(baos.toByteArray());
+            return decodeOrThrow(blob);
         } catch (Exception e) {
             return null;
         }
     }
 
-    public static List<ItemStack> decode(String blob) {
-        if (blob == null || blob.isEmpty()) return null;
+    /** {@link #decode} that lets a failure out; null when no registry is available yet. */
+    public static List<ItemStack> decodeOrThrow(String blob) throws Exception {
         RegistryAccess registryAccess = registryAccess();
         if (registryAccess == null) return null;
-        try {
-            HolderLookup.Provider provider = registryAccess;
-            var ops = provider.createSerializationContext(NbtOps.INSTANCE);
-            byte[] bytes = Base64.getDecoder().decode(blob);
-            CompoundTag root = NbtIo.readCompressed(new ByteArrayInputStream(bytes), NbtAccounter.unlimitedHeap());
-            ListTag list = root.getListOrEmpty("i");
-            List<ItemStack> result = new ArrayList<>(list.size());
-            for (int i = 0; i < list.size(); i++) {
-                CompoundTag tag = list.getCompoundOrEmpty(i);
-                result.add(tag.isEmpty() ? ItemStack.EMPTY : ItemStack.CODEC.parse(ops, tag).result().orElse(ItemStack.EMPTY));
-            }
-            return result;
-        } catch (Exception e) {
-            return null;
+        HolderLookup.Provider provider = registryAccess;
+        var ops = provider.createSerializationContext(NbtOps.INSTANCE);
+        byte[] bytes = Base64.getDecoder().decode(blob);
+        CompoundTag root = NbtIo.readCompressed(new ByteArrayInputStream(bytes), NbtAccounter.unlimitedHeap());
+        ListTag list = root.getListOrEmpty("i");
+        List<ItemStack> result = new ArrayList<>(list.size());
+        for (int i = 0; i < list.size(); i++) {
+            CompoundTag tag = list.getCompoundOrEmpty(i);
+            result.add(tag.isEmpty() ? ItemStack.EMPTY : ItemStack.CODEC.parse(ops, tag).result().orElse(ItemStack.EMPTY));
         }
+        return result;
     }
 
     /** Cheap "did anything actually change" test, same item-id + count comparison {@code captureIfChanged} uses -

@@ -1,5 +1,6 @@
 package com.killer560.hub.terminals;
 
+import com.killer560.hub.util.BoolFields;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -272,6 +273,33 @@ public final class TerminalSolverConfig {
         return instance;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<TerminalSolverConfig> BOOLS = new BoolFields<TerminalSolverConfig>()
+            .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
+            .add("panesEnabled", true, c -> c.panesEnabled, (c, v) -> c.panesEnabled = v)
+            .add("rubixEnabled", true, c -> c.rubixEnabled, (c, v) -> c.rubixEnabled = v)
+            .add("numbersEnabled", true, c -> c.numbersEnabled, (c, v) -> c.numbersEnabled = v)
+            .add("startsWithEnabled", true, c -> c.startsWithEnabled, (c, v) -> c.startsWithEnabled = v)
+            .add("selectEnabled", true, c -> c.selectEnabled, (c, v) -> c.selectEnabled = v)
+            .add("melodyEnabled", true, c -> c.melodyEnabled, (c, v) -> c.melodyEnabled = v)
+            .add("melodySendCoordsOnOpen", false, c -> c.melodySendCoordsOnOpen, (c, v) -> c.melodySendCoordsOnOpen = v)
+            .add("melodySendProgress", false, c -> c.melodySendProgress, (c, v) -> c.melodySendProgress = v)
+            .add("customGuiEnabled", false, c -> c.customGuiEnabled, (c, v) -> c.customGuiEnabled = v)
+            .add("numbersThreeTierReveal", false, c -> c.numbersThreeTierReveal, (c, v) -> c.numbersThreeTierReveal = v)
+            .add("autoTerminalsEnabled", false, c -> c.autoTerminalsEnabled, (c, v) -> c.autoTerminalsEnabled = v)
+            .add("autoPanesEnabled", false, c -> c.autoPanesEnabled, (c, v) -> c.autoPanesEnabled = v)
+            .add("autoRubixEnabled", false, c -> c.autoRubixEnabled, (c, v) -> c.autoRubixEnabled = v)
+            .add("autoNumbersEnabled", false, c -> c.autoNumbersEnabled, (c, v) -> c.autoNumbersEnabled = v)
+            .add("autoStartsWithEnabled", false, c -> c.autoStartsWithEnabled, (c, v) -> c.autoStartsWithEnabled = v)
+            .add("autoSelectEnabled", false, c -> c.autoSelectEnabled, (c, v) -> c.autoSelectEnabled = v)
+            .add("autoMelodyEnabled", false, c -> c.autoMelodyEnabled, (c, v) -> c.autoMelodyEnabled = v)
+            .add("hideMouseCursor", false, c -> c.hideMouseCursor, (c, v) -> c.hideMouseCursor = v)
+            .add("autoStreamSafe", false, c -> c.autoStreamSafe, (c, v) -> c.autoStreamSafe = v)
+            .add("blockInputWhileAutoClicking", true, c -> c.blockInputWhileAutoClicking, (c, v) -> c.blockInputWhileAutoClicking = v)
+            .add("announceCompletionTime", true, c -> c.announceCompletionTime, (c, v) -> c.announceCompletionTime = v)
+            .add("hoverTerminalsEnabled", false, c -> c.hoverTerminalsEnabled, (c, v) -> c.hoverTerminalsEnabled = v)
+            .add("holdToClickEnabled", false, c -> c.holdToClickEnabled, (c, v) -> c.holdToClickEnabled = v);
+
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new TerminalSolverConfig();
@@ -281,30 +309,11 @@ public final class TerminalSolverConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             TerminalSolverConfig cfg = new TerminalSolverConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            BOOLS.load(cfg, obj);
             cfg.scale = clampScale(ConfigJson.getFloat(obj, "scale", 1.0f));
-            cfg.panesEnabled = ConfigJson.getBool(obj, "panesEnabled", true);
-            cfg.rubixEnabled = ConfigJson.getBool(obj, "rubixEnabled", true);
-            cfg.numbersEnabled = ConfigJson.getBool(obj, "numbersEnabled", true);
-            cfg.startsWithEnabled = ConfigJson.getBool(obj, "startsWithEnabled", true);
-            cfg.selectEnabled = ConfigJson.getBool(obj, "selectEnabled", true);
-            cfg.melodyEnabled = ConfigJson.getBool(obj, "melodyEnabled", true);
-            cfg.melodySendCoordsOnOpen = ConfigJson.getBool(obj, "melodySendCoordsOnOpen", false);
-            cfg.melodySendProgress = ConfigJson.getBool(obj, "melodySendProgress", false);
-            cfg.customGuiEnabled = ConfigJson.getBool(obj, "customGuiEnabled", false);
-            cfg.numbersThreeTierReveal = ConfigJson.getBool(obj, "numbersThreeTierReveal", false);
-            cfg.autoTerminalsEnabled = ConfigJson.getBool(obj, "autoTerminalsEnabled", false);
-            cfg.autoPanesEnabled = ConfigJson.getBool(obj, "autoPanesEnabled", false);
-            cfg.autoRubixEnabled = ConfigJson.getBool(obj, "autoRubixEnabled", false);
-            cfg.autoNumbersEnabled = ConfigJson.getBool(obj, "autoNumbersEnabled", false);
-            cfg.autoStartsWithEnabled = ConfigJson.getBool(obj, "autoStartsWithEnabled", false);
-            cfg.autoSelectEnabled = ConfigJson.getBool(obj, "autoSelectEnabled", false);
-            cfg.autoMelodyEnabled = ConfigJson.getBool(obj, "autoMelodyEnabled", false);
             cfg.autoClickMinDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMinDelayMs", 120));
             cfg.autoClickMaxDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMaxDelayMs", 200));
             // Same min <= max invariant the setters enforce (a hand-edited file could otherwise load min > max).
-            cfg.hideMouseCursor = ConfigJson.getBool(obj, "hideMouseCursor", false);
-            cfg.autoStreamSafe = ConfigJson.getBool(obj, "autoStreamSafe", false);
             cfg.firstClickDelayMs = clamp(ConfigJson.getInt(obj, "firstClickDelayMs", 300), MIN_FIRST_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);
             cfg.cursorReactionMs = clamp(ConfigJson.getInt(obj, "cursorReactionMs", 130), MIN_CURSOR_REACTION_MS, MAX_CURSOR_REACTION_MS);
             cfg.cursorMissChance = clamp(ConfigJson.getInt(obj, "cursorMissChance", 6), 0, MAX_CURSOR_MISS_CHANCE);
@@ -312,8 +321,6 @@ public final class TerminalSolverConfig {
             if (cfg.autoClickMaxDelayMs < cfg.autoClickMinDelayMs) {
                 cfg.autoClickMaxDelayMs = cfg.autoClickMinDelayMs;
             }
-            cfg.blockInputWhileAutoClicking = ConfigJson.getBool(obj, "blockInputWhileAutoClicking", true);
-            cfg.announceCompletionTime = ConfigJson.getBool(obj, "announceCompletionTime", true);
             int lookahead = ConfigJson.getInt(obj, "melodyLookaheadClicks", 0);
             // "...Version" since 2026-10-27 (testkit 310 leaves *Version keys alone as file-format numbers; it flipped the
             // 2026-10-26 "...Format" key and so re-ran the migration); files saved with the Format key still count.
@@ -324,13 +331,11 @@ public final class TerminalSolverConfig {
             }
             cfg.melodyLookaheadClicks = clampMelodyLookahead(lookahead);
             cfg.melodySkipMode = ConfigJson.getEnum(obj, "melodySkipMode", MelodySkipMode.class, MelodySkipMode.EDGES);
-            cfg.hoverTerminalsEnabled = ConfigJson.getBool(obj, "hoverTerminalsEnabled", false);
             cfg.hoverDelayMs = clampHoverDelay(ConfigJson.getInt(obj, "hoverDelayMs", 100));
             cfg.hoverJitterMs = clampHoverJitter(ConfigJson.getInt(obj, "hoverJitterMs", 0));
             cfg.hoverMelodyEnabled = Math.max(ConfigJson.getInt(obj, "hoverMelodyVersion", 1), ConfigJson.getInt(obj, "hoverMelodyFormat", 1))
                     < HOVER_MELODY_FORMAT
                     || ConfigJson.getBool(obj, "hoverMelodyEnabled", true);
-            cfg.holdToClickEnabled = ConfigJson.getBool(obj, "holdToClickEnabled", false);
             cfg.holdToClickFirstDelayMs = clampHoldFirstDelay(ConfigJson.getInt(obj, "holdToClickFirstDelayMs", 250));
             cfg.holdToClickRepeatMs = clampHoldRepeat(ConfigJson.getInt(obj, "holdToClickRepeatMs", 75));
             cfg.fakeCursorSpeed = clampFakeCursorSpeed(ConfigJson.getInt(obj, "fakeCursorSpeed", 100));
@@ -349,44 +354,21 @@ public final class TerminalSolverConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
+            BOOLS.save(this, obj);
             obj.addProperty("scale", scale);
-            obj.addProperty("panesEnabled", panesEnabled);
-            obj.addProperty("rubixEnabled", rubixEnabled);
-            obj.addProperty("numbersEnabled", numbersEnabled);
-            obj.addProperty("startsWithEnabled", startsWithEnabled);
-            obj.addProperty("selectEnabled", selectEnabled);
-            obj.addProperty("melodyEnabled", melodyEnabled);
-            obj.addProperty("melodySendCoordsOnOpen", melodySendCoordsOnOpen);
-            obj.addProperty("melodySendProgress", melodySendProgress);
-            obj.addProperty("customGuiEnabled", customGuiEnabled);
-            obj.addProperty("numbersThreeTierReveal", numbersThreeTierReveal);
-            obj.addProperty("autoTerminalsEnabled", autoTerminalsEnabled);
-            obj.addProperty("autoPanesEnabled", autoPanesEnabled);
-            obj.addProperty("autoRubixEnabled", autoRubixEnabled);
-            obj.addProperty("autoNumbersEnabled", autoNumbersEnabled);
-            obj.addProperty("autoStartsWithEnabled", autoStartsWithEnabled);
-            obj.addProperty("autoSelectEnabled", autoSelectEnabled);
-            obj.addProperty("autoMelodyEnabled", autoMelodyEnabled);
             obj.addProperty("autoClickMinDelayMs", autoClickMinDelayMs);
             obj.addProperty("autoClickMaxDelayMs", autoClickMaxDelayMs);
-            obj.addProperty("hideMouseCursor", hideMouseCursor);
-            obj.addProperty("autoStreamSafe", autoStreamSafe);
             obj.addProperty("firstClickDelayMs", firstClickDelayMs);
             obj.addProperty("cursorReactionMs", cursorReactionMs);
             obj.addProperty("cursorMissChance", cursorMissChance);
             obj.addProperty("cursorOvershootChance", cursorOvershootChance);
-            obj.addProperty("blockInputWhileAutoClicking", blockInputWhileAutoClicking);
-            obj.addProperty("announceCompletionTime", announceCompletionTime);
             obj.addProperty("melodyLookaheadClicks", melodyLookaheadClicks);
             obj.addProperty("melodyLookaheadVersion", MELODY_LOOKAHEAD_FORMAT);
             obj.addProperty("melodySkipMode", melodySkipMode.name());
-            obj.addProperty("hoverTerminalsEnabled", hoverTerminalsEnabled);
             obj.addProperty("hoverDelayMs", hoverDelayMs);
             obj.addProperty("hoverJitterMs", hoverJitterMs);
             obj.addProperty("hoverMelodyEnabled", hoverMelodyEnabled);
             obj.addProperty("hoverMelodyVersion", HOVER_MELODY_FORMAT);
-            obj.addProperty("holdToClickEnabled", holdToClickEnabled);
             obj.addProperty("holdToClickFirstDelayMs", holdToClickFirstDelayMs);
             obj.addProperty("holdToClickRepeatMs", holdToClickRepeatMs);
             obj.addProperty("fakeCursorSpeed", fakeCursorSpeed);

@@ -344,26 +344,7 @@ public final class MaskSwapper {
     }
 
     private static void awaitMenu(Minecraft client, long now) {
-        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) return;
-        String title = screen.getTitle().getString();
-        if (!title.toLowerCase(Locale.ROOT).contains("equipment")) return;
-        List<Slot> slots = screen.getMenu().slots;
-        int containerSlots = Math.max(0, slots.size() - 36);
-        boolean loaded = false;
-        for (int i = 0; i < containerSlots; i++) {
-            if (!slots.get(i).getItem().isEmpty()) {
-                loaded = true;
-                break;
-            }
-        }
-        if (!loaded) return;
-        if (menuFirstSeenMs == 0L) {
-            // The menu appearing is itself an "action" - let it settle a full step before clicking in it.
-            menuFirstSeenMs = now;
-            nextActionTick = tickNo + stepDelayTicks();
-            return;
-        }
-        stage = Stage.CLICK_MASK;
+        awaitLoaded(client, now, t -> t.toLowerCase(Locale.ROOT).contains("equipment"), Stage.CLICK_MASK);
     }
 
     private static void clickMask(Minecraft client, LocalPlayer player, long now) {
@@ -452,9 +433,13 @@ public final class MaskSwapper {
     }
 
     private static void awaitPets(Minecraft client, long now) {
+        awaitLoaded(client, now, t -> PETS_TITLE.matcher(t).matches(), Stage.CLICK_PET);
+    }
+
+    /** Waits for the open container titled by {@code titleOk} to show items, lets it settle one step, then moves to {@code next}. */
+    private static void awaitLoaded(Minecraft client, long now, java.util.function.Predicate<String> titleOk, Stage next) {
         if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) return;
-        String title = screen.getTitle().getString();
-        if (!PETS_TITLE.matcher(title).matches()) return;
+        if (!titleOk.test(screen.getTitle().getString())) return;
         List<Slot> slots = screen.getMenu().slots;
         int containerSlots = Math.max(0, slots.size() - 36);
         boolean loaded = false;
@@ -471,7 +456,7 @@ public final class MaskSwapper {
             nextActionTick = tickNo + stepDelayTicks();
             return;
         }
-        stage = Stage.CLICK_PET;
+        stage = next;
     }
 
     private static void clickPet(Minecraft client, LocalPlayer player, long now) {

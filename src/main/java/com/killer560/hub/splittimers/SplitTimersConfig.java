@@ -1,5 +1,6 @@
 package com.killer560.hub.splittimers;
 
+import com.killer560.hub.util.BoolFields;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -69,6 +70,22 @@ public final class SplitTimersConfig {
         return instance;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<SplitTimersConfig> BOOLS = new BoolFields<SplitTimersConfig>()
+            .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
+            .add("announceInChat", true, c -> c.announceInChat, (c, v) -> c.announceInChat = v)
+            .add("p5DragonLines", false, c -> c.p5DragonLines, (c, v) -> c.p5DragonLines = v)
+            .add("p5RelicLines", false, c -> c.p5RelicLines, (c, v) -> c.p5RelicLines = v)
+            .add("p5LinesRight", true, c -> c.p5LinesRight, (c, v) -> c.p5LinesRight = v)
+            .add("watcherMoveSplit", false, c -> c.watcherMoveSplit, (c, v) -> c.watcherMoveSplit = v)
+            .add("coreEntryTimes", false, c -> c.coreEntryTimes, (c, v) -> c.coreEntryTimes = v)
+            .add("coreEntrySlowestChat", false, c -> c.coreEntrySlowestChat, (c, v) -> c.coreEntrySlowestChat = v)
+            .add("coreEntrySlowestParty", false, c -> c.coreEntrySlowestParty, (c, v) -> c.coreEntrySlowestParty = v)
+            .add("coreEntrySlowestHud", false, c -> c.coreEntrySlowestHud, (c, v) -> c.coreEntrySlowestHud = v)
+            .add("coreEntryWithoutSplits", false, c -> c.coreEntryWithoutSplits, (c, v) -> c.coreEntryWithoutSplits = v)
+            .add("laglessTimes", true, c -> c.laglessTimes, (c, v) -> c.laglessTimes = v)
+            .add("tickCounting", false, c -> c.tickCounting, (c, v) -> c.tickCounting = v);
+
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new SplitTimersConfig();
@@ -78,19 +95,7 @@ public final class SplitTimersConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             SplitTimersConfig cfg = new SplitTimersConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.announceInChat = ConfigJson.getBool(obj, "announceInChat", true);
-            cfg.p5DragonLines = ConfigJson.getBool(obj, "p5DragonLines", false);
-            cfg.p5RelicLines = ConfigJson.getBool(obj, "p5RelicLines", false);
-            cfg.p5LinesRight = ConfigJson.getBool(obj, "p5LinesRight", true);
-            cfg.watcherMoveSplit = ConfigJson.getBool(obj, "watcherMoveSplit", false);
-            cfg.coreEntryTimes = ConfigJson.getBool(obj, "coreEntryTimes", false);
-            cfg.coreEntrySlowestChat = ConfigJson.getBool(obj, "coreEntrySlowestChat", false);
-            cfg.coreEntrySlowestParty = ConfigJson.getBool(obj, "coreEntrySlowestParty", false);
-            cfg.coreEntrySlowestHud = ConfigJson.getBool(obj, "coreEntrySlowestHud", false);
-            cfg.coreEntryWithoutSplits = ConfigJson.getBool(obj, "coreEntryWithoutSplits", false);
-            cfg.laglessTimes = ConfigJson.getBool(obj, "laglessTimes", true);
-            cfg.tickCounting = ConfigJson.getBool(obj, "tickCounting", false);
+            BOOLS.load(cfg, obj);
             instance = cfg;
         } catch (Exception e) {
             instance = new SplitTimersConfig();
@@ -101,19 +106,7 @@ public final class SplitTimersConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("announceInChat", announceInChat);
-            obj.addProperty("p5DragonLines", p5DragonLines);
-            obj.addProperty("p5RelicLines", p5RelicLines);
-            obj.addProperty("p5LinesRight", p5LinesRight);
-            obj.addProperty("watcherMoveSplit", watcherMoveSplit);
-            obj.addProperty("coreEntryTimes", coreEntryTimes);
-            obj.addProperty("coreEntrySlowestChat", coreEntrySlowestChat);
-            obj.addProperty("coreEntrySlowestParty", coreEntrySlowestParty);
-            obj.addProperty("coreEntrySlowestHud", coreEntrySlowestHud);
-            obj.addProperty("coreEntryWithoutSplits", coreEntryWithoutSplits);
-            obj.addProperty("laglessTimes", laglessTimes);
-            obj.addProperty("tickCounting", tickCounting);
+            BOOLS.save(this, obj);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }

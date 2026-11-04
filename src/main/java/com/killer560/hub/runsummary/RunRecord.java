@@ -361,77 +361,67 @@ public record RunRecord(
         return out;
     }
 
+    /** The object elements of {@code o}'s array {@code key}; none when it is missing or malformed. */
+    private static List<JsonObject> objects(JsonObject o, String key) {
+        List<JsonObject> out = new ArrayList<>();
+        JsonArray array = ConfigJson.getArray(o, key);
+        if (array != null) {
+            for (JsonElement e : array) {
+                if (e != null && e.isJsonObject()) {
+                    out.add(e.getAsJsonObject());
+                }
+            }
+        }
+        return out;
+    }
+
     /** Never throws: a malformed field falls back to "unknown" for that field only (the same per-key rule
      *  {@link ConfigJson} exists for), so one bad entry can't take the whole history file down. */
     public static RunRecord fromJson(JsonElement element) {
         if (element == null || !element.isJsonObject()) return null;
         JsonObject o = element.getAsJsonObject();
         List<Split> splits = new ArrayList<>();
-        JsonArray splitArray = ConfigJson.getArray(o, "splits");
-        if (splitArray != null) {
-            for (JsonElement e : splitArray) {
-                if (e != null && e.isJsonObject()) {
-                    JsonObject s = e.getAsJsonObject();
-                    String name = ConfigJson.getString(s, "name", null);
-                    if (name != null) {
-                        splits.add(new Split(name, ConfigJson.getLong(s, "ms", 0L)));
-                    }
-                }
+        for (JsonObject s : objects(o, "splits")) {
+            String name = ConfigJson.getString(s, "name", null);
+            if (name != null) {
+                splits.add(new Split(name, ConfigJson.getLong(s, "ms", 0L)));
             }
         }
         List<Device> devices = new ArrayList<>();
-        JsonArray deviceArray = ConfigJson.getArray(o, "devices");
-        if (deviceArray != null) {
-            for (JsonElement e : deviceArray) {
-                if (e != null && e.isJsonObject()) {
-                    JsonObject d = e.getAsJsonObject();
-                    devices.add(new Device(
-                            ConfigJson.getString(d, "player", "?"),
-                            ConfigJson.getString(d, "kind", "device"),
-                            ConfigJson.getInt(d, "index", 0),
-                            ConfigJson.getInt(d, "total", 0),
-                            ConfigJson.getString(d, "phase", null),
-                            ConfigJson.getLong(d, "msIntoPhase", -1L)));
-                }
-            }
+        for (JsonObject d : objects(o, "devices")) {
+            devices.add(new Device(
+                    ConfigJson.getString(d, "player", "?"),
+                    ConfigJson.getString(d, "kind", "device"),
+                    ConfigJson.getInt(d, "index", 0),
+                    ConfigJson.getInt(d, "total", 0),
+                    ConfigJson.getString(d, "phase", null),
+                    ConfigJson.getLong(d, "msIntoPhase", -1L)));
         }
         List<PartyMember> party = new ArrayList<>();
-        JsonArray partyArray = ConfigJson.getArray(o, "party");
-        if (partyArray != null) {
-            for (JsonElement e : partyArray) {
-                if (e != null && e.isJsonObject()) {
-                    JsonObject p = e.getAsJsonObject();
-                    party.add(new PartyMember(
-                            ConfigJson.getString(p, "uuid", null),
-                            ConfigJson.getString(p, "name", "?"),
-                            ConfigJson.getString(p, "class", null),
-                            ConfigJson.getInt(p, "classLevel", UNKNOWN_INT),
-                            ConfigJson.getInt(p, "soloRooms", UNKNOWN_INT),
-                            ConfigJson.getInt(p, "stackedRooms", UNKNOWN_INT),
-                            ConfigJson.getInt(p, "secrets", UNKNOWN_INT),
-                            ConfigJson.getInt(p, "deaths", UNKNOWN_INT),
-                            getStrings(p, "soloRoomNames"),
-                            getStrings(p, "stackedRoomNames"),
-                            getStrings(p, "deathCauses")));
-                }
-            }
+        for (JsonObject p : objects(o, "party")) {
+            party.add(new PartyMember(
+                    ConfigJson.getString(p, "uuid", null),
+                    ConfigJson.getString(p, "name", "?"),
+                    ConfigJson.getString(p, "class", null),
+                    ConfigJson.getInt(p, "classLevel", UNKNOWN_INT),
+                    ConfigJson.getInt(p, "soloRooms", UNKNOWN_INT),
+                    ConfigJson.getInt(p, "stackedRooms", UNKNOWN_INT),
+                    ConfigJson.getInt(p, "secrets", UNKNOWN_INT),
+                    ConfigJson.getInt(p, "deaths", UNKNOWN_INT),
+                    getStrings(p, "soloRoomNames"),
+                    getStrings(p, "stackedRoomNames"),
+                    getStrings(p, "deathCauses")));
         }
         MapSnapshot map = null;
         JsonObject mapObject = ConfigJson.getObject(o, "map");
         if (mapObject != null) {
             List<MapRoom> rooms = new ArrayList<>();
-            JsonArray roomArray = ConfigJson.getArray(mapObject, "rooms");
-            if (roomArray != null) {
-                for (JsonElement e : roomArray) {
-                    if (e != null && e.isJsonObject()) {
-                        JsonObject r = e.getAsJsonObject();
-                        int rotation = ConfigJson.getInt(r, "rotation", MapRoom.UNKNOWN_ROTATION);
-                        rooms.add(new MapRoom(ConfigJson.getString(r, "name", "Unknown"),
-                                ConfigJson.getString(r, "type", null),
-                                rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270
-                                        ? rotation : MapRoom.UNKNOWN_ROTATION));
-                    }
-                }
+            for (JsonObject r : objects(mapObject, "rooms")) {
+                int rotation = ConfigJson.getInt(r, "rotation", MapRoom.UNKNOWN_ROTATION);
+                rooms.add(new MapRoom(ConfigJson.getString(r, "name", "Unknown"),
+                        ConfigJson.getString(r, "type", null),
+                        rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270
+                                ? rotation : MapRoom.UNKNOWN_ROTATION));
             }
             if (!rooms.isEmpty()) {
                 int cells = MapSnapshot.GRID * MapSnapshot.GRID;

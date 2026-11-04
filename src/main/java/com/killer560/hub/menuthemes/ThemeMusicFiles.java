@@ -54,14 +54,10 @@ public final class ThemeMusicFiles {
     /** Imported files by the key their sound path carries (an Identifier cannot hold spaces or capitals). */
     private static final Map<String, Path> KEYS = new ConcurrentHashMap<>();
 
-    private static final ExecutorService IMPORTER = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "killer560smod-thememusic-import");
-        t.setDaemon(true);
-        return t;
-    });
+    private static final ThemeImporter IMP = new ThemeImporter("killer560smod-thememusic-import", LOGGER, "ThemeMusic",
+            "music", "Copy a sound or video file's path first (Shift + right click it, Copy as path).",
+            source -> IMPORT_PREFIX + importFile(source), ThemeMusicFiles::label);
 
-    private static volatile boolean importing;
-    private static volatile String lastImport;
     private static volatile int streamsOpened;
 
     private ThemeMusicFiles() {
@@ -141,47 +137,20 @@ public final class ThemeMusicFiles {
     }
 
 
-    public static boolean importing() { return importing; }
+    public static boolean importing() { return IMP.importing(); }
 
-    public static String lastImport() { return lastImport; }
+    public static String lastImport() { return IMP.lastImport(); }
 
     /** Streams the engine opened for imported tracks (testkit evidence: the file really was handed to the engine). */
     public static int streamsOpened() { return streamsOpened; }
 
     /** Imports the clipboard's file on the import thread; {@code done} gets the new choice's id, or null on failure. */
     public static void importClipboardAsync(String clip, Consumer<String> done) {
-        Path path;
-        try {
-            path = ClickSounds.clipboardPath(clip, "Copy a sound or video file's path first (Shift + right click it, Copy as path).");
-        } catch (IOException e) {
-            lastImport = "§c" + e.getMessage();
-            done.accept(null);
-            return;
-        }
-        importAsync(path, done);
+        IMP.importClipboardAsync(clip, done);
     }
 
     public static void importAsync(Path source, Consumer<String> done) {
-        if (importing) {
-            lastImport = "§cAn import is already running.";
-            done.accept(null);
-            return;
-        }
-        importing = true;
-        lastImport = "§7Importing " + source.getFileName() + "...";
-        IMPORTER.execute(() -> {
-            String id = null;
-            try {
-                id = IMPORT_PREFIX + importFile(source);
-                lastImport = "§aImported " + label(id) + " and set it as this theme's music.";
-            } catch (IOException | RuntimeException e) {
-                lastImport = "§c" + e.getMessage();
-                LOGGER.warn("[ThemeMusic] import of {} failed: {}", source, e.getMessage());
-            } finally {
-                importing = false;
-            }
-            done.accept(id);
-        });
+        IMP.importAsync(source, done);
     }
 
     /** Copies a readable .ogg in, or converts anything else with ffmpeg. Blocking: the import thread only. */
@@ -215,26 +184,11 @@ public final class ThemeMusicFiles {
         Path work = Files.createTempFile("killer560smod-thememusic-", ".ogg");
         Path log = Files.createTempFile("killer560smod-thememusic-", ".log");
         try {
-            Process p;
-            try {
-                p = new ProcessBuilder("ffmpeg", "-y", "-hide_banner", "-v", "error",
-                        "-i", source.toAbsolutePath().toString(), "-vn", "-t", String.valueOf(MAX_SECONDS),
-                        "-ac", "2", "-ar", "44100", "-c:a", "libvorbis", "-q:a", "4", work.toAbsolutePath().toString())
-                        .redirectErrorStream(true).redirectOutput(log.toFile()).start();
-            } catch (IOException e) {
-                throw new IOException(name + " needs ffmpeg to import (only .ogg files import without it). ffmpeg was not"
-                        + " found: install it, then restart Minecraft.");
-            }
-            try {
-                if (!p.waitFor(10, TimeUnit.MINUTES)) {
-                    p.destroyForcibly();
-                    throw new IOException("ffmpeg took too long on " + name + ".");
-                }
-            } catch (InterruptedException e) {
-                p.destroyForcibly();
-                Thread.currentThread().interrupt();
-                throw new IOException("Interrupted.");
-            }
+            Process p = ThemeImporter.runFfmpeg(List.of("ffmpeg", "-y", "-hide_banner", "-v", "error",
+                    "-i", source.toAbsolutePath().toString(), "-vn", "-t", String.valueOf(MAX_SECONDS),
+                    "-ac", "2", "-ar", "44100", "-c:a", "libvorbis", "-q:a", "4", work.toAbsolutePath().toString()), log, name,
+                    " needs ffmpeg to import (only .ogg files import without it). ffmpeg was not"
+                            + " found: install it, then restart Minecraft.");
             if (p.exitValue() != 0 || !Files.isRegularFile(work) || Files.size(work) == 0 || !readableOgg(work)) {
                 String errors = Files.readString(log, StandardCharsets.UTF_8);
                 if (errors.contains("matches no streams") || errors.contains("does not contain any stream")) {

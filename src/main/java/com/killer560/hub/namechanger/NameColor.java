@@ -195,28 +195,7 @@ public final class NameColor {
      *  the same places {@link #bold} puts its {@code §l}. */
     public static String shadow(String text) {
         if (text == null || text.isEmpty()) return text == null ? "" : text;
-        StringBuilder sb = new StringBuilder(text.length() + 8).append('§').append(SHADOW_CODE);
-        int i = 0;
-        while (i < text.length()) {
-            char c = text.charAt(i);
-            if (c == '§' && i + 1 < text.length()) {
-                char code = Character.toLowerCase(text.charAt(i + 1));
-                if (code == 'x' && i + 13 < text.length()) {
-                    sb.append(text, i, i + 14);
-                    i += 14;
-                    continue;
-                }
-                sb.append(c).append(text.charAt(i + 1));
-                if ("0123456789abcdefr".indexOf(code) >= 0) {
-                    sb.append('§').append(SHADOW_CODE);
-                }
-                i += 2;
-                continue;
-            }
-            sb.append(c);
-            i++;
-        }
-        return sb.toString();
+        return restyle(text, "§" + SHADOW_CODE);
     }
 
     /** The RGB of the six {@code §<hex>} pairs starting at {@code from}, or -1 when they are not six such pairs. */
@@ -317,20 +296,25 @@ public final class NameColor {
      */
     public static String bold(String text) {
         if (text == null || text.isEmpty()) return text == null ? "" : text;
-        StringBuilder sb = new StringBuilder(text.length() + 8).append("§l");
+        return restyle(text, "§l");
+    }
+
+    /** {@code text} behind {@code code}, repeated after every legacy color code and {@code §r}; a {@code §x} true color is copied whole. */
+    private static String restyle(String text, String code) {
+        StringBuilder sb = new StringBuilder(text.length() + 8).append(code);
         int i = 0;
         while (i < text.length()) {
             char c = text.charAt(i);
             if (c == '§' && i + 1 < text.length()) {
-                char code = Character.toLowerCase(text.charAt(i + 1));
-                if (code == 'x' && i + 13 < text.length()) {
+                char legacy = Character.toLowerCase(text.charAt(i + 1));
+                if (legacy == 'x' && i + 13 < text.length()) {
                     sb.append(text, i, i + 14);
                     i += 14;
                     continue;
                 }
                 sb.append(c).append(text.charAt(i + 1));
-                if ("0123456789abcdefr".indexOf(code) >= 0) {
-                    sb.append("§l");
+                if ("0123456789abcdefr".indexOf(legacy) >= 0) {
+                    sb.append(code);
                 }
                 i += 2;
                 continue;
