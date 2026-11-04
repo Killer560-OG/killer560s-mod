@@ -70,7 +70,6 @@ public final class ProxyConfig {
         return instance;
     }
 
-    // ---- Persistence ----
 
     /**
      * Loads config from disk, replacing the current singleton. Missing or
@@ -221,7 +220,6 @@ public final class ProxyConfig {
         if (port < 1 || port > 65535) port = 1080;
     }
 
-    // ---- Netty handler factory ----
 
     /**
      * Builds a fresh {@link ProxyHandler} for the configured proxy, or
@@ -248,7 +246,6 @@ public final class ProxyConfig {
         }
     }
 
-    // ---- Address parsing helpers ----
 
     /**
      * Parses a "host:port" string (splitting on the last colon so IPv6-ish
@@ -277,17 +274,13 @@ public final class ProxyConfig {
     }
 
     public String getAddressString() {
-        if (host == null || host.isBlank()) {
-            return "";
-        }
-        return host + ":" + port;
+        return host == null || host.isBlank() ? "" : host + ":" + port;
     }
 
     public boolean hasValidAddress() {
         return host != null && !host.isBlank() && port >= 1 && port <= 65535;
     }
 
-    // ---- Accessors ----
 
     public ProxyType getType() {
         return type;

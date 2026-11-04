@@ -50,10 +50,7 @@ public final class AccountProxyProfile {
     }
 
     public String getAddressString() {
-        if (host == null || host.isBlank()) {
-            return "";
-        }
-        return host + ":" + port;
+        return host == null || host.isBlank() ? "" : host + ":" + port;
     }
 
     /** Same "host:port", split-on-last-colon parsing {@link ProxyConfig#parseAndSetAddress} uses. */
