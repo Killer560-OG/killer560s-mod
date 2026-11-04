@@ -682,9 +682,7 @@ public final class ObjectHiderFeature {
         return rel >= 9.0 && rel <= 25.0 && z <= 45.0;
     }
 
-    private static boolean isMasterSeven() {
-        return "M7".equals(DungeonState.getFloor());
-    }
+    private static boolean isMasterSeven() { return "M7".equals(DungeonState.getFloor()); }
 
     /** SkyHanni's {@code DungeonApi.isOneOf("F3", "M3")} for the Clean End guardian exception. */
     private static boolean isFloorThree() {

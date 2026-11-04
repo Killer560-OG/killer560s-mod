@@ -261,508 +261,262 @@ public final class ObjectHiderConfig {
 
     // --- Gated getters (feature code) + raw getters (settings GUI) --------------------------------
 
-    public boolean isObjectHiderEnabled() {
-        return objectHiderEnabled;
-    }
+    public boolean isObjectHiderEnabled() { return objectHiderEnabled; }
 
-    public void setObjectHiderEnabled(boolean v) {
-        this.objectHiderEnabled = v;
-    }
+    public void setObjectHiderEnabled(boolean v) { this.objectHiderEnabled = v; }
 
-    public boolean isHideFairy() {
-        return objectHiderEnabled && hideFairy && SkyblockGate.allows();
-    }
+    public boolean isHideFairy() { return objectHiderEnabled && hideFairy && SkyblockGate.allows(); }
 
-    public boolean getHideFairyRaw() {
-        return hideFairy;
-    }
+    public boolean getHideFairyRaw() { return hideFairy; }
 
-    public void setHideFairy(boolean v) {
-        hideFairy = v;
-    }
+    public void setHideFairy(boolean v) { hideFairy = v; }
 
-    public boolean isHideHealerOrbs() {
-        return objectHiderEnabled && hideHealerOrbs && SkyblockGate.allows();
-    }
+    public boolean isHideHealerOrbs() { return objectHiderEnabled && hideHealerOrbs && SkyblockGate.allows(); }
 
-    public boolean getHideHealerOrbsRaw() {
-        return hideHealerOrbs;
-    }
+    public boolean getHideHealerOrbsRaw() { return hideHealerOrbs; }
 
-    public void setHideHealerOrbs(boolean v) {
-        hideHealerOrbs = v;
-    }
+    public void setHideHealerOrbs(boolean v) { hideHealerOrbs = v; }
 
-    public boolean isKeepNearbyOrbs() {
-        return keepNearbyOrbs;
-    }
+    public boolean isKeepNearbyOrbs() { return keepNearbyOrbs; }
 
-    public void setKeepNearbyOrbs(boolean v) {
-        keepNearbyOrbs = v;
-    }
+    public void setKeepNearbyOrbs(boolean v) { keepNearbyOrbs = v; }
 
-    public int getKeepOrbRadius() {
-        return keepOrbRadius;
-    }
+    public int getKeepOrbRadius() { return keepOrbRadius; }
 
-    public void setKeepOrbRadius(int v) {
-        keepOrbRadius = Math.max(1, Math.min(20, v));
-    }
+    public void setKeepOrbRadius(int v) { keepOrbRadius = Math.max(1, Math.min(20, v)); }
 
-    public boolean isHideSoulweaverSkulls() {
-        return objectHiderEnabled && hideSoulweaverSkulls && SkyblockGate.allows();
-    }
+    public boolean isHideSoulweaverSkulls() { return objectHiderEnabled && hideSoulweaverSkulls && SkyblockGate.allows(); }
 
-    public boolean getHideSoulweaverSkullsRaw() {
-        return hideSoulweaverSkulls;
-    }
+    public boolean getHideSoulweaverSkullsRaw() { return hideSoulweaverSkulls; }
 
-    public void setHideSoulweaverSkulls(boolean v) {
-        hideSoulweaverSkulls = v;
-    }
+    public void setHideSoulweaverSkulls(boolean v) { hideSoulweaverSkulls = v; }
 
-    public boolean isHideArcherPassive() {
-        return objectHiderEnabled && hideArcherPassive && SkyblockGate.allows();
-    }
+    public boolean isHideArcherPassive() { return objectHiderEnabled && hideArcherPassive && SkyblockGate.allows(); }
 
-    public boolean getHideArcherPassiveRaw() {
-        return hideArcherPassive;
-    }
+    public boolean getHideArcherPassiveRaw() { return hideArcherPassive; }
 
-    public void setHideArcherPassive(boolean v) {
-        hideArcherPassive = v;
-    }
+    public void setHideArcherPassive(boolean v) { hideArcherPassive = v; }
 
-    public boolean isHideSheep() {
-        return objectHiderEnabled && hideSheep && SkyblockGate.allows();
-    }
+    public boolean isHideSheep() { return objectHiderEnabled && hideSheep && SkyblockGate.allows(); }
 
-    public boolean getHideSheepRaw() {
-        return hideSheep;
-    }
+    public boolean getHideSheepRaw() { return hideSheep; }
 
-    public void setHideSheep(boolean v) {
-        hideSheep = v;
-    }
+    public void setHideSheep(boolean v) { hideSheep = v; }
 
-    public boolean isHideWitherborn() {
-        return objectHiderEnabled && hideWitherborn && SkyblockGate.allows();
-    }
+    public boolean isHideWitherborn() { return objectHiderEnabled && hideWitherborn && SkyblockGate.allows(); }
 
-    public boolean getHideWitherbornRaw() {
-        return hideWitherborn;
-    }
+    public boolean getHideWitherbornRaw() { return hideWitherborn; }
 
-    public void setHideWitherborn(boolean v) {
-        hideWitherborn = v;
-    }
+    public void setHideWitherborn(boolean v) { hideWitherborn = v; }
 
-    public boolean isHideCloakCreepers() {
-        return objectHiderEnabled && hideCloakCreepers && SkyblockGate.allows();
-    }
+    public boolean isHideCloakCreepers() { return objectHiderEnabled && hideCloakCreepers && SkyblockGate.allows(); }
 
-    public boolean getHideCloakCreepersRaw() {
-        return hideCloakCreepers;
-    }
+    public boolean getHideCloakCreepersRaw() { return hideCloakCreepers; }
 
-    public void setHideCloakCreepers(boolean v) {
-        hideCloakCreepers = v;
-    }
+    public void setHideCloakCreepers(boolean v) { hideCloakCreepers = v; }
 
-    public boolean isHideHypeHearts() {
-        return objectHiderEnabled && hideHypeHearts && SkyblockGate.allows();
-    }
+    public boolean isHideHypeHearts() { return objectHiderEnabled && hideHypeHearts && SkyblockGate.allows(); }
 
-    public boolean getHideHypeHeartsRaw() {
-        return hideHypeHearts;
-    }
+    public boolean getHideHypeHeartsRaw() { return hideHypeHearts; }
 
-    public void setHideHypeHearts(boolean v) {
-        hideHypeHearts = v;
-    }
+    public void setHideHypeHearts(boolean v) { hideHypeHearts = v; }
 
-    public boolean isHideDyingDragons() {
-        return objectHiderEnabled && hideDyingDragons && SkyblockGate.allows();
-    }
+    public boolean isHideDyingDragons() { return objectHiderEnabled && hideDyingDragons && SkyblockGate.allows(); }
 
-    public boolean getHideDyingDragonsRaw() {
-        return hideDyingDragons;
-    }
+    public boolean getHideDyingDragonsRaw() { return hideDyingDragons; }
 
-    public void setHideDyingDragons(boolean v) {
-        hideDyingDragons = v;
-    }
+    public void setHideDyingDragons(boolean v) { hideDyingDragons = v; }
 
-    public boolean isHideWitherKing() {
-        return objectHiderEnabled && hideWitherKing && SkyblockGate.allows();
-    }
+    public boolean isHideWitherKing() { return objectHiderEnabled && hideWitherKing && SkyblockGate.allows(); }
 
-    public boolean getHideWitherKingRaw() {
-        return hideWitherKing;
-    }
+    public boolean getHideWitherKingRaw() { return hideWitherKing; }
 
-    public void setHideWitherKing(boolean v) {
-        hideWitherKing = v;
-    }
+    public void setHideWitherKing(boolean v) { hideWitherKing = v; }
 
-    public boolean isHideBossDamageSplash() {
-        return objectHiderEnabled && hideBossDamageSplash && SkyblockGate.allows();
-    }
+    public boolean isHideBossDamageSplash() { return objectHiderEnabled && hideBossDamageSplash && SkyblockGate.allows(); }
 
-    public boolean getHideBossDamageSplashRaw() {
-        return hideBossDamageSplash;
-    }
+    public boolean getHideBossDamageSplashRaw() { return hideBossDamageSplash; }
 
-    public void setHideBossDamageSplash(boolean v) {
-        hideBossDamageSplash = v;
-    }
+    public void setHideBossDamageSplash(boolean v) { hideBossDamageSplash = v; }
 
-    public boolean isCleanEnd() {
-        return objectHiderEnabled && cleanEnd && SkyblockGate.allows();
-    }
+    public boolean isCleanEnd() { return objectHiderEnabled && cleanEnd && SkyblockGate.allows(); }
 
-    public boolean getCleanEndRaw() {
-        return cleanEnd;
-    }
+    public boolean getCleanEndRaw() { return cleanEnd; }
 
-    public void setCleanEnd(boolean v) {
-        cleanEnd = v;
-    }
+    public void setCleanEnd(boolean v) { cleanEnd = v; }
 
-    public boolean isCleanEndKeepGuardians() {
-        return cleanEndKeepGuardians;
-    }
+    public boolean isCleanEndKeepGuardians() { return cleanEndKeepGuardians; }
 
-    public void setCleanEndKeepGuardians(boolean v) {
-        cleanEndKeepGuardians = v;
-    }
+    public void setCleanEndKeepGuardians(boolean v) { cleanEndKeepGuardians = v; }
 
-    public boolean isHideGroundedArrows() {
-        return objectHiderEnabled && hideGroundedArrows && SkyblockGate.allows();
-    }
+    public boolean isHideGroundedArrows() { return objectHiderEnabled && hideGroundedArrows && SkyblockGate.allows(); }
 
-    public boolean getHideGroundedArrowsRaw() {
-        return hideGroundedArrows;
-    }
+    public boolean getHideGroundedArrowsRaw() { return hideGroundedArrows; }
 
-    public void setHideGroundedArrows(boolean v) {
-        hideGroundedArrows = v;
-    }
+    public void setHideGroundedArrows(boolean v) { hideGroundedArrows = v; }
 
-    public boolean isDisableBlindness() {
-        return objectHiderEnabled && disableBlindness && SkyblockGate.allows();
-    }
+    public boolean isDisableBlindness() { return objectHiderEnabled && disableBlindness && SkyblockGate.allows(); }
 
-    public boolean getDisableBlindnessRaw() {
-        return disableBlindness;
-    }
+    public boolean getDisableBlindnessRaw() { return disableBlindness; }
 
-    public void setDisableBlindness(boolean v) {
-        disableBlindness = v;
-    }
+    public void setDisableBlindness(boolean v) { disableBlindness = v; }
 
-    public boolean isHideDeathAnimations() {
-        return objectHiderEnabled && hideDeathAnimations && SkyblockGate.allows();
-    }
+    public boolean isHideDeathAnimations() { return objectHiderEnabled && hideDeathAnimations && SkyblockGate.allows(); }
 
-    public boolean getHideDeathAnimationsRaw() {
-        return hideDeathAnimations;
-    }
+    public boolean getHideDeathAnimationsRaw() { return hideDeathAnimations; }
 
-    public void setHideDeathAnimations(boolean v) {
-        hideDeathAnimations = v;
-    }
+    public void setHideDeathAnimations(boolean v) { hideDeathAnimations = v; }
 
-    public boolean isHideDeadNametags() {
-        return objectHiderEnabled && hideDeadNametags;
-    }
+    public boolean isHideDeadNametags() { return objectHiderEnabled && hideDeadNametags; }
 
-    public void setHideDeadNametags(boolean v) {
-        hideDeadNametags = v;
-    }
+    public void setHideDeadNametags(boolean v) { hideDeadNametags = v; }
 
-    public boolean isHideBlockBreakParticles() {
-        return objectHiderEnabled && hideBlockBreakParticles && SkyblockGate.allows();
-    }
+    public boolean isHideBlockBreakParticles() { return objectHiderEnabled && hideBlockBreakParticles && SkyblockGate.allows(); }
 
-    public boolean getHideBlockBreakParticlesRaw() {
-        return hideBlockBreakParticles;
-    }
+    public boolean getHideBlockBreakParticlesRaw() { return hideBlockBreakParticles; }
 
-    public void setHideBlockBreakParticles(boolean v) {
-        hideBlockBreakParticles = v;
-    }
+    public void setHideBlockBreakParticles(boolean v) { hideBlockBreakParticles = v; }
 
     /** 2026-09-20: renamed from "Explosion Particles"/isHideExplosionParticles - see the field's own comment. */
     public boolean isHideWitherImpactExplosions() {
         return objectHiderEnabled && hideWitherImpactExplosions && SkyblockGate.allows();
     }
 
-    public boolean getHideWitherImpactExplosionsRaw() {
-        return hideWitherImpactExplosions;
-    }
+    public boolean getHideWitherImpactExplosionsRaw() { return hideWitherImpactExplosions; }
 
-    public void setHideWitherImpactExplosions(boolean v) {
-        hideWitherImpactExplosions = v;
-    }
+    public void setHideWitherImpactExplosions(boolean v) { hideWitherImpactExplosions = v; }
 
-    public boolean isHideSmokeParticles() {
-        return objectHiderEnabled && hideSmokeParticles && SkyblockGate.allows();
-    }
+    public boolean isHideSmokeParticles() { return objectHiderEnabled && hideSmokeParticles && SkyblockGate.allows(); }
 
-    public boolean getHideSmokeParticlesRaw() {
-        return hideSmokeParticles;
-    }
+    public boolean getHideSmokeParticlesRaw() { return hideSmokeParticles; }
 
-    public void setHideSmokeParticles(boolean v) {
-        hideSmokeParticles = v;
-    }
+    public void setHideSmokeParticles(boolean v) { hideSmokeParticles = v; }
 
 
-    public boolean isDisableTextShadow() {
-        return objectHiderEnabled && disableTextShadow && SkyblockGate.allows();
-    }
+    public boolean isDisableTextShadow() { return objectHiderEnabled && disableTextShadow && SkyblockGate.allows(); }
 
-    public boolean getDisableTextShadowRaw() {
-        return disableTextShadow;
-    }
+    public boolean getDisableTextShadowRaw() { return disableTextShadow; }
 
-    public void setDisableTextShadow(boolean v) {
-        disableTextShadow = v;
-    }
+    public void setDisableTextShadow(boolean v) { disableTextShadow = v; }
 
-    public boolean isContainerTextShadow() {
-        return objectHiderEnabled && containerTextShadow && SkyblockGate.allows();
-    }
+    public boolean isContainerTextShadow() { return objectHiderEnabled && containerTextShadow && SkyblockGate.allows(); }
 
-    public boolean getContainerTextShadowRaw() {
-        return containerTextShadow;
-    }
+    public boolean getContainerTextShadowRaw() { return containerTextShadow; }
 
-    public void setContainerTextShadow(boolean v) {
-        containerTextShadow = v;
-    }
+    public void setContainerTextShadow(boolean v) { containerTextShadow = v; }
 
-    public boolean isDisableFog() {
-        return objectHiderEnabled && disableFog && SkyblockGate.allows();
-    }
+    public boolean isDisableFog() { return objectHiderEnabled && disableFog && SkyblockGate.allows(); }
 
-    public boolean getDisableFogRaw() {
-        return disableFog;
-    }
+    public boolean getDisableFogRaw() { return disableFog; }
 
-    public void setDisableFog(boolean v) {
-        disableFog = v;
-    }
+    public void setDisableFog(boolean v) { disableFog = v; }
 
-    public boolean isFixCrimsonIsleFog() {
-        return objectHiderEnabled && fixCrimsonIsleFog && SkyblockGate.allows();
-    }
+    public boolean isFixCrimsonIsleFog() { return objectHiderEnabled && fixCrimsonIsleFog && SkyblockGate.allows(); }
 
-    public boolean getFixCrimsonIsleFogRaw() {
-        return fixCrimsonIsleFog;
-    }
+    public boolean getFixCrimsonIsleFogRaw() { return fixCrimsonIsleFog; }
 
-    public void setFixCrimsonIsleFog(boolean v) {
-        fixCrimsonIsleFog = v;
-    }
+    public void setFixCrimsonIsleFog(boolean v) { fixCrimsonIsleFog = v; }
 
-    public boolean isHideFallingBlocks() {
-        return objectHiderEnabled && hideFallingBlocks && SkyblockGate.allows();
-    }
+    public boolean isHideFallingBlocks() { return objectHiderEnabled && hideFallingBlocks && SkyblockGate.allows(); }
 
-    public boolean getHideFallingBlocksRaw() {
-        return hideFallingBlocks;
-    }
+    public boolean getHideFallingBlocksRaw() { return hideFallingBlocks; }
 
-    public void setHideFallingBlocks(boolean v) {
-        hideFallingBlocks = v;
-    }
+    public void setHideFallingBlocks(boolean v) { hideFallingBlocks = v; }
 
-    public boolean isHideLightning() {
-        return objectHiderEnabled && hideLightning && SkyblockGate.allows();
-    }
+    public boolean isHideLightning() { return objectHiderEnabled && hideLightning && SkyblockGate.allows(); }
 
-    public boolean getHideLightningRaw() {
-        return hideLightning;
-    }
+    public boolean getHideLightningRaw() { return hideLightning; }
 
-    public void setHideLightning(boolean v) {
-        hideLightning = v;
-    }
+    public void setHideLightning(boolean v) { hideLightning = v; }
 
-    public boolean isHideRecipeBookButton() {
-        return objectHiderEnabled && hideRecipeBookButton && SkyblockGate.allows();
-    }
+    public boolean isHideRecipeBookButton() { return objectHiderEnabled && hideRecipeBookButton && SkyblockGate.allows(); }
 
-    public boolean getHideRecipeBookButtonRaw() {
-        return hideRecipeBookButton;
-    }
+    public boolean getHideRecipeBookButtonRaw() { return hideRecipeBookButton; }
 
-    public void setHideRecipeBookButton(boolean v) {
-        hideRecipeBookButton = v;
-    }
+    public void setHideRecipeBookButton(boolean v) { hideRecipeBookButton = v; }
 
 
-    public boolean isCancelVanillaNametags() {
-        return objectHiderEnabled && cancelVanillaNametags && SkyblockGate.allows();
-    }
+    public boolean isCancelVanillaNametags() { return objectHiderEnabled && cancelVanillaNametags && SkyblockGate.allows(); }
 
-    public boolean getCancelVanillaNametagsRaw() {
-        return cancelVanillaNametags;
-    }
+    public boolean getCancelVanillaNametagsRaw() { return cancelVanillaNametags; }
 
-    public void setCancelVanillaNametags(boolean v) {
-        cancelVanillaNametags = v;
-    }
+    public void setCancelVanillaNametags(boolean v) { cancelVanillaNametags = v; }
 
 
-    public boolean isHideHealthBar() {
-        return objectHiderEnabled && hideHealthBar && SkyblockGate.allows();
-    }
+    public boolean isHideHealthBar() { return objectHiderEnabled && hideHealthBar && SkyblockGate.allows(); }
 
-    public boolean getHideHealthBarRaw() {
-        return hideHealthBar;
-    }
+    public boolean getHideHealthBarRaw() { return hideHealthBar; }
 
-    public void setHideHealthBar(boolean v) {
-        hideHealthBar = v;
-    }
+    public void setHideHealthBar(boolean v) { hideHealthBar = v; }
 
-    public boolean isHideAbsorptionHearts() {
-        return objectHiderEnabled && hideAbsorptionHearts && SkyblockGate.allows();
-    }
+    public boolean isHideAbsorptionHearts() { return objectHiderEnabled && hideAbsorptionHearts && SkyblockGate.allows(); }
 
-    public boolean getHideAbsorptionHeartsRaw() {
-        return hideAbsorptionHearts;
-    }
+    public boolean getHideAbsorptionHeartsRaw() { return hideAbsorptionHearts; }
 
-    public void setHideAbsorptionHearts(boolean v) {
-        hideAbsorptionHearts = v;
-    }
+    public void setHideAbsorptionHearts(boolean v) { hideAbsorptionHearts = v; }
 
-    public boolean isHideMountHealthBar() {
-        return objectHiderEnabled && hideMountHealthBar && SkyblockGate.allows();
-    }
+    public boolean isHideMountHealthBar() { return objectHiderEnabled && hideMountHealthBar && SkyblockGate.allows(); }
 
-    public boolean getHideMountHealthBarRaw() {
-        return hideMountHealthBar;
-    }
+    public boolean getHideMountHealthBarRaw() { return hideMountHealthBar; }
 
-    public void setHideMountHealthBar(boolean v) {
-        hideMountHealthBar = v;
-    }
+    public void setHideMountHealthBar(boolean v) { hideMountHealthBar = v; }
 
-    public boolean isHideRegenBounce() {
-        return objectHiderEnabled && hideRegenBounce && SkyblockGate.allows();
-    }
+    public boolean isHideRegenBounce() { return objectHiderEnabled && hideRegenBounce && SkyblockGate.allows(); }
 
-    public boolean getHideRegenBounceRaw() {
-        return hideRegenBounce;
-    }
+    public boolean getHideRegenBounceRaw() { return hideRegenBounce; }
 
-    public void setHideRegenBounce(boolean v) {
-        hideRegenBounce = v;
-    }
+    public void setHideRegenBounce(boolean v) { hideRegenBounce = v; }
 
-    public boolean isHideArmorBar() {
-        return objectHiderEnabled && hideArmorBar && SkyblockGate.allows();
-    }
+    public boolean isHideArmorBar() { return objectHiderEnabled && hideArmorBar && SkyblockGate.allows(); }
 
-    public boolean getHideArmorBarRaw() {
-        return hideArmorBar;
-    }
+    public boolean getHideArmorBarRaw() { return hideArmorBar; }
 
-    public void setHideArmorBar(boolean v) {
-        hideArmorBar = v;
-    }
+    public void setHideArmorBar(boolean v) { hideArmorBar = v; }
 
-    public boolean isHideHungerBar() {
-        return objectHiderEnabled && hideHungerBar && SkyblockGate.allows();
-    }
+    public boolean isHideHungerBar() { return objectHiderEnabled && hideHungerBar && SkyblockGate.allows(); }
 
-    public boolean getHideHungerBarRaw() {
-        return hideHungerBar;
-    }
+    public boolean getHideHungerBarRaw() { return hideHungerBar; }
 
-    public void setHideHungerBar(boolean v) {
-        hideHungerBar = v;
-    }
+    public void setHideHungerBar(boolean v) { hideHungerBar = v; }
 
 
-    public boolean isDisableItemCooldowns() {
-        return objectHiderEnabled && disableItemCooldowns && SkyblockGate.allows();
-    }
+    public boolean isDisableItemCooldowns() { return objectHiderEnabled && disableItemCooldowns && SkyblockGate.allows(); }
 
-    public boolean getDisableItemCooldownsRaw() {
-        return disableItemCooldowns;
-    }
+    public boolean getDisableItemCooldownsRaw() { return disableItemCooldowns; }
 
-    public void setDisableItemCooldowns(boolean v) {
-        disableItemCooldowns = v;
-    }
+    public void setDisableItemCooldowns(boolean v) { disableItemCooldowns = v; }
 
 
-    public boolean isNoEatAnimation() {
-        return objectHiderEnabled && noEatAnimation && SkyblockGate.allows();
-    }
+    public boolean isNoEatAnimation() { return objectHiderEnabled && noEatAnimation && SkyblockGate.allows(); }
 
-    public boolean getNoEatAnimationRaw() {
-        return noEatAnimation;
-    }
+    public boolean getNoEatAnimationRaw() { return noEatAnimation; }
 
-    public void setNoEatAnimation(boolean v) {
-        noEatAnimation = v;
-    }
+    public void setNoEatAnimation(boolean v) { noEatAnimation = v; }
 
-    public boolean isNoShortbowSwing() {
-        return objectHiderEnabled && noShortbowSwing && SkyblockGate.allows();
-    }
+    public boolean isNoShortbowSwing() { return objectHiderEnabled && noShortbowSwing && SkyblockGate.allows(); }
 
-    public boolean getNoShortbowSwingRaw() {
-        return noShortbowSwing;
-    }
+    public boolean getNoShortbowSwingRaw() { return noShortbowSwing; }
 
-    public void setNoShortbowSwing(boolean v) {
-        noShortbowSwing = v;
-    }
+    public void setNoShortbowSwing(boolean v) { noShortbowSwing = v; }
 
     // --- QUOI 1.1.1 Hide Players -------------------------------------------------------------------------
 
-    public boolean isHidePlayers() {
-        return objectHiderEnabled && hidePlayers && SkyblockGate.allows();
-    }
+    public boolean isHidePlayers() { return objectHiderEnabled && hidePlayers && SkyblockGate.allows(); }
 
-    public boolean getHidePlayersRaw() {
-        return hidePlayers;
-    }
+    public boolean getHidePlayersRaw() { return hidePlayers; }
 
-    public void setHidePlayers(boolean v) {
-        hidePlayers = v;
-    }
+    public void setHidePlayers(boolean v) { hidePlayers = v; }
 
     /** 0 = no distance cap (hide regardless of range). */
-    public int getHidePlayersDistance() {
-        return hidePlayersDistance;
-    }
+    public int getHidePlayersDistance() { return hidePlayersDistance; }
 
-    public void setHidePlayersDistance(int v) {
-        hidePlayersDistance = Math.max(0, Math.min(128, v));
-    }
+    public void setHidePlayersDistance(int v) { hidePlayersDistance = Math.max(0, Math.min(128, v)); }
 
-    public boolean isHidePlayersDungeonOnly() {
-        return hidePlayersDungeonOnly;
-    }
+    public boolean isHidePlayersDungeonOnly() { return hidePlayersDungeonOnly; }
 
-    public void setHidePlayersDungeonOnly(boolean v) {
-        hidePlayersDungeonOnly = v;
-    }
+    public void setHidePlayersDungeonOnly(boolean v) { hidePlayersDungeonOnly = v; }
 
-    public boolean isHidePlayersBossOnly() {
-        return hidePlayersBossOnly;
-    }
+    public boolean isHidePlayersBossOnly() { return hidePlayersBossOnly; }
 
-    public void setHidePlayersBossOnly(boolean v) {
-        hidePlayersBossOnly = v;
-    }
+    public void setHidePlayersBossOnly(boolean v) { hidePlayersBossOnly = v; }
 }
