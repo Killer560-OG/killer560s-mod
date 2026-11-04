@@ -242,9 +242,7 @@ public final class VoiceToTextFeature {
         stopRecordingAndTranscribe(false);
     }
 
-    // ------------------------------------------------------------------
     // Model preparation (background thread only)
-    // ------------------------------------------------------------------
 
     private static void prepareModelAndStartRecording() {
         try {
@@ -369,9 +367,7 @@ public final class VoiceToTextFeature {
         }
     }
 
-    // ------------------------------------------------------------------
     // Recording (main thread starts/stops a dedicated capture thread)
-    // ------------------------------------------------------------------
 
     private static final AudioFormat FORMAT = new AudioFormat(16000f, 16, 1, true, false);
 

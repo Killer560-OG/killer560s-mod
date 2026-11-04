@@ -228,7 +228,6 @@ public final class VoskLibrary {
         }
     }
 
-    // ------------------------------------------------------------------ the Vosk calls the feature makes
 
     /** {@code new org.vosk.Model(path)}. Close it with {@link AutoCloseable#close()}. */
     public AutoCloseable newModel(String path) throws Exception {
