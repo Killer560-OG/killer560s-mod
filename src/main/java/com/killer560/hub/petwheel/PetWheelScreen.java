@@ -377,10 +377,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
         if (hideName) {
             return pet.level() >= 0 ? "[Lvl " + pet.level() + "]" : "";
         }
-        if (hideLevel) {
-            return pet.name();
-        }
-        return pet.shortLabel();
+        return hideLevel ? pet.name() : pet.shortLabel();
     }
 
     /** Built once per pet per screen instance and cached - see the class doc's per-frame-cost note. Same

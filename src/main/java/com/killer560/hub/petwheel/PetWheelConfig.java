@@ -202,7 +202,6 @@ public final class PetWheelConfig {
         }
     }
 
-    // ------------------------------------------------------------------ simple settings
 
     public boolean isEnabled() {
         return enabled;
@@ -298,7 +297,6 @@ public final class PetWheelConfig {
         this.nextPageKeyCode = KeyUtil.sanitizeBind(code);
     }
 
-    // ------------------------------------------------------------------ pages
 
     private static void readPages(JsonObject root, PetWheelConfig cfg) {
         cfg.pages.clear();
@@ -390,7 +388,6 @@ public final class PetWheelConfig {
         return true;
     }
 
-    // ------------------------------------------------------------------ pet lists
 
     /** @return an unmodifiable, ordered snapshot of the wheel's pets. */
     public List<PetEntry> getWheelPets() {
@@ -476,7 +473,6 @@ public final class PetWheelConfig {
         return changed;
     }
 
-    // ------------------------------------------------------------------ helpers
 
     private static int clampScale(int v) {
         return Math.max(MIN_SCALE_PCT, Math.min(MAX_SCALE_PCT, v));
