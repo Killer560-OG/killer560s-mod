@@ -5,9 +5,11 @@ import com.killer560.hub.powdermining.PowderPackets;
 import com.killer560.hub.powdermining.TreasureChests;
 import com.killer560.hub.util.ModLog;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEventPacket;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
+import net.minecraft.world.level.block.Blocks;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -32,6 +34,18 @@ public abstract class PowderPacketMixin {
             TreasureChests.onBlockChanged(packet.getPos());
         } catch (RuntimeException e) {
             killer560smod$powder$threw("blockUpdate", e);
+        }
+    }
+
+    /** A chest lid opening (block event 1 with a count above 0): that treasure chest was opened. Same on 26.3 and 26.2 (javap). */
+    @Inject(method = "handleBlockEvent", at = @At("RETURN"), require = 0)
+    private void killer560smod$powderChestLid(ClientboundBlockEventPacket packet, CallbackInfo ci) {
+        try {
+            if (packet.getB0() == 1 && packet.getB1() > 0 && packet.getBlock() == Blocks.CHEST) {
+                TreasureChests.onChestOpened(packet.getPos());
+            }
+        } catch (RuntimeException e) {
+            killer560smod$powder$threw("blockEvent", e);
         }
     }
 

@@ -33,12 +33,14 @@ public class TreasureChestHighlightTab extends BaseTab {
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Countdown Over Chests", cfg::isTreasureChestCountdown,
                 cfg::setTreasureChestCountdown, cfg::save);
         y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Tracer", cfg::isTreasureChestTracer,
-                cfg::setTreasureChestTracer, cfg::save);
+        w.add(onOffButton("Tracer", cfg::isTreasureChestTracer, cfg::setTreasureChestTracer, cfg::save, requestRebuild,
+                contentX, y, contentWidth, MiningQolRows.ROW));
         y += MiningQolRows.STEP;
-        MiningQolRows.color(w, contentX, y, contentWidth, "Tracer Color", cfg::getTreasureChestTracerColor,
-                cfg::setTreasureChestTracerColor, PowderMiningConfig.DEFAULT_CHEST_COLOR, cfg::save);
-        y += MiningQolRows.STEP;
+        if (cfg.isTreasureChestTracer() || isSearchScan()) {
+            MiningQolRows.cycle(w, contentX, y, contentWidth, "Tracer Mode", () -> cfg.getTreasureChestTracerMode().label(),
+                    cfg::stepTreasureChestTracerMode, cfg::save);
+            y += MiningQolRows.STEP;
+        }
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Hide Opened Chests", cfg::isTreasureChestHideOpened,
                 cfg::setTreasureChestHideOpened, cfg::save);
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {

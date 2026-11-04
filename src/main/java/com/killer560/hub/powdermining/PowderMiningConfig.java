@@ -39,7 +39,7 @@ public final class PowderMiningConfig {
     private boolean treasureChestEsp = false;
     private boolean treasureChestHideOpened = false;
     private boolean treasureChestTracer = false;
-    private int treasureChestTracerColor = DEFAULT_CHEST_COLOR;
+    private TracerMode treasureChestTracerMode = TracerMode.CHAIN;
     private boolean treasureChestCountdown = true;
 
     private boolean chestAlert = true;
@@ -128,7 +128,9 @@ public final class PowderMiningConfig {
                 cfg.treasureChestEsp = ConfigJson.getBool(o, "treasureChestEsp", cfg.treasureChestEsp);
                 cfg.treasureChestHideOpened = ConfigJson.getBool(o, "treasureChestHideOpened", cfg.treasureChestHideOpened);
                 cfg.treasureChestTracer = ConfigJson.getBool(o, "treasureChestTracer", cfg.treasureChestTracer);
-                cfg.treasureChestTracerColor = intOr(o, "treasureChestTracerColor", cfg.treasureChestTracerColor);
+                // treasureChestTracerColor (before chestfx-1104) is ignored: each line takes its chest's box color.
+                cfg.treasureChestTracerMode = TracerMode.byName(o.has("treasureChestTracerMode")
+                        && o.get("treasureChestTracerMode").isJsonPrimitive() ? o.get("treasureChestTracerMode").getAsString() : null);
                 cfg.treasureChestCountdown = ConfigJson.getBool(o, "treasureChestCountdown", cfg.treasureChestCountdown);
                 cfg.chestAlert = ConfigJson.getBool(o, "chestAlert", cfg.chestAlert);
                 cfg.chestAlertSound = ConfigJson.getBool(o, "chestAlertSound", cfg.chestAlertSound);
@@ -178,7 +180,7 @@ public final class PowderMiningConfig {
             o.addProperty("treasureChestEsp", treasureChestEsp);
             o.addProperty("treasureChestHideOpened", treasureChestHideOpened);
             o.addProperty("treasureChestTracer", treasureChestTracer);
-            o.addProperty("treasureChestTracerColor", treasureChestTracerColor);
+            o.addProperty("treasureChestTracerMode", treasureChestTracerMode.name());
             o.addProperty("treasureChestCountdown", treasureChestCountdown);
             o.addProperty("chestAlert", chestAlert);
             o.addProperty("chestAlertSound", chestAlertSound);
@@ -273,12 +275,44 @@ public final class PowderMiningConfig {
         treasureChestTracer = v;
     }
 
-    public int getTreasureChestTracerColor() {
-        return treasureChestTracerColor;
+    /**
+     * How the treasure chest tracer runs (killer560, 2026-11-04): Chain goes crosshair -> oldest chest -> next oldest ...;
+     * From Crosshair draws one line from the crosshair to each chest.
+     */
+    public enum TracerMode {
+        CHAIN("Chain"), FROM_CROSSHAIR("From Crosshair");
+
+        private final String label;
+
+        TracerMode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+
+        static TracerMode byName(String n) {
+            for (TracerMode v : values()) {
+                if (v.name().equals(n)) {
+                    return v;
+                }
+            }
+            return CHAIN;
+        }
     }
 
-    public void setTreasureChestTracerColor(int v) {
-        treasureChestTracerColor = v;
+    public TracerMode getTreasureChestTracerMode() {
+        return treasureChestTracerMode;
+    }
+
+    public void stepTreasureChestTracerMode(int dir) {
+        TracerMode[] all = TracerMode.values();
+        treasureChestTracerMode = all[Math.floorMod(treasureChestTracerMode.ordinal() + dir, all.length)];
+    }
+
+    public void setTreasureChestTracerMode(TracerMode v) {
+        treasureChestTracerMode = v == null ? TracerMode.CHAIN : v;
     }
 
     /** The seconds left above each chest, green to red. */
