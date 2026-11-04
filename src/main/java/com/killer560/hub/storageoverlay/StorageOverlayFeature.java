@@ -436,10 +436,7 @@ public final class StorageOverlayFeature {
     private static boolean sameStack(ItemStack sa, ItemStack sb) {
         boolean emptyA = sa == null || sa.isEmpty();
         boolean emptyB = sb == null || sb.isEmpty();
-        if (emptyA || emptyB) {
-            return emptyA == emptyB;
-        }
-        return sa.getCount() == sb.getCount() && sa.getItem().equals(sb.getItem());
+        return emptyA || emptyB ? emptyA == emptyB : sa.getCount() == sb.getCount() && sa.getItem().equals(sb.getItem());
     }
 
     /** Reads the "Storage" overview menu's own per-page icons (slots 9-17 = Ender Chest pages 1-9,
@@ -1701,10 +1698,7 @@ public final class StorageOverlayFeature {
         if (local.startsWith("backpack_")) {
             return "Backpack #" + local.substring("backpack_".length());
         }
-        if (local.startsWith("wardrobe_")) {
-            return "Wardrobe #" + local.substring("wardrobe_".length());
-        }
-        return local;
+        return local.startsWith("wardrobe_") ? "Wardrobe #" + local.substring("wardrobe_".length()) : local;
     }
 
     /** Composite cache key: account UUID + SkyBlock profile + this storage's own local id - see the
