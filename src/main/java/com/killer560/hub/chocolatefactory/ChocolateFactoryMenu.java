@@ -259,9 +259,6 @@ public final class ChocolateFactoryMenu {
         if (v >= 1_000_000L) {
             return String.format(java.util.Locale.US, "%.2fM", v / 1e6);
         }
-        if (v >= 1_000L) {
-            return String.format(java.util.Locale.US, "%.1fk", v / 1e3);
-        }
-        return Long.toString(v);
+        return v >= 1_000L ? String.format(java.util.Locale.US, "%.1fk", v / 1e3) : Long.toString(v);
     }
 }

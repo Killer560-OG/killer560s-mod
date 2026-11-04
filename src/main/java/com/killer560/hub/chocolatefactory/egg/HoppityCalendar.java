@@ -148,10 +148,7 @@ public final class HoppityCalendar {
     public static long nextHuntStart(long nowMs) {
         long day = dayIndex(nowMs);
         long yearStart = day - dayOfYear(day);
-        if (huntDay(day)) {
-            return EPOCH_MS + yearStart * DAY_MS;
-        }
-        return EPOCH_MS + (yearStart + DAYS_PER_YEAR) * DAY_MS;
+        return huntDay(day) ? EPOCH_MS + yearStart * DAY_MS : EPOCH_MS + (yearStart + DAYS_PER_YEAR) * DAY_MS;
     }
 
     /** Eggs spawned so far this hunt (0-279); 0 outside it. */
