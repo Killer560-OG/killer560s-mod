@@ -783,9 +783,7 @@ public final class SimonSaysFeature {
         }
     }
 
-    // ------------------------------------------------------------------
     // Chat
-    // ------------------------------------------------------------------
 
     private static void onChatMessage(Component message) {
         String raw = com.killer560.hub.util.ChatObserver.raw(message);
@@ -855,9 +853,7 @@ public final class SimonSaysFeature {
         p.lastUpdateMs = now;
     }
 
-    // ------------------------------------------------------------------
     // Tick: detection, auto-start pacing, auto-solve pacing, trigger bot, announce key
-    // ------------------------------------------------------------------
 
     /** The body turn for a button the reported look does not reach (util/TurnFirst); the camera never moves. */
     private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
@@ -1516,9 +1512,7 @@ public final class SimonSaysFeature {
         verboseLog("[SimonSays][Stim] Rehearsing {} button(s) of round {}: {}", stimQueue.size(), size, stimQueue);
     }
 
-    // ------------------------------------------------------------------
     // Auto-start - real trigger + settings ported from NoammAddons' own SimonSays.kt
-    // ------------------------------------------------------------------
 
     /** The whole device is done: the client-side completion message (Terminal Timers' Simon Says time), and idle
      *  look / break detection stand down. {@code completedAtMs} is when the last click landed. */
@@ -1874,9 +1868,7 @@ public final class SimonSaysFeature {
         blankGridTicks = 0;
     }
 
-    // ------------------------------------------------------------------
     // Auto-solve (no-rotate) + trigger bot
-    // ------------------------------------------------------------------
 
     /** Diagnostic-only - logs {@code state} only when it actually changes, same convention as
      *  {@code tickRotateFrame}'s own [RotateFrame] logger. See {@link #lastLoggedAutoSolveState}. */
@@ -3258,9 +3250,7 @@ public final class SimonSaysFeature {
         diagPendingConfirmFires = 1;
     }
 
-    // ------------------------------------------------------------------
     // Rendering
-    // ------------------------------------------------------------------
 
     private static void onWorldRender(LevelRenderContext context) {
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
@@ -3353,9 +3343,7 @@ public final class SimonSaysFeature {
         poseStack.popPose();
     }
 
-    // ------------------------------------------------------------------
     // Party progress tracker HUD
-    // ------------------------------------------------------------------
 
     private static final class PartyProgress {
         int progress;
