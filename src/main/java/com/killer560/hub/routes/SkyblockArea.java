@@ -1,9 +1,7 @@
 package com.killer560.hub.routes;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
-import net.minecraft.network.chat.Component;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
