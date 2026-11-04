@@ -333,14 +333,6 @@ public final class SmoothTeleport {
         return offset != null || startFrom != null;
     }
 
-    public static int glideCount() {
-        return glides;
-    }
-
-    public static int snapCount() {
-        return snaps;
-    }
-
     public static String lastDecision() {
         return lastDecision;
     }
