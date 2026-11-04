@@ -70,9 +70,7 @@ public final class ItemLooks {
     }
 
     private static synchronized void load() {
-        if (loaded) {
-            return;
-        }
+        if (loaded) return;
         try (InputStream in = ItemLooks.class.getResourceAsStream(PATH)) {
             if (in == null) {
                 LOGGER.warn("[Pack Disabler] item table missing ({})", PATH);
@@ -113,9 +111,7 @@ public final class ItemLooks {
 
     /** The row for a SkyBlock id ({@code "INK_SACK:3"} or NEU's {@code "INK_SACK-3"}), or null. */
     public static Look get(String skyblockId) {
-        if (skyblockId == null || skyblockId.isEmpty()) {
-            return null;
-        }
+        if (skyblockId == null || skyblockId.isEmpty()) return null;
         ensureLoaded();
         Look look = rows.get(skyblockId);
         if (look == null && skyblockId.indexOf('-') >= 0) {
@@ -137,9 +133,7 @@ public final class ItemLooks {
      * menu stacks, which carry Hypixel's model but not the item's SkyBlock id.
      */
     public static String idForModel(Identifier model) {
-        if (model == null) {
-            return null;
-        }
+        if (model == null) return null;
         ensureLoaded();
         return idByModel.get(model.toString());
     }
@@ -156,15 +150,11 @@ public final class ItemLooks {
 
     /** The vanilla item a look names (null for a head, our texture, or nothing known). */
     public static Item vanillaItem(Look look) {
-        if (look == null) {
-            return null;
-        }
+        if (look == null) return null;
         if (look.vanillaId() != null) {
             Identifier id = Identifier.tryParse("minecraft:" + look.vanillaId());
             Item item = id == null ? null : BuiltInRegistries.ITEM.getOptional(id).orElse(null);
-            if (item != null && item != Items.AIR) {
-                return item;
-            }
+            if (item != null && item != Items.AIR) return item;
         }
         if (look.legacy() != null) {
             int colon = look.legacy().lastIndexOf(':');
@@ -175,9 +165,7 @@ public final class ItemLooks {
             } catch (NumberFormatException ignored) {
             }
             Item item = LegacyItems.legacyItem(name, damage);
-            if (item != null && item != Items.PAPER && item != Items.PLAYER_HEAD) {
-                return item;
-            }
+            if (item != null && item != Items.PAPER && item != Items.PLAYER_HEAD) return item;
         }
         return null;
     }
@@ -189,13 +177,9 @@ public final class ItemLooks {
      * skin. Cached per id; never throws.
      */
     public static Identifier modelFor(String skyblockId) {
-        if (skyblockId == null) {
-            return null;
-        }
+        if (skyblockId == null) return null;
         Optional<Identifier> cached = MODEL_CACHE.get(skyblockId);
-        if (cached != null) {
-            return cached.orElse(null);
-        }
+        if (cached != null) return cached.orElse(null);
         Identifier model = null;
         try {
             Look look = get(skyblockId);
@@ -220,13 +204,9 @@ public final class ItemLooks {
 
     /** The pre-pack head skin of {@code skyblockId}, or null when its old look was not a head. */
     public static ResolvableProfile profileFor(String skyblockId) {
-        if (skyblockId == null) {
-            return null;
-        }
+        if (skyblockId == null) return null;
         Optional<ResolvableProfile> cached = PROFILE_CACHE.get(skyblockId);
-        if (cached != null) {
-            return cached.orElse(null);
-        }
+        if (cached != null) return cached.orElse(null);
         ResolvableProfile profile = null;
         try {
             Look look = get(skyblockId);
@@ -249,9 +229,7 @@ public final class ItemLooks {
     public static boolean applyLook(ItemStack stack, String skyblockId) {
         try {
             Identifier model = modelFor(skyblockId);
-            if (stack == null || stack.isEmpty() || model == null) {
-                return false;
-            }
+            if (stack == null || stack.isEmpty() || model == null) return false;
             stack.set(DataComponents.ITEM_MODEL, model);
             ResolvableProfile profile = profileFor(skyblockId);
             if (profile != null) {
