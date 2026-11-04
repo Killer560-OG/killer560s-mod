@@ -297,6 +297,9 @@ They are the same rules as before; only where they live changed.
 - The sim has NO held map during a run's countdown (`HeldMap.emulated()` is false until `SimRun` reaches GO, since doc-map-1101),
   as Hypixel gives the map only at Mort's first line. A feature that reads `HeldMap` must cope with `available() == false` in
   the green room; a sim test that needs the stand-in waits for `SimRun.hasStarted()` (or re-arms with `SimRun.begin` to stay pre-run).
+  A generated floor arms the 3 s countdown by itself (`SimRun.autoStart`), so a test that waits a fixed 40 ticks after the build
+  races GO under load: 1018-predict-hypixel's walk ran pre-GO, nothing counted as opened, and the predictor recorded the late
+  glance's room (premise "167 in Mines") about one run in three under load (mapfail-1104; it now waits for GO and `emulated()`).
 - Inventory Sorter clicks come from `invsort/InvSortPlanner`, which is proven minimal (docs/INVSORT-OPTIMALITY.md). After any
   change to it, rerun `tools/invsort-optimality` (javac both files, ~5 min, every instance must print "exactly minimal"); its
   first run found a case the hand argument had missed (a hotbar slot already holding a matching copy is a free swap pivot).
