@@ -758,15 +758,19 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
 
 ### Lag spikes and TimerLimit (blinklag-1104)
 
-Why 1026-blink-lag flags TimerLimit, read off GrimAC 2.3.74 (`TimerLimit.limitFallBehind`, javap of ac_grim_grimac_common):
-when the player's last confirmed movement clock (its transaction ping) is more than `ping-abuse-limit-threshold` (1000 ms)
-behind real time, the banked timer balance is clamped, so the catch-up burst after a stall is flagged tick by tick. Nothing in
-the client can avoid it: the stalled packets are already in the network and arrive together; releasing, dropping or merging
-them does not change their arrival time, and skipping movement ticks would be a position the server never saw. Measured with
-the harness `LagSpike` (system property `killer560.test.lagMs`, default 1500): Blink OFF (1026-blink-controls) a 1.5 s spike
-draws 6-8 TimerLimit (any >1 s stall does, vanilla or not). With Blink Charge full the answers already wait 1050 ms by design
-(`BlinkCharge.answerDelayMs`, 1120 ms of room), so ANY extra lag crosses the limit: charging is clean at a 100 ms spike,
-flags 6 at 250 ms, 6 at 400, 15 at 650, 19 at 900, 23 at 1100; mid-hold (Hold's own delay is shorter) is clean to 650 ms,
-2 flags at 900. So the flag at 1.5 s is Grim's design for the baseline and the thin margin of a full Charge bank for the
-rest. The test must not expect the flag; the only mod-side lever is a smaller answer delay (a smaller bank), which is the
-owner's decision, not a bug fix.
+Why a lag spike flags TimerLimit, read off GrimAC 2.3.74 (`TimerLimit.limitFallBehind`, javap of ac_grim_grimac_common):
+when the newest ping answer GrimAC has is more than `ping-abuse-limit-threshold` (1000 ms) older than real time, the timer
+balance is clamped and the catch-up burst after a stall is flagged tick by tick. A full Charge bank holds its answers 1050 ms
+by design (`BlinkCharge.answerDelayMs`), so before the fix ANY stall crossed the limit: 6 flags at 250 ms, 23 at 1100.
+Fix (owner, 2026-11-04: keep the whole bank, just do not charge while the server lags): `BlinkCharge.tick` calls the server
+stalled when no ping answer was made for `STALL_MS` (150 ms; only once a ping was seen since Charge started, so a server that
+never pings is never judged). It then sends the held answers at once (the stall, both ways, delays them like the vanilla
+client's, so GrimAC's newest answer is the stall's own start, not 1 s older), pauses banking and re-backing, and the kept bank
+is backed again on the next still ticks once pings return (`answersWentEarly`, same machinery as a hold). Nothing is dropped
+or invented; the bank and every banked tick stay. Measured on 26.3 cheat with `killer560.test.lagMs` (1026-blink-lag, strict):
+Charging rows clean at 250/650/900/1100; at 1500 ms 8 flags, the same as Blink OFF (1026-blink-controls: 8 at 1500, clean at
+900 and 1100). The log line "charge: no server ping for N ms - lag; K answer(s) sent now, banking paused" proves it acted.
+NOT fixed: a spike in the middle of a Hold (not Charge) still flags from 900 ms (2 flags; 6 at 1100, 14 at 1500, Blink OFF is
+clean to 1100). Hold keeps every packet, pongs included, in order for the whole hold (Post/TransactionOrder), so its newest answer
+is as old as the hold; sending the pongs ahead would show GrimAC the hold as a Timer burst, and releasing the hold on a stall is
+an early release. Needs the owner's call.
