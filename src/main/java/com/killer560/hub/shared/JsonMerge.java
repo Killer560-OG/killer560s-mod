@@ -233,7 +233,6 @@ public final class JsonMerge {
         return e == null ? 0.0 : e.getAsDouble();
     }
 
-    // ---- helpers for policies ----
 
     /** A key made of the named fields of an object element, joined with '|'. */
     public static Function<JsonElement, String> fields(String... names) {

@@ -281,10 +281,7 @@ public final class RecordCatalog {
     private static String sortKey(JsonElement e, String field) {
         try {
             JsonElement v = e.getAsJsonObject().get(field);
-            if (v.getAsJsonPrimitive().isNumber()) {
-                return String.format("%020d", v.getAsLong());
-            }
-            return v.getAsString();
+            return v.getAsJsonPrimitive().isNumber() ? String.format("%020d", v.getAsLong()) : v.getAsString();
         } catch (RuntimeException bad) {
             return "";
         }

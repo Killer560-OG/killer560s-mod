@@ -190,7 +190,6 @@ public final class SharedFile {
         }
     }
 
-    // ---- locking ----
 
     private Locked lock() throws IOException {
         ReentrantLock jvm = JVM_LOCKS.computeIfAbsent(file, k -> new ReentrantLock());
