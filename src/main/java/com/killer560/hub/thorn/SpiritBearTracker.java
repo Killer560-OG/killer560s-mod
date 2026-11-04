@@ -126,9 +126,7 @@ public final class SpiritBearTracker {
         countedDeaths.clear();
     }
 
-    public static int maxKills() {
-        return ThornFeature.isMasterMode() ? M4_KILLS : F4_KILLS;
-    }
+    public static int maxKills() { return ThornFeature.isMasterMode() ? M4_KILLS : F4_KILLS; }
 
     /** Called every client tick while the Thorn fight is active (see {@link ThornFeature}). */
     static void tick(Minecraft client) {

@@ -29,9 +29,7 @@ final class ThornEspRenderer {
 
     /** Called from client init (like Noamm registering its pipelines at init) so the two pipelines are in
      *  {@code RenderPipelines}' static list before the renderer precompiles it. */
-    static void init() {
-        RenderType unused = ThroughWalls.LINES;
-    }
+    static void init() { RenderType unused = ThroughWalls.LINES; }
 
     /** Holder idiom - built once, on {@link #init()}. */
     private static final class ThroughWalls {

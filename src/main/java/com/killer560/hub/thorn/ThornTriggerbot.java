@@ -66,13 +66,9 @@ public final class ThornTriggerbot {
     }
 
     /** Whether this triggerbot is holding the use key right now, and for how many ticks in all - for the testkit. */
-    public static boolean isHolding() {
-        return holding;
-    }
+    public static boolean isHolding() { return holding; }
 
-    public static int ticksHeld() {
-        return ticksHeld;
-    }
+    public static int ticksHeld() { return ticksHeld; }
 
     /** The crosshair line meets Thorn's box, and no block stands between the eyes and that point. Entities in between
      *  are ignored on purpose. */

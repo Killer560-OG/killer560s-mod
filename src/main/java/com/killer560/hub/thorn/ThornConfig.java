@@ -225,9 +225,7 @@ public final class ThornConfig {
         }
     }
 
-    private static boolean cheat() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
-    }
+    private static boolean cheat() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED; }
 
     /** The Skyblock gate, which every effective getter below ANDs in. */
     private boolean live() { return SkyblockGate.allows(); }
@@ -278,9 +276,7 @@ public final class ThornConfig {
     public void setBowColor(int v) { bowColor = v; }
 
     public Style getStyle() { return style; }
-    public void cycleStyle() {
-        cycleStyle(1);
-    }
+    public void cycleStyle() { cycleStyle(1); }
 
     public void cycleStyle(int dir) {
         Style[] all = Style.values();

@@ -76,9 +76,7 @@ public final class ThornFeature {
         return "F4".equals(floor) || "M4".equals(floor) ? floor : null;
     }
 
-    public static boolean isMasterMode() {
-        return "M4".equals(thornFloor());
-    }
+    public static boolean isMasterMode() { return "M4".equals(thornFloor()); }
 
     /** True while in the F4/M4 boss room (see class doc). */
     public static boolean inThornBoss() {
@@ -142,19 +140,13 @@ public final class ThornFeature {
     private static final class SpiritBearHud implements HudElement {
 
         @Override
-        public String id() {
-            return "thorn_spirit_bear";
-        }
+        public String id() { return "thorn_spirit_bear"; }
 
         @Override
-        public String displayName() {
-            return "Spirit Bear Counter";
-        }
+        public String displayName() { return "Spirit Bear Counter"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
         public int defaultY() {
