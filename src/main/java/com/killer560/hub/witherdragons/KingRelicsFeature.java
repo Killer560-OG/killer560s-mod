@@ -1,5 +1,6 @@
 package com.killer560.hub.witherdragons;
 
+import com.killer560.hub.util.PerTickServerClock;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudSeen;
@@ -89,7 +90,8 @@ public final class KingRelicsFeature {
     }
 
     static void register() {
-        ServerTickClock.subscribe(KingRelicsFeature::onServerTick);
+        PerTickServerClock.register();
+        PerTickServerClock.subscribe(KingRelicsFeature::onServerTick);
         ChatObserver.subscribe(KingRelicsFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("KingRelicsFeature", client -> onClientTick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
@@ -157,7 +159,7 @@ public final class KingRelicsFeature {
         // talking through P5, and every one of his lines also matches.
         if (inBoss && com.killer560.hub.fastleap.Floor7Tracker.P5_START.matcher(plain).matches() && (p5StartTick == 0L || plain.startsWith("[BOSS] Necron"))) {
             reset();
-            p5StartTick = ServerTickClock.now();
+            p5StartTick = PerTickServerClock.now();
             relicTicksToSpawn = WitherDragonsConfig.getInstance().getRelicSpawnTicks();
             P5Splits.p5Started(System.currentTimeMillis());
             return;
@@ -191,7 +193,7 @@ public final class KingRelicsFeature {
         if (pendingRelic != null) {
             if (currentRelic != pendingRelic) {
                 placeYours(pendingRelic);
-            } else if (ServerTickClock.now() - pendingTick > 20) {
+            } else if (PerTickServerClock.now() - pendingTick > 20) {
                 pendingRelic = null; // still holding it - the click didn't place it
             }
         }
@@ -221,7 +223,7 @@ public final class KingRelicsFeature {
                 double dx = stand.getX() - r.placedX;
                 double dz = stand.getZ() - r.placedZ;
                 if (Math.sqrt(dx * dx + dz * dz) < 1.5) {
-                    double seconds = (ServerTickClock.now() - p5StartTick) / 20.0;
+                    double seconds = (PerTickServerClock.now() - p5StartTick) / 20.0;
                     PLACED.put(r, seconds);
                     P5Splits.relicPlaced(r.key(), r.colored(), System.currentTimeMillis(), PICKERS.get(r));
                 }
@@ -256,7 +258,7 @@ public final class KingRelicsFeature {
                 continue;
             }
             announcedSpawn = true;
-            double seconds = (ServerTickClock.now() - p5StartTick) / 20.0;
+            double seconds = (PerTickServerClock.now() - p5StartTick) / 20.0;
             P5Splits.relicSpawned(System.currentTimeMillis());
             if (messagesOn()) {
                 send(relic.colored() + " relic §7spawned in §6" + String.format(Locale.US, "%.2f", seconds) + "s");
@@ -280,7 +282,7 @@ public final class KingRelicsFeature {
             return;
         }
         pendingRelic = held;
-        pendingTick = ServerTickClock.now();
+        pendingTick = PerTickServerClock.now();
         pendingMs = System.currentTimeMillis();
     }
 

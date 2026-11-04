@@ -1,5 +1,6 @@
 package com.killer560.hub.ragaxe;
 
+import com.killer560.hub.util.PerTickServerClock;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.witherdragons.P5State;
@@ -47,7 +48,8 @@ final class RagAxePrompts {
 
     static void register() {
         ServerTickClock.register();
-        ServerTickClock.subscribe(RagAxePrompts::onServerTick);
+        PerTickServerClock.register();
+        PerTickServerClock.subscribe(RagAxePrompts::onServerTick);
     }
 
     static void reset() {

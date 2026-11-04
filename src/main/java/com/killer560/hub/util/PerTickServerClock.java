@@ -88,16 +88,76 @@ public final class PerTickServerClock {
         goodWindows = 0;
     }
 
-    private static synchronized void onPing() {
-        windowPings++;
-        pingsThisTick++;
-        if (trusted) {
-            clock++;
-            trustedPings++;
+    private static void onPing() {
+        boolean advanced;
+        synchronized (PerTickServerClock.class) {
+            windowPings++;
+            pingsThisTick++;
+            advanced = trusted;
+            if (trusted) {
+                clock++;
+                trustedPings++;
+            }
+        }
+        if (advanced) {
+            fire(1);
         }
     }
 
-    private static synchronized void onClientTick(long untrustedStep) {
+    private static void onClientTick(long untrustedStep) {
+        long advanced;
+        synchronized (PerTickServerClock.class) {
+            advanced = clientTickLocked(untrustedStep);
+        }
+        if (advanced > 0L) {
+            fire((int) Math.min(advanced, 100L));
+        }
+    }
+
+    /** Fires every {@link #subscribe} listener {@code times} times, outside the lock; one broken listener stops no other. */
+    private static void fire(int times) {
+        for (int i = 0; i < times; i++) {
+            for (Runnable listener : LISTENERS) {
+                try {
+                    listener.run();
+                } catch (RuntimeException e) {
+                    LOGGER.warn("[PerTickServerClock] listener failed", e);
+                }
+            }
+        }
+    }
+
+    /**
+     * Runs {@code listener} once per server tick of this clock, on the client thread: a ping while the server is trusted, a
+     * tick of the client's game time otherwise, so a stalled server stops it and a catch-up burst runs it that many times.
+     * A countdown that used to be a field decremented in {@code END_CLIENT_TICK} or in a {@code ServerTickClock}
+     * listener (client ticks whenever the server sent under 15 pings a second) belongs here (2026-11-03: "all timers
+     * seem to go off sometimes" when the server lags). Call {@link #register()} first.
+     */
+    public static void subscribe(Runnable listener) {
+        LISTENERS.add(listener);
+    }
+
+    private static final java.util.List<Runnable> LISTENERS = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * For a loop that already runs once per client tick: {@link #take()} is how many server ticks the clock moved since
+     * the last call (0 when the server stalled, 2 when a burst caught up), so {@code timer -= step.take()} replaces
+     * {@code timer--}. Call it every client tick, even while idle, so the first step of a new timer is not a stale gap.
+     */
+    public static final class Step {
+        private long last = Long.MIN_VALUE;
+
+        public int take() {
+            long now = clock;
+            long delta = last == Long.MIN_VALUE ? 1L : now - last;
+            last = now;
+            return (int) Math.max(0L, Math.min(100L, delta));
+        }
+    }
+
+    private static synchronized long clientTickLocked(long untrustedStep) {
+        long before = clock;
         clientTicks++;
         if (!trusted) {
             clock += untrustedStep;
@@ -133,6 +193,7 @@ public final class PerTickServerClock {
             windowTicks = 0;
             windowTicksWithPing = 0;
         }
+        return clock - before;
     }
 
     /** The clock now (server ticks while trusted, client ticks otherwise). */

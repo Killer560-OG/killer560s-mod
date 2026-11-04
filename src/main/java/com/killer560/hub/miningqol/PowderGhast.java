@@ -47,7 +47,9 @@ import java.util.regex.Pattern;
 public final class PowderGhast {
 
     public static final String TIMER_ID = "mining_powder_ghast";
-    static final long LIFETIME_MS = 60_000L;
+    /** The minute is the server's: 1200 server ticks of {@link com.killer560.hub.util.PerTickServerClock}, so a lagging server
+     *  keeps the ghast (and this countdown) longer instead of the HUD running out early (2026-11-03). */
+    static final long LIFETIME_TICKS = 1200L;
 
     static final Pattern SPAWN = Pattern.compile(
             "^The sound of pickaxes clashing against the rock has attracted the attention of the POWDER GHAST!$");
@@ -76,6 +78,7 @@ public final class PowderGhast {
     }
 
     static void register() {
+        com.killer560.hub.util.PerTickServerClock.register();
         ChatObserver.subscribe(PowderGhast::onChat);
     }
 
@@ -89,7 +92,7 @@ public final class PowderGhast {
             if (raw == null || raw.length() > 120) {
                 return;
             }
-            handle(raw.trim(), System.currentTimeMillis());
+            handle(raw.trim(), com.killer560.hub.util.PerTickServerClock.now());
         } catch (RuntimeException e) {
             com.killer560.hub.util.ModLog.get("killer560smod-miningqol").error("[PowderGhast] chat failed", e);
         }
@@ -98,10 +101,10 @@ public final class PowderGhast {
     private static void handle(String raw, long now) {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         if (SPAWN.matcher(raw).matches()) {
-            deadline = now + LIFETIME_MS;
+            deadline = now + LIFETIME_TICKS;
             place = null;
             partySent = false;
-            partyDueAt = now + 2000L;
+            partyDueAt = now + 40L; // two seconds of server time
             alerts++;
             if (cfg.isPowderGhastTitle()) {
                 Minecraft client = Minecraft.getInstance();
@@ -145,7 +148,7 @@ public final class PowderGhast {
             level = client.level;
             clear();
         }
-        long now = System.currentTimeMillis();
+        long now = com.killer560.hub.util.PerTickServerClock.now();
         if (deadline != 0L && !partySent && partyDueAt != 0L && now >= partyDueAt) {
             sendParty(); // no place line came: the spawn alone
         }
@@ -167,7 +170,7 @@ public final class PowderGhast {
         if (cur instanceof LivingEntity l) {
             // Every hit resets its minute (wiki): the hurt flash starting is a hit.
             if (l.hurtTime > 0 && lastHurt == 0 && deadline != 0L) {
-                deadline = now + LIFETIME_MS;
+                deadline = now + LIFETIME_TICKS;
             }
             lastHurt = l.hurtTime;
         }
@@ -286,7 +289,7 @@ public final class PowderGhast {
         long d = deadline;
         String where = place == null ? "" : " §7(" + place + ")";
         if (d != 0L) {
-            long left = Math.max(0L, (d - System.currentTimeMillis() + 999L) / 1000L);
+            long left = Math.max(0L, (d - com.killer560.hub.util.PerTickServerClock.now() + 19L) / 20L);
             return "§d§lPowder Ghast§7: §e" + left + "s" + where;
         }
         if (targetId >= 0) {
@@ -336,7 +339,7 @@ public final class PowderGhast {
     /** Seconds until the despawn, or -1 with no event running. */
     public static long secondsLeft() {
         long d = deadline;
-        return d == 0L ? -1L : Math.max(0L, (d - System.currentTimeMillis()) / 1000L);
+        return d == 0L ? -1L : Math.max(0L, (d - com.killer560.hub.util.PerTickServerClock.now()) / 20L);
     }
 
     public static String hudLineNow() {
@@ -346,7 +349,7 @@ public final class PowderGhast {
     /** Pretends the minute is up now (testkit). */
     public static void expireNow() {
         if (deadline != 0L) {
-            deadline = System.currentTimeMillis() - 1L;
+            deadline = com.killer560.hub.util.PerTickServerClock.now() - 1L;
         }
     }
 

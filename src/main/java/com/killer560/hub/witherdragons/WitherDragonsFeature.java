@@ -1,5 +1,6 @@
 package com.killer560.hub.witherdragons;
 
+import com.killer560.hub.util.PerTickServerClock;
 import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
@@ -85,7 +86,8 @@ public final class WitherDragonsFeature {
 
     public static void register() {
         ServerTickClock.register();
-        ServerTickClock.subscribe(WitherDragonsFeature::onServerTick);
+        PerTickServerClock.register();
+        PerTickServerClock.subscribe(WitherDragonsFeature::onServerTick);
         ChatObserver.subscribe(WitherDragonsFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WitherDragonsFeature", client -> onClientTick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
@@ -172,7 +174,7 @@ public final class WitherDragonsFeature {
         d.timeToSpawn = 0;
         d.state = WitherDragon.State.ALIVE;
         d.timesSpawned++;
-        d.spawnedTick = ServerTickClock.now();
+        d.spawnedTick = PerTickServerClock.now();
         d.spawnedMs = System.currentTimeMillis();
         d.sprayed = false;
         d.arrowsHit = 0;
@@ -205,7 +207,7 @@ public final class WitherDragonsFeature {
         }
         List<String> stats = new ArrayList<>();
         if (cfg.isSendTime()) {
-            stats.add("§7alive for §6" + String.format(Locale.US, "%.2f", (ServerTickClock.now() - d.spawnedTick) / 20f) + "s");
+            stats.add("§7alive for §6" + String.format(Locale.US, "%.2f", (PerTickServerClock.now() - d.spawnedTick) / 20f) + "s");
         }
         if (cfg.isSendArrows() && wasPriority) {
             stats.add("§farrows hit §6" + d.arrowsHit);
@@ -326,7 +328,7 @@ public final class WitherDragonsFeature {
                 continue;
             }
             d.sprayed = true;
-            long ticks = ServerTickClock.now() - d.spawnedTick;
+            long ticks = PerTickServerClock.now() - d.spawnedTick;
             if (messagesOn() && WitherDragonsConfig.getInstance().isSendSpray()) {
                 send(Component.literal(d.colored() + " §fdragon was sprayed in §c" + ticks + " §ftick" + (ticks > 1 ? "s" : "") + "."));
             }
@@ -340,7 +342,7 @@ public final class WitherDragonsFeature {
             return;
         }
         WitherDragon d = priorityDragon;
-        if (d.state == WitherDragon.State.ALIVE && ServerTickClock.now() - d.spawnedTick <= d.skipKillTicks) {
+        if (d.state == WitherDragon.State.ALIVE && PerTickServerClock.now() - d.spawnedTick <= d.skipKillTicks) {
             d.arrowsHit++;
         }
     }

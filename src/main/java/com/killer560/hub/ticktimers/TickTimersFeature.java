@@ -61,7 +61,7 @@ import java.util.regex.Pattern;
  * ({@code ClientboundSetTimePacket.gameTime}), which would need a brand new packet mixin here. Since the value
  * is purely a cosmetic 20-tick pulse with no real trigger line (same category as the "Secrets" pulse this class
  * already deliberately omits above), it is built the same lag-proof way as every other line in this file - a
- * repeating {@code 20 - (ServerTickClock.now() % 20)} countdown - so no new mixin or fabric.mod.json entry is
+ * repeating {@code 20 - (PerTickServerClock.now() % 20)} countdown - so no new mixin or fabric.mod.json entry is
  * needed. {@link TickTimersConfig#isDeathTickStopsAtBoss()} is the "turn it off after the run starts" option;
  * OFF (its default) matches killer560's literal wording that the tick runs during clear AND keeps running once
  * the boss starts unless told not to.
@@ -113,7 +113,7 @@ public final class TickTimersFeature {
     private static int necronTicks = -1;
     private static int maxorStartTime = -1;
     private static int goldorStartTime = -1;
-    // ServerTickClock.now() baseline set when Goldor's line lands - Devonian's own baseline for "Show Total"
+    // PerTickServerClock.now() baseline set when Goldor's line lands - Devonian's own baseline for "Show Total"
     // (its Stages.Terminals.startTime.tick), ported in the 2026-09-20 Goldor Frenzy merge.
     private static long goldorPhaseStartTick = 0L;
     private static boolean wasInDungeon = false;
@@ -129,7 +129,8 @@ public final class TickTimersFeature {
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(TickTimersFeature::onChatMessage);
         ServerTickClock.register();
-        ServerTickClock.subscribe(TickTimersFeature::serverTick);
+        PerTickServerClock.register();
+        PerTickServerClock.subscribe(TickTimersFeature::serverTick);
         // Goldor's tick and Storm's line count on this clock (2026-11-02, see GoldorTick). Registered first, so its own
         // END_CLIENT_TICK listener runs before ours and a hit seen this tick reads this tick's clock.
         PerTickServerClock.register();

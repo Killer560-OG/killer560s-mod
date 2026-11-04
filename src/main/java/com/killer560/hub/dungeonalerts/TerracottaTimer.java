@@ -43,14 +43,21 @@ final class TerracottaTimer {
     private TerracottaTimer() {
     }
 
+    /** Server ticks since the last client tick (2026-11-03: the respawn is the server's 300/240 ticks, not the client's). */
+    private static final com.killer560.hub.util.PerTickServerClock.Step STEP = new com.killer560.hub.util.PerTickServerClock.Step();
+
     static void register() {
+        com.killer560.hub.util.PerTickServerClock.register();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TerracottaTimer", client -> {
+            int step = STEP.take();
             if (client.level == null) {
                 return;
             }
-            SPAWNS.removeIf(t -> --t.ticksLeft <= 0);
-            if (clearInTicks >= 0 && clearInTicks-- == 0) {
-                SPAWNS.clear();
+            for (int i = 0; i < step; i++) {
+                SPAWNS.removeIf(t -> --t.ticksLeft <= 0);
+                if (clearInTicks >= 0 && clearInTicks-- == 0) {
+                    SPAWNS.clear();
+                }
             }
         }));
         ChatObserver.subscribe(TerracottaTimer::onChat);

@@ -385,7 +385,7 @@ public final class AutoPuzzlesFeature {
         LOGGER.info("[AutoPuzzles] Quiz: answered question {} at server tick {} (answerable from {}) - button {}"
                         + " for answer {}, boxDist={} waitedMs={} tick={}",
                 com.killer560.hub.puzzlesolvers.QuizState.question(),
-                com.killer560.hub.witherdragons.ServerTickClock.now(),
+                com.killer560.hub.util.PerTickServerClock.now(),
                 com.killer560.hub.puzzlesolvers.QuizState.answerAtTick(), click.toShortString(), answer.toShortString(),
                 String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(
                         client.player.getEyePosition(), click))), now - quizPendingSinceMs, nowTick());
