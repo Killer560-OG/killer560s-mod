@@ -1,7 +1,6 @@
 package com.killer560.hub.armourdye;
 
 import com.killer560.hub.gui.MenuStyle;
-import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -17,28 +16,20 @@ import java.util.function.Consumer;
  * the current one marked, picked by click"). Each value is one row; the blank value is "Off". The current value is
  * highlighted and marked with ">". Clicking a row hands the value to {@code onPick} and returns to the menu.
  */
-public final class ChoiceListScreen extends Screen implements MenuThemedScreen {
+public final class ChoiceListScreen extends ListScreenBase {
 
     private static final int PANEL_MAX_W = 260;
     private static final int PANEL_MAX_H = 260;
     private static final int ROW_H = 18;
 
-    private final Screen parent;
     private final String title;
     private final List<String> values;
     private final String current;
     private final Consumer<String> onPick;
-    private int scroll;
-    private int panelX;
-    private int panelY;
-    private int panelW;
-    private int panelH;
     private int listY;
-    private int rows;
 
     public ChoiceListScreen(Screen parent, String title, List<String> values, String current, Consumer<String> onPick) {
-        super(Component.literal(title));
-        this.parent = parent;
+        super(Component.literal(title), parent);
         this.title = title;
         this.values = values;
         this.current = current == null ? "" : current;
@@ -109,28 +100,7 @@ public final class ChoiceListScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        scroll = Math.max(0, Math.min(scroll - (int) Math.signum(scrollY), Math.max(0, values.size() - rows)));
-        return true;
-    }
-
-    @Override
-    public void onClose() {
-        this.minecraft.setScreenAndShow(parent);
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
-
-    @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
-
-    @Override
-    public String themeId() {
-        return "custom_items";
+    protected int listSize() {
+        return values.size();
     }
 }

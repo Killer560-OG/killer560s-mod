@@ -1,7 +1,6 @@
 package com.killer560.hub.armourdye;
 
 import com.killer560.hub.gui.MenuStyle;
-import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedEditBox;
@@ -21,30 +20,22 @@ import java.util.function.Consumer;
  * recombed or fragged item finds its skins too - with the current one marked. Pick one and it becomes the item's Skin;
  * search narrows the list, any word typed matching. Returns to the Custom Color page on pick or Escape.
  */
-public final class HypixelSkinScreen extends Screen implements MenuThemedScreen {
+public final class HypixelSkinScreen extends ListScreenBase {
 
     private static final int PANEL_MAX_W = 340;
     private static final int PANEL_MAX_H = 280;
     private static final int ROW_H = 20;
 
-    private final Screen parent;
     private final Consumer<ItemSkins.Skin> onPick;
     private final List<ItemSkins.Skin> all;
     private final String current;
     private final List<ItemSkins.Skin> shown = new ArrayList<>();
     private String query = "";
-    private int scroll;
-    private int panelX;
-    private int panelY;
-    private int panelW;
-    private int panelH;
     private int listY;
-    private int rows;
     private EditBox search;
 
     public HypixelSkinScreen(Screen parent, List<ItemSkins.Skin> skins, String current, Consumer<ItemSkins.Skin> onPick) {
-        super(Component.literal("Hypixel Skins"));
-        this.parent = parent;
+        super(Component.literal("Hypixel Skins"), parent);
         this.all = skins == null ? List.of() : skins;
         this.current = current == null ? "" : current;
         this.onPick = onPick;
@@ -125,29 +116,9 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
         }
         return super.mouseClicked(event, doubleClick);
     }
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        scroll = Math.max(0, Math.min(scroll - (int) Math.signum(scrollY), Math.max(0, shown.size() - rows)));
-        return true;
-    }
 
     @Override
-    public void onClose() {
-        this.minecraft.setScreenAndShow(parent);
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
-
-    @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
-
-    @Override
-    public String themeId() {
-        return "custom_items";
+    protected int listSize() {
+        return shown.size();
     }
 }
