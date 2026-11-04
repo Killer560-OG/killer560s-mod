@@ -208,7 +208,6 @@ public final class ZeroPingEtherwarp {
         current = previous;
     }
 
-    // ---- outbound ---------------------------------------------------------------------------------------------
 
     /** {@code mixin/ZpewSendMixin}: every packet this client makes, read-only, render thread. */
     public static void onPacketSent(Packet<?> packet) {
@@ -594,7 +593,6 @@ public final class ZeroPingEtherwarp {
         return 57 + tuners;
     }
 
-    // ---- inbound ----------------------------------------------------------------------------------------------
 
     /** {@code mixin/ZpewPositionMixin}: a server position packet, render thread, before vanilla applies it. */
     public static void onServerPosition(Vec3 from, Vec3 to) {
@@ -702,7 +700,6 @@ public final class ZeroPingEtherwarp {
         }
     }
 
-    // ---- state ------------------------------------------------------------------------------------------------
 
     public static int pending() {
         synchronized (PENDING) {
