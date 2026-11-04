@@ -19,13 +19,11 @@ public class IcePathSolverTab extends BaseTab {
         int y = contentY;
         IcePathSolverConfig cfg = IcePathSolverConfig.getInstance();
 
-        widgets.add(onOffButton("Ice Path Solver", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Ice Path Solver", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Outline Next Stop", cfg::isShowNextBox, cfg::setShowNextBox, cfg::save,
                 null, contentX, y, contentWidth, 18));

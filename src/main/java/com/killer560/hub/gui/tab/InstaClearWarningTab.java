@@ -26,12 +26,11 @@ public class InstaClearWarningTab extends BaseTab {
         int colBX = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(onOffButton("Insta Clear Warning", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Insta Clear Warning", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
         widgets.add(onOffButton("HUD Popup", cfg::isHudPopup, cfg::setHudPopup, cfg::save,
                 null, contentX, y, colW, 18));
         widgets.add(onOffButton("Requeue Same Floor", cfg::isRequeue, cfg::setRequeue, cfg::save,

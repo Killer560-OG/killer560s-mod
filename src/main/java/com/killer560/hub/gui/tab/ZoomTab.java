@@ -57,13 +57,11 @@ public class ZoomTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         ZoomConfig cfg = ZoomConfig.getInstance();
 
-        widgets.add(onOffButton("Zoom", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Zoom", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(SettingsButtonWidget.builder(
                 capturing ? Component.literal("Press any key...")

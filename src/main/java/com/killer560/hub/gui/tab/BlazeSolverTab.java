@@ -20,13 +20,11 @@ public class BlazeSolverTab extends BaseTab {
         int y = contentY;
         BlazeSolverConfig cfg = BlazeSolverConfig.getInstance();
 
-        widgets.add(onOffButton("Blaze Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Blaze Solver", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Show Order Lines", cfg::isShowLines, cfg::setShowLines, cfg::save,
                 null, contentX, y, contentWidth, 18));

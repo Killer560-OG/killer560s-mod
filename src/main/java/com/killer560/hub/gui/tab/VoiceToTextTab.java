@@ -30,13 +30,11 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
         int col2aX = contentX;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(onOffButton("Voice To Text", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Voice To Text", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         // Reformatted 2026-09-27 (killer560: "reformat the menu to look a bit better") to the same two-column
         // row layout the other tabs use, grouped by what each setting is about; the explanatory text this used

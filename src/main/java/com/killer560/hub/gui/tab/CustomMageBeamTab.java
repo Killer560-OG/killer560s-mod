@@ -34,13 +34,11 @@ public class CustomMageBeamTab extends BaseTab {
         int col2bX = contentX + col2W + gap;
         int y = contentY;
 
-        widgets.add(onOffButton("Custom Mage Beam", cfg::isMageBeamEnabled, cfg::setMageBeamEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isMageBeamEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Custom Mage Beam", cfg::isMageBeamEnabled, cfg::setMageBeamEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Fade", cfg::isMageBeamFade, cfg::setMageBeamFade, cfg::save,
                 null, col2bX, y, col2W, 18));

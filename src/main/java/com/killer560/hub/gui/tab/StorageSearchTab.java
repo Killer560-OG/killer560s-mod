@@ -41,13 +41,11 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         StorageSearchConfig cfg = StorageSearchConfig.getInstance();
 
-        widgets.add(onOffButton("Storage Search", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 28;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Storage Search", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 28;
 
         widgets.add(com.killer560.hub.gui.ScreenThemes.button("storage_search", contentX, y, contentWidth, 18));
         y += 22;

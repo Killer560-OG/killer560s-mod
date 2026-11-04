@@ -41,6 +41,13 @@ public abstract class BaseTab {
         }).bounds(x, y, w, h).build();
     }
 
+    /** The first row of a tab: its ON/OFF switch (20 high, rebuilds the tab). True when the rest of the tab is hidden: the switch is OFF and this is not a menu search scan. */
+    protected static boolean masterClosed(List<AbstractWidget> widgets, String label, BooleanSupplier get, Consumer<Boolean> set,
+            Runnable save, Runnable rebuild, int x, int y, int w) {
+        widgets.add(onOffButton(label, get, set, save, rebuild, x, y, w, 20));
+        return !get.getAsBoolean() && !isSearchScan();
+    }
+
     /**
      * A slider whose label is {@code text} and whose knob position (0..1) goes straight to {@code apply}; the setting
      * is saved once when the drag is released.

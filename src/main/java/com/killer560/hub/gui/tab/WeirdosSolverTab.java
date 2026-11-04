@@ -20,13 +20,11 @@ public class WeirdosSolverTab extends BaseTab {
         int y = contentY;
         WeirdosSolverConfig cfg = WeirdosSolverConfig.getInstance();
 
-        widgets.add(onOffButton("Weirdos Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Weirdos Solver", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Show Ruled-Out Chests", cfg::isShowWrongChests, cfg::setShowWrongChests, cfg::save,
                 null, contentX, y, contentWidth, 18));

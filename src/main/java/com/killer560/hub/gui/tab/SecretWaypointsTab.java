@@ -30,13 +30,11 @@ public class SecretWaypointsTab extends BaseTab {
         int y = contentY;
         SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
 
-        widgets.add(onOffButton("Secret Waypoints", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, 220, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Secret Waypoints", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, 220)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
                     cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));

@@ -31,13 +31,11 @@ public class EtherwarpOverlayTab extends BaseTab {
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
 
-        widgets.add(onOffButton("Etherwarp Overlay", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Etherwarp Overlay", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Show When Failed", cfg.isShowWhenFailed()), btn -> {
                     cfg.setShowWhenFailed(!cfg.isShowWhenFailed());

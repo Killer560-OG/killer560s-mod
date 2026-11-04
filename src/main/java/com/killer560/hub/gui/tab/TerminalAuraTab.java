@@ -36,13 +36,11 @@ public class TerminalAuraTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Terminal Aura", true));
         y += 16;
 
-        widgets.add(onOffButton("Terminal Aura", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Terminal Aura", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
 
         // Range is a SLIDER now, 0.5 to 4.5 - killer560 (2026-10-01). It was a click-to-step button that wrapped
         // back to 1.0 at the top, so reaching a particular value meant clicking round the whole range.

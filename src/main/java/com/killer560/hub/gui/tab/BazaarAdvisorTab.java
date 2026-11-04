@@ -22,13 +22,11 @@ public class BazaarAdvisorTab extends BaseTab {
         int y = contentY;
         BazaarAdvisorConfig cfg = BazaarAdvisorConfig.getInstance();
 
-        widgets.add(onOffButton("Bazaar Advisor", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Bazaar Advisor", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         AbstractWidget setup = SettingsButtonWidget.builder(Component.literal("Setup: " + cfg.summary()), btn -> {
                 }).bounds(contentX, y, contentWidth, 18).build();

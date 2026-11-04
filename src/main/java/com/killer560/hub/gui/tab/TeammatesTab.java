@@ -32,13 +32,11 @@ public class TeammatesTab extends BaseTab {
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(onOffButton("Teammate Highlight", cfg::getEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, 220, 20));
-        y += 26;
-
-        if (!cfg.getEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Teammate Highlight", cfg::getEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, 220)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
                     cfg.cycleStyle(dir);

@@ -40,13 +40,11 @@ public class NameChangerTab extends BaseTab {
         int gap = 8;
         int halfW = (contentWidth - gap) / 2;
 
-        widgets.add(onOffButton("Name Changer", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Name Changer", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Change My Name", cfg::isOwnNameEnabled, cfg::setOwnNameEnabled, cfg::save,
                 null, contentX, y, halfW, 18));

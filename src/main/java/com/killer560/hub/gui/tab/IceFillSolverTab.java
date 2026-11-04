@@ -21,13 +21,11 @@ public class IceFillSolverTab extends BaseTab {
         int y = contentY;
         IceFillSolverConfig cfg = IceFillSolverConfig.getInstance();
 
-        widgets.add(onOffButton("Ice Fill Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Ice Fill Solver", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Alternate Path", cfg::isOptimizedPath, cfg::setOptimizedPath, cfg::save,
                 null, contentX, y, contentWidth, 18));

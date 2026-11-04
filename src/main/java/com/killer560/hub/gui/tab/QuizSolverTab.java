@@ -20,13 +20,11 @@ public class QuizSolverTab extends BaseTab {
         int y = contentY;
         QuizSolverConfig cfg = QuizSolverConfig.getInstance();
 
-        widgets.add(onOffButton("Quiz Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Quiz Solver", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         // Only drops his own click on a wrong answer once the right one is known (nothing is sent), so legit.
         widgets.add(onOffButton("Block Wrong Answers", cfg::isBlockWrongAnswers, cfg::setBlockWrongAnswers, cfg::save,

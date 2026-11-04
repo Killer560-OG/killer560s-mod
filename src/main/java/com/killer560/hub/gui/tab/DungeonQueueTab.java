@@ -76,13 +76,11 @@ public class DungeonQueueTab extends BaseTab {
         y += 30;
 
         PartyFinderOverlayConfig pf = PartyFinderOverlayConfig.getInstance();
-        widgets.add(onOffButton("Party Finder Overlay", pf::isEnabledRaw, pf::setEnabled, pf::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-
-        if (!pf.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Party Finder Overlay", pf::isEnabledRaw, pf::setEnabled, pf::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
 
         // Highlight
         widgets.add(rebuildToggle("Highlight", pf::isHighlight, pf::setHighlight, pf::save, requestRebuild,

@@ -31,12 +31,11 @@ public class GyroOverlayTab extends BaseTab {
         int colBX = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(onOffButton("Gyrokinetic Wand Overlay", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Gyrokinetic Wand Overlay", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
         widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
                     cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
                     cfg.save();

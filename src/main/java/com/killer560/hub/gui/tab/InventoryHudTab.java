@@ -24,13 +24,11 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         InventoryHudConfig cfg = InventoryHudConfig.getInstance();
 
-        widgets.add(onOffButton("Inventory HUD", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 28;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Inventory HUD", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 28;
 
         int gap = 8;
         int colW = (contentWidth - gap) / 2;

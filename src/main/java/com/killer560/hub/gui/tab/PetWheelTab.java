@@ -81,13 +81,11 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Pet Wheel", false));
         y += 16;
 
-        widgets.add(onOffButton("Pet Wheel", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Pet Wheel", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
 
         int gap = 8;
         int col2W = (contentWidth - gap) / 2;

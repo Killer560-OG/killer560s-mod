@@ -45,12 +45,11 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
         int col3bX = contentX + col3W + gap;
         int col3cX = contentX + (col3W + gap) * 2;
 
-        widgets.add(onOffButton("Waypoint Routes", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 28;
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Waypoint Routes", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 28;
 
         String areaKey = SkyblockArea.key();
         Route active = WaypointRoutesFeature.activeRoute();

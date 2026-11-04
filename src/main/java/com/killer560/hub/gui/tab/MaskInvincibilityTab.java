@@ -26,13 +26,11 @@ public class MaskInvincibilityTab extends BaseTab {
         int col2 = contentX + 108;
         int col3 = contentX + 216;
 
-        widgets.add(onOffButton("Mask Invincibility", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, 220, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Mask Invincibility", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, 220)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Spirit", cfg::isShowSpirit, cfg::setShowSpirit, cfg::save, null, col1, y, 100, 18));
 

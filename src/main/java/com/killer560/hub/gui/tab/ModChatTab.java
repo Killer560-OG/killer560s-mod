@@ -22,13 +22,11 @@ public class ModChatTab extends BaseTab {
         int y = contentY;
         ModChatConfig cfg = ModChatConfig.getInstance();
 
-        widgets.add(onOffButton("Mod Chat", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, 220, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Mod Chat", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, 220)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(SettingsButtonWidget.cycling(
                 Component.literal("Room: " + cfg.getRoomMode().label), (btn, dir) -> {

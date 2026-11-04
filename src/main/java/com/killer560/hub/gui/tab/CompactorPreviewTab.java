@@ -56,13 +56,11 @@ public class CompactorPreviewTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         CompactorPreviewConfig cfg = CompactorPreviewConfig.getInstance();
 
-        widgets.add(onOffButton("Compactor Preview", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Compactor Preview", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(SettingsButtonWidget.cycling(Component.literal("Show: " + cfg.getMode().label), (btn, dir) -> {
                     cfg.setMode(SettingsButtonWidget.step(cfg.getMode(), dir));

@@ -39,13 +39,11 @@ public class GoldorTriggerbotTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Wither Boss Triggerbot", true));
         y += 16;
 
-        widgets.add(onOffButton("Wither Boss Triggerbot", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Wither Boss Triggerbot", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
 
         widgets.add(new RangeSliderWidget(contentX, y, contentWidth, ROW,
                 GoldorTriggerbotConfig.MIN_CPS, GoldorTriggerbotConfig.MAX_CPS, cfg.getCpsMin(), cfg.getCpsMax()) {

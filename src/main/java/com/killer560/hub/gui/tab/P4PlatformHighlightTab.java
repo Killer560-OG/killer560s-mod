@@ -21,13 +21,11 @@ public class P4PlatformHighlightTab extends BaseTab {
         int y = contentY;
         P4PlatformHighlightConfig cfg = P4PlatformHighlightConfig.getInstance();
 
-        widgets.add(onOffButton("P4 Platform Highlight", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "P4 Platform Highlight", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Filled Box", cfg::isFilled, cfg::setFilled, cfg::save,
                 null, contentX, y, contentWidth, 18));

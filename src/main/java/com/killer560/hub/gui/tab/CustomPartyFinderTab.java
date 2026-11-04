@@ -25,12 +25,11 @@ public class CustomPartyFinderTab extends BaseTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         LfgConfig cfg = LfgConfig.getInstance();
         int y = contentY;
-        widgets.add(onOffButton("Custom Party Finder", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Custom Party Finder", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Party Finder"), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new LfgScreen(McCompat.screen(client)));

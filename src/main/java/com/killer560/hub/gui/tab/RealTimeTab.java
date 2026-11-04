@@ -44,13 +44,11 @@ public class RealTimeTab extends BaseTab {
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(onOffButton("Real Time", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Real Time", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(SettingsButtonWidget.cycling(formatLabel(cfg), (btn, dir) -> {
                     cfg.setUse24Hour(!cfg.isUse24Hour());

@@ -50,13 +50,11 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         int col3bX = contentX + col3W + gap;
         int col3cX = contentX + (col3W + gap) * 2;
 
-        widgets.add(onOffButton("Simon Says", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 28;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Simon Says", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 28;
 
         widgets.add(onOffButton("Show Highlights", cfg::isSolverEnabled, cfg::setSolverEnabled, cfg::save,
                 null, col2aX, y, col2W, 18));

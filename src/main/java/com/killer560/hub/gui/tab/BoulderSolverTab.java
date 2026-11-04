@@ -20,13 +20,11 @@ public class BoulderSolverTab extends BaseTab {
         int y = contentY;
         BoulderSolverConfig cfg = BoulderSolverConfig.getInstance();
 
-        widgets.add(onOffButton("Boulder Solver", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Boulder Solver", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Show All Remaining Clicks", cfg::isShowAllClicks, cfg::setShowAllClicks, cfg::save,
                 null, contentX, y, contentWidth, 18));

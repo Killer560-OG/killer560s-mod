@@ -36,13 +36,11 @@ public class AutoDialogueTab extends BaseTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        widgets.add(onOffButton("Auto Dialogue", cfg::isAutoDialogueEnabledRaw, cfg::setAutoDialogueEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 24;
-
-        if (!cfg.isAutoDialogueEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Auto Dialogue", cfg::isAutoDialogueEnabledRaw, cfg::setAutoDialogueEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 24;
 
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, delayText(cfg),
                 cfg.getAutoDialogueDelayTicks() / 40.0) {

@@ -19,13 +19,11 @@ public class TeleportMazeSolverTab extends BaseTab {
         int y = contentY;
         TeleportMazeSolverConfig cfg = TeleportMazeSolverConfig.getInstance();
 
-        widgets.add(onOffButton("Teleport Maze Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Teleport Maze Solver", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Tracer To Best Pad", cfg::isShowTracer, cfg::setShowTracer, cfg::save,
                 null, contentX, y, contentWidth, 18));

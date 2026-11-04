@@ -20,13 +20,11 @@ public class BeamsSolverTab extends BaseTab {
         int y = contentY;
         BeamsSolverConfig cfg = BeamsSolverConfig.getInstance();
 
-        widgets.add(onOffButton("Creeper Beams Solver", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(widgets, "Creeper Beams Solver", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Show Tracer", cfg::isShowTracer, cfg::setShowTracer, cfg::save,
                 null, contentX, y, contentWidth, 18));

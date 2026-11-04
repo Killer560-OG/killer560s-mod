@@ -21,13 +21,11 @@ public class TicTacToeSolverTab extends BaseTab {
         int y = contentY;
         TicTacToeSolverConfig cfg = TicTacToeSolverConfig.getInstance();
 
-        widgets.add(onOffButton("Tic Tac Toe Solver", cfg::isEnabled, cfg::setEnabled, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (!cfg.isEnabled() && !isSearchScan()) {
+        if (masterClosed(widgets, "Tic Tac Toe Solver", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return widgets;
         }
+        y += 26;
 
         widgets.add(onOffButton("Show Prediction", cfg::isShowPrediction, cfg::setShowPrediction, cfg::save,
                 null, contentX, y, contentWidth, 18));

@@ -31,12 +31,11 @@ public class BloodRushHelperTab extends BaseTab {
         int colB = contentX + colW + gap;
         int y = contentY;
 
-        w.add(onOffButton("Blood Rush Helper", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
-                contentX, y, contentWidth, 20));
-        y += 26;
-        if (!cfg.isEnabledRaw() && !isSearchScan()) {
+        if (masterClosed(w, "Blood Rush Helper", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth)) {
             return w;
         }
+        y += 26;
 
         w.add(SettingsButtonWidget.cycling(killersText(cfg), (btn, dir) -> {
             cfg.setKillers(SettingsButtonWidget.step(cfg.getKillers() - 1, dir, BloodRushConfig.MAX_KILLERS) + 1);
