@@ -510,6 +510,7 @@ public final class SimPrince {
                     var state = level.getBlockState(at);
                     BlockPos p = at.immutable();
                     collectCrown(level, state, p, lidChecked, brazierChecked, crowns);
+                }
             }
         }
         group(crowns);

@@ -65,6 +65,23 @@ public final class SimBuildQueue {
         long doneWork();
     }
 
+    /** A {@link Job} that counts positions visited against a total fixed when it is built. */
+    public abstract static class CountedJob implements Job {
+
+        protected boolean done;
+        protected long visited;
+        protected long total;
+
+        @Override
+        public boolean isDone() { return done; }
+
+        @Override
+        public long totalWork() { return total; }
+
+        @Override
+        public long doneWork() { return visited; }
+    }
+
     private static final Deque<Job> JOBS = new ArrayDeque<>();
 
     /**
@@ -347,7 +364,7 @@ public final class SimBuildQueue {
     }
 
     /** Fills the air in a box's outer ring with an obvious block. */
-    private static final class SealJob implements Job {
+    private static final class SealJob extends CountedJob {
 
         private final ServerLevel level;
         private final int minX;
@@ -363,9 +380,6 @@ public final class SimBuildQueue {
         private int x;
         private int z;
         private int y = SimAltitude.minWorldY();
-        private boolean done;
-        private long visited;
-        private final long total;
 
         SealJob(ServerLevel level, int minX, int minZ, int maxX, int maxZ, int[] skip) {
             this.skip = skip;
@@ -379,15 +393,6 @@ public final class SimBuildQueue {
             this.x = minX;
             this.z = minZ;
         }
-
-        @Override
-        public boolean isDone() { return done; }
-
-        @Override
-        public long totalWork() { return total; }
-
-        @Override
-        public long doneWork() { return visited; }
 
         @Override
         public int step(int budget) {
@@ -453,7 +458,7 @@ public final class SimBuildQueue {
      * exactly this reason in September and the clear was left behind, so a wipe cost far more per block than
      * the floor it was wiping.
      */
-    private static final class ClearJob implements Job {
+    private static final class ClearJob extends CountedJob {
 
         private final ServerLevel level;
         private final int minX;
@@ -477,9 +482,6 @@ public final class SimBuildQueue {
         private int chunkIndex;
         private int sectionIndex;
         private net.minecraft.world.level.chunk.LevelChunk chunk;
-        private boolean done;
-        private long visited;
-        private final long total;
 
         ClearJob(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
             this.level = level;
@@ -497,15 +499,6 @@ public final class SimBuildQueue {
                 }
             }
         }
-
-        @Override
-        public boolean isDone() { return done; }
-
-        @Override
-        public long totalWork() { return total; }
-
-        @Override
-        public long doneWork() { return visited; }
 
         @Override
         public int step(int budget) {

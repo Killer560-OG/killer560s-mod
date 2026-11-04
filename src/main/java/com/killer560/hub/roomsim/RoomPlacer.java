@@ -201,7 +201,7 @@ public final class RoomPlacer {
      * a hole in whatever is already there. A palette entry that no longer resolves to a real block (renamed since
      * capture) is skipped too, with one warning for that string rather than one per block.
      */
-    public static final class PasteJob implements SimBuildQueue.Job {
+    public static final class PasteJob extends SimBuildQueue.CountedJob {
 
         private final ServerLevel level;
         private final RoomLibrary.Room room;
@@ -213,9 +213,6 @@ public final class RoomPlacer {
         private int y;
         private int x;
         private int z;
-        private boolean done;
-        private long visited;
-        private final long total;
         private final SectionWriter writer;
         /**
          * Where the "never captured" marker goes for THIS room.
@@ -284,15 +281,6 @@ public final class RoomPlacer {
             }
             return rotatedStates[paletteIdx];
         }
-
-        @Override
-        public boolean isDone() { return done; }
-
-        @Override
-        public long totalWork() { return total; }
-
-        @Override
-        public long doneWork() { return visited; }
 
         /**
          * Places up to {@code budget} blocks and returns how many landed.

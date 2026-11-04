@@ -55,28 +55,14 @@ public final class SimSpeed {
     /** The remembered speed, or the default when none has been set. */
     public static synchronized int saved() {
         if (savedSpeed < 0) {
-            savedSpeed = DEFAULT_SPEED;
-            try {
-                if (java.nio.file.Files.exists(FILE)) {
-                    savedSpeed = Integer.parseInt(java.nio.file.Files
-                            .readString(FILE, java.nio.charset.StandardCharsets.UTF_8).trim());
-                }
-            } catch (Exception ignored) {
-                // Unreadable means unknown, and the default is a safe unknown.
-            }
+            savedSpeed = SimIntFile.read(FILE, DEFAULT_SPEED);
         }
         return savedSpeed;
     }
 
     private static synchronized void remember(int hypixelSpeed) {
         savedSpeed = hypixelSpeed;
-        try {
-            java.nio.file.Files.createDirectories(FILE.getParent());
-            java.nio.file.Files.writeString(FILE, String.valueOf(hypixelSpeed),
-                    java.nio.charset.StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-            // Losing the preference is not worth failing the command he just ran.
-        }
+        SimIntFile.write(FILE, hypixelSpeed);
     }
 
     /** Re-applies the remembered speed. Called when a sim world opens. */

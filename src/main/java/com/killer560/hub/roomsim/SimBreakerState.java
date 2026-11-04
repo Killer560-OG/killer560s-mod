@@ -117,16 +117,8 @@ public final class SimBreakerState {
      */
     public static synchronized int secretCharges() {
         if (secretCharges < 0) {
-            secretCharges = DEFAULT_SECRET_CHARGES;
-            try {
-                if (java.nio.file.Files.exists(SECRET_FILE)) {
-                    int v = Integer.parseInt(java.nio.file.Files
-                            .readString(SECRET_FILE, java.nio.charset.StandardCharsets.UTF_8).trim());
-                    secretCharges = Math.max(0, Math.min(MAX_SECRET_CHARGES, v));
-                }
-            } catch (Exception ignored) {
-                // Unreadable means unknown, and the default is a safe unknown.
-            }
+            int v = SimIntFile.read(SECRET_FILE, Integer.MIN_VALUE);
+            secretCharges = v == Integer.MIN_VALUE ? DEFAULT_SECRET_CHARGES : Math.max(0, Math.min(MAX_SECRET_CHARGES, v));
         }
         return secretCharges;
     }
@@ -138,13 +130,7 @@ public final class SimBreakerState {
             return;
         }
         secretCharges = clamped;
-        try {
-            java.nio.file.Files.createDirectories(SECRET_FILE.getParent());
-            java.nio.file.Files.writeString(SECRET_FILE, String.valueOf(secretCharges),
-                    java.nio.charset.StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-            // Losing the preference is not worth failing the click he just made.
-        }
+        SimIntFile.write(SECRET_FILE, secretCharges);
     }
 
     /**
