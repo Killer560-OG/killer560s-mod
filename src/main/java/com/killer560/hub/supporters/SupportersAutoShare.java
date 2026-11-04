@@ -49,9 +49,7 @@ public final class SupportersAutoShare {
     /** The relay refuses a scale outside 0.5-2.0 (its validateScale), but your own size slider goes down to 0.05 for
      *  your own model; a smaller size shares as 0.5, or the push would 400 on every retry and take your name, trail and
      *  mob down with it. */
-    public static double sharedScale(double scale) {
-        return Double.isNaN(scale) ? 1.0 : Math.max(0.5, Math.min(2.0, scale));
-    }
+    public static double sharedScale(double scale) { return Double.isNaN(scale) ? 1.0 : Math.max(0.5, Math.min(2.0, scale)); }
 
     /**
      * @param plainName   the Cosmetics tab's own display name, plain text (no {@code &}/{@code §} codes) -
@@ -129,13 +127,9 @@ public final class SupportersAutoShare {
      *  Player Cosmetics tab). Nothing is ever shared before that says yes. */
     private static volatile boolean linked = false;
 
-    public static boolean isLinked() {
-        return linked;
-    }
+    public static boolean isLinked() { return linked; }
 
-    public static void setLinked(boolean value) {
-        linked = value;
-    }
+    public static void setLinked(boolean value) { linked = value; }
 
     // ---- startup check (killer560, 2026-10-13: names and the trail share without opening Player Cosmetics) ----
 
@@ -191,9 +185,7 @@ public final class SupportersAutoShare {
     }
 
     /** "waiting", "linked", "not linked" or "retry in N s after K failure(s): reason" - for the testkit. */
-    public static String startupCheckState() {
-        return startupState;
-    }
+    public static String startupCheckState() { return startupState; }
 
     /** Your Ribbon Trail as it is shared: only while Share Trail is on and your Ribbon Trail is on, else null (no trail
      *  field). The squares Trail is never shared (killer560, 2026-10-14). */

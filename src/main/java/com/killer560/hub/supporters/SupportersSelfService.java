@@ -68,17 +68,13 @@ public final class SupportersSelfService {
     /** {@code GET /supporters/me} response. {@code name} is {@code null} when the account is whitelisted but
      *  has no custom name set. */
     public record MeResult(boolean ok, boolean whitelisted, String name, double scale, String error) {
-        static MeResult failure(String error) {
-            return new MeResult(false, false, null, 1.0, error);
-        }
+        static MeResult failure(String error) { return new MeResult(false, false, null, 1.0, error); }
     }
 
     /** {@code POST}/{@code DELETE /supporters/me} response. {@code httpStatus} is {@code -1} when the request
      *  never got an HTTP response at all (network/auth failure rather than a relay-issued error). */
     public record SaveResult(boolean ok, String name, double scale, String error, int httpStatus) {
-        static SaveResult failure(String error, int httpStatus) {
-            return new SaveResult(false, null, 1.0, error, httpStatus);
-        }
+        static SaveResult failure(String error, int httpStatus) { return new SaveResult(false, null, 1.0, error, httpStatus); }
     }
 
     public static CompletableFuture<MeResult> fetchMe() {
@@ -145,13 +141,9 @@ public final class SupportersSelfService {
     private static volatile int attempts = 0;
 
     /** "POST {body}" or "DELETE" for the last push attempted (whatever the network then did), or null. */
-    public static String lastAttempt() {
-        return lastAttempt;
-    }
+    public static String lastAttempt() { return lastAttempt; }
 
-    public static int attempts() {
-        return attempts;
-    }
+    public static int attempts() { return attempts; }
 
     private static CompletableFuture<SaveResult> request(String method, HttpRequest.BodyPublisher body) {
         String base = RelayEndpoint.normalise(RelayEndpoint.DEFAULT_BASE_URL);

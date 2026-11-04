@@ -37,9 +37,7 @@ final class SupportersChatRewriter {
     private SupportersChatRewriter() {
     }
 
-    static void register() {
-        ChatObserver.addRewriter(SupportersChatRewriter::rewrite);
-    }
+    static void register() { ChatObserver.addRewriter(SupportersChatRewriter::rewrite); }
 
     private static Component rewrite(Component message, String plain) {
         if (plain.isEmpty() || !SupportersFeature.cosmeticsActive()) {

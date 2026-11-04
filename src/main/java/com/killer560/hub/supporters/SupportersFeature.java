@@ -75,9 +75,7 @@ public final class SupportersFeature {
      *  successful save/clear, per SUPPORTERS-CONTRACT-V2.md's self-service section: the relay "bumps the
      *  public list version" immediately, so re-fetching now (rather than waiting) is enough to show the
      *  change on this client's own nametag/tab list/chat straight away. */
-    public static void refreshNow() {
-        SupportersFetcher.fetchNow(ON_FETCHED);
-    }
+    public static void refreshNow() { SupportersFetcher.fetchNow(ON_FETCHED); }
 
     private static void apply(int version, List<SupporterEntry> entries, boolean persist) {
         Map<UUID, Resolved> map = new java.util.HashMap<>();
@@ -103,19 +101,13 @@ public final class SupportersFeature {
 
     /** Whether {@code id} is in the fetched supporter list at all (whatever it shares). Song Tag shares and shows only
      *  for supporters ({@code spotify/SongShare}, {@code spotify/RemoteSongs}). One map lookup. */
-    public static boolean isSupporter(UUID id) {
-        return id != null && byUuid.containsKey(id);
-    }
+    public static boolean isSupporter(UUID id) { return id != null && byUuid.containsKey(id); }
 
-    public static int supporterCount() {
-        return byUuid.size();
-    }
+    public static int supporterCount() { return byUuid.size(); }
 
     /** @return true when cosmetics are on and there is at least one supporter to ever match - a cheap
      *  pre-check so {@link SupportersChatRewriter} can skip its regex entirely on the common case. */
-    static boolean cosmeticsActive() {
-        return SupportersConfig.getInstance().isShowSupporterNames() && !byUuid.isEmpty();
-    }
+    static boolean cosmeticsActive() { return SupportersConfig.getInstance().isShowSupporterNames() && !byUuid.isEmpty(); }
 
     /** The Component to paint instead of {@code id}'s real name, or {@code null} to leave it alone (not a
      *  supporter, cosmetics off, the stored name is blocked by the slur filter, or the local player has

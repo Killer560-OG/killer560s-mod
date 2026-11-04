@@ -68,9 +68,7 @@ final class SupportersFetcher {
      *  instead of waiting for the next scheduled poll. Does not touch the schedule {@link #start} already set
      *  up - {@code runAndReschedule}'s own next {@code EXECUTOR.schedule} call is untouched, so this can only
      *  ever add one extra fetch, never duplicate or drop the recurring one. */
-    static void fetchNow(BiConsumer<Integer, List<SupporterEntry>> onFetched) {
-        EXECUTOR.execute(() -> fetchOnce(onFetched));
-    }
+    static void fetchNow(BiConsumer<Integer, List<SupporterEntry>> onFetched) { EXECUTOR.execute(() -> fetchOnce(onFetched)); }
 
     /** Every 5 minutes after a good fetch, but after 30 seconds when one fails, so a startup hiccup does not leave
      *  everyone without names for five minutes. */
