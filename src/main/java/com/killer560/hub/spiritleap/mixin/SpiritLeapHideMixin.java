@@ -57,13 +57,6 @@ public abstract class SpiritLeapHideMixin {
         }
     }
 
-    @Inject(method = "extractSnapbackItem", at = @At("HEAD"), cancellable = true, require = 0)
-    private void killer560smod$hideLeapSnapback(GuiGraphicsExtractor graphics, CallbackInfo ci) {
-        if (SpiritLeapOverlayFeature.isHiding(this)) {
-            ci.cancel();
-        }
-    }
-
     @Inject(method = "extractFloatingItem", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$hideLeapFloating(GuiGraphicsExtractor graphics, ItemStack stack, int x, int y, String text,
                                                CallbackInfo ci) {

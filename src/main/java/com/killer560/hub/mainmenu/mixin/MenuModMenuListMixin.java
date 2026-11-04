@@ -17,6 +17,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * (javap on modmenu-18.0.0.jar): fill(x, y-2, x+w, y+h+2, border) then fill(x+1, y-1, x+w-1, y+h+1, fill),
  * border = -1 when the list is focused. Replaced with the same box as MenuListMixin's selection. The list
  * background, separators and scrollbar already come from the vanilla AbstractSelectionList paths.
+ * Checked with javap 2026-11-04: Mod Menu 20.0.2 (26.2) and 21.0.0 (26.3) still have widget.ModListWidget with the same
+ * protected drawSelectionHighlight(GuiGraphicsExtractor, int x6), so one copy serves both versions. The testkit client has no
+ * Mod Menu unless it is named in -ModUnderTest, which is why 1104-mixin-applied once listed this mixin as dead; testkit
+ * 1104-ui-modmenu-list-theme opens Mod Menu's screen and counts the accent pixels the selection adds.
  */
 @Pseudo
 @Mixin(targets = "com.terraformersmc.modmenu.gui.widget.ModListWidget")
