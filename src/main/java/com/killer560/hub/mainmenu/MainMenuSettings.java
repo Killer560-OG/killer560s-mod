@@ -13,11 +13,30 @@ import java.util.List;
 /**
  * The Themes tab's Main Menu section (killer560, 2026-10-15: "have toggle options for it to match, customize it, or have
  * a different main menu than mod menu"). Style picks Match Menu Theme / Separate Theme / Custom; the theme row shows for
- * Separate and Custom, the look rows for Custom only. The master switch stays Display Options' Themed Main Menu.
+ * Separate and Custom, the look rows for Custom only. Its first row is the Themed Main Menu switch (also on Home); the rest show only while it is ON.
  */
 public final class MainMenuSettings {
 
     private MainMenuSettings() {
+    }
+
+    /** The Themed Main Menu ON/OFF switch (Menu Theme's Main Menu section and Home's Mod section); one switch for the
+     *  whole theme, so the embers and the other-menu theming follow it. {@code after} runs once saved (a rebuild). */
+    public static SettingsButtonWidget themedSwitch(int x, int y, int w, Runnable after) {
+        return SettingsButtonWidget.builder(switchText(), btn -> {
+                    MainMenuThemeConfig c = MainMenuThemeConfig.getInstance();
+                    boolean on = !c.isEnabled();
+                    c.setEnabled(on);
+                    c.setParticles(on);
+                    c.setOtherMenus(on);
+                    c.save();
+                    btn.setMessage(switchText());
+                    after.run();
+                }).bounds(x, y, w, 20).build();
+    }
+
+    private static Component switchText() {
+        return Component.literal("Themed Main Menu: " + (MainMenuThemeConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
     }
 
     /** Adds the section at {@code y}; returns the y under it. */
@@ -26,10 +45,10 @@ public final class MainMenuSettings {
         MainMenuThemeConfig cfg = MainMenuThemeConfig.getInstance();
         widgets.add(new StringWidget(x, y, w, 12, SectionHeaders.header("Main Menu", false), font));
         y += 16;
-        if (!cfg.isEnabled()) {
-            widgets.add(new StringWidget(x, y, w, 12,
-                    Component.literal("§7Themed Main Menu is off (Display Options): the main menu is Minecraft's."), font));
-            y += 16;
+        widgets.add(themedSwitch(x, y, w, requestRebuild));
+        y += 24;
+        if (!cfg.isEnabled() && !com.killer560.hub.gui.tab.BaseTab.isSearchScan()) {
+            return y; // the rows below keep their values while OFF
         }
         widgets.add(SettingsButtonWidget.cycling(styleText(), (btn, dir) -> {
                     MainMenuThemeConfig c = MainMenuThemeConfig.getInstance();

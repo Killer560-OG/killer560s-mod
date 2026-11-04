@@ -349,6 +349,7 @@ final class SettingTooltipsData {
         d.put("menu theme/font size", "How big the chosen font's letters are, from 70% to 140%. Minecraft's own font is never resized.");
         d.put("menu theme/open fonts folder", "Opens the folder imported fonts are read from. Put .ttf or .otf files there, then pick them with Font (or press Reload Fonts).");
         d.put("menu theme/reload fonts", "Reads the fonts folder again and rebuilds the chosen font.");
+        d.put("themed main menu", "Draws the title screen in the mod's themes (animated background, framed button column). Off: Minecraft's own title screen. The style and scene rows in Menu Theme show only while it is on and keep their values.");
         d.put("menu theme/main menu style", "Match Menu Theme: the main menu uses the mod menu's theme and its background. Separate Theme: a theme of its own. Custom: a theme of its own plus the background, particles, speed and button panel below.");
         d.put("menu theme/main menu scene", "Fancy: each theme's painted scene. Simple: floating particles in the theme's colors. Left click goes to the next, right click back.");
         d.put("menu theme/themed vanilla menus", "Draws Minecraft's own menus (Singleplayer, Multiplayer, Options, pause, loading) in the main menu's theme. Nothing is moved or removed.");
