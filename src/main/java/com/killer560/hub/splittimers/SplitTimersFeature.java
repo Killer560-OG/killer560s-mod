@@ -104,9 +104,7 @@ public final class SplitTimersFeature {
     private static final SplitDef FLOOR5 = def("^\\[BOSS\\] Livid: Welcome, you've arrived right on time\\. I am Livid, the Master of Shadows\\.$", "§cLivid");
     private static final SplitDef FLOOR6 = def("^\\[BOSS\\] Sadan: So you made it all the way here\\.\\.\\. Now you wish to defy me\\? Sadan\\?!$", "§cSadan");
 
-    private static SplitDef def(String regex, String label) {
-        return new SplitDef(Pattern.compile(regex), label);
-    }
+    private static SplitDef def(String regex, String label) { return new SplitDef(Pattern.compile(regex), label); }
 
     /** The boundary list for a floor ("F7", "M3", "E"): the three clear boundaries, the floor's boss boundaries, then
      *  Total. Empty when the floor is unknown or is the Entrance (no blood room, no boss split worth a layout). */
@@ -502,9 +500,7 @@ public final class SplitTimersFeature {
     }
 
     /** "3.35s": lag is always shown in seconds. */
-    static String lagSeconds(long ms) {
-        return String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(ms) / 1000.0);
-    }
+    static String lagSeconds(long ms) { return String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(ms) / 1000.0); }
 
     /** Odin's Utils.formatTime(time, 2): "1h 2m 3.45s" (to the nearest 0.05 s with Tick Counting). */
     static String formatTime(long timeMs) {
@@ -525,9 +521,7 @@ public final class SplitTimersFeature {
         return stripped != null ? stripped : label;
     }
 
-    private static String plainLabel(SplitDef def) {
-        return plain(def.label());
-    }
+    private static String plainLabel(SplitDef def) { return plain(def.label()); }
 
     /** For {@code RunSummaryFeature}/{@code TerminalTimersFeature}: the wall-clock moment the CURRENTLY running split
      *  segment began. 0 if no segment is running. */
@@ -554,19 +548,13 @@ public final class SplitTimersFeature {
 
     public static final class SplitTimersHudElement implements HudElement {
         @Override
-        public String id() {
-            return "split_timers";
-        }
+        public String id() { return "split_timers"; }
 
         @Override
-        public String displayName() {
-            return "Split Timers";
-        }
+        public String displayName() { return "Split Timers"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
         public int defaultY() {

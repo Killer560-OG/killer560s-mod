@@ -70,47 +70,25 @@ public final class TerminalTimersConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isSolveTimes() {
-        return enabled && solveTimes && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isSolveTimes() { return enabled && solveTimes && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public boolean getSolveTimesRaw() {
-        return solveTimes;
-    }
+    public boolean getSolveTimesRaw() { return solveTimes; }
 
-    public void setSolveTimes(boolean solveTimes) {
-        this.solveTimes = solveTimes;
-    }
+    public void setSolveTimes(boolean solveTimes) { this.solveTimes = solveTimes; }
 
-    public boolean isSplits() {
-        return enabled && splits && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isSplits() { return enabled && splits && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public boolean getSplitsRaw() {
-        return splits;
-    }
+    public boolean getSplitsRaw() { return splits; }
 
-    public void setSplits(boolean splits) {
-        this.splits = splits;
-    }
+    public void setSplits(boolean splits) { this.splits = splits; }
 
-    public boolean isSimonSaysTime() {
-        return enabled && simonSaysTime && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isSimonSaysTime() { return enabled && simonSaysTime && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public boolean getSimonSaysTimeRaw() {
-        return simonSaysTime;
-    }
+    public boolean getSimonSaysTimeRaw() { return simonSaysTime; }
 
-    public void setSimonSaysTime(boolean simonSaysTime) {
-        this.simonSaysTime = simonSaysTime;
-    }
+    public void setSimonSaysTime(boolean simonSaysTime) { this.simonSaysTime = simonSaysTime; }
 }

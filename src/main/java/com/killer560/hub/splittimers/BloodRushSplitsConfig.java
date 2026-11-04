@@ -33,9 +33,7 @@ public final class BloodRushSplitsConfig {
             this.label = label;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
     }
 
     private static BloodRushSplitsConfig instance;
@@ -83,31 +81,17 @@ public final class BloodRushSplitsConfig {
     }
 
     /** On here AND Split Timers on: the rush rows belong to the splits. */
-    public boolean isActive() {
-        return enabled && SplitTimersConfig.getInstance().isEnabled();
-    }
+    public boolean isActive() { return enabled && SplitTimersConfig.getInstance().isEnabled(); }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public Style getStyle() {
-        return style;
-    }
+    public Style getStyle() { return style; }
 
-    public void setStyle(Style style) {
-        this.style = style == null ? Style.COMPACT : style;
-    }
+    public void setStyle(Style style) { this.style = style == null ? Style.COMPACT : style; }
 
-    public boolean isAnnounceInChat() {
-        return announceInChat;
-    }
+    public boolean isAnnounceInChat() { return announceInChat; }
 
-    public void setAnnounceInChat(boolean announceInChat) {
-        this.announceInChat = announceInChat;
-    }
+    public void setAnnounceInChat(boolean announceInChat) { this.announceInChat = announceInChat; }
 }

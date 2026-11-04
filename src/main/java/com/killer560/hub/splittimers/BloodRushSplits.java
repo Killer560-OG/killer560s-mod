@@ -110,9 +110,7 @@ public final class BloodRushSplits {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BloodRushSplits", BloodRushSplits::tick));
     }
 
-    private static Stamp stamp() {
-        return new Stamp(System.currentTimeMillis(), SplitLagClock.accumulatedLagMs());
-    }
+    private static Stamp stamp() { return new Stamp(System.currentTimeMillis(), SplitLagClock.accumulatedLagMs()); }
 
     static void reset() {
         rooms.clear();
@@ -124,9 +122,7 @@ public final class BloodRushSplits {
     }
 
     /** From Mort's line to the Blood door. */
-    public static boolean isActive() {
-        return started && !done;
-    }
+    public static boolean isActive() { return started && !done; }
 
 
     static void onLine(String raw, Stamp at) {
@@ -351,17 +347,11 @@ public final class BloodRushSplits {
         return span(from, r.keyPicked != null ? r.keyPicked : live);
     }
 
-    private static long[] pickupSpan(Room r, Stamp live) {
-        return span(r.keyDrop, r.keyPicked != null ? r.keyPicked : live);
-    }
+    private static long[] pickupSpan(Room r, Stamp live) { return span(r.keyDrop, r.keyPicked != null ? r.keyPicked : live); }
 
-    private static long[] doorSpan(Room r, Stamp live) {
-        return span(r.keyPicked, r.doorOpened != null ? r.doorOpened : live);
-    }
+    private static long[] doorSpan(Room r, Stamp live) { return span(r.keyPicked, r.doorOpened != null ? r.doorOpened : live); }
 
-    private static long[] totalSpan(Room r, Stamp live) {
-        return span(r.start, r.doorOpened != null ? r.doorOpened : live);
-    }
+    private static long[] totalSpan(Room r, Stamp live) { return span(r.start, r.doorOpened != null ? r.doorOpened : live); }
 
     private static List<Room> all() {
         List<Room> out = new ArrayList<>(rooms);
@@ -379,13 +369,9 @@ public final class BloodRushSplits {
         return lagless ? real + " §7(" + SplitTimersFeature.formatTime(s[1]) + ")" : real;
     }
 
-    private static boolean lagless() {
-        return SplitTimersConfig.getInstance().isLaglessTimes() && SplitLagClock.isTrustworthy();
-    }
+    private static boolean lagless() { return SplitTimersConfig.getInstance().isLaglessTimes() && SplitLagClock.isTrustworthy(); }
 
-    private static String name(Room r) {
-        return (r.toFairy ? "§d" : "§5") + r.name;
-    }
+    private static String name(Room r) { return (r.toFairy ? "§d" : "§5") + r.name; }
 
     /** The rows the HUD draws now ({@link BloodRushSplitsConfig#getStyle}). Empty before Mort's line. */
     static List<String> rows(Stamp now, BloodRushSplitsConfig.Style style) {
@@ -479,9 +465,7 @@ public final class BloodRushSplits {
 
 
     /** Test hook: one chat line at {@code ms} with the lag clock at {@code lagMs}. */
-    public static void lineForTest(String raw, long ms, long lagMs) {
-        onLine(raw, new Stamp(ms, lagMs));
-    }
+    public static void lineForTest(String raw, long ms, long lagMs) { onLine(raw, new Stamp(ms, lagMs)); }
 
     /** Test hook: the door into the current room down, between the named rooms. */
     public static void doorDownForTest(String earlier, boolean earlierFairy, String later, long ms) {
@@ -501,33 +485,23 @@ public final class BloodRushSplits {
     }
 
     /** Test hook: forget the run. */
-    public static void resetForTest() {
-        reset();
-    }
+    public static void resetForTest() { reset(); }
 
 
     public static final class Hud implements HudElement {
         private static final int ROW_HEIGHT = 9;
 
         @Override
-        public String id() {
-            return "blood_rush_splits";
-        }
+        public String id() { return "blood_rush_splits"; }
 
         @Override
-        public String displayName() {
-            return "Blood Rush Splits";
-        }
+        public String displayName() { return "Blood Rush Splits"; }
 
         @Override
-        public int defaultX() {
-            return 180;
-        }
+        public int defaultX() { return 180; }
 
         @Override
-        public int defaultY() {
-            return 240;
-        }
+        public int defaultY() { return 240; }
 
         private static boolean editor() {
             return com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance())
@@ -552,14 +526,10 @@ public final class BloodRushSplits {
         }
 
         @Override
-        public int height() {
-            return Math.max(ROW_HEIGHT, lines().size() * ROW_HEIGHT);
-        }
+        public int height() { return Math.max(ROW_HEIGHT, lines().size() * ROW_HEIGHT); }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return BloodRushSplitsConfig.getInstance().isActive();
-        }
+        public boolean isEnabledInSettings() { return BloodRushSplitsConfig.getInstance().isActive(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {

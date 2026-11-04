@@ -79,9 +79,7 @@ final class WatcherMoveTracker {
     }
 
     /** Milliseconds from the blood door opening until the Watcher first moved, or 0 if not measured (yet). */
-    static long getMoveMs() {
-        return moveMs > 0L && doorOpenMs > 0L ? moveMs - doorOpenMs : 0L;
-    }
+    static long getMoveMs() { return moveMs > 0L && doorOpenMs > 0L ? moveMs - doorOpenMs : 0L; }
 
     static void tick() {
         if (moveMs != 0L || doorOpenMs == 0L || dialogueEndMs == 0L

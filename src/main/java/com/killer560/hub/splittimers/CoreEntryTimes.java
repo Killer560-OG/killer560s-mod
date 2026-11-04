@@ -92,9 +92,7 @@ final class CoreEntryTimes {
     }
 
     /** Necron's entry line - the fight has started, nobody else is "entering the core". */
-    static void onPhaseFourStarted() {
-        announce();
-    }
+    static void onPhaseFourStarted() { announce(); }
 
     static void reset() {
         openedMs = 0L;
@@ -208,9 +206,7 @@ final class CoreEntryTimes {
     }
 
     /** For the testkit: player name -> ms from the core opening to entering it. */
-    static Map<String, Long> entries() {
-        return new LinkedHashMap<>(ENTRIES);
-    }
+    static Map<String, Long> entries() { return new LinkedHashMap<>(ENTRIES); }
 
     /** HUD/chat rows: everyone expected, in party order, with a dash for anyone never seen inside the core. */
     static List<String> lines() {
@@ -226,9 +222,7 @@ final class CoreEntryTimes {
     }
 
     /** Sample rows for the HUD editor, so the block can be positioned outside a run. */
-    static List<String> editorLines() {
-        return List.of("§bYou§f: 2.35s", "§aTeammate§f: 4.10s", "§cTeammate§f: §7-");
-    }
+    static List<String> editorLines() { return List.of("§bYou§f: 2.35s", "§aTeammate§f: 4.10s", "§cTeammate§f: §7-"); }
 
     private static String colorFor(String name) {
         DungeonClass clazz = PartyTracker.classOf(name);
@@ -244,9 +238,7 @@ final class CoreEntryTimes {
         };
     }
 
-    private static String format(long ms) {
-        return String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(ms) / 1000.0);
-    }
+    private static String format(long ms) { return String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(ms) / 1000.0); }
 
     /** The slowest entry recorded so far, or null before anyone has been timed in. Shared by the chat/party
      *  announce and the HUD's own live "Slowest Into Core" line so they can never disagree. */

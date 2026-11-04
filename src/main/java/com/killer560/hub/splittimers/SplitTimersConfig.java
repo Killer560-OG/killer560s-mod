@@ -119,63 +119,35 @@ public final class SplitTimersConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isAnnounceInChat() {
-        return announceInChat;
-    }
+    public boolean isAnnounceInChat() { return announceInChat; }
 
-    public void setAnnounceInChat(boolean announceInChat) {
-        this.announceInChat = announceInChat;
-    }
+    public void setAnnounceInChat(boolean announceInChat) { this.announceInChat = announceInChat; }
 
 
-    public boolean isP5DragonLines() {
-        return p5DragonLines;
-    }
+    public boolean isP5DragonLines() { return p5DragonLines; }
 
-    public void setP5DragonLines(boolean p5DragonLines) {
-        this.p5DragonLines = p5DragonLines;
-    }
+    public void setP5DragonLines(boolean p5DragonLines) { this.p5DragonLines = p5DragonLines; }
 
-    public boolean isP5RelicLines() {
-        return p5RelicLines;
-    }
+    public boolean isP5RelicLines() { return p5RelicLines; }
 
-    public void setP5RelicLines(boolean p5RelicLines) {
-        this.p5RelicLines = p5RelicLines;
-    }
+    public void setP5RelicLines(boolean p5RelicLines) { this.p5RelicLines = p5RelicLines; }
 
-    public boolean isP5LinesRight() {
-        return p5LinesRight;
-    }
+    public boolean isP5LinesRight() { return p5LinesRight; }
 
-    public void setP5LinesRight(boolean p5LinesRight) {
-        this.p5LinesRight = p5LinesRight;
-    }
+    public void setP5LinesRight(boolean p5LinesRight) { this.p5LinesRight = p5LinesRight; }
 
 
-    public boolean isWatcherMoveSplit() {
-        return watcherMoveSplit;
-    }
+    public boolean isWatcherMoveSplit() { return watcherMoveSplit; }
 
-    public void setWatcherMoveSplit(boolean watcherMoveSplit) {
-        this.watcherMoveSplit = watcherMoveSplit;
-    }
+    public void setWatcherMoveSplit(boolean watcherMoveSplit) { this.watcherMoveSplit = watcherMoveSplit; }
 
-    public boolean isCoreEntryWithoutSplits() {
-        return coreEntryWithoutSplits;
-    }
+    public boolean isCoreEntryWithoutSplits() { return coreEntryWithoutSplits; }
 
-    public void setCoreEntryWithoutSplits(boolean v) {
-        coreEntryWithoutSplits = v;
-    }
+    public void setCoreEntryWithoutSplits(boolean v) { coreEntryWithoutSplits = v; }
 
     /** Core Entry times are being kept: the Core Entry switch, and Split Timers on or Show With Splits Off set. */
     public boolean isCoreEntryActive() {
@@ -183,71 +155,41 @@ public final class SplitTimersConfig {
     }
 
     /** Core Entry runs on its own: Split Timers is off but Show With Splits Off keeps the core times going. */
-    public boolean isCoreEntryAlone() {
-        return isCoreEntryActive() && !isEnabled();
-    }
+    public boolean isCoreEntryAlone() { return isCoreEntryActive() && !isEnabled(); }
 
-    public boolean isCoreEntryTimes() {
-        return coreEntryTimes;
-    }
+    public boolean isCoreEntryTimes() { return coreEntryTimes; }
 
-    public void setCoreEntryTimes(boolean coreEntryTimes) {
-        this.coreEntryTimes = coreEntryTimes;
-    }
+    public void setCoreEntryTimes(boolean coreEntryTimes) { this.coreEntryTimes = coreEntryTimes; }
 
-    public boolean isCoreEntrySlowestChat() {
-        return coreEntrySlowestChat;
-    }
+    public boolean isCoreEntrySlowestChat() { return coreEntrySlowestChat; }
 
-    public void setCoreEntrySlowestChat(boolean coreEntrySlowestChat) {
-        this.coreEntrySlowestChat = coreEntrySlowestChat;
-    }
+    public void setCoreEntrySlowestChat(boolean coreEntrySlowestChat) { this.coreEntrySlowestChat = coreEntrySlowestChat; }
 
-    public boolean isCoreEntrySlowestParty() {
-        return coreEntrySlowestParty;
-    }
+    public boolean isCoreEntrySlowestParty() { return coreEntrySlowestParty; }
 
-    public void setCoreEntrySlowestParty(boolean coreEntrySlowestParty) {
-        this.coreEntrySlowestParty = coreEntrySlowestParty;
-    }
+    public void setCoreEntrySlowestParty(boolean coreEntrySlowestParty) { this.coreEntrySlowestParty = coreEntrySlowestParty; }
 
-    public boolean isCoreEntrySlowestHud() {
-        return coreEntrySlowestHud;
-    }
+    public boolean isCoreEntrySlowestHud() { return coreEntrySlowestHud; }
 
-    public void setCoreEntrySlowestHud(boolean coreEntrySlowestHud) {
-        this.coreEntrySlowestHud = coreEntrySlowestHud;
-    }
+    public void setCoreEntrySlowestHud(boolean coreEntrySlowestHud) { this.coreEntrySlowestHud = coreEntrySlowestHud; }
 
 
 
 
     /** The stored Tick Counting switch. */
-    public boolean isTickCountingRaw() {
-        return tickCounting;
-    }
+    public boolean isTickCountingRaw() { return tickCounting; }
 
     /** Tick Counting in effect (legit and cheat builds alike since 2026-11-02). */
-    public boolean isTickCounting() {
-        return tickCounting;
-    }
+    public boolean isTickCounting() { return tickCounting; }
 
-    public void setTickCounting(boolean v) {
-        tickCounting = v;
-    }
+    public void setTickCounting(boolean v) { tickCounting = v; }
 
     /** A split time as the timers show it: unchanged, or rounded to the nearest 0.05 s (one tick) with Tick Counting. */
-    public static long shown(long ms) {
-        return ms <= 0L || !getInstance().isTickCounting() ? ms : Math.round(ms / 50.0) * 50L;
-    }
+    public static long shown(long ms) { return ms <= 0L || !getInstance().isTickCounting() ? ms : Math.round(ms / 50.0) * 50L; }
 
-    public boolean isLaglessTimes() {
-        return laglessTimes;
-    }
+    public boolean isLaglessTimes() { return laglessTimes; }
 
-    public void setLaglessTimes(boolean laglessTimes) {
-        this.laglessTimes = laglessTimes;
-    }
+    public void setLaglessTimes(boolean laglessTimes) { this.laglessTimes = laglessTimes; }
 
 
 

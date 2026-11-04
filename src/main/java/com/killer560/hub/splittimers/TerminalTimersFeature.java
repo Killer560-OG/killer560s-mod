@@ -226,11 +226,7 @@ public final class TerminalTimersFeature {
     }
 
 
-    private static float seconds(long sinceMs) {
-        return sinceMs <= 0L ? 0f : (System.currentTimeMillis() - sinceMs) / 1000f;
-    }
+    private static float seconds(long sinceMs) { return sinceMs <= 0L ? 0f : (System.currentTimeMillis() - sinceMs) / 1000f; }
 
-    private static String fmt(float seconds) {
-        return String.format(Locale.US, "%.2f", seconds);
-    }
+    private static String fmt(float seconds) { return String.format(Locale.US, "%.2f", seconds); }
 }
