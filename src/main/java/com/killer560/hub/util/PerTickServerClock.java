@@ -15,7 +15,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * ServerLag read the gaps between them as stalls, and a Blood Camp countdown built on it fell 11-15 ticks a second instead
  * of 20 (testkit 177 on doc-blood-1101's first jar: "74.8 -> 62.8 -> 47.8 -> 33.8 ticks left" a second apart). Here a
  * server is trusted only after two 20-client-tick windows in a row in which at least {@link #TRUST_TICKS_WITH_PING}
- * ticks saw a ping and no more than {@link #MAX_WINDOW_PINGS} came in all (at once on hypixel.net), and on hypixel.net once trusted STAYS
+ * ticks saw a ping and no more than {@link #MAX_WINDOW_PINGS} came in all and, on hypixel.net, once trusted STAYS
  * trusted (2026-11-03, timers2): a stall or a burst is just a window that fails that test, and dropping trust there ran the
  * clock on client ticks through the stall. Odin (ConnectionMixin) and NoammAddons (MixinConnection) count every non-zero ping
  * and nothing else, so a stall pauses their countdowns and a burst catches them up. Only 15 windows in a row with no ping at
@@ -84,14 +84,11 @@ public final class PerTickServerClock {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> untrust());
     }
 
-    /** Hypixel pings once per server tick, always: trust it from its first client tick, no windows needed. */
+    /** Whether the connection is labeled hypixel.net: only makes trust sticky, never earns it (the testkit labels a GrimAC
+     *  connection "mc.hypixel.net" in some cases, and Grim's ~15 pings a second are not ticks). */
     private static synchronized void setHypixel(net.minecraft.client.Minecraft client) {
         boolean h = forcedHypixel != null ? forcedHypixel : client.level != null && AttackCooldown.onHypixel(client);
         hypixel = h;
-        if (h && !trusted) {
-            trusted = true;
-            trustChanges++;
-        }
     }
 
     private static Boolean forcedHypixel;
