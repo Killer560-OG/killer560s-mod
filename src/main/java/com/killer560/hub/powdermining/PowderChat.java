@@ -323,7 +323,7 @@ public final class PowderChat {
                 .withStyle(st -> st.withHoverEvent(new HoverEvent.ShowText(hoverText)));
         lastCompact = sb.toString().trim();
         compactLines++;
-        ModChat.send("Chest", line);
+        ModChat.sendBare(line);
     }
 
     private static void flushHeld() {
