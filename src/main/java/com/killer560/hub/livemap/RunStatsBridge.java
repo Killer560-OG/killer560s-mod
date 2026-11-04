@@ -97,10 +97,7 @@ public final class RunStatsBridge {
             if (players == null) {
                 players = InteractiveMapFeature.playersCached(client);
             }
-            Set<Integer> cells = new HashSet<>();
-            for (int c : group.cells) {
-                cells.add(c);
-            }
+            Set<Integer> cells = java.util.Arrays.stream(group.cells).boxed().collect(java.util.stream.Collectors.toSet());
             List<String> inside = new ArrayList<>();
             for (InteractiveMapFeature.MapPlayer p : players) {
                 int[] cell = LiveMapFeature.gridCellFor(new Vec3(p.worldX(), 70, p.worldZ()));
