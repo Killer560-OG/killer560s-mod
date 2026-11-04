@@ -1,5 +1,6 @@
 package com.killer560.hub.mobesp;
 
+import static com.killer560.hub.util.BoxVerts.*;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -60,11 +61,4 @@ final class EspRenderer {
         });
     }
 
-    private static float[] rgba(int argb, float alphaScale) {
-        float a = ((argb >>> 24) & 0xFF) / 255f;
-        if (a <= 0f) {
-            a = 1f;
-        }
-        return new float[]{((argb >> 16) & 0xFF) / 255f, ((argb >> 8) & 0xFF) / 255f, (argb & 0xFF) / 255f, a * alphaScale};
-    }
 }

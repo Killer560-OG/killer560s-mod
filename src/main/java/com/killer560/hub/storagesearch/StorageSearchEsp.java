@@ -1,5 +1,6 @@
 package com.killer560.hub.storagesearch;
 
+import static com.killer560.hub.util.BoxVerts.*;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
@@ -107,74 +108,4 @@ public final class StorageSearchEsp {
         static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
     }
 
-    private static final int[] EDGES = {
-            0, 1, 1, 5, 5, 4, 4, 0,
-            3, 2, 2, 6, 6, 7, 7, 3,
-            0, 3, 1, 2, 5, 6, 4, 7
-    };
-
-    private static void lineBox(PoseStack.Pose pose, VertexConsumer buffer, AABB aabb,
-                                float r, float g, float b, float a, float thickness) {
-        float x0 = (float) aabb.minX, y0 = (float) aabb.minY, z0 = (float) aabb.minZ;
-        float x1 = (float) aabb.maxX, y1 = (float) aabb.maxY, z1 = (float) aabb.maxZ;
-        float[] corners = {
-                x0, y0, z0,
-                x1, y0, z0,
-                x1, y1, z0,
-                x0, y1, z0,
-                x0, y0, z1,
-                x1, y0, z1,
-                x1, y1, z1,
-                x0, y1, z1
-        };
-        for (int i = 0; i < EDGES.length; i += 2) {
-            int i0 = EDGES[i] * 3;
-            int i1 = EDGES[i + 1] * 3;
-            float sx = corners[i0], sy = corners[i0 + 1], sz = corners[i0 + 2];
-            float ex = corners[i1], ey = corners[i1 + 1], ez = corners[i1 + 2];
-            float dx = ex - sx, dy = ey - sy, dz = ez - sz;
-            buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
-            buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
-        }
-    }
-
-    private static void filledBox(Matrix4f m, VertexConsumer buf, AABB box, float r, float g, float b, float a) {
-        float minX = (float) box.minX, minY = (float) box.minY, minZ = (float) box.minZ;
-        float maxX = (float) box.maxX, maxY = (float) box.maxY, maxZ = (float) box.maxZ;
-
-        vertex(buf, m, minX, minY, minZ, r, g, b, a);
-        vertex(buf, m, minX, minY, maxZ, r, g, b, a);
-        vertex(buf, m, minX, maxY, maxZ, r, g, b, a);
-        vertex(buf, m, minX, maxY, minZ, r, g, b, a);
-
-        vertex(buf, m, maxX, minY, maxZ, r, g, b, a);
-        vertex(buf, m, maxX, minY, minZ, r, g, b, a);
-        vertex(buf, m, maxX, maxY, minZ, r, g, b, a);
-        vertex(buf, m, maxX, maxY, maxZ, r, g, b, a);
-
-        vertex(buf, m, minX, minY, minZ, r, g, b, a);
-        vertex(buf, m, minX, maxY, minZ, r, g, b, a);
-        vertex(buf, m, maxX, maxY, minZ, r, g, b, a);
-        vertex(buf, m, maxX, minY, minZ, r, g, b, a);
-
-        vertex(buf, m, maxX, minY, maxZ, r, g, b, a);
-        vertex(buf, m, maxX, maxY, maxZ, r, g, b, a);
-        vertex(buf, m, minX, maxY, maxZ, r, g, b, a);
-        vertex(buf, m, minX, minY, maxZ, r, g, b, a);
-
-        vertex(buf, m, minX, minY, minZ, r, g, b, a);
-        vertex(buf, m, maxX, minY, minZ, r, g, b, a);
-        vertex(buf, m, maxX, minY, maxZ, r, g, b, a);
-        vertex(buf, m, minX, minY, maxZ, r, g, b, a);
-
-        vertex(buf, m, minX, maxY, maxZ, r, g, b, a);
-        vertex(buf, m, maxX, maxY, maxZ, r, g, b, a);
-        vertex(buf, m, maxX, maxY, minZ, r, g, b, a);
-        vertex(buf, m, minX, maxY, minZ, r, g, b, a);
-    }
-
-    private static void vertex(VertexConsumer buffer, Matrix4f matrix, float x, float y, float z,
-                               float r, float g, float b, float a) {
-        buffer.addVertex(matrix, x, y, z).setColor(r, g, b, a);
-    }
 }
