@@ -427,7 +427,7 @@ public final class BossFight {
         } else {
             bar.setName(BossChat.legacy(name));
         }
-        bar.setProgress(Math.max(0f, Math.min(1f, progress)));
+        bar.setProgress(Math.clamp(progress, 0f, 1f));
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             bar.addPlayer(p);
         }
@@ -571,16 +571,8 @@ public final class BossFight {
     }
 
     private static ServerPlayer closest(Vec3 from) {
-        ServerPlayer best = null;
-        double bd = Double.MAX_VALUE;
-        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-            double d = p.position().distanceToSqr(from);
-            if (d < bd) {
-                bd = d;
-                best = p;
-            }
-        }
-        return best;
+        return server.getPlayerList().getPlayers().stream()
+                .min(java.util.Comparator.comparingDouble(p -> p.position().distanceToSqr(from))).orElse(null);
     }
 
     private static boolean maxorInAbility() {
@@ -609,7 +601,7 @@ public final class BossFight {
             maxorTauntAt = P1_BEACON + 161;
         }
         if ((t + 3) % 20 == 0 && bar != null) {
-            bar.setProgress(Math.max(0f, Math.min(1f, maxorBar)));
+            bar.setProgress(Math.clamp(maxorBar, 0f, 1f));
         }
         if (maxor == null) {
             return;
@@ -668,10 +660,7 @@ public final class BossFight {
 
     /** The beam column's glass (73, 223-224, 73; 222 too from t 240): red charged, yellow one crystal in, black none. */
     private static void beamColumn() {
-        boolean one = false;
-        for (int pt : placeTimes) {
-            one |= t - pt >= P1_FUSE;
-        }
+        boolean one = placeTimes.stream().anyMatch(pt -> t - pt >= P1_FUSE);
         String glass = maxorCharged() && beaconIn ? "minecraft:red_stained_glass"
                 : one ? "minecraft:yellow_stained_glass" : "minecraft:black_stained_glass";
         for (int y = t >= P1_BEACON + 120 ? 222 : 223; y <= 224; y++) {
@@ -770,12 +759,7 @@ public final class BossFight {
         placed[i] = crystal(PYLONS[i]);
         placedAt[i] = t;
         // Hypixel counts a crystal as active only once it has been in 28 ticks: two placed close together both say 1/2.
-        int n = 1;
-        for (int pt : placeTimes) {
-            if (t - pt >= P1_FUSE) {
-                n++;
-            }
-        }
+        int n = 1 + (int) placeTimes.stream().filter(pt -> t - pt >= P1_FUSE).count();
         placeTimes.add(t);
         BossChat.chat(server, n >= 2 ? "§a" + n + "/2 Energy Crystals are now active!"
                 : "§c" + n + "§r§a/2 Energy Crystals are now active!");
@@ -858,10 +842,9 @@ public final class BossFight {
         if (maxorTauntAt > t) {
             maxorTauntAt = -1;
         }
-        if (laserHits >= 2) {
-            return;
+        if (laserHits < 2) {
+            maxorEnrageAt = t + Math.min(240, 100 + RNG.nextInt(100));
         }
-        maxorEnrageAt = t + Math.min(240, 100 + RNG.nextInt(100));
     }
 
     private static void maxorStunLine() {
@@ -960,13 +943,9 @@ public final class BossFight {
         showBar("§c§lStorm", 1f);
     }
 
-    private static void stormLine(String line) {
-        say("Storm", line);
-    }
-
     private static void tickP2() {
         if (t == STORM_LIGHTNING || (t == STORM_LIGHTNING + 940 && stormDeadAt < 0)) {
-            stormLine(RNG.nextBoolean() ? "ENERGY HEED MY CALL!" : "THUNDER LET ME BE YOUR CATALYST!");
+            say("Storm", RNG.nextBoolean() ? "ENERGY HEED MY CALL!" : "THUNDER LET ME BE YOUR CATALYST!");
         }
         if (t == STORM_LIGHTNING + 10 || t == STORM_LIGHTNING + stormGiga2) {
             gigaLightning();
@@ -975,14 +954,14 @@ public final class BossFight {
             gigaLightning();
         }
         if (stormDeadAt < 0 && t == nextStormTaunt) {
-            stormLine(STORM_TAUNTS[RNG.nextInt(STORM_TAUNTS.length)]);
+            say("Storm", STORM_TAUNTS[RNG.nextInt(STORM_TAUNTS.length)]);
             nextStormTaunt = t + 60 + RNG.nextInt(4);
         }
         for (int i = 0; i < 4; i++) {
             tickPillar(i);
         }
         if ((t + 1) % 20 == 0 && bar != null) {
-            bar.setProgress(Math.max(0f, Math.min(1f, stormBar)));
+            bar.setProgress(Math.clamp(stormBar, 0f, 1f));
         }
         if (stormDeadAt >= 0 && t >= stormDeadAt) {
             stormDead();
@@ -1020,7 +999,7 @@ public final class BossFight {
             }
         }
         if (stormPinned && crushes == 1 && stormEnrageAt >= 0) {
-            float k = Math.max(0f, Math.min(1f, (t - stormPinnedAt) / (float) Math.max(1, stormEnrageAt - stormPinnedAt)));
+            float k = Math.clamp((t - stormPinnedAt) / (float) Math.max(1, stormEnrageAt - stormPinnedAt), 0f, 1f);
             stormBar = 0.95f - 0.5f * k;
         } else if (crushes >= 2 && stormDeadAt > stormCrush2At) {
             stormBar = 0.40f * (1f - (t - stormCrush2At) / (float) (stormDeadAt - stormCrush2At));
@@ -1054,7 +1033,7 @@ public final class BossFight {
             double d = Math.hypot(aim.x - storm.pos.x, aim.z - storm.pos.z);
             if (d > 3.0) {
                 double sp = 0.145 + 0.0205 * d;
-                double dy = Math.max(-0.3, Math.min(0.3, aim.y - storm.pos.y));
+                double dy = Math.clamp(aim.y - storm.pos.y, -0.3, 0.3);
                 storm.moveTo(new Vec3(storm.pos.x + (aim.x - storm.pos.x) / d * sp, storm.pos.y + dy,
                         storm.pos.z + (aim.z - storm.pos.z) / d * sp), near.position());
             } else {
@@ -1100,12 +1079,9 @@ public final class BossFight {
                 continue;
             }
             if (pillarResting(i)) {
-                for (ServerPlayer pl : server.getPlayerList().getPlayers()) {
-                    if (p.onPad(pl.position())) {
-                        pillarSteps[i] = 5;
-                        LOGGER.info("[BossSim] Storm pillar {} pressed at P2 t {}", p.name(), t);
-                        break;
-                    }
+                if (server.getPlayerList().getPlayers().stream().anyMatch(pl -> p.onPad(pl.position()))) {
+                    pillarSteps[i] = 5;
+                    LOGGER.info("[BossSim] Storm pillar {} pressed at P2 t {}", p.name(), t);
                 }
             }
             if (pillarSteps[i] > 0 && pillarNextStep[i] < 0) {
@@ -1228,7 +1204,7 @@ public final class BossFight {
         crushes++;
         Pillar pl = PILLARS.get(i);
         LOGGER.info("[BossSim] Storm crushed by {} (crush {}) at P2 t {} ({})", pl.name(), crushes, t, storm.pos);
-        stormLine(RNG.nextBoolean() ? "Ouch, that hurt!" : "Oof");
+        say("Storm", RNG.nextBoolean() ? "Ouch, that hurt!" : "Oof");
         storm.armour(false);
         pillarResetAt[i] = t + 20;
         pillarSpent[i] = true;
@@ -1273,10 +1249,7 @@ public final class BossFight {
     /** Giga Lightning: every player not under a pillar's square takes it (the line only; the sim does no damage). */
     private static void gigaLightning() {
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-            boolean covered = false;
-            for (Pillar pl : PILLARS) {
-                covered |= pl.under(p.position()) && p.getY() >= 168.5 && p.getY() <= 170.5;
-            }
+            boolean covered = PILLARS.stream().anyMatch(pl -> pl.under(p.position()) && p.getY() >= 168.5 && p.getY() <= 170.5);
             if (!covered) {
                 p.sendSystemMessage(BossChat.legacy("§cStorm's§r§7 Giga Lightning hit you for §r§c" + damage(stormGigaDamage)
                         + "§r§7 true damage."));
@@ -1296,7 +1269,7 @@ public final class BossFight {
         if (t != stormDeadAt) {
             return;
         }
-        stormLine("I should have known that I stood no chance.");
+        say("Storm", "I should have known that I stood no chance.");
         stormBar = 0f;
         later(STORM_SON, "storm son", () -> say("Storm", "At least my son died by your hands."));
         BossMob body = storm;
@@ -1357,7 +1330,7 @@ public final class BossFight {
 
     static Vec3 goldorTrack(double s) {
         int i = goldorSegment(s);
-        double f = Math.max(0, Math.min(1, (s - G_BOUNDS[i]) / (G_BOUNDS[i + 1] - G_BOUNDS[i])));
+        double f = Math.clamp((s - G_BOUNDS[i]) / (G_BOUNDS[i + 1] - G_BOUNDS[i]), 0.0, 1.0);
         Vec3 a = G_CORNERS[i], b = G_CORNERS[(i + 1) % 4];
         return new Vec3(a.x + (b.x - a.x) * f, G_Y_FROM[i] + (G_Y_TO[i] - G_Y_FROM[i]) * f, a.z + (b.z - a.z) * f);
     }
@@ -1488,7 +1461,7 @@ public final class BossFight {
                 }
             } else if (pos.z < 110) {
                 double v = pos.z < 56.0 ? 0.4 : 0.07;
-                goldor.moveTo(new Vec3(pos.x + Math.max(-0.1, Math.min(0.1, 53.6 - pos.x)), Math.max(116.75, pos.y - 0.006),
+                goldor.moveTo(new Vec3(pos.x + Math.clamp(53.6 - pos.x, -0.1, 0.1), Math.max(116.75, pos.y - 0.006),
                         pos.z + v), new Vec3(pos.x, pos.y, pos.z + 10));
             }
             return;
@@ -1994,16 +1967,15 @@ public final class BossFight {
 
         void die() {
             wither.setHealth(0f);
-            if (tag != null) {
-                tag.discard();
-            }
-            if (speech != null) {
-                speech.discard();
-            }
+            discardStands();
         }
 
         void remove() {
             wither.discard();
+            discardStands();
+        }
+
+        private void discardStands() {
             if (tag != null) {
                 tag.discard();
             }
@@ -2116,19 +2088,10 @@ public final class BossFight {
     /** Debug and testkit: drives the next stun's hits without a weapon (the same path a hit takes). */
     public static void testHit(String boss) {
         switch (boss) {
-            case "Maxor" -> {
-                if (maxor != null) {
-                    onHurt(maxor.wither);
-                }
-            }
-            case "Goldor" -> {
-                if (goldor != null) {
-                    onHurt(goldor.wither);
-                }
-            }
-            case "Necron" -> {
-                if (necron != null) {
-                    onHurt(necron.wither);
+            case "Maxor", "Goldor", "Necron" -> {
+                BossMob m = mob(boss);
+                if (m != null) {
+                    onHurt(m.wither);
                 }
             }
             default -> {
@@ -2143,15 +2106,19 @@ public final class BossFight {
         lastHitClock = -1;
     }
 
-    /** Debug and testkit: the boss wither's position, or null. */
-    public static double[] bossPos(String boss) {
-        BossMob m = switch (boss) {
+    private static BossMob mob(String boss) {
+        return switch (boss) {
             case "Maxor" -> maxor;
             case "Storm" -> storm;
             case "Goldor" -> goldor;
             case "Necron" -> necron;
             default -> null;
         };
+    }
+
+    /** Debug and testkit: the boss wither's position, or null. */
+    public static double[] bossPos(String boss) {
+        BossMob m = mob(boss);
         return m == null ? null : new double[]{m.pos.x, m.pos.y, m.pos.z};
     }
 
