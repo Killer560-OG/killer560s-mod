@@ -144,19 +144,13 @@ public final class MacroStop {
     }
 
     /** Something to do the moment an emergency hold starts (it runs on the render thread, from the key press). */
-    public static void onEmergency(Runnable action) {
-        ON_EMERGENCY.add(action);
-    }
+    public static void onEmergency(Runnable action) { ON_EMERGENCY.add(action); }
 
     /** True while the Emergency Cancel Key's hold is on: automation acting by itself must not act. */
-    public static boolean emergencyHeld() {
-        return emergencyHold;
-    }
+    public static boolean emergencyHeld() { return emergencyHold; }
 
     /** Emergency Cancel Key presses that started a hold (testkit). */
-    public static int emergencies() {
-        return emergencies;
-    }
+    public static int emergencies() { return emergencies; }
 
     /** Ends the hold (testkit, and the release rules). */
     public static void release(String why) {
@@ -258,16 +252,10 @@ public final class MacroStop {
     }
 
     /** "Auto E-Table: Escape" - the last macro this stopped and why (testkit). */
-    public static String lastStop() {
-        return lastStop;
-    }
+    public static String lastStop() { return lastStop; }
 
-    public static int stops() {
-        return stops;
-    }
+    public static int stops() { return stops; }
 
     /** The names of the registered macros (testkit). */
-    public static List<String> registered() {
-        return MACROS.stream().map(m -> m.kind() + " " + m.name()).toList();
-    }
+    public static List<String> registered() { return MACROS.stream().map(m -> m.kind() + " " + m.name()).toList(); }
 }
