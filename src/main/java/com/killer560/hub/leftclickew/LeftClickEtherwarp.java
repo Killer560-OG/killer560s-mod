@@ -77,13 +77,9 @@ public final class LeftClickEtherwarp {
     /** True when a left click with this hand should be an etherwarp. */
     private static boolean applies(Minecraft mc) {
         LocalPlayer player = mc.player;
-        if (!on() || player == null || mc.gameMode == null || player.isSpectator()) {
-            return false;
-        }
-        if (!ItemIdentity.isEtherwarpItem(player.getMainHandItem())) {
-            return false;
-        }
-        if (!com.killer560.hub.util.SkyblockGate.allows()) {
+        if (!on() || player == null || mc.gameMode == null || player.isSpectator()
+                || !ItemIdentity.isEtherwarpItem(player.getMainHandItem())
+                || !com.killer560.hub.util.SkyblockGate.allows()) {
             return false;
         }
         return !com.killer560.hub.autoroutes.RouteExecutor.isRunning()

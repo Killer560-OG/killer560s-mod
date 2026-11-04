@@ -254,12 +254,9 @@ public final class InventoryHudFeature {
         if (itemOpacity >= 100 || bg == InventoryHudConfig.Background.NONE) {
             return 0;
         }
-        int rgb;
-        if (bg == InventoryHudConfig.Background.SLOTS) {
-            rgb = menu == null ? SLOT_BG : menu.card();
-        } else {
-            rgb = menu == null ? PANEL_BG : menu.panel();
-        }
+        int rgb = bg == InventoryHudConfig.Background.SLOTS
+                ? (menu == null ? SLOT_BG : menu.card())
+                : (menu == null ? PANEL_BG : menu.panel());
         return withAlpha(rgb, 100 - itemOpacity);
     }
 
