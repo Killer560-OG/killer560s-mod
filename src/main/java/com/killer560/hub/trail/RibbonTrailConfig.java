@@ -179,10 +179,7 @@ public final class RibbonTrailConfig {
     }
 
     private static float clampF(float v, float min, float max) {
-        if (Float.isNaN(v)) {
-            return min;
-        }
-        return Math.max(min, Math.min(max, v));
+        return Float.isNaN(v) ? min : Math.max(min, Math.min(max, v));
     }
 
     private static <E extends Enum<E>> E enumOr(JsonObject obj, String key, Class<E> type, E fallback) {
