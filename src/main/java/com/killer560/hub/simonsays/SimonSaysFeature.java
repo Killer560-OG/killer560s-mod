@@ -701,9 +701,7 @@ public final class SimonSaysFeature {
      *  (Auto Start's look-only approach, PRE_DRIFT, IDLE's grid-center look) only checked the Rotate mode setting,
      *  which stays saved as Rotate even with Auto Solve switched off. Rotation now requires Auto Solve itself to
      *  be on; with it off, Auto Start clicks aura-style and the camera is never touched. */
-    private static boolean rotateActive(SimonSaysConfig cfg) {
-        return cfg.isAutoSolveEnabled() && cfg.isAutoSolveRotate();
-    }
+    private static boolean rotateActive(SimonSaysConfig cfg) { return cfg.isAutoSolveEnabled() && cfg.isAutoSolveRotate(); }
 
     private static boolean isDeviceInRange(Minecraft client) {
         return DungeonState.isF7OrM7() && client.player != null
@@ -963,13 +961,9 @@ public final class SimonSaysFeature {
     private static volatile int resetAnnounces = 0;
     private static volatile int resetAnnouncesSkipped = 0;
 
-    public static int resetAnnounces() {
-        return resetAnnounces;
-    }
+    public static int resetAnnounces() { return resetAnnounces; }
 
-    public static int resetAnnouncesSkipped() {
-        return resetAnnouncesSkipped;
-    }
+    public static int resetAnnouncesSkipped() { return resetAnnouncesSkipped; }
 
     private static void maybeAutoAnnounceReset(Minecraft client, SimonSaysConfig cfg) {
         long now = System.currentTimeMillis();
@@ -1355,9 +1349,7 @@ public final class SimonSaysFeature {
      *  settle-timeout (see {@link #lastLanternChangeTick}'s doc comment) to every round, not just round 1
      *  - killer560's own explicit report (2026-09-14): "After finishing a set it has to show the new
      *  pattern, then it can click." Used to gate Auto Solve so it doesn't click mid-reveal on any round. */
-    private static boolean isStillRevealing() {
-        return lastLanternChangeTick >= 0 && lastLanternChangeTick <= 10;
-    }
+    private static boolean isStillRevealing() { return lastLanternChangeTick >= 0 && lastLanternChangeTick <= 10; }
 
     private static void onButtonPressed(BlockPos buttonPos, SimonSaysConfig cfg, Minecraft client) {
         // Diagnostic-only (2026-09-14): server-confirmation latency for this mod's own synthetic click -
@@ -1811,9 +1803,7 @@ public final class SimonSaysFeature {
      *  instead of this mod's old guessed six-preset "skip mode" system (removed 2026-09-14 - killer560's
      *  own call, since this session never had confirmed real per-mode click counts). Only actually
      *  clicks once {@link #tickAutoStart} sees the device in range - see this method's own call site. */
-    private static void beginAutoStart(SimonSaysConfig cfg) {
-        beginAutoStart(cfg, null, 0);
-    }
+    private static void beginAutoStart(SimonSaysConfig cfg) { beginAutoStart(cfg, null, 0); }
 
     /** @param restartReason non-null for Auto Restart SS / Restart Key (runs even with Auto Start off);
      *  @param extraInitialTicks extra wait before the first click (lets a just-broken device settle). */
@@ -2285,9 +2275,7 @@ public final class SimonSaysFeature {
 
     /** No Rotate mode's instant click - booked by the caller via bookAutoSolveClick in the same tick.
      *  @return false if {@link ActionGate} held this tick back (nothing sent); the caller must NOT book it. */
-    private static boolean fireInstantClick(Minecraft client, BlockPos pos) {
-        return sendNoRotateInteract(client, pos);
-    }
+    private static boolean fireInstantClick(Minecraft client, BlockPos pos) { return sendNoRotateInteract(client, pos); }
 
     /** Rotate Mode's tick-side half - called once per tick while a click is due. Ownership split
      *  (2026-09-14, "still choppy... update far more often" fix): the actual rotation-applying step now
@@ -2596,9 +2584,7 @@ public final class SimonSaysFeature {
 
     /** The 2-block gate every automated click and every camera move has to pass (see IDLE_LOOK_RANGE_SQ).
      *  Standing further away means the solver still draws, and nothing acts. */
-    private static boolean isWithinAutoAnchor(Minecraft client) {
-        return isNearIdleLookAnchor(client);
-    }
+    private static boolean isWithinAutoAnchor(Minecraft client) { return isNearIdleLookAnchor(client); }
 
     private static boolean isNearIdleLookAnchor(Minecraft client) {
         return client.player != null && client.player.position().distanceToSqr(IDLE_LOOK_ANCHOR) <= IDLE_LOOK_RANGE_SQ;
@@ -3078,9 +3064,7 @@ public final class SimonSaysFeature {
      *  button; this reads the block's own real shape instead - same real technique already proven in
      *  {@code EtherwarpOverlayFeature#realBoxFor} - so the aim point matches wherever this specific
      *  button's real model actually sits, regardless of its real facing/attach-face. */
-    private static Vec3 realBlockCenter(Minecraft client, BlockPos pos) {
-        return aimBoxFor(client, pos).getCenter();
-    }
+    private static Vec3 realBlockCenter(Minecraft client, BlockPos pos) { return aimBoxFor(client, pos).getCenter(); }
 
     /** The real box to aim at for {@code pos} - its live shape when it has one. For a grid button that's
      *  currently AIR (Hypixel removes all 16 between rounds - see {@link #lastSeenGridButtonBoxes}'s own
@@ -3354,14 +3338,10 @@ public final class SimonSaysFeature {
 
     public static final class PartyProgressHudElement implements HudElement {
         @Override
-        public String id() {
-            return "simonsays_party_progress";
-        }
+        public String id() { return "simonsays_party_progress"; }
 
         @Override
-        public String displayName() {
-            return "Simon Says Party Progress";
-        }
+        public String displayName() { return "Simon Says Party Progress"; }
 
         @Override
         public int defaultX() {
@@ -3370,9 +3350,7 @@ public final class SimonSaysFeature {
         }
 
         @Override
-        public int defaultY() {
-            return 300;
-        }
+        public int defaultY() { return 300; }
 
         @Override
         public int width() {
@@ -3391,9 +3369,7 @@ public final class SimonSaysFeature {
         }
 
         @Override
-        public int height() {
-            return com.killer560.hub.hud.HudText.height(visibleEntries().size(), 12);
-        }
+        public int height() { return com.killer560.hub.hud.HudText.height(visibleEntries().size(), 12); }
 
         private static String lineText(Map.Entry<String, PartyProgress> e, long now) {
             PartyProgress p = e.getValue();

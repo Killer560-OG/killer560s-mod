@@ -158,14 +158,10 @@ public final class SimonSaysConfig {
     }
 
     /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
-    public boolean isSolverEnabledRaw() {
-        return solverEnabled;
-    }
+    public boolean isSolverEnabledRaw() { return solverEnabled; }
 
     private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
@@ -261,9 +257,7 @@ public final class SimonSaysConfig {
         return obj.has(key) ? obj.get(key).getAsBoolean() : def;
     }
 
-    private static int getInt(JsonObject obj, String key, int def) {
-        return obj.has(key) ? obj.get(key).getAsInt() : def;
-    }
+    private static int getInt(JsonObject obj, String key, int def) { return obj.has(key) ? obj.get(key).getAsInt() : def; }
 
     private static <E extends Enum<E>> E getEnum(JsonObject obj, String key, Class<E> type, E def) {
         if (!obj.has(key)) {
@@ -276,85 +270,51 @@ public final class SimonSaysConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public boolean isSolverEnabled() {
-        return solverEnabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isSolverEnabled() { return solverEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     public void setSolverEnabled(boolean solverEnabled) {
         this.solverEnabled = solverEnabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public Style getStyle() {
-        return style;
-    }
+    public Style getStyle() { return style; }
 
-    public void setStyle(Style style) {
-        this.style = style;
-    }
+    public void setStyle(Style style) { this.style = style; }
 
-    public boolean isNumberOverlay() {
-        return numberOverlay;
-    }
+    public boolean isNumberOverlay() { return numberOverlay; }
 
-    public void setNumberOverlay(boolean numberOverlay) {
-        this.numberOverlay = numberOverlay;
-    }
+    public void setNumberOverlay(boolean numberOverlay) { this.numberOverlay = numberOverlay; }
 
-    public float getNumberScale() {
-        return numberScale;
-    }
+    public float getNumberScale() { return numberScale; }
 
-    public void setNumberScale(float numberScale) {
-        this.numberScale = Math.max(0.25f, Math.min(3.0f, numberScale));
-    }
+    public void setNumberScale(float numberScale) { this.numberScale = Math.max(0.25f, Math.min(3.0f, numberScale)); }
 
-    public int getFirstColor() {
-        return firstColor;
-    }
+    public int getFirstColor() { return firstColor; }
 
-    public void setFirstColor(int firstColor) {
-        this.firstColor = firstColor;
-    }
+    public void setFirstColor(int firstColor) { this.firstColor = firstColor; }
 
-    public int getSecondColor() {
-        return secondColor;
-    }
+    public int getSecondColor() { return secondColor; }
 
-    public void setSecondColor(int secondColor) {
-        this.secondColor = secondColor;
-    }
+    public void setSecondColor(int secondColor) { this.secondColor = secondColor; }
 
-    public int getThirdColor() {
-        return thirdColor;
-    }
+    public int getThirdColor() { return thirdColor; }
 
-    public void setThirdColor(int thirdColor) {
-        this.thirdColor = thirdColor;
-    }
+    public void setThirdColor(int thirdColor) { this.thirdColor = thirdColor; }
 
-    public boolean isPreventMisclicksEnabled() {
-        return preventMisclicksEnabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isPreventMisclicksEnabled() { return preventMisclicksEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     public void setPreventMisclicksEnabled(boolean preventMisclicksEnabled) {
         this.preventMisclicksEnabled = preventMisclicksEnabled;
     }
 
-    public boolean isAnnounceProgress() {
-        return announceProgress && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isAnnounceProgress() { return announceProgress && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setAnnounceProgress(boolean announceProgress) {
-        this.announceProgress = announceProgress;
-    }
+    public void setAnnounceProgress(boolean announceProgress) { this.announceProgress = announceProgress; }
 
     public boolean isPartyProgressTrackerEnabled() {
         return partyProgressTrackerEnabled && enabled && com.killer560.hub.util.SkyblockGate.allows();
@@ -366,30 +326,20 @@ public final class SimonSaysConfig {
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - a real click-assist
      *  macro, same pattern as Auto Terminals. */
-    public boolean isAutoSimonSaysEnabled() {
-        return autoSimonSaysEnabled;
-    }
+    public boolean isAutoSimonSaysEnabled() { return autoSimonSaysEnabled; }
 
-    public void setAutoSimonSaysEnabled(boolean v) {
-        this.autoSimonSaysEnabled = v;
-    }
+    public void setAutoSimonSaysEnabled(boolean v) { this.autoSimonSaysEnabled = v; }
 
     public boolean isTriggerBotEnabled() {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSimonSaysEnabled && triggerBotEnabled
                 && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public int getTriggerBotDelayMs() {
-        return triggerBotDelayMs;
-    }
+    public int getTriggerBotDelayMs() { return triggerBotDelayMs; }
 
-    public void setTriggerBotDelayMs(int ms) {
-        this.triggerBotDelayMs = Math.max(0, Math.min(MAX_TRIGGER_BOT_DELAY_MS, ms));
-    }
+    public void setTriggerBotDelayMs(int ms) { this.triggerBotDelayMs = Math.max(0, Math.min(MAX_TRIGGER_BOT_DELAY_MS, ms)); }
 
-    public void setTriggerBotEnabled(boolean triggerBotEnabled) {
-        this.triggerBotEnabled = triggerBotEnabled;
-    }
+    public void setTriggerBotEnabled(boolean triggerBotEnabled) { this.triggerBotEnabled = triggerBotEnabled; }
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - full no-rotate
      *  auto-clicking through the whole sequence, a real macro. */
@@ -398,67 +348,45 @@ public final class SimonSaysConfig {
                 && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public void setAutoSolveEnabled(boolean autoSolveEnabled) {
-        this.autoSolveEnabled = autoSolveEnabled;
-    }
+    public void setAutoSolveEnabled(boolean autoSolveEnabled) { this.autoSolveEnabled = autoSolveEnabled; }
 
-    public boolean isAutoSolveRotate() {
-        return autoSolveRotate;
-    }
+    public boolean isAutoSolveRotate() { return autoSolveRotate; }
 
-    public void setAutoSolveRotate(boolean autoSolveRotate) {
-        this.autoSolveRotate = autoSolveRotate;
-    }
+    public void setAutoSolveRotate(boolean autoSolveRotate) { this.autoSolveRotate = autoSolveRotate; }
 
-    public int getClickTimerTargetMs() {
-        return clickTimerTargetMs;
-    }
+    public int getClickTimerTargetMs() { return clickTimerTargetMs; }
 
     public void setClickTimerTargetMs(int clickTimerTargetMs) {
         this.clickTimerTargetMs = Math.max(MIN_CLICK_TIMER_TARGET_MS, Math.min(MAX_CLICK_TIMER_TARGET_MS, clickTimerTargetMs));
     }
 
-    public int getClickTimerVarianceMs() {
-        return clickTimerVarianceMs;
-    }
+    public int getClickTimerVarianceMs() { return clickTimerVarianceMs; }
 
     public void setClickTimerVarianceMs(int clickTimerVarianceMs) {
         this.clickTimerVarianceMs = Math.max(0, Math.min(MAX_CLICK_TIMER_VARIANCE_MS, clickTimerVarianceMs));
     }
 
-    public boolean isAutoSolveFixedDelayMode() {
-        return autoSolveFixedDelayMode;
-    }
+    public boolean isAutoSolveFixedDelayMode() { return autoSolveFixedDelayMode; }
 
     public void setAutoSolveFixedDelayMode(boolean autoSolveFixedDelayMode) {
         this.autoSolveFixedDelayMode = autoSolveFixedDelayMode;
     }
 
-    public int getAutoSolveFixedDelayMs() {
-        return autoSolveFixedDelayMs;
-    }
+    public int getAutoSolveFixedDelayMs() { return autoSolveFixedDelayMs; }
 
     public void setAutoSolveFixedDelayMs(int autoSolveFixedDelayMs) {
         this.autoSolveFixedDelayMs = Math.max(0, Math.min(3000, autoSolveFixedDelayMs));
     }
 
     /** Stim (Rotate mode): the stored switch. Cheat-gated, since it only ever moves an automated aim. */
-    public boolean isAutoSolveStim() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSolveStim;
-    }
+    public boolean isAutoSolveStim() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSolveStim; }
 
-    public void setAutoSolveStim(boolean autoSolveStim) {
-        this.autoSolveStim = autoSolveStim;
-    }
+    public void setAutoSolveStim(boolean autoSolveStim) { this.autoSolveStim = autoSolveStim; }
 
     /** Momentum (Rotate mode), 0-100; 0 is off. Always 0 on the legit build. */
-    public int getAutoSolveMomentum() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? autoSolveMomentum : 0;
-    }
+    public int getAutoSolveMomentum() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? autoSolveMomentum : 0; }
 
-    public void setAutoSolveMomentum(int momentum) {
-        this.autoSolveMomentum = Math.max(0, Math.min(MAX_MOMENTUM, momentum));
-    }
+    public void setAutoSolveMomentum(int momentum) { this.autoSolveMomentum = Math.max(0, Math.min(MAX_MOMENTUM, momentum)); }
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - auto-clicking the start
      *  button to set up a "skip", a real macro. Real trigger: SimonSaysFeature fires this itself the
@@ -468,21 +396,13 @@ public final class SimonSaysConfig {
                 && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public void setAutoStartEnabled(boolean autoStartEnabled) {
-        this.autoStartEnabled = autoStartEnabled;
-    }
+    public void setAutoStartEnabled(boolean autoStartEnabled) { this.autoStartEnabled = autoStartEnabled; }
 
-    public int getAutoStartClicks() {
-        return autoStartClicks;
-    }
+    public int getAutoStartClicks() { return autoStartClicks; }
 
-    public void setAutoStartClicks(int autoStartClicks) {
-        this.autoStartClicks = Math.max(0, Math.min(20, autoStartClicks));
-    }
+    public void setAutoStartClicks(int autoStartClicks) { this.autoStartClicks = Math.max(0, Math.min(20, autoStartClicks)); }
 
-    public int getAutoStartClickDelayTicks() {
-        return autoStartClickDelayTicks;
-    }
+    public int getAutoStartClickDelayTicks() { return autoStartClickDelayTicks; }
 
     public void setAutoStartClickDelayTicks(int autoStartClickDelayTicks) {
         // Min 1, not 0 (2026-09-14, killer560's own call) - 0 ticks between clicks means every click
@@ -496,13 +416,9 @@ public final class SimonSaysConfig {
                 && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public boolean getAutoRestartRaw() {
-        return autoRestartEnabled;
-    }
+    public boolean getAutoRestartRaw() { return autoRestartEnabled; }
 
-    public void setAutoRestartEnabled(boolean autoRestartEnabled) {
-        this.autoRestartEnabled = autoRestartEnabled;
-    }
+    public void setAutoRestartEnabled(boolean autoRestartEnabled) { this.autoRestartEnabled = autoRestartEnabled; }
 
     /** -1 when unset, on the legit build (cheat-gated like the other start-button clicks), or with Auto Simon Says switched
      *  off as a whole: the key clicks the start button, so it stands down with the rest (it did not before 2026-10-21). */
@@ -510,36 +426,20 @@ public final class SimonSaysConfig {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSimonSaysEnabled ? restartKeyCode : -1;
     }
 
-    public void setRestartKeyCode(int restartKeyCode) {
-        this.restartKeyCode = restartKeyCode;
-    }
+    public void setRestartKeyCode(int restartKeyCode) { this.restartKeyCode = restartKeyCode; }
 
-    public int getAnnounceKeyCode() {
-        return announceKeyCode;
-    }
+    public int getAnnounceKeyCode() { return announceKeyCode; }
 
-    public void setAnnounceKeyCode(int announceKeyCode) {
-        this.announceKeyCode = announceKeyCode;
-    }
+    public void setAnnounceKeyCode(int announceKeyCode) { this.announceKeyCode = announceKeyCode; }
 
-    public boolean isAutoSendResetMessage() {
-        return autoSendResetMessage;
-    }
+    public boolean isAutoSendResetMessage() { return autoSendResetMessage; }
 
-    public void setAutoSendResetMessage(boolean autoSendResetMessage) {
-        this.autoSendResetMessage = autoSendResetMessage;
-    }
+    public void setAutoSendResetMessage(boolean autoSendResetMessage) { this.autoSendResetMessage = autoSendResetMessage; }
 
-    public String getResetMessageText() {
-        return resetMessageText;
-    }
+    public String getResetMessageText() { return resetMessageText; }
 
-    public void setResetMessageText(String resetMessageText) {
-        this.resetMessageText = resetMessageText;
-    }
+    public void setResetMessageText(String resetMessageText) { this.resetMessageText = resetMessageText; }
 
-    public boolean isDiagnosticLoggingEnabled() {
-        return diagnosticLoggingEnabled;
-    }
+    public boolean isDiagnosticLoggingEnabled() { return diagnosticLoggingEnabled; }
 
 }
