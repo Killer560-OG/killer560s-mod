@@ -173,9 +173,7 @@ public final class StorageSearchFeature {
      *  screen belongs to, so the block killer560 was looking at when it opened is the only honest answer. */
     private static void trackLookedAtChest(Minecraft client) {
         HitResult hit = client.hitResult;
-        if (!(hit instanceof BlockHitResult blockHit) || hit.getType() != HitResult.Type.BLOCK) {
-            return;
-        }
+        if (!(hit instanceof BlockHitResult blockHit) || hit.getType() != HitResult.Type.BLOCK) return;
         BlockPos pos = blockHit.getBlockPos();
         Block block = client.level.getBlockState(pos).getBlock();
         if (block instanceof ChestBlock || block instanceof BarrelBlock) {
@@ -193,9 +191,7 @@ public final class StorageSearchFeature {
         StorageSearchConfig cfg = StorageSearchConfig.getInstance();
         boolean open = cfg.isOpenOnClick();
         ModChat.send(CHAT_PREFIX, ModChat.text(entry.name()), ModChat.dim(" → "), ModChat.value(entry.location()));
-        if (!open || client.player == null) {
-            return;
-        }
+        if (!open || client.player == null) return;
         switch (entry.type()) {
             case INVENTORY -> {
                 setPending(PendingKind.INVENTORY, null, -1, entry.inventorySlot(), null);
@@ -214,9 +210,7 @@ public final class StorageSearchFeature {
      *  when he actually walks over and opens it. */
     private static void openChestResult(Minecraft client, StorageSearchConfig cfg, StorageSearchIndex.Entry entry) {
         BlockPos pos = entry.chestPos();
-        if (pos == null) {
-            return;
-        }
+        if (pos == null) return;
         setPending(PendingKind.CHEST, null, entry.contentIndex(), -1, pos);
         if (cfg.isChestEsp()) {
             StorageSearchEsp.mark(pos, cfg.getEspSeconds() * 1000L);
@@ -233,9 +227,7 @@ public final class StorageSearchFeature {
      *  same name when it has none) gets the same world box. */
     private static void markDuplicateChests(StorageSearchConfig cfg, StorageSearchIndex.Entry entry,
                                             List<StorageSearchIndex.Entry> allResults) {
-        if (!cfg.isChestEsp() || allResults == null) {
-            return;
-        }
+        if (!cfg.isChestEsp() || allResults == null) return;
         int extra = 0;
         for (StorageSearchIndex.Entry other : allResults) {
             if (other == entry || other.type() != StorageSearchIndex.SourceType.ISLAND_CHEST || other.chestPos() == null
@@ -274,9 +266,7 @@ public final class StorageSearchFeature {
 
     private static void openStorageResult(Minecraft client, StorageSearchConfig cfg, StorageSearchIndex.Entry entry,
                                           List<StorageSearchIndex.Entry> allResults) {
-        if (client.player.connection == null) {
-            return;
-        }
+        if (client.player.connection == null) return;
         setPending(PendingKind.STORAGE, entry.storageKey(), entry.contentIndex(), -1, null);
         // Real bug found and fixed (2026-09-21), per killer560's "when it opens my storage overlay, have it
         // properly scroll to the right height of the item for the custom gui, and still have it highlight the
@@ -301,13 +291,9 @@ public final class StorageSearchFeature {
 
     /** @return true when every storage hit in the current result list lives in this one storage. */
     private static boolean isOnlyStorageHit(String key, List<StorageSearchIndex.Entry> allResults) {
-        if (key == null || allResults == null) {
-            return false;
-        }
+        if (key == null || allResults == null) return false;
         for (StorageSearchIndex.Entry other : allResults) {
-            if (other.type().isStorage() && !key.equals(other.storageKey())) {
-                return false;
-            }
+            if (other.type().isStorage() && !key.equals(other.storageKey())) return false;
         }
         return true;
     }
@@ -332,12 +318,8 @@ public final class StorageSearchFeature {
 
     private static void onScreenInit(Screen screen) {
         StorageSearchConfig cfg = StorageSearchConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            return;
-        }
-        if (!(screen instanceof AbstractContainerScreen<?> container)) {
-            return;
-        }
+        if (!cfg.isEnabled()) return;
+        if (!(screen instanceof AbstractContainerScreen<?> container)) return;
         String title = container.getTitle().getString();
         String storageKey = StorageOverlayFeature.storageKeyForTitle(title);
 
@@ -367,9 +349,7 @@ public final class StorageSearchFeature {
      *  timer: by then Hypixel's contents packet has certainly arrived, and it writes the cache file exactly once
      *  per visit instead of once per tick. */
     private static void registerExtraCapture(Screen screen, AbstractContainerScreen<?> container, String extraKey) {
-        if (!(container.getMenu() instanceof ChestMenu)) {
-            return;
-        }
+        if (!(container.getMenu() instanceof ChestMenu)) return;
         ScreenEvents.remove(screen).register(s -> {
             try {
                 List<ItemStack> contents = captureTopSlots(container);
@@ -384,12 +364,8 @@ public final class StorageSearchFeature {
 
     /** Captures a real island chest on close, keyed to the block killer560 was looking at when it opened. */
     private static void registerChestCapture(Screen screen, AbstractContainerScreen<?> container, String title) {
-        if (!(container.getMenu() instanceof ChestMenu) || title.equals(OVERVIEW_TITLE)) {
-            return;
-        }
-        if (lastLookedChest == null || System.currentTimeMillis() - lastLookedChestAt > CHEST_LOOK_WINDOW_MS) {
-            return;
-        }
+        if (!(container.getMenu() instanceof ChestMenu) || title.equals(OVERVIEW_TITLE)) return;
+        if (lastLookedChest == null || System.currentTimeMillis() - lastLookedChestAt > CHEST_LOOK_WINDOW_MS) return;
         final BlockPos pos = lastLookedChest;
         final String world = Minecraft.getInstance().level == null ? "unknown"
                 : Minecraft.getInstance().level.dimension().identifier().getPath();
@@ -397,9 +373,7 @@ public final class StorageSearchFeature {
         ScreenEvents.remove(screen).register(s -> {
             try {
                 List<ItemStack> contents = captureTopSlots(container);
-                if (contents.isEmpty()) {
-                    return;
-                }
+                if (contents.isEmpty()) return;
                 IslandChestCache.getInstance().put(IslandChestCache.keyFor(prefix, world, pos), world, pos, title, contents);
             } catch (Exception ignored) {
             }
@@ -422,9 +396,7 @@ public final class StorageSearchFeature {
     /** Arms the pulsing slot outline if this is the screen the last clicked result was pointing at. */
     private static void armHighlight(Screen screen, AbstractContainerScreen<?> container, String title,
                                      String storageKey, String extraKey) {
-        if (pendingKind == PendingKind.NONE) {
-            return;
-        }
+        if (pendingKind == PendingKind.NONE) return;
         if (System.currentTimeMillis() - pendingSetAt > PENDING_TIMEOUT_MS) {
             clearPending();
             return;
@@ -432,9 +404,7 @@ public final class StorageSearchFeature {
         final Slot target;
         switch (pendingKind) {
             case STORAGE -> {
-                if (!java.util.Objects.equals(pendingKey, storageKey)) {
-                    return;
-                }
+                if (!java.util.Objects.equals(pendingKey, storageKey)) return;
                 // With the overlay on, the outline is drawn (and scrolled to) inside its own grid instead - see
                 // openStorageResult. Nothing to do over the hidden vanilla slots.
                 if (StorageOverlayConfig.getInstance().isEnabled()) {
@@ -446,9 +416,7 @@ public final class StorageSearchFeature {
                 target = findContainerSlot(container, 9 + pendingContentIndex);
             }
             case EXTRA -> {
-                if (extraKey == null || !extraKey.equals(pendingKey)) {
-                    return;
-                }
+                if (extraKey == null || !extraKey.equals(pendingKey)) return;
                 target = findContainerSlot(container, pendingContentIndex);
             }
             case CHEST -> {
@@ -459,9 +427,7 @@ public final class StorageSearchFeature {
                 target = findContainerSlot(container, pendingContentIndex);
             }
             case INVENTORY -> {
-                if (!(screen instanceof InventoryScreen)) {
-                    return;
-                }
+                if (!(screen instanceof InventoryScreen)) return;
                 target = findInventorySlot(container, pendingInventorySlot);
             }
             default -> {
@@ -469,9 +435,7 @@ public final class StorageSearchFeature {
             }
         }
         clearPending();
-        if (target == null) {
-            return;
-        }
+        if (target == null) return;
         long shownAt = System.currentTimeMillis();
         com.killer560.hub.gui.BelowTooltip.register(screen, (s, graphics, mouseX, mouseY, partialTick) -> {
             if (System.currentTimeMillis() - shownAt < HIGHLIGHT_DURATION_MS) {
@@ -483,29 +447,19 @@ public final class StorageSearchFeature {
     /** @return the real top-container slot with this container index, ignoring the player's own inventory slots. */
     private static Slot findContainerSlot(AbstractContainerScreen<?> screen, int containerIndex) {
         Minecraft client = Minecraft.getInstance();
-        if (containerIndex < 0) {
-            return null;
-        }
+        if (containerIndex < 0) return null;
         for (Slot slot : screen.getMenu().slots) {
-            if (client.player != null && slot.container == client.player.getInventory()) {
-                continue;
-            }
-            if (slot.getContainerSlot() == containerIndex) {
-                return slot;
-            }
+            if (client.player != null && slot.container == client.player.getInventory()) continue;
+            if (slot.getContainerSlot() == containerIndex) return slot;
         }
         return null;
     }
 
     private static Slot findInventorySlot(AbstractContainerScreen<?> screen, int inventorySlot) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return null;
-        }
+        if (client.player == null) return null;
         for (Slot slot : screen.getMenu().slots) {
-            if (slot.container == client.player.getInventory() && slot.getContainerSlot() == inventorySlot) {
-                return slot;
-            }
+            if (slot.container == client.player.getInventory() && slot.getContainerSlot() == inventorySlot) return slot;
         }
         return null;
     }
@@ -527,20 +481,12 @@ public final class StorageSearchFeature {
     /** @return this feature's own cache key for a wardrobe / equipment / pets menu title, otherwise null. */
     static String extraKeyForTitle(String title) {
         Matcher wardrobe = WARDROBE_TITLE.matcher(title);
-        if (wardrobe.matches()) {
-            return extraKey("wardrobe_" + (wardrobe.group(1) == null ? "1" : wardrobe.group(1)));
-        }
+        if (wardrobe.matches()) return extraKey("wardrobe_" + (wardrobe.group(1) == null ? "1" : wardrobe.group(1)));
         Matcher pets = PETS_TITLE.matcher(title);
-        if (pets.matches()) {
-            return extraKey("pets_" + (pets.group(1) == null ? "1" : pets.group(1)));
-        }
-        if (EQUIPMENT_TITLE.matcher(title).matches()) {
-            return extraKey("equipment");
-        }
+        if (pets.matches()) return extraKey("pets_" + (pets.group(1) == null ? "1" : pets.group(1)));
+        if (EQUIPMENT_TITLE.matcher(title).matches()) return extraKey("equipment");
         Matcher sets = EQUIPMENT_SETS_TITLE.matcher(title);
-        if (sets.matches()) {
-            return extraKey(EQUIPMENT_WARDROBE_KEY + "_" + (sets.group(1) == null ? "1" : sets.group(1)));
-        }
+        if (sets.matches()) return extraKey(EQUIPMENT_WARDROBE_KEY + "_" + (sets.group(1) == null ? "1" : sets.group(1)));
         return null;
     }
 

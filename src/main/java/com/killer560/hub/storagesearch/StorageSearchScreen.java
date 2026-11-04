@@ -168,9 +168,7 @@ public class StorageSearchScreen extends Screen implements MenuThemedScreen {
     }
 
     private StorageSearchIndex.Entry entryAt(double mx, double my) {
-        if (mx < listX || mx > listX + listW || my < listY || my >= listY + listH) {
-            return null;
-        }
+        if (mx < listX || mx > listX + listW || my < listY || my >= listY + listH) return null;
         int i = (int) ((my - listY + scroll) / ROW_H);
         return i >= 0 && i < results.size() ? results.get(i) : null;
     }
@@ -226,9 +224,7 @@ public class StorageSearchScreen extends Screen implements MenuThemedScreen {
             int first = Math.max(0, scroll / ROW_H);
             for (int i = first; i < results.size(); i++) {
                 int rowY = listY + i * ROW_H - scroll;
-                if (rowY > listY + listH) {
-                    break;
-                }
+                if (rowY > listY + listH) break;
                 drawRow(graphics, results.get(i), i, rowY, results.get(i) == hovered);
             }
         } finally {
@@ -296,21 +292,15 @@ public class StorageSearchScreen extends Screen implements MenuThemedScreen {
     }
 
     private static String ageText(long updatedMs, boolean upperBound) {
-        if (updatedMs < 0) {
-            return "updated ?";
-        }
+        if (updatedMs < 0) return "updated ?";
         return upperBound ? "updated before " + StorageSearchTimestamps.ago(updatedMs) : "updated " + StorageSearchTimestamps.ago(updatedMs);
     }
 
     /** The accent under an hour, dim under a day, red beyond - stale data should look stale. */
     private static int ageColor(long updatedMs) {
-        if (updatedMs < 0) {
-            return ScreenChrome.bad();
-        }
+        if (updatedMs < 0) return ScreenChrome.bad();
         long age = System.currentTimeMillis() - updatedMs;
-        if (age < 3_600_000L) {
-            return MenuStyle.OR;
-        }
+        if (age < 3_600_000L) return MenuStyle.OR;
         return age < 86_400_000L ? MenuStyle.DIM : ScreenChrome.bad();
     }
 

@@ -44,9 +44,7 @@ public final class StorageSearchEsp {
 
     /** Marks a chest for {@code durationMs}. Re-marking the same chest just refreshes its timer. */
     public static void mark(BlockPos pos, long durationMs) {
-        if (pos == null) {
-            return;
-        }
+        if (pos == null) return;
         long expiry = System.currentTimeMillis() + durationMs;
         TARGETS.removeIf(t -> t.pos().equals(pos));
         TARGETS.add(new Target(pos.immutable(), expiry));
@@ -59,14 +57,10 @@ public final class StorageSearchEsp {
 
     private static void onWorldRender(LevelRenderContext context) {
         // Nothing marked is the normal case - this must cost effectively nothing then.
-        if (TARGETS.isEmpty()) {
-            return;
-        }
+        if (TARGETS.isEmpty()) return;
         long now = System.currentTimeMillis();
         TARGETS.removeIf(t -> t.expiresAt() <= now);
-        if (TARGETS.isEmpty()) {
-            return;
-        }
+        if (TARGETS.isEmpty()) return;
         StorageSearchConfig cfg = StorageSearchConfig.getInstance();
         if (!cfg.isEnabled() || !cfg.isSearchChests() || !cfg.isChestEsp()) {
             TARGETS.clear();

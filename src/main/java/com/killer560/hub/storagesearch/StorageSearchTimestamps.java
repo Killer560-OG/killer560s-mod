@@ -33,13 +33,9 @@ public final class StorageSearchTimestamps {
     }
 
     private static void ensureLoaded() {
-        if (loaded) {
-            return;
-        }
+        if (loaded) return;
         loaded = true;
-        if (!Files.exists(PATH)) {
-            return;
-        }
+        if (!Files.exists(PATH)) return;
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             for (String key : obj.keySet()) {
@@ -82,12 +78,8 @@ public final class StorageSearchTimestamps {
     public static String ago(long timeMs) {
         long diff = Math.max(0, System.currentTimeMillis() - timeMs);
         long min = diff / 60_000L;
-        if (min < 1) {
-            return "just now";
-        }
-        if (min < 60) {
-            return min + "m ago";
-        }
+        if (min < 1) return "just now";
+        if (min < 60) return min + "m ago";
         long hours = min / 60;
         return hours < 48 ? hours + "h ago" : (hours / 24) + "d ago";
     }

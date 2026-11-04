@@ -64,9 +64,7 @@ public final class IslandChestCache {
                 JsonObject root = JsonParser.parseString(Files.readString(CACHE_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 for (String key : root.keySet()) {
                     JsonObject obj = root.getAsJsonObject(key);
-                    if (obj == null || !obj.has("b")) {
-                        continue;
-                    }
+                    if (obj == null || !obj.has("b")) continue;
                     cache.chests.put(key, new ChestEntry(key,
                             obj.has("w") ? obj.get("w").getAsString() : "",
                             new BlockPos(obj.get("x").getAsInt(), obj.get("y").getAsInt(), obj.get("z").getAsInt()),
@@ -114,9 +112,7 @@ public final class IslandChestCache {
             return;
         }
         String blob = StorageSearchNbtCodec.encode(contents);
-        if (blob == null) {
-            return;
-        }
+        if (blob == null) return;
         chests.remove(key);
         chests.put(key, new ChestEntry(key, world, pos, label, System.currentTimeMillis(), blob));
         while (chests.size() > MAX_CHESTS) {

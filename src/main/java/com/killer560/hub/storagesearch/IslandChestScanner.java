@@ -57,9 +57,7 @@ public final class IslandChestScanner {
             return lastResult;
         }
         long now = System.currentTimeMillis();
-        if (level == lastLevel && radiusChunks == lastRadius && now - lastScanAt < CACHE_MS) {
-            return lastResult;
-        }
+        if (level == lastLevel && radiusChunks == lastRadius && now - lastScanAt < CACHE_MS) return lastResult;
         List<BlockPos> found = new ArrayList<>();
         BlockPos playerPos = client.player.blockPosition();
         int centerX = playerPos.getX() >> 4;
@@ -67,9 +65,7 @@ public final class IslandChestScanner {
         for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
             for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
                 LevelChunk chunk = readableChunk(level, centerX + dx, centerZ + dz);
-                if (chunk == null) {
-                    continue;
-                }
+                if (chunk == null) continue;
                 for (var entry : chunk.getBlockEntities().entrySet()) {
                     if (isChestLike(entry.getValue())) {
                         found.add(entry.getKey().immutable());
@@ -93,15 +89,11 @@ public final class IslandChestScanner {
         Minecraft client = Minecraft.getInstance();
         ClientLevel level = client.level;
         List<String> missing = new ArrayList<>();
-        if (level == null || entries.isEmpty()) {
-            return missing;
-        }
+        if (level == null || entries.isEmpty()) return missing;
         for (IslandChestCache.ChestEntry entry : entries) {
             BlockPos pos = entry.pos();
             LevelChunk chunk = readableChunk(level, pos.getX() >> 4, pos.getZ() >> 4);
-            if (chunk == null) {
-                continue;
-            }
+            if (chunk == null) continue;
             if (!isChestLike(chunk.getBlockEntities().get(pos))) {
                 missing.add(entry.key());
             }
@@ -111,9 +103,7 @@ public final class IslandChestScanner {
 
     /** Positions from {@link #scan} that no remembered chest covers - "N nearby chests you've never opened". */
     public static int countUnopened(List<BlockPos> scanned, List<IslandChestCache.ChestEntry> remembered) {
-        if (scanned.isEmpty()) {
-            return 0;
-        }
+        if (scanned.isEmpty()) return 0;
         Set<BlockPos> known = new HashSet<>();
         for (IslandChestCache.ChestEntry entry : remembered) {
             known.add(entry.pos());

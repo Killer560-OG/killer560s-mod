@@ -29,9 +29,7 @@ public final class StorageSearchNbtCodec {
 
     public static String encode(List<ItemStack> stacks) {
         RegistryAccess registryAccess = registryAccess();
-        if (registryAccess == null) {
-            return null;
-        }
+        if (registryAccess == null) return null;
         HolderLookup.Provider provider = registryAccess;
         var ops = provider.createSerializationContext(NbtOps.INSTANCE);
         ListTag list = new ListTag();
@@ -57,13 +55,9 @@ public final class StorageSearchNbtCodec {
     }
 
     public static List<ItemStack> decode(String blob) {
-        if (blob == null || blob.isEmpty()) {
-            return null;
-        }
+        if (blob == null || blob.isEmpty()) return null;
         RegistryAccess registryAccess = registryAccess();
-        if (registryAccess == null) {
-            return null;
-        }
+        if (registryAccess == null) return null;
         try {
             HolderLookup.Provider provider = registryAccess;
             var ops = provider.createSerializationContext(NbtOps.INSTANCE);
@@ -84,32 +78,22 @@ public final class StorageSearchNbtCodec {
     /** Cheap "did anything actually change" test, same item-id + count comparison {@code captureIfChanged} uses -
      *  keeps a per-tick re-capture from rewriting the cache file every tick once it has stabilized. */
     static boolean sameContents(List<ItemStack> a, List<ItemStack> b) {
-        if (a == null || b == null || a.size() != b.size()) {
-            return false;
-        }
+        if (a == null || b == null || a.size() != b.size()) return false;
         for (int i = 0; i < a.size(); i++) {
             ItemStack sa = a.get(i);
             ItemStack sb = b.get(i);
             boolean emptyA = sa == null || sa.isEmpty();
             boolean emptyB = sb == null || sb.isEmpty();
-            if (emptyA != emptyB) {
-                return false;
-            }
-            if (emptyA) {
-                continue;
-            }
-            if (sa.getCount() != sb.getCount() || !sa.getItem().equals(sb.getItem())) {
-                return false;
-            }
+            if (emptyA != emptyB) return false;
+            if (emptyA) continue;
+            if (sa.getCount() != sb.getCount() || !sa.getItem().equals(sb.getItem())) return false;
         }
         return true;
     }
 
     private static RegistryAccess registryAccess() {
         Minecraft client = Minecraft.getInstance();
-        if (client.level != null) {
-            return client.level.registryAccess();
-        }
+        if (client.level != null) return client.level.registryAccess();
         return client.getConnection() != null ? client.getConnection().registryAccess() : null;
     }
 }

@@ -194,9 +194,7 @@ public final class StorageSearchConfig {
 
     private static <T extends Enum<T>> T parseEnum(String name, T[] values, T fallback) {
         for (T value : values) {
-            if (value.name().equals(name)) {
-                return value;
-            }
+            if (value.name().equals(name)) return value;
         }
         return fallback;
     }

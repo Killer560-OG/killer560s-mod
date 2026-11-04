@@ -35,12 +35,8 @@ public record StorageSearchBind(int mods, int code) {
 
     /** Polls the whole combination. Cheap - at most four {@code glfwGetKey} calls, and only for binds that are set. */
     public boolean isDown(Window window) {
-        if (window == null || !isSet()) {
-            return false;
-        }
-        if (heldMods(window) != mods) {
-            return false;
-        }
+        if (window == null || !isSet()) return false;
+        if (heldMods(window) != mods) return false;
         return KeyUtil.isBindDown(window, code);
     }
 
@@ -60,9 +56,7 @@ public record StorageSearchBind(int mods, int code) {
 
     /** "Ctrl + F", "Shift + Left Button", "Not Set". */
     public String display() {
-        if (!isSet()) {
-            return "Not Set";
-        }
+        if (!isSet()) return "Not Set";
         StringBuilder sb = new StringBuilder();
         if ((mods & MOD_CTRL) != 0) {
             sb.append("Ctrl + ");
@@ -82,19 +76,13 @@ public record StorageSearchBind(int mods, int code) {
     /** @return the bind this string encodes, or null when it is unusable (so a hand-edited config can't break the
      *  feature - same spirit as {@link KeyUtil#sanitizeBind}). */
     public static StorageSearchBind parse(String raw) {
-        if (raw == null) {
-            return null;
-        }
+        if (raw == null) return null;
         int colon = raw.indexOf(':');
-        if (colon <= 0) {
-            return null;
-        }
+        if (colon <= 0) return null;
         try {
             int mods = Integer.parseInt(raw.substring(0, colon).trim());
             int code = KeyUtil.sanitizeBind(Integer.parseInt(raw.substring(colon + 1).trim()));
-            if (code == KeyUtil.NONE) {
-                return null;
-            }
+            if (code == KeyUtil.NONE) return null;
             return new StorageSearchBind(mods & (MOD_CTRL | MOD_SHIFT | MOD_ALT), code);
         } catch (NumberFormatException e) {
             return null;

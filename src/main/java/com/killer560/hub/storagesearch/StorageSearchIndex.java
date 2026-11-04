@@ -88,28 +88,20 @@ public final class StorageSearchIndex {
 
         for (String key : keys) {
             int[] ord = order(key, prefix);
-            if (ord[0] > 1) {
-                continue;
-            }
+            if (ord[0] > 1) continue;
             String label = labelFor(key, prefix);
             long recorded = StorageSearchTimestamps.get(key);
             boolean upperBound = recorded < 0;
             long updated = upperBound ? fileTime : recorded;
             boolean has = cache.hasContents(key);
             index.storages.add(new StorageInfo(key, label, has, updated, upperBound));
-            if (!has) {
-                continue;
-            }
+            if (!has) continue;
             List<ItemStack> contents = cache.get(key);
-            if (contents == null) {
-                continue;
-            }
+            if (contents == null) continue;
             SourceType type = ord[0] == 0 ? SourceType.ENDER_CHEST : SourceType.BACKPACK;
             for (int i = 0; i < contents.size(); i++) {
                 ItemStack stack = contents.get(i);
-                if (stack == null || stack.isEmpty()) {
-                    continue;
-                }
+                if (stack == null || stack.isEmpty()) continue;
                 int row = i / 9 + 1;
                 int col = i % 9 + 1;
                 String location = label + " · slot " + (i + 1) + " (r" + row + " c" + col + ")";
@@ -125,9 +117,7 @@ public final class StorageSearchIndex {
                 int size = Math.min(inv.getContainerSize(), Inventory.SLOT_OFFHAND + 1);
                 for (int i = 0; i < size; i++) {
                     ItemStack stack = inv.getItem(i);
-                    if (stack == null || stack.isEmpty()) {
-                        continue;
-                    }
+                    if (stack == null || stack.isEmpty()) continue;
                     index.entries.add(makeEntry(stack, SourceType.INVENTORY, null, 0, -1, i,
                             inventoryLabel(i), now, false, null));
                 }
@@ -151,9 +141,7 @@ public final class StorageSearchIndex {
         StorageSearchExtraCache extras = StorageSearchExtraCache.getInstance();
         for (String key : extras.keysFor(prefix + "|")) {
             List<ItemStack> contents = extras.get(key);
-            if (contents == null) {
-                continue;
-            }
+            if (contents == null) continue;
             String local = localPart(key, prefix);
             SourceType type = local.startsWith("pets") ? SourceType.PETS
                     : local.startsWith("wardrobe") ? SourceType.WARDROBE : SourceType.EQUIPMENT;
@@ -161,9 +149,7 @@ public final class StorageSearchIndex {
             long updated = extras.updatedMs(key);
             for (int i = 0; i < contents.size(); i++) {
                 ItemStack stack = contents.get(i);
-                if (stack == null || stack.isEmpty() || isMenuChrome(stack)) {
-                    continue;
-                }
+                if (stack == null || stack.isEmpty() || isMenuChrome(stack)) continue;
                 index.entries.add(makeEntry(stack, type, key, pageNumber(local), i, -1,
                         label + " · slot " + (i + 1), updated, false, null));
             }
@@ -174,9 +160,7 @@ public final class StorageSearchIndex {
      *  chunk-cache-backed scan for the "you've never opened N of the chests around you" nudge. */
     private static void addIslandChests(StorageSearchIndex index, String prefix, StorageSearchConfig cfg) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null) {
-            return;
-        }
+        if (client.level == null) return;
         String world = worldId();
         IslandChestCache chestCache = IslandChestCache.getInstance();
         List<IslandChestCache.ChestEntry> remembered = chestCache.entriesFor(prefix, world);
@@ -193,16 +177,12 @@ public final class StorageSearchIndex {
 
         for (IslandChestCache.ChestEntry entry : remembered) {
             List<ItemStack> contents = chestCache.contentsOf(entry);
-            if (contents == null) {
-                continue;
-            }
+            if (contents == null) continue;
             BlockPos pos = entry.pos();
             String label = entry.label() + " (" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
             for (int i = 0; i < contents.size(); i++) {
                 ItemStack stack = contents.get(i);
-                if (stack == null || stack.isEmpty()) {
-                    continue;
-                }
+                if (stack == null || stack.isEmpty()) continue;
                 index.entries.add(makeEntry(stack, SourceType.ISLAND_CHEST, entry.key(), 0, i, -1,
                         label + " · slot " + (i + 1), entry.updatedMs(), false, pos));
             }
@@ -218,12 +198,8 @@ public final class StorageSearchIndex {
         StorageSearchConfig.SourceFilter source = cfg.getSourceFilter();
         List<Entry> out = new ArrayList<>();
         for (Entry e : entries) {
-            if (!includeInventory && e.type() == SourceType.INVENTORY) {
-                continue;
-            }
-            if (!matchesSource(e.type(), source)) {
-                continue;
-            }
+            if (!includeInventory && e.type() == SourceType.INVENTORY) continue;
+            if (!matchesSource(e.type(), source)) continue;
             if (q.isEmpty() || e.nameLower().contains(q) || e.idLower().contains(q)
                     || (searchLore && e.loreLower().contains(q))) {
                 out.add(e);
@@ -253,9 +229,7 @@ public final class StorageSearchIndex {
             case RECENT -> list.sort(Comparator.comparingLong((Entry e) -> e.updatedMs()).reversed());
             case DISTANCE -> {
                 var player = Minecraft.getInstance().player;
-                if (player == null) {
-                    return;
-                }
+                if (player == null) return;
                 // Chests sort by real distance; everything else keeps its order behind them, since "how far away"
                 // is meaningless for a backpack.
                 BlockPos here = player.blockPosition();
@@ -329,17 +303,13 @@ public final class StorageSearchIndex {
     }
 
     private static String inventoryLabel(int slot) {
-        if (slot < 9) {
-            return "Hotbar · slot " + (slot + 1);
-        }
+        if (slot < 9) return "Hotbar · slot " + (slot + 1);
         if (slot < Inventory.INVENTORY_SIZE) {
             int i = slot - 9;
             return "Inventory · r" + (i / 9 + 1) + " c" + (i % 9 + 1);
         }
         EquipmentSlot eq = Inventory.EQUIPMENT_SLOT_MAPPING.get(slot);
-        if (eq == EquipmentSlot.OFFHAND) {
-            return "Offhand";
-        }
+        if (eq == EquipmentSlot.OFFHAND) return "Offhand";
         if (eq != null) {
             String n = eq.getName();
             return "Armor · " + (n.isEmpty() ? n : Character.toUpperCase(n.charAt(0)) + n.substring(1));
@@ -371,9 +341,7 @@ public final class StorageSearchIndex {
 
     static int pageNumber(String local) {
         int underscore = local.indexOf('_');
-        if (underscore < 0) {
-            return 0;
-        }
+        if (underscore < 0) return 0;
         try {
             return Integer.parseInt(local.substring(underscore + 1));
         } catch (NumberFormatException e) {
@@ -384,9 +352,7 @@ public final class StorageSearchIndex {
     /** {type, number}: 0 = Ender Chest, 1 = Backpack, 2 = unknown. */
     static int[] order(String key, String prefix) {
         String local = localPart(key, prefix);
-        if (local.startsWith("enderchest_")) {
-            return new int[]{0, parseInt(local.substring("enderchest_".length()))};
-        }
+        if (local.startsWith("enderchest_")) return new int[]{0, parseInt(local.substring("enderchest_".length()))};
         return local.startsWith("backpack_") ? new int[]{1, parseInt(local.substring("backpack_".length()))} : new int[]{2, 0};
     }
 

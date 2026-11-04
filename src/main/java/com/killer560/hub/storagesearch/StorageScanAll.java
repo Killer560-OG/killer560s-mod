@@ -127,9 +127,7 @@ public final class StorageScanAll {
      */
     public static void start(boolean storageOnlyScan) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
         if (!registered) {
             registered = true;
             // START: it opens and clicks through storage pages. See ActionGate's class doc.
@@ -163,18 +161,14 @@ public final class StorageScanAll {
     }
 
     public static void stop(String why) {
-        if (!isRunning()) {
-            return;
-        }
+        if (!isRunning()) return;
         queue.clear();
         current = null;
         ModChat.send(StorageSearchFeature.CHAT_PREFIX, ModChat.bad("Scan All stopped"), ModChat.dim(" - " + why));
     }
 
     private static void tick(Minecraft client) {
-        if (!isRunning()) {
-            return;
-        }
+        if (!isRunning()) return;
         if (client.player == null || client.level == null) {
             queue.clear();
             current = null;
@@ -367,9 +361,7 @@ public final class StorageScanAll {
     }
 
     private static Slot findNextPage(Minecraft client) {
-        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
-            return null;
-        }
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) return null;
         List<Slot> slots = screen.getMenu().slots;
         int top = Math.max(0, slots.size() - 36);
         for (int i = 0; i < top; i++) {
