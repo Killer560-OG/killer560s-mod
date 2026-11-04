@@ -110,16 +110,8 @@ public final class ImageLinks {
         if (v == null || v.isBlank()) {
             return false;
         }
-        for (String part : v.split(",")) {
-            String p = part.trim().toLowerCase(Locale.ROOT);
-            if (p.isEmpty()) {
-                continue;
-            }
-            if (p.equals(host) || p.equals(host + ":" + port)) {
-                return true;
-            }
-        }
-        return false;
+        return java.util.Arrays.stream(v.split(",")).map(part -> part.trim().toLowerCase(Locale.ROOT))
+                .anyMatch(p -> !p.isEmpty() && (p.equals(host) || p.equals(host + ":" + port)));
     }
 
     /** Whether {@code url}'s host may be fetched under the current host setting. */
