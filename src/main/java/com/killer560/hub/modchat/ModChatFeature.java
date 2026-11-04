@@ -193,9 +193,7 @@ public final class ModChatFeature {
     }
 
     /** @return who else is in your relay room right now, for the settings tab. Never null. */
-    public static List<String> online() {
-        return RelayClient.online();
-    }
+    public static List<String> online() { return RelayClient.online(); }
 
     private static boolean isSelf(String name) {
         Minecraft client = Minecraft.getInstance();

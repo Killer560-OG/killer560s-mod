@@ -86,14 +86,10 @@ public final class ModChatChannel {
     }
 
     /** True while plain typed chat goes to Mod Chat. */
-    public static boolean isActive() {
-        return active;
-    }
+    public static boolean isActive() { return active; }
 
     /** Switches the channel without the chat line (tests, and the channel being turned off from elsewhere). */
-    public static void setActive(boolean value) {
-        active = value;
-    }
+    public static void setActive(boolean value) { active = value; }
 
     /**
      * Fabric's ALLOW_COMMAND: false swallows the command (it never leaves the client). Only {@code /chat <mod name>} is
