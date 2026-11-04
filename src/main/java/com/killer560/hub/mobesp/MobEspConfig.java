@@ -331,7 +331,6 @@ public final class MobEspConfig {
     public boolean getWitherHighlightRaw() { return witherHighlight; }
     public void setWitherHighlight(boolean v) { witherHighlight = v; }
 
-    // ---- Colors ----
     public int getStarredColor() { return starredColor; }
     public void setStarredColor(int v) { starredColor = v; }
     public int getBatColor() { return batColor; }
@@ -339,7 +338,6 @@ public final class MobEspConfig {
     public int getWitherHighlightColor() { return witherHighlightColor; }
     public void setWitherHighlightColor(int v) { witherHighlightColor = v; }
 
-    // ---- Render ----
     public Style getStyle() { return style; }
     public void cycleStyle() {
         cycleStyle(1);

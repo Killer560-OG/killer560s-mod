@@ -915,7 +915,6 @@ public final class MobEspFeature {
         return hit.getType() == HitResult.Type.MISS || hit.getBlockPos().equals(BlockPos.containing(to));
     }
 
-    // ---- testkit ----
 
     public static int lastOtherFelsDrawn() {
         return lastOtherFelsDrawn;
