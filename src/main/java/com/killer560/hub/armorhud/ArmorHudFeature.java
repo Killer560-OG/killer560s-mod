@@ -402,6 +402,7 @@ public final class ArmorHudFeature {
             equipment[i] = null;
         }
         pendingBlobs = null;
+        BY_LOADOUT.clear();
         loadCache();
     }
 
