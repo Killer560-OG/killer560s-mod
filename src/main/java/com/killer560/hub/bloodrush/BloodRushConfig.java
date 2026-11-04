@@ -27,6 +27,12 @@ public final class BloodRushConfig {
     public static final int DEFAULT_LEARNED_COLOR = 0xFFAA00AA;
     public static final int MIN_FILL = 0;
     public static final int MAX_FILL = 60;
+    /** The default box face opacity (12 until bloodrush2-1104: too faint to see in a lit room). */
+    public static final int DEFAULT_FILL = 25;
+    public static final int MIN_OUTLINE = 1;
+    public static final int MAX_OUTLINE = 10;
+    /** The default outline width (2 until bloodrush2-1104). */
+    public static final int DEFAULT_OUTLINE = 4;
 
     private static BloodRushConfig instance;
 
@@ -40,7 +46,9 @@ public final class BloodRushConfig {
     private int mineColor = DEFAULT_MINE_COLOR;
     private int othersColor = DEFAULT_OTHERS_COLOR;
     private int learnedColor = DEFAULT_LEARNED_COLOR;
-    private int fillOpacity = 12;
+    private int fillOpacity = DEFAULT_FILL;
+    private boolean filled = true;
+    private int outlineWidth = DEFAULT_OUTLINE;
     private boolean throughWalls = false;
     private boolean wholePath = false;
     private DoorKills doorKills = DoorKills.NEVER;
@@ -82,7 +90,9 @@ public final class BloodRushConfig {
                 c.mineColor = ConfigJson.getInt(o, "mineColor", DEFAULT_MINE_COLOR);
                 c.othersColor = ConfigJson.getInt(o, "othersColor", DEFAULT_OTHERS_COLOR);
                 c.learnedColor = ConfigJson.getInt(o, "learnedColor", DEFAULT_LEARNED_COLOR);
-                c.setFillOpacity(ConfigJson.getInt(o, "fillOpacity", 12));
+                c.setFillOpacity(ConfigJson.getInt(o, "fillOpacity", DEFAULT_FILL));
+                c.filled = ConfigJson.getBool(o, "filled", true);
+                c.setOutlineWidth(ConfigJson.getInt(o, "outlineWidth", DEFAULT_OUTLINE));
                 c.throughWalls = ConfigJson.getBool(o, "throughWalls", false);
                 c.wholePath = ConfigJson.getBool(o, "wholePath", false);
                 c.doorKills = ConfigJson.getEnum(o, "doorKills", DoorKills.class, DoorKills.NEVER);
@@ -110,6 +120,8 @@ public final class BloodRushConfig {
             o.addProperty("othersColor", othersColor);
             o.addProperty("learnedColor", learnedColor);
             o.addProperty("fillOpacity", fillOpacity);
+            o.addProperty("filled", filled);
+            o.addProperty("outlineWidth", outlineWidth);
             o.addProperty("throughWalls", throughWalls);
             o.addProperty("wholePath", wholePath);
             o.addProperty("doorKills", doorKills.name());
@@ -211,6 +223,24 @@ public final class BloodRushConfig {
 
     public void setFillOpacity(int v) {
         fillOpacity = Math.max(MIN_FILL, Math.min(MAX_FILL, v));
+    }
+
+    /** Whether the boxes' faces are drawn (at {@link #getFillOpacity}); off draws outlines only. */
+    public boolean isFilled() {
+        return filled;
+    }
+
+    public void setFilled(boolean v) {
+        filled = v;
+    }
+
+    /** The box outline width, {@link #MIN_OUTLINE}-{@link #MAX_OUTLINE}. */
+    public int getOutlineWidth() {
+        return outlineWidth;
+    }
+
+    public void setOutlineWidth(int v) {
+        outlineWidth = Math.max(MIN_OUTLINE, Math.min(MAX_OUTLINE, v));
     }
 
     public DoorKills getDoorKills() {

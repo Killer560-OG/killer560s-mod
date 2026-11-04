@@ -22,6 +22,13 @@ public class BloodRushHelperTab extends BaseTab {
         super("Blood Rush Helper");
     }
 
+    /** The helper and its passive learner each run on their own flag (BloodRushHelperFeature.tick), so the card is ON
+     *  while either is on (CLAUDE.md masterToggles rule). */
+    @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Blood Rush Helper", "Learn Spawn Spots");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();
@@ -34,9 +41,16 @@ public class BloodRushHelperTab extends BaseTab {
         w.add(onOffButton("Blood Rush Helper", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 20));
         y += 26;
+        // Learning runs while the helper is off too (bloodrush2-1104), so its row is built either way and it is one of the
+        // card's master toggles (CLAUDE.md masterToggles rule): the card reads ON while it learns.
+        w.add(onOffButton("Learn Spawn Spots", cfg::isLearnSpots, cfg::setLearnSpots, cfg::save, null,
+                contentX, y, colW, 18));
         if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return w;
         }
+        w.add(onOffButton("Show Learned Spots", cfg::isShowLearned, cfg::setShowLearned, cfg::save, null,
+                colB, y, colW, 18));
+        y += 22;
 
         w.add(SettingsButtonWidget.cycling(killersText(cfg), (btn, dir) -> {
             cfg.setKillers(SettingsButtonWidget.step(cfg.getKillers() - 1, dir, BloodRushConfig.MAX_KILLERS) + 1);
@@ -64,11 +78,6 @@ public class BloodRushHelperTab extends BaseTab {
                 colB, y, colW, 18));
         y += 22;
 
-        w.add(onOffButton("Learn Spawn Spots", cfg::isLearnSpots, cfg::setLearnSpots, cfg::save, null,
-                contentX, y, colW, 18));
-        w.add(onOffButton("Show Learned Spots", cfg::isShowLearned, cfg::setShowLearned, cfg::save, null,
-                colB, y, colW, 18));
-        y += 22;
 
         w.add(color("My Spots Color", cfg.getMineColor(), BloodRushConfig.DEFAULT_MINE_COLOR, v -> {
             cfg.setMineColor(v);
@@ -89,6 +98,14 @@ public class BloodRushHelperTab extends BaseTab {
         w.add(normSlider(colB, y, colW, 18, () -> "Fill Opacity: " + cfg.getFillOpacity() + "%",
                 (cfg.getFillOpacity() - fMin) / (double) (fMax - fMin),
                 v -> cfg.setFillOpacity((int) Math.round(fMin + v * (fMax - fMin))), cfg::save));
+        y += 22;
+
+        w.add(onOffButton("Filled Boxes", cfg::isFilled, cfg::setFilled, cfg::save, null, contentX, y, colW, 18));
+        int oMin = BloodRushConfig.MIN_OUTLINE;
+        int oMax = BloodRushConfig.MAX_OUTLINE;
+        w.add(normSlider(colB, y, colW, 18, () -> "Outline Width: " + cfg.getOutlineWidth(),
+                (cfg.getOutlineWidth() - oMin) / (double) (oMax - oMin),
+                v -> cfg.setOutlineWidth((int) Math.round(oMin + v * (oMax - oMin))), cfg::save));
         y += 22;
 
         w.add(SettingsButtonWidget.builder(Component.literal("Forget Learned Spots (" + BloodRushSpots.counts().size()

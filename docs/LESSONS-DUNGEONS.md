@@ -153,6 +153,26 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   all; FairyDoor now paths to the Fairy room itself then, keeps a door already found, and a shut one is drawn by the
   wither highlight in the Fairy color (testkit 678 checks the color).
 
+## Blood Rush Helper
+
+- Boxes "not loading in" (killer560, 2026-11-03): a room showed boxes only from spawn spots learned on earlier runs or
+  from mobs already in view, and learning ran only during the rush (before the blood door) and only while the helper was
+  on, so after a night of runs his file held 14 spots in 5 rooms. There is no public starred-mob spawn table (adm's is All
+  Rights Reserved; the room captures' `mobSpawns` are 74 snapshot positions in 25 rooms, mostly bats). Fix (bloodrush2-1104):
+  the jar ships `assets/killer560smod/bloodrush/spawn-spots.json` (rebuild with `python -I tools/bloodrush/build-spots.py`,
+  which merges every Prism instance's learned file into it), spots are learned all run until the boss, and a spot is learned
+  only after the mob stood on it half a second. Visibility: 2 px outlines and 12% faces were hard to see; Outline Width
+  (default 4) and Filled Boxes (default on, 25%) were added, proven in pixels by testkit 1104-bloodrush-known.
+- Where spawn spots could come from (surveyed 2026-11-04, so nobody repeats it): the 134 room captures' `mobSpawns` hold
+  starred entries only for Archway (40: zombies, skeletons, 2 Fels), and Archway is a bad capture anchored a tile off
+  (docs/SIM-ROOMS.md), so its frame cannot be trusted; the rest are bats. The sim places mobs at random unless a room has
+  known spots (`SimLiveMobs.placeMobs`), so it is no source. His Hypixel logs name no starred mob positions with a room
+  frame ([Bat], [AutoClear] key room, [InstaClear] lines carry none). The NoammAddons room data (rooms-modern.json), Hades'
+  rooms.json (LGPL, room ids and scores only), Nebulune, Athen and QUOI hold no spawn positions; only adm does (ARR, not
+  used). So the table grows only from learning: since bloodrush2-1104 Learn Spawn Spots also runs while the helper is off
+  (its row is built in the tab either way and is in masterToggles, so the card reads ON while it learns), and the table's `sources` map
+  names each room's origin.
+
 ## Blood Camp
 
 - Blood Camp's prediction is NoammAddons' (killer560 asked for it, 2026-10-07), including a Kotlin quirk: Noamm sums
