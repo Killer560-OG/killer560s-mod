@@ -38,6 +38,9 @@ public final class CrystalHollowsMapConfig {
 
     private static CrystalHollowsMapConfig instance;
 
+    /** Bumped on every load and save, so the map's cached layout knows a setting or waypoint changed. */
+    private static volatile int version;
+
     private boolean enabled = false;
     private float mapScale = 1.5f;
 
@@ -62,6 +65,11 @@ public final class CrystalHollowsMapConfig {
      */
     private boolean showBorders = true;
     private boolean showStructureWaypoints = true;
+
+    /** The map as a movable HUD element while in the Crystal Hollows (killer560, 2026-11-04: "it should be a hud
+     *  element like theirs", Skyblocker's and SkyHanni's), and the zone quadrants tinted on both views. */
+    private boolean hudEnabled = true;
+    private boolean showZones = true;
     private final List<CrystalHollowsWaypoint> waypoints = new ArrayList<>();
 
     private CrystalHollowsMapConfig() {
@@ -75,6 +83,7 @@ public final class CrystalHollowsMapConfig {
     }
 
     public static void load() {
+        version++;
         instance = new CrystalHollowsMapConfig();
         if (!Files.exists(CONFIG_PATH)) {
             return;
@@ -87,6 +96,8 @@ public final class CrystalHollowsMapConfig {
             instance.receiveWaypoints = ConfigJson.getBool(obj, "receiveWaypoints", true);
             instance.showBorders = ConfigJson.getBool(obj, "showBorders", true);
             instance.showStructureWaypoints = ConfigJson.getBool(obj, "showStructureWaypoints", true);
+            instance.hudEnabled = ConfigJson.getBool(obj, "hudEnabled", true);
+            instance.showZones = ConfigJson.getBool(obj, "showZones", true);
             JsonArray arr = ConfigJson.getArray(obj, "waypoints");
             if (arr != null) {
                 for (JsonElement e : arr) {
@@ -108,6 +119,7 @@ public final class CrystalHollowsMapConfig {
     }
 
     public void save() {
+        version++;
         try {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
@@ -116,6 +128,8 @@ public final class CrystalHollowsMapConfig {
             obj.addProperty("receiveWaypoints", receiveWaypoints);
             obj.addProperty("showBorders", showBorders);
             obj.addProperty("showStructureWaypoints", showStructureWaypoints);
+            obj.addProperty("hudEnabled", hudEnabled);
+            obj.addProperty("showZones", showZones);
             JsonArray arr = new JsonArray();
             for (CrystalHollowsWaypoint w : waypoints) {
                 JsonObject o = new JsonObject();
@@ -175,6 +189,27 @@ public final class CrystalHollowsMapConfig {
 
     public void setShowStructureWaypoints(boolean value) {
         this.showStructureWaypoints = value;
+    }
+
+    public boolean isHudEnabled() {
+        return hudEnabled;
+    }
+
+    public void setHudEnabled(boolean value) {
+        this.hudEnabled = value;
+    }
+
+    public boolean isShowZones() {
+        return showZones;
+    }
+
+    public void setShowZones(boolean value) {
+        this.showZones = value;
+    }
+
+    /** Changes on every load and save (see {@link #version}). */
+    public static int version() {
+        return version;
     }
 
     public float getMapScale() {

@@ -120,7 +120,9 @@ final class SettingTooltipsData {
         d.put("nucleus run profit/open /profit", "Opens the profit trackers screen.");
         d.put("crystal hollows map/crystal hollows map", "A top-down Crystal Hollows map showing you, the structures you have found and your waypoints.");
         d.put("crystal hollows map/open map", "Opens the full map. Left click sets a travel target, right click clears it. It never moves you.");
-        d.put("crystal hollows map/map scale", "How far the map is zoomed in, 0.5x to 4x.");
+        d.put("crystal hollows map/map scale", "How far the full map is zoomed in, 0.5x to 4x.");
+        d.put("crystal hollows map/map hud", "Shows the whole Crystal Hollows as a small map on your HUD while you are there: zones, structures, waypoints and you as an arrow. Move and size it in Edit HUD.");
+        d.put("crystal hollows map/show zones", "Tints the four zones (Jungle, Mithril Deposits, Goblin Holdout, Precursor Remnants) and the Nucleus on both maps.");
         d.put("crystal hollows map/show borders", "Draws a box around each structure you have found, covering the part you have walked.");
         d.put("crystal hollows map/show waypoints", "Puts a named marker at the middle of each structure you have found.");
         d.put("crystal hollows map/share my finds", "Shares the structures you find with other mod users in the same lobby.");

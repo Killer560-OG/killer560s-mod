@@ -39,6 +39,9 @@ public final class ChDiscovery {
     /** The area the sidebar last named, so entering one is noticed once rather than every tick. */
     private static String lastArea = "";
 
+    /** Bumped whenever what {@link #all} would return changes, so the map redraws its finds only then. */
+    private static volatile int version;
+
     private ChDiscovery() {
     }
 
@@ -102,11 +105,16 @@ public final class ChDiscovery {
         ChFind existing = FINDS.get(structure);
         if (existing == null) {
             FINDS.put(structure, new ChFind(structure, source, x, y, z));
+            version++;
             return;
         }
-        existing.include(x, y, z);
-        if (source == ChFind.Source.VISITED) {
+        boolean changed = existing.include(x, y, z);
+        if (source == ChFind.Source.VISITED && existing.source != ChFind.Source.VISITED) {
             existing.source = ChFind.Source.VISITED;
+            changed = true;
+        }
+        if (changed) {
+            version++;
         }
     }
 
@@ -127,9 +135,15 @@ public final class ChDiscovery {
         if (existing == null) {
             incoming.source = ChFind.Source.SHARED;
             FINDS.put(incoming.structure, incoming);
-            return;
+        } else {
+            existing.include(incoming);
         }
-        existing.include(incoming);
+        version++;
+    }
+
+    /** Changes whenever the finds do (see {@link #version}). */
+    public static int version() {
+        return version;
     }
 
     /** Everything known about this lobby. */
@@ -156,6 +170,7 @@ public final class ChDiscovery {
     /** Forgets everything. For a lobby change, and for the Lobby Swapper starting a fresh look. */
     public static synchronized void clear() {
         FINDS.clear();
+        version++;
         lastArea = "";
     }
 
@@ -178,6 +193,7 @@ public final class ChDiscovery {
             }
             lobbyId = now;
             FINDS.clear();
+            version++;
             lastArea = "";
         }
     }
