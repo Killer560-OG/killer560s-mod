@@ -57,7 +57,7 @@ public class GoldorTriggerbotTab extends BaseTab {
             @Override
             protected void onRangeChanged(int low, int high) {
                 cfg.setCpsRange(low, high);
-                cfg.save();
+                com.killer560.hub.gui.ThemedSliderButton.saveOnRelease(cfg::save);
             }
         });
         y += ROW + GAP;

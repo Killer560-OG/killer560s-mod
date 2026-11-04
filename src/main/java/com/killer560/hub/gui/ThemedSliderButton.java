@@ -133,6 +133,33 @@ public abstract class ThemedSliderButton extends AbstractSliderButton implements
         }
     }
 
+    /** For a slider that is not a ThemedSliderButton (the range slider): runs one value step so its
+     *  {@link #saveOnRelease} saves wait for the release when a press is held. */
+    public static void runStep(Runnable step, boolean press) {
+        if (press && !pressHeld) {
+            beginPress();
+        }
+        boolean outer = stepSaves == null;
+        if (outer) {
+            stepSaves = new java.util.ArrayList<>();
+        }
+        try {
+            step.run();
+        } finally {
+            if (outer) {
+                java.util.List<Runnable> saves = stepSaves;
+                stepSaves = null;
+                if (!saves.isEmpty()) {
+                    if (pressHeld) {
+                        pendingSaves = saves;
+                    } else {
+                        runAll(saves);
+                    }
+                }
+            }
+        }
+    }
+
     /** Writes any saves a drag left waiting. Safe to call at any time. */
     public static void flushPendingSaves() {
         pressHeld = false;

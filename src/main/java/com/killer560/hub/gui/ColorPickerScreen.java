@@ -118,7 +118,29 @@ public class ColorPickerScreen extends Screen {
         applyArgb(c);
     }
 
+    /** While the square or hue bar is dragged, onChange (whose callers write a config file) runs at most every 150 ms;
+     *  the release, a close and a hex or slider edit apply the final value (scanblock-1104). */
+    private long lastLiveMs;
+    private boolean liveDirty;
+
+    private void flushLive() {
+        if (liveDirty) {
+            liveDirty = false;
+            onChange.accept(argb);
+        }
+    }
+
     private void applyLive() {
+        if (draggingSv || draggingHue) {
+            long now = System.currentTimeMillis();
+            if (now - lastLiveMs < 150) {
+                liveDirty = true;
+                syncWidgets();
+                return;
+            }
+            lastLiveMs = now;
+        }
+        liveDirty = false;
         onChange.accept(argb);
         syncWidgets();
     }
@@ -460,6 +482,7 @@ public class ColorPickerScreen extends Screen {
     public boolean mouseReleased(MouseButtonEvent event) {
         draggingSv = false;
         draggingHue = false;
+        flushLive();
         return super.mouseReleased(event);
     }
 
@@ -501,6 +524,7 @@ public class ColorPickerScreen extends Screen {
 
     @Override
     public void onClose() {
+        flushLive();
         if (argb != initialArgb) {
             RecentColours.getInstance().add(argb);
         }

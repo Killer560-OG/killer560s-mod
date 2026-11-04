@@ -87,7 +87,7 @@ public abstract class RangeSliderWidget extends AbstractWidget implements MenuAn
         }
         if (low != oldLow || high != oldHigh) {
             setMessage(label(low, high));
-            onRangeChanged(low, high);
+            ThemedSliderButton.runStep(() -> onRangeChanged(low, high), dragging >= 0);
         }
     }
 
@@ -168,6 +168,7 @@ public abstract class RangeSliderWidget extends AbstractWidget implements MenuAn
     @Override
     public void onRelease(MouseButtonEvent event) {
         dragging = -1;
+        ThemedSliderButton.flushPendingSaves();
     }
 
     @Override

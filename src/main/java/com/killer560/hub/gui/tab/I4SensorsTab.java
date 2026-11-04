@@ -137,7 +137,7 @@ public class I4SensorsTab extends BaseTab {
                 @Override
                 protected void onRangeChanged(int low, int high) {
                     cfg.setCpsRange(low, high);
-                    cfg.save();
+                    ThemedSliderButton.saveOnRelease(cfg::save);
                 }
             });
             y += 22;

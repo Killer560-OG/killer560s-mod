@@ -1059,7 +1059,8 @@ public final class ExperimentsProfitTracker {
             root.add("view", view.toJson());
             root.add("sessionLog", log);
             // Merged onto the shared file: another instance's sessions since are added, not overwritten.
-            SharedRecords.save(SharedRecords.file(RecordCatalog.EXPERIMENTS), root);
+            com.killer560.hub.shared.SharedFile target = SharedRecords.file(RecordCatalog.EXPERIMENTS);
+            com.killer560.hub.shared.SharedWriter.submit(() -> SharedRecords.save(target, root));
         } catch (Exception e) {
             LOGGER.warn("Couldn't save the experiments profit file", e);
         }
