@@ -179,10 +179,7 @@ public final class BossHealthText {
         if (v >= 1_000_000L) {
             return trim(v / 1e6) + "M";
         }
-        if (v >= 1_000L) {
-            return trim(v / 1e3) + "k";
-        }
-        return Long.toString(Math.max(0L, v));
+        return v >= 1_000L ? trim(v / 1e3) + "k" : Long.toString(Math.max(0L, v));
     }
 
     private static String trim(double d) {

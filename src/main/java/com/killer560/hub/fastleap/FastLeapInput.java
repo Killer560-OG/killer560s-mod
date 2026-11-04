@@ -43,10 +43,7 @@ public final class FastLeapInput {
         if (McCompat.screen(client) != null) {
             return false;
         }
-        if (I4LeapFeature.blocksInput()) {
-            return true;
-        }
-        return button == 0 && FastLeapFeature.onLeftClick();
+        return I4LeapFeature.blocksInput() || button == 0 && FastLeapFeature.onLeftClick();
     }
 
     /** @param action GLFW action (1 = press, 2 = repeat, 0 = release) */

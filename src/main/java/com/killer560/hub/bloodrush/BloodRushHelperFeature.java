@@ -213,26 +213,7 @@ public final class BloodRushHelperFeature {
     }
 
     /** The roles line: shown only while someone in the party has claimed a role in adm's form. Movable in the HUD editor. */
-    public static final com.killer560.hub.hud.HudElement HUD = new com.killer560.hub.hud.HudElement() {
-        @Override
-        public String id() {
-            return "blood_rush_roles";
-        }
-
-        @Override
-        public String displayName() {
-            return "Blood Rush Roles";
-        }
-
-        @Override
-        public int defaultX() {
-            return 4;
-        }
-
-        @Override
-        public int defaultY() {
-            return 120;
-        }
+    public static final com.killer560.hub.hud.HudElement HUD = new com.killer560.hub.hud.BasicHud("blood_rush_roles", "Blood Rush Roles", 4, 120) {
 
         @Override
         public int width() {

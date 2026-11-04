@@ -1,5 +1,6 @@
 package com.killer560.hub.bridge;
 
+import com.killer560.hub.interop.DetectedMods;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -135,6 +136,20 @@ abstract class SocketAdapter {
         this.log = ModLog.get("killer560smod-bridge");
         this.worker = Executors.newSingleThreadScheduledExecutor(daemon("killer560smod-bridge-" + modId));
         worker.scheduleWithFixedDelay(this::pumpSafely, PUMP_MS, PUMP_MS, TimeUnit.MILLISECONDS);
+    }
+
+    /** The checks every adapter starts with: its switch, the mod itself installed, Party Interop, Hypixel. Null when all pass. */
+    protected final Desire commonGate(BridgeContext ctx, boolean switchedOn) {
+        if (!switchedOn) {
+            return Desire.off(BridgeStatus.OFF, "");
+        }
+        if (DetectedMods.isLoaded(modId)) {
+            return Desire.off(BridgeStatus.SKIPPED_INSTALLED, "");
+        }
+        if (!ctx.active()) {
+            return Desire.off(BridgeStatus.WAITING, "needs Party Interop on");
+        }
+        return ctx.onHypixel() ? null : Desire.off(BridgeStatus.NOT_ON_HYPIXEL, "");
     }
 
     /** Client thread: what should this adapter be doing, given the context? */

@@ -601,10 +601,7 @@ public final class FlipAutopilot {
     /** Units one buy order on {@code p} may take: the purse share at the bid, and Hypixel's per-order cap. */
     static long unitsPerOrder(BazaarProduct p, double budget, Limits lim) {
         double bid = FlipPricing.buyPrice(p, false);
-        if (bid <= 0) {
-            return 0;
-        }
-        return Math.min(lim.maxOrderUnits(), (long) Math.floor(budget / bid));
+        return bid <= 0 ? 0 : Math.min(lim.maxOrderUnits(), (long) Math.floor(budget / bid));
     }
 
     private static boolean hasOrder(Situation s, String productId, boolean buy) {

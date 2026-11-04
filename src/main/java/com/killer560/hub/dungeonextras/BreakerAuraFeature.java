@@ -362,9 +362,7 @@ public final class BreakerAuraFeature {
         String k = key(pos);
         if (store.removePick(k)) {
             store.save();
-            ModChat.send("Breaker Aura", ModChat.text("Unpicked "),
-                    ModChat.value(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()),
-                    ModChat.dim(" (" + store.pickedKeys().size() + " picked)"));
+            pickChat("Unpicked ", pos, store);
             return;
         }
         if (!isValidTarget(client.level, pos)) {
@@ -385,8 +383,11 @@ public final class BreakerAuraFeature {
             return;
         }
         store.save();
-        ModChat.send("Breaker Aura", ModChat.text("Picked "),
-                ModChat.value(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()),
+        pickChat("Picked ", pos, store);
+    }
+
+    private static void pickChat(String verb, BlockPos pos, BreakerAuraStore store) {
+        ModChat.send("Breaker Aura", ModChat.text(verb), ModChat.value(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()),
                 ModChat.dim(" (" + store.pickedKeys().size() + " picked)"));
     }
 
@@ -870,14 +871,11 @@ public final class BreakerAuraFeature {
         // packet, and a vanilla client sends exactly one of those per client tick (util/DigWindow has the source lines),
         // so one a tick is the fastest clean pace. Multi Break now means BACK TO BACK: every block in reach goes on
         // consecutive ticks with no cooldown between them; OFF waits the cooldown after each (multibreak-1102).
-        int allowed = 1;
         boolean multiBreak = cfg.isBreakerAuraMultiBreak();
         // Burst Multi Break (owner exception, 2026-11-02): everything in reach this tick, charges the only limit - the
         // pre-d2da5856 Multi Break. GrimAC's experimental MultiBreak flags it; the setting's label says so.
         boolean burst = cfg.isBreakerAuraBurstMultiBreak();
-        if (burst) {
-            allowed = available;
-        }
+        int allowed = burst ? available : 1;
         Vec3 feet = player.position();
         Vec3 vel = player.getDeltaMovement();
         double speed = Math.hypot(vel.x, vel.z);
@@ -1057,14 +1055,7 @@ public final class BreakerAuraFeature {
         // The next pick's look rides this tick's movement packet (the dig just sent is still judged on the look the
         // server had: GrimAC tries (lastYaw, lastPitch) too). A pick the current look already strikes needs no turn.
         BlockPos dugNow = order.get(0);
-        boolean nextOnLook = false;
-        for (BlockPos p : inReach) {
-            if (!p.equals(dugNow) && BreakerAim.digReady(player, p)) {
-                nextOnLook = true;
-                break;
-            }
-        }
-        if (nextOnLook) {
+        if (inReach.stream().anyMatch(p -> !p.equals(dugNow) && BreakerAim.digReady(player, p))) {
             BreakerAim.keep();
         } else {
             for (BlockPos p : inReach) {
@@ -1117,12 +1108,8 @@ public final class BreakerAuraFeature {
 
     /** First hotbar slot holding a DUNGEONBREAKER with charges left, or -1. Hotbar only - never the inventory. */
     private static int findBreakerHotbarSlot(LocalPlayer player) {
-        for (int i = 0; i < 9; i++) {
-            if (getBreakerCharges(player.getInventory().getItem(i)) > 0) {
-                return i;
-            }
-        }
-        return -1;
+        return java.util.stream.IntStream.range(0, 9)
+                .filter(i -> getBreakerCharges(player.getInventory().getItem(i)) > 0).findFirst().orElse(-1);
     }
 
     /**
@@ -1146,7 +1133,7 @@ public final class BreakerAuraFeature {
     private static final long PENDING_MAX_MS = 3000L;
 
     static {
-        com.killer560.hub.blink.BlinkCharge.addShotPause(mc -> pendingWallAhead(mc));
+        com.killer560.hub.blink.BlinkCharge.addShotPause(BreakerAuraFeature::pendingWallAhead);
     }
 
     /** A wall he asked the server to break, still there on the client and within his next step: a Blink shot waits. */
@@ -1234,13 +1221,10 @@ public final class BreakerAuraFeature {
                 // route he runs every time and QUOI's own blocks outlive the run that cleared them.
                 continue;
             }
-            if (RECENT.containsKey(pos)) {
-                continue; // tried a moment ago; give the server time to answer
+            // RECENT: tried a moment ago; give the server time to answer
+            if (!RECENT.containsKey(pos) && isValidTarget(level, pos)) {
+                out.add(pos);
             }
-            if (!isValidTarget(level, pos)) {
-                continue;
-            }
-            out.add(pos);
         }
         return out;
     }
@@ -1280,13 +1264,9 @@ public final class BreakerAuraFeature {
         if (state.isAir() || state.hasBlockEntity() || level.getBlockEntity(pos) != null) {
             return false;
         }
-        if (BLACKLIST.contains(state.getBlock())) {
-            return false;
-        }
-        if (com.killer560.hub.dungeonbreaker.BreakerGuard.protects(level, pos)) {
-            return false; // a Fairy room, or a secret with "Don't break secrets" on
-        }
-        return state.getDestroySpeed(level, pos) >= 0f;
+        // BreakerGuard: a Fairy room, or a secret with "Don't break secrets" on
+        return !BLACKLIST.contains(state.getBlock()) && !com.killer560.hub.dungeonbreaker.BreakerGuard.protects(level, pos)
+                && state.getDestroySpeed(level, pos) >= 0f;
     }
 
     /** QUOI {@code BlockPos.getHitResult}: clip the block's own outline shape from the eyes through its center. */

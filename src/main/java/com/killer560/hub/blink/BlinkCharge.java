@@ -104,6 +104,14 @@ public final class BlinkCharge {
     private static net.minecraft.world.phys.Vec3 prevPingPos;
     private static long prevPingMs;
     private static final long PING_FRESH_MS = 250L;
+    /**
+     * No server ping for this long means the server (or the link) stalled. The held answers go at once and banking stops
+     * until pings come again: GrimAC measures a stall from the newest answer it has, so answers held the usual second would
+     * put every stall over its 1000 ms ping-abuse limit (blinklag-1104). The bank is kept and backed again afterwards.
+     */
+    private static final long STALL_MS = 150L;
+    private static volatile boolean stalled;
+    private static long stallsSeen;
     private static long pongsAtSplit;
     private static long splitAtMs;
     private static boolean splitWaitSaid;
@@ -140,7 +148,7 @@ public final class BlinkCharge {
         // it is read and GrimAC's floor near its cap (TimerLimit.limitFallBehind: now - 1000 ms - drift; 1120 ms of room
         // for 1050). At 990 ms a leap batch's oldest answer was 907 ms and the shot drew TimerLimit on p3sim (owner's log
         // 16:54:28). 1150 ms drew TimerLimit on two kept-teleport shots at 150 ms (1027-blink-c-keep-delay, ts3).
-        return Math.min(ANSWER_DELAY_MS, Math.max(0L, 50L * need + 50L));
+        return Math.clamp(50L * need + 50L, 0L, ANSWER_DELAY_MS);
     }
 
     /**
@@ -321,30 +329,38 @@ public final class BlinkCharge {
         return shotPauses;
     }
 
-    private static String shotPauseReason(Minecraft client) {
-        for (java.util.function.Function<Minecraft, String> pause : SHOT_PAUSES) {
-            try {
-                String r = pause.apply(client);
-                if (r != null) {
-                    return r;
-                }
-            } catch (RuntimeException e) {
-                LOGGER.error("[Blink] a shot pause threw", e);
-            }
+    /** Drops the held packet, owing the server its look when it carried one. */
+    private static void dropStash() {
+        if (stash != null && stash.packet() instanceof ServerboundMovePlayerPacket m && m.hasRotation()) {
+            rotationOwed = true;
+            owedYaw = m.getYRot(0f);
+            owedPitch = m.getXRot(0f);
         }
-        return null;
+        stash = null;
+    }
+
+    private static String shotPauseReason(Minecraft client) {
+        return firstReason(SHOT_PAUSES, client, "pause", null);
     }
 
     private static String shotGuardReason(Minecraft client) {
-        for (java.util.function.Function<Minecraft, String> guard : SHOT_GUARDS) {
+        return firstReason(SHOT_GUARDS, client, "guard", "a shot guard threw");
+    }
+
+    /** The first non-null answer of {@code checks}; one that throws is logged, and answers {@code onThrow} when that is set. */
+    private static String firstReason(java.util.List<java.util.function.Function<Minecraft, String>> checks, Minecraft client,
+                                      String what, String onThrow) {
+        for (java.util.function.Function<Minecraft, String> check : checks) {
             try {
-                String r = guard.apply(client);
+                String r = check.apply(client);
                 if (r != null) {
                     return r;
                 }
             } catch (RuntimeException e) {
-                LOGGER.error("[Blink] a shot guard threw", e);
-                return "a shot guard threw";
+                LOGGER.error("[Blink] a shot " + what + " threw", e);
+                if (onThrow != null) {
+                    return onThrow;
+                }
             }
         }
         return null;
@@ -495,8 +511,7 @@ public final class BlinkCharge {
                     BlinkLog.event("charge: a menu click during a teleport hold - %d answer(s) and the held teleport(s) sent "
                             + "first so the server has his still input; bank kept (%d), backed again on still ticks", sent, banked);
                     if (banked + shotLeft > 0) {
-                        unbacked = rebackFor(banked + shotLeft);
-                        rebackRun = 0;
+                        rebackBank();
                     }
                 }
                 return false;
@@ -548,6 +563,7 @@ public final class BlinkCharge {
                     lastPingPos = me.position();
                     lastPingMs = System.currentTimeMillis();
                 }
+                stalled = false;
                 Answer a = new Answer(new Held(packet, listener, flush), System.currentTimeMillis());
                 answers.addLast(a);
                 markHeldBlocksLocked(a);
@@ -571,8 +587,7 @@ public final class BlinkCharge {
                     connection.flushChannel();
                     pushReleases++;
                     if (banked + shotLeft > 0 && !coverKept) {
-                        unbacked = rebackFor(banked + shotLeft);
-                        rebackRun = 0;
+                        rebackBank();
                     }
                     BlinkLog.event("charge: the server pushed him (%s) - %d answer(s) sent at once so GrimAC sees the push "
                             + "(oldest %d ms); bank kept (%d)%s", pushWhy, sent, oldestAge, banked, banked + shotLeft > 0
@@ -614,17 +629,12 @@ public final class BlinkCharge {
                 if (settling) {
                     settleTicks--;
                 }
-                boolean bank = !busy && banked < cap() && still && shotLeft == 0 && !settling;
+                boolean bank = !busy && banked < cap() && still && shotLeft == 0 && !settling && !stalled;
                 // Ticks of a kept bank GrimAC no longer backs (the waiting answers went out early: a hold, a configuration
                 // phase) are backed again first, by withholding still ticks without counting them (campaign-blink-1027).
-                boolean reback = !busy && unbacked > 0 && still && shotLeft == 0 && !settling;
+                boolean reback = !busy && unbacked > 0 && still && shotLeft == 0 && !settling && !stalled;
                 if (reback) {
-                    if (stash != null && stash.packet() instanceof ServerboundMovePlayerPacket m && m.hasRotation()) {
-                        rotationOwed = true;
-                        owedYaw = m.getYRot(0f);
-                        owedPitch = m.getXRot(0f);
-                    }
-                    stash = null;
+                    dropStash();
                     busy = false;
                     frozenTick = false;
                     unbacked--;
@@ -645,12 +655,7 @@ public final class BlinkCharge {
                 }
                 busy = false;
                 if (bank) {
-                    if (stash != null && stash.packet() instanceof ServerboundMovePlayerPacket m && m.hasRotation()) {
-                        rotationOwed = true;
-                        owedYaw = m.getYRot(0f);
-                        owedPitch = m.getXRot(0f);
-                    }
-                    stash = null;
+                    dropStash();
                     banked++;
                     bankedTotal++;
                     if (banked >= cap()) {
@@ -797,6 +802,10 @@ public final class BlinkCharge {
         return unbacked;
     }
 
+    public static long stallsSeen() {
+        return stallsSeen;
+    }
+
     public static long rebackedTotal() {
         return rebackedTotal;
     }
@@ -807,8 +816,7 @@ public final class BlinkCharge {
         if (!active || banked + shotLeft <= 0) {
             return;
         }
-        unbacked = rebackFor(banked + shotLeft);
-        rebackRun = 0;
+        rebackBank();
         BlinkLog.event("charge: %s - the bank is kept (%d) but GrimAC no longer covers it; the next %d still tick(s) are "
                 + "withheld to back it again", why, banked, unbacked);
     }
@@ -825,6 +833,11 @@ public final class BlinkCharge {
      */
     private static int rebackFor(int b) {
         return b <= 0 ? 0 : b + 2;
+    }
+
+    private static void rebackBank() {
+        unbacked = rebackFor(banked + shotLeft);
+        rebackRun = 0;
     }
 
     /**
@@ -1053,8 +1066,7 @@ public final class BlinkCharge {
         BlinkLog.event("charge: teleport hold let go after %d ms (%s): %d packet(s) sent behind its answer", ms, why, n);
         if (active && banked + shotLeft > 0) {
             // The second it held put him that much further behind than GrimAC allows on top of the bank.
-            unbacked = rebackFor(banked + shotLeft);
-            rebackRun = 0;
+            rebackBank();
             BlinkLog.event("charge: the kept bank (%d) is backed again on the next %d still tick(s)", banked, unbacked);
         }
     }
@@ -1229,6 +1241,16 @@ public final class BlinkCharge {
             return;
         }
         synchronized (LOCK) {
+            if (!stalled && lastPingMs > 0 && System.currentTimeMillis() - lastPingMs > STALL_MS && tpSegs.isEmpty()) {
+                stalled = true;
+                stallsSeen++;
+                int n = releaseAnswersLocked();
+                BlinkLog.event("charge: no server ping for %d ms - lag; %d answer(s) sent now, banking paused (bank %d kept)",
+                        System.currentTimeMillis() - lastPingMs, n, banked);
+                if (n > 0) {
+                    answersWentEarly("server lag");
+                }
+            }
             if (!tickOpen && heldBlocks.isEmpty()) { // with block changes held, pumpDeferredBlocks released them above
                 releaseDueAnswersLocked(System.currentTimeMillis());
             }
@@ -1366,6 +1388,8 @@ public final class BlinkCharge {
             offAfterShot = false;
             active = true;
         }
+        lastPingMs = 0L; // a server that never pings is never judged stalled
+        stalled = false;
         bankEmptySinceMs = System.currentTimeMillis();
         statusTicks = 0;
         statusBanked = bankedTotal;
@@ -1840,7 +1864,7 @@ public final class BlinkCharge {
 
     /** The Charge Ticks setting (1-20): the bank a charge with no number of its own fills. */
     public static int settingsCap() {
-        return Math.max(1, Math.min(MAX_TICKS, BlinkConfig.getInstance().getChargeTicks()));
+        return Math.clamp(BlinkConfig.getInstance().getChargeTicks(), 1, MAX_TICKS);
     }
 
     /** The most a charge banks whoever drives it (Hypixel sets a longer shot back, killer560 2026-10-25). */

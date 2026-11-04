@@ -1,5 +1,6 @@
 package com.killer560.hub.etherwarp;
 
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -7,29 +8,13 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  *  name + room-order number. Posmsg used to have a matching list; it was replaced with real in-world rings
  *  (2026-09-16, see {@code PosmsgRenderer}), so this one could get the same treatment via
  *  {@code WorldRenderUtils}. */
-public final class EtherwarpHudElement implements HudElement {
+public final class EtherwarpHudElement extends BasicHud {
+    public EtherwarpHudElement() {
+        super("etherwarp_waypoints", "Etherwarp Waypoints", 10, 220);
+    }
+
 
     private static final int COLOR = 0xFFCC6600;
-
-    @Override
-    public String id() {
-        return "etherwarp_waypoints";
-    }
-
-    @Override
-    public String displayName() {
-        return "Etherwarp Waypoints";
-    }
-
-    @Override
-    public int defaultX() {
-        return 10;
-    }
-
-    @Override
-    public int defaultY() {
-        return 220;
-    }
 
     @Override
     public int width() {

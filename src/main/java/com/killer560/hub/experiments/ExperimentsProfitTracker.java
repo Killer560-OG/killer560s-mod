@@ -797,11 +797,7 @@ public final class ExperimentsProfitTracker {
     }
 
     public static long getTotalSessions(ProfitScope.Filter f) {
-        long n = 0;
-        for (Bucket b : selected(f)) {
-            n += b.sessions;
-        }
-        return n;
+        return selected(f).stream().mapToLong(b -> b.sessions).sum();
     }
 
     public static long getSessionsFor(String game) {
@@ -809,11 +805,7 @@ public final class ExperimentsProfitTracker {
     }
 
     public static long getSessionsFor(String game, ProfitScope.Filter f) {
-        long n = 0;
-        for (Bucket b : selected(f)) {
-            n += b.sessionsPerGame.getOrDefault(game, 0L);
-        }
-        return n;
+        return selected(f).stream().mapToLong(b -> b.sessionsPerGame.getOrDefault(game, 0L)).sum();
     }
 
     public static long getTotalXp() {
@@ -821,11 +813,7 @@ public final class ExperimentsProfitTracker {
     }
 
     public static long getTotalXp(ProfitScope.Filter f) {
-        long n = 0;
-        for (Bucket b : selected(f)) {
-            n += b.xp;
-        }
-        return n;
+        return selected(f).stream().mapToLong(b -> b.xp).sum();
     }
 
     public static double getTotalValueCoins() {
@@ -833,11 +821,7 @@ public final class ExperimentsProfitTracker {
     }
 
     public static double getTotalValueCoins(ProfitScope.Filter f) {
-        double n = 0;
-        for (Bucket b : selected(f)) {
-            n += b.valueCoins;
-        }
-        return n;
+        return selected(f).stream().mapToDouble(b -> b.valueCoins).sum();
     }
 
     public static long getTotalBitsSpent() {
@@ -845,11 +829,7 @@ public final class ExperimentsProfitTracker {
     }
 
     public static long getTotalBitsSpent(ProfitScope.Filter f) {
-        long n = 0;
-        for (Bucket b : selected(f)) {
-            n += b.bitsSpent;
-        }
-        return n;
+        return selected(f).stream().mapToLong(b -> b.bitsSpent).sum();
     }
 
     public static String getLastSummary() {

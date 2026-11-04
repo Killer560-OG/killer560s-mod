@@ -1,6 +1,7 @@
 package com.killer560.hub.dungeoninfo;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -299,26 +300,11 @@ public final class DungeonInfoFeature {
     /** Secrets HUD - secrets found in the room you're standing in, over that room's total. Keeps the old
      *  "dungeon_info" HUD id so a saved drag position from before the 2026-09-21 Secrets/Time split carries
      *  over. */
-    public static final class SecretsHudElement implements HudElement {
-        @Override
-        public String id() {
-            return "dungeon_info";
+    public static final class SecretsHudElement extends BasicHud {
+        public SecretsHudElement() {
+            super("dungeon_info", "Secrets HUD", 10, 260);
         }
 
-        @Override
-        public String displayName() {
-            return "Secrets HUD";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 260;
-        }
 
         /**
          * The line this element draws right now, or null when it draws nothing - one answer for render() and the box.

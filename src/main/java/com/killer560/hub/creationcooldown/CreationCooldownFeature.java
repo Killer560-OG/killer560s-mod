@@ -2,6 +2,7 @@ package com.killer560.hub.creationcooldown;
 
 import com.killer560.hub.autoclear.AutoClearTargets;
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -187,28 +188,8 @@ public final class CreationCooldownFeature {
         lastDrawn = null;
     }
 
-    public static final HudElement HUD = new HudElement() {
+    public static final HudElement HUD = new BasicHud("creation_cooldown", "Creation Cooldown", 10, 160) {
         private static final String LABEL = "Creation Cooldown: ";
-
-        @Override
-        public String id() {
-            return "creation_cooldown";
-        }
-
-        @Override
-        public String displayName() {
-            return "Creation Cooldown";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 160;
-        }
 
         @Override
         public int width() {

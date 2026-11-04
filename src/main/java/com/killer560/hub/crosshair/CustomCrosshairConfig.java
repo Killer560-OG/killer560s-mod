@@ -134,10 +134,7 @@ public final class CustomCrosshairConfig {
     }
 
     private static float clamp(float v, float min, float max) {
-        if (!Float.isFinite(v)) {
-            return min;
-        }
-        return Math.max(min, Math.min(max, v));
+        return !Float.isFinite(v) ? min : Math.max(min, Math.min(max, v));
     }
 
     /** The master switch through the "Skyblock Only" gate, like every other feature. */

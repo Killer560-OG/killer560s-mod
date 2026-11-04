@@ -5,6 +5,7 @@ import com.killer560.hub.chocolatefactory.ChocolateFactoryHelper;
 import com.killer560.hub.chocolatefactory.ChocolateFactoryMenu;
 import com.killer560.hub.chocolatefactory.egg.HoppityCalendar.Meal;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.hud.HudSeen;
@@ -399,10 +400,7 @@ public final class HoppityEggs {
 
     /** Hide Outside Hoppity's Hunt and Hide While Busy (killer560, 2026-11-01). Public for the testkit. */
     public static boolean hiddenNow(ChocolateFactoryConfig cfg, long now) {
-        if (cfg.isHideOutsideHunt() && !HoppityCalendar.huntActive(now)) {
-            return true;
-        }
-        return cfg.isHideWhileBusy() && busy();
+        return cfg.isHideOutsideHunt() && !HoppityCalendar.huntActive(now) || cfg.isHideWhileBusy() && busy();
     }
 
     /** Busy, for Hide While Busy: in a dungeon for now; other events (Kuudra, a slayer boss...) can join later. */
@@ -424,27 +422,12 @@ public final class HoppityEggs {
     }
 
     /** Movable and scalable in Edit HUD. */
-    private static final class EggHud implements HudElement {
-
-        @Override
-        public String id() {
-            return "hoppity_eggs";
+    private static final class EggHud extends BasicHud {
+        EggHud() {
+            super("hoppity_eggs", "Hoppity Eggs", 10, 120);
         }
 
-        @Override
-        public String displayName() {
-            return "Hoppity Eggs";
-        }
 
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 120;
-        }
 
         // The lines change by the second at most, but width(), height() and render() each asked for them every frame:
         // build them (and measure) at most every 100 ms, and at once when the preview flips.

@@ -128,10 +128,7 @@ public final class BossSim {
                 }
                 return InteractionResult.SUCCESS;
             }
-            if (BossFight.usePylon(sp)) {
-                return InteractionResult.SUCCESS;
-            }
-            return InteractionResult.PASS;
+            return BossFight.usePylon(sp) ? InteractionResult.SUCCESS : InteractionResult.PASS;
         });
         UseItemCallback.EVENT.addPhaseOrdering(FIRST, Event.DEFAULT_PHASE);
         UseItemCallback.EVENT.register(FIRST, (player, level, hand) -> {

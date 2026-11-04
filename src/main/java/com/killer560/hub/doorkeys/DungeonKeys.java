@@ -174,10 +174,7 @@ public final class DungeonKeys {
     public static int bloodKey() {
         sync();
         int sidebar = DungeonState.sidebarBloodKey();
-        if (sidebar >= 0) {
-            return sidebar;
-        }
-        return chatBlood ? 1 : -1;
+        return sidebar >= 0 ? sidebar : chatBlood ? 1 : -1;
     }
 
     /** The last pickup line seen ("Bob has obtained Wither Key!"), for logs and tests. */

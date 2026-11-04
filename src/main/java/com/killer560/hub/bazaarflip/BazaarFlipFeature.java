@@ -353,15 +353,7 @@ public final class BazaarFlipFeature {
             if (refusal != null) {
                 return refusal;
             }
-            target = null;
-            clicks = 0;
-            cycles = 0;
-            npcLimitHit = false;
-            lastStopReason = "";
-            startPurse = purse;
-            startedAtMs = System.currentTimeMillis();
-            startBindStillHeld = cfg.getStartKeyCode() != KeyUtil.NONE && client.getWindow() != null
-                    && KeyUtil.isBindDown(client.getWindow(), cfg.getStartKeyCode());
+            resetSession(client, cfg, purse);
             setState(State.AUTOPILOT);
             return null;
         }
@@ -369,22 +361,26 @@ public final class BazaarFlipFeature {
             return npcLimitText();
         }
         BazaarFlipScanner.clear();
-        target = null;
-        clicks = 0;
-        cycles = 0;
-        npcLimitHit = false;
-        lastStopReason = "";
+        resetSession(client, cfg, purse);
         rejected.clear();
         lastScanAtMs = 0L;
-        startPurse = purse;
-        startedAtMs = System.currentTimeMillis();
-        startBindStillHeld = cfg.getStartKeyCode() != KeyUtil.NONE && client.getWindow() != null
-                && KeyUtil.isBindDown(client.getWindow(), cfg.getStartKeyCode());
         beginScan(purse, "starting");
         ModChat.send("Bazaar Flip", ModChat.text("Scanning the Bazaar... purse "),
                 ModChat.value(String.format(Locale.US, "%,.0f", purse)),
                 ModChat.dim(", ranking by " + cfg.getRankingMode().display));
         return null;
+    }
+
+    private static void resetSession(Minecraft client, BazaarFlipConfig cfg, double purse) {
+        target = null;
+        clicks = 0;
+        cycles = 0;
+        npcLimitHit = false;
+        lastStopReason = "";
+        startPurse = purse;
+        startedAtMs = System.currentTimeMillis();
+        startBindStillHeld = cfg.getStartKeyCode() != KeyUtil.NONE && client.getWindow() != null
+                && KeyUtil.isBindDown(client.getWindow(), cfg.getStartKeyCode());
     }
 
     public static void requestStop() {
@@ -538,13 +534,10 @@ public final class BazaarFlipFeature {
 
     /** The best candidate the live page has not already refused at this price or lower ({@link #fallThrough}). */
     static BazaarFlipCandidate pick(List<BazaarFlipCandidate> ranked) {
-        for (BazaarFlipCandidate c : ranked) {
+        return ranked.stream().filter(c -> {
             Double refusedAt = rejected.get(c.productId());
-            if (refusedAt == null || c.averageUnitCost() < refusedAt - 1e-6) {
-                return c;
-            }
-        }
-        return null;
+            return refusedAt == null || c.averageUnitCost() < refusedAt - 1e-6;
+        }).findFirst().orElse(null);
     }
 
     private static void tickScanning() {
@@ -661,14 +654,9 @@ public final class BazaarFlipFeature {
         if (client.player == null || target == null) {
             return 0;
         }
-        int total = 0;
-        for (int i = 0; i < 36; i++) {
-            ItemStack stack = client.player.getInventory().getItem(i);
-            if (BazaarFlipMenus.isProduct(stack, target.productId(), target.displayName())) {
-                total += stack.getCount();
-            }
-        }
-        return total;
+        return java.util.stream.IntStream.range(0, 36).mapToObj(client.player.getInventory()::getItem)
+                .filter(stack -> BazaarFlipMenus.isProduct(stack, target.productId(), target.displayName()))
+                .mapToInt(ItemStack::getCount).sum();
     }
 
     private static void tickBazaar(Minecraft client, BazaarFlipConfig cfg) {
@@ -745,13 +733,7 @@ public final class BazaarFlipFeature {
         String name = target.displayName();
         switch (page.kind()) {
             case SEARCH, GROUP, CATEGORY -> {
-                BazaarPages.Item product = null;
-                for (BazaarPages.Item it : page.content()) {
-                    if (it.name().equalsIgnoreCase(name)) {
-                        product = it;
-                        break;
-                    }
-                }
+                BazaarPages.Item product = BazaarFlipMenus.contentItem(page, name);
                 if (product == null) {
                     stop("\"" + name + "\" is not on the Bazaar page " + BazaarFlipMenus.describe(screen));
                     return;
@@ -971,10 +953,7 @@ public final class BazaarFlipFeature {
             return String.format(Locale.US, "the instant-buy price (%,.1f each, quoted %,.1f) is no longer below the"
                     + " NPC's %,.1f", bookPrice(price / amount), price / amount, target.npcSellPrice());
         }
-        if (purse != null && price > purse) {
-            return "you can't afford " + amount;
-        }
-        return null;
+        return purse != null && price > purse ? "you can't afford " + amount : null;
     }
 
     private static void clickBuy(Minecraft client, AbstractContainerScreen<?> screen, BazaarFlipConfig cfg, String name,
@@ -995,13 +974,13 @@ public final class BazaarFlipFeature {
 
     /** "Buy up to 71,680x." off Custom Amount, or -1. */
     static long loreBuyUpTo(List<String> lore) {
-        for (String line : lore) {
-            Matcher m = BUY_UP_TO.matcher(line);
-            if (m.matches()) {
-                return Long.parseLong(m.group(1).replace(",", ""));
-            }
-        }
-        return -1;
+        return loreLong(lore, BUY_UP_TO);
+    }
+
+    /** The first lore line matching {@code p}, as its group 1 number (commas dropped), or -1. */
+    static long loreLong(List<String> lore, Pattern p) {
+        return lore.stream().map(p::matcher).filter(Matcher::matches)
+                .mapToLong(m -> Long.parseLong(m.group(1).replace(",", ""))).findFirst().orElse(-1);
     }
 
     /** Custom Amount was clicked: the next thing up must be Hypixel's amount sign. */
@@ -1021,6 +1000,49 @@ public final class BazaarFlipFeature {
         if (now - customSinceMs > MENU_TIMEOUT_MS) {
             stop("the Custom Amount sign never opened");
         }
+    }
+
+    /**
+     * Types {@code text} into Hypixel's amount sign and presses Done. Returns false, after calling {@code fail} with the
+     * reason, when the sign is not the amount prompt, holds text, has no Done button or did not take the text; a lost
+     * action gate also returns false, without calling {@code fail} (retried next tick).
+     */
+    static boolean typeAmount(AbstractSignEditScreen sign, String text, java.util.function.Consumer<String> fail) {
+        String[] lines = ((SignEditScreenAccessor) sign).killer560smod$getMessages();
+        if (!isAmountSign(lines)) {
+            fail.accept("the sign that opened is not Hypixel's amount prompt: " + Arrays.toString(lines));
+            return false;
+        }
+        if (!lines[0].isEmpty()) {
+            fail.accept("the amount sign's first line already holds \"" + lines[0] + "\"");
+            return false;
+        }
+        Button done = null;
+        for (GuiEventListener child : sign.children()) {
+            if (child instanceof Button b && b.getMessage().getString().equals(CommonComponents.GUI_DONE.getString())) {
+                done = b;
+            }
+        }
+        if (done == null) {
+            fail.accept("the amount sign has no Done button");
+            return false;
+        }
+        if (!ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_CMD)) {
+            return false; // retried next tick
+        }
+        for (int i = 0; i < text.length(); i++) {
+            sign.charTyped(new CharacterEvent(text.charAt(i)));
+        }
+        String typed = ((SignEditScreenAccessor) sign).killer560smod$getMessages()[0];
+        if (!text.equals(typed)) {
+            for (int i = 0; i < typed.length(); i++) {
+                sign.keyPressed(new KeyEvent(InputConstants.KEY_BACKSPACE, 0, 0));
+            }
+            fail.accept("typing " + text + " into the amount sign left \"" + typed + "\" - nothing was sent");
+            return false;
+        }
+        done.onPress(new KeyEvent(InputConstants.KEY_RETURN, 0, 0));
+        return true;
     }
 
     /** Whether the sign is Hypixel's amount prompt: carets under the input line, then "Enter amount". */
@@ -1046,41 +1068,10 @@ public final class BazaarFlipFeature {
         if (now < nextActionAtMs) {
             return;
         }
-        String[] lines = ((SignEditScreenAccessor) sign).killer560smod$getMessages();
-        if (!isAmountSign(lines)) {
-            stop("the sign that opened is not Hypixel's amount prompt: " + Arrays.toString(lines));
-            return;
-        }
-        if (!lines[0].isEmpty()) {
-            stop("the amount sign's first line already holds \"" + lines[0] + "\"");
-            return;
-        }
-        Button done = null;
-        for (GuiEventListener child : sign.children()) {
-            if (child instanceof Button b && b.getMessage().getString().equals(CommonComponents.GUI_DONE.getString())) {
-                done = b;
-            }
-        }
-        if (done == null) {
-            stop("the amount sign has no Done button");
-            return;
-        }
-        if (!ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_CMD)) {
-            return; // retried next tick
-        }
         String text = Integer.toString(customAmount);
-        for (int i = 0; i < text.length(); i++) {
-            sign.charTyped(new CharacterEvent(text.charAt(i)));
-        }
-        String typed = ((SignEditScreenAccessor) sign).killer560smod$getMessages()[0];
-        if (!text.equals(typed)) {
-            for (int i = 0; i < typed.length(); i++) {
-                sign.keyPressed(new KeyEvent(InputConstants.KEY_BACKSPACE, 0, 0));
-            }
-            stop("typing " + text + " into the amount sign left \"" + typed + "\" - nothing was sent");
+        if (!typeAmount(sign, text, BazaarFlipFeature::stop)) {
             return;
         }
-        done.onPress(new KeyEvent(InputConstants.KEY_RETURN, 0, 0));
         LOGGER.info("[BazaarFlip] Typed {} into the amount sign and pressed Done", text);
         custom = Custom.AFTER_SIGN;
         pendingBuy = true;
@@ -1161,11 +1152,10 @@ public final class BazaarFlipFeature {
         for (Slot slot : BazaarFlipMenus.menuSlots(screen.getMenu())) {
             ItemStack stack = slot.getItem();
             String name = BazaarFlipMenus.nameOf(stack);
-            if (stack.isEmpty() || name.isBlank()) {
-                continue;
+            if (!stack.isEmpty() && !name.isBlank()) {
+                out.add(new BazaarPages.Item(slot.index, name,
+                        com.killer560.hub.croesus.DungeonChestValuer.cleanLore(stack), false));
             }
-            out.add(new BazaarPages.Item(slot.index, name,
-                    com.killer560.hub.croesus.DungeonChestValuer.cleanLore(stack), false));
         }
         return out;
     }
@@ -1173,10 +1163,7 @@ public final class BazaarFlipFeature {
     /** Buying is over for this cycle: sell what was bought, or stop if that was nothing. */
     private static void doneBuying(String why) {
         Minecraft client = Minecraft.getInstance();
-        int bought = 0;
-        if (target != null && carriedAtStart >= 0) {
-            bought = carried(client) - carriedAtStart;
-        }
+        int bought = target != null && carriedAtStart >= 0 ? carried(client) - carriedAtStart : 0;
         // Diagnostic (2026-10-18: flips ended with purse and inventory room left): the three limits at the moment buying stops.
         if (target != null && client.player != null) {
             LOGGER.info("[BazaarFlip] Buying ends ({}): bought {} of {}, purse {}, free room {}, NPC sell room {} coins",
@@ -1245,10 +1232,8 @@ public final class BazaarFlipFeature {
         if (now < nextActionAtMs || !settledTrades(screen)) {
             return;
         }
-        for (Slot slot : BazaarFlipMenus.playerSlots(menu)) {
-            if (!BazaarFlipMenus.isProduct(slot.getItem(), target.productId(), target.displayName())) {
-                continue;
-            }
+        Slot slot = BazaarFlipMenus.firstProductSlot(menu, target.productId(), target.displayName());
+        if (slot != null) {
             int count = slot.getItem().getCount();
             // A shift-click on his own stack sells it, the way any Hypixel shop takes items.
             if (click(client, screen, slot.index, ContainerInput.QUICK_MOVE, cfg, false)) {
@@ -1313,7 +1298,7 @@ public final class BazaarFlipFeature {
 
     /** Hypixel said the daily NPC sell limit is reached: no more buying; whatever was bought stays unsold. */
     private static void onNpcLimit(Minecraft client) {
-        if (state == State.SELL && sellPendingSlot >= 0) {
+        if (state == State.SELL) {
             sellPendingSlot = -1;
         }
         if (state == State.BAZAAR || state == State.OPEN_TRADES || state == State.WAIT_TRADES_MENU || state == State.SELL) {
@@ -1341,10 +1326,7 @@ public final class BazaarFlipFeature {
      */
     static boolean click(Minecraft client, AbstractContainerScreen<?> screen, int slotIndex,
                                  ContainerInput input, BazaarFlipConfig cfg, boolean changesPage) {
-        if (client.gameMode == null || client.player == null) {
-            return false;
-        }
-        if (!ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_MENU, screen)) {
+        if (client.gameMode == null || client.player == null || !ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_MENU, screen)) {
             return false;
         }
         if (changesPage) {
@@ -1406,16 +1388,16 @@ public final class BazaarFlipFeature {
 
     /** Pacing between two consecutive automated actions in the menus - the menu speed slider's only job. */
     static long randomDelay(BazaarFlipConfig cfg) {
-        int lo = cfg.getActionDelayMinMs();
-        int hi = Math.max(lo, cfg.getActionDelayMaxMs());
-        return lo + ThreadLocalRandom.current().nextInt(hi - lo + 1);
+        return jitter(cfg.getActionDelayMinMs(), cfg.getActionDelayMaxMs());
     }
 
     /** Pacing between two consecutive sell shift-clicks - the sell speed slider's only job. */
     static long randomSellDelay(BazaarFlipConfig cfg) {
-        int lo = cfg.getSellDelayMinMs();
-        int hi = Math.max(lo, cfg.getSellDelayMaxMs());
-        return lo + ThreadLocalRandom.current().nextInt(hi - lo + 1);
+        return jitter(cfg.getSellDelayMinMs(), cfg.getSellDelayMaxMs());
+    }
+
+    private static long jitter(int lo, int maxMs) {
+        return lo + ThreadLocalRandom.current().nextInt(Math.max(lo, maxMs) - lo + 1);
     }
 
     /** The Bazaar did not reopen after a Custom Amount buy. If the purse and free room still cover more of this cycle's
@@ -1432,12 +1414,12 @@ public final class BazaarFlipFeature {
         if (topUpExtra(room, sellable, readPurse()) < 1) {
             return false;
         }
-        if (!sendCommand("bz " + target.displayName())) {
-            return false;
+        if (sendCommand("bz " + target.displayName())) {
+            setState(State.WAIT_BAZAAR_MENU);
+            LOGGER.info("[BazaarFlip] Bazaar did not reopen with {} units to top up - sent /bz again", target.productId());
+            return true;
         }
-        setState(State.WAIT_BAZAAR_MENU);
-        LOGGER.info("[BazaarFlip] Bazaar did not reopen with {} units to top up - sent /bz again", target.productId());
-        return true;
+        return false;
     }
 
     /** How many more units of this cycle's product the purse and the free room still cover, after the planned units

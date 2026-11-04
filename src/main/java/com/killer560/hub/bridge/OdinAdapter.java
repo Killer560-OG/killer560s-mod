@@ -42,17 +42,9 @@ final class OdinAdapter extends SocketAdapter {
     @Override
     protected Desire decide(BridgeContext ctx) {
         BridgeConfig cfg = BridgeConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isOdin()) {
-            return Desire.off(BridgeStatus.OFF, "");
-        }
-        if (DetectedMods.isLoaded(DetectedMods.ODIN)) {
-            return Desire.off(BridgeStatus.SKIPPED_INSTALLED, "");
-        }
-        if (!ctx.active()) {
-            return Desire.off(BridgeStatus.WAITING, "needs Party Interop on");
-        }
-        if (!ctx.onHypixel()) {
-            return Desire.off(BridgeStatus.NOT_ON_HYPIXEL, "");
+        Desire gate = commonGate(ctx, cfg.isEnabled() && cfg.isOdin());
+        if (gate != null) {
+            return gate;
         }
         if (!ctx.inDungeon()) {
             return Desire.runFinished("not in a dungeon");

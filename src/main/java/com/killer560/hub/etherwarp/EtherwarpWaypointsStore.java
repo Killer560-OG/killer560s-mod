@@ -106,22 +106,12 @@ public final class EtherwarpWaypointsStore {
         REDO.clear();
     }
 
-    private static void applyForward(Change c) {
-        for (EtherwarpWaypoint w : c.removed()) {
+    /** Takes {@code remove} out of the list and puts {@code add} in; undoing a change is the same call with the two swapped. */
+    private static void apply(List<EtherwarpWaypoint> remove, List<EtherwarpWaypoint> add) {
+        for (EtherwarpWaypoint w : remove) {
             all().removeIf(x -> x.id.equals(w.id));
         }
-        for (EtherwarpWaypoint w : c.added()) {
-            all().removeIf(x -> x.id.equals(w.id));
-            all().add(w);
-        }
-        version++;
-    }
-
-    private static void applyBackward(Change c) {
-        for (EtherwarpWaypoint w : c.added()) {
-            all().removeIf(x -> x.id.equals(w.id));
-        }
-        for (EtherwarpWaypoint w : c.removed()) {
+        for (EtherwarpWaypoint w : add) {
             all().removeIf(x -> x.id.equals(w.id));
             all().add(w);
         }
@@ -134,7 +124,7 @@ public final class EtherwarpWaypointsStore {
         if (c == null) {
             return null;
         }
-        applyBackward(c);
+        apply(c.added(), c.removed());
         REDO.push(c);
         return c;
     }
@@ -145,7 +135,7 @@ public final class EtherwarpWaypointsStore {
         if (c == null) {
             return null;
         }
-        applyForward(c);
+        apply(c.removed(), c.added());
         UNDO.push(c);
         while (UNDO.size() > HISTORY_MAX) {
             UNDO.removeLast();
@@ -168,13 +158,7 @@ public final class EtherwarpWaypointsStore {
     }
 
     public static void remove(String id) {
-        EtherwarpWaypoint found = null;
-        for (EtherwarpWaypoint w : all()) {
-            if (w.id.equals(id)) {
-                found = w;
-                break;
-            }
-        }
+        EtherwarpWaypoint found = all().stream().filter(w -> w.id.equals(id)).findFirst().orElse(null);
         all().removeIf(w -> w.id.equals(id));
         version++;
         if (found != null) {

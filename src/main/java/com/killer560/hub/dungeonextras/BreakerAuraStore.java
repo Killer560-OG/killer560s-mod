@@ -177,10 +177,7 @@ public final class BreakerAuraStore {
                 || !SAFE_NAME.matcher(name).matches()) {
             return "Letters, digits, spaces, - _ and . only.";
         }
-        if (name.toLowerCase(Locale.ROOT).endsWith(BROKEN_SUFFIX)) {
-            return "That name is reserved for backups.";
-        }
-        return null;
+        return name.toLowerCase(Locale.ROOT).endsWith(BROKEN_SUFFIX) ? "That name is reserved for backups." : null;
     }
 
     /**
@@ -230,13 +227,7 @@ public final class BreakerAuraStore {
             return "Type a name first.";
         }
         List<String> names = listConfigNames();
-        String match = null;
-        for (String n : names) {
-            if (n.equalsIgnoreCase(name)) {
-                match = n;
-                break;
-            }
-        }
+        String match = names.stream().filter(n -> n.equalsIgnoreCase(name)).findFirst().orElse(null);
         if (match == null) {
             LOGGER.info("[BreakerStore] delete refused: name={} reason=no such config ({} known)", name, names.size());
             return "No config called " + name + ".";

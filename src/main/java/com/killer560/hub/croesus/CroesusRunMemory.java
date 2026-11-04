@@ -237,10 +237,7 @@ final class CroesusRunMemory {
      * every run he never opened looks like that (906's last head).
      */
     private static boolean crossOk(Run r, Entry e, int pageFirst, int win, long winSeenMs) {
-        if (!fromEarlierPage(r, e, pageFirst)) {
-            return true;
-        }
-        return win < 0 && e.order() - r.order == -win && r.seenAtMs <= winSeenMs;
+        return !fromEarlierPage(r, e, pageFirst) || win < 0 && e.order() - r.order == -win && r.seenAtMs <= winSeenMs;
     }
 
     /**

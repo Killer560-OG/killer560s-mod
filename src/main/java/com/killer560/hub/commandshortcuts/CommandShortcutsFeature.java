@@ -391,10 +391,7 @@ public final class CommandShortcutsFeature {
 
     /** Custom roots in the active dispatcher - his own data, which the testkit's command sweep (306) leaves out. */
     public static Set<String> customRoots() {
-        if (ClientCommandInternals.getActiveDispatcher() != registeredIn) {
-            return Set.of();
-        }
-        return Set.copyOf(REGISTERED);
+        return ClientCommandInternals.getActiveDispatcher() != registeredIn ? Set.of() : Set.copyOf(REGISTERED);
     }
 
     /** Whether {@code name} is in the active dispatcher as one of his shortcuts (the tab's "is it on" answer). */

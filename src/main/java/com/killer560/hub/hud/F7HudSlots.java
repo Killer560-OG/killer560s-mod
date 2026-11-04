@@ -32,10 +32,7 @@ public final class F7HudSlots {
     public static int x(int slotY) {
         Minecraft client = Minecraft.getInstance();
         Window window = client == null ? null : client.getWindow();
-        if (window == null) {
-            return 10;
-        }
-        return Math.max(10, window.getGuiScaledWidth() - COLUMN_FROM_RIGHT);
+        return window == null ? 10 : Math.max(10, window.getGuiScaledWidth() - COLUMN_FROM_RIGHT);
     }
 
     public static int y(int slotY) {

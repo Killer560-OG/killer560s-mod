@@ -37,7 +37,6 @@ import com.killer560.hub.util.ModLog;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -421,11 +420,8 @@ public final class ExperimentsFeature {
         if (!shouldShowStartButton()) {
             return false;
         }
-        int[] pos = resolveStartButtonPosition();
-        float scale = resolveStartButtonScale();
-        int w = Math.round(START_BUTTON_WIDTH * scale);
-        int h = Math.round(START_BUTTON_HEIGHT * scale);
-        if (mouseX < pos[0] || mouseX >= pos[0] + w || mouseY < pos[1] || mouseY >= pos[1] + h) {
+        int[] b = startButtonBounds();
+        if (mouseX < b[0] || mouseX >= b[0] + b[2] || mouseY < b[1] || mouseY >= b[1] + b[3]) {
             return false;
         }
         armed = true;
@@ -486,13 +482,11 @@ public final class ExperimentsFeature {
                 // back, "next" and "following" share the exact same colored slots - whichever draws
                 // LAST wins that overlap. Following (orange) drawn first, next (green) drawn last, so a
                 // repeated note always shows as the correct-right-now green, never orange.
-                if (following >= 0) {
-                    highlightSlot(graphics, menu, following, left, top, HIGHLIGHT_FOLLOWING_CLICK_COLOR, null);
-                    highlightMatchingChronomatronSlots(graphics, menu, following, left, top, HIGHLIGHT_FOLLOWING_CLICK_COLOR);
-                }
-                if (next >= 0) {
-                    highlightSlot(graphics, menu, next, left, top, HIGHLIGHT_SEQUENCE_COLOR, null);
-                    highlightMatchingChronomatronSlots(graphics, menu, next, left, top, HIGHLIGHT_SEQUENCE_COLOR);
+                for (int[] step : new int[][]{{following, HIGHLIGHT_FOLLOWING_CLICK_COLOR}, {next, HIGHLIGHT_SEQUENCE_COLOR}}) {
+                    if (step[0] >= 0) {
+                        highlightSlot(graphics, menu, step[0], left, top, step[1], null);
+                        highlightMatchingChronomatronSlots(graphics, menu, step[0], left, top, step[1]);
+                    }
                 }
             }
             case ULTRASEQUENCER -> {
@@ -578,10 +572,7 @@ public final class ExperimentsFeature {
             return null;
         }
         Matcher xpMatch = XP_AMOUNT_LABEL.matcher(stripped);
-        if (xpMatch.matches()) {
-            return xpMatch.group(1);
-        }
-        return stripped;
+        return xpMatch.matches() ? xpMatch.group(1) : stripped;
     }
 
     private record LabelLayout(List<String> lines, float scale) {
@@ -689,13 +680,7 @@ public final class ExperimentsFeature {
      *  never spans columns in this GUI layout - only its height varies between tiers), so a
      *  same-colored note in a different column is never treated as part of the same run. */
     private static void highlightMatchingChronomatronSlots(GuiGraphicsExtractor graphics, ChestMenu menu, int primarySlot, int left, int top, int color) {
-        String itemId = null;
-        for (ExperimentSolver.Cell cell : lastCells) {
-            if (cell.slot() == primarySlot) {
-                itemId = cell.itemId();
-                break;
-            }
-        }
+        String itemId = lastCells.stream().filter(c -> c.slot() == primarySlot).findFirst().map(ExperimentSolver.Cell::itemId).orElse(null);
         if (itemId == null || itemId.isEmpty()) {
             return;
         }
@@ -759,16 +744,12 @@ public final class ExperimentsFeature {
         SuperpairsView view = new SuperpairsView();
         view.matches = SOLVER.superpairsKnownMatches(cells);
         for (int[] confirmed : SOLVER.superpairsConfirmedMatches(cells)) {
-            view.confirmedSlots.add(confirmed[0]);
-            view.confirmedSlots.add(confirmed[1]);
+            view.confirmedSlots.addAll(List.of(confirmed[0], confirmed[1]));
         }
         for (int[] match : view.matches) {
-            view.matchedSlots.add(match[0]);
-            view.matchedSlots.add(match[1]);
+            view.matchedSlots.addAll(List.of(match[0], match[1]));
         }
-        for (Map.Entry<Integer, String> entry : SOLVER.superpairsKnownItemNames(cells).entrySet()) {
-            view.labels.put(entry.getKey(), shortLabel(entry.getValue()));
-        }
+        SOLVER.superpairsKnownItemNames(cells).forEach((slot, name) -> view.labels.put(slot, shortLabel(name)));
         if (view.matches.isEmpty() && view.labels.isEmpty()) {
             view.suggested = SOLVER.superpairsSuggestedExploreSlot(cells);
         }
@@ -793,16 +774,14 @@ public final class ExperimentsFeature {
      *  copies of the same item/text layered on top of each other. Now this only draws the colored
      *  border and label - the item icon itself is handled entirely by the mixin. */
     private static void highlightSlot(GuiGraphicsExtractor graphics, ChestMenu menu, int slotIndex, int left, int top, int color, String label) {
-        for (Slot slot : menu.slots) {
-            if (slot.index != slotIndex) continue;
+        menu.slots.stream().filter(slot -> slot.index == slotIndex).findFirst().ifPresent(slot -> {
             int x0 = left + slot.x;
             int y0 = top + slot.y;
             graphics.outline(x0 - 1, y0 - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, color);
             if (label != null) {
                 drawSlotLabel(graphics, label, x0, y0);
             }
-            return;
-        }
+        });
     }
 
     /** The body turn for the table re-open when the reported look misses it (util/TurnFirst); camera never moves. */
@@ -1009,12 +988,7 @@ public final class ExperimentsFeature {
                     if (goBackSlot >= 0) {
                         scheduleClick(menu.containerId, goBackSlot, now, cfg);
                     } else {
-                        scheduleAction(() -> {
-                            if (McCompat.screen(Minecraft.getInstance()) != null) {
-                                McCompat.screen(Minecraft.getInstance()).onClose();
-                            }
-                            armReopenAfterClaim(System.currentTimeMillis());
-                        }, now, cfg);
+                        scheduleAction(ExperimentsFeature::closeAndReopen, now, cfg);
                     }
                 } else if (navSlot == ExperimentNavigator.DONE_SIGNAL) {
                     // Per killer560's explicit "it should stop on this screen and flash an alert... to
@@ -1047,11 +1021,7 @@ public final class ExperimentsFeature {
     private static void applyGuardianSwapAction(GuardianPetSwapper.Result swap, ChestMenu menu, long now, ExperimentsConfig cfg) {
         Minecraft client = Minecraft.getInstance();
         switch (swap.action()) {
-            case CLOSE_TABLE -> scheduleAction(() -> {
-                if (McCompat.screen(client) != null) {
-                    McCompat.screen(client).onClose();
-                }
-            }, now, cfg);
+            case CLOSE_TABLE -> scheduleAction(ExperimentsFeature::closeScreen, now, cfg);
             case RUN_PETS_COMMAND -> scheduleAction(() -> {
                 if (client.player != null) {
                     client.player.connection.sendCommand("pets");
@@ -1059,9 +1029,7 @@ public final class ExperimentsFeature {
             }, now, cfg);
             case CLICK_SLOT, NEXT_PAGE -> scheduleClick(menu.containerId, swap.slot(), now, cfg);
             case CLOSE_NOT_FOUND -> scheduleAction(() -> {
-                if (McCompat.screen(Minecraft.getInstance()) != null) {
-                    McCompat.screen(Minecraft.getInstance()).onClose();
-                }
+                closeScreen();
                 ModOverlayMessage.show("§c[Killer560's Mod] No Guardian pet found!", 4000);
             }, now, cfg);
             case PETS_NEVER_OPENED -> scheduleAction(() -> {
@@ -1069,15 +1037,22 @@ public final class ExperimentsFeature {
                 ModOverlayMessage.show("§c[Killer560's Mod] Pets menu never opened - continuing without the Guardian swap", 4000);
                 armReopenAfterClaim(System.currentTimeMillis());
             }, now, cfg);
-            case CLOSE_AND_REOPEN -> scheduleAction(() -> {
-                if (McCompat.screen(Minecraft.getInstance()) != null) {
-                    McCompat.screen(Minecraft.getInstance()).onClose();
-                }
-                armReopenAfterClaim(System.currentTimeMillis());
-            }, now, cfg);
+            case CLOSE_AND_REOPEN -> scheduleAction(ExperimentsFeature::closeAndReopen, now, cfg);
             case NONE -> {
             }
         }
+    }
+
+    private static void closeScreen() {
+        Screen open = McCompat.screen(Minecraft.getInstance());
+        if (open != null) {
+            open.onClose();
+        }
+    }
+
+    private static void closeAndReopen() {
+        closeScreen();
+        armReopenAfterClaim(System.currentTimeMillis());
     }
 
     /** @return whether {@code title} looks like any screen the Experimentation Table flow can show:
@@ -1258,13 +1233,18 @@ public final class ExperimentsFeature {
             // pendingActions timer this class already uses for jittered clicks (just with fixed delays
             // instead of random jitter), reads as a clear, deliberate alert rather than a single blip
             // easy to miss.
-            long now = System.currentTimeMillis();
-            for (int i = 0; i < 3; i++) {
-                pendingActions.add(new PendingAction(
-                        () -> Minecraft.getInstance().getSoundManager()
-                                .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f)),
-                        now + i * 220L));
-            }
+            queueTripleDing();
+        }
+    }
+
+    /** Three orb pings 220 ms apart, through the same pendingActions timer as the jittered clicks. */
+    private static void queueTripleDing() {
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < 3; i++) {
+            pendingActions.add(new PendingAction(
+                    () -> Minecraft.getInstance().getSoundManager()
+                            .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f)),
+                    now + i * 220L));
         }
     }
 
@@ -1329,13 +1309,7 @@ public final class ExperimentsFeature {
                 ModChat.text("You've used all your Superpairs clicks ("),
                 ModChat.value(superpairsMaxRemainingClicksSeen + "/" + superpairsMaxRemainingClicksSeen),
                 ModChat.text(").")));
-        long now = System.currentTimeMillis();
-        for (int i = 0; i < 3; i++) {
-            pendingActions.add(new PendingAction(
-                    () -> Minecraft.getInstance().getSoundManager()
-                            .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f)),
-                    now + i * 220L));
-        }
+        queueTripleDing();
     }
 
     /** Whether killer560's own mouse/keyboard input to a container screen should be swallowed right
@@ -1439,11 +1413,7 @@ public final class ExperimentsFeature {
         if (!protect) {
             return false;
         }
-        if (correct) {
-            clickSlot(menu.containerId, slot);
-            return true;
-        }
-        if (event.hasShiftDown()) {
+        if (correct || event.hasShiftDown()) {
             // Real bug found and fixed (2026-09-08), per killer560's report that Shift-held still
             // didn't let the click through: un-blocking the click here isn't enough on its own, because
             // vanilla's OWN mouseClicked branches on hasShiftDown() itself - verified via javap that
@@ -1454,7 +1424,6 @@ public final class ExperimentsFeature {
             // real click ourselves via the same clickSlot mechanism the autonomous auto-clicker already
             // uses successfully sidesteps vanilla's shift-specific branching entirely.
             clickSlot(menu.containerId, slot);
-            return true;
         }
         return true;
     }
@@ -1581,17 +1550,21 @@ public final class ExperimentsFeature {
     private static int findClaimSlot(ChestMenu menu) {
         // Same lesson as ExperimentNavigator's tier/stakes search: ChestMenu always appends the full
         // 36-slot player inventory after the container's own grid, so this must stay out of scope too.
+        return findContainerSlot(menu, stack -> {
+            ItemLore lore = stack.get(DataComponents.LORE);
+            return lore != null && lore.lines().stream().anyMatch(line -> line.getString().toLowerCase(Locale.US).contains("claim"));
+        });
+    }
+
+    /** The first non-empty container slot (player inventory excluded) whose stack passes {@code test}, or -1. */
+    private static int findContainerSlot(ChestMenu menu, java.util.function.Predicate<ItemStack> test) {
         int containerSlotCount = menu.slots.size() - 36;
         for (Slot slot : menu.slots) {
             if (slot.index >= containerSlotCount) continue;
             ItemStack stack = slot.getItem();
             if (stack == null || stack.isEmpty()) continue;
-            ItemLore lore = stack.get(DataComponents.LORE);
-            if (lore == null) continue;
-            for (Component line : lore.lines()) {
-                if (line.getString().toLowerCase(Locale.US).contains("claim")) {
-                    return slot.index;
-                }
+            if (test.test(stack)) {
+                return slot.index;
             }
         }
         return -1;
@@ -1603,16 +1576,7 @@ public final class ExperimentsFeature {
      *  ("Go Back" name, "To Experimentation Table" lore). See the {@code CLOSED_SIGNAL} handling in
      *  {@link #tickUnsafe} for why this replaced closing and re-opening the whole menu. */
     private static int findGoBackSlot(ChestMenu menu) {
-        int containerSlotCount = menu.slots.size() - 36;
-        for (Slot slot : menu.slots) {
-            if (slot.index >= containerSlotCount) continue;
-            ItemStack stack = slot.getItem();
-            if (stack == null || stack.isEmpty()) continue;
-            if (stack.getHoverName().getString().toLowerCase(Locale.US).contains("go back")) {
-                return slot.index;
-            }
-        }
-        return -1;
+        return findContainerSlot(menu, stack -> stack.getHoverName().getString().toLowerCase(Locale.US).contains("go back"));
     }
 
     private static void logModeChangeIfAny(ExperimentSolver.Mode mode, String title) {
@@ -1745,7 +1709,8 @@ public final class ExperimentsFeature {
             // send time, not the moment this click was decided (see ExperimentSolver#superpairsClickSent).
             // Harmless no-op for Chronomatron/Ultrasequencer/navigation/claim clicks, which never arm
             // that gate at all.
-            if (sentAtMs < earliest || !ActionGate.tryAct(ActionGate.Actor.EXPERIMENTS, ownScreen)) {
+            boolean denied = sentAtMs < earliest || !ActionGate.tryAct(ActionGate.Actor.EXPERIMENTS, ownScreen);
+            if (denied) {
                 if (McCompat.screen(Minecraft.getInstance()) == ownScreen && sentAtMs < giveUpAtMs) {
                     // Denied for a transient reason (spacing, a world aura mid cross-class cooldown, a
                     // settle window) and still aimed at the right menu - the gate only ever delays, so
@@ -1763,15 +1728,10 @@ public final class ExperimentsFeature {
                 // see this method's doc for why superpairsClickSent still gets called below.
                 LOGGER.warn("Experiments click on slot {} abandoned - ActionGate never freed up within {}ms "
                         + "of it being decided (or its screen closed first)", slot, GATE_RETRY_BUDGET_MS);
-                SOLVER.superpairsClickSent(slot, sentAtMs);
-                if (puzzle) {
-                    puzzleClickInFlight = false;
-                    lastClickAtMs = sentAtMs;
-                }
-                return;
+            } else {
+                clickSlot(containerId, slot);
+                lastClickSentAtMs = sentAtMs;
             }
-            clickSlot(containerId, slot);
-            lastClickSentAtMs = sentAtMs;
             if (puzzle) {
                 puzzleClickInFlight = false;
                 lastClickAtMs = sentAtMs;
@@ -1796,23 +1756,9 @@ public final class ExperimentsFeature {
         if (pendingActions.isEmpty()) {
             return;
         }
-        List<PendingAction> due = null;
-        Iterator<PendingAction> it = pendingActions.iterator();
-        while (it.hasNext()) {
-            PendingAction pending = it.next();
-            if (now >= pending.fireAtMs()) {
-                it.remove();
-                if (due == null) {
-                    due = new ArrayList<>();
-                }
-                due.add(pending);
-            }
-        }
-        if (due != null) {
-            for (PendingAction pending : due) {
-                pending.action().run();
-            }
-        }
+        List<PendingAction> due = pendingActions.stream().filter(pending -> now >= pending.fireAtMs()).toList();
+        pendingActions.removeIf(pending -> now >= pending.fireAtMs());
+        due.forEach(pending -> pending.action().run());
     }
 
     private static boolean clickSlot(int containerId, int slot) {
@@ -1872,11 +1818,7 @@ public final class ExperimentsFeature {
     private static String loreText(ItemStack stack) {
         ItemLore lore = stack.get(DataComponents.LORE);
         if (lore == null) return "";
-        StringBuilder sb = new StringBuilder();
-        for (Component line : lore.lines()) {
-            sb.append(line.getString()).append('\n');
-        }
-        return sb.toString();
+        return lore.lines().stream().map(line -> line.getString() + '\n').collect(java.util.stream.Collectors.joining());
     }
 
     private ExperimentsFeature() {

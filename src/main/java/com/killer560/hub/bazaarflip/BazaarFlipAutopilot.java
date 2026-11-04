@@ -324,9 +324,15 @@ final class BazaarFlipAutopilot {
         }
     }
 
-    private static void notePlacement(Pending p, boolean counted) {
+    /** An order just placed: waits in {@link #pending} to be adopted, counts toward the cap unless it is a relist. */
+    private static void notePending(boolean buy, String name) {
+        Pending p = new Pending(buy, name, System.currentTimeMillis(), Math.max(0, currentRelists));
+        pending.add(p);
+        if (currentRelists < 0) {
+            placed++;
+        }
         lastPlacement = p;
-        lastPlacementCounted = counted;
+        lastPlacementCounted = currentRelists < 0;
     }
 
     /**
@@ -476,8 +482,7 @@ final class BazaarFlipAutopilot {
             tickNpcSell(client, open, s, cfg, now);
             return;
         }
-        boolean orderJob = refresh || action instanceof FlipAction.Collect || action instanceof FlipAction.Cancel
-                || action instanceof FlipAction.Relist;
+        boolean orderJob = refresh || action instanceof FlipAction.Collect || cancelling(action);
         if (!(open instanceof AbstractContainerScreen<?> screen)) {
             if (open != null) {
                 fail("an unexpected screen opened: " + open.getClass().getSimpleName());
@@ -495,7 +500,7 @@ final class BazaarFlipAutopilot {
                 fail("the Bazaar menu never opened");
                 return;
             }
-            if (commandSentAtMs == 0 && BazaarFlipFeature.sendCommand(orderJob ? "bz" : "bz " + productName(action))) {
+            if (commandSentAtMs == 0 && BazaarFlipFeature.sendCommand(orderJob ? "bz" : "bz " + action.name())) {
                 commandSentAtMs = now;
             }
             return;
@@ -678,14 +683,14 @@ final class BazaarFlipAutopilot {
         }
         lastWaitWhy = "";
         if (isSale(next) && client.player != null) {
-            String id = productId(next);
+            String id = next.productId();
             long have = carried(client, id);
             long held = holdings.getOrDefault(id, 0L);
             if (have > held) {
                 // Sell Instantly, a Sell Offer and the NPC take every unit: never his own. Leave the stock with him.
                 avoid.add(id);
                 holdings.remove(id);
-                ModChat.send(CHAT, ModChat.bad("Not selling " + productName(next) + ": "), ModChat.text("you carry " + have
+                ModChat.send(CHAT, ModChat.bad("Not selling " + next.name() + ": "), ModChat.text("you carry " + have
                         + ", more than the " + held + " the autopilot bought. It is yours to sell now."));
                 return;
             }
@@ -713,10 +718,7 @@ final class BazaarFlipAutopilot {
             public long room(String productId, String displayName, int stackSize) {
                 long room = base.room(productId, displayName, stackSize);
                 Long cap = unitCap.get(productId);
-                if (cap == null) {
-                    return room;
-                }
-                return room < 0 ? cap : Math.min(room, cap);
+                return cap == null ? room : room < 0 ? cap : Math.min(room, cap);
             }
 
             @Override
@@ -736,7 +738,7 @@ final class BazaarFlipAutopilot {
      * {@code fits}, the action is dropped without skipping the product, and after {@link #MAX_RESIZES} it is skipped.
      */
     private static void resize(Minecraft client, long tried, long fits, String why) {
-        String id = action == null ? null : productId(action);
+        String id = action == null ? null : action.productId();
         if (id == null) {
             abandon(client, why);
             return;
@@ -748,7 +750,7 @@ final class BazaarFlipAutopilot {
             return;
         }
         unitCap.merge(id, next, Math::min);
-        ModChat.log(CHAT, ModChat.text("Buying fewer " + productName(action) + ": " + why),
+        ModChat.log(CHAT, ModChat.text("Buying fewer " + action.name() + ": " + why),
                 ModChat.dim(String.format(Locale.US, " - trying %,d instead of %,d.", next, tried)));
         LOGGER.info("[BazaarFlip] Autopilot resized {}: {} -> {} ({})", action, tried, next, why);
         closeMenu(client);
@@ -805,17 +807,16 @@ final class BazaarFlipAutopilot {
      *  nothing and never win on margin (FlipPricing.expectedBuyOrderFillsPerDay). */
     private static void logUnknownVolume(List<BazaarProduct> products) {
         volumeLoggedFor = products;
-        List<String> unknown = new ArrayList<>();
-        for (BazaarProduct p : products) {
-            if (!FlipPricing.instaSellVolumeKnown(p)) {
-                unknown.add(p.productId());
-            }
-        }
+        List<String> unknown = products.stream().filter(p -> !FlipPricing.instaSellVolumeKnown(p)).map(BazaarProduct::productId).toList();
         if (!unknown.isEmpty()) {
             LOGGER.info("[BazaarFlip] Autopilot: {} of {} products have no instant-sell volume (sellMovingWeek) - counted as "
                             + "filling nothing for buy orders: {}{}", unknown.size(), products.size(),
                     String.join(", ", unknown.subList(0, Math.min(20, unknown.size()))), unknown.size() > 20 ? ", ..." : "");
         }
+    }
+
+    private static boolean cancelling(FlipAction a) {
+        return a instanceof FlipAction.Cancel || a instanceof FlipAction.Relist;
     }
 
     private static boolean isSale(FlipAction a) {
@@ -862,14 +863,47 @@ final class BazaarFlipAutopilot {
 
     /** The live page refused what the snapshot promised: leave the product alone this session, carry on. */
     private static void abandon(Minecraft client, String why) {
-        String id = action == null ? null : productId(action);
+        String id = action == null ? null : action.productId();
         if (id != null) {
             avoid.add(id);
         }
-        ModChat.log(CHAT, ModChat.text("Skipping " + (action == null ? "it" : productName(action)) + ": " + why));
+        ModChat.log(CHAT, ModChat.text("Skipping " + (action == null ? "it" : action.name()) + ": " + why));
         LOGGER.info("[BazaarFlip] Autopilot skipped {}: {}", action, why);
         closeMenu(client);
         done("skipped");
+    }
+
+    /** Abandons the job, and says so, when the live price on {@code it} no longer sells at a profit. */
+    private static boolean abandonedUnprofitable(Minecraft client, String productId, BazaarPages.Item it, String what) {
+        double live = lorePerUnit(it.lore());
+        double sale = saleEach(client, productId);
+        if (live > 0 && sale > 0 && live >= sale) {
+            abandon(client, String.format(Locale.US, what + " (%,.1f) no longer sells at a profit (%,.1f)", live, sale));
+            return true;
+        }
+        return false;
+    }
+
+    /** The job as {@code type}, or null after failing with "unknown menu" when it is another kind of job. */
+    private static <T extends FlipAction> T actionAs(Class<T> type, AbstractContainerScreen<?> screen) {
+        if (type.isInstance(action)) {
+            return type.cast(action);
+        }
+        failUnknown(screen);
+        return null;
+    }
+
+    /** The named item of {@code page}, or null after failing with "unknown menu: no NAME". */
+    private static BazaarPages.Item menuItem(BazaarPages.Page page, String name, AbstractContainerScreen<?> screen) {
+        BazaarPages.Item it = BazaarFlipMenus.item(page, name);
+        if (it == null) {
+            fail("unknown menu: no " + name + " on " + BazaarFlipMenus.describe(screen));
+        }
+        return it;
+    }
+
+    private static void failUnknown(AbstractContainerScreen<?> screen) {
+        fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
     }
 
     private static void fail(String why) {
@@ -908,7 +942,7 @@ final class BazaarFlipAutopilot {
 
     /** True once what the last click should cause has happened (the step goes on), false while still waiting. */
     private static boolean checkExpect(Minecraft client, Screen open, long now) {
-        String id = action == null ? null : productId(action);
+        String id = action == null ? null : action.productId();
         boolean timedOut = now - expectSinceMs > STEP_TIMEOUT_MS;
         switch (expect) {
             case CARRIED_UP -> {
@@ -941,7 +975,7 @@ final class BazaarFlipAutopilot {
                     return true;
                 }
                 if (timedOut) {
-                    if (action instanceof FlipAction.Cancel || action instanceof FlipAction.Relist) {
+                    if (cancelling(action)) {
                         // A canceled sell offer's items can go to the stash when the inventory is full.
                         expect = Expect.NONE;
                         onCancelled(client, 0);
@@ -1017,7 +1051,7 @@ final class BazaarFlipAutopilot {
             placed++;
             closeMenu(client);
             done("bought " + delta + " " + b.name());
-        } else if (action instanceof FlipAction.Cancel || action instanceof FlipAction.Relist) {
+        } else if (cancelling(action)) {
             onCancelled(client, delta);
         }
     }
@@ -1029,12 +1063,7 @@ final class BazaarFlipAutopilot {
             done("insta-sold " + delta + " " + s.name());
         } else if (action instanceof FlipAction.PlaceSellOffer s) {
             takeHolding(s.productId(), delta);
-            Pending p = new Pending(false, s.name(), System.currentTimeMillis(), Math.max(0, currentRelists));
-            pending.add(p);
-            if (currentRelists < 0) {
-                placed++;
-            }
-            notePlacement(p, currentRelists < 0);
+            notePending(false, s.name());
             ordersReadAtMs = 0L;
             closeMenu(client);
             done("listed " + delta + " " + s.name() + " at " + s.price());
@@ -1043,12 +1072,7 @@ final class BazaarFlipAutopilot {
 
     private static void onPageChanged(Minecraft client, Expect was, int arrived) {
         if (action instanceof FlipAction.PlaceBuyOrder b) {
-            Pending p = new Pending(true, b.name(), System.currentTimeMillis(), Math.max(0, currentRelists));
-            pending.add(p);
-            if (currentRelists < 0) {
-                placed++;
-            }
-            notePlacement(p, currentRelists < 0);
+            notePending(true, b.name());
             ordersReadAtMs = 0L; // read Manage Orders before the next decision: it must see this order
             closeMenu(client);
             done("buy order for " + b.amount() + " " + b.name());
@@ -1065,7 +1089,7 @@ final class BazaarFlipAutopilot {
             }
             ordersReadAtMs = 0L; // re-read the orders before the next decision
             done("collected " + c.order().name());
-        } else if ((action instanceof FlipAction.Cancel || action instanceof FlipAction.Relist) && cancelClicked) {
+        } else if (cancelling(action) && cancelClicked) {
             FlipOrder o = cancelled();
             if (!o.buy()) {
                 // A sell offer's items come back: wait for them (CARRIED_UP's timeout covers the stash case).
@@ -1073,7 +1097,7 @@ final class BazaarFlipAutopilot {
                 return;
             }
             onCancelled(client, arrived);
-        } else if (action instanceof FlipAction.Cancel || action instanceof FlipAction.Relist) {
+        } else if (cancelling(action)) {
             // Clicking the order opened its options (the dispatch clicks Cancel Order next) or claimed what had filled
             // (the dispatch clicks it again): claimed items join the books at the order's price.
             FlipOrder o = cancelled();
@@ -1114,17 +1138,11 @@ final class BazaarFlipAutopilot {
 
     private static void tickProductPages(Minecraft client, AbstractContainerScreen<?> screen, BazaarPages.Page page,
                                          BazaarFlipConfig cfg, long now) {
-        String name = productName(action);
-        String id = productId(action);
+        String name = action.name();
+        String id = action.productId();
         switch (page.kind()) {
             case SEARCH, GROUP, CATEGORY -> {
-                BazaarPages.Item product = null;
-                for (BazaarPages.Item it : page.content()) {
-                    if (it.name().equalsIgnoreCase(name)) {
-                        product = it;
-                        break;
-                    }
-                }
+                BazaarPages.Item product = BazaarFlipMenus.contentItem(page, name);
                 if (product == null) {
                     reopen(client, "\"" + name + "\" is not on the Bazaar page " + BazaarFlipMenus.describe(screen));
                     return;
@@ -1139,9 +1157,8 @@ final class BazaarFlipAutopilot {
                 String button = action instanceof FlipAction.InstaBuy ? "Buy Instantly"
                         : action instanceof FlipAction.InstaSell ? "Sell Instantly"
                         : action instanceof FlipAction.PlaceBuyOrder ? "Create Buy Order" : "Create Sell Offer";
-                BazaarPages.Item it = BazaarFlipMenus.item(page, button);
+                BazaarPages.Item it = menuItem(page, button, screen);
                 if (it == null) {
-                    fail("unknown menu: no " + button + " on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
                 if (action instanceof FlipAction.InstaSell) {
@@ -1156,14 +1173,14 @@ final class BazaarFlipAutopilot {
             case INSTANT_BUY -> {
                 if (!(action instanceof FlipAction.InstaBuy b) || !BazaarPages.isInstantBuyTitleFor(
                         BazaarFlipMenus.titleOf(screen), name)) {
-                    fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+                    failUnknown(screen);
                     return;
                 }
                 instantBuyStep(client, screen, page, b, cfg);
             }
             case ORDER_AMOUNT -> {
-                if (!(action instanceof FlipAction.PlaceBuyOrder b)) {
-                    fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+                FlipAction.PlaceBuyOrder b = actionAs(FlipAction.PlaceBuyOrder.class, screen);
+                if (b == null) {
                     return;
                 }
                 // A preset stating exactly the amount (lore "Amount: Nx", else its name: "Buy only one!", "Buy 32!");
@@ -1173,9 +1190,8 @@ final class BazaarFlipAutopilot {
                     click(client, screen, exact.slot(), ContainerInput.PICKUP, cfg, true);
                     return;
                 }
-                BazaarPages.Item custom = BazaarFlipMenus.item(page, "Custom Amount");
+                BazaarPages.Item custom = menuItem(page, "Custom Amount", screen);
                 if (custom == null) {
-                    fail("unknown menu: no Custom Amount on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
                 if (click(client, screen, custom.slot(), ContainerInput.PICKUP, cfg, false)) {
@@ -1185,13 +1201,12 @@ final class BazaarFlipAutopilot {
                 }
             }
             case ORDER_PRICE -> {
-                if (!(action instanceof FlipAction.PlaceBuyOrder b)) {
-                    fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+                FlipAction.PlaceBuyOrder b = actionAs(FlipAction.PlaceBuyOrder.class, screen);
+                if (b == null) {
                     return;
                 }
-                BazaarPages.Item it = BazaarFlipMenus.item(page, "Top Order +0.1");
+                BazaarPages.Item it = menuItem(page, "Top Order +0.1", screen);
                 if (it == null) {
-                    fail("unknown menu: no Top Order +0.1 on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
                 // When the top order is already one of the session's own (a second offer on the product, or a relist
@@ -1201,22 +1216,18 @@ final class BazaarFlipAutopilot {
                 if (samePrice > 0 && ownBuyAt(b.productId(), samePrice)) {
                     it = same;
                 }
-                double live = lorePerUnit(it.lore());
-                double sale = saleEach(client, b.productId());
-                if (live > 0 && sale > 0 && live >= sale) {
-                    abandon(client, String.format(Locale.US, "the live bid (%,.1f) no longer sells at a profit (%,.1f)", live, sale));
+                if (abandonedUnprofitable(client, b.productId(), it, "the live bid")) {
                     return;
                 }
                 click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
             }
             case CONFIRM_BUY -> {
-                if (!(action instanceof FlipAction.PlaceBuyOrder b)) {
-                    fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+                FlipAction.PlaceBuyOrder b = actionAs(FlipAction.PlaceBuyOrder.class, screen);
+                if (b == null) {
                     return;
                 }
-                BazaarPages.Item it = BazaarFlipMenus.item(page, "Buy Order");
+                BazaarPages.Item it = menuItem(page, "Buy Order", screen);
                 if (it == null) {
-                    fail("unknown menu: no Buy Order on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
                 long amount = loreOrderAmount(it.lore());
@@ -1224,10 +1235,7 @@ final class BazaarFlipAutopilot {
                     fail("Confirm Buy Order says " + amount + ", not the " + b.amount() + " ordered - not confirming");
                     return;
                 }
-                double live = lorePerUnit(it.lore());
-                double sale = saleEach(client, b.productId());
-                if (live > 0 && sale > 0 && live >= sale) {
-                    abandon(client, String.format(Locale.US, "the order's price (%,.1f) no longer sells at a profit (%,.1f)", live, sale));
+                if (abandonedUnprofitable(client, b.productId(), it, "the order's price")) {
                     return;
                 }
                 if (click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, false)) {
@@ -1235,25 +1243,22 @@ final class BazaarFlipAutopilot {
                 }
             }
             case OFFER_PRICE -> {
-                if (!(action instanceof FlipAction.PlaceSellOffer)) {
-                    fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+                if (actionAs(FlipAction.PlaceSellOffer.class, screen) == null) {
                     return;
                 }
-                BazaarPages.Item it = BazaarFlipMenus.item(page, "Best Offer -0.1");
+                BazaarPages.Item it = menuItem(page, "Best Offer -0.1", screen);
                 if (it == null) {
-                    fail("unknown menu: no Best Offer -0.1 on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
                 click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
             }
             case CONFIRM_SELL -> {
-                if (!(action instanceof FlipAction.PlaceSellOffer s)) {
-                    fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+                FlipAction.PlaceSellOffer s = actionAs(FlipAction.PlaceSellOffer.class, screen);
+                if (s == null) {
                     return;
                 }
-                BazaarPages.Item it = BazaarFlipMenus.item(page, "Sell Offer");
+                BazaarPages.Item it = menuItem(page, "Sell Offer", screen);
                 if (it == null) {
-                    fail("unknown menu: no Sell Offer on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
                 int have = carried(client, s.productId());
@@ -1261,7 +1266,7 @@ final class BazaarFlipAutopilot {
                     expect(Expect.CARRIED_DOWN, have, screen);
                 }
             }
-            default -> fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+            default -> failUnknown(screen);
         }
     }
 
@@ -1380,15 +1385,7 @@ final class BazaarFlipAutopilot {
     /** The snapshot's product by id, or null. */
     private static BazaarProduct product(String id) {
         List<BazaarProduct> all = BazaarApi.peekProducts();
-        if (all == null || id == null) {
-            return null;
-        }
-        for (BazaarProduct p : all) {
-            if (id.equals(p.productId())) {
-                return p;
-            }
-        }
-        return null;
+        return all == null || id == null ? null : all.stream().filter(p -> id.equals(p.productId())).findFirst().orElse(null);
     }
 
     /** The Instant Buy quote per unit for {@code units}: the snapshot's book walked to that many, plus Hypixel's 4%, never
@@ -1469,41 +1466,10 @@ final class BazaarFlipAutopilot {
         if (!BazaarFlipFeature.paced()) {
             return;
         }
-        String[] lines = ((SignEditScreenAccessor) sign).killer560smod$getMessages();
-        if (!BazaarFlipFeature.isAmountSign(lines)) {
-            fail("the sign that opened is not Hypixel's amount prompt: " + Arrays.toString(lines));
-            return;
-        }
-        if (!lines[0].isEmpty()) {
-            fail("the amount sign's first line already holds \"" + lines[0] + "\"");
-            return;
-        }
-        Button doneButton = null;
-        for (GuiEventListener child : sign.children()) {
-            if (child instanceof Button b && b.getMessage().getString().equals(CommonComponents.GUI_DONE.getString())) {
-                doneButton = b;
-            }
-        }
-        if (doneButton == null) {
-            fail("the amount sign has no Done button");
-            return;
-        }
-        if (!ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_CMD)) {
-            return; // retried next tick
-        }
         String text = Long.toString(signAmount);
-        for (int i = 0; i < text.length(); i++) {
-            sign.charTyped(new CharacterEvent(text.charAt(i)));
-        }
-        String typed = ((SignEditScreenAccessor) sign).killer560smod$getMessages()[0];
-        if (!text.equals(typed)) {
-            for (int i = 0; i < typed.length(); i++) {
-                sign.keyPressed(new KeyEvent(InputConstants.KEY_BACKSPACE, 0, 0));
-            }
-            fail("typing " + text + " into the amount sign left \"" + typed + "\" - nothing was sent");
+        if (!BazaarFlipFeature.typeAmount(sign, text, BazaarFlipAutopilot::fail)) {
             return;
         }
-        doneButton.onPress(new KeyEvent(InputConstants.KEY_RETURN, 0, 0));
         lastStepAtMs = now;
         LOGGER.info("[BazaarFlip] Autopilot typed {} into the amount sign", text);
         BazaarFlipFeature.delayNext(BazaarFlipFeature.randomDelay(cfg));
@@ -1554,13 +1520,9 @@ final class BazaarFlipAutopilot {
             return;
         }
         if (page.kind() == BazaarPages.Kind.ORDER_OPTIONS) {
-            if ((action instanceof FlipAction.Cancel || action instanceof FlipAction.Relist) && !cancelClicked) {
-                BazaarPages.Item cancel = null;
-                for (BazaarPages.Item it : page.content()) {
-                    if (it.name().contains("Cancel Order")) {
-                        cancel = it;
-                    }
-                }
+            if (cancelling(action) && !cancelClicked) {
+                BazaarPages.Item cancel = page.content().stream().filter(it -> it.name().contains("Cancel Order"))
+                        .reduce((a, b) -> b).orElse(null);
                 if (cancel == null) {
                     fail("unknown menu: no Cancel Order on " + BazaarFlipMenus.describe(screen));
                     return;
@@ -1699,10 +1661,8 @@ final class BazaarFlipAutopilot {
             finishNpcSell(client, s, "sold " + npcSoldUnits);
             return;
         }
-        for (Slot slot : BazaarFlipMenus.playerSlots(menu)) {
-            if (!BazaarFlipMenus.isProduct(slot.getItem(), s.productId(), s.name())) {
-                continue;
-            }
+        Slot slot = BazaarFlipMenus.firstProductSlot(menu, s.productId(), s.name());
+        if (slot != null) {
             int count = slot.getItem().getCount();
             if (click(client, screen, slot.index, ContainerInput.QUICK_MOVE, cfg, false)) {
                 sellPendingSlot = slot.index;
@@ -1788,35 +1748,22 @@ final class BazaarFlipAutopilot {
     }
 
     private static String nameOf(String id) {
-        for (BazaarProduct p : BazaarApi.peekProducts()) {
-            if (p.productId().equals(id)) {
-                return p.displayName();
-            }
-        }
-        return null;
+        BazaarProduct p = product(id);
+        return p == null ? null : p.displayName();
     }
 
     /** What one unit of the product sells for under the advisor's answers, from the latest snapshot (0 when unknown). */
     private static double saleEach(Minecraft client, String id) {
-        for (BazaarProduct p : BazaarApi.peekProducts()) {
-            if (p.productId().equals(id)) {
-                return FlipAutopilot.unitSellNet(BazaarAdvisorFeature.answers(BazaarAdvisorConfig.getInstance()),
-                        BazaarAdvisorFeature.lookups(client.player == null ? null : client.player.inventoryMenu), p);
-            }
-        }
-        return 0;
+        BazaarProduct p = product(id);
+        return p == null ? 0 : FlipAutopilot.unitSellNet(BazaarAdvisorFeature.answers(BazaarAdvisorConfig.getInstance()),
+                BazaarAdvisorFeature.lookups(client.player == null ? null : client.player.inventoryMenu), p);
     }
 
     /** Whether one of the session's own open buy orders on the product bids this price (as Manage Orders last showed). */
     private static boolean ownBuyAt(String productId, double price) {
-        for (FlipOrder o : orders) {
-            // mine drops an order the moment it is canceled, so a relist never "matches" the order it replaced.
-            if (o.ours() && o.buy() && mine.containsKey(o.key()) && productId != null && productId.equals(o.productId())
-                    && Math.abs(o.price() - price) <= FlipAutopilot.PRICE_EPS) {
-                return true;
-            }
-        }
-        return false;
+        // mine drops an order the moment it is canceled, so a relist never "matches" the order it replaced.
+        return orders.stream().anyMatch(o -> o.ours() && o.buy() && mine.containsKey(o.key()) && productId != null
+                && productId.equals(o.productId()) && Math.abs(o.price() - price) <= FlipAutopilot.PRICE_EPS);
     }
 
     private static double lorePerUnit(List<String> lore) {
@@ -1834,43 +1781,7 @@ final class BazaarFlipAutopilot {
     }
 
     private static long loreOrderAmount(List<String> lore) {
-        for (String line : lore) {
-            Matcher m = ORDER_AMOUNT.matcher(line);
-            if (m.matches()) {
-                return Long.parseLong(m.group(1).replace(",", ""));
-            }
-        }
-        return -1;
-    }
-
-    static String productId(FlipAction a) {
-        return switch (a) {
-            case FlipAction.InstaBuy x -> x.productId();
-            case FlipAction.InstaSell x -> x.productId();
-            case FlipAction.PlaceBuyOrder x -> x.productId();
-            case FlipAction.PlaceSellOffer x -> x.productId();
-            case FlipAction.SellToNpc x -> x.productId();
-            case FlipAction.Collect x -> x.order().productId();
-            case FlipAction.Cancel x -> x.order().productId();
-            case FlipAction.Relist x -> x.order().productId();
-            case FlipAction.Wait x -> null;
-            case FlipAction.Stop x -> null;
-        };
-    }
-
-    static String productName(FlipAction a) {
-        return switch (a) {
-            case FlipAction.InstaBuy x -> x.name();
-            case FlipAction.InstaSell x -> x.name();
-            case FlipAction.PlaceBuyOrder x -> x.name();
-            case FlipAction.PlaceSellOffer x -> x.name();
-            case FlipAction.SellToNpc x -> x.name();
-            case FlipAction.Collect x -> x.order().name();
-            case FlipAction.Cancel x -> x.order().name();
-            case FlipAction.Relist x -> x.order().name();
-            case FlipAction.Wait x -> "";
-            case FlipAction.Stop x -> "";
-        };
+        return BazaarFlipFeature.loreLong(lore, ORDER_AMOUNT);
     }
 
     private static String jobName() {

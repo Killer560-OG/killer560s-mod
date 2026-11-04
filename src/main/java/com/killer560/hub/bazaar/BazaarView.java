@@ -394,10 +394,7 @@ public final class BazaarView {
         if (mode == Mode.CONTAINER && (cp == null || cp.page == null || cp.page.kind() == BazaarPages.Kind.CATEGORY)) {
             return Mode.BROWSE;
         }
-        if (mode == Mode.PREVIEW && previewId == null) {
-            return Mode.BROWSE;
-        }
-        return mode;
+        return mode == Mode.PREVIEW && previewId == null ? Mode.BROWSE : mode;
     }
 
     // Header -------------------------------------------------------------------------------------------------------
@@ -664,12 +661,7 @@ public final class BazaarView {
                 boolean whole = ry >= top && ry + RAIL_ROW_H <= bottom;
                 boolean sel = id.equals(targetId);
                 boolean hover = in(railX, Math.max(ry, top), railW, Math.min(ry + RAIL_ROW_H, bottom) - Math.max(ry, top));
-                if (sel) {
-                    g.fill(railX + 1, ry, railX + railW - 1, ry + RAIL_ROW_H, t.selectedBg());
-                    g.fill(railX + 1, ry, railX + 3, ry + RAIL_ROW_H, t.accent());
-                } else if (hover) {
-                    g.fill(railX + 1, ry, railX + railW - 1, ry + RAIL_ROW_H, t.rowHover());
-                }
+                rowBackground(railX, railW, ry, RAIL_ROW_H, sel, hover, false);
                 g.item(BazaarIcons.icon(id), railX + 4, ry + 1);
                 BazaarProduct p = BazaarFormat.byId(id);
                 String name = fit(BazaarFormat.displayName(id), railW - 28);
@@ -1108,14 +1100,7 @@ public final class BazaarView {
                 int hy = Math.max(rowY, top);
                 int hh = Math.min(rowY + rh, bottom) - hy;
                 boolean hover = in(x, hy, w - 6, hh);
-                if (sel) {
-                    g.fill(x + 1, rowY, x + w - 1, rowY + rh, t.selectedBg());
-                    g.fill(x + 1, rowY, x + 3, rowY + rh, t.accent());
-                } else if (hover) {
-                    g.fill(x + 1, rowY, x + w - 1, rowY + rh, t.rowHover());
-                } else if (alt % 2 == 1) {
-                    g.fill(x + 1, rowY, x + w - 1, rowY + rh, t.rowAlt());
-                }
+                rowBackground(x, w, rowY, rh, sel, hover, alt % 2 == 1);
                 alt++;
                 productRow(p, x, rowY, c, whole, !query.isBlank());
                 if (hh > 0) {
@@ -1613,14 +1598,7 @@ public final class BazaarView {
                 int hh = Math.min(ry + rowH, bottom) - hy;
                 boolean hover = in(x, hy, w - 6, hh);
                 boolean sel = target != null && it.name().equalsIgnoreCase(target);
-                if (sel) {
-                    g.fill(x + 1, ry, x + w - 1, ry + rowH, t.selectedBg());
-                    g.fill(x + 1, ry, x + 3, ry + rowH, t.accent());
-                } else if (hover) {
-                    g.fill(x + 1, ry, x + w - 1, ry + rowH, t.rowHover());
-                } else if (i % 2 == 1) {
-                    g.fill(x + 1, ry, x + w - 1, ry + rowH, t.rowAlt());
-                }
+                rowBackground(x, w, ry, rowH, sel, hover, i % 2 == 1);
                 if (hover) {
                     hoveredStack = stack;
                 }
@@ -1758,11 +1736,8 @@ public final class BazaarView {
     /** A key while the Bazaar is open: true when the search field took it. */
     static boolean key(KeyEvent e) {
         if (!searchFocused) {
-            if (e.key() == InputConstants.KEY_F && e.hasControlDown()) {
-                searchFocused = true;
-                return true;
-            }
-            return false;
+            searchFocused = e.key() == InputConstants.KEY_F && e.hasControlDown();
+            return searchFocused;
         }
         BazaarFollowUp.disarm("typing");
         if (e.key() == InputConstants.KEY_ESCAPE || e.key() == InputConstants.KEY_RETURN) {
@@ -1796,6 +1771,18 @@ public final class BazaarView {
         setQuery(term);
     }
 
+    /** A list row's background: the selected stripe, else the hover tint, else (when {@code alt}) the alternate tint. */
+    private static void rowBackground(int x, int w, int ry, int rowH, boolean sel, boolean hover, boolean alt) {
+        if (sel) {
+            g.fill(x + 1, ry, x + w - 1, ry + rowH, t.selectedBg());
+            g.fill(x + 1, ry, x + 3, ry + rowH, t.accent());
+        } else if (hover) {
+            g.fill(x + 1, ry, x + w - 1, ry + rowH, t.rowHover());
+        } else if (alt) {
+            g.fill(x + 1, ry, x + w - 1, ry + rowH, t.rowAlt());
+        }
+    }
+
     private static boolean in(int x, int y, int w, int h) {
         return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
     }
@@ -1810,11 +1797,7 @@ public final class BazaarView {
     /** The page's content plus the bottom-row items that have no place of their own (Cancel Buy Order...). */
     private static List<BazaarPages.Item> withExtraNav(BazaarPages.Page page) {
         List<BazaarPages.Item> out = new ArrayList<>(page.content());
-        for (BazaarPages.Item it : page.nav()) {
-            if (!PLACED_NAV.contains(it.name())) {
-                out.add(it);
-            }
-        }
+        page.nav().stream().filter(it -> !PLACED_NAV.contains(it.name())).forEach(out::add);
         return out;
     }
 
@@ -1822,32 +1805,16 @@ public final class BazaarView {
         if (page == null) {
             return null;
         }
-        for (BazaarPages.Item it : page.nav()) {
-            if (it.name().equals(name)) {
-                return it;
-            }
-        }
-        return null;
+        return page.nav().stream().filter(it -> it.name().equals(name)).findFirst().orElse(null);
     }
 
     private static BazaarPages.Item anyItem(BazaarPages.Page page, String name) {
-        for (List<BazaarPages.Item> part : List.of(page.nav(), page.content())) {
-            for (BazaarPages.Item it : part) {
-                if (it.name().equals(name)) {
-                    return it;
-                }
-            }
-        }
-        return null;
+        return java.util.stream.Stream.concat(page.nav().stream(), page.content().stream())
+                .filter(it -> it.name().equals(name)).findFirst().orElse(null);
     }
 
     private static boolean hasPrices(BazaarPages.Item it) {
-        for (String line : it.lore()) {
-            if (BUY_PRICE.matcher(line).matches() || SELL_PRICE.matcher(line).matches()) {
-                return true;
-            }
-        }
-        return false;
+        return it.lore().stream().anyMatch(line -> BUY_PRICE.matcher(line).matches() || SELL_PRICE.matcher(line).matches());
     }
 
     /** The number a "Buy price: 4.8 coins" style lore line carries, or -1. */
@@ -1867,24 +1834,12 @@ public final class BazaarView {
 
     /** A category page group's products: its "▶ Wheat" lore lines (wiki Bazaar/UI/Farming). */
     private static List<String> productNames(BazaarPages.Item it) {
-        List<String> out = new ArrayList<>();
-        for (String line : it.lore()) {
-            Matcher m = PRODUCT_LINE.matcher(line);
-            if (m.matches()) {
-                out.add(m.group(1));
-            }
-        }
-        return out;
+        return it.lore().stream().map(PRODUCT_LINE::matcher).filter(Matcher::matches).map(m -> m.group(1)).toList();
     }
 
     /** The first lore line with text ("Common commodity", "7 products"), or "". */
     private static String subtitle(BazaarPages.Item it) {
-        for (String line : it.lore()) {
-            if (!line.isBlank()) {
-                return line;
-            }
-        }
-        return "";
+        return it.lore().stream().filter(line -> !line.isBlank()).findFirst().orElse("");
     }
 
     /** "Hold Left Alt: Hypixel's menu", or "" with no Hypixel Menu key set. */
@@ -1898,13 +1853,8 @@ public final class BazaarView {
 
     /** "Go Back" says where it goes ("‹ Bazaar", from its "To Bazaar" lore line). */
     static String backLabel(BazaarPages.Item it) {
-        for (String line : it.lore()) {
-            Matcher m = TO_LINE.matcher(line);
-            if (m.matches()) {
-                return "‹ " + m.group(1);
-            }
-        }
-        return "‹ Back";
+        return it.lore().stream().map(TO_LINE::matcher).filter(Matcher::matches).map(m -> "‹ " + m.group(1))
+                .findFirst().orElse("‹ Back");
     }
 
     private static FormattedCharSequence fitComponent(Component c, int width) {
@@ -1988,11 +1938,7 @@ public final class BazaarView {
      * starts with its key, e.g. {@code back Go Back}), {@code widget search x y w h}.
      */
     public static List<String> layoutReportForTest() {
-        List<String> out = new ArrayList<>(LAYOUT.size());
-        for (Lay l : LAYOUT) {
-            out.add(l.line());
-        }
-        return out;
+        return LAYOUT.stream().map(Lay::line).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     }
 
     /** What the last frame showed: "{@code <mode> <content> [frozen] items=<n>}". */

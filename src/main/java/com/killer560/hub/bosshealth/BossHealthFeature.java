@@ -3,6 +3,7 @@ package com.killer560.hub.bosshealth;
 import com.killer560.hub.boss.LividSolverFeature;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudText;
@@ -216,37 +217,18 @@ public final class BossHealthFeature {
     }
 
     /** Movable and scalable in the HUD editor; drawn by {@code HudInGameRenderer} (id in its UNDRAWN_ELEMENT_IDS). */
-    private static final class BossHealthHud implements HudElement {
+    private static final class BossHealthHud extends BasicHud {
+        BossHealthHud() {
+            super("boss_health", "Boss Health", 10, 480);
+        }
+
 
         private static final List<String> SAMPLE = List.of(
                 BossHealthText.line("Maxor", 52_300_000L, 100_000_000L, true, false, false),
                 BossHealthText.line("Healthy Guardian", 400_000L, 1_000_000L, true, false, false));
 
         private static List<String> rows() {
-            if (McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen) {
-                return SAMPLE;
-            }
-            return currentLines();
-        }
-
-        @Override
-        public String id() {
-            return "boss_health";
-        }
-
-        @Override
-        public String displayName() {
-            return "Boss Health";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 480;
+            return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen ? SAMPLE : currentLines();
         }
 
         @Override

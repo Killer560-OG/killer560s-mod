@@ -21,10 +21,7 @@ public final class FontScope {
 
     public static boolean menuNow() {
         int o = override;
-        if (o >= 0) {
-            return o == 1;
-        }
-        return menuDepth > 0;
+        return o >= 0 ? o == 1 : menuDepth > 0;
     }
 
     public static void enterMenu() {

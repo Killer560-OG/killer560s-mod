@@ -509,10 +509,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
         if (h) {
             return CursorTypes.RESIZE_EW;
         }
-        if (v) {
-            return CursorTypes.RESIZE_NS;
-        }
-        return CursorTypes.RESIZE_ALL;
+        return v ? CursorTypes.RESIZE_NS : CursorTypes.RESIZE_ALL;
     }
 
     /** Small squares on the corners (and, for a resizable element, the edge midpoints) of the padded box. */

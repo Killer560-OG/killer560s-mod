@@ -252,9 +252,6 @@ public final class HeldItemConfig {
     }
 
     static float clamp(float v, float min, float max) {
-        if (Float.isNaN(v)) {
-            return min;
-        }
-        return v < min ? min : (v > max ? max : v);
+        return Float.isNaN(v) || v < min ? min : Math.min(v, max);
     }
 }

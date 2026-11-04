@@ -122,6 +122,21 @@ public final class BazaarFlipMenus {
         return null;
     }
 
+    /** The first item of {@code page}'s content whose name is {@code name}, ignoring case, or null. */
+    public static BazaarPages.Item contentItem(BazaarPages.Page page, String name) {
+        return page.content().stream().filter(it -> it.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+    }
+
+    /** The first of the player's own slots holding the product, or null. */
+    public static Slot firstProductSlot(AbstractContainerMenu menu, String productId, String displayName) {
+        for (Slot slot : playerSlots(menu)) {
+            if (isProduct(slot.getItem(), productId, displayName)) {
+                return slot;
+            }
+        }
+        return null;
+    }
+
     /** Whether {@code stack} is the product: its Skyblock id when it has one, else its visible name. */
     public static boolean isProduct(ItemStack stack, String productId, String displayName) {
         if (stack == null || stack.isEmpty()) {

@@ -179,20 +179,18 @@ final class ExperimentNavigator {
             // flags fresh from each entry's own live cooldown lore, exactly like the cooldown
             // check already does, instead of trusting a stale in-memory flag.
             if (result < 0) {
-                Slot chrono = findSlotContaining(menu, "Chronomatron");
-                boolean chronoAvailable = chrono != null && !isMainMenuEntryUnavailable(chrono.getItem());
-                chronomatronDoneThisRun = !chronoAvailable;
-                if (chronoAvailable) {
+                Slot chrono = availableEntry(menu, "Chronomatron");
+                chronomatronDoneThisRun = chrono == null;
+                if (chrono != null) {
                     result = chrono.index;
                     reason = "Chronomatron entry";
                 }
             }
 
             if (result < 0) {
-                Slot ultra = findSlotContaining(menu, "Ultrasequencer");
-                boolean ultraAvailable = ultra != null && !isMainMenuEntryUnavailable(ultra.getItem());
-                ultrasequencerDoneThisRun = !ultraAvailable;
-                if (ultraAvailable) {
+                Slot ultra = availableEntry(menu, "Ultrasequencer");
+                ultrasequencerDoneThisRun = ultra == null;
+                if (ultra != null) {
                     result = ultra.index;
                     reason = "Ultrasequencer entry";
                 }
@@ -205,10 +203,9 @@ final class ExperimentNavigator {
             // add-ons first!" lock text (distinct from "cooldown") shown when Superpairs has a charge
             // but the add-ons need to be replayed before it - see isMainMenuEntryUnavailable.
             if (result < 0) {
-                Slot pairs = findSlotContaining(menu, "Superpairs");
-                boolean pairsAvailable = pairs != null && !isMainMenuEntryUnavailable(pairs.getItem());
-                superpairsDoneThisRun = !pairsAvailable;
-                if (pairsAvailable) {
+                Slot pairs = availableEntry(menu, "Superpairs");
+                superpairsDoneThisRun = pairs == null;
+                if (pairs != null) {
                     result = pairs.index;
                     reason = "Superpairs entry";
                 }
@@ -471,6 +468,12 @@ final class ExperimentNavigator {
         int value = pendingRoundsNeeded;
         pendingRoundsNeeded = -1;
         return value;
+    }
+
+    /** The main-menu entry holding {@code name}, or null when it is missing or on cooldown / locked. */
+    private Slot availableEntry(ChestMenu menu, String name) {
+        Slot s = findSlotContaining(menu, name);
+        return s != null && !isMainMenuEntryUnavailable(s.getItem()) ? s : null;
     }
 
     private Slot findSlotContaining(ChestMenu menu, String needle) {

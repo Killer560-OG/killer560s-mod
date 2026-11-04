@@ -238,10 +238,7 @@ public final class BazaarFlipConfig {
             default -> {
             }
         }
-        if (v.compareTo(java.math.BigDecimal.valueOf(MAX_TARGET_PURSE)) > 0) {
-            return MAX_TARGET_PURSE;
-        }
-        return v.longValue();
+        return v.compareTo(java.math.BigDecimal.valueOf(MAX_TARGET_PURSE)) > 0 ? MAX_TARGET_PURSE : v.longValue();
     }
 
     public int getSpeed() {

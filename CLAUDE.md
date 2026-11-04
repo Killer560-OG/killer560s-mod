@@ -231,7 +231,7 @@ A setting that flags is not shipped with that value (killer560, 2026-10-27: "if 
 pushed with that setting. SImple as that."). Test every new cheat setting at its HIGHEST value on GrimAC's default config
 AND with `experimental-checks: true` (testkit: a checkout whose `run/testserver/config/GrimAC/config.yml` says so); a value
 that flags is capped below or the setting removed (Arrow Align Frames Per Tick was dropped for MultiInteractA/B,
-2026-10-27). Kept-teleport Blink flags are his one accepted exception. Burst Multi Break is an owner exception too
+2026-10-27). Kept-teleport Blink flags are his accepted exception. A lag spike of 900 ms or more mid-Hold that draws TimerLimit is accepted too (killer560, 2026-11-04: "Keep holding"); Charge never flags under lag (it sends held answers after 150 ms without a ping, keeping the bank). Burst Multi Break is an owner exception too
 (killer560, 2026-11-02): Breaker Aura's "Burst Multi Break (flags newest Grim)" switch (default OFF, only with Multi Break on)
 brings back the pre-d2da5856 burst that GrimAC's experimental MultiBreak flags; its label says it flags, and tests accept
 MultiBreak* only while it is on.

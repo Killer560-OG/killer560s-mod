@@ -156,10 +156,7 @@ public final class ChatHistoryConfig {
 
     /** The effective history: Off while the switch is off, else the chosen length. */
     public Mode getMode() {
-        if (!enabled) {
-            return Mode.OFF;
-        }
-        return length == Length.UNLIMITED ? Mode.UNLIMITED : Mode.LIMITED;
+        return !enabled ? Mode.OFF : length == Length.UNLIMITED ? Mode.UNLIMITED : Mode.LIMITED;
     }
 
     /** Off turns the switch off and keeps the length; Limited or Unlimited turns it on at that length. */

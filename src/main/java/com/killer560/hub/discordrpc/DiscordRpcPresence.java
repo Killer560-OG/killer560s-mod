@@ -82,10 +82,7 @@ public final class DiscordRpcPresence {
             return null;
         }
         String trimmed = text.trim();
-        if (trimmed.length() < 2) {
-            return null;
-        }
-        return trimmed.length() > 128 ? trimmed.substring(0, 128) : trimmed;
+        return trimmed.length() < 2 ? null : trimmed.length() > 128 ? trimmed.substring(0, 128) : trimmed;
     }
 
     /** Builds the JSON activity object sent to Discord. Safe to call from the worker thread. */
@@ -124,9 +121,6 @@ public final class DiscordRpcPresence {
         if (key.details() == null && key.state() == null) {
             return "Killer560's Mod (details hidden)";
         }
-        if (key.state() == null) {
-            return key.details();
-        }
-        return key.details() + " - " + key.state();
+        return key.state() == null ? key.details() : key.details() + " - " + key.state();
     }
 }

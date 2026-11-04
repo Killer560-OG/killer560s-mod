@@ -1,6 +1,7 @@
 package com.killer560.hub.boss;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -347,26 +348,11 @@ public final class LividSolverFeature {
         return ticks + "t";
     }
 
-    public static final class InvulnTimerHudElement implements HudElement {
-        @Override
-        public String id() {
-            return "livid_invuln_timer";
+    public static final class InvulnTimerHudElement extends BasicHud {
+        public InvulnTimerHudElement() {
+            super("livid_invuln_timer", "Livid Invulnerability Timer", 10, 400);
         }
 
-        @Override
-        public String displayName() {
-            return "Livid Invulnerability Timer";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 400;
-        }
 
         @Override
         public int width() {

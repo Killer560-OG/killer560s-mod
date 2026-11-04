@@ -152,36 +152,14 @@ public final class FastLeapSection {
         }
         double norm = (cfg.getClickDelayMs() - FastLeapConfig.MIN_CLICK_DELAY_MS)
                 / (double) (FastLeapConfig.MAX_CLICK_DELAY_MS - FastLeapConfig.MIN_CLICK_DELAY_MS);
-        widgets.add(new ThemedSliderButton(x, y, w, ROW, Component.literal(delayLabel(cfg)), norm) {
-            @Override
-            protected void updateMessage() {
-                setMessage(Component.literal(delayLabel(cfg)));
-            }
-
-            @Override
-            protected void applyValue() {
-                int range = FastLeapConfig.MAX_CLICK_DELAY_MS - FastLeapConfig.MIN_CLICK_DELAY_MS;
-                cfg.setClickDelayMs(FastLeapConfig.MIN_CLICK_DELAY_MS + (int) Math.round(this.value * range));
-                saveOnRelease(() -> cfg.save());
-            }
-        });
+        widgets.add(rangeSlider(x, y, w, cfg, norm, () -> delayLabel(cfg), FastLeapConfig.MIN_CLICK_DELAY_MS,
+                FastLeapConfig.MAX_CLICK_DELAY_MS, cfg::setClickDelayMs));
         y += ROW + GAP;
         // Leap Timeout (killer560, 2026-11-01): how long a leap waits for the menu / the target's head before giving up
         double tnorm = (cfg.getTimeoutMs() - FastLeapConfig.MIN_TIMEOUT_MS)
                 / (double) (FastLeapConfig.MAX_TIMEOUT_MS - FastLeapConfig.MIN_TIMEOUT_MS);
-        widgets.add(new ThemedSliderButton(x, y, w, ROW, Component.literal(timeoutLabel(cfg)), tnorm) {
-            @Override
-            protected void updateMessage() {
-                setMessage(Component.literal(timeoutLabel(cfg)));
-            }
-
-            @Override
-            protected void applyValue() {
-                int range = FastLeapConfig.MAX_TIMEOUT_MS - FastLeapConfig.MIN_TIMEOUT_MS;
-                cfg.setTimeoutMs(FastLeapConfig.MIN_TIMEOUT_MS + (int) Math.round(this.value * range));
-                saveOnRelease(() -> cfg.save());
-            }
-        });
+        widgets.add(rangeSlider(x, y, w, cfg, tnorm, () -> timeoutLabel(cfg), FastLeapConfig.MIN_TIMEOUT_MS,
+                FastLeapConfig.MAX_TIMEOUT_MS, cfg::setTimeoutMs));
         y += ROW + GAP;
         // Return To (2026-10-13): one setting for every Auto leap - where to swap back is a property of his hotbar
         widgets.add(SettingsButtonWidget.cycling(returnLabel(cfg.getReturnToSlot()), (btn, dir) -> {
@@ -414,6 +392,22 @@ public final class FastLeapSection {
             editingClass = self != null ? self : DungeonClass.values()[0];
         }
         return editingClass;
+    }
+
+    private static ThemedSliderButton rangeSlider(int x, int y, int w, FastLeapConfig cfg, double norm,
+            java.util.function.Supplier<String> label, int min, int max, java.util.function.IntConsumer set) {
+        return new ThemedSliderButton(x, y, w, ROW, Component.literal(label.get()), norm) {
+            @Override
+            protected void updateMessage() {
+                setMessage(Component.literal(label.get()));
+            }
+
+            @Override
+            protected void applyValue() {
+                set.accept(min + (int) Math.round(this.value * (max - min)));
+                saveOnRelease(() -> cfg.save());
+            }
+        };
     }
 
     private static int doorNote(List<AbstractWidget> widgets, int x, int y, int w) {

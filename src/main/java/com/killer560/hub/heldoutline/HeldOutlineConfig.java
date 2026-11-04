@@ -154,10 +154,7 @@ public final class HeldOutlineConfig {
     }
 
     private static float clampWidth(float v) {
-        if (!Float.isFinite(v)) {
-            return DEFAULT_WIDTH;
-        }
-        return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, v));
+        return !Float.isFinite(v) ? DEFAULT_WIDTH : Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, v));
     }
 
     public static void load() {

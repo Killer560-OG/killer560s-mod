@@ -342,6 +342,21 @@ public final class FastLeapFeature {
                 && ChatObserver.strip(held.getHoverName().getString()).contains("Spirit Leap");
     }
 
+    private record Spot(LeapGroup group, java.util.function.BooleanSupplier inside, LeapTarget target) {
+    }
+
+    /** Checked in this order by {@link #attemptFastLeap}; the first group that is on and whose spot he stands in wins. */
+    private static final java.util.List<Spot> SPOTS = java.util.List.of(
+            new Spot(LeapGroup.PREDEV, FastLeapFeature::isInPredev, LeapTarget.PREDEV),
+            new Spot(LeapGroup.RELIC, FastLeapFeature::isInRelic, LeapTarget.RELIC),
+            new Spot(LeapGroup.P1, FastLeapFeature::isInP1, LeapTarget.P1),
+            new Spot(LeapGroup.P4, FastLeapFeature::isInMiddle, LeapTarget.P4),
+            new Spot(LeapGroup.GREEN, FastLeapFeature::isInGreenPad, LeapTarget.GREEN),
+            new Spot(LeapGroup.YELLOW, FastLeapFeature::isInYellowPad, LeapTarget.YELLOW),
+            new Spot(LeapGroup.PURPLE, FastLeapFeature::isInPurplePad, LeapTarget.PURPLE),
+            new Spot(LeapGroup.PY_HEALER, FastLeapFeature::isInHealerPy, LeapTarget.PY_HEALER),
+            new Spot(LeapGroup.STORM_DEATH, FastLeapFeature::isInP2, LeapTarget.STORM_DEATH));
+
     private static boolean attemptFastLeap() {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
         if (!Floor7Tracker.inBoss()) {
@@ -356,37 +371,12 @@ public final class FastLeapFeature {
         if (!Floor7Tracker.inF7Boss()) {
             return false;
         }
-        if (cfg.isLeapFast(LeapGroup.PREDEV) && isInPredev()) {
-            return leapToConfigured(LeapTarget.PREDEV);
+        for (Spot spot : SPOTS) {
+            if (cfg.isLeapFast(spot.group()) && spot.inside().getAsBoolean()) {
+                return leapToConfigured(spot.target());
+            }
         }
-        if (cfg.isLeapFast(LeapGroup.RELIC) && isInRelic()) {
-            return leapToConfigured(LeapTarget.RELIC);
-        }
-        if (cfg.isLeapFast(LeapGroup.P1) && isInP1()) {
-            return leapToConfigured(LeapTarget.P1);
-        }
-        if (cfg.isLeapFast(LeapGroup.P4) && isInMiddle()) {
-            return leapToConfigured(LeapTarget.P4);
-        }
-        if (cfg.isLeapFast(LeapGroup.GREEN) && isInGreenPad()) {
-            return leapToConfigured(LeapTarget.GREEN);
-        }
-        if (cfg.isLeapFast(LeapGroup.YELLOW) && isInYellowPad()) {
-            return leapToConfigured(LeapTarget.YELLOW);
-        }
-        if (cfg.isLeapFast(LeapGroup.PURPLE) && isInPurplePad()) {
-            return leapToConfigured(LeapTarget.PURPLE);
-        }
-        if (cfg.isLeapFast(LeapGroup.PY_HEALER) && isInHealerPy()) {
-            return leapToConfigured(LeapTarget.PY_HEALER);
-        }
-        if (cfg.isLeapFast(LeapGroup.STORM_DEATH) && isInP2()) {
-            return leapToConfigured(LeapTarget.STORM_DEATH);
-        }
-        if (cfg.isLeapFast(LeapGroup.MIDDLE) && isOutsideMiddle()) {
-            return leapToConfigured(LeapTarget.MIDDLE);
-        }
-        return false;
+        return cfg.isLeapFast(LeapGroup.MIDDLE) && isOutsideMiddle() && leapToConfigured(LeapTarget.MIDDLE);
     }
 
     private static void handleP3Leap(Stage completedStage) {
