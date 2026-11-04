@@ -49,6 +49,8 @@ public final class GoldorTick {
     static final int SNAP = 8;
     /** Hits this soon after an accepted one are the same hit (a second health packet, the proc line). */
     static final int DEBOUNCE = 5;
+    /** A hit this close to the prediction, once the phase is locked, moves nothing (observation noise). */
+    static final int NOISE = 1;
     /** Ticks from Goldor's line to his first hit on the real run: 42, i.e. {@code PERIOD - 18} (2026-11-03, see above). */
     static final int FIRST_HIT = PERIOD - 18;
     /** Before the phase has been locked, a hit sooner than this after the line is not Goldor's first (fall damage, a mob). */
@@ -154,13 +156,20 @@ public final class GoldorTick {
             pair = gap >= PERIOD - 6 && gap <= 3L * PERIOD + 6 && rem <= 12;
         }
         if (fits || strong || pair || first) {
-            locked = true;
+            boolean wasLockedBefore = locked;
             if (!fits) {
                 relocks++;
                 LOGGER.info("[TickTimers] Goldor tick re-locked by {} ({} ticks off the old phase{})", why, off,
                         first ? ", the first hit" : pair ? ", a period after an earlier hit" : "");
             }
-            anchor = t;
+            // Once locked, a hit within NOISE ticks of the prediction is the same phase seen a tick late (a health drop is
+            // read at the end of the client tick, after that tick's pings): the anchor stays, so the line never steps
+            // back up on an ordinary hit. Only a real discrepancy moves it (2026-11-03, timers2: the line "jumps back up").
+            boolean wasLocked = wasLockedBefore && !first;
+            if (!(wasLocked && fits && Math.abs(off) <= NOISE)) {
+                anchor = t;
+            }
+            locked = true;
             lastAccepted = t;
             unexplained = Long.MIN_VALUE;
         } else {

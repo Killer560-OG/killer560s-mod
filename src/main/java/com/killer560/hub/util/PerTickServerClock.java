@@ -71,12 +71,28 @@ public final class PerTickServerClock {
             }
             lastGameTime = gameTime;
             // Untrusted, the clock follows the client's game time, as Blood Camp always did: a tick a tick, plus the
-            // server's own time corrections (set-time packets). A wild jump (a /time command) counts as one tick.
-            onClientTick(Math.abs(delta) > 100L ? 1L : delta);
+            // server's own forward time corrections (set-time packets). A wild jump (a /time command) counts as one
+            // tick, and a correction BACKWARDS counts as none: the clock never goes down, or every countdown on it
+            // would jump back up (2026-11-03, timers2).
+            setHypixel(client);
+            onClientTick(Math.abs(delta) > 100L ? 1L : Math.max(0L, delta));
         }));
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> untrust());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> untrust());
     }
+
+    /** Hypixel pings once per server tick, always: trust it from its first client tick, no windows needed. */
+    private static synchronized void setHypixel(net.minecraft.client.Minecraft client) {
+        boolean h = client.level != null && AttackCooldown.onHypixel(client);
+        hypixel = h;
+        if (h && !trusted) {
+            trusted = true;
+            trustChanges++;
+        }
+    }
+
+    private static final int SILENT_WINDOWS_TO_UNTRUST = 15;
+    private static boolean hypixel;
 
     private static synchronized void untrust() {
         trusted = false;
@@ -179,8 +195,15 @@ public final class PerTickServerClock {
                 }
             } else {
                 goodWindows = 0;
-                if (trusted && ++shortWindows >= 2) {
+                // Trust is STICKY (2026-11-03, timers2): a lag spike, a stall or the burst after one is exactly a window
+                // that fails the test above, and dropping trust there handed the clock to the client's game time, which
+                // kept counting through the stall while Hypixel's Watcher, Goldor and the rest stood still (Odin and
+                // NoammAddons just count pings, always). Only a long run of windows with no ping at all ends it: that
+                // is a server that does not ping, not one that is slow.
+                if (windowPings == 0 && trusted && !hypixel && ++shortWindows >= SILENT_WINDOWS_TO_UNTRUST) {
                     trusted = false;
+                    shortWindows = 0;
+                } else if (windowPings > 0) {
                     shortWindows = 0;
                 }
             }

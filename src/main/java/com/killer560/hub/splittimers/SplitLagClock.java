@@ -1,55 +1,33 @@
 package com.killer560.hub.splittimers;
 
-import com.killer560.hub.witherdragons.ServerTickClock;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import com.killer560.hub.util.PerTickServerClock;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 
 /**
- * Accumulates real server-tick stall time for Split Timers' "lagless" per-split times and the bottom
- * Total (without lag) / Lag Lost lines - killer560, 2026-09-20: "add in lagless time to the right of each
- * split... so I know what the split was without lag" and "total running time with and without lag, and the
- * lag lost timer."
+ * Lag for Split Timers' "lagless" per-split times and the bottom Total (without lag) / Lag Lost lines - killer560,
+ * 2026-09-20: "add in lagless time to the right of each split... so I know what the split was without lag".
  * <p>
- * <b>Reuses, not reinvents:</b> per this task's own instruction, this is built on the exact same clock
- * {@code hub.lagdisplay.LagDisplayFeature} (the Performance HUD) already reads for its TPS line -
- * {@link ServerTickClock} (Odin's "one server tick per non-zero ClientboundPingPacket", i.e. one fire per
- * real Hypixel server tick while {@link ServerTickClock#isPingDriven()}). LagDisplayFeature shows that
- * clock's signal as an instant TPS reading; this class is a second, independent subscriber (the same
- * pattern Wither Dragons/Tick Timers/Performance HUD already use - {@code ServerTickClock.register()}
- * is explicitly idempotent for exactly this) that instead accumulates it over time, so Split Timers can
- * answer "how much of this split/run was actually lag" rather than just "is the server stalled right now".
+ * <b>Counted the way NoammAddons and Odin count (2026-11-03, timers2).</b> Both keep, beside the wall clock, a count of
+ * server ticks (one per non-zero {@code ClientboundPingPacket}; Noamm's {@code DualTime(ticks, real)}, Odin's
+ * {@code SplitsManager.tickCounter}), and a split's lagless time is its tick count times 50 ms; the lag is the wall time
+ * minus that. This clock is the same thing on {@link PerTickServerClock}: {@link #accumulatedLagMs()} is
+ * {@code wall time - 50 ms * server ticks}, so {@code real - (lag at the end - lag at the start)} is exactly the ticks
+ * between the two, and it can only stand still or climb: during a stall the lag grows live (so the lagless time stands
+ * still instead of climbing and then dropping when the next ping lands, which is what the old gap-by-gap accumulator did),
+ * and a burst of pings after a network spike (the server kept ticking) gives the time back.
  * <p>
- * <b>Definition ("without lag" / "lag lost"):</b> whenever two consecutive ping-driven ticks are further
- * apart than three nominal Minecraft ticks (150ms), the excess over 50ms is real server stall and is added to the
- * running total. Gaps under that are ordinary arrival jitter on the connection, not stalls, and count for nothing
- * (killer560, 2026-10-18: the Lag line kept climbing a little at a time with the server not lagging at all). A split's/run's "lagless" time is its plain wall-clock
- * duration minus however much of this total accumulated during that exact window (the delta between the
- * accumulator's value at the window's start and end) - never a second, differently-defined "lag".
- * <p>
- * Only counted while ping-driven, same restriction and same reason as LagDisplayFeature: a plain
- * client-tick fallback (a server that doesn't ping ~20x/s - possible on a p3sim-style test server) is this
- * mod ticking itself, not Hypixel actually stalling, and must never be counted as lag lost. On a connection
- * where a real ping-driven tick is never observed at all, {@link #isTrustworthy()} is false and Split
- * Timers hides every lag-derived number instead of showing a dishonest zero - he needs to be able to trust
- * these against Hypixel's own end-of-run time, and a number this class can't actually vouch for is worse
- * than none.
+ * Only counted while {@link PerTickServerClock#trusted()}: on a server that does not ping once a tick the clock is the
+ * client ticking itself, which is not lag, and every lag-derived number is hidden ({@link #isTrustworthy()}) instead of
+ * showing a dishonest zero.
  */
 final class SplitLagClock {
 
-    /** One Minecraft tick - the cadence {@link ServerTickClock}'s ping-driven mode fires at. */
     private static final long NOMINAL_TICK_MS = 50L;
-    /** Below this gap it's ordinary jitter, not a real stall - only a gap beyond this counts, and then all of its excess.
-     *  Pings arrive a few tens of milliseconds early or late on a normal connection, so a 75ms line counted that jitter. */
-    private static final long STALL_THRESHOLD_MS = 150L;
 
+    /** Lag as of the last clock tick (committed): wall time minus 50 ms per tick, relative to the first tick. */
     private static volatile long accumulatedLagMs = 0L;
-    private static volatile long lastPingDrivenTickMs = 0L;
+    private static volatile long lastTickMs = 0L;
     private static volatile boolean pingClockSeen = false;
-    /** Client-side stalls (our own thread stuck: a frame spike, a heavy render). A ping that arrives late because of them is
-     *  not server lag, so the stall time is taken out of the gap before it counts (2026-10-19: Lag rose with no server lag). */
-    private static volatile long clientStallTotalMs = 0L;
-    private static volatile long lastClientTickMs = 0L;
-    private static volatile long clientStallAtLastPingMs = 0L;
     private static boolean registered = false;
 
     private SplitLagClock() {
@@ -60,61 +38,47 @@ final class SplitLagClock {
             return;
         }
         registered = true;
-        ServerTickClock.register();
-        ServerTickClock.subscribe(SplitLagClock::onTick);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> onClientTick());
+        PerTickServerClock.register();
+        PerTickServerClock.subscribe(SplitLagClock::onTick);
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
     }
 
-    private static void onClientTick() {
-        long now = System.currentTimeMillis();
-        if (lastClientTickMs != 0L) {
-            long gap = now - lastClientTickMs;
-            if (gap > STALL_THRESHOLD_MS) {
-                clientStallTotalMs += gap - NOMINAL_TICK_MS;
-            }
-        }
-        lastClientTickMs = now;
-    }
-
     private static void reset() {
         accumulatedLagMs = 0L;
-        clientStallTotalMs = 0L;
-        lastClientTickMs = 0L;
-        clientStallAtLastPingMs = 0L;
-        lastPingDrivenTickMs = 0L;
+        lastTickMs = 0L;
         pingClockSeen = false;
     }
 
     private static void onTick() {
-        if (!ServerTickClock.isPingDriven()) {
-            // Don't move the reference point on a client-tick fallback fire, so the next real ping's
-            // gap captures the whole stalled/fallback stretch instead of resetting to a small number.
+        if (!PerTickServerClock.trusted()) {
+            // A client-tick fallback fire is this mod ticking itself, not the server: no reference point, no lag.
+            lastTickMs = 0L;
             return;
         }
         pingClockSeen = true;
         long now = System.currentTimeMillis();
-        // The client-side stall since the last ping is not the server's: take it out of the gap.
-        long clientStalled = clientStallTotalMs - clientStallAtLastPingMs;
-        clientStallAtLastPingMs = clientStallTotalMs;
-        if (lastPingDrivenTickMs != 0L) {
-            long gap = now - lastPingDrivenTickMs;
-            if (gap > STALL_THRESHOLD_MS) {
-                accumulatedLagMs += Math.max(0L, gap - NOMINAL_TICK_MS - clientStalled);
-            }
+        if (lastTickMs != 0L) {
+            accumulatedLagMs += (now - lastTickMs) - NOMINAL_TICK_MS;
         }
-        lastPingDrivenTickMs = now;
+        lastTickMs = now;
     }
 
-    /** Total lag accumulated since the last (re)connect - monotonic. Split Timers snapshots this at each
-     *  split boundary and subtracts the deltas to get lagless times; never read as an absolute value. */
+    /** Lag so far: committed per tick, plus the live stall since the last tick, so the lagless time (real minus lag) only ever climbs. Split
+     *  Timers snapshots it at each split boundary and subtracts; never read as an absolute value. */
     static long accumulatedLagMs() {
-        return accumulatedLagMs;
+        long last = lastTickMs;
+        long live = last == 0L ? 0L : Math.max(0L, System.currentTimeMillis() - last - NOMINAL_TICK_MS);
+        return accumulatedLagMs + live;
     }
 
-    /** False until a real ping-driven server tick has actually been observed this connection - e.g. a test
-     *  server that never pings ~20x/s. Split Timers hides every lag-derived number while this is false. */
+    /** A lag span as shown on the Lag row: under 150 ms (three ticks) is arrival jitter, not a stall (2026-10-18). */
+    static long shownLag(long ms) {
+        return ms < 150L ? 0L : ms;
+    }
+
+    /** False until a per-tick pinging server has been trusted this connection. Split Timers hides every lag-derived
+     *  number while this is false. */
     static boolean isTrustworthy() {
         return pingClockSeen;
     }
