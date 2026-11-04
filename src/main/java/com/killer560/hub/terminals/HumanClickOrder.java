@@ -81,10 +81,7 @@ final class HumanClickOrder {
                     following = e.getKey();
                 }
             }
-            if (primary >= 0 && waiting.test(primary) && following >= 0) {
-                return following;
-            }
-            return primary;
+            return primary >= 0 && waiting.test(primary) && following >= 0 ? following : primary;
         }
         // Stay on a slot that still needs clicks. While its click is unanswered the slot can read empty (Rubix's click
         // is a real PICKUP, which the client predicts by lifting the pane until the server answers), so an unanswered

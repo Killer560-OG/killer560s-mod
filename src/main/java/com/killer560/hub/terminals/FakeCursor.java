@@ -110,7 +110,6 @@ public final class FakeCursor {
     /** The next click on the aimed slot is followed by another on it (a Rubix pane needing 2): keep the hand on it. */
     private static boolean repeatNext;
 
-    // ---- this terminal's own hand ----
     private static float sessionSpeed = 1f;
     private static float sessionReaction = 1f;
     private static float sessionLean;
@@ -249,7 +248,6 @@ public final class FakeCursor {
         placed = true;
     }
 
-    // ------------------------------------------------------------------ planning
 
     /** Heads for {@code slot}; a no-op while already headed there. */
     static void aim(AbstractContainerScreen<?> screen, int slot) {
@@ -535,7 +533,6 @@ public final class FakeCursor {
         return i;
     }
 
-    // ------------------------------------------------------------------ the click gate
 
     /** @return true when the cursor is on {@code slot} and its press is due - the click may go out now. */
     static boolean ready(int slot) {
@@ -589,7 +586,6 @@ public final class FakeCursor {
         repeatNext = false;
     }
 
-    // ------------------------------------------------------------------ evaluation and drawing
 
     /** The plan's point at {@code t} into {@code out[0..1]} (the last point once the plan has ended). */
     private static void evalAt(long t, float[] out) {

@@ -78,13 +78,11 @@ public final class TerminalQolFeature {
     private static int currentScreenIdentity;
     private static long terminalOpenedAtMs = -1L;
 
-    // ---- drop key ----
     private static boolean dropKeySwapped = false;
     /** The real Drop key's name while the swap is live (the config's copy is what survives a crash; this one
      *  survives the config instance being replaced by a profile load). */
     private static String realDropKeyName = "";
 
-    // ---- gui scale ----
     private static boolean guiScaleApplied = false;
 
     private static boolean registered = false;
@@ -106,7 +104,6 @@ public final class TerminalQolFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TerminalQolFeature", client -> tick()));
     }
 
-    // ------------------------------------------------------------------ terminal tracking
 
     /** Recomputes which terminal (if any) is open right now. Called from the client tick AND from the head of
      *  every input hook: a click can land before the first tick after the screen opened, and Terminal
@@ -147,7 +144,6 @@ public final class TerminalQolFeature {
     private static net.minecraft.network.chat.Component memoTitle;
     private static TerminalType memoType;
 
-    // ------------------------------------------------------------------ Terminal Protection
 
     /** Devonian {@code TerminalProtection}: true when this click landed too soon after the terminal opened and
      *  must be swallowed. Plays the same note-block "nope" it does, and - exactly like Devonian - arms itself
@@ -199,10 +195,7 @@ public final class TerminalQolFeature {
      *  2026-10-11 the tab-list latency, about 1 ms on Hypixel, so Subtract Ping subtracted nothing. */
     private static int ping() {
         Minecraft client = Minecraft.getInstance();
-        if (client.getConnection() == null || client.player == null) {
-            return 0;
-        }
-        return com.killer560.hub.util.PingTracker.automationMs();
+        return client.getConnection() == null || client.player == null ? 0 : com.killer560.hub.util.PingTracker.automationMs();
     }
 
     private static void playBlockedSound() {
@@ -213,7 +206,6 @@ public final class TerminalQolFeature {
         }
     }
 
-    // ------------------------------------------------------------------ Melody Keys
 
     /** Devonian {@code MelodyKeys}: 1-4 (and the numpad equivalents) click Melody's four row buttons.
      *  @return true when the key was consumed, so the mixin cancels it - otherwise 1-4 would be vanilla's
@@ -266,7 +258,6 @@ public final class TerminalQolFeature {
         return true;
     }
 
-    // ------------------------------------------------------------------ Hide Completion
 
     /** Devonian {@code TerminalHideCompletion}: true for a "Player activated a terminal! (3/7)" style title or
      *  subtitle that should be suppressed. With "Only Others" on (Devonian's own {@code onlyShowOwn} default),
@@ -308,7 +299,6 @@ public final class TerminalQolFeature {
         tickGuiScale();
     }
 
-    // ---- Drop Key ----
 
     /** Devonian {@code TerminalDropKey}, with one addition: the real Drop key's name is written to this mod's
      *  own config the moment it is swapped out and cleared the moment it is put back, so
@@ -403,7 +393,6 @@ public final class TerminalQolFeature {
     /** Mouse drop-key presses handled since launch (testkit 1101-menu-term-mousedrop). */
     static int mouseDrops;
 
-    // ---- Custom Terminal Scale ----
 
     /** Devonian {@code CustomTerminalScale}, implemented the simple way: Devonian swaps the scale per FRAME
      *  around {@code Screen.extractRenderStateWithTooltipAndSubtitles}, which also needs MouseHandler

@@ -40,7 +40,6 @@ public final class TerminalQolConfig {
 
     private static TerminalQolConfig instance;
 
-    // ---- Terminal Protection ----
     private boolean protectionEnabled = false;
     private int protectionThresholdMs = DEFAULT_PROTECTION_MS;
     /** Devonian's slider tooltip is literally "lowest current safe value is 400 - ping" - LegendaryJG, i.e. the
@@ -48,7 +47,6 @@ public final class TerminalQolConfig {
      *  the player re-tune the slider every time their ping changes. */
     private boolean protectionSubtractPing = true;
 
-    // ---- Drop Key ----
     private boolean dropKeyEnabled = false;
     /** GLFW key code the vanilla Drop key is temporarily re-bound to while a terminal is open.
      *  -1 ({@code GLFW_KEY_UNKNOWN}) = unbound, i.e. nothing can drop an item while a terminal is open, which is
@@ -59,14 +57,11 @@ public final class TerminalQolConfig {
      *  so a crash (or an /exit) with a terminal open can't leave the player permanently unable to drop items. */
     private String savedDropKeyName = "";
 
-    // ---- Melody Keys ----
     private boolean melodyKeysEnabled = false;
 
-    // ---- Custom Terminal Scale ----
     private int terminalGuiScale = 0;
     private int melodyGuiScale = 0;
 
-    // ---- Hide Completion ----
     private boolean hideCompletionTitles = false;
     private boolean hideCompletionChat = false;
     /** Devonian's own {@code onlyShowOwn} (default true): your OWN "activated a terminal! (n/m)" still shows,
@@ -139,7 +134,6 @@ public final class TerminalQolConfig {
         return Math.max(MIN_GUI_SCALE, Math.min(MAX_GUI_SCALE, value));
     }
 
-    // ------------------------------------------------------------------ Terminal Protection
 
     public boolean isProtectionEnabled() {
         return protectionEnabled && com.killer560.hub.util.SkyblockGate.allows();
@@ -170,7 +164,6 @@ public final class TerminalQolConfig {
         this.protectionSubtractPing = protectionSubtractPing;
     }
 
-    // ------------------------------------------------------------------ Drop Key
 
     public boolean isDropKeyEnabled() {
         return dropKeyEnabled && com.killer560.hub.util.SkyblockGate.allows();
@@ -200,7 +193,6 @@ public final class TerminalQolConfig {
         this.savedDropKeyName = savedDropKeyName == null ? "" : savedDropKeyName;
     }
 
-    // ------------------------------------------------------------------ Melody Keys
 
     public boolean isMelodyKeysEnabled() {
         return melodyKeysEnabled && com.killer560.hub.util.SkyblockGate.allows();
@@ -214,7 +206,6 @@ public final class TerminalQolConfig {
         this.melodyKeysEnabled = melodyKeysEnabled;
     }
 
-    // ------------------------------------------------------------------ Custom Terminal Scale
 
     /** @return 0 when the scale override is off, or when the Skyblock gate says we aren't on Skyblock/p3sim. */
     public int getTerminalGuiScale() {
@@ -241,7 +232,6 @@ public final class TerminalQolConfig {
         this.melodyGuiScale = clampGuiScale(melodyGuiScale);
     }
 
-    // ------------------------------------------------------------------ Hide Completion
 
     public boolean isHideCompletionTitles() {
         return hideCompletionTitles && com.killer560.hub.util.SkyblockGate.allows();

@@ -55,7 +55,6 @@ public final class TerminalLayouts {
     private TerminalLayouts() {
     }
 
-    // ------------------------------------------------------------------ Melody
 
     /** @return the slots of Melody's clickable row buttons, top row first: every slot in the button column whose
      *  item is a terracotta (lime on the row being played, another color on the others). A 4-row board gives
@@ -104,7 +103,6 @@ public final class TerminalLayouts {
         return path.equals("terracotta") || path.endsWith("_terracotta");
     }
 
-    // ------------------------------------------------------------------ Numbers
 
     /** Records how many numbered panes a live "Click in order!" board showed when it settled. */
     static void noteNumbersCount(int count) {
@@ -120,7 +118,6 @@ public final class TerminalLayouts {
         return seenNumbersCount > 0 ? seenNumbersCount : ASSUME_NEW_LAYOUT ? NEW_NUMBERS_COUNT : OLD_NUMBERS_COUNT;
     }
 
-    // ------------------------------------------------------------------ Simon Says
 
     // The Simon Says round count is remembered PER SERVER (2026-10-27): p3sim.net still runs the old 5-round device
     // while Hypixel runs the 4-round one, and one session-wide value let a p3sim device teach "5" to the Hypixel devices

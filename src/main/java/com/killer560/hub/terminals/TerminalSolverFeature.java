@@ -1295,10 +1295,7 @@ public final class TerminalSolverFeature {
         }
         // Lookahead N = the proper click plus N more rows (2026-10-26), so N is the extra row count itself.
         int lookahead = cfg.getMelodyLookaheadClicks();
-        if (lookahead <= 0) {
-            return 0;
-        }
-        return Math.max(0, Math.min(lookahead, lastRow - matchedRow));
+        return lookahead <= 0 ? 0 : Math.max(0, Math.min(lookahead, lastRow - matchedRow));
     }
 
     private static int melodyLateSkippedSlot = -1;
