@@ -41,14 +41,10 @@ public enum KingRelic {
         this.placedZ = placedZ;
     }
 
-    public String colored() {
-        return "§" + colorCode + colourName;
-    }
+    public String colored() { return "§" + colorCode + colourName; }
 
     /** "Corrupted Red Relic" (NoammAddons formalName). */
-    public String itemName() {
-        return "Corrupted " + colourName + " Relic";
-    }
+    public String itemName() { return "Corrupted " + colourName + " Relic"; }
 
     /** By Skyblock id first (Odin), then by item name color (NoammAddons) - e.g. on p3sim, where items may
      *  not carry Hypixel's custom data. */
@@ -97,7 +93,5 @@ public enum KingRelic {
         return null;
     }
 
-    String key() {
-        return name().toLowerCase(Locale.ROOT);
-    }
+    String key() { return name().toLowerCase(Locale.ROOT); }
 }

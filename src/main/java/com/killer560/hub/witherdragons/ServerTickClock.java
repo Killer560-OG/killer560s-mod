@@ -56,14 +56,10 @@ public final class ServerTickClock {
         }));
     }
 
-    public static void subscribe(Runnable listener) {
-        LISTENERS.add(listener);
-    }
+    public static void subscribe(Runnable listener) { LISTENERS.add(listener); }
 
     /** See {@link #RAW_PING_LISTENERS}. */
-    public static void subscribeRawPing(Runnable listener) {
-        RAW_PING_LISTENERS.add(listener);
-    }
+    public static void subscribeRawPing(Runnable listener) { RAW_PING_LISTENERS.add(listener); }
 
     /** Called from the ping mixin on the client thread. */
     public static void onPing(int id) {
@@ -84,14 +80,10 @@ public final class ServerTickClock {
     }
 
     /** Server ticks counted since launch (ping-driven or client-tick fallback). */
-    public static long now() {
-        return totalTicks;
-    }
+    public static long now() { return totalTicks; }
 
     /** True while server pings are driving the clock (false = client-tick fallback). */
-    public static boolean isPingDriven() {
-        return pingDriven;
-    }
+    public static boolean isPingDriven() { return pingDriven; }
 
     /** Client thread only: closes the sample window once a second and picks the clock source for the next one. */
     private static void rollWindow() {

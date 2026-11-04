@@ -80,13 +80,9 @@ public final class P5State {
         timeBlessing = 0;
     }
 
-    public static int powerBlessing() {
-        return powerBlessing;
-    }
+    public static int powerBlessing() { return powerBlessing; }
 
-    public static int timeBlessing() {
-        return timeBlessing;
-    }
+    public static int timeBlessing() { return timeBlessing; }
 
     /** Your class: the config override if set, else Hypixel's dungeon tab list (via {@link PartyTracker}). */
     public static DungeonClass selfClass() {

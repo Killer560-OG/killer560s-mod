@@ -88,84 +88,46 @@ public final class RelicHelpersConfig {
     }
 
     /** The gate the feature checks - false on the legit jar and outside Skyblock, always. */
-    public boolean isTriggerEnabled() {
-        return triggerEnabled && BuildVariant.CHEAT_FEATURES_ENABLED && SkyblockGate.allows();
-    }
+    public boolean isTriggerEnabled() { return triggerEnabled && BuildVariant.CHEAT_FEATURES_ENABLED && SkyblockGate.allows(); }
 
-    public boolean isTriggerEnabledRaw() {
-        return triggerEnabled;
-    }
+    public boolean isTriggerEnabledRaw() { return triggerEnabled; }
 
-    public void setTriggerEnabled(boolean v) {
-        triggerEnabled = v;
-    }
+    public void setTriggerEnabled(boolean v) { triggerEnabled = v; }
 
-    public boolean isTriggerPickup() {
-        return triggerPickup;
-    }
+    public boolean isTriggerPickup() { return triggerPickup; }
 
-    public void setTriggerPickup(boolean v) {
-        triggerPickup = v;
-    }
+    public void setTriggerPickup(boolean v) { triggerPickup = v; }
 
-    public boolean isTriggerPlace() {
-        return triggerPlace;
-    }
+    public boolean isTriggerPlace() { return triggerPlace; }
 
-    public void setTriggerPlace(boolean v) {
-        triggerPlace = v;
-    }
+    public void setTriggerPlace(boolean v) { triggerPlace = v; }
 
-    public boolean isSwapToRelic() {
-        return swapToRelic;
-    }
+    public boolean isSwapToRelic() { return swapToRelic; }
 
-    public void setSwapToRelic(boolean v) {
-        swapToRelic = v;
-    }
+    public void setSwapToRelic(boolean v) { swapToRelic = v; }
 
-    public int getCooldownMs() {
-        return Math.min(MAX_COOLDOWN_MS, Math.max(0, cooldownMs));
-    }
+    public int getCooldownMs() { return Math.min(MAX_COOLDOWN_MS, Math.max(0, cooldownMs)); }
 
-    public void setCooldownMs(int v) {
-        cooldownMs = v;
-    }
+    public void setCooldownMs(int v) { cooldownMs = v; }
 
-    public boolean isLookEnabled() {
-        return lookEnabled && BuildVariant.CHEAT_FEATURES_ENABLED && SkyblockGate.allows();
-    }
+    public boolean isLookEnabled() { return lookEnabled && BuildVariant.CHEAT_FEATURES_ENABLED && SkyblockGate.allows(); }
 
-    public boolean isLookEnabledRaw() {
-        return lookEnabled;
-    }
+    public boolean isLookEnabledRaw() { return lookEnabled; }
 
     public void setLookEnabled(boolean v) {
         lookEnabled = v;
         com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public boolean isLookAtRelic() {
-        return lookAtRelic;
-    }
+    public boolean isLookAtRelic() { return lookAtRelic; }
 
-    public void setLookAtRelic(boolean v) {
-        lookAtRelic = v;
-    }
+    public void setLookAtRelic(boolean v) { lookAtRelic = v; }
 
-    public boolean isLookAtCauldron() {
-        return lookAtCauldron;
-    }
+    public boolean isLookAtCauldron() { return lookAtCauldron; }
 
-    public void setLookAtCauldron(boolean v) {
-        lookAtCauldron = v;
-    }
+    public void setLookAtCauldron(boolean v) { lookAtCauldron = v; }
 
-    public int getLookRange() {
-        return Math.min(MAX_LOOK_RANGE, Math.max(MIN_LOOK_RANGE, lookRange));
-    }
+    public int getLookRange() { return Math.min(MAX_LOOK_RANGE, Math.max(MIN_LOOK_RANGE, lookRange)); }
 
-    public void setLookRange(int v) {
-        lookRange = v;
-    }
+    public void setLookRange(int v) { lookRange = v; }
 }

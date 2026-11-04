@@ -31,9 +31,7 @@ public final class WitherDragonsPackets {
         guard("equipment/relic", KingRelicsFeature::onEquipment, packet);
     }
 
-    public static void onSound(ClientboundSoundPacket packet) {
-        guard("sound", WitherDragonsFeature::onSound, packet);
-    }
+    public static void onSound(ClientboundSoundPacket packet) { guard("sound", WitherDragonsFeature::onSound, packet); }
 
     public static void onTabList(ClientboundTabListPacket packet) {
         guard("tablist", WitherDragonsPackets::p5TabFooter, packet);

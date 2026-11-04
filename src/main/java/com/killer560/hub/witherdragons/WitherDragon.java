@@ -72,34 +72,22 @@ public enum WitherDragon {
     }
 
     /** Kotlin {@code x in a..b} (inclusive) for Odin's particle ranges. */
-    boolean particleInRange(double x, double z) {
-        return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
-    }
+    boolean particleInRange(double x, double z) { return x >= minX && x <= maxX && z >= minZ && z <= maxZ; }
 
-    public State state() {
-        return state;
-    }
+    public State state() { return state; }
 
-    public int timeToSpawn() {
-        return timeToSpawn;
-    }
+    public int timeToSpawn() { return timeToSpawn; }
 
-    public int timesSpawned() {
-        return timesSpawned;
-    }
+    public int timesSpawned() { return timesSpawned; }
 
-    public float health() {
-        return health;
-    }
+    public float health() { return health; }
 
     /** "Red" or "Power" per the Name Style setting. */
     public String displayName() {
         return WitherDragonsConfig.getInstance().getNameStyle() == WitherDragonsConfig.NameStyle.TYPE ? typeName : colourName;
     }
 
-    public String colored() {
-        return "§" + colorCode + displayName();
-    }
+    public String colored() { return "§" + colorCode + displayName(); }
 
     /** Odin {@code WitherDragonsEnum.reset()} (hard). */
     static void resetAll() {

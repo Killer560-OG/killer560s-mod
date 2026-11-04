@@ -87,14 +87,10 @@ public final class RelicHelpersFeature {
     }
 
     /** Clicks sent by the triggerbot (ever) - read by the testkit. */
-    public static int clicksSent() {
-        return clicksSent;
-    }
+    public static int clicksSent() { return clicksSent; }
 
     /** Look approaches begun (ever) - read by the testkit. */
-    public static int looksStarted() {
-        return looksStarted;
-    }
+    public static int looksStarted() { return looksStarted; }
 
 
     private static void tick(Minecraft client) {

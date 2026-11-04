@@ -101,9 +101,7 @@ public final class WitherDragonsFeature {
         return cfg.isEnabled() || cfg.isRelicsEnabled() || (split.isEnabled() && split.isP5DragonLines());
     }
 
-    private static boolean messagesOn() {
-        return WitherDragonsConfig.getInstance().isEnabled();
-    }
+    private static boolean messagesOn() { return WitherDragonsConfig.getInstance().isEnabled(); }
 
 
     private static void onClientTick() {
@@ -376,9 +374,7 @@ public final class WitherDragonsFeature {
     }
 
 
-    private static void send(Component message) {
-        ModChat.send("Wither Dragons", message);
-    }
+    private static void send(Component message) { ModChat.send("Wither Dragons", message); }
 
     /** Odin {@code alert(..., playSound = true)}: title 0/20/5 ticks + NOTE_BLOCK_PLING. */
     private static void alert(WitherDragon d, String subtitle) {
@@ -467,9 +463,7 @@ public final class WitherDragonsFeature {
         return color + value;
     }
 
-    public static WitherDragon priorityDragon() {
-        return priorityDragon;
-    }
+    public static WitherDragon priorityDragon() { return priorityDragon; }
 
     // ------------------------------------------------------------------ world render (Odin RenderEvent.Extract)
 
@@ -553,14 +547,10 @@ public final class WitherDragonsFeature {
      *  is marked with "»"). */
     public static final class DragonTimersHudElement implements HudElement {
         @Override
-        public String id() {
-            return "wither_dragon_timers";
-        }
+        public String id() { return "wither_dragon_timers"; }
 
         @Override
-        public String displayName() {
-            return "Wither Dragon Timers";
-        }
+        public String displayName() { return "Wither Dragon Timers"; }
 
         @Override
         public int defaultX() {
@@ -570,9 +560,7 @@ public final class WitherDragonsFeature {
         }
 
         @Override
-        public int defaultY() {
-            return 240;
-        }
+        public int defaultY() { return 240; }
 
         @Override
         public int width() {

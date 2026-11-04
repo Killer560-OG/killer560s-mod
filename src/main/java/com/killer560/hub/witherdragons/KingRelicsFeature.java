@@ -121,9 +121,7 @@ public final class KingRelicsFeature {
         return WitherDragonsConfig.getInstance().isRelicsEnabled() || (split.isEnabled() && split.isP5RelicLines());
     }
 
-    private static boolean messagesOn() {
-        return WitherDragonsConfig.getInstance().isRelicsEnabled();
-    }
+    private static boolean messagesOn() { return WitherDragonsConfig.getInstance().isRelicsEnabled(); }
 
     private static void reset() {
         p5StartTick = 0L;
@@ -329,9 +327,7 @@ public final class KingRelicsFeature {
     }
 
     /** For the testkit: how many cauldron clicks Block Wrong Relic has dropped. */
-    public static int blockedRelicClicks() {
-        return blockedRelicClicks;
-    }
+    public static int blockedRelicClicks() { return blockedRelicClicks; }
 
     private static void placeYours(KingRelic relic) {
         yourRelicPlaced = true;
@@ -361,9 +357,7 @@ public final class KingRelicsFeature {
         return null;
     }
 
-    private static void send(String text) {
-        ModChat.send("King Relics", Component.literal(text));
-    }
+    private static void send(String text) { ModChat.send("King Relics", Component.literal(text)); }
 
 
     private static void onWorldRender(LevelRenderContext context) {
@@ -393,24 +387,16 @@ public final class KingRelicsFeature {
     /** Odin "Relic Hud": "Relics: 1.85s" while the relic spawn countdown runs. */
     public static final class RelicTimerHudElement implements HudElement {
         @Override
-        public String id() {
-            return "king_relic_timer";
-        }
+        public String id() { return "king_relic_timer"; }
 
         @Override
-        public String displayName() {
-            return "King Relic Timer";
-        }
+        public String displayName() { return "King Relic Timer"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 240;
-        }
+        public int defaultY() { return 240; }
 
         @Override
         public int width() {
@@ -420,9 +406,7 @@ public final class KingRelicsFeature {
         }
 
         @Override
-        public int height() {
-            return com.killer560.hub.hud.HudText.ROW;
-        }
+        public int height() { return com.killer560.hub.hud.HudText.ROW; }
 
         /** What render() draws right now, or null. */
         private static String text() {
