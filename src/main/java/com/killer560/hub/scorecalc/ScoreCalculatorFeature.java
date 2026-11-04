@@ -21,7 +21,6 @@ import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -104,7 +103,6 @@ public final class ScoreCalculatorFeature {
     public static final Pattern BAT_KILLED = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
     private static final Pattern WATCHER_DONE = Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.");
     private static final Pattern PARTY_MESSAGE = Pattern.compile("^Party > .*?: (.+)$");
-    private static final Pattern TEAM_SCORE = Pattern.compile("^\\s*Team Score: (\\d+) \\(([A-DS+]+)\\)"); // testkit fixture chat.team-score reads it
     // Odin DungeonListener party-assist lists (+ Skytils' marker strings).
     private static final Set<String> MIMIC_PARTY = Set.of("mimic killed", "mimic slain", "mimic killed!", "mimic dead",
             "mimic dead!", "$skytils-dungeon-score-mimic$");
@@ -893,7 +891,6 @@ public final class ScoreCalculatorFeature {
     private record Segment(String text, int color) {
     }
 
-    private static final int SCORE_RED = 0xFF5555;
     private static final int SCORE_YELLOW = 0xFFFF55;
 
     private static int scoreColor(int score, ScoreCalculatorConfig cfg) {
