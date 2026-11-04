@@ -539,25 +539,6 @@ public final class SecretWaypointsFeature {
         }
     }
 
-    /**
-     * How many LEVER waypoints the last scan found.
-     *
-     * <p>Exposed so the scan can be checked against a brute-force count of the same room - the lever scan was
-     * rewritten on 2026-09-29 to skip chunk sections whose palette cannot contain a lever, and a faster scan
-     * that misses levers is worse than the slow one it replaced.
-     */
-    public static int cachedLeverCount() {
-        int n = 0;
-        synchronized (CACHED) {
-            for (Waypoint w : CACHED) {
-                if (w.kind() == Kind.LEVER) {
-                    n++;
-                }
-            }
-        }
-        return n;
-    }
-
     private static void rebuild(SecretWaypointsConfig cfg, double px, double pz) {
         CACHED.clear();
         // Only the room you are in (killer560, 2026-09-21: "only show the waypoints for the room I am currently in
