@@ -82,19 +82,13 @@ public final class ConfineMouseFeature {
     /** The rule itself, from plain facts (the testkit walks its table): every condition must hold. */
     static boolean decide(boolean enabled, boolean borderless, boolean windowActive, boolean inWorld,
                           boolean onlyInDungeons, boolean inDungeon, boolean screenOpen, boolean chatOpen) {
-        if (!enabled || !borderless || !windowActive || !inWorld) {
-            return false;
-        }
-        if (onlyInDungeons && !inDungeon) {
-            return false;
-        }
+        if (!enabled || !borderless || !windowActive || !inWorld) return false;
+        if (onlyInDungeons && !inDungeon) return false;
         return screenOpen && !chatOpen;
     }
 
     private static void tick(Minecraft client) {
-        if (broken || Util.getPlatform() != Util.OS.WINDOWS) {
-            return;
-        }
+        if (broken || Util.getPlatform() != Util.OS.WINDOWS) return;
         try {
             if (!shouldConfine(client)) {
                 if (clipped) {
@@ -108,9 +102,7 @@ public final class ConfineMouseFeature {
                 }
                 return;
             }
-            if (!ensureLoaded()) {
-                return;
-            }
+            if (!ensureLoaded()) return;
             int[] rect = clientRectOnScreen(client.getWindow());
             if (rect == null) {
                 fail("could not read the window's client rectangle");
@@ -135,33 +127,23 @@ public final class ConfineMouseFeature {
     /** {left, top, right, bottom} of the window's client area in screen coordinates, or null. */
     private static int[] clientRectOnScreen(Window window) {
         long hwnd = com.killer560.hub.compat.McWindow.win32Handle(window);
-        if (hwnd == 0L) {
-            return null;
-        }
+        if (hwnd == 0L) return null;
         int[] client = new int[4];
         int[] origin = new int[2];
-        if (!user32.GetClientRect(hwnd, client) || !user32.ClientToScreen(hwnd, origin)) {
-            return null;
-        }
+        if (!user32.GetClientRect(hwnd, client) || !user32.ClientToScreen(hwnd, origin)) return null;
         int w = client[2] - client[0];
         int h = client[3] - client[1];
-        if (w <= 0 || h <= 0) {
-            return null;
-        }
+        if (w <= 0 || h <= 0) return null;
         return new int[]{origin[0], origin[1], origin[0] + w, origin[1] + h};
     }
 
     /** Clears the clip if it is ours. Safe from any thread and safe to call twice; never throws. */
     static void release() {
-        if (!clipped) {
-            return;
-        }
+        if (!clipped) return;
         clipped = false;
         lastRect = null;
         User32 u = user32;
-        if (u == null) {
-            return;
-        }
+        if (u == null) return;
         try {
             if (!u.ClipCursor(null)) {
                 LOGGER.warn("[ConfineMouse] ClipCursor(NULL) failed (error {})", Native.getLastError());
