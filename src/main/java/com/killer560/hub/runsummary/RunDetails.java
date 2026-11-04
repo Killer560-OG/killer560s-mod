@@ -88,7 +88,5 @@ public final class RunDetails {
         };
     }
 
-    private static String orDash(int value) {
-        return value < 0 ? "-" : String.valueOf(value);
-    }
+    private static String orDash(int value) { return value < 0 ? "-" : String.valueOf(value); }
 }

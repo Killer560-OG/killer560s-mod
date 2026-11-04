@@ -720,13 +720,9 @@ public final class RunSummaryFeature {
         return Math.abs(coins) >= 1_000L ? String.format(Locale.US, "%.1fk", coins / 1_000.0) : String.valueOf(coins);
     }
 
-    private static String orDash(String s) {
-        return s == null || s.isBlank() ? "-" : s;
-    }
+    private static String orDash(String s) { return s == null || s.isBlank() ? "-" : s; }
 
-    private static String orDashInt(int value) {
-        return value < 0 ? "-" : String.valueOf(value);
-    }
+    private static String orDashInt(int value) { return value < 0 ? "-" : String.valueOf(value); }
 
     private static int parseInt(String s, int def) {
         if (s == null) {
@@ -740,7 +736,5 @@ public final class RunSummaryFeature {
     }
 
     /** True while a run is being tracked - the tab shows "recording..." instead of a stale last run. */
-    public static boolean isTrackingRun() {
-        return active;
-    }
+    public static boolean isTrackingRun() { return active; }
 }

@@ -126,9 +126,7 @@ public record RunRecord(
 
         public static final int UNKNOWN_ROTATION = -1;
 
-        public MapRoom(String name, String type) {
-            this(name, type, UNKNOWN_ROTATION);
-        }
+        public MapRoom(String name, String type) { this(name, type, UNKNOWN_ROTATION); }
     }
 
     /**
@@ -151,25 +149,17 @@ public record RunRecord(
             rooms = rooms == null ? List.of() : List.copyOf(rooms);
         }
 
-        public boolean isEmpty() {
-            return rooms.isEmpty();
-        }
+        public boolean isEmpty() { return rooms.isEmpty(); }
 
-        public int roomAt(int cell) {
-            return cell >= 0 && cell < roomOfCell.length ? roomOfCell[cell] : -1;
-        }
+        public int roomAt(int cell) { return cell >= 0 && cell < roomOfCell.length ? roomOfCell[cell] : -1; }
 
-        public int doorAt(int cell) {
-            return cell >= 0 && cell < doorOfCell.length ? doorOfCell[cell] & ~LOCKED_BIT : 0;
-        }
+        public int doorAt(int cell) { return cell >= 0 && cell < doorOfCell.length ? doorOfCell[cell] & ~LOCKED_BIT : 0; }
 
         public boolean lockedAt(int cell) {
             return cell >= 0 && cell < doorOfCell.length && (doorOfCell[cell] & LOCKED_BIT) != 0;
         }
 
-        public MapRoom room(int id) {
-            return id >= 0 && id < rooms.size() ? rooms.get(id) : null;
-        }
+        public MapRoom room(int id) { return id >= 0 && id < rooms.size() ? rooms.get(id) : null; }
     }
 
     public RunRecord {
@@ -198,13 +188,9 @@ public record RunRecord(
      * death-ended run, a warp out or a run with only the mod's estimate never qualifies (2026-10-15: a solo F7 that
      * ended in a wipe, score 2 (D), announced "Personal best! Fastest time").
      */
-    public boolean countsForPb(int minScore) {
-        return hypixelTime != null && !hypixelTime.isBlank() && hypixelScore >= minScore;
-    }
+    public boolean countsForPb(int minScore) { return hypixelTime != null && !hypixelTime.isBlank() && hypixelScore >= minScore; }
 
-    public String effectiveRank() {
-        return hypixelScore >= 0 && hypixelRank != null ? hypixelRank : estimatedRank;
-    }
+    public String effectiveRank() { return hypixelScore >= 0 && hypixelRank != null ? hypixelRank : estimatedRank; }
 
     public String dateText() {
         return DATE.format(Instant.ofEpochMilli(endedAtMs > 0 ? endedAtMs : startedAtMs).atZone(ZoneId.systemDefault()));

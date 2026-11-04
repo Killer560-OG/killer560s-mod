@@ -163,9 +163,7 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
         return run.map() == null || run.map().isEmpty() ? 0 : RunRecord.MapSnapshot.GRID * MAP_CELL + 14;
     }
 
-    private int maxScroll() {
-        return Math.max(0, contentHeight() - listH);
-    }
+    private int maxScroll() { return Math.max(0, contentHeight() - listH); }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
@@ -274,21 +272,13 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
+    public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 
     @Override
-    public String themeId() {
-        return "run_log";
-    }
+    public String themeId() { return "run_log"; }
 }

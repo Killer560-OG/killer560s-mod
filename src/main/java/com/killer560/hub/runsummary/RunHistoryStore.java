@@ -62,9 +62,7 @@ public final class RunHistoryStore {
     }
 
     /** The shared file, for the testkit (it writes fixture histories here). */
-    public static Path pathForTest() {
-        return SharedRecords.pathOf(RecordCatalog.RUN_HISTORY);
-    }
+    public static Path pathForTest() { return SharedRecords.pathOf(RecordCatalog.RUN_HISTORY); }
 
     private static final int FILE_VERSION = 1;
     /** Hard ceiling regardless of the configured keep-count, so a hand-edited config can't grow the file forever. */
@@ -81,9 +79,7 @@ public final class RunHistoryStore {
 
     /** What a freshly finished run beat, if anything. */
     public record BestFlags(boolean time, boolean score) {
-        public boolean any() {
-            return time || score;
-        }
+        public boolean any() { return time || score; }
     }
 
     private RunHistoryStore() {
@@ -117,9 +113,7 @@ public final class RunHistoryStore {
         }
     }
 
-    private static int pbMin() {
-        return RunSummaryConfig.getInstance().getPbMinScore();
-    }
+    private static int pbMin() { return RunSummaryConfig.getInstance().getPbMinScore(); }
 
     /**
      * One-time self-repair (2026-10-15): clears the stored "*PB*" marks on any run that was never completed or scored

@@ -36,9 +36,7 @@ public final class RunMapPainter {
     }
 
     /** The drawn size of a map at {@code cell}, backdrop excluded: {@code GRID * cell}. */
-    public static int size(int cell) {
-        return RunRecord.MapSnapshot.GRID * cell;
-    }
+    public static int size(int cell) { return RunRecord.MapSnapshot.GRID * cell; }
 
     /**
      * Draws {@code map} with its top-left cell at {@code x, y}, each grid cell {@code cell} units, on a backdrop
