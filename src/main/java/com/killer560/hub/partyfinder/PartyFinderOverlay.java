@@ -486,14 +486,10 @@ public final class PartyFinderOverlay {
         return n < 1000.0 ? String.format(Locale.US, "%.0fM", n) : String.format(Locale.US, "%.2fB", n / 1000.0);
     }
 
-    private static Component literal(String text) {
-        return Component.literal(text.replace('&', '§'));
-    }
+    private static Component literal(String text) { return Component.literal(text.replace('&', '§')); }
 
     /** Selected dungeon class as last seen, or null. */
-    public static DungeonClass getCurrentRole() {
-        return currentRole;
-    }
+    public static DungeonClass getCurrentRole() { return currentRole; }
 
 
     /** killer560 7.2: "live preview of the selected style using killer560, aut0balls, agreencatgirl,

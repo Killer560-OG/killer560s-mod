@@ -245,14 +245,10 @@ public final class PartyFinderStatsApi {
     private PartyFinderStatsApi() {
     }
 
-    public static PlayerStats get(String name) {
-        return name == null ? null : CACHE.get(name.toLowerCase(Locale.ROOT));
-    }
+    public static PlayerStats get(String name) { return name == null ? null : CACHE.get(name.toLowerCase(Locale.ROOT)); }
 
     /** True when the last lookup for {@code name} failed (no answer, or no SkyBlock dungeon data for it). */
-    public static boolean hasFailed(String name) {
-        return name != null && FAILED.containsKey(name.toLowerCase(Locale.ROOT));
-    }
+    public static boolean hasFailed(String name) { return name != null && FAILED.containsKey(name.toLowerCase(Locale.ROOT)); }
 
     /** Why the last lookup for {@code name} failed, naming the source ("SkyBlockPV backend: ..."), or null. */
     public static String failureReason(String name) {
@@ -261,15 +257,11 @@ public final class PartyFinderStatsApi {
 
     /** Ask for every name that has no fresh answer (names on the open page). Cheap and network-free: safe on the
      *  client tick. */
-    public static void request(Collection<String> names) {
-        request(names, false);
-    }
+    public static void request(Collection<String> names) { request(names, false); }
 
     /** As {@link #request}, for the names that matter most right now: the hovered party, Auto Kick's joiner. These
      *  go to the front of both paths. Safe to call every frame. */
-    public static void requestHot(Collection<String> names) {
-        request(names, true);
-    }
+    public static void requestHot(Collection<String> names) { request(names, true); }
 
     private static void request(Collection<String> names, boolean hot) {
         try {
@@ -850,9 +842,7 @@ public final class PartyFinderStatsApi {
     }
 
 
-    private static Path diskPath() {
-        return ModPaths.config("killer560smod-partyfinder-stats-cache.json");
-    }
+    private static Path diskPath() { return ModPaths.config("killer560smod-partyfinder-stats-cache.json"); }
 
     /** Loads the last sessions' answers once, so players seen before show at once (refreshed behind new ones). */
     static void loadDiskOnce() {

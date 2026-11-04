@@ -78,9 +78,7 @@ public final class PartyFinderLoreCache {
      * @param slot the slot index within the open menu; a negative slot always returns null, which is how the
      *             single-stack callers (a hovered item, with no slot of its own) opt out
      */
-    public static synchronized List<String> serverLore(int slot) {
-        return slot < 0 ? null : BY_SLOT.get(slot);
-    }
+    public static synchronized List<String> serverLore(int slot) { return slot < 0 ? null : BY_SLOT.get(slot); }
 
     /** Called when a container closes, so nothing survives into the next menu. */
     public static synchronized void clear() {
