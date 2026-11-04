@@ -121,9 +121,7 @@ final class PlayerNameCache {
 
     /** Oldest-updated entries first once past {@link #MAX_ENTRIES}. */
     private void trim() {
-        if (byUuid.size() <= MAX_ENTRIES) {
-            return;
-        }
+        if (byUuid.size() <= MAX_ENTRIES) return;
         List<Map.Entry<UUID, Entry>> sorted = new ArrayList<>(byUuid.entrySet());
         sorted.sort(Comparator.comparingLong(e -> e.getValue().updatedAtMs()));
         int toRemove = byUuid.size() - MAX_ENTRIES;
@@ -137,17 +135,13 @@ final class PlayerNameCache {
     }
 
     String nameOf(UUID id) {
-        if (id == null) {
-            return null;
-        }
+        if (id == null) return null;
         Entry e = byUuid.get(id);
         return e == null ? null : e.name();
     }
 
     long updatedAtOf(UUID id) {
-        if (id == null) {
-            return 0L;
-        }
+        if (id == null) return 0L;
         Entry e = byUuid.get(id);
         return e == null ? 0L : e.updatedAtMs();
     }
@@ -157,18 +151,14 @@ final class PlayerNameCache {
     /** Records/refreshes a resolved pair. Callers (tab-list scans, network resolves) batch several of these
      *  and save once rather than hitting disk per player - see {@link PlayerNames}'s debounced save. */
     void put(UUID id, String name, long atMs) {
-        if (id == null || name == null || name.isBlank()) {
-            return;
-        }
+        if (id == null || name == null || name.isBlank()) return;
         Entry existing = byUuid.get(id);
         // An unchanged name only refreshes its timestamp once per SEEN_REFRESH_MS. The tab-list scan notes every
         // listed player every 500 ms, and a strictly newer timestamp used to count as a change: in any lobby the
         // cache went dirty on every scan and the whole file (up to 4096 entries) was re-serialized and rewritten
         // every two seconds, forever (FPS sweep, 2026-10-07). The timestamp only orders trim() and gates the
         // once-a-day name refresh in PlayerNames.resolveAsync, and ten minutes of slack changes neither.
-        if (existing != null && existing.name().equals(name) && atMs - existing.updatedAtMs() < SEEN_REFRESH_MS) {
-            return;
-        }
+        if (existing != null && existing.name().equals(name) && atMs - existing.updatedAtMs() < SEEN_REFRESH_MS) return;
         if (existing != null && !existing.name().equalsIgnoreCase(name)) {
             // A rename: drop the stale reverse-index entry so the old name stops resolving to this UUID.
             byName.remove(existing.name().toLowerCase(Locale.ROOT), id);
