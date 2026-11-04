@@ -332,6 +332,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   2 degrees that repeats the turn before the previous block click (`util/PlaceRotationGuard`, DuplicateRotPlace - but never
   move the look in a tick that carries a `use_item`, that is BadPacketsJ), and every dig START / use through vanilla's
   `startPrediction` (BadPacketsH). Details per check: docs/LESSONS-AUTOMATION.md.
+- Before building ANY non-dungeon feature, look for it on the staging-* branches (staging-mining-3 holds most mining) and in shelved/: on 2026-11-03 powder chest/tracker/loot-filter features were rebuilt from scratch while staging-mining-3 already had them (killer560: "some of this is already built and you just need to pull it"). git ls-tree -r --name-only staging-<x> -- src/main/java | grep -i <topic>.
 - Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
   (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
   and import keeps the locked update and sharing keys (testkit 981).
