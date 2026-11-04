@@ -4,21 +4,15 @@ import com.killer560.hub.shared.RecordCatalog;
 import com.killer560.hub.shared.SharedFile;
 import com.killer560.hub.shared.SharedRecords;
 
-import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -48,7 +42,6 @@ import java.util.concurrent.Executors;
 public final class BestFriendsStore {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bestfriends");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     /** The shared file the records were loaded from (the account signed in then). */
     private static SharedFile file;
