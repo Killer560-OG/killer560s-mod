@@ -26,19 +26,13 @@ public final class StunSpotWaypoints {
     static void render(LevelRenderContext context) {
         ThornConfig cfg = ThornConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isStunSpotsEnabled() || client.level == null || client.player == null || !ThornFeature.inThornBoss()) {
-            return;
-        }
+        if (!cfg.isStunSpotsEnabled() || client.level == null || client.player == null || !ThornFeature.inThornBoss()) return;
         List<ThornConfig.StunSpot> spots = cfg.getStunSpots();
-        if (spots.isEmpty()) {
-            return;
-        }
+        if (spots.isEmpty()) return;
         String floor = ThornFeature.thornFloor();
         float[] c = WorldRenderUtils.argbToFloats(cfg.getStunSpotColor());
         for (ThornConfig.StunSpot spot : spots) {
-            if (!spot.appliesTo(floor)) {
-                continue;
-            }
+            if (!spot.appliesTo(floor)) continue;
             double bx = Math.floor(spot.x());
             double by = Math.floor(spot.y());
             double bz = Math.floor(spot.z());
@@ -55,9 +49,7 @@ public final class StunSpotWaypoints {
     private static void renderLabel(LevelRenderContext context, double x, double y, double z,
                                     String text, int color) {
         PoseStack poseStack = context.poseStack();
-        if (poseStack == null) {
-            return;
-        }
+        if (poseStack == null) return;
         Font font = Minecraft.getInstance().font;
         Vec3 cam = McRender.cameraPos(context);
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));

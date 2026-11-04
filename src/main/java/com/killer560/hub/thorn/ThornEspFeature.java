@@ -92,9 +92,7 @@ public final class ThornEspFeature {
         java.util.HashSet<Integer> forced = new java.util.HashSet<>();
 
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (entity == client.player || entity.isRemoved()) {
-                continue;
-            }
+            if (entity == client.player || entity.isRemoved()) continue;
             // Cheat build, killer560 2026-10-15: "show all mobs through walls (non bat) and one for bats". Each is its own
             // switch and does not depend on the highlights below; it never waits for a line of sight.
             if (entity instanceof Bat) {
@@ -138,9 +136,7 @@ public final class ThornEspFeature {
 
     /** A living, visible mob that is not a bat, a stand or a player - or the Spirit Bear, which Hypixel makes a player. */
     private static boolean isAnyMob(Entity entity) {
-        if (entity instanceof Player) {
-            return SpiritBearTracker.isSpiritBear(entity) && entity.isAlive();
-        }
+        if (entity instanceof Player) return SpiritBearTracker.isSpiritBear(entity) && entity.isAlive();
         return entity instanceof net.minecraft.world.entity.LivingEntity && !(entity instanceof ArmorStand)
                 && entity.isAlive() && !entity.isInvisible();
     }
@@ -153,21 +149,15 @@ public final class ThornEspFeature {
 
     private static boolean isSpiritBow(ArmorStand stand) {
         String name = ChatFormatting.stripFormatting(stand.getName().getString());
-        if ("Spirit Bow".equals(name)) {
-            return true;
-        }
+        if ("Spirit Bow".equals(name)) return true;
         var held = stand.getMainHandItem();
-        if (held.isEmpty()) {
-            return false;
-        }
+        if (held.isEmpty()) return false;
         String heldName = ChatFormatting.stripFormatting(held.getHoverName().getString());
         return "Bow".equals(heldName);
     }
 
     private static boolean visible(Minecraft client, Vec3 eye, Entity target, boolean throughWalls) {
-        if (throughWalls) {
-            return true;
-        }
+        if (throughWalls) return true;
         BlockHitResult result = client.level.clip(new ClipContext(
                 eye, target.getEyePosition(), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, target));
         return result.getType() == HitResult.Type.MISS;
@@ -189,9 +179,7 @@ public final class ThornEspFeature {
         Set<Integer> forced = forcedIds;
         for (Map.Entry<Integer, Integer> target : current.entrySet()) {
             Entity entity = client.level.getEntity(target.getKey());
-            if (entity == null || entity.isRemoved()) {
-                continue;
-            }
+            if (entity == null || entity.isRemoved()) continue;
             AABB box;
             if (bows.contains(entity.getId())) {
                 box = bowBox(client, entity);

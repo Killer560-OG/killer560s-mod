@@ -58,9 +58,7 @@ public final class ThornFeature {
         ChatObserver.subscribe(ThornFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ThornFeature.tick", ThornFeature::tick));
         LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
-            if (!SkyblockGate.allows()) {
-                return;
-            }
+            if (!SkyblockGate.allows()) return;
             ThornEspFeature.render(context);
             StunSpotWaypoints.render(context);
         });
@@ -84,9 +82,7 @@ public final class ThornFeature {
     }
 
     private static void onChat(Component message) {
-        if (thornFloor() == null || thornChatSeen) {
-            return;
-        }
+        if (thornFloor() == null || thornChatSeen) return;
         if (THORN_BOSS_LINE.matcher(ChatObserver.strip(message)).find()) {
             thornChatSeen = true;
         }
@@ -111,9 +107,7 @@ public final class ThornFeature {
             }
         }
         ThornTriggerbot.tick(client, active);
-        if (!active) {
-            return;
-        }
+        if (!active) return;
         ThornConfig cfg = ThornConfig.getInstance();
         // Only runs while something reads it (HUD / chat). Turning both off resets it; turning one back on mid-fight
         // re-reads the ring's current state on the first tick (the tracker's baseline), so kills are still right.
@@ -159,12 +153,8 @@ public final class ThornFeature {
         private static String[] lines() {
             Minecraft client = Minecraft.getInstance();
             ThornConfig cfg = ThornConfig.getInstance();
-            if (McCompat.screen(client) instanceof HudEditorScreen) {
-                return new String[]{"§6Bear: §d17/25", "§6Overkill: §e3"};
-            }
-            if (!cfg.isBearHudEnabled() || !inThornBoss()) {
-                return null;
-            }
+            if (McCompat.screen(client) instanceof HudEditorScreen) return new String[]{"§6Bear: §d17/25", "§6Overkill: §e3"};
+            if (!cfg.isBearHudEnabled() || !inThornBoss()) return null;
             return new String[]{"§6Bear: " + SpiritBearTracker.stateText(),
                     cfg.isShowOverkill() ? SpiritBearTracker.overkillText() : null};
         }
@@ -191,9 +181,7 @@ public final class ThornFeature {
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
             String[] l = lines();
-            if (l == null) {
-                return;
-            }
+            if (l == null) return;
             String line1 = l[0];
             String line2 = l[1];
             HudSeen.markDrawn(id());

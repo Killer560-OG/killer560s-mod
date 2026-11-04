@@ -165,16 +165,12 @@ public final class ThornConfig {
                 cfg.stunSpotList.clear();
                 for (JsonElement el : spots) {
                     // One malformed entry is skipped on its own; the rest still load.
-                    if (el == null || !el.isJsonObject()) {
-                        continue;
-                    }
+                    if (el == null || !el.isJsonObject()) continue;
                     JsonObject o = el.getAsJsonObject();
                     double x = ConfigJson.getDouble(o, "x", Double.NaN);
                     double y = ConfigJson.getDouble(o, "y", Double.NaN);
                     double z = ConfigJson.getDouble(o, "z", Double.NaN);
-                    if (Double.isNaN(x) || Double.isNaN(y) || Double.isNaN(z)) {
-                        continue;
-                    }
+                    if (Double.isNaN(x) || Double.isNaN(y) || Double.isNaN(z)) continue;
                     cfg.stunSpotList.add(new StunSpot(x, y, z, ConfigJson.getString(o, "label", ""),
                             ConfigJson.getString(o, "floor", "ANY").toUpperCase(Locale.ROOT)));
                 }
@@ -331,9 +327,7 @@ public final class ThornConfig {
     }
 
     public boolean removeLastStunSpot() {
-        if (stunSpotList.isEmpty()) {
-            return false;
-        }
+        if (stunSpotList.isEmpty()) return false;
         stunSpotList.remove(stunSpotList.size() - 1);
         return true;
     }

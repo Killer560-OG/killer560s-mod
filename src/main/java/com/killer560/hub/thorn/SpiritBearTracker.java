@@ -107,9 +107,7 @@ public final class SpiritBearTracker {
     public static void reset(String reason) {
         // Every state below changes only inside tick(), which counts a tick first; ThornFeature calls this each tick
         // while the counter is off in the boss room, and a fresh ring array per tick was pure garbage.
-        if (tickCount == 0 && activeRing == null) {
-            return;
-        }
+        if (tickCount == 0 && activeRing == null) return;
         ringState = new Boolean[M4_RING.length];
         activeRing = null;
         kills = 0;
@@ -131,9 +129,7 @@ public final class SpiritBearTracker {
     /** Called every client tick while the Thorn fight is active (see {@link ThornFeature}). */
     static void tick(Minecraft client) {
         ClientLevel level = client.level;
-        if (level == null) {
-            return;
-        }
+        if (level == null) return;
         BlockPos[] ring = ThornFeature.isMasterMode() ? M4_RING : F4_RING;
         boolean baseline = activeRing != ring;
         if (baseline) {
@@ -201,9 +197,7 @@ public final class SpiritBearTracker {
                 }
                 continue;
             }
-            if (!isKillableSpiritMob(entity)) {
-                continue;
-            }
+            if (!isKillableSpiritMob(entity)) continue;
             present.add(entity.getId());
             if (((LivingEntity) entity).isDeadOrDying() && countedDeaths.add(entity.getId())) {
                 deaths++;
@@ -277,9 +271,7 @@ public final class SpiritBearTracker {
      */
     private static void sendOverkillToParty(int cycle, int overkillCount) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !SkyblockGate.allows() || PartyTracker.teammates().isEmpty()) {
-            return;
-        }
+        if (client.player == null || !SkyblockGate.allows() || PartyTracker.teammates().isEmpty()) return;
         com.killer560.hub.util.OutgoingChat.command("pc Spirit Bear #" + cycle + " overkill: " + overkillCount);
     }
 
@@ -316,23 +308,15 @@ public final class SpiritBearTracker {
      * entity-spawn signal - rather than firing the instant this countdown hits zero; "Spawning..." covers
      * the gap if the guess was a little early. */
     static String stateText() {
-        if (timer < 0) {
-            return "§d" + kills + "/" + maxKills();
-        }
-        if (timer > 0) {
-            return "§e" + String.format(Locale.US, "%.2f", timer * 0.05) + "s";
-        }
-        if (bearAliveNow) {
-            return "§aAlive!";
-        }
+        if (timer < 0) return "§d" + kills + "/" + maxKills();
+        if (timer > 0) return "§e" + String.format(Locale.US, "%.2f", timer * 0.05) + "s";
+        if (bearAliveNow) return "§aAlive!";
         return bearSeenAlive ? "§7Killed" : "§eSpawning...";
     }
 
     /** Current cycle's overkill while the ring is full, otherwise the last finished cycle's (or 0). */
     static String overkillText() {
-        if (ringFull) {
-            return "§6Overkill: §e" + overkill;
-        }
+        if (ringFull) return "§6Overkill: §e" + overkill;
         return lastOverkill >= 0 ? "§6Last Overkill: §e" + lastOverkill : "§6Overkill: §70";
     }
 
