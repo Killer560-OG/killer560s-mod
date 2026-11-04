@@ -244,10 +244,7 @@ public final class Ap3Feature {
     /** Label for the tab / chat: {@code "S3"}, {@code "S3 (Mage)"}, {@code "P1"}, or {@code "no area"}. */
     public static String currentChainLabel() {
         Ap3Area area = currentArea();
-        if (area == null) {
-            return "no area";
-        }
-        return Ap3Chain.label(area, Ap3Config.getInstance().getEditClassFilter());
+        return area == null ? "no area" : Ap3Chain.label(area, Ap3Config.getInstance().getEditClassFilter());
     }
 
     /**

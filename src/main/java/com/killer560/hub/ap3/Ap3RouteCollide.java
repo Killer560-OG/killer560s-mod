@@ -298,10 +298,7 @@ final class Ap3RouteCollide {
      * counted as overlapping it.
      */
     private static double clipX(Box b, Box e, double d) {
-        if (e.maxY - EPSILON <= b.minY || e.minY + EPSILON >= b.maxY) {
-            return d;
-        }
-        if (e.maxZ - EPSILON <= b.minZ || e.minZ + EPSILON >= b.maxZ) {
+        if (e.maxY - EPSILON <= b.minY || e.minY + EPSILON >= b.maxY || e.maxZ - EPSILON <= b.minZ || e.minZ + EPSILON >= b.maxZ) {
             return d;
         }
         if (d > 0.0) {
@@ -313,10 +310,7 @@ final class Ap3RouteCollide {
     }
 
     private static double clipY(Box b, Box e, double d) {
-        if (e.maxX - EPSILON <= b.minX || e.minX + EPSILON >= b.maxX) {
-            return d;
-        }
-        if (e.maxZ - EPSILON <= b.minZ || e.minZ + EPSILON >= b.maxZ) {
+        if (e.maxX - EPSILON <= b.minX || e.minX + EPSILON >= b.maxX || e.maxZ - EPSILON <= b.minZ || e.minZ + EPSILON >= b.maxZ) {
             return d;
         }
         if (d > 0.0) {
@@ -328,10 +322,7 @@ final class Ap3RouteCollide {
     }
 
     private static double clipZ(Box b, Box e, double d) {
-        if (e.maxX - EPSILON <= b.minX || e.minX + EPSILON >= b.maxX) {
-            return d;
-        }
-        if (e.maxY - EPSILON <= b.minY || e.minY + EPSILON >= b.maxY) {
+        if (e.maxX - EPSILON <= b.minX || e.minX + EPSILON >= b.maxX || e.maxY - EPSILON <= b.minY || e.minY + EPSILON >= b.maxY) {
             return d;
         }
         if (d > 0.0) {

@@ -440,10 +440,7 @@ public final class AuctionHouseScreen extends Screen {
         if (min <= 0) {
             return "< " + AhUi.coins(max);
         }
-        if (max <= 0) {
-            return "> " + AhUi.coins(min);
-        }
-        return AhUi.coins(min) + "-" + AhUi.coins(max);
+        return max <= 0 ? "> " + AhUi.coins(min) : AhUi.coins(min) + "-" + AhUi.coins(max);
     }
 
     private static String sortShort(AuctionConfig.SortMode m) {

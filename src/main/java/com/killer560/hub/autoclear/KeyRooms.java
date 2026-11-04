@@ -229,10 +229,7 @@ public final class KeyRooms {
         if (i1 >= 0 && i1 < n && layout.roomOfCell(i1) == room) {
             return i1;
         }
-        if (i2 >= 0 && i2 < n && layout.roomOfCell(i2) == room) {
-            return i2;
-        }
-        return -1;
+        return i2 >= 0 && i2 < n && layout.roomOfCell(i2) == room ? i2 : -1;
     }
 
     /** A room whose mobs can drop a key: not the Entrance, a puzzle, the Blood or Fairy room (an unknown one may). */

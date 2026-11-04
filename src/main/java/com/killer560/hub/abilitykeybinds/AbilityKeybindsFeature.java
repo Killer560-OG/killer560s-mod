@@ -1,6 +1,8 @@
 package com.killer560.hub.abilitykeybinds;
 
+import com.killer560.hub.util.FeatureBits;
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -34,7 +36,7 @@ public final class AbilityKeybindsFeature {
     }
 
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AbilityKeybindsFeature.tick", com.killer560.hub.util.FeatureBits.register("Ability Keybinds tick", () -> AbilityKeybindsConfig.getInstance().isEnabledRaw()), AbilityKeybindsFeature::tick));
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AbilityKeybindsFeature.tick", FeatureBits.register("Ability Keybinds tick", () -> AbilityKeybindsConfig.getInstance().isEnabledRaw()), AbilityKeybindsFeature::tick));
     }
 
     private static void tick(Minecraft client) {
@@ -73,15 +75,13 @@ public final class AbilityKeybindsFeature {
     }
 
     /** Polls a keyboard code through {@code KeyUtil} or a mouse code through {@code glfwGetMouseButton}
-     *  (killer560: "make all of the keybind things compatible with mouse buttons and middle mouse buttons").
-     *  Local helper until {@code KeyUtil} itself learns about mouse binds - patch in this wave's notes. */
+     *  (killer560: "make all of the keybind things compatible with mouse buttons and middle mouse buttons"). */
     private static boolean isBindDown(Minecraft client, int code) {
         if (code == -1 || client.getWindow() == null) {
             return false;
         }
-        if (AbilityKeybindsConfig.isMouseCode(code)) {
-            return com.killer560.hub.util.KeyUtil.isMouseDown(client.getWindow(), AbilityKeybindsConfig.mouseButton(code));
-        }
-        return com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
+        return AbilityKeybindsConfig.isMouseCode(code)
+                ? KeyUtil.isMouseDown(client.getWindow(), AbilityKeybindsConfig.mouseButton(code))
+                : KeyUtil.isKeyDown(client.getWindow(), code);
     }
 }

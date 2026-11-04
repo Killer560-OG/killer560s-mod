@@ -192,10 +192,7 @@ public final class Ap3Store {
                 || !SAFE_NAME.matcher(name).matches()) {
             return "Letters, digits, spaces, - _ and . only.";
         }
-        if (name.toLowerCase(Locale.ROOT).endsWith(BROKEN_SUFFIX)) {
-            return "That name is reserved for backups.";
-        }
-        return null;
+        return name.toLowerCase(Locale.ROOT).endsWith(BROKEN_SUFFIX) ? "That name is reserved for backups." : null;
     }
 
     /**

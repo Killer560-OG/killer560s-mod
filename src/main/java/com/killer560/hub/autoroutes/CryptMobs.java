@@ -50,10 +50,7 @@ public final class CryptMobs {
 
     /** A living mob that can be a crypt's undead at all: not an armor stand, bat, him, or a real player. */
     private static boolean candidate(Minecraft client, Entity e) {
-        if (!(e instanceof LivingEntity l) || e instanceof ArmorStand || e instanceof Bat || e == client.player) {
-            return false;
-        }
-        if (!l.isAlive() || l.isRemoved() || l.isDeadOrDying()) {
+        if (!(e instanceof LivingEntity l) || e instanceof ArmorStand || e instanceof Bat || e == client.player || !l.isAlive() || l.isRemoved() || l.isDeadOrDying()) {
             return false;
         }
         // A real player has a version-4 UUID; Hypixel's NPC-style mobs are version 2.

@@ -202,9 +202,6 @@ final class Ap3History {
     private static boolean live(Ap3Chain chain) {
         Ap3Store store = Ap3Store.getInstance();
         Ap3Chain there = store.exact(chain.area(), chain.classFilter());
-        if (there == chain) {
-            return true;
-        }
-        return there == null && chain.isEmpty() && store.restore(chain);
+        return there == chain || there == null && chain.isEmpty() && store.restore(chain);
     }
 }

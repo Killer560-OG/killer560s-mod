@@ -247,13 +247,7 @@ public final class AhRelistMacro {
     }
 
     private static void maybeStart(Minecraft client, Screen screen, long now) {
-        if (halted || screen != null || com.killer560.hub.secrets.DungeonState.isInDungeon() || AhFlipMacro.isBusy()) {
-            return;
-        }
-        if (!requested && now < nextCycleAtMs) {
-            return;
-        }
-        if (!requested && !claimHint && !anyToListInInventory(client)) {
+        if (halted || screen != null || com.killer560.hub.secrets.DungeonState.isInDungeon() || AhFlipMacro.isBusy() || !requested && now < nextCycleAtMs || !requested && !claimHint && !anyToListInInventory(client)) {
             return;
         }
         state = State.RUNNING;

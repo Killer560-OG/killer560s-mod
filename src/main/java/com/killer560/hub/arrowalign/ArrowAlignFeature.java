@@ -335,10 +335,7 @@ public final class ArrowAlignFeature {
     private static int indexOf(BlockPos pos) {
         int dy = pos.getY() - GRID_Y;
         int dz = pos.getZ() - GRID_Z;
-        if (pos.getX() != GRID_X || dy < 0 || dy > 4 || dz < 0 || dz > 4) {
-            return -1;
-        }
-        return dy + dz * 5;
+        return pos.getX() != GRID_X || dy < 0 || dy > 4 || dz < 0 || dz > 4 ? -1 : dy + dz * 5;
     }
 
     /** @return the grid index of a tracked arrow frame, or -1. */
@@ -347,28 +344,19 @@ public final class ArrowAlignFeature {
             return -1;
         }
         int index = indexOf(frame.blockPosition());
-        if (index < 0 || frames[index] == null || frames[index].getId() != frame.getId()) {
-            return -1;
-        }
-        return index;
+        return index < 0 || frames[index] == null || frames[index].getId() != frame.getId() ? -1 : index;
     }
 
     /** Clicks still needed on top of every click already sent (observed + pending). 0 when unknown. */
     private static int clicksNeeded(int index) {
         int[] sol = solution;
-        if (sol == null || sol[index] < 0 || observed[index] < 0) {
-            return 0;
-        }
-        return (sol[index] - observed[index] - pending[index]) & 7;
+        return sol == null || sol[index] < 0 || observed[index] < 0 ? 0 : (sol[index] - observed[index] - pending[index]) & 7;
     }
 
     /** Clicks needed by the server's last confirmed rotation alone. */
     private static int serverClicksNeeded(int index) {
         int[] sol = solution;
-        if (sol == null || sol[index] < 0 || observed[index] < 0) {
-            return 0;
-        }
-        return (sol[index] - observed[index]) & 7;
+        return sol == null || sol[index] < 0 || observed[index] < 0 ? 0 : (sol[index] - observed[index]) & 7;
     }
 
     private static int totalServerClicksNeeded() {

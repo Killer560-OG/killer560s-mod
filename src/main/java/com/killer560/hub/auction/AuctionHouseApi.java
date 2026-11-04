@@ -445,10 +445,7 @@ public final class AuctionHouseApi {
                     .GET()
                     .build();
             HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                return null;
-            }
-            return JsonParser.parseString(response.body()).getAsJsonObject();
+            return response.statusCode() / 100 != 2 ? null : JsonParser.parseString(response.body()).getAsJsonObject();
         } catch (Exception e) {
             return null;
         }
@@ -563,10 +560,7 @@ public final class AuctionHouseApi {
      */
     public static PageZero fetchPageZero() {
         JsonObject page = getJson(pageUrl(0));
-        if (page == null || !page.has("success") || !page.get("success").getAsBoolean()) {
-            return null;
-        }
-        return decodePage(page);
+        return page == null || !page.has("success") || !page.get("success").getAsBoolean() ? null : decodePage(page);
     }
 
     /** {@link #fetchPageZero}'s answer: Hypixel's snapshot time and the listings on the page. */

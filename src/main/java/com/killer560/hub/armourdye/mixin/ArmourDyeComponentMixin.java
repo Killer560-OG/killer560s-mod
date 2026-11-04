@@ -40,10 +40,7 @@ public interface ArmourDyeComponentMixin {
     @Inject(method = "get(Lnet/minecraft/core/component/DataComponentType;)Ljava/lang/Object;",
             at = @At("RETURN"), cancellable = true)
     private void killer560smod$armourComponent(DataComponentType<?> type, CallbackInfoReturnable<Object> cir) {
-        if (!ArmourDye.handles(type) || !ArmourDye.active()) {
-            return;
-        }
-        if (!((Object) this instanceof ItemStack stack)) {
+        if (!ArmourDye.handles(type) || !ArmourDye.active() || !((Object) this instanceof ItemStack stack)) {
             return;
         }
         Object original = cir.getReturnValue();

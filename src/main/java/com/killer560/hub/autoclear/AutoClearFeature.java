@@ -530,10 +530,7 @@ public final class AutoClearFeature {
         if (a.startsWith("landing") || a.startsWith("waiting to land")) {
             return "landing";
         }
-        if (a.startsWith("roaming")) {
-            return "roam trips";
-        }
-        return "other";
+        return a.startsWith("roaming") ? "roam trips" : "other";
     }
 
     private static void step(Minecraft client, LocalPlayer player) {
@@ -543,10 +540,7 @@ public final class AutoClearFeature {
         if (phase == Phase.TRAVEL) {
             // Auto Clear's own trips (etherPathFast) end on the tick the server confirms the last landing, not ~9 ticks
             // later: Auto Routes asks this too, and whichever asks first ends it.
-            if (ClearExecutor.isBusy() && !ClearExecutor.finishArrivalEarly(client)) {
-                return;
-            }
-            if (ClearExecutor.isBusy()) {
+            if (ClearExecutor.isBusy() && !ClearExecutor.finishArrivalEarly(client) || ClearExecutor.isBusy()) {
                 return;
             }
             phase = Phase.IDLE;
@@ -988,10 +982,7 @@ public final class AutoClearFeature {
             }
             return false;   // one alive somewhere (in view without its tag, or lost from view)
         }
-        if (deathsInRoom == 0 && leftToBats == 0) {
-            return false;
-        }
-        if (!knownMobs(client, layout, room).isEmpty()) {
+        if (deathsInRoom == 0 && leftToBats == 0 || !knownMobs(client, layout, room).isEmpty()) {
             return false;
         }
         pendingClears.put(roomName, new long[]{ClearExecutor.clientTick(), com.killer560.hub.util.ServerLag.mark()});
@@ -3025,10 +3016,7 @@ public final class AutoClearFeature {
         if (health <= 0) {
             return new OneTapCall(false, figures);
         }
-        if (learned > 0 && health <= learned) {
-            return new OneTapCall(true, figures);
-        }
-        if (intFloor > 0 && health <= intFloor * ONE_TAP_FLOOR_SHARE) {
+        if (learned > 0 && health <= learned || intFloor > 0 && health <= intFloor * ONE_TAP_FLOOR_SHARE) {
             return new OneTapCall(true, figures);
         }
         return new OneTapCall(false, figures);

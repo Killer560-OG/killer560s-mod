@@ -106,10 +106,7 @@ final class Ap3RouteCache {
         // The DIRECTION he is moving matters as much as the speed: a schedule built for someone arriving from the
         // north is wrong from its first tick for someone arriving from the south at the same pace. Comparing only
         // the magnitude handed those plans straight back.
-        if (Math.hypot(start.vx - e.startVx, start.vz - e.startVz) > SPEED_TOLERANCE) {
-            return Double.NaN;
-        }
-        if (start.onGround != e.onGround) {
+        if (Math.hypot(start.vx - e.startVx, start.vz - e.startVz) > SPEED_TOLERANCE || start.onGround != e.onGround) {
             return Double.NaN;
         }
         // Whether the sprint key is down only matters if he is actually moving. Standing on the node it decides
@@ -119,10 +116,7 @@ final class Ap3RouteCache {
         // proof: "1 saved plan(s) for this route but none from here (nearest start 0.00 blocks away, v 0.000)" -
         // the very same spot at the very same speed, refused, and searched again from scratch.
         boolean moving = start.speed() > 0.05 || e.startSpeed > 0.05;
-        if (moving && start.sprinting != e.sprinting) {
-            return Double.NaN;
-        }
-        return away;
+        return moving && start.sprinting != e.sprinting ? Double.NaN : away;
     }
 
     /**

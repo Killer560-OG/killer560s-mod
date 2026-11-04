@@ -1825,21 +1825,12 @@ final class Ap3RouteRunner {
     private static final double SNAP_MOVED = 6.0;
 
     private static Snap reusableSnapshot(String key, Ap3RouteMath.RouteState start) {
-        if (snapKept == null || !snapKey.equals(key)) {
-            return null;
-        }
-        if (System.currentTimeMillis() - snapTakenAt > SNAP_TTL_MS) {
-            return null;
-        }
-        if (Math.hypot(start.x - snapX, start.z - snapZ) > SNAP_MOVED) {
+        if (snapKept == null || !snapKey.equals(key) || System.currentTimeMillis() - snapTakenAt > SNAP_TTL_MS || Math.hypot(start.x - snapX, start.z - snapZ) > SNAP_MOVED) {
             return null;
         }
         // Height counts as having moved. Falling into a pit barely changes x and z, and the kept scan's band was
         // read around the height he was at when it was taken.
-        if (Math.abs(start.y - snapY) > SNAP_MOVED) {
-            return null;
-        }
-        return snapKept;
+        return Math.abs(start.y - snapY) > SNAP_MOVED ? null : snapKept;
     }
 
     private static void keepSnapshot(String key, Snap snap, Ap3RouteMath.RouteState start) {

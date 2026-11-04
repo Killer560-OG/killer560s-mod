@@ -5923,10 +5923,7 @@ public final class RouteExecutor {
      * ticks still goes, as before, and says so in the log.
      */
     private static boolean warpAimReady(LocalPlayer player) {
-        if (!AutoRoutesConfig.getInstance().isLegitMode()) {
-            return true;
-        }
-        if (RouteRotation.settled(WARP_AIM_EXACT) && stepTicks >= AutoRoutesConfig.getInstance().getInteractDelayTicks()) {
+        if (!AutoRoutesConfig.getInstance().isLegitMode() || RouteRotation.settled(WARP_AIM_EXACT) && stepTicks >= AutoRoutesConfig.getInstance().getInteractDelayTicks()) {
             return true;
         }
         if (stepTicks > WARP_AIM_GIVE_UP) {
@@ -6640,10 +6637,7 @@ public final class RouteExecutor {
 
     /** ... and is released right after the chain's last warp is sent: every warp of it reaches the server at once. */
     private static void blinkChainAfter(RouteNode node, boolean chainNext) {
-        if (!blinkChainOwned) {
-            return;
-        }
-        if (chainNext && com.killer560.hub.blink.BlinkFeature.isHolding()) {
+        if (!blinkChainOwned || chainNext && com.killer560.hub.blink.BlinkFeature.isHolding()) {
             return;
         }
         blinkChainOwned = false;

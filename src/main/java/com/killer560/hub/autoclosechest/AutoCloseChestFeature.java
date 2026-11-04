@@ -1,8 +1,9 @@
 package com.killer560.hub.autoclosechest;
 
+import com.killer560.hub.BuildVariant;
+import com.killer560.hub.cheatutils.SecretAuraFeature;
 import com.killer560.hub.secrets.DungeonState;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.world.inventory.MenuType;
@@ -47,16 +48,10 @@ public final class AutoCloseChestFeature {
     public static boolean shouldAutoClose(ClientboundOpenScreenPacket packet) {
         // Cheat build only (killer560, 2026-10-07). The whole body sits inside the constant so javac drops
         // it from the legit jar rather than merely skipping it.
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            AutoCloseChestConfig cfg = AutoCloseChestConfig.getInstance();
-            if (!cfg.isEnabled() || !DungeonState.isInDungeon()) {
-                return false;
-            }
-            if (!SECRET_CHEST_MENU_TYPES.contains(packet.getType())) {
-                return false;
-            }
-            String title = extractPlainTitle(packet.getTitle());
-            return SECRET_CHEST_TITLES.contains(title);
+        if (BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return AutoCloseChestConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
+                    && SECRET_CHEST_MENU_TYPES.contains(packet.getType())
+                    && SECRET_CHEST_TITLES.contains(packet.getTitle().getString().trim());
         }
         return false;
     }
@@ -65,7 +60,7 @@ public final class AutoCloseChestFeature {
      *  player had opened then immediately closed the chest themselves - the server never even needs to
      *  know the client refused to render the screen. Empty in a legit jar. */
     public static void autoClose(ClientboundOpenScreenPacket packet) {
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+        if (BuildVariant.CHEAT_FEATURES_ENABLED) {
             Minecraft client = Minecraft.getInstance();
             if (client.player == null) {
                 return;
@@ -73,11 +68,7 @@ public final class AutoCloseChestFeature {
             client.player.connection.send(new ServerboundContainerClosePacket(packet.getContainerId()));
             // The chest opened for him, though nobody will see its window: Secret Aura (and Auto Secret's wait on it)
             // takes that as the click having worked.
-            com.killer560.hub.cheatutils.SecretAuraFeature.noteWindowOpened();
+            SecretAuraFeature.noteWindowOpened();
         }
-    }
-
-    private static String extractPlainTitle(Component title) {
-        return title.getString().trim();
     }
 }

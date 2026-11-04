@@ -83,10 +83,7 @@ public final class RouteRecorder {
      * @param always true for a recording start, which always says it; false for /ar add, which says it once a room
      */
     private static void warnIfSimRotationUncertain(String roomName, boolean always) {
-        if (!simCaptureRotationUncertain(roomName)) {
-            return;
-        }
-        if (!always && roomName.equals(rotationWarnedRoom)) {
+        if (!simCaptureRotationUncertain(roomName) || !always && roomName.equals(rotationWarnedRoom)) {
             return;
         }
         rotationWarnedRoom = roomName;

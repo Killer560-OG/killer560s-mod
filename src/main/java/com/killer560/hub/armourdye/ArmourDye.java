@@ -208,10 +208,7 @@ public final class ArmourDye {
     }
 
     private static ResourceKey<net.minecraft.world.item.equipment.EquipmentAsset> assetFor(ArmourDyeEntry entry) {
-        if (entry.skin == ArmourSkin.CUSTOM) {
-            return ArmourSkin.assetFromId(entry.skinAsset);
-        }
-        return entry.skin.asset();
+        return entry.skin == ArmourSkin.CUSTOM ? ArmourSkin.assetFromId(entry.skinAsset) : entry.skin.asset();
     }
 
     /**

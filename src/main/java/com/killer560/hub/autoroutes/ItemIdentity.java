@@ -220,10 +220,7 @@ public final class ItemIdentity {
             return null;
         }
         CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack); // read only, no deep copy
-        if (tag == null) {
-            return null;
-        }
-        return tag.getStringOr("id", null);
+        return tag == null ? null : tag.getStringOr("id", null);
     }
 
     /** The Dungeon Breaker's Skyblock id - what a breaker node swaps to and breaker edit mode answers to. */

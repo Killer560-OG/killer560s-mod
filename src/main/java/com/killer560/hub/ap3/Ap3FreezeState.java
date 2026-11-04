@@ -138,10 +138,7 @@ public final class Ap3FreezeState {
     /** The Freeze State key. */
     public static void toggle() {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) {
-            return;
-        }
-        if (!frozen && refuseWhenOff()) {
+        if (player == null || !frozen && refuseWhenOff()) {
             return;
         }
         if (frozen) {
@@ -207,10 +204,7 @@ public final class Ap3FreezeState {
      */
     public static void step(int dir, int count) {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) {
-            return;
-        }
-        if (refuseWhenOff()) {
+        if (player == null || refuseWhenOff()) {
             return;
         }
         if (onHypixel()) {

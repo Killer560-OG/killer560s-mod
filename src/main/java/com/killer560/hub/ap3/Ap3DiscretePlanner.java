@@ -618,10 +618,7 @@ final class Ap3DiscretePlanner {
         if (!a.reaches) {
             return a.restError < b.restError;
         }
-        if (a.ticks != b.ticks) {
-            return a.ticks < b.ticks;
-        }
-        return a.restError < b.restError;
+        return a.ticks != b.ticks ? a.ticks < b.ticks : a.restError < b.restError;
     }
 
     static Plan plan(State s, Model m) {

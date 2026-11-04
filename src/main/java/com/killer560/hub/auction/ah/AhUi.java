@@ -889,10 +889,7 @@ public final class AhUi {
         if (c >= 1_000_000L) {
             return trim(c / 1_000_000.0) + "M";
         }
-        if (c >= 10_000L) {
-            return trim(c / 1_000.0) + "k";
-        }
-        return String.format(Locale.US, "%,d", c);
+        return c >= 10_000L ? trim(c / 1_000.0) + "k" : String.format(Locale.US, "%,d", c);
     }
 
     private static String trim(double v) {
@@ -917,10 +914,7 @@ public final class AhUi {
         if (hh > 0) {
             return hh + "h " + m + "m";
         }
-        if (m > 0) {
-            return m + "m " + sec + "s";
-        }
-        return sec + "s";
+        return m > 0 ? m + "m " + sec + "s" : sec + "s";
     }
 
     /** ARGB of a Hypixel tier name ("LEGENDARY"), or {@code fallback}. */

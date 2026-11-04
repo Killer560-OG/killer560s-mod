@@ -187,10 +187,7 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
 
     /** The stack a choice shows as. Built on pick, not per frame. */
     private static ItemStack stackFor(Choice c) {
-        if (c.hypixel() != null) {
-            return SkyblockItemStackFactory.build(c.hypixel());
-        }
-        return new ItemStack(c.minecraft());
+        return c.hypixel() != null ? SkyblockItemStackFactory.build(c.hypixel()) : new ItemStack(c.minecraft());
     }
 
     @Override

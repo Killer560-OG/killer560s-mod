@@ -513,10 +513,7 @@ public final class AutoAnvilFeature {
         }
         String enchant = ench.keySet().iterator().next();
         var level = ench.getInt(enchant);
-        if (level.isEmpty() || level.get() < 1) {
-            return null;
-        }
-        if (tag.keySet().contains("rarity_upgrades")) {
+        if (level.isEmpty() || level.get() < 1 || tag.keySet().contains("rarity_upgrades")) {
             return null;
         }
         // Everything else the item carries must match between the two books; sorted so key order cannot matter.

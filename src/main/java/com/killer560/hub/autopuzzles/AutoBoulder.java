@@ -1044,10 +1044,7 @@ public final class AutoBoulder {
                 return;
             }
             tickWalk(client, player);
-            if (walking) {
-                return;
-            }
-            if (stage != Stage.EXIT) {
+            if (walking || stage != Stage.EXIT) {
                 return;
             }
             BlockPos r = rel(player);

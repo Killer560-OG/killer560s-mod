@@ -127,10 +127,7 @@ public final class AutoMeowFeature {
 
     private static void reply(Source source) {
         long now = System.currentTimeMillis();
-        if (now - lastReplyAtMs < COOLDOWN_MS) {
-            return;
-        }
-        if (source == null || !TRIGGER.matcher(source.body()).find()) {
+        if (now - lastReplyAtMs < COOLDOWN_MS || source == null || !TRIGGER.matcher(source.body()).find()) {
             return;
         }
         if (source.sender().equalsIgnoreCase(selfName())) {
@@ -181,10 +178,7 @@ public final class AutoMeowFeature {
         if ((m = WHISPER_LINE.matcher(text)).matches()) {
             return new Source("msg " + m.group(1), m.group(1), m.group(2));
         }
-        if ((m = ALL_LINE.matcher(text)).matches()) {
-            return new Source("ac", m.group(1), m.group(2));
-        }
-        return null;
+        return (m = ALL_LINE.matcher(text)).matches() ? new Source("ac", m.group(1), m.group(2)) : null;
     }
 
     private AutoMeowFeature() {

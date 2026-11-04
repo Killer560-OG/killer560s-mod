@@ -5519,10 +5519,7 @@ public final class Ap3Executor {
      * Null = no constraint.
      */
     public static float[] walkKeyedYaws() {
-        if (!isRunning() || holdDir == null || aiming || aimLock || actNode != null || isInputOverridden()) {
-            return null;
-        }
-        if (activeNode != null && activeNode.type.ownsMovement()) {
+        if (!isRunning() || holdDir == null || aiming || aimLock || actNode != null || isInputOverridden() || activeNode != null && activeNode.type.ownsMovement()) {
             return null;
         }
         float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));

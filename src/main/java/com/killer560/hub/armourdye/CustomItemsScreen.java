@@ -88,10 +88,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
 
     /** The entry, created on first change. */
     ArmourDyeEntry editable() {
-        if (selectedKey == null) {
-            return null;
-        }
-        return cfg().getOrCreate(selectedKey, selectedLabel);
+        return selectedKey == null ? null : cfg().getOrCreate(selectedKey, selectedLabel);
     }
 
     /** The live stack the selection is on, or EMPTY. */
@@ -134,10 +131,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         if (id != null) {
             return ArmourDyeConfig.normaliseId(id);
         }
-        if (uuid != null) {
-            return ArmourDyeConfig.normaliseId(ArmourDyeConfig.uuidKey(uuid));
-        }
-        return null;
+        return uuid != null ? ArmourDyeConfig.normaliseId(ArmourDyeConfig.uuidKey(uuid)) : null;
     }
 
     /** Switches between this item (UUID) and every copy (id). */
@@ -427,19 +421,13 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         if (index < 4) {
             return p.getItemBySlot(ARMOUR[index]);
         }
-        if (index < 31) {
-            return p.getInventory().getItem(index - 4 + 9);
-        }
-        return p.getInventory().getItem(index - 31);
+        return index < 31 ? p.getInventory().getItem(index - 4 + 9) : p.getInventory().getItem(index - 31);
     }
 
     /** The stack in a cell when it passes the search, else EMPTY. */
     private ItemStack shownStack(int index) {
         ItemStack stack = cellStack(index);
-        if (stack.isEmpty() || !matchesQuery(stack.getHoverName().getString(), query)) {
-            return ItemStack.EMPTY;
-        }
-        return stack;
+        return stack.isEmpty() || !matchesQuery(stack.getHoverName().getString(), query) ? ItemStack.EMPTY : stack;
     }
 
     private int cellAt(double x, double y) {

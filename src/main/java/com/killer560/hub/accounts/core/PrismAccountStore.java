@@ -24,10 +24,7 @@ public final class PrismAccountStore {
 
     public static Path defaultAccountsFile() {
         String override = System.getProperty("prismaccountswitcher.accountsFile");
-        if (override != null && !override.isBlank()) {
-            return Paths.get(override);
-        }
-        return prismRootDir().resolve("accounts.json");
+        return override != null && !override.isBlank() ? Paths.get(override) : prismRootDir().resolve("accounts.json");
     }
 
     /** Prism's own data directory - shared by every instance, unlike an instance's own folder. */
