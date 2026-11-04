@@ -917,20 +917,8 @@ public final class MobEspFeature {
 
     // ---- testkit ----
 
-    public static Set<Integer> lastFelsDrawn() {
-        return Set.copyOf(LAST_FELS_DRAWN);
-    }
-
     public static int lastOtherFelsDrawn() {
         return lastOtherFelsDrawn;
-    }
-
-    public static Set<Integer> predictedFels() {
-        return Set.copyOf(PREDICTED_FELS);
-    }
-
-    public static Set<Integer> knownStarred() {
-        return Set.copyOf(KNOWN_STARRED);
     }
 
     public static int rememberedDrawn() {
