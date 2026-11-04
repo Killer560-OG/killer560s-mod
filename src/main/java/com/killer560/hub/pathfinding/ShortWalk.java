@@ -234,10 +234,8 @@ public final class ShortWalk {
         double heading = Math.toRadians(player.getYRot());
         double hx = -Math.sin(heading);
         double hz = Math.cos(heading);
-        double riseAhead = Math.max(WalkTerrain.rise(level, pos.x + hx * 0.45, pos.z + hz * 0.45, pos.y),
-                WalkTerrain.rise(level, pos.x + hx * 0.85, pos.z + hz * 0.85, pos.y));
-        boolean jumpable = riseAhead > player.maxUpStep() + 0.01 && riseAhead <= jumpH - 0.05
-                && WalkTerrain.headroom(level, pos.x + hx * 0.85, pos.z + hz * 0.85, pos.y + riseAhead);
+        double riseAhead = WalkTerrain.riseAhead(level, pos, hx, hz);
+        boolean jumpable = WalkTerrain.jumpable(level, player, pos, hx, hz, riseAhead, jumpH);
         if (player.onGround() && wantForward && (jumpable || player.isInWater() && carrot.y > pos.y + 0.3)) {
             wantJump = true;
             jumpsPressed++;

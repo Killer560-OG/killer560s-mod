@@ -16,21 +16,15 @@ import static com.killer560.hub.scoreboard.ScoreboardLine.isZero;
  * {@link ScoreboardEntry} lines.
  */
 public enum ChunkedStat {
-    PURSE("Purse", ScoreboardEntry.PURSE) {
+    PURSE("Purse", ScoreboardEntry.PURSE, "§6") {
         @Override
         String raw() { return group(ScoreboardPattern.COINS, sidebar(), "coins"); }
-
-        @Override
-        String color() { return "§6"; }
     },
-    MOTES("Motes", ScoreboardEntry.MOTES) {
+    MOTES("Motes", ScoreboardEntry.MOTES, "§d") {
         @Override
         String raw() { return group(ScoreboardPattern.MOTES, sidebar(), "motes"); }
-
-        @Override
-        String color() { return "§d"; }
     },
-    BANK("Bank", ScoreboardEntry.BANK) {
+    BANK("Bank", ScoreboardEntry.BANK, "§6") {
         @Override
         String raw() {
             String[] bank = bank();
@@ -43,48 +37,33 @@ public enum ChunkedStat {
             if (bank == null || cfg.isHideEmptyLines() && isZero(bank[0]) && (bank[1] == null || isZero(bank[1]))) return null;
             return "§6" + bank[0] + (bank[1] != null ? "§7/§6" + bank[1] : "");
         }
-
-        @Override
-        String color() { return "§6"; }
     },
-    BITS("Bits", ScoreboardEntry.BITS) {
+    BITS("Bits", ScoreboardEntry.BITS, "§b") {
         @Override
         String raw() { return group(ScoreboardPattern.BITS, sidebar(), "amount"); }
-
-        @Override
-        String color() { return "§b"; }
     },
-    COPPER("Copper", ScoreboardEntry.COPPER) {
+    COPPER("Copper", ScoreboardEntry.COPPER, "§c") {
         @Override
         String raw() {
             String copper = group(ScoreboardPattern.COPPER, sidebar(), "copper");
             return copper != null ? copper : tabHeaderGroup(ScoreboardPattern.TAB_COPPER, "copper");
         }
-
-        @Override
-        String color() { return "§c"; }
     },
-    SOWDUST("Sowdust", ScoreboardEntry.SOWDUST) {
+    SOWDUST("Sowdust", ScoreboardEntry.SOWDUST, "§2") {
         @Override
         String raw() {
             String sowdust = group(ScoreboardPattern.SOWDUST, sidebar(), "sowdust");
             return sowdust != null ? sowdust : tabHeaderGroup(ScoreboardPattern.TAB_SOWDUST, "sowdust");
         }
-
-        @Override
-        String color() { return "§2"; }
     },
-    GEMS("Gems", ScoreboardEntry.GEMS) {
+    GEMS("Gems", ScoreboardEntry.GEMS, "§a") {
         @Override
         String raw() {
             String gems = tabHeaderGroup(ScoreboardPattern.TAB_GEMS, "gems");
             return gems != null ? gems : group(ScoreboardPattern.GEMS, sidebar(), "gems");
         }
-
-        @Override
-        String color() { return "§a"; }
     },
-    HEAT("Heat", ScoreboardEntry.HEAT) {
+    HEAT("Heat", ScoreboardEntry.HEAT, "§c") {
         @Override
         String raw() { return group(ScoreboardPattern.HEAT, sidebar(), "heat"); }
 
@@ -94,11 +73,8 @@ public enum ChunkedStat {
             if (display == null || cfg.isHideEmptyLines() && "0".equals(raw())) return null;
             return "§c♨ " + display;
         }
-
-        @Override
-        String color() { return "§c"; }
     },
-    COLD("Cold", ScoreboardEntry.COLD) {
+    COLD("Cold", ScoreboardEntry.COLD, "§b") {
         @Override
         String raw() {
             String cold = group(ScoreboardPattern.COLD, sidebar(), "cold");
@@ -116,30 +92,26 @@ public enum ChunkedStat {
             if (cold == null || cfg.isHideEmptyLines() && "0".equals(cold)) return null;
             return "§b" + cold + "❄";
         }
-
-        @Override
-        String color() { return "§b"; }
     },
-    NORTH_STARS("North Stars", ScoreboardEntry.NORTH_STARS) {
+    NORTH_STARS("North Stars", ScoreboardEntry.NORTH_STARS, "§d") {
         @Override
         String raw() { return group(ScoreboardPattern.NORTH_STARS, sidebar(), "northstars"); }
-
-        @Override
-        String color() { return "§d"; }
     };
 
     public final String label;
     final ScoreboardEntry entry;
+    private final String color;
 
-    ChunkedStat(String label, ScoreboardEntry entry) {
+    ChunkedStat(String label, ScoreboardEntry entry, String color) {
         this.label = label;
         this.entry = entry;
+        this.color = color;
     }
 
     /** The unformatted value as the sidebar / tab list shows it, or null when absent. */
     abstract String raw();
 
-    abstract String color();
+    String color() { return color; }
 
     /** Colored value for the chunked line, or null to leave this stat out. */
     String display(CustomScoreboardConfig cfg) {

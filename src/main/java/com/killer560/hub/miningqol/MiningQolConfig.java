@@ -197,12 +197,12 @@ public final class MiningQolConfig {
                 cfg.commissionMobs = ConfigJson.getBool(o, "commissionMobs", cfg.commissionMobs);
                 cfg.hideCommissionsPowder = ConfigJson.getBool(o, "hideCommissionsPowder", cfg.hideCommissionsPowder);
                 cfg.commissionMobsEsp = ConfigJson.getBool(o, "commissionMobsEsp", cfg.commissionMobsEsp);
-                cfg.commissionMobColor = intOr(o, "commissionMobColor", cfg.commissionMobColor);
+                cfg.commissionMobColor = ConfigJson.getInt(o, "commissionMobColor", cfg.commissionMobColor);
                 cfg.commissionMobStyle = ConfigJson.getEnum(o, "commissionMobStyle", CommissionMobStyle.class,
                         CommissionMobStyle.OUTLINE);
                 cfg.commissionMenuHighlight = ConfigJson.getBool(o, "commissionMenuHighlight", cfg.commissionMenuHighlight);
                 cfg.commissionRoute = ConfigJson.getBool(o, "commissionRoute", cfg.commissionRoute);
-                cfg.commissionRouteColor = intOr(o, "commissionRouteColor", cfg.commissionRouteColor);
+                cfg.commissionRouteColor = ConfigJson.getInt(o, "commissionRouteColor", cfg.commissionRouteColor);
                 cfg.commissionRouteEmissary = ConfigJson.getBool(o, "commissionRouteEmissary", cfg.commissionRouteEmissary);
                 cfg.commissionPigeon = ConfigJson.getBool(o, "commissionPigeon", cfg.commissionPigeon);
                 cfg.commissionRouteMode = ConfigJson.getEnum(o, "commissionRouteMode", CommissionRouteMode.class,
@@ -211,14 +211,14 @@ public final class MiningQolConfig {
                 cfg.pigeonDrillMode = ConfigJson.getEnum(o, "pigeonDrillMode", PigeonDrillMode.class, PigeonDrillMode.AUTO);
                 cfg.pigeonDrillName = ConfigJson.getString(o, "pigeonDrillName", cfg.pigeonDrillName);
                 cfg.pickobulus = ConfigJson.getBool(o, "pickobulus", cfg.pickobulus);
-                cfg.pickobulusColor = intOr(o, "pickobulusColor", cfg.pickobulusColor);
+                cfg.pickobulusColor = ConfigJson.getInt(o, "pickobulusColor", cfg.pickobulusColor);
                 cfg.abilityAlert = ConfigJson.getBool(o, "abilityAlert", cfg.abilityAlert);
                 cfg.abilityTimer = ConfigJson.getBool(o, "abilityTimer", cfg.abilityTimer);
                 cfg.abilitySound = ConfigJson.getBool(o, "abilitySound", cfg.abilitySound);
                 cfg.wrongArmor = ConfigJson.getBool(o, "wrongArmor", cfg.wrongArmor);
                 cfg.wrongArmorSound = ConfigJson.getBool(o, "wrongArmorSound", cfg.wrongArmorSound);
                 cfg.carpet = ConfigJson.getBool(o, "carpet", cfg.carpet);
-                cfg.carpetColor = intOr(o, "carpetColor", cfg.carpetColor);
+                cfg.carpetColor = ConfigJson.getInt(o, "carpetColor", cfg.carpetColor);
                 cfg.mithrilStone = ConfigJson.getBool(o, "mithrilStone", cfg.mithrilStone);
                 cfg.titanium = ConfigJson.getBool(o, "titanium", cfg.titanium);
                 try {
@@ -228,11 +228,11 @@ public final class MiningQolConfig {
                 } catch (RuntimeException ignored) {
                     // unknown name: keep the default
                 }
-                cfg.titaniumColor = intOr(o, "titaniumColor", cfg.titaniumColor);
+                cfg.titaniumColor = ConfigJson.getInt(o, "titaniumColor", cfg.titaniumColor);
                 cfg.titaniumEsp = ConfigJson.getBool(o, "titaniumEsp", cfg.titaniumEsp);
                 cfg.titaniumExposedOnly = ConfigJson.getBool(o, "titaniumExposedOnly", cfg.titaniumExposedOnly);
                 cfg.raffle = ConfigJson.getBool(o, "raffle", cfg.raffle);
-                cfg.raffleColor = intOr(o, "raffleColor", cfg.raffleColor);
+                cfg.raffleColor = ConfigJson.getInt(o, "raffleColor", cfg.raffleColor);
                 cfg.raffleEsp = ConfigJson.getBool(o, "raffleEsp", cfg.raffleEsp);
                 cfg.resumeHeldBreak = ConfigJson.getBool(o, "resumeHeldBreak", cfg.resumeHeldBreak);
                 cfg.powderGhast = ConfigJson.getBool(o, "powderGhast", cfg.powderGhast);
@@ -240,9 +240,9 @@ public final class MiningQolConfig {
                 cfg.powderGhastSound = ConfigJson.getBool(o, "powderGhastSound", cfg.powderGhastSound);
                 cfg.powderGhastParty = ConfigJson.getBool(o, "powderGhastParty", cfg.powderGhastParty);
                 cfg.powderGhastBox = ConfigJson.getBool(o, "powderGhastBox", cfg.powderGhastBox);
-                cfg.powderGhastBoxColor = intOr(o, "powderGhastBoxColor", cfg.powderGhastBoxColor);
+                cfg.powderGhastBoxColor = ConfigJson.getInt(o, "powderGhastBoxColor", cfg.powderGhastBoxColor);
                 cfg.powderGhastTracer = ConfigJson.getBool(o, "powderGhastTracer", cfg.powderGhastTracer);
-                cfg.powderGhastTracerColor = intOr(o, "powderGhastTracerColor", cfg.powderGhastTracerColor);
+                cfg.powderGhastTracerColor = ConfigJson.getInt(o, "powderGhastTracerColor", cfg.powderGhastTracerColor);
                 cfg.powderGhastTimer = ConfigJson.getBool(o, "powderGhastTimer", cfg.powderGhastTimer);
                 cfg.powderGhastEsp = ConfigJson.getBool(o, "powderGhastEsp", cfg.powderGhastEsp);
             } catch (Exception e) {
@@ -251,14 +251,6 @@ public final class MiningQolConfig {
         }
         instance = cfg;
         MithrilStone.settingsChanged();
-    }
-
-    private static int intOr(JsonObject o, String key, int def) {
-        try {
-            return o.has(key) ? o.get(key).getAsInt() : def;
-        } catch (RuntimeException e) {
-            return def;
-        }
     }
 
     public void save() {

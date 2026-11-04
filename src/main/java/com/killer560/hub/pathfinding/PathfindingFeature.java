@@ -158,11 +158,10 @@ public final class PathfindingFeature {
                     usage();
                     return 1;
                 })
-                .then(ClientCommands.literal("stop").executes(ctx -> {
+                .then(run("stop", () -> {
                     AutoSoulRunner.stop("command", false);
                     FairySoulsFeature.stopGuide(false);
                     NavigationManager.stop("command", true);
-                    return 1;
                 }))
                 .then(ClientCommands.literal("reload").executes(ctx -> {
                     String island = IslandDetector.graphIsland();
@@ -174,27 +173,17 @@ public final class PathfindingFeature {
                     ModChat.send(CHAT, ModChat.text("Re-downloading the "), ModChat.value(island), ModChat.text(" graph..."));
                     return 1;
                 }))
-                .then(ClientCommands.literal("info").executes(ctx -> {
-                    info();
-                    return 1;
-                }))
+                .then(run("info", () -> info()))
                 .then(ClientCommands.literal("souls")
                         .executes(ctx -> {
                             FairySoulsFeature.start(PathfindingConfig.getInstance().getSoulMode());
                             return 1;
                         })
-                        .then(ClientCommands.literal("nearest").executes(ctx -> {
-                            FairySoulsFeature.guideNearest();
-                            return 1;
-                        }))
-                        .then(ClientCommands.literal("route").executes(ctx -> {
-                            FairySoulsFeature.routeIsland();
-                            return 1;
-                        }))
-                        .then(ClientCommands.literal("stop").executes(ctx -> {
+                        .then(run("nearest", () -> FairySoulsFeature.guideNearest()))
+                        .then(run("route", () -> FairySoulsFeature.routeIsland()))
+                        .then(run("stop", () -> {
                             AutoSoulRunner.stop("command", false);
                             FairySoulsFeature.stopGuide(true);
-                            return 1;
                         }))
                         .then(ClientCommands.literal("auto").executes(ctx -> {
                             if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
@@ -204,22 +193,21 @@ public final class PathfindingFeature {
                             AutoSoulRunner.start();
                             return 1;
                         }))
-                        .then(ClientCommands.literal("reset").executes(ctx -> {
-                            FairySoulsFeature.resetProfile();
-                            return 1;
-                        }))
-                        .then(ClientCommands.literal("resetisland").executes(ctx -> {
-                            FairySoulsFeature.resetIsland();
-                            return 1;
-                        }))
-                        .then(ClientCommands.literal("foundall").executes(ctx -> {
-                            FairySoulsFeature.markIslandFound();
-                            return 1;
-                        })))
+                        .then(run("reset", () -> FairySoulsFeature.resetProfile()))
+                        .then(run("resetisland", () -> FairySoulsFeature.resetIsland()))
+                        .then(run("foundall", () -> FairySoulsFeature.markIslandFound())))
                 .then(ClientCommands.argument("destination", com.killer560.hub.util.ExceptWords.of(
                         StringArgumentType.greedyString(), "stop", "reload", "info", "souls"))
                         .suggests(destinations)
                         .executes(ctx -> navigateCommand(StringArgumentType.getString(ctx, "destination"))));
+    }
+
+    /** A subcommand that runs one action and succeeds. */
+    private static LiteralArgumentBuilder<FabricClientCommandSource> run(String name, Runnable action) {
+        return ClientCommands.literal(name).executes(ctx -> {
+            action.run();
+            return 1;
+        });
     }
 
     private static int navigateCommand(String input) {

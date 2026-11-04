@@ -63,10 +63,7 @@ public enum ScoreboardEntry {
             return List.of((cfg.isDateInLobbyCode() ? "§7" + cfg.getDateFormat().today() + " " : "") + "§8mega77CK");
         }
     },
-    EMPTY_LINE("Separator", true) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
+    EMPTY_LINE("Separator", true),
     DATE("Date", true, ScoreboardPattern.DATE) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
@@ -182,10 +179,7 @@ public enum ScoreboardEntry {
         @Override
         List<String> sample() { return List.of("§7♲ Ironman"); }
     },
-    EMPTY_LINE2("Separator", true) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
+    EMPTY_LINE2("Separator", true),
     PURSE("Purse", true, ScoreboardPattern.COINS) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
@@ -324,10 +318,7 @@ public enum ScoreboardEntry {
         @Override
         boolean showIsland() { return !inIsland("The Rift"); }
     },
-    EMPTY_LINE3("Separator", true) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
+    EMPTY_LINE3("Separator", true),
     EVENTS("Events", true) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
@@ -466,10 +457,7 @@ public enum ScoreboardEntry {
         @Override
         List<String> sample() { return List.of("Tunings: §c❁34§7, §e⚔20§7, §9☣7"); }
     },
-    EMPTY_LINE4("Separator", true) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
+    EMPTY_LINE4("Separator", true),
     OBJECTIVE("Objective", true, ScoreboardPattern.OBJECTIVE, ScoreboardPattern.THIRD_OBJECTIVE_LINE,
             ScoreboardPattern.WTF_ARE_THOSE_LINES) {
         @Override
@@ -730,50 +718,17 @@ public enum ScoreboardEntry {
         @Override
         List<String> sample() { return List.of(formatNumberDisplay("Pet", "§6[Lvl 100] Golden Dragon", "§f"), " §bMAX LEVEL"); }
     },
-    EMPTY_LINE5("Separator", false) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
-    EMPTY_LINE6("Separator", false) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
-    EMPTY_LINE7("Separator", false) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
-    EMPTY_LINE8("Separator", false) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
-    EMPTY_LINE9("Separator", false) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
-    EMPTY_LINE10("Separator", false) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
-    EMPTY_LINE11("Separator", false) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
-    EMPTY_LINE12("Separator", false) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
-    EMPTY_LINE13("Separator", false) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
-    EMPTY_LINE14("Separator", false) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    },
-    EMPTY_LINE15("Separator", false) {
-        @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
-    };
+    EMPTY_LINE5("Separator", false),
+    EMPTY_LINE6("Separator", false),
+    EMPTY_LINE7("Separator", false),
+    EMPTY_LINE8("Separator", false),
+    EMPTY_LINE9("Separator", false),
+    EMPTY_LINE10("Separator", false),
+    EMPTY_LINE11("Separator", false),
+    EMPTY_LINE12("Separator", false),
+    EMPTY_LINE13("Separator", false),
+    EMPTY_LINE14("Separator", false),
+    EMPTY_LINE15("Separator", false);
 
     public final String label;
     public final boolean enabledByDefault;
@@ -785,7 +740,8 @@ public enum ScoreboardEntry {
         this.patterns = List.of(patterns);
     }
 
-    abstract List<ScoreboardLine> lines(CustomScoreboardConfig cfg);
+    /** The separators (EMPTY_LINE...) are the one line of nothing. */
+    List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
 
     boolean showIsland() { return true; }
 
