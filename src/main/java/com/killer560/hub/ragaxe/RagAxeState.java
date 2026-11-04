@@ -1,6 +1,5 @@
 package com.killer560.hub.ragaxe;
 
-import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.SkyblockGate;
 import net.minecraft.ChatFormatting;
