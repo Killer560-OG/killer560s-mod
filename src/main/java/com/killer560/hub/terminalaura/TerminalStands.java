@@ -25,9 +25,7 @@ public final class TerminalStands {
     }
 
     public static boolean isInactiveTerminal(ArmorStand stand) {
-        if (stand == null || stand.isRemoved() || !stand.isAlive() || stand.getDisplayName() == null) {
-            return false;
-        }
+        if (stand == null || stand.isRemoved() || !stand.isAlive() || stand.getDisplayName() == null) return false;
         return stand.getDisplayName().getString().contains(INACTIVE_TERMINAL);
     }
 
@@ -38,9 +36,7 @@ public final class TerminalStands {
 
     /** "#id at x,y,z" for log lines (pure read). */
     public static String describe(ArmorStand stand) {
-        if (stand == null) {
-            return "none";
-        }
+        if (stand == null) return "none";
         return String.format(java.util.Locale.ROOT, "#%d at %.2f,%.2f,%.2f", stand.getId(), stand.getX(), stand.getY(),
                 stand.getZ());
     }
@@ -60,9 +56,7 @@ public final class TerminalStands {
         for (ArmorStand stand : near(level, player, range)) {
             AABB box = stand.getBoundingBox().inflate(INFLATE);
             Vec3 hit = box.clip(eyes, end).orElse(null);
-            if (hit == null) {
-                continue;
-            }
+            if (hit == null) continue;
             double distance = eyes.distanceToSqr(hit);
             if (best == null || distance < best.distanceSqr()) {
                 best = new Hit(stand, hit, distance);
