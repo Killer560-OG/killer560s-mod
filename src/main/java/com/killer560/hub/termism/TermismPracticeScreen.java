@@ -42,17 +42,13 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     public static final String THEME_ID = "termism";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
     private int[] themedBounds = new int[4];
 
     @Override
-    public int[] themedPanelBounds() {
-        return themedBounds.clone();
-    }
+    public int[] themedPanelBounds() { return themedBounds.clone(); }
 
     private static final int CELL_SIZE = 18;
     private static final int PANEL_PADDING = 8;
@@ -393,9 +389,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     }
 
     /** Cell index to a chest-style slot, nine to a row (Melody's board already is nine wide). */
-    private int chestSlot(int cell) {
-        return cell / columns * 9 + cell % columns;
-    }
+    private int chestSlot(int cell) { return cell / columns * 9 + cell % columns; }
 
     /** Chest-style slot back to this board's cell index, or -1 off the board. */
     private int cellIndex(int chestSlot) {
@@ -844,13 +838,9 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     // Per killer560's round-12 request: Custom GUI OFF -> practice looks close to plain vanilla (fixed
     // 1x scale, neutral panel); Custom GUI ON -> "fully replace it with my solver's scaling and hud and
     // whatnot" (the real Highlight Scale setting and the orange theme, same as round 11).
-    private static boolean customGuiOn() {
-        return TerminalSolverConfig.getInstance().isCustomGuiEnabled();
-    }
+    private static boolean customGuiOn() { return TerminalSolverConfig.getInstance().isCustomGuiEnabled(); }
 
-    private static float scale() {
-        return customGuiOn() ? TerminalSolverConfig.getInstance().getScale() : 1.0f;
-    }
+    private static float scale() { return customGuiOn() ? TerminalSolverConfig.getInstance().getScale() : 1.0f; }
 
     private void updateLayoutMetrics() {
         rows = Math.max(1, (int) Math.ceil(cells.size() / (double) columns));
@@ -1093,12 +1083,8 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 }
