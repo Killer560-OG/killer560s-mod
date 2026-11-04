@@ -328,19 +328,13 @@ public final class TickTimersFeature {
 
     public static final class TickTimersHudElement implements HudElement {
         @Override
-        public String id() {
-            return "tick_timers";
-        }
+        public String id() { return "tick_timers"; }
 
         @Override
-        public String displayName() {
-            return "Tick Timers";
-        }
+        public String displayName() { return "Tick Timers"; }
 
         @Override
-        public int defaultX() {
-            return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.TICK_TIMERS);
-        }
+        public int defaultX() { return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.TICK_TIMERS); }
 
         @Override
         public int defaultY() {
@@ -384,9 +378,7 @@ public final class TickTimersFeature {
         }
 
         @Override
-        public int height() {
-            return com.killer560.hub.hud.HudText.height(activeLines().size(), 12);
-        }
+        public int height() { return com.killer560.hub.hud.HudText.height(activeLines().size(), 12); }
 
         private List<String> activeLines() {
             TickTimersConfig cfg = TickTimersConfig.getInstance();
