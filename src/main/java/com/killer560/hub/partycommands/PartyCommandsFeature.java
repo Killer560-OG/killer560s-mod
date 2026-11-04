@@ -333,7 +333,6 @@ public final class PartyCommandsFeature {
                 System.currentTimeMillis() - receivedAtMs);
     }
 
-    // ------------------------------------------------------------------ teammate gate
 
     /** On his Hypixel friends list, as last mirrored from {@code /fl} ({@link com.killer560.hub.social.FriendsListConfig}). */
     static boolean isFriend(String name) {
@@ -418,7 +417,6 @@ public final class PartyCommandsFeature {
         return a != null ? a : b;
     }
 
-    // ------------------------------------------------------------------ rate limiting
 
     private static boolean allowRate(String sender) {
         long now = System.currentTimeMillis();
@@ -550,7 +548,6 @@ public final class PartyCommandsFeature {
         return !PartyLeaderTracker.knownNotLeader();
     }
 
-    // ------------------------------------------------------------------ plumbing
 
     /** Odin's {@code /od <floor>}: "f7" -> catacombs_floor_seven, "m7" -> master_catacombs_floor_seven,
      *  "t5" -> kuudra_infernal. Returns null for a tier that doesn't exist (there is no T6/T7). */
