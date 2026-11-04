@@ -1,6 +1,5 @@
 package com.killer560.hub.mainmenu;
 
-import com.killer560.hub.compat.McRender;
 import com.killer560.hub.util.ModLog;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.NativeImage;
