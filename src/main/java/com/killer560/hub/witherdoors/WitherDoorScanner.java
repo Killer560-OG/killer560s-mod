@@ -66,9 +66,7 @@ final class WitherDoorScanner {
             lastLevel = client.level;
             reset();
         }
-        if (client.level == null || --ticksUntilScan > 0) {
-            return;
-        }
+        if (client.level == null || --ticksUntilScan > 0) return;
         ticksUntilScan = RESCAN_TICKS;
         // Every height below is Hypixel's; the sim builds the whole floor shifted (DungeonLayout.simYOffset, zero on
         // Hypixel), and read at the bare heights its doors were never found (roof 73+ against a floor near y -60).
@@ -82,18 +80,12 @@ final class WitherDoorScanner {
                     continue; // room (both even) or 2x2 center (both odd)
                 }
                 int idx = gx + gz * GRID;
-                if (cells[idx] != null) {
-                    continue;
-                }
+                if (cells[idx] != null) continue;
                 int wx = START + gx * HALF_ROOM;
                 int wz = START + gz * HALF_ROOM;
-                if (!com.killer560.hub.util.ClientChunks.isLoadedAt(client.level, wx, wz)) {
-                    continue;
-                }
+                if (!com.killer560.hub.util.ClientChunks.isLoadedAt(client.level, wx, wz)) continue;
                 int height = topLayer(client, mutable, wx, wz, off);
-                if (height == Integer.MIN_VALUE) {
-                    continue;
-                }
+                if (height == Integer.MIN_VALUE) continue;
                 height -= off;
                 if (height == 73 || height == 74 || height == 81 || height == 82) {
                     Block block = client.level.getBlockState(mutable.set(wx, 69 + off, wz)).getBlock();
@@ -119,15 +111,11 @@ final class WitherDoorScanner {
         int top = Math.min(chunk.getHighestFilledSectionIndex(), sections.length - 1);
         for (int i = top; i >= 0; i--) {
             net.minecraft.world.level.chunk.LevelChunkSection section = sections[i];
-            if (section == null || section.hasOnlyAir()) {
-                continue;
-            }
+            if (section == null || section.hasOnlyAir()) continue;
             int base = client.level.getSectionYFromSectionIndex(i) << 4;
             // Hypixel's 1..255 band (y 0 never held a roof), moved with the sim's floor - DoorScanner's band.
             for (int y = Math.min(base + 15, 255 + off); y >= Math.max(base, 1 + off); y--) {
-                if (!section.getBlockState(x & 15, y & 15, z & 15).isAir()) {
-                    return y;
-                }
+                if (!section.getBlockState(x & 15, y & 15, z & 15).isAir()) return y;
             }
         }
         return Integer.MIN_VALUE;

@@ -94,9 +94,7 @@ public final class FairyDoor {
             ticksToPath = 0;
             setStatus("new run");
         }
-        if (entered || client.player == null || client.level == null) {
-            return;
-        }
+        if (entered || client.player == null || client.level == null) return;
         DungeonLayout layout = DungeonLayout.current();
         int room = layout.currentRoom();
         if (room >= 0) {
@@ -105,17 +103,11 @@ public final class FairyDoor {
         // The Fairy room is looked up on the path cadence (or while none is known), not every tick: the scan allocates.
         int fairy = fairyRoom >= 0 && fairyRoom < layout.roomCount() && ticksToPath > 1 ? fairyRoom : findFairy(layout);
         fairyRoom = fairy;
-        if (fairy >= 0 && checkEntered(client, layout, fairy)) {
-            return;
-        }
-        if (--ticksToPath > 0) {
-            return;
-        }
+        if (fairy >= 0 && checkEntered(client, layout, fairy)) return;
+        if (--ticksToPath > 0) return;
         ticksToPath = PATH_EVERY_TICKS;
         int next = decide(layout, fairy);
-        if (next == KEEP) {
-            return;
-        }
+        if (next == KEEP) return;
         if (next != door) {
             door = next;
             solidDoor = -1;
@@ -209,13 +201,9 @@ public final class FairyDoor {
 
     private static boolean checkEntered(Minecraft client, DungeonLayout layout, int fairy) {
         int[] tiles = layout.tiles(fairy);
-        if (inside(tiles, client.player.getX(), client.player.getZ())) {
-            return clear("you entered Fairy");
-        }
+        if (inside(tiles, client.player.getX(), client.player.getZ())) return clear("you entered Fairy");
         for (LiveMapReads.Mate mate : LiveMapReads.teammates(client)) {
-            if (inside(tiles, mate.x(), mate.z())) {
-                return clear(mate.name() + " entered Fairy");
-            }
+            if (inside(tiles, mate.x(), mate.z())) return clear(mate.name() + " entered Fairy");
         }
         if (LiveMapReads.mapItemCalibrated()) {
             int best = Integer.MAX_VALUE;
@@ -247,9 +235,7 @@ public final class FairyDoor {
         int bz = (int) Math.floor(z);
         for (int t : tiles) {
             BlockPos c = DungeonLayout.cellCenter(t);
-            if (Math.abs(bx - c.getX()) <= INSIDE && Math.abs(bz - c.getZ()) <= INSIDE) {
-                return true;
-            }
+            if (Math.abs(bx - c.getX()) <= INSIDE && Math.abs(bz - c.getZ()) <= INSIDE) return true;
         }
         return false;
     }
@@ -268,15 +254,11 @@ public final class FairyDoor {
         for (int r = 0; r < layout.roomCount(); r++) {
             var entry = layout.entry(r);
             if (entry != null && entry.type != null) {
-                if ("FAIRY".equalsIgnoreCase(entry.type)) {
-                    return r;
-                }
+                if ("FAIRY".equalsIgnoreCase(entry.type)) return r;
                 continue;
             }
             for (int t : layout.tiles(r)) {
-                if (LiveMapReads.mapItemRoomColor(t) == MAP_COLOR_FAIRY) {
-                    return r;
-                }
+                if (LiveMapReads.mapItemRoomColor(t) == MAP_COLOR_FAIRY) return r;
             }
         }
         return -1;

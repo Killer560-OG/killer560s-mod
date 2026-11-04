@@ -50,9 +50,7 @@ final class WitherDoorsRenderer {
      */
     static void draw(LevelRenderContext context, List<WitherDoorsFeature.DoorBox> boxes, boolean throughWalls,
                      WitherDoorsConfig.Style style, float fillAlpha) {
-        if (boxes.isEmpty()) {
-            return;
-        }
+        if (boxes.isEmpty()) return;
         if (style.fills()) {
             // Fresh arrays every frame: on 26.2 the callback runs later in the frame (renderFilledBoxes' contract).
             int n = boxes.size();
@@ -68,9 +66,7 @@ final class WitherDoorsRenderer {
             }
             WorldRenderUtils.renderFilledBoxes(context, fillBoxes, rgba, n, 1f, throughWalls);
         }
-        if (!style.outlines()) {
-            return;
-        }
+        if (!style.outlines()) return;
         if (!throughWalls) {
             for (WitherDoorsFeature.DoorBox box : boxes) {
                 WorldRenderUtils.renderOutlineBox(context, box.box(), box.r(), box.g(), box.b(), 1f, 2f);
@@ -94,9 +90,7 @@ final class WitherDoorsRenderer {
      */
     static void drawLabels(LevelRenderContext context, List<WitherDoorsFeature.DoorLabel> labels) {
         PoseStack poseStack = context.poseStack();
-        if (poseStack == null || labels.isEmpty()) {
-            return;
-        }
+        if (poseStack == null || labels.isEmpty()) return;
         net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
         Vec3 cam = McRender.cameraPos(context);
         WitherDoorsFeature.DoorLabel[] all = labels.toArray(new WitherDoorsFeature.DoorLabel[0]);

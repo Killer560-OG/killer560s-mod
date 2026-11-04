@@ -78,13 +78,9 @@ final class MapDoors {
         Vec3 eye = client.player.getEyePosition();
         int shown = 0;
         for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
-            if (!HeldMap.isDoorCell(idx)) {
-                continue;
-            }
+            if (!HeldMap.isDoorCell(idx)) continue;
             int type = HeldMap.doorType(idx);
-            if (type != DungeonLayout.DOOR_WITHER && type != DungeonLayout.DOOR_BLOOD) {
-                continue;
-            }
+            if (type != DungeonLayout.DOOR_WITHER && type != DungeonLayout.DOOR_BLOOD) continue;
             int[] s = HeldMap.sides(idx);
             boolean openA = HeldMap.roomOpened(s[0]);
             boolean openB = HeldMap.roomOpened(s[1]);
@@ -134,13 +130,9 @@ final class MapDoors {
     /** Whether he or a teammate the map places stands inside the tile beyond the door. */
     private static boolean someoneInside(Minecraft client, int tile) {
         BlockPos c = DungeonLayout.cellCenter(tile);
-        if (inside(c, client.player.getX(), client.player.getZ())) {
-            return true;
-        }
+        if (inside(c, client.player.getX(), client.player.getZ())) return true;
         for (LiveMapReads.Mate m : LiveMapReads.teammates(client)) {
-            if (inside(c, m.x(), m.z())) {
-                return true;
-            }
+            if (inside(c, m.x(), m.z())) return true;
         }
         return false;
     }
@@ -156,9 +148,7 @@ final class MapDoors {
      */
     private static void look(Minecraft client, Vec3 eye, int idx, BlockPos pos) {
         Vec3 mid = new Vec3(pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5);
-        if (eye.distanceToSqr(mid) > SIGHT_RANGE * SIGHT_RANGE) {
-            return;
-        }
+        if (eye.distanceToSqr(mid) > SIGHT_RANGE * SIGHT_RANGE) return;
         for (int dy = 0; dy <= 2; dy++) {
             Vec3 target = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5 + dy, pos.getZ() + 0.5);
             if (clearSight(client, eye, target)) {
@@ -172,9 +162,7 @@ final class MapDoors {
     static boolean clearSight(Minecraft client, Vec3 eye, Vec3 target) {
         HitResult hit = client.level.clip(new ClipContext(eye, target, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE,
                 client.player));
-        if (hit.getType() == HitResult.Type.MISS) {
-            return true;
-        }
+        if (hit.getType() == HitResult.Type.MISS) return true;
         if (hit instanceof BlockHitResult bhr) {
             BlockPos tb = BlockPos.containing(target);
             if (bhr.getBlockPos().equals(tb)) {

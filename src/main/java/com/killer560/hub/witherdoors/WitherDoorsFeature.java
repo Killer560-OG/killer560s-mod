@@ -145,9 +145,7 @@ public final class WitherDoorsFeature {
 
     private static void onChat(String raw) {
         String msg = com.killer560.hub.util.ChatObserver.stripCodes(raw);
-        if (msg == null) {
-            return;
-        }
+        if (msg == null) return;
         msg = msg.trim();
         if (msg.startsWith("[NPC] Mort: ") && MORT_START.matcher(msg).matches()) {
             mortSeen = true;
@@ -231,31 +229,21 @@ public final class WitherDoorsFeature {
             }
         }
         long now = System.currentTimeMillis();
-        if (cacheStampMs != 0L && now - cacheStampMs < CACHE_TTL_MS) {
-            return;
-        }
+        if (cacheStampMs != 0L && now - cacheStampMs < CACHE_TTL_MS) return;
         cacheStampMs = now;
         rebuild(client, cfg);
     }
 
     /** @return null while Wither Doors may render, else the reason (mirrors doorhelpers' own gate shape). */
     private static String gate(Minecraft client, WitherDoorsConfig cfg) {
-        if (!cfg.isEnabled()) {
-            return "disabled";
-        }
-        if (client.level == null || client.player == null) {
-            return "no-player";
-        }
+        if (!cfg.isEnabled()) return "disabled";
+        if (client.level == null || client.player == null) return "no-player";
         // Or the dungeon sim, a singleplayer world with no server address (the same allowance Secret Aura makes).
         if (!CheatUtils.isOnDungeonServer(client) && !com.killer560.hub.roomsim.SimState.isActive()) {
             return "not on hypixel/p3sim/sim";
         }
-        if (!DungeonState.isInDungeon()) {
-            return "not in dungeon";
-        }
-        if (DungeonState.isBossPhaseActive()) {
-            return "in boss";
-        }
+        if (!DungeonState.isInDungeon()) return "not in dungeon";
+        if (DungeonState.isBossPhaseActive()) return "in boss";
         return null;
     }
 
@@ -269,9 +257,7 @@ public final class WitherDoorsFeature {
         setStatus("show all doors");
         addFairyDoor(client, cfg);
         List<WitherDoorScanner.Door> locked = WitherDoorScanner.lockedDoors(client);
-        if (locked.isEmpty()) {
-            return;
-        }
+        if (locked.isEmpty()) return;
         Vec3 eye = client.player.getEyePosition();
         WitherDoorScanner.Door nearestWither = null;
         WitherDoorScanner.Door bloodDoor = null;
@@ -311,9 +297,7 @@ public final class WitherDoorsFeature {
                     : witherKeyHeld ? cfg.getWitherReadyColor() : cfg.getWitherLockedColor();
             addBox(nearestWither, color);
         }
-        if (!showAll) {
-            return;
-        }
+        if (!showAll) return;
         for (WitherDoorScanner.Door door : locked) {
             if (door.type() == WitherDoorScanner.DoorType.WITHER && door != nearestWither
                     && eye.distanceToSqr(center(door)) <= maxSq) {
@@ -367,9 +351,7 @@ public final class WitherDoorsFeature {
         keyDoorIdx = nearest == null ? -1 : nearest.idx();
         for (MapDoors.Door d : doors) {
             Vec3 c = new Vec3(d.pos().getX() + 0.5, d.pos().getY() + (DOOR_Y_MAX - DOOR_Y_MIN) / 2.0, d.pos().getZ() + 0.5);
-            if (eye.distanceToSqr(c) > maxSq) {
-                continue;
-            }
+            if (eye.distanceToSqr(c) > maxSq) continue;
             int color;
             String label;
             switch (d.kind()) {
@@ -378,9 +360,7 @@ public final class WitherDoorsFeature {
                     label = "Blood Door";
                 }
                 case FAIRY -> {
-                    if (!cfg.isFairyDoor()) {
-                        continue;
-                    }
+                    if (!cfg.isFairyDoor()) continue;
                     color = cfg.getFairyDoorColor();
                     label = "Fairy Door";
                 }
@@ -431,9 +411,7 @@ public final class WitherDoorsFeature {
     public static List<int[]> mapDoorsNow() {
         List<int[]> out = new ArrayList<>();
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.level == null) {
-            return out;
-        }
+        if (client.player == null || client.level == null) return out;
         for (MapDoors.Door d : MapDoors.doors(client)) {
             out.add(new int[]{d.idx(), d.kind().ordinal()});
         }
@@ -465,15 +443,11 @@ public final class WitherDoorsFeature {
      *  Its height comes from {@link com.killer560.hub.livemap.DungeonLayout#doorBlock}, which follows the sim's shift. */
     private static void addFairyDoor(Minecraft client, WitherDoorsConfig cfg) {
         int cell = cfg.isFairyDoor() ? FairyDoor.door() : -1;
-        if (cell < 0) {
-            return;
-        }
+        if (cell < 0) return;
         net.minecraft.core.BlockPos pos = com.killer560.hub.livemap.DungeonLayout.doorBlock(cell);
         double maxSq = (double) cfg.getRenderDistance() * cfg.getRenderDistance();
         Vec3 c = new Vec3(pos.getX() + 0.5, pos.getY() + (DOOR_Y_MAX - DOOR_Y_MIN) / 2.0, pos.getZ() + 0.5);
-        if (client.player.getEyePosition().distanceToSqr(c) > maxSq) {
-            return;
-        }
+        if (client.player.getEyePosition().distanceToSqr(c) > maxSq) return;
         // A door cell with an odd column joins rooms side by side in x, so its wall runs along z.
         boolean wallAlongZ = (cell % com.killer560.hub.livemap.DungeonLayout.GRID) % 2 == 1;
         addBox(pos.getX(), pos.getZ(), pos.getY(), wallAlongZ, cfg.getFairyDoorColor());
@@ -506,9 +480,7 @@ public final class WitherDoorsFeature {
     private static void onWorldRender(LevelRenderContext context) {
         // The tick decides what is in here; an empty snapshot means "off, not in a dungeon clear, or
         // nothing near" - no per-frame config or gate re-check needed on top of that.
-        if (CACHED.isEmpty() && LABELS.isEmpty()) {
-            return;
-        }
+        if (CACHED.isEmpty() && LABELS.isEmpty()) return;
         WitherDoorsConfig cfg = WitherDoorsConfig.getInstance();
         WitherDoorsRenderer.draw(context, CACHED, cfg.isThroughWalls(), cfg.getStyle(), cfg.getFillOpacity() / 100f);
         WitherDoorsRenderer.drawLabels(context, LABELS);
