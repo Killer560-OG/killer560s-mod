@@ -153,6 +153,17 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   all; FairyDoor now paths to the Fairy room itself then, keeps a door already found, and a shut one is drawn by the
   wither highlight in the Fairy color (testkit 678 checks the color).
 
+## Blood Rush Helper
+
+- Boxes "not loading in" (killer560, 2026-11-03): a room showed boxes only from spawn spots learned on earlier runs or
+  from mobs already in view, and learning ran only during the rush (before the blood door) and only while the helper was
+  on, so after a night of runs his file held 14 spots in 5 rooms. There is no public starred-mob spawn table (adm's is All
+  Rights Reserved; the room captures' `mobSpawns` are 74 snapshot positions in 25 rooms, mostly bats). Fix (bloodrush2-1104):
+  the jar ships `assets/killer560smod/bloodrush/spawn-spots.json` (rebuild with `python -I tools/bloodrush/build-spots.py`,
+  which merges every Prism instance's learned file into it), spots are learned all run until the boss, and a spot is learned
+  only after the mob stood on it half a second. Visibility: 2 px outlines and 12% faces were hard to see; Outline Width
+  (default 4) and Filled Boxes (default on, 25%) were added, proven in pixels by testkit 1104-bloodrush-known.
+
 ## Blood Camp
 
 - Blood Camp's prediction is NoammAddons' (killer560 asked for it, 2026-10-07), including a Kotlin quirk: Noamm sums

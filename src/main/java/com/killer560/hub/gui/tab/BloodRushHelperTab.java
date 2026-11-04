@@ -91,6 +91,14 @@ public class BloodRushHelperTab extends BaseTab {
                 v -> cfg.setFillOpacity((int) Math.round(fMin + v * (fMax - fMin))), cfg::save));
         y += 22;
 
+        w.add(onOffButton("Filled Boxes", cfg::isFilled, cfg::setFilled, cfg::save, null, contentX, y, colW, 18));
+        int oMin = BloodRushConfig.MIN_OUTLINE;
+        int oMax = BloodRushConfig.MAX_OUTLINE;
+        w.add(normSlider(colB, y, colW, 18, () -> "Outline Width: " + cfg.getOutlineWidth(),
+                (cfg.getOutlineWidth() - oMin) / (double) (oMax - oMin),
+                v -> cfg.setOutlineWidth((int) Math.round(oMin + v * (oMax - oMin))), cfg::save));
+        y += 22;
+
         w.add(SettingsButtonWidget.builder(Component.literal("Forget Learned Spots (" + BloodRushSpots.counts().size()
                 + " rooms)"), btn -> {
             BloodRushSpots.forgetAll();

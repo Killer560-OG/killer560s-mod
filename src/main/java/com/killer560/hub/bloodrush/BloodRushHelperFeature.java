@@ -59,7 +59,8 @@ import java.util.regex.Pattern;
  * show as help. Agreement with adm's plans is measured, not exact: an adm player and one of ours can still share a box,
  * so with adm's role lines in party chat the HUD says so.
  *
- * <p><b>Boxes</b> come from the room's learned spawn spots ({@link BloodRushSpots}, his own earlier sightings, grouped
+ * <p><b>Boxes</b> come from the room's known spawn spots ({@link BloodRushSpots}: earlier sightings, his own and the
+ * jar's shipped table, grouped
  * within {@link #LINK} blocks) and, for mobs no learned box claims, from the mobs themselves where first seen.
  *
  * <p><b>Legit and cheat.</b> Legit: depth-tested, the rush and its doors read off the hotbar map. Cheat build only: Through
@@ -79,6 +80,16 @@ public final class BloodRushHelperFeature {
     static final double DIES_WITH_TAG = 48.0;
     /** A spawn is learned only when no player stands this close to the mob (an untouched mob has not moved). */
     static final double LEARN_ALONE = 10.0;
+    /**
+     * ...and only once it has stood on that spot this many client ticks (a mob first seen falling in, or already walking
+     * after someone, is not learned where it was first seen). Since bloodrush2-1104 a spot is learned all run long, not
+     * only on the rush, so the clear's rooms fill the table too.
+     */
+    static final int LEARN_STILL_TICKS = 10;
+    /** How far (blocks, each axis) a learning mob may drift and still be standing. */
+    static final double LEARN_STILL_DRIFT = 0.4;
+    /** A learning mob that moved restarts from where it stands at most this many times. */
+    static final int LEARN_RESTARTS = 3;
 
     private static final Pattern MORT_START = Pattern.compile("^\\[NPC\\] Mort: Here, I found this map when I first entered the dungeon\\.$");
     private static final Pattern BLOOD_DOOR_OPENED = Pattern.compile("^The BLOOD DOOR has been opened!?$");
@@ -128,6 +139,22 @@ public final class BloodRushHelperFeature {
     }
 
     private static final Map<Integer, Mob> MOBS = new HashMap<>();
+    /** Mobs first seen alone, waiting to be seen standing still before their spot is learned: id -> pending. */
+    private static final Map<Integer, Pending> LEARNING = new HashMap<>();
+
+    /** A spot being learned: where the mob stands, since when, in which room, and how often it moved off. */
+    private static final class Pending {
+        Vec3 at;
+        int since;
+        final int room;
+        int restarts;
+
+        Pending(Vec3 at, int since, int room) {
+            this.at = at;
+            this.since = since;
+            this.room = room;
+        }
+    }
     /** The doorway (world x, z) he last walked into each room through. */
     private static final Map<Integer, double[]> WALKED_IN = new HashMap<>();
     /** Rooms the rush has been through, in order, and those it had when it reached fairy (null before). */
@@ -147,6 +174,8 @@ public final class BloodRushHelperFeature {
     private static int ticks;
     private static int clock;
     private static String status = "idle";
+    /** Test hook: learn spawn spots in the Dungeon Sim too (never on in play). */
+    public static volatile boolean learnInSimForTest;
 
     private BloodRushHelperFeature() {
     }
@@ -318,6 +347,7 @@ public final class BloodRushHelperFeature {
 
     private static void resetWorld() {
         MOBS.clear();
+        LEARNING.clear();
         WALKED_IN.clear();
         RUSHED.clear();
         beforeFairy = null;
@@ -349,21 +379,36 @@ public final class BloodRushHelperFeature {
             wasInDungeon = true;
         }
         if (!cfg.isEnabled() || client.level == null || client.player == null || !DungeonState.isInDungeon()
-                || DungeonState.isBossPhaseActive() || bloodOpened) {
+                || DungeonState.isBossPhaseActive()) {
             if (!CACHED.isEmpty()) {
                 CACHED = List.of();
             }
-            status = !cfg.isEnabled() ? "off" : bloodOpened ? "blood door open" : "not in a clear";
+            status = !cfg.isEnabled() ? "off" : "not in a clear";
             return;
         }
         DungeonLayout layout = DungeonLayout.current();
+        if (bloodOpened) {
+            // The rush is over and nothing shows, but the clear still teaches spawn spots for later runs.
+            if (!CACHED.isEmpty()) {
+                CACHED = List.of();
+            }
+            status = "blood door open";
+            if (++ticks % 2 == 0 && cfg.isLearnSpots()
+                    && (!com.killer560.hub.roomsim.SimState.isActive() || learnInSimForTest)) {
+                trackMobs(client, layout, true);
+                if (ticks % 200 == 0) {
+                    BloodRushSpots.saveIfDirty(false);
+                }
+            }
+            return;
+        }
         trackSteps(client, layout);
         watchTags();
         if (++ticks % 2 != 0) {
             return;
         }
         boolean sim = com.killer560.hub.roomsim.SimState.isActive();
-        trackMobs(client, layout, cfg.isLearnSpots() && !sim);
+        trackMobs(client, layout, cfg.isLearnSpots() && (!sim || learnInSimForTest));
         CACHED = build(client, layout, cfg);
         if (ticks % 200 == 0) {
             BloodRushSpots.saveIfDirty(false);
@@ -438,13 +483,14 @@ public final class BloodRushHelperFeature {
             Vec3 at = e.position();
             int room = layout.roomAtWorld(at.x, at.z);
             MOBS.put(e.getId(), new Mob(e.getId(), at, e.getBoundingBox(), room, e, tagOf(client, e)));
-            if (learn && room >= 0 && alone(client, at)) {
-                int[] cr = layout.clayRotation(room);
-                String name = layout.name(room);
-                if (cr != null && name != null && !"Unknown".equals(name)) {
-                    BloodRushSpots.learn(name, new RouteCoords.Frame(name, cr[0], cr[1], cr[2]), BlockPos.containing(at));
-                }
+            if (learn && room >= 0 && isMobRoom(layout, room) && alone(client, at)) {
+                LEARNING.put(e.getId(), new Pending(at, clock, room));
             }
+        }
+        if (learn) {
+            confirmLearning(client, layout);
+        } else {
+            LEARNING.clear();
         }
         Vec3 me = client.player.position();
         for (Mob m : MOBS.values()) {
@@ -460,6 +506,41 @@ public final class BloodRushHelperFeature {
                 }
                 m.entity = null;
                 m.tag = null;
+            }
+        }
+    }
+
+    /** Learns each waiting mob's spot once it has stood still long enough; a mob that moved or went is dropped. */
+    private static void confirmLearning(Minecraft client, DungeonLayout layout) {
+        java.util.Iterator<Map.Entry<Integer, Pending>> it = LEARNING.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<Integer, Pending> en = it.next();
+            Pending p = en.getValue();
+            Mob m = MOBS.get(en.getKey());
+            Entity e = m == null ? null : m.entity;
+            if (e == null || m.dead || e.isRemoved() || !e.isAlive()) {
+                it.remove();
+                continue;
+            }
+            Vec3 now = e.position();
+            if (Math.abs(now.x - p.at.x) > LEARN_STILL_DRIFT || Math.abs(now.y - p.at.y) > LEARN_STILL_DRIFT
+                    || Math.abs(now.z - p.at.z) > LEARN_STILL_DRIFT) {
+                if (++p.restarts > LEARN_RESTARTS || layout.roomAtWorld(now.x, now.z) != p.room || !alone(client, now)) {
+                    it.remove();
+                } else {
+                    p.at = now;
+                    p.since = clock;
+                }
+                continue;
+            }
+            if (clock - p.since < LEARN_STILL_TICKS) {
+                continue;
+            }
+            it.remove();
+            int[] cr = layout.clayRotation(p.room);
+            String name = layout.name(p.room);
+            if (cr != null && name != null && !"Unknown".equals(name)) {
+                BloodRushSpots.learn(name, new RouteCoords.Frame(name, cr[0], cr[1], cr[2]), BlockPos.containing(p.at));
             }
         }
     }
@@ -856,7 +937,7 @@ public final class BloodRushHelperFeature {
         AABB[] boxes = new AABB[n];
         float[] line = new float[n * 4];
         float[] fill = new float[n * 4];
-        float base = cfg.getFillOpacity() / 100f;
+        float base = cfg.isFilled() ? cfg.getFillOpacity() / 100f : 0f;
         for (int i = 0; i < n; i++) {
             Spot s = spots.get(i);
             boxes[i] = s.box();
@@ -864,10 +945,12 @@ public final class BloodRushHelperFeature {
             System.arraycopy(c, 0, line, i * 4, 3);
             line[i * 4 + 3] = 1f;
             System.arraycopy(c, 0, fill, i * 4, 3);
-            fill[i * 4 + 3] = s.next() ? Math.min(1f, Math.max(base * 3f, base + 0.15f)) : base;
+            fill[i * 4 + 3] = base <= 0f ? 0f : s.next() ? Math.min(1f, Math.max(base * 2f, base + 0.15f)) : base;
         }
-        WorldRenderUtils.renderFilledBoxes(context, boxes, fill, n, 1f, walls);
-        WorldRenderUtils.renderOutlineBoxes(context, boxes.clone(), line, n, 2f, walls);
+        if (base > 0f) {
+            WorldRenderUtils.renderFilledBoxes(context, boxes, fill, n, 1f, walls);
+        }
+        WorldRenderUtils.renderOutlineBoxes(context, boxes.clone(), line, n, cfg.getOutlineWidth(), walls);
         drawLabels(context, spots, walls);
     }
 
@@ -924,6 +1007,11 @@ public final class BloodRushHelperFeature {
             out.add(String.format(Locale.ROOT, "%s|%.2f,%.2f", layout.name(e.getKey()), e.getValue()[0], e.getValue()[1]));
         }
         return out;
+    }
+
+    /** Mobs waiting to be seen standing before their spot is learned. */
+    public static int learningForTest() {
+        return LEARNING.size();
     }
 
     /** "status; blood door open: x; Mort: y; mobs tracked: n". */
