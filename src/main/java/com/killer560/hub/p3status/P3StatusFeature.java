@@ -68,9 +68,6 @@ public final class P3StatusFeature {
                     new Vec3(39, 108, 142)},
             {new Vec3(-2, 109, 112), new Vec3(-2, 119, 93), new Vec3(18, 123, 93), new Vec3(-2, 109, 77)},
             {new Vec3(41, 109, 30), new Vec3(44, 121, 30), new Vec3(67, 109, 30), new Vec3(72, 114, 47)}};
-    /** Device and lever blocks per section (Skyblocker {@code goldorwaypoints.json}). */
-    private static final Vec3[] DEVICES = {
-            new Vec3(110.5, 121.5, 91.5), new Vec3(60.5, 132.5, 143.5), new Vec3(0.5, 120.5, 77.5), new Vec3(63.5, 127.5, 35.5)};
     private static final Vec3[][] LEVERS = {
             {new Vec3(106.5, 124.5, 113.5), new Vec3(94.5, 124.5, 113.5)},
             {new Vec3(27.5, 124.5, 127.5), new Vec3(23.5, 132.5, 138.5)},
