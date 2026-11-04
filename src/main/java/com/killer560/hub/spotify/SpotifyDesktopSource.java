@@ -105,18 +105,12 @@ public final class SpotifyDesktopSource {
                 return NowPlaying.paused();
             }
             String lower = title.toLowerCase(Locale.ROOT);
-            if (AD_TITLES.contains(lower)) {
-                return NowPlaying.ad();
-            }
-            if (IDLE_TITLES.contains(lower)) {
-                return NowPlaying.paused();
-            }
+            if (AD_TITLES.contains(lower)) return NowPlaying.ad();
+            if (IDLE_TITLES.contains(lower)) return NowPlaying.paused();
             // Spotify writes "Artist - Title". Split on the FIRST separator: a title is far more likely to
             // contain " - " than an artist name is, so splitting on the last one would cut songs in half.
             int dash = title.indexOf(" - ");
-            if (dash <= 0 || dash + 3 >= title.length()) {
-                return NowPlaying.track("", title.trim());
-            }
+            if (dash <= 0 || dash + 3 >= title.length()) return NowPlaying.track("", title.trim());
             return NowPlaying.track(title.substring(0, dash).trim(), title.substring(dash + 3).trim());
         } catch (Throwable t) {
             // Throwable, not Exception: a missing or mismatched JNA is a LinkageError, and the feature going
@@ -146,9 +140,7 @@ public final class SpotifyDesktopSource {
     private static Set<Long> spotifyPids() {
         long now = System.currentTimeMillis();
         Set<Long> cached = cachedPids;
-        if (now - cachedPidsAtMs < PID_CACHE_MS) {
-            return cached;
-        }
+        if (now - cachedPidsAtMs < PID_CACHE_MS) return cached;
         Set<Long> pids = new HashSet<>();
         try {
             ProcessHandle.allProcesses().forEach(ph -> {
@@ -182,9 +174,7 @@ public final class SpotifyDesktopSource {
         }
 
         static synchronized boolean supported() {
-            if (ok != null) {
-                return ok;
-            }
+            if (ok != null) return ok;
             String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (!os.contains("win")) {
                 why = "reading the Spotify app only works on Windows";
@@ -240,17 +230,13 @@ public final class SpotifyDesktopSource {
             com.sun.jna.platform.win32.WinDef.HWND hit = cached;
             if (hit != null) {
                 String quick = titleOf(user32, hit, pids);
-                if (quick != null && !IDLE_TITLES.contains(quick.toLowerCase(Locale.ROOT))) {
-                    return quick;
-                }
+                if (quick != null && !IDLE_TITLES.contains(quick.toLowerCase(Locale.ROOT))) return quick;
             }
             java.util.List<String> titles = new java.util.ArrayList<>(2);
             java.util.List<com.sun.jna.platform.win32.WinDef.HWND> handles = new java.util.ArrayList<>(2);
             user32.EnumWindows((hwnd, data) -> {
                 try {
-                    if (!user32.IsWindowVisible(hwnd)) {
-                        return true;
-                    }
+                    if (!user32.IsWindowVisible(hwnd)) return true;
                     String title = titleOf(user32, hwnd, pids);
                     if (title != null) {
                         titles.add(title);
@@ -306,9 +292,7 @@ public final class SpotifyDesktopSource {
         static String cachedTitle() {
             try {
                 com.sun.jna.platform.win32.WinDef.HWND hit = cached;
-                if (hit == null) {
-                    return null;
-                }
+                if (hit == null) return null;
                 com.sun.jna.platform.win32.User32 user32 = com.sun.jna.platform.win32.User32.INSTANCE;
                 if (!user32.IsWindow(hit)) {
                     cached = null;
@@ -316,9 +300,7 @@ public final class SpotifyDesktopSource {
                 }
                 char[] buffer = new char[512];
                 int length = user32.GetWindowText(hit, buffer, buffer.length);
-                if (length <= 0) {
-                    return null;
-                }
+                if (length <= 0) return null;
                 String title = new String(buffer, 0, length);
                 return IDLE_TITLES.contains(title.toLowerCase(Locale.ROOT)) ? null : title;
             } catch (Throwable t) {
@@ -329,14 +311,10 @@ public final class SpotifyDesktopSource {
         /** This window's title, or null when it is not Spotify's or has none. */
         private static String titleOf(com.sun.jna.platform.win32.User32 user32,
                                      com.sun.jna.platform.win32.WinDef.HWND hwnd, Set<Long> pids) {
-            if (!user32.IsWindow(hwnd)) {
-                return null;
-            }
+            if (!user32.IsWindow(hwnd)) return null;
             com.sun.jna.ptr.IntByReference pid = new com.sun.jna.ptr.IntByReference();
             user32.GetWindowThreadProcessId(hwnd, pid);
-            if (!pids.contains((long) (pid.getValue() & 0xFFFFFFFFL))) {
-                return null;
-            }
+            if (!pids.contains((long) (pid.getValue() & 0xFFFFFFFFL))) return null;
             // GetWindowText, not GetWindowTextW: JNA's User32 is declared with the default W32 options, so it
             // already binds the wide variant behind that name and there is no ...W method to call.
             char[] buffer = new char[512];

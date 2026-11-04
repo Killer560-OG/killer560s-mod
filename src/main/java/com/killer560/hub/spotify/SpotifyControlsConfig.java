@@ -68,9 +68,7 @@ public final class SpotifyControlsConfig {
 
     private static int pick(int[] allowed, int value, int fallback) {
         for (int a : allowed) {
-            if (a == value) {
-                return value;
-            }
+            if (a == value) return value;
         }
         return fallback;
     }
@@ -98,9 +96,7 @@ public final class SpotifyControlsConfig {
     /** Whether any control has a key, so the Windows reader is kept running for an instant first press. */
     public boolean anyKeyBound() {
         for (int k : keys) {
-            if (k != KeyUtil.NONE) {
-                return true;
-            }
+            if (k != KeyUtil.NONE) return true;
         }
         return false;
     }

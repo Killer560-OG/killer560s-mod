@@ -177,9 +177,7 @@ public final class SpotifyControls {
     /** The volume to show: one just set here for a moment (the reader takes a beat to see it), else Spotify's own,
      *  else the last one set; -1 when none is known. */
     public static int volume() {
-        if (System.currentTimeMillis() - shownVolumeAtMs < 1500) {
-            return shownVolume;
-        }
+        if (System.currentTimeMillis() - shownVolumeAtMs < 1500) return shownVolume;
         int live = testSink != null ? -2 : SpotifyLyricsFeature.media().volume();
         return live >= 0 ? live : SpotifyControlsConfig.getInstance().getVolume();
     }
@@ -209,12 +207,8 @@ public final class SpotifyControls {
      */
     public static String unavailableReason(Action action) {
         String t = testReason;
-        if (t != null) {
-            return t.isEmpty() ? null : t;
-        }
-        if (!SpotifyMediaSession.isWindows()) {
-            return "Spotify controls need Windows and the Spotify desktop app.";
-        }
+        if (t != null) return t.isEmpty() ? null : t;
+        if (!SpotifyMediaSession.isWindows()) return "Spotify controls need Windows and the Spotify desktop app.";
         SpotifyMediaSession m = SpotifyLyricsFeature.media();
         String state = m.state();
         if ("no Spotify session".equals(state)) {
@@ -225,9 +219,7 @@ public final class SpotifyControls {
         if ((action == Action.VOLUME_UP || action == Action.VOLUME_DOWN) && !m.fromSpotify()) {
             return "Volume works for the Spotify app only; this is another player.";
         }
-        if ("read failed".equals(state)) {
-            return "Windows' media controls did not answer for Spotify.";
-        }
+        if ("read failed".equals(state)) return "Windows' media controls did not answer for Spotify.";
         switch (action) {
             case PLAY_PAUSE:
                 return m.allows(0) ? null : "Spotify does not allow play/pause right now.";

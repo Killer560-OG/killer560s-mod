@@ -61,9 +61,7 @@ final class PlaybackClock {
      */
     boolean follow(long realMs, long nowMs) {
         long diff = realMs - elapsedMs(nowMs);
-        if (Math.abs(diff) <= JUMP_MS) {
-            return false;
-        }
+        if (Math.abs(diff) <= JUMP_MS) return false;
         playedMs = Math.max(0, realMs);
         if (playingSinceMs >= 0) {
             playingSinceMs = nowMs;

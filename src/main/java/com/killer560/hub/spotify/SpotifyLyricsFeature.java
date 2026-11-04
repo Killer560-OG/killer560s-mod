@@ -153,9 +153,7 @@ public final class SpotifyLyricsFeature {
         // Party lines are server (GAME) lines, never signed player chat, so only GAME is read, and never the action
         // bar. Caught: a throw in a raw listener disconnects him from Hypixel.
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (overlay) {
-                return;
-            }
+            if (overlay) return;
             try {
                 updatePartyStatus(com.killer560.hub.util.ChatObserver.strip(message));
             } catch (RuntimeException e) {
@@ -165,9 +163,7 @@ public final class SpotifyLyricsFeature {
     }
 
     private static void updatePartyStatus(String text) {
-        if (text == null) {
-            return;
-        }
+        if (text == null) return;
         String line = text.trim();
         if (PARTY_JOINED.matcher(line).matches()) {
             inParty = true;
@@ -215,9 +211,7 @@ public final class SpotifyLyricsFeature {
         }
         ENGINE.setFetchLyrics(lyricsWanted);
         ENGINE.poll(DESKTOP, lyricsWanted || otherPlayers ? MEDIA : null, fullLyrics);
-        if (!enabled) {
-            return;
-        }
+        if (!enabled) return;
 
         // The sim counts as a place lyrics may play.
         //
@@ -239,18 +233,12 @@ public final class SpotifyLyricsFeature {
             return;
         }
         String lyric = ENGINE.getCurrentLyric();
-        if (lyric.isEmpty() || lyric.equals(lastSentLyric)) {
-            return;
-        }
+        if (lyric.isEmpty() || lyric.equals(lastSentLyric)) return;
         lastSentLyric = lyric;
 
         boolean isTrackChange = ENGINE.isCurrentLyricTransition();
-        if (!isTrackChange && !fullLyrics) {
-            return;
-        }
-        if (!inSim && chatDestination == ChatDestination.PARTY && !inParty) {
-            return;
-        }
+        if (!isTrackChange && !fullLyrics) return;
+        if (!inSim && chatDestination == ChatDestination.PARTY && !inParty) return;
 
         sendToChat(applyProfanityFilter(lyric), inSim);
     }
@@ -337,14 +325,10 @@ public final class SpotifyLyricsFeature {
 
     /** {@code text} starred at {@code level}, cached. */
     public static String censor(String text, ProfanityLevel level) {
-        if (text == null || text.isEmpty() || level == null || level == ProfanityLevel.NONE) {
-            return text == null ? "" : text;
-        }
+        if (text == null || text.isEmpty() || level == null || level == ProfanityLevel.NONE) return text == null ? "" : text;
         java.util.Map<String, String> cache = CENSORED[level.ordinal()];
         String hit = cache.get(text);
-        if (hit != null) {
-            return hit;
-        }
+        if (hit != null) return hit;
         String out = filterProfanity(text, level);
         if (cache.size() > 4096) {
             cache.clear();
@@ -390,13 +374,9 @@ public final class SpotifyLyricsFeature {
 
     private static void sendToChat(String raw, boolean localOnly) {
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) {
-            return;
-        }
+        if (client == null || client.player == null) return;
         String message = chatSafe(raw, localOnly ? "" : chatDestination.prefix);
-        if (message.isEmpty()) {
-            return;
-        }
+        if (message.isEmpty()) return;
         if (localOnly) {
             // In the sim there is nobody to send to - /pc in a single-player world is just an unknown command
             // - so the line is printed where he can read it instead.
@@ -480,9 +460,7 @@ public final class SpotifyLyricsFeature {
     /** Stars out every word {@code level} bans after its first letter. Song Tag runs other players' text through it at
      *  {@link ProfanityLevel#ALL}. */
     public static String filterProfanity(String input, ProfanityLevel level) {
-        if (input == null || input.isEmpty() || level == ProfanityLevel.NONE) {
-            return input == null ? "" : input;
-        }
+        if (input == null || input.isEmpty() || level == ProfanityLevel.NONE) return input == null ? "" : input;
 
         Set<String> banned = (level == ProfanityLevel.MINIMAL) ? MINIMAL_BANNED_WORDS : ALL_BANNED_WORDS;
 

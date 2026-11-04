@@ -70,12 +70,8 @@ public final class SpotifyMediaSession {
 
         /** Whether this reading is about the track the window title names (title, and artist when both have one). */
         public boolean matches(String artist, String title) {
-            if (title == null || title.isBlank() || !this.title.trim().equalsIgnoreCase(title.trim())) {
-                return false;
-            }
-            if (artist == null || artist.isBlank() || this.artist.isBlank()) {
-                return true;
-            }
+            if (title == null || title.isBlank() || !this.title.trim().equalsIgnoreCase(title.trim())) return false;
+            if (artist == null || artist.isBlank() || this.artist.isBlank()) return true;
             String a = this.artist.toLowerCase(Locale.ROOT);
             String b = artist.toLowerCase(Locale.ROOT);
             return a.contains(b) || b.contains(a);
@@ -88,13 +84,9 @@ public final class SpotifyMediaSession {
 
     /** Parses one line of the script's output, or null for "no Spotify session" / an error line / garbage. */
     static Timeline parse(String line, long receivedMs) {
-        if (line == null || !line.startsWith("S\t")) {
-            return null;
-        }
+        if (line == null || !line.startsWith("S\t")) return null;
         String[] f = line.split("\t", -1);
-        if (f.length < 8) {
-            return null;
-        }
+        if (f.length < 8) return null;
         try {
             return new Timeline(f[1].trim(), f[2].trim(), Integer.parseInt(f[3].trim()), Long.parseLong(f[4].trim()),
                     Long.parseLong(f[5].trim()), Long.parseLong(f[6].trim()), receivedMs, Integer.parseInt(f[7].trim()));
@@ -126,13 +118,9 @@ public final class SpotifyMediaSession {
 
     /** {@code urgent}: a control the player just pressed, which starts the helper even inside the failure back-off. */
     private synchronized void ensureRunning(boolean urgent) {
-        if (process != null && process.isAlive()) {
-            return;
-        }
+        if (process != null && process.isAlive()) return;
         long now = System.currentTimeMillis();
-        if ((!urgent && now < nextStartMs) || !isWindows()) {
-            return;
-        }
+        if ((!urgent && now < nextStartMs) || !isWindows()) return;
         // 5 s, 10 s, 20 s ... up to five minutes between attempts, so a Windows without the API is not retried forever.
         nextStartMs = now + Math.min(300_000L, 5_000L << Math.min(6, failures));
         failures++;
@@ -199,9 +187,7 @@ public final class SpotifyMediaSession {
 
     /** Reads the volume and control fields a reading carries after the eight timeline fields. */
     private void parseExtras(String line) {
-        if (line == null || !line.startsWith("S\t")) {
-            return;
-        }
+        if (line == null || !line.startsWith("S\t")) return;
         String[] f = line.split("\t", -1);
         if (f.length >= 10) {
             try {
@@ -243,9 +229,7 @@ public final class SpotifyMediaSession {
 
     /** Sets which players the helper follows; a running helper is told at once, a new one starts with it. Any thread. */
     public void setSourceMode(int mode) {
-        if (mode == sourceMode) {
-            return;
-        }
+        if (mode == sourceMode) return;
         sourceMode = mode;
         if (running()) {
             send("src " + mode);
@@ -277,9 +261,7 @@ public final class SpotifyMediaSession {
     public synchronized boolean send(String command) {
         ensureRunning(true);
         Process p = process;
-        if (p == null || !p.isAlive()) {
-            return false;
-        }
+        if (p == null || !p.isAlive()) return false;
         try {
             java.io.OutputStream out = p.getOutputStream();
             out.write((command + "\n").getBytes(StandardCharsets.UTF_8));

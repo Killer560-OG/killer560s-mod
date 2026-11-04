@@ -133,9 +133,7 @@ public final class LyricsEngine {
 
         /** Where line {@code i} ends: the next line's start, else the track's end, else NaN. */
         public double lineEnd(int i) {
-            if (i + 1 < lines.size()) {
-                return lines.get(i + 1).timeSeconds();
-            }
+            if (i + 1 < lines.size()) return lines.get(i + 1).timeSeconds();
             return durationSeconds > 0 ? durationSeconds : Double.NaN;
         }
     }
@@ -242,9 +240,7 @@ public final class LyricsEngine {
                 }
             }
             synchronized (this) {
-                if (!forTrackKey.equals(lastTrackKey)) {
-                    return;
-                }
+                if (!forTrackKey.equals(lastTrackKey)) return;
                 if (!found.isEmpty()) {
                     wordTimedLines = found;
                     lyricsAnswered = true;
@@ -286,9 +282,7 @@ public final class LyricsEngine {
      * right recording was there and the HUD still said "another version".
      */
     static Choice chooseFrom(List<Candidate> candidates, String artist, String title, double spotifySeconds) {
-        if (candidates.isEmpty()) {
-            return new Choice(null, false, 0, "no listings with synced lyrics");
-        }
+        if (candidates.isEmpty()) return new Choice(null, false, 0, "no listings with synced lyrics");
         String want = titleKey(title);
         StringBuilder why = new StringBuilder();
         Candidate bestSame = null;
@@ -313,9 +307,7 @@ public final class LyricsEngine {
                 nearestAnyDiff = diff;
                 nearestAny = c.durationSeconds();
             }
-            if (!titleOk || !artistOk) {
-                continue;
-            }
+            if (!titleOk || !artistOk) continue;
             if (byName == null) {
                 byName = c;
             }
@@ -351,9 +343,7 @@ public final class LyricsEngine {
     /** The title as Spotify gives it, and with a trailing " - X" written as " (X)" when it has one. */
     static List<String> titleSpellings(String title) {
         int dash = title == null ? -1 : title.lastIndexOf(" - ");
-        if (dash <= 0 || dash + 3 >= title.length()) {
-            return title == null ? List.of() : List.of(title);
-        }
+        if (dash <= 0 || dash + 3 >= title.length()) return title == null ? List.of() : List.of(title);
         return List.of(title, title.substring(0, dash) + " (" + title.substring(dash + 3).trim() + ")");
     }
 
@@ -381,9 +371,7 @@ public final class LyricsEngine {
      * "Song (X Remix)" are one key, but "Song (Sped Up)", "Song - Live" and "Song (X Remix)" each stay apart from "Song".
      */
     static String titleKey(String title) {
-        if (title == null) {
-            return "";
-        }
+        if (title == null) return "";
         String lower = title.toLowerCase(java.util.Locale.ROOT);
         String key = words(SAME_RECORDING_TAG.matcher(FEAT.matcher(lower).replaceAll(" ")).replaceAll(" "));
         return key.isEmpty() ? words(lower) : key;   // a song CALLED "Clean" keeps its name
@@ -410,17 +398,11 @@ public final class LyricsEngine {
      * Spotify gave. Spotify's local sources give only the first, so this cannot reject a listing for an extra artist.
      */
     static boolean artistListHas(String listed, String want) {
-        if (want == null || want.isBlank()) {
-            return true;
-        }
-        if (listed == null) {
-            return false;
-        }
+        if (want == null || want.isBlank()) return true;
+        if (listed == null) return false;
         java.util.Set<String> have = splitArtists(listed);
         for (String a : splitArtists(want)) {
-            if (!have.contains(a)) {
-                return false;
-            }
+            if (!have.contains(a)) return false;
         }
         return true;
     }
@@ -457,9 +439,7 @@ public final class LyricsEngine {
      * caller can detect a track-change message without depending on its exact wording.
      */
     public synchronized void poll(SpotifyDesktopSource source, SpotifyMediaSession session, boolean fullLyricsMode) {
-        if (source == null) {
-            return;
-        }
+        if (source == null) return;
         try {
             NowPlaying nowPlaying = source.fetch();
             long now = System.currentTimeMillis();
@@ -484,9 +464,7 @@ public final class LyricsEngine {
 
     /** What another player's reading says is playing: its track while it plays, paused otherwise. */
     static NowPlaying otherPlayer(SpotifyMediaSession.Timeline t) {
-        if (t.playing() && !t.title().isBlank()) {
-            return NowPlaying.track(t.artist(), t.title());
-        }
+        if (t.playing() && !t.title().isBlank()) return NowPlaying.track(t.artist(), t.title());
         return NowPlaying.paused();
     }
 
@@ -828,9 +806,7 @@ public final class LyricsEngine {
 
     private long median() {
         int n = Math.min(recentCount, recent.length);
-        if (n == 0) {
-            return 0;
-        }
+        if (n == 0) return 0;
         long a = recent[0];
         long b = n > 1 ? recent[1] : a;
         long c = n > 2 ? recent[2] : b;
@@ -886,9 +862,7 @@ public final class LyricsEngine {
      * corrects it to the exact spot. Readings taken before the press are ignored for {@value #NUDGE_HOLD_MS} ms.
      */
     public synchronized void nudge(long deltaMs, long now) {
-        if (lastTrackKey == null || lastWasAd) {
-            return;
-        }
+        if (lastTrackKey == null || lastWasAd) return;
         long target = Math.max(0, clock.elapsedMs(now) + deltaMs);
         if (spotifyDurationSeconds > 0) {
             target = Math.min(target, Math.max(0, (long) (spotifyDurationSeconds * 1000) - 1000));
@@ -981,9 +955,7 @@ public final class LyricsEngine {
             for (JsonElement el : results) {
                 JsonObject obj = el.getAsJsonObject();
                 Candidate c = candidate(obj);
-                if (c == null) {
-                    continue;
-                }
+                if (c == null) continue;
                 (same(obj, "trackName", title) && same(obj, "artistName", artist) ? exact : rest).add(c);
             }
             exact.addAll(rest);
@@ -1002,13 +974,9 @@ public final class LyricsEngine {
 
     /** One listing as a {@link Candidate}, or null when it has no synced lyrics. */
     private Candidate candidate(JsonObject obj) {
-        if (!obj.has("syncedLyrics") || obj.get("syncedLyrics").isJsonNull()) {
-            return null;
-        }
+        if (!obj.has("syncedLyrics") || obj.get("syncedLyrics").isJsonNull()) return null;
         List<LyricLine> lines = List.copyOf(parseLrc(obj.get("syncedLyrics").getAsString()));
-        if (lines.isEmpty()) {
-            return null;
-        }
+        if (lines.isEmpty()) return null;
         return new Candidate(text(obj, "artistName"), text(obj, "trackName"), duration(obj), lines);
     }
 
@@ -1056,9 +1024,7 @@ public final class LyricsEngine {
         if (want == null || want.isBlank()) {
             return true;   // nothing to compare against - the window title gave no artist
         }
-        if (!obj.has(key) || obj.get(key).isJsonNull()) {
-            return false;
-        }
+        if (!obj.has(key) || obj.get(key).isJsonNull()) return false;
         return obj.get(key).getAsString().trim().equalsIgnoreCase(want.trim());
     }
 

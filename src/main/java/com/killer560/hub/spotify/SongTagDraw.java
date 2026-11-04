@@ -40,9 +40,7 @@ public final class SongTagDraw {
             Component shared = SongShare.ownTag();
             return shared != null ? shared : ownSongLine();
         }
-        if (distanceSq > MAX_DISTANCE_SQ) {
-            return null;
-        }
+        if (distanceSq > MAX_DISTANCE_SQ) return null;
         UUID id = entity.getUUID();
         return RemoteSongs.tagFor(entity.getName().getString(), id);
     }
@@ -54,13 +52,9 @@ public final class SongTagDraw {
      */
     private static Component ownSongLine() {
         SongShareConfig cfg = SongShareConfig.getInstance();
-        if (!cfg.isSongInF5()) {
-            return null;
-        }
+        if (!cfg.isSongInF5()) return null;
         LyricsEngine.Snapshot snap = SpotifyLyricsFeature.snapshot();
-        if (!snap.hasTrack() || snap.kind() == NowPlaying.Kind.AD || SpotifyLyricsFeature.pausedTooLong(snap)) {
-            return null;
-        }
+        if (!snap.hasTrack() || snap.kind() == NowPlaying.Kind.AD || SpotifyLyricsFeature.pausedTooLong(snap)) return null;
         String title = RemoteSongs.clean(SpotifyLyricsFeature.censorDisplay(snap.title()), RemoteSongs.TITLE_MAX);
         String artist = RemoteSongs.clean(SpotifyLyricsFeature.censorDisplay(snap.artist()), RemoteSongs.ARTIST_MAX);
         int colour = cfg.isCustomF5Colors() ? cfg.getF5TextColor() : -1;
@@ -85,12 +79,8 @@ public final class SongTagDraw {
      */
     public static Component lyricFor(Entity entity, double distanceSq) {
         Minecraft mc = Minecraft.getInstance();
-        if (entity == mc.player) {
-            return lyricFor(entity);
-        }
-        if (distanceSq > MAX_DISTANCE_SQ) {
-            return null;
-        }
+        if (entity == mc.player) return lyricFor(entity);
+        if (distanceSq > MAX_DISTANCE_SQ) return null;
         return RemoteSongs.lyricFor(entity.getName().getString(), entity.getUUID());
     }
 
@@ -101,9 +91,7 @@ public final class SongTagDraw {
      */
     public static Component lyricFor(Entity entity) {
         Minecraft mc = Minecraft.getInstance();
-        if (entity != mc.player) {
-            return null;
-        }
+        if (entity != mc.player) return null;
         if (!SongShareConfig.getInstance().isLyricsOverHead()) {
             whyNoLyric("not drawn, My Lyrics In F5 is off");
             return null;
@@ -188,16 +176,10 @@ public final class SongTagDraw {
      */
     static int f5Color(com.killer560.hub.gui.OverlayPalette p, int i, int sung, boolean paused) {
         SongShareConfig c = SongShareConfig.getInstance();
-        if (!c.isCustomF5Colors()) {
-            return SpotifyHud.wordColor(p, i, sung, paused);
-        }
+        if (!c.isCustomF5Colors()) return SpotifyHud.wordColor(p, i, sung, paused);
         int text = c.getF5TextColor();
-        if (paused || sung < 0 || i < sung) {
-            return text;
-        }
-        if (i == sung) {
-            return c.getF5HighlightColor();
-        }
+        if (paused || sung < 0 || i < sung) return text;
+        if (i == sung) return c.getF5HighlightColor();
         int r = ((text >> 16) & 255) * 3 / 5;
         int g = ((text >> 8) & 255) * 3 / 5;
         int b = (text & 255) * 3 / 5;
@@ -208,9 +190,7 @@ public final class SongTagDraw {
      *  Starred at the Display Censor level, cut after {@link #LYRIC_MAX} characters. */
     static Component buildLyric(java.util.List<String> words, int sung, boolean paused,
                                 com.killer560.hub.gui.OverlayPalette p) {
-        if (words.isEmpty()) {
-            return null;
-        }
+        if (words.isEmpty()) return null;
         net.minecraft.network.chat.MutableComponent out = Component.literal("♫ ")
                 .withStyle(s -> s.withColor(f5Color(p, -1, -1, paused) & 0xFFFFFF));
         int used = 2;
@@ -257,14 +237,10 @@ public final class SongTagDraw {
 
     public static void submit(EntityRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
                               CameraRenderState camera, int yOffset) {
-        if (!((Object) state instanceof SongTagState tagged)) {
-            return;
-        }
+        if (!((Object) state instanceof SongTagState tagged)) return;
         Component song = tagged.killer560smod$songTag();
         Component lyric = tagged.killer560smod$lyricTag();
-        if ((song == null && lyric == null) || state.nameTag == null || state.nameTagAttachment == null) {
-            return;
-        }
+        if ((song == null && lyric == null) || state.nameTag == null || state.nameTagAttachment == null) return;
         int line = state.scoreText != null ? 2 : 1;
         boolean own = Minecraft.getInstance().player != null
                 && state.nameTag != null && lyric != null;

@@ -97,9 +97,7 @@ public final class LyricTiming {
             }
         }
         w = w.replace("'", "");
-        if (w.isEmpty()) {
-            return Math.max(1, extra);
-        }
+        if (w.isEmpty()) return Math.max(1, extra);
         int count = 0;
         boolean prevVowel = false;
         for (int i = 0; i < w.length(); i++) {
@@ -124,9 +122,7 @@ public final class LyricTiming {
     }
 
     private static boolean vowel(String w, int i) {
-        if (i < 0 || i >= w.length()) {
-            return false;
-        }
+        if (i < 0 || i >= w.length()) return false;
         char c = w.charAt(i);
         return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u' || (c == 'y' && i > 0);
     }
@@ -139,9 +135,7 @@ public final class LyricTiming {
     public static double[] shares(Parsed line, double lineStart, double lineEnd) {
         int n = line.words().size();
         double[] out = new double[n];
-        if (n == 0) {
-            return out;
-        }
+        if (n == 0) return out;
         double cap = n * MAX_SECONDS_PER_WORD;
         double span = (Double.isNaN(lineEnd) || lineEnd <= lineStart) ? cap : Math.min(lineEnd - lineStart, cap);
         double[] w = line.weights();
@@ -156,9 +150,7 @@ public final class LyricTiming {
                     free += w[i];
                 }
             }
-            if (free <= 0) {
-                break;
-            }
+            if (free <= 0) break;
             for (int i = 0; i < n; i++) {
                 if (!capped[i]) {
                     out[i] = remaining * w[i] / free;
@@ -249,9 +241,7 @@ public final class LyricTiming {
      */
     public static int wordAt(Parsed line, double lineStart, double lineEnd, double t) {
         int n = line.words().size();
-        if (n == 0 || t < lineStart) {
-            return -1;
-        }
+        if (n == 0 || t < lineStart) return -1;
         if (line.timed()) {
             double[] st = line.wordStarts();
             int idx = -1;
@@ -268,9 +258,7 @@ public final class LyricTiming {
         double end = lineStart;
         for (int k = 0; k < n; k++) {
             end += share[k];
-            if (t < end) {
-                return k;
-            }
+            if (t < end) return k;
         }
         return n - 1;
     }
@@ -278,9 +266,7 @@ public final class LyricTiming {
     private static String collapse(String s) { return s.trim().replaceAll("\\s+", " "); }
 
     private static List<String> split(String text) {
-        if (text.isEmpty()) {
-            return List.of();
-        }
+        if (text.isEmpty()) return List.of();
         return List.of(text.split(" "));
     }
 }

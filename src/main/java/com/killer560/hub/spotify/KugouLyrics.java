@@ -114,28 +114,20 @@ public final class KugouLyrics {
     /** The first search candidate that is the same song (normalized title, artist) and within 2 s of Spotify's length. */
     static Hit pick(String searchJson, String artist, String title, double spotifySeconds) {
         JsonElement root = JsonParser.parseString(searchJson);
-        if (!root.isJsonObject() || !root.getAsJsonObject().has("candidates")) {
-            return null;
-        }
+        if (!root.isJsonObject() || !root.getAsJsonObject().has("candidates")) return null;
         JsonArray cands = root.getAsJsonObject().getAsJsonArray("candidates");
         String want = LyricsEngine.titleKey(title);
         Hit best = null;
         double bestDiff = Double.MAX_VALUE;
         for (JsonElement el : cands) {
-            if (!el.isJsonObject()) {
-                continue;
-            }
+            if (!el.isJsonObject()) continue;
             JsonObject c = el.getAsJsonObject();
             String song = str(c, "song");
             String singer = str(c, "singer");
             double secs = c.has("duration") ? c.get("duration").getAsDouble() / 1000.0 : 0;
-            if (!LyricsEngine.titleKey(song).equals(want) || !LyricsEngine.artistListHas(singer, artist)) {
-                continue;
-            }
+            if (!LyricsEngine.titleKey(song).equals(want) || !LyricsEngine.artistListHas(singer, artist)) continue;
             double diff = spotifySeconds > 0 ? Math.abs(secs - spotifySeconds) : 0;
-            if (spotifySeconds > 0 && diff > LyricsEngine.SAME_VERSION_SECONDS) {
-                continue;
-            }
+            if (spotifySeconds > 0 && diff > LyricsEngine.SAME_VERSION_SECONDS) continue;
             if (diff < bestDiff) {
                 bestDiff = diff;
                 best = new Hit(str(c, "id"), str(c, "accesskey"), singer, song, secs);
@@ -148,9 +140,7 @@ public final class KugouLyrics {
     static String decode(String base64) {
         try {
             byte[] raw = Base64.getDecoder().decode(base64.trim());
-            if (raw.length <= 4) {
-                return null;
-            }
+            if (raw.length <= 4) return null;
             byte[] x = new byte[raw.length - 4];
             for (int i = 0; i < x.length; i++) {
                 x[i] = (byte) (raw[i + 4] ^ KEY[i % KEY.length]);
@@ -161,9 +151,7 @@ public final class KugouLyrics {
             byte[] buf = new byte[8192];
             while (!inf.finished()) {
                 int n = inf.inflate(buf);
-                if (n == 0 && (inf.needsInput() || inf.needsDictionary())) {
-                    break;
-                }
+                if (n == 0 && (inf.needsInput() || inf.needsDictionary())) break;
                 out.write(buf, 0, n);
                 if (out.size() > 2_000_000) {
                     break;   // no real lyrics are this big
@@ -187,9 +175,7 @@ public final class KugouLyrics {
         boolean sung = false;
         for (String raw : krc.split("\\r?\\n")) {
             Matcher m = LINE.matcher(raw.trim());
-            if (!m.matches()) {
-                continue;
-            }
+            if (!m.matches()) continue;
             double lineStart = Integer.parseInt(m.group(1)) / 1000.0;
             Matcher w = WORD.matcher(m.group(3));
             List<String> words = new ArrayList<>();
@@ -212,9 +198,7 @@ public final class KugouLyrics {
             if (!sung && (text.isEmpty() || CREDIT.matcher(text).find() || lineStart < 0.5)) {
                 continue;   // the "Title - Artist" line at 0:00 and the credits before the first sung line
             }
-            if (words.isEmpty()) {
-                continue;
-            }
+            if (words.isEmpty()) continue;
             sung = true;
             double[] st = new double[starts.size()];
             for (int i = 0; i < st.length; i++) {
@@ -228,9 +212,7 @@ public final class KugouLyrics {
     private static void flush(StringBuilder cur, double start, List<String> words, List<Double> starts) {
         String word = cur.toString().trim();
         cur.setLength(0);
-        if (word.isEmpty()) {
-            return;
-        }
+        if (word.isEmpty()) return;
         for (String part : word.split("\\s+")) {   // a token holding two words keeps one start for both
             words.add(part);
             starts.add(start);
@@ -252,9 +234,7 @@ public final class KugouLyrics {
 
     private static String get(String url) {
         java.util.function.Function<String, String> t = testResponder;
-        if (t != null) {
-            return t.apply(url);
-        }
+        if (t != null) return t.apply(url);
         try {
             HttpRequest req = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(8))
                     .header("User-Agent", "Mozilla/5.0").GET().build();

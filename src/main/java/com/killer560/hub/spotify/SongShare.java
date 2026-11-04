@@ -92,9 +92,7 @@ public final class SongShare {
     }
 
     private static void tick() {
-        if (++ticks % TICK_EVERY != 0) {
-            return;
-        }
+        if (++ticks % TICK_EVERY != 0) return;
         updateLocalTag();
         if (roomChanged) {
             // A new room has heard nothing from us: start over, and send the current song if there is one.
@@ -125,16 +123,12 @@ public final class SongShare {
         }
         boolean changed = !json.equals(lastSentJson);
         boolean due = play && (now - lastSendMs >= HEARTBEAT_MS || resend);
-        if (!(changed || due) || now - lastSendMs < MIN_SEND_MS) {
-            return;
-        }
+        if (!(changed || due) || now - lastSendMs < MIN_SEND_MS) return;
         BiPredicate<String, JsonElement> sender = testSender;
         lastHanded = payload.toString();
         handedCount++;
         boolean sent = sender != null ? sender.test(RemoteSongs.KEY, payload) : RelayClient.sendData(RemoteSongs.KEY, payload);
-        if (!sent) {
-            return;
-        }
+        if (!sent) return;
         resend = false;
         lastSendMs = now;
         lastSentJson = json;
@@ -181,14 +175,10 @@ public final class SongShare {
     /** Adds the line being sung, if any: "line", "into" and (with {@code words}) "words". */
     private static void addLine(JsonObject o, boolean words) {
         LyricsEngine.Snapshot snap = snapshot();
-        if (!snap.hasTrack() || snap.lines().isEmpty() || snap.kind() != NowPlaying.Kind.TRACK) {
-            return;
-        }
+        if (!snap.hasTrack() || snap.lines().isEmpty() || snap.kind() != NowPlaying.Kind.TRACK) return;
         double elapsed = snap.elapsedSeconds(SpotifyLyricsFeature.nowMs());
         int idx = snap.lineAt(elapsed);
-        if (idx < 0) {
-            return;
-        }
+        if (idx < 0) return;
         LyricsEngine.LyricLine line = snap.lines().get(idx);
         List<String> all = line.parsed().words();
         if (all.isEmpty()) {
@@ -210,9 +200,7 @@ public final class SongShare {
             text.append(c);
             n++;
         }
-        if (n == 0) {
-            return;
-        }
+        if (n == 0) return;
         o.addProperty("line", text.toString());
         long into = Math.round((elapsed - line.timeSeconds()) * 1000);
         o.addProperty("into", Math.max(0, Math.min(RemoteSongs.MAX_INTO_MS, into)));
@@ -251,19 +239,11 @@ public final class SongShare {
 
     /** Why your song may not be shared, or null when it may. */
     static String blockReason() {
-        if (!SongShareConfig.getInstance().isShareSong()) {
-            return "Share My Song is off";
-        }
-        if (!ModUserConfig.getInstance().isShare()) {
-            return "Show Me As A Mod User is off";
-        }
+        if (!SongShareConfig.getInstance().isShareSong()) return "Share My Song is off";
+        if (!ModUserConfig.getInstance().isShare()) return "Show Me As A Mod User is off";
         Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.player == null) {
-            return "not in a world";
-        }
-        if (!SupportersFeature.isSupporter(mc.player.getUUID())) {
-            return "not a supporter";
-        }
+        if (mc == null || mc.player == null) return "not in a world";
+        if (!SupportersFeature.isSupporter(mc.player.getUUID())) return "not a supporter";
         return null;
     }
 
@@ -312,16 +292,10 @@ public final class SongShare {
 
     /** Why your song is not reaching other mod users right now, or null when it is (or Share My Song is off). */
     public static String notSentReason() {
-        if (!SongShareConfig.getInstance().isShareSong()) {
-            return null;
-        }
+        if (!SongShareConfig.getInstance().isShareSong()) return null;
         String why = blockReason();
-        if (why != null) {
-            return why;
-        }
-        if (testSender == null && !RelayClient.isConnected()) {
-            return "not connected to the mod's relay (no party or lobby room)";
-        }
+        if (why != null) return why;
+        if (testSender == null && !RelayClient.isConnected()) return "not connected to the mod's relay (no party or lobby room)";
         return null;
     }
 }
