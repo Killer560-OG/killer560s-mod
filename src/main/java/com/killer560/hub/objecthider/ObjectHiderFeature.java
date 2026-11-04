@@ -461,7 +461,12 @@ public final class ObjectHiderFeature {
 
     /** @return true to drop this particle before it is added to the engine (ParticleEngine.add HEAD). */
     public static boolean shouldHideParticle(Particle particle) {
-        if (particle == null) return false;
+        if (particle == null) {
+            return false;
+        }
+        if (com.killer560.hub.scorecalc.ScoreWarnings.hidesPortalParticle(particle)) {
+            return true;
+        }
         ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
         if (cfg.isCleanEnd() && bossDone && DungeonState.isInDungeon()) return true;
         if (cfg.isHideBlockBreakParticles() && particle instanceof TerrainParticle) return true;

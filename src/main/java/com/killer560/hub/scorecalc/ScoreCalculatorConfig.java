@@ -94,6 +94,8 @@ public final class ScoreCalculatorConfig {
     private boolean preBossListMissing = true;
     /** Color Portal (killer560, 2026-11-03): tints the boss portal red under 270, yellow from 270, green from 300. */
     private boolean preBossPortalColor = true;
+    /** Hide Portal Particles (killer560, 2026-11-04): drops the nether portal's particles around the portal while it is colored. */
+    private boolean preBossHidePortalParticles = false;
     private boolean cryptReminder = false;
     private int cryptReminderSeconds = DEFAULT_CRYPT_REMINDER_SECONDS;
     private boolean cryptReminderParty = false;
@@ -156,6 +158,7 @@ public final class ScoreCalculatorConfig {
                 cfg.preBossPermanent = ConfigJson.getBool(obj, "preBossPermanent", cfg.preBossPermanent);
                 cfg.preBossListMissing = ConfigJson.getBool(obj, "preBossListMissing", cfg.preBossListMissing);
                 cfg.preBossPortalColor = ConfigJson.getBool(obj, "preBossPortalColor", cfg.preBossPortalColor);
+                cfg.preBossHidePortalParticles = ConfigJson.getBool(obj, "preBossHidePortalParticles", cfg.preBossHidePortalParticles);
                 cfg.cryptReminder = ConfigJson.getBool(obj, "cryptReminder", cfg.cryptReminder);
                 int remindAt = ConfigJson.getInt(obj, "cryptReminderSeconds", cfg.cryptReminderSeconds);
                 cfg.setCryptReminderSeconds(remindAt == OLD_DEFAULT_CRYPT_REMINDER_SECONDS ? DEFAULT_CRYPT_REMINDER_SECONDS : remindAt);
@@ -239,6 +242,7 @@ public final class ScoreCalculatorConfig {
             obj.addProperty("preBossPermanent", preBossPermanent);
             obj.addProperty("preBossListMissing", preBossListMissing);
             obj.addProperty("preBossPortalColor", preBossPortalColor);
+            obj.addProperty("preBossHidePortalParticles", preBossHidePortalParticles);
             obj.addProperty("cryptReminder", cryptReminder);
             obj.addProperty("cryptReminderSeconds", cryptReminderSeconds);
             obj.addProperty("cryptReminderParty", cryptReminderParty);
@@ -385,7 +389,17 @@ public final class ScoreCalculatorConfig {
 
     public void setPreBossPortalColor(boolean v) { preBossPortalColor = v; }
 
-    public boolean isPreBossWarning() { return preBossWarning; }
+    public boolean isPreBossHidePortalParticles() {
+        return preBossHidePortalParticles;
+    }
+
+    public void setPreBossHidePortalParticles(boolean v) {
+        preBossHidePortalParticles = v;
+    }
+
+    public boolean isPreBossWarning() {
+        return preBossWarning;
+    }
 
     public void setPreBossWarning(boolean v) { preBossWarning = v; }
 
