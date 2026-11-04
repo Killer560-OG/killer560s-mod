@@ -55,9 +55,7 @@ public final class PackDisabler {
         });
     }
 
-    public static boolean noammInstalled() {
-        return DetectedMods.isPackDisablerActive();
-    }
+    public static boolean noammInstalled() { return DetectedMods.isPackDisablerActive(); }
 
     /** The setting is on, Noamm's mod is not doing the job, and "Skyblock Only" allows it. */
     public static boolean isActive() {
@@ -74,9 +72,7 @@ public final class PackDisabler {
     private static final Identifier PAPER_MODEL = Identifier.withDefaultNamespace("paper");
 
     /** {@link #resolveModel(ItemStack, Identifier, ItemDisplayContext)} for a caller with no display context. */
-    public static Identifier resolveModel(ItemStack stack, Identifier current) {
-        return resolveModel(stack, current, null);
-    }
+    public static Identifier resolveModel(ItemStack stack, Identifier current) { return resolveModel(stack, current, null); }
 
     /**
      * The model {@code stack} should be drawn with. Called by the item-model mixin with the model the stack asked for;

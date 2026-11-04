@@ -105,9 +105,7 @@ public final class ItemLooks {
         loaded = true;
     }
 
-    public static boolean isLoaded() {
-        return loaded;
-    }
+    public static boolean isLoaded() { return loaded; }
 
     private static String str(JsonObject o, String key) {
         return o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsString() : null;

@@ -65,20 +65,12 @@ public final class PackDisablerConfig {
     }
 
     /** The saved toggle. Whether it is actually in force is {@link PackDisabler#isActive()}. */
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
     /** Map menu buttons drawn as paper while Pack Disabler is active (26.3 only; 26.2's map is still the old sheet). */
-    public boolean isPaperMenuButtons() {
-        return paperMenuButtons;
-    }
+    public boolean isPaperMenuButtons() { return paperMenuButtons; }
 
-    public void setPaperMenuButtons(boolean paperMenuButtons) {
-        this.paperMenuButtons = paperMenuButtons;
-    }
+    public void setPaperMenuButtons(boolean paperMenuButtons) { this.paperMenuButtons = paperMenuButtons; }
 }
