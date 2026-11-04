@@ -54,9 +54,7 @@ public final class SessionRecorder {
     }
 
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SessionRecorder.tick", SessionRecorder::tick));
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> SessionRecorderSink.close("game closed"));
@@ -147,9 +145,7 @@ public final class SessionRecorder {
     private static void drawStatus(GuiGraphicsExtractor graphics) {
         boolean recording = SessionRecorderSink.active();
         boolean cut = !recording && lastWanted && SessionRecorderSink.wasCut();
-        if (!recording && !cut) {
-            return;
-        }
+        if (!recording && !cut) return;
         Font font = Minecraft.getInstance().font;
         String label = recording ? "● Recording" : "Recording cut at 20 MB";
         int x = graphics.guiWidth() - font.width(label) - 4;
