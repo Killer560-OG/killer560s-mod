@@ -159,7 +159,6 @@ public final class TerminalAuraFeature {
         }
     }
 
-    // ---- logging only ----
     private static String lastGateLogged = "init";
 
     /** One line when the reason the aura is holding changes (null = it has a target). */
