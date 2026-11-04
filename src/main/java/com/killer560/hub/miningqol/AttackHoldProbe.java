@@ -72,7 +72,7 @@ public final class AttackHoldProbe {
 
     static final int RING = 40;
     static final int LINES = 10;
-    private static final long DUMP_GAP_MS = 5000L;
+    private static final long DUMP_GAP_MS = 2000L;
     private static final String[] SENT = new String[RING];
     private static final long[] SENT_MS = new long[RING];
     private static int sentHead = 0;
@@ -311,7 +311,8 @@ public final class AttackHoldProbe {
     }
 
     // ---- stall while mining (owner 2026-11-03: "it should be when i am actually mining")
-    static final long STALL_MS = 5000L;
+    static final long STALL_MS = 250L;
+    private static long lastHeartbeatMs = 0L;
     private static net.minecraft.core.BlockPos stallPos = null;
     private static net.minecraft.world.level.block.state.BlockState stallState = null;
     private static long stallSinceMs = 0L;
@@ -350,6 +351,14 @@ public final class AttackHoldProbe {
             }
         }
         long now = System.currentTimeMillis();
+        // A heartbeat so his log shows the probe is watching (2026-11-03: a mining session left no line at all): at most
+        // once a minute while left click is held, what the probe sees.
+        if (down && now - lastHeartbeatMs > 60_000L) {
+            lastHeartbeatMs = now;
+            LOGGER.info("[AttackHold] holding left click: watching={} island={} screen={} focused={} target={}",
+                    watching(client), MiningState.island(), McCompat.screen(client) != null, client.isWindowActive(),
+                    pos == null ? "none" : state.getBlock().getName().getString() + " at " + pos.toShortString());
+        }
         if (pos == null || !pos.equals(stallPos) || state != stallState) {
             stallPos = pos;
             stallState = state;
@@ -360,7 +369,10 @@ public final class AttackHoldProbe {
             stageMax = -2;
             return;
         }
-        if (stallLogged || now - stallSinceMs < STALL_MS || now - lastDumpMs < DUMP_GAP_MS) {
+        // Owner 2026-11-03: the stalls last "1/4 of a second to half a second", then he lets go and presses again. So: held
+        // STALL_MS on the same block with no crack-stage update from the server for it in the last STALL_MS.
+        boolean noProgress = stageCount == 0 || now - stageLastMs >= STALL_MS;
+        if (stallLogged || now - stallSinceMs < STALL_MS || !noProgress || now - lastDumpMs < DUMP_GAP_MS) {
             return;
         }
         stallLogged = true;
