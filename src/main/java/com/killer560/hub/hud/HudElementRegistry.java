@@ -84,10 +84,7 @@ public final class HudElementRegistry {
         } catch (RuntimeException e) {
             laid = null; // a broken layout falls back to the saved position rather than breaking the HUD
         }
-        if (laid != null) {
-            return laid;
-        }
-        return ownPosition(element);
+        return laid != null ? laid : ownPosition(element);
     }
 
     /** {@link #resolvePosition} without the element's {@link HudElement#layoutPosition()}: its saved (or default)
@@ -130,10 +127,7 @@ public final class HudElementRegistry {
      *  Identity when Auto Scale is off or the factor is 1. */
     public static int[] toSaved(int x, int y) {
         float f = AutoScale.current();
-        if (f == 1.0f) {
-            return new int[]{x, y};
-        }
-        return new int[]{toSaved(x, f), toSaved(y, f)};
+        return f == 1.0f ? new int[]{x, y} : new int[]{toSaved(x, f), toSaved(y, f)};
     }
 
     /**
@@ -306,19 +300,13 @@ public final class HudElementRegistry {
     private static int[] screenSize() {
         Minecraft client = Minecraft.getInstance();
         Window window = client == null ? null : client.getWindow();
-        if (window == null) {
-            return null;
-        }
-        return new int[]{window.getGuiScaledWidth(), window.getGuiScaledHeight()};
+        return window == null ? null : new int[]{window.getGuiScaledWidth(), window.getGuiScaledHeight()};
     }
 
     /** Moves the box so the whole of it is inside the screen; a box larger than the screen pins to the top/left. */
     private static int[] clampIntoScreen(HudElement element, int[] pos) {
         int[] screen = screenSize();
-        if (screen == null) {
-            return pos;
-        }
-        return clampIntoScreen(element, pos, screen);
+        return screen == null ? pos : clampIntoScreen(element, pos, screen);
     }
 
     private static int[] clampIntoScreen(HudElement element, int[] pos, int[] screen) {

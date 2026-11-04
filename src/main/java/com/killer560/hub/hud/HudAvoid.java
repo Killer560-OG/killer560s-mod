@@ -98,9 +98,6 @@ public final class HudAvoid {
             return new int[]{p[0], above};
         }
         int right = ox1 + GAP;
-        if (right + w <= screenW) {
-            return new int[]{right, Math.max(0, Math.min(p[1], screenH - h))};
-        }
-        return null; // no room anywhere: leave it where he put it
+        return right + w <= screenW ? new int[]{right, Math.max(0, Math.min(p[1], screenH - h))} : null; // no room anywhere: leave it where he put it
     }
 }

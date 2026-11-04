@@ -71,10 +71,7 @@ public final class AutoScale {
         double ratio = Math.min(framebufferWidth / (double) REFERENCE_WIDTH,
                 framebufferHeight / (double) REFERENCE_HEIGHT);
         double f = REFERENCE_GUI_SCALE * ratio / guiScale;
-        if (Math.abs(f - 1.0) < DEAD_BAND) {
-            return 1.0f;
-        }
-        return (float) Math.max(f, 1.0 / guiScale);
+        return Math.abs(f - 1.0) < DEAD_BAND ? 1.0f : (float) Math.max(f, 1.0 / guiScale);
     }
 
     /** The factor right now, or 1.0 when Auto Scale is off or there is no window yet. Cheap: four int reads. */
@@ -198,9 +195,6 @@ public final class AutoScale {
     /** Screen-space size in GUI pixels divided by the factor, rounded UP so the scaled layout still reaches the far
      *  edge (rounding down left a one-pixel strip uncovered on the right/bottom). */
     public static int layoutSize(int guiPixels, float factor) {
-        if (factor == 1.0f || factor <= 0f) {
-            return guiPixels;
-        }
-        return (int) Math.ceil(guiPixels / factor);
+        return factor == 1.0f || factor <= 0f ? guiPixels : (int) Math.ceil(guiPixels / factor);
     }
 }
