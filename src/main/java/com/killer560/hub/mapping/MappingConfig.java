@@ -77,25 +77,15 @@ public final class MappingConfig {
 
     /** Master toggle - no longer gates anything since the periodic diagnostic log in {@link MappingFeature} was removed. The "Dump Held Map
      *  Now" button/command works regardless of this, since it's an explicit one-shot user action. */
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isExtraInfoEnabled() {
-        return extraInfoEnabled;
-    }
+    public boolean isExtraInfoEnabled() { return extraInfoEnabled; }
 
-    public void setExtraInfoEnabled(boolean extraInfoEnabled) {
-        this.extraInfoEnabled = extraInfoEnabled;
-    }
+    public void setExtraInfoEnabled(boolean extraInfoEnabled) { this.extraInfoEnabled = extraInfoEnabled; }
 
-    public float getExtraInfoScale() {
-        return extraInfoScale;
-    }
+    public float getExtraInfoScale() { return extraInfoScale; }
 
     public void setExtraInfoScale(float v) {
         this.extraInfoScale = Float.isNaN(v) ? 1f : Math.max(MIN_EXTRA_INFO_SCALE, Math.min(MAX_EXTRA_INFO_SCALE, v));
