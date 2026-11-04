@@ -152,7 +152,7 @@ public final class SecretWaypointsFeature {
         // AFTER_TRANSLUCENT_FEATURES, which is the later of the two; this was one of the handful still on the
         // earlier one. The puzzle solvers are on it too and may well have the same symptom - not changed here
         // because he has not reported it and their highlights are meant to be seen in the room you are in.
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(SecretWaypointsFeature::onWorldRender);
+        LevelRenderEvents.COLLECT_SUBMITS.register(SecretWaypointsFeature::onWorldRender);
         // A chest, wither essence or redstone key is taken by right-clicking its block - exactly its waypoint's block.
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             if (level.isClientSide() && hit != null) {

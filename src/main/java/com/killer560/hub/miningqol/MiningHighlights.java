@@ -455,8 +455,8 @@ public final class MiningHighlights {
             }
             raffleFrames++;
         }
-        FILLS.drawFilled(context, RenderTypes.debugFilledBox());
-        LINES.drawOutlines(context, RenderTypes.LINES_TRANSLUCENT, 2f);
+        FILLS.drawFilled(context, com.killer560.hub.util.EspTypes.FILLED);
+        LINES.drawOutlines(context, com.killer560.hub.util.EspTypes.LINES, 2f);
         WALL_FILLS.drawFilled(context, WorldRenderUtils.throughWallsFilled());
         WALL_LINES.drawOutlines(context, WorldRenderUtils.throughWallsLines(), 2f);
     }

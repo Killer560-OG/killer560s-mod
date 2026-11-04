@@ -317,8 +317,22 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   own types that WRITE depth (`DepthStencilState(ALWAYS_PASS, true)` through walls, `DepthStencilState.DEFAULT` otherwise):
   water behind fails its test, water in front still tints the box. 100 % in both modes, Improved Transparency off and on, behind
   and around. Registered on `COLLECT_SUBMITS` (not `AFTER_TRANSLUCENT_TERRAIN`). Every solver that draws through
-  `SolverEspRender` gets the fix; other through-walls types (mob ESP, P3 Nav, Secret Waypoints...) have the same no-depth
-  construction.
+  `SolverEspRender` gets the fix; every other highlight now does too (next entry).
+- **All world-space highlights go through `util/EspTypes`** (killer560, 2026-11-03: "make sure that blaze fix applies to all
+  things that could have a similar issue", branch espdepth-1103). Four types, all depth-WRITING, all with OIT pipelines:
+  `FILLED` / `LINES` (default depth test) and `FILLED_THRU` / `LINES_THRU` (ALWAYS_PASS). The vanilla `RenderTypes.debugFilledBox()`
+  / `LINES_TRANSLUCENT` calls (WorldRenderUtils, BoxBatch users: mining, Commission Route, Auto Routes, trails, Mage Beam,
+  Etherwarp Overlay, Score Warnings...) and the nine private `ThroughWalls` copies (Mob ESP, Teammates, Thorn, P3 Nav, Secret
+  Waypoints, Etherwarp waypoints, Door Keys, Storage Search, Egg ESP, Egg Locator, Wither Doors, WorldRenderUtils) all point at
+  them; `EspTypes.init()` runs first thing in the client entrypoint. A new highlight uses `EspTypes.fill(through)` /
+  `lines(through)`, never its own `RenderType.create`. Pure-draw registrations moved to `COLLECT_SUBMITS` through
+  `FeatureGuard.collectFeatures` / `collectFeaturesFlush` / `collectTerrain` (the guard wrappers for it); registrations that also
+  step logic per frame (AP3, Auto Routes, Breaker Aura, Auto I4, Simon Says rotate, Auto Boulder, Blood Camp aim, AutoWalker,
+  Clear Executor) stay on AFTER_TRANSLUCENT_FEATURES. Test: testkit 1103-esp-depth-<family> (hook `util/EspDepthTestHook`): before, water
+  behind or around a fill tinted 2-5 % of its pixels against 100 % with none (thru, depth-tested, BoxBatch and Secret Waypoints
+  fills alike), a through-walls outline lost up to 60 % and a line up to 80 % of its control pixels; after, 100 % in every scene, Improved
+  Transparency off and on. A test that sets the yaw must use the nearest equal yaw, or Grim flags AimModulo360.
+
 - **26.3 Improved Transparency (OIT) crashes a blended custom render type that has no OIT pipelines** ("Render type X does not
   have OIT pipelines set up", the frame throws): a type whose pipeline blends is drawn through the OIT stages when the option is
   on and `submitCustomGeometry` sends blended types to the translucent phase. `McRender.withOitNoDepth` (through walls) and

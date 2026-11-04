@@ -54,21 +54,9 @@ final class EtherwarpWaypointsRenderer {
 
     /** Holder idiom - built once, on {@link #init()}. */
     private static final class ThroughWalls {
-        static final RenderType LINES = RenderType.create("killer560smod_etherwarp_lines_through_walls",
-                RenderSetup.builder(RenderPipelines.register(com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod",
-                                "pipeline/etherwarp_lines_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).createRenderSetup());
+        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
 
-        static final RenderType FILLED = RenderType.create("killer560smod_etherwarp_filled_through_walls",
-                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod",
-                                "pipeline/etherwarp_filled_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).sortOnUpload().createRenderSetup());
+        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
     }
 
     static void draw(LevelRenderContext context, List<Entry> entries, EtherwarpWaypointsConfig.Style style,
@@ -85,7 +73,7 @@ final class EtherwarpWaypointsRenderer {
             // calls keep that: one render type each, one uninterrupted pass each.
             if (fill) {
                 McRender.inCameraSpace(context,
-                        throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox(),
+                        throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED,
                         (pose, fillBuffer) -> {
                             for (Entry e : entries) {
                                 filledBox(pose.pose(), fillBuffer, e.box(), e.r(), e.g(), e.b(),
@@ -95,7 +83,7 @@ final class EtherwarpWaypointsRenderer {
             }
             if (outline) {
                 McRender.inCameraSpace(context,
-                        throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT,
+                        throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES,
                         (pose, lineBuffer) -> {
                             for (Entry e : entries) {
                                 lineBox(pose, lineBuffer, e.box(), e.r(), e.g(), e.b(), 1f, 2f);

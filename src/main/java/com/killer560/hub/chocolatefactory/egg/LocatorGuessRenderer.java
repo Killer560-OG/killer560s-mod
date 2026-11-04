@@ -117,18 +117,8 @@ final class LocatorGuessRenderer {
 
     /** Holder idiom: built on {@link #register()}, both builds. The guess is shown through walls, as SkyHanni does. */
     private static final class Types {
-        static final RenderType LINES = RenderType.create("killer560smod_egglocator_lines",
-                RenderSetup.builder(RenderPipelines.register(com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/egglocator_lines"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).createRenderSetup());
+        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
 
-        static final RenderType FILLED = RenderType.create("killer560smod_egglocator_filled",
-                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/egglocator_filled"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).sortOnUpload().createRenderSetup());
+        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
     }
 }

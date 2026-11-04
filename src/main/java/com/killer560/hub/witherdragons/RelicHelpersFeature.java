@@ -81,7 +81,7 @@ public final class RelicHelpersFeature {
         }
         RelicHelpersConfig.getInstance();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("RelicHelpersFeature.tick", RelicHelpersFeature::tick));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(FeatureGuard.afterFeatures(
+        LevelRenderEvents.COLLECT_SUBMITS.register(FeatureGuard.collectFeatures(
                 com.killer560.hub.util.FeatureBits.register("Relic Look frame", () -> RelicHelpersConfig.getInstance().isLookEnabledRaw()),
                 ctx -> frame()));
     }

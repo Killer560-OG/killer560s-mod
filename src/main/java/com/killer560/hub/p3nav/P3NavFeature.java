@@ -101,7 +101,7 @@ public final class P3NavFeature {
     public static void register() {
         P3NavConfig.getInstance();
         P3NavRenderer.init();
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectFeatures(
                 com.killer560.hub.util.FeatureBits.register("P3 Nav render", () -> P3NavConfig.getInstance().getGateHighlightRaw() || P3NavConfig.getInstance().getTerminalEspRaw() || P3NavConfig.getInstance().getDeviceEspRaw()), P3NavFeature::render));
         LOGGER.debug("[P3Nav] Registered (Gate Highlight and Terminal/Device ESP both default OFF)");
     }

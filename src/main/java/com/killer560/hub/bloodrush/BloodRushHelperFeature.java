@@ -157,7 +157,7 @@ public final class BloodRushHelperFeature {
         }
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BloodRushHelper.tick", BloodRushHelperFeature::tick));
         com.killer560.hub.util.ChatObserver.subscribe(m -> onChat(com.killer560.hub.util.ChatObserver.strip(m)));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BloodRushHelperFeature::render);
+        LevelRenderEvents.COLLECT_SUBMITS.register(BloodRushHelperFeature::render);
         com.killer560.hub.hud.HudElementRegistry.register(HUD);
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "blood_rush_roles"),

@@ -48,7 +48,7 @@ public final class StorageSearchEsp {
 
     static void register() {
         RenderType unused = ThroughWalls.LINES;
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(StorageSearchEsp::onWorldRender);
+        LevelRenderEvents.COLLECT_SUBMITS.register(StorageSearchEsp::onWorldRender);
     }
 
     /** Marks a chest for {@code durationMs}. Re-marking the same chest just refreshes its timer. */
@@ -97,13 +97,13 @@ public final class StorageSearchEsp {
         for (int i = 0; i < snap.length; i++) {
             snap[i] = boxFor(TARGETS.get(i).pos());
         }
-        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox(),
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED,
                 (pose, fillBuffer) -> {
                     for (AABB box : snap) {
                         filledBox(pose.pose(), fillBuffer, box, r, g, b, 0.25f);
                     }
                 });
-        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT,
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES,
                 (pose, lineBuffer) -> {
                     for (AABB box : snap) {
                         lineBox(pose, lineBuffer, box, r, g, b, 1f, 2.5f);
@@ -119,21 +119,9 @@ public final class StorageSearchEsp {
 
     /** Holder idiom - built once, on {@link #register()}. */
     private static final class ThroughWalls {
-        static final RenderType LINES = RenderType.create("killer560smod_storagesearch_lines_through_walls",
-                RenderSetup.builder(RenderPipelines.register(com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod",
-                                "pipeline/storagesearch_lines_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).createRenderSetup());
+        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
 
-        static final RenderType FILLED = RenderType.create("killer560smod_storagesearch_filled_through_walls",
-                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod",
-                                "pipeline/storagesearch_filled_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).sortOnUpload().createRenderSetup());
+        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
     }
 
     private static final int[] EDGES = {

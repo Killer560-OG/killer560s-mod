@@ -116,7 +116,7 @@ public final class WitherDoorsFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WitherDoorsFeature.tick", WitherDoorsFeature::tick));
         // Through ChatObserver, which catches a throw per listener: a raw GAME listener that throws drops the connection.
         com.killer560.hub.util.ChatObserver.subscribe(message -> onChat(com.killer560.hub.util.ChatObserver.strip(message)));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(WitherDoorsFeature::onWorldRender);
+        LevelRenderEvents.COLLECT_SUBMITS.register(WitherDoorsFeature::onWorldRender);
         LOGGER.debug("[WitherDoors] Registered (cheatBuild={})", BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 

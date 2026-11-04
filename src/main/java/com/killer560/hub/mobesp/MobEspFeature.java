@@ -112,7 +112,7 @@ public final class MobEspFeature {
     public static void register() {
         EspRenderer.init();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MobEspFeature", client -> tick()));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(MobEspFeature::render);
+        LevelRenderEvents.COLLECT_SUBMITS.register(MobEspFeature::render);
     }
 
     /** Testkit: entity id -> ARGB of every box target drawn this tick (glow targets included). */

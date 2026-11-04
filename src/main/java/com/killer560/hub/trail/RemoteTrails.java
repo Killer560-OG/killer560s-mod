@@ -66,7 +66,7 @@ public final class RemoteTrails {
 
     static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("RemoteTrails", client -> tick()));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(RemoteTrails::onWorldRender);
+        LevelRenderEvents.COLLECT_SUBMITS.register(RemoteTrails::onWorldRender);
         // DISCONNECT runs on the Netty thread (CLAUDE.md): leave a flag the next tick drains.
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clearRequested = true);
     }
