@@ -23,11 +23,14 @@ import java.util.regex.Pattern;
  * killed, since for blood camp you have to kill just 1 mob to make it start moving but you have to wait till after that
  * kill message so i dont want it counting to kill all the 4 mobs there just the first one. Then from there on out it
  * should only count every tick a blood mob is alive. If a mob is dead or a mob is about to spawn it shouldnt count." So:
+ * Changed 2026-11-04 (killer560: "it will time mobs alive from the tick the kill timer goes off. it should wait till
+ * the mob after that spawns to count any alive mobs"):
  * <ol>
  *   <li>Nothing counts until the kill timer goes off (the Kill Popup's KILL, {@link BloodCampMoveTimer#killReached}).</li>
- *   <li>From then every tick counts until the first blood mob dies.</li>
- *   <li>After that a tick counts only while at least one blood mob is alive on the floor (tagged, landed, not dead); a
- *   mob still on its way from the wall is "about to spawn" and does not count.</li>
+ *   <li>Nothing counts after it either until the next mob spawns: a trip after the last-wave line whose mob lands
+ *   after the kill timer ({@link #onTripMobLanded}). The mobs already on the floor do not start the count.</li>
+ *   <li>From that spawn a tick counts only while at least one blood mob is alive on the floor (tagged, landed, not dead);
+ *   a mob still on its way from the wall is "about to spawn" and does not count.</li>
  *   <li>It stops on "You have proven yourself. You may pass." (the room is cleared).</li>
  * </ol>
  * Ticks are SERVER ticks ({@code util.PerTickServerClock}: one per server ping on Hypixel, client ticks elsewhere), so a server
@@ -39,7 +42,8 @@ import java.util.regex.Pattern;
  */
 public final class BloodCampStats {
 
-    private enum Phase { IDLE, WAITING_KILL, FIRST, ALIVE, DONE }
+    /** WAITING_SPAWN: the kill timer went off, no mob has spawned since; ALIVE: counting ticks with a mob alive. */
+    private enum Phase { IDLE, WAITING_KILL, WAITING_SPAWN, ALIVE, DONE }
 
     private static Phase phase = Phase.IDLE;
     private static long ticksLost;
@@ -68,7 +72,7 @@ public final class BloodCampStats {
             for (long i = 0; i < steps; i++) {
                 onServerTick();
             }
-            if (phase == Phase.WAITING_KILL || phase == Phase.FIRST || phase == Phase.ALIVE) {
+            if (phase == Phase.WAITING_KILL || phase == Phase.WAITING_SPAWN || phase == Phase.ALIVE) {
                 WatcherBar.tick(client);
             }
         });
@@ -110,12 +114,11 @@ public final class BloodCampStats {
             if (!BloodCampMoveTimer.killReached()) {
                 return;
             }
-            phase = Phase.FIRST;
-            BloodCampFeature.LOGGER.info("[BloodCampStats] kill timer went off: counting until the first blood mob dies");
+            phase = Phase.WAITING_SPAWN;
+            BloodCampFeature.LOGGER.info("[BloodCampStats] kill timer went off: waiting for the next mob to spawn ({} alive"
+                    + " now, not counted)", BloodCampFeature.campCounts(client)[0]);
         }
-        if (phase == Phase.FIRST) {
-            ticksLost++;
-        } else if (BloodCampFeature.campCounts(client)[0] > 0) {
+        if (phase == Phase.ALIVE && BloodCampFeature.campCounts(client)[0] > 0) {
             ticksLost++;
         }
         campLagMs = BloodCampMoveTimer.lagMsSinceGreeting();
@@ -123,12 +126,27 @@ public final class BloodCampStats {
 
     /** A tagged blood mob died (seen dead, or removed by the server while dead / close to him). */
     static void onBloodMobDied(int id) {
-        if (phase == Phase.FIRST) {
-            phase = Phase.ALIVE;
+        if (phase == Phase.ALIVE && firstKillTicks < 0) {
             firstKillTicks = ticksLost;
-            BloodCampFeature.LOGGER.info("[BloodCampStats] first blood mob #{} died {} ticks after the kill timer", id,
-                    ticksLost);
+            BloodCampFeature.LOGGER.info("[BloodCampStats] first blood mob #{} died {} counted ticks after the first spawn"
+                    + " since the kill timer", id, ticksLost);
         }
+    }
+
+    /** A tracked trip's mob landed (the trip took it). The first one after the last-wave line and after the kill timer
+     *  is "the mob after that spawns": the count starts there. */
+    static void onTripMobLanded(int mobId, boolean firstSpawnTrip) {
+        if (phase != Phase.WAITING_SPAWN || firstSpawnTrip) {
+            return;
+        }
+        phase = Phase.ALIVE;
+        BloodCampFeature.LOGGER.info("[BloodCampStats] first mob since the kill timer spawned (#{}): counting ticks with a"
+                + " blood mob alive", mobId);
+    }
+
+    /** Testkit: as if a trip's mob landed now. */
+    public static void tripMobLandedForTest(int mobId) {
+        onTripMobLanded(mobId, false);
     }
 
     static void onCampCleared() {
@@ -143,7 +161,7 @@ public final class BloodCampStats {
 
     /** He is in the Blood Room this tick (from BloodCampFeature): after the kill timer that is camping it. */
     static void noteInRoom(boolean inRoom) {
-        if (inRoom && (phase == Phase.FIRST || phase == Phase.ALIVE)) {
+        if (inRoom && (phase == Phase.WAITING_SPAWN || phase == Phase.ALIVE)) {
             camped = true;
         }
     }
