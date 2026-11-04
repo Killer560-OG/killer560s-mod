@@ -23,9 +23,7 @@ public final class WindowMonitors {
             return respectTaskbar ? new int[]{workX, workY, workWidth, workHeight} : new int[]{x, y, width, height};
         }
 
-        public String label() {
-            return (index + 1) + " (" + width + "x" + height + ")";
-        }
+        public String label() { return (index + 1) + " (" + width + "x" + height + ")"; }
     }
 
     private WindowMonitors() {

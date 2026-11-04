@@ -105,45 +105,27 @@ public final class WindowLayoutConfig {
         }
     }
 
-    private static int getInt(JsonObject o, String key, int def) {
-        return o.has(key) ? o.get(key).getAsInt() : def;
-    }
+    private static int getInt(JsonObject o, String key, int def) { return o.has(key) ? o.get(key).getAsInt() : def; }
 
-    private static boolean getBool(JsonObject o, String key, boolean def) {
-        return o.has(key) ? o.get(key).getAsBoolean() : def;
-    }
+    private static boolean getBool(JsonObject o, String key, boolean def) { return o.has(key) ? o.get(key).getAsBoolean() : def; }
 
     private static String getString(JsonObject o, String key) {
         return o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsString() : "";
     }
 
-    private static int clamp(int v, int min, int max) {
-        return Math.max(min, Math.min(max, v));
-    }
+    private static int clamp(int v, int min, int max) { return Math.max(min, Math.min(max, v)); }
 
-    public int getWindowsPerMonitor() {
-        return windowsPerMonitor;
-    }
+    public int getWindowsPerMonitor() { return windowsPerMonitor; }
 
-    public void setWindowsPerMonitor(int value) {
-        this.windowsPerMonitor = clamp(value, MIN_WINDOWS, MAX_WINDOWS);
-    }
+    public void setWindowsPerMonitor(int value) { this.windowsPerMonitor = clamp(value, MIN_WINDOWS, MAX_WINDOWS); }
 
-    public boolean isMonitorAuto() {
-        return monitorIndex < 0;
-    }
+    public boolean isMonitorAuto() { return monitorIndex < 0; }
 
-    public int getMonitorIndex() {
-        return monitorIndex;
-    }
+    public int getMonitorIndex() { return monitorIndex; }
 
-    public String getMonitorDevice() {
-        return monitorDevice;
-    }
+    public String getMonitorDevice() { return monitorDevice; }
 
-    public String getMonitorName() {
-        return monitorName;
-    }
+    public String getMonitorName() { return monitorName; }
 
     public void setMonitorAuto() {
         this.monitorIndex = -1;
@@ -157,41 +139,23 @@ public final class WindowLayoutConfig {
         this.monitorName = monitor.name();
     }
 
-    public int getGap() {
-        return gap;
-    }
+    public int getGap() { return gap; }
 
-    public void setGap(int gap) {
-        this.gap = clamp(gap, 0, MAX_GAP);
-    }
+    public void setGap(int gap) { this.gap = clamp(gap, 0, MAX_GAP); }
 
-    public boolean isFullMonitorBorderless() {
-        return fullMonitorBorderless;
-    }
+    public boolean isFullMonitorBorderless() { return fullMonitorBorderless; }
 
-    public void setFullMonitorBorderless(boolean v) {
-        fullMonitorBorderless = v;
-    }
+    public void setFullMonitorBorderless(boolean v) { fullMonitorBorderless = v; }
 
-    public boolean isRespectTaskbar() {
-        return respectTaskbar;
-    }
+    public boolean isRespectTaskbar() { return respectTaskbar; }
 
-    public void setRespectTaskbar(boolean respectTaskbar) {
-        this.respectTaskbar = respectTaskbar;
-    }
+    public void setRespectTaskbar(boolean respectTaskbar) { this.respectTaskbar = respectTaskbar; }
 
-    public boolean isRestoreOnLaunch() {
-        return restoreOnLaunch;
-    }
+    public boolean isRestoreOnLaunch() { return restoreOnLaunch; }
 
-    public void setRestoreOnLaunch(boolean restoreOnLaunch) {
-        this.restoreOnLaunch = restoreOnLaunch;
-    }
+    public void setRestoreOnLaunch(boolean restoreOnLaunch) { this.restoreOnLaunch = restoreOnLaunch; }
 
-    public boolean hasLastPlacement() {
-        return hasLastPlacement;
-    }
+    public boolean hasLastPlacement() { return hasLastPlacement; }
 
     public void setLastPlacement(WindowMonitors.MonitorInfo monitor, int count, int cellIndex) {
         this.hasLastPlacement = true;
@@ -202,23 +166,13 @@ public final class WindowLayoutConfig {
         this.lastCellIndex = clamp(cellIndex, 0, this.lastCount - 1);
     }
 
-    public int getLastMonitorIndex() {
-        return lastMonitorIndex;
-    }
+    public int getLastMonitorIndex() { return lastMonitorIndex; }
 
-    public String getLastMonitorDevice() {
-        return lastMonitorDevice;
-    }
+    public String getLastMonitorDevice() { return lastMonitorDevice; }
 
-    public String getLastMonitorName() {
-        return lastMonitorName;
-    }
+    public String getLastMonitorName() { return lastMonitorName; }
 
-    public int getLastCount() {
-        return lastCount;
-    }
+    public int getLastCount() { return lastCount; }
 
-    public int getLastCellIndex() {
-        return lastCellIndex;
-    }
+    public int getLastCellIndex() { return lastCellIndex; }
 }

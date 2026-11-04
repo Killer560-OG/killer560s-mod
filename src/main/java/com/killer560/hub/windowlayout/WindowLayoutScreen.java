@@ -78,9 +78,7 @@ public class WindowLayoutScreen extends Screen implements MenuThemedScreen {
                 .bounds(x, y, bw, 20).build());
     }
 
-    private Component monitorText() {
-        return Component.literal("Monitor: " + (monitor == null ? "-" : monitor.index() + 1));
-    }
+    private Component monitorText() { return Component.literal("Monitor: " + (monitor == null ? "-" : monitor.index() + 1)); }
 
     private static Component countText() {
         return Component.literal("Windows: " + WindowLayoutConfig.getInstance().getWindowsPerMonitor());
@@ -144,14 +142,10 @@ public class WindowLayoutScreen extends Screen implements MenuThemedScreen {
     public static final String THEME_ID = "windowlayout";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{MARGIN, MARGIN, width - 2 * MARGIN, height - 2 * MARGIN};
-    }
+    public int[] themedPanelBounds() { return new int[]{MARGIN, MARGIN, width - 2 * MARGIN, height - 2 * MARGIN}; }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
@@ -231,12 +225,8 @@ public class WindowLayoutScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 }

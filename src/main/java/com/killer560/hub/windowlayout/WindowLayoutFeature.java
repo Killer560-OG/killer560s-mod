@@ -230,9 +230,7 @@ public final class WindowLayoutFeature {
     }
 
     /** Full Monitor should end up borderless-fullscreen unless the user turned that behavior off. */
-    private static boolean wantsBorderlessFullMonitor() {
-        return WindowLayoutConfig.getInstance().isFullMonitorBorderless();
-    }
+    private static boolean wantsBorderlessFullMonitor() { return WindowLayoutConfig.getInstance().isFullMonitorBorderless(); }
 
     /** Content-area {x, y, w, h} (what GLFW positions/sizes) so the window's VISIBLE outer frame covers
      *  {@code cell}: the GLFW frame includes Windows' invisible resize borders, so those are pushed outside the

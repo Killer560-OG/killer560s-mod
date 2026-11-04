@@ -38,9 +38,7 @@ final class WindowLayoutWin32 {
     private WindowLayoutWin32() {
     }
 
-    static boolean isWindows() {
-        return Util.getPlatform() == Util.OS.WINDOWS;
-    }
+    static boolean isWindows() { return Util.getPlatform() == Util.OS.WINDOWS; }
 
     private static synchronized boolean ensureLoaded() {
         if (!loadAttempted) {
