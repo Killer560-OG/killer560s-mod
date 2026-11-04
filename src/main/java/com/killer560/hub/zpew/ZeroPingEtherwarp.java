@@ -204,9 +204,7 @@ public final class ZeroPingEtherwarp {
         return prev;
     }
 
-    public static void done(ZpewSource previous) {
-        current = previous;
-    }
+    public static void done(ZpewSource previous) { current = previous; }
 
 
     /** {@code mixin/ZpewSendMixin}: every packet this client makes, read-only, render thread. */
@@ -707,104 +705,56 @@ public final class ZeroPingEtherwarp {
         }
     }
 
-    public static long usesSeen() {
-        return usesSeen;
-    }
+    public static long usesSeen() { return usesSeen; }
 
-    public static long predictions() {
-        return predictions;
-    }
+    public static long predictions() { return predictions; }
 
-    public static long hits() {
-        return hits;
-    }
+    public static long hits() { return hits; }
 
-    public static long misses() {
-        return misses;
-    }
+    public static long misses() { return misses; }
 
-    public static long timeouts() {
-        return timeouts;
-    }
+    public static long timeouts() { return timeouts; }
 
-    public static long noLanding() {
-        return noLanding;
-    }
+    public static long noLanding() { return noLanding; }
 
-    public static long cameraFrames() {
-        return cameraFrames;
-    }
+    public static long cameraFrames() { return cameraFrames; }
 
-    public static double lastErrorBlocks() {
-        return lastErrorBlocks;
-    }
+    public static double lastErrorBlocks() { return lastErrorBlocks; }
 
-    public static long lastLatencyMs() {
-        return lastLatencyMs;
-    }
+    public static long lastLatencyMs() { return lastLatencyMs; }
 
     /** Per-source counters by {@link ZpewSource} name, for the testkit: uses seen, predicted, hit, skipped by Works For. */
-    public static long seenBy(String source) {
-        return SEEN[ZpewSource.valueOf(source).ordinal()];
-    }
+    public static long seenBy(String source) { return SEEN[ZpewSource.valueOf(source).ordinal()]; }
 
-    public static long predictedBy(String source) {
-        return PREDICTED[ZpewSource.valueOf(source).ordinal()];
-    }
+    public static long predictedBy(String source) { return PREDICTED[ZpewSource.valueOf(source).ordinal()]; }
 
-    public static long hitsBy(String source) {
-        return HIT[ZpewSource.valueOf(source).ordinal()];
-    }
+    public static long hitsBy(String source) { return HIT[ZpewSource.valueOf(source).ordinal()]; }
 
-    public static long skippedBy(String source) {
-        return SKIPPED[ZpewSource.valueOf(source).ordinal()];
-    }
+    public static long skippedBy(String source) { return SKIPPED[ZpewSource.valueOf(source).ordinal()]; }
 
-    public static int maxChained() {
-        return maxChained;
-    }
+    public static int maxChained() { return maxChained; }
 
     /** Warps Per Tick, for the testkit: extra warps sent, bursts cut short, and the most etherwarp uses seen in one tick. */
-    public static long extraWarpsSent() {
-        return extraSent;
-    }
+    public static long extraWarpsSent() { return extraSent; }
 
-    public static int maxUsesInOneTick() {
-        return maxUsesInOneTick;
-    }
+    public static int maxUsesInOneTick() { return maxUsesInOneTick; }
 
     /** Aimed Warps, for the testkit: bursts, warps sent, presses dropped past the bank, bursts left to vanilla (no bank). */
-    public static long aimedBursts() {
-        return aimedBursts;
-    }
+    public static long aimedBursts() { return aimedBursts; }
 
-    public static long aimedWarpsSent() {
-        return aimedWarpsSent;
-    }
+    public static long aimedWarpsSent() { return aimedWarpsSent; }
 
-    public static long aimedDropped() {
-        return aimedDropped;
-    }
+    public static long aimedDropped() { return aimedDropped; }
 
-    public static long aimedUnfunded() {
-        return aimedUnfunded;
-    }
+    public static long aimedUnfunded() { return aimedUnfunded; }
 
     /** Bursts that waited for Blink's bank to be covered before firing (or being dropped). */
-    public static long aimedWaited() {
-        return aimedWaited;
-    }
+    public static long aimedWaited() { return aimedWaited; }
 
-    public static int lastAimedBurst() {
-        return lastAimedBurst;
-    }
+    public static int lastAimedBurst() { return lastAimedBurst; }
 
     /** Extra or aimed warps the Emergency Cancel Key's hold refused (testkit). */
-    public static long heldRefused() {
-        return heldRefused;
-    }
+    public static long heldRefused() { return heldRefused; }
 
-    private static String fmt(Vec3 v) {
-        return String.format(Locale.ROOT, "(%.2f, %.2f, %.2f)", v.x, v.y, v.z);
-    }
+    private static String fmt(Vec3 v) { return String.format(Locale.ROOT, "(%.2f, %.2f, %.2f)", v.x, v.y, v.z); }
 }
