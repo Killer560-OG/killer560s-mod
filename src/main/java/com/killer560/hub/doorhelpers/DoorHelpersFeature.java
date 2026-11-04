@@ -77,10 +77,7 @@ public final class DoorHelpersFeature {
         if (!DungeonState.isInDungeon()) {
             return "not in dungeon";
         }
-        if (LiveMapFeature.isInBoss()) {
-            return "in boss";
-        }
-        return null;
+        return LiveMapFeature.isInBoss() ? "in boss" : null;
     }
 
     /** QUOI {@code Dungeon.isDead}: the tab list shows you as DEAD, or hotbar slot 1 is the ghost "Haunt" item. */
