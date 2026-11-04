@@ -162,9 +162,7 @@ public final class TooltipScrollFeature {
     private static WeakReference<Object> lastScreen = new WeakReference<>(null);
 
     public static void onScreen(Object screen) {
-        if (lastScreen.get() == screen) {
-            return;
-        }
+        if (lastScreen.get() == screen) return;
         lastScreen = new WeakReference<>(screen);
         offset = 0;
         maxOffset = 0;
@@ -175,9 +173,7 @@ public final class TooltipScrollFeature {
 
     public static void setHovered(ItemStack stack) {
         ItemStack previous = hovered.get();
-        if (previous == stack) {
-            return;
-        }
+        if (previous == stack) return;
         hovered = new WeakReference<>(stack);
         offset = 0;
         maxOffset = 0;
@@ -203,9 +199,7 @@ public final class TooltipScrollFeature {
         // Not enabled or nothing hovered: hand the wheel straight back so it keeps doing whatever it
         // normally does (hotbar slot, another mod's scrollable list, bundles). Unlike before 2026-09-27 this
         // no longer bails out just because the tooltip fits - see the nudge branch below.
-        if (!cfg.isEnabled() || hovered.get() == null || scrollY == 0.0) {
-            return false;
-        }
+        if (!cfg.isEnabled() || hovered.get() == null || scrollY == 0.0) return false;
 
         if (scrollable) {
             // Wheel up shows earlier lines, matching every other scroll surface in the game.
