@@ -1,6 +1,7 @@
 package com.killer560.hub.powdermining;
 
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.compat.McRender;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -9,6 +10,8 @@ import com.killer560.hub.util.PerTickServerClock;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
@@ -16,12 +19,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The Crystal Hollows treasure chests ("powder chests") the player uncovers by mining hard stone: which chest is his, how
@@ -68,7 +73,34 @@ public final class TreasureChests {
         if (pos != null && CHESTS.containsKey(pos)) {
             lastUsed = pos.immutable();
             lastUsedAt = System.currentTimeMillis();
+            if (PowderMiningConfig.getInstance().isTreasureChestHideOpened()) {
+                // Client-only: only the chest's model is skipped (TreasureChestHideMixin); the block stays a chest, so no
+                // ghost block and the server's state is untouched.
+                HIDDEN.put(lastUsed, System.currentTimeMillis());
+            }
         }
+    }
+
+    /** Chests he clicked, whose model is not drawn: position -> wall-clock ms. Read on the render thread by the mixin. */
+    private static final Map<BlockPos, Long> HIDDEN = new ConcurrentHashMap<>();
+    /** How long a hidden chest stays hidden at most (its minute plus slack; the block going away ends it sooner). */
+    private static final long HIDDEN_MS = 180_000L;
+    private static int hiddenSkips = 0;
+    private static int tracerFrames = 0;
+    private static int countdownFrames = 0;
+    private static int lastCountdownColor = 0;
+    private static String lastCountdownText = null;
+
+    /** True when the chest at {@code pos} is one he clicked and Hide Opened Chests is on (the render mixin's question). */
+    public static boolean shouldHide(BlockPos pos) {
+        if (HIDDEN.isEmpty() || !PowderMiningConfig.getInstance().isTreasureChestHideOpened()) {
+            return false;
+        }
+        boolean hidden = HIDDEN.containsKey(pos);
+        if (hidden) {
+            hiddenSkips++;
+        }
+        return hidden;
     }
     private static int boxFrames = 0;
     private static boolean throughWallsNow = false;
@@ -200,6 +232,13 @@ public final class TreasureChests {
             }
         }
         UNCLAIMED.values().removeIf(t -> now - t > MATCH_TICKS);
+        long wall = System.currentTimeMillis();
+        for (Iterator<Map.Entry<BlockPos, Long>> it = HIDDEN.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<BlockPos, Long> e = it.next();
+            if (wall - e.getValue() > HIDDEN_MS || !client.level.getBlockState(e.getKey()).is(Blocks.CHEST)) {
+                it.remove();
+            }
+        }
         if (pendingLines > 0 && now - pendingAt > MATCH_TICKS) {
             pendingLines = 0;
         }
@@ -207,6 +246,7 @@ public final class TreasureChests {
     }
 
     static void clear() {
+        HIDDEN.clear();
         CHESTS.clear();
         UNCLAIMED.clear();
         pendingLines = 0;
@@ -253,6 +293,72 @@ public final class TreasureChests {
         WorldRenderUtils.renderOutlineBoxes(context, boxes, rgba, n, 2f, walls);
         WorldRenderUtils.renderFilledBoxes(context, boxes.clone(), rgba.clone(), n, 0.25f, walls);
         boxFrames++;
+        if (cfg.isTreasureChestTracer()) {
+            float[] k = WorldRenderUtils.argbToFloats(cfg.getTreasureChestTracerColor());
+            Vec3 from = WorldRenderUtils.tracerOrigin(context);
+            for (AABB b : boxes) {
+                WorldRenderUtils.renderLineStrip(context, new Vec3[]{from, b.getCenter()}, k[0], k[1], k[2], 1f, 2f, walls);
+            }
+            tracerFrames++;
+        }
+        if (cfg.isTreasureChestCountdown()) {
+            for (Map.Entry<BlockPos, Long> e : CHESTS.entrySet()) {
+                long left = e.getValue() + LIFETIME_TICKS - now;
+                String text = countdownText(left);
+                int color = countdownColor(left);
+                lastCountdownColor = color;
+                lastCountdownText = text;
+                BlockPos p = e.getKey();
+                renderLabel(context, p.getX() + 0.5, p.getY() + 1.3, p.getZ() + 0.5, text, color, walls);
+            }
+            countdownFrames++;
+        }
+    }
+
+    /** "42s" for the ticks left (rounded up, never negative). */
+    public static String countdownText(long leftTicks) {
+        return Math.max(0L, (leftTicks + 19L) / 20L) + "s";
+    }
+
+    /**
+     * The countdown's color for the ticks left of the minute: green with the whole minute left, yellow at half, red at none
+     * (a straight blend of the two halves, so it moves a little every second).
+     */
+    public static int countdownColor(long leftTicks) {
+        float f = Math.max(0f, Math.min(1f, leftTicks / (float) LIFETIME_TICKS));
+        int r;
+        int g;
+        if (f >= 0.5f) {
+            r = Math.round(255f * (1f - f) * 2f);
+            g = 255;
+        } else {
+            r = 255;
+            g = Math.round(255f * f * 2f);
+        }
+        return 0xFF000000 | (r << 16) | (g << 8) | 0x20;
+    }
+
+    /** Camera-facing text over the chest; legit text is depth-tested, Through Walls draws it see-through. */
+    private static void renderLabel(LevelRenderContext context, double x, double y, double z, String text, int color,
+                                    boolean walls) {
+        PoseStack poseStack = context.poseStack();
+        if (poseStack == null) {
+            return;
+        }
+        Font font = Minecraft.getInstance().font;
+        Vec3 cam = McRender.cameraPos(context);
+        double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
+        float s = 0.025f * (float) Math.min(8.0, Math.max(1.0, dist / 12.0));
+        poseStack.pushPose();
+        try {
+            poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
+            McRender.rotate(poseStack, McRender.cameraRotation(context));
+            poseStack.scale(s, -s, s);
+            McRender.drawText(context, font, text, -McRender.textWidth(font, text) / 2f, -font.lineHeight / 2f, color, true,
+                    poseStack, walls ? Font.DisplayMode.SEE_THROUGH : Font.DisplayMode.NORMAL, 0, 0xF000F0);
+        } finally {
+            poseStack.popPose();
+        }
     }
 
     /** Seconds left on the chest that runs out first, or -1 with none. */
@@ -287,6 +393,35 @@ public final class TreasureChests {
 
     public static int boxFrames() {
         return boxFrames;
+    }
+
+    public static int hiddenSkips() {
+        return hiddenSkips;
+    }
+
+    public static int hiddenCount() {
+        return HIDDEN.size();
+    }
+
+    public static int tracerFrames() {
+        return tracerFrames;
+    }
+
+    public static int countdownFrames() {
+        return countdownFrames;
+    }
+
+    public static int lastCountdownColor() {
+        return lastCountdownColor;
+    }
+
+    public static String lastCountdownText() {
+        return lastCountdownText;
+    }
+
+    /** Pretends he right-clicked the chest at the position (testkit). */
+    public static void useForTest(int x, int y, int z) {
+        onUseBlock(new BlockPos(x, y, z));
     }
 
     public static int count() {

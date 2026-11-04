@@ -4,7 +4,8 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.powdermining.mixin",
 	"client": [
-		"PowderPacketMixin"
+		"PowderPacketMixin",
+		"TreasureChestHideMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0
