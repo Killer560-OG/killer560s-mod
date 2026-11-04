@@ -57,13 +57,7 @@ public final class TicTacToeSolverFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers");
     /** Logging only: last room state logged ("none" outside the room), so lines are written on CHANGE, never per tick. */
-    private static String roomLogKey = "none";
-
-    private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) return;
-        roomLogKey = key;
-        LOGGER.info("[TicTacToeSolver] {}", detail);
-    }
+    private static final SolverLog LOG = new SolverLog(LOGGER, "[TicTacToeSolver]");
 
     /** Logging only: the board as 9 chars, row by row from the top ('X' computer, 'O' player, '.' empty). */
     private static String boardString(char[] board) {
@@ -104,8 +98,8 @@ public final class TicTacToeSolverFeature {
     private static void tickInner(Minecraft client) {
         if (!TicTacToeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()
                 || client.level == null) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "solver idle: enabled=" + TicTacToeSolverConfig.getInstance().isEnabled()
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "solver idle: enabled=" + TicTacToeSolverConfig.getInstance().isEnabled()
                         + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
                         + " level=" + (client.level != null) + " - board cleared");
             }
@@ -122,20 +116,20 @@ public final class TicTacToeSolverFeature {
             reset();
         }
         if (current == null || !ROOM.equals(current.name)) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "left Tic Tac Toe: now in " + (current == null ? "no known room" : current.name)
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "left Tic Tac Toe: now in " + (current == null ? "no known room" : current.name)
                         + " (gameOver was reset)");
             }
             return;
         }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (cr == null) {
-            logRoomState("wait", "in Tic Tac Toe but clay/rotation not known yet - board not read, waiting for the map");
+            LOG.room("wait", "in Tic Tac Toe but clay/rotation not known yet - board not read, waiting for the map");
             return;
         }
         String roomKey = "room " + cr[0] + "," + cr[1] + " rot " + cr[2];
-        if (!roomKey.equals(roomLogKey)) {
-            logRoomState(roomKey, "Tic Tac Toe detected: clay=" + cr[0] + "," + cr[1] + " rotation=" + cr[2]
+        if (!roomKey.equals(LOG.roomKey)) {
+            LOG.room(roomKey, "Tic Tac Toe detected: clay=" + cr[0] + "," + cr[1] + " rotation=" + cr[2]
                     + " top-left square " + indexToPos(0, cr).toShortString() + " bottom-right "
                     + indexToPos(8, cr).toShortString() + " preventMisclicks="
                     + TicTacToeSolverConfig.getInstance().isPreventMisclicks() + " prediction="

@@ -53,15 +53,8 @@ public final class BoulderSolverFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
     /** Logging only: last room state and last unmatched floor pattern logged, so lines are written on CHANGE. */
-    private static String roomLogKey = "none";
+    private static final SolverLog LOG = new SolverLog(LOGGER, "[BoulderSolver]");
     private static String missLogKey = null;
-
-    private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) return;
-        roomLogKey = key;
-        missLogKey = null;
-        LOGGER.info("[BoulderSolver] {}", detail);
-    }
 
     private BoulderSolverFeature() {
     }
@@ -110,8 +103,8 @@ public final class BoulderSolverFeature {
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!BoulderSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "solver idle: enabled=" + BoulderSolverConfig.getInstance().isEnabled()
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "solver idle: enabled=" + BoulderSolverConfig.getInstance().isEnabled()
                         + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
                         + " - solution cleared");
             }
@@ -126,19 +119,19 @@ public final class BoulderSolverFeature {
             currentPositions = new ArrayList<>();
         }
         if (current == null || !"Boulder".equals(current.name)) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "left Boulder: now in " + (current == null ? "no known room" : current.name));
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "left Boulder: now in " + (current == null ? "no known room" : current.name));
             }
         }
         if (current == null || !"Boulder".equals(current.name) || scannedThisRoom) return;
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         if (clayAndRotation == null) {
-            logRoomState("wait", "in Boulder but not scanning: clay/rotation not known yet - waiting for the map");
+            LOG.room("wait", "in Boulder but not scanning: clay/rotation not known yet - waiting for the map");
             return;
         }
         String roomKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
-        if (!roomKey.equals(roomLogKey)) {
-            logRoomState(roomKey, "Boulder detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
+        if (!roomKey.equals(LOG.roomKey)) {
+            LOG.room(roomKey, "Boulder detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
                     + " rotation=" + clayAndRotation[2] + " knownPatterns=" + SOLUTIONS.size());
         }
         // Real bug found and fixed (2026-09-14, code review): scannedThisRoom used to be set true even

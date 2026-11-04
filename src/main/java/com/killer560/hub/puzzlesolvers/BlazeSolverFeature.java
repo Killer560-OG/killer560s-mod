@@ -55,15 +55,7 @@ public final class BlazeSolverFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers");
     /** Logging only: last room state and last kill order logged, so lines are written on CHANGE, never per tick. */
-    private static String roomLogKey = "none";
-    private static String scanLogKey = null;
-
-    private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) return;
-        roomLogKey = key;
-        scanLogKey = null;
-        LOGGER.info("[BlazeSolver] {}", detail);
-    }
+    private static final SolverLog LOG = new SolverLog(LOGGER, "[BlazeSolver]");
 
     private BlazeSolverFeature() {
     }
@@ -92,8 +84,8 @@ public final class BlazeSolverFeature {
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!BlazeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "solver idle: enabled=" + BlazeSolverConfig.getInstance().isEnabled()
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "solver idle: enabled=" + BlazeSolverConfig.getInstance().isEnabled()
                         + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
                         + " - kill order cleared");
             }
@@ -110,13 +102,13 @@ public final class BlazeSolverFeature {
         boolean isLower = "Lower Blaze".equals(roomName);
         boolean isHigher = "Higher Blaze".equals(roomName);
         if (!isLower && !isHigher) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "left the blaze room: now in " + (roomName == null ? "no known room" : roomName));
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "left the blaze room: now in " + (roomName == null ? "no known room" : roomName));
             }
             return;
         }
-        if (!roomName.equals(roomLogKey)) {
-            logRoomState(roomName, roomName + " detected: kill order is " + (isLower ? "highest" : "lowest")
+        if (!roomName.equals(LOG.roomKey)) {
+            LOG.room(roomName, roomName + " detected: kill order is " + (isLower ? "highest" : "lowest")
                     + " max HP first");
         }
         tickCounter++;
@@ -154,9 +146,9 @@ public final class BlazeSolverFeature {
             key.append(e.getId()).append(',');
         }
         String k = key.toString();
-        if (k.equals(scanLogKey)) return;
-        String previous = scanLogKey;
-        scanLogKey = k;
+        if (k.equals(LOG.scanKey)) return;
+        String previous = LOG.scanKey;
+        LOG.scanKey = k;
         StringBuilder order = new StringBuilder();
         for (int i = 0; i < found.size() && i < 12; i++) {
             Entity e = found.get(i);

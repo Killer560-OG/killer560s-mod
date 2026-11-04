@@ -77,15 +77,7 @@ public final class BeamsSolverFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
     /** Logging only: last room state and last scan result logged, so a line is written on CHANGE, never per tick. */
-    private static String roomLogKey = "none";
-    private static String scanLogKey = null;
-
-    private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) return;
-        roomLogKey = key;
-        scanLogKey = null;
-        LOGGER.info("[BeamsSolver] {}", detail);
-    }
+    private static final SolverLog LOG = new SolverLog(LOGGER, "[BeamsSolver]");
 
     private BeamsSolverFeature() {
     }
@@ -146,8 +138,8 @@ public final class BeamsSolverFeature {
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!BeamsSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "solver idle: enabled=" + BeamsSolverConfig.getInstance().isEnabled()
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "solver idle: enabled=" + BeamsSolverConfig.getInstance().isEnabled()
                         + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
                         + " - highlights cleared");
             }
@@ -165,21 +157,21 @@ public final class BeamsSolverFeature {
             shownOrder.clear();
         }
         if (current == null || !"Creeper Beams".equals(current.name)) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "left Creeper Beams: now in " + (current == null ? "no known room" : current.name));
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "left Creeper Beams: now in " + (current == null ? "no known room" : current.name));
             }
             return;
         }
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         Level level = client.level;
         if (clayAndRotation == null || level == null) {
-            logRoomState("wait", "in Creeper Beams but not solving: clay/rotation known=" + (clayAndRotation != null)
+            LOG.room("wait", "in Creeper Beams but not solving: clay/rotation known=" + (clayAndRotation != null)
                     + " level=" + (level != null) + " - waiting for the map to resolve the room");
             return;
         }
         String roomKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
-        if (!roomKey.equals(roomLogKey)) {
-            logRoomState(roomKey, "Creeper Beams detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
+        if (!roomKey.equals(LOG.roomKey)) {
+            LOG.room(roomKey, "Creeper Beams detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
                     + " rotation=" + clayAndRotation[2] + " candidatePairs=" + CANDIDATES.size());
         }
         rescan(level, clayAndRotation);
@@ -308,9 +300,9 @@ public final class BeamsSolverFeature {
                     .append(pair.b().toShortString()).append(';');
         }
         String k = key.toString();
-        if (k.equals(scanLogKey)) return;
-        boolean first = scanLogKey == null;
-        scanLogKey = k;
+        if (k.equals(LOG.scanKey)) return;
+        boolean first = LOG.scanKey == null;
+        LOG.scanKey = k;
         LOGGER.info("[BeamsSolver] {}: litPairs={} misalignedPairs={} of {} candidates:{}",
                 first ? "scan" : "solution changed", lit, misaligned, CANDIDATES.size(), k.isEmpty() ? " none" : k);
     }

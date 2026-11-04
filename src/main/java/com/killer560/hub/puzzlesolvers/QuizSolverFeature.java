@@ -44,13 +44,7 @@ public final class QuizSolverFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers");
     /** Logging only: last room state logged ("none" outside the Quiz room), so lines are written on CHANGE. */
-    private static String roomLogKey = "none";
-
-    private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) return;
-        roomLogKey = key;
-        LOGGER.info("[QuizSolver] {}", detail);
-    }
+    private static final SolverLog LOG = new SolverLog(LOGGER, "[QuizSolver]");
 
     private static String letterOf(int index) { return index == 0 ? "a" : index == 1 ? "b" : index == 2 ? "c" : "?"; }
 
@@ -101,7 +95,7 @@ public final class QuizSolverFeature {
             if (lastRoomEntry != null || triviaAnswers != null || options[0].blockPos != null) {
                 LOGGER.info("[QuizSolver] solver idle: enabled={} inDungeon={} inBoss={} - question and positions cleared",
                         QuizSolverConfig.getInstance().isEnabled(), DungeonState.isInDungeon(), LiveMapFeature.isInBoss());
-                roomLogKey = "none";
+                LOG.roomKey = "none";
                 lastRoomEntry = null;
                 reset();
             }
@@ -117,7 +111,7 @@ public final class QuizSolverFeature {
                 for (TriviaOption option : options) {
                     option.blockPos = null;
                 }
-                if (!"none".equals(roomLogKey) || (current != null && "Quiz".equals(current.name))) {
+                if (!"none".equals(LOG.roomKey) || (current != null && "Quiz".equals(current.name))) {
                     LOGGER.info("[QuizSolver] room changed to {} while the quiz is in progress ({}): keeping the question"
                                     + " (answers known={}), recomputing pillar positions",
                             current == null ? "no known room" : current.name, QuizState.describe(), triviaAnswers != null);
@@ -126,19 +120,19 @@ public final class QuizSolverFeature {
                 reset();
             }
         }
-        if ((current == null || !"Quiz".equals(current.name)) && !"none".equals(roomLogKey)) {
-            logRoomState("none", "left Quiz: now in " + (current == null ? "no known room" : current.name));
+        if ((current == null || !"Quiz".equals(current.name)) && !"none".equals(LOG.roomKey)) {
+            LOG.room("none", "left Quiz: now in " + (current == null ? "no known room" : current.name));
         }
         if (current == null || !"Quiz".equals(current.name) || options[0].blockPos != null) return;
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         if (clayAndRotation == null) {
-            logRoomState("wait", "in Quiz but clay/rotation not known yet - answer pillars not placed, waiting for the map");
+            LOG.room("wait", "in Quiz but clay/rotation not known yet - answer pillars not placed, waiting for the map");
             return;
         }
         options[0].blockPos = realPos(20, 70, 6, clayAndRotation);
         options[1].blockPos = realPos(15, 70, 9, clayAndRotation);
         options[2].blockPos = realPos(10, 70, 6, clayAndRotation);
-        roomLogKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
+        LOG.roomKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
         LOGGER.info("[QuizSolver] Quiz detected: clay={},{} rotation={} pillars a={} b={} c={} ({}, answers known={})",
                 clayAndRotation[0], clayAndRotation[1], clayAndRotation[2], options[0].blockPos.toShortString(),
                 options[1].blockPos.toShortString(), options[2].blockPos.toShortString(), QuizState.describe(),
