@@ -305,6 +305,25 @@ public final class WorldRenderUtils {
                 (float) box.maxX, (float) box.maxY, (float) box.maxZ, r, g, b, a);
     }
 
+    /** A box as six quads (for a quad pipeline, unlike {@link #filledBoxVertices}). */
+    public static void filledBoxQuads(org.joml.Matrix4f m, VertexConsumer buf, AABB box, float r, float g, float b, float a) {
+        float x0 = (float) box.minX, y0 = (float) box.minY, z0 = (float) box.minZ;
+        float x1 = (float) box.maxX, y1 = (float) box.maxY, z1 = (float) box.maxZ;
+        float[][] quads = {
+                {x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0},
+                {x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1},
+                {x0, y0, z0, x0, y1, z0, x1, y1, z0, x1, y0, z0},
+                {x1, y0, z1, x1, y1, z1, x0, y1, z1, x0, y0, z1},
+                {x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1},
+                {x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0}
+        };
+        for (float[] q : quads) {
+            for (int i = 0; i < 12; i += 3) {
+                buf.addVertex(m, q[i], q[i + 1], q[i + 2]).setColor(r, g, b, a);
+            }
+        }
+    }
+
     /** One straight line, optionally through walls ({@link #initThroughWalls()} at init for that). */
     public static void renderLine(LevelRenderContext context, Vec3 start, Vec3 end, float r, float g, float b, float a,
                                   float thickness, boolean throughWalls) {
