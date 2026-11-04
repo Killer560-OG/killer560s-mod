@@ -715,13 +715,7 @@ public final class AutoCroesusFeature {
 
         // The skip bookkeeping and its chat line only happen once the "go back" click has actually gone out -
         // a gate denial here must not count the run as skipped or spam a second message.
-        ChestValue best = null;
-        for (ChestValue c : chests) {
-            if (!c.opened()) {
-                best = c;
-                break;
-            }
-        }
+        ChestValue best = chests.stream().filter(c -> !c.opened()).findFirst().orElse(null);
         if (!goBack(client, screen, now)) {
             return;
         }
