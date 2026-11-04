@@ -36,6 +36,23 @@ final class MiningQolRows {
         }).bounds(x, y, width, ROW).build());
     }
 
+    /** One toggle of a {@link #toggles} run. */
+    record T(String label, BooleanSupplier get, Consumer<Boolean> set) {
+    }
+
+    static T t(String label, BooleanSupplier get, Consumer<Boolean> set) {
+        return new T(label, get, set);
+    }
+
+    /** A column of toggles, one {@link #STEP} apart; returns the y below the last one's step. */
+    static int toggles(List<AbstractWidget> w, int x, int y, int width, Runnable save, T... rows) {
+        for (T row : rows) {
+            toggle(w, x, y, width, row.label(), row.get(), row.set(), save);
+            y += STEP;
+        }
+        return y;
+    }
+
     static void cycle(List<AbstractWidget> w, int x, int y, int width, String label, Supplier<String> value,
                       IntConsumer step, Runnable save) {
         w.add(SettingsButtonWidget.cycling(Component.literal(label + ": " + value.get()), (btn, dir) -> {
