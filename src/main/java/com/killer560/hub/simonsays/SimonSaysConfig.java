@@ -542,7 +542,4 @@ public final class SimonSaysConfig {
         return diagnosticLoggingEnabled;
     }
 
-    public void setDiagnosticLoggingEnabled(boolean diagnosticLoggingEnabled) {
-        this.diagnosticLoggingEnabled = diagnosticLoggingEnabled;
-    }
 }
