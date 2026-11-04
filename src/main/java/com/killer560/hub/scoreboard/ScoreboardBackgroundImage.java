@@ -60,9 +60,7 @@ public final class ScoreboardBackgroundImage {
             release();
             return;
         }
-        if (modified == loadedModified && registered) {
-            return;
-        }
+        if (modified == loadedModified && registered) return;
         loadedModified = modified;
         try (InputStream in = Files.newInputStream(FILE)) {
             NativeImage image = NativeImage.read(in);

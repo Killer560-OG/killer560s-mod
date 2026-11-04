@@ -52,9 +52,7 @@ public enum ScoreboardEntry {
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             String line = firstMatches(ScoreboardPattern.LOBBY_CODE, sidebar());
             Matcher m = line == null ? null : ScoreboardPattern.LOBBY_CODE.matcher(line);
-            if (m == null || !m.matches()) {
-                return single(trim(line));
-            }
+            if (m == null || !m.matches()) return single(trim(line));
             String code = m.group("code").trim();
             return single(cfg.isDateInLobbyCode() ? "§7" + cfg.getDateFormat().today() + " §8" + code : "§8" + code);
         }
@@ -82,9 +80,7 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             String line = trim(firstMatches(ScoreboardPattern.TIME, sidebar()));
-            if (cfg.isTimeExactMinutes()) {
-                return single(exactTime(line, cfg.isTime24h(), System.currentTimeMillis()));
-            }
+            if (cfg.isTimeExactMinutes()) return single(exactTime(line, cfg.isTime24h(), System.currentTimeMillis()));
             return single(cfg.isTime24h() ? to24h(line) : line);
         }
 
@@ -104,9 +100,7 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             String amount = tabHeaderGroup(ScoreboardPattern.TAB_PLAYER_LIST, "amount");
-            if (amount == null) {
-                return List.of();
-            }
+            if (amount == null) return List.of();
             int max = cfg.isShowMaxIslandPlayers() ? maxIslandPlayers() : -1;
             return single(formatNumberDisplay("Players", amount + (max > 0 ? "§7/§a" + max : ""), "§a"));
         }
@@ -181,9 +175,7 @@ public enum ScoreboardEntry {
                     }
                 }
             }
-            if (typeLine == null && tabProfile == null && ScoreboardData.sidebar().isEmpty()) {
-                return List.of();
-            }
+            if (typeLine == null && tabProfile == null && ScoreboardData.sidebar().isEmpty()) return List.of();
             return single(symbol + type);
         }
 
@@ -224,14 +216,10 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             String[] bank = ChunkedStat.bank();
-            if (bank == null) {
-                return List.of();
-            }
+            if (bank == null) return List.of();
             String amount = bank[0];
             String personal = bank[1];
-            if (cfg.isHideEmptyLines() && isZero(amount) && (personal == null || isZero(personal))) {
-                return List.of();
-            }
+            if (cfg.isHideEmptyLines() && isZero(amount) && (personal == null || isZero(personal))) return List.of();
             String value = amount + (personal != null ? " §7/ §6" + personal.trim() : "");
             return single(formatNumberDisplay("Bank", value, "§6"));
         }
@@ -242,16 +230,12 @@ public enum ScoreboardEntry {
     BITS("Bits", true, ScoreboardPattern.BITS) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            if (!cfg.isShowUnclaimedBits()) {
-                return number(cfg, "Bits", "bits", ChunkedStat.BITS.raw(), "§b");
-            }
+            if (!cfg.isShowUnclaimedBits()) return number(cfg, "Bits", "bits", ChunkedStat.BITS.raw(), "§b");
             // SkyHanni CustomScoreboardUtils.getBitsLine with "Show unclaimed bits".
             String raw = ChunkedStat.BITS.raw();
             long available = ScoreboardExtraData.bitsAvailable();
             String bits = raw == null ? "0" : formatStringNum(raw.trim());
-            if (cfg.isHideEmptyLines() && isZero(bits) && available <= 0) {
-                return List.of();
-            }
+            if (cfg.isHideEmptyLines() && isZero(bits) && available <= 0) return List.of();
             String availableText = available < 0 ? "?" : ScoreboardLine.formatNumber(available);
             ScoreboardLine line = ScoreboardLine.of(formatNumberDisplay("Bits", bits + "§7/§b" + availableText, "§b"));
             if (raw != null) {
@@ -295,13 +279,9 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             String display = group(ScoreboardPattern.HEAT, sidebar(), "scoreboard");
-            if (display == null) {
-                return List.of();
-            }
+            if (display == null) return List.of();
             String heat = group(ScoreboardPattern.HEAT, sidebar(), "heat");
-            if (cfg.isHideEmptyLines() && "0".equals(heat)) {
-                return List.of();
-            }
+            if (cfg.isHideEmptyLines() && "0".equals(heat)) return List.of();
             return single(formatNumberDisplay("Heat", display, "§c"));
         }
 
@@ -312,18 +292,14 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             String cold = group(ScoreboardPattern.COLD, sidebar(), "cold");
-            if (cold == null) {
-                return List.of();
-            }
+            if (cold == null) return List.of();
             int value;
             try {
                 value = -Math.abs(Integer.parseInt(cold));
             } catch (NumberFormatException e) {
                 return List.of();
             }
-            if (cfg.isHideEmptyLines() && value == 0) {
-                return List.of();
-            }
+            if (cfg.isHideEmptyLines() && value == 0) return List.of();
             return single(formatNumberDisplay("Cold", value + "❄", "§b"));
         }
 
@@ -357,20 +333,14 @@ public enum ScoreboardEntry {
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             List<ScoreboardLine> out = new ArrayList<>();
             for (ScoreboardEvent event : cfg.events().active()) {
-                if (!event.visible(cfg)) {
-                    continue;
-                }
+                if (!event.visible(cfg)) continue;
                 List<ScoreboardLine> lines = event.lines(cfg);
-                if (lines.isEmpty()) {
-                    continue;
-                }
+                if (lines.isEmpty()) continue;
                 if (cfg.isSeparatorBetweenEvents() && !out.isEmpty()) {
                     out.add(ScoreboardLine.of(""));
                 }
                 out.addAll(lines);
-                if (!cfg.isShowAllActiveEvents()) {
-                    break;
-                }
+                if (!cfg.isShowAllActiveEvents()) break;
             }
             return out;
         }
@@ -390,9 +360,7 @@ public enum ScoreboardEntry {
             if (expires < 0) {
                 value = "§cOpen SB Menu!";
             } else if (expires <= now) {
-                if (cfg.isHideEmptyLines()) {
-                    return List.of();
-                }
+                if (cfg.isHideEmptyLines()) return List.of();
                 value = "§cNot Active";
             } else {
                 value = ScoreboardLine.formatDuration(expires - now, 2);
@@ -441,9 +409,7 @@ public enum ScoreboardEntry {
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             String power = ScoreboardExtraData.maxwellPower();
             List<String> hover = List.of("§7Updated from the Your Bags menu", "§7and Maxwell's Thaumaturgy menu");
-            if (power == null) {
-                return List.of(ScoreboardLine.of("§cOpen \"Your Bags\"!").withActions(hover, null));
-            }
+            if (power == null) return List.of(ScoreboardLine.of("§cOpen \"Your Bags\"!").withActions(hover, null));
             int mp = ScoreboardExtraData.magicalPower();
             String value = power + (cfg.isShowMagicalPower() && mp >= 0
                     ? " §7(§6" + String.format(java.util.Locale.US, "%,d", mp) + "§7)" : "");
@@ -460,12 +426,8 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             List<ScoreboardExtraData.Tuning> tunings = ScoreboardExtraData.tunings();
-            if (tunings == null) {
-                return single("§cTalk to \"Maxwell\"!");
-            }
-            if (tunings.isEmpty()) {
-                return cfg.isHideEmptyLines() ? List.of() : single("§cNo Maxwell Tunings :(");
-            }
+            if (tunings == null) return single("§cTalk to \"Maxwell\"!");
+            if (tunings.isEmpty()) return cfg.isHideEmptyLines() ? List.of() : single("§cNo Maxwell Tunings :(");
             String title = tunings.size() == 1 ? "Tuning" : "Tunings";
             CustomScoreboardConfig.NumberDisplayFormat format = cfg.getNumberDisplayFormat();
             if (cfg.isCompactTuning()) {
@@ -514,9 +476,7 @@ public enum ScoreboardEntry {
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             List<String> sb = sidebar();
             String objective = firstMatches(ScoreboardPattern.OBJECTIVE, sb);
-            if (objective == null) {
-                return List.of();
-            }
+            if (objective == null) return List.of();
             List<String> out = new ArrayList<>();
             out.add(objective);
             String next = nextAfter(sb, objective, 1);
@@ -539,9 +499,7 @@ public enum ScoreboardEntry {
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             List<String> sb = sidebar();
             String header = firstMatches(ScoreboardPattern.SLAYER_QUEST, sb);
-            if (header == null) {
-                return List.of();
-            }
+            if (header == null) return List.of();
             List<String> out = new ArrayList<>();
             out.add(header);
             out.addAll(ScoreboardData.sublistAfter(sb, header, 2));
@@ -568,9 +526,7 @@ public enum ScoreboardEntry {
                 };
                 allEmpty &= empty;
             }
-            if (allEmpty && (cfg.isHideEmptyLines() || !anyKnown)) {
-                return List.of();
-            }
+            if (allEmpty && (cfg.isHideEmptyLines() || !anyKnown)) return List.of();
             List<String> hover = display == CustomScoreboardConfig.PowderDisplay.AVAILABLE ? null
                     : List.of("§7Totals update from the /hotm menu", "§eClick to open it");
             String command = hover == null ? null : "hotm";
@@ -603,9 +559,7 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             ScoreboardExtraData.Candidate mayor = ScoreboardExtraData.mayor();
-            if (mayor == null) {
-                return List.of();
-            }
+            if (mayor == null) return List.of();
             List<ScoreboardLine> out = new ArrayList<>();
             String time = cfg.isShowMayorTime()
                     ? "§7 (§e" + ScoreboardLine.formatDuration(ScoreboardExtraData.timeUntilNextMayorMs(), 2) + "§7)" : "";
@@ -661,9 +615,7 @@ public enum ScoreboardEntry {
             if (members.isEmpty()) {
                 leader = null;
             }
-            if (members.isEmpty() && cfg.isHideEmptyLines()) {
-                return List.of();
-            }
+            if (members.isEmpty() && cfg.isHideEmptyLines()) return List.of();
             List<ScoreboardLine> out = new ArrayList<>();
             out.add(ScoreboardLine.of(members.isEmpty() ? "§9§lParty" : "§9§lParty (" + members.size() + ")")
                     .withActions(List.of("§7Click to run /party list"), "party list"));
@@ -672,12 +624,8 @@ public enum ScoreboardEntry {
                 out.add(ScoreboardLine.of(" §7- §f" + leader + " §e♚"));
             }
             for (String member : members) {
-                if (shown >= cfg.getMaxPartyMembers()) {
-                    break;
-                }
-                if (cfg.isShowPartyLeader() && member.equalsIgnoreCase(leader)) {
-                    continue;
-                }
+                if (shown >= cfg.getMaxPartyMembers()) break;
+                if (cfg.isShowPartyLeader() && member.equalsIgnoreCase(leader)) continue;
                 out.add(ScoreboardLine.of(" §7- §f" + member));
                 shown++;
             }
@@ -717,13 +665,9 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             List<Integer> widget = ScoreboardData.tabWidget(ScoreboardPattern.TAB_SB_LEVEL);
-            if (widget.isEmpty()) {
-                return List.of();
-            }
+            if (widget.isEmpty()) return List.of();
             Matcher m = ScoreboardPattern.TAB_SB_LEVEL.matcher(ScoreboardData.tabPlain().get(widget.get(0)).trim());
-            if (!m.matches()) {
-                return List.of();
-            }
+            if (!m.matches()) return List.of();
             return ScoreboardLine.of(List.of(
                     formatNumberDisplay("SB Level", m.group("level"), "§b"),
                     formatNumberDisplay("XP", m.group("xp") + "§3/§b100", "§b")));
@@ -734,9 +678,7 @@ public enum ScoreboardEntry {
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             List<String> parts = new ArrayList<>();
             for (ChunkedStat stat : cfg.chunkedStats().active()) {
-                if (!stat.entry.visible(cfg)) {
-                    continue;
-                }
+                if (!stat.entry.visible(cfg)) continue;
                 String display = stat.display(cfg);
                 if (display != null) {
                     parts.add(display);
@@ -764,16 +706,12 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             List<Integer> widget = ScoreboardData.tabWidget(ScoreboardPattern.TAB_PET);
-            if (widget.size() < 2) {
-                return List.of();
-            }
+            if (widget.size() < 2) return List.of();
             List<String> hover = List.of("§7Needs the Pet tab widget", "§eClick to open the Pets menu");
             List<ScoreboardLine> out = new ArrayList<>();
             String pet = ScoreboardData.tabFormatted().get(widget.get(1)).trim();
             if (pet.isEmpty() || pet.replaceAll("§.", "").trim().equalsIgnoreCase("None")) {
-                if (cfg.isHideEmptyLines()) {
-                    return List.of();
-                }
+                if (cfg.isHideEmptyLines()) return List.of();
                 pet = "§cNone";
             }
             out.add(ScoreboardLine.of(formatNumberDisplay("Pet", pet, "§f")).withActions(hover, "pets"));
@@ -868,13 +806,9 @@ public enum ScoreboardEntry {
 
     /** SkyHanni's {@code SkyBlockTime.formatted(timeFormat24h = true)} applied to the sidebar's "10:40pm" line. */
     static String to24h(String line) {
-        if (line == null) {
-            return null;
-        }
+        if (line == null) return null;
         Matcher m = TIME_12H.matcher(line);
-        if (!m.matches()) {
-            return line;
-        }
+        if (!m.matches()) return line;
         int hour = Integer.parseInt(m.group("hour")) % 12;
         if (m.group("ampm").equals("pm")) {
             hour += 12;
@@ -891,13 +825,9 @@ public enum ScoreboardEntry {
      * the time is computed from the SkyBlock epoch and swapped into the sidebar line (keeping its weather symbol).
      */
     static String exactTime(String line, boolean h24, long nowMs) {
-        if (line == null) {
-            return null;
-        }
+        if (line == null) return null;
         Matcher m = TIME_12H.matcher(line);
-        if (!m.matches()) {
-            return line;
-        }
+        if (!m.matches()) return line;
         long into = Math.floorMod(nowMs - SKYBLOCK_EPOCH_MS, SKYBLOCK_DAY_MS);
         long minutesOfDay = into * 24L * 60L / SKYBLOCK_DAY_MS;
         int hour = (int) (minutesOfDay / 60);
@@ -957,9 +887,7 @@ public enum ScoreboardEntry {
             }
         }
         String lobby = group(ScoreboardPattern.LOBBY_CODE, sidebar(), "code");
-        if (lobby != null && lobby.trim().startsWith("mega")) {
-            return 60;
-        }
+        if (lobby != null && lobby.trim().startsWith("mega")) return 60;
         return switch (island()) {
             case "The End" -> 28;
             case "Kuudra", "Mineshaft", "Critter Safari", "Safari" -> 4;
@@ -1006,9 +934,7 @@ public enum ScoreboardEntry {
     /** Word-wraps legacy text to ~40 visible characters, carrying the last color code onto each new line. */
     static List<String> wrap(String text, String baseColor) {
         List<String> out = new ArrayList<>();
-        if (text == null || text.isEmpty()) {
-            return out;
-        }
+        if (text == null || text.isEmpty()) return out;
         StringBuilder line = new StringBuilder(baseColor);
         int visible = 0;
         String lastColor = baseColor;
@@ -1042,22 +968,16 @@ public enum ScoreboardEntry {
 
     private static int indexOf(String[] names, String name) {
         for (int i = 0; i < names.length; i++) {
-            if (names[i].equals(name)) {
-                return i;
-            }
+            if (names[i].equals(name)) return i;
         }
         return 0;
     }
 
     /** A "Label: value" currency line; hidden when missing, or zero with "Hide Empty Lines". */
     static List<ScoreboardLine> number(CustomScoreboardConfig cfg, String label, String trackKey, String raw, String color) {
-        if (raw == null) {
-            return cfg.isHideEmptyLines() ? List.of() : single(formatNumberDisplay(label, "0", color));
-        }
+        if (raw == null) return cfg.isHideEmptyLines() ? List.of() : single(formatNumberDisplay(label, "0", color));
         String value = formatStringNum(raw.trim());
-        if (cfg.isHideEmptyLines() && isZero(value)) {
-            return List.of();
-        }
+        if (cfg.isHideEmptyLines() && isZero(value)) return List.of();
         ScoreboardLine line = ScoreboardLine.of(formatNumberDisplay(label, value, color));
         return List.of(NumberChangeTracker.track(cfg, line, trackKey, raw.trim(), color));
     }

@@ -204,13 +204,9 @@ public final class ScoreboardExtraData {
     /** Bits gained on the sidebar come out of "Bits Available" (claimed from the cookie buff). */
     private static void trackBits() {
         String raw = ChunkedStat.BITS.raw();
-        if (raw == null) {
-            return;
-        }
+        if (raw == null) return;
         long bits = parseLong(raw);
-        if (bits < 0) {
-            return;
-        }
+        if (bits < 0) return;
         if (lastBits >= 0 && bits > lastBits && bitsAvailable > 0) {
             bitsAvailable = Math.max(0L, bitsAvailable - (bits - lastBits));
             dirty = true;
@@ -220,14 +216,10 @@ public final class ScoreboardExtraData {
 
     /** Powder gained while mining raises the total; spending it in the tree doesn't. */
     private static void trackPowder() {
-        if (!ScoreboardData.inIsland("Dwarven Mines", "Crystal Hollows", "Mineshaft")) {
-            return;
-        }
+        if (!ScoreboardData.inIsland("Dwarven Mines", "Crystal Hollows", "Mineshaft")) return;
         long[] current = ScoreboardEntry.powderAmounts();
         for (int i = 0; i < POWDER_TYPES.length; i++) {
-            if (current[i] < 0) {
-                continue;
-            }
+            if (current[i] < 0) continue;
             if (lastPowder[i] >= 0 && current[i] > lastPowder[i] && powderTotal[i] >= 0) {
                 powderTotal[i] += current[i] - lastPowder[i];
                 dirty = true;
@@ -246,9 +238,7 @@ public final class ScoreboardExtraData {
     /** Any item in the open menu carrying a "Bits Available: N" lore line. */
     private static void readBitsAvailable(List<Slot> slots) {
         for (Slot slot : slots) {
-            if (slot.container instanceof Inventory || slot.getItem().isEmpty()) {
-                continue;
-            }
+            if (slot.container instanceof Inventory || slot.getItem().isEmpty()) continue;
             for (String line : plainLore(slot.getItem())) {
                 Matcher m = BITS_AVAILABLE_LORE.matcher(line);
                 if (m.matches()) {
@@ -265,15 +255,11 @@ public final class ScoreboardExtraData {
         long[] spent = {0L, 0L, 0L};
         boolean resetSeen = false;
         for (Slot slot : slots) {
-            if (slot.container instanceof Inventory || slot.getItem().isEmpty()) {
-                continue;
-            }
+            if (slot.container instanceof Inventory || slot.getItem().isEmpty()) continue;
             String name = plainName(slot.getItem()).trim();
             boolean heart = name.equals("Heart of the Mountain");
             boolean reset = name.equals("Reset Heart of the Mountain");
-            if (!heart && !reset) {
-                continue;
-            }
+            if (!heart && !reset) continue;
             resetSeen |= reset;
             for (String line : plainLore(slot.getItem())) {
                 Matcher m = (heart ? HOTM_HEART_POWDER : HOTM_RESET_POWDER).matcher(line);
@@ -290,9 +276,7 @@ public final class ScoreboardExtraData {
                 }
             }
         }
-        if (!resetSeen) {
-            return;
-        }
+        if (!resetSeen) return;
         for (int i = 0; i < POWDER_TYPES.length; i++) {
             if (available[i] >= 0 && powderTotal[i] != available[i] + spent[i]) {
                 powderTotal[i] = available[i] + spent[i];
@@ -304,9 +288,7 @@ public final class ScoreboardExtraData {
 
     static int powderIndex(String type) {
         for (int i = 0; i < POWDER_TYPES.length; i++) {
-            if (POWDER_TYPES[i].equals(type)) {
-                return i;
-            }
+            if (POWDER_TYPES[i].equals(type)) return i;
         }
         return -1;
     }
@@ -316,18 +298,12 @@ public final class ScoreboardExtraData {
     /** Calendar's "Mayor Jerry" item: the first Perkpocalypse perk (2 lines under the header) names the extra mayor. */
     private static void readCalendar(List<Slot> slots) {
         for (Slot slot : slots) {
-            if (slot.container instanceof Inventory || !"Mayor Jerry".equals(plainName(slot.getItem()).trim())) {
-                continue;
-            }
+            if (slot.container instanceof Inventory || !"Mayor Jerry".equals(plainName(slot.getItem()).trim())) continue;
             List<String> lore = plainLore(slot.getItem());
             for (int i = 0; i + 2 < lore.size(); i++) {
-                if (!PERKPOCALYPSE_PERKS.matcher(lore.get(i)).matches()) {
-                    continue;
-                }
+                if (!PERKPOCALYPSE_PERKS.matcher(lore.get(i)).matches()) continue;
                 String name = mayorFromPerk(lore.get(i + 2).trim());
-                if (name == null) {
-                    return;
-                }
+                if (name == null) return;
                 long now = System.currentTimeMillis();
                 long nextMayor = now + timeUntilNextMayorMs();
                 long lastMayor = nextMayor - SKYBLOCK_YEAR_MS;
@@ -403,9 +379,7 @@ public final class ScoreboardExtraData {
                         break;
                     }
                 }
-                if (header < 0 || header + 1 >= c.size()) {
-                    continue;
-                }
+                if (header < 0 || header + 1 >= c.size()) continue;
                 String body = String.join(" ", c.subList(header + 1, c.size()));
                 if (body.contains("Not active")) {
                     setCookieNotActive();
@@ -482,9 +456,7 @@ public final class ScoreboardExtraData {
 
     /** "3d 17h 2m", "3 Days, 17 Hours" ... in ms, or -1. */
     static long parseDuration(String text) {
-        if (text == null) {
-            return -1;
-        }
+        if (text == null) return -1;
         Matcher m = DURATION_PART.matcher(text);
         long total = 0;
         boolean any = false;
@@ -493,9 +465,7 @@ public final class ScoreboardExtraData {
             // even 999999 years is ~3.2e16 ms and the sum cannot overflow; the clamp below also keeps the
             // caller's currentTimeMillis() + duration safe.
             long n = parseLong(m.group(1));
-            if (n < 0) {
-                continue;
-            }
+            if (n < 0) continue;
             char unit = Character.toLowerCase(m.group(2).charAt(0));
             total += switch (unit) {
                 case 'y' -> n * 365L * 86_400_000L;
@@ -515,15 +485,11 @@ public final class ScoreboardExtraData {
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
-        if (plain == null) {
-            return;
-        }
+        if (plain == null) return;
         plain = plain.trim();
         // matches() of six patterns that all begin with a literal 'Y', 'Q' or 'C' (fps-idle-1015).
         char c0 = plain.isEmpty() ? 0 : plain.charAt(0);
-        if (c0 != 'Y' && c0 != 'Q' && c0 != 'C') {
-            return;
-        }
+        if (c0 != 'Y' && c0 != 'Q' && c0 != 'C') return;
         Matcher m;
         if (COOKIE_EATEN.matcher(plain).matches()) {
             long now = System.currentTimeMillis();
@@ -551,21 +517,15 @@ public final class ScoreboardExtraData {
 
 
     private static void readScreen(Minecraft client) {
-        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
-            return;
-        }
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) return;
         String title = ChatFormatting.stripFormatting(screen.getTitle().getString());
-        if (title == null) {
-            return;
-        }
+        if (title == null) return;
         title = title.trim();
         List<Slot> slots = screen.getMenu().slots;
         if (title.equals("SkyBlock Menu")) {
             readBitsAvailable(slots);
             for (Slot slot : slots) {
-                if (slot.container instanceof Inventory || !"Booster Cookie".equals(plainName(slot.getItem()))) {
-                    continue;
-                }
+                if (slot.container instanceof Inventory || !"Booster Cookie".equals(plainName(slot.getItem()))) continue;
                 for (String line : plainLore(slot.getItem())) {
                     Matcher m = COOKIE_DURATION_LORE.matcher(line);
                     if (m.matches()) {
@@ -595,9 +555,7 @@ public final class ScoreboardExtraData {
 
     private static void readThaumaturgy(List<Slot> slots) {
         for (Slot slot : slots) {
-            if (slot.container instanceof Inventory || slot.getItem().isEmpty()) {
-                continue;
-            }
+            if (slot.container instanceof Inventory || slot.getItem().isEmpty()) continue;
             List<String> lore = plainLore(slot.getItem());
             if (!lore.isEmpty() && POWER_SELECTED.matcher(lore.get(lore.size() - 1)).matches()) {
                 String name = plainName(slot.getItem()).trim();
@@ -627,12 +585,8 @@ public final class ScoreboardExtraData {
                     active = true;
                     continue;
                 }
-                if (!active) {
-                    continue;
-                }
-                if (plain.isBlank()) {
-                    break;
-                }
+                if (!active) continue;
+                if (plain.isBlank()) break;
                 Matcher m = TUNING_DATA.matcher(ScoreboardData.removeResets(ScoreboardData.formatted(line, true)).trim());
                 if (m.matches()) {
                     found.add(new Tuning(m.group("amount"), "§" + m.group("color").toLowerCase(Locale.ROOT),
@@ -648,9 +602,7 @@ public final class ScoreboardExtraData {
 
     private static void readYourBags(List<Slot> slots) {
         for (Slot slot : slots) {
-            if (slot.container instanceof Inventory || !"Accessory Bag".equals(plainName(slot.getItem()))) {
-                continue;
-            }
+            if (slot.container instanceof Inventory || !"Accessory Bag".equals(plainName(slot.getItem()))) continue;
             boolean foundMp = false;
             for (String line : plainLore(slot.getItem())) {
                 String t = line.trim();
@@ -681,9 +633,7 @@ public final class ScoreboardExtraData {
     private static void readStatsTuning(List<Slot> slots) {
         List<Tuning> found = new ArrayList<>();
         for (Slot slot : slots) {
-            if (slot.container instanceof Inventory || slot.getItem().isEmpty()) {
-                continue;
-            }
+            if (slot.container instanceof Inventory || slot.getItem().isEmpty()) continue;
             Matcher nameMatcher = TUNING_NAME.matcher(plainName(slot.getItem()).trim());
             for (Component line : lore(slot.getItem())) {
                 Matcher m = STATS_TUNING_DATA.matcher(ScoreboardData.removeResets(ScoreboardData.formatted(line, true)));
@@ -700,9 +650,7 @@ public final class ScoreboardExtraData {
     }
 
     private static ItemStack containerItem(List<Slot> slots, int index) {
-        if (index < 0 || index >= slots.size()) {
-            return null;
-        }
+        if (index < 0 || index >= slots.size()) return null;
         Slot slot = slots.get(index);
         return slot.container instanceof Inventory || slot.getItem().isEmpty() ? null : slot.getItem();
     }
@@ -729,15 +677,11 @@ public final class ScoreboardExtraData {
         int amount = -1;
         for (int i = 0; i < 36; i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (stack.isEmpty()) {
-                continue;
-            }
+            if (stack.isEmpty()) continue;
             if (stack.getItem() == Items.BOW) {
                 bow = true;
             }
-            if (arrow != null) {
-                continue;
-            }
+            if (arrow != null) continue;
             for (String line : plainLore(stack)) {
                 Matcher m = ACTIVE_ARROW.matcher(line.trim());
                 if (m.matches()) {
@@ -765,13 +709,9 @@ public final class ScoreboardExtraData {
 
     private static void maybeFetchElection() {
         long now = System.currentTimeMillis();
-        if (electionInFlight) {
-            return;
-        }
+        if (electionInFlight) return;
         boolean stale = mayor == null || now - electionFetchedAtMs > ELECTION_REFRESH_MS;
-        if (!stale || now - electionAttemptAtMs < ELECTION_RETRY_MS) {
-            return;
-        }
+        if (!stale || now - electionAttemptAtMs < ELECTION_RETRY_MS) return;
         electionAttemptAtMs = now;
         electionInFlight = true;
         HttpRequest request = HttpRequest.newBuilder(ELECTION_URI)
@@ -800,17 +740,11 @@ public final class ScoreboardExtraData {
     }
 
     private static boolean parseElection(String json) {
-        if (json == null || json.isEmpty()) {
-            return false;
-        }
+        if (json == null || json.isEmpty()) return false;
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-        if (!ConfigJson.getBool(root, "success", false)) {
-            return false;
-        }
+        if (!ConfigJson.getBool(root, "success", false)) return false;
         JsonObject mayorObj = ConfigJson.getObject(root, "mayor");
-        if (mayorObj == null) {
-            return false;
-        }
+        if (mayorObj == null) return false;
         List<Perk> perks = new ArrayList<>();
         JsonArray perksArray = ConfigJson.getArray(mayorObj, "perks");
         if (perksArray != null) {
@@ -847,13 +781,9 @@ public final class ScoreboardExtraData {
 
 
     private static synchronized void load() {
-        if (loaded) {
-            return;
-        }
+        if (loaded) return;
         loaded = true;
-        if (!Files.exists(DATA_PATH)) {
-            return;
-        }
+        if (!Files.exists(DATA_PATH)) return;
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(DATA_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             cookieExpiresAtMs = ConfigJson.getLong(obj, "cookieExpiresAtMs", -1L);
@@ -864,9 +794,7 @@ public final class ScoreboardExtraData {
             if (tuningArray != null) {
                 List<Tuning> list = new ArrayList<>();
                 for (JsonElement el : tuningArray) {
-                    if (!el.isJsonObject()) {
-                        continue;
-                    }
+                    if (!el.isJsonObject()) continue;
                     JsonObject t = el.getAsJsonObject();
                     list.add(new Tuning(ConfigJson.getString(t, "value", "0"), ConfigJson.getString(t, "color", "§f"),
                             ConfigJson.getString(t, "name", "?"), ConfigJson.getString(t, "icon", "")));

@@ -136,9 +136,7 @@ public final class ScoreboardListEditor {
                     rebuild.run();
                 }).bounds(x + half + GAP, y, width - half - GAP, 18).build());
         y += ROW;
-        if (!st.addOpen) {
-            return y;
-        }
+        if (!st.addOpen) return y;
         if (picks.isEmpty()) {
             out.add(new StringWidget(x, y, width, 12, Component.literal("§7Every " + section.one.toLowerCase()
                     + " is already on the board."), Minecraft.getInstance().font));

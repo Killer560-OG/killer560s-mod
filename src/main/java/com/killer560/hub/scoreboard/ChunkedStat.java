@@ -40,9 +40,7 @@ public enum ChunkedStat {
         @Override
         String display(CustomScoreboardConfig cfg) {
             String[] bank = bank();
-            if (bank == null || cfg.isHideEmptyLines() && isZero(bank[0]) && (bank[1] == null || isZero(bank[1]))) {
-                return null;
-            }
+            if (bank == null || cfg.isHideEmptyLines() && isZero(bank[0]) && (bank[1] == null || isZero(bank[1]))) return null;
             return "§6" + bank[0] + (bank[1] != null ? "§7/§6" + bank[1] : "");
         }
 
@@ -93,9 +91,7 @@ public enum ChunkedStat {
         @Override
         String display(CustomScoreboardConfig cfg) {
             String display = group(ScoreboardPattern.HEAT, sidebar(), "scoreboard");
-            if (display == null || cfg.isHideEmptyLines() && "0".equals(raw())) {
-                return null;
-            }
+            if (display == null || cfg.isHideEmptyLines() && "0".equals(raw())) return null;
             return "§c♨ " + display;
         }
 
@@ -106,9 +102,7 @@ public enum ChunkedStat {
         @Override
         String raw() {
             String cold = group(ScoreboardPattern.COLD, sidebar(), "cold");
-            if (cold == null) {
-                return null;
-            }
+            if (cold == null) return null;
             try {
                 return String.valueOf(-Math.abs(Integer.parseInt(cold)));
             } catch (NumberFormatException e) {
@@ -119,9 +113,7 @@ public enum ChunkedStat {
         @Override
         String display(CustomScoreboardConfig cfg) {
             String cold = raw();
-            if (cold == null || cfg.isHideEmptyLines() && "0".equals(cold)) {
-                return null;
-            }
+            if (cold == null || cfg.isHideEmptyLines() && "0".equals(cold)) return null;
             return "§b" + cold + "❄";
         }
 
@@ -152,26 +144,18 @@ public enum ChunkedStat {
     /** Colored value for the chunked line, or null to leave this stat out. */
     String display(CustomScoreboardConfig cfg) {
         String raw = raw();
-        if (raw == null) {
-            return null;
-        }
+        if (raw == null) return null;
         String value = formatStringNum(raw.trim());
-        if (cfg.isHideEmptyLines() && isZero(value)) {
-            return null;
-        }
+        if (cfg.isHideEmptyLines() && isZero(value)) return null;
         return color() + value;
     }
 
     /** {"amount", "personal or null"} from the tab list's Bank widget, or null. */
     static String[] bank() {
         List<Integer> widget = ScoreboardData.tabWidget(ScoreboardPattern.TAB_BANK);
-        if (widget.isEmpty()) {
-            return null;
-        }
+        if (widget.isEmpty()) return null;
         Matcher m = ScoreboardPattern.TAB_BANK.matcher(ScoreboardData.tabPlain().get(widget.get(0)).trim());
-        if (!m.matches()) {
-            return null;
-        }
+        if (!m.matches()) return null;
         String personal = m.group("personal");
         return new String[]{m.group("amount").trim(), personal == null ? null : personal.trim()};
     }

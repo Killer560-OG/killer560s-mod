@@ -80,9 +80,7 @@ public final class EntryOrder<E extends Enum<E>> {
 
     /** Takes the entry at {@code index} off the board, into the pool. */
     public E removeAt(int index) {
-        if (index < 0 || index >= active.size()) {
-            return null;
-        }
+        if (index < 0 || index >= active.size()) return null;
         return active.remove(index);
     }
 
@@ -93,9 +91,7 @@ public final class EntryOrder<E extends Enum<E>> {
      * a drag-and-drop: {@code to} is the insertion slot counted with the dragged entry already lifted out.
      */
     public void move(int from, int to) {
-        if (from < 0 || from >= active.size()) {
-            return;
-        }
+        if (from < 0 || from >= active.size()) return;
         E e = active.remove(from);
         active.add(Math.max(0, Math.min(active.size(), to)), e);
     }
@@ -169,13 +165,9 @@ public final class EntryOrder<E extends Enum<E>> {
         E[] all = type.getEnumConstants();
         for (int d = 0; d < all.length; d++) {
             E e = all[d];
-            if (known.contains(e)) {
-                continue;
-            }
+            if (known.contains(e)) continue;
             known.add(e);
-            if (!onByDefault.test(e)) {
-                continue;
-            }
+            if (!onByDefault.test(e)) continue;
             int insertAt = 0;
             for (int p = d - 1; p >= 0; p--) {
                 int idx = loaded.indexOf(all[p]);
@@ -200,23 +192,17 @@ public final class EntryOrder<E extends Enum<E>> {
         List<Boolean> on = new ArrayList<>();
         Set<E> seen = EnumSet.noneOf(type);
         for (JsonElement el : array) {
-            if (!el.isJsonObject()) {
-                continue;
-            }
+            if (!el.isJsonObject()) continue;
             JsonObject o = el.getAsJsonObject();
             E id = ConfigJson.getEnum(o, "id", type, null);
-            if (id == null || !seen.add(id)) {
-                continue;
-            }
+            if (id == null || !seen.add(id)) continue;
             ids.add(id);
             on.add(ConfigJson.getBool(o, "enabled", true));
         }
         E[] all = type.getEnumConstants();
         for (int d = 0; d < all.length; d++) {
             E def = all[d];
-            if (seen.contains(def)) {
-                continue;
-            }
+            if (seen.contains(def)) continue;
             int insertAt = ids.size();
             for (int p = d - 1; p >= 0; p--) {
                 int idx = ids.indexOf(all[p]);
@@ -239,13 +225,9 @@ public final class EntryOrder<E extends Enum<E>> {
 
     private List<E> parseIds(JsonArray array) {
         List<E> out = new ArrayList<>();
-        if (array == null) {
-            return out;
-        }
+        if (array == null) return out;
         for (JsonElement el : array) {
-            if (!el.isJsonPrimitive()) {
-                continue;
-            }
+            if (!el.isJsonPrimitive()) continue;
             try {
                 out.add(Enum.valueOf(type, el.getAsString()));
             } catch (IllegalArgumentException ignored) {

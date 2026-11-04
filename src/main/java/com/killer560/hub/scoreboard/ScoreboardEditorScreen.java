@@ -259,9 +259,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
                     hint(out, panelX, y, panelW, "This line has no settings.");
                 }
                 for (AbstractWidget r : rows) {
-                    if (y + r.getHeight() > optionsBottom) {
-                        break;
-                    }
+                    if (y + r.getHeight() > optionsBottom) break;
                     r.setY(y);
                     out.add(r);
                     if (r instanceof CommitEditBox box) {
@@ -422,9 +420,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
             cfg.save();
             rebuildWidgets();
         });
-        if (!open) {
-            return y;
-        }
+        if (!open) return y;
 
         out.add(label(x, y + 2, width, 12, heading("Lines")));
         y += 16;
@@ -499,9 +495,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
 
     /** The rows an entry draws in the editor: its sample text (never live data), a placeholder when it has none. */
     static List<ScoreboardLine> editorLines(ScoreboardEntry e, CustomScoreboardConfig cfg) {
-        if (e.isSeparator()) {
-            return List.of(new ScoreboardLine("§8- - - - - - - -", Align.CENTER));
-        }
+        if (e.isSeparator()) return List.of(new ScoreboardLine("§8- - - - - - - -", Align.CENTER));
         List<ScoreboardLine> out;
         try {
             out = (e == ScoreboardEntry.TITLE || e == ScoreboardEntry.FOOTER) ? e.lines(cfg) : ScoreboardLine.of(e.sample());
@@ -524,9 +518,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         List<ScoreboardLine> lines = new ArrayList<>();
         List<Block> blocks = new ArrayList<>();
         for (ScoreboardEntry e : cfg.entries().active()) {
-            if (e == without) {
-                continue;
-            }
+            if (e == without) continue;
             List<ScoreboardLine> el = editorLines(e, cfg);
             blocks.add(new Block(e, lines.size(), el.size()));
             lines.addAll(el);
@@ -543,13 +535,9 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
     }
 
     private static Block blockAt(Board b, double mx, double my) {
-        if (mx < b.x() || mx > b.right()) {
-            return null;
-        }
+        if (mx < b.x() || mx > b.right()) return null;
         for (Block bl : b.blocks()) {
-            if (my >= b.blockTop(bl) && my < b.blockBottom(bl)) {
-                return bl;
-            }
+            if (my >= b.blockTop(bl) && my < b.blockBottom(bl)) return bl;
         }
         return null;
     }
@@ -582,22 +570,16 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         int colW = (inactiveW - COL_GAP * (inactiveCols - 1)) / inactiveCols;
         int x = inactiveX + (index % inactiveCols) * (colW + COL_GAP);
         int y = inactiveY + (index / inactiveCols) * PICK_H - inactiveScroll;
-        if (y < inactiveY || y + PICK_H > panelBottom) {
-            return null;
-        }
+        if (y < inactiveY || y + PICK_H > panelBottom) return null;
         return new int[]{x, y, colW, PICK_H};
     }
 
     private ScoreboardEntry inactiveAt(double mx, double my) {
-        if (page != Page.BOARD) {
-            return null;
-        }
+        if (page != Page.BOARD) return null;
         List<ScoreboardEntry> list = inactive();
         for (int i = 0; i < list.size(); i++) {
             int[] r = inactiveRect(i);
-            if (r != null && mx >= r[0] && mx < r[0] + r[2] && my >= r[1] && my < r[1] + r[3]) {
-                return list.get(i);
-            }
+            if (r != null && mx >= r[0] && mx < r[0] + r[2] && my >= r[1] && my < r[1] + r[3]) return list.get(i);
         }
         return null;
     }
@@ -684,9 +666,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
     public boolean mouseReleased(MouseButtonEvent event) {
         mouseX = event.x();
         mouseY = event.y();
-        if (pressed == null) {
-            return super.mouseReleased(event);
-        }
+        if (pressed == null) return super.mouseReleased(event);
         ScoreboardEntry e = pressed;
         boolean fromInactive = pressedFromInactive;
         boolean wasDrag = dragging;
@@ -837,9 +817,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         }
         for (int i = 0; i < list.size(); i++) {
             int[] r = inactiveRect(i);
-            if (r == null) {
-                continue;
-            }
+            if (r == null) continue;
             ScoreboardEntry e = list.get(i);
             boolean hover = !dragging && mx >= r[0] && mx < r[0] + r[2] && my >= r[1] && my < r[1] + r[3];
             GuiRects row = GuiRects.begin(g);
@@ -894,13 +872,9 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
             tooltipWidget = hovered;
             tooltipSinceMs = now;
         }
-        if (hovered == null || now - tooltipSinceMs < 350L) {
-            return;
-        }
+        if (hovered == null || now - tooltipSinceMs < 350L) return;
         String text = SettingTooltips.describe(TOOLTIP_SCOPE, hovered.getMessage().getString());
-        if (text == null || text.isBlank()) {
-            return;
-        }
+        if (text == null || text.isBlank()) return;
         List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(text), 220);
         int w = 0;
         for (var line : lines) {

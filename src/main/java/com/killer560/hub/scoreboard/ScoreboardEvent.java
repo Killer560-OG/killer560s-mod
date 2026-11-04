@@ -166,9 +166,7 @@ public enum ScoreboardEvent {
         @Override
         List<String> texts() {
             String time = firstMatches(ScoreboardPattern.SPOOKY, sidebar());
-            if (time == null) {
-                return List.of();
-            }
+            if (time == null) return List.of();
             List<String> out = new ArrayList<>();
             out.add(time);
             out.add("§7Your Candy: ");
@@ -261,9 +259,7 @@ public enum ScoreboardEvent {
         @Override
         List<String> texts() {
             String header = firstMatches(ScoreboardPattern.CARNIVAL, sidebar());
-            if (header == null) {
-                return List.of();
-            }
+            if (header == null) return List.of();
             List<String> out = new ArrayList<>();
             out.add(header);
             out.addAll(allMatches(patterns.subList(1, patterns.size()), sidebar()));
@@ -296,9 +292,7 @@ public enum ScoreboardEvent {
         @Override
         List<String> texts() {
             String name = tabEventName();
-            if (name == null || blocked.contains(name.replaceAll("§.", ""))) {
-                return List.of();
-            }
+            if (name == null || blocked.contains(name.replaceAll("§.", ""))) return List.of();
             String time = tabEventTime(ScoreboardPattern.TAB_EVENT_TIME_ENDS);
             return time == null ? List.of() : List.of(name, " Ends in: §e" + time);
         }
@@ -326,9 +320,7 @@ public enum ScoreboardEvent {
         @Override
         List<String> texts() {
             String name = tabEventName();
-            if (name == null) {
-                return List.of();
-            }
+            if (name == null) return List.of();
             String time = tabEventTime(ScoreboardPattern.TAB_EVENT_TIME_STARTS);
             return time == null ? List.of() : List.of(name, " Starts in: §e" + time);
         }
@@ -364,9 +356,7 @@ public enum ScoreboardEvent {
     /** Header line + up to {@code after} following lines, minus the footer (SkyHanni {@code sublistAfter}). */
     static List<String> headerSection(Pattern header, int after) {
         String line = firstMatches(header, sidebar());
-        if (line == null) {
-            return List.of();
-        }
+        if (line == null) return List.of();
         List<String> out = new ArrayList<>();
         out.add(line);
         for (String next : sublistAfter(sidebar(), line, after)) {
@@ -380,14 +370,10 @@ public enum ScoreboardEvent {
     /** Formatted event name from the tab list's "Event: X" widget header, or null. */
     static String tabEventName() {
         List<Integer> widget = ScoreboardData.tabWidget(ScoreboardPattern.TAB_EVENT);
-        if (widget.isEmpty()) {
-            return null;
-        }
+        if (widget.isEmpty()) return null;
         String formatted = ScoreboardData.tabFormatted().get(widget.get(0));
         int idx = formatted.indexOf("Event:");
-        if (idx < 0) {
-            return null;
-        }
+        if (idx < 0) return null;
         String name = formatted.substring(idx + "Event:".length()).trim();
         while (name.startsWith("§r")) {
             name = name.substring(2).trim();
@@ -399,9 +385,7 @@ public enum ScoreboardEvent {
         List<Integer> widget = ScoreboardData.tabWidget(ScoreboardPattern.TAB_EVENT);
         for (int i : widget) {
             Matcher m = pattern.matcher(ScoreboardData.tabPlain().get(i));
-            if (m.matches()) {
-                return m.group("time");
-            }
+            if (m.matches()) return m.group("time");
         }
         return null;
     }

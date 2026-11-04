@@ -68,9 +68,7 @@ public record ScoreboardLine(String text, Align align, List<String> hover, Strin
     /** SkyHanni's {@code formatStringNum}: re-formats a scoreboard number (long = separators, short = 1.2M).
      *  Anything that doesn't parse is returned unchanged. */
     public static String formatStringNum(String raw) {
-        if (raw == null) {
-            return "0";
-        }
+        if (raw == null) return "0";
         Double value = parse(raw);
         return value == null ? raw : formatNumber(value);
     }
@@ -79,17 +77,13 @@ public record ScoreboardLine(String text, Align align, List<String> hover, Strin
         if (CustomScoreboardConfig.getInstance().getNumberFormat() == CustomScoreboardConfig.NumberFormat.SHORT) {
             return shortFormat(value);
         }
-        if (value == Math.floor(value) && Math.abs(value) < 9.0E15) {
-            return String.format(Locale.US, "%,d", (long) value);
-        }
+        if (value == Math.floor(value) && Math.abs(value) < 9.0E15) return String.format(Locale.US, "%,d", (long) value);
         return String.format(Locale.US, "%,.1f", value);
     }
 
     public static Double parse(String raw) {
         String s = raw.replace(",", "").trim().toLowerCase(Locale.ROOT);
-        if (s.isEmpty()) {
-            return null;
-        }
+        if (s.isEmpty()) return null;
         double mult = 1;
         char last = s.charAt(s.length() - 1);
         if (last == 'k' || last == 'm' || last == 'b') {
@@ -127,18 +121,14 @@ public record ScoreboardLine(String text, Align align, List<String> hover, Strin
     }
 
     public static boolean isZero(String formattedNumber) {
-        if (formattedNumber == null) {
-            return true;
-        }
+        if (formattedNumber == null) return true;
         Double d = parse(formattedNumber);
         return d != null && d == 0;
     }
 
     /** "4d 12h" style, at most {@code maxUnits} non-zero units (SkyHanni {@code Duration.format(maxUnits)}). */
     public static String formatDuration(long millis, int maxUnits) {
-        if (millis < 1000) {
-            return "0s";
-        }
+        if (millis < 1000) return "0s";
         long s = millis / 1000;
         long[] values = {s / 31_536_000L, (s % 31_536_000L) / 86_400L, (s % 86_400L) / 3600L, (s % 3600L) / 60L, s % 60L};
         String[] units = {"y", "d", "h", "m", "s"};
