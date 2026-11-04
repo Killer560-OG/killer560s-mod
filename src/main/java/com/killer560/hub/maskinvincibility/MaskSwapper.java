@@ -177,9 +177,7 @@ public final class MaskSwapper {
 
     private static void onChat(net.minecraft.network.chat.Component message) {
         String raw = ChatObserver.strip(message);
-        if (raw == null || raw.length() > 96) {
-            return;
-        }
+        if (raw == null || raw.length() > 96) return;
         Matcher m = SUMMONED.matcher(raw);
         if (!m.matches()) {
             m = AUTOPET.matcher(raw);
@@ -215,15 +213,9 @@ public final class MaskSwapper {
         String worn = client.player == null ? ""
                 : orEmpty(CheatUtils.skyblockId(client.player.getItemBySlot(EquipmentSlot.HEAD)));
         for (Target t : order) {
-            if (onCooldown.test(t) || unavailable.contains(t)) {
-                continue;
-            }
-            if (t.skyblockId != null && worn.contains(t.skyblockId)) {
-                continue;
-            }
-            if (t == Target.PHOENIX && (phoenixSummoned || msSincePhoenixHandled() < PHOENIX_HANDLED_GUARD_MS)) {
-                continue;
-            }
+            if (onCooldown.test(t) || unavailable.contains(t)) continue;
+            if (t.skyblockId != null && worn.contains(t.skyblockId)) continue;
+            if (t == Target.PHOENIX && (phoenixSummoned || msSincePhoenixHandled() < PHOENIX_HANDLED_GUARD_MS)) continue;
             return t;
         }
         return null;
@@ -246,13 +238,9 @@ public final class MaskSwapper {
      * "not this time" and never loop on it.
      */
     public static boolean request(Target wanted, String who) {
-        if (wanted == null || stage != Stage.IDLE) {
-            return false;
-        }
+        if (wanted == null || stage != Stage.IDLE) return false;
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.level == null) {
-            return false;
-        }
+        if (client.player == null || client.level == null) return false;
         if (McCompat.screen(client) != null) {
             // A terminal or any other Hypixel menu is already up: /stats would stack a second container on
             // top of it and the rod cast would be an interaction the server can see is impossible. Since
@@ -260,9 +248,7 @@ public final class MaskSwapper {
             LOGGER.info("[MaskSwap] {} asked for {} - refused, a screen is open.", who, wanted.label());
             return false;
         }
-        if (unavailable.contains(wanted)) {
-            return false;
-        }
+        if (unavailable.contains(wanted)) return false;
         // The rod route sends no command at all, so only a mask swap or a direct Phoenix-via-/pets request has
         // to clear the floor here. A rod route that ends up falling back to /pets (no rod found) checks the
         // same floor again at that point, in rodSelect() - it isn't known yet which command, if any, this
@@ -270,9 +256,7 @@ public final class MaskSwapper {
         boolean phoenixViaPets = wanted == Target.PHOENIX
                 && MaskInvincibilityConfig.getInstance().getPhoenixRoute() == MaskInvincibilityConfig.PhoenixRoute.PETS;
         long now = System.currentTimeMillis();
-        if ((wanted != Target.PHOENIX || phoenixViaPets) && now - lastCommandMs < MIN_COMMAND_GAP_MS) {
-            return false;
-        }
+        if ((wanted != Target.PHOENIX || phoenixViaPets) && now - lastCommandMs < MIN_COMMAND_GAP_MS) return false;
         target = wanted;
         requester = who;
         startedMs = now;
@@ -295,9 +279,7 @@ public final class MaskSwapper {
             abort("world change");
             return;
         }
-        if (stage == Stage.IDLE) {
-            return;
-        }
+        if (stage == Stage.IDLE) return;
         LocalPlayer player = client.player;
         if (player == null || client.gameMode == null) {
             abort("no player");
@@ -332,9 +314,7 @@ public final class MaskSwapper {
         }
         // Every step waits out the inter-step delay first; ActionGate's own one-action-per-tick pacing then
         // applies on top of it (killer560: "make sure there is delay of some sort between each action").
-        if (tickNo < nextActionTick) {
-            return;
-        }
+        if (tickNo < nextActionTick) return;
         switch (stage) {
             case SEND_STATS -> sendStats(player, now);
             case AWAIT_MENU -> awaitMenu(client, now);
@@ -355,9 +335,7 @@ public final class MaskSwapper {
     }
 
     private static void sendStats(LocalPlayer player, long now) {
-        if (!ActionGate.tryAct(CMD_ACTOR)) {
-            return;
-        }
+        if (!ActionGate.tryAct(CMD_ACTOR)) return;
         lastCommandMs = now;
         startedMs = now; // the timeout is about the menu, so it starts when the command actually goes out
         player.connection.sendCommand("stats");
@@ -366,13 +344,9 @@ public final class MaskSwapper {
     }
 
     private static void awaitMenu(Minecraft client, long now) {
-        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
-            return;
-        }
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) return;
         String title = screen.getTitle().getString();
-        if (!title.toLowerCase(Locale.ROOT).contains("equipment")) {
-            return;
-        }
+        if (!title.toLowerCase(Locale.ROOT).contains("equipment")) return;
         List<Slot> slots = screen.getMenu().slots;
         int containerSlots = Math.max(0, slots.size() - 36);
         boolean loaded = false;
@@ -382,9 +356,7 @@ public final class MaskSwapper {
                 break;
             }
         }
-        if (!loaded) {
-            return;
-        }
+        if (!loaded) return;
         if (menuFirstSeenMs == 0L) {
             // The menu appearing is itself an "action" - let it settle a full step before clicking in it.
             menuFirstSeenMs = now;
@@ -405,12 +377,8 @@ public final class MaskSwapper {
         // and clicking the copy shown there does nothing.
         for (int i = containerSlots; i < slots.size(); i++) {
             Slot slot = slots.get(i);
-            if (!orEmpty(CheatUtils.skyblockId(slot.getItem())).contains(target.skyblockId())) {
-                continue;
-            }
-            if (!ActionGate.tryAct(MENU_ACTOR, screen)) {
-                return;
-            }
+            if (!orEmpty(CheatUtils.skyblockId(slot.getItem())).contains(target.skyblockId())) continue;
+            if (!ActionGate.tryAct(MENU_ACTOR, screen)) return;
             client.gameMode.handleContainerInput(screen.getMenu().containerId, slot.index, 0, ContainerInput.PICKUP, player);
             stage = Stage.CLOSE_MENU;
             nextActionTick = tickNo + stepDelayTicks();
@@ -439,9 +407,7 @@ public final class MaskSwapper {
             return;
         }
         if (player.getInventory().getSelectedSlot() != slot) {
-            if (!ActionGate.tryAct(WORLD_ACTOR)) {
-                return;
-            }
+            if (!ActionGate.tryAct(WORLD_ACTOR)) return;
             com.killer560.hub.util.HotbarSelect.select(Minecraft.getInstance(), player, slot);
         }
         stage = Stage.ROD_CAST;
@@ -449,9 +415,7 @@ public final class MaskSwapper {
     }
 
     private static void rodCast(Minecraft client, LocalPlayer player, long now) {
-        if (!ActionGate.tryAct(WORLD_ACTOR)) {
-            return;
-        }
+        if (!ActionGate.tryAct(WORLD_ACTOR)) return;
         com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[MaskSwapper] Rod");
         client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         lastPhoenixRodThrowMs = now;
@@ -466,9 +430,7 @@ public final class MaskSwapper {
 
     private static void rodRestore(LocalPlayer player) {
         if (previousSlot >= 0 && previousSlot < 9 && player.getInventory().getSelectedSlot() != previousSlot) {
-            if (!ActionGate.tryAct(WORLD_ACTOR)) {
-                return;
-            }
+            if (!ActionGate.tryAct(WORLD_ACTOR)) return;
             com.killer560.hub.util.HotbarSelect.select(Minecraft.getInstance(), player, previousSlot);
         }
         abort("rod done");
@@ -479,9 +441,7 @@ public final class MaskSwapper {
     // same title pattern, same "Phoenix" hover-name match, same "Click to despawn!" lore check, same paging.
 
     private static void sendPets(LocalPlayer player, long now) {
-        if (!ActionGate.tryAct(CMD_ACTOR)) {
-            return;
-        }
+        if (!ActionGate.tryAct(CMD_ACTOR)) return;
         lastCommandMs = now;
         startedMs = now; // the timeout is about the menu, so it starts when the command actually goes out
         petPagesTried = 0;
@@ -492,13 +452,9 @@ public final class MaskSwapper {
     }
 
     private static void awaitPets(Minecraft client, long now) {
-        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
-            return;
-        }
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) return;
         String title = screen.getTitle().getString();
-        if (!PETS_TITLE.matcher(title).matches()) {
-            return;
-        }
+        if (!PETS_TITLE.matcher(title).matches()) return;
         List<Slot> slots = screen.getMenu().slots;
         int containerSlots = Math.max(0, slots.size() - 36);
         boolean loaded = false;
@@ -508,9 +464,7 @@ public final class MaskSwapper {
                 break;
             }
         }
-        if (!loaded) {
-            return;
-        }
+        if (!loaded) return;
         if (menuFirstSeenMs == 0L) {
             // The menu appearing is itself an "action" - let it settle a full step before clicking in it.
             menuFirstSeenMs = now;
@@ -533,9 +487,7 @@ public final class MaskSwapper {
         int total = page.matches() && page.group(2) != null ? Integer.parseInt(page.group(2)) : 1;
         for (int i = 0; i < containerSlots; i++) {
             ItemStack stack = slots.get(i).getItem();
-            if (stack.isEmpty() || !stack.getHoverName().getString().contains("Phoenix")) {
-                continue;
-            }
+            if (stack.isEmpty() || !stack.getHoverName().getString().contains("Phoenix")) continue;
             ItemLore lore = stack.get(DataComponents.LORE);
             String joined = lore == null ? "" : String.join(" | ", lore.lines().stream().map(ChatObserver::strip).toList());
             if (joined.contains("Click to despawn")) {
@@ -545,9 +497,7 @@ public final class MaskSwapper {
                 abort("already summoned");
                 return;
             }
-            if (!ActionGate.tryAct(MENU_ACTOR, screen)) {
-                return;
-            }
+            if (!ActionGate.tryAct(MENU_ACTOR, screen)) return;
             client.gameMode.handleContainerInput(screen.getMenu().containerId, slots.get(i).index, 0, ContainerInput.PICKUP, player);
             lastPhoenixConfirmedSummonMs = now;
             closeOurMenu(client);
@@ -558,9 +508,7 @@ public final class MaskSwapper {
         if (current < total && petPagesTried < MAX_PET_PAGES) {
             for (int i = 0; i < containerSlots; i++) {
                 if (slots.get(i).getItem().getHoverName().getString().contains("Next Page")) {
-                    if (!ActionGate.tryAct(MENU_ACTOR, screen)) {
-                        return;
-                    }
+                    if (!ActionGate.tryAct(MENU_ACTOR, screen)) return;
                     petPagesTried++;
                     menuFirstSeenMs = 0L;
                     startedMs = now; // fresh timeout for the next page, same as the deleted class did
@@ -588,17 +536,13 @@ public final class MaskSwapper {
     private static int findRodSlot(LocalPlayer player) {
         for (int i = 0; i < 9; i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (!stack.isEmpty() && stack.is(net.minecraft.world.item.Items.FISHING_ROD)) {
-                return i;
-            }
+            if (!stack.isEmpty() && stack.is(net.minecraft.world.item.Items.FISHING_ROD)) return i;
         }
         return -1;
     }
 
     private static void closeOurMenu(Minecraft client) {
-        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
-            return;
-        }
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) return;
         String title = screen.getTitle().getString();
         if (title.toLowerCase(Locale.ROOT).contains("equipment") || PETS_TITLE.matcher(title).matches()) {
             McCompat.screen(client).onClose();

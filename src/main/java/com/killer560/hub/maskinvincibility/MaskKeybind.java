@@ -89,9 +89,7 @@ public final class MaskKeybind {
             return false;
         }
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.gameMode == null) {
-            return false;
-        }
+        if (client.player == null || client.gameMode == null) return false;
         if (cfg.isMaskKeyDungeonsOnly() && !DungeonState.isInDungeon()) {
             decide("blocked: Dungeons Only");
             return true;
@@ -107,9 +105,7 @@ public final class MaskKeybind {
     }
 
     private static void tick(Minecraft client) {
-        if (pendingScreen == null) {
-            return;
-        }
+        if (pendingScreen == null) return;
         if (McCompat.screen(client) != pendingScreen) {
             clearPending("menu closed before the click");
             return;
@@ -176,9 +172,7 @@ public final class MaskKeybind {
     private static Slot find(List<Slot> slots, int from, MaskSwapper.Target t) {
         for (int i = from; i < slots.size(); i++) {
             Slot slot = slots.get(i);
-            if (idOf(slot.getItem()).contains(t.skyblockId())) {
-                return slot;
-            }
+            if (idOf(slot.getItem()).contains(t.skyblockId())) return slot;
         }
         return null;
     }

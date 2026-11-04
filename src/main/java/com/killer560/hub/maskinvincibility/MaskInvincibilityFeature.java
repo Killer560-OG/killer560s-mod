@@ -63,9 +63,7 @@ public final class MaskInvincibilityFeature {
 
         static Type of(MaskSwapper.Target target) {
             for (Type t : values()) {
-                if (t.target == target) {
-                    return t;
-                }
+                if (t.target == target) return t;
             }
             return null;
         }
@@ -112,9 +110,7 @@ public final class MaskInvincibilityFeature {
     private static void onChatMessage(Component message) {
         MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
         // Mask Keybinds reads these cooldowns too (2026-11-01), so a proc is recorded whenever either is on.
-        if (!cfg.isEnabled() && !cfg.isMaskKeyEnabled()) {
-            return;
-        }
+        if (!cfg.isEnabled() && !cfg.isMaskKeyEnabled()) return;
         // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): matched the raw un-stripped
         // string - real Hypixel chat lines are confirmed (DungeonState's own BOSS_START_PATTERN fix) to
         // embed §-codes mid-word, which can silently break a regex match.
@@ -123,9 +119,7 @@ public final class MaskInvincibilityFeature {
             if (t.pattern.matcher(raw).matches()) {
                 activeRemaining.put(t, t.activeTicks);
                 cooldownRemaining.put(t, t.cooldownTicks);
-                if (!cfg.isEnabled()) {
-                    return;
-                }
+                if (!cfg.isEnabled()) return;
                 if (cfg.isProcTitle()) {
                     procTitles++;
                     net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
@@ -222,9 +216,7 @@ public final class MaskInvincibilityFeature {
      */
     private static void refreshIcons() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
         ItemStack worn = client.player.getItemBySlot(EquipmentSlot.HEAD);
         remember(worn);
         for (int i = 0; i < client.player.getInventory().getContainerSize(); i++) {
@@ -233,9 +225,7 @@ public final class MaskInvincibilityFeature {
     }
 
     private static void remember(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return;
-        }
+        if (stack == null || stack.isEmpty()) return;
         String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(stack);
         if (id != null && id.contains("SPIRIT_MASK")) {
             iconCache.put(Type.SPIRIT, stack.copy());
@@ -258,14 +248,10 @@ public final class MaskInvincibilityFeature {
      *  seen yet. */
     private static ItemStack icon(Type t) {
         ItemStack cached = iconCache.get(t);
-        if (cached != null && !cached.isEmpty()) {
-            return cached;
-        }
+        if (cached != null && !cached.isEmpty()) return cached;
         // Built once per type, not per frame: this is called from the HUD's render every frame.
         ItemStack fallback = fallbackIcon.get(t);
-        if (fallback != null) {
-            return fallback;
-        }
+        if (fallback != null) return fallback;
         if (t == Type.SPIRIT) {
             SkyblockItemEntry entry = SkyblockItemRepository.findById("SPIRIT_MASK");
             if (entry != null && entry.skinValue() != null) {
@@ -330,9 +316,7 @@ public final class MaskInvincibilityFeature {
                     rows++;
                 }
             }
-            if (rows == 0) {
-                return rowHeight();
-            }
+            if (rows == 0) return rowHeight();
             int last = MaskInvincibilityConfig.getInstance().isShowItemIcons() ? 16 : Minecraft.getInstance().font.lineHeight;
             return (rows - 1) * rowHeight() + last;
         }
@@ -389,9 +373,7 @@ public final class MaskInvincibilityFeature {
             int row = rowHeight();
             int lineY = y;
             for (Type t : TYPES) {
-                if (!shown(t)) {
-                    continue;
-                }
+                if (!shown(t)) continue;
                 int active = activeRemaining.get(t);
                 int cooldown = cooldownRemaining.get(t);
                 int color = active > 0 ? 0xFFFFAA00 : cooldown > 0 ? 0xFFFF5555 : 0xFF55FF55;
@@ -417,9 +399,7 @@ public final class MaskInvincibilityFeature {
          *  holds" OR, not a nested requirement, so Boss Only works even if Only In Dungeons is left off). */
         private static boolean passesLocationGates() {
             MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
-            if (cfg.isOnlyInDungeons() && !DungeonState.isInDungeon()) {
-                return false;
-            }
+            if (cfg.isOnlyInDungeons() && !DungeonState.isInDungeon()) return false;
             return !cfg.isBossOnly() || DungeonState.isBossPhaseActive();
         }
     }
