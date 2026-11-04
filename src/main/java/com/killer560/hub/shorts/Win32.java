@@ -139,17 +139,11 @@ final class Win32 {
         return loadError;
     }
 
-    static User32 user32() {
-        return user32;
-    }
+    static User32 user32() { return user32; }
 
-    static Gdi32 gdi32() {
-        return gdi32;
-    }
+    static Gdi32 gdi32() { return gdi32; }
 
-    static Dwmapi dwmapi() {
-        return dwmapi;
-    }
+    static Dwmapi dwmapi() { return dwmapi; }
 
     static String className(long hwnd) {
         char[] buf = new char[128];

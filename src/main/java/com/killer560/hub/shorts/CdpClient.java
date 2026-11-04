@@ -39,9 +39,7 @@ final class CdpClient implements WebSocket.Listener {
     private volatile WebSocket socket;
     private volatile boolean open;
 
-    private CdpClient(Runnable onClosed) {
-        this.onClosed = onClosed;
-    }
+    private CdpClient(Runnable onClosed) { this.onClosed = onClosed; }
 
     /** Blocking GET of a DevTools HTTP endpoint (e.g. /json/list). */
     static String httpGet(int port, String path, long timeoutMs) throws Exception {
@@ -94,9 +92,7 @@ final class CdpClient implements WebSocket.Listener {
         return client;
     }
 
-    boolean isOpen() {
-        return open;
-    }
+    boolean isOpen() { return open; }
 
     /** Sends a command; the future completes with the "result" object or exceptionally on error/timeout. */
     CompletableFuture<JsonObject> send(String method, JsonObject params) {
@@ -188,9 +184,7 @@ final class CdpClient implements WebSocket.Listener {
     }
 
     @Override
-    public void onOpen(WebSocket webSocket) {
-        webSocket.request(1);
-    }
+    public void onOpen(WebSocket webSocket) { webSocket.request(1); }
 
     @Override
     public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
@@ -224,9 +218,7 @@ final class CdpClient implements WebSocket.Listener {
     }
 
     @Override
-    public void onError(WebSocket webSocket, Throwable error) {
-        handleDrop();
-    }
+    public void onError(WebSocket webSocket, Throwable error) { handleDrop(); }
 
     private void handleDrop() {
         boolean wasOpen = open;

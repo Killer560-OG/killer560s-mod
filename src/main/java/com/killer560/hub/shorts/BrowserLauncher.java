@@ -27,9 +27,7 @@ final class BrowserLauncher {
     private BrowserLauncher() {
     }
 
-    static Path profileDir() {
-        return ModPaths.config("killer560smod-shorts-profile");
-    }
+    static Path profileDir() { return ModPaths.config("killer560smod-shorts-profile"); }
 
     /** @return absolute path to msedge.exe/chrome.exe, or null if neither is installed. */
     static Path findBrowser(Logger log) {

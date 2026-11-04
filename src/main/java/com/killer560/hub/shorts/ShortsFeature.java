@@ -136,9 +136,7 @@ public final class ShortsFeature {
         return supported;
     }
 
-    public static String getUnsupportedReason() {
-        return unsupportedReason;
-    }
+    public static String getUnsupportedReason() { return unsupportedReason; }
 
     public static boolean isRunning() {
         ProcessHandle ph = browserProcess;
@@ -1006,9 +1004,7 @@ public final class ShortsFeature {
         }
     }
 
-    public static boolean isEditMode() {
-        return editMode;
-    }
+    public static boolean isEditMode() { return editMode; }
 
     // Title-bar crop measurement (background)
 
@@ -1321,9 +1317,7 @@ public final class ShortsFeature {
     /** Auto Scroll's Next presses, for the testkit. */
     private static final AtomicInteger autoScrolls = new AtomicInteger();
 
-    public static int autoScrolls() {
-        return autoScrolls.get();
-    }
+    public static int autoScrolls() { return autoScrolls.get(); }
 
     /** Client thread: asks the page (on the browser thread) whether its video ended since the last look. */
     private static void pollEnded() {
@@ -1350,9 +1344,7 @@ public final class ShortsFeature {
         });
     }
 
-    public static void next() {
-        command("next", ShortsFeature::nextAction);
-    }
+    public static void next() { command("next", ShortsFeature::nextAction); }
 
     /** Next's own work on the browser thread: the feed's down button, else (comments closed) a real ArrowDown. */
     private static String nextAction(CdpClient c) throws Exception {
@@ -1546,9 +1538,7 @@ public final class ShortsFeature {
                 + "return go()})()";
     }
 
-    private static String jsString(String s) {
-        return "'" + s.replace("\\", "\\\\").replace("'", "\\'") + "'";
-    }
+    private static String jsString(String s) { return "'" + s.replace("\\", "\\\\").replace("'", "\\'") + "'"; }
 
     /** Client thread entry point for user-triggered commands. */
     private static void command(String name, CdpAction action) {
@@ -1595,13 +1585,9 @@ public final class ShortsFeature {
         }
     }
 
-    private static String str(JsonElement e) {
-        return e != null && e.isJsonPrimitive() ? e.getAsString() : null;
-    }
+    private static String str(JsonElement e) { return e != null && e.isJsonPrimitive() ? e.getAsString() : null; }
 
-    private static void chatLater(Component... parts) {
-        Minecraft.getInstance().execute(() -> ModChat.send(CHAT, parts));
-    }
+    private static void chatLater(Component... parts) { Minecraft.getInstance().execute(() -> ModChat.send(CHAT, parts)); }
 
     // Keybinds
 
