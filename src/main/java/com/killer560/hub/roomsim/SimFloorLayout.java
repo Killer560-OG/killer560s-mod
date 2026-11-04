@@ -330,6 +330,13 @@ public final class SimFloorLayout {
      */
     private static final long RETRY_BUDGET_NANOS = 400_000_000L;
 
+    /** This thread's CPU time, not the wall clock: a machine busy with other programs (test clients) must not cut the retries short
+     *  (1x1-only filters need many whole floors; testkit 75-sim-map-editor-filters fell back at 11 floors in 465 ms under load). */
+    private static long budgetClock() {
+        java.lang.management.ThreadMXBean t = java.lang.management.ManagementFactory.getThreadMXBean();
+        return t.isCurrentThreadCpuTimeSupported() ? t.getCurrentThreadCpuTime() : System.nanoTime();
+    }
+
     /** The one attempt loop both {@link #generate} overloads use. {@code pinned} may be null or empty. */
     private static PinnedFloor run(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
                                    int puzzles, int roomsToBlood, Map<Integer, String> pinned, Random rng) {
@@ -341,11 +348,11 @@ public final class SimFloorLayout {
         int refused = resolvePinsRefused(pinned, usable);
         PinnedFloor best = null;
         int bestMissed = Integer.MAX_VALUE;
-        long started = System.nanoTime();
+        long started = budgetClock();
         for (int t = 0; t < tries; t++) {
-            if (best != null && System.nanoTime() - started > RETRY_BUDGET_NANOS) {
+            if (best != null && budgetClock() - started > RETRY_BUDGET_NANOS) {
                 LOGGER.info("Sim floor: stopped after {} whole floor(s), {} ms", t,
-                        (System.nanoTime() - started) / 1_000_000);
+                        (budgetClock() - started) / 1_000_000);
                 break;
             }
             PinnedFloor out = runOnce(pool, usable, minRooms, wantCells, puzzles, roomsToBlood, pinned, rng);
