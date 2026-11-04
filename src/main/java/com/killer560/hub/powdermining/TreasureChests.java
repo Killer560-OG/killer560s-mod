@@ -57,6 +57,19 @@ public final class TreasureChests {
 
     private static int claims = 0;
     private static int alerts = 0;
+    // The highlighted chest he last right-clicked, and when (ms): the loot block belongs to it, not to the nearest one
+    // (killer560, 2026-11-03: opening a farther chest removed the closest one's highlight).
+    private static BlockPos lastUsed = null;
+    private static long lastUsedAt = 0L;
+    static final long USED_MS = 10_000L;
+
+    /** He right-clicked a block: remember it when it is one of the highlighted chests. */
+    static void onUseBlock(BlockPos pos) {
+        if (pos != null && CHESTS.containsKey(pos)) {
+            lastUsed = pos.immutable();
+            lastUsedAt = System.currentTimeMillis();
+        }
+    }
     private static int boxFrames = 0;
     private static boolean throughWallsNow = false;
 
@@ -147,6 +160,11 @@ public final class TreasureChests {
     static void onLooted() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
+            return;
+        }
+        if (lastUsed != null && CHESTS.containsKey(lastUsed) && System.currentTimeMillis() - lastUsedAt <= USED_MS) {
+            CHESTS.remove(lastUsed);
+            lastUsed = null;
             return;
         }
         BlockPos best = null;
