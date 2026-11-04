@@ -105,9 +105,7 @@ public final class RecordCatalog {
         }
 
         @Override
-        public void finish(JsonObject merged) {
-            sortBy(merged, "sessionLog", "endedAtMs", false);
-        }
+        public void finish(JsonObject merged) { sortBy(merged, "sessionLog", "endedAtMs", false); }
     });
 
     public static final Kind BAZAAR_FLIP = new Kind("killer560smod-bazaarflip-profit.json", null,
@@ -118,9 +116,7 @@ public final class RecordCatalog {
         }
 
         @Override
-        public void finish(JsonObject merged) {
-            sortBy(merged, "cycles", "atMs", false);
-        }
+        public void finish(JsonObject merged) { sortBy(merged, "cycles", "atMs", false); }
     });
 
     /** Today's NPC sales for the daily cap: one account's one day. Same day: both instances' sales count; else the
@@ -208,9 +204,7 @@ public final class RecordCatalog {
         }
 
         @Override
-        public void finish(JsonObject merged) {
-            sortBy(merged, "hunts", "startedMs", false);
-        }
+        public void finish(JsonObject merged) { sortBy(merged, "hunts", "startedMs", false); }
     });
 
     /** How Lucky Are You (doc-rng-1101): per Skyblock profile, attempts per activity, expected drops (at the odds and

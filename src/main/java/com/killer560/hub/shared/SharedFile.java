@@ -51,9 +51,7 @@ public final class SharedFile {
         this.policy = policy;
     }
 
-    public Path path() {
-        return file;
-    }
+    public Path path() { return file; }
 
     /** Reads the file (an empty object when there is none or it is unreadable) and makes it the merge base. */
     public JsonObject load() throws IOException {
@@ -124,17 +122,11 @@ public final class SharedFile {
         }
     }
 
-    private Path ledgerPath() {
-        return file.resolveSibling(".imported-" + file.getFileName());
-    }
+    private Path ledgerPath() { return file.resolveSibling(".imported-" + file.getFileName()); }
 
-    private Path ledgerDir() {
-        return file.resolveSibling(".imported");
-    }
+    private Path ledgerDir() { return file.resolveSibling(".imported"); }
 
-    private JsonObject read() {
-        return readJson(file);
-    }
+    private JsonObject read() { return readJson(file); }
 
     private static JsonObject readJson(Path p) {
         try {

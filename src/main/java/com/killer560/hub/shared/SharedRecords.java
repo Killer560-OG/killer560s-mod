@@ -235,9 +235,7 @@ public final class SharedRecords {
     }
 
     /** Runs {@code reload} after the account changes (the in-game account switcher), so ACCOUNT records follow it. */
-    public static void onAccountChange(Runnable reload) {
-        ACCOUNT_LISTENERS.add(reload);
-    }
+    public static void onAccountChange(Runnable reload) { ACCOUNT_LISTENERS.add(reload); }
 
     /** Called by {@code AccountApplier} after it swapped the signed-in account. */
     public static void accountChanged() {

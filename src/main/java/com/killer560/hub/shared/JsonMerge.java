@@ -197,25 +197,15 @@ public final class JsonMerge {
         return out;
     }
 
-    private static String join(String path, String k) {
-        return path.isEmpty() ? k : path + SEP + k;
-    }
+    private static String join(String path, String k) { return path.isEmpty() ? k : path + SEP + k; }
 
-    private static JsonElement nul(JsonElement e) {
-        return e == null || e instanceof JsonNull ? null : e;
-    }
+    private static JsonElement nul(JsonElement e) { return e == null || e instanceof JsonNull ? null : e; }
 
-    private static JsonObject obj(JsonElement e) {
-        return e == null ? null : e.getAsJsonObject();
-    }
+    private static JsonObject obj(JsonElement e) { return e == null ? null : e.getAsJsonObject(); }
 
-    private static JsonArray arr(JsonElement e) {
-        return e == null ? null : e.getAsJsonArray();
-    }
+    private static JsonArray arr(JsonElement e) { return e == null ? null : e.getAsJsonArray(); }
 
-    private static boolean isNumber(JsonElement e) {
-        return e.isJsonPrimitive() && e.getAsJsonPrimitive().isNumber();
-    }
+    private static boolean isNumber(JsonElement e) { return e.isJsonPrimitive() && e.getAsJsonPrimitive().isNumber(); }
 
     private static boolean integral(JsonElement e) {
         if (e == null) {
@@ -225,13 +215,9 @@ public final class JsonMerge {
         return s.indexOf('.') < 0 && s.indexOf('e') < 0 && s.indexOf('E') < 0;
     }
 
-    private static long lng(JsonElement e) {
-        return e == null ? 0L : e.getAsLong();
-    }
+    private static long lng(JsonElement e) { return e == null ? 0L : e.getAsLong(); }
 
-    private static double dbl(JsonElement e) {
-        return e == null ? 0.0 : e.getAsDouble();
-    }
+    private static double dbl(JsonElement e) { return e == null ? 0.0 : e.getAsDouble(); }
 
 
     /** A key made of the named fields of an object element, joined with '|'. */
