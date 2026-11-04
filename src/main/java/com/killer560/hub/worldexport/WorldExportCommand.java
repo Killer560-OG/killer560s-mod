@@ -35,6 +35,7 @@ public final class WorldExportCommand {
             return;
         }
         EntityRecorder.register();
+        CaptureGuide.register();
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("k560worldexport")
                         .executes(ctx -> help())
@@ -45,6 +46,26 @@ public final class WorldExportCommand {
                                                 .then(ClientCommands.argument("x2", IntegerArgumentType.integer())
                                                         .then(ClientCommands.argument("z2", IntegerArgumentType.integer())
                                                                 .executes(ctx -> coverage(new int[]{
+                                                                        IntegerArgumentType.getInteger(ctx, "x1"),
+                                                                        IntegerArgumentType.getInteger(ctx, "z1"),
+                                                                        IntegerArgumentType.getInteger(ctx, "x2"),
+                                                                        IntegerArgumentType.getInteger(ctx, "z2")})))))))
+                        .then(ClientCommands.literal("area")
+                                .executes(ctx -> area(null))
+                                .then(ClientCommands.literal("clear").executes(ctx -> {
+                                    CaptureGuide.clearArea();
+                                    ModChat.send(FEATURE, ModChat.text("Capture area cleared (exports keep every chunk)."));
+                                    return 1;
+                                }))
+                                .then(ClientCommands.literal("here")
+                                        .executes(ctx -> areaHere(CaptureGuide.DEFAULT_RADIUS))
+                                        .then(ClientCommands.argument("chunkRadius", IntegerArgumentType.integer(1, 200))
+                                                .executes(ctx -> areaHere(IntegerArgumentType.getInteger(ctx, "chunkRadius")))))
+                                .then(ClientCommands.argument("x1", IntegerArgumentType.integer())
+                                        .then(ClientCommands.argument("z1", IntegerArgumentType.integer())
+                                                .then(ClientCommands.argument("x2", IntegerArgumentType.integer())
+                                                        .then(ClientCommands.argument("z2", IntegerArgumentType.integer())
+                                                                .executes(ctx -> area(new int[]{
                                                                         IntegerArgumentType.getInteger(ctx, "x1"),
                                                                         IntegerArgumentType.getInteger(ctx, "z1"),
                                                                         IntegerArgumentType.getInteger(ctx, "x2"),
@@ -63,12 +84,41 @@ public final class WorldExportCommand {
     }
 
     private static int help() {
-        ModChat.send(FEATURE, ModChat.text("coverage [x1 z1 x2 z2] | record on|off|clear | save <name>. Files go to "),
+        ModChat.send(FEATURE, ModChat.text("area here [r] | x1 z1 x2 z2 | clear; coverage [x1 z1 x2 z2] | record on|off|clear | save <name>. Files go to "),
                 ModChat.value(WorldExporter.baseDir().toString()));
         return 1;
     }
 
+    private static int area(int[] blocks) {
+        if (blocks != null) {
+            CaptureGuide.setArea(Math.min(blocks[0], blocks[2]) >> 4, Math.min(blocks[1], blocks[3]) >> 4,
+                    Math.max(blocks[0], blocks[2]) >> 4, Math.max(blocks[1], blocks[3]) >> 4);
+        }
+        int[] b = CaptureGuide.areaBlocks();
+        ModChat.send(FEATURE, ModChat.text(b == null ? "No capture area set. area here [chunkRadius] | area x1 z1 x2 z2 | area clear."
+                : "Capture area blocks " + b[0] + "," + b[1] + " to " + b[2] + "," + b[3]
+                + "; exports keep only these chunks, and the guide shows when " + CaptureGuide.GUIDE_PERCENT + "% or less is missing."));
+        return 1;
+    }
+
+    private static int areaHere(int chunkRadius) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) {
+            ModChat.send(FEATURE, ModChat.bad("Not in a world."));
+            return 0;
+        }
+        CaptureGuide.setAreaAround(mc.player.blockPosition().getX(), mc.player.blockPosition().getZ(), chunkRadius);
+        return area(null);
+    }
+
     private static int record(boolean on) {
+        Minecraft mc = Minecraft.getInstance();
+        if (on && CaptureGuide.area() == null && mc.player != null) {
+            CaptureGuide.setAreaAround(mc.player.blockPosition().getX(), mc.player.blockPosition().getZ(),
+                    CaptureGuide.DEFAULT_RADIUS);
+            ModChat.send(FEATURE, ModChat.text("No capture area was set: using "), ModChat.value(CaptureGuide.DEFAULT_RADIUS
+                    + " chunks around you"), ModChat.text(" (area x1 z1 x2 z2 changes it)."));
+        }
         EntityRecorder.setRecording(on);
         ModChat.send(FEATURE, ModChat.text("Entity recording " + (on ? "ON" : "OFF") + ", "),
                 ModChat.value(String.valueOf(EntityRecorder.count())), ModChat.text(" recorded."));
@@ -102,6 +152,9 @@ public final class WorldExportCommand {
      * @param blockBox x1 z1 x2 z2 in blocks, or null for the bounding box of what is captured
      */
     public static Coverage measure(ClientLevel level, int[] blockBox) {
+        if (blockBox == null) {
+            blockBox = CaptureGuide.areaBlocks();
+        }
         Map<Long, LevelChunk> chunks = WorldExporter.collect(level);
         int live = 0;
         for (LevelChunk c : chunks.values()) {
