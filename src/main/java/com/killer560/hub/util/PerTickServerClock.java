@@ -151,9 +151,7 @@ public final class PerTickServerClock {
      * listener (client ticks whenever the server sent under 15 pings a second) belongs here (2026-11-03: "all timers
      * seem to go off sometimes" when the server lags). Call {@link #register()} first.
      */
-    public static void subscribe(Runnable listener) {
-        LISTENERS.add(listener);
-    }
+    public static void subscribe(Runnable listener) { LISTENERS.add(listener); }
 
     private static final java.util.List<Runnable> LISTENERS = new java.util.concurrent.CopyOnWriteArrayList<>();
 
@@ -220,14 +218,10 @@ public final class PerTickServerClock {
     }
 
     /** The clock now (server ticks while trusted, client ticks otherwise). */
-    public static long now() {
-        return clock;
-    }
+    public static long now() { return clock; }
 
     /** Both counters at once, for {@link #stallTicksSince}: {pings while trusted, client ticks while trusted}. */
-    public static synchronized long[] mark() {
-        return new long[]{trustedPings, trustedTicks};
-    }
+    public static synchronized long[] mark() { return new long[]{trustedPings, trustedTicks}; }
 
     /** Client ticks since {@code mark} that the server did not tick (0 while it is not trusted), never negative. */
     public static synchronized long stallTicksSince(long[] mark) {
@@ -235,38 +229,24 @@ public final class PerTickServerClock {
     }
 
     /** Every non-zero ping seen since launch, trusted or not (Tick Timers' proc log compares it with the clock). */
-    public static long rawPings() {
-        return rawPings;
-    }
+    public static long rawPings() { return rawPings; }
 
     private static volatile long rawPings;
 
-    public static boolean trusted() {
-        return trusted;
-    }
+    public static boolean trusted() { return trusted; }
 
     /** Testkit (logic suite, no server): drive the clock by hand - a server ping, a client tick, a fresh world. */
-    public static void pingForTest() {
-        onPing();
-    }
+    public static void pingForTest() { onPing(); }
 
-    public static void tickForTest() {
-        onClientTick(1L);
-    }
+    public static void tickForTest() { onClientTick(1L); }
 
-    public static void untrustForTest() {
-        untrust();
-    }
+    public static void untrustForTest() { untrust(); }
 
     private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-servertick");
 
     /** Testkit: times the trust changed. */
-    public static int trustChanges() {
-        return trustChanges;
-    }
+    public static int trustChanges() { return trustChanges; }
 
     /** Testkit: pings in the last full window. */
-    public static int lastWindowPings() {
-        return lastWindowPings;
-    }
+    public static int lastWindowPings() { return lastWindowPings; }
 }

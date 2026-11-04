@@ -79,9 +79,7 @@ public final class SackCommands {
     }
 
     /** The sender saw its answer (the items arrived, or Hypixel said the sack is empty). */
-    public static void answered() {
-        awaiting = false;
-    }
+    public static void answered() { awaiting = false; }
 
     static void onChat(String plain, boolean unknownKey) {
         if (plain == null || !awaiting || !(unknownKey || UNKNOWN_COMMAND.matcher(plain).matches())) {

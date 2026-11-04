@@ -56,19 +56,13 @@ public final class OutgoingChat {
         private boolean cancelled;
         private boolean retried;
 
-        private Slot(long createdMs) {
-            this.createdMs = createdMs;
-        }
+        private Slot(long createdMs) { this.createdMs = createdMs; }
 
         /** Fills a reserved place with a command (without its slash, e.g. {@code "pc hi"}). */
-        public void fillCommand(String command) {
-            fill(command, true);
-        }
+        public void fillCommand(String command) { fill(command, true); }
 
         /** Fills a reserved place with a plain chat line. */
-        public void fillChat(String text) {
-            fill(text, false);
-        }
+        public void fillChat(String text) { fill(text, false); }
 
         /** Gives the place up (the line turned out empty, or the translation failed and nothing is sent). */
         public void cancel() {
@@ -97,9 +91,7 @@ public final class OutgoingChat {
             drain();
         }
 
-        boolean ready() {
-            return line != null;
-        }
+        boolean ready() { return line != null; }
     }
 
     private static final ArrayDeque<Slot> QUEUE = new ArrayDeque<>();
@@ -158,14 +150,10 @@ public final class OutgoingChat {
     }
 
     /** Lines (and reserved places) still waiting. */
-    public static synchronized int pending() {
-        return QUEUE.size();
-    }
+    public static synchronized int pending() { return QUEUE.size(); }
 
     /** When the last line left (ms, {@link System#nanoTime} based), for the testkit and diagnostics. */
-    public static synchronized long lastSentMs() {
-        return lastSentMs;
-    }
+    public static synchronized long lastSentMs() { return lastSentMs; }
 
     /** Sends the head of the line if its turn has come. Called on every tick and after every change. */
     static void drain() {
@@ -249,7 +237,5 @@ public final class OutgoingChat {
         return client.player != null && client.player.connection != null;
     }
 
-    private static long now() {
-        return System.nanoTime() / 1_000_000L;
-    }
+    private static long now() { return System.nanoTime() / 1_000_000L; }
 }

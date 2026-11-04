@@ -79,9 +79,7 @@ public final class SkyblockGate {
         return screen != null && screen.getClass().getName().startsWith("com.killer560.hub.");
     }
 
-    public static boolean isOnSkyblock() {
-        return onSkyblock;
-    }
+    public static boolean isOnSkyblock() { return onSkyblock; }
 
     private static void update(Minecraft client) {
         if (client.level == null || client.player == null) {

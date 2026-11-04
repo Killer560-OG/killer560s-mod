@@ -264,19 +264,13 @@ public final class ChatObserver {
     }
 
     /** How many listener or rewriter throws have been caught since the game started. */
-    public static long failures() {
-        return FAILURES.get();
-    }
+    public static long failures() { return FAILURES.get(); }
 
     /** {@code "<listener>: <exception>"} for the most recent caught throw, or {@code null} if there has been none. */
-    public static String lastFailure() {
-        return lastFailure;
-    }
+    public static String lastFailure() { return lastFailure; }
 
     /** Caught throws per listener name (the class that registered the lambda, or the listener's own class). */
-    public static java.util.Map<String, Long> failuresByListener() {
-        return java.util.Map.copyOf(FAILURES_BY_LISTENER);
-    }
+    public static java.util.Map<String, Long> failuresByListener() { return java.util.Map.copyOf(FAILURES_BY_LISTENER); }
 
     private static void recordFailure(Object listener, RuntimeException e) {
         String name = listenerName(listener);

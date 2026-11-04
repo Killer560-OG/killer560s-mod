@@ -130,9 +130,7 @@ public final class AttackCooldown {
     }
 
     /** Where the last {@link #attackSpeed} came from (testkit, logging). */
-    public static String attackSpeedSource() {
-        return lastSource;
-    }
+    public static String attackSpeedSource() { return lastSource; }
 
     /** A Hypixel shortbow says so in its lore ("Shortbow: Instantly shoots!"). */
     public static boolean isShortbow(ItemStack stack) {
@@ -151,7 +149,5 @@ public final class AttackCooldown {
         return false;
     }
 
-    private static int clamp(int as) {
-        return Math.max(0, Math.min(MAX_ATTACK_SPEED, as));
-    }
+    private static int clamp(int as) { return Math.max(0, Math.min(MAX_ATTACK_SPEED, as)); }
 }

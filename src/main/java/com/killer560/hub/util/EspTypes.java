@@ -68,11 +68,7 @@ public final class EspTypes {
     public static void init() {
     }
 
-    public static RenderType fill(boolean throughWalls) {
-        return throughWalls ? FILLED_THRU : FILLED;
-    }
+    public static RenderType fill(boolean throughWalls) { return throughWalls ? FILLED_THRU : FILLED; }
 
-    public static RenderType lines(boolean throughWalls) {
-        return throughWalls ? LINES_THRU : LINES;
-    }
+    public static RenderType lines(boolean throughWalls) { return throughWalls ? LINES_THRU : LINES; }
 }

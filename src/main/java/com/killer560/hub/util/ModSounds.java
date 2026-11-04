@@ -64,12 +64,8 @@ public final class ModSounds {
     }
 
     /** How many times the alarm actually started (the testkit reads this; the test client is muted). */
-    public static int correctionAlarmsPlayed() {
-        return alarmsPlayed;
-    }
+    public static int correctionAlarmsPlayed() { return alarmsPlayed; }
 
     /** Alarms skipped by the 3 s rate limit. */
-    public static int correctionAlarmsSuppressed() {
-        return alarmsSuppressed;
-    }
+    public static int correctionAlarmsSuppressed() { return alarmsSuppressed; }
 }

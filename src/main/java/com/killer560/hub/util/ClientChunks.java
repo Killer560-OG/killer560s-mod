@@ -41,14 +41,10 @@ public final class ClientChunks {
      * Chunk Cache routes past its store), so a chunk only the cache still holds is not live. For code that must not
      * read a snapshot that may be stale (the room capture).
      */
-    public static boolean isLive(Level level, int cx, int cz) {
-        return level != null && level.getChunkSource().hasChunk(cx, cz);
-    }
+    public static boolean isLive(Level level, int cx, int cz) { return level != null && level.getChunkSource().hasChunk(cx, cz); }
 
     /** {@link #isLoaded(Level, int, int)} for the chunk holding block column ({@code x}, {@code z}). */
-    public static boolean isLoadedAt(Level level, int x, int z) {
-        return isLoaded(level, x >> 4, z >> 4);
-    }
+    public static boolean isLoadedAt(Level level, int x, int z) { return isLoaded(level, x >> 4, z >> 4); }
 
     /** Whether every chunk under the block box {@code [minX..maxX] x [minZ..maxZ]} has real blocks to read. */
     public static boolean allLoaded(Level level, int minX, int minZ, int maxX, int maxZ) {

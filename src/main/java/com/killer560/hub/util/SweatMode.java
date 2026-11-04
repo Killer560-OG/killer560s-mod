@@ -34,14 +34,10 @@ public final class SweatMode {
     private SweatMode() {
     }
 
-    public static boolean isOn() {
-        return ticksLeft > 0;
-    }
+    public static boolean isOn() { return ticksLeft > 0; }
 
     /** How many times it has been entered since launch (for tests). */
-    public static int timesEntered() {
-        return entered;
-    }
+    public static int timesEntered() { return entered; }
 
     /** {@link #enter} from a menu button whose label {@code text} reads the state - put back to OFF when it ends. */
     public static void enter(net.minecraft.client.gui.components.AbstractWidget button,

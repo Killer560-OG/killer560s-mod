@@ -59,22 +59,14 @@ public final class ChestWindows {
      * are counted here as they arrive, in order - so a click whose ack is in with no window since is one the server
      * took and did not open. Sequences restart with a new connection, so a lower one is taken as is.
      */
-    public static void noteAck(int sequence) {
-        ackedUpTo = sequence;
-    }
+    public static void noteAck(int sequence) { ackedUpTo = sequence; }
 
     /** Whether the server has acked the block click with this sequence. */
-    public static boolean acked(int sequence) {
-        return sequence >= 0 && ackedUpTo >= sequence;
-    }
+    public static boolean acked(int sequence) { return sequence >= 0 && ackedUpTo >= sequence; }
 
     /** Chest windows the server has opened for us so far this session. */
-    public static int count() {
-        return count;
-    }
+    public static int count() { return count; }
 
     /** Whether a chest window has arrived since {@code mark} (an earlier {@link #count}). */
-    public static boolean since(int mark) {
-        return count != mark;
-    }
+    public static boolean since(int mark) { return count != mark; }
 }

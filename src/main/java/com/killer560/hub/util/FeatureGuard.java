@@ -301,9 +301,7 @@ public final class FeatureGuard {
     }
 
     /** Every feature the guard has switched off this session. */
-    public static Set<String> disabled() {
-        return Set.copyOf(DISABLED);
-    }
+    public static Set<String> disabled() { return Set.copyOf(DISABLED); }
 
     /** Clears the guard's memory of a feature, so it runs again - used after the user fixes their config. */
     public static void reset(String name) {

@@ -94,7 +94,5 @@ public final class PlaceRotationGuard {
     }
 
     /** Turns moved so far (only goes up) - read by the testkit. */
-    public static int nudges() {
-        return nudges;
-    }
+    public static int nudges() { return nudges; }
 }

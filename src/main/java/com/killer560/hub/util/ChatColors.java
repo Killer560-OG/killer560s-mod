@@ -92,27 +92,17 @@ public final class ChatColors {
     }
 
     /** Whether this is one of the 16 colors rather than a style or RESET, as {@code isColor()} gave it. */
-    public static boolean isColor(ChatFormatting f) {
-        return f.ordinal() < RGB.length;
-    }
+    public static boolean isColor(ChatFormatting f) { return f.ordinal() < RGB.length; }
 
     /** RGB of a color format, or null for a style or RESET - as {@code getColor()} gave it, Integer and all. */
-    public static Integer color(ChatFormatting f) {
-        return isColor(f) ? RGB[f.ordinal()] : null;
-    }
+    public static Integer color(ChatFormatting f) { return isColor(f) ? RGB[f.ordinal()] : null; }
 
     /** The lower-case name, as {@code getName()} gave it: "dark_blue", underscore kept. */
-    public static String name(ChatFormatting f) {
-        return f.name().toLowerCase(Locale.ROOT);
-    }
+    public static String name(ChatFormatting f) { return f.name().toLowerCase(Locale.ROOT); }
 
     /** The constant with this name, or null - as {@code getByName(String)} gave it, punctuation-insensitive. */
-    public static ChatFormatting byName(String name) {
-        return name == null ? null : BY_NAME.get(cleanName(name));
-    }
+    public static ChatFormatting byName(String name) { return name == null ? null : BY_NAME.get(cleanName(name)); }
 
     /** 26.1.2's private {@code cleanName}: lower-case, then everything that is not a-z removed. */
-    private static String cleanName(String name) {
-        return name.toLowerCase(Locale.ROOT).replaceAll("[^a-z]", "");
-    }
+    private static String cleanName(String name) { return name.toLowerCase(Locale.ROOT).replaceAll("[^a-z]", ""); }
 }

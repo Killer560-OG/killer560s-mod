@@ -69,9 +69,7 @@ public final class ChromaWave {
     }
 
     /** Test hook (testkit): freeze chroma at {@code ms}, or pass -1 to go back to the real clock. */
-    public static void setClockOverride(long ms) {
-        clockOverride = ms;
-    }
+    public static void setClockOverride(long ms) { clockOverride = ms; }
 
     /**
      * Cycle position in [0, 1) at screen point ({@code x}, {@code y}) at time {@code nowMs}. {@code speed} multiplies
@@ -95,9 +93,7 @@ public final class ChromaWave {
     }
 
     /** {@link #rainbow} at full saturation and brightness, real clock. */
-    public static int rainbow(float x, float y, float speed, float size) {
-        return hsv(phase(x, y, now(), speed, size), 1f, 1f);
-    }
+    public static int rainbow(float x, float y, float speed, float size) { return hsv(phase(x, y, now(), speed, size), 1f, 1f); }
 
     /** A looping gradient through {@code stops} (0xRRGGBB, back to the first after the last) at a point. */
     public static int gradient(float x, float y, long nowMs, float speed, float size, int[] stops) {
@@ -165,9 +161,7 @@ public final class ChromaWave {
     }
 
     /** A rainbow spec for text. Create once and keep it; every spec stays registered for the session. */
-    public static Spec rainbowSpec(int fallbackRgb) {
-        return register(new Spec(null, fallbackRgb));
-    }
+    public static Spec rainbowSpec(int fallbackRgb) { return register(new Spec(null, fallbackRgb)); }
 
     private static synchronized Spec register(Spec spec) {
         Map<TextColor, Spec> next = new IdentityHashMap<>(specs);
@@ -199,9 +193,7 @@ public final class ChromaWave {
         }
 
         /** Put this on a {@code Style}; every glyph drawn in it is recolored from its own position. */
-        public TextColor textColor() {
-            return textColor;
-        }
+        public TextColor textColor() { return textColor; }
 
         public Spec speed(float speed) {
             this.speed = speed;
@@ -214,18 +206,12 @@ public final class ChromaWave {
         }
 
         /** 0xRRGGBB at a point, real clock. */
-        public int colorAt(float x, float y) {
-            return colorAt(x, y, now());
-        }
+        public int colorAt(float x, float y) { return colorAt(x, y, now()); }
 
-        public int colorAt(float x, float y, long nowMs) {
-            return table[index(x, y, nowMs)];
-        }
+        public int colorAt(float x, float y, long nowMs) { return table[index(x, y, nowMs)]; }
 
         /** The glyph hook's answer: a pre-made {@link TextColor} for this point (no allocation per glyph). */
-        public TextColor textColorAt(float x, float y) {
-            return textTable[index(x, y, now())];
-        }
+        public TextColor textColorAt(float x, float y) { return textTable[index(x, y, now())]; }
 
         private int index(float x, float y, long nowMs) {
             int i = (int) (phase(x, y, nowMs, speed, size) * TABLE);

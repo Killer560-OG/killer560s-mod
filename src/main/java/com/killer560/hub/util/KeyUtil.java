@@ -22,16 +22,12 @@ public final class KeyUtil {
     }
 
     /** True for stored keyboard codes (GLFW range {@code GLFW_KEY_SPACE..GLFW_KEY_LAST}). */
-    public static boolean isValidKey(int code) {
-        return code >= Keys.FIRST && code <= Keys.LAST;
-    }
+    public static boolean isValidKey(int code) { return code >= Keys.FIRST && code <= Keys.LAST; }
 
     /** Returns {@code code} if it is a valid key OR mouse bind, otherwise {@link #NONE} - use on config load. Every
      *  bind in the mod can be a mouse button since 2026-11-02, so a mouse code survives a load here too; a caller
      *  that truly needs a keyboard-only code checks {@link #isValidKey}. */
-    public static int sanitize(int code) {
-        return isValidKey(code) || isMouseCode(code) ? code : NONE;
-    }
+    public static int sanitize(int code) { return isValidKey(code) || isMouseCode(code) ? code : NONE; }
 
     /** Polls a STORED keyboard code (never with an invalid one). For a code from Minecraft (a {@code KeyMapping}
      *  value, {@code InputConstants.KEY_*}) use {@link McInput#isNativeKeyDown} instead. */
@@ -57,23 +53,15 @@ public final class KeyUtil {
     public static final int MOUSE_CODE_BASE = -100;
     public static final int MAX_MOUSE_BUTTON = 7;
 
-    public static boolean isMouseCode(int code) {
-        return code <= MOUSE_CODE_BASE && code >= MOUSE_CODE_BASE - MAX_MOUSE_BUTTON;
-    }
+    public static boolean isMouseCode(int code) { return code <= MOUSE_CODE_BASE && code >= MOUSE_CODE_BASE - MAX_MOUSE_BUTTON; }
 
-    public static int mouseButton(int code) {
-        return MOUSE_CODE_BASE - code;
-    }
+    public static int mouseButton(int code) { return MOUSE_CODE_BASE - code; }
 
-    public static int codeForMouseButton(int button) {
-        return MOUSE_CODE_BASE - button;
-    }
+    public static int codeForMouseButton(int button) { return MOUSE_CODE_BASE - button; }
 
     /** Like {@link #sanitize}, but keeps mouse-button codes - use on config load for any bind that
      *  accepts a mouse button. */
-    public static int sanitizeBind(int code) {
-        return isMouseCode(code) ? code : sanitize(code);
-    }
+    public static int sanitizeBind(int code) { return isMouseCode(code) ? code : sanitize(code); }
 
     /** Polls a key or a mouse button, whichever the code is. */
     public static boolean isBindDown(Window window, int code) {

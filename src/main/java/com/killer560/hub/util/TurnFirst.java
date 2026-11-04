@@ -48,9 +48,7 @@ public final class TurnFirst {
     private static final java.util.List<java.util.function.BooleanSupplier> BODY_OWNERS =
             new java.util.concurrent.CopyOnWriteArrayList<>();
 
-    public static void registerBodyOwner(java.util.function.BooleanSupplier owner) {
-        BODY_OWNERS.add(owner);
-    }
+    public static void registerBodyOwner(java.util.function.BooleanSupplier owner) { BODY_OWNERS.add(owner); }
 
     /**
      * The yaws the body may be turned to right now without changing where he is being walked, or null for any yaw
@@ -63,9 +61,7 @@ public final class TurnFirst {
     private static final java.util.List<java.util.function.Supplier<float[]>> YAW_CONSTRAINTS =
             new java.util.concurrent.CopyOnWriteArrayList<>();
 
-    public static void registerYawConstraint(java.util.function.Supplier<float[]> c) {
-        YAW_CONSTRAINTS.add(c);
-    }
+    public static void registerYawConstraint(java.util.function.Supplier<float[]> c) { YAW_CONSTRAINTS.add(c); }
 
     private static float[] yawConstraint() {
         for (java.util.function.Supplier<float[]> c : YAW_CONSTRAINTS) {
@@ -109,14 +105,10 @@ public final class TurnFirst {
     private long myLastHold;
     private int foreignWait;
 
-    public TurnFirst() {
-        this(() -> { });
-    }
+    public TurnFirst() { this(() -> { }); }
 
     /** {@code onWrite}: run after every write to his rotation (an owner with a camera-turn detector rebases it). */
-    public TurnFirst(Runnable onWrite) {
-        this(onWrite, () -> false);
-    }
+    public TurnFirst(Runnable onWrite) { this(onWrite, () -> false); }
 
     /**
      * {@code ownHold}: true while a held camera belongs to this owner's own run - an auto puzzle that holds its free camera
@@ -189,13 +181,9 @@ public final class TurnFirst {
 
     /** Whether a turn is still out (the body is turned away from where it was). */
     /** Whether any aura's turn is out (turned, not yet given back) - Kill Mimic waits for the hand-back. */
-    public static boolean anyTurnOut() {
-        return current != null;
-    }
+    public static boolean anyTurnOut() { return current != null; }
 
-    public boolean isTurned() {
-        return turned;
-    }
+    public boolean isTurned() { return turned; }
 
     /**
      * A block: true when its outline is on the reported look within {@code reach} - act now. Otherwise turns the body to

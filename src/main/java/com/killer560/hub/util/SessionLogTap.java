@@ -40,18 +40,12 @@ public final class SessionLogTap {
     private SessionLogTap() {
     }
 
-    public static boolean active() {
-        return active;
-    }
+    public static boolean active() { return active; }
 
-    public static void setActive(boolean on) {
-        active = on;
-    }
+    public static void setActive(boolean on) { active = on; }
 
     /** True when a line from {@code logger} would be kept right now. */
-    public static boolean wants(String logger) {
-        return active && logger != null && !SKIP.contains(logger);
-    }
+    public static boolean wants(String logger) { return active && logger != null && !SKIP.contains(logger); }
 
     public static void record(String logger, String level, String message, Throwable thrown) {
         if (!wants(logger)) {

@@ -344,9 +344,7 @@ public final class WorldRenderUtils {
         return m == 1 || m == 2 ? x1 : x0;
     }
 
-    private static float cornerY(int k, float y0, float y1) {
-        return (k & 3) >= 2 ? y1 : y0;
-    }
+    private static float cornerY(int k, float y0, float y1) { return (k & 3) >= 2 ? y1 : y0; }
 
     private static void addChainedFilledBoxVertices(PoseStack.Pose pose, VertexConsumer buffer,
                                                       float minX, float minY, float minZ,
@@ -394,19 +392,13 @@ public final class WorldRenderUtils {
      * Must run at client init (before the level renderer precompiles {@code RenderPipelines}' list) by any feature
      * that will call the batched methods below with {@code throughWalls = true}.
      */
-    public static void initThroughWalls() {
-        RenderType unused = ThroughWalls.LINES;
-    }
+    public static void initThroughWalls() { RenderType unused = ThroughWalls.LINES; }
 
     /** The through-walls line type the batched methods use, for a {@link BoxBatch} (needs {@link #initThroughWalls()}). */
-    public static RenderType throughWallsLines() {
-        return ThroughWalls.LINES;
-    }
+    public static RenderType throughWallsLines() { return ThroughWalls.LINES; }
 
     /** The through-walls fill type the batched methods use, for a {@link BoxBatch} (needs {@link #initThroughWalls()}). */
-    public static RenderType throughWallsFilled() {
-        return ThroughWalls.FILLED;
-    }
+    public static RenderType throughWallsFilled() { return ThroughWalls.FILLED; }
 
     /** Holder idiom. Same no-depth construction as SecretWaypointsRenderer / EtherwarpWaypointsRenderer, with
      *  its own pipeline ids so the registrations cannot collide. */

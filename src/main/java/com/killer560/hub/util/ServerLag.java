@@ -118,15 +118,11 @@ public final class ServerLag {
     }
 
     /** The client ticks that ended since the last ping beyond the one a ping is due in, as ms. */
-    private static long tickedWithoutPingMs() {
-        return Math.max(0L, clientTicks - lastPingTick - 1) * NOMINAL_TICK_MS;
-    }
+    private static long tickedWithoutPingMs() { return Math.max(0L, clientTicks - lastPingTick - 1) * NOMINAL_TICK_MS; }
 
     /** @return total server stall this connection in ms, counting a stall still in progress; 0 while the
      *  server has not yet been seen pinging once per tick. */
-    public static synchronized long lagMs() {
-        return accumulatedLagMs + stallNowMs();
-    }
+    public static synchronized long lagMs() { return accumulatedLagMs + stallNowMs(); }
 
     /** The stall in progress right now, in ms (0 when the last ping was on time or the source is not trusted). */
     private static long stallNowMs() {
@@ -138,18 +134,14 @@ public final class ServerLag {
     }
 
     /** The tick-bounded total ({@link #ticksSince}), counting a stall still in progress. */
-    private static synchronized long tickLagMs() {
-        return accumulatedTickLagMs + Math.min(stallNowMs(), tickedWithoutPingMs());
-    }
+    private static synchronized long tickLagMs() { return accumulatedTickLagMs + Math.min(stallNowMs(), tickedWithoutPingMs()); }
 
     /**
      * A reading to measure a wait's lag from: take it when the wait starts, or whenever it makes progress. It packs both
      * measures (the tick-bounded one in the high 32 bits, the wall-clock one in the low 32, ms - 49 days each), so a
      * stored mark serves {@link #ticksSince} and {@link #msSince} alike; it is only ever handed back to them.
      */
-    public static synchronized long mark() {
-        return (Math.min(tickLagMs(), MASK) << 32) | Math.min(lagMs(), MASK);
-    }
+    public static synchronized long mark() { return (Math.min(tickLagMs(), MASK) << 32) | Math.min(lagMs(), MASK); }
 
     private static final long MASK = 0xFFFFFFFFL;
 
@@ -189,22 +181,14 @@ public final class ServerLag {
     }
 
     /** True while the server is stalled right now (no ping for longer than a tick and its jitter). */
-    public static boolean stalled() {
-        return expectedDelayTicks() > 0;
-    }
+    public static boolean stalled() { return expectedDelayTicks() > 0; }
 
     /** True once the server has been seen pinging every tick in this world, so a gap is a measurement. */
-    public static synchronized boolean measuring() {
-        return trusted;
-    }
+    public static synchronized boolean measuring() { return trusted; }
 
     /** Test hook: stalls measured since launch. */
-    public static synchronized int stallsSeen() {
-        return stallsSeen;
-    }
+    public static synchronized int stallsSeen() { return stallsSeen; }
 
     /** Test hook: the longest single stall measured since launch, ms. */
-    public static synchronized long longestStallMs() {
-        return longestStallMs;
-    }
+    public static synchronized long longestStallMs() { return longestStallMs; }
 }

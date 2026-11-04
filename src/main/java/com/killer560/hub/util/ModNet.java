@@ -114,9 +114,7 @@ public final class ModNet {
     }
 
     /** Test hook: how many calls {@link #forbidden} has refused since start-up. */
-    public static int forbiddenRefusalsForTest() {
-        return FORBIDDEN_REFUSALS.get();
-    }
+    public static int forbiddenRefusalsForTest() { return FORBIDDEN_REFUSALS.get(); }
 
     private static void record(URI target) {
         String scheme = target.getScheme() == null ? "" : target.getScheme().toLowerCase(Locale.ROOT);
@@ -155,9 +153,7 @@ public final class ModNet {
     }
 
     /** True when {@code -Dkiller560.net.offline=true}. Read on every call, so a harness can flip it mid-run. */
-    public static boolean offline() {
-        return Boolean.getBoolean(OFFLINE_PROPERTY);
-    }
+    public static boolean offline() { return Boolean.getBoolean(OFFLINE_PROPERTY); }
 
     /** The override for {@code service}, without a trailing slash, or {@code null} when none is set. */
     public static String override(String service) {
@@ -188,9 +184,7 @@ public final class ModNet {
     }
 
     /** {@link #url} as a {@link URI}. */
-    public static URI uri(String service, String defaultUrl) {
-        return URI.create(url(service, defaultUrl));
-    }
+    public static URI uri(String service, String defaultUrl) { return URI.create(url(service, defaultUrl)); }
 
     private static boolean blocked(URI target) {
         if (!offline()) return false;

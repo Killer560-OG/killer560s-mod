@@ -63,9 +63,7 @@ public final class PingTracker {
     }
 
     /** Pings are sent while any registered supplier answers true. */
-    public static void addDemand(BooleanSupplier wanted) {
-        DEMAND.add(wanted);
-    }
+    public static void addDemand(BooleanSupplier wanted) { DEMAND.add(wanted); }
 
     private static void tick(Minecraft client) {
         ClientPacketListener connection = client.getConnection();
@@ -204,15 +202,9 @@ public final class PingTracker {
     }
 
     /** Read by the testkit. */
-    public static long lastSampleMs() {
-        return lastSampleMs;
-    }
+    public static long lastSampleMs() { return lastSampleMs; }
 
-    public static int pongsReceived() {
-        return pongsReceived;
-    }
+    public static int pongsReceived() { return pongsReceived; }
 
-    public static int pingsSent() {
-        return pingsSent;
-    }
+    public static int pingsSent() { return pingsSent; }
 }

@@ -90,23 +90,15 @@ public final class SessionRecorderSink {
     }
 
     /** The feature label for a logger name, or null when that logger is not recorded. */
-    public static String featureFor(String loggerName) {
-        return loggerName == null ? null : SOURCES.get(loggerName);
-    }
+    public static String featureFor(String loggerName) { return loggerName == null ? null : SOURCES.get(loggerName); }
 
     /** True while a session file is open and under its cap. Read on every recorded log call, so it is a volatile. */
-    public static boolean active() {
-        return active;
-    }
+    public static boolean active() { return active; }
 
     /** The client tick counter the lines carry; advanced once per client tick by SessionRecorder. */
-    public static void advanceTick() {
-        tick++;
-    }
+    public static void advanceTick() { tick++; }
 
-    public static long tick() {
-        return tick;
-    }
+    public static long tick() { return tick; }
 
     /** The open (or last) session file, or null. */
     public static Path file() {
@@ -210,9 +202,7 @@ public final class SessionRecorderSink {
     }
 
     /** A line from the recorder itself (start, stop, world changes). */
-    public static void note(String event, String message) {
-        record("recorder", "INFO", "[" + event + "] " + message, null);
-    }
+    public static void note(String event, String message) { record("recorder", "INFO", "[" + event + "] " + message, null); }
 
     private static void writeLocked(String line) {
         if (out == null) {
@@ -267,9 +257,7 @@ public final class SessionRecorderSink {
         }
     }
 
-    private static String stamp() {
-        return LocalTime.now().format(TIME);
-    }
+    private static String stamp() { return LocalTime.now().format(TIME); }
 
     /** One event per line: newlines and tabs inside a message become " | " and a space. */
     private static String clean(String s) {

@@ -40,9 +40,7 @@ public final class BeforeMove {
     }
 
     /** Queues {@code send} for the head of this tick's {@code sendPosition}. */
-    public static void queue(Runnable send) {
-        QUEUE.add(send);
-    }
+    public static void queue(Runnable send) { QUEUE.add(send); }
 
     /**
      * From {@code Ap3RotationSendMixin} at the head of {@code sendPosition}. The queued packets are WRITTEN, not flushed
@@ -70,18 +68,12 @@ public final class BeforeMove {
     private static int heldFlushes;
 
     /** For {@code Ap3SendTogetherMixin}: hold this send's flush (only BeforeMove's own sends, render thread). */
-    public static boolean holdFlush() {
-        return holdFlush && Minecraft.getInstance().isSameThread();
-    }
+    public static boolean holdFlush() { return holdFlush && Minecraft.getInstance().isSameThread(); }
 
-    public static void noteHeldFlush() {
-        heldFlushes++;
-    }
+    public static void noteHeldFlush() { heldFlushes++; }
 
     /** Packets whose flush was held to go with the movement packet (testkit: the mixin applied and acted). */
-    public static int heldFlushes() {
-        return heldFlushes;
-    }
+    public static int heldFlushes() { return heldFlushes; }
 
     /** From {@code Ap3RotationSendMixin} at the RETURN of {@code sendPosition}: a held flush goes now if no movement
      *  packet flushed it (no movement packet this tick). */
@@ -112,13 +104,9 @@ public final class BeforeMove {
     }
 
     /** Sends that went at a movement packet's head / late at the next tick's start (only go up) - read by the testkit. */
-    public static int sentAtMove() {
-        return sentAtMove;
-    }
+    public static int sentAtMove() { return sentAtMove; }
 
-    public static int sentLate() {
-        return sentLate;
-    }
+    public static int sentLate() { return sentLate; }
 
     /** Drops anything queued (world change). */
     public static void clear() {

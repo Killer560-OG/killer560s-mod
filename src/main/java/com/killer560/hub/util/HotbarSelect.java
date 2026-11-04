@@ -84,19 +84,13 @@ public final class HotbarSelect {
 
     /** True when a held-item change sent now would follow a use / click / attack / command inside one server tick
      *  (GrimAC PacketOrderE): wait for the next tick before swapping. */
-    public static boolean swapWouldFlag() {
-        return orderConflict != null;
-    }
+    public static boolean swapWouldFlag() { return orderConflict != null; }
 
     /** What a swap now would follow (for the hold's log line), or null. */
-    public static String orderConflict() {
-        return orderConflict;
-    }
+    public static String orderConflict() { return orderConflict; }
 
     /** Whether a held-item change sent now goes ahead of this tick's {@code client_tick_end}. */
-    public static boolean inTick() {
-        return inTick && Minecraft.getInstance().isSameThread();
-    }
+    public static boolean inTick() { return inTick && Minecraft.getInstance().isSameThread(); }
 
     /**
      * Selects {@code slot} (0-8). @return true when the server was told now; false when the slot was already held, or

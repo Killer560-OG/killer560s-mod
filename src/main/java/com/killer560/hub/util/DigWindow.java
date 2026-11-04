@@ -84,9 +84,7 @@ public final class DigWindow {
     }
 
     /** True when nothing has been dug in this server tick yet, nor queued to be. */
-    public static boolean open() {
-        return !dug && pending == null;
-    }
+    public static boolean open() { return !dug && pending == null; }
 
     /** {@link #mayDig}, counting a refusal (for the testkit's "held" number). */
     public static boolean mayDigOrHold(BlockPos pos) {
@@ -98,26 +96,16 @@ public final class DigWindow {
     }
 
     /** A dig on {@code pos} is queued for the head of this tick's movement packet ({@link BeforeMove}). */
-    public static void reserve(BlockPos pos) {
-        pending = pos.immutable();
-    }
+    public static void reserve(BlockPos pos) { pending = pos.immutable(); }
 
     /** From {@link BeforeMove} once its queue has run (a queued dig that was refused never went) or was dropped. */
-    public static void clearPending() {
-        pending = null;
-    }
+    public static void clearPending() { pending = null; }
 
     /** Digs (START/STOP) sent, digs that shared a server tick with another block (GrimAC MultiBreak), and automated digs
      *  held a tick for the window - only go up; read by the testkit. */
-    public static long digs() {
-        return digs;
-    }
+    public static long digs() { return digs; }
 
-    public static long conflicts() {
-        return conflicts;
-    }
+    public static long conflicts() { return conflicts; }
 
-    public static long holds() {
-        return holds;
-    }
+    public static long holds() { return holds; }
 }

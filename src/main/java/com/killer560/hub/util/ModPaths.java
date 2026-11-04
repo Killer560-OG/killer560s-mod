@@ -89,9 +89,7 @@ public final class ModPaths {
     );
 
     /** Whether {@code name} is one of {@link #RETIRED_NAMES}. */
-    public static boolean isRetired(String name) {
-        return name != null && RETIRED_NAMES.contains(name);
-    }
+    public static boolean isRetired(String name) { return name != null && RETIRED_NAMES.contains(name); }
 
     /**
      * Name (with {@link #PREFIX} stripped) -> folder under {@link #root()}. Matched by PREFIX, longest key wins, so
@@ -574,9 +572,7 @@ public final class ModPaths {
     }
 
     /** Whether {@code name} in the config root is one of this mod's - the only entries {@link #migrateAll()} moves. */
-    static boolean isOurs(String name) {
-        return name.startsWith(PREFIX) || SPECIAL_NAMES.contains(name);
-    }
+    static boolean isOurs(String name) { return name.startsWith(PREFIX) || SPECIAL_NAMES.contains(name); }
 
     /**
      * Moves every one of this mod's files and folders out of the config root into the tree, so the root is clean

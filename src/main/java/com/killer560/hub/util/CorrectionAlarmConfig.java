@@ -66,20 +66,12 @@ public final class CorrectionAlarmConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean v) {
-        enabled = v;
-    }
+    public void setEnabled(boolean v) { enabled = v; }
 
     /** 0..1. */
-    public float getVolume() {
-        return volume;
-    }
+    public float getVolume() { return volume; }
 
-    public void setVolume(float v) {
-        volume = Float.isNaN(v) ? 1.0f : Math.max(0f, Math.min(1f, v));
-    }
+    public void setVolume(float v) { volume = Float.isNaN(v) ? 1.0f : Math.max(0f, Math.min(1f, v)); }
 }

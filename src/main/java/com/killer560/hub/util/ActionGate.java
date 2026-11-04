@@ -298,9 +298,7 @@ public final class ActionGate {
             this.freshEachTick = freshEachTick;
         }
 
-        public Kind kind() {
-            return kind;
-        }
+        public Kind kind() { return kind; }
     }
 
     private static final int COUNT = Actor.values().length;
@@ -373,22 +371,16 @@ public final class ActionGate {
     // IS twenty a second, so the ceiling he asked for falls out of the rule itself and needs no timer. The
     // jitter that used to sit on top bought a little irregularity and cost about six actions a second, which
     // is what made Breaker Aura feel slower than the clients he compares it against.
-    public static boolean isEnabled() {
-        return true;
-    }
+    public static boolean isEnabled() { return true; }
 
     /** The client tick count, advanced at the start of every client tick ({@link #onClientTick}). */
-    public static long currentTick() {
-        return tick;
-    }
+    public static long currentTick() { return tick; }
 
     /**
      * A millisecond delay setting as whole client ticks, for a trigger bot timed on the tick: rounded UP to the next
      * 50 ms, so 0 ms is no wait, 1-50 ms one tick, 51-100 ms two, 300 ms six. Never shorter than the setting asks.
      */
-    public static int delayTicks(long ms) {
-        return ms <= 0L ? 0 : (int) Math.min(Integer.MAX_VALUE, (ms + 49L) / 50L);
-    }
+    public static int delayTicks(long ms) { return ms <= 0L ? 0 : (int) Math.min(Integer.MAX_VALUE, (ms + 49L) / 50L); }
 
     /**
      * The spacing floor, plus its own 0-1 tick of jitter.
@@ -472,9 +464,7 @@ public final class ActionGate {
      * setting says. The waiver is narrow on purpose - one actor, a handful of ticks - so a real leap in the
      * middle of a puzzle still settles every other actor, and still settles this one once the window lapses.
      */
-    public static void expectSelfTeleport(Actor actor) {
-        expectSelfTeleport(actor, 3);
-    }
+    public static void expectSelfTeleport(Actor actor) { expectSelfTeleport(actor, 3); }
 
     /**
      * {@link #expectSelfTeleport(Actor)} for {@code ticks} ticks from now. Auto Water calls it again on the LANDING with
@@ -488,9 +478,7 @@ public final class ActionGate {
 
 
     /** For {@link Kind#WORLD}, {@link Kind#COMMAND} and {@link Kind#HOTBAR} actors. */
-    public static boolean tryAct(Actor actor) {
-        return tryAct(actor, null);
-    }
+    public static boolean tryAct(Actor actor) { return tryAct(actor, null); }
 
     /**
      * Ask for this tick's single automated interaction.
@@ -501,9 +489,7 @@ public final class ActionGate {
      * @return true exactly once per client tick, mod-wide. Callers must not act when this is false; they should
      * simply try again next tick.
      */
-    public static boolean tryAct(Actor actor, Screen ownScreen) {
-        return tryActInternal(actor, ownScreen, null);
-    }
+    public static boolean tryAct(Actor actor, Screen ownScreen) { return tryActInternal(actor, ownScreen, null); }
 
     /**
      * {@link #tryAct(Actor, Screen)} for a {@link Kind#SCREEN} actor driving a container whose screen it
@@ -662,9 +648,7 @@ public final class ActionGate {
         return true;
     }
 
-    private static boolean sameFlow(Actor a, Actor b) {
-        return b != null && a.flow != null && a.flow.equals(b.flow);
-    }
+    private static boolean sameFlow(Actor a, Actor b) { return b != null && a.flow != null && a.flow.equals(b.flow); }
 
     /**
      * Deterministic tie-break. If anything strictly higher priority asked on the previous tick, this actor waits so

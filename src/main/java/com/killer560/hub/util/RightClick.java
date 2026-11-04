@@ -88,17 +88,13 @@ public final class RightClick {
     private static volatile int lastUseOnSequence = -1;
 
     /** The prediction sequence of the last block click that left this client (the server acks it, util/ChestWindows). */
-    public static int lastUseOnSequence() {
-        return lastUseOnSequence;
-    }
+    public static int lastUseOnSequence() { return lastUseOnSequence; }
 
     private static volatile int lastUseSequence = -1;
 
     /** The prediction sequence of the last use (right click in the air) that left this client; the server acks it after
      *  handling it, in the tick it handled it ({@code ChestWindows#acked}). */
-    public static int lastUseSequence() {
-        return lastUseSequence;
-    }
+    public static int lastUseSequence() { return lastUseSequence; }
     private static String clickItem;
     private static Level level;
 
@@ -158,18 +154,14 @@ public final class RightClick {
     /** Item uses and item-in-hand block clicks that have left this client, ever (only goes up) - whoever sent them. A
      *  feature counts its own and reads the rest as another feature's (ClearExecutor: another feature's warp landing is
      *  not a server correction of the map's trip). */
-    public static int usesSent() {
-        return usesSent;
-    }
+    public static int usesSent() { return usesSent; }
 
     private static int usesSent;
 
     /** Bare item-use packets ({@code use_item}) that have left this client, ever (only goes up) - not block clicks. A
      *  sender compares it with its own count from the start of the tick: GrimAC's BadPacketsJ flags a second use in one
      *  tick whose look differs from the first's, since only one look reaches the server per tick. */
-    public static int itemUsesSent() {
-        return itemUsesSent;
-    }
+    public static int itemUsesSent() { return itemUsesSent; }
 
     private static int itemUsesSent;
 
@@ -499,14 +491,10 @@ public final class RightClick {
     private static int reaims;
 
     /** Warps re-aimed by {@link #reaimIfUnpairable} - read by the testkit. */
-    public static int reaims() {
-        return reaims;
-    }
+    public static int reaims() { return reaims; }
 
     /** Whether the server's last-heard look is {@code yaw}/{@code pitch} (any wrapping, within 0.05 degrees). */
-    public static boolean heard(LocalPlayer player, float yaw, float pitch) {
-        return sameLook(player, yaw, pitch);
-    }
+    public static boolean heard(LocalPlayer player, float yaw, float pitch) { return sameLook(player, yaw, pitch); }
 
     /**
      * Pairs the stored block click with a harmless use BEFORE the real one goes, for the case {@link #reaimIfUnpairable}
@@ -559,25 +547,17 @@ public final class RightClick {
     private static int storedClicksSpent;
 
     /** Stored block clicks {@link #spendStoredClick} paired with a harmless use - read by the testkit. */
-    public static int storedClicksSpent() {
-        return storedClicksSpent;
-    }
+    public static int storedClicksSpent() { return storedClicksSpent; }
 
     /** The look the server last heard in a movement packet (the running yaw as sent, never wrapped), or null. */
-    public static float[] heardLook() {
-        return sentKnown ? new float[]{sentYaw, sentPitch} : null;
-    }
+    public static float[] heardLook() { return sentKnown ? new float[]{sentYaw, sentPitch} : null; }
 
     /** Whether a block click may still be waiting for its second half on the server. */
-    public static boolean unpaired() {
-        return unpaired;
-    }
+    public static boolean unpaired() { return unpaired; }
 
     /** Uses this class judged the server would take as an earlier block click's second half (ever; only goes up). A
      *  sender compares it before and after its own use: when it went up, that use is expected to do nothing. */
-    public static int barePairedUses() {
-        return barePairedUses;
-    }
+    public static int barePairedUses() { return barePairedUses; }
 
     /**
      * How long a sender waits for the landing of a use {@link #barePairedUses} judged eaten before it sends the use
@@ -599,9 +579,7 @@ public final class RightClick {
         return Math.max(3, (int) Math.ceil(ping * 1.5 / 50.0) + 2);
     }
 
-    public static int blockHalvesSent() {
-        return blockHalvesSent;
-    }
+    public static int blockHalvesSent() { return blockHalvesSent; }
 
     public static void reset() {
         unpaired = false;
@@ -637,13 +615,9 @@ public final class RightClick {
     }
 
     /** Where the last movement packet (or teleport answer) put him for the server; his position when none is known. */
-    public static Vec3 heardFeet(LocalPlayer player) {
-        return sentFeet(player);
-    }
+    public static Vec3 heardFeet(LocalPlayer player) { return sentFeet(player); }
 
-    private static Vec3 sentFeet(LocalPlayer player) {
-        return sentKnown ? new Vec3(sentX, sentY, sentZ) : player.position();
-    }
+    private static Vec3 sentFeet(LocalPlayer player) { return sentKnown ? new Vec3(sentX, sentY, sentZ) : player.position(); }
 
     private static BlockHitResult serverRay(LocalPlayer player, Vec3 feet, float yaw, float pitch) {
         Level lvl = player.level();

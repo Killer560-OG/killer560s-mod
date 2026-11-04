@@ -72,9 +72,7 @@ public final class ModLog {
         }
 
         @Override
-        protected String getFullyQualifiedCallerName() {
-            return OptInLogger.class.getName();
-        }
+        protected String getFullyQualifiedCallerName() { return OptInLogger.class.getName(); }
 
         private boolean kept() {
             try {
@@ -103,29 +101,19 @@ public final class ModLog {
         }
 
         @Override
-        public boolean isTraceEnabled() {
-            return false;
-        }
+        public boolean isTraceEnabled() { return false; }
 
         @Override
-        public boolean isDebugEnabled() {
-            return false;
-        }
+        public boolean isDebugEnabled() { return false; }
 
         @Override
-        public boolean isInfoEnabled() {
-            return kept() && delegate.isInfoEnabled();
-        }
+        public boolean isInfoEnabled() { return kept() && delegate.isInfoEnabled(); }
 
         @Override
-        public boolean isWarnEnabled() {
-            return kept() && delegate.isWarnEnabled();
-        }
+        public boolean isWarnEnabled() { return kept() && delegate.isWarnEnabled(); }
 
         @Override
-        public boolean isErrorEnabled() {
-            return delegate.isErrorEnabled();
-        }
+        public boolean isErrorEnabled() { return delegate.isErrorEnabled(); }
     }
 
     /**
@@ -146,9 +134,7 @@ public final class ModLog {
         }
 
         @Override
-        protected String getFullyQualifiedCallerName() {
-            return RecordingLogger.class.getName();
-        }
+        protected String getFullyQualifiedCallerName() { return RecordingLogger.class.getName(); }
 
         @Override
         protected void handleNormalizedLoggingCall(Level level, Marker marker, String pattern,
@@ -185,33 +171,21 @@ public final class ModLog {
         }
 
         @Override
-        public boolean isTraceEnabled() {
-            return delegate.isTraceEnabled();
-        }
+        public boolean isTraceEnabled() { return delegate.isTraceEnabled(); }
 
         @Override
-        public boolean isDebugEnabled() {
-            return delegate.isDebugEnabled();
-        }
+        public boolean isDebugEnabled() { return delegate.isDebugEnabled(); }
 
-        private boolean extra() {
-            return (feature != null && SessionRecorderSink.active()) || SessionLogTap.wants(name);
-        }
+        private boolean extra() { return (feature != null && SessionRecorderSink.active()) || SessionLogTap.wants(name); }
 
         @Override
-        public boolean isInfoEnabled() {
-            return delegate.isInfoEnabled() || extra();
-        }
+        public boolean isInfoEnabled() { return delegate.isInfoEnabled() || extra(); }
 
         @Override
-        public boolean isWarnEnabled() {
-            return delegate.isWarnEnabled() || extra();
-        }
+        public boolean isWarnEnabled() { return delegate.isWarnEnabled() || extra(); }
 
         @Override
-        public boolean isErrorEnabled() {
-            return delegate.isErrorEnabled() || extra();
-        }
+        public boolean isErrorEnabled() { return delegate.isErrorEnabled() || extra(); }
     }
 
     /**
@@ -236,9 +210,7 @@ public final class ModLog {
         }
 
         @Override
-        protected String getFullyQualifiedCallerName() {
-            return MutedLogger.class.getName();
-        }
+        protected String getFullyQualifiedCallerName() { return MutedLogger.class.getName(); }
 
         @Override
         protected void handleNormalizedLoggingCall(Level level, Marker marker, String pattern,
@@ -258,29 +230,19 @@ public final class ModLog {
         }
 
         @Override
-        public boolean isTraceEnabled() {
-            return delegate.isTraceEnabled() && !quiet.getAsBoolean();
-        }
+        public boolean isTraceEnabled() { return delegate.isTraceEnabled() && !quiet.getAsBoolean(); }
 
         @Override
-        public boolean isDebugEnabled() {
-            return delegate.isDebugEnabled() && !quiet.getAsBoolean();
-        }
+        public boolean isDebugEnabled() { return delegate.isDebugEnabled() && !quiet.getAsBoolean(); }
 
         @Override
-        public boolean isInfoEnabled() {
-            return delegate.isInfoEnabled() && !quiet.getAsBoolean();
-        }
+        public boolean isInfoEnabled() { return delegate.isInfoEnabled() && !quiet.getAsBoolean(); }
 
         @Override
-        public boolean isWarnEnabled() {
-            return delegate.isWarnEnabled();
-        }
+        public boolean isWarnEnabled() { return delegate.isWarnEnabled(); }
 
         @Override
-        public boolean isErrorEnabled() {
-            return delegate.isErrorEnabled();
-        }
+        public boolean isErrorEnabled() { return delegate.isErrorEnabled(); }
     }
 
     /**
@@ -297,9 +259,7 @@ public final class ModLog {
         }
 
         @Override
-        protected String getFullyQualifiedCallerName() {
-            return ReleaseLogger.class.getName();
-        }
+        protected String getFullyQualifiedCallerName() { return ReleaseLogger.class.getName(); }
 
         @Override
         protected void handleNormalizedLoggingCall(Level level, Marker marker, String pattern,
@@ -317,28 +277,18 @@ public final class ModLog {
         }
 
         @Override
-        public boolean isTraceEnabled() {
-            return false;
-        }
+        public boolean isTraceEnabled() { return false; }
 
         @Override
-        public boolean isDebugEnabled() {
-            return false;
-        }
+        public boolean isDebugEnabled() { return false; }
 
         @Override
-        public boolean isInfoEnabled() {
-            return false;
-        }
+        public boolean isInfoEnabled() { return false; }
 
         @Override
-        public boolean isWarnEnabled() {
-            return false;
-        }
+        public boolean isWarnEnabled() { return false; }
 
         @Override
-        public boolean isErrorEnabled() {
-            return delegate.isErrorEnabled();
-        }
+        public boolean isErrorEnabled() { return delegate.isErrorEnabled(); }
     }
 }

@@ -25,9 +25,7 @@ public final class EspDepthTestHook {
         family = fam;
     }
 
-    public static void register() {
-        LevelRenderEvents.COLLECT_SUBMITS.register(EspDepthTestHook::draw);
-    }
+    public static void register() { LevelRenderEvents.COLLECT_SUBMITS.register(EspDepthTestHook::draw); }
 
     private static void draw(LevelRenderContext ctx) {
         String f = family;

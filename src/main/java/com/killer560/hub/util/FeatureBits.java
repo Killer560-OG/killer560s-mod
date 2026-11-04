@@ -55,9 +55,7 @@ public final class FeatureBits {
     }
 
     /** A gated setting changed (or a config was reloaded): the bits are recomputed before the next gated call. */
-    public static void changed() {
-        dirty = true;
-    }
+    public static void changed() { dirty = true; }
 
     /** Whether the listener behind bit {@code id} may do anything. One field read and one array read when clean. */
     public static boolean on(int id) {
@@ -108,7 +106,5 @@ public final class FeatureBits {
     }
 
     /** Testkit: how many bits are registered. */
-    public static int count() {
-        return gates.length;
-    }
+    public static int count() { return gates.length; }
 }
