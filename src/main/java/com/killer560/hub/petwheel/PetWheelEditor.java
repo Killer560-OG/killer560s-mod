@@ -60,9 +60,7 @@ final class PetWheelEditor {
      *  {@code editScreen} closes itself the instant this is armed (see {@link #tick}) - real {@code /pets}
      *  only opens once nothing else has a screen up. */
     static void beginPick(int wheelIndex, PetWheelScreen editScreen) {
-        if (armed) {
-            return;
-        }
+        if (armed) return;
         armed = true;
         sentCommand = false;
         targetSlotIndex = wheelIndex;
@@ -72,9 +70,7 @@ final class PetWheelEditor {
     }
 
     private static void tick(Minecraft client) {
-        if (!armed) {
-            return;
-        }
+        if (!armed) return;
         if (sentCommand) {
             // /pets never opened (not on Skyblock, command swallowed): without this the pick stayed armed, and the
             // next /pets the player opened himself had his first pet click canceled and written into the wheel.
@@ -90,26 +86,20 @@ final class PetWheelEditor {
             }
             return;
         }
-        if (McCompat.screen(client) != null) {
-            return;
-        }
+        if (McCompat.screen(client) != null) return;
         LocalPlayer player = client.player;
         if (player == null || player.connection == null) {
             cancel("no player");
             return;
         }
-        if (!ActionGate.tryAct(ActionGate.Actor.PET_WHEEL_CMD)) {
-            return;
-        }
+        if (!ActionGate.tryAct(ActionGate.Actor.PET_WHEEL_CMD)) return;
         player.connection.sendCommand("pets");
         sentCommand = true;
         ticksSinceCommand = 0;
     }
 
     private static void onScreenInit(Minecraft client, Screen screen, int w, int h) {
-        if (!armed || !sentCommand) {
-            return;
-        }
+        if (!armed || !sentCommand) return;
         if (!(screen instanceof AbstractContainerScreen<?> container)
                 || !PETS_TITLE.matcher(container.getTitle().getString()).matches()) {
             return;
@@ -128,9 +118,7 @@ final class PetWheelEditor {
     }
 
     private static boolean onPetsClick(AbstractContainerScreen<?> screen, MouseButtonEvent event) {
-        if (!armed || com.killer560.hub.compat.McInput.button(event) != 0) {
-            return true;
-        }
+        if (!armed || com.killer560.hub.compat.McInput.button(event) != 0) return true;
         AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
         Slot hovered = accessor.killer560smod$getHoveredSlot();
         if (hovered == null) {

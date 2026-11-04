@@ -30,9 +30,7 @@ public abstract class PetWheelInputMixin extends ClientInput {
         // Also while the pet wheel itself is the open screen (killer560, 2026-10-18: "block my movement while it is in
         // the pets menu"). Checked live each tick, so closing the wheel by Escape or by letting the hold key go frees
         // movement on the next tick with nothing to undo.
-        if (!PetSummoner.suppressesMovement() && !(McCompat.screen(Minecraft.getInstance()) instanceof PetWheelScreen)) {
-            return;
-        }
+        if (!PetSummoner.suppressesMovement() && !(McCompat.screen(Minecraft.getInstance()) instanceof PetWheelScreen)) return;
         Input k = this.keyPresses;
         this.keyPresses = new Input(false, false, false, false, false, k.shift(), false);
         this.moveVector = Vec2.ZERO;

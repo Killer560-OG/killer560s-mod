@@ -262,9 +262,7 @@ public final class PetWheelConfig {
         cfg.pages.clear();
         if (root.has("pages") && root.get("pages").isJsonArray()) {
             for (var el : root.getAsJsonArray("pages")) {
-                if (cfg.pages.size() >= MAX_PAGES) {
-                    break;
-                }
+                if (cfg.pages.size() >= MAX_PAGES) break;
                 try {
                     JsonObject po = el.getAsJsonObject();
                     WheelPage page = new WheelPage(cleanName(getString(po, "name", null), cfg.pages.size()));
@@ -320,9 +318,7 @@ public final class PetWheelConfig {
 
     /** Adds an empty page after the last one and makes it current. @return false at {@link #MAX_PAGES}. */
     public boolean addPage() {
-        if (pages.size() >= MAX_PAGES) {
-            return false;
-        }
+        if (pages.size() >= MAX_PAGES) return false;
         pages.add(new WheelPage("Page " + (pages.size() + 1)));
         setPageIndex(pages.size() - 1);
         return true;
@@ -330,9 +326,7 @@ public final class PetWheelConfig {
 
     /** Deletes the current page (never the last one); the page before it becomes current. @return whether it did. */
     public boolean removeCurrentPage() {
-        if (pages.size() <= 1) {
-            return false;
-        }
+        if (pages.size() <= 1) return false;
         pages.remove(pageIndex);
         setPageIndex(Math.max(0, pageIndex - 1));
         return true;
@@ -349,9 +343,7 @@ public final class PetWheelConfig {
 
     /** Appends a known pet to the end of the wheel (no-op if already on it or unknown). */
     public void addToWheel(String uuid) {
-        if (isOnWheel(uuid)) {
-            return;
-        }
+        if (isOnWheel(uuid)) return;
         PetEntry known = knownPets.get(uuid);
         if (known != null) {
             wheelPets.add(known);
@@ -380,9 +372,7 @@ public final class PetWheelConfig {
      * rather than replacing; anything past that is out of range and ignored rather than leaving a gap.
      */
     public void replaceOrAppendWheelSlot(int index, PetEntry entry) {
-        if (entry == null || index < 0 || index > wheelPets.size()) {
-            return;
-        }
+        if (entry == null || index < 0 || index > wheelPets.size()) return;
         if (index == wheelPets.size()) {
             wheelPets.add(entry);
         } else {
@@ -421,9 +411,7 @@ public final class PetWheelConfig {
     private static int clampIconScale(int v) { return Math.max(MIN_ICON_SCALE_PCT, Math.min(MAX_ICON_SCALE_PCT, v)); }
 
     private static InteractionMode parseMode(String raw) {
-        if (raw == null) {
-            return InteractionMode.HOLD_RELEASE;
-        }
+        if (raw == null) return InteractionMode.HOLD_RELEASE;
         try {
             return InteractionMode.valueOf(raw.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
@@ -440,16 +428,12 @@ public final class PetWheelConfig {
     }
 
     private static void readPetList(JsonObject root, String key, List<PetEntry> out) {
-        if (!root.has(key) || !root.get(key).isJsonArray()) {
-            return;
-        }
+        if (!root.has(key) || !root.get(key).isJsonArray()) return;
         for (var el : root.getAsJsonArray(key)) {
             try {
                 JsonObject o = el.getAsJsonObject();
                 String uuid = o.has("uuid") ? o.get("uuid").getAsString() : null;
-                if (uuid == null || uuid.isBlank()) {
-                    continue;
-                }
+                if (uuid == null || uuid.isBlank()) continue;
                 String name = o.has("name") ? o.get("name").getAsString() : null;
                 String tier = o.has("tier") && !o.get("tier").isJsonNull() ? o.get("tier").getAsString() : null;
                 int level = getInt(o, "level", -1);
