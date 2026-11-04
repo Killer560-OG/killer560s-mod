@@ -119,7 +119,5 @@ public final class StorageSearchExtraCache {
         }
     }
 
-    public int size() {
-        return pages.size();
-    }
+    public int size() { return pages.size(); }
 }

@@ -544,11 +544,7 @@ public final class StorageSearchFeature {
         return null;
     }
 
-    static boolean isEquipmentWardrobeKey(String key) {
-        return key != null && key.contains("|" + EQUIPMENT_WARDROBE_KEY + "_");
-    }
+    static boolean isEquipmentWardrobeKey(String key) { return key != null && key.contains("|" + EQUIPMENT_WARDROBE_KEY + "_"); }
 
-    private static String extraKey(String localId) {
-        return StorageOverlayFeature.accountProfilePrefix() + "|" + localId;
-    }
+    private static String extraKey(String localId) { return StorageOverlayFeature.accountProfilePrefix() + "|" + localId; }
 }

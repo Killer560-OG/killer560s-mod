@@ -138,9 +138,7 @@ public final class IslandChestCache {
         return out;
     }
 
-    public List<ItemStack> contentsOf(ChestEntry entry) {
-        return StorageSearchNbtCodec.decode(entry.blob());
-    }
+    public List<ItemStack> contentsOf(ChestEntry entry) { return StorageSearchNbtCodec.decode(entry.blob()); }
 
     /** Drops remembered chests whose block is provably gone - see {@link IslandChestScanner#scanForMissing}. */
     public void forget(List<String> keys) {
@@ -160,7 +158,5 @@ public final class IslandChestCache {
         }
     }
 
-    public int size() {
-        return chests.size();
-    }
+    public int size() { return chests.size(); }
 }

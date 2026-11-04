@@ -45,9 +45,7 @@ public final class IslandChestScanner {
     }
 
     /** True when the Chunk Cache is on, i.e. when chests outside vanilla's own chunk ring are discoverable. */
-    public static boolean chunkCacheActive() {
-        return ChunkCacheManager.isActive();
-    }
+    public static boolean chunkCacheActive() { return ChunkCacheManager.isActive(); }
 
     /** Every chest/barrel/shulker block position in a {@code radiusChunks} chunk square around the player that this
      *  client can still read (loaded, or kept by the Chunk Cache). Memoized - see the class doc. */

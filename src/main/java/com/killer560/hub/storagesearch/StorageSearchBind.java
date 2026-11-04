@@ -31,9 +31,7 @@ public record StorageSearchBind(int mods, int code) {
         };
     }
 
-    public boolean isSet() {
-        return code != KeyUtil.NONE;
-    }
+    public boolean isSet() { return code != KeyUtil.NONE; }
 
     /** Polls the whole combination. Cheap - at most four {@code glfwGetKey} calls, and only for binds that are set. */
     public boolean isDown(Window window) {
@@ -79,9 +77,7 @@ public record StorageSearchBind(int mods, int code) {
     }
 
     /** Config form: {@code "<mods>:<code>"}. */
-    public String serialize() {
-        return mods + ":" + code;
-    }
+    public String serialize() { return mods + ":" + code; }
 
     /** @return the bind this string encodes, or null when it is unusable (so a hand-edited config can't break the
      *  feature - same spirit as {@link KeyUtil#sanitizeBind}). */

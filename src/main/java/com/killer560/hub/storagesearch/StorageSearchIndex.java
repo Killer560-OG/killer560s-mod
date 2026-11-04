@@ -33,13 +33,9 @@ public final class StorageSearchIndex {
     public enum SourceType {
         ENDER_CHEST, BACKPACK, INVENTORY, ISLAND_CHEST, WARDROBE, PETS, EQUIPMENT;
 
-        public boolean isStorage() {
-            return this == ENDER_CHEST || this == BACKPACK;
-        }
+        public boolean isStorage() { return this == ENDER_CHEST || this == BACKPACK; }
 
-        public boolean isExtra() {
-            return this == WARDROBE || this == PETS || this == EQUIPMENT;
-        }
+        public boolean isExtra() { return this == WARDROBE || this == PETS || this == EQUIPMENT; }
     }
 
     /** One searchable stack. {@code storageKey}/{@code storageNumber}/{@code contentIndex} are only
@@ -64,27 +60,17 @@ public final class StorageSearchIndex {
     private StorageSearchIndex() {
     }
 
-    public List<Entry> entries() {
-        return entries;
-    }
+    public List<Entry> entries() { return entries; }
 
-    public List<StorageInfo> storages() {
-        return storages;
-    }
+    public List<StorageInfo> storages() { return storages; }
 
     /** Chest blocks the scan could see that this feature has no contents for - "open it once" nudge. */
-    public int unopenedChests() {
-        return unopenedChests;
-    }
+    public int unopenedChests() { return unopenedChests; }
 
-    public int knownChests() {
-        return knownChests;
-    }
+    public int knownChests() { return knownChests; }
 
     /** False means island-chest discovery could only see vanilla's own chunk ring - see {@link IslandChestScanner}. */
-    public boolean chunkCacheActive() {
-        return chunkCacheActive;
-    }
+    public boolean chunkCacheActive() { return chunkCacheActive; }
 
     public static StorageSearchIndex build(boolean includeInventory) {
         StorageSearchIndex index = new StorageSearchIndex();

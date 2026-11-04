@@ -137,9 +137,7 @@ public class StorageSearchScreen extends Screen implements MenuThemedScreen {
         scroll = 0;
     }
 
-    private int maxScroll() {
-        return Math.max(0, results.size() * ROW_H - listH);
-    }
+    private int maxScroll() { return Math.max(0, results.size() * ROW_H - listH); }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
@@ -329,21 +327,13 @@ public class StorageSearchScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
+    public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 
     @Override
-    public String themeId() {
-        return "storage_search";
-    }
+    public String themeId() { return "storage_search"; }
 }

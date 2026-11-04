@@ -55,9 +55,7 @@ public final class StorageSearchEsp {
         }
     }
 
-    public static void clear() {
-        TARGETS.clear();
-    }
+    public static void clear() { TARGETS.clear(); }
 
     private static void onWorldRender(LevelRenderContext context) {
         // Nothing marked is the normal case - this must cost effectively nothing then.
