@@ -63,6 +63,11 @@ public class AutoTerminalTab extends BaseTab {
                         requestRebuild.run();
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
+            widgets.add(intSlider(contentX, y, 220, TerminalSolverConfig.MIN_FIRST_CLICK_DELAY_MS, TerminalSolverConfig.MAX_FIRST_CLICK_DELAY_MS,
+                    () -> TerminalSolverConfig.getInstance().getFirstClickDelayMs(),
+                    v -> TerminalSolverConfig.getInstance().setFirstClickDelayMs(v),
+                    () -> Component.literal("First Click Delay: " + TerminalSolverConfig.getInstance().getFirstClickDelayMs() + "ms")));
+            y += 24;
             if (streamSafe) {
                 widgets.add(intSlider(contentX, y, 220, TerminalSolverConfig.MIN_FAKE_CURSOR_SPEED, TerminalSolverConfig.MAX_FAKE_CURSOR_SPEED,
                         () -> TerminalSolverConfig.getInstance().getFakeCursorSpeed(),
