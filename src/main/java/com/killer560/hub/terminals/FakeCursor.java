@@ -187,9 +187,7 @@ public final class FakeCursor {
     }
 
     /** @return whether the cursor is in use (Stream Safe on and Auto Terminals clicking this terminal). */
-    static boolean active() {
-        return showing;
-    }
+    static boolean active() { return showing; }
 
     /** A terminal opened (not a quick reopen of the same one): a fresh hand, from the window center. */
     static void beginTerminal() {
@@ -250,16 +248,12 @@ public final class FakeCursor {
 
 
     /** Heads for {@code slot}; a no-op while already headed there. */
-    static void aim(AbstractContainerScreen<?> screen, int slot) {
-        aim(screen, slot, false);
-    }
+    static void aim(AbstractContainerScreen<?> screen, int slot) { aim(screen, slot, false); }
 
     /** Melody's row button (killer560, 2026-11-01: "for melody have it insta go to the right side on the nodes to click.
      *  Wether it is time or not"): straight there, no reaction pause, no miss or overshoot, quicker than a normal move, so
      *  the hand is already resting on the button when the row comes due. */
-    static void aimQuick(AbstractContainerScreen<?> screen, int slot) {
-        aim(screen, slot, true);
-    }
+    static void aimQuick(AbstractContainerScreen<?> screen, int slot) { aim(screen, slot, true); }
 
     private static void aim(AbstractContainerScreen<?> screen, int slot, boolean quick) {
         if (!showing || slot == aimedSlot) {
@@ -269,14 +263,10 @@ public final class FakeCursor {
     }
 
     /** {@link #aim(AbstractContainerScreen, int)} for a board that is not a container (Termism). */
-    static void aim(SlotLocator locator, int slot) {
-        aim(locator, slot, false);
-    }
+    static void aim(SlotLocator locator, int slot) { aim(locator, slot, false); }
 
     /** {@link #aimQuick(AbstractContainerScreen, int)} for a board that is not a container (Termism). */
-    static void aimQuick(SlotLocator locator, int slot) {
-        aim(locator, slot, true);
-    }
+    static void aimQuick(SlotLocator locator, int slot) { aim(locator, slot, true); }
 
     private static void aim(SlotLocator locator, int slot, boolean quick) {
         if (!showing || slot == aimedSlot) {
@@ -393,9 +383,7 @@ public final class FakeCursor {
     }
 
     /** How fast an approach is still going as it lands, as a share of an even pace: a hand glides onto a target. */
-    private static float glide(ThreadLocalRandom r) {
-        return 0.15f + 0.2f * r.nextFloat();
-    }
+    private static float glide(ThreadLocalRandom r) { return 0.15f + 0.2f * r.nextFloat(); }
 
     /** The glide after landing: the hand runs on in the direction it was going and slows to a stop, never leaving the slot
      *  (the click may still be on its way, and a Rubix pane's second click needs the hand still on it). */
@@ -552,9 +540,7 @@ public final class FakeCursor {
     }
 
     /** The click about to go out on the aimed slot is followed by another on the same slot (a Rubix pane needing 2+). */
-    static void expectRepeat(boolean repeat) {
-        repeatNext = repeat;
-    }
+    static void expectRepeat(boolean repeat) { repeatNext = repeat; }
 
     /** A click on {@code slot} went out. The hand keeps gliding; a repeat on the same slot waits for a fresh press gap. */
     static void clicked(int slot) {
@@ -659,9 +645,7 @@ public final class FakeCursor {
     }
 
     /** True while the real pointer is hidden by this class (testkit 287 reads it). */
-    static boolean realPointerHidden() {
-        return hidden;
-    }
+    static boolean realPointerHidden() { return hidden; }
 
     private static void render(GuiGraphicsExtractor g) {
         if (!showing || !placed) {
@@ -727,9 +711,7 @@ public final class FakeCursor {
         return clamp(v, median * lo, median * hi);
     }
 
-    private static float clamp(float v, float lo, float hi) {
-        return Math.max(lo, Math.min(hi, v));
-    }
+    private static float clamp(float v, float lo, float hi) { return Math.max(lo, Math.min(hi, v)); }
 
     private static int[][] buildRuns() {
         java.util.List<int[]> runs = new java.util.ArrayList<>();

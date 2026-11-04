@@ -125,20 +125,14 @@ public final class TerminalSolverConfig {
         }
 
         /** JSON key in {@code killer560smod-terminalsolver.json}. */
-        public String key() {
-            return key;
-        }
+        public String key() { return key; }
 
         /** Button label in the Terminal Solver tab. Every one ends in "Color" so its lower-cased form
          *  stays a unique {@code SettingTooltipsData} key - bare "Panes"/"Starts With"/"Select" are
          *  already taken by this same tab's per-type solve toggles. */
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
 
-        public int defaultArgb() {
-            return defaultArgb;
-        }
+        public int defaultArgb() { return defaultArgb; }
 
         /** See {@link TerminalSolverConfig#MIN_OVERLAY_ALPHA} and {@link #PANEL_BACKGROUND}. */
         public int sanitize(int argb) {
@@ -406,9 +400,7 @@ public final class TerminalSolverConfig {
         }
     }
 
-    private static float clampScale(float value) {
-        return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value));
-    }
+    private static float clampScale(float value) { return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value)); }
 
     private static int clampAutoClickDelay(int value) {
         return Math.max(MIN_AUTO_CLICK_DELAY_MS, Math.min(MAX_AUTO_CLICK_DELAY_MS, value));
@@ -422,119 +414,67 @@ public final class TerminalSolverConfig {
         return Math.max(MIN_HOLD_FIRST_DELAY_MS, Math.min(MAX_HOLD_FIRST_DELAY_MS, value));
     }
 
-    private static int clampHoldRepeat(int value) {
-        return Math.max(MIN_HOLD_REPEAT_MS, Math.min(MAX_HOLD_REPEAT_MS, value));
-    }
+    private static int clampHoldRepeat(int value) { return Math.max(MIN_HOLD_REPEAT_MS, Math.min(MAX_HOLD_REPEAT_MS, value)); }
 
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
+    private static int clamp(int value, int min, int max) { return Math.max(min, Math.min(max, value)); }
 
     private static int clampFakeCursorSpeed(int value) {
         return Math.max(MIN_FAKE_CURSOR_SPEED, Math.min(MAX_FAKE_CURSOR_SPEED, value));
     }
 
-    private static int clampHoverDelay(int value) {
-        return Math.max(MIN_HOVER_DELAY_MS, Math.min(MAX_HOVER_DELAY_MS, value));
-    }
+    private static int clampHoverDelay(int value) { return Math.max(MIN_HOVER_DELAY_MS, Math.min(MAX_HOVER_DELAY_MS, value)); }
 
-    private static int clampHoverJitter(int value) {
-        return Math.max(MIN_HOVER_JITTER_MS, Math.min(MAX_HOVER_JITTER_MS, value));
-    }
+    private static int clampHoverJitter(int value) { return Math.max(MIN_HOVER_JITTER_MS, Math.min(MAX_HOVER_JITTER_MS, value)); }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public float getScale() {
-        return scale;
-    }
+    public float getScale() { return scale; }
 
-    public void setScale(float scale) {
-        this.scale = clampScale(scale);
-    }
+    public void setScale(float scale) { this.scale = clampScale(scale); }
 
-    public boolean isPanesEnabled() {
-        return panesEnabled;
-    }
+    public boolean isPanesEnabled() { return panesEnabled; }
 
-    public void setPanesEnabled(boolean panesEnabled) {
-        this.panesEnabled = panesEnabled;
-    }
+    public void setPanesEnabled(boolean panesEnabled) { this.panesEnabled = panesEnabled; }
 
-    public boolean isRubixEnabled() {
-        return rubixEnabled;
-    }
+    public boolean isRubixEnabled() { return rubixEnabled; }
 
-    public void setRubixEnabled(boolean rubixEnabled) {
-        this.rubixEnabled = rubixEnabled;
-    }
+    public void setRubixEnabled(boolean rubixEnabled) { this.rubixEnabled = rubixEnabled; }
 
-    public boolean isNumbersEnabled() {
-        return numbersEnabled;
-    }
+    public boolean isNumbersEnabled() { return numbersEnabled; }
 
-    public void setNumbersEnabled(boolean numbersEnabled) {
-        this.numbersEnabled = numbersEnabled;
-    }
+    public void setNumbersEnabled(boolean numbersEnabled) { this.numbersEnabled = numbersEnabled; }
 
-    public boolean isStartsWithEnabled() {
-        return startsWithEnabled;
-    }
+    public boolean isStartsWithEnabled() { return startsWithEnabled; }
 
-    public void setStartsWithEnabled(boolean startsWithEnabled) {
-        this.startsWithEnabled = startsWithEnabled;
-    }
+    public void setStartsWithEnabled(boolean startsWithEnabled) { this.startsWithEnabled = startsWithEnabled; }
 
-    public boolean isSelectEnabled() {
-        return selectEnabled;
-    }
+    public boolean isSelectEnabled() { return selectEnabled; }
 
-    public void setSelectEnabled(boolean selectEnabled) {
-        this.selectEnabled = selectEnabled;
-    }
+    public void setSelectEnabled(boolean selectEnabled) { this.selectEnabled = selectEnabled; }
 
-    public boolean isMelodyEnabled() {
-        return melodyEnabled;
-    }
+    public boolean isMelodyEnabled() { return melodyEnabled; }
 
-    public void setMelodyEnabled(boolean melodyEnabled) {
-        this.melodyEnabled = melodyEnabled;
-    }
+    public void setMelodyEnabled(boolean melodyEnabled) { this.melodyEnabled = melodyEnabled; }
 
     /** See the field: only meaningful while {@link #isMelodyEnabled()} is on, since the send is driven
      *  by the solver detecting the Melody terminal in the first place. */
-    public boolean isMelodySendCoordsOnOpen() {
-        return melodySendCoordsOnOpen;
-    }
+    public boolean isMelodySendCoordsOnOpen() { return melodySendCoordsOnOpen; }
 
-    public boolean isMelodySendProgress() {
-        return melodySendProgress;
-    }
+    public boolean isMelodySendProgress() { return melodySendProgress; }
 
-    public void setMelodySendProgress(boolean v) {
-        this.melodySendProgress = v;
-    }
+    public void setMelodySendProgress(boolean v) { this.melodySendProgress = v; }
 
     public void setMelodySendCoordsOnOpen(boolean melodySendCoordsOnOpen) {
         this.melodySendCoordsOnOpen = melodySendCoordsOnOpen;
     }
 
-    public boolean isCustomGuiEnabled() {
-        return customGuiEnabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isCustomGuiEnabled() { return customGuiEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setCustomGuiEnabled(boolean customGuiEnabled) {
-        this.customGuiEnabled = customGuiEnabled;
-    }
+    public void setCustomGuiEnabled(boolean customGuiEnabled) { this.customGuiEnabled = customGuiEnabled; }
 
-    public boolean isNumbersThreeTierReveal() {
-        return numbersThreeTierReveal;
-    }
+    public boolean isNumbersThreeTierReveal() { return numbersThreeTierReveal; }
 
     public void setNumbersThreeTierReveal(boolean numbersThreeTierReveal) {
         this.numbersThreeTierReveal = numbersThreeTierReveal;
@@ -547,61 +487,33 @@ public final class TerminalSolverConfig {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoTerminalsEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public void setAutoTerminalsEnabled(boolean autoTerminalsEnabled) {
-        this.autoTerminalsEnabled = autoTerminalsEnabled;
-    }
+    public void setAutoTerminalsEnabled(boolean autoTerminalsEnabled) { this.autoTerminalsEnabled = autoTerminalsEnabled; }
 
-    public boolean isAutoPanesEnabled() {
-        return autoPanesEnabled;
-    }
+    public boolean isAutoPanesEnabled() { return autoPanesEnabled; }
 
-    public void setAutoPanesEnabled(boolean autoPanesEnabled) {
-        this.autoPanesEnabled = autoPanesEnabled;
-    }
+    public void setAutoPanesEnabled(boolean autoPanesEnabled) { this.autoPanesEnabled = autoPanesEnabled; }
 
-    public boolean isAutoRubixEnabled() {
-        return autoRubixEnabled;
-    }
+    public boolean isAutoRubixEnabled() { return autoRubixEnabled; }
 
-    public void setAutoRubixEnabled(boolean autoRubixEnabled) {
-        this.autoRubixEnabled = autoRubixEnabled;
-    }
+    public void setAutoRubixEnabled(boolean autoRubixEnabled) { this.autoRubixEnabled = autoRubixEnabled; }
 
-    public boolean isAutoNumbersEnabled() {
-        return autoNumbersEnabled;
-    }
+    public boolean isAutoNumbersEnabled() { return autoNumbersEnabled; }
 
-    public void setAutoNumbersEnabled(boolean autoNumbersEnabled) {
-        this.autoNumbersEnabled = autoNumbersEnabled;
-    }
+    public void setAutoNumbersEnabled(boolean autoNumbersEnabled) { this.autoNumbersEnabled = autoNumbersEnabled; }
 
-    public boolean isAutoStartsWithEnabled() {
-        return autoStartsWithEnabled;
-    }
+    public boolean isAutoStartsWithEnabled() { return autoStartsWithEnabled; }
 
-    public void setAutoStartsWithEnabled(boolean autoStartsWithEnabled) {
-        this.autoStartsWithEnabled = autoStartsWithEnabled;
-    }
+    public void setAutoStartsWithEnabled(boolean autoStartsWithEnabled) { this.autoStartsWithEnabled = autoStartsWithEnabled; }
 
-    public boolean isAutoSelectEnabled() {
-        return autoSelectEnabled;
-    }
+    public boolean isAutoSelectEnabled() { return autoSelectEnabled; }
 
-    public void setAutoSelectEnabled(boolean autoSelectEnabled) {
-        this.autoSelectEnabled = autoSelectEnabled;
-    }
+    public void setAutoSelectEnabled(boolean autoSelectEnabled) { this.autoSelectEnabled = autoSelectEnabled; }
 
-    public boolean isAutoMelodyEnabled() {
-        return autoMelodyEnabled;
-    }
+    public boolean isAutoMelodyEnabled() { return autoMelodyEnabled; }
 
-    public void setAutoMelodyEnabled(boolean autoMelodyEnabled) {
-        this.autoMelodyEnabled = autoMelodyEnabled;
-    }
+    public void setAutoMelodyEnabled(boolean autoMelodyEnabled) { this.autoMelodyEnabled = autoMelodyEnabled; }
 
-    public int getAutoClickMinDelayMs() {
-        return autoClickMinDelayMs;
-    }
+    public int getAutoClickMinDelayMs() { return autoClickMinDelayMs; }
 
     /** Keeps min &lt;= max by clamping the OTHER bound too if this push would cross it - a slider that
      *  can only ever move one bound at a time otherwise has no way to stop min from being dragged past
@@ -613,9 +525,7 @@ public final class TerminalSolverConfig {
         }
     }
 
-    public int getAutoClickMaxDelayMs() {
-        return autoClickMaxDelayMs;
-    }
+    public int getAutoClickMaxDelayMs() { return autoClickMaxDelayMs; }
 
     public void setAutoClickMaxDelayMs(int autoClickMaxDelayMs) {
         this.autoClickMaxDelayMs = clampAutoClickDelay(autoClickMaxDelayMs);
@@ -634,74 +544,48 @@ public final class TerminalSolverConfig {
         return autoClickMinDelayMs + RANDOM.nextInt(autoClickMaxDelayMs - autoClickMinDelayMs + 1);
     }
 
-    public boolean isHideMouseCursor() {
-        return hideMouseCursor;
-    }
+    public boolean isHideMouseCursor() { return hideMouseCursor; }
 
-    public void setHideMouseCursor(boolean hideMouseCursor) {
-        this.hideMouseCursor = hideMouseCursor;
-    }
+    public void setHideMouseCursor(boolean hideMouseCursor) { this.hideMouseCursor = hideMouseCursor; }
 
     /** Stream Safe: Auto Terminals clicks through the drawn human cursor (see {@link #autoStreamSafe}). */
-    public boolean isAutoStreamSafe() {
-        return autoStreamSafe;
-    }
+    public boolean isAutoStreamSafe() { return autoStreamSafe; }
 
-    public void setAutoStreamSafe(boolean autoStreamSafe) {
-        this.autoStreamSafe = autoStreamSafe;
-    }
+    public void setAutoStreamSafe(boolean autoStreamSafe) { this.autoStreamSafe = autoStreamSafe; }
 
-    public int getFirstClickDelayMs() {
-        return firstClickDelayMs;
-    }
+    public int getFirstClickDelayMs() { return firstClickDelayMs; }
 
     public void setFirstClickDelayMs(int ms) {
         this.firstClickDelayMs = clamp(ms, MIN_FIRST_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);
     }
 
-    public int getCursorReactionMs() {
-        return cursorReactionMs;
-    }
+    public int getCursorReactionMs() { return cursorReactionMs; }
 
-    public void setCursorReactionMs(int ms) {
-        this.cursorReactionMs = clamp(ms, MIN_CURSOR_REACTION_MS, MAX_CURSOR_REACTION_MS);
-    }
+    public void setCursorReactionMs(int ms) { this.cursorReactionMs = clamp(ms, MIN_CURSOR_REACTION_MS, MAX_CURSOR_REACTION_MS); }
 
-    public int getCursorMissChance() {
-        return cursorMissChance;
-    }
+    public int getCursorMissChance() { return cursorMissChance; }
 
-    public void setCursorMissChance(int percent) {
-        this.cursorMissChance = clamp(percent, 0, MAX_CURSOR_MISS_CHANCE);
-    }
+    public void setCursorMissChance(int percent) { this.cursorMissChance = clamp(percent, 0, MAX_CURSOR_MISS_CHANCE); }
 
-    public int getCursorOvershootChance() {
-        return cursorOvershootChance;
-    }
+    public int getCursorOvershootChance() { return cursorOvershootChance; }
 
     public void setCursorOvershootChance(int percent) {
         this.cursorOvershootChance = clamp(percent, 0, MAX_CURSOR_OVERSHOOT_CHANCE);
     }
 
-    public boolean isBlockInputWhileAutoClicking() {
-        return blockInputWhileAutoClicking;
-    }
+    public boolean isBlockInputWhileAutoClicking() { return blockInputWhileAutoClicking; }
 
     public void setBlockInputWhileAutoClicking(boolean blockInputWhileAutoClicking) {
         this.blockInputWhileAutoClicking = blockInputWhileAutoClicking;
     }
 
-    public int getMelodyLookaheadClicks() {
-        return melodyLookaheadClicks;
-    }
+    public int getMelodyLookaheadClicks() { return melodyLookaheadClicks; }
 
     public void setMelodyLookaheadClicks(int melodyLookaheadClicks) {
         this.melodyLookaheadClicks = clampMelodyLookahead(melodyLookaheadClicks);
     }
 
-    public MelodySkipMode getMelodySkipMode() {
-        return melodySkipMode;
-    }
+    public MelodySkipMode getMelodySkipMode() { return melodySkipMode; }
 
     public void setMelodySkipMode(MelodySkipMode melodySkipMode) {
         this.melodySkipMode = melodySkipMode != null ? melodySkipMode : MelodySkipMode.EDGES;
@@ -719,37 +603,21 @@ public final class TerminalSolverConfig {
 
     /** The raw toggle, ignoring every gate above - for the settings GUI's own button text, which must
      *  still read ON off-Skyblock/outside a terminal. */
-    public boolean isHoverTerminalsEnabledRaw() {
-        return hoverTerminalsEnabled;
-    }
+    public boolean isHoverTerminalsEnabledRaw() { return hoverTerminalsEnabled; }
 
-    public void setHoverTerminalsEnabled(boolean hoverTerminalsEnabled) {
-        this.hoverTerminalsEnabled = hoverTerminalsEnabled;
-    }
+    public void setHoverTerminalsEnabled(boolean hoverTerminalsEnabled) { this.hoverTerminalsEnabled = hoverTerminalsEnabled; }
 
-    public int getHoverDelayMs() {
-        return hoverDelayMs;
-    }
+    public int getHoverDelayMs() { return hoverDelayMs; }
 
-    public void setHoverDelayMs(int hoverDelayMs) {
-        this.hoverDelayMs = clampHoverDelay(hoverDelayMs);
-    }
+    public void setHoverDelayMs(int hoverDelayMs) { this.hoverDelayMs = clampHoverDelay(hoverDelayMs); }
 
-    public int getHoverJitterMs() {
-        return hoverJitterMs;
-    }
+    public int getHoverJitterMs() { return hoverJitterMs; }
 
-    public void setHoverJitterMs(int hoverJitterMs) {
-        this.hoverJitterMs = clampHoverJitter(hoverJitterMs);
-    }
+    public void setHoverJitterMs(int hoverJitterMs) { this.hoverJitterMs = clampHoverJitter(hoverJitterMs); }
 
-    public boolean isHoverMelodyEnabled() {
-        return hoverMelodyEnabled;
-    }
+    public boolean isHoverMelodyEnabled() { return hoverMelodyEnabled; }
 
-    public void setHoverMelodyEnabled(boolean hoverMelodyEnabled) {
-        this.hoverMelodyEnabled = hoverMelodyEnabled;
-    }
+    public void setHoverMelodyEnabled(boolean hoverMelodyEnabled) { this.hoverMelodyEnabled = hoverMelodyEnabled; }
 
     /** Hold To Click: legit and cheat (killer560, 2026-10-26: "make drop terms in the legit version not cheat") - it
      *  only repeats HIS held click on the slot under his own cursor, and only when the solver marks it correct. Needs the
@@ -758,37 +626,21 @@ public final class TerminalSolverConfig {
         return holdToClickEnabled && isEnabled() && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public boolean isHoldToClickEnabledRaw() {
-        return holdToClickEnabled;
-    }
+    public boolean isHoldToClickEnabledRaw() { return holdToClickEnabled; }
 
-    public void setHoldToClickEnabled(boolean holdToClickEnabled) {
-        this.holdToClickEnabled = holdToClickEnabled;
-    }
+    public void setHoldToClickEnabled(boolean holdToClickEnabled) { this.holdToClickEnabled = holdToClickEnabled; }
 
-    public int getHoldToClickFirstDelayMs() {
-        return holdToClickFirstDelayMs;
-    }
+    public int getHoldToClickFirstDelayMs() { return holdToClickFirstDelayMs; }
 
-    public void setHoldToClickFirstDelayMs(int ms) {
-        this.holdToClickFirstDelayMs = clampHoldFirstDelay(ms);
-    }
+    public void setHoldToClickFirstDelayMs(int ms) { this.holdToClickFirstDelayMs = clampHoldFirstDelay(ms); }
 
-    public int getHoldToClickRepeatMs() {
-        return holdToClickRepeatMs;
-    }
+    public int getHoldToClickRepeatMs() { return holdToClickRepeatMs; }
 
-    public void setHoldToClickRepeatMs(int ms) {
-        this.holdToClickRepeatMs = clampHoldRepeat(ms);
-    }
+    public void setHoldToClickRepeatMs(int ms) { this.holdToClickRepeatMs = clampHoldRepeat(ms); }
 
-    public int getFakeCursorSpeed() {
-        return fakeCursorSpeed;
-    }
+    public int getFakeCursorSpeed() { return fakeCursorSpeed; }
 
-    public void setFakeCursorSpeed(int percent) {
-        this.fakeCursorSpeed = clampFakeCursorSpeed(percent);
-    }
+    public void setFakeCursorSpeed(int percent) { this.fakeCursorSpeed = clampFakeCursorSpeed(percent); }
 
     /** @return the live ARGB for {@code key}, already sanitized (see {@link OverlayColor#sanitize}).
      *  Falls back to the default if the map somehow has no entry, so a draw call can never NPE. */
@@ -826,7 +678,5 @@ public final class TerminalSolverConfig {
     }
 
     /** Shorthand for the render code - {@code TerminalSolverConfig.color(OverlayColor.PANES)}. */
-    public static int color(OverlayColor key) {
-        return getInstance().getOverlayColor(key);
-    }
+    public static int color(OverlayColor key) { return getInstance().getOverlayColor(key); }
 }

@@ -51,9 +51,7 @@ final class HumanClickOrder {
     }
 
     /** A quick reopen of the same terminal: clicks start over, the habit stays. */
-    static void resetClicks() {
-        committed = -1;
-    }
+    static void resetClicks() { committed = -1; }
 
     /** The slot just clicked; {@code needsMore} keeps it as the target (the cursor stays on it). */
     static void clicked(int slot, boolean needsMore) {

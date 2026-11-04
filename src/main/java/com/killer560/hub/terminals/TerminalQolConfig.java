@@ -126,140 +126,82 @@ public final class TerminalQolConfig {
         }
     }
 
-    private static int clampThreshold(int value) {
-        return Math.max(MIN_PROTECTION_MS, Math.min(MAX_PROTECTION_MS, value));
-    }
+    private static int clampThreshold(int value) { return Math.max(MIN_PROTECTION_MS, Math.min(MAX_PROTECTION_MS, value)); }
 
-    private static int clampGuiScale(int value) {
-        return Math.max(MIN_GUI_SCALE, Math.min(MAX_GUI_SCALE, value));
-    }
+    private static int clampGuiScale(int value) { return Math.max(MIN_GUI_SCALE, Math.min(MAX_GUI_SCALE, value)); }
 
 
-    public boolean isProtectionEnabled() {
-        return protectionEnabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isProtectionEnabled() { return protectionEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** Raw saved value, ignoring the Skyblock gate - for the settings GUI's own button label. */
-    public boolean isProtectionEnabledRaw() {
-        return protectionEnabled;
-    }
+    public boolean isProtectionEnabledRaw() { return protectionEnabled; }
 
-    public void setProtectionEnabled(boolean protectionEnabled) {
-        this.protectionEnabled = protectionEnabled;
-    }
+    public void setProtectionEnabled(boolean protectionEnabled) { this.protectionEnabled = protectionEnabled; }
 
-    public int getProtectionThresholdMs() {
-        return protectionThresholdMs;
-    }
+    public int getProtectionThresholdMs() { return protectionThresholdMs; }
 
     public void setProtectionThresholdMs(int protectionThresholdMs) {
         this.protectionThresholdMs = clampThreshold(protectionThresholdMs);
     }
 
-    public boolean isProtectionSubtractPing() {
-        return protectionSubtractPing;
-    }
+    public boolean isProtectionSubtractPing() { return protectionSubtractPing; }
 
     public void setProtectionSubtractPing(boolean protectionSubtractPing) {
         this.protectionSubtractPing = protectionSubtractPing;
     }
 
 
-    public boolean isDropKeyEnabled() {
-        return dropKeyEnabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isDropKeyEnabled() { return dropKeyEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public boolean isDropKeyEnabledRaw() {
-        return dropKeyEnabled;
-    }
+    public boolean isDropKeyEnabledRaw() { return dropKeyEnabled; }
 
-    public void setDropKeyEnabled(boolean dropKeyEnabled) {
-        this.dropKeyEnabled = dropKeyEnabled;
-    }
+    public void setDropKeyEnabled(boolean dropKeyEnabled) { this.dropKeyEnabled = dropKeyEnabled; }
 
-    public int getDropKeyCode() {
-        return dropKeyCode;
-    }
+    public int getDropKeyCode() { return dropKeyCode; }
 
-    public void setDropKeyCode(int dropKeyCode) {
-        this.dropKeyCode = dropKeyCode;
-    }
+    public void setDropKeyCode(int dropKeyCode) { this.dropKeyCode = dropKeyCode; }
 
-    public String getSavedDropKeyName() {
-        return savedDropKeyName == null ? "" : savedDropKeyName;
-    }
+    public String getSavedDropKeyName() { return savedDropKeyName == null ? "" : savedDropKeyName; }
 
     public void setSavedDropKeyName(String savedDropKeyName) {
         this.savedDropKeyName = savedDropKeyName == null ? "" : savedDropKeyName;
     }
 
 
-    public boolean isMelodyKeysEnabled() {
-        return melodyKeysEnabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isMelodyKeysEnabled() { return melodyKeysEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public boolean isMelodyKeysEnabledRaw() {
-        return melodyKeysEnabled;
-    }
+    public boolean isMelodyKeysEnabledRaw() { return melodyKeysEnabled; }
 
-    public void setMelodyKeysEnabled(boolean melodyKeysEnabled) {
-        this.melodyKeysEnabled = melodyKeysEnabled;
-    }
+    public void setMelodyKeysEnabled(boolean melodyKeysEnabled) { this.melodyKeysEnabled = melodyKeysEnabled; }
 
 
     /** @return 0 when the scale override is off, or when the Skyblock gate says we aren't on Skyblock/p3sim. */
-    public int getTerminalGuiScale() {
-        return com.killer560.hub.util.SkyblockGate.allows() ? terminalGuiScale : 0;
-    }
+    public int getTerminalGuiScale() { return com.killer560.hub.util.SkyblockGate.allows() ? terminalGuiScale : 0; }
 
-    public int getTerminalGuiScaleRaw() {
-        return terminalGuiScale;
-    }
+    public int getTerminalGuiScaleRaw() { return terminalGuiScale; }
 
-    public void setTerminalGuiScale(int terminalGuiScale) {
-        this.terminalGuiScale = clampGuiScale(terminalGuiScale);
-    }
+    public void setTerminalGuiScale(int terminalGuiScale) { this.terminalGuiScale = clampGuiScale(terminalGuiScale); }
 
-    public int getMelodyGuiScale() {
-        return com.killer560.hub.util.SkyblockGate.allows() ? melodyGuiScale : 0;
-    }
+    public int getMelodyGuiScale() { return com.killer560.hub.util.SkyblockGate.allows() ? melodyGuiScale : 0; }
 
-    public int getMelodyGuiScaleRaw() {
-        return melodyGuiScale;
-    }
+    public int getMelodyGuiScaleRaw() { return melodyGuiScale; }
 
-    public void setMelodyGuiScale(int melodyGuiScale) {
-        this.melodyGuiScale = clampGuiScale(melodyGuiScale);
-    }
+    public void setMelodyGuiScale(int melodyGuiScale) { this.melodyGuiScale = clampGuiScale(melodyGuiScale); }
 
 
-    public boolean isHideCompletionTitles() {
-        return hideCompletionTitles && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isHideCompletionTitles() { return hideCompletionTitles && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public boolean isHideCompletionTitlesRaw() {
-        return hideCompletionTitles;
-    }
+    public boolean isHideCompletionTitlesRaw() { return hideCompletionTitles; }
 
-    public void setHideCompletionTitles(boolean hideCompletionTitles) {
-        this.hideCompletionTitles = hideCompletionTitles;
-    }
+    public void setHideCompletionTitles(boolean hideCompletionTitles) { this.hideCompletionTitles = hideCompletionTitles; }
 
-    public boolean isHideCompletionChat() {
-        return hideCompletionChat && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isHideCompletionChat() { return hideCompletionChat && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public boolean isHideCompletionChatRaw() {
-        return hideCompletionChat;
-    }
+    public boolean isHideCompletionChatRaw() { return hideCompletionChat; }
 
-    public void setHideCompletionChat(boolean hideCompletionChat) {
-        this.hideCompletionChat = hideCompletionChat;
-    }
+    public void setHideCompletionChat(boolean hideCompletionChat) { this.hideCompletionChat = hideCompletionChat; }
 
-    public boolean isHideCompletionOnlyOthers() {
-        return hideCompletionOnlyOthers;
-    }
+    public boolean isHideCompletionOnlyOthers() { return hideCompletionOnlyOthers; }
 
     public void setHideCompletionOnlyOthers(boolean hideCompletionOnlyOthers) {
         this.hideCompletionOnlyOthers = hideCompletionOnlyOthers;

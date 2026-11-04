@@ -21,32 +21,20 @@ public final class PracticeCursor {
     }
 
     /** A new practice board: a fresh hand from the window center and a fresh click-order habit. */
-    public static void begin() {
-        FakeCursor.beginTerminal();
-    }
+    public static void begin() { FakeCursor.beginTerminal(); }
 
     /** Every frame: whether Stream Safe Auto Terminals is driving this board. */
-    public static void setShowing(boolean show) {
-        FakeCursor.setShowing(show);
-    }
+    public static void setShowing(boolean show) { FakeCursor.setShowing(show); }
 
-    public static boolean showing() {
-        return FakeCursor.active();
-    }
+    public static boolean showing() { return FakeCursor.active(); }
 
-    public static void aim(FakeCursor.SlotLocator locator, int slot) {
-        FakeCursor.aim(locator, slot);
-    }
+    public static void aim(FakeCursor.SlotLocator locator, int slot) { FakeCursor.aim(locator, slot); }
 
     /** Melody's row button: straight there, as on a real board. */
-    public static void aimQuick(FakeCursor.SlotLocator locator, int slot) {
-        FakeCursor.aimQuick(locator, slot);
-    }
+    public static void aimQuick(FakeCursor.SlotLocator locator, int slot) { FakeCursor.aimQuick(locator, slot); }
 
     /** @return true when the hand is on {@code slot} and pressing (always true while Stream Safe is not showing). */
-    public static boolean ready(int slot) {
-        return FakeCursor.ready(slot);
-    }
+    public static boolean ready(int slot) { return FakeCursor.ready(slot); }
 
     /** The slot the hand goes for next among {@code highlights} (chest-style indices), or -1. */
     public static int next(TerminalType type, Map<Integer, TerminalSolverFeature.SlotHighlight> highlights) {
@@ -58,9 +46,7 @@ public final class PracticeCursor {
         return TerminalSolverFeature.needsMoreClicks(type, highlight);
     }
 
-    public static void expectRepeat(boolean repeat) {
-        FakeCursor.expectRepeat(repeat);
-    }
+    public static void expectRepeat(boolean repeat) { FakeCursor.expectRepeat(repeat); }
 
     /** A practice click went out on {@code slot}: the hand records it (and Hide Mouse Cursor counts from now). */
     public static void clicked(int slot, boolean more) {

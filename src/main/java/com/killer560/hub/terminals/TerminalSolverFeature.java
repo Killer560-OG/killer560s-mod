@@ -84,9 +84,7 @@ public final class TerminalSolverFeature {
         return menu == null ? color(TerminalSolverConfig.OverlayColor.PANEL_BORDER) : menu.accent();
     }
 
-    private static int color(TerminalSolverConfig.OverlayColor key) {
-        return TerminalSolverConfig.color(key);
-    }
+    private static int color(TerminalSolverConfig.OverlayColor key) { return TerminalSolverConfig.color(key); }
 
     // Real Hypixel Rubix mechanic (confirmed via Odin's own RubixHandler): each click on a pane
     // advances it ONE step through this 5-color cycle - no adjacency/neighbor coupling despite the name.
@@ -322,9 +320,7 @@ public final class TerminalSolverFeature {
          *  Numbers (see {@link #pickAutoClickTarget}), where it marks the ONE slot that must be clicked
          *  next; it used to be inferred by comparing the highlight's color against BRIGHT_ORANGE, which
          *  stops working the moment the user is allowed to give two Numbers tiers the same color. */
-        public SlotHighlight(int color, String label) {
-            this(color, label, false);
-        }
+        public SlotHighlight(int color, String label) { this(color, label, false); }
     }
 
     private TerminalSolverFeature() {
@@ -1406,15 +1402,11 @@ public final class TerminalSolverFeature {
      *  panel of its own, or - for Melody - a plain redraw of the real terminal items, per killer560's
      *  "follow a similar track to the other one... hide the normal screen and redraw it entirely"
      *  request, 2026-09-09 round 6, which folded Melody into the same unified treatment). */
-    public static boolean shouldHideSlot(int slotIndex) {
-        return isCustomGuiActive();
-    }
+    public static boolean shouldHideSlot(int slotIndex) { return isCustomGuiActive(); }
 
     /** @return whether the vanilla background texture and title/"Inventory" labels should be hidden -
      *  same as {@link #shouldHideSlot}, unconditionally true for every type while Custom GUI is on. */
-    public static boolean shouldHideBackgroundAndLabels() {
-        return isCustomGuiActive();
-    }
+    public static boolean shouldHideBackgroundAndLabels() { return isCustomGuiActive(); }
 
     /** @return whether Custom GUI mode should currently be showing (feature + that toggle both on,
      *  and a covered terminal is actually open right now). */
@@ -1457,9 +1449,7 @@ public final class TerminalSolverFeature {
 
     /** @return whether this terminal's data hasn't stabilized yet (see {@link #hasStabilizedOnce}'s own
      *  doc) - Custom GUI deliberately shows nothing at all until it has. */
-    private static boolean withinOpenGracePeriod() {
-        return !hasStabilizedOnce;
-    }
+    private static boolean withinOpenGracePeriod() { return !hasStabilizedOnce; }
 
     /** Melody has no solving logic - nothing here is marked correct/incorrect - so this just redraws
      *  every real terminal-grid item, bare (no fill/outline decoration), in the same bigger decluttered
@@ -1586,9 +1576,7 @@ public final class TerminalSolverFeature {
     // DyeColor.PURPLE - Hypixel's actual endpoint pane is close enough to purple to read as the same
     // color in a screenshot but is really MAGENTA, a distinct DyeColor. Treating both as the endpoint
     // color covers whichever one a given board actually uses without needing to guess further.
-    private static boolean isMelodyEndpointColor(DyeColor pane) {
-        return pane == DyeColor.PURPLE || pane == DyeColor.MAGENTA;
-    }
+    private static boolean isMelodyEndpointColor(DyeColor pane) { return pane == DyeColor.PURPLE || pane == DyeColor.MAGENTA; }
 
     private static void renderVanillaHighlights(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
@@ -1778,9 +1766,7 @@ public final class TerminalSolverFeature {
      *  uses it to reject a hover that is really over the player's own inventory: {@code Slot.index} is
      *  the slot's position in {@code menu.slots} (assigned by {@code AbstractContainerMenu.addSlot},
      *  verified via javap), so the grid is exactly indices {@code [0, this)}. */
-    public static int getCurrentTerminalSlotCount() {
-        return currentTerminalSlotCount;
-    }
+    public static int getCurrentTerminalSlotCount() { return currentTerminalSlotCount; }
 
     /** Hover Terminals' dedupe gate. @return true when {@code slot} already has a click in flight that
      *  the server hasn't answered yet - reusing Auto Terminals' own {@link #pendingClicks} set rather
@@ -1856,9 +1842,7 @@ public final class TerminalSolverFeature {
     }
 
     /** @return whether Auto Terminals clicked within the last 3 s (Hide Mouse Cursor's window). */
-    static boolean autoClickedRecently(long now) {
-        return lastAutoClickAtMs > 0 && now - lastAutoClickAtMs <= 3000L;
-    }
+    static boolean autoClickedRecently(long now) { return lastAutoClickAtMs > 0 && now - lastAutoClickAtMs <= 3000L; }
 
     /** Where {@code slotIndex} of the open terminal is DRAWN right now, in GUI units: {@code out[0]}/{@code out[1]} the
      *  center, {@code out[2]} the drawn cell width. The Custom GUI panel when it is showing (the same layout its render
@@ -2286,9 +2270,7 @@ public final class TerminalSolverFeature {
      *  generates, so it doesn't accidentally inherit whatever a real terminal (or a previous practice
      *  puzzle) last committed to - {@link #rubixTargetColorIndex} is shared static state, not scoped to
      *  any one board. */
-    public static void resetRubixTarget() {
-        rubixTargetColorIndex = -1;
-    }
+    public static void resetRubixTarget() { rubixTargetColorIndex = -1; }
 
     private static int rubixColorFor(int clicksRequired) {
         return clicksRequired > 0

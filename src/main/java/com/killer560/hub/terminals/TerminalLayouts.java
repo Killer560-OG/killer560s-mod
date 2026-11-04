@@ -127,9 +127,7 @@ public final class TerminalLayouts {
     /** Servers known to run the OLD device, used before a device there has shown its count. p3sim.net: every device
      *  in killer560's Mod Only Test logs of 2026-10-22 and 2026-10-27 revealed a fifth round. A device that shows
      *  otherwise overrides this at once (noteSimonRounds). */
-    private static int knownSimonRounds(String server) {
-        return server.contains("p3sim") ? OLD_SIMON_ROUNDS : -1;
-    }
+    private static int knownSimonRounds(String server) { return server.contains("p3sim") ? OLD_SIMON_ROUNDS : -1; }
 
     private static String serverKey() {
         try {
@@ -155,9 +153,7 @@ public final class TerminalLayouts {
     }
 
     /** @return true once a live device on this server has shown its round count this session. */
-    public static boolean simonRoundsSeen() {
-        return seenSimonRoundsByServer.containsKey(serverKey());
-    }
+    public static boolean simonRoundsSeen() { return seenSimonRoundsByServer.containsKey(serverKey()); }
 
     /** @return the Simon Says round count last seen live on this server this session, else what the server is known
      *  to run, else the assumed layout's. */

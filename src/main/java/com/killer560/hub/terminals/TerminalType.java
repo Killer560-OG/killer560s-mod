@@ -29,13 +29,9 @@ public enum TerminalType {
         this.titlePattern = Pattern.compile(titleRegex);
     }
 
-    public String displayName() {
-        return displayName;
-    }
+    public String displayName() { return displayName; }
 
-    public Pattern titlePattern() {
-        return titlePattern;
-    }
+    public Pattern titlePattern() { return titlePattern; }
 
     /**
      * A container title as the terminal regexes read it: §-codes removed, then every private-use, formatting,
