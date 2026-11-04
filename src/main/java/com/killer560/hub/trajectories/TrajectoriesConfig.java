@@ -73,44 +73,24 @@ public final class TrajectoriesConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isShowBows() {
-        return showBows;
-    }
+    public boolean isShowBows() { return showBows; }
 
-    public void setShowBows(boolean showBows) {
-        this.showBows = showBows;
-    }
+    public void setShowBows(boolean showBows) { this.showBows = showBows; }
 
-    public boolean isShowPearls() {
-        return showPearls;
-    }
+    public boolean isShowPearls() { return showPearls; }
 
-    public void setShowPearls(boolean showPearls) {
-        this.showPearls = showPearls;
-    }
+    public void setShowPearls(boolean showPearls) { this.showPearls = showPearls; }
 
     /** Skyblock shortbows (killer560, 2026-10-15): their full-power path while held, one arc per arrow. Default ON. */
-    public boolean isShowShortbows() {
-        return showShortbows;
-    }
+    public boolean isShowShortbows() { return showShortbows; }
 
-    public void setShowShortbows(boolean showShortbows) {
-        this.showShortbows = showShortbows;
-    }
+    public void setShowShortbows(boolean showShortbows) { this.showShortbows = showShortbows; }
 
-    public int getRange() {
-        return range;
-    }
+    public int getRange() { return range; }
 
-    public void setRange(int range) {
-        this.range = Math.max(5, Math.min(120, range));
-    }
+    public void setRange(int range) { this.range = Math.max(5, Math.min(120, range)); }
 }

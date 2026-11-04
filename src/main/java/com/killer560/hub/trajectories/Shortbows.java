@@ -44,9 +44,7 @@ public final class Shortbows {
         return id != null && (id.equals("TERMINATOR") || id.endsWith("SHORTBOW"));
     }
 
-    public static boolean isTerminator(ItemStack stack) {
-        return "TERMINATOR".equals(AutoPuzzleUtil.skyblockId(stack));
-    }
+    public static boolean isTerminator(ItemStack stack) { return "TERMINATOR".equals(AutoPuzzleUtil.skyblockId(stack)); }
 
     /** Arrows one shot of {@code stack} fires (1 for anything that is not a multi-arrow bow). */
     public static int arrowCount(ItemStack stack) {

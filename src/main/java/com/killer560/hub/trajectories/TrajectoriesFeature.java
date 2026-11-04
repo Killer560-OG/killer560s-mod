@@ -49,9 +49,7 @@ public final class TrajectoriesFeature {
     private TrajectoriesFeature() {
     }
 
-    public static void register() {
-        LevelRenderEvents.COLLECT_SUBMITS.register(TrajectoriesFeature::onWorldRender);
-    }
+    public static void register() { LevelRenderEvents.COLLECT_SUBMITS.register(TrajectoriesFeature::onWorldRender); }
 
     /** Test views (testkit 1080-1083): every render call, the frames that drew at least one arc, and what the last
      *  call drew - how many arcs, of which kind, each arc's absolute yaw, the shared pitch, the launch speed and the
@@ -65,33 +63,19 @@ public final class TrajectoriesFeature {
     private static double lastSpeed;
     private static final List<List<Vec3>> lastArcs = new ArrayList<>();
 
-    public static long renderCalls() {
-        return renderCalls;
-    }
+    public static long renderCalls() { return renderCalls; }
 
-    public static long framesDrawn() {
-        return framesDrawn;
-    }
+    public static long framesDrawn() { return framesDrawn; }
 
-    public static int lastArcCount() {
-        return lastArcCount;
-    }
+    public static int lastArcCount() { return lastArcCount; }
 
-    public static String lastKind() {
-        return lastKind;
-    }
+    public static String lastKind() { return lastKind; }
 
-    public static float[] lastYaws() {
-        return lastYaws.clone();
-    }
+    public static float[] lastYaws() { return lastYaws.clone(); }
 
-    public static float lastPitch() {
-        return lastPitch;
-    }
+    public static float lastPitch() { return lastPitch; }
 
-    public static double lastSpeed() {
-        return lastSpeed;
-    }
+    public static double lastSpeed() { return lastSpeed; }
 
     /** Copies of the last call's arcs (each its simulated points, the impact last when it hit a block). */
     public static List<List<Vec3>> lastArcs() {
