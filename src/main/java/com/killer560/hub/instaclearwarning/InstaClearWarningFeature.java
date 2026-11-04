@@ -290,12 +290,8 @@ public final class InstaClearWarningFeature {
             return null;
         }
         String literal = floor.equalsIgnoreCase("E") ? "f0" : floor.toLowerCase(Locale.ROOT);
-        for (CommandShortcutsFeature.Shortcut s : CommandShortcutsFeature.Shortcut.values()) {
-            if (s.literal.equals(literal) && !s.isKuudra()) {
-                return s.instanceId;
-            }
-        }
-        return null;
+        return java.util.Arrays.stream(CommandShortcutsFeature.Shortcut.values())
+                .filter(s -> s.literal.equals(literal) && !s.isKuudra()).map(s -> s.instanceId).findFirst().orElse(null);
     }
 
     /** What may go in a chat packet: no section signs or control characters (a vanilla server kicks for those), trimmed. */
@@ -330,23 +326,12 @@ public final class InstaClearWarningFeature {
 
         @Override
         public List<Guard> guards() {
-            List<Guard> out = new ArrayList<>();
-            for (KeyRooms.Guard g : KeyRooms.guards(layout)) {
-                String name = layout.name(g.room());
-                if (name != null && !"Unknown".equals(name)) {
-                    out.add(new Guard(name, g.door(), g.blood()));
-                }
-            }
-            return out;
+            return KeyRooms.guards(layout).stream().filter(g -> layout.name(g.room()) != null && !"Unknown".equals(layout.name(g.room())))
+                    .map(g -> new Guard(layout.name(g.room()), g.door(), g.blood())).toList();
         }
 
         private int room(String name) {
-            for (int r = 0; r < layout.roomCount(); r++) {
-                if (name.equals(layout.name(r))) {
-                    return r;
-                }
-            }
-            return -1;
+            return java.util.stream.IntStream.range(0, layout.roomCount()).filter(r -> name.equals(layout.name(r))).findFirst().orElse(-1);
         }
 
         @Override
@@ -372,12 +357,7 @@ public final class InstaClearWarningFeature {
 
         @Override
         public boolean keyOnGround(boolean blood) {
-            for (DungeonKeys.Dropped d : DungeonKeys.dropped(client)) {
-                if (d.blood() == blood) {
-                    return true;
-                }
-            }
-            return false;
+            return DungeonKeys.dropped(client).stream().anyMatch(d -> d.blood() == blood);
         }
 
         @Override
@@ -388,15 +368,11 @@ public final class InstaClearWarningFeature {
             }
             double px = client.player.getX();
             double pz = client.player.getZ();
-            for (int t : layout.tiles(r)) {
-                BlockPos c = DungeonLayout.cellCenter(t);
+            return java.util.Arrays.stream(layout.tiles(r)).mapToObj(DungeonLayout::cellCenter).anyMatch(c -> {
                 double dx = c.getX() + 0.5 - px;
                 double dz = c.getZ() + 0.5 - pz;
-                if (dx * dx + dz * dz <= NEAR_BLOCKS * NEAR_BLOCKS) {
-                    return true;
-                }
-            }
-            return false;
+                return dx * dx + dz * dz <= NEAR_BLOCKS * NEAR_BLOCKS;
+            });
         }
     }
 
