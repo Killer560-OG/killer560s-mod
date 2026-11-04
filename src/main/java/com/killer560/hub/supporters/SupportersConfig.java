@@ -262,9 +262,7 @@ public final class SupportersConfig {
     }
 
     private static float clampSize(float v) {
-        if (Float.isNaN(v)) {
-            return 1.0f;
-        }
+        if (Float.isNaN(v)) return 1.0f;
         return v < MIN_PLAYER_SIZE ? MIN_PLAYER_SIZE : (v > MAX_PLAYER_SIZE ? MAX_PLAYER_SIZE : v);
     }
 
@@ -277,9 +275,7 @@ public final class SupportersConfig {
     }
 
     private static float clamp(float v) {
-        if (Float.isNaN(v)) {
-            return 1.0f;
-        }
+        if (Float.isNaN(v)) return 1.0f;
         return v < MIN_MODEL_DIMENSION ? MIN_MODEL_DIMENSION : (v > MAX_MODEL_DIMENSION ? MAX_MODEL_DIMENSION : v);
     }
 }

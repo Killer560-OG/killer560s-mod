@@ -79,9 +79,7 @@ public final class SupportersSelfService {
 
     public static CompletableFuture<MeResult> fetchMe() {
         String base = RelayEndpoint.normalise(RelayEndpoint.DEFAULT_BASE_URL);
-        if (!RelayEndpoint.isUsable(base)) {
-            return CompletableFuture.completedFuture(MeResult.failure("relay unavailable"));
-        }
+        if (!RelayEndpoint.isUsable(base)) return CompletableFuture.completedFuture(MeResult.failure("relay unavailable"));
         return token(base)
                 .thenCompose(t -> ModNet.sendAsync(HTTP,
                         HttpRequest.newBuilder(URI.create(base + "/supporters/me"))
@@ -147,9 +145,7 @@ public final class SupportersSelfService {
 
     private static CompletableFuture<SaveResult> request(String method, HttpRequest.BodyPublisher body) {
         String base = RelayEndpoint.normalise(RelayEndpoint.DEFAULT_BASE_URL);
-        if (!RelayEndpoint.isUsable(base)) {
-            return CompletableFuture.completedFuture(SaveResult.failure("relay unavailable", -1));
-        }
+        if (!RelayEndpoint.isUsable(base)) return CompletableFuture.completedFuture(SaveResult.failure("relay unavailable", -1));
         return token(base)
                 .thenCompose(t -> ModNet.sendAsync(HTTP,
                         HttpRequest.newBuilder(URI.create(base + "/supporters/me"))
@@ -183,15 +179,9 @@ public final class SupportersSelfService {
      *  seconds", "not whitelisted") rather than whatever the relay's JSON body happens to say. */
     private static SaveResult parseSave(HttpResponse<String> response) {
         int code = response.statusCode();
-        if (code == 429) {
-            return SaveResult.failure("You changed this too recently - wait a few seconds and try again.", code);
-        }
-        if (code == 403) {
-            return SaveResult.failure("not whitelisted", code);
-        }
-        if (code != 200) {
-            return SaveResult.failure(errorOr(response, "relay returned HTTP " + code), code);
-        }
+        if (code == 429) return SaveResult.failure("You changed this too recently - wait a few seconds and try again.", code);
+        if (code == 403) return SaveResult.failure("not whitelisted", code);
+        if (code != 200) return SaveResult.failure(errorOr(response, "relay returned HTTP " + code), code);
         try {
             JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
             String name = obj.has("name") && !obj.get("name").isJsonNull() ? obj.get("name").getAsString() : "";
@@ -205,9 +195,7 @@ public final class SupportersSelfService {
     private static String errorOr(HttpResponse<String> response, String fallback) {
         try {
             JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
-            if (obj.has("error") && obj.get("error").isJsonPrimitive()) {
-                return obj.get("error").getAsString();
-            }
+            if (obj.has("error") && obj.get("error").isJsonPrimitive()) return obj.get("error").getAsString();
         } catch (Exception ignored) {
             // fall through to the fallback below
         }
@@ -234,9 +222,7 @@ public final class SupportersSelfService {
                 && cause.getCause() != null) {
             cause = cause.getCause();
         }
-        if (cause instanceof RelayAuth.RelayAuthException) {
-            return cause.getMessage();
-        }
+        if (cause instanceof RelayAuth.RelayAuthException) return cause.getMessage();
         LOGGER.info("[Supporters] /supporters/me request failed: {}", cause == null ? error : cause.toString());
         String message = cause == null ? null : cause.getMessage();
         return message == null || message.isBlank() ? "couldn't reach the relay" : message;

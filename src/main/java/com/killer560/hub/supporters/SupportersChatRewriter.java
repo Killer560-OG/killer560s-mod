@@ -40,17 +40,11 @@ final class SupportersChatRewriter {
     static void register() { ChatObserver.addRewriter(SupportersChatRewriter::rewrite); }
 
     private static Component rewrite(Component message, String plain) {
-        if (plain.isEmpty() || !SupportersFeature.cosmeticsActive()) {
-            return null;
-        }
+        if (plain.isEmpty() || !SupportersFeature.cosmeticsActive()) return null;
         Matcher m = SENDER.matcher(plain);
-        if (!m.find()) {
-            return null;
-        }
+        if (!m.find()) return null;
         String displayText = PlayerNameDisplay.findChatSender(m.group(1));
-        if (displayText == null) {
-            return null;
-        }
+        if (displayText == null) return null;
         try {
             return NameSplice.splice(message, new int[]{m.start(1)}, new int[]{m.end(1)}, new String[]{displayText});
         } catch (RuntimeException e) {

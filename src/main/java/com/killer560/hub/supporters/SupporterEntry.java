@@ -34,9 +34,7 @@ record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, Name
 
     SupporterEntry {
         mob = com.killer560.hub.mobskin.MobSkins.sanitize(mob);
-        if (uuid == null) {
-            throw new IllegalArgumentException("uuid");
-        }
+        if (uuid == null) throw new IllegalArgumentException("uuid");
         // The relay caps a name at 32 visible characters (plus &-codes); anything far past that is not from it.
         rawName = rawName == null || rawName.length() > MAX_RAW_NAME ? "" : rawName;
         if (!Float.isFinite(scale) || scale < 0.5f || scale > 2.0f) {
@@ -84,9 +82,7 @@ record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, Name
     /** {@code animation} from JSON ({@code {"mode":"wave"|"pulse","speed":0.25-3}}), or null when absent, Off or not
      *  that shape. The speed is snapped onto the mod's own grid. */
     static NameAnimation.Spec animationFrom(com.google.gson.JsonElement el) {
-        if (el == null || !el.isJsonObject()) {
-            return null;
-        }
+        if (el == null || !el.isJsonObject()) return null;
         com.google.gson.JsonObject o = el.getAsJsonObject();
         com.google.gson.JsonElement mode = o.get("mode");
         com.google.gson.JsonElement speed = o.get("speed");
@@ -95,9 +91,7 @@ record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, Name
             return null;
         }
         double s = speed.getAsDouble();
-        if (!Double.isFinite(s) || s < NameAnimation.MIN_SPEED || s > NameAnimation.MAX_SPEED) {
-            return null;
-        }
+        if (!Double.isFinite(s) || s < NameAnimation.MIN_SPEED || s > NameAnimation.MAX_SPEED) return null;
         return NameAnimation.Spec.of(NameAnimation.Mode.fromWire(mode.getAsString()), s);
     }
 
@@ -110,19 +104,13 @@ record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, Name
 
     /** {@code colors} from a JSON array, or null when absent / not an array of numbers. */
     static int[] colorsFrom(com.google.gson.JsonElement el) {
-        if (el == null || !el.isJsonArray()) {
-            return null;
-        }
+        if (el == null || !el.isJsonArray()) return null;
         com.google.gson.JsonArray arr = el.getAsJsonArray();
-        if (arr.size() > SupporterNameValidator.MAX_VISIBLE_CHARS) {
-            return null;
-        }
+        if (arr.size() > SupporterNameValidator.MAX_VISIBLE_CHARS) return null;
         int[] out = new int[arr.size()];
         for (int i = 0; i < out.length; i++) {
             com.google.gson.JsonElement c = arr.get(i);
-            if (c == null || !c.isJsonPrimitive() || !c.getAsJsonPrimitive().isNumber()) {
-                return null;
-            }
+            if (c == null || !c.isJsonPrimitive() || !c.getAsJsonPrimitive().isNumber()) return null;
             out[i] = c.getAsInt();
         }
         return out;

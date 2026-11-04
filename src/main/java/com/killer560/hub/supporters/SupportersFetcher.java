@@ -106,17 +106,11 @@ final class SupportersFetcher {
 
     private static List<SupporterEntry> parseSupporters(JsonElement el) {
         List<SupporterEntry> out = new ArrayList<>();
-        if (el == null || !el.isJsonArray()) {
-            return out;
-        }
+        if (el == null || !el.isJsonArray()) return out;
         for (JsonElement entryEl : el.getAsJsonArray()) {
-            if (out.size() >= MAX_ENTRIES) {
-                break;
-            }
+            if (out.size() >= MAX_ENTRIES) break;
             try {
-                if (entryEl == null || !entryEl.isJsonObject()) {
-                    continue;
-                }
+                if (entryEl == null || !entryEl.isJsonObject()) continue;
                 JsonObject o = entryEl.getAsJsonObject();
                 UUID uuid = UUID.fromString(o.get("uuid").getAsString());
                 String name = o.has("name") && !o.get("name").isJsonNull() ? o.get("name").getAsString() : "";

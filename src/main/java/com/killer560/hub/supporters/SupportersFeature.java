@@ -113,16 +113,10 @@ public final class SupportersFeature {
      *  supporter, cosmetics off, the stored name is blocked by the slur filter, or the local player has
      *  overridden their own name in Name Changer). */
     public static Component displayNameFor(UUID id) {
-        if (id == null || !SupportersConfig.getInstance().isShowSupporterNames()) {
-            return null;
-        }
+        if (id == null || !SupportersConfig.getInstance().isShowSupporterNames()) return null;
         Resolved r = byUuid.get(id);
-        if (r == null || r.displayText() == null) {
-            return null;
-        }
-        if (isSelfOverridden(id)) {
-            return null;
-        }
+        if (r == null || r.displayText() == null) return null;
+        if (isSelfOverridden(id)) return null;
         // NameColor's decoder, not Component.literal: a shared fade is written in the §x hex escape vanilla misreads.
         return PlayerNameDisplay.cached(r.displayText(), true);
     }
@@ -131,9 +125,7 @@ public final class SupportersFeature {
      *  off. Visual only; never touches hitboxes (see {@code SupportersScaleMixin}). Not affected by "self
      *  override" - that only concerns the displayed name. */
     public static float scaleFor(UUID id) {
-        if (id == null || !SupportersConfig.getInstance().isShowSupporterSizes()) {
-            return 1.0f;
-        }
+        if (id == null || !SupportersConfig.getInstance().isShowSupporterSizes()) return 1.0f;
         Resolved r = byUuid.get(id);
         return r == null ? 1.0f : r.scale();
     }
@@ -169,21 +161,15 @@ public final class SupportersFeature {
      * has to go out right now, so this never blocks on a network lookup.
      */
     public static String realIgnForDisplayName(String candidateDisplayName) {
-        if (candidateDisplayName == null || candidateDisplayName.isEmpty() || !cosmeticsActive()) {
-            return null;
-        }
+        if (candidateDisplayName == null || candidateDisplayName.isEmpty() || !cosmeticsActive()) return null;
         for (Map.Entry<UUID, Resolved> entry : byUuid.entrySet()) {
             UUID uuid = entry.getKey();
             Resolved r = entry.getValue();
-            if (r.displayText() == null || isSelfOverridden(uuid)) {
-                continue;
-            }
+            if (r.displayText() == null || isSelfOverridden(uuid)) continue;
             String plain = NameColor.plain(r.displayText());
             if (plain != null && plain.equalsIgnoreCase(candidateDisplayName)) {
                 String realIgn = PlayerNames.nameFor(uuid);
-                if (realIgn != null) {
-                    return realIgn;
-                }
+                if (realIgn != null) return realIgn;
             }
         }
         return null;
@@ -196,15 +182,11 @@ public final class SupportersFeature {
      * are fake entries whose text carries the real player's name, so the UUID lookup never sees them.
      */
     static Map<String, String> shownByIgn() {
-        if (!cosmeticsActive()) {
-            return Map.of();
-        }
+        if (!cosmeticsActive()) return Map.of();
         Map<String, String> out = new java.util.HashMap<>();
         for (Map.Entry<UUID, Resolved> entry : byUuid.entrySet()) {
             Resolved r = entry.getValue();
-            if (r.displayText() == null || isSelfOverridden(entry.getKey())) {
-                continue;
-            }
+            if (r.displayText() == null || isSelfOverridden(entry.getKey())) continue;
             String ign = PlayerNames.nameFor(entry.getKey());
             if (ign == null || ign.isEmpty()
                     || com.killer560.hub.namechanger.NameChangerFeature.mappingDisplayFor(ign) != null) {
@@ -218,15 +200,11 @@ public final class SupportersFeature {
     /** Looks for a supporter whose CURRENT resolved ign (never their stored vanity name) case-insensitively
      *  equals {@code candidateIgn} - the chat rewriter's fallback for Hypixel's unstructured chat text. */
     static ChatMatch findChatSender(String candidateIgn) {
-        if (candidateIgn == null || candidateIgn.isEmpty()) {
-            return null;
-        }
+        if (candidateIgn == null || candidateIgn.isEmpty()) return null;
         for (Map.Entry<UUID, Resolved> entry : byUuid.entrySet()) {
             UUID uuid = entry.getKey();
             String currentIgn = PlayerNames.nameFor(uuid);
-            if (currentIgn == null || !currentIgn.equalsIgnoreCase(candidateIgn)) {
-                continue;
-            }
+            if (currentIgn == null || !currentIgn.equalsIgnoreCase(candidateIgn)) continue;
             Resolved r = entry.getValue();
             if (r.displayText() == null || isSelfOverridden(uuid)) {
                 return null; // a real supporter matched, but there is nothing to show for them right now
@@ -241,12 +219,8 @@ public final class SupportersFeature {
      *  (killer560's item 8.5: "everyone can still change their own name client-side"). */
     static boolean isSelfOverridden(UUID id) {
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null || id == null) {
-            return false;
-        }
-        if (!id.equals(client.player.getGameProfile().id())) {
-            return false;
-        }
+        if (client == null || client.player == null || id == null) return false;
+        if (!id.equals(client.player.getGameProfile().id())) return false;
         NameChangerConfig cfg = NameChangerConfig.getInstance();
         return cfg.isEnabled() && cfg.isOwnNameEnabled() && !cfg.getOwnDisplayName().isEmpty();
     }
@@ -256,9 +230,7 @@ public final class SupportersFeature {
     static String styled(SupporterEntry e) {
         String text = colorize(e.rawName());
         int[] colors = e.colors();
-        if (colors == null) {
-            return text;
-        }
+        if (colors == null) return text;
         return NameColor.buildPerChar(text, NameColor.NONE, NameColor.NONE,
                 i -> i < colors.length ? 0xFF000000 | colors[i] : NameColor.NONE);
     }
@@ -267,9 +239,7 @@ public final class SupportersFeature {
      *  color input uses) - a supporter's stored name travels as plain text with {@code &} codes
      *  ({@code SUPPORTERS-CONTRACT.md}), never raw {@code §}. */
     public static String colorize(String s) {
-        if (s.indexOf('&') < 0) {
-            return s;
-        }
+        if (s.indexOf('&') < 0) return s;
         StringBuilder sb = new StringBuilder(s.length());
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
