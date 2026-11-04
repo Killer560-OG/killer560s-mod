@@ -171,7 +171,4 @@ public final class StorageOverlayConfig {
         }
     }
 
-    public Map<String, String> getCustomNames() {
-        return customNames;
-    }
 }

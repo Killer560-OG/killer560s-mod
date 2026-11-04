@@ -125,10 +125,6 @@ public final class StorageOverlayFeature {
         focusKey = key;
     }
 
-    public static String getFocus() {
-        return focusKey;
-    }
-
     public static void register() {
         // Every real slot of a storage page or the overview is hidden under the overlay: blank overlay space must not
         // hover or click the slot under it (killer560, 2026-11-01, a Spirit Sceptre picked up through blank space).
