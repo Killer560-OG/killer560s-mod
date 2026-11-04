@@ -224,12 +224,7 @@ public class ModScreen extends Screen {
     static boolean drawingClosed;
 
     private CardAnim cardAnim(BaseTab tab) {
-        CardAnim a = cardAnims.get(tab);
-        if (a == null) {
-            a = new CardAnim();
-            cardAnims.put(tab, a);
-        }
-        return a;
+        return cardAnims.computeIfAbsent(tab, t -> new CardAnim());
     }
 
     public ModScreen(Screen parent) {
@@ -327,10 +322,7 @@ public class ModScreen extends Screen {
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
 
-        headerX = panelX + 4;
-        headerY = panelY + 4;
-        headerW = panelW - 8;
-        headerH = 26;
+        headerX = panelX + 4; headerY = panelY + 4; headerW = panelW - 8; headerH = 26;
         int iconsW = 4 * 16 + 4;
         searchW = Math.max(110, Math.min(200, headerW / 3));
         searchH = 16;
@@ -557,12 +549,7 @@ public class ModScreen extends Screen {
         if (pageMode() || selected() instanceof HomeTab) {
             return y;
         }
-        List<Item> heads = new ArrayList<>();
-        for (Item it : items) {
-            if (it.kind == ItemKind.HEADER) {
-                heads.add(it);
-            }
-        }
+        List<Item> heads = items.stream().filter(it -> it.kind == ItemKind.HEADER).toList();
         if (heads.isEmpty()) {
             return y;
         }
@@ -582,12 +569,7 @@ public class ModScreen extends Screen {
             inCheat |= h.red && h.tab == null && "Cheat".equals(h.text);
         }
         // Whatever follows the categories (a separator and the page rows) still has to fit.
-        int after = 0;
-        for (BaseTab t : tabs) {
-            if (!(t instanceof FolderTab)) {
-                after += 19;
-            }
-        }
+        int after = 19 * (int) tabs.stream().filter(t -> !(t instanceof FolderTab)).count();
         if (ry + 8 + after > sideY + sideH - 4) {
             return y;
         }
@@ -626,12 +608,7 @@ public class ModScreen extends Screen {
      * section whose header is above the top third of the view (at the top of the scroll, the first).
      */
     private SideEntry currentSection() {
-        List<SideEntry> subs = new ArrayList<>();
-        for (SideEntry e : side) {
-            if (e.sub()) {
-                subs.add(e);
-            }
-        }
+        List<SideEntry> subs = side.stream().filter(SideEntry::sub).toList();
         if (subs.isEmpty()) {
             return null;
         }
@@ -704,24 +681,16 @@ public class ModScreen extends Screen {
 
     /** The section rows under the selected category, as drawn. For the testkit. */
     public List<String> sideSections() {
-        List<String> out = new ArrayList<>();
-        for (SideEntry e : side) {
-            if (e.sub()) {
-                out.add(e.label());
-            }
-        }
-        return out;
+        return side.stream().filter(SideEntry::sub).map(SideEntry::label).toList();
     }
 
     /** Presses the section row called {@code label} (as a click does); false if there is none. For the testkit. */
     public boolean pressSection(String label) {
-        for (SideEntry e : side) {
-            if (e.sub() && e.label().equals(label)) {
-                pressSectionRow(e);
-                return true;
-            }
+        SideEntry hit = side.stream().filter(e -> e.sub() && e.label().equals(label)).findFirst().orElse(null);
+        if (hit != null) {
+            pressSectionRow(hit);
         }
-        return false;
+        return hit != null;
     }
 
     /** The grid's scroll (where its clicks land), and the furthest it scrolls. For the testkit. */
@@ -849,13 +818,8 @@ public class ModScreen extends Screen {
             closingTab = before;
             closingMaster = priorMaster;
             closingAdvanced = priorAdvanced;
-            closingX = priorX;
-            closingY = priorY;
-            closingW = priorW;
-            closingH = priorH;
-            closingContentY = priorContentY;
-            closingVisible = priorVisible;
-            closingMax = priorMax;
+            closingX = priorX; closingY = priorY; closingW = priorW; closingH = priorH;
+            closingContentY = priorContentY; closingVisible = priorVisible; closingMax = priorMax;
             closingScroll = Math.round(scrollShown.get());
             closingAt = t;
         }
@@ -880,13 +844,8 @@ public class ModScreen extends Screen {
         priorDrawerTab = drawerShownTab;
         priorMaster = drawerMaster;
         priorAdvanced = advancedHeader;
-        priorX = drawerX;
-        priorY = drawerY;
-        priorW = drawerW;
-        priorH = drawerH;
-        priorContentY = contentY;
-        priorVisible = visibleContentHeight;
-        priorMax = maxScroll;
+        priorX = drawerX; priorY = drawerY; priorW = drawerW; priorH = drawerH;
+        priorContentY = contentY; priorVisible = visibleContentHeight; priorMax = maxScroll;
         if (contentPane == null) {
             return;
         }
@@ -980,12 +939,7 @@ public class ModScreen extends Screen {
             if (drawerMaster != null) {
                 FeatureCards.setKnownState(tab, drawerMaster.isOn());
                 // Every module's toggle key, as the drawer's very last row (killer560, 2026-11-01): ModuleKeybinds.
-                int bottom = startY;
-                for (AbstractWidget w : widgets) {
-                    if (w.visible) {
-                        bottom = Math.max(bottom, w.getY() + w.getHeight());
-                    }
-                }
+                int bottom = bottomOf(widgets, startY, true);
                 AbstractWidget keyRow = ModuleKeybinds.row(id(tab), contentX, bottom + 8, contentW);
                 SettingTooltips.scope(keyRow, tab.name);
                 widgets.add(keyRow);
@@ -1024,10 +978,7 @@ public class ModScreen extends Screen {
             focusRetried = false;
         }
 
-        int naturalBottom = contentY;
-        for (AbstractWidget w : widgets) {
-            naturalBottom = Math.max(naturalBottom, w.getY() + w.getHeight());
-        }
+        int naturalBottom = bottomOf(widgets, contentY, false);
         visibleContentHeight = visibleBottom - contentY;
         maxScroll = Math.max(0, (naturalBottom + 6 - contentY) - visibleContentHeight);
         scrollOffset = Math.max(0, Math.min(scrollOffset, maxScroll));
@@ -1037,6 +988,16 @@ public class ModScreen extends Screen {
         // The pane reaches 4 units above the first row, so a row scrolled to the very top is clear of the clip edge.
         contentPane = new ScrollingContentPane(contentX - 4, contentY - 4, contentW + 8, visibleContentHeight + 4, widgets);
         this.addRenderableWidget(contentPane);
+    }
+
+    private static int bottomOf(List<AbstractWidget> widgets, int floor, boolean visibleOnly) {
+        int bottom = floor;
+        for (AbstractWidget w : widgets) {
+            if (w.visible || !visibleOnly) {
+                bottom = Math.max(bottom, w.getY() + w.getHeight());
+            }
+        }
+        return bottom;
     }
 
     /** A drawer narrower than this stacks a tab's side-by-side setting rows (see {@link #stackRows}). */
@@ -1073,18 +1034,8 @@ public class ModScreen extends Screen {
         for (Map.Entry<Integer, List<AbstractWidget>> e : rows.entrySet()) {
             List<AbstractWidget> row = e.getValue();
             int y = e.getKey();
-            int h = 0;
-            for (AbstractWidget w : row) {
-                h = Math.max(h, w.getHeight());
-            }
-            boolean clean = true;
-            for (AbstractWidget w : order) {
-                if (!row.contains(w) && w.visible && w.getY() < y + h && w.getY() + w.getHeight() > y) {
-                    clean = false;
-                    break;
-                }
-            }
-            if (!clean) {
+            int h = row.stream().mapToInt(AbstractWidget::getHeight).max().orElse(0);
+            if (order.stream().anyMatch(w -> !row.contains(w) && w.visible && w.getY() < y + h && w.getY() + w.getHeight() > y)) {
                 continue;
             }
             if (row.size() < 2) {
@@ -1134,14 +1085,7 @@ public class ModScreen extends Screen {
             if (!simpleRow(w) || !w.visible || w.getWidth() >= width) {
                 continue;
             }
-            boolean alone = true;
-            for (AbstractWidget o : widgets) {
-                if (o != w && o.visible && o.getY() < w.getY() + w.getHeight() && o.getY() + o.getHeight() > w.getY()) {
-                    alone = false;
-                    break;
-                }
-            }
-            if (alone) {
+            if (widgets.stream().noneMatch(o -> o != w && o.visible && o.getY() < w.getY() + w.getHeight() && o.getY() + o.getHeight() > w.getY())) {
                 w.setX(x);
                 w.setWidth(width);
             }
@@ -1166,29 +1110,19 @@ public class ModScreen extends Screen {
         }
         if (favouritesSelected) {
             List<BaseTab> leaves = allLeaves();
-            int added = 0;
             for (String fav : MenuConfig.getInstance().getFavourites()) {
-                for (BaseTab leaf : leaves) {
-                    if (hiddenByStreamer(leaf)) {
-                        continue;
-                    }
-                    if (id(leaf).equals(fav)) {
-                        items.add(new Item(ItemKind.CARD, leaf, null, false, null));
-                        added++;
-                        break;
-                    }
-                }
+                leaves.stream().filter(leaf -> !hiddenByStreamer(leaf) && id(leaf).equals(fav)).findFirst().ifPresent(this::addCard);
             }
-            if (added == 0) {
-                items.add(new Item(ItemKind.BLOCK, null, null, false, new HintBlock(
-                        "No favorites yet. Click the star on a feature card, or in a drawer's title bar, to pin it here.")));
+            if (items.isEmpty()) {
+                addBlock(new HintBlock(
+                        "No favorites yet. Click the star on a feature card, or in a drawer's title bar, to pin it here."));
             }
             return;
         }
         BaseTab cat = selected();
         if (cat instanceof HomeTab) {
-            items.add(new Item(ItemKind.BLOCK, null, null, false, new HeroBlock()));
-            items.add(new Item(ItemKind.BLOCK, null, null, false, new ThemeBlock()));
+            addBlock(new HeroBlock());
+            addBlock(new ThemeBlock());
             items.add(new Item(ItemKind.HEADER, null, "Mod settings", false, null));
         }
         FolderTab folder = (FolderTab) cat;
@@ -1216,7 +1150,7 @@ public class ModScreen extends Screen {
             if (s instanceof FolderTab g) {
                 groups.add(g);
             } else {
-                items.add(new Item(ItemKind.CARD, s, null, false, null));
+                addCard(s);
             }
         }
         // The groups killer560 asked to keep together (Secrets, Puzzle Solvers) follow as titled runs of cards.
@@ -1224,10 +1158,18 @@ public class ModScreen extends Screen {
             items.add(new Item(ItemKind.HEADER, g, g.name, cheatBlock || g.isCheatOnly(), null));
             for (BaseTab s : g.subTabs()) {
                 if (!(s instanceof FolderTab)) {
-                    items.add(new Item(ItemKind.CARD, s, null, false, null));
+                    addCard(s);
                 }
             }
         }
+    }
+
+    private void addCard(BaseTab tab) {
+        items.add(new Item(ItemKind.CARD, tab, null, false, null));
+    }
+
+    private void addBlock(Block block) {
+        items.add(new Item(ItemKind.BLOCK, null, null, false, block));
     }
 
     private int gridInnerX() {
@@ -1264,22 +1206,14 @@ public class ModScreen extends Screen {
                 y += CARD_H + GAP;
                 col = 0;
             }
-            if (it.kind == ItemKind.HEADER) {
-                if (!first) {
-                    y += 2;
-                }
-                it.x = x0;
-                it.y = y;
-                it.w = innerW;
-                it.h = 14;
-                y += 14 + GAP;
-            } else {
-                it.x = x0;
-                it.y = y;
-                it.w = innerW;
-                it.h = it.block.height(innerW);
-                y += it.h + GAP;
+            if (it.kind == ItemKind.HEADER && !first) {
+                y += 2;
             }
+            it.x = x0;
+            it.y = y;
+            it.w = innerW;
+            it.h = it.kind == ItemKind.HEADER ? 14 : it.block.height(innerW);
+            y += it.h + GAP;
             first = false;
         }
         if (col > 0) {
@@ -1625,6 +1559,14 @@ public class ModScreen extends Screen {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
+    private static boolean inside(double mx, double my, int[] b) {
+        return inside(mx, my, b[0], b[1], b[2], b[3]);
+    }
+
+    private static boolean inside(double mx, double my, int[] b, int pad) {
+        return inside(mx, my, b[0] - pad, b[1] - pad, b[2] + 2 * pad, b[3] + 2 * pad);
+    }
+
     private void clickSound() {
         Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
                 net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0f));
@@ -1639,7 +1581,7 @@ public class ModScreen extends Screen {
         String[] urls = {DISCORD_URL, GITHUB_URL, FEATURES_URL, YOUTUBE_URL};
         for (int i = 0; i < 4; i++) {
             int[] b = iconBounds(i);
-            if (inside(mx, my, b[0], b[1], b[2], b[3])) {
+            if (inside(mx, my, b)) {
                 clickSound();
                 com.killer560.hub.util.ExternalOpen.uri(urls[i]);
                 return true;
@@ -1651,7 +1593,7 @@ public class ModScreen extends Screen {
     /** The header's round buttons {x, y, w, h}: 0 Discord, 1 GitHub, 2 features doc, 3 YouTube. */
     private boolean insideIcon(int mouseX, int mouseY, int i) {
         int[] b = iconBounds(i); // once, not four times a frame
-        return inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
+        return inside(mouseX, mouseY, b);
     }
 
     public int[] iconBounds(int i) {
@@ -1708,21 +1650,21 @@ public class ModScreen extends Screen {
 
     private boolean drawerHeaderClick(double mx, double my) {
         int[] c = drawerCloseBounds();
-        if (inside(mx, my, c[0] - 2, c[1] - 2, c[2] + 4, c[3] + 4)) {
+        if (inside(mx, my, c, 2)) {
             clickSound();
             closeDrawer();
             return true;
         }
         if (drawerMaster != null) {
             int[] s = drawerSwitchBounds();
-            if (inside(mx, my, s[0] - 2, s[1] - 2, s[2] + 4, s[3] + 4)) {
+            if (inside(mx, my, s, 2)) {
                 clickSound();
                 pressDrawerMaster();
                 return true;
             }
         }
         int[] st = drawerStarBounds();
-        if (inside(mx, my, st[0], st[1], st[2], st[3])) {
+        if (inside(mx, my, st)) {
             clickSound();
             toggleFavourite(openFeature);
             return true;
@@ -1730,7 +1672,7 @@ public class ModScreen extends Screen {
         if (advancedLabel(openFeature)) {
             for (int i = 0; i < 2; i++) {
                 int[] b = stripBounds(i);
-                if (inside(mx, my, b[0], b[1], b[2], b[3])) {
+                if (inside(mx, my, b)) {
                     clickSound();
                     showAdvanced(i == 1);
                     return true;
@@ -1813,12 +1755,12 @@ public class ModScreen extends Screen {
             clickSound();
             cardAnim(it.tab).press.play(1f, 0f);
             int[] sw = cardSwitch(it);
-            if (FeatureCards.state(it.tab) != null && inside(mx, gy, sw[0] - 3, sw[1] - 3, sw[2] + 6, sw[3] + 6)) {
+            if (FeatureCards.state(it.tab) != null && inside(mx, gy, sw, 3)) {
                 toggleCard(it.tab);
                 return;
             }
             int[] st = cardStar(it);
-            if (inside(mx, gy, st[0] - 2, st[1] - 2, st[2] + 4, st[3] + 4)) {
+            if (inside(mx, gy, st, 2)) {
                 toggleFavourite(it.tab);
                 return;
             }
@@ -1906,11 +1848,8 @@ public class ModScreen extends Screen {
      *  lift} (x, y in grid-content units, before scroll) - or null when it has never been laid out. */
     public float[] cardAnimState(BaseTab tab) {
         CardAnim a = cardAnims.get(tab);
-        if (a == null) {
-            return null;
-        }
-        return new float[]{a.hover.get(), a.knob.get(), a.on.get(), a.sel.get(), a.press.get(), a.x.get(), a.y.get(),
-                a.w.get(), a.lift.get()};
+        return a == null ? null : new float[]{a.hover.get(), a.knob.get(), a.on.get(), a.sel.get(), a.press.get(),
+                a.x.get(), a.y.get(), a.w.get(), a.lift.get()};
     }
 
     /** Testkit: the menu's own animations at the current clock - {open fade, open grow, drawer slide (1 hidden .. 0 in
@@ -1936,13 +1875,7 @@ public class ModScreen extends Screen {
 
     /** The features with a card on the current page, in order. */
     public List<BaseTab> cards() {
-        List<BaseTab> out = new ArrayList<>();
-        for (Item it : items) {
-            if (it.kind == ItemKind.CARD) {
-                out.add(it.tab);
-            }
-        }
-        return out;
+        return items.stream().filter(it -> it.kind == ItemKind.CARD).map(it -> it.tab).toList();
     }
 
     /** True while a tab waits for a key ("Press any key..."): that key is his, not a shortcut (util/TypingDetector). */
@@ -1982,11 +1915,7 @@ public class ModScreen extends Screen {
         if (searchQuery.isBlank()) {
             return tabs;
         }
-        Set<BaseTab> out = new java.util.LinkedHashSet<>();
-        for (Result r : results) {
-            out.add(MenuCategories.category(r.tab()));
-        }
-        return new ArrayList<>(out);
+        return results.stream().map(r -> MenuCategories.category(r.tab())).distinct().collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     }
 
     /** The search (killer560, 2026-11-02): every typed word, in any order, against each feature's name, description,
@@ -2100,15 +2029,11 @@ public class ModScreen extends Screen {
         }
         MenuStyle.use();
         // Opening: the whole menu fades in and grows from 96%; closing (drawn over the next screen) the reverse.
-        float fadeP;
-        float growP;
-        if (closedAt != Long.MIN_VALUE) {
-            fadeP = 1f - MenuAnim.progress(closedAt, MenuAnim.CLOSE_MS, false);
-            growP = 1f - MenuAnim.progress(closedAt, MenuAnim.CLOSE_MS, true);
-        } else {
-            fadeP = MenuAnim.progress(openedAt, MenuAnim.OPEN_MS, false);
-            growP = MenuAnim.progress(openedAt, MenuAnim.OPEN_MS, true);
-        }
+        boolean closed = closedAt != Long.MIN_VALUE;
+        float fadeP = closed ? 1f - MenuAnim.progress(closedAt, MenuAnim.CLOSE_MS, false)
+                : MenuAnim.progress(openedAt, MenuAnim.OPEN_MS, false);
+        float growP = closed ? 1f - MenuAnim.progress(closedAt, MenuAnim.CLOSE_MS, true)
+                : MenuAnim.progress(openedAt, MenuAnim.OPEN_MS, true);
         float prevFade = MenuAnim.pushFade(fadeP);
         boolean grown = growP < 1f;
         try {
@@ -2266,24 +2191,13 @@ public class ModScreen extends Screen {
         BaseTab openWas = openFeature;
         MasterSwitch masterWas = drawerMaster;
         SettingsButtonWidget advWas = advancedHeader;
-        int xw = drawerX;
-        int yw = drawerY;
-        int ww = drawerW;
-        int hw = drawerH;
-        int cyw = contentY;
-        int vw = visibleContentHeight;
-        int mw = maxScroll;
-        int sw = drawnScroll;
+        int xw = drawerX, yw = drawerY, ww = drawerW, hw = drawerH;
+        int cyw = contentY, vw = visibleContentHeight, mw = maxScroll, sw = drawnScroll;
         openFeature = closingTab;
         drawerMaster = closingMaster;
         advancedHeader = closingAdvanced;
-        drawerX = closingX;
-        drawerY = closingY;
-        drawerW = closingW;
-        drawerH = closingH;
-        contentY = closingContentY;
-        visibleContentHeight = closingVisible;
-        maxScroll = closingMax;
+        drawerX = closingX; drawerY = closingY; drawerW = closingW; drawerH = closingH;
+        contentY = closingContentY; visibleContentHeight = closingVisible; maxScroll = closingMax;
         drawnScroll = closingScroll;
         int dx = Math.round(slide * DRAWER_SLIDE);
         float prev = MenuAnim.pushFade(fade);
@@ -2303,14 +2217,8 @@ public class ModScreen extends Screen {
             openFeature = openWas;
             drawerMaster = masterWas;
             advancedHeader = advWas;
-            drawerX = xw;
-            drawerY = yw;
-            drawerW = ww;
-            drawerH = hw;
-            contentY = cyw;
-            visibleContentHeight = vw;
-            maxScroll = mw;
-            drawnScroll = sw;
+            drawerX = xw; drawerY = yw; drawerW = ww; drawerH = hw;
+            contentY = cyw; visibleContentHeight = vw; maxScroll = mw; drawnScroll = sw;
         }
     }
 
@@ -2351,7 +2259,7 @@ public class ModScreen extends Screen {
         int[] colours = {0xFF5865F2, 0xFF333333, MenuStyle.OR2, 0xFFFF0033};
         for (int i = 0; i < 4; i++) {
             int[] b = iconBounds(i);
-            boolean hover = inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
+            boolean hover = inside(mouseX, mouseY, b);
             roundIcon(r, b[0], b[1], b[2], hover ? MenuStyle.mix(colours[i], 0xFFFFFFFF, 0.18f) : colours[i], hover);
         }
         r.submit();
@@ -2401,13 +2309,11 @@ public class ModScreen extends Screen {
         if (com.killer560.hub.streamer.StreamerMode.hidesCheatUi()) {
             return modVersion(); // streamer mode: no build name on screen
         }
-        String v = headerVersion;
-        if (v == null) {
-            v = modVersion() + " · " + com.killer560.hub.autoupdate.BuildInfo.variant()
+        if (headerVersion == null) {
+            headerVersion = modVersion() + " · " + com.killer560.hub.autoupdate.BuildInfo.variant()
                     + (com.killer560.hub.BuildVariant.TESTING ? " · testing" : "");
-            headerVersion = v;
         }
-        return v;
+        return headerVersion;
     }
 
     private static String modVersion() {
@@ -2504,21 +2410,16 @@ public class ModScreen extends Screen {
     /** The small number beside a sidebar row: only Favorites has one (how many are starred). The categories' on/total
      *  counts were taken out on killer560's request (2026-10-12: "HUD 7/12" became "HUD"). */
     private static String sideCount(SideEntry e) {
-        if (e.favourites()) {
-            int n = MenuConfig.getInstance().getFavourites().size();
-            return n == 0 ? "" : String.valueOf(n);
-        }
-        return "";
+        int n = e.favourites() ? MenuConfig.getInstance().getFavourites().size() : 0;
+        return n == 0 ? "" : String.valueOf(n);
     }
 
     /** Every sidebar row's text exactly as drawn (label, then its number if it has one). Read by the testkit. */
     public List<String> sideTexts() {
-        List<String> out = new ArrayList<>();
-        for (SideEntry e : side) {
+        return side.stream().map(e -> {
             String count = sideCount(e);
-            out.add(count.isEmpty() ? e.label() : e.label() + " " + count);
-        }
-        return out;
+            return count.isEmpty() ? e.label() : e.label() + " " + count;
+        }).toList();
     }
 
     private void drawPageWell(GuiGraphicsExtractor g) {
@@ -2694,7 +2595,7 @@ public class ModScreen extends Screen {
             drawerKnob.set(on);
             drawerOn.set(on);
             MenuStyle.toggle(r, s[0], s[1], drawerKnob.get(), drawerOn.get(),
-                    inside(mouseX, mouseY, s[0] - 2, s[1] - 2, s[2] + 4, s[3] + 4) ? 1f : 0f);
+                    inside(mouseX, mouseY, s, 2) ? 1f : 0f);
         }
         boolean adv = advancedLabel(openFeature);
         boolean advOpen = advancedHeader != null && advancedHeader.parts().on();
@@ -2713,7 +2614,7 @@ public class ModScreen extends Screen {
                 visibleContentHeight);
         r.submit();
         int[] c = drawerCloseBounds();
-        boolean closeHover = inside(mouseX, mouseY, c[0] - 2, c[1] - 2, c[2] + 4, c[3] + 4);
+        boolean closeHover = inside(mouseX, mouseY, c, 2);
         int[] st = drawerStarBounds();
         int titleMax = st[0] - drawerX - 14;
         String title = MenuStyle.ellipsize(openFeature.name, titleMax);
@@ -2721,7 +2622,7 @@ public class ModScreen extends Screen {
         MenuStyle.text(g, MenuStyle.bold(title), drawerX + 9,
                 drawerY + 9, titleColour);
         boolean fav = MenuConfig.getInstance().isFavourite(id(openFeature));
-        boolean starHover = inside(mouseX, mouseY, st[0], st[1], st[2], st[3]);
+        boolean starHover = inside(mouseX, mouseY, st);
         g.text(font, fav ? "★" : "☆", st[0] + 2, st[1] + 3, fav || starHover ? MenuStyle.OR : MenuStyle.DIM2, true);
         g.text(font, "✕", c[0] + 2, c[1] + 2, closeHover ? MenuStyle.OR : MenuStyle.DIM, true);
         if (adv) {
@@ -2729,7 +2630,7 @@ public class ModScreen extends Screen {
             for (int i = 0; i < 2; i++) {
                 int[] b = stripBounds(i);
                 boolean active = (i == 1) == advOpen;
-                boolean hov = inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
+                boolean hov = inside(mouseX, mouseY, b);
                 int col = active ? MenuStyle.OR : (hov ? MenuStyle.TXT_SOFT : MenuStyle.DIM);
                 MenuStyle.text(g, names[i], b[0] + (b[2] - font.width(names[i])) / 2, b[1] + 3, col);
             }
@@ -3085,30 +2986,35 @@ public class ModScreen extends Screen {
 
     /** Home's quick button label under the mouse, or null. Its tooltip is SettingTooltipsData's "home button/<label>". */
     private String homeButtonAt(int mouseX, int mouseY) {
-        for (Item it : items) {
-            if (it.kind == ItemKind.BLOCK && it.block instanceof HeroBlock hero) {
-                List<HomeButton> buttons = hero.buttons();
-                for (int i = 0; i < buttons.size(); i++) {
-                    int[] b = hero.buttonBox(i, it.x, it.y - gridScroll, it.w);
-                    if (inside(mouseX, mouseY, b[0], b[1], b[2], b[3])) {
-                        return buttons.get(i).label();
-                    }
-                }
+        Item it = heroItem();
+        if (it == null) {
+            return null;
+        }
+        HeroBlock hero = (HeroBlock) it.block;
+        List<HomeButton> buttons = hero.buttons();
+        for (int i = 0; i < buttons.size(); i++) {
+            if (inside(mouseX, mouseY, hero.buttonBox(i, it.x, it.y - gridScroll, it.w))) {
+                return buttons.get(i).label();
             }
         }
         return null;
     }
 
+    private Item heroItem() {
+        return items.stream().filter(it -> it.kind == ItemKind.BLOCK && it.block instanceof HeroBlock).findFirst().orElse(null);
+    }
+
     /** Screen box {x, y, w, h} of Home's quick button {@code label} on the current page, or null. For the testkit. */
     public int[] homeButtonBounds(String label) {
-        for (Item it : items) {
-            if (it.kind == ItemKind.BLOCK && it.block instanceof HeroBlock hero) {
-                List<HomeButton> buttons = hero.buttons();
-                for (int i = 0; i < buttons.size(); i++) {
-                    if (buttons.get(i).label().equals(label)) {
-                        return hero.buttonBox(i, it.x, it.y - gridScroll, it.w);
-                    }
-                }
+        Item it = heroItem();
+        if (it == null) {
+            return null;
+        }
+        HeroBlock hero = (HeroBlock) it.block;
+        List<HomeButton> buttons = hero.buttons();
+        for (int i = 0; i < buttons.size(); i++) {
+            if (buttons.get(i).label().equals(label)) {
+                return hero.buttonBox(i, it.x, it.y - gridScroll, it.w);
             }
         }
         return null;
@@ -3116,12 +3022,10 @@ public class ModScreen extends Screen {
 
     /** Home's version line (killer560, 2026-10-15): the mod version and the variant only - no Minecraft version, no build. */
     public String versionLine() {
-        String v = homeVersion; // fixed for the session: built once, not every frame Home is drawn
-        if (v == null) {
-            v = "Version " + modVersion() + " · " + com.killer560.hub.autoupdate.BuildInfo.variant();
-            homeVersion = v;
+        if (homeVersion == null) { // fixed for the session: built once, not every frame Home is drawn
+            homeVersion = "Version " + modVersion() + " · " + com.killer560.hub.autoupdate.BuildInfo.variant();
         }
-        return v;
+        return homeVersion;
     }
 
     private static String homeVersion;
@@ -3138,15 +3042,8 @@ public class ModScreen extends Screen {
 
     /** Labels of Home's quick buttons, in order. For the testkit. */
     public List<String> homeButtonLabels() {
-        List<String> out = new ArrayList<>();
-        for (Item it : items) {
-            if (it.kind == ItemKind.BLOCK && it.block instanceof HeroBlock hero) {
-                for (HomeButton b : hero.buttons()) {
-                    out.add(b.label());
-                }
-            }
-        }
-        return out;
+        Item it = heroItem();
+        return it == null ? List.of() : ((HeroBlock) it.block).buttons().stream().map(HomeButton::label).toList();
     }
 
     /** Home's top box: the build, the update channel and its last result, and the quick buttons. */
@@ -3158,18 +3055,8 @@ public class ModScreen extends Screen {
             // came off (the /reboot command stays), leaving eight - a 4x2 grid.
             // 2026-10-16: tools on the top row (Edit HUD, Edit Bars, Check Updates, Sweat Mode), links below (YouTube,
             // Discord, GitHub, Features Doc).
-            b.add(new HomeButton("Edit HUD", () -> {
-                Minecraft client = Minecraft.getInstance();
-                if (!refuseWithoutWorld("Edit HUD")) {
-                    McCompat.setScreen(client, new com.killer560.hub.hud.HudEditorScreen(McCompat.screen(client)));
-                }
-            }));
-            b.add(new HomeButton("Edit Bars", () -> {
-                Minecraft client = Minecraft.getInstance();
-                if (!refuseWithoutWorld("Edit Bars")) {
-                    McCompat.setScreen(client, com.killer560.hub.hud.HudEditorScreen.forBars(McCompat.screen(client)));
-                }
-            }));
+            b.add(editorButton("Edit HUD", com.killer560.hub.hud.HudEditorScreen::new));
+            b.add(editorButton("Edit Bars", com.killer560.hub.hud.HudEditorScreen::forBars));
             b.add(new HomeButton("Check Updates", () -> com.killer560.hub.gui.tab.AutoUpdateTab.checkNow(() -> { })));
             b.add(new HomeButton(HOME_SWEAT, com.killer560.hub.util.SweatMode::enter));
             b.add(new HomeButton("YouTube", () -> com.killer560.hub.util.ExternalOpen.uri(YOUTUBE_URL)));
@@ -3177,6 +3064,15 @@ public class ModScreen extends Screen {
             b.add(new HomeButton("GitHub", () -> com.killer560.hub.util.ExternalOpen.uri(GITHUB_URL)));
             b.add(new HomeButton("Features Doc", () -> com.killer560.hub.util.ExternalOpen.uri(FEATURES_URL)));
             return b;
+        }
+
+        private HomeButton editorButton(String label, java.util.function.Function<Screen, Screen> editor) {
+            return new HomeButton(label, () -> {
+                Minecraft client = Minecraft.getInstance();
+                if (!refuseWithoutWorld(label)) {
+                    McCompat.setScreen(client, editor.apply(McCompat.screen(client)));
+                }
+            });
         }
 
         private int cols(int w) {
@@ -3206,7 +3102,7 @@ public class ModScreen extends Screen {
             List<HomeButton> buttons = buttons();
             for (int i = 0; i < buttons.size(); i++) {
                 int[] b = buttonBox(i, x, y, w);
-                MenuStyle.raisedButton(r, b[0], b[1], b[2], b[3], mouseX >= 0 && inside(mouseX, mouseY, b[0], b[1], b[2], b[3]), false);
+                MenuStyle.raisedButton(r, b[0], b[1], b[2], b[3], mouseX >= 0 && inside(mouseX, mouseY, b), false);
             }
             r.submit();
             MenuStyle.text(g, "WELCOME BACK", x + 8, y + 4, MenuStyle.OR2);
@@ -3216,7 +3112,7 @@ public class ModScreen extends Screen {
             MenuStyle.text(g, MenuStyle.ellipsize(line2, w - 20), x + 10, y + 33, MenuStyle.DIM);
             for (int i = 0; i < buttons.size(); i++) {
                 int[] b = buttonBox(i, x, y, w);
-                boolean hov = mouseX >= 0 && inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
+                boolean hov = mouseX >= 0 && inside(mouseX, mouseY, b);
                 String l = MenuStyle.ellipsize(buttons.get(i).label(), b[2] - 6);
                 MenuStyle.text(g, l, b[0] + (b[2] - font.width(l)) / 2, b[1] + 4, hov ? MenuStyle.OR_HOVER : MenuStyle.OR);
             }
@@ -3227,7 +3123,7 @@ public class ModScreen extends Screen {
             List<HomeButton> buttons = buttons();
             for (int i = 0; i < buttons.size(); i++) {
                 int[] b = buttonBox(i, x, y, w);
-                if (inside(mx, my, b[0], b[1], b[2], b[3])) {
+                if (inside(mx, my, b)) {
                     clickSound();
                     buttons.get(i).action().run();
                     return true;
@@ -3300,7 +3196,7 @@ public class ModScreen extends Screen {
             MenuTheme[] all = MenuTheme.values();
             for (int i = 0; i <= all.length + 1; i++) {
                 int[] b = chip(i, x, y, w);
-                boolean hov = mouseX >= 0 && inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
+                boolean hov = mouseX >= 0 && inside(mouseX, mouseY, b);
                 if (i < all.length) {
                     MenuStyle.pill(r, b[0], b[1], b[2], b[3], all[i] == active, hov);
                 } else {
@@ -3340,7 +3236,7 @@ public class ModScreen extends Screen {
             MenuTheme[] all = MenuTheme.values();
             for (int i = 0; i <= all.length + 1; i++) {
                 int[] b = chip(i, x, y, w);
-                if (!inside(mx, my, b[0], b[1], b[2], b[3])) {
+                if (!inside(mx, my, b)) {
                     continue;
                 }
                 if (button != 0 && i != all.length + 1) {
